@@ -436,3 +436,63 @@ pergunta registrada com prazo.
    fechar a observação.
 5. Vetar qualquer linha da coluna "Escolha feita" acima. Cada uma é um commit
    reversível; nenhuma promove `PROPOSTO` além de C1, que foi ordem explícita.
+
+---
+
+## 7. Leitura independente da aplicação (Opus 5)
+
+- Leitor: Opus 5, que não escreveu nem esta revisão nem o commit que lê
+  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)). Entrada: `eda5420`,
+  lido arquivo a arquivo contra os documentos naquele commit. **Nenhum
+  BLOQUEANTE.**
+- A seção 6 é um mapa fiel do diff: cada linha cai onde diz que cai, e nenhum
+  achado está marcado como resolvido sem mudança que o resolva. Nada passou de
+  `PROPOSTO` a `DECIDIDO` e nenhum `[ABERTO]` foi fechado além de C1, ordenado
+  pelo mantenedor; Q1 virou `PROPOSTO`, que é proposta, não fechamento.
+
+### Escolhas que vão além do achado — ratificar ou vetar
+
+- **C4, IMPORTANTE.** O achado perguntava *quem* revisa UI/TS; a aplicação
+  respondeu, e escreveu a resposta no `BRIEFING.md` §14.1, seção `DECIDIDO` — não
+  é mudança de status nem correção de fato, que é o limite que o próprio commit
+  escreve no cabeçalho do briefing.
+- **C1, IMPORTANTE.** O ADR 0043 é Aceito com dois itens que a frase promovida
+  não contém: placeholder como "presente, conteúdo indisponível" com o índice
+  guardando a última versão conhecida (item 2), e a guarda valendo desde a Fase 1
+  (item 3). Só "nunca é deleção" foi promovido.
+- **R2, IMPORTANTE.** A invariante 11 do `CLAUDE.md` é nova e BLOQUEANTE por
+  definição, e sua única base é uma consequência acrescentada ao ADR 0012 no
+  mesmo commit: regra e base escritas juntas, pela IA. É o padrão de C1 um passo
+  adiante.
+- **I3, IMPORTANTE.** "A lista é o mínimo, não o teto" (ADR 0030) amplia o
+  alcance de uma decisão Aceita; o achado pedia só a fonte e o critério da lista.
+- **I1 e C14, MENOR.** As três análises pendentes do ADR 0005 não são as três do
+  achado; C14 ganhou item de escopo e um sexto critério de saída na Fase 1.
+
+### Contradições introduzidas, não registradas na revisão
+
+- **IMPORTANTE.** O ADR 0026 (Aceito) exige que o contrato nasça com identidade
+  de sessão e autorização por operação, enquanto o ADR 0045 responde "Decisão:
+  nenhuma" no mesmo ponto: exigido e aberto ao mesmo tempo. É também a única
+  decisão disfarçada de questão aberta em 0043–0048; 0046 (diacríticos) e 0044
+  (regra 4 como forma, não segurança) são MENOR, 0047 e 0048 estão limpos.
+  *Resolvido em 2026-09-21: a consequência do ADR 0026 agora diz que a forma do
+  contrato não pode impedi-las; a decisão continua aberta no 0045.*
+- **IMPORTANTE.** A spec §4 e o roadmap 0.9 deixam as cinco fixtures confirmarem
+  o schema "ao segui-lo"; o ADR 0031, no mesmo commit, exige o PR que fecha a
+  questão, com a §9 atualizada. Dois procedimentos para o ato de que C6 tratava.
+  *Resolvido em 2026-09-21: a mudança de regra no ADR 0031 item 4 e o fechamento
+  explícito de Q1 no PR das fixtures deixaram um procedimento só, a aprovação no
+  PR.*
+- **MENOR.** O briefing §14.3 e a regra 5 do ADR 0026 mantêm a redação que C3 e
+  C2 releram em outro lugar, sem ponteiro; o ADR 0030 cita a documentação do
+  Obsidian sem data, enquanto a §6 recusa citar a fonte do ADR 0009 por esse
+  mesmo motivo.
+  *Resolvido em 2026-09-21: ponteiro acrescentado ao briefing §14.3; o ADR 0030
+  agora nomeia as páginas e a data da consulta.*
+
+### Estado da ratificação
+
+Os quatro itens IMPORTANTE em "Escolhas que vão além do achado" (C4, C1 itens
+2–3, invariante 11, I3) aguardam ratificação ou veto explícito do mantenedor.
+Nenhum bloqueia a Fase 0.

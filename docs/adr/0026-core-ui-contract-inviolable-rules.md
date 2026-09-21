@@ -62,11 +62,13 @@ hold is this:
   to `std::fs` denied by lint outside `verso-fs`, with a declared exception for
   the index file and for the config ([0028](0028-crate-structure.md),
   [0029](0029-guardrails-in-ci.md)).
-- The contract has to be born with session identity and per-operation
-  authorization, even if over local IPC everything is granted; the same
-  contract travels over remote WebSocket
-  ([0045](0045-server-and-mcp-security.md), `[OPEN]`, to be decided before
-  item 2.1 of Phase 2).
+- The same contract travels over remote WebSocket. Whether it carries session
+  identity and per-operation authorization from its first design is `[OPEN]`
+  in [0045](0045-server-and-mcp-security.md), to be decided before item 2.1
+  of Phase 2; until then, the only requirement here is that the contract's
+  shape must not preclude adding them. (Wording softened on 2026-09-21 after
+  the independent reading of the Phase 0 review: the earlier text stated the
+  requirement as decided while 0045 keeps it open.)
 - The Obsidian public API has synchronous reads and the contract is
   asynchronous; the recorded mitigation is a read-only projection of the index
   on the JS side, fed by events (§10.3).

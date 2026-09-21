@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Version 0.6 · 2026-09-21
+> Version 0.7 · 2026-09-21
 > Single source of the decisions made before the repository existed.
 > Changes after the repository: only status changes and factual corrections,
 > recorded in the History at the end. New boundaries and consequences live in
@@ -359,7 +359,7 @@ crates/
 
 ### 14.3 Guardrails `DECIDED`
 
-All of them in CI before the first line of product logic.
+All of them in CI before the first line of product logic. (Read in ADR 0029 as two groups: workspace guardrails before the first line of product code; feature guardrails in the same PR as the feature they protect, never later.)
 
 | Guardrail | Prevents |
 |---|---|
@@ -478,3 +478,4 @@ of the dialect spec, not here.
 | 0.4 | 2026-09-21 | §3: contribution model (DCO without CLA) confirmed by the maintainer, with the rule for code written by AI: whoever signs it has command of it and takes responsibility for it (ADR 0006). |
 | 0.5 | 2026-09-21 | §3 and §17 item 3: language of the documentation decided by the maintainer — English source, pt-BR mirror in `docs/pt-BR/`; this briefing is the exception, with the pt-BR original ruling (ADR 0008). |
 | 0.6 | 2026-09-21 | §11.4: fixture rule changed by the maintainer — any fixture may be drafted by the AI; it counts only with their explicit approval, and the first five are checked in the Obsidian app before approval (ADR 0031). |
+| 0.7 | 2026-09-21 | §14.3: pointer to the two-group reading of the guardrails in ADR 0029, after the independent reading of the Phase 0 review (docs/review/phase-0.md §7). No decision changed. |

@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.6 · 2026-09-21
+> Versão 0.7 · 2026-09-21
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -359,7 +359,7 @@ crates/
 
 ### 14.3 Guardrails `DECIDIDO`
 
-Todos no CI antes da primeira linha de lógica de produto.
+Todos no CI antes da primeira linha de lógica de produto. (Lido no ADR 0029 como dois grupos: guardrails de workspace antes da primeira linha de código de produto; guardrails de feature no mesmo PR da feature que protegem, nunca depois.)
 
 | Guardrail | Evita |
 |---|---|
@@ -478,3 +478,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.4 | 2026-09-21 | §3: modelo de contribuição (DCO sem CLA) confirmado pelo mantenedor, com a regra para código escrito por IA: quem assina tem domínio e se responsabiliza (ADR 0006). |
 | 0.5 | 2026-09-21 | §3 e §17 item 3: idioma da documentação decidido pelo mantenedor — inglês fonte, pt-BR espelho em `docs/pt-BR/`; este briefing é a exceção, com o original pt-BR mandando (ADR 0008). |
 | 0.6 | 2026-09-21 | §11.4: regra de fixtures alterada pelo mantenedor — qualquer fixture pode ser rascunhada pela IA; só vale com aprovação explícita dele, e as cinco primeiras são conferidas no app Obsidian antes da aprovação (ADR 0031). |
+| 0.7 | 2026-09-21 | §14.3: ponteiro para a leitura em dois grupos dos guardrails no ADR 0029, após a leitura independente da revisão da Fase 0 (docs/review/phase-0.md §7). Nenhuma decisão alterada. |
