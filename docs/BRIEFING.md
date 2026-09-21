@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.3 · 2026-09-21
+> Versão 0.4 · 2026-09-21
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -66,7 +66,7 @@ Colisões conhecidas do nome, fora da categoria de apps de notas: plataforma de 
 | Pacote B | opção | Core e app sob AGPL-3.0 com exceção explícita para plugins (permissão adicional, GPL-3.0 seção 7); SDK de plugin sob MIT. Cobre uso via rede. |
 | Critério de desempate | contexto | A MPL-2.0 (cláusula 3.3) permite combinar código MPL numa obra maior sob AGPL-3.0 depois; os arquivos MPL continuam MPL. Relicenciar o projeto inteiro, em qualquer direção, exige consentimento de todo contribuidor. (Corrigido na v0.2; a redação original superestimava a passagem de A para B.) |
 | GPL-3.0 pura | contexto | Não cobre uso via rede, que a arquitetura com servidor torna provável; por isso não aparece nos pacotes. |
-| Modelo de contribuição | `PROPOSTO` | DCO, sem CLA. CLA permitiria relicenciar, o que contraria o objetivo de não ter empresa no meio. |
+| Modelo de contribuição | `DECIDIDO` | DCO, sem CLA. CLA permitiria relicenciar, o que contraria o objetivo de não ter empresa no meio. Código escrito por IA entra pelo mesmo DCO, desde que quem assina tenha domínio do código e se responsabilize por ele (confirmado na v0.4, ADR 0006). |
 | Sustentação | `DECIDIDO` | Apenas Ko-fi. Doação não compra feature. |
 | Visibilidade do repositório | `DECIDIDO` | Privado até a licença ser decidida. |
 | Idioma da documentação do repositório | `ABERTO` | pt-BR, EN ou ambos. |
@@ -474,3 +474,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.1 | 2026-09-21 | §5.1: config fora da árvore e índice como cache promovidos a `DECIDIDO`; abertura pela linha de comando registrada como `DECIDIDO`. |
 | 0.2 | 2026-09-21 | Aplicação da revisão da Fase 0 (`docs/review/fase0.md`), aceita integralmente pelo mantenedor: §8 guarda contra placeholder promovida a `DECIDIDO` (ADR 0043); §3 critério de desempate corrigido e "Passo 5" substituído por "antes do fechamento da Fase 0" (§3, §17); §14.1 revisor de UI/TS definido. Nenhuma outra seção alterada. |
 | 0.3 | 2026-09-21 | §3 e §17 item 1: licença decidida pelo mantenedor — Pacote A, MPL-2.0 no core e app, MIT no SDK de plugin (ADR 0005). `LICENSE` adicionado à raiz. |
+| 0.4 | 2026-09-21 | §3: modelo de contribuição (DCO sem CLA) confirmado pelo mantenedor, com a regra para código escrito por IA: quem assina tem domínio e se responsabiliza (ADR 0006). |

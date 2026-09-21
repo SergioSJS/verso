@@ -180,7 +180,11 @@ Só com os três:
 3. O mantenedor consegue explicar o PR com as próprias palavras.
 
 O item 3 é subjetivo de propósito. PR que o mantenedor não consegue explicar é
-PR grande ou mal descrito demais, mesmo com CI verde.
+PR grande ou mal descrito demais, mesmo com CI verde. Ele também é a condição
+para assinar: código escrito por IA entra pelo DCO comum, e quem assina o
+`Signed-off-by` declara que tem domínio do código e responde por ele
+([ADR 0006](docs/adr/0006-contribuicao-dco-sem-cla.md)). Não existe assinatura
+da IA.
 
 ---
 
