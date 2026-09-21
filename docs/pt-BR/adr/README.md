@@ -91,7 +91,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 
 | # | Título | Quando decidir |
 |---|---|---|
-| [0037](0037-base-parser.md) | Parser base do `verso-dialect` | PR da feature 1 (Fase 1) |
+| [0037](0037-base-parser.md) | Parser base do `verso-dialect`: `pulldown-cmark`, `comrak` como fallback | Accepted |
 | [0038](0038-ts-type-generation.md) | Geração de tipos TypeScript a partir do Rust | Início da Fase 2 |
 | [0039](0039-performance-targets.md) | Metas de performance | Após a primeira linha de base |
 | [0040](0040-board-persistence.md) | Persistência do board | Antes do board |

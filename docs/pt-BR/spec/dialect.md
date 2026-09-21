@@ -579,19 +579,34 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 ### Lacunas levantadas na revisão da Fase 0
 
 Fonte: `docs/review/phase-0.md`, seção 4. Mesma regra das anteriores: resposta do
-mantenedor antes de implementar; Q18 antes de escolher o parser.
+mantenedor antes de implementar; Q18 foi respondida primeiro, antes de o parser
+ser escolhido.
 
-- **Q18. Definição de round-trip.** `[ABERTO]` — decidir no PR da feature 1,
-  **antes** da comparação de parsers ([ADR 0037](../adr/0037-base-parser.md)).
-  Duas leituras: (a) o parser produz árvore sem perda e
-  `serialize(parse(x)) == x` byte a byte, o que exige parser próprio ou base com
-  posições completas; (b) o parser é somente leitura para o índice, "abrir nunca
-  reescreve" é garantido por nunca gravar no caminho de leitura, e edições são
-  patches textuais por posição. A escolha decide o parser base, o custo da Fase
-  1, e como merge por bloco ([ADR 0020](../adr/0020-sync-merge-in-core-transports-as-plugins.md))
-  e escrita por agente funcionam. O property test de
-  [ADR 0029](../adr/0029-guardrails-in-ci.md) testa (a) ou testa determinismo e
-  ausência de panic em (b); hoje ninguém sabe qual.
+- **Q18. Definição de round-trip.** `DECIDIDO` — pelo mantenedor em
+  2026-09-21, sobre a comparação em
+  [`docs/reference/parser-decision.md`](../reference/parser-decision.md):
+  leitura **(b)**. O parser é somente leitura: produz um relatório (links,
+  embeds, headings, blocos, callouts, frontmatter) com posições e intervalos de
+  bytes, e não tem `serialize`. "Abrir nunca reescreve" vale porque o caminho
+  de leitura não tem escrita; uma edição, quando existir, é patch textual por
+  posição, mostrado como diff antes de aplicar
+  ([ADR 0012](../adr/0012-files-are-source-of-truth.md),
+  [ADR 0018](../adr/0018-llm-native-mcp-in-core.md)). O property test de
+  round-trip do [ADR 0029](../adr/0029-guardrails-in-ci.md) testa quatro
+  propriedades: (1) `parse` retorna para toda entrada; (2)
+  `parse(x) == parse(x)`; (3) fidelidade de span — toda construção relatada
+  carrega o intervalo de bytes de onde veio, fatiar a entrada com esse
+  intervalo devolve o texto-fonte da construção, e `pos` (seção 4.4) é
+  derivado dele; (4) o caminho de leitura não escreve — os bytes do arquivo
+  antes de uma leitura são iguais aos de depois (conferido no `verso-fs`,
+  feature 2; `verso-dialect` não tem IO por construção). A leitura (a), árvore
+  sem perda com `serialize(parse(x)) == x`, não foi escolhida: nenhuma entrega
+  da Fase 1 ou da Fase 2 consome uma árvore, e ela exigiria um parser de
+  CommonMark próprio antes da feature 1; pode ser acrescentada por cima da (b)
+  depois sem desfazer nada. O merge por bloco
+  ([ADR 0020](../adr/0020-sync-merge-in-core-transports-as-plugins.md)) opera
+  sobre intervalos de bytes delimitados por posições do parser. O parser base
+  escolhido nessa leitura está no [ADR 0037](../adr/0037-base-parser.md).
 - **Q19. Casamento de heading.** `[ABERTO]` (seção 5.12)
   Como `[[nota#seção]]` casa com um heading: maiúsculas, pontuação e espaços,
   emoji, formatação inline (`## *Porão*`), headings duplicados, caminho
@@ -641,3 +656,4 @@ mantenedor antes de implementar; Q18 antes de escolher o parser.
 | v0.1 | 2026-09-21 | Aplicação da revisão da Fase 0 (`docs/review/phase-0.md`, aceita pelo mantenedor): seção 4 vira schema do `expected.yaml` (`PROPOSTO`), com `block` como resposta proposta a Q1, posições e `observed`; seções 5.12 (headings) e 5.13 (links Markdown, `PROPOSTO`) acrescentadas; D7 com status separado por item; Q7 e Q8 corrigidas quanto ao APFS; Q17 ampliada; Q18–Q26 acrescentadas. Nenhuma questão fechada |
 | v0.2 | 2026-09-21 | Regra de fixtures alterada pelo mantenedor (ADR 0031 item 4): §4 e §8 atualizadas; Q1 fecha com a aprovação de `fixtures/wikilink/block-reference`. Nenhuma questão fechada ainda |
 | v0.3 | 2026-09-21 | Mantenedor aprovou as cinco primeiras fixtures: schema §4 `DECIDIDO`; Q1 fechada (`block`). Primeira questão fechada |
+| v0.4 | 2026-09-21 | Q18 fechada pelo mantenedor: leitura (b), parser somente leitura com property test de round-trip de quatro propriedades (`docs/reference/parser-decision.md`, ADR 0037). Segunda questão fechada |
