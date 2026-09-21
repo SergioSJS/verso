@@ -71,7 +71,7 @@ Estado das três análises na data da decisão:
 | Análise | Estado |
 |---|---|
 | iOS e App Store | Favorece A: MPL não tem o conflito conhecido da (A)GPL com os termos da loja, e não depende de o mantenedor deter todo o copyright. Foi peso decisivo |
-| Código escrito por IA e copyleft | Não resolvida, e não bloqueia por decisão do mantenedor: afeta A e B igualmente. Fica como recomendação registrada — consultar alguém de propriedade intelectual antes de tornar o repositório público ([0007](0007-repositorio-privado-ate-licenca.md)). A revisão e a direção do mantenedor sobre cada PR contam a favor de autoria humana, e o DCO registra isso |
+| Código escrito por IA e copyleft | Respondida pelo mantenedor em [0006](0006-contribuicao-dco-sem-cla.md), item 2: código escrito por IA entra pelo DCO comum, e é aceito desde que quem assina tenha domínio do código e se responsabilize por ele. Afeta A e B igualmente, então não muda a escolha. A recomendação de consultar alguém de propriedade intelectual antes de abrir o repositório ([0007](0007-repositorio-privado-ate-licenca.md)) continua, como cautela, não como bloqueio |
 | Allowlist do `cargo-deny` | Fecha no PR do workspace (item 0.10): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, MPL-2.0, Unicode-3.0 e CC0-1.0 são compatíveis; GPL, LGPL e AGPL ficam fora, e qualquer outra entra só com justificativa no PR |
 
 ## Consequências
@@ -84,8 +84,8 @@ Estado das três análises na data da decisão:
 - O critério de saída 2 da Fase 0 (`LICENSE` presente) está satisfeito
   ([0034](0034-roadmap-em-fases.md)).
 - Contribuição externa passa a ter base legal; o modelo de contribuição (DCO
-  sem CLA, [0006](0006-contribuicao-dco-sem-cla.md)) continua Proposto até o
-  mantenedor confirmar.
+  sem CLA, [0006](0006-contribuicao-dco-sem-cla.md)) foi confirmado no mesmo
+  dia.
 - Ir de A para B continua sendo o caminho possível (combinar numa obra maior
   sob AGPL), nunca o inverso.
 
