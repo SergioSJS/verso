@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.2 · 2026-09-21
+> Versão 0.3 · 2026-09-21
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -61,7 +61,7 @@ Colisões conhecidas do nome, fora da categoria de apps de notas: plataforma de 
 
 | Item | Status | Detalhe |
 |---|---|---|
-| Licença | `ABERTO` | Preferência atual: pacote A. Confirmar antes do fechamento da Fase 0 (§15), com as análises pendentes do ADR 0005. |
+| Licença | `DECIDIDO` | Pacote A (decidido na v0.3, ADR 0005): MPL-2.0 no core e app, MIT no SDK de plugin. `LICENSE` na raiz. |
 | Pacote A | opção | Core e app sob MPL-2.0; SDK de plugin sob MIT. Uso como serviço não obriga publicar mudanças. |
 | Pacote B | opção | Core e app sob AGPL-3.0 com exceção explícita para plugins (permissão adicional, GPL-3.0 seção 7); SDK de plugin sob MIT. Cobre uso via rede. |
 | Critério de desempate | contexto | A MPL-2.0 (cláusula 3.3) permite combinar código MPL numa obra maior sob AGPL-3.0 depois; os arquivos MPL continuam MPL. Relicenciar o projeto inteiro, em qualquer direção, exige consentimento de todo contribuidor. (Corrigido na v0.2; a redação original superestimava a passagem de A para B.) |
@@ -450,7 +450,7 @@ Sync, mobile, plugins, board, shim de compatibilidade.
 
 | # | Item | Quando decidir |
 |---|---|---|
-| 1 | Licença: pacote A ou B | antes do fechamento da Fase 0 |
+| 1 | ~~Licença: pacote A ou B~~ | decidido: pacote A (v0.3, ADR 0005) |
 | 2 | Disponibilidade do nome em crates.io, npm, org do GitHub e domínio | antes de tornar o repositório público |
 | 3 | Idioma da documentação do repositório | antes do fechamento da Fase 0 |
 | 4 | Parser base: pulldown-cmark, comrak ou próprio | PR da feature 1, com comparação justificada |
@@ -473,3 +473,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.1 | 2026-09-21 | Versão inicial. |
 | 0.1 | 2026-09-21 | §5.1: config fora da árvore e índice como cache promovidos a `DECIDIDO`; abertura pela linha de comando registrada como `DECIDIDO`. |
 | 0.2 | 2026-09-21 | Aplicação da revisão da Fase 0 (`docs/review/fase0.md`), aceita integralmente pelo mantenedor: §8 guarda contra placeholder promovida a `DECIDIDO` (ADR 0043); §3 critério de desempate corrigido e "Passo 5" substituído por "antes do fechamento da Fase 0" (§3, §17); §14.1 revisor de UI/TS definido. Nenhuma outra seção alterada. |
+| 0.3 | 2026-09-21 | §3 e §17 item 1: licença decidida pelo mantenedor — Pacote A, MPL-2.0 no core e app, MIT no SDK de plugin (ADR 0005). `LICENSE` adicionado à raiz. |

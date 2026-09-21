@@ -2,7 +2,11 @@
 
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §3, §10.4, §17 item 1
-- Status no briefing: `ABERTO`
+- Status no briefing: `ABERTO` até 2026-09-21; `DECIDIDO` a partir do commit
+  que adiciona `LICENSE`
+- Revisões: 2026-09-21 — `[ABERTO]` fechado pelo mantenedor (Pacote A). A
+  seção Decisão e o Status foram preenchidos no lugar, conforme
+  `docs/adr/README.md`, "Como alterar um ADR existente".
 
 ## Contexto
 
@@ -26,10 +30,10 @@ maior sob licença secundária, mas os arquivos MPL continuam MPL. Relicenciar o
 projeto inteiro continua exigindo consentimento nos dois sentidos; o que a MPL
 dá é a possibilidade de **combinar** com código AGPL depois.
 
-### Análises pendentes antes da decisão
+### Análises levantadas antes da decisão
 
-Levantadas na revisão da Fase 0 (I1). Nenhuma está respondida; a decisão não sai
-sem elas.
+Levantadas na revisão da Fase 0 (I1). Estado de cada uma na data da decisão
+está na seção Decisão.
 
 1. **iOS e App Store.** iOS é plataforma-alvo decidida
    ([0022](0022-plataformas-alvo-e-macos-primeiro.md)). Distribuição de código
@@ -50,20 +54,40 @@ sem elas.
 
 ## Decisão
 
-Nenhuma. A preferência atual do mantenedor é o pacote A, sem confirmação. A
-decisão cabe ao mantenedor antes do fechamento da Fase 0
-([0034](0034-roadmap-em-fases.md), critério de saída 2).
+**Pacote A**, decidido pelo mantenedor em 2026-09-21:
+
+1. Core e app sob **MPL-2.0**. O texto está em `LICENSE` na raiz, obtido de
+   `gh api licenses/mpl-2.0`.
+2. SDK de plugin sob **MIT**, com `LICENSE-MIT` no pacote do SDK quando ele
+   existir (depois da Fase 2).
+3. Nenhum arquivo do projeto usa o aviso do Exhibit B ("Incompatible With
+   Secondary Licenses"). É esse aviso que fecharia a porta para combinar com
+   AGPL depois; deixá-lo fora é o que preserva o critério de desempate.
+4. Cabeçalho de arquivo: o Exhibit A da MPL-2.0, nos arquivos `.rs` e `.ts`
+   do core e do app, a partir do primeiro arquivo de código (item 0.10).
+
+Estado das três análises na data da decisão:
+
+| Análise | Estado |
+|---|---|
+| iOS e App Store | Favorece A: MPL não tem o conflito conhecido da (A)GPL com os termos da loja, e não depende de o mantenedor deter todo o copyright. Foi peso decisivo |
+| Código escrito por IA e copyleft | Não resolvida, e não bloqueia por decisão do mantenedor: afeta A e B igualmente. Fica como recomendação registrada — consultar alguém de propriedade intelectual antes de tornar o repositório público ([0007](0007-repositorio-privado-ate-licenca.md)). A revisão e a direção do mantenedor sobre cada PR contam a favor de autoria humana, e o DCO registra isso |
+| Allowlist do `cargo-deny` | Fecha no PR do workspace (item 0.10): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, MPL-2.0, Unicode-3.0 e CC0-1.0 são compatíveis; GPL, LGPL e AGPL ficam fora, e qualquer outra entra só com justificativa no PR |
 
 ## Consequências
 
-- O repositório fica privado até a licença ser decidida
-  ([0007](0007-repositorio-privado-ate-licenca.md)).
-- A allowlist de licenças do `cargo-deny` depende da escolha e só pode ser
-  fechada depois ([0029](0029-guardrails-no-ci.md)).
-- A Fase 0 não fecha sem um arquivo `LICENSE` presente
+- O repositório pode sair de privado quando idioma ([0008](0008-idioma-da-documentacao.md))
+  e disponibilidade do nome ([0004](0004-nome-do-projeto-verso.md)) estiverem
+  resolvidos ([0007](0007-repositorio-privado-ate-licenca.md)).
+- A allowlist do `cargo-deny` deixa de ser provisória no PR do item 0.10
+  ([0029](0029-guardrails-no-ci.md)).
+- O critério de saída 2 da Fase 0 (`LICENSE` presente) está satisfeito
   ([0034](0034-roadmap-em-fases.md)).
-- Enquanto `[ABERTO]`, nenhuma contribuição externa deve ser aceita: aceitar
-  contribuição antes da licença aumenta o custo de qualquer mudança futura.
+- Contribuição externa passa a ter base legal; o modelo de contribuição (DCO
+  sem CLA, [0006](0006-contribuicao-dco-sem-cla.md)) continua Proposto até o
+  mantenedor confirmar.
+- Ir de A para B continua sendo o caminho possível (combinar numa obra maior
+  sob AGPL), nunca o inverso.
 
 ## Alternativas descartadas
 
@@ -72,5 +96,5 @@ decisão cabe ao mantenedor antes do fechamento da Fase 0
 
 ## Status
 
-`[ABERTO]`. Decidir antes do fechamento da Fase 0, com as três análises acima
-respondidas.
+Aceito. Pacote A: MPL-2.0 no core e app, MIT no SDK de plugin. Decidido pelo
+mantenedor em 2026-09-21, no commit que adiciona `LICENSE`.

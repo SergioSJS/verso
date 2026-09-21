@@ -31,7 +31,7 @@ Documentos, decisões e guardrails. **Nenhuma feature.**
 | 0.4 | `CLAUDE.md` | feito nesta branch |
 | 0.5 | `.github/pull_request_template.md` | feito nesta branch |
 | 0.6 | Revisão crítica dos documentos por sessão independente | feito — `docs/review/fase0.md`; achados aceitos e aplicados pelo mantenedor; diff da aplicação aguarda leitura pelo Opus 5 ([ADR 0032](adr/0032-papeis-autor-e-revisor.md)) |
-| 0.7 | Decisão de licença e arquivo `LICENSE`, com as três análises pendentes do ADR respondidas | pendente — [ADR 0005](adr/0005-licenca.md) `[ABERTO]` |
+| 0.7 | Decisão de licença e arquivo `LICENSE` | feito — Pacote A, MPL-2.0 + MIT no SDK ([ADR 0005](adr/0005-licenca.md), Aceito). Allowlist do `cargo-deny` fecha no item 0.10 |
 | 0.8 | Decisão do idioma da documentação | pendente — [ADR 0008](adr/0008-idioma-da-documentacao.md) `[ABERTO]` |
 | 0.9 | Corpus inicial de fixtures: 5 casos escritos à mão pelo mantenedor, seguindo o schema de `docs/spec/dialeto.md` §4 (e assim o confirmando) | pendente — depende do schema (§4, `PROPOSTO`) |
 | 0.10 | Workspace Cargo com os cinco crates, vazios | pendente |
@@ -48,9 +48,9 @@ Todos verificáveis. A fase fecha quando os cinco passarem.
    C3) foram resolvidos na revisão 2 deste roadmap; a seção "Resolução" da
    revisão aponta o que mudou.
 2. **`LICENSE` presente na raiz.** Verificação: `test -f LICENSE`, e o arquivo
-   corresponde ao pacote escolhido em [ADR 0005](adr/0005-licenca.md), que sai de
-   `[ABERTO]` no mesmo momento, com as três análises pendentes respondidas no
-   ADR.
+   corresponde ao pacote escolhido em [ADR 0005](adr/0005-licenca.md). Estado:
+   satisfeito em 2026-09-21 — `LICENSE` contém a MPL-2.0 e o ADR 0005 está
+   Aceito (Pacote A).
 3. **CI verde em macOS e Linux.** Verificação: uma execução de
    `cargo fmt --check`, `cargo clippy`, `cargo test` e `cargo deny check` verde
    nos dois sistemas operacionais.

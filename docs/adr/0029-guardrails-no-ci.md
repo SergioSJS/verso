@@ -75,8 +75,10 @@ tratar, com teste para cada item:
   ([0034](0034-roadmap-em-fases.md)). Os guardrails de feature têm o mesmo
   critério, aplicado no PR da feature: cada um é visto falhando antes de o PR
   ser mesclado.
-- A allowlist de licenças do `cargo-deny` depende de [0005](0005-licenca.md),
-  ainda `[ABERTO]`; até lá ela é provisória e deve ser marcada como tal.
+- A allowlist de licenças do `cargo-deny` segue [0005](0005-licenca.md)
+  (MPL-2.0): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, MPL-2.0,
+  Unicode-3.0 e CC0-1.0 entram; GPL, LGPL e AGPL ficam fora; qualquer outra só
+  com justificativa no PR. Fecha no PR do item 0.10.
 - Advisory nova deixa o CI vermelho sem PR culpado. Política: exceção no
   `deny.toml` só com justificativa, link para a advisory e data de expiração;
   exceção expirada é CI vermelho de novo. `Cargo.lock` é versionado.
