@@ -34,9 +34,11 @@ notas se perde na primeira vez que ele mexe em um arquivo sem ser mandado.
   e é a forma mais comum de perder dado com dois apps na mesma pasta. Vale para
   UI ([0048](0048-file-operations-in-ui.md)), agente e conversão.
   (Acrescentado na revisão da Fase 0, R2.)
-- "Round-trip" tem duas leituras possíveis, e elas escolhem parsers diferentes;
-  qual delas vale é `docs/spec/dialect.md` Q18, a decidir no PR da feature 1 da
-  Fase 1 junto com [0037](0037-base-parser.md).
+- "Round-trip" tinha duas leituras possíveis, e elas escolhiam parsers
+  diferentes. O mantenedor decidiu `docs/spec/dialect.md` Q18 em 2026-09-21:
+  leitura (b), parser somente leitura com property test de round-trip de
+  quatro propriedades; o parser base vem em [0037](0037-base-parser.md). A
+  comparação está em `docs/reference/parser-decision.md`.
 
 ## Alternativas descartadas
 

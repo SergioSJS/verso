@@ -111,8 +111,8 @@ Ordem de execução do briefing §15:
 
 | Decisão | Quando | ADR |
 |---|---|---|
-| Definição de round-trip (Q18) | PR da feature 1, **antes** da comparação de parsers | `docs/spec/dialect.md` Q18, [0037](adr/0037-base-parser.md) |
-| Parser base: `pulldown-cmark`, `comrak` ou próprio | PR da feature 1, com comparação justificada | [0037](adr/0037-base-parser.md) |
+| ~~Definição de round-trip (Q18)~~ | decidido em 2026-09-21: leitura (b), parser somente leitura (`docs/reference/parser-decision.md`) | `docs/spec/dialect.md` Q18, [0037](adr/0037-base-parser.md) |
+| ~~Parser base: `pulldown-cmark`, `comrak` ou próprio~~ | decidido em 2026-09-21: `pulldown-cmark`, `comrak` como fallback (`docs/reference/parser-decision.md`) | [0037](adr/0037-base-parser.md) |
 | Questões de parsing Q2–Q8, Q12–Q17 e Q19–Q25 da spec | antes da feature 1 fechar | `docs/spec/dialect.md` §9 |
 | Symlinks, laços e caminhos ignorados (Q26) | antes da feature 2 fechar | [0044](adr/0044-verso-fs-semantics.md) |
 | Mecanismo de detecção de placeholder por provedor, começando pelo iCloud Drive | antes da feature 2 fechar | [0043](adr/0043-placeholder-guard.md) |

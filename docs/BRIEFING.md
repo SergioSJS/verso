@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Version 0.7 · 2026-09-21
+> Version 0.8 · 2026-09-21
 > Single source of the decisions made before the repository existed.
 > Changes after the repository: only status changes and factual corrections,
 > recorded in the History at the end. New boundaries and consequences live in
@@ -180,7 +180,7 @@ Requirement: an agent must navigate and make use of the folder's content as well
 | Board persistence | sidecar in JSON Canvas, with or without extensions | `OPEN` |
 | Index | SQLite with FTS5 | `DECIDED` |
 | TS type generation from Rust | ts-rs or specta | `OPEN` |
-| Base parser | pulldown-cmark, comrak or our own | `OPEN` |
+| Base parser | pulldown-cmark, comrak or our own | `DECIDED`: pulldown-cmark (v0.8, ADR 0037) |
 | Server | the same core binary without UI (`verso serve`) | `PROPOSED` |
 | Initial mobile | web client (PWA) served by the own server | `PROPOSED` |
 | Indexing for mobile | a companion server indexes and delivers a ready index to the phone | `PROPOSED` |
@@ -454,7 +454,7 @@ Sync, mobile, plugins, board, compatibility shim.
 | 1 | ~~License: package A or B~~ | decided: package A (v0.3, ADR 0005) |
 | 2 | Name availability on crates.io, npm, the GitHub org and the domain | before making the repository public |
 | 3 | ~~Language of the repository documentation~~ | decided: English source, pt-BR mirror (v0.5, ADR 0008) |
-| 4 | Base parser: pulldown-cmark, comrak or our own | PR for feature 1, with a justified comparison |
+| 4 | ~~Base parser: pulldown-cmark, comrak or our own~~ | decided: pulldown-cmark (v0.8, ADR 0037; round-trip reading in spec Q18) |
 | 5 | TS type generation: ts-rs or specta | start of Phase 2 |
 | 6 | Typed relation syntax | before implementing relations |
 | 7 | Schema format and location | before the typed note (Phase 2) |
@@ -479,3 +479,4 @@ of the dialect spec, not here.
 | 0.5 | 2026-09-21 | §3 and §17 item 3: language of the documentation decided by the maintainer — English source, pt-BR mirror in `docs/pt-BR/`; this briefing is the exception, with the pt-BR original ruling (ADR 0008). |
 | 0.6 | 2026-09-21 | §11.4: fixture rule changed by the maintainer — any fixture may be drafted by the AI; it counts only with their explicit approval, and the first five are checked in the Obsidian app before approval (ADR 0031). |
 | 0.7 | 2026-09-21 | §14.3: pointer to the two-group reading of the guardrails in ADR 0029, after the independent reading of the Phase 0 review (docs/review/phase-0.md §7). No decision changed. |
+| 0.8 | 2026-09-21 | §9 and §17 item 4: base parser decided by the maintainer — pulldown-cmark, with comrak as the fallback, under the read-only reading of round-trip (spec Q18). Comparison in docs/reference/parser-decision.md (ADR 0037). |
