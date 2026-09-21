@@ -1,0 +1,64 @@
+# Rust
+/target/
+/crates/*/target/
+**/*.rs.bk
+# Cargo.lock é versionado (ADR 0029): não ignorar.
+
+# Fuzzing (cargo-fuzz): artefatos de crash e corpus gerado não entram;
+# seeds escritos à mão vivem em fuzz/seeds/ e são versionados.
+/fuzz/target/
+/fuzz/artifacts/
+/fuzz/corpus/
+/fuzz/coverage/
+
+# Benchmark: vault sintético gerado e resultados brutos
+/bench/generated/
+/bench/results/
+/target/criterion/
+
+# Tauri (Fase 2)
+/src-tauri/target/
+/src-tauri/gen/schemas/
+
+# Node / TypeScript (Fase 2)
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Tipos TS gerados a partir do Rust são versionados (regra 3 do contrato,
+# ADR 0026): o CI confere se estão atualizados. Não ignorar.
+
+# Ambiente e segredos: chaves de API ficam no keychain (ADR 0019), nunca no repositório.
+.env
+.env.*
+!.env.example
+
+# Ferramentas locais de IA e editor
+.kilo/
+.claude/settings.local.json
+.claude/*.local.*
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operacional
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+Desktop.ini
+
+# Vault de teste local do mantenedor: nunca versionar notas reais.
+/vault-local/
+/*.local/
