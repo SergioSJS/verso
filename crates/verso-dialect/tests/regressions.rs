@@ -21,7 +21,11 @@ fn deeply_nested_frontmatter_returns_an_error_not_an_abort() {
         let document = parse(&source);
         let frontmatter = document.frontmatter.expect("the block is still reported");
         assert_eq!(frontmatter.span.start, 0);
-        assert!(frontmatter.values.is_err(), "{}", &source[..40]);
+        assert!(
+            frontmatter.values.is_err(),
+            "{}",
+            &source[..source.len().min(40)]
+        );
         assert_eq!(document.links.len(), 1, "the body is still parsed");
     };
     check(format!("{}x\n", "- ".repeat(4_000)));
@@ -41,8 +45,9 @@ fn deeply_nested_frontmatter_returns_an_error_not_an_abort() {
 /// `pulldown-cmark` 0.13.4 panics on a list item holding a link reference
 /// definition followed by a line of tabs (upstream issue #1129; fixed on
 /// upstream `main`, not released on 2026-09-21). Found by the CI fuzz job on
-/// `main` after PR #7. Ignored until the base is updated: the fuzz seed
-/// `fuzz/seeds/list-refdef-tabs.txt` keeps the fuzz job red meanwhile.
+/// `main` after PR #7. Ignored until the base is updated; the input is not
+/// a fuzz seed, because libFuzzer runs seeds smallest first and this one
+/// would end every job before a single mutation (third reading, finding 1).
 #[test]
 #[ignore = "pulldown-cmark 0.13.4 panics here (upstream #1129); fixed upstream, unreleased"]
 fn list_item_with_reference_definition_and_tab_line() {

@@ -10,11 +10,10 @@
 //! `../seeds/` holds one input per case that once broke something, run
 //! first on every job: `deep-yaml.txt`, 4 000 nested block sequences in the
 //! frontmatter, overflowed the YAML loading driver before the depth bound
-//! (review of PR #7, finding 1); `list-refdef-tabs.txt`, a list item with a
-//! link reference definition and a line of tabs, panics inside
-//! `pulldown-cmark` 0.13.4 (upstream #1129, fixed on their `main`,
-//! unreleased on 2026-09-21). Run:
-//! `cargo +nightly fuzz run parse fuzz/corpus/parse fuzz/seeds`.
+//! (review of PR #7, finding 1). The input on which `pulldown-cmark` 0.13.4
+//! itself panics (`tests/regressions.rs`) is deliberately not a seed: seeds
+//! run smallest first, and that one would end every job before a single
+//! mutation. Run: `cargo +nightly fuzz run parse fuzz/corpus/parse fuzz/seeds`.
 
 #![no_main]
 
