@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.7 · 2026-09-21
+> Versão 0.8 · 2026-09-21
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -180,7 +180,7 @@ Requisito: um agente deve navegar e aproveitar o conteúdo da pasta tão bem qua
 | Persistência do board | sidecar em JSON Canvas, com ou sem extensões | `ABERTO` |
 | Índice | SQLite com FTS5 | `DECIDIDO` |
 | Geração de tipos TS a partir do Rust | ts-rs ou specta | `ABERTO` |
-| Parser base | pulldown-cmark, comrak ou próprio | `ABERTO` |
+| Parser base | pulldown-cmark, comrak ou próprio | `DECIDIDO`: pulldown-cmark (v0.8, ADR 0037) |
 | Servidor | mesmo binário do core sem UI (`verso serve`) | `PROPOSTO` |
 | Mobile inicial | cliente web (PWA) servido pelo servidor próprio | `PROPOSTO` |
 | Indexação para mobile | servidor companheiro indexa e entrega índice pronto ao celular | `PROPOSTO` |
@@ -454,7 +454,7 @@ Sync, mobile, plugins, board, shim de compatibilidade.
 | 1 | ~~Licença: pacote A ou B~~ | decidido: pacote A (v0.3, ADR 0005) |
 | 2 | Disponibilidade do nome em crates.io, npm, org do GitHub e domínio | antes de tornar o repositório público |
 | 3 | ~~Idioma da documentação do repositório~~ | decidido: inglês fonte, pt-BR espelho (v0.5, ADR 0008) |
-| 4 | Parser base: pulldown-cmark, comrak ou próprio | PR da feature 1, com comparação justificada |
+| 4 | ~~Parser base: pulldown-cmark, comrak ou próprio~~ | decidido: pulldown-cmark (v0.8, ADR 0037; leitura de round-trip na spec Q18) |
 | 5 | Geração de tipos TS: ts-rs ou specta | início da Fase 2 |
 | 6 | Sintaxe de relação tipada | antes de implementar relações |
 | 7 | Formato e localização dos schemas | antes da nota tipada (Fase 2) |
@@ -479,3 +479,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.5 | 2026-09-21 | §3 e §17 item 3: idioma da documentação decidido pelo mantenedor — inglês fonte, pt-BR espelho em `docs/pt-BR/`; este briefing é a exceção, com o original pt-BR mandando (ADR 0008). |
 | 0.6 | 2026-09-21 | §11.4: regra de fixtures alterada pelo mantenedor — qualquer fixture pode ser rascunhada pela IA; só vale com aprovação explícita dele, e as cinco primeiras são conferidas no app Obsidian antes da aprovação (ADR 0031). |
 | 0.7 | 2026-09-21 | §14.3: ponteiro para a leitura em dois grupos dos guardrails no ADR 0029, após a leitura independente da revisão da Fase 0 (docs/review/phase-0.md §7). Nenhuma decisão alterada. |
+| 0.8 | 2026-09-21 | §9 e §17 item 4: parser base decidido pelo mantenedor — pulldown-cmark, com comrak como fallback, na leitura somente leitura de round-trip (spec Q18). Comparação em docs/reference/parser-decision.md (ADR 0037). |

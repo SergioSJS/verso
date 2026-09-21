@@ -91,7 +91,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 
 | # | Title | When to decide |
 |---|---|---|
-| [0037](0037-base-parser.md) | Base parser for `verso-dialect` | PR for feature 1 (Phase 1) |
+| [0037](0037-base-parser.md) | Base parser for `verso-dialect`: `pulldown-cmark`, `comrak` as the fallback | Accepted |
 | [0038](0038-ts-type-generation.md) | TypeScript type generation from Rust | Start of Phase 2 |
 | [0039](0039-performance-targets.md) | Performance targets | After the first baseline |
 | [0040](0040-board-persistence.md) | Board persistence | Before the board |

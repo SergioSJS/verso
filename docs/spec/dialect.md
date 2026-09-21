@@ -585,20 +585,33 @@ Raised while writing this spec. All of them need an answer before
 ### Gaps raised in the Phase 0 review
 
 Source: `docs/review/phase-0.md`, section 4. Same rule as the previous ones: an
-answer from the maintainer before implementing; Q18 before choosing the parser.
+answer from the maintainer before implementing; Q18 was answered first, before
+the parser was chosen.
 
-- **Q18. Definition of round-trip.** `[OPEN]` — decide in the PR of feature 1,
-  **before** the parser comparison ([ADR 0037](../adr/0037-base-parser.md)).
-  Two readings: (a) the parser produces a lossless tree and
-  `serialize(parse(x)) == x` byte for byte, which requires our own parser or a
-  base with complete positions; (b) the parser is read-only for the index,
-  "opening never rewrites" is guaranteed by never writing on the read path, and
-  edits are textual patches by position. The choice decides the base parser, the
-  cost of Phase 1, and how per-block merge
-  ([ADR 0020](../adr/0020-sync-merge-in-core-transports-as-plugins.md)) and
-  agent writing work. The property test in
-  [ADR 0029](../adr/0029-guardrails-in-ci.md) tests (a) or tests determinism and
-  absence of panics in (b); today nobody knows which.
+- **Q18. Definition of round-trip.** `DECIDED` — by the maintainer on
+  2026-09-21, on the comparison in
+  [`docs/reference/parser-decision.md`](../reference/parser-decision.md):
+  reading **(b)**. The parser is read-only: it produces a report (links,
+  embeds, headings, blocks, callouts, frontmatter) with positions and byte
+  ranges, and has no `serialize`. "Opening never rewrites" holds because the
+  read path has no write; an edit, when one exists, is a textual patch by
+  position, shown as a diff before being applied
+  ([ADR 0012](../adr/0012-files-are-source-of-truth.md),
+  [ADR 0018](../adr/0018-llm-native-mcp-in-core.md)). The round-trip property
+  test of [ADR 0029](../adr/0029-guardrails-in-ci.md) tests four properties:
+  (1) `parse` returns for every input; (2) `parse(x) == parse(x)`; (3) span
+  fidelity — every reported construct carries the byte range it came from,
+  slicing the input with that range gives the construct's source text, and
+  `pos` (section 4.4) is derived from it; (4) the read path does not write —
+  the file's bytes before a read equal the bytes after (checked in `verso-fs`,
+  feature 2; `verso-dialect` has no IO by construction). Reading (a), the
+  lossless tree with `serialize(parse(x)) == x`, was not chosen: no Phase 1 or
+  Phase 2 deliverable consumes a tree, and it would require a CommonMark parser
+  of our own before feature 1; it can be added on top of (b) later without
+  undoing anything. Per-block merge
+  ([ADR 0020](../adr/0020-sync-merge-in-core-transports-as-plugins.md)) works
+  over byte ranges delimited by parser positions. The base parser chosen under
+  this reading is in [ADR 0037](../adr/0037-base-parser.md).
 - **Q19. Heading matching.** `[OPEN]` (section 5.12)
   How `[[nota#seção]]` matches a heading: case, punctuation and spaces, emoji,
   inline formatting (`## *Porão*`), duplicate headings, nested path
@@ -649,3 +662,4 @@ answer from the maintainer before implementing; Q18 before choosing the parser.
 | v0.1 | 2026-09-21 | Application of the Phase 0 review (`docs/review/phase-0.md`, accepted by the maintainer): section 4 becomes the `expected.yaml` schema (`PROPOSED`), with `block` as the proposed answer to Q1, positions and `observed`; sections 5.12 (headings) and 5.13 (Markdown links, `PROPOSED`) added; D7 with a status separated per item; Q7 and Q8 corrected with respect to APFS; Q17 broadened; Q18–Q26 added. No question closed |
 | v0.2 | 2026-09-21 | Fixture rule changed by the maintainer (ADR 0031 item 4): §4 and §8 updated; Q1 closes with the approval of `fixtures/wikilink/block-reference`. No question closed yet |
 | v0.3 | 2026-09-21 | Maintainer approved the first five fixtures: schema §4 `DECIDED`; Q1 closed (`block`). First question closed |
+| v0.4 | 2026-09-21 | Q18 closed by the maintainer: reading (b), read-only parser with a four-property round-trip test (`docs/reference/parser-decision.md`, ADR 0037). Second question closed |

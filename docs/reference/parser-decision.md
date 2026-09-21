@@ -1,8 +1,12 @@
 # Decision memo: what "round-trip" means (Q18) and which base parser (ADR 0037)
 
 - Date: 2026-09-21
-- Status: **`PROPOSED`**. Nothing here is a decision. The maintainer decides;
-  section 5 says how, and what each choice commits the project to.
+- Status: **decided by the maintainer on 2026-09-21**, in session, after
+  reading this memo: Q18 = reading **(b)**; base parser = **`pulldown-cmark`**,
+  `comrak` as the fallback. Recorded in `docs/spec/dialect.md` §9 Q18 and in
+  [ADR 0037](../adr/0037-base-parser.md) (Accepted). Sections 2–4 are the
+  comparison as it was when the decision was made; section 5 is kept as the
+  record of how it was decided.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. No Rust in this PR.
 - Decides on: [`docs/spec/dialect.md`](../spec/dialect.md) Q18 and
@@ -364,8 +368,9 @@ Combinations and their consequence:
 | (a) | own | Consistent. Feature 1 becomes "a CommonMark parser with a lossless tree" first; the roadmap and the exit criteria of Phase 1 have to be revised in the same PR, per ADR 0037's consequences. |
 | (a) | `pulldown-cmark` or `comrak` | Contradiction: neither meets (a) (section 3.2). Not a valid pair. |
 
-**After the decision.** The closing edits — spec §9 Q18, ADR 0037 "Decision"
-and "Status", ADR 0012's consequence, the roadmap's Phase 1 table — go in as
-one more commit on this same PR, quoting your decision, so that the comparison
-and its outcome are one subject. Nothing in this memo is edited into those
-documents before you write the two lines.
+**After the decision.** The maintainer chose (b) and `pulldown-cmark` in
+session on 2026-09-21 ("I liked your suggestions, go ahead with them"). The
+closing edits — spec §9 Q18, ADR 0037 "Decision" and "Status", ADR 0012's
+consequence, the roadmap's Phase 1 table, briefing §9 and §17 — are in the
+commit that follows the memo on the same branch, so that the comparison and
+its outcome are one subject.

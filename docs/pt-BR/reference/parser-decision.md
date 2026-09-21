@@ -1,8 +1,12 @@
 # Memo de decisão: o que "round-trip" significa (Q18) e qual parser base (ADR 0037)
 
 - Data: 2026-09-21
-- Status: **`PROPOSED`**. Nada aqui é decisão. O mantenedor decide; a seção 5
-  diz como, e a que cada escolha compromete o projeto.
+- Status: **decidido pelo mantenedor em 2026-09-21**, em sessão, depois de
+  ler este memo: Q18 = leitura **(b)**; parser base = **`pulldown-cmark`**,
+  `comrak` como fallback. Registrado em `docs/spec/dialect.md` §9 Q18 e no
+  [ADR 0037](../adr/0037-base-parser.md) (Accepted). As seções 2–4 são a
+  comparação como estava quando a decisão foi tomada; a seção 5 fica como
+  registro de como foi decidido.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. Nenhum Rust neste PR.
 - Decide sobre: [`docs/spec/dialect.md`](../spec/dialect.md) Q18 e
@@ -366,8 +370,9 @@ Combinações e sua consequência:
 | (a) | próprio | Consistente. A feature 1 vira primeiro "um parser de CommonMark com árvore sem perda"; o roadmap e os critérios de saída da Fase 1 têm de ser revistos no mesmo PR, pelas consequências do ADR 0037. |
 | (a) | `pulldown-cmark` ou `comrak` | Contradição: nenhum atende a (a) (seção 3.2). Par inválido. |
 
-**Depois da decisão.** As edições de fechamento — spec §9 Q18, "Decision" e
-"Status" do ADR 0037, a consequência do ADR 0012, a tabela da Fase 1 do
-roadmap — entram como mais um commit neste mesmo PR, citando sua decisão, para
-que a comparação e seu desfecho sejam um só assunto. Nada deste memo é editado
-nesses documentos antes de você escrever as duas linhas.
+**Depois da decisão.** O mantenedor escolheu (b) e `pulldown-cmark` em sessão
+em 2026-09-21 ("eu gostei das suas sugestões, pode seguir com elas"). As
+edições de fechamento — spec §9 Q18, "Decisão" e "Status" do ADR 0037, a
+consequência do ADR 0012, a tabela da Fase 1 do roadmap, briefing §9 e §17 —
+estão no commit que segue o memo na mesma branch, para que a comparação e seu
+desfecho sejam um só assunto.

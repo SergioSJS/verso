@@ -34,9 +34,11 @@ note-taking app is lost the first time it touches a file without being told to.
   action, and it is the most common way to lose data with two apps in the same
   folder. This holds for the UI ([0048](0048-file-operations-in-ui.md)), the
   agent and conversion. (Added in the Phase 0 review, R2.)
-- "Round-trip" has two possible readings, and they select different parsers;
-  which one holds is `docs/spec/dialect.md` Q18, to be decided in the PR for
-  feature 1 of Phase 1 together with [0037](0037-base-parser.md).
+- "Round-trip" had two possible readings, and they selected different parsers.
+  The maintainer decided `docs/spec/dialect.md` Q18 on 2026-09-21: reading
+  (b), a read-only parser with a four-property round-trip test; the base
+  parser follows in [0037](0037-base-parser.md). The comparison is in
+  `docs/reference/parser-decision.md`.
 
 ## Discarded alternatives
 
