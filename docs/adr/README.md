@@ -26,7 +26,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0002](0002-escopo-negativo.md) | Escopo negativo: nem clone, nem host de plugins alheios, nem LLM embutido | Aceito |
 | [0003](0003-primitivas-em-vez-de-gambiarra.md) | O que hoje exige plugin deve ser primitiva do app | Aceito |
 | [0004](0004-nome-do-projeto-verso.md) | Nome do projeto: Verso | Aceito |
-| [0005](0005-licenca.md) | Licença do projeto | `[ABERTO]` |
+| [0005](0005-licenca.md) | Licença do projeto: MPL-2.0 no core e app, MIT no SDK de plugin | Aceito |
 | [0006](0006-contribuicao-dco-sem-cla.md) | Contribuição por DCO, sem CLA | Proposto |
 | [0007](0007-repositorio-privado-ate-licenca.md) | Repositório privado até a licença ser decidida | Aceito |
 | [0008](0008-idioma-da-documentacao.md) | Idioma da documentação do repositório | `[ABERTO]` |

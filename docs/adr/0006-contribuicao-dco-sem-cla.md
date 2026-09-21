@@ -20,7 +20,8 @@ Adotar DCO (Developer Certificate of Origin) por assinatura de commit, sem CLA.
   peso da decisão de licença ([0005](0005-licenca.md)) e o critério de desempate
   entre os pacotes A e B.
 - Contribuir custa uma linha `Signed-off-by`, sem processo de assinatura externo.
-- Enquanto a licença estiver `[ABERTO]`, não há base para aceitar contribuição
+- Licença decidida em 2026-09-21 ([0005](0005-licenca.md), MPL-2.0); este ADR
+  ainda aguarda confirmação do mantenedor. Até lá, não há base para aceitar contribuição
   externa, com ou sem DCO.
 
 ## Alternativas descartadas
