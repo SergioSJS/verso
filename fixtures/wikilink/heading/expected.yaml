@@ -1,0 +1,20 @@
+# Approved by the maintainer on 2026-09-21, after the observation below (ADR 0031).
+# Construct: wikilink to a heading. Spec: docs/spec/dialect.md §5.4.
+# Asserts only what the parser extracts from the text. How "Porão" is matched
+# against a real heading is Q19, not this fixture.
+links:
+  - target: Taverna
+    heading: Porão
+    pos: { line: 1, col: 20 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md). Target note
+    "Taverna" had a "## Porão" heading.
+    `obsidian links file=fx-heading` -> `Taverna.md`.
+    `obsidian backlinks file=Taverna` lists fx-heading.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Taverna#Porão", displayText "Taverna > Porão",
+    original "[[Taverna#Porão]]", start col 19 (0-based).

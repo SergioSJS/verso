@@ -62,3 +62,6 @@ Desktop.ini
 # Vault de teste local do mantenedor: nunca versionar notas reais.
 /vault-local/
 /*.local/
+
+# Agent worktrees created by Claude Code sessions
+.claude/worktrees/

@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.1
+# Spec do dialeto do Verso — v0.3
 
-- Versão: v0.1 · 2026-09-21
+- Versão: v0.3 · 2026-09-21
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -47,15 +47,14 @@ comportamento a ser compatível, valem apenas:
 Nenhuma fixture, spec ou PR pode citar inspeção, descompilação ou desminificação
 do binário como fonte.
 
-## 4. Schema do `expected.yaml` `PROPOSTO`
+## 4. Schema do `expected.yaml` `DECIDIDO`
 
 Cada construção nas seções 5 e 6 traz o `input.md` e o recorte do
 `expected.yaml` correspondente. O briefing (§11.4) nomeia só `target`, `alias`,
 `heading` e `blocks[].id`; tudo o mais abaixo foi rascunhado pela IA na revisão
-da Fase 0 (C7) e **vale como `PROPOSTO` até o mantenedor confirmar**. A
-confirmação acontece de uma das duas formas: uma linha dele neste documento, ou
-as cinco primeiras fixtures escritas à mão seguindo este schema — o que vier
-primeiro. Fixture que não segue o schema é inválida.
+da Fase 0 (C7) e **valeu como `PROPOSTO` até 2026-09-21**, quando o mantenedor
+aprovou as cinco primeiras fixtures, que seguem este schema (ADR 0031; PR das
+fixtures). Fixture que não segue o schema é inválida.
 
 ### 4.1 Chaves de primeiro nível
 
@@ -68,6 +67,7 @@ primeiro. Fixture que não segue o schema é inválida.
 | `blocks` | lista de definições `^id`, em ordem de documento | não afirmado |
 | `callouts` | lista, em ordem de documento | não afirmado |
 | `observed` | como o comportamento foi verificado no Obsidian | ver 4.5 |
+| `source` | ADR ou questão que autoriza um comportamento próprio do Verso | ver 4.5 |
 
 **Chave ausente não afirma nada**; `links: []` afirma que não há link. A ordem
 das listas é a ordem em que a construção aparece no arquivo. Uma fixture afirma
@@ -80,7 +80,7 @@ nem diferente.
 |---|---|---|
 | `target` | texto do alvo **como escrito**, sem resolver: `[[nota.md]]` dá `nota.md`, `[[pasta/nota]]` dá `pasta/nota`. Resolução para arquivo é Q12, fora do parser | sim; vazio (`""`) para `[[#seção]]` |
 | `heading` | texto depois de `#`, sem `^`; caminho aninhado `a#b` fica como `a#b` até Q19 decidir | quando houver |
-| `block` | texto depois de `#^` (responde Q1, `PROPOSTO`) | quando houver |
+| `block` | texto depois de `#^` (responde Q1, `DECIDIDO`) | quando houver |
 | `alias` | texto depois de `\|` | quando houver |
 | `syntax` | `wikilink` (padrão, pode ser omitido) ou `markdown` (seção 5.13) | só para `markdown` |
 | `pos` | posição do primeiro caractere da construção (4.4) | quando a fixture testa posição |
@@ -111,7 +111,10 @@ no editor. A posição é do primeiro caractere da construção (`[` de `[[`, `!
 Posição existe porque a citação verificável é decisão
 ([ADR 0018](../adr/0018-llm-native-mcp-in-core.md)) e bloco sem `^id` é citado
 por posição. Fixture sem `pos` não testa posição; pelo menos uma fixture por
-construção precisa testar.
+construção precisa testar. As cinco primeiras fixtures têm só texto ASCII antes
+da construção, então ainda não distinguem caracteres de bytes; uma fixture com
+prefixo não-ASCII é necessária antes de a unidade ser exercitada
+(`docs/reference/obsidian-cli.md` §4).
 
 ### 4.5 Origem da observação
 
@@ -121,9 +124,13 @@ comportamento foi observado, pela regra de fontes admissíveis (seção 3):
 ```yaml
 observed:
   app: Obsidian
-  version: "1.x.y"
+  version: "1.13.7 (installer 1.11.5), macOS"
   how: "colar o input numa nota nova; ver o painel de backlinks da nota alvo"
 ```
+
+`version` é texto livre: versão do app, do instalador e sistema operacional
+quando importarem. `how` é prosa, repetível por outra pessoa; o CLI do Obsidian
+(`docs/reference/obsidian-cli.md`) a transforma em comandos.
 
 Fixture de comportamento **próprio** do Verso (seção 6) omite `observed` e
 cita o ADR ou a questão que a autoriza em `source:`.
@@ -218,7 +225,7 @@ links:
 ```
 
 O nome do campo para referência de bloco não aparece no briefing; `block` é a
-resposta proposta a Q1 (seção 4.2, `PROPOSTO`).
+resposta a Q1 (seção 4.2), decidida com a aprovação de `fixtures/wikilink/block-reference`.
 
 ### 5.6 Embed
 
@@ -477,9 +484,13 @@ Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
 | link Markdown para arquivo local | 5.13 | `PROPOSTO` |
 | posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
 
-As 5 primeiras fixtures são escritas à mão pelo mantenedor, seguindo o schema
-da seção 4 — e, ao segui-lo, o confirmam. As seguintes podem ser rascunhadas
-pela IA e aprovadas por ele.
+Qualquer fixture pode ser rascunhada pela IA; só vale com a aprovação do
+mantenedor no PR que a adiciona (ADR 0031). Rascunho diz que é rascunho na
+primeira linha do `expected.yaml` (`# AI draft ...`); a aprovação substitui essa
+linha. As cinco primeiras seguem o schema da seção 4 e, aprovadas, o confirmam.
+`scripts/check-fixtures.sh` confere o layout de cada fixture e que cada chave é
+uma das do schema, sob o pai que o schema lhe dá; os valores são a aprovação do
+mantenedor e os testes da Fase 1.
 
 **`expected.yaml` só muda com aprovação explícita do mantenedor.** Se uma
 fixture parecer errada, o autor para e pergunta.
@@ -514,10 +525,11 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
 Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 `verso-dialect` (Fase 1, feature 1).
 
-- **Q1. Nome do campo de referência de bloco no `expected.yaml`.** `PROPOSTO`
+- **Q1. Nome do campo de referência de bloco no `expected.yaml`.** `DECIDIDO`
   O exemplo do briefing nomeia `target`, `alias` e `heading`, mas não o campo de
-  `#^bloco` (seção 5.5). Proposta: `block` (seção 4.2). Confirma junto com o
-  schema.
+  `#^bloco` (seção 5.5). Resposta: `block` (seção 4.2). Fechada em 2026-09-21
+  pela aprovação, pelo mantenedor, da fixture
+  `fixtures/wikilink/block-reference` (ADR 0031).
 - **Q2. Embed conta como link no grafo e nos backlinks?** `[ABERTO]` (seção 5.6)
 - **Q3. Posição admissível do `^id`.** `[ABERTO]`
   Fim de linha, linha própria, depois de lista ou de bloco de várias linhas
@@ -627,3 +639,5 @@ mantenedor antes de implementar; Q18 antes de escolher o parser.
 |---|---|---|
 | v0 | 2026-09-21 | Primeira versão, derivada de `docs/BRIEFING.md` §11. Nenhuma questão em aberto resolvida |
 | v0.1 | 2026-09-21 | Aplicação da revisão da Fase 0 (`docs/review/phase-0.md`, aceita pelo mantenedor): seção 4 vira schema do `expected.yaml` (`PROPOSTO`), com `block` como resposta proposta a Q1, posições e `observed`; seções 5.12 (headings) e 5.13 (links Markdown, `PROPOSTO`) acrescentadas; D7 com status separado por item; Q7 e Q8 corrigidas quanto ao APFS; Q17 ampliada; Q18–Q26 acrescentadas. Nenhuma questão fechada |
+| v0.2 | 2026-09-21 | Regra de fixtures alterada pelo mantenedor (ADR 0031 item 4): §4 e §8 atualizadas; Q1 fecha com a aprovação de `fixtures/wikilink/block-reference`. Nenhuma questão fechada ainda |
+| v0.3 | 2026-09-21 | Mantenedor aprovou as cinco primeiras fixtures: schema §4 `DECIDIDO`; Q1 fechada (`block`). Primeira questão fechada |

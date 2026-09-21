@@ -61,10 +61,13 @@ elas valem é esta:
   a `std::fs` negadas por lint fora de `verso-fs`, com exceção declarada para o
   arquivo do índice e para a config ([0028](0028-crate-structure.md),
   [0029](0029-guardrails-in-ci.md)).
-- O contrato precisa nascer com identidade de sessão e autorização por operação,
-  mesmo que no IPC local tudo seja concedido; o mesmo contrato viaja por
-  WebSocket remoto ([0045](0045-server-and-mcp-security.md), `[ABERTO]`,
-  decidir antes do item 2.1 da Fase 2).
+- O mesmo contrato viaja por WebSocket remoto. Se ele carrega identidade de
+  sessão e autorização por operação desde o primeiro desenho é `[ABERTO]` em
+  [0045](0045-server-and-mcp-security.md), a decidir antes do item 2.1 da
+  Fase 2; até lá, a única exigência aqui é que a forma do contrato não impeça
+  acrescentá-las. (Redação suavizada em 2026-09-21 após a leitura independente
+  da revisão da Fase 0: o texto anterior afirmava a exigência como decidida
+  enquanto o 0045 a mantém aberta.)
 - A API pública do Obsidian tem leituras síncronas e o contrato é assíncrono;
   a mitigação registrada é uma projeção somente-leitura do índice no lado JS,
   alimentada por eventos (§10.3).

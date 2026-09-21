@@ -75,8 +75,9 @@ Violating an invariant is BLOCKING by definition, with no discussion of merit.
     the maintainer says otherwise. If the fixture looks wrong: **stop, do not
     edit, ask** — in a PR comment or in the session, pointing out the case and
     why the expectation looks incorrect.
-15. The first 5 fixtures are the maintainer's. The following ones may be drafted
-    by the AI and are only valid after they approve them.
+15. Any fixture may be drafted by the AI; none is valid before the maintainer
+    approves it in the PR that adds it. A draft says so on the first line of
+    its `expected.yaml`.
 16. `input.md` does not change on its own either: changing the input changes the
     contract.
 17. A fixture follows the schema in `docs/spec/dialect.md` §4. A fixture that
@@ -252,6 +253,7 @@ Stopping is the correct behavior, not a failure:
 | `docs/spec/dialect.md` | Dialect behavior, with the gaps marked `[OPEN]` |
 | `docs/roadmap.md` | Phases 0, 1 and 2, with a verifiable exit criterion |
 | `docs/review/` | Critical reviews per phase, with classified findings and the resolution of each one |
+| `docs/reference/` | Reference notes on external tools and behaviour observed from outside, such as the Obsidian CLI ([ADR 0009](docs/adr/0009-external-constraints.md)) |
 | `docs/pt-BR/` | pt-BR mirror of all the documentation, same structure and names ([ADR 0008](docs/adr/0008-documentation-language.md)) |
 | `fixtures/` | Behavior contract. `expected.yaml` is untouchable without approval; schema in `docs/spec/dialect.md` §4 |
 | `crates/` | The five crates of the core |

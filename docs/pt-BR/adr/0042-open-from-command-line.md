@@ -3,6 +3,11 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §5.1
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-09-21 — consequência sobre o CLI do Obsidian como referência de
+  paridade acrescentada a pedido do mantenedor ("vale até anotar essas coisas
+  do cli que pode ser útil pra gente implementar paralelos melhorados"); nomeia
+  uma referência, não um item de escopo novo — as features 4 e 6 da Fase 1
+  ficam como o roadmap lista.
 
 ## Contexto
 
@@ -33,6 +38,11 @@ O Verso abre pela linha de comando, no modelo do `code .`: `verso <pasta>`.
   conjunto de subcomandos crescer.
 - Com workspace multi-raiz ([0041](0041-multi-root-workspace.md), `PROPOSTO`),
   abrir várias pastas de uma vez é a extensão natural. Não está decidido.
+- O CLI do Obsidian (app 1.13) é a descrição pública mais próxima do que o
+  índice do Obsidian responde: links, backlinks, não resolvidos, órfãos, becos
+  sem saída, busca, outline, propriedades, tags. `verso-cli` e `verso mcp`
+  devem cobrir pelo menos essa superfície, melhor; o mapeamento está em
+  `docs/reference/obsidian-cli.md`.
 
 ## Alternativas descartadas
 
