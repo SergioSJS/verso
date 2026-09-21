@@ -42,6 +42,11 @@ audience already uses.
   on Web Workers that no document lists. The UI is reversible before Phase 2;
   those risks have to appear in the PR for item 2.2 before they stop being so.
 
+- Workspace commitments made with the first `Cargo.toml` (roadmap 0.10):
+  edition 2024, `rust-version = "1.98"`, toolchain pinned to an exact stable
+  version in `rust-toolchain.toml` so that a new clippy cannot turn CI red
+  with no PR to blame. Bumping any of them is a PR of its own.
+
 ## Discarded alternatives
 
 None recorded: the briefing does not list other core, shell, editor or index
