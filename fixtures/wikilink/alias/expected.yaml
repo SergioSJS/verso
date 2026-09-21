@@ -6,9 +6,12 @@ links:
     pos: { line: 1, col: 13 }
 observed:
   app: Obsidian
-  version: "to be filled by the maintainer on approval"
+  version: "1.13.7 (installer 1.11.5), macOS"
   how: >-
-    Drafted from the public documentation (help.obsidian.md, "Internal links",
-    section "Change the link display text"). The maintainer pastes input.md
-    into a test vault, checks that the note renders "o barão" as the link text
-    and that the backlinks panel of "Barão Vermelho" lists this note.
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian links file=fx-alias` -> `Barão Vermelho.md`.
+    `obsidian backlinks file="Barão Vermelho"` lists fx-alias.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Barão Vermelho", displayText "o barão",
+    original "[[Barão Vermelho|o barão]]", start col 12 (0-based).

@@ -6,10 +6,11 @@
 links: []
 observed:
   app: Obsidian
-  version: "to be filled by the maintainer on approval"
+  version: "1.13.7 (installer 1.11.5), macOS"
   how: >-
-    Drafted from the public documentation (help.obsidian.md, "Basic
-    formatting syntax", sections "Code" and "Code blocks"). The maintainer
-    pastes input.md into a test vault and checks that no note named
-    "isto não é link" or "isto também não é" appears in the graph or as an
-    unresolved link, and that the text renders as code.
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian links file=fx-code` -> "No links found."
+    `obsidian unresolved verbose` lists nothing from fx-code.
+    `obsidian eval` on `app.metadataCache.getCache(...)` -> links null,
+    embeds null.

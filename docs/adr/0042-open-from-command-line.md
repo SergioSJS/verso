@@ -36,6 +36,12 @@ Verso opens from the command line, on the model of `code .`: `verso <folder>`.
   `PROPOSED`), opening several folders at once is the natural extension. It is
   not decided.
 
+- The Obsidian CLI (app 1.13) is the closest public description of what the
+  Obsidian index answers: links, backlinks, unresolved, orphans, dead ends,
+  search, outline, properties, tags. `verso-cli` and `verso mcp` should cover at
+  least that surface, better; the mapping is in
+  `docs/reference/obsidian-cli.md`.
+
 ## Discarded alternatives
 
 None recorded in the briefing.
