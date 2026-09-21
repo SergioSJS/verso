@@ -247,6 +247,7 @@ Parar é o comportamento correto, não uma falha:
 | `spec/dialect.md` | Comportamento do dialeto, com as lacunas marcadas `[ABERTO]` |
 | `roadmap.md` | Fases 0, 1 e 2, com critério de saída verificável |
 | `review/` | Revisões críticas por fase, com achados classificados e a resolução de cada um |
+| `reference/` | Notas de referência sobre ferramentas externas e comportamento observado de fora, como o CLI do Obsidian ([ADR 0009](adr/0009-external-constraints.md)) |
 | `docs/pt-BR/` | Espelho pt-BR de toda a documentação, mesma estrutura e nomes ([ADR 0008](adr/0008-documentation-language.md)) |
 | `fixtures/` | Contrato de comportamento. `expected.yaml` é intocável sem aprovação; schema em `spec/dialect.md` §4 |
 | `crates/` | Os cinco crates do core |
