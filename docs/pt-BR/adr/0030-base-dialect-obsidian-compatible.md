@@ -14,9 +14,11 @@ quem confiou no projeto.
 
 Fonte pública que embasa a lista abaixo, admissível por
 [0009](0009-external-constraints.md): a documentação do Obsidian em
-`help.obsidian.md`, em especial as páginas "Obsidian Flavored Markdown",
-"Internal links", "Embed files", "Callouts" e "Properties"; e a especificação
-JSON Canvas em `jsoncanvas.org`. A documentação pública descreve mais
+`help.obsidian.md`, em especial as páginas "Obsidian Flavored Markdown"
+(`/obsidian-flavored-markdown`), "Internal links" (`/links`), "Embed files"
+(`/embeds`), "Callouts" (`/callouts`) e "Properties" (`/properties`), todas
+consultadas em 2026-09-21; e a especificação JSON Canvas em
+`jsoncanvas.org` (fora do ar em 2026-09-21; não reverificada). A documentação pública descreve mais
 construções do que a lista abaixo (tags, comentários `%%`, destaque `==`,
 matemática, tabelas, footnotes, links Markdown para arquivo, caminhos de
 heading aninhados). A lista abaixo é o **mínimo decidido no briefing**, não o

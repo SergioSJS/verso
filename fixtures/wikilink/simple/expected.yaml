@@ -1,0 +1,16 @@
+# Approved by the maintainer on 2026-09-21, after the observation below (ADR 0031).
+# Construct: wikilink, simple form. Spec: docs/spec/dialect.md §5.2.
+links:
+  - target: Barão Vermelho
+    pos: { line: 1, col: 15 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian links file=fx-simple` -> `Barão Vermelho.md`.
+    `obsidian backlinks file="Barão Vermelho"` lists fx-simple.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Barão Vermelho", original "[[Barão Vermelho]]", start col 14
+    (0-based; `pos.col` here is 1-based).

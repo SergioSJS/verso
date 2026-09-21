@@ -437,3 +437,59 @@ question with a deadline.
    to close the observation.
 5. Veto any line of the "Choice made" column above. Each one is a revertible
    commit; none promotes `PROPOSED` beyond C1, which was an explicit order.
+
+---
+
+## 7. Independent reading of the application (Opus 5)
+
+- Reader: Opus 5, author of neither this review nor the commit it reads
+  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)). Input: `eda5420`, read
+  file by file against the documents at that commit. **No BLOCKING.**
+- Section 6 is a faithful map of the diff: every row lands where it says, and no
+  finding is marked resolved without a change that resolves it. Nothing went from
+  `PROPOSED` to `DECIDED` and no `[OPEN]` was closed beyond C1, which the
+  maintainer ordered; Q1 moved to `PROPOSED`, a proposal, not a closure.
+
+### Choices that go past the finding — to ratify or to veto
+
+- **C4, IMPORTANT.** The finding asked *who* reviews UI/TS; the application
+  answered, and wrote the answer into `BRIEFING.md` §14.1, a `DECIDED` section —
+  neither a status change nor a correction of fact, which is the limit the same
+  commit writes into the briefing's own header.
+- **C1, IMPORTANT.** ADR 0043 is Accepted with two items the promoted sentence
+  does not contain: placeholder as "present, content unavailable" with the index
+  keeping the last known version (item 2), and the guard valid from Phase 1
+  (item 3). Only "never a deletion" was promoted.
+- **R2, IMPORTANT.** `CLAUDE.md` invariant 11 is new and BLOCKING by definition,
+  and its only backing is a consequence added to ADR 0012 in the same commit:
+  rule and base written together, by the AI. It is the C1 pattern one step over.
+- **I3, IMPORTANT.** "The list is a minimum, not a ceiling" (ADR 0030) widens the
+  reach of an Accepted decision; the finding asked only for source and criterion.
+- **I1 and C14, MINOR.** ADR 0005's three pending analyses are not the finding's
+  three; C14 gained a Phase 1 scope item and a sixth exit criterion.
+
+### Contradictions introduced, not noted in the review
+
+- **IMPORTANT.** ADR 0026 (Accepted) requires the contract to be born with
+  session identity and per-operation authorization, while ADR 0045 answers
+  "Decision: none" on the same point: required and open at once. It is also the
+  one decision dressed as an open question in 0043–0048; 0046 (diacritics) and
+  0044 (rule 4 as form, not security) are MINOR, 0047 and 0048 are clean.
+  *Resolved on 2026-09-21: the ADR 0026 consequence now says the contract's
+  shape must not preclude them; the decision stays open in 0045.*
+- **IMPORTANT.** Spec §4 and roadmap 0.9 let the five fixtures confirm the schema
+  "by following it"; ADR 0031, in the same commit, requires the PR that closes
+  the question, with §9 updated. Two procedures for the act C6 was about.
+  *Resolved on 2026-09-21: the rule change in ADR 0031 item 4 and the explicit
+  closure of Q1 in the fixtures PR left one procedure, the approval in the PR.*
+- **MINOR.** Briefing §14.3 and rule 5 of ADR 0026 keep the wording that C3 and
+  C2 re-read elsewhere, with no pointer; ADR 0030 cites Obsidian's docs with no
+  date while §6 refuses to cite ADR 0009's source for that very reason.
+  *Resolved on 2026-09-21: pointer added to briefing §14.3; ADR 0030 now names
+  the pages and the consultation date.*
+
+### Ratification status
+
+The four IMPORTANT items under "Choices that go past the finding" (C4, C1 items
+2–3, invariant 11, I3) await the maintainer's explicit ratification or veto.
+None blocks Phase 0.

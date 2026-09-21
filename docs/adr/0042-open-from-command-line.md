@@ -3,6 +3,11 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §5.1
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-09-21 — consequence on the Obsidian CLI as a parity reference
+  added at the maintainer's request ("vale até anotar essas coisas do cli que
+  pode ser útil pra gente implementar paralelos melhorados"); it names a
+  reference, not a new scope item — Phase 1 features 4 and 6 stay as the
+  roadmap lists them.
 
 ## Context
 
@@ -35,6 +40,11 @@ Verso opens from the command line, on the model of `code .`: `verso <folder>`.
 - With a multi-root workspace ([0041](0041-multi-root-workspace.md),
   `PROPOSED`), opening several folders at once is the natural extension. It is
   not decided.
+- The Obsidian CLI (app 1.13) is the closest public description of what the
+  Obsidian index answers: links, backlinks, unresolved, orphans, dead ends,
+  search, outline, properties, tags. `verso-cli` and `verso mcp` should cover at
+  least that surface, better; the mapping is in
+  `docs/reference/obsidian-cli.md`.
 
 ## Discarded alternatives
 

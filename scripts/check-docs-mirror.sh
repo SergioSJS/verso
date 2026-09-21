@@ -31,8 +31,9 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
 # Tracked Markdown that deliberately has no twin. Keep this list short and
-# justified: today, nothing.
+# justified. Fixture inputs are contract data, not documentation (ADR 0031).
 EXCLUDED=()
+EXCLUDED_PREFIXES=(fixtures/)
 
 fail=0
 say() { printf '%s\n' "$*" >&2; }
@@ -41,6 +42,7 @@ problem() { fail=1; say "MIRROR: $*"; }
 is_excluded() {
   local f="$1" e
   for e in "${EXCLUDED[@]:-}"; do [ -n "$e" ] && [ "$e" = "$f" ] && return 0; done
+  for e in "${EXCLUDED_PREFIXES[@]:-}"; do [ -n "$e" ] && case "$f" in "$e"*) return 0 ;; esac; done
   return 1
 }
 

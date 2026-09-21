@@ -1,0 +1,17 @@
+# Approved by the maintainer on 2026-09-21, after the observation below (ADR 0031).
+# Construct: wikilink with alias. Spec: docs/spec/dialect.md §5.3.
+links:
+  - target: Barão Vermelho
+    alias: o barão
+    pos: { line: 1, col: 13 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian links file=fx-alias` -> `Barão Vermelho.md`.
+    `obsidian backlinks file="Barão Vermelho"` lists fx-alias.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Barão Vermelho", displayText "o barão",
+    original "[[Barão Vermelho|o barão]]", start col 12 (0-based).

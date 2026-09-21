@@ -33,7 +33,7 @@ Documentos, decisões e guardrails. **Nenhuma feature.**
 | 0.6 | Revisão crítica dos documentos por sessão independente | feito — `docs/review/phase-0.md`; achados aceitos e aplicados pelo mantenedor; diff da aplicação aguarda leitura pelo Opus 5 ([ADR 0032](adr/0032-author-and-reviewer-roles.md)) |
 | 0.7 | Decisão de licença e arquivo `LICENSE` | feito — Pacote A, MPL-2.0 + MIT no SDK ([ADR 0005](adr/0005-license.md), Aceito). Allowlist do `cargo-deny` fecha no item 0.10 |
 | 0.8 | Decisão do idioma da documentação | feito — inglês fonte, pt-BR espelho ([ADR 0008](adr/0008-documentation-language.md), Aceito) |
-| 0.9 | Corpus inicial de fixtures: 5 casos escritos à mão pelo mantenedor, seguindo o schema de `docs/spec/dialect.md` §4 (e assim o confirmando) | pendente — depende do schema (§4, `PROPOSTO`) |
+| 0.9 | Corpus inicial de fixtures: 5 casos rascunhados pela IA, seguindo o schema de `docs/spec/dialect.md` §4, cada um aprovado pelo mantenedor depois de conferir no app Obsidian (ADR 0031, regra alterada em 2026-09-21) | feito — cinco fixtures aprovadas pelo mantenedor em 2026-09-21 após observação pelo CLI do Obsidian (`docs/reference/obsidian-cli.md`); schema §4 confirmado, Q1 fechada |
 | 0.10 | Workspace Cargo com os cinco crates, vazios | feito — `fmt`, `clippy`, `test` e `deny` verdes; guardrails de workspace vistos falhando localmente (PR #2) |
 | 0.11 | CI em macOS e Linux com os guardrails **de workspace** ([ADR 0029](adr/0029-guardrails-in-ci.md)), incluindo a verificação de espelho da documentação | feito — baseline verde nos dois sistemas; cada guardrail visto falhando numa branch `test/guardrail-*` (links no PR do CI) |
 | 0.12 | Migração da documentação: tradução para inglês nos caminhos canônicos, pt-BR movido para `docs/pt-BR/`, nomes de arquivo em inglês ([ADR 0008](adr/0008-documentation-language.md)) | feito — autoria de sessões Opus 5, revisão de Fable 5.1; `scripts/check-docs-mirror.sh` verde |
@@ -67,12 +67,15 @@ Todos verificáveis. A fase fecha quando os cinco passarem.
    gerados) não podem existir com crates vazios; cada um é visto falhando no PR
    da feature que o introduz, e isso é critério de saída da Fase 1 (item 3) e
    da Fase 2 (item 3).
-5. **Cinco fixtures à mão.** Existem cinco pares
-   `fixtures/<categoria>/<caso>/{input.md,expected.yaml}` escritos pelo
-   mantenedor, cobrindo categorias mínimas distintas de §11.4 e seguindo o
-   schema de `docs/spec/dialect.md` §4. Verificação: contar os diretórios,
-   conferir a autoria no histórico do git, e conferir que cada `expected.yaml`
-   usa só chaves do schema.
+5. **Cinco fixtures aprovadas.** Existem cinco pares
+   `fixtures/<categoria>/<caso>/{input.md,expected.yaml}`, cobrindo categorias
+   mínimas distintas de §11.4 e seguindo o schema de `docs/spec/dialect.md`
+   §4, cada um aprovado pelo mantenedor depois de conferir o comportamento no
+   app Obsidian (ADR 0031). Verificação: `scripts/check-fixtures.sh` reporta
+   cinco fixtures, nenhuma marcada como rascunho; cada `observed:` diz a
+   versão do app e como foi conferido; o PR que as adicionou carrega a
+   aprovação do mantenedor. Estado: satisfeito em 2026-09-21 (cinco
+   aprovadas, nenhuma rascunho; observadas com Obsidian 1.13.7).
 
 ### Não bloqueia a saída
 

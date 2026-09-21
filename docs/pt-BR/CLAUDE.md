@@ -74,8 +74,9 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
     mantenedor dizer o contrário. Se a fixture parecer errada: **parar, não
     editar, perguntar** — em comentário no PR ou na sessão, apontando o caso e
     por que o esperado parece incorreto.
-15. As 5 primeiras fixtures são do mantenedor. As seguintes podem ser
-    rascunhadas pela IA e só valem depois de ele aprovar.
+15. Qualquer fixture pode ser rascunhada pela IA; nenhuma vale antes de o
+    mantenedor aprovar no PR que a adiciona. Rascunho diz que é rascunho na
+    primeira linha do `expected.yaml`.
 16. `input.md` também não muda sozinho: mudar a entrada muda o contrato.
 17. Fixture segue o schema de `spec/dialect.md` §4. Fixture que responde a
     uma questão `[ABERTO]` da spec só entra no PR que fecha a questão, com a
@@ -246,6 +247,7 @@ Parar é o comportamento correto, não uma falha:
 | `spec/dialect.md` | Comportamento do dialeto, com as lacunas marcadas `[ABERTO]` |
 | `roadmap.md` | Fases 0, 1 e 2, com critério de saída verificável |
 | `review/` | Revisões críticas por fase, com achados classificados e a resolução de cada um |
+| `reference/` | Notas de referência sobre ferramentas externas e comportamento observado de fora, como o CLI do Obsidian ([ADR 0009](adr/0009-external-constraints.md)) |
 | `docs/pt-BR/` | Espelho pt-BR de toda a documentação, mesma estrutura e nomes ([ADR 0008](adr/0008-documentation-language.md)) |
 | `fixtures/` | Contrato de comportamento. `expected.yaml` é intocável sem aprovação; schema em `spec/dialect.md` §4 |
 | `crates/` | Os cinco crates do core |
