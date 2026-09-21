@@ -1,0 +1,19 @@
+# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Construct: block ID definition at the end of a line. Spec: docs/spec/dialect.md §5.7.
+# Asserts the decided form only (end of the line of a paragraph); the other
+# positions are Q3, the charset is Q22. "vingança" puts a non-ASCII character
+# before the `^`, so `col` counts characters (spec §4.4): in bytes it would
+# be 22.
+blocks:
+  - id: juramento
+    pos: { line: 1, col: 21 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...).blocks` ->
+    { juramento: { id: "juramento", position: line 0 col 0 .. line 0 col 30 } }.
+    Obsidian's position is the whole paragraph; the spec's `pos` is the `^`
+    (§4.3), which sits at 0-based char 20 of that paragraph.

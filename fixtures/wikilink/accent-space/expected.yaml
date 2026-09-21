@@ -1,0 +1,24 @@
+# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Construct: note names with accents and spaces. Spec: docs/spec/dialect.md §5.10.
+# The first link puts "ç" before the second, so its `col` is the first in the
+# corpus that counts characters and not bytes (spec §4.4): 43 in characters,
+# 44 in bytes. Normalization and case of the names are Q7 and Q8.
+links:
+  - target: Ilha da Preguiça
+    pos: { line: 1, col: 15 }
+  - target: Café São João
+    alias: café
+    pos: { line: 1, col: 43 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian links file=fx-accent` -> "Café São João (unresolved)",
+    "Ilha da Preguiça (unresolved)"; `obsidian unresolved verbose` lists
+    both from fx-accent.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Ilha da Preguiça", start col 14; link "Café São João",
+    displayText "café", start col 42 (0-based, in characters: the "ç" of
+    Preguiça counts one).

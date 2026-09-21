@@ -1,0 +1,21 @@
+# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Construct: YAML frontmatter with tags and aliases. Spec: docs/spec/dialect.md §5.1.
+# Asserts the interpreted values of the three keys; the accepted forms of
+# `tags` and `aliases` (string, list) and the YAML dialect are Q24.
+frontmatter:
+  title: Barão Vermelho
+  tags: [npc, nobreza]
+  aliases: [o barão, Lorde Vermelho]
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...).frontmatter` ->
+    { title: "Barão Vermelho", tags: ["npc", "nobreza"],
+    aliases: ["o barão", "Lorde Vermelho"] }; `frontmatterLinks` empty;
+    section of type "yaml" at line 0 col 0 .. line 6 col 3.
+    `obsidian properties file=fx-frontmatter` lists the three keys;
+    `obsidian aliases` lists "o barão" and "Lorde Vermelho".

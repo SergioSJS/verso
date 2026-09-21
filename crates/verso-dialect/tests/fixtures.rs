@@ -43,6 +43,13 @@ fixture_tests! {
     wikilink_block_reference => "wikilink/block-reference",
     wikilink_heading => "wikilink/heading",
     wikilink_simple => "wikilink/simple",
+    // AI drafts of this PR, awaiting approval (first line of each expected.yaml).
+    block_definition => "block/definition",
+    callout_simple => "callout/simple",
+    embed_simple => "embed/simple",
+    frontmatter_tags_aliases => "frontmatter/tags-aliases",
+    heading_atx => "heading/atx",
+    wikilink_accent_space => "wikilink/accent-space",
 }
 
 fn check(name: &str, input: &str, expected: &str) {
