@@ -11,6 +11,9 @@
   2026-09-21 — panic upstream do `pulldown-cmark` 0.13.4 registrado nas
   Consequências, vindo da terceira leitura do PR da feature 1
   (`docs/review/phase-1-feature-1.md`). Decisão e Status inalterados.
+  2026-09-21 — um segundo defeito da mesma versão, tempo de parsing
+  exponencial, registrado nas Consequências, vindo da quarta leitura daquele
+  PR. Decisão e Status inalterados.
 
 ## Contexto
 
@@ -112,6 +115,24 @@ leitura, edições por patch textual; `docs/spec/dialect.md` §9):
   mantenedor:** esperar o release upstream, fixar a revisão de git — o que
   também exige mexer em `[sources]` no `deny.toml`, onde `unknown-git` está
   como `deny` — ou trocar para o fallback `comrak` já registrado no item 2.
+- **O `pulldown-cmark` 0.13.4 também leva tempo exponencial em certas
+  entradas**, registrado em 2026-09-21 pela quarta leitura do PR da feature 1,
+  que a achou com o guardrail de fuzz: uma entrada UTF-8 de 5 068 bytes em que o
+  `parse` não retorna em tempo prático — preso em CPU, dobrando aproximadamente
+  a cada 100 bytes de entrada (3 600 bytes: 1,3 s; 4 000 bytes: 11 s). O parser
+  base sozinho emite 157 milhões de eventos para os primeiros 3 600 bytes dessa
+  entrada, contra 676 eventos e 313 µs para o arquivo inteiro na `main` upstream
+  (verificado na `c51a2a4`), então o defeito é da base e a passada do próprio
+  `verso-dialect` é linear sobre os eventos dela. Esta é a "lentidão" que a Q17
+  de `docs/spec/dialect.md` já nomeia, e contradiz o propósito que o
+  [0029](0029-guardrails-in-ci.md) declara para o guardrail de fuzz. Duas
+  consequências enquanto isso durar: o job de fuzz do CI pode ficar vermelho em
+  qualquer PR ao achar a entrada de novo (não visto em execuções de 60 segundos,
+  visto uma vez numa de 600 segundos), e o reprodutor é um segundo teste de
+  regressão com `#[ignore]`, que lê
+  `crates/verso-dialect/tests/data/pulldown-0.13.4-exponential.txt`. **A saída é
+  o mesmo trio de opções do panic, e a mesma decisão**, já que os dois defeitos
+  não existem na `main` upstream.
 
 ## Alternativas descartadas
 
