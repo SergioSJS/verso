@@ -27,8 +27,10 @@ discorda.
    aprovação explícita do mantenedor, dada no PR que a adiciona. Nas cinco
    primeiras, aprovar inclui conferir o comportamento no app Obsidian e
    registrar como em `observed:`. A independência vem da aprovação, não de
-   quem digitou o arquivo. (Redação até 2026-09-21: "as 5 primeiras fixtures
-   são escritas à mão pelo mantenedor"; alterada pelo mantenedor.)
+   quem digitou o arquivo. Rascunho diz que é rascunho na primeira linha do
+   `expected.yaml` (`# AI draft ...`); a aprovação substitui essa linha.
+   (Redação até 2026-09-21: "as 5 primeiras fixtures são escritas à mão pelo
+   mantenedor"; alterada pelo mantenedor.)
 
 Categorias mínimas: wikilink simples, com alias, com heading, com `#^bloco`;
 embed `![[...]]`; definição de bloco `^id`; link dentro de código inline e de

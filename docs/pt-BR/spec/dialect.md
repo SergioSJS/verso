@@ -67,6 +67,7 @@ fixtures). Fixture que não segue o schema é inválida.
 | `blocks` | lista de definições `^id`, em ordem de documento | não afirmado |
 | `callouts` | lista, em ordem de documento | não afirmado |
 | `observed` | como o comportamento foi verificado no Obsidian | ver 4.5 |
+| `source` | ADR ou questão que autoriza um comportamento próprio do Verso | ver 4.5 |
 
 **Chave ausente não afirma nada**; `links: []` afirma que não há link. A ordem
 das listas é a ordem em que a construção aparece no arquivo. Uma fixture afirma
@@ -110,7 +111,10 @@ no editor. A posição é do primeiro caractere da construção (`[` de `[[`, `!
 Posição existe porque a citação verificável é decisão
 ([ADR 0018](../adr/0018-llm-native-mcp-in-core.md)) e bloco sem `^id` é citado
 por posição. Fixture sem `pos` não testa posição; pelo menos uma fixture por
-construção precisa testar.
+construção precisa testar. As cinco primeiras fixtures têm só texto ASCII antes
+da construção, então ainda não distinguem caracteres de bytes; uma fixture com
+prefixo não-ASCII é necessária antes de a unidade ser exercitada
+(`docs/reference/obsidian-cli.md` §4).
 
 ### 4.5 Origem da observação
 
@@ -120,9 +124,13 @@ comportamento foi observado, pela regra de fontes admissíveis (seção 3):
 ```yaml
 observed:
   app: Obsidian
-  version: "1.x.y"
+  version: "1.13.7 (installer 1.11.5), macOS"
   how: "colar o input numa nota nova; ver o painel de backlinks da nota alvo"
 ```
+
+`version` é texto livre: versão do app, do instalador e sistema operacional
+quando importarem. `how` é prosa, repetível por outra pessoa; o CLI do Obsidian
+(`docs/reference/obsidian-cli.md`) a transforma em comandos.
 
 Fixture de comportamento **próprio** do Verso (seção 6) omite `observed` e
 cita o ADR ou a questão que a autoriza em `source:`.
@@ -477,9 +485,11 @@ Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
 | posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
 
 Qualquer fixture pode ser rascunhada pela IA; só vale com a aprovação do
-mantenedor no PR que a adiciona (ADR 0031). As cinco primeiras seguem o schema
-da seção 4 e, aprovadas, o confirmam. `scripts/check-fixtures.sh` confere a
-estrutura e os nomes de chave de cada fixture; os valores são a aprovação do
+mantenedor no PR que a adiciona (ADR 0031). Rascunho diz que é rascunho na
+primeira linha do `expected.yaml` (`# AI draft ...`); a aprovação substitui essa
+linha. As cinco primeiras seguem o schema da seção 4 e, aprovadas, o confirmam.
+`scripts/check-fixtures.sh` confere o layout de cada fixture e que cada chave é
+uma das do schema, sob o pai que o schema lhe dá; os valores são a aprovação do
 mantenedor e os testes da Fase 1.
 
 **`expected.yaml` só muda com aprovação explícita do mantenedor.** Se uma

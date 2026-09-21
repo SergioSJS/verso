@@ -26,8 +26,10 @@ disagrees.
    maintainer's explicit approval, given in the PR that adds it. For the first
    five, approval includes checking the behaviour in the Obsidian app and
    recording how in `observed:`. Independence comes from the approval, not
-   from who typed the file. (Wording until 2026-09-21: "the first 5 fixtures
-   are written by hand by the maintainer"; changed by the maintainer.)
+   from who typed the file. A draft says so on the first line of its
+   `expected.yaml` (`# AI draft ...`); approval replaces that line. (Wording
+   until 2026-09-21: "the first 5 fixtures are written by hand by the
+   maintainer"; changed by the maintainer.)
 
 Minimum categories: simple wikilink, with alias, with heading, with `#^bloco`;
 `![[...]]` embed; block definition `^id`; link inside inline code and inside a
