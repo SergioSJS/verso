@@ -53,3 +53,20 @@ fn deeply_nested_frontmatter_returns_an_error_not_an_abort() {
 fn list_item_with_reference_definition_and_tab_line() {
     let _ = parse("- [a]:b\n\t\t");
 }
+
+/// `pulldown-cmark` 0.13.4 takes exponential time on this 5 068-byte input:
+/// 157 million events for its first 3 600 bytes, hours for the whole file
+/// (676 events and 313 µs on upstream `main`, verified as of `c51a2a4`).
+/// `verso-dialect`'s pass is linear over the base's events. Found by the
+/// fuzz job after the fourth reading of the follow-up to PR #7; the limit
+/// and the behavior on slowness are Q17, `[OPEN]`, and the base parser is
+/// ADR 0037's subject. Ignored until the base is updated; then this test
+/// must finish in well under a second.
+#[test]
+#[ignore = "pulldown-cmark 0.13.4 takes exponential time here; fixed upstream, unreleased"]
+fn list_with_brackets_that_explodes_the_base_parser() {
+    let source = include_str!("data/pulldown-0.13.4-exponential.txt");
+    let started = std::time::Instant::now();
+    let _ = parse(source);
+    assert!(started.elapsed() < std::time::Duration::from_secs(1));
+}
