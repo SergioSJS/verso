@@ -1,0 +1,31 @@
+# Fuzz harness for verso-dialect (ADR 0029, feature guardrail of Phase 1,
+# feature 1). Its own package, excluded from the workspace: it is a dev
+# tool that never ships, and `libfuzzer-sys` needs the nightly toolchain.
+#
+#   cd crates/verso-dialect && cargo +nightly fuzz run parse
+#
+# libfuzzer-sys is MIT OR Apache-2.0, with LLVM's libFuzzer (NCSA) bundled;
+# it is linked into this harness only, never into a product crate, which is
+# why it is outside the cargo-deny graph of the workspace.
+
+[package]
+name = "verso-dialect-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.verso-dialect]
+path = ".."
+
+[[bin]]
+name = "parse"
+path = "fuzz_targets/parse.rs"
+test = false
+doc = false
+bench = false
