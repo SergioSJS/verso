@@ -1,0 +1,20 @@
+# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Construct: ATX headings with level, text and position. Spec: docs/spec/dialect.md §5.12.
+# Matching a heading against `[[nota#seção]]` and setext headings are Q19.
+headings:
+  - level: 1
+    text: Taverna
+    pos: { line: 1, col: 1 }
+  - level: 2
+    text: Porão
+    pos: { line: 3, col: 1 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian outline file=fx-heading` -> Taverna, then Porão nested.
+    `obsidian eval` on `app.metadataCache.getCache(...).headings` ->
+    heading "Taverna" level 1 at line 0 col 0; heading "Porão" level 2 at
+    line 2 col 0 (0-based).
