@@ -11,12 +11,15 @@
 //! integer. Whether that is the final answer is spec Q24.
 
 use saphyr::{LoadableYamlNode, Scalar, Yaml};
-use saphyr_parser::{Event, Parser};
+use saphyr_parser::{Event, Parser, Tag};
+use std::borrow::Cow;
 
 use crate::position::Span;
 
-/// Deepest nesting of sequences and mappings accepted in a frontmatter, and
-/// the largest number of nodes, counted **after** aliases are expanded.
+/// Deepest nesting accepted in a frontmatter (a scalar under 64 collections
+/// is at depth 65 and refused), and the largest number of nodes in the
+/// tree the loader would build, counted **after** aliases are expanded and
+/// with one extra node per tagged value.
 ///
 /// `Yaml::load_from_str` goes through `saphyr_parser`'s loading driver,
 /// which recurses once per level, and its loader expands an alias by cloning
@@ -92,82 +95,125 @@ pub(crate) fn parse_yaml(text: &str) -> Result<Value, String> {
 /// is what the loader will build there by cloning. A scan error is reported
 /// as such; the loader would report the same one.
 fn check_depth(text: &str) -> Result<(), String> {
-    // Height and size of every collection still open, innermost last.
+    // Every collection still open, innermost last, and the levels they
+    // occupy in the tree: one each, plus one for a tag wrapper.
     let mut open: Vec<Frame> = Vec::new();
+    let mut open_depth = 0usize;
     // Height and size of each anchored node, by anchor id.
     let mut anchors: Vec<(usize, Frame)> = Vec::new();
     let mut total_nodes = 0usize;
 
+    // A node is closed: charge it to the document, then fold it into its
+    // parent. `charged` is what it adds: itself and its tag wrapper for a
+    // node the text spells out (its children charged themselves when they
+    // closed); the whole recorded size for an alias, which the loader clones.
     let close = |open: &mut Vec<Frame>,
+                 open_depth: usize,
                  anchors: &mut Vec<(usize, Frame)>,
                  total_nodes: &mut usize,
                  node: Frame,
-                 anchor: usize|
+                 charged: usize|
      -> Result<(), String> {
-        *total_nodes += node.size;
+        *total_nodes += charged;
         if *total_nodes > MAX_YAML_NODES {
             return Err(format!(
                 "frontmatter expands to more than {MAX_YAML_NODES} nodes"
             ));
         }
-        if open.len() + node.height > MAX_YAML_DEPTH {
+        // Levels of the ancestors, plus this node's own levels.
+        if open_depth + node.levels() > MAX_YAML_DEPTH {
             return Err(format!(
                 "frontmatter nested deeper than {MAX_YAML_DEPTH} levels"
             ));
         }
-        if anchor != 0 {
-            anchors.push((anchor, node));
+        if node.anchor != 0 {
+            anchors.push((node.anchor, node));
         }
         if let Some(parent) = open.last_mut() {
-            parent.height = parent.height.max(node.height + 1);
+            parent.height = parent.height.max(node.levels());
             parent.size += node.size;
+            parent.size_of_children += node.size;
         }
         Ok(())
     };
 
+    // A tag outside the YAML core schema makes the loader wrap the node in
+    // one more `Yaml::Tagged` level: one extra node, one extra level.
+    let wrapper_of =
+        |tag: Option<Cow<'_, Tag>>| usize::from(tag.is_some_and(|t| !t.is_yaml_core_schema()));
+
     for event in Parser::new_from_str(text) {
         let (event, _) = event.map_err(|e| e.to_string())?;
         match event {
-            Event::SequenceStart(anchor, _) | Event::MappingStart(anchor, _) => {
-                if open.len() >= MAX_YAML_DEPTH {
+            Event::SequenceStart(anchor, tag) | Event::MappingStart(anchor, tag) => {
+                let wrapper = wrapper_of(tag);
+                if open_depth + 1 + wrapper > MAX_YAML_DEPTH {
                     return Err(format!(
                         "frontmatter nested deeper than {MAX_YAML_DEPTH} levels"
                     ));
                 }
+                open_depth += 1 + wrapper;
                 open.push(Frame {
                     anchor,
+                    wrapper,
                     height: 0,
-                    size: 1,
+                    size: 1 + wrapper,
+                    size_of_children: 0,
                 });
             }
             Event::SequenceEnd | Event::MappingEnd => {
                 let Some(node) = open.pop() else {
                     return Err("frontmatter: unbalanced collection".to_owned());
                 };
-                let anchor = node.anchor;
-                close(&mut open, &mut anchors, &mut total_nodes, node, anchor)?;
+                open_depth -= 1 + node.wrapper;
+                let charged = node.size - node.size_of_children;
+                close(
+                    &mut open,
+                    open_depth,
+                    &mut anchors,
+                    &mut total_nodes,
+                    node,
+                    charged,
+                )?;
             }
-            Event::Scalar(_, _, anchor, _) => close(
-                &mut open,
-                &mut anchors,
-                &mut total_nodes,
-                Frame {
+            Event::Scalar(_, _, anchor, tag) => {
+                let wrapper = wrapper_of(tag);
+                let node = Frame {
                     anchor,
+                    wrapper,
                     height: 0,
-                    size: 1,
-                },
-                anchor,
-            )?,
+                    size: 1 + wrapper,
+                    size_of_children: 0,
+                };
+                close(
+                    &mut open,
+                    open_depth,
+                    &mut anchors,
+                    &mut total_nodes,
+                    node,
+                    node.size,
+                )?;
+            }
             Event::Alias(id) => {
                 let node = anchors.iter().rev().find(|(a, _)| *a == id).map_or(
                     Frame {
                         anchor: 0,
+                        wrapper: 0,
                         height: 0,
                         size: 1,
+                        size_of_children: 0,
                     },
-                    |(_, node)| *node,
+                    |(_, node)| Frame { anchor: 0, ..*node },
                 );
-                close(&mut open, &mut anchors, &mut total_nodes, node, 0)?;
+                // The loader clones the whole anchored node here.
+                close(
+                    &mut open,
+                    open_depth,
+                    &mut anchors,
+                    &mut total_nodes,
+                    node,
+                    node.size,
+                )?;
             }
             _ => {}
         }
@@ -175,13 +221,24 @@ fn check_depth(text: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// What the pre-pass knows about one node: levels below it and nodes in it,
-/// both after alias expansion.
+/// What the pre-pass knows about one node, after alias expansion: whether a
+/// tag wraps it, the levels below it, and the nodes in it (itself, its
+/// wrapper if any, and everything under it). `size_of_children` is the part
+/// of `size` that the children already charged when they closed.
 #[derive(Clone, Copy)]
 struct Frame {
     anchor: usize,
+    wrapper: usize,
     height: usize,
     size: usize,
+    size_of_children: usize,
+}
+
+impl Frame {
+    /// Levels this node occupies: its wrapper, itself, and what is below.
+    fn levels(&self) -> usize {
+        self.wrapper + 1 + self.height
+    }
 }
 
 /// Recursive, and safe to be: the depth and size of the tree, aliases
@@ -287,9 +344,10 @@ mod tests {
                 .map(|i| format!("{}b{i}:\n", " ".repeat(i)))
                 .collect::<String>();
         assert!(parse_yaml(&deep_map).is_err());
-        // At the limit it still parses.
-        let at_limit = format!("{}x\n", "- ".repeat(MAX_YAML_DEPTH));
-        assert!(parse_yaml(&at_limit).is_ok());
+        // The depth counts the node itself: 63 sequences and the scalar
+        // under them are 64 levels and pass; 64 sequences do not.
+        assert!(parse_yaml(&format!("{}x\n", "- ".repeat(MAX_YAML_DEPTH - 1))).is_ok());
+        assert!(parse_yaml(&format!("{}x\n", "- ".repeat(MAX_YAML_DEPTH))).is_err());
         // Flow style already had saphyr's own limit; still an error, not an abort.
         assert!(parse_yaml(&"[".repeat(10_000)).is_err());
     }
@@ -315,10 +373,76 @@ mod tests {
         }
         let error = parse_yaml(&fan).unwrap_err();
         assert!(error.contains("more than"), "{error}");
+        // The budget counts nodes, not nesting: a flat mapping of 4 000
+        // keys is 8 001 nodes and passes; 5 000 keys is 10 001 and does not.
+        let flat = |n: usize| (0..n).map(|i| format!("k{i}: v\n")).collect::<String>();
+        assert!(parse_yaml(&flat(4_000)).is_ok());
+        assert!(parse_yaml(&flat(5_000)).unwrap_err().contains("more than"));
+        // A tag wraps the node in one more level, which is charged.
+        assert!(parse_yaml(&format!("{}x{}\n", "!t [".repeat(40), "]".repeat(40))).is_err());
+        assert!(parse_yaml(&format!("{}x{}\n", "[".repeat(40), "]".repeat(40))).is_ok());
         // An ordinary alias still expands, as before.
         let value = parse_yaml("base: &b [1, 2]\ncopy: *b\n").unwrap();
         let Value::Mapping(map) = value else { panic!() };
         assert_eq!(map[0].1, map[1].1);
+    }
+
+    /// Depth and node count of the tree `saphyr` actually builds, so that the
+    /// pre-pass can be checked against the thing it models.
+    fn measure(yaml: &Yaml<'_>) -> (usize, usize) {
+        match yaml {
+            Yaml::Sequence(items) => {
+                let (d, n) = items
+                    .iter()
+                    .map(measure)
+                    .fold((0, 0), |a, b| (a.0.max(b.0), a.1 + b.1));
+                (1 + d, 1 + n)
+            }
+            Yaml::Mapping(map) => {
+                let (d, n) = map
+                    .iter()
+                    .flat_map(|(k, v)| [measure(k), measure(v)])
+                    .fold((0, 0), |a, b| (a.0.max(b.0), a.1 + b.1));
+                (1 + d, 1 + n)
+            }
+            Yaml::Tagged(_, inner) => {
+                let (d, n) = measure(inner);
+                (1 + d, 1 + n)
+            }
+            _ => (1, 1),
+        }
+    }
+
+    #[test]
+    fn the_pre_pass_models_the_loaded_tree() {
+        // Shapes mixing tags, anchors, aliases, flow and block style; for each
+        // one the pre-pass must accept exactly what the loaded tree would fit.
+        let shapes = [
+            "a: 1\n".to_owned(),
+            "!t [ !t [ x ] ]\n".to_owned(),
+            "a: !t 1\nb: !!str 2\n".to_owned(),
+            "base: &b [1, [2, [3]]]\ncopy: *b\nagain: [*b, *b]\n".to_owned(),
+            "x: &x !t [ &y !u { k: !v [1] } ]\ny: [*x, *y]\n".to_owned(),
+            "? [a, b]\n: c\n".to_owned(),
+            "a: &a [*a, *a]\n".to_owned(),
+            format!("{}x{}\n", "!t [".repeat(31), "]".repeat(31)),
+            format!("{}x{}\n", "!t [".repeat(32), "]".repeat(32)),
+            format!("{}x\n", "- ".repeat(63)),
+            format!("{}x\n", "- ".repeat(64)),
+        ];
+        for text in &shapes {
+            let tree = Yaml::load_from_str(text).unwrap();
+            let (depth, nodes) = tree
+                .iter()
+                .map(measure)
+                .fold((0, 0), |a, b| (a.0.max(b.0), a.1 + b.1));
+            let fits = depth <= MAX_YAML_DEPTH && nodes <= MAX_YAML_NODES;
+            assert_eq!(
+                check_depth(text).is_ok(),
+                fits,
+                "{text:?}: tree depth {depth}, nodes {nodes}"
+            );
+        }
     }
 
     #[test]
