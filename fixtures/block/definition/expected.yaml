@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-09-21 in the session that merged PR #7, after the observation below (ADR 0031).
 # Construct: block ID definition at the end of a line. Spec: docs/spec/dialect.md §5.7.
 # Asserts the decided form only (end of the line of a paragraph); the other
 # positions are Q3, the charset is Q22. "vingança" puts a non-ASCII character
