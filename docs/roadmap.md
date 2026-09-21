@@ -34,7 +34,7 @@ Documents, decisions and guardrails. **No feature at all.**
 | 0.7 | License decision and `LICENSE` file | done — Package A, MPL-2.0 + MIT in the SDK ([ADR 0005](adr/0005-license.md), Accepted). The `cargo-deny` allowlist closes in item 0.10 |
 | 0.8 | Documentation language decision | done — English source, pt-BR mirror ([ADR 0008](adr/0008-documentation-language.md), Accepted) |
 | 0.9 | Initial fixture corpus: 5 cases drafted by the AI, following the schema in `docs/spec/dialect.md` §4, each approved by the maintainer after checking it in the Obsidian app (ADR 0031, rule changed 2026-09-21) | done — five fixtures approved by the maintainer on 2026-09-21 after observation through the Obsidian CLI (`docs/reference/obsidian-cli.md`); schema §4 confirmed, Q1 closed |
-| 0.10 | Cargo workspace with the five crates, empty | done — `fmt`, `clippy`, `test` and `deny` green; workspace guardrails seen failing locally (see the PR) |
+| 0.10 | Cargo workspace with the five crates, empty | done — `fmt`, `clippy`, `test` and `deny` green; workspace guardrails seen failing locally (PR #2) |
 | 0.11 | CI on macOS and Linux with the **workspace** guardrails ([ADR 0029](adr/0029-guardrails-in-ci.md)), including the documentation mirror check | done — baseline green on both OSes; each guardrail seen failing on a `test/guardrail-*` branch (links in the CI PR) |
 | 0.12 | Documentation migration: translation into English at the canonical paths, pt-BR moved to `docs/pt-BR/`, English file names ([ADR 0008](adr/0008-documentation-language.md)) | done — authored by Opus 5 sessions, reviewed by Fable 5.1; `scripts/check-docs-mirror.sh` green |
 

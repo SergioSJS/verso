@@ -22,9 +22,10 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 # A panic takes the whole app down with the user's notes open.
-# Allowed only in tests: see allow-unwrap-in-tests in clippy.toml.
-unwrap_used = "deny"
-expect_used = "deny"
+# Allowed only in tests: see allow-unwrap-in-tests in clippy.toml. `forbid`, not
+# `deny`: a local `#[allow]` cannot override it (CLAUDE.md §3).
+unwrap_used = "forbid"
+expect_used = "forbid"
 # std::fs is denied outside verso-fs; the list is in clippy.toml
 # (ADR 0026, rule 5, delimited scope).
-disallowed_methods = "deny"
+disallowed_methods = "forbid"

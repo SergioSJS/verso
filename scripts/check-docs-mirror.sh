@@ -2,64 +2,105 @@
 # Documentation mirror check (ADR 0008, ADR 0029 workspace guardrail).
 #
 # Every canonical Markdown document must have a pt-BR twin under docs/pt-BR/
-# with the same relative path, and vice versa. The two must have the same
-# heading structure (same sequence of heading levels) and the same set of
-# relative links. Content equivalence is human review; presence, structure
-# and links are CI.
+# and vice versa. The two must have the same heading structure and the same
+# set of relative links. Content equivalence is human review; presence,
+# structure and links are CI.
 #
-# Canonical set: docs/**/*.md (excluding docs/pt-BR/), CLAUDE.md and
-# .github/pull_request_template.md. Root files mirror into docs/pt-BR/ at the
-# top level (CLAUDE.md -> docs/pt-BR/CLAUDE.md,
-# .github/pull_request_template.md -> docs/pt-BR/pull_request_template.md).
+# "Same heading structure" means the same sequence of heading levels: the
+# heading text differs by language, so it is not compared (ADR 0008).
 #
-# Exit code: 0 when the mirror is complete, 1 otherwise. No dependencies
-# beyond bash, find, grep, sed, sort and diff.
+# Canonical set: every tracked *.md outside docs/pt-BR/, except the ones in
+# EXCLUDED below. Files under docs/ mirror to docs/pt-BR/<same relative
+# path>; files anywhere else (CLAUDE.md, CONTRIBUTING.md,
+# .github/pull_request_template.md, a future SECURITY.md) mirror to
+# docs/pt-BR/<basename>. A new root or .github document is therefore checked
+# the moment it is tracked, and a mirror file with no canonical is an orphan.
+#
+# Links: compared as written, after stripping the leading `docs/` that root
+# files use and their mirrors do not; the language-switch link (a document
+# pointing at its own twin) is dropped from the comparison, since it differs
+# by construction. Every link is then resolved relative to the file that
+# contains it, with no fallback.
+#
+# Exit code: 0 when the mirror is complete, 1 otherwise. Needs bash, git,
+# find, grep, sed, sort, diff, awk.
 
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
+# Tracked Markdown that deliberately has no twin. Keep this list short and
+# justified: today, nothing.
+EXCLUDED=()
+
 fail=0
 say() { printf '%s\n' "$*" >&2; }
 problem() { fail=1; say "MIRROR: $*"; }
 
+is_excluded() {
+  local f="$1" e
+  for e in "${EXCLUDED[@]:-}"; do [ -n "$e" ] && [ "$e" = "$f" ] && return 0; done
+  return 1
+}
+
 # Map canonical path -> mirror path.
 mirror_of() {
   case "$1" in
-    CLAUDE.md|CONTRIBUTING.md|README.md) echo "docs/pt-BR/$1" ;;
-    .github/pull_request_template.md) echo "docs/pt-BR/pull_request_template.md" ;;
+    docs/pt-BR/*) return 1 ;;
     docs/*) echo "docs/pt-BR/${1#docs/}" ;;
-    *) return 1 ;;
+    *) echo "docs/pt-BR/$(basename "$1")" ;;
   esac
 }
 
-# Map mirror path -> canonical path.
+# Map mirror path -> canonical path. A top-level mirror file (docs/pt-BR/X.md)
+# is the twin of docs/X.md if that exists, else of the single tracked X.md
+# outside docs/; ambiguity is reported.
 canonical_of() {
-  case "$1" in
-    docs/pt-BR/CLAUDE.md|docs/pt-BR/CONTRIBUTING.md|docs/pt-BR/README.md) echo "${1#docs/pt-BR/}" ;;
-    docs/pt-BR/pull_request_template.md) echo ".github/pull_request_template.md" ;;
-    docs/pt-BR/*) echo "docs/${1#docs/pt-BR/}" ;;
-    *) return 1 ;;
+  local m="$1" rel c n
+  rel="${m#docs/pt-BR/}"
+  case "$rel" in
+    */*) echo "docs/$rel"; return 0 ;;
   esac
+  if [ -f "docs/$rel" ]; then echo "docs/$rel"; return 0; fi
+  c=$(git ls-files -- '*.md' ':!docs/**' | grep -E "(^|/)$(printf '%s' "$rel" | sed 's/[.[\*^$]/\\&/g')$" || true)
+  n=$(printf '%s\n' "$c" | grep -c . || true)
+  if [ "$n" -eq 1 ]; then echo "$c"; return 0; fi
+  return 1
 }
 
-# Heading structure: sequence of heading levels, ignoring fenced code blocks.
+# Relative path from the directory of $1 to the file $2 (both repo-relative).
+relpath() {
+  local from_dir to="$2" up="" rest
+  from_dir="$(dirname "$1")"
+  [ "$from_dir" = "." ] && { echo "$to"; return; }
+  rest="$to"
+  local d="$from_dir"
+  while [ -n "$d" ] && [ "$d" != "." ]; do
+    case "$rest" in
+      "$d"/*) rest="${rest#"$d"/}"; echo "${up}${rest}"; return ;;
+    esac
+    up="../$up"
+    d="$(dirname "$d")"
+  done
+  echo "${up}${to}"
+}
+
+# Heading structure: sequence of heading levels, ignoring fenced code blocks
+# (a fence may be indented inside a list).
 headings() {
   awk '
-    /^```/ { fence = !fence; next }
+    /^[[:space:]]*```/ { fence = !fence; next }
     fence { next }
     /^#{1,6} / { match($0, /^#+/); print RLENGTH }
   ' "$1"
 }
 
-# Relative links inside the file, ignoring code blocks and absolute URLs.
-# Links from root files to docs/ are normalised so both sides compare equal.
-# The language-switch link (canonical -> its twin, twin -> its canonical) is
-# dropped: by construction it differs between the two sides.
-links() {
+# All relative Markdown link targets in the file, as written, without the
+# fragment; code blocks and inline code are ignored, absolute URLs dropped.
+raw_links() {
   awk '
-    /^```/ { fence = !fence; next }
+    /^[[:space:]]*```/ { fence = !fence; next }
     fence { next }
     { print }
   ' "$1" \
@@ -68,39 +109,29 @@ links() {
   | sed -e 's/^](//' -e 's/)$//' -e 's/#.*$//' \
   | grep -v '^[a-z]*://' \
   | grep -v '^$' \
-  | grep -v -E '(^|/)pt-BR/[A-Za-z_.-]+\.md$|^(\.\./)+[A-Za-z_.-]+\.md$' \
-  | sed -e 's#^docs/##' \
   | sort -u
 }
 
-# The language-switch link alone, checked separately for resolution.
-switch_links() {
-  awk '
-    /^```/ { fence = !fence; next }
-    fence { next }
-    { print }
-  ' "$1" \
-  | sed -e 's/`[^`]*`//g' \
-  | grep -o '\]([^)]*)' \
-  | sed -e 's/^](//' -e 's/)$//' -e 's/#.*$//' \
-  | grep -E '(^|/)pt-BR/[A-Za-z_.-]+\.md$|^(\.\./)+[A-Za-z_.-]+\.md$' \
-  | sort -u
+# The link set used for comparison: raw links minus this file's own
+# language-switch link, with the leading `docs/` stripped so that a root file
+# and its mirror compare equal.
+compare_links() {
+  local f="$1" twin="$2" switch
+  switch="$(relpath "$f" "$twin")"
+  raw_links "$f" | grep -v -x -F -- "$switch" | sed -e 's#^docs/##' | sort -u
 }
 
 canonical_list() {
-  {
-    find docs -name '*.md' -not -path 'docs/pt-BR/*'
-    for f in CLAUDE.md CONTRIBUTING.md README.md .github/pull_request_template.md; do
-      [ -f "$f" ] && echo "$f"
-    done
-  } | sort
+  git ls-files -- '*.md' ':!docs/pt-BR/**' | while IFS= read -r f; do
+    is_excluded "$f" || echo "$f"
+  done | sort
 }
 
 mirror_list() {
-  find docs/pt-BR -name '*.md' 2>/dev/null | sort
+  git ls-files -- 'docs/pt-BR/**/*.md' 'docs/pt-BR/*.md' | sort -u
 }
 
-# 1. Every canonical file has a mirror.
+# 1. Every canonical file has a mirror with the same structure and links.
 while IFS= read -r c; do
   m="$(mirror_of "$c")" || { problem "no mirror rule for $c"; continue; }
   if [ ! -f "$m" ]; then
@@ -111,21 +142,21 @@ while IFS= read -r c; do
     problem "heading structure differs: $c vs $m"
     diff <(headings "$c") <(headings "$m") | head -20 >&2 || true
   fi
-  if ! diff -q <(links "$c") <(links "$m") >/dev/null; then
+  if ! diff -q <(compare_links "$c" "$m") <(compare_links "$m" "$c") >/dev/null; then
     problem "link set differs: $c vs $m"
-    diff <(links "$c") <(links "$m") | head -20 >&2 || true
+    diff <(compare_links "$c" "$m") <(compare_links "$m" "$c") | head -20 >&2 || true
   fi
 done < <(canonical_list)
 
-# 2. Every mirror file has a canonical.
+# 2. Every mirror file has exactly one canonical.
 while IFS= read -r m; do
-  c="$(canonical_of "$m")" || { problem "no canonical rule for $m"; continue; }
+  c="$(canonical_of "$m")" || { problem "orphan or ambiguous pt-BR file: $m"; continue; }
   [ -f "$c" ] || problem "orphan pt-BR file: $m (expected $c)"
 done < <(mirror_list)
 
-# 3. Every relative link resolves, on both sides.
+# 3. Every relative link resolves from the file that contains it. No fallback.
 check_links() {
-  local f="$1" dir target
+  local f="$1" dir l target
   dir="$(dirname "$f")"
   while IFS= read -r l; do
     [ -z "$l" ] && continue
@@ -133,11 +164,8 @@ check_links() {
       /*) target="${l#/}" ;;
       *) target="$dir/$l" ;;
     esac
-    # Root files link with a docs/ prefix; links() stripped it, so try both.
-    if [ ! -e "$target" ] && [ ! -e "$dir/docs/$l" ] && [ ! -e "docs/$l" ]; then
-      problem "broken link in $f: $l"
-    fi
-  done < <(links "$f"; switch_links "$f")
+    [ -e "$target" ] || problem "broken link in $f: $l"
+  done < <(raw_links "$f")
 }
 while IFS= read -r f; do check_links "$f"; done < <(canonical_list)
 while IFS= read -r f; do check_links "$f"; done < <(mirror_list)

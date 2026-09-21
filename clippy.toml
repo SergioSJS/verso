@@ -38,4 +38,17 @@ disallowed-methods = [
   { path = "std::fs::File::options", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::OpenOptions::open", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::os::unix::fs::symlink", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::os::unix::fs::chown", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::DirBuilder::create", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  # Path methods inspect or traverse the filesystem too.
+  { path = "std::path::Path::exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::try_exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_file", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_symlink", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::symlink_metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::read_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::read_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::canonicalize", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
 ]
