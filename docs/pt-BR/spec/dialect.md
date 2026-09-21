@@ -592,7 +592,11 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   só entra no PR que fecha a questão
   ([ADR 0031](../adr/0031-fixtures-as-contract.md)). Nada aqui cobre o resto da
   Q17: tamanho de arquivo, comprimento de linha e aninhamento do lado do
-  Markdown continuam indefinidos.
+  Markdown continuam indefinidos. Do lado do Markdown há um fato e nenhum
+  limite: o guardrail de fuzz achou uma entrada de cerca de 5 KB em que o parser
+  base leva tempo exponencial — exatamente a "lentidão" que esta questão nomeia
+  —, registrada no [ADR 0037](../adr/0037-base-parser.md) e corrigida na `main`
+  upstream daquele parser.
 
 ### Lacunas levantadas na revisão da Fase 0
 

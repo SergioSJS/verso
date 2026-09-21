@@ -597,7 +597,11 @@ Raised while writing this spec. All of them need an answer before
   `[OPEN]` question only enters in the PR that closes the question
   ([ADR 0031](../adr/0031-fixtures-as-contract.md)). Nothing here covers the
   rest of Q17: file size, line length and nesting on the Markdown side are
-  still undefined.
+  still undefined. On the Markdown side there is one fact and no limit: the
+  fuzz guardrail found an input of about 5 KB on which the base parser takes
+  exponential time — exactly the "slowness" this question names — recorded in
+  [ADR 0037](../adr/0037-base-parser.md) and fixed on that parser's upstream
+  `main`.
 
 ### Gaps raised in the Phase 0 review
 

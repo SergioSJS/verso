@@ -11,6 +11,9 @@
   2026-09-21 — upstream panic in `pulldown-cmark` 0.13.4 recorded under
   Consequences, from the third reading of the feature 1 PR
   (`docs/review/phase-1-feature-1.md`). Decision and Status unchanged.
+  2026-09-21 — a second defect of the same version, exponential parsing time,
+  recorded under Consequences, from the fourth reading of that PR. Decision and
+  Status unchanged.
 
 ## Context
 
@@ -110,6 +113,23 @@ parser, edits by textual patch; `docs/spec/dialect.md` §9):
   maintainer:** wait for the upstream release, pin the git revision — which
   also needs a `[sources]` change in `deny.toml`, where `unknown-git` is
   `deny` — or switch to the `comrak` fallback already recorded in item 2.
+- **`pulldown-cmark` 0.13.4 also takes exponential time on some input**,
+  recorded on 2026-09-21 by the fourth reading of the feature 1 PR, which found
+  it with the fuzz guardrail: a 5 068-byte UTF-8 input on which `parse` does not
+  return in practical time — CPU-bound, roughly doubling per 100 bytes of input
+  (3 600 bytes: 1.3 s; 4 000 bytes: 11 s). The base parser alone emits 157
+  million events for the first 3 600 bytes of that input, against 676 events and
+  313 µs for the whole file on upstream `main` (verified as of `c51a2a4`), so
+  the defect is in the base and `verso-dialect`'s own pass is linear over the
+  base's events. This is the "slowness" Q17 of `docs/spec/dialect.md` already
+  names, and it contradicts the purpose [0029](0029-guardrails-in-ci.md) states
+  for the fuzz guardrail. Two consequences while it stands: the CI fuzz job can
+  go red on any PR by finding the input again (not seen in runs of 60 seconds,
+  seen once in a run of 600 seconds), and the reproducer is a second
+  `#[ignore]`d regression test, reading
+  `crates/verso-dialect/tests/data/pulldown-0.13.4-exponential.txt`. **The way
+  out is the same three options as the panic, and the same decision**, since
+  both defects are gone on upstream `main`.
 
 ## Discarded alternatives
 
