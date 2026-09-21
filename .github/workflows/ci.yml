@@ -68,7 +68,11 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
+      - name: toolchain from rust-toolchain.toml
+        run: rustup show
+      # cargo-deny-action is a container action and runs on Linux only; the
+      # binary is installed instead, so the same check runs on both OSes.
+      - uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2, resolved 2026-09-21
         with:
-          command: check
-          arguments: --all-features
+          tool: cargo-deny@0.20.2
+      - run: cargo deny check --all-features
