@@ -1,0 +1,16 @@
+[package]
+name = "verso-core"
+description = "Orchestrates the crates and exposes the core<->UI contract"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# Reads and writes the configuration directory only; never the open folder
+# (ADR 0026, rule 5, delimited scope; ADR 0011).
+[dependencies]
+
+[lints]
+workspace = true
