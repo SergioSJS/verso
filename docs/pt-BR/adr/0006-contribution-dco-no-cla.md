@@ -48,6 +48,11 @@ significa quando quem digitou foi um modelo.
   repositório ([0005](0005-license.md)) continua valendo; este ADR fixa a
   política do projeto, não a interpretação de cada jurisdição.
 
+- Os commits da Fase 0 não têm `Signed-off-by`: aceitos como estão pelo
+  mantenedor em 2026-09-21 (revisão §7). A partir do primeiro commit da Fase 1,
+  todo commit leva o sign-off, e o CI pode conferir quando a verificação de DCO
+  entrar no workflow.
+
 ## Alternativas descartadas
 
 - CLA — descartado em §3: permitiria relicenciar, o que contraria o objetivo de
