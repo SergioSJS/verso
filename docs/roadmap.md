@@ -34,7 +34,7 @@ Documents, decisions and guardrails. **No feature at all.**
 | 0.7 | License decision and `LICENSE` file | done — Package A, MPL-2.0 + MIT in the SDK ([ADR 0005](adr/0005-license.md), Accepted). The `cargo-deny` allowlist closes in item 0.10 |
 | 0.8 | Documentation language decision | done — English source, pt-BR mirror ([ADR 0008](adr/0008-documentation-language.md), Accepted) |
 | 0.9 | Initial fixture corpus: 5 cases written by hand by the maintainer, following the schema in `docs/spec/dialect.md` §4 (and thereby confirming it) | pending — depends on the schema (§4, `PROPOSED`) |
-| 0.10 | Cargo workspace with the five crates, empty | done — `fmt`, `clippy`, `test` and `deny` green; workspace guardrails seen failing locally (see the PR) |
+| 0.10 | Cargo workspace with the five crates, empty | done — `fmt`, `clippy`, `test` and `deny` green; workspace guardrails seen failing locally (PR #2) |
 | 0.11 | CI on macOS and Linux with the **workspace** guardrails ([ADR 0029](adr/0029-guardrails-in-ci.md)), including the documentation mirror check | pending |
 | 0.12 | Documentation migration: translation into English at the canonical paths, pt-BR moved to `docs/pt-BR/`, English file names ([ADR 0008](adr/0008-documentation-language.md)) | done — authored by Opus 5 sessions, reviewed by Fable 5.1; `scripts/check-docs-mirror.sh` green |
 
