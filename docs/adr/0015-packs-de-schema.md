@@ -18,6 +18,10 @@ Schemas são distribuíveis como conteúdo — diário, worldbuilding, sistemas 
 
 - Instalar um pack não executa código, o que o separa do sistema de plugins e do
   seu modelo de consentimento ([0016](0016-plugins-execucao-e-capabilities.md)).
+  Isso só se sustenta se schema não tiver templates, expressões ou consultas;
+  onde passa a linha entre conteúdo e código é questão registrada em
+  [0047](0047-questoes-abertas-da-api-de-plugin.md), e a integridade do pack
+  baixado (hash, origem) também.
 - Depende do formato e da localização dos schemas, ainda `[ABERTO]`
   (`docs/spec/dialeto.md`).
 - Um pack por sistema de jogo é o caminho previsto para o suporte a RPG

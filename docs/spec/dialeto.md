@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0
+# Spec do dialeto do Verso — v0.1
 
-- Versão: v0 · 2026-09-21
+- Versão: v0.1 · 2026-09-21
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-dialeto-base-compativel-obsidian.md) (base compatível),
   [0031](../adr/0031-fixtures-como-contrato.md) (fixtures),
@@ -18,7 +18,11 @@ antes de `verso-dialect` existir, e o alvo contra o qual as fixtures são
 escritas.
 
 O comportamento normativo é o das fixtures, não o desta prosa. Onde os dois
-divergirem, a fixture ganha e a spec é corrigida.
+divergirem, a fixture ganha e a spec é corrigida — **no mesmo PR**. Uma fixture
+que responde a uma questão `[ABERTO]` da seção 9 só entra no PR que fecha a
+questão, citando a fixture como resposta; a aprovação do mantenedor nesse PR é a
+decisão ([ADR 0031](../adr/0031-fixtures-como-contrato.md)). Fixture aprovada
+sem esse passo não fecha questão nenhuma.
 
 ## 2. Regra de ouro
 
@@ -43,12 +47,92 @@ comportamento a ser compatível, valem apenas:
 Nenhuma fixture, spec ou PR pode citar inspeção, descompilação ou desminificação
 do binário como fonte.
 
-## 4. Notação usada aqui
+## 4. Schema do `expected.yaml` `PROPOSTO`
 
-Cada construção traz o `input.md` e o recorte do `expected.yaml` correspondente,
-no formato de fixture de §11.4. Os nomes de campo vêm do exemplo do briefing
-(`target`, `alias`, `heading`, `blocks[].id`). Campos que o briefing não nomeia
-aparecem como `<campo ainda não definido>` e estão listados na seção 9.
+Cada construção nas seções 5 e 6 traz o `input.md` e o recorte do
+`expected.yaml` correspondente. O briefing (§11.4) nomeia só `target`, `alias`,
+`heading` e `blocks[].id`; tudo o mais abaixo foi rascunhado pela IA na revisão
+da Fase 0 (C7) e **vale como `PROPOSTO` até o mantenedor confirmar**. A
+confirmação acontece de uma das duas formas: uma linha dele neste documento, ou
+as cinco primeiras fixtures escritas à mão seguindo este schema — o que vier
+primeiro. Fixture que não segue o schema é inválida.
+
+### 4.1 Chaves de primeiro nível
+
+| Chave | Conteúdo | Ausente significa |
+|---|---|---|
+| `frontmatter` | mapa com os valores YAML interpretados | não afirmado |
+| `headings` | lista, em ordem de documento | não afirmado |
+| `links` | lista de links do corpo, em ordem de documento | não afirmado |
+| `embeds` | lista de embeds, em ordem de documento | não afirmado |
+| `blocks` | lista de definições `^id`, em ordem de documento | não afirmado |
+| `callouts` | lista, em ordem de documento | não afirmado |
+| `observado` | como o comportamento foi verificado no Obsidian | ver 4.5 |
+
+**Chave ausente não afirma nada**; `links: []` afirma que não há link. A ordem
+das listas é a ordem em que a construção aparece no arquivo. Uma fixture afirma
+só o que lista: o parser pode produzir mais do que a fixture pede, nunca menos
+nem diferente.
+
+### 4.2 Itens de `links` e `embeds`
+
+| Campo | Significado | Obrigatório |
+|---|---|---|
+| `target` | texto do alvo **como escrito**, sem resolver: `[[nota.md]]` dá `nota.md`, `[[pasta/nota]]` dá `pasta/nota`. Resolução para arquivo é Q12, fora do parser | sim; vazio (`""`) para `[[#seção]]` |
+| `heading` | texto depois de `#`, sem `^`; caminho aninhado `a#b` fica como `a#b` até Q19 decidir | quando houver |
+| `block` | texto depois de `#^` (responde Q1, `PROPOSTO`) | quando houver |
+| `alias` | texto depois de `\|` | quando houver |
+| `syntax` | `wikilink` (padrão, pode ser omitido) ou `markdown` (seção 5.13) | só para `markdown` |
+| `pos` | posição do primeiro caractere da construção (4.4) | quando a fixture testa posição |
+
+Um link com heading e alias tem os dois campos. Um link com heading e bloco
+(`[[nota#seção#^id]]`) não é construção documentada pelo Obsidian; até Q19,
+fixture nenhuma o usa.
+
+### 4.3 Itens de `headings`, `blocks` e `callouts`
+
+| Lista | Campos |
+|---|---|
+| `headings` | `level` (1–6), `text` (texto cru, sem `#` e sem espaços nas pontas), `pos` |
+| `blocks` | `id` (sem `^`), `pos` (posição do `^`) |
+| `callouts` | `kind` (texto entre `[!` e `]`, como escrito), `title` (resto da primeira linha, sem espaços nas pontas; ausente se vazio), `fold` (`-`, `+`, ou ausente), `pos` |
+
+### 4.4 Posição
+
+```yaml
+pos: { line: 12, col: 5 }
+```
+
+`line` e `col` começam em 1. `col` conta **caracteres Unicode** (scalar values),
+não bytes nem unidades UTF-16, para que o número seja o mesmo no parser Rust e
+no editor. A posição é do primeiro caractere da construção (`[` de `[[`, `!` de
+`![[`, `^` de `^id`, `#` do heading, `>` da primeira linha do callout).
+
+Posição existe porque a citação verificável é decisão
+([ADR 0018](../adr/0018-llm-nativo-mcp-no-core.md)) e bloco sem `^id` é citado
+por posição. Fixture sem `pos` não testa posição; pelo menos uma fixture por
+construção precisa testar.
+
+### 4.5 Origem da observação
+
+Toda fixture que afirma comportamento compatível com o Obsidian registra como o
+comportamento foi observado, pela regra de fontes admissíveis (seção 3):
+
+```yaml
+observado:
+  app: Obsidian
+  versao: "1.x.y"
+  como: "colar o input numa nota nova; ver o painel de backlinks da nota alvo"
+```
+
+Fixture de comportamento **próprio** do Verso (seção 6) omite `observado` e
+cita o ADR ou a questão que a autoriza em `fonte:`.
+
+### 4.6 Fora do schema
+
+Não existe campo para relação tipada, visibilidade por bloco, tags inline nem
+resolução de link: cada um entra no schema quando a questão correspondente
+fechar, com PR que atualiza esta seção.
 
 ---
 
@@ -130,11 +214,11 @@ Ele repetiu o que disse em [[Sessão 3#^juramento]].
 ```yaml
 links:
   - target: Sessão 3
-    <campo ainda não definido>: juramento
+    block: juramento
 ```
 
-O nome do campo para referência de bloco não aparece no briefing: `[ABERTO]`
-(seção 9, Q1).
+O nome do campo para referência de bloco não aparece no briefing; `block` é a
+resposta proposta a Q1 (seção 4.2, `PROPOSTO`).
 
 ### 5.6 Embed
 
@@ -148,8 +232,12 @@ O nome do campo para referência de bloco não aparece no briefing: `[ABERTO]`
 embeds:
   - target: Mapa da Taverna.png
   - target: Sessão 3
-    <campo ainda não definido>: juramento
+    block: juramento
 ```
+
+Em embed de imagem, `![[img.png|300]]`, o texto depois de `|` é tamanho, não
+alias, pela documentação pública do Obsidian. Como o `expected.yaml` registra
+isso: Q23.
 
 Embed e link são construções distintas no `expected.yaml`. Se um embed também
 conta como link no grafo e nos backlinks: `[ABERTO]` (seção 9, Q2).
@@ -224,9 +312,10 @@ links:
     alias: café
 ```
 
-Normalização Unicode na comparação de nomes (NFC × NFD — relevante em macOS, que
-grava nomes de arquivo em NFD) e sensibilidade a maiúsculas: `[ABERTO]`
-(seção 9, Q7 e Q8).
+Normalização Unicode na comparação de nomes (NFC × NFD: arquivos vindos de
+HFS+, de outras plataformas e de sync misturam as duas formas; o APFS preserva a
+forma recebida e faz busca insensível à normalização) e sensibilidade a
+maiúsculas: `[ABERTO]` (seção 9, Q7 e Q8).
 
 ### 5.11 `.canvas` (JSON Canvas)
 
@@ -235,6 +324,62 @@ formato é de terceiros e não é redefinido aqui.
 
 Se o Verso estende o JSON Canvas e como persiste o board:
 `[ABERTO]` ([ADR 0040](../adr/0040-persistencia-do-board.md)).
+
+### 5.12 Headings
+
+Não estão na lista do briefing §11.1, mas a feature 1 da Fase 1 os parseia
+("links, blocos, **headings** e frontmatter") e `[[nota#seção]]` precisa deles
+para resolver. Acrescentado na revisão da Fase 0 (L1).
+
+```markdown
+# Taverna
+
+## Porão
+
+Texto.
+```
+
+```yaml
+headings:
+  - level: 1
+    text: Taverna
+    pos: { line: 1, col: 1 }
+  - level: 2
+    text: Porão
+    pos: { line: 3, col: 1 }
+```
+
+Como o texto de `[[nota#seção]]` casa com um heading (maiúsculas, pontuação,
+formatação inline, emoji, headings duplicados, caminho aninhado
+`[[nota#Cap 1#Seção]]`) e heading no estilo setext (`===`/`---`): `[ABERTO]`
+(seção 9, Q19).
+
+### 5.13 Links Markdown para arquivo local `PROPOSTO`
+
+A documentação pública do Obsidian resolve `[texto](nota.md)` como link interno,
+e o app pode ser configurado para gravar essa forma em vez de wikilink. Um vault
+inteiro pode não ter um único `[[ ]]`. Acrescentado na revisão da Fase 0 (L2).
+
+```markdown
+Veja [o barão](Barão%20Vermelho.md) e [a taverna](<Taverna.md#Porão>).
+```
+
+```yaml
+links:
+  - target: Barão Vermelho.md
+    alias: o barão
+    syntax: markdown
+  - target: Taverna.md
+    heading: Porão
+    alias: a taverna
+    syntax: markdown
+```
+
+Proposta: contam como link, com `syntax: markdown` e `target` já decodificado
+de URL-encoding. Detalhes — `<...>` com espaços, caminho relativo `../`, o que
+separa link local de URL externa, imagem `![](img.png)` como embed —
+`[ABERTO]` (seção 9, Q20). Proposta, não decisão: o briefing não lista essa
+forma.
 
 ---
 
@@ -290,7 +435,7 @@ registrado. Nenhuma delas muda como um arquivo existente é interpretado.
 | D4 | Desenho do Excalidraw | `.excalidraw.md` do plugin | formato do board do Verso | `PROPOSTO` (§11.2) | Conversão explícita, com diff |
 | D5 | ID de bloco | usado para referência | além disso, gera backlink e aparece no grafo | `PROPOSTO` ([0014](../adr/0014-catalogo-de-primitivas.md)) | Ganho, não perda: a sintaxe é a mesma |
 | D6 | Consulta | plugin de terceiro (Dataview) | consulta nativa por tipo, propriedade e relação; view pode materializar em Markdown | `PROPOSTO` ([0014](../adr/0014-catalogo-de-primitivas.md)) | Notas com blocos `dataview` não são executadas pelo Verso |
-| D7 | Plugins | API síncrona, acesso a disco | TypeScript em Web Worker, sem disco, capabilities declaradas | `DECIDIDO` ([0016](../adr/0016-plugins-execucao-e-capabilities.md)) | Plugin de Obsidian não roda; shim separado cobre só a API pública, com tabela declarada |
+| D7 | Plugins | API síncrona, acesso a disco | TypeScript em Web Worker, sem disco, capabilities declaradas | Execução: `DECIDIDO` ([0016](../adr/0016-plugins-execucao-e-capabilities.md)). Shim: `PROPOSTO` ([0017](../adr/0017-plugins-formato-shim-carregamento.md)) | Plugin de Obsidian não roda. Se o shim proposto existir, cobre só a API pública, com tabela declarada |
 
 Sobre D2, D3 e D4: conversão **só por ação do usuário, com diff visível**. Abrir
 um arquivo nunca o reescreve ([ADR 0012](../adr/0012-arquivos-sao-fonte-de-verdade.md)).
@@ -324,8 +469,17 @@ Categorias mínimas, do briefing §11.4:
 | frontmatter com `tags` e `aliases` | 5.1 |
 | nome de nota com acento e espaço | 5.10 |
 
-As 5 primeiras fixtures são escritas à mão pelo mantenedor. As seguintes podem
-ser rascunhadas pela IA e aprovadas por ele.
+Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
+
+| Categoria | Coberta pela seção | Status |
+|---|---|---|
+| heading | 5.12 | exigida pela feature 1 da Fase 1 |
+| link Markdown para arquivo local | 5.13 | `PROPOSTO` |
+| posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-nativo-mcp-no-core.md) |
+
+As 5 primeiras fixtures são escritas à mão pelo mantenedor, seguindo o schema
+da seção 4 — e, ao segui-lo, o confirmam. As seguintes podem ser rascunhadas
+pela IA e aprovadas por ele.
 
 **`expected.yaml` só muda com aprovação explícita do mantenedor.** Se uma
 fixture parecer errada, o autor para e pergunta.
@@ -360,9 +514,10 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
 Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 `verso-dialect` (Fase 1, feature 1).
 
-- **Q1. Nome do campo de referência de bloco no `expected.yaml`.** `[ABERTO]`
+- **Q1. Nome do campo de referência de bloco no `expected.yaml`.** `PROPOSTO`
   O exemplo do briefing nomeia `target`, `alias` e `heading`, mas não o campo de
-  `#^bloco` (seção 5.5).
+  `#^bloco` (seção 5.5). Proposta: `block` (seção 4.2). Confirma junto com o
+  schema.
 - **Q2. Embed conta como link no grafo e nos backlinks?** `[ABERTO]` (seção 5.6)
 - **Q3. Posição admissível do `^id`.** `[ABERTO]`
   Fim de linha, linha própria, depois de lista ou de bloco de várias linhas
@@ -375,12 +530,13 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   `[ABERTO]` Bloco indentado por 4 espaços, HTML embutido, `%%comentário%%`,
   link dentro de URL (seção 5.9).
 - **Q7. Normalização Unicode na comparação de nomes.** `[ABERTO]`
-  NFC × NFD; o macOS é a plataforma inicial e grava nomes em NFD
-  (seção 5.10).
+  NFC × NFD. O APFS (macOS, plataforma inicial) preserva a forma recebida e faz
+  busca insensível à normalização; HFS+ forçava NFD; Linux compara bytes. Um
+  vault que passou por sync ou por HFS+ mistura as duas formas (seção 5.10).
 - **Q8. Sensibilidade a maiúsculas na resolução de nome.** `[ABERTO]`
-  Interage com sistemas de arquivo case-insensitive (macOS, Windows) e
-  case-sensitive (Linux) — o mesmo vault pode resolver diferente por plataforma
-  (seção 5.10).
+  Interage com sistemas de arquivo case-insensitive (macOS por padrão — APFS
+  pode ser case-sensitive por volume —, Windows) e case-sensitive (Linux) — o
+  mesmo vault pode resolver diferente por plataforma (seção 5.10).
 - **Q12. Regra de resolução de link para arquivo.** `[ABERTO]`
   Como `[[nota]]` vira um arquivo: caminho relativo, caminho mais curto único,
   extensão `.md` implícita, comportamento com nome ambíguo, e como `aliases`
@@ -403,10 +559,71 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 - **Q17. Limite de tamanho e comportamento com arquivo malformado.** `[ABERTO]`
   O fuzzing garante que não trava ([ADR 0029](../adr/0029-guardrails-no-ci.md)),
   mas o resultado esperado — erro, parse parcial ou arquivo tratado como texto —
-  não está definido.
+  não está definido. Inclui limites de recurso: arquivo de centenas de MB, linha
+  única de dezenas de MB, colchetes aninhados aos milhares (parser quadrático).
+  Fuzzing pega crash, não lentidão; o limite e o que acontece ao ultrapassá-lo
+  precisam ser ditos.
+
+### Lacunas levantadas na revisão da Fase 0
+
+Fonte: `docs/review/fase0.md`, seção 4. Mesma regra das anteriores: resposta do
+mantenedor antes de implementar; Q18 antes de escolher o parser.
+
+- **Q18. Definição de round-trip.** `[ABERTO]` — decidir no PR da feature 1,
+  **antes** da comparação de parsers ([ADR 0037](../adr/0037-parser-base.md)).
+  Duas leituras: (a) o parser produz árvore sem perda e
+  `serialize(parse(x)) == x` byte a byte, o que exige parser próprio ou base com
+  posições completas; (b) o parser é somente leitura para o índice, "abrir nunca
+  reescreve" é garantido por nunca gravar no caminho de leitura, e edições são
+  patches textuais por posição. A escolha decide o parser base, o custo da Fase
+  1, e como merge por bloco ([ADR 0020](../adr/0020-sync-merge-no-core-transportes-como-plugin.md))
+  e escrita por agente funcionam. O property test de
+  [ADR 0029](../adr/0029-guardrails-no-ci.md) testa (a) ou testa determinismo e
+  ausência de panic em (b); hoje ninguém sabe qual.
+- **Q19. Casamento de heading.** `[ABERTO]` (seção 5.12)
+  Como `[[nota#seção]]` casa com um heading: maiúsculas, pontuação e espaços,
+  emoji, formatação inline (`## *Porão*`), headings duplicados, caminho
+  aninhado `[[nota#Cap 1#Seção]]`, heading setext, e o que o `expected.yaml`
+  registra em `heading` para o caminho aninhado.
+- **Q20. Links Markdown para arquivo local.** `[ABERTO]` (seção 5.13)
+  Se contam como link (proposta: sim); `<...>` com espaços; caminho relativo
+  `../`; o que separa link local de URL externa; `![](img.png)` como embed;
+  URL-encoding.
+- **Q21. O que é um "bloco".** `[ABERTO]`
+  Usado em toda a documentação (ID de bloco, merge por bloco, visibilidade por
+  bloco, citação por posição) e nunca definido: parágrafo, item de lista,
+  célula de tabela, callout inteiro, bloco de código, heading com seu
+  conteúdo? A documentação pública do Obsidian descreve a noção dele; a spec
+  precisa da sua antes de Q3 e Q4 fazerem sentido.
+- **Q22. Charset do `^id` e forma das tags.** `[ABERTO]`
+  A documentação pública do Obsidian restringe `^id` a letras, números e hífen;
+  o que acontece com `^id` inválido. Para tags (Q13): charset, aninhamento
+  `#a/b`, sensibilidade a maiúsculas, prefixo `#` em `tags` de frontmatter.
+- **Q23. Formas combinadas e escapes de wikilink.** `[ABERTO]`
+  `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` e `[[#^bloco]]`
+  (mesmo arquivo — conta como backlink de si mesmo?), `[[pasta/nota]]`,
+  `[[nota.md]]`, `[[nota\|alias]]` em tabela, `\[[não é link]]`, `[[ nota ]]`
+  com espaços, `![[img.png|300]]` (tamanho, não alias), `[[nota|alias|extra]]`,
+  wikilink dentro de link Markdown ou de imagem.
+- **Q24. Fronteira e dialeto do frontmatter.** `[ABERTO]` (seção 5.1)
+  BOM antes do `---`; CRLF (a invariante 7 exige preservar a quebra de linha
+  "do arquivo" — qual, quando há mistura?); `---` fechado por `...`; frontmatter
+  vazio; YAML inválido (parte de Q17); versão do YAML — em 1.1 `yes`, `no`,
+  `on` e datas viram booleanos e timestamps, em 1.2 não; `tags: 2024` é número
+  ou tag?; wikilinks dentro de valores (`related: "[[nota]]"`), que as
+  Properties do Obsidian tratam como links.
+- **Q25. Codificação.** `[ABERTO]`
+  Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
+  do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
+  porque codificação não é sintaxe.
+- **Q26. Caminhos ignorados pela varredura e seu efeito em backlinks.**
+  `[ABERTO]` — vive em [ADR 0044](../adr/0044-semantica-de-verso-fs.md) por ser
+  de `verso-fs`, mas muda o resultado do critério de saída 2 da Fase 1: nota em
+  `.trash/` que linka para outra conta como backlink?
 
 ## 10. Histórico
 
 | Versão | Data | Mudança |
 |---|---|---|
 | v0 | 2026-09-21 | Primeira versão, derivada de `docs/BRIEFING.md` §11. Nenhuma questão em aberto resolvida |
+| v0.1 | 2026-09-21 | Aplicação da revisão da Fase 0 (`docs/review/fase0.md`, aceita pelo mantenedor): seção 4 vira schema do `expected.yaml` (`PROPOSTO`), com `block` como resposta proposta a Q1, posições e `observado`; seções 5.12 (headings) e 5.13 (links Markdown, `PROPOSTO`) acrescentadas; D7 com status separado por item; Q7 e Q8 corrigidas quanto ao APFS; Q17 ampliada; Q18–Q26 acrescentadas. Nenhuma questão fechada |

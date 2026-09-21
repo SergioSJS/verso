@@ -62,7 +62,9 @@ PR que não toca em Rust: escreva "Não se aplica" e diga por quê.
 
 - [ ] Um assunto só.
 - [ ] CI verde: `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo deny check`.
-- [ ] Nenhum `#[allow]` novo para calar guardrail; se foi inevitável, está justificado acima.
+- [ ] Nenhum `#[allow]` novo para calar guardrail. Se um guardrail bloqueia trabalho legítimo, isso é PR próprio, com justificativa (`CLAUDE.md` §3) — não `#[allow]` neste diff.
+- [ ] Guardrail de feature (fuzz, round-trip, escrita atômica, confinamento, FTS5, benchmark), se este PR o introduz, foi visto falhando antes de passar (ADR 0029).
+- [ ] Fixture que responde a questão `[ABERTO]` da spec, se houver, vem com a atualização da seção 9 da spec neste mesmo PR (ADR 0031).
 - [ ] Nenhuma invariante de `CLAUDE.md` §2 violada.
 - [ ] **Nenhum `fixtures/**/expected.yaml` alterado.** Alterado: a aprovação explícita do mantenedor está linkada aqui.
 - [ ] Fixture nova, se houver, marcada como rascunho da IA, aguardando aprovação.

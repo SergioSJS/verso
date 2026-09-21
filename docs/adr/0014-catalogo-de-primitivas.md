@@ -33,7 +33,17 @@ parte.
 - "Sem schema, é Markdown comum" é o que mantém a compatibilidade com vaults do
   Obsidian ([0012](0012-arquivos-sao-fonte-de-verdade.md)).
 - ID de bloco com backlinks e presença no grafo é pré-requisito da citação
-  verificável por agente ([0018](0018-llm-nativo-mcp-no-core.md)).
+  verificável por agente ([0018](0018-llm-nativo-mcp-no-core.md)). "Estável"
+  só é verdade para `^id` escrito no arquivo: um ID que morasse só no índice
+  se perderia na reconstrução ([0011](0011-config-fora-da-arvore-indice-como-cache.md)),
+  e um ID gravado pelo app ao abrir violaria [0012](0012-arquivos-sao-fonte-de-verdade.md).
+  Bloco sem `^id` é citado por posição.
+- Proveniência de escrita grava dado pessoal (autor) em arquivo que vai em sync,
+  export e compartilhamento com jogadores. O ADR próprio dessa primitiva precisa
+  dizer o que é gravado e se é opt-in.
+- Nota tipada (item 2.6 da Fase 2) exige promover esta linha do catálogo a ADR
+  próprio, Aceito, antes de ser implementada — o roadmap lista isso entre as
+  decisões da Fase 2.
 - Nada deste catálogo está na Fase 1, exceto o que o parser e o índice precisam
   expor ([0034](0034-roadmap-em-fases.md)).
 

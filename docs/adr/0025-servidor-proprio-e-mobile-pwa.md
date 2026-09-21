@@ -27,7 +27,10 @@ iPhone.
   ([0027](0027-capabilities-em-runtime.md)).
 - O SilverBullet é a referência registrada para o cliente web (§16.2).
 - Servir a pasta pela rede levanta autenticação e exposição, que o briefing não
-  trata — questão em aberto a registrar quando o servidor entrar em escopo.
+  trata. A questão está registrada em
+  [0045](0045-seguranca-do-servidor-e-do-mcp.md), `[ABERTO]`, e parte dela
+  (identidade de sessão e autorização no contrato) precisa ser decidida já na
+  Fase 2, item 2.1, porque o servidor reaproveita o contrato.
 - Mobile está fora de escopo até o fim da Fase 2
   ([0034](0034-roadmap-em-fases.md)).
 

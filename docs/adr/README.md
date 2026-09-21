@@ -59,7 +59,8 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | # | Título | Status |
 |---|---|---|
 | [0020](0020-sync-merge-no-core-transportes-como-plugin.md) | Sync: motor de merge no core, transportes como plugin, fora de escopo até a Fase 2 | Aceito |
-| [0021](0021-sync-automerge-config-em-camadas.md) | Sync: Automerge, config em camadas e guarda contra placeholder | Proposto |
+| [0021](0021-sync-automerge-config-em-camadas.md) | Sync: Automerge e config em camadas | Proposto |
+| [0043](0043-guarda-contra-placeholder.md) | Arquivo placeholder de armazenamento sob demanda nunca é deleção | Aceito (mecanismo por provedor: `[ABERTO]`) |
 
 ### Plataformas e arquitetura
 
@@ -95,11 +96,25 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0039](0039-metas-de-performance.md) | Metas de performance | Após a primeira linha de base |
 | [0040](0040-persistencia-do-board.md) | Persistência do board | Antes do board |
 
+### Questões abertas levantadas na revisão da Fase 0
+
+Fonte: [`../review/fase0.md`](../review/fase0.md). Nenhuma tem decisão; cada
+uma registra o que precisa ser respondido e quando.
+
+| # | Título | Quando decidir |
+|---|---|---|
+| [0044](0044-semantica-de-verso-fs.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Feature 2 da Fase 1 (symlinks, caminhos); feature 6 e item 2.1 (handles) |
+| [0045](0045-seguranca-do-servidor-e-do-mcp.md) | Segurança do servidor, do MCP e do contrato | Feature 6 da Fase 1 (MCP); item 2.1 da Fase 2 (contrato) |
+| [0046](0046-indice-localizacao-ciclo-de-vida-tokenizador.md) | Índice: localização, ciclo de vida e tokenizador | Features 3 e 5 da Fase 1 |
+| [0047](0047-questoes-abertas-da-api-de-plugin.md) | Questões abertas da API de plugin | Antes de desenhar a API (depois da Fase 2) |
+| [0048](0048-operacoes-de-arquivo-na-ui.md) | Operações de arquivo na UI: renomear, criar, excluir, mover | Item 2.3 da Fase 2 |
+
 ## Itens em aberto que não viraram ADR
 
 Três itens de dialeto do §17 vivem em [`../spec/dialeto.md`](../spec/dialeto.md),
 onde o comportamento é especificado: sintaxe de relação tipada (item 6), formato
 e localização dos schemas (item 7) e sintaxe de visibilidade por bloco (item 8).
+As lacunas de parsing (Q1–Q8, Q12–Q26) também vivem lá.
 
 A verificação de disponibilidade do nome (item 2) está registrada em
 [0004](0004-nome-do-projeto-verso.md).
@@ -108,8 +123,22 @@ A verificação de disponibilidade do nome (item 2) está registrada em
 
 1. Numerar em sequência: `NNNN-titulo-em-kebab-case.md`.
 2. Usar as cinco seções, nesta ordem, sem inventar outras.
-3. Citar a fonte no cabeçalho (`docs/BRIEFING.md` §X, PR, issue).
+3. Citar a fonte no cabeçalho (`docs/BRIEFING.md` §X, PR, issue, ou a revisão
+   que o originou).
 4. Em "Alternativas descartadas", registrar apenas alternativas que foram de
    fato consideradas. Sem nenhuma: escrever "Nenhuma registrada".
 5. ADR não é editado para mudar de ideia. Um ADR novo supersede o anterior, e o
    anterior ganha uma linha apontando para o novo.
+
+## Como alterar um ADR existente
+
+Três casos, com tratamentos diferentes:
+
+| Caso | O que fazer |
+|---|---|
+| Correção ou delimitação que **não muda a decisão** (erro de citação, escopo que faltava dizer, consequência descoberta depois) | Editar no lugar e acrescentar uma linha `Revisões:` no cabeçalho, com data e origem (PR ou revisão) |
+| **Mudar** uma decisão Aceita | ADR novo que supersede; o antigo ganha a linha apontando para o novo e não é editado além disso |
+| **Fechar** um `[ABERTO]` ou promover um Proposto | Editar a seção Decisão e o Status no lugar, citando o commit ou PR em que o mantenedor decidiu. Um `[ABERTO]` não tem decisão a superseder; a promoção de Proposto é a confirmação do texto que já estava lá |
+
+Só o mantenedor faz o segundo e o terceiro caso. O primeiro pode ser feito pela
+IA, e é achado de revisão se disfarçar mudança de decisão de correção.

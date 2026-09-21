@@ -19,8 +19,9 @@ O Verso abre pela linha de comando, no modelo do `code .`: `verso <pasta>`.
 - Exige um executável no `PATH` e uma forma de instalá-lo; como isso é feito em
   cada plataforma, o briefing não diz.
 - Colide com o espaço de subcomandos já previsto para o `verso-cli` — `verso
-  index`, `verso search`, `verso backlinks`, `verso mcp`, `verso serve`
-  ([0028](0028-estrutura-de-crates.md)). `verso <pasta>` significa que o
+  index`, `verso search`, `verso backlinks`, `verso mcp`
+  ([0028](0028-estrutura-de-crates.md), Aceito) e `verso serve`
+  ([0025](0025-servidor-proprio-e-mobile-pwa.md), Proposto). `verso <pasta>` significa que o
   primeiro argumento é um caminho quando não casa com um subcomando conhecido.
   Uma pasta chamada `index` ou `search` é o caso ambíguo, e a regra de
   desambiguação é `[ABERTO]`.

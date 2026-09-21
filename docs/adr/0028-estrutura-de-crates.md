@@ -26,8 +26,14 @@ crates/
 - `verso-dialect` sem IO e sem async é o que o torna fuzzável e compilável para
   WASM, mitigando a divergência entre o parser do editor e o do índice
   ([0023](0023-stack-core-e-editor.md), §10.3).
-- Acesso a disco confinado a `verso-fs` deixa de ser convenção e vira ausência
-  de dependência, auditável no `Cargo.toml`.
+- Acesso aos arquivos da pasta aberta confinado a `verso-fs` deixa de ser
+  convenção e vira duas verificações: ausência de dependência de IO de arquivo
+  fora de `verso-fs`, auditável no `Cargo.toml`, e lint do clippy negando
+  `std::fs` fora de `verso-fs` ([0029](0029-guardrails-no-ci.md)). O escopo
+  exato da regra, com as exceções do índice e da config, está em
+  [0026](0026-contrato-core-ui-regras-inviolaveis.md).
+- `verso-index` depende de SQLite e abre o arquivo do índice; isso está dentro
+  do escopo delimitado da regra 5, não é violação.
 - A ordem da Fase 1 segue a estrutura: dialect, fs, index, cli
   ([0034](0034-roadmap-em-fases.md)).
 - Qualquer dependência nova precisa de justificativa no PR e entra na allowlist
@@ -36,8 +42,8 @@ crates/
 
 ## Alternativas descartadas
 
-- Crate único com módulos — descartado implicitamente: não dá para provar
-  ausência de IO por módulo como se prova por crate.
+Nenhuma registrada. (Crate único com módulos não foi avaliado; a estrutura em
+cinco crates veio decidida do briefing.)
 
 ## Status
 

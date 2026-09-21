@@ -1,7 +1,10 @@
 # BRIEFING — Verso
 
-> Versão 0.1 · 2026-09-21
+> Versão 0.2 · 2026-09-21
 > Fonte única das decisões tomadas antes do repositório existir.
+> Alterações posteriores ao repositório: só mudança de status e correção de
+> fato, registradas no Histórico ao final. Delimitações e consequências novas
+> vivem nos ADRs.
 > Entrada para ADRs, spec do dialeto, roadmap e `CLAUDE.md`.
 > O mantenedor é a autoridade final sobre qualquer item deste documento.
 
@@ -58,10 +61,10 @@ Colisões conhecidas do nome, fora da categoria de apps de notas: plataforma de 
 
 | Item | Status | Detalhe |
 |---|---|---|
-| Licença | `ABERTO` | Preferência atual: pacote A. Confirmar no Passo 5 do roteiro. |
+| Licença | `ABERTO` | Preferência atual: pacote A. Confirmar antes do fechamento da Fase 0 (§15), com as análises pendentes do ADR 0005. |
 | Pacote A | opção | Core e app sob MPL-2.0; SDK de plugin sob MIT. Uso como serviço não obriga publicar mudanças. |
 | Pacote B | opção | Core e app sob AGPL-3.0 com exceção explícita para plugins (permissão adicional, GPL-3.0 seção 7); SDK de plugin sob MIT. Cobre uso via rede. |
-| Critério de desempate | contexto | A MPL-2.0 lista a AGPL-3.0 como licença secundária: ir de A para B depois é possível; de B para A exige consentimento de todo contribuidor. |
+| Critério de desempate | contexto | A MPL-2.0 (cláusula 3.3) permite combinar código MPL numa obra maior sob AGPL-3.0 depois; os arquivos MPL continuam MPL. Relicenciar o projeto inteiro, em qualquer direção, exige consentimento de todo contribuidor. (Corrigido na v0.2; a redação original superestimava a passagem de A para B.) |
 | GPL-3.0 pura | contexto | Não cobre uso via rede, que a arquitetura com servidor torna provável; por isso não aparece nos pacotes. |
 | Modelo de contribuição | `PROPOSTO` | DCO, sem CLA. CLA permitiria relicenciar, o que contraria o objetivo de não ter empresa no meio. |
 | Sustentação | `DECIDIDO` | Apenas Ko-fi. Doação não compra feature. |
@@ -156,7 +159,7 @@ Requisito: um agente deve navegar e aproveitar o conteúdo da pasta tão bem qua
 - Motor de merge no core (entende blocos, frontmatter e o modelo de arquivo); transportes como plugins (servidor próprio, WebDAV, S3, Google Drive, OneDrive). `DECIDIDO`
 - Candidato ao motor de merge: Automerge. `PROPOSTO`
 - Config em camadas: compartilhada (lista de plugins, schemas) e por dispositivo (hotkeys, layout). `PROPOSTO`
-- Arquivo placeholder de armazenamento sob demanda (iCloud, OneDrive) nunca é interpretado como deleção. `PROPOSTO`
+- Arquivo placeholder de armazenamento sob demanda (iCloud, OneDrive) nunca é interpretado como deleção. `DECIDIDO` (promovido na v0.2, ADR 0043)
 - Sync fica fora de escopo até o fim da Fase 2. `DECIDIDO`
 
 ---
@@ -338,9 +341,9 @@ Suporte especial a quem joga e mestra é intenção declarada. `DECIDIDO` para a
 ### 14.1 Papéis `DECIDIDO`
 
 - O mantenedor aprende Rust em paralelo, fora do projeto. A IA escreve o código; o mantenedor revisa comportamento pelas fixtures e questiona decisões.
-- Opus 5: autor de documentos, autor de UI/TS, revisor de código.
-- Fable 5.1: autor do código do core, revisor de documentos.
-- Autor e revisor sempre em sessões separadas; o revisor não vê o raciocínio do autor.
+- Opus 5: autor de documentos, autor de UI/TS, revisor do código do core.
+- Fable 5.1: autor do código do core, revisor de documentos e do código de UI/TS.
+- Autor e revisor sempre em sessões separadas; o revisor não vê o raciocínio do autor. "Quem escreveu não revisa" vale para o modelo, não só para a sessão (precisado na v0.2, ADR 0032).
 
 ### 14.2 Estrutura de crates `DECIDIDO`
 
@@ -447,9 +450,9 @@ Sync, mobile, plugins, board, shim de compatibilidade.
 
 | # | Item | Quando decidir |
 |---|---|---|
-| 1 | Licença: pacote A ou B | Passo 5, antes do esqueleto |
+| 1 | Licença: pacote A ou B | antes do fechamento da Fase 0 |
 | 2 | Disponibilidade do nome em crates.io, npm, org do GitHub e domínio | antes de tornar o repositório público |
-| 3 | Idioma da documentação do repositório | Passo 5 |
+| 3 | Idioma da documentação do repositório | antes do fechamento da Fase 0 |
 | 4 | Parser base: pulldown-cmark, comrak ou próprio | PR da feature 1, com comparação justificada |
 | 5 | Geração de tipos TS: ts-rs ou specta | início da Fase 2 |
 | 6 | Sintaxe de relação tipada | antes de implementar relações |
@@ -457,3 +460,16 @@ Sync, mobile, plugins, board, shim de compatibilidade.
 | 8 | Sintaxe de visibilidade por bloco | antes de compartilhamento e exportação |
 | 9 | Persistência do board | antes do board |
 | 10 | Metas de performance | após a primeira linha de base |
+
+Itens abertos levantados depois do briefing vivem nos ADRs 0044–0048 e na
+seção 9 da spec do dialeto, não aqui.
+
+---
+
+## Histórico
+
+| Versão | Data | Mudança |
+|---|---|---|
+| 0.1 | 2026-09-21 | Versão inicial. |
+| 0.1 | 2026-09-21 | §5.1: config fora da árvore e índice como cache promovidos a `DECIDIDO`; abertura pela linha de comando registrada como `DECIDIDO`. |
+| 0.2 | 2026-09-21 | Aplicação da revisão da Fase 0 (`docs/review/fase0.md`), aceita integralmente pelo mantenedor: §8 guarda contra placeholder promovida a `DECIDIDO` (ADR 0043); §3 critério de desempate corrigido e "Passo 5" substituído por "antes do fechamento da Fase 0" (§3, §17); §14.1 revisor de UI/TS definido. Nenhuma outra seção alterada. |

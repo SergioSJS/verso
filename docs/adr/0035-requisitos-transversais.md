@@ -18,8 +18,12 @@ semântica acessível a uma UI pronta costuma exigir reescrever a UI.
 
 ## Consequências
 
-- "Desde o primeiro commit" vale para a UI da Fase 2 e para as mensagens da CLI
-  da Fase 1: nenhuma string literal solta.
+- "Desde o primeiro commit" significa **desde o primeiro commit de código de
+  produto**: a Fase 0 é documentação e crates vazios. Vale para a UI da Fase 2 e
+  para as mensagens da CLI da Fase 1: nenhuma string literal solta. A Fase 1
+  ganha item de escopo e critério de saída para isso (`docs/roadmap.md`), e a
+  dependência de i18n que `verso-cli` precisar é justificada no PR como qualquer
+  outra ([0033](0033-fluxo-de-pr.md)).
 - O idioma do produto (pt-BR e EN, decidido) é independente do idioma da
   documentação do repositório, que é `[ABERTO]`
   ([0008](0008-idioma-da-documentacao.md)).

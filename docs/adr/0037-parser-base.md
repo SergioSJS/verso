@@ -19,12 +19,20 @@ A escolha é restringida por decisões já tomadas:
 - preservação fiel do arquivo, já que abrir nunca reescreve
   ([0012](0012-arquivos-sao-fonte-de-verdade.md));
 - extensões do dialeto (wikilink, embed, `^id`, callout) precisam caber na base
-  ([0030](0030-dialeto-base-compativel-obsidian.md)).
+  ([0030](0030-dialeto-base-compativel-obsidian.md));
+- **posições** (linha e coluna) para cada construção, exigidas pela citação
+  verificável ([0018](0018-llm-nativo-mcp-no-core.md)) e pelo schema do
+  `expected.yaml` (`docs/spec/dialeto.md` §4);
+- **a definição de round-trip** (`docs/spec/dialeto.md`, Q18). Há duas leituras
+  — árvore sem perda com `serialize(parse(x)) == x`, ou parser somente leitura
+  com edições por patch textual — e elas escolhem parsers diferentes:
+  `pulldown-cmark` não atende à primeira sem trabalho grande. Q18 é decidida no
+  mesmo PR que este ADR, antes da comparação, porque é critério dela.
 
 ## Decisão
 
 Nenhuma. Decidir no PR da feature 1 da Fase 1, com comparação justificada entre
-as três opções contra os critérios acima.
+as três opções contra os critérios acima, depois de Q18 respondida.
 
 ## Consequências
 

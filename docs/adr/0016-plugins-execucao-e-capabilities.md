@@ -30,6 +30,12 @@ reverter (§10.4): depois que existirem plugins, a API não muda de graça.
   ([0017](0017-plugins-formato-shim-carregamento.md)).
 - Plugins ficam fora de escopo até o fim da Fase 2
   ([0034](0034-roadmap-em-fases.md)); a API não deve ser congelada antes disso.
+- Esta decisão foi tomada sem registro de como um plugin em Web Worker, sem DOM,
+  contribui UI — que é o que a maior parte dos plugins faz — nem de como um
+  transporte de sync roda em background em mobile. As questões que precisam de
+  resposta antes de a API ser desenhada estão em
+  [0047](0047-questoes-abertas-da-api-de-plugin.md), `[ABERTO]`. Este ADR
+  continua Aceito; se alguma resposta o contradisser, um ADR novo o supersede.
 
 ## Alternativas descartadas
 
