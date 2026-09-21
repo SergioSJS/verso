@@ -216,6 +216,19 @@ impl<'a, 'y> Fields<'a, 'y> {
         }
     }
 
+    /// `syntax` is `wikilink` when omitted (spec §4.2); writing it out is the
+    /// same assertion. `markdown` (spec §5.13) is PROPOSED and not produced.
+    fn syntax(&mut self) {
+        match self.get("syntax").map(as_str) {
+            None | Some(Some("wikilink")) => {}
+            Some(Some("markdown")) => self.ctx.fail(
+                "syntax: markdown links are PROPOSED (spec §5.13, Q20), not parsed".to_owned(),
+            ),
+            Some(Some(other)) => self.ctx.fail(format!("syntax: unknown value {other:?}")),
+            Some(None) => self.ctx.fail("syntax: must be text".to_owned()),
+        }
+    }
+
     fn pos(&mut self, actual: Pos) {
         let Some(expected) = self.get("pos") else {
             return;
@@ -263,8 +276,7 @@ fn check_link(ctx: &mut Ctx<'_>, item: &Yaml<'_>, link: &verso_dialect::Link) {
     fields.optional_text("heading", link.heading.as_deref());
     fields.optional_text("block", link.block.as_deref());
     fields.optional_text("alias", link.alias.as_deref());
-    // Markdown links (spec §5.13) are PROPOSED; only wikilinks exist here.
-    fields.optional_text("syntax", None);
+    fields.syntax();
     fields.pos(link.pos);
     fields.finish();
 }
@@ -277,7 +289,7 @@ fn check_embed(ctx: &mut Ctx<'_>, item: &Yaml<'_>, embed: &verso_dialect::Embed)
     fields.optional_text("heading", embed.heading.as_deref());
     fields.optional_text("block", embed.block.as_deref());
     fields.optional_text("alias", embed.alias.as_deref());
-    fields.optional_text("syntax", None);
+    fields.syntax();
     fields.pos(embed.pos);
     fields.finish();
 }

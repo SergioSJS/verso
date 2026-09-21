@@ -162,9 +162,13 @@ fn strip_closing_sequence(content: &str) -> &str {
 
 /// A `^id` as the last word of a paragraph (spec §5.7). The id is letters,
 /// digits and hyphen, Obsidian's documented charset; the other admissible
-/// positions and charsets are Q3 and Q22. The paragraph's own text is checked,
-/// not the base's text events, so a `^id` at the end of a code span, which is
-/// followed by a backtick, does not qualify.
+/// positions and charsets are Q3 and Q22. Two consequences of "paragraph",
+/// both undecided and recorded, not chosen: a `^id` alone on a line after a
+/// blank line is a paragraph of its own and is reported; a `^id` at the end
+/// of a tight list item is not, because the base emits no paragraph inside a
+/// tight item. The paragraph's own text is checked, not the base's text
+/// events, so a `^id` at the end of a code span, which is followed by a
+/// backtick, does not qualify.
 fn block_id(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<BlockId> {
     let text = source.get(range.clone())?;
     let trimmed = text.trim_end();
@@ -208,14 +212,14 @@ fn callout(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<Callo
     };
     let title = rest.trim();
     let start = range.start + indent;
+    // Like a heading, the span stops before the line break that ends the
+    // blockquote; the base's range includes it.
+    let end = range.start + text.trim_end_matches(['\n', '\r']).len();
     Some(Callout {
         kind: kind.to_owned(),
         title: (!title.is_empty()).then(|| title.to_owned()),
         fold,
-        span: Span {
-            start,
-            end: range.end,
-        },
+        span: Span { start, end },
         pos: lines.pos(source, start),
     })
 }

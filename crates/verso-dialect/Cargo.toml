@@ -18,6 +18,10 @@ pulldown-cmark = { version = "0.13.4", default-features = false }
 # consequences; spec Q24 stays open). `encoding` off: the input is already
 # a `&str`; decoding is not this crate's job (spec Q25).
 saphyr = { version = "0.1.0", default-features = false }
+# The event stream under `saphyr` (already in the tree), used to bound the
+# nesting depth of the frontmatter before a tree is built: `saphyr`'s loader
+# recurses per level and overflows the stack at a few thousand levels.
+saphyr-parser = "0.1.0"
 
 [dev-dependencies]
 # Round-trip property test of ADR 0029, under the four properties of Q18.

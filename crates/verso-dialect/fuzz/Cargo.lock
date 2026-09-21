@@ -247,6 +247,7 @@ version = "0.0.0"
 dependencies = [
  "pulldown-cmark",
  "saphyr",
+ "saphyr-parser",
 ]
 
 [[package]]

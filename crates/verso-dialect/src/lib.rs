@@ -28,7 +28,7 @@ mod parse;
 mod position;
 mod wikilink;
 
-pub use frontmatter::{Frontmatter, Value};
+pub use frontmatter::{Frontmatter, MAX_YAML_DEPTH, Value};
 pub use parse::parse;
 pub use position::{Pos, Span};
 
@@ -129,7 +129,7 @@ pub struct Callout {
     /// Rest of the first line, without spaces at the ends; `None` if empty.
     pub title: Option<String>,
     pub fold: Option<Fold>,
-    /// Byte range of the whole blockquote.
+    /// Byte range of the whole blockquote, without the line break that ends it.
     pub span: Span,
     /// Position of the `>` of the first line.
     pub pos: Pos,
