@@ -4,21 +4,29 @@
 # comment for humans. Bumping one is a PR of its own.
 #
 # The toolchain comes from rust-toolchain.toml: `rustup show` installs the
-# pinned channel and its components (rustfmt, clippy) on the runner.
+# pinned version and its components (rustfmt, clippy) on the runner.
+#
+# `-D warnings` is passed on the clippy command line, not through RUSTFLAGS:
+# RUSTFLAGS would apply to dependency crates too, and a dependency that merely
+# warns would turn CI red with no fix in this repository.
 
 name: ci
 
 on:
   push:
-    branches: ["main", "fase0/**", "phase*/**", "test/**"]
+    branches: ["main", "fase0/**", "phase*", "phase*/**", "test/**"]
   pull_request:
+
+# A PR from a fase0/** branch triggers both events; keep only the latest run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
 
 jobs:
   docs-mirror:
@@ -45,13 +53,19 @@ jobs:
       - name: cargo fmt --check
         run: cargo fmt --all --check
       - name: cargo clippy -D warnings
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: cargo test
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --all-features --locked
 
   deny:
-    name: cargo deny (licenses, advisories, bans, sources)
-    runs-on: ubuntu-latest
+    # On both operating systems: ADR 0029 and roadmap exit criterion 3 list
+    # `cargo deny check` with the other three, on macOS and Linux.
+    name: cargo deny (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2

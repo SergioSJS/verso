@@ -56,7 +56,8 @@ first-class mirror.**
   reviewer: Fable 5.1 ([0032](0032-author-and-reviewer-roles.md)).
 - **Mechanical verification:** a script in CI checks that each canonical `.md`
   has its twin in `docs/pt-BR/` and vice versa, and that the two have the same
-  heading structure. It comes in as a workspace guardrail in item 0.11
+  heading structure — the same sequence of heading levels; the heading text
+  differs by language and is not compared. It comes in as a workspace guardrail in item 0.11
   ([0029](0029-guardrails-in-ci.md)). Equivalent content is human review;
   presence and structure are CI.
 - Relative links work on both sides without adjustment, because the structure

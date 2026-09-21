@@ -54,7 +54,8 @@ primeira classe.**
   Fable 5.1 ([0032](0032-author-and-reviewer-roles.md)).
 - **Verificação mecânica:** um script no CI confere que cada `.md` canônico tem
   o gêmeo em `docs/pt-BR/` e vice-versa, e que os dois têm a mesma estrutura de
-  títulos. Entra como guardrail de workspace no item 0.11
+  títulos — a mesma sequência de níveis de título; o texto dos títulos difere
+  por idioma e não é comparado. Entra como guardrail de workspace no item 0.11
   ([0029](0029-guardrails-in-ci.md)). Conteúdo equivalente é revisão humana;
   presença e estrutura são CI.
 - Links relativos funcionam nos dois lados sem ajuste, porque a estrutura e os
