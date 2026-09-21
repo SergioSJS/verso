@@ -24,7 +24,7 @@ fn deeply_nested_frontmatter_returns_an_error_not_an_abort() {
         assert!(
             frontmatter.values.is_err(),
             "{}",
-            &source[..source.len().min(40)]
+            source.chars().take(40).collect::<String>()
         );
         assert_eq!(document.links.len(), 1, "the body is still parsed");
     };
