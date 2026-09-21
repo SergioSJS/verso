@@ -92,8 +92,9 @@ Colisões conhecidas do nome, fora da categoria de apps de notas: plataforma de 
 ### 5.1 Pasta é a unidade, sem vault
 
 - Abrir qualquer pasta como um editor de código abre; a raiz é a pasta aberta. `DECIDIDO`
-- Config fora da árvore, em diretório de configuração do usuário indexado pelo caminho da pasta; nenhum diretório obrigatório dentro dela. `PROPOSTO`
-- Índice é cache reconstruível; apagá-lo não perde dado. `PROPOSTO`
+- Config fora da árvore, em diretório de configuração do usuário indexado pelo caminho da pasta; nenhum diretório obrigatório dentro dela. `DECIDIDO`
+- Índice é cache reconstruível; apagá-lo não perde dado. `DECIDIDO`
+- Abrir pela linha de comando, como `code .`: `verso <pasta>`. `DECIDIDO`
 - Workspace com múltiplas raízes e links resolvendo entre elas. `PROPOSTO`
 
 ### 5.2 Arquivos são a fonte de verdade
