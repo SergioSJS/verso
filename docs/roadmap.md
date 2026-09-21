@@ -32,10 +32,11 @@ Documentos, decisões e guardrails. **Nenhuma feature.**
 | 0.5 | `.github/pull_request_template.md` | feito nesta branch |
 | 0.6 | Revisão crítica dos documentos por sessão independente | feito — `docs/review/fase0.md`; achados aceitos e aplicados pelo mantenedor; diff da aplicação aguarda leitura pelo Opus 5 ([ADR 0032](adr/0032-papeis-autor-e-revisor.md)) |
 | 0.7 | Decisão de licença e arquivo `LICENSE` | feito — Pacote A, MPL-2.0 + MIT no SDK ([ADR 0005](adr/0005-licenca.md), Aceito). Allowlist do `cargo-deny` fecha no item 0.10 |
-| 0.8 | Decisão do idioma da documentação | pendente — [ADR 0008](adr/0008-idioma-da-documentacao.md) `[ABERTO]` |
+| 0.8 | Decisão do idioma da documentação | feito — inglês fonte, pt-BR espelho ([ADR 0008](adr/0008-idioma-da-documentacao.md), Aceito) |
 | 0.9 | Corpus inicial de fixtures: 5 casos escritos à mão pelo mantenedor, seguindo o schema de `docs/spec/dialeto.md` §4 (e assim o confirmando) | pendente — depende do schema (§4, `PROPOSTO`) |
 | 0.10 | Workspace Cargo com os cinco crates, vazios | pendente |
-| 0.11 | CI em macOS e Linux com os guardrails **de workspace** ([ADR 0029](adr/0029-guardrails-no-ci.md)) | pendente |
+| 0.11 | CI em macOS e Linux com os guardrails **de workspace** ([ADR 0029](adr/0029-guardrails-no-ci.md)), incluindo a verificação de espelho da documentação | pendente |
+| 0.12 | Migração da documentação: tradução para inglês nos caminhos canônicos, pt-BR movido para `docs/pt-BR/`, nomes de arquivo em inglês ([ADR 0008](adr/0008-idioma-da-documentacao.md)) | pendente — autor Opus 5, revisor Fable 5.1 |
 
 ### Critério de saída
 

@@ -25,7 +25,7 @@ semântica acessível a uma UI pronta costuma exigir reescrever a UI.
   dependência de i18n que `verso-cli` precisar é justificada no PR como qualquer
   outra ([0033](0033-fluxo-de-pr.md)).
 - O idioma do produto (pt-BR e EN, decidido) é independente do idioma da
-  documentação do repositório, que é `[ABERTO]`
+  documentação do repositório, decidido à parte: inglês fonte, pt-BR espelho
   ([0008](0008-idioma-da-documentacao.md)).
 - O board precisa de vista equivalente acessível — lista ou tabela das mesmas
   notas e relações (`PROPOSTO`, [0024](0024-board-excalidraw.md)).

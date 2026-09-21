@@ -29,7 +29,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0005](0005-licenca.md) | Licença do projeto: MPL-2.0 no core e app, MIT no SDK de plugin | Aceito |
 | [0006](0006-contribuicao-dco-sem-cla.md) | Contribuição por DCO, sem CLA; código escrito por IA entra pelo mesmo DCO, sob responsabilidade de quem assina | Aceito |
 | [0007](0007-repositorio-privado-ate-licenca.md) | Repositório privado até a licença ser decidida | Aceito |
-| [0008](0008-idioma-da-documentacao.md) | Idioma da documentação do repositório | `[ABERTO]` |
+| [0008](0008-idioma-da-documentacao.md) | Idioma da documentação: inglês fonte, pt-BR espelho | Aceito |
 | [0009](0009-restricoes-externas.md) | Restrições externas assumidas como dadas | Restrição |
 
 ### Princípios de produto

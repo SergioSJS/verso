@@ -106,6 +106,7 @@ mudando o teste.
 | clippy com `-D warnings`; `unwrap_used` e `expect_used` negados, permitidos só em testes | panic derrubando o app | workspace |
 | clippy `disallowed_methods` negando `std::fs` fora de `verso-fs` (exceções: índice, config) | acesso à pasta aberta fora de `verso-fs` | workspace |
 | `cargo-deny`: allowlist de licenças, advisories negadas | dependência incompatível ou vulnerável | workspace |
+| Espelho da documentação: cada `.md` canônico tem gêmeo em `docs/pt-BR/` com os mesmos títulos | documento mudado num idioma só | workspace |
 | Fuzzing do parser com `cargo-fuzz` | arquivo malformado travando o app | feature 1 |
 | Property test de round-trip (leitura decidida em Q18) | abrir reescrevendo arquivo | feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | parser deixar de compilar para WASM | feature 1 |
@@ -245,16 +246,22 @@ Parar é o comportamento correto, não uma falha:
 | `docs/spec/dialeto.md` | Comportamento do dialeto, com as lacunas marcadas `[ABERTO]` |
 | `docs/roadmap.md` | Fases 0, 1 e 2, com critério de saída verificável |
 | `docs/review/` | Revisões críticas por fase, com achados classificados e a resolução de cada um |
+| `docs/pt-BR/` | Espelho pt-BR de toda a documentação, mesma estrutura e nomes ([ADR 0008](docs/adr/0008-idioma-da-documentacao.md)) |
 | `fixtures/` | Contrato de comportamento. `expected.yaml` é intocável sem aprovação; schema em `docs/spec/dialeto.md` §4 |
 | `crates/` | Os cinco crates do core |
 | `.github/pull_request_template.md` | As cinco seções obrigatórias do PR |
 
 ## 8. Idioma
 
-A documentação do repositório está em pt-BR por continuidade com o briefing. Isso
-**não** é decisão: o idioma da documentação é `[ABERTO]`
-([ADR 0008](docs/adr/0008-idioma-da-documentacao.md)), a decidir antes do
-fechamento da Fase 0.
+Decidido ([ADR 0008](docs/adr/0008-idioma-da-documentacao.md)): **inglês é a
+fonte, pt-BR é espelho.** Todo documento nasce em inglês no caminho canônico e
+tem gêmeo em `docs/pt-BR/`, mesma estrutura, mesmo nome de arquivo. PR que
+muda um lado muda o outro, ou não mescla. Exceção: `docs/BRIEFING.md`, cujo
+original pt-BR em `docs/pt-BR/BRIEFING.md` manda. Commits, PRs e issues em
+inglês.
 
-O produto é pt-BR e EN desde o primeiro commit — isso é decidido
+Até a migração (roadmap, item 0.12) terminar, os documentos existem só em
+pt-BR nos caminhos canônicos; isso é estado transitório, não regra.
+
+O produto é pt-BR e EN desde o primeiro commit de código — isso é decidido
 ([ADR 0035](docs/adr/0035-requisitos-transversais.md)) e é coisa diferente.
