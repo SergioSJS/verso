@@ -1,221 +1,222 @@
-# Roadmap do Verso
+# Verso roadmap
 
-- Versão: 2026-09-21, revisão 2 (aplicação de `docs/review/fase0.md`)
-- Fonte: `docs/BRIEFING.md` §15
-- ADR: [0034](adr/0034-roadmap-em-fases.md)
+- Version: 2026-09-21, revision 2 (application of `docs/review/phase-0.md`)
+- Source: `docs/BRIEFING.md` §15
+- ADR: [0034](adr/0034-roadmap-in-phases.md)
 
-Três fases. Cada uma tem um critério de saída verificável: alguém que não
-participou do trabalho consegue executar a verificação e concluir "passou" ou
-"não passou" sem julgar mérito.
+Three phases. Each one has a verifiable exit criterion: someone who did not take
+part in the work can run the verification and conclude "passed" or "did not
+pass" without judging merit.
 
-Uma fase não começa antes de a anterior fechar. Um item de escopo que não estiver
-listado aqui não entra na fase sem virar decisão registrada.
+A phase does not start before the previous one closes. A scope item that is not
+listed here does not enter the phase without becoming a recorded decision.
 
-**Fora de escopo até o fim da Fase 2:** sync, mobile, plugins, board e shim de
-compatibilidade (§15). Isso vale mesmo que a implementação pareça barata no
-momento.
-
----
-
-## Fase 0 — Fundação
-
-Documentos, decisões e guardrails. **Nenhuma feature.**
-
-### Escopo
-
-| # | Entrega | Estado |
-|---|---|---|
-| 0.1 | ADRs, um por decisão do briefing | feito nesta branch |
-| 0.2 | `docs/spec/dialeto.md` v0 | feito nesta branch |
-| 0.3 | `docs/roadmap.md` | feito nesta branch |
-| 0.4 | `CLAUDE.md` | feito nesta branch |
-| 0.5 | `.github/pull_request_template.md` | feito nesta branch |
-| 0.6 | Revisão crítica dos documentos por sessão independente | feito — `docs/review/fase0.md`; achados aceitos e aplicados pelo mantenedor; diff da aplicação aguarda leitura pelo Opus 5 ([ADR 0032](adr/0032-papeis-autor-e-revisor.md)) |
-| 0.7 | Decisão de licença e arquivo `LICENSE` | feito — Pacote A, MPL-2.0 + MIT no SDK ([ADR 0005](adr/0005-licenca.md), Aceito). Allowlist do `cargo-deny` fecha no item 0.10 |
-| 0.8 | Decisão do idioma da documentação | feito — inglês fonte, pt-BR espelho ([ADR 0008](adr/0008-idioma-da-documentacao.md), Aceito) |
-| 0.9 | Corpus inicial de fixtures: 5 casos escritos à mão pelo mantenedor, seguindo o schema de `docs/spec/dialeto.md` §4 (e assim o confirmando) | pendente — depende do schema (§4, `PROPOSTO`) |
-| 0.10 | Workspace Cargo com os cinco crates, vazios | pendente |
-| 0.11 | CI em macOS e Linux com os guardrails **de workspace** ([ADR 0029](adr/0029-guardrails-no-ci.md)), incluindo a verificação de espelho da documentação | pendente |
-| 0.12 | Migração da documentação: tradução para inglês nos caminhos canônicos, pt-BR movido para `docs/pt-BR/`, nomes de arquivo em inglês ([ADR 0008](adr/0008-idioma-da-documentacao.md)) | pendente — autor Opus 5, revisor Fable 5.1 |
-
-### Critério de saída
-
-Todos verificáveis. A fase fecha quando os cinco passarem.
-
-1. **Sem BLOQUEANTE aberto.** Nenhum achado classificado como BLOQUEANTE na
-   revisão crítica segue sem resolução. Verificação: lista de achados da revisão,
-   cada BLOQUEANTE com o commit que o resolve ou a decisão do mantenedor de
-   rebaixá-lo. Estado: os três BLOQUEANTES de `docs/review/fase0.md` (C1, C2,
-   C3) foram resolvidos na revisão 2 deste roadmap; a seção "Resolução" da
-   revisão aponta o que mudou.
-2. **`LICENSE` presente na raiz.** Verificação: `test -f LICENSE`, e o arquivo
-   corresponde ao pacote escolhido em [ADR 0005](adr/0005-licenca.md). Estado:
-   satisfeito em 2026-09-21 — `LICENSE` contém a MPL-2.0 e o ADR 0005 está
-   Aceito (Pacote A).
-3. **CI verde em macOS e Linux.** Verificação: uma execução de
-   `cargo fmt --check`, `cargo clippy`, `cargo test` e `cargo deny check` verde
-   nos dois sistemas operacionais.
-4. **Guardrails de workspace comprovadamente disparando.** Cada guardrail **de
-   workspace** de [ADR 0029](adr/0029-guardrails-no-ci.md) é visto falhando numa
-   branch de teste que introduz de propósito a violação que ele deve pegar, e a
-   branch não é mesclada. Verificação: uma execução vermelha registrada por
-   guardrail — `cargo fmt` divergente, `unsafe`, `unwrap` fora de teste,
-   `std::fs` fora de `verso-fs`, licença fora da allowlist (provisória, marcada
-   como tal), advisory conhecida. Guardrail que só existe no arquivo de CI e
-   nunca foi visto falhar não conta. Os guardrails **de feature** (fuzz,
-   round-trip, WASM, escrita atômica, confinamento, FTS5, benchmark, tipos
-   gerados) não podem existir com crates vazios; cada um é visto falhando no PR
-   da feature que o introduz, e isso é critério de saída da Fase 1 (item 3) e
-   da Fase 2 (item 3).
-5. **Cinco fixtures à mão.** Existem cinco pares
-   `fixtures/<categoria>/<caso>/{input.md,expected.yaml}` escritos pelo
-   mantenedor, cobrindo categorias mínimas distintas de §11.4 e seguindo o
-   schema de `docs/spec/dialeto.md` §4. Verificação: contar os diretórios,
-   conferir a autoria no histórico do git, e conferir que cada `expected.yaml`
-   usa só chaves do schema.
-
-### Não bloqueia a saída
-
-Questões `[ABERTO]` de dialeto (`docs/spec/dialeto.md`, seção 9, exceto o schema
-da seção 4, que o item 0.9 confirma) e os ADRs
-[0037](adr/0037-parser-base.md), [0038](adr/0038-geracao-de-tipos-ts.md),
-[0039](adr/0039-metas-de-performance.md), [0040](adr/0040-persistencia-do-board.md)
-e [0044](adr/0044-semantica-de-verso-fs.md) a
-[0048](adr/0048-operacoes-de-arquivo-na-ui.md). Cada um tem o seu próprio
-momento de decisão, todos posteriores à Fase 0.
+**Out of scope until the end of Phase 2:** sync, mobile, plugins, board and the
+compatibility shim (§15). That holds even if the implementation looks cheap at
+the time.
 
 ---
 
-## Fase 1 — Core via CLI, sem UI
+## Phase 0 — Foundation
 
-Um núcleo utilizável pelo terminal e por um agente. **Nenhuma janela.**
+Documents, decisions and guardrails. **No feature at all.**
 
-### Escopo
+### Scope
 
-Ordem de execução do briefing §15:
-
-| # | Crate | Entrega |
+| # | Deliverable | State |
 |---|---|---|
-| 1 | `verso-dialect` | parse de links, blocos, headings e frontmatter; round-trip; alvo de fuzz |
-| 2 | `verso-fs` | varrer pasta, confinamento de caminho, escrita atômica |
-| 3 | `verso-index` | schema SQLite, FTS5, backlinks |
+| 0.1 | ADRs, one per briefing decision | done in this branch |
+| 0.2 | `docs/spec/dialect.md` v0 | done in this branch |
+| 0.3 | `docs/roadmap.md` | done in this branch |
+| 0.4 | `CLAUDE.md` | done in this branch |
+| 0.5 | `.github/pull_request_template.md` | done in this branch |
+| 0.6 | Critical review of the documents by an independent session | done — `docs/review/phase-0.md`; findings accepted and applied by the maintainer; the diff of the application is waiting to be read by Opus 5 ([ADR 0032](adr/0032-author-and-reviewer-roles.md)) |
+| 0.7 | License decision and `LICENSE` file | done — Package A, MPL-2.0 + MIT in the SDK ([ADR 0005](adr/0005-license.md), Accepted). The `cargo-deny` allowlist closes in item 0.10 |
+| 0.8 | Documentation language decision | done — English source, pt-BR mirror ([ADR 0008](adr/0008-documentation-language.md), Accepted) |
+| 0.9 | Initial fixture corpus: 5 cases written by hand by the maintainer, following the schema in `docs/spec/dialect.md` §4 (and thereby confirming it) | pending — depends on the schema (§4, `PROPOSED`) |
+| 0.10 | Cargo workspace with the five crates, empty | pending |
+| 0.11 | CI on macOS and Linux with the **workspace** guardrails ([ADR 0029](adr/0029-guardrails-in-ci.md)), including the documentation mirror check | pending |
+| 0.12 | Documentation migration: translation into English at the canonical paths, pt-BR moved to `docs/pt-BR/`, English file names ([ADR 0008](adr/0008-documentation-language.md)) | done — authored by Opus 5 sessions, reviewed by Fable 5.1; `scripts/check-docs-mirror.sh` green |
+
+### Exit criterion
+
+All verifiable. The phase closes when the five pass.
+
+1. **No open BLOCKING finding.** No finding classified as BLOCKING in the
+   critical review is left unresolved. Verification: the list of findings from
+   the review, each BLOCKING with the commit that resolves it or the
+   maintainer's decision to downgrade it. State: the three BLOCKING findings in
+   `docs/review/phase-0.md` (C1, C2, C3) were resolved in revision 2 of this
+   roadmap; the "Resolution" section of the review points to what changed.
+2. **`LICENSE` present at the root.** Verification: `test -f LICENSE`, and the
+   file matches the package chosen in [ADR 0005](adr/0005-license.md). State:
+   satisfied on 2026-09-21 — `LICENSE` contains the MPL-2.0 and ADR 0005 is
+   Accepted (Package A).
+3. **CI green on macOS and Linux.** Verification: one green run of
+   `cargo fmt --check`, `cargo clippy`, `cargo test` and `cargo deny check` on
+   both operating systems.
+4. **Workspace guardrails demonstrably firing.** Each **workspace** guardrail
+   from [ADR 0029](adr/0029-guardrails-in-ci.md) is seen failing on a test
+   branch that deliberately introduces the violation it is supposed to catch,
+   and the branch is not merged. Verification: one recorded red run per
+   guardrail — divergent `cargo fmt`, `unsafe`, `unwrap` outside a test,
+   `std::fs` outside `verso-fs`, a license outside the allowlist (provisional,
+   marked as such), a known advisory. A guardrail that only exists in the CI
+   file and has never been seen failing does not count. The **feature**
+   guardrails (fuzz, round-trip, WASM, atomic write, confinement, FTS5,
+   benchmark, generated types) cannot exist with empty crates; each one is seen
+   failing in the PR of the feature that introduces it, and that is an exit
+   criterion of Phase 1 (item 3) and of Phase 2 (item 3).
+5. **Five fixtures by hand.** There are five
+   `fixtures/<category>/<case>/{input.md,expected.yaml}` pairs written by the
+   maintainer, covering distinct minimal categories from §11.4 and following the
+   schema in `docs/spec/dialect.md` §4. Verification: count the directories,
+   check authorship in the git history, and check that each `expected.yaml`
+   uses only schema keys.
+
+### Does not block the exit
+
+`[OPEN]` dialect questions (`docs/spec/dialect.md`, section 9, except the
+schema in section 4, which item 0.9 confirms) and the ADRs
+[0037](adr/0037-base-parser.md), [0038](adr/0038-ts-type-generation.md),
+[0039](adr/0039-performance-targets.md), [0040](adr/0040-board-persistence.md)
+and [0044](adr/0044-verso-fs-semantics.md) to
+[0048](adr/0048-file-operations-in-ui.md). Each one has its own moment of
+decision, all of them after Phase 0.
+
+---
+
+## Phase 1 — Core via CLI, no UI
+
+A core usable from the terminal and by an agent. **No window.**
+
+### Scope
+
+Execution order from briefing §15:
+
+| # | Crate | Deliverable |
+|---|---|---|
+| 1 | `verso-dialect` | parsing of links, blocks, headings and frontmatter; round-trip; fuzz target |
+| 2 | `verso-fs` | walk the folder, path confinement, atomic write |
+| 3 | `verso-index` | SQLite schema, FTS5, backlinks |
 | 4 | `verso-cli` | `verso index`, `verso search`, `verso backlinks` |
-| 5 | bench | gerador de vault sintético + linha de base |
-| 6 | `verso-cli` | `verso mcp` somente leitura: buscar, ler, caminhar o grafo |
-| 7 | `verso-cli` | mensagens em pt-BR e EN, nenhuma string literal solta ([ADR 0035](adr/0035-requisitos-transversais.md)); entra com a feature 4 |
+| 5 | bench | synthetic vault generator + baseline |
+| 6 | `verso-cli` | read-only `verso mcp`: search, read, walk the graph |
+| 7 | `verso-cli` | messages in pt-BR and EN, no loose string literal ([ADR 0035](adr/0035-cross-cutting-requirements.md)); ships with feature 4 |
 
-### Decisões que precisam sair durante a fase
+### Decisions that have to come out during the phase
 
-| Decisão | Quando | ADR |
+| Decision | When | ADR |
 |---|---|---|
-| Definição de round-trip (Q18) | PR da feature 1, **antes** da comparação de parsers | `docs/spec/dialeto.md` Q18, [0037](adr/0037-parser-base.md) |
-| Parser base: `pulldown-cmark`, `comrak` ou próprio | PR da feature 1, com comparação justificada | [0037](adr/0037-parser-base.md) |
-| Questões de parsing Q2–Q8, Q12–Q17 e Q19–Q25 da spec | antes da feature 1 fechar | `docs/spec/dialeto.md` §9 |
-| Symlinks, laços e caminhos ignorados (Q26) | antes da feature 2 fechar | [0044](adr/0044-semantica-de-verso-fs.md) |
-| Mecanismo de detecção de placeholder por provedor, começando pelo iCloud Drive | antes da feature 2 fechar | [0043](adr/0043-guarda-contra-placeholder.md) |
-| Localização, permissões e limpeza do índice | antes da feature 3 fechar | [0046](adr/0046-indice-localizacao-ciclo-de-vida-tokenizador.md) |
-| Regra de desambiguação entre `verso <pasta>` e subcomando | antes de a feature 4 fechar o conjunto de subcomandos | [0042](adr/0042-abertura-pela-linha-de-comando.md) |
-| Tokenizador do FTS5 para pt-BR e EN | antes de a feature 5 tirar a linha de base | [0046](adr/0046-indice-localizacao-ciclo-de-vida-tokenizador.md) |
-| Metas de performance | depois da feature 5 produzir a linha de base | [0039](adr/0039-metas-de-performance.md) |
-| Transporte do MCP, superfície exposta, versão do protocolo | antes da feature 6 fechar | [0045](adr/0045-seguranca-do-servidor-e-do-mcp.md) |
-| O que um handle opaco identifica e por quanto tempo | antes da feature 6 fechar | [0044](adr/0044-semantica-de-verso-fs.md) |
+| Definition of round-trip (Q18) | PR of feature 1, **before** the parser comparison | `docs/spec/dialect.md` Q18, [0037](adr/0037-base-parser.md) |
+| Base parser: `pulldown-cmark`, `comrak` or our own | PR of feature 1, with a justified comparison | [0037](adr/0037-base-parser.md) |
+| Parsing questions Q2–Q8, Q12–Q17 and Q19–Q25 of the spec | before feature 1 closes | `docs/spec/dialect.md` §9 |
+| Symlinks, loops and ignored paths (Q26) | before feature 2 closes | [0044](adr/0044-verso-fs-semantics.md) |
+| Placeholder detection mechanism per provider, starting with iCloud Drive | before feature 2 closes | [0043](adr/0043-placeholder-guard.md) |
+| Location, permissions and cleanup of the index | before feature 3 closes | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
+| Disambiguation rule between `verso <folder>` and a subcommand | before feature 4 closes the set of subcommands | [0042](adr/0042-open-from-command-line.md) |
+| FTS5 tokenizer for pt-BR and EN | before feature 5 takes the baseline | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
+| Performance targets | after feature 5 produces the baseline | [0039](adr/0039-performance-targets.md) |
+| MCP transport, exposed surface, protocol version | before feature 6 closes | [0045](adr/0045-server-and-mcp-security.md) |
+| What an opaque handle identifies and for how long | before feature 6 closes | [0044](adr/0044-verso-fs-semantics.md) |
 
-### Critério de saída
+### Exit criterion
 
-1. **Vault real indexa sem erro.** `verso index` roda sobre o vault real de
-   campanha do mantenedor e termina com código de saída 0, sem erro e sem panic.
-   Verificação: executar o comando e conferir o código de saída e a saída padrão.
-2. **Backlinks conferem com o esperado.** Para um conjunto de notas escolhido
-   pelo mantenedor, a saída de `verso backlinks` bate com a lista que ele
-   escreveu à mão antes de rodar o comando. Verificação: comparar as duas listas;
-   divergência é falha, mesmo que o comando esteja "certo". A lista à mão segue
-   as decisões de Q26 (caminhos ignorados) e Q20 (links Markdown), para que os
-   dois lados contem a mesma coisa.
-3. **Guardrails verdes e comprovadamente disparando.** Todos os guardrails de
-   [ADR 0029](adr/0029-guardrails-no-ci.md), de workspace e de feature, passam
-   sobre o código da fase, incluindo fuzzing do parser sem crash novo, property
-   test de round-trip (na leitura decidida em Q18) e `cargo check` para
-   `wasm32-unknown-unknown` de `verso-dialect`. Cada guardrail de feature foi
-   visto falhando no PR que o introduziu. Verificação: execução de CI verde, a
-   sessão de fuzz registrada, e uma execução vermelha registrada por guardrail
-   de feature.
-4. **Notas consultáveis por um agente.** O Claude, conectado ao `verso mcp`,
-   responde a perguntas sobre o vault buscando, lendo e caminhando o grafo.
-   Verificação: uma sessão registrada em que o agente responde e cita a origem
-   — por `^id` quando o bloco tem um, por linha e coluna quando não tem
-   (`docs/spec/dialeto.md` §4.4) — e a citação leva à posição exata. Consulta
-   por tipo fica para quando a nota tipada existir (Fase 2, item 2.6).
-5. **Corpus de fixtures verde.** Todas as fixtures passam, e nenhum
-   `expected.yaml` foi alterado sem aprovação explícita do mantenedor.
-   Verificação: `cargo test` verde, mais `git log` de `fixtures/**/expected.yaml`
-   sem commit não aprovado.
-6. **CLI em dois idiomas.** `verso index`, `verso search` e `verso backlinks`
-   respondem em pt-BR e em EN conforme o locale. Verificação: rodar cada comando
-   com os dois locales e conferir que nenhuma mensagem fica no outro idioma.
+1. **A real vault indexes without error.** `verso index` runs over the
+   maintainer's real campaign vault and finishes with exit code 0, with no error
+   and no panic. Verification: run the command and check the exit code and the
+   standard output.
+2. **Backlinks match what was expected.** For a set of notes chosen by the
+   maintainer, the output of `verso backlinks` matches the list they wrote by hand
+   before running the command. Verification: compare the two lists; a divergence
+   is a failure, even if the command is "right". The hand-written list follows
+   the decisions on Q26 (ignored paths) and Q20 (Markdown links), so that both
+   sides count the same thing.
+3. **Guardrails green and demonstrably firing.** All the guardrails from
+   [ADR 0029](adr/0029-guardrails-in-ci.md), workspace and feature, pass over
+   the code of the phase, including parser fuzzing with no new crash, a
+   round-trip property test (under the reading decided in Q18) and `cargo check`
+   for `wasm32-unknown-unknown` of `verso-dialect`. Each feature guardrail was
+   seen failing in the PR that introduced it. Verification: a green CI run, the
+   recorded fuzz session, and one recorded red run per feature guardrail.
+4. **Notes queryable by an agent.** Claude, connected to `verso mcp`, answers
+   questions about the vault by searching, reading and walking the graph.
+   Verification: a recorded session in which the agent answers and cites the
+   source — by `^id` when the block has one, by line and column when it does not
+   (`docs/spec/dialect.md` §4.4) — and the citation leads to the exact position.
+   Querying by type waits until the typed note exists (Phase 2, item 2.6).
+5. **Fixture corpus green.** All the fixtures pass, and no `expected.yaml` was
+   changed without the maintainer's explicit approval.
+   Verification: `cargo test` green, plus a `git log` of
+   `fixtures/**/expected.yaml` with no unapproved commit.
+6. **CLI in two languages.** `verso index`, `verso search` and `verso backlinks`
+   answer in pt-BR and in EN according to the locale. Verification: run each
+   command with both locales and check that no message stays in the other
+   language.
 
 ---
 
-## Fase 2 — Esqueleto andante no macOS
+## Phase 2 — Walking skeleton on macOS
 
-A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-plataformas-alvo-e-macos-primeiro.md)).
+The first version that gets used. macOS only ([ADR 0022](adr/0022-target-platforms-macos-first.md)).
 
-### Escopo
+### Scope
 
-| # | Entrega |
+| # | Deliverable |
 |---|---|
-| 2.1 | Contrato core↔UI definido primeiro, com tipos TS gerados a partir do Rust |
-| 2.2 | Shell Tauri v2 abrindo uma pasta arbitrária |
-| 2.3 | Árvore de arquivos |
-| 2.4 | Editor CodeMirror 6 com Live Preview |
-| 2.5 | Backlinks e busca vindos do core, pelo contrato |
-| 2.6 | Um tipo de nota ponta a ponta |
-| 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-requisitos-transversais.md)) |
+| 2.1 | Core↔UI contract defined first, with TS types generated from the Rust |
+| 2.2 | Tauri v2 shell opening an arbitrary folder |
+| 2.3 | File tree |
+| 2.4 | CodeMirror 6 editor with Live Preview |
+| 2.5 | Backlinks and search coming from the core, through the contract |
+| 2.6 | One note type end to end |
+| 2.7 | pt-BR and EN in the UI; accessibility ([ADR 0035](adr/0035-cross-cutting-requirements.md)) |
 
-### Decisões que precisam sair durante a fase
+### Decisions that have to come out during the phase
 
-| Decisão | Quando | ADR |
+| Decision | When | ADR |
 |---|---|---|
-| Geração de tipos TS: `ts-rs` ou `specta` | início da fase, antes do contrato | [0038](adr/0038-geracao-de-tipos-ts.md) |
-| Identidade de sessão e autorização por operação no contrato | antes do item 2.1 | [0045](adr/0045-seguranca-do-servidor-e-do-mcp.md) |
-| Semântica dos handles opacos no contrato | antes do item 2.1 | [0044](adr/0044-semantica-de-verso-fs.md) |
-| Renomear, criar, excluir, mover; atualização de links; modificação externa concorrente | antes do item 2.3 | [0048](adr/0048-operacoes-de-arquivo-na-ui.md), [0012](adr/0012-arquivos-sao-fonte-de-verdade.md) |
-| Promoção de nota tipada ([0014](adr/0014-catalogo-de-primitivas.md)) e de degradação para Markdown ([0013](adr/0013-degradacao-para-markdown.md)) a ADR próprio, Aceito | antes da nota tipada (2.6) | ADR novo |
-| Formato e localização dos schemas | antes da nota tipada (2.6) | `docs/spec/dialeto.md` Q11 |
+| TS type generation: `ts-rs` or `specta` | start of the phase, before the contract | [0038](adr/0038-ts-type-generation.md) |
+| Session identity and per-operation authorization in the contract | before item 2.1 | [0045](adr/0045-server-and-mcp-security.md) |
+| Semantics of the opaque handles in the contract | before item 2.1 | [0044](adr/0044-verso-fs-semantics.md) |
+| Rename, create, delete, move; link updating; concurrent external modification | before item 2.3 | [0048](adr/0048-file-operations-in-ui.md), [0012](adr/0012-files-are-source-of-truth.md) |
+| Promotion of the typed note ([0014](adr/0014-primitives-catalog.md)) and of degradation to Markdown ([0013](adr/0013-degrades-to-markdown.md)) to an ADR of their own, Accepted | before the typed note (2.6) | new ADR |
+| Format and location of the schemas | before the typed note (2.6) | `docs/spec/dialect.md` Q11 |
 
-### Critério de saída
+### Exit criterion
 
-1. **Um mês de uso real.** O mantenedor usa o Verso na preparação de mesa por um
-   mês corrido, sem voltar ao Obsidian para tarefa que o Verso deveria cobrir.
-   Verificação: as notas de campanha do período foram escritas no Verso, e o
-   mantenedor registra o que o fez voltar, quando voltou.
-2. **Nenhuma perda de dado no período.** Nenhum arquivo corrompido, truncado ou
-   reescrito sem ação do usuário durante o mês
-   ([ADR 0012](adr/0012-arquivos-sao-fonte-de-verdade.md)). Verificação:
-   histórico do git do vault do mantenedor sem diff que ele não tenha feito.
-   Isso inclui: nenhuma edição feita no Obsidian sobrescrita pelo Verso
-   (modificação externa concorrente) e nenhum rename que tenha reescrito outro
-   arquivo sem diff ([0048](adr/0048-operacoes-de-arquivo-na-ui.md)).
-3. **Guardrails verdes e fixtures intactas.** Mesmo critério da Fase 1, itens 3
-   e 5, agora incluindo o código de UI e a verificação de tipos TS gerados
-   atualizados ([ADR 0029](adr/0029-guardrails-no-ci.md)).
+1. **One month of real use.** The maintainer uses Verso to prepare their table
+   sessions for a full month, without going back to Obsidian for a task Verso
+   is supposed to cover. Verification: the campaign notes for the period were
+   written in Verso, and the maintainer records what made them go back, when they
+   went back.
+2. **No data loss in the period.** No file corrupted, truncated or rewritten
+   without user action during the month
+   ([ADR 0012](adr/0012-files-are-source-of-truth.md)). Verification: the git
+   history of the maintainer's vault with no diff they did not make themselves.
+   That includes: no edit made in Obsidian overwritten by Verso (concurrent
+   external modification) and no rename that rewrote another file without a
+   diff ([0048](adr/0048-file-operations-in-ui.md)).
+3. **Guardrails green and fixtures intact.** Same criterion as Phase 1, items 3
+   and 5, now including the UI code and the check that the generated TS types
+   are up to date ([ADR 0029](adr/0029-guardrails-in-ci.md)).
 
-O portão é uso, não checklist: com os sete itens de escopo prontos e o mês de uso
-não acontecendo, a fase não fechou.
+The gate is use, not a checklist: with the seven scope items done and the month
+of use not happening, the phase has not closed.
 
 ---
 
-## Depois da Fase 2
+## After Phase 2
 
-Sem ordem nem prazo definidos no briefing. Entram na conversa quando a Fase 2
-fechar: sync ([0020](adr/0020-sync-merge-no-core-transportes-como-plugin.md)),
-mobile ([0025](adr/0025-servidor-proprio-e-mobile-pwa.md)), plugins
-([0016](adr/0016-plugins-execucao-e-capabilities.md), com as questões de
-[0047](adr/0047-questoes-abertas-da-api-de-plugin.md) respondidas antes do
-desenho da API), board ([0024](adr/0024-board-excalidraw.md)), shim de
-compatibilidade ([0017](adr/0017-plugins-formato-shim-carregamento.md)), as
-primitivas ainda propostas ([0014](adr/0014-catalogo-de-primitivas.md)) e a
-**escrita por agente com diff** ([0018](adr/0018-llm-nativo-mcp-no-core.md),
-`DECIDIDO`, sem fase atribuída: a Fase 1 entrega MCP somente leitura e a Fase 2
-não a inclui).
+No order and no deadline defined in the briefing. They enter the conversation
+when Phase 2 closes: sync ([0020](adr/0020-sync-merge-in-core-transports-as-plugins.md)),
+mobile ([0025](adr/0025-own-server-and-mobile-pwa.md)), plugins
+([0016](adr/0016-plugins-execution-and-capabilities.md), with the questions in
+[0047](adr/0047-plugin-api-open-questions.md) answered before the API is
+designed), board ([0024](adr/0024-board-excalidraw.md)), compatibility shim
+([0017](adr/0017-plugins-format-shim-loading.md)), the primitives that are still
+proposed ([0014](adr/0014-primitives-catalog.md)) and **agent writing with a
+diff** ([0018](adr/0018-llm-native-mcp-in-core.md), `DECIDED`, with no phase
+assigned: Phase 1 delivers read-only MCP and Phase 2 does not include it).
 
-Ordem entre eles: `[ABERTO]`.
+Order among them: `[OPEN]`.

@@ -1,38 +1,39 @@
-# ADR 0024 — Board: Excalidraw como camada de anotação livre
+# ADR 0024 — Board: Excalidraw as a free annotation layer
 
-- Data: 2026-09-21
-- Fonte: `docs/BRIEFING.md` §4, §9
-- Status no briefing: `DECIDIDO` (Excalidraw); `PROPOSTO` (camada semântica);
-  `ABERTO` (persistência)
+- Date: 2026-09-21
+- Source: `docs/BRIEFING.md` §4, §9
+- Status in the briefing: `DECIDED` (Excalidraw); `PROPOSED` (semantic layer);
+  `OPEN` (persistence)
 
-## Contexto
+## Context
 
-O board é um dos recursos que motivam o projeto, especialmente para mesa de RPG.
-A alternativa mais conhecida, tldraw, tem licença source-available que exige
-chave de licença em produção e marca d'água obrigatória, e proíbe relicenciar —
-incompatível com [0001](0001-ferramenta-aberta-sem-empresa.md).
+The board is one of the features that motivate the project, especially for the
+RPG table. The best-known alternative, tldraw, has a source-available license
+that requires a license key in production and a mandatory watermark, and
+forbids relicensing — incompatible with
+[0001](0001-open-tool-no-company.md).
 
-## Decisão
+## Decision
 
-O board usa Excalidraw (MIT) como camada de anotação livre.
+The board uses Excalidraw (MIT) as a free annotation layer.
 
-## Consequências
+## Consequences
 
-- A camada semântica é proposta, não decidida: nós são notas, arestas são
-  relações tipadas, e uma seta livre pode ser promovida a relação tipada.
-- A persistência do board é `[ABERTO]` ([0040](0040-persistencia-do-board.md)).
-- O board precisa de vista equivalente acessível — lista ou tabela das mesmas
-  notas e relações ([0035](0035-requisitos-transversais.md), `PROPOSTO`).
-- Vaults com `.excalidraw.md` do plugin do Obsidian exigem conversão explícita
-  (`docs/spec/dialeto.md`, `PROPOSTO`).
-- Board fica fora de escopo até o fim da Fase 2
-  ([0034](0034-roadmap-em-fases.md)).
+- The semantic layer is proposed, not decided: nodes are notes, edges are typed
+  relations, and a free arrow can be promoted to a typed relation.
+- Board persistence is `[OPEN]` ([0040](0040-board-persistence.md)).
+- The board needs an equivalent accessible view — a list or table of the same
+  notes and relations ([0035](0035-cross-cutting-requirements.md), `PROPOSED`).
+- Vaults with `.excalidraw.md` from the Obsidian plugin require explicit
+  conversion (`docs/spec/dialect.md`, `PROPOSED`).
+- The board is out of scope until the end of Phase 2
+  ([0034](0034-roadmap-in-phases.md)).
 
-## Alternativas descartadas
+## Discarded alternatives
 
-- tldraw — descartado por restrição de licença, não por preferência
-  ([0009](0009-restricoes-externas.md)).
+- tldraw — discarded because of a license constraint, not out of preference
+  ([0009](0009-external-constraints.md)).
 
 ## Status
 
-Aceito para o Excalidraw. Camada semântica: Proposto. Persistência: `[ABERTO]`.
+Accepted for Excalidraw. Semantic layer: Proposed. Persistence: `[OPEN]`.

@@ -1,0 +1,49 @@
+# ADR 0036 — Special support for tabletop RPG
+
+- Date: 2026-09-21
+- Source: `docs/BRIEFING.md` §12, §16.2
+- Status in the briefing: `DECIDED` (intent); `PROPOSED` (scope)
+
+## Context
+
+The target audience includes people who play and run tabletop RPG, and it is
+where the maintainer has real use — which makes that audience the test of the
+Phase 2 gate ([0034](0034-roadmap-in-phases.md)).
+
+## Decision
+
+Special support for people who play and run games is a declared intent of the
+project.
+
+The scope below is a proposal, not a decision:
+
+| Feature | Status |
+|---|---|
+| Integration with Foundry VTT mapping a typed note ↔ Actor/Item with the system's data model; the existing modules only sync journals | `PROPOSED` |
+| Random table as a note type with a roll action | `PROPOSED` |
+| Player view: blocks marked as secret disappear in sharing and in export; maps to journal permission in Foundry | `PROPOSED` |
+| Named viewport shortcuts on the board | `PROPOSED` |
+| Schema packs per game system | `PROPOSED` |
+
+## Consequences
+
+- No RPG feature goes into the core as a special case: they all go through
+  primitives ([0014](0014-primitives-catalog.md)), schema packs
+  ([0015](0015-schema-packs.md)) or a plugin
+  ([0017](0017-plugins-format-shim-loading.md)).
+- The player view depends on the per-block visibility syntax, `[OPEN]`
+  (`docs/spec/dialect.md`), and has to be decided before sharing and export.
+- The Foundry integration is a plugin, and it counts as proof that the API
+  allows first-party features with no privileged access.
+- That audience's sensitivity to AI-generated content is the reason for
+  opt-in generative ([0019](0019-generative-opt-in-and-keychain.md)).
+- Recorded reference for a game master board with typed relations, random
+  tables and a player view: Alkemion Studio (§16.2).
+
+## Discarded alternatives
+
+None recorded.
+
+## Status
+
+Accepted for the intent. Scope: Proposed.
