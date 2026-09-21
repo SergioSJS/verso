@@ -8,6 +8,9 @@
   in `docs/reference/parser-decision.md`, after Q18 was answered in the same
   session. Decision, Consequences, Discarded alternatives and Status filled in
   place; Context unchanged.
+  2026-09-21 — upstream panic in `pulldown-cmark` 0.13.4 recorded under
+  Consequences, from the third reading of the feature 1 PR
+  (`docs/review/phase-1-feature-1.md`). Decision and Status unchanged.
 
 ## Context
 
@@ -84,6 +87,29 @@ parser, edits by textual patch; `docs/spec/dialect.md` §9):
   Phase 2 item 2.6) needs a YAML-preserving textual patch, since spec §5.1
   forbids normalizing key order, comments and quoting. To record in the ADR of
   the typed note; not a parser concern.
+- **`pulldown-cmark` 0.13.4 panics on an input of ten bytes**, recorded on
+  2026-09-21 by the third reading of the feature 1 PR: `- [a]:b` followed by a
+  line of two tabs — a list item holding a link reference definition, then a
+  tab line — panics inside the base parser. That contradicts what this ADR
+  expected of the base and violates property 1 of Q18 (`parse` returns for
+  every input). Upstream issue #1129; fixed on `pulldown-cmark`'s `main`
+  (verified as of revision `c51a2a4`, read on 2026-09-21; the fix landed
+  somewhere between 0.13.4 and that revision — the author of upstream PR #1128
+  reported on 2026-08-09 that `main` no longer panics on the related input),
+  with no release since 0.13.4 of 2026-05-20. Upstream
+  `main` needs `features = ["std"]` together with `default-features = false`;
+  a scratch copy of the crate at that revision passed every test here and
+  6 M fuzz runs, and `comrak` 0.55 — the fallback of item 2 of the Decision —
+  also survives the input. Meanwhile the repository records the panic instead
+  of working around it: the input is a regression test in
+  `crates/verso-dialect/tests/regressions.rs`, `#[ignore]`d with the condition
+  for removing the `#[ignore]` written in it (the base stops panicking on it);
+  it is **not** a fuzz seed, because libFuzzer runs seeds smallest first and
+  this one ended every fuzz job before the first mutation; and the fuzz job
+  runs its budget from the remaining seed. **The way out is open for the
+  maintainer:** wait for the upstream release, pin the git revision — which
+  also needs a `[sources]` change in `deny.toml`, where `unknown-git` is
+  `deny` — or switch to the `comrak` fallback already recorded in item 2.
 
 ## Discarded alternatives
 

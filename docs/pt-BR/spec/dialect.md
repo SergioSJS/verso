@@ -576,6 +576,24 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   Fuzzing pega crash, não lentidão; o limite e o que acontece ao ultrapassá-lo
   precisam ser ditos.
 
+  Registrado em 2026-09-21, e a questão continua `[ABERTO]`: desde a revisão do
+  PR do `verso-dialect` (`docs/review/phase-1-feature-1.md`) o código carrega
+  dois limites **provisórios** no frontmatter — no máximo 64 níveis de
+  aninhamento e no máximo 10 000 nós. Os dois são contados no fluxo de eventos
+  do YAML antes de existir qualquer árvore; um alias é cobrado pelo que o
+  loader clona no lugar dele, e o nível a mais que uma tag acrescenta também é
+  contado. Um frontmatter acima de qualquer um dos limites é reportado com o
+  seu span e com `values` como erro; o corpo continua sendo parseado e nada
+  mais no arquivo muda. Os dois números foram escolhidos para manter o `parse`
+  retornando para toda entrada (Q18, propriedade 1), não como resposta a esta
+  questão: são do mantenedor, e vivem como constantes `pub(crate)` em
+  `crates/verso-dialect/src/frontmatter.rs`, fora da API pública. Nenhuma
+  fixture as afirma, porque uma fixture que responde a uma questão `[ABERTO]`
+  só entra no PR que fecha a questão
+  ([ADR 0031](../adr/0031-fixtures-as-contract.md)). Nada aqui cobre o resto da
+  Q17: tamanho de arquivo, comprimento de linha e aninhamento do lado do
+  Markdown continuam indefinidos.
+
 ### Lacunas levantadas na revisão da Fase 0
 
 Fonte: `docs/review/phase-0.md`, seção 4. Mesma regra das anteriores: resposta do
@@ -657,3 +675,4 @@ ser escolhido.
 | v0.2 | 2026-09-21 | Regra de fixtures alterada pelo mantenedor (ADR 0031 item 4): §4 e §8 atualizadas; Q1 fecha com a aprovação de `fixtures/wikilink/block-reference`. Nenhuma questão fechada ainda |
 | v0.3 | 2026-09-21 | Mantenedor aprovou as cinco primeiras fixtures: schema §4 `DECIDIDO`; Q1 fechada (`block`). Primeira questão fechada |
 | v0.4 | 2026-09-21 | Q18 fechada pelo mantenedor: leitura (b), parser somente leitura com property test de round-trip de quatro propriedades (`docs/reference/parser-decision.md`, ADR 0037). Segunda questão fechada |
+| v0.5 | 2026-09-21 | Limites provisórios do frontmatter registrados sob a Q17 (64 níveis de aninhamento, 10 000 nós), vindos da revisão do PR do `verso-dialect` (`docs/review/phase-1-feature-1.md`). Nenhuma questão fechada |

@@ -8,6 +8,9 @@
   em `docs/reference/parser-decision.md`, depois de Q18 respondida na mesma
   sessão. Decisão, Consequências, Alternativas descartadas e Status preenchidos
   no lugar; Contexto inalterado.
+  2026-09-21 — panic upstream do `pulldown-cmark` 0.13.4 registrado nas
+  Consequências, vindo da terceira leitura do PR da feature 1
+  (`docs/review/phase-1-feature-1.md`). Decisão e Status inalterados.
 
 ## Contexto
 
@@ -85,6 +88,30 @@ leitura, edições por patch textual; `docs/spec/dialect.md` §9):
   2.6 da Fase 2) precisa de um patch textual que preserve o YAML, já que a
   spec §5.1 proíbe normalizar ordem de chaves, comentários e aspas. A
   registrar no ADR da nota tipada; não é assunto do parser.
+- **O `pulldown-cmark` 0.13.4 dá panic com uma entrada de dez bytes**,
+  registrado em 2026-09-21 pela terceira leitura do PR da feature 1: `- [a]:b`
+  seguido de uma linha com dois tabs — um item de lista contendo uma definição
+  de referência de link, e depois uma linha de tabs — dá panic dentro do
+  parser base. Isso contradiz o que este ADR esperava da base e viola a
+  propriedade 1 da Q18 (o `parse` retorna para toda entrada). Issue upstream
+  #1129; corrigido na `main` do `pulldown-cmark` (verificado na revisão
+  `c51a2a4`, lida em 2026-09-21; a correção entrou em algum ponto entre a
+  0.13.4 e essa revisão — o autor do PR upstream #1128 relatou em 2026-08-09
+  que a `main` já não dava panic na entrada relacionada), sem release desde a
+  0.13.4 de 2026-05-20. A `main` upstream precisa de
+  `features = ["std"]` junto com `default-features = false`; uma cópia de
+  rascunho do crate nessa revisão passou em todos os testes daqui e em 6 M
+  execuções de fuzz, e o `comrak` 0.55 — o fallback do item 2 da Decisão —
+  também sobrevive à entrada. Enquanto isso o repositório registra o panic em
+  vez de contorná-lo: a entrada é um teste de regressão em
+  `crates/verso-dialect/tests/regressions.rs`, com `#[ignore]` e a condição
+  para tirar o `#[ignore]` escrita nele (a base parar de dar panic ali); ela
+  **não** é semente de fuzz, porque o libFuzzer roda as sementes da menor para
+  a maior e esta encerrava todo job de fuzz antes da primeira mutação; e o job
+  de fuzz roda o seu orçamento a partir da semente restante. **A saída é do
+  mantenedor:** esperar o release upstream, fixar a revisão de git — o que
+  também exige mexer em `[sources]` no `deny.toml`, onde `unknown-git` está
+  como `deny` — ou trocar para o fallback `comrak` já registrado no item 2.
 
 ## Alternativas descartadas
 

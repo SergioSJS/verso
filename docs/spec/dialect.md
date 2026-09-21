@@ -582,6 +582,23 @@ Raised while writing this spec. All of them need an answer before
   not slowness; the limit and what happens when it is exceeded have to be
   stated.
 
+  Recorded on 2026-09-21, and the question stays `[OPEN]`: since the review of
+  the `verso-dialect` PR (`docs/review/phase-1-feature-1.md`) the code carries
+  two **provisional** limits on the frontmatter — at most 64 levels of nesting
+  and at most 10 000 nodes. Both are counted on the YAML event stream before
+  any tree is built; an alias is charged what the loader clones in its place,
+  and the extra level a tag adds is counted too. A frontmatter over either
+  limit is reported with its span and with `values` as an error; the body is
+  still parsed and nothing else in the file changes. The two numbers were
+  chosen to keep `parse` returning for every input (Q18, property 1), not as an
+  answer to this question: they are the maintainer's to set, and they live as
+  `pub(crate)` constants in `crates/verso-dialect/src/frontmatter.rs`, not in
+  the public API. No fixture asserts them, because a fixture that answers an
+  `[OPEN]` question only enters in the PR that closes the question
+  ([ADR 0031](../adr/0031-fixtures-as-contract.md)). Nothing here covers the
+  rest of Q17: file size, line length and nesting on the Markdown side are
+  still undefined.
+
 ### Gaps raised in the Phase 0 review
 
 Source: `docs/review/phase-0.md`, section 4. Same rule as the previous ones: an
@@ -663,3 +680,4 @@ the parser was chosen.
 | v0.2 | 2026-09-21 | Fixture rule changed by the maintainer (ADR 0031 item 4): §4 and §8 updated; Q1 closes with the approval of `fixtures/wikilink/block-reference`. No question closed yet |
 | v0.3 | 2026-09-21 | Maintainer approved the first five fixtures: schema §4 `DECIDED`; Q1 closed (`block`). First question closed |
 | v0.4 | 2026-09-21 | Q18 closed by the maintainer: reading (b), read-only parser with a four-property round-trip test (`docs/reference/parser-decision.md`, ADR 0037). Second question closed |
+| v0.5 | 2026-09-21 | Provisional limits on the frontmatter recorded under Q17 (64 levels of nesting, 10 000 nodes), from the review of the `verso-dialect` PR (`docs/review/phase-1-feature-1.md`). No question closed |
