@@ -55,8 +55,8 @@ impl LineIndex {
     /// Position of the character that starts at byte `offset`.
     ///
     /// `offset` past the end or off a character boundary cannot come from the
-    /// base parser; if it does, the column falls back to counting from the
-    /// line start with what is on a boundary.
+    /// base parser; if it does, `col` is 1: the line is right, the column is
+    /// not claimed.
     pub(crate) fn pos(&self, source: &str, offset: usize) -> Pos {
         // Index of the last line start that is <= offset; never 0 because
         // starts[0] == 0 <= offset.

@@ -292,6 +292,7 @@ dependencies = [
  "proptest",
  "pulldown-cmark",
  "saphyr",
+ "saphyr-parser",
 ]
 
 [[package]]

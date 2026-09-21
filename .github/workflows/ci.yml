@@ -60,8 +60,12 @@ jobs:
   # Feature guardrails of Phase 1, feature 1 (ADR 0029). Each one was seen
   # failing before the PR that added it was merged; the PR records how.
   dialect-wasm:
-    name: verso-dialect compiles to wasm32 (ADR 0029)
-    runs-on: ubuntu-latest
+    name: verso-dialect compiles to wasm32 (${{ matrix.os }}, ADR 0029)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: toolchain from rust-toolchain.toml
@@ -73,9 +77,20 @@ jobs:
   dialect-fuzz:
     # cargo-fuzz needs nightly for its sanitizer; the pinned toolchain in
     # rust-toolchain.toml is bypassed with `+nightly` for this job only.
-    # A short run on every PR; the corpus grows in `fuzz/corpus` locally.
-    name: verso-dialect fuzz, 60s (ADR 0029)
-    runs-on: ubuntu-latest
+    # A short run on every PR, from the versioned seeds in `fuzz/seeds`; the
+    # corpus grows in `fuzz/corpus` locally. Inputs up to 64 KiB: the 8 KB
+    # frontmatter that overflowed the stack was out of reach of the 4 KiB
+    # default (review of PR #7, finding 2).
+    name: verso-dialect fuzz, 60s (${{ matrix.os }}, ADR 0029)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - run: rustup toolchain install nightly --profile minimal
@@ -85,12 +100,12 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: crates/verso-dialect/fuzz
-      # install-action ships a static (musl) cargo-fuzz, and cargo-fuzz
-      # defaults --target to the platform it was built for; the sanitizer
-      # does not link against static musl, so the host target is explicit.
+      # install-action ships a static (musl) cargo-fuzz on Linux, and
+      # cargo-fuzz defaults --target to the platform it was built for; the
+      # sanitizer does not link against static musl, so the target is explicit.
       - name: fuzz parse for 60 seconds
         working-directory: crates/verso-dialect
-        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu parse -- -max_total_time=60 -max_len=4096
+        run: cargo +nightly fuzz run --target ${{ matrix.target }} parse fuzz/corpus/parse fuzz/seeds -- -max_total_time=60 -max_len=65536 -timeout=20
       - name: keep a crash, if any, as an artifact
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

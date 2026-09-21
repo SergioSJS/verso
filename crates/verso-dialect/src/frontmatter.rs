@@ -11,8 +11,20 @@
 //! integer. Whether that is the final answer is spec Q24.
 
 use saphyr::{LoadableYamlNode, Scalar, Yaml};
+use saphyr_parser::{Event, Parser};
 
 use crate::position::Span;
+
+/// Deepest nesting of sequences and mappings accepted in a frontmatter.
+///
+/// `saphyr` builds its tree recursively, one stack frame per level, and a
+/// block sequence a few thousand levels deep (an 8 KB file) overflows the
+/// stack and aborts the process — not a panic, nothing catches it. Q18,
+/// property 1, says `parse` returns for every input, so the depth is checked
+/// on the event stream, which is iterative, before any tree exists. Real
+/// frontmatters are one or two levels deep. The number is provisional: the
+/// limits of Q17 are the maintainer's to set.
+pub const MAX_YAML_DEPTH: usize = 64;
 
 /// The frontmatter block: where it is and what it says.
 #[derive(Debug, Clone, PartialEq)]
@@ -59,6 +71,7 @@ impl PartialEq for Value {
 /// block (`---` separators inside it) are not a frontmatter Obsidian
 /// documents; only the first is kept. An empty block is `Null`.
 pub(crate) fn parse_yaml(text: &str) -> Result<Value, String> {
+    check_depth(text)?;
     let mut documents = Yaml::load_from_str(text).map_err(|e| e.to_string())?;
     if documents.is_empty() {
         return Ok(Value::Null);
@@ -66,8 +79,31 @@ pub(crate) fn parse_yaml(text: &str) -> Result<Value, String> {
     Ok(convert(documents.swap_remove(0)))
 }
 
-/// Non-recursive on purpose is not possible here: `saphyr` already built the
-/// tree, so its depth is bounded by what `saphyr` accepted.
+/// Walk the event stream and refuse a nesting deeper than
+/// [`MAX_YAML_DEPTH`]. A scan error here is reported as such; the loader
+/// would report the same one.
+fn check_depth(text: &str) -> Result<(), String> {
+    let mut depth = 0usize;
+    for event in Parser::new_from_str(text) {
+        let (event, _) = event.map_err(|e| e.to_string())?;
+        match event {
+            Event::SequenceStart(..) | Event::MappingStart(..) => {
+                depth += 1;
+                if depth > MAX_YAML_DEPTH {
+                    return Err(format!(
+                        "frontmatter nested deeper than {MAX_YAML_DEPTH} levels"
+                    ));
+                }
+            }
+            Event::SequenceEnd | Event::MappingEnd => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// Recursive, and safe to be: the depth of the tree was bounded by
+/// [`check_depth`] before `saphyr` built it.
 pub(crate) fn convert(yaml: Yaml<'_>) -> Value {
     match yaml {
         Yaml::Value(scalar) => scalar_value(scalar),
@@ -155,6 +191,25 @@ mod tests {
     fn invalid_yaml_is_an_error_not_a_panic() {
         assert!(parse_yaml("a: [unclosed\n").is_err());
         assert_eq!(parse_yaml("").unwrap(), Value::Null);
+    }
+
+    #[test]
+    fn nesting_is_bounded_before_a_tree_exists() {
+        // 4 000 levels of block sequence overflow saphyr's loader; the event
+        // pre-pass refuses it and parse_yaml returns instead of aborting.
+        let deep = format!("{}x\n", "- ".repeat(4_000));
+        let error = parse_yaml(&deep).unwrap_err();
+        assert!(error.contains("deeper than"), "{error}");
+        let deep_map = "a:\n".to_owned()
+            + &(1..=MAX_YAML_DEPTH + 1)
+                .map(|i| format!("{}b{i}:\n", " ".repeat(i)))
+                .collect::<String>();
+        assert!(parse_yaml(&deep_map).is_err());
+        // At the limit it still parses.
+        let at_limit = format!("{}x\n", "- ".repeat(MAX_YAML_DEPTH));
+        assert!(parse_yaml(&at_limit).is_ok());
+        // Flow style already had saphyr's own limit; still an error, not an abort.
+        assert!(parse_yaml(&"[".repeat(10_000)).is_err());
     }
 
     #[test]
