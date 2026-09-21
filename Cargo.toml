@@ -1,0 +1,31 @@
+# Verso workspace. Five crates, one boundary each (ADR 0028).
+#
+# Guardrails of the workspace live here and in clippy.toml / deny.toml
+# (ADR 0029). They are enforced by CI with `cargo clippy -- -D warnings`;
+# nothing in a crate may `#[allow]` them (CLAUDE.md §3).
+
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MPL-2.0"
+repository = "https://github.com/SergioSJS/verso"
+publish = false
+
+[workspace.lints.rust]
+# Memory corruption is not a class of bug this project accepts.
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+# A panic takes the whole app down with the user's notes open.
+# Allowed only in tests: see allow-unwrap-in-tests in clippy.toml. `forbid`, not
+# `deny`: a local `#[allow]` cannot override it (CLAUDE.md §3).
+unwrap_used = "forbid"
+expect_used = "forbid"
+# std::fs is denied outside verso-fs; the list is in clippy.toml
+# (ADR 0026, rule 5, delimited scope).
+disallowed_methods = "forbid"

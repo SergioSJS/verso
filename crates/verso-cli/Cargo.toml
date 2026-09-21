@@ -1,0 +1,21 @@
+[package]
+name = "verso-cli"
+description = "The verso command: index, search, backlinks, mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "verso"
+path = "src/main.rs"
+
+# Reads arguments and prints; never touches the open folder directly
+# (ADR 0026, rule 5, delimited scope). Messages in pt-BR and EN from the
+# first feature (ADR 0035).
+[dependencies]
+
+[lints]
+workspace = true

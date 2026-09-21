@@ -1,0 +1,8 @@
+# verso-fs is the one crate allowed to touch the files of the open folder
+# (ADR 0026, rule 5). It therefore carries no disallowed-methods list.
+# Clippy does not merge this file with the workspace one, so the test
+# allowances are repeated here.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+disallowed-methods = []

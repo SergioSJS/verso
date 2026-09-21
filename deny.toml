@@ -1,0 +1,58 @@
+# cargo-deny configuration (ADR 0029, workspace guardrail).
+#
+# License allowlist follows the license decision (ADR 0005, MPL-2.0 for the
+# core and app): permissive licenses and MPL-2.0 itself. GPL, LGPL and AGPL
+# stay out. Any other license enters only with a justification in the PR
+# that adds the dependency (ADR 0033).
+#
+# Advisories: a new advisory makes CI red with no PR to blame. Policy
+# (ADR 0029): an exception in [advisories].ignore needs the advisory id,
+# a reason, a link and an expiry date in the reason text; an expired
+# exception is removed, and CI is red again.
+
+[graph]
+all-features = true
+
+[output]
+feature-depth = 1
+
+[advisories]
+version = 2
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "deny"
+ignore = [
+  # { id = "RUSTSEC-0000-0000", reason = "why; link; expires 2026-12-31" },
+]
+
+[licenses]
+version = 2
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "CC0-1.0",
+]
+confidence-threshold = 0.9
+# The allowlist is written before the dependencies exist; an unused entry is
+# not a problem.
+unused-allowed-license = "allow"
+exceptions = [
+  # { allow = ["..."], crate = "..." }  # only with a justification in the PR
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
