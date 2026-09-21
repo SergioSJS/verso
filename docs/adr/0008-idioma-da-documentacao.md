@@ -18,11 +18,11 @@ duplicada.
 
 ## Decisão
 
-Nenhuma. Decidir no Passo 5.
+Nenhuma. Decidir antes do fechamento da Fase 0, junto com a licença.
 
 Até lá, a documentação nascida deste briefing fica em **pt-BR**, por continuidade
 com o próprio briefing. Isso é uma escolha provisória de execução, não uma
-decisão de projeto: se o Passo 5 decidir EN ou ambos, estes documentos são
+decisão de projeto: se a decisão for EN ou ambos, estes documentos são
 traduzidos.
 
 ## Consequências
@@ -40,4 +40,4 @@ Nenhuma. O briefing lista pt-BR, EN e ambos como opções vivas.
 
 ## Status
 
-`[ABERTO]`. Decidir no Passo 5.
+`[ABERTO]`. Decidir antes do fechamento da Fase 0.

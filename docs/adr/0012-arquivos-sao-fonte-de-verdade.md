@@ -26,6 +26,17 @@ notas se perde na primeira vez que ele mexe em um arquivo sem ser mandado.
   conversões propostas em `docs/spec/dialeto.md`.
 - Escrita por agente entra na mesma regra: diff antes de aplicar
   ([0018](0018-llm-nativo-mcp-no-core.md)).
+- **Modificação externa concorrente.** A mesma pasta pode estar aberta no
+  Obsidian ou em outro editor. Toda escrita do Verso verifica que o arquivo em
+  disco é o mesmo que foi lido (mtime e tamanho, ou hash); se mudou, a escrita
+  não acontece sem mostrar o diff entre o que está em disco e o que seria
+  gravado. Gravar por cima de edição alheia é reescrever sem ação do usuário,
+  e é a forma mais comum de perder dado com dois apps na mesma pasta. Vale para
+  UI ([0048](0048-operacoes-de-arquivo-na-ui.md)), agente e conversão.
+  (Acrescentado na revisão da Fase 0, R2.)
+- "Round-trip" tem duas leituras possíveis, e elas escolhem parsers diferentes;
+  qual delas vale é `docs/spec/dialeto.md` Q18, a decidir no PR da feature 1 da
+  Fase 1 junto com [0037](0037-parser-base.md).
 
 ## Alternativas descartadas
 

@@ -26,8 +26,8 @@ O repositório permanece privado até a licença ser decidida.
 
 ## Alternativas descartadas
 
-- Publicar cedo e licenciar depois — descartado implicitamente em §3, que
-  condiciona a visibilidade à decisão de licença.
+Nenhuma registrada. (Publicar cedo e licenciar depois não foi avaliado; §3 já
+condiciona a visibilidade à decisão de licença.)
 
 ## Status
 

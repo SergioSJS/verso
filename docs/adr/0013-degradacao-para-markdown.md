@@ -24,6 +24,11 @@ Todo dado estruturado do Verso degrada para Markdown legível em qualquer editor
   proposta: precisa ser legível fora do Verso (`docs/spec/dialeto.md`).
 - O custo é redundância: o mesmo dado aparece no arquivo e no índice, e os dois
   precisam concordar.
+- "Markdown legível" é lido como **texto legível em qualquer editor, no formato
+  que o dado já tem**. O alvo da regra é dado que, sem ela, viveria só no índice
+  ou num banco. `.canvas` (JSON Canvas) já está no dialeto base
+  ([0030](0030-dialeto-base-compativel-obsidian.md)) e é texto: não contradiz a
+  proposta, e [0040](0040-persistencia-do-board.md) parte disso.
 
 ## Alternativas descartadas
 

@@ -34,11 +34,19 @@ já usa.
   ([0029](0029-guardrails-no-ci.md)).
 - O parser base em Rust ainda não foi escolhido
   ([0037](0037-parser-base.md), `[ABERTO]`).
+- O tokenizador do FTS5 precisa tratar acentos e maiúsculas de pt-BR e EN antes
+  da primeira linha de base do benchmark
+  ([0046](0046-indice-localizacao-ciclo-de-vida-tokenizador.md), `[ABERTO]`).
+- Riscos não avaliados na decisão, registrados na revisão da Fase 0 (I4):
+  Tauri v2 mobile é jovem; o WKWebView do iOS impõe limites a CodeMirror 6 e a
+  Web Workers que nenhum documento lista. A UI é reversível antes da Fase 2;
+  esses riscos precisam aparecer no PR do item 2.2 antes de deixarem de ser.
 
 ## Alternativas descartadas
 
 Nenhuma registrada: o briefing não lista outras opções de core, shell, editor ou
-índice avaliadas.
+índice avaliadas. Para registro, não como descarte: Electron (shell),
+ProseMirror/Tiptap e Lexical (editor) não foram avaliados.
 
 ## Status
 

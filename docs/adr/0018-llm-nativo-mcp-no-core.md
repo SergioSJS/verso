@@ -25,10 +25,25 @@ que serve a pessoa é a mesma que serve o agente.
 
 - MCP no core implica que o contrato core↔UI e a superfície MCP compartilham as
   mesmas consultas ([0026](0026-contrato-core-ui-regras-inviolaveis.md)).
-- A Fase 1 entrega `verso mcp` somente leitura, sem UI
-  ([0034](0034-roadmap-em-fases.md)).
-- Citação verificável depende do ID estável de bloco, que é primitiva ainda
-  `PROPOSTO` ([0014](0014-catalogo-de-primitivas.md)).
+- A Fase 1 entrega `verso mcp` somente leitura, sem UI: buscar, ler e caminhar
+  o grafo ([0034](0034-roadmap-em-fases.md)). **Consultar por tipo** depende de
+  nota tipada e do formato de schema (spec Q11), decididos só na Fase 2; entra
+  no MCP quando a nota tipada entrar.
+- Citação verificável tem duas formas: por `^id`, quando o bloco tem um escrito
+  no arquivo; por **posição** (linha e coluna, na forma definida em
+  `docs/spec/dialeto.md` §4), quando não tem. Um ID que morasse só no índice
+  não seria estável (o índice é cache,
+  [0011](0011-config-fora-da-arvore-indice-como-cache.md)), e um ID escrito
+  pelo app violaria "abrir nunca reescreve"
+  ([0012](0012-arquivos-sao-fonte-de-verdade.md)). Logo, o parser produz
+  posições desde a Fase 1, e as fixtures as testam.
+- O conteúdo da pasta é entrada não confiável para o agente (packs baixados,
+  notas de jogadores, texto colado). O diff antes de aplicar é a mitigação
+  registrada e não pode ser contornado
+  ([0045](0045-seguranca-do-servidor-e-do-mcp.md)).
+- Transporte do MCP, superfície exposta e versão do protocolo suportada são
+  `[ABERTO]` em [0045](0045-seguranca-do-servidor-e-do-mcp.md), a decidir antes
+  da feature 6 da Fase 1.
 - "Consulta estruturada antes de similaridade" define a ordem de implementação:
   índice e grafo antes de qualquer embedding.
 - Escrita por agente cai sob a mesma regra de diff das conversões

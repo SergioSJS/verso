@@ -3,6 +3,9 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §11.4, §14.1
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-09-21 — regra para fixture que responde questão em aberto,
+  campo de origem da observação e referência ao schema do `expected.yaml`
+  (revisão da Fase 0, C6, C7, I3).
 
 ## Contexto
 
@@ -36,6 +39,19 @@ de nota com acento e espaço.
   que o mantenedor revisa.
 - Fixture nova acompanha a feature que a produz; PR de parser sem fixture é
   incompleto.
+- O schema do `expected.yaml` (chaves, significado de chave ausente, ordem,
+  forma de `target`, posições) está em `docs/spec/dialeto.md` §4. Fixture que
+  não segue o schema é inválida, não "criativa".
+- **Fixture que responde a uma questão `[ABERTO]` da spec só entra no mesmo PR
+  que fecha a questão.** O PR atualiza a seção 9 da spec citando a fixture como
+  resposta, e a aprovação do mantenedor nesse PR é a decisão. Fixture aprovada
+  sem esse passo não fecha questão nenhuma, e a spec continua mandando. Isso
+  concilia "a fixture ganha" (spec §1) com "nada vira decisão fora de ADR ou
+  briefing" (`CLAUDE.md` §1): a decisão fica registrada onde a regra manda.
+- Toda fixture que afirma comportamento compatível com o Obsidian registra
+  **como** o comportamento foi observado (`observado:` no `expected.yaml`, ver
+  spec §4): versão do app e passo reproduzível. Sem isso a fixture registra
+  memória, não observação, e não há como recontestar quando o Obsidian mudar.
 
 ## Alternativas descartadas
 

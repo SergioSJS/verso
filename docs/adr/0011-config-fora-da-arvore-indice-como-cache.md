@@ -31,6 +31,11 @@ precisam morar em outro lugar e ser reconstruíveis.
   da indexação visível para o usuário ([0039](0039-metas-de-performance.md)).
 - `.obsidian/` num vault existente é ignorado, não apagado: a conversão é
   explícita e com diff (`docs/spec/dialeto.md`, D2).
+- O índice guarda o texto da pasta inteira fora dela. Onde ele mora quando a
+  pasta é sensível, com que permissões, e o que acontece com o índice órfão
+  quando a pasta some, é `[ABERTO]` em
+  [0046](0046-indice-localizacao-ciclo-de-vida-tokenizador.md), a decidir antes
+  da feature 3 da Fase 1.
 
 ## Alternativas descartadas
 
