@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-09-21, after the observation below (ADR 0031).
 # Construct: wikilink to a block. Spec: docs/spec/dialect.md §5.5.
 # Approving this fixture confirms the field name `block` (spec Q1) and the
 # expected.yaml schema of spec §4, as ADR 0031 requires: the spec is updated

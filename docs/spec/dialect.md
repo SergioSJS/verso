@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.2
+# Verso dialect spec — v0.3
 
-- Version: v0.2 · 2026-09-21
+- Version: v0.3 · 2026-09-21
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -47,14 +47,14 @@ behavior to be compatible with, only these count:
 No fixture, spec or PR may cite inspection, decompilation or deminification of
 the binary as a source.
 
-## 4. `expected.yaml` schema `PROPOSED`
+## 4. `expected.yaml` schema `DECIDED`
 
 Each construct in sections 5 and 6 comes with the `input.md` and the
 corresponding excerpt of the `expected.yaml`. The briefing (§11.4) names only
 `target`, `alias`, `heading` and `blocks[].id`; everything else below was
-drafted by the AI in the Phase 0 review (C7) and **counts as `PROPOSED` until
-the maintainer confirms it**. The confirmation is the maintainer's approval of
-the first five fixtures, which follow this schema (ADR 0031). A fixture that
+drafted by the AI in the Phase 0 review (C7) and **was `PROPOSED` until
+2026-09-21**, when the maintainer approved the first five fixtures, which follow
+this schema (ADR 0031; fixtures PR). A fixture that
 does not follow the schema is invalid.
 
 ### 4.1 First-level keys
@@ -80,7 +80,7 @@ fixture asks for, never less and never different.
 |---|---|---|
 | `target` | text of the target **as written**, without resolving: `[[nota.md]]` gives `nota.md`, `[[pasta/nota]]` gives `pasta/nota`. Resolution to a file is Q12, outside the parser | yes; empty (`""`) for `[[#seção]]` |
 | `heading` | text after `#`, without `^`; a nested path `a#b` stays as `a#b` until Q19 decides | when there is one |
-| `block` | text after `#^` (answers Q1, `PROPOSED`) | when there is one |
+| `block` | text after `#^` (answers Q1, `DECIDED`) | when there is one |
 | `alias` | text after `\|` | when there is one |
 | `syntax` | `wikilink` (default, may be omitted) or `markdown` (section 5.13) | only for `markdown` |
 | `pos` | position of the first character of the construct (4.4) | when the fixture tests position |
@@ -219,7 +219,7 @@ links:
 ```
 
 The name of the field for a block reference does not appear in the briefing;
-`block` is the proposed answer to Q1 (section 4.2, `PROPOSED`).
+`block` is the answer to Q1 (section 4.2), decided with the approval of `fixtures/wikilink/block-reference`.
 
 ### 5.6 Embed
 
@@ -517,11 +517,11 @@ behavior is implemented. None of them has an answer in the briefing.
 Raised while writing this spec. All of them need an answer before
 `verso-dialect` (Phase 1, feature 1).
 
-- **Q1. Name of the block reference field in the `expected.yaml`.** `PROPOSED`
+- **Q1. Name of the block reference field in the `expected.yaml`.** `DECIDED`
   The briefing's example names `target`, `alias` and `heading`, but not the
-  field for `#^bloco` (section 5.5). Proposal: `block` (section 4.2). Closes
-  with the maintainer's approval of the fixture
-  `fixtures/wikilink/block-reference`, in the PR that adds it (ADR 0031).
+  field for `#^bloco` (section 5.5). Answer: `block` (section 4.2). Closed
+  on 2026-09-21 by the maintainer's approval of the fixture
+  `fixtures/wikilink/block-reference` (ADR 0031).
 - **Q2. Does an embed count as a link in the graph and in backlinks?** `[OPEN]`
   (section 5.6)
 - **Q3. Admissible position of the `^id`.** `[OPEN]`
@@ -638,3 +638,4 @@ answer from the maintainer before implementing; Q18 before choosing the parser.
 | v0 | 2026-09-21 | First version, derived from `docs/BRIEFING.md` §11. No open question resolved |
 | v0.1 | 2026-09-21 | Application of the Phase 0 review (`docs/review/phase-0.md`, accepted by the maintainer): section 4 becomes the `expected.yaml` schema (`PROPOSED`), with `block` as the proposed answer to Q1, positions and `observed`; sections 5.12 (headings) and 5.13 (Markdown links, `PROPOSED`) added; D7 with a status separated per item; Q7 and Q8 corrected with respect to APFS; Q17 broadened; Q18–Q26 added. No question closed |
 | v0.2 | 2026-09-21 | Fixture rule changed by the maintainer (ADR 0031 item 4): §4 and §8 updated; Q1 closes with the approval of `fixtures/wikilink/block-reference`. No question closed yet |
+| v0.3 | 2026-09-21 | Maintainer approved the first five fixtures: schema §4 `DECIDED`; Q1 closed (`block`). First question closed |
