@@ -1,0 +1,172 @@
+# Revisão crítica — Fase 1, feature 1 (`verso-dialect`)
+
+- Data: 2026-09-21
+- Revisor: Opus 5, na função de revisor de código do core ([ADR 0032](../adr/0032-author-and-reviewer-roles.md))
+- Autor do código revisado: Fable 5.1 ([ADR 0032](../adr/0032-author-and-reviewer-roles.md))
+- Entrada: três leituras, cada uma em sessão própria, do diff e do repositório, sem acesso à sessão do autor — PR #7 (merge `2448a3d`), depois os commits de acompanhamento `14daba5` e `e5ff1a9` na branch `phase1/dialect-review`.
+- Item do roadmap: Fase 1, feature 1 — `verso-dialect`, parsing de links, blocos, headings e frontmatter ([`../roadmap.md`](../roadmap.md)).
+- Estado: todo achado BLOQUEANTE das três leituras está resolvido em código.
+  Cinco itens estão **pendentes do mantenedor** e aparecem na seção 5; nenhum
+  deles é decidido aqui. Dois deles ganharam registro em `docs/` no mesmo PR
+  deste documento: os limites provisórios do frontmatter sob a Q17 de
+  [`../spec/dialect.md`](../spec/dialect.md) §9, e o panic upstream do
+  `pulldown-cmark` nas Consequências do
+  [ADR 0037](../adr/0037-base-parser.md). Registrar não é fechar: a Q17
+  continua `[ABERTO]` e o Status e a Decisão do ADR 0037 não mudaram.
+
+## Como ler
+
+Cada leitura é uma seção, com os seus achados na ordem e com a classificação que
+a leitura deu a eles. A coluna "Resolução" diz onde o achado foi corrigido, ou
+que foi mantido e por quê, ou que é do mantenedor. Nenhum achado propõe decisão:
+onde uma decisão é necessária, a linha diz o que precisa ser decidido.
+
+| Nível | Significado ([ADR 0033](../adr/0033-pr-workflow.md)) |
+|---|---|
+| BLOQUEANTE | Viola invariante, guardrail ou decisão; ou perde dado. Impede merge |
+| IMPORTANTE | Deve ser resolvido, ou explicitamente adiado com registro |
+| MENOR | A critério do autor |
+
+## Resumo
+
+| Leitura | Entrada | BLOQUEANTE | IMPORTANTE | MENOR |
+|---|---|---|---|---|
+| 1 | PR #7, merge `2448a3d` | 1 | 5 | 8 |
+| 2 | `14daba5` | 3 | 2 | 3 |
+| 3 | `e5ff1a9` | 1 | 3 | 5 |
+
+Os achados BLOQUEANTES têm todos a mesma forma: algo que deveria estar limitado
+não estava, ou um guardrail que deveria poder falhar não podia. Três dos cinco
+achados que sobrevivem até a seção 5 são questões que a spec já marca
+`[ABERTO]`; os outros dois são uma contradição dentro da spec e um bug upstream.
+
+---
+
+## 1. Primeira leitura — PR #7 (merge `2448a3d`)
+
+O PR transforma o crate vazio num extrator somente leitura: `parse(&str) ->
+Document` roda o `pulldown-cmark` com `ENABLE_WIKILINKS` e
+`ENABLE_YAML_STYLE_METADATA_BLOCKS` ([ADR 0037](../adr/0037-base-parser.md)),
+reconfere o intervalo de bytes de cada evento contra a fonte crua, e reporta
+wikilinks, embeds, headings ATX, `^id`, callouts e o bloco de frontmatter, cada
+um com span em bytes e posição em linha e coluna em caracteres Unicode. Em volta
+vêm os três guardrails de feature desta feature
+([ADR 0029](../adr/0029-guardrails-in-ci.md)), um harness de fixtures e seis
+fixtures em rascunho de IA.
+
+| # | Nível | Achado | Resolução |
+|---|---|---|---|
+| 1 | BLOQUEANTE | Um frontmatter com cerca de 4 000 sequências de bloco aninhadas (uma nota de 8 KB) estoura a pilha dentro do driver de carga do YAML e aborta o processo com `SIGABRT` — não é panic, então nada acima consegue capturar. Quebra a propriedade 1 da Q18, "o `parse` retorna para toda entrada", que é `DECIDIDA` | **Corrigido** em `14daba5`, completado em `e5ff1a9` e `71a4bcd`. O aninhamento é limitado no fluxo de eventos do `saphyr-parser`, antes de existir qualquer árvore; acima do limite o frontmatter é reportado com o seu span e `values` como erro, e o corpo continua sendo parseado. Visto falhando: com a verificação desligada o teste novo aborta. Os *números* são a Q17 e são do mantenedor (seção 5, item 1) |
+| 2 | IMPORTANTE | O guardrail de fuzz estruturalmente não podia achar o achado 1: `-max_len=4096`, e a entrada que quebra precisa de uns 8 KB | **Corrigido** em `14daba5`. `-max_len=65536 -timeout=20`, sementes versionadas em `fuzz/seeds/` e um teste de regressão em `crates/verso-dialect/tests/regressions.rs` |
+| 3 | IMPORTANTE | A tabela de "o que foi assumido" do PR não bate com o código quanto ao `^id`: um `^id` sozinho depois de linha em branco **é** reportado; um no fim de item de lista tight **não** é | **Corrigido** em `14daba5`, no doc do reconhecedor e na tabela do PR. A Q3 continua `[ABERTO]` e nada foi implementado num sentido ou no outro (seção 5, item 5) |
+| 4 | IMPORTANTE | O harness de fixtures rejeita `syntax: wikilink`, que a spec §4.2 diz que pode ser omitido | **Corrigido** em `14daba5`. `wikilink` e omitir são a mesma afirmação; `markdown` falha com mensagem apontando para a Q20 |
+| 5 | IMPORTANTE | O harness escolhe em silêncio um lado de uma contradição dentro da spec §4.1 | **Registrado, não resolvido.** É do mantenedor (seção 5, item 3). O `CLAUDE.md` §1 regra 3 proíbe escolher um lado |
+| 6 | IMPORTANTE | Os jobs de `wasm` e de `fuzz` rodam só no Linux; o [ADR 0029](../adr/0029-guardrails-in-ci.md) diz que os guardrails de feature rodam em macOS e Linux | **Corrigido** em `14daba5`. Os dois jobs rodam a matriz dos dois sistemas |
+| 7 | MENOR | O comentário de doc de `LineIndex::pos` não descreve o que o código faz (o fallback é `col = 1`, não uma contagem) | **Corrigido** em `14daba5` (comentário) |
+| 8 | MENOR | `---\n---\n` e um frontmatter fechado por `...` dão os dois `frontmatter: None`, sem declaração; um bloco de metadados no offset 0 que é rejeitado fica indistinguível de "sem frontmatter" | **Registrado** na tabela de premissas do PR; comportamento inalterado, é a Q24 |
+| 9 | MENOR | A Q15 é respondida em código (tabelas, footnotes, task lists, strikethrough, matemática e destaque estão todos desligados) sem ser declarada | **Registrado** na tabela de premissas do PR |
+| 10 | MENOR | As convenções de span diferem entre construções: a de um heading para antes da quebra de linha, a de um callout a incluía | **Corrigido** em `14daba5`; refinado em `e5ff1a9` (ver leitura 2, achado 8) |
+| 11 | MENOR | O alvo de fuzz não confere nem o span do frontmatter nem posição nenhuma | **Corrigido** em `14daba5` |
+| 12 | MENOR | A `property_4` do teste de round-trip não tem como falhar: é verdadeira pelo sistema de tipos | **Mantida** como documentação executável, como a leitura sugeriu; a verificação de verdade é do `verso-fs`, feature 2 |
+| 13 | MENOR | O pacote de fuzz fica fora do `cargo deny` e do `[workspace.lints]` | **Mantido.** A leitura considera aceitável sob o [ADR 0029](../adr/0029-guardrails-in-ci.md), já que ele nunca é linkado num crate de produto; acrescentar `cargo deny check` para o manifesto dele é um passo de CI, não dado |
+| 14 | MENOR | `fixtures/callout/simple` afirma `kind` e `title`, que o próprio `observed:` dela diz não terem sido observados | **É do mantenedor** (seção 5, item 4). A fixture foi aprovada com o PR #7 e não foi tocada |
+
+## 2. Segunda leitura — `14daba5`
+
+Veredito da leitura: não mesclável como resolução da primeira.
+
+| # | Nível | Achado | Resolução |
+|---|---|---|---|
+| 1 | BLOQUEANTE | O limite de profundidade não limita a árvore. O `saphyr` expande um alias clonando o nó ancorado, então o limite no fluxo de eventos não o vê: uma cadeia de 1 000 aliases (uns 20 KB, profundidade de evento 2, profundidade expandida 1 001) ainda aborta, e um fan-out de aliases de 347 bytes expande para milhões de nós, 3,0 s e 2,1 GB de pico de memória | **Corrigido** em `e5ff1a9`. A pré-passada mantém uma pilha explícita das coleções abertas, registra a altura e o tamanho de cada nó ancorado, e cobra de cada alias o que o loader vai clonar ali, contra o limite de profundidade e um novo limite de nós. Visto falhando com a cobrança desligada. Os aliases continuam expandindo como antes: nada da Q24 foi decidido |
+| 2 | BLOQUEANTE | O guardrail do espelho da documentação está vermelho: três sementes de fuzz são arquivos `*.md` rastreados fora de `docs/pt-BR/` e passam a exigir gêmeos (a verificação tinha sido rodada antes do `git add`, quando eles não eram rastreados) | **Corrigido** em `e5ff1a9`. Semente é dado, não documento: `.txt`; o README das sementes foi dobrado no comentário de doc do alvo de fuzz |
+| 3 | BLOQUEANTE | O job de fuzz do CI nunca começou: `fuzz/corpus/parse` está no gitignore e o `cargo-fuzz` 0.13.2 não cria um diretório de corpus que recebe pelo nome | **Corrigido** em `e5ff1a9` (`mkdir -p` antes da execução) |
+| 4 | IMPORTANTE | `MAX_YAML_DEPTH = 64` responde à Q17, que está `[ABERTO]`, e está registrado só num comentário de código e numa `pub const` | **Parcialmente corrigido**: `pub(crate)` desde `e5ff1a9`, fora da API pública. O registro em `docs/` está no mesmo PR deste documento (spec §9, Q17); o número em si é do mantenedor (seção 5, item 1) |
+| 5 | IMPORTANTE | A propriedade 1 da Q18 continua violada pelo parser base: o `pulldown-cmark` 0.13.4 dá panic com uma entrada de dez bytes. `#[ignore]` é registro, não resolução, e o doc do `parse` dizia "nunca dá panic" | **Parcialmente corrigido**: o doc foi corrigido em `e5ff1a9` e agora nomeia a exceção. O registro em `docs/` está no mesmo PR deste documento ([ADR 0037](../adr/0037-base-parser.md), Consequências); a saída é do mantenedor (seção 5, item 2) |
+| 6 | MENOR | A justificativa do limite nomeia a recursão errada: é o driver de carga do `saphyr-parser`, não o loader, que é iterativo | **Corrigido** em `e5ff1a9` |
+| 7 | MENOR | O frontmatter é varrido e parseado duas vezes, cerca do dobro do trabalho de YAML | **Mantido.** Irrelevante nos tamanhos de frontmatter; some se a árvore de valores um dia for construída direto dos eventos |
+| 8 | MENOR | O span do callout corta toda quebra de linha final, enquanto o comentário dele fala em uma | **Corrigido** em `e5ff1a9`: um `\n` ou `\r\n` |
+
+## 3. Terceira leitura — `e5ff1a9`
+
+| # | Nível | Achado | Resolução |
+|---|---|---|---|
+| 1 | BLOQUEANTE | O guardrail de fuzz está inerte. O libFuzzer roda as sementes da menor para a maior, e a semente de dez bytes em que o próprio `pulldown-cmark` dá panic rodava primeiro, encerrando todo job do CI antes de uma única mutação. O job ficava permanentemente vermelho sem nunca fuzzar | **Corrigido** em `71a4bcd`. A entrada não é mais semente; continua em `crates/verso-dialect/tests/regressions.rs`, com `#[ignore]` e com a condição para tirar o `#[ignore]` escrita nele. O job agora fuzza os seus 60 segundos a partir da única semente que resta, `fuzz/seeds/deep-yaml.txt` |
+| 2 | IMPORTANTE | O orçamento de nós era comparado contra a soma dos tamanhos das subárvores, não contra a contagem de nós, e por isso um mapeamento plano de 2 500 chaves era recusado | **Corrigido** em `71a4bcd`. Cada nó é cobrado uma vez, quando fecha; um alias é cobrado pelo tamanho do nó que ele clona |
+| 3 | IMPORTANTE | Os dois números que respondem à Q17 estão registrados só no código Rust | **Registrados** no mesmo PR deste documento, sob a Q17 de [`../spec/dialect.md`](../spec/dialect.md) §9. O registro não decide nada: a questão continua `[ABERTO]` e os números são do mantenedor (seção 5, item 1) |
+| 4 | IMPORTANTE | O panic upstream do `pulldown-cmark` está registrado só no código Rust | **Registrado** no mesmo PR deste documento, nas Consequências do [ADR 0037](../adr/0037-base-parser.md). O registro não decide nada: Status e Decisão não mudaram e a saída é do mantenedor (seção 5, item 2) |
+| 5 | MENOR | Uma tag fora do core schema acrescenta um nível à árvore que o `saphyr` constrói, e a pré-passada não a cobrava | **Corrigido** em `71a4bcd`. Um teste diferencial mede a árvore que o `saphyr` de fato constrói para onze formas — tags, aliases autorreferentes, chaves complexas, as fronteiras — e afirma que a pré-passada aceita exatamente o que cabe |
+| 6 | MENOR | A busca de âncora é linear, o que torna a pré-passada quadrática no pior caso | **Mantido.** O pior caso está limitado pelo orçamento de nós do achado 2 |
+| 7 | MENOR | Erro de um na verificação de profundidade: o próprio nó não era contado, então 64 coleções mais um escalar passavam | **Corrigido** em `71a4bcd`: essa forma tem profundidade 65 e é recusada |
+| 8 | MENOR | O inventário das sementes de fuzz foi para um comentário de doc em Rust, onde quem lê a documentação não o encontra | **Mantido.** Este documento de revisão nomeia as sementes no lugar: depois do achado 1, a única que resta é `fuzz/seeds/deep-yaml.txt`, o frontmatter profundo |
+| 9 | MENOR | Uma mensagem de teste fatiava os primeiros 40 bytes da entrada incondicionalmente | **Corrigido** em `71a4bcd` |
+
+## 4. Verificado e correto
+
+Nas três leituras, e repetido em cada commit:
+
+- Nenhuma fixture foi alterada e nenhum `expected.yaml` foi tocado; as seis
+  entradas novas do PR #7 são os exemplos da spec §5 na íntegra, e as seis estão
+  marcadas como rascunho de IA
+  ([ADR 0031](../adr/0031-fixtures-as-contract.md)). A spec §9 não foi alterada
+  pelos PRs de código.
+- Sem IO, sem async, sem `unsafe`, sem `unwrap` ou `expect` fora de testes, sem
+  `#[allow]` novo; os lints de workspace estão ligados.
+- Posições: colunas em caracteres, começando em 1, conferidas à mão em duas
+  fixtures; CRLF contado como uma quebra de linha.
+- Do lado do Markdown, nada trava nem explode quadraticamente: 32 000
+  blockquotes aninhados, 20 000 `[[` aninhados, uma lista de 4 MB fundamente
+  indentada e um parágrafo de 400 KB retornam todos.
+- Escopo: nada das features 2 a 7 nem da Fase 2 entrou
+  (`CLAUDE.md` §2.5).
+- Verde na branch: `cargo fmt --check`, `cargo clippy`, `cargo test`,
+  `cargo deny check`, a conferência de `wasm32-unknown-unknown`,
+  `scripts/check-docs-mirror.sh` e `scripts/check-fixtures.sh`.
+- O `saphyr-parser`, a única dependência nova, é a versão exata que já estava na
+  árvore transitivamente, MIT OR Apache-2.0, e passa no `cargo deny`.
+
+## 5. Pendente do mantenedor
+
+Nada nesta lista é decidido aqui.
+
+1. **Os dois números da Q17.** O código recusa um frontmatter aninhado mais
+   fundo que 64 níveis ou que expanda para mais de 10 000 nós, contados antes de
+   existir qualquer árvore, com os aliases cobrados pelo que o loader clona e
+   com o nível que uma tag acrescenta contado. Acima de qualquer um dos limites,
+   o bloco é reportado com o seu span e `values` como erro, e o corpo continua
+   sendo parseado. As duas constantes são `pub(crate)`, as duas são provisórias,
+   e o registro sob a Q17 em [`../spec/dialect.md`](../spec/dialect.md) §9 diz
+   isso; a questão continua `[ABERTO]`. Nenhuma fixture as afirma
+   ([ADR 0031](../adr/0031-fixtures-as-contract.md); `CLAUDE.md` invariante 17).
+   Outros números considerados: nenhum registrado — os dois foram escolhidos
+   para manter o `parse` retornando, não como resposta à Q17.
+2. **O panic upstream do `pulldown-cmark`.** A entrada de dez bytes `- [a]:b`
+   seguida de uma linha com dois tabs dá panic dentro do parser base, o que
+   contradiz o que o [ADR 0037](../adr/0037-base-parser.md) esperava dele e
+   viola a propriedade 1 da Q18. Issue upstream #1129, corrigido na `main`
+   deles (verificado na revisão `c51a2a4`, lida em 2026-09-21; a correção
+   entrou entre a 0.13.4 e essa revisão, e o autor do PR upstream #1128 relatou
+   em 2026-08-09 que a `main` já não dava panic na entrada relacionada), sem
+   release desde a 0.13.4 de 2026-05-20. Três saídas
+   estão registradas no ADR: esperar o release; fixar a revisão de git, o que
+   também exige mexer em `[sources]` no `deny.toml`; ou trocar para o fallback
+   `comrak` do item 2 da Decisão daquele ADR. Uma cópia de rascunho do crate em
+   `c51a2a4` passou em todos os testes e em 6 M execuções de fuzz, e o `comrak`
+   0.55 também sobrevive à entrada.
+3. **A contradição dentro da spec §4.1.** O mesmo parágrafo diz
+   "`links: []` afirma que não há link" e "o parser pode produzir mais do que a
+   fixture pede, nunca menos e nunca diferente". O harness de fixtures resolveu
+   pelo lado estrito: afirma a lista inteira, mesmo tamanho e mesma ordem. Uma
+   das duas redações tem de mudar, e o harness segue a que o mantenedor
+   escolher. O texto não foi tocado, conforme o `CLAUDE.md` §1 regra 3.
+4. **`fixtures/callout/simple` afirma o que não foi observado.** O `kind` e o
+   `title` dela se apoiam na documentação pública do Obsidian; o próprio
+   `observed:` dela registra que a API pública expõe apenas uma seção de tipo
+   `callout`, sem kind e sem título (o
+   [ADR 0009](../adr/0009-external-constraints.md) proíbe olhar além). A Q5 está
+   `[ABERTO]`. A fixture foi aprovada com o PR #7; a leitura pede que o
+   mantenedor pese isso, e a fixture não foi editada.
+5. **`^id` no fim de um item de lista tight.** Um `^id` sozinho numa linha
+   depois de linha em branco é um parágrafo próprio e é reportado; um que termina
+   um item de lista tight não é, porque a base não emite evento de parágrafo
+   ali. Isso é efeito do parser base, não escolha: nada foi implementado num
+   sentido ou no outro, e a Q3 ("posição admissível do `^id`") está `[ABERTO]`.
