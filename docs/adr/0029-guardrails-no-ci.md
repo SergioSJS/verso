@@ -31,6 +31,7 @@ com ela. Os dois grupos estão separados abaixo.
 | clippy com `-D warnings`; `unwrap_used` e `expect_used` negados, permitidos só em testes | panic derrubando o app |
 | clippy `disallowed_methods` negando `std::fs` fora de `verso-fs` (exceções declaradas: arquivo do índice em `verso-index`, config em `verso-core`) | acesso à pasta aberta fora de `verso-fs` ([0026](0026-contrato-core-ui-regras-inviolaveis.md), regra 5) |
 | `cargo-deny`: allowlist de licenças compatível com a licença escolhida; advisories negadas | dependência incompatível ou vulnerável |
+| Espelho da documentação: cada `.md` canônico tem gêmeo em `docs/pt-BR/` com a mesma estrutura de títulos, e vice-versa | documento mudado em um idioma só ([0008](0008-idioma-da-documentacao.md)) |
 
 ### Guardrails de feature — entram no mesmo PR da feature que protegem, nunca depois
 

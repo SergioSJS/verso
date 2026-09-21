@@ -76,9 +76,10 @@ Estado das três análises na data da decisão:
 
 ## Consequências
 
-- O repositório pode sair de privado quando idioma ([0008](0008-idioma-da-documentacao.md))
-  e disponibilidade do nome ([0004](0004-nome-do-projeto-verso.md)) estiverem
-  resolvidos ([0007](0007-repositorio-privado-ate-licenca.md)).
+- O repositório pode sair de privado quando a migração da documentação
+  ([0008](0008-idioma-da-documentacao.md), roadmap 0.12) terminar e a
+  disponibilidade do nome ([0004](0004-nome-do-projeto-verso.md)) estiver
+  verificada ([0007](0007-repositorio-privado-ate-licenca.md)).
 - A allowlist do `cargo-deny` deixa de ser provisória no PR do item 0.10
   ([0029](0029-guardrails-no-ci.md)).
 - O critério de saída 2 da Fase 0 (`LICENSE` presente) está satisfeito

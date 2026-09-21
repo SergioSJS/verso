@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.4 · 2026-09-21
+> Versão 0.5 · 2026-09-21
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -69,7 +69,7 @@ Colisões conhecidas do nome, fora da categoria de apps de notas: plataforma de 
 | Modelo de contribuição | `DECIDIDO` | DCO, sem CLA. CLA permitiria relicenciar, o que contraria o objetivo de não ter empresa no meio. Código escrito por IA entra pelo mesmo DCO, desde que quem assina tenha domínio do código e se responsabilize por ele (confirmado na v0.4, ADR 0006). |
 | Sustentação | `DECIDIDO` | Apenas Ko-fi. Doação não compra feature. |
 | Visibilidade do repositório | `DECIDIDO` | Privado até a licença ser decidida. |
-| Idioma da documentação do repositório | `ABERTO` | pt-BR, EN ou ambos. |
+| Idioma da documentação do repositório | `DECIDIDO` | Inglês é a fonte; pt-BR é espelho de primeira classe em `docs/pt-BR/`, mesma estrutura e nomes. Este briefing é a exceção: o original pt-BR manda (decidido na v0.5, ADR 0008). |
 
 ---
 
@@ -452,7 +452,7 @@ Sync, mobile, plugins, board, shim de compatibilidade.
 |---|---|---|
 | 1 | ~~Licença: pacote A ou B~~ | decidido: pacote A (v0.3, ADR 0005) |
 | 2 | Disponibilidade do nome em crates.io, npm, org do GitHub e domínio | antes de tornar o repositório público |
-| 3 | Idioma da documentação do repositório | antes do fechamento da Fase 0 |
+| 3 | ~~Idioma da documentação do repositório~~ | decidido: inglês fonte, pt-BR espelho (v0.5, ADR 0008) |
 | 4 | Parser base: pulldown-cmark, comrak ou próprio | PR da feature 1, com comparação justificada |
 | 5 | Geração de tipos TS: ts-rs ou specta | início da Fase 2 |
 | 6 | Sintaxe de relação tipada | antes de implementar relações |
@@ -475,3 +475,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.2 | 2026-09-21 | Aplicação da revisão da Fase 0 (`docs/review/fase0.md`), aceita integralmente pelo mantenedor: §8 guarda contra placeholder promovida a `DECIDIDO` (ADR 0043); §3 critério de desempate corrigido e "Passo 5" substituído por "antes do fechamento da Fase 0" (§3, §17); §14.1 revisor de UI/TS definido. Nenhuma outra seção alterada. |
 | 0.3 | 2026-09-21 | §3 e §17 item 1: licença decidida pelo mantenedor — Pacote A, MPL-2.0 no core e app, MIT no SDK de plugin (ADR 0005). `LICENSE` adicionado à raiz. |
 | 0.4 | 2026-09-21 | §3: modelo de contribuição (DCO sem CLA) confirmado pelo mantenedor, com a regra para código escrito por IA: quem assina tem domínio e se responsabiliza (ADR 0006). |
+| 0.5 | 2026-09-21 | §3 e §17 item 3: idioma da documentação decidido pelo mantenedor — inglês fonte, pt-BR espelho em `docs/pt-BR/`; este briefing é a exceção, com o original pt-BR mandando (ADR 0008). |
