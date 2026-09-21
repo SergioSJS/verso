@@ -493,6 +493,9 @@ pergunta registrada com prazo.
 
 ### Estado da ratificação
 
-Os quatro itens IMPORTANTE em "Escolhas que vão além do achado" (C4, C1 itens
-2–3, invariante 11, I3) aguardam ratificação ou veto explícito do mantenedor.
-Nenhum bloqueia a Fase 0.
+**Ratificado pelo mantenedor em 2026-09-21** ("ok" à lista consolidada): C4
+(papel de revisor no briefing §14.1), ADR 0043 itens 2–3, invariante 11 do
+`CLAUDE.md`, "mínimo, não teto" no ADR 0030, a mudança de regra de fixtures
+escrita no briefing §11.4, e a ausência de `Signed-off-by` nos commits da
+Fase 0 (sign-off exigido a partir do primeiro commit da Fase 1, ADR 0006).
+Nada vetado.

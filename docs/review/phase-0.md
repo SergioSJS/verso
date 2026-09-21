@@ -490,6 +490,8 @@ question with a deadline.
 
 ### Ratification status
 
-The four IMPORTANT items under "Choices that go past the finding" (C4, C1 items
-2–3, invariant 11, I3) await the maintainer's explicit ratification or veto.
-None blocks Phase 0.
+**Ratified by the maintainer on 2026-09-21** ("ok" to the consolidated list):
+C4 (reviewer role in briefing §14.1), ADR 0043 items 2–3, `CLAUDE.md`
+invariant 11, ADR 0030 "minimum, not ceiling", the fixture rule change written
+into briefing §11.4, and the absence of `Signed-off-by` on the Phase 0 commits
+(sign-off required from the first Phase 1 commit on, ADR 0006). Nothing vetoed.

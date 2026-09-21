@@ -51,6 +51,11 @@ model.
   the repository ([0005](0005-license.md)) still holds; this ADR sets the
   project's policy, not the interpretation of each jurisdiction.
 
+- Phase 0 commits carry no `Signed-off-by`: accepted as they are by the
+  maintainer on 2026-09-21 (review §7). From the first Phase 1 commit on,
+  every commit carries the sign-off, and CI may check it once the DCO check
+  is added to the workflow.
+
 ## Discarded alternatives
 
 - CLA — discarded in §3: it would allow relicensing, which contradicts the goal
