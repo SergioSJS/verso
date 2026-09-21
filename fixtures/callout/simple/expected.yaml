@@ -1,0 +1,17 @@
+# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Construct: callout with kind and title. Spec: docs/spec/dialect.md §5.8.
+# Asserts the decided form only; recognized kinds, fold and nesting are Q5.
+callouts:
+  - kind: warning
+    title: Segredo do mestre
+    pos: { line: 1, col: 1 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...).sections` ->
+    one section of type "callout", line 0 col 0 .. line 1 col 58 (0-based).
+    The public API does not expose kind or title; those follow the
+    documented syntax `[!kind] title` (spec §5.8), not an observation.

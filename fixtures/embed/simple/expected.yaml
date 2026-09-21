@@ -1,0 +1,23 @@
+# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Construct: embed, to a file and to a block. Spec: docs/spec/dialect.md §5.6.
+# Whether an embed also counts as a link is Q2; this fixture asserts only the
+# `embeds` list.
+embeds:
+  - target: Mapa da Taverna.png
+    pos: { line: 1, col: 1 }
+  - target: Sessão 3
+    block: juramento
+    pos: { line: 3, col: 1 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md). Target note
+    "Sessão 3" had a paragraph ending in " ^juramento".
+    `obsidian links file=fx-embed` -> "Mapa da Taverna.png (unresolved)"
+    and `verso-fixtures/Sessão 3.md`.
+    `obsidian eval` on `app.metadataCache.getCache(...).embeds` ->
+    link "Mapa da Taverna.png", original "![[Mapa da Taverna.png]]",
+    start line 0 col 0; link "Sessão 3#^juramento",
+    displayText "Sessão 3 > ^juramento", start line 2 col 0 (0-based).

@@ -98,6 +98,16 @@ check_keys() {
   ' "$1"
 }
 
+# 0. Every fixture runs in Phase 1's test harness, which embeds them at
+# compile time (verso-dialect has no IO, ADR 0028) from a hand-written list
+# in crates/verso-dialect/tests/fixtures.rs. A fixture missing from that list
+# would exist and never run.
+harness=crates/verso-dialect/tests/fixtures.rs
+while IFS= read -r dir; do
+  rel="${dir#fixtures/}"
+  grep -q -- "=> \"$rel\"" "$harness" || problem "$dir: not listed in $harness (fixture_tests!)"
+done < <(find fixtures -mindepth 2 -maxdepth 2 -type d | sort)
+
 # 1. Anything under fixtures/ that looks like a fixture but is not at depth 2.
 while IFS= read -r f; do
   d="$(dirname "$f")"
