@@ -15,16 +15,20 @@ use saphyr_parser::{Event, Parser};
 
 use crate::position::Span;
 
-/// Deepest nesting of sequences and mappings accepted in a frontmatter.
+/// Deepest nesting of sequences and mappings accepted in a frontmatter, and
+/// the largest number of nodes, counted **after** aliases are expanded.
 ///
-/// `saphyr` builds its tree recursively, one stack frame per level, and a
-/// block sequence a few thousand levels deep (an 8 KB file) overflows the
-/// stack and aborts the process — not a panic, nothing catches it. Q18,
-/// property 1, says `parse` returns for every input, so the depth is checked
-/// on the event stream, which is iterative, before any tree exists. Real
-/// frontmatters are one or two levels deep. The number is provisional: the
-/// limits of Q17 are the maintainer's to set.
-pub const MAX_YAML_DEPTH: usize = 64;
+/// `Yaml::load_from_str` goes through `saphyr_parser`'s loading driver,
+/// which recurses once per level, and its loader expands an alias by cloning
+/// the anchored node; a chain of aliases makes a tree far deeper and larger
+/// than the text that describes it. Either shape overflows the stack or the
+/// allocator and aborts the process — not a panic, nothing catches it. Q18,
+/// property 1, says `parse` returns for every input, so both quantities are
+/// measured on the event stream, which is iterative, before any tree exists.
+/// Real frontmatters are one or two levels deep and a few dozen nodes. The
+/// numbers are provisional: the limits of Q17 are the maintainer's to set.
+pub(crate) const MAX_YAML_DEPTH: usize = 64;
+pub(crate) const MAX_YAML_NODES: usize = 10_000;
 
 /// The frontmatter block: where it is and what it says.
 #[derive(Debug, Clone, PartialEq)]
@@ -79,31 +83,109 @@ pub(crate) fn parse_yaml(text: &str) -> Result<Value, String> {
     Ok(convert(documents.swap_remove(0)))
 }
 
-/// Walk the event stream and refuse a nesting deeper than
-/// [`MAX_YAML_DEPTH`]. A scan error here is reported as such; the loader
-/// would report the same one.
+/// Walk the event stream and refuse a document whose *expanded* tree would
+/// be deeper than [`MAX_YAML_DEPTH`] or hold more than [`MAX_YAML_NODES`]
+/// nodes. Every open collection is a frame on an explicit stack; when it
+/// closes, its height (levels below it) and size (nodes in it) are known,
+/// and if it carried an anchor they are recorded, so that an alias to it is
+/// charged the same height and size at the point where it appears — which
+/// is what the loader will build there by cloning. A scan error is reported
+/// as such; the loader would report the same one.
 fn check_depth(text: &str) -> Result<(), String> {
-    let mut depth = 0usize;
+    // Height and size of every collection still open, innermost last.
+    let mut open: Vec<Frame> = Vec::new();
+    // Height and size of each anchored node, by anchor id.
+    let mut anchors: Vec<(usize, Frame)> = Vec::new();
+    let mut total_nodes = 0usize;
+
+    let close = |open: &mut Vec<Frame>,
+                 anchors: &mut Vec<(usize, Frame)>,
+                 total_nodes: &mut usize,
+                 node: Frame,
+                 anchor: usize|
+     -> Result<(), String> {
+        *total_nodes += node.size;
+        if *total_nodes > MAX_YAML_NODES {
+            return Err(format!(
+                "frontmatter expands to more than {MAX_YAML_NODES} nodes"
+            ));
+        }
+        if open.len() + node.height > MAX_YAML_DEPTH {
+            return Err(format!(
+                "frontmatter nested deeper than {MAX_YAML_DEPTH} levels"
+            ));
+        }
+        if anchor != 0 {
+            anchors.push((anchor, node));
+        }
+        if let Some(parent) = open.last_mut() {
+            parent.height = parent.height.max(node.height + 1);
+            parent.size += node.size;
+        }
+        Ok(())
+    };
+
     for event in Parser::new_from_str(text) {
         let (event, _) = event.map_err(|e| e.to_string())?;
         match event {
-            Event::SequenceStart(..) | Event::MappingStart(..) => {
-                depth += 1;
-                if depth > MAX_YAML_DEPTH {
+            Event::SequenceStart(anchor, _) | Event::MappingStart(anchor, _) => {
+                if open.len() >= MAX_YAML_DEPTH {
                     return Err(format!(
                         "frontmatter nested deeper than {MAX_YAML_DEPTH} levels"
                     ));
                 }
+                open.push(Frame {
+                    anchor,
+                    height: 0,
+                    size: 1,
+                });
             }
-            Event::SequenceEnd | Event::MappingEnd => depth = depth.saturating_sub(1),
+            Event::SequenceEnd | Event::MappingEnd => {
+                let Some(node) = open.pop() else {
+                    return Err("frontmatter: unbalanced collection".to_owned());
+                };
+                let anchor = node.anchor;
+                close(&mut open, &mut anchors, &mut total_nodes, node, anchor)?;
+            }
+            Event::Scalar(_, _, anchor, _) => close(
+                &mut open,
+                &mut anchors,
+                &mut total_nodes,
+                Frame {
+                    anchor,
+                    height: 0,
+                    size: 1,
+                },
+                anchor,
+            )?,
+            Event::Alias(id) => {
+                let node = anchors.iter().rev().find(|(a, _)| *a == id).map_or(
+                    Frame {
+                        anchor: 0,
+                        height: 0,
+                        size: 1,
+                    },
+                    |(_, node)| *node,
+                );
+                close(&mut open, &mut anchors, &mut total_nodes, node, 0)?;
+            }
             _ => {}
         }
     }
     Ok(())
 }
 
-/// Recursive, and safe to be: the depth of the tree was bounded by
-/// [`check_depth`] before `saphyr` built it.
+/// What the pre-pass knows about one node: levels below it and nodes in it,
+/// both after alias expansion.
+#[derive(Clone, Copy)]
+struct Frame {
+    anchor: usize,
+    height: usize,
+    size: usize,
+}
+
+/// Recursive, and safe to be: the depth and size of the tree, aliases
+/// expanded, were bounded by [`check_depth`] before `saphyr` built it.
 pub(crate) fn convert(yaml: Yaml<'_>) -> Value {
     match yaml {
         Yaml::Value(scalar) => scalar_value(scalar),
@@ -195,8 +277,8 @@ mod tests {
 
     #[test]
     fn nesting_is_bounded_before_a_tree_exists() {
-        // 4 000 levels of block sequence overflow saphyr's loader; the event
-        // pre-pass refuses it and parse_yaml returns instead of aborting.
+        // 4 000 levels of block sequence overflow the loading driver; the
+        // event pre-pass refuses it and parse_yaml returns instead of aborting.
         let deep = format!("{}x\n", "- ".repeat(4_000));
         let error = parse_yaml(&deep).unwrap_err();
         assert!(error.contains("deeper than"), "{error}");
@@ -210,6 +292,33 @@ mod tests {
         assert!(parse_yaml(&at_limit).is_ok());
         // Flow style already had saphyr's own limit; still an error, not an abort.
         assert!(parse_yaml(&"[".repeat(10_000)).is_err());
+    }
+
+    #[test]
+    fn aliases_are_charged_what_they_expand_to() {
+        // A chain of aliases: event depth 2 everywhere, expanded depth n + 1.
+        let chain = |n: usize| {
+            let mut text = "a0: &a0 [x]\n".to_owned();
+            for i in 1..=n {
+                text.push_str(&format!("a{i}: &a{i} [*a{}]\n", i - 1));
+            }
+            text
+        };
+        assert!(parse_yaml(&chain(MAX_YAML_DEPTH - 3)).is_ok());
+        let error = parse_yaml(&chain(1_000)).unwrap_err();
+        assert!(error.contains("deeper than"), "{error}");
+        // Fan-out: 347 bytes that expand to millions of nodes.
+        let mut fan = "a0: &a0 [x]\n".to_owned();
+        for i in 1..=7 {
+            let prev = format!("*a{}", i - 1);
+            fan.push_str(&format!("a{i}: &a{i} [{}]\n", [prev.as_str(); 9].join(",")));
+        }
+        let error = parse_yaml(&fan).unwrap_err();
+        assert!(error.contains("more than"), "{error}");
+        // An ordinary alias still expands, as before.
+        let value = parse_yaml("base: &b [1, 2]\ncopy: *b\n").unwrap();
+        let Value::Mapping(map) = value else { panic!() };
+        assert_eq!(map[0].1, map[1].1);
     }
 
     #[test]

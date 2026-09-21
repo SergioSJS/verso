@@ -77,8 +77,11 @@ jobs:
   dialect-fuzz:
     # cargo-fuzz needs nightly for its sanitizer; the pinned toolchain in
     # rust-toolchain.toml is bypassed with `+nightly` for this job only.
-    # A short run on every PR, from the versioned seeds in `fuzz/seeds`; the
-    # corpus grows in `fuzz/corpus` locally. Inputs up to 64 KiB: the 8 KB
+    # A short run on every PR, from the versioned seeds in `fuzz/seeds`
+    # (one file per input that once broke something; see the fuzz target's
+    # doc); the corpus grows in `fuzz/corpus` locally and is not versioned,
+    # so the directory is created here — cargo-fuzz does not create a corpus
+    # directory it was given by name. Inputs up to 64 KiB: the 8 KB
     # frontmatter that overflowed the stack was out of reach of the 4 KiB
     # default (review of PR #7, finding 2).
     name: verso-dialect fuzz, 60s (${{ matrix.os }}, ADR 0029)
@@ -105,7 +108,9 @@ jobs:
       # sanitizer does not link against static musl, so the target is explicit.
       - name: fuzz parse for 60 seconds
         working-directory: crates/verso-dialect
-        run: cargo +nightly fuzz run --target ${{ matrix.target }} parse fuzz/corpus/parse fuzz/seeds -- -max_total_time=60 -max_len=65536 -timeout=20
+        run: |
+          mkdir -p fuzz/corpus/parse
+          cargo +nightly fuzz run --target ${{ matrix.target }} parse fuzz/corpus/parse fuzz/seeds -- -max_total_time=60 -max_len=65536 -timeout=20
       - name: keep a crash, if any, as an artifact
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

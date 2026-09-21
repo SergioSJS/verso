@@ -28,7 +28,7 @@ mod parse;
 mod position;
 mod wikilink;
 
-pub use frontmatter::{Frontmatter, MAX_YAML_DEPTH, Value};
+pub use frontmatter::{Frontmatter, Value};
 pub use parse::parse;
 pub use position::{Pos, Span};
 

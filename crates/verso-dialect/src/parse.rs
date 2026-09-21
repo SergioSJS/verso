@@ -17,8 +17,11 @@ use crate::{BlockId, Callout, Document, Embed, Fold, Heading, Link};
 
 /// Parse the text of one note into its [`Document`] report.
 ///
-/// Never panics on any input (Q18, property 1; the fuzz target of ADR 0029 is
-/// what proves it), returns the same report for the same input (property 2),
+/// Must never panic on any input (Q18, property 1; the fuzz target of
+/// ADR 0029 is what proves it). Known exception on 2026-09-21: `pulldown-cmark`
+/// 0.13.4 itself panics on one shape of list item (upstream issue #1129,
+/// fixed on their `main`, unreleased; `tests/regressions.rs`). Returns the
+/// same report for the same input (property 2),
 /// and every span it reports slices back to the construct's own text
 /// (property 3). It reads `source` and nothing else (property 4).
 ///
@@ -214,7 +217,9 @@ fn callout(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<Callo
     let start = range.start + indent;
     // Like a heading, the span stops before the line break that ends the
     // blockquote; the base's range includes it.
-    let end = range.start + text.trim_end_matches(['\n', '\r']).len();
+    let without_break = text.strip_suffix('\n').unwrap_or(text);
+    let without_break = without_break.strip_suffix('\r').unwrap_or(without_break);
+    let end = range.start + without_break.len();
     Some(Callout {
         kind: kind.to_owned(),
         title: (!title.is_empty()).then(|| title.to_owned()),
