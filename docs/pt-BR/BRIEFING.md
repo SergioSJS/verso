@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.5 · 2026-09-21
+> Versão 0.6 · 2026-09-21
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -307,7 +307,7 @@ Regras:
 
 - As fixtures são o contrato de comportamento entre o mantenedor e a IA.
 - `expected.yaml` só muda com aprovação explícita do mantenedor.
-- As 5 primeiras fixtures são escritas à mão pelo mantenedor; as seguintes podem ser rascunhadas pela IA e aprovadas por ele.
+- Qualquer fixture pode ser rascunhada pela IA; só vale com aprovação explícita do mantenedor, e nas cinco primeiras essa aprovação inclui conferir o comportamento no app Obsidian (alterado na v0.6, ADR 0031; até então: "as 5 primeiras são escritas à mão pelo mantenedor").
 
 ---
 
@@ -477,3 +477,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.3 | 2026-09-21 | §3 e §17 item 1: licença decidida pelo mantenedor — Pacote A, MPL-2.0 no core e app, MIT no SDK de plugin (ADR 0005). `LICENSE` adicionado à raiz. |
 | 0.4 | 2026-09-21 | §3: modelo de contribuição (DCO sem CLA) confirmado pelo mantenedor, com a regra para código escrito por IA: quem assina tem domínio e se responsabiliza (ADR 0006). |
 | 0.5 | 2026-09-21 | §3 e §17 item 3: idioma da documentação decidido pelo mantenedor — inglês fonte, pt-BR espelho em `docs/pt-BR/`; este briefing é a exceção, com o original pt-BR mandando (ADR 0008). |
+| 0.6 | 2026-09-21 | §11.4: regra de fixtures alterada pelo mantenedor — qualquer fixture pode ser rascunhada pela IA; só vale com aprovação explícita dele, e as cinco primeiras são conferidas no app Obsidian antes da aprovação (ADR 0031). |

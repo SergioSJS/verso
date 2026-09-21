@@ -1,0 +1,12 @@
+# AI draft (Fable 5.1), awaiting the maintainer's approval (ADR 0031).
+# Construct: wikilink, simple form. Spec: docs/spec/dialect.md §5.2.
+links:
+  - target: Barão Vermelho
+    pos: { line: 1, col: 15 }
+observed:
+  app: Obsidian
+  version: "to be filled by the maintainer on approval"
+  how: >-
+    Drafted from the public documentation (help.obsidian.md, "Internal links").
+    The maintainer pastes input.md into a test vault and checks that the
+    backlinks panel of the note "Barão Vermelho" lists this note.

@@ -5,7 +5,9 @@
 - Status in the briefing: `DECIDED`
 - Revisions: 2026-09-21 — rule for a fixture that answers an open question,
   field for the origin of the observation and reference to the `expected.yaml`
-  schema (Phase 0 review, C6, C7, I3).
+  schema (Phase 0 review, C6, C7, I3). 2026-09-21 — item 4 changed by the
+  maintainer: any fixture may be drafted by the AI; approval, not authorship,
+  is what makes it count. `scripts/check-fixtures.sh` added as structure lint.
 
 ## Context
 
@@ -20,8 +22,12 @@ disagrees.
    `fixtures/<category>/<case>/expected.yaml`.
 2. The fixtures are the behavior contract between the maintainer and the AI.
 3. `expected.yaml` only changes with the maintainer's explicit approval.
-4. The first 5 fixtures are written by hand by the maintainer; the following
-   ones can be drafted by the AI and approved by them.
+4. Any fixture may be drafted by the AI. A fixture only counts with the
+   maintainer's explicit approval, given in the PR that adds it. For the first
+   five, approval includes checking the behaviour in the Obsidian app and
+   recording how in `observed:`. Independence comes from the approval, not
+   from who typed the file. (Wording until 2026-09-21: "the first 5 fixtures
+   are written by hand by the maintainer"; changed by the maintainer.)
 
 Minimum categories: simple wikilink, with alias, with heading, with `#^bloco`;
 `![[...]]` embed; block definition `^id`; link inside inline code and inside a

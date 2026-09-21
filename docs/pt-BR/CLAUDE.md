@@ -74,8 +74,9 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
     mantenedor dizer o contrário. Se a fixture parecer errada: **parar, não
     editar, perguntar** — em comentário no PR ou na sessão, apontando o caso e
     por que o esperado parece incorreto.
-15. As 5 primeiras fixtures são do mantenedor. As seguintes podem ser
-    rascunhadas pela IA e só valem depois de ele aprovar.
+15. Qualquer fixture pode ser rascunhada pela IA; nenhuma vale antes de o
+    mantenedor aprovar no PR que a adiciona. Rascunho diz que é rascunho na
+    primeira linha do `expected.yaml`.
 16. `input.md` também não muda sozinho: mudar a entrada muda o contrato.
 17. Fixture segue o schema de `spec/dialect.md` §4. Fixture que responde a
     uma questão `[ABERTO]` da spec só entra no PR que fecha a questão, com a

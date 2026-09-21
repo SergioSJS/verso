@@ -5,7 +5,10 @@
 - Status no briefing: `DECIDIDO`
 - Revisões: 2026-09-21 — regra para fixture que responde questão em aberto,
   campo de origem da observação e referência ao schema do `expected.yaml`
-  (revisão da Fase 0, C6, C7, I3).
+  (revisão da Fase 0, C6, C7, I3). 2026-09-21 — item 4 alterado pelo
+  mantenedor: qualquer fixture pode ser rascunhada pela IA; o que a faz valer
+  é a aprovação, não a autoria. `scripts/check-fixtures.sh` acrescentado como
+  lint de estrutura.
 
 ## Contexto
 
@@ -20,8 +23,12 @@ discorda.
    `fixtures/<categoria>/<caso>/expected.yaml`.
 2. As fixtures são o contrato de comportamento entre o mantenedor e a IA.
 3. `expected.yaml` só muda com aprovação explícita do mantenedor.
-4. As 5 primeiras fixtures são escritas à mão pelo mantenedor; as seguintes
-   podem ser rascunhadas pela IA e aprovadas por ele.
+4. Qualquer fixture pode ser rascunhada pela IA. Uma fixture só vale com
+   aprovação explícita do mantenedor, dada no PR que a adiciona. Nas cinco
+   primeiras, aprovar inclui conferir o comportamento no app Obsidian e
+   registrar como em `observed:`. A independência vem da aprovação, não de
+   quem digitou o arquivo. (Redação até 2026-09-21: "as 5 primeiras fixtures
+   são escritas à mão pelo mantenedor"; alterada pelo mantenedor.)
 
 Categorias mínimas: wikilink simples, com alias, com heading, com `#^bloco`;
 embed `![[...]]`; definição de bloco `^id`; link dentro de código inline e de

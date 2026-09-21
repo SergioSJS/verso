@@ -1,0 +1,16 @@
+# AI draft (Fable 5.1), awaiting the maintainer's approval (ADR 0031).
+# Construct: wikilink to a heading. Spec: docs/spec/dialect.md §5.4.
+# Asserts only what the parser extracts from the text. How "Porão" is matched
+# against a real heading is Q19, not this fixture.
+links:
+  - target: Taverna
+    heading: Porão
+    pos: { line: 1, col: 20 }
+observed:
+  app: Obsidian
+  version: "to be filled by the maintainer on approval"
+  how: >-
+    Drafted from the public documentation (help.obsidian.md, "Internal links",
+    section "Link to a heading in a note"). The maintainer creates "Taverna"
+    with a "## Porão" heading, pastes input.md into another note, and checks
+    that the link opens the note at that heading and appears in its backlinks.
