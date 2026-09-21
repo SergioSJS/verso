@@ -33,7 +33,7 @@ Documents, decisions and guardrails. **No feature at all.**
 | 0.6 | Critical review of the documents by an independent session | done — `docs/review/phase-0.md`; findings accepted and applied by the maintainer; the diff of the application is waiting to be read by Opus 5 ([ADR 0032](adr/0032-author-and-reviewer-roles.md)) |
 | 0.7 | License decision and `LICENSE` file | done — Package A, MPL-2.0 + MIT in the SDK ([ADR 0005](adr/0005-license.md), Accepted). The `cargo-deny` allowlist closes in item 0.10 |
 | 0.8 | Documentation language decision | done — English source, pt-BR mirror ([ADR 0008](adr/0008-documentation-language.md), Accepted) |
-| 0.9 | Initial fixture corpus: 5 cases drafted by the AI, following the schema in `docs/spec/dialect.md` §4, each approved by the maintainer after checking it in the Obsidian app (ADR 0031, rule changed 2026-09-21) | drafted — `fixtures/wikilink/{simple,alias,heading,block-reference}`, `fixtures/code/no-link-in-code`; awaiting approval in the fixtures PR. Approval confirms the schema and closes Q1 |
+| 0.9 | Initial fixture corpus: 5 cases drafted by the AI, following the schema in `docs/spec/dialect.md` §4, each approved by the maintainer after checking it in the Obsidian app (ADR 0031, rule changed 2026-09-21) | done — five fixtures approved by the maintainer on 2026-09-21 after observation through the Obsidian CLI (`docs/reference/obsidian-cli.md`); schema §4 confirmed, Q1 closed |
 | 0.10 | Cargo workspace with the five crates, empty | done — `fmt`, `clippy`, `test` and `deny` green; workspace guardrails seen failing locally (see the PR) |
 | 0.11 | CI on macOS and Linux with the **workspace** guardrails ([ADR 0029](adr/0029-guardrails-in-ci.md)), including the documentation mirror check | done — baseline green on both OSes; each guardrail seen failing on a `test/guardrail-*` branch (links in the CI PR) |
 | 0.12 | Documentation migration: translation into English at the canonical paths, pt-BR moved to `docs/pt-BR/`, English file names ([ADR 0008](adr/0008-documentation-language.md)) | done — authored by Opus 5 sessions, reviewed by Fable 5.1; `scripts/check-docs-mirror.sh` green |
@@ -74,7 +74,8 @@ All verifiable. The phase closes when the five pass.
    the behaviour in the Obsidian app (ADR 0031). Verification:
    `scripts/check-fixtures.sh` reports five fixtures, none marked as a draft;
    each `observed:` names the app version and how it was checked; the PR that
-   added them carries the maintainer's approval.
+   added them carries the maintainer's approval. State: satisfied on
+   2026-09-21 (five approved, none a draft; observed with Obsidian 1.13.7).
 
 ### Does not block the exit
 

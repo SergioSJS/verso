@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-09-21, after the observation below (ADR 0031).
 # Construct: wikilink syntax inside inline code and inside a fenced code
 # block is not a link. Spec: docs/spec/dialect.md §5.9.
 # `links: []` asserts that there is no link at all; an absent key would
