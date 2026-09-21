@@ -19,7 +19,7 @@ use crate::position::Span;
 /// Deepest nesting accepted in a frontmatter (a scalar under 64 collections
 /// is at depth 65 and refused), and the largest number of nodes in the
 /// tree the loader would build, counted **after** aliases are expanded and
-/// with one extra node per tagged value.
+/// with one extra node per value tagged outside the YAML core schema.
 ///
 /// `Yaml::load_from_str` goes through `saphyr_parser`'s loading driver,
 /// which recurses once per level, and its loader expands an alias by cloning
@@ -107,6 +107,8 @@ fn check_depth(text: &str) -> Result<(), String> {
     // parent. `charged` is what it adds: itself and its tag wrapper for a
     // node the text spells out (its children charged themselves when they
     // closed); the whole recorded size for an alias, which the loader clones.
+    // Duplicate mapping keys are counted although the loader keeps one: the
+    // pre-pass errs on the strict side there, never on the loose one.
     let close = |open: &mut Vec<Frame>,
                  open_depth: usize,
                  anchors: &mut Vec<(usize, Frame)>,
@@ -132,7 +134,6 @@ fn check_depth(text: &str) -> Result<(), String> {
         if let Some(parent) = open.last_mut() {
             parent.height = parent.height.max(node.levels());
             parent.size += node.size;
-            parent.size_of_children += node.size;
         }
         Ok(())
     };
@@ -158,7 +159,6 @@ fn check_depth(text: &str) -> Result<(), String> {
                     wrapper,
                     height: 0,
                     size: 1 + wrapper,
-                    size_of_children: 0,
                 });
             }
             Event::SequenceEnd | Event::MappingEnd => {
@@ -166,7 +166,9 @@ fn check_depth(text: &str) -> Result<(), String> {
                     return Err("frontmatter: unbalanced collection".to_owned());
                 };
                 open_depth -= 1 + node.wrapper;
-                let charged = node.size - node.size_of_children;
+                // The collection itself and its wrapper; the children
+                // charged themselves when they closed.
+                let charged = 1 + node.wrapper;
                 close(
                     &mut open,
                     open_depth,
@@ -183,7 +185,6 @@ fn check_depth(text: &str) -> Result<(), String> {
                     wrapper,
                     height: 0,
                     size: 1 + wrapper,
-                    size_of_children: 0,
                 };
                 close(
                     &mut open,
@@ -201,7 +202,6 @@ fn check_depth(text: &str) -> Result<(), String> {
                         wrapper: 0,
                         height: 0,
                         size: 1,
-                        size_of_children: 0,
                     },
                     |(_, node)| Frame { anchor: 0, ..*node },
                 );
@@ -223,15 +223,13 @@ fn check_depth(text: &str) -> Result<(), String> {
 
 /// What the pre-pass knows about one node, after alias expansion: whether a
 /// tag wraps it, the levels below it, and the nodes in it (itself, its
-/// wrapper if any, and everything under it). `size_of_children` is the part
-/// of `size` that the children already charged when they closed.
+/// wrapper if any, and everything under it).
 #[derive(Clone, Copy)]
 struct Frame {
     anchor: usize,
     wrapper: usize,
     height: usize,
     size: usize,
-    size_of_children: usize,
 }
 
 impl Frame {
@@ -417,6 +415,8 @@ mod tests {
     fn the_pre_pass_models_the_loaded_tree() {
         // Shapes mixing tags, anchors, aliases, flow and block style; for each
         // one the pre-pass must accept exactly what the loaded tree would fit.
+        // The one known over-count is a duplicate mapping key, which the
+        // loader collapses and the pre-pass charges: strict, never loose.
         let shapes = [
             "a: 1\n".to_owned(),
             "!t [ !t [ x ] ]\n".to_owned(),
