@@ -42,6 +42,11 @@ já usa.
   Web Workers que nenhum documento lista. A UI é reversível antes da Fase 2;
   esses riscos precisam aparecer no PR do item 2.2 antes de deixarem de ser.
 
+- Compromissos de workspace assumidos com o primeiro `Cargo.toml` (roadmap
+  0.10): edição 2024, `rust-version = "1.98"`, toolchain fixada numa versão
+  estável exata em `rust-toolchain.toml`, para que um clippy novo não deixe o
+  CI vermelho sem PR culpado. Mudar qualquer um deles é PR próprio.
+
 ## Alternativas descartadas
 
 Nenhuma registrada: o briefing não lista outras opções de core, shell, editor ou
