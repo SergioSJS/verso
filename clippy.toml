@@ -1,0 +1,54 @@
+# Workspace clippy configuration (ADR 0029).
+#
+# Clippy reads the clippy.toml closest to the crate being compiled, so a
+# crate that needs a different list keeps its own clippy.toml and declares
+# why. Today only crates/verso-fs/clippy.toml does that: it is the one crate
+# allowed to touch the files of the open folder (ADR 0026, rule 5). When
+# verso-index opens the index file or verso-core reads the config, they get
+# a narrower exception of their own, declared in the PR that needs it.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+# Disk access to the open folder only inside verso-fs. Every entry here is a
+# std::fs function that reads, writes or inspects a path.
+disallowed-methods = [
+  { path = "std::fs::read", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::read_to_string", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::write", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::copy", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::rename", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::remove_file", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::remove_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::remove_dir_all", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::create_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::create_dir_all", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::hard_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::soft_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::read_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::read_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::symlink_metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::canonicalize", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::set_permissions", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::File::open", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::File::create", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::File::create_new", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::File::options", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::OpenOptions::open", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::os::unix::fs::symlink", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::os::unix::fs::chown", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::DirBuilder::create", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  # Path methods inspect or traverse the filesystem too.
+  { path = "std::path::Path::exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::try_exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_file", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_symlink", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::symlink_metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::read_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::read_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::canonicalize", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+]

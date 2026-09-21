@@ -1,0 +1,17 @@
+[package]
+name = "verso-fs"
+description = "Opaque handles, watcher, atomic write and path confinement for the open folder"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# The only crate that touches the files of the open folder (ADR 0026, rule 5;
+# ADR 0028). File IO dependencies (walkdir, notify, tempfile and the like)
+# belong here and nowhere else.
+[dependencies]
+
+[lints]
+workspace = true

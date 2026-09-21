@@ -1,0 +1,22 @@
+# Approved by the maintainer on 2026-09-21, after the observation below (ADR 0031).
+# Construct: wikilink to a block. Spec: docs/spec/dialect.md §5.5.
+# Approving this fixture confirms the field name `block` (spec Q1) and the
+# expected.yaml schema of spec §4, as ADR 0031 requires: the spec is updated
+# in the same PR.
+links:
+  - target: Sessão 3
+    block: juramento
+    pos: { line: 1, col: 28 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md). Target note
+    "Sessão 3" had a paragraph ending in " ^juramento"; its metadata cache
+    lists block id "juramento".
+    `obsidian links file=fx-block` -> `Sessão 3.md`.
+    `obsidian backlinks file="Sessão 3"` lists fx-block.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Sessão 3#^juramento", displayText "Sessão 3 > ^juramento",
+    original "[[Sessão 3#^juramento]]", start col 27 (0-based).

@@ -1,0 +1,16 @@
+[package]
+name = "verso-dialect"
+description = "Pure parser of the Verso dialect: no IO, no async"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# No IO and no async dependencies, ever (ADR 0028). A new dependency needs a
+# justification in the PR (ADR 0033).
+[dependencies]
+
+[lints]
+workspace = true

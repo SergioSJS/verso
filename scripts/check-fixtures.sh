@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# Fixture lint (ADR 0031, spec §4): layout and key names only.
+#
+# Every fixture is fixtures/<category>/<case>/ with exactly input.md and
+# expected.yaml. expected.yaml may use only the keys of the schema in
+# docs/spec/dialect.md §4, each under the parent the schema gives it. Values
+# are not checked here: whether the parser produces them is the Phase 1 test,
+# and whether they are right is the maintainer's approval.
+#
+# A draft says "AI draft" on its first line (ADR 0031 item 4); the script
+# reports drafts but does not fail on them. Roadmap exit criterion 5 reads
+# the report.
+#
+# Deliberately dependency-free (bash, find, grep, sed, awk). The Phase 1 test
+# harness deserialises expected.yaml into a strict type and is the real
+# check; this script only keeps a draft from using a key that does not exist
+# or sits in the wrong place.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+fail=0
+problem() { fail=1; printf 'FIXTURE: %s\n' "$*" >&2; }
+
+[ -d fixtures ] || { echo "fixtures: none yet"; exit 0; }
+
+# Keys allowed under each parent. `frontmatter` values are user data and are
+# not checked. `pos` is an inline map with line and col.
+allowed_under() {
+  case "$1" in
+    top)       echo 'frontmatter|headings|links|embeds|blocks|callouts|observed|source' ;;
+    links|embeds) echo 'target|heading|block|alias|syntax|pos' ;;
+    headings)  echo 'level|text|pos' ;;
+    blocks)    echo 'id|pos' ;;
+    callouts)  echo 'kind|title|fold|pos' ;;
+    observed)  echo 'app|version|how' ;;
+    pos)       echo 'line|col' ;;
+    frontmatter) echo '.*' ;;
+    *)         echo '' ;;
+  esac
+}
+
+# Walk expected.yaml with a tiny state machine: track the current top-level
+# key and skip block scalars (`>` / `|` and their chomping variants), whose
+# continuation lines are prose, not keys. Emits one line per problem.
+check_keys() {
+  awk -v file="$1" '
+    function report(msg) { print "FIXTURE: " file ": " msg; bad = 1 }
+    function allowed(parent, key,   list) {
+      if (parent == "top") list = "frontmatter|headings|links|embeds|blocks|callouts|observed|source"
+      else if (parent == "links" || parent == "embeds") list = "target|heading|block|alias|syntax|pos"
+      else if (parent == "headings") list = "level|text|pos"
+      else if (parent == "blocks") list = "id|pos"
+      else if (parent == "callouts") list = "kind|title|fold|pos"
+      else if (parent == "observed") list = "app|version|how"
+      else if (parent == "pos") list = "line|col"
+      else if (parent == "frontmatter") return 1
+      else list = ""
+      return key ~ ("^(" list ")$")
+    }
+    BEGIN { top = "top"; inscalar = 0; scalar_indent = -1; keys = 0 }
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    {
+      match($0, /^[[:space:]]*/); indent = RLENGTH
+      if (inscalar) {
+        if (indent > scalar_indent) next
+        inscalar = 0
+      }
+      line = $0
+      sub(/^[[:space:]]*(- )?/, "", line)
+      if (line !~ /^[A-Za-z_]+:/) next
+      key = line; sub(/:.*$/, "", key)
+      keys++
+      if (indent == 0) {
+        if (!allowed("top", key)) report("unknown top-level key " key)
+        top = key
+      } else {
+        if (!allowed(top, key)) report("key " key " not allowed under " top)
+      }
+      # Inline maps such as pos: { line: 1, col: 15 }.
+      if (match(line, /\{[^}]*\}/)) {
+        inner = substr(line, RSTART + 1, RLENGTH - 2)
+        n = split(inner, parts, ",")
+        for (i = 1; i <= n; i++) {
+          k = parts[i]; sub(/^[[:space:]]*/, "", k); sub(/:.*$/, "", k)
+          if (k != "" && !allowed(key, k)) report("key " k " not allowed under " key)
+        }
+      }
+      # Block scalar: value is `>` or `|` with optional chomping/indent.
+      value = line; sub(/^[A-Za-z_]+:[[:space:]]*/, "", value)
+      if (value ~ /^[>|][+-]?[0-9]?$/) { inscalar = 1; scalar_indent = indent }
+    }
+    END {
+      if (keys == 0) report("asserts nothing: no keys in expected.yaml")
+      exit bad
+    }
+  ' "$1"
+}
+
+# 1. Anything under fixtures/ that looks like a fixture but is not at depth 2.
+while IFS= read -r f; do
+  d="$(dirname "$f")"
+  depth=$(printf '%s' "$d" | awk -F/ '{print NF}')
+  [ "$depth" -eq 3 ] || problem "$f: fixtures live at fixtures/<category>/<case>/, found at depth $((depth - 1))"
+done < <(find fixtures -type f \( -name input.md -o -name expected.yaml \) | sort)
+
+# 2. Each fixture directory: exactly the two files, keys in the schema.
+count=0
+while IFS= read -r dir; do
+  count=$((count + 1))
+  [ -f "$dir/input.md" ] || problem "$dir: missing input.md"
+  if [ ! -f "$dir/expected.yaml" ]; then
+    problem "$dir: missing expected.yaml"
+    continue
+  fi
+  extra=$(find "$dir" -mindepth 1 -maxdepth 1 ! -name input.md ! -name expected.yaml | head -1)
+  [ -z "$extra" ] || problem "$dir: unexpected entry $extra"
+
+  if ! out=$(check_keys "$dir/expected.yaml"); then
+    fail=1
+    printf '%s\n' "$out" >&2
+  fi
+
+  if head -1 "$dir/expected.yaml" | grep -q 'AI draft'; then
+    printf 'draft:    %s\n' "$dir"
+  else
+    printf 'approved: %s\n' "$dir"
+  fi
+done < <(find fixtures -mindepth 2 -maxdepth 2 -type d | sort)
+
+if [ "$fail" -eq 0 ]; then
+  echo "fixtures: $count checked"
+fi
+exit "$fail"

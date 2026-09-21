@@ -1,0 +1,16 @@
+# Approved by the maintainer on 2026-09-21, after the observation below (ADR 0031).
+# Construct: wikilink syntax inside inline code and inside a fenced code
+# block is not a link. Spec: docs/spec/dialect.md §5.9.
+# `links: []` asserts that there is no link at all; an absent key would
+# assert nothing (spec §4.1).
+links: []
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian links file=fx-code` -> "No links found."
+    `obsidian unresolved verbose` lists nothing from fx-code.
+    `obsidian eval` on `app.metadataCache.getCache(...)` -> links null,
+    embeds null.

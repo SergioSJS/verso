@@ -1,0 +1,16 @@
+[package]
+name = "verso-index"
+description = "SQLite/FTS5 index and graph; a rebuildable cache"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# Opens the index file only; never the open folder (ADR 0026, rule 5,
+# delimited scope). The index is a cache: deleting it loses no data (ADR 0011).
+[dependencies]
+
+[lints]
+workspace = true
