@@ -57,6 +57,45 @@ jobs:
       - name: cargo test
         run: cargo test --workspace --all-features --locked
 
+  # Feature guardrails of Phase 1, feature 1 (ADR 0029). Each one was seen
+  # failing before the PR that added it was merged; the PR records how.
+  dialect-wasm:
+    name: verso-dialect compiles to wasm32 (ADR 0029)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: toolchain from rust-toolchain.toml
+        run: rustup show
+      - run: rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: cargo check --target wasm32-unknown-unknown -p verso-dialect --locked
+
+  dialect-fuzz:
+    # cargo-fuzz needs nightly for its sanitizer; the pinned toolchain in
+    # rust-toolchain.toml is bypassed with `+nightly` for this job only.
+    # A short run on every PR; the corpus grows in `fuzz/corpus` locally.
+    name: verso-dialect fuzz, 60s (ADR 0029)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - run: rustup toolchain install nightly --profile minimal
+      - uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2, resolved 2026-09-21
+        with:
+          tool: cargo-fuzz@0.13.2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: crates/verso-dialect/fuzz
+      - name: fuzz parse for 60 seconds
+        working-directory: crates/verso-dialect
+        run: cargo +nightly fuzz run parse -- -max_total_time=60 -max_len=4096
+      - name: keep a crash, if any, as an artifact
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fuzz-artifacts
+          path: crates/verso-dialect/fuzz/artifacts
+          if-no-files-found: ignore
+
   deny:
     # On both operating systems: ADR 0029 and roadmap exit criterion 3 list
     # `cargo deny check` with the other three, on macOS and Linux.
