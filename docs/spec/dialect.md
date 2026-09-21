@@ -68,6 +68,7 @@ does not follow the schema is invalid.
 | `blocks` | list of `^id` definitions, in document order | not asserted |
 | `callouts` | list, in document order | not asserted |
 | `observed` | how the behavior was verified in Obsidian | see 4.5 |
+| `source` | ADR or question that authorizes a behavior that is Verso's own | see 4.5 |
 
 **An absent key asserts nothing**; `links: []` asserts that there is no link.
 The order of the lists is the order in which the construct appears in the file.
@@ -112,7 +113,10 @@ of the first line of the callout).
 Position exists because verifiable citation is decided
 ([ADR 0018](../adr/0018-llm-native-mcp-in-core.md)) and a block with no `^id` is
 cited by position. A fixture with no `pos` does not test position; at least one
-fixture per construct has to test it.
+fixture per construct has to test it. The first five fixtures all have ASCII
+text before the construct, so they do not yet distinguish characters from
+bytes; a fixture with a non-ASCII prefix is needed before the unit is
+exercised (`docs/reference/obsidian-cli.md` §4).
 
 ### 4.5 Origin of the observation
 
@@ -122,9 +126,13 @@ behavior was observed, by the admissible sources rule (section 3):
 ```yaml
 observed:
   app: Obsidian
-  version: "1.x.y"
+  version: "1.13.7 (installer 1.11.5), macOS"
   how: "paste the input into a new note; see the target note's backlinks pane"
 ```
+
+`version` is free text: app version, installer version and operating system
+when they matter. `how` is prose, repeatable by someone else; the Obsidian CLI
+(`docs/reference/obsidian-cli.md`) turns it into commands.
 
 A fixture for behavior that is **Verso's own** (section 6) omits `observed` and
 cites the ADR or the question that authorizes it in `source:`.
@@ -479,10 +487,12 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
 
 Any fixture may be drafted by the AI; it only counts with the maintainer's
-approval in the PR that adds it (ADR 0031). The first five follow the schema in
-section 4 and, once approved, confirm it. `scripts/check-fixtures.sh` checks
-the structure and the key names of every fixture; the values are the
-maintainer's approval and the Phase 1 tests.
+approval in the PR that adds it (ADR 0031). A draft says so on the first line
+of its `expected.yaml` (`# AI draft ...`); approval replaces that line. The
+first five follow the schema in section 4 and, once approved, confirm it.
+`scripts/check-fixtures.sh` checks the layout of every fixture and that each
+key is one of the schema's, under the parent the schema gives it; the values
+are the maintainer's approval and the Phase 1 tests.
 
 **`expected.yaml` only changes with the maintainer's explicit approval.** If a
 fixture looks wrong, the author stops and asks.

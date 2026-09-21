@@ -3,6 +3,11 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §5.1
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-09-21 — consequence on the Obsidian CLI as a parity reference
+  added at the maintainer's request ("vale até anotar essas coisas do cli que
+  pode ser útil pra gente implementar paralelos melhorados"); it names a
+  reference, not a new scope item — Phase 1 features 4 and 6 stay as the
+  roadmap lists them.
 
 ## Context
 

@@ -49,6 +49,9 @@ Do not point it at a real vault for tests. A throwaway folder inside the
 ## 4. What the metadata cache exposes
 
 `obsidian eval code='JSON.stringify(app.metadataCache.getCache("path.md"))'`
+(public API: `MetadataCache.getCache` returning `CachedMetadata`, with `links`
+as `LinkCache[]`, `headings` as `HeadingCache[]`, `blocks` as
+`Record<string, BlockCache>`, all declared in `obsidian.d.ts`)
 returns, per file: `links`, `embeds`, `headings`, `blocks`, `tags`,
 `frontmatter`, `sections`. Shapes seen on 2026-09-21:
 
