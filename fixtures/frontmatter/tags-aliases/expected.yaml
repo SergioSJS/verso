@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-09-21 in the session that merged PR #7, after the observation below (ADR 0031).
 # Construct: YAML frontmatter with tags and aliases. Spec: docs/spec/dialect.md §5.1.
 # Asserts the interpreted values of the three keys; the accepted forms of
 # `tags` and `aliases` (string, list) and the YAML dialect are Q24.
