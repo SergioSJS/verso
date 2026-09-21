@@ -27,6 +27,8 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - run: bash scripts/check-docs-mirror.sh
+      - name: fixtures structure and keys (ADR 0031)
+        run: bash scripts/check-fixtures.sh
 
   rust:
     name: fmt, clippy, test (${{ matrix.os }})

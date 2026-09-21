@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Version 0.5 · 2026-09-21
+> Version 0.6 · 2026-09-21
 > Single source of the decisions made before the repository existed.
 > Changes after the repository: only status changes and factual corrections,
 > recorded in the History at the end. New boundaries and consequences live in
@@ -307,7 +307,7 @@ Rules:
 
 - The fixtures are the behavior contract between the maintainer and the AI.
 - `expected.yaml` only changes with the maintainer's explicit approval.
-- The first 5 fixtures are written by hand by the maintainer; the following ones can be drafted by the AI and approved by them.
+- Any fixture may be drafted by the AI; it only counts with the maintainer's explicit approval, and for the first five that approval includes checking the behaviour in the Obsidian app (changed in v0.6, ADR 0031; until then: "the first 5 are written by hand by the maintainer").
 
 ---
 
@@ -477,3 +477,4 @@ of the dialect spec, not here.
 | 0.3 | 2026-09-21 | §3 and §17 item 1: license decided by the maintainer — Package A, MPL-2.0 for the core and the app, MIT for the plugin SDK (ADR 0005). `LICENSE` added to the root. |
 | 0.4 | 2026-09-21 | §3: contribution model (DCO without CLA) confirmed by the maintainer, with the rule for code written by AI: whoever signs it has command of it and takes responsibility for it (ADR 0006). |
 | 0.5 | 2026-09-21 | §3 and §17 item 3: language of the documentation decided by the maintainer — English source, pt-BR mirror in `docs/pt-BR/`; this briefing is the exception, with the pt-BR original ruling (ADR 0008). |
+| 0.6 | 2026-09-21 | §11.4: fixture rule changed by the maintainer — any fixture may be drafted by the AI; it counts only with their explicit approval, and the first five are checked in the Obsidian app before approval (ADR 0031). |

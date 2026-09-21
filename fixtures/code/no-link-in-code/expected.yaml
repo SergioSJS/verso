@@ -1,0 +1,15 @@
+# AI draft (Fable 5.1), awaiting the maintainer's approval (ADR 0031).
+# Construct: wikilink syntax inside inline code and inside a fenced code
+# block is not a link. Spec: docs/spec/dialect.md §5.9.
+# `links: []` asserts that there is no link at all; an absent key would
+# assert nothing (spec §4.1).
+links: []
+observed:
+  app: Obsidian
+  version: "to be filled by the maintainer on approval"
+  how: >-
+    Drafted from the public documentation (help.obsidian.md, "Basic
+    formatting syntax", sections "Code" and "Code blocks"). The maintainer
+    pastes input.md into a test vault and checks that no note named
+    "isto não é link" or "isto também não é" appears in the graph or as an
+    unresolved link, and that the text renders as code.

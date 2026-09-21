@@ -75,8 +75,9 @@ Violating an invariant is BLOCKING by definition, with no discussion of merit.
     the maintainer says otherwise. If the fixture looks wrong: **stop, do not
     edit, ask** — in a PR comment or in the session, pointing out the case and
     why the expectation looks incorrect.
-15. The first 5 fixtures are the maintainer's. The following ones may be drafted
-    by the AI and are only valid after they approve them.
+15. Any fixture may be drafted by the AI; none is valid before the maintainer
+    approves it in the PR that adds it. A draft says so on the first line of
+    its `expected.yaml`.
 16. `input.md` does not change on its own either: changing the input changes the
     contract.
 17. A fixture follows the schema in `docs/spec/dialect.md` §4. A fixture that

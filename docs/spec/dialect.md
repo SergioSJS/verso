@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.1
+# Verso dialect spec — v0.2
 
-- Version: v0.1 · 2026-09-21
+- Version: v0.2 · 2026-09-21
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -53,10 +53,9 @@ Each construct in sections 5 and 6 comes with the `input.md` and the
 corresponding excerpt of the `expected.yaml`. The briefing (§11.4) names only
 `target`, `alias`, `heading` and `blocks[].id`; everything else below was
 drafted by the AI in the Phase 0 review (C7) and **counts as `PROPOSED` until
-the maintainer confirms it**. The confirmation happens in one of two ways: a
-line from them in this document, or the first five fixtures written by hand
-following this schema — whichever comes first. A fixture that does not follow
-the schema is invalid.
+the maintainer confirms it**. The confirmation is the maintainer's approval of
+the first five fixtures, which follow this schema (ADR 0031). A fixture that
+does not follow the schema is invalid.
 
 ### 4.1 First-level keys
 
@@ -479,9 +478,11 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | Markdown link to a local file | 5.13 | `PROPOSED` |
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
 
-The first 5 fixtures are written by hand by the maintainer, following the schema
-in section 4 — and, by following it, they confirm it. The following ones may be
-drafted by the AI and approved by them.
+Any fixture may be drafted by the AI; it only counts with the maintainer's
+approval in the PR that adds it (ADR 0031). The first five follow the schema in
+section 4 and, once approved, confirm it. `scripts/check-fixtures.sh` checks
+the structure and the key names of every fixture; the values are the
+maintainer's approval and the Phase 1 tests.
 
 **`expected.yaml` only changes with the maintainer's explicit approval.** If a
 fixture looks wrong, the author stops and asks.
@@ -518,8 +519,9 @@ Raised while writing this spec. All of them need an answer before
 
 - **Q1. Name of the block reference field in the `expected.yaml`.** `PROPOSED`
   The briefing's example names `target`, `alias` and `heading`, but not the
-  field for `#^bloco` (section 5.5). Proposal: `block` (section 4.2). Confirmed
-  together with the schema.
+  field for `#^bloco` (section 5.5). Proposal: `block` (section 4.2). Closes
+  with the maintainer's approval of the fixture
+  `fixtures/wikilink/block-reference`, in the PR that adds it (ADR 0031).
 - **Q2. Does an embed count as a link in the graph and in backlinks?** `[OPEN]`
   (section 5.6)
 - **Q3. Admissible position of the `^id`.** `[OPEN]`
@@ -635,3 +637,4 @@ answer from the maintainer before implementing; Q18 before choosing the parser.
 |---|---|---|
 | v0 | 2026-09-21 | First version, derived from `docs/BRIEFING.md` §11. No open question resolved |
 | v0.1 | 2026-09-21 | Application of the Phase 0 review (`docs/review/phase-0.md`, accepted by the maintainer): section 4 becomes the `expected.yaml` schema (`PROPOSED`), with `block` as the proposed answer to Q1, positions and `observed`; sections 5.12 (headings) and 5.13 (Markdown links, `PROPOSED`) added; D7 with a status separated per item; Q7 and Q8 corrected with respect to APFS; Q17 broadened; Q18–Q26 added. No question closed |
+| v0.2 | 2026-09-21 | Fixture rule changed by the maintainer (ADR 0031 item 4): §4 and §8 updated; Q1 closes with the approval of `fixtures/wikilink/block-reference`. No question closed yet |

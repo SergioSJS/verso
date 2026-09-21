@@ -1,0 +1,18 @@
+# AI draft (Fable 5.1), awaiting the maintainer's approval (ADR 0031).
+# Construct: wikilink to a block. Spec: docs/spec/dialect.md §5.5.
+# Approving this fixture confirms the field name `block` (spec Q1) and the
+# expected.yaml schema of spec §4, as ADR 0031 requires: the spec is updated
+# in the same PR.
+links:
+  - target: Sessão 3
+    block: juramento
+    pos: { line: 1, col: 28 }
+observed:
+  app: Obsidian
+  version: "to be filled by the maintainer on approval"
+  how: >-
+    Drafted from the public documentation (help.obsidian.md, "Internal links",
+    section "Link to a block in a note"). The maintainer creates "Sessão 3"
+    with a paragraph ending in " ^juramento", pastes input.md into another
+    note, and checks that the link opens the note at that block and appears in
+    its backlinks.
