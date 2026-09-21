@@ -1,0 +1,58 @@
+# CI: workspace guardrails on macOS and Linux (ADR 0029, roadmap item 0.11).
+#
+# Third-party actions are pinned by commit SHA, not by tag; the tag is in the
+# comment for humans. Bumping one is a PR of its own.
+#
+# The toolchain comes from rust-toolchain.toml: `rustup show` installs the
+# pinned channel and its components (rustfmt, clippy) on the runner.
+
+name: ci
+
+on:
+  push:
+    branches: ["main", "fase0/**", "phase*/**", "test/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  docs-mirror:
+    name: docs mirror (ADR 0008)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - run: bash scripts/check-docs-mirror.sh
+
+  rust:
+    name: fmt, clippy, test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: toolchain from rust-toolchain.toml
+        run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+      - name: cargo clippy -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: cargo test
+        run: cargo test --workspace --locked
+
+  deny:
+    name: cargo deny (licenses, advisories, bans, sources)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
+        with:
+          command: check
+          arguments: --all-features
