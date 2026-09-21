@@ -1,79 +1,79 @@
 <!--
-PR pequeno, um assunto. Se o resumo precisa de "e", provavelmente são dois PRs.
-As cinco seções abaixo são obrigatórias (ADR 0033). Nenhuma delas é formalidade:
-o mantenedor só aprova o que consegue explicar com as próprias palavras.
+A small PR, one subject. If the summary needs an "and", it is probably two PRs.
+The five sections below are mandatory (ADR 0033). None of them is a formality:
+the maintainer only approves what they can explain in their own words.
 -->
 
-## O quê
+## What
 
-<!-- O que este PR faz, em duas ou três frases. Comportamento, não implementação. -->
+<!-- What this PR does, in two or three sentences. Behavior, not implementation. -->
 
-## Por quê
+## Why
 
 <!--
-Por que este PR existe. Qual decisão ele executa: linkar o ADR, a seção do
-briefing ou a questão da spec.
+Why this PR exists. Which decision it carries out: link the ADR, the briefing
+section or the spec question.
 
-Se a decisão necessária estava `PROPOSTO` ou `[ABERTO]`, este PR não deveria
-existir: pare e pergunte ao mantenedor.
+If the needed decision was `PROPOSED` or `[OPEN]`, this PR should not exist:
+stop and ask the maintainer.
 -->
 
-- ADR / seção: <!-- ex.: docs/adr/0030-...md, BRIEFING §11.1 -->
-- Fase do roadmap: <!-- 0, 1 ou 2 — e por que cabe nela -->
+- ADR / section: <!-- e.g.: docs/adr/0030-...md, BRIEFING §11.1 -->
+- Roadmap phase: <!-- 0, 1 or 2 — and why it fits in it -->
 
-## Alternativas descartadas
+## Discarded alternatives
 
 <!--
-O que mais foi considerado e por que não foi escolhido. Uma linha por
-alternativa.
+What else was considered and why it was not chosen. One line per
+alternative.
 
-Se nenhuma alternativa foi considerada de verdade, escreva "Nenhuma
-considerada" — não invente para preencher a seção.
+If no alternative was actually considered, write "None considered" — do not
+invent one to fill the section.
 -->
 
-## Como verificar
+## How to verify
 
 <!--
-Passo a passo que o mantenedor executa sem ler o código: comandos, saída
-esperada, fixture que cobre o caso.
+Step by step that the maintainer runs without reading the code: commands,
+expected output, fixture that covers the case.
 
-Se a única forma de verificar é ler o diff, o PR está incompleto.
+If the only way to verify it is to read the diff, the PR is incomplete.
 -->
 
 ```
-# comandos
+# commands
 ```
 
-## Conceito Rust usado
+## Rust concept used
 
 <!--
-Explicado para quem está aprendendo Rust, fora do projeto.
+Explained for someone who is learning Rust, outside the project.
 
-Nomeie o conceito (ownership, borrow, lifetime, trait, enum com dado, Result,
-iterador, `?`, tipo newtype...), diga por que ele apareceu aqui, e o que
-aconteceria sem ele. Um parágrafo curto e um trecho de código do próprio PR.
+Name the concept (ownership, borrow, lifetime, trait, enum with data, Result,
+iterator, `?`, newtype...), say why it showed up here, and what would
+happen without it. One short paragraph and a snippet of code from the PR itself.
 
-PR que não toca em Rust: escreva "Não se aplica" e diga por quê.
+PR that does not touch Rust: write "Not applicable" and say why.
 -->
 
 ---
 
-## Antes de pedir revisão
+## Before requesting review
 
-- [ ] Um assunto só.
-- [ ] CI verde: `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo deny check`.
-- [ ] Nenhum `#[allow]` novo para calar guardrail. Se um guardrail bloqueia trabalho legítimo, isso é PR próprio, com justificativa (`CLAUDE.md` §3) — não `#[allow]` neste diff.
-- [ ] Guardrail de feature (fuzz, round-trip, escrita atômica, confinamento, FTS5, benchmark), se este PR o introduz, foi visto falhando antes de passar (ADR 0029).
-- [ ] Fixture que responde a questão `[ABERTO]` da spec, se houver, vem com a atualização da seção 9 da spec neste mesmo PR (ADR 0031).
-- [ ] Nenhuma invariante de `CLAUDE.md` §2 violada.
-- [ ] **Nenhum `fixtures/**/expected.yaml` alterado.** Alterado: a aprovação explícita do mantenedor está linkada aqui.
-- [ ] Fixture nova, se houver, marcada como rascunho da IA, aguardando aprovação.
-- [ ] Dependência nova, se houver, justificada: o que substitui e por que a licença passa no `cargo-deny`.
-- [ ] Autor e revisor em sessões separadas (ADR 0032).
+- [ ] One subject only.
+- [ ] Green CI: `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo deny check`.
+- [ ] No new `#[allow]` to silence a guardrail. If a guardrail blocks legitimate work, that is its own PR, with justification (`CLAUDE.md` §3) — not an `#[allow]` in this diff.
+- [ ] Feature guardrail (fuzz, round-trip, atomic write, confinement, FTS5, benchmark), if this PR introduces it, was seen failing before passing (ADR 0029).
+- [ ] A fixture that answers an `[OPEN]` question of the spec, if any, comes with the update of section 9 of the spec in this same PR (ADR 0031).
+- [ ] No invariant of `CLAUDE.md` §2 violated.
+- [ ] **No `fixtures/**/expected.yaml` changed.** Changed: the maintainer's explicit approval is linked here.
+- [ ] New fixture, if any, marked as an AI draft, awaiting approval.
+- [ ] New dependency, if any, justified: what it replaces and why the license passes `cargo-deny`.
+- [ ] Author and reviewer in separate sessions (ADR 0032).
 
 <!--
-Classificação dos achados da revisão:
-BLOQUEANTE — viola invariante, guardrail ou decisão, ou perde dado. Impede merge.
-IMPORTANTE — deve ser resolvido, ou adiado com registro.
-MENOR      — a critério do autor.
+Classification of the review findings:
+BLOCKING  — violates an invariant, guardrail or decision, or loses data. Blocks merge.
+IMPORTANT — must be resolved, or deferred with a record.
+MINOR     — at the author's discretion.
 -->

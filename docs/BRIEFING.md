@@ -1,277 +1,278 @@
 # BRIEFING — Verso
 
-> Versão 0.5 · 2026-09-21
-> Fonte única das decisões tomadas antes do repositório existir.
-> Alterações posteriores ao repositório: só mudança de status e correção de
-> fato, registradas no Histórico ao final. Delimitações e consequências novas
-> vivem nos ADRs.
-> Entrada para ADRs, spec do dialeto, roadmap e `CLAUDE.md`.
-> O mantenedor é a autoridade final sobre qualquer item deste documento.
+> Version 0.5 · 2026-09-21
+> Single source of the decisions made before the repository existed.
+> Changes after the repository: only status changes and factual corrections,
+> recorded in the History at the end. New boundaries and consequences live in
+> the ADRs.
+> Entry point to the ADRs, the dialect spec, the roadmap and `CLAUDE.md`.
+> The maintainer is the final authority on any item in this document.
+> English translation. The pt-BR original at `docs/pt-BR/BRIEFING.md` is authoritative where the two differ (ADR 0008).
 
-## Como ler este documento
+## How to read this document
 
-| Status | Significado | Como a IA deve tratar |
+| Status | Meaning | How the AI must treat it |
 |---|---|---|
-| `DECIDIDO` | Escolhido ou aceito explicitamente pelo mantenedor | ADR com status "Aceito" |
-| `PROPOSTO` | Recomendado na discussão, sem confirmação explícita | ADR com status "Proposto"; nunca tratar como decidido |
-| `ABERTO` | Sem decisão | Registrar como `[ABERTO]`; não resolver por conta própria |
-| `RESTRIÇÃO` | Imposta por plataforma, licença de terceiros ou termos de uso; não é escolha | Registrar como restrição, citando a origem |
+| `DECIDED` | Chosen or explicitly accepted by the maintainer | ADR with status "Accepted" |
+| `PROPOSED` | Recommended in discussion, without explicit confirmation | ADR with status "Proposed"; never treat as decided |
+| `OPEN` | No decision | Record as `[OPEN]`; do not resolve on your own |
+| `CONSTRAINT` | Imposed by a platform, a third-party license or terms of use; not a choice | Record as a constraint, citing the origin |
 
-Regras para a IA:
+Rules for the AI:
 
-1. Nada que não esteja aqui vira decisão. Na dúvida, `[ABERTO]`.
-2. Não promover `PROPOSTO` para `DECIDIDO`. Só o mantenedor faz isso.
-3. Ao encontrar contradição entre seções, registrar a contradição; não escolher um lado.
+1. Nothing that is not here becomes a decision. When in doubt, `[OPEN]`.
+2. Do not promote `PROPOSED` to `DECIDED`. Only the maintainer does that.
+3. When finding a contradiction between sections, record the contradiction; do not pick a side.
 
 ---
 
-## 1. Visão
+## 1. Vision
 
-**O que é.** App de notas em Markdown, aberto e multiplataforma, que abre qualquer pasta como um editor de código abre e entrega nativamente o que usuários do Obsidian hoje montam com plugins. Público: quem organiza notas, worldbuilding e diários, com suporte especial a quem joga e mestra RPG de mesa.
+**What it is.** An open, cross-platform Markdown note app that opens any folder the way a code editor does and delivers natively what Obsidian users today assemble with plugins. Audience: people who organize notes, worldbuilding and journals, with special support for people who play and run tabletop RPGs.
 
-**Por que existe.**
+**Why it exists.**
 
-- Ferramenta aberta que a comunidade evolui sem depender de uma empresa. `DECIDIDO`
-- Experiência redonda sem gambiarra: o que hoje exige plugin deve ser primitiva do app. `DECIDIDO`
-- O mantenedor gosta de construir ferramentas; o projeto é movido a isso, não a receita. `DECIDIDO`
+- An open tool that the community evolves without depending on a company. `DECIDED`
+- A well-rounded experience without workarounds: what today requires a plugin must be a primitive of the app. `DECIDED`
+- The maintainer likes building tools; the project is driven by that, not by revenue. `DECIDED`
 
-**O que não é.**
+**What it is not.**
 
-- Não é clone do Obsidian. É inspirado nele e compatível com os vaults dele. `DECIDIDO`
-- Não promete rodar todos os plugins do Obsidian. `DECIDIDO`
-- Não tem serviço pago nem plano de sustentação além de doações. `DECIDIDO`
-- Não embute modelo de LLM nem depende de um provedor específico. `DECIDIDO`
-
----
-
-## 2. Identidade
-
-| Item | Valor | Status |
-|---|---|---|
-| Nome | Verso | `DECIDIDO` |
-| Domínio | `verso.md` | `PROPOSTO` — disponibilidade não verificada |
-| Nome de pacote/org se `verso` estiver ocupado | `verso-md` | `PROPOSTO` |
-| Nomes de subprojetos | nenhum até existir código; "Recto" descartado | `DECIDIDO` |
-
-Colisões conhecidas do nome, fora da categoria de apps de notas: plataforma de notebooks interativos em .NET chamada Verso; navegador Verso sobre o Servo (arquivado); editor de metadados de imagem em Perl.
+- It is not an Obsidian clone. It is inspired by it and compatible with its vaults. `DECIDED`
+- It does not promise to run every Obsidian plugin. `DECIDED`
+- It has no paid service and no funding plan beyond donations. `DECIDED`
+- It does not embed an LLM model and does not depend on a specific provider. `DECIDED`
 
 ---
 
-## 3. Governança e licença
+## 2. Identity
 
-| Item | Status | Detalhe |
+| Item | Value | Status |
 |---|---|---|
-| Licença | `DECIDIDO` | Pacote A (decidido na v0.3, ADR 0005): MPL-2.0 no core e app, MIT no SDK de plugin. `LICENSE` na raiz. |
-| Pacote A | opção | Core e app sob MPL-2.0; SDK de plugin sob MIT. Uso como serviço não obriga publicar mudanças. |
-| Pacote B | opção | Core e app sob AGPL-3.0 com exceção explícita para plugins (permissão adicional, GPL-3.0 seção 7); SDK de plugin sob MIT. Cobre uso via rede. |
-| Critério de desempate | contexto | A MPL-2.0 (cláusula 3.3) permite combinar código MPL numa obra maior sob AGPL-3.0 depois; os arquivos MPL continuam MPL. Relicenciar o projeto inteiro, em qualquer direção, exige consentimento de todo contribuidor. (Corrigido na v0.2; a redação original superestimava a passagem de A para B.) |
-| GPL-3.0 pura | contexto | Não cobre uso via rede, que a arquitetura com servidor torna provável; por isso não aparece nos pacotes. |
-| Modelo de contribuição | `DECIDIDO` | DCO, sem CLA. CLA permitiria relicenciar, o que contraria o objetivo de não ter empresa no meio. Código escrito por IA entra pelo mesmo DCO, desde que quem assina tenha domínio do código e se responsabilize por ele (confirmado na v0.4, ADR 0006). |
-| Sustentação | `DECIDIDO` | Apenas Ko-fi. Doação não compra feature. |
-| Visibilidade do repositório | `DECIDIDO` | Privado até a licença ser decidida. |
-| Idioma da documentação do repositório | `DECIDIDO` | Inglês é a fonte; pt-BR é espelho de primeira classe em `docs/pt-BR/`, mesma estrutura e nomes. Este briefing é a exceção: o original pt-BR manda (decidido na v0.5, ADR 0008). |
+| Name | Verso | `DECIDED` |
+| Domain | `verso.md` | `PROPOSED` — availability not verified |
+| Package/org name if `verso` is taken | `verso-md` | `PROPOSED` |
+| Subproject names | none until code exists; "Recto" discarded | `DECIDED` |
+
+Known name collisions, outside the note app category: a .NET interactive notebook platform called Verso; the Verso browser built on Servo (archived); an image metadata editor in Perl.
 
 ---
 
-## 4. Restrições
+## 3. Governance and license
 
-| Restrição | Origem | Consequência |
+| Item | Status | Detail |
 |---|---|---|
-| Não inspecionar, descompilar ou desminificar o app Obsidian | Termos de uso do Obsidian proíbem engenharia reversa para desenvolver produto concorrente | Fontes permitidas: API pública (`obsidian.d.ts`, MIT), documentação pública, comportamento observado de fora |
-| Sem acesso a pasta arbitrária no iOS | Sandbox do iOS | Document picker + security-scoped bookmarks |
-| Sem watcher de mudança externa equivalente ao desktop no iOS | iOS | Atualização por ação do usuário ou ao retornar ao app |
-| Sync em background restrito | iOS e Android | Sync mobile depende das janelas permitidas pelo SO |
-| Operações em massa lentas via Storage Access Framework | Android | Indexação grande no Android exige estratégia própria |
-| Sem Node no mobile | iOS e Android | Plugin que depende de Node é desktop-only |
-| Sem processo residente no mobile | iOS e Android | MCP no mobile é remoto ou in-process |
-| Client secret não pode ser guardado em app de código aberto | OAuth | Google Drive e OneDrive exigem PKCE ou client ID do próprio usuário |
-| Verificação de app, cota por aplicação, semântica fraca de rename e conflito | Google Drive e OneDrive | Servem melhor como destino de backup que como sync contínuo |
-| tldraw não pode ser usado | Licença source-available: chave de licença em produção, marca d'água obrigatória, proibição de relicenciar | Board usa Excalidraw (MIT) |
+| License | `DECIDED` | Package A (decided in v0.3, ADR 0005): MPL-2.0 for the core and the app, MIT for the plugin SDK. `LICENSE` at the root. |
+| Package A | option | Core and app under MPL-2.0; plugin SDK under MIT. Use as a service does not require publishing changes. |
+| Package B | option | Core and app under AGPL-3.0 with an explicit exception for plugins (additional permission, GPL-3.0 section 7); plugin SDK under MIT. Covers use over a network. |
+| Tie-breaking criterion | context | MPL-2.0 (clause 3.3) allows combining MPL code into a larger work under AGPL-3.0 later; the MPL files stay MPL. Relicensing the whole project, in any direction, requires the consent of every contributor. (Corrected in v0.2; the original wording overstated the move from A to B.) |
+| Plain GPL-3.0 | context | Does not cover use over a network, which the architecture with a server makes likely; that is why it does not appear in the packages. |
+| Contribution model | `DECIDED` | DCO, no CLA. A CLA would allow relicensing, which contradicts the goal of having no company in the middle. Code written by AI enters through the same DCO, as long as whoever signs it has command of the code and takes responsibility for it (confirmed in v0.4, ADR 0006). |
+| Funding | `DECIDED` | Ko-fi only. A donation does not buy a feature. |
+| Repository visibility | `DECIDED` | Private until the license is decided. |
+| Language of the repository documentation | `DECIDED` | English is the source; pt-BR is a first-class mirror in `docs/pt-BR/`, same structure and names. This briefing is the exception: the pt-BR original rules (decided in v0.5, ADR 0008). |
 
 ---
 
-## 5. Princípios de produto
+## 4. Constraints
 
-### 5.1 Pasta é a unidade, sem vault
-
-- Abrir qualquer pasta como um editor de código abre; a raiz é a pasta aberta. `DECIDIDO`
-- Config fora da árvore, em diretório de configuração do usuário indexado pelo caminho da pasta; nenhum diretório obrigatório dentro dela. `DECIDIDO`
-- Índice é cache reconstruível; apagá-lo não perde dado. `DECIDIDO`
-- Abrir pela linha de comando, como `code .`: `verso <pasta>`. `DECIDIDO`
-- Workspace com múltiplas raízes e links resolvendo entre elas. `PROPOSTO`
-
-### 5.2 Arquivos são a fonte de verdade
-
-- Compatibilidade com vaults do Obsidian, ou conversão explícita onde não houver compatibilidade. `DECIDIDO`
-- Abrir um arquivo nunca o reescreve. Conversão só por ação do usuário, com diff visível. `DECIDIDO`
-- Todo dado estruturado degrada para Markdown legível em qualquer editor. `PROPOSTO`
-
-### 5.3 Primitivas em vez de features
-
-Cada gambiarra comum no Obsidian é sintoma de uma primitiva ausente. O Verso implementa primitivas; features específicas vêm como plugins de primeira parte. `PROPOSTO`
-
-| Primitiva | Substitui | Status |
+| Constraint | Origin | Consequence |
 |---|---|---|
-| Nota tipada: `type:` no frontmatter + schema em arquivo de texto na pasta; sem schema, é Markdown comum | Dataview, Templater, statblocks | `PROPOSTO` |
-| ID estável de bloco, com backlinks e presença no grafo | pedido aberto no fórum do Obsidian desde 2020 | `PROPOSTO` |
-| Relação tipada: aresta com tipo e direção; várias relações entre os mesmos dois nós | links sem semântica | `PROPOSTO` |
-| Tempo como primeira classe: diário e notas periódicas | Periodic Notes, Calendar | `PROPOSTO` |
-| Views estruturadas que podem materializar a saída como Markdown real no arquivo | resultado de consulta invisível a git, busca e agente | `PROPOSTO` |
-| Proveniência de escrita no frontmatter: autor, modelo, quando | sem equivalente | `PROPOSTO` |
+| Do not inspect, decompile or deminify the Obsidian app | Obsidian's terms of use forbid reverse engineering to develop a competing product | Allowed sources: public API (`obsidian.d.ts`, MIT), public documentation, behavior observed from the outside |
+| No access to an arbitrary folder on iOS | iOS sandbox | Document picker + security-scoped bookmarks |
+| No external-change watcher equivalent to the desktop one on iOS | iOS | Refresh on user action or on returning to the app |
+| Restricted background sync | iOS and Android | Mobile sync depends on the windows the OS allows |
+| Slow bulk operations through the Storage Access Framework | Android | Large indexing on Android requires its own strategy |
+| No Node on mobile | iOS and Android | A plugin that depends on Node is desktop-only |
+| No resident process on mobile | iOS and Android | MCP on mobile is remote or in-process |
+| A client secret cannot be kept in an open source app | OAuth | Google Drive and OneDrive require PKCE or the user's own client ID |
+| App verification, per-application quota, weak rename and conflict semantics | Google Drive and OneDrive | They serve better as a backup destination than as continuous sync |
+| tldraw cannot be used | Source-available license: license key in production, mandatory watermark, ban on relicensing | The board uses Excalidraw (MIT) |
 
-### 5.4 Packs de schema
+---
 
-Schemas distribuíveis como conteúdo (diário, worldbuilding, sistemas de RPG). Resolvem a paralisia de começar com o app vazio. `PROPOSTO`
+## 5. Product principles
+
+### 5.1 The folder is the unit, no vault
+
+- Open any folder the way a code editor does; the root is the folder that was opened. `DECIDED`
+- Config outside the tree, in the user configuration directory indexed by the folder path; no mandatory directory inside it. `DECIDED`
+- The index is a rebuildable cache; deleting it loses no data. `DECIDED`
+- Open from the command line, like `code .`: `verso <folder>`. `DECIDED`
+- Workspace with multiple roots and links resolving across them. `PROPOSED`
+
+### 5.2 Files are the source of truth
+
+- Compatibility with Obsidian vaults, or explicit conversion where there is no compatibility. `DECIDED`
+- Opening a file never rewrites it. Conversion only by user action, with a visible diff. `DECIDED`
+- Every piece of structured data degrades to Markdown readable in any editor. `PROPOSED`
+
+### 5.3 Primitives instead of features
+
+Every common workaround in Obsidian is a symptom of a missing primitive. Verso implements primitives; specific features come as first-party plugins. `PROPOSED`
+
+| Primitive | Replaces | Status |
+|---|---|---|
+| Typed note: `type:` in the frontmatter + schema in a text file in the folder; with no schema, it is plain Markdown | Dataview, Templater, statblocks | `PROPOSED` |
+| Stable block ID, with backlinks and presence in the graph | an open request in the Obsidian forum since 2020 | `PROPOSED` |
+| Typed relation: an edge with a type and a direction; several relations between the same two nodes | links without semantics | `PROPOSED` |
+| Time as first class: journal and periodic notes | Periodic Notes, Calendar | `PROPOSED` |
+| Structured views that can materialize the output as real Markdown in the file | query results invisible to git, search and agent | `PROPOSED` |
+| Write provenance in the frontmatter: author, model, when | no equivalent | `PROPOSED` |
+
+### 5.4 Schema packs
+
+Schemas distributable as content (journal, worldbuilding, RPG systems). They solve the paralysis of starting with an empty app. `PROPOSED`
 
 ---
 
 ## 6. Plugins
 
-- Sistema de plugins próprio é central ao projeto. `DECIDIDO`
-- Plugins em TypeScript, executando em Web Worker, sem acesso direto a disco; todo acesso passa pelo core. `DECIDIDO`
-- Manifesto declara capabilities exigidas (ex.: `vault:read`, `vault:write`, `net:fetch`, `fs:external`), com consentimento na instalação. `DECIDIDO`
-- Formato familiar a quem escreve plugin de Obsidian (`manifest.json`, `main.js`, classe base com `onload`/`onunload`, registro de comandos e de settings), sem compatibilidade binária. `PROPOSTO`
-- Shim de compatibilidade com plugins do Obsidian: pacote separado, fora do core, cobrindo só a API pública, com tabela de compatibilidade declarada. `PROPOSTO`
-- Carregamento lazy por padrão e tempo de carga visível por plugin. `PROPOSTO`
-- Flag de plataforma no manifesto, equivalente ao `isDesktopOnly`. `PROPOSTO`
-- Features do próprio projeto (sync, Foundry, packs de RPG) são escritas como plugins; se precisarem de acesso privilegiado, a API está errada. `PROPOSTO`
-- Plugin nativo em WASM dentro do core: possibilidade futura, não planejada. `PROPOSTO`
+- An own plugin system is central to the project. `DECIDED`
+- Plugins in TypeScript, running in a Web Worker, with no direct disk access; all access goes through the core. `DECIDED`
+- The manifest declares the required capabilities (e.g. `vault:read`, `vault:write`, `net:fetch`, `fs:external`), with consent at install time. `DECIDED`
+- A format familiar to people who write Obsidian plugins (`manifest.json`, `main.js`, a base class with `onload`/`onunload`, command and settings registration), without binary compatibility. `PROPOSED`
+- Compatibility shim for Obsidian plugins: a separate package, outside the core, covering only the public API, with a declared compatibility table. `PROPOSED`
+- Lazy loading by default and load time visible per plugin. `PROPOSED`
+- Platform flag in the manifest, equivalent to `isDesktopOnly`. `PROPOSED`
+- The project's own features (sync, Foundry, RPG packs) are written as plugins; if they need privileged access, the API is wrong. `PROPOSED`
+- Native plugin in WASM inside the core: a future possibility, not planned. `PROPOSED`
 
 ---
 
-## 7. LLM-nativo
+## 7. LLM-native
 
-Requisito: um agente deve navegar e aproveitar o conteúdo da pasta tão bem quanto uma pessoa. `DECIDIDO`
+Requirement: an agent must navigate and make use of the folder's content as well as a person does. `DECIDED`
 
-- Servidor MCP no core, não em plugin: buscar, ler, caminhar o grafo, consultar por tipo. `DECIDIDO`
-- Consulta estruturada (tipo, propriedades, relações) antes de busca por similaridade. `DECIDIDO`
-- IDs de bloco permitem citação verificável, com link de volta à posição exata. `DECIDIDO`
-- Escrita por agente: diff com revisão antes de aplicar, proveniência registrada, permissão declarada. `DECIDIDO`
-- Endpoint de modelo trazido pelo usuário; nenhum modelo fixo. `DECIDIDO`
-- Recursos generativos explícitos e opt-in, dada a sensibilidade da comunidade de RPG a conteúdo gerado por IA. `PROPOSTO`
-- Chaves de API no keychain do sistema operacional, nunca dentro da pasta. `PROPOSTO`
+- MCP server in the core, not in a plugin: search, read, walk the graph, query by type. `DECIDED`
+- Structured query (type, properties, relations) before similarity search. `DECIDED`
+- Block IDs allow verifiable citation, with a link back to the exact position. `DECIDED`
+- Agent writes: a diff reviewed before being applied, provenance recorded, permission declared. `DECIDED`
+- Model endpoint brought by the user; no fixed model. `DECIDED`
+- Generative features explicit and opt-in, given the RPG community's sensitivity to AI-generated content. `PROPOSED`
+- API keys in the operating system keychain, never inside the folder. `PROPOSED`
 
 ---
 
 ## 8. Sync
 
-- Sync nativo é essencial, com servidor próprio e com serviços como Google Drive e OneDrive. `DECIDIDO`
-- Motor de merge no core (entende blocos, frontmatter e o modelo de arquivo); transportes como plugins (servidor próprio, WebDAV, S3, Google Drive, OneDrive). `DECIDIDO`
-- Candidato ao motor de merge: Automerge. `PROPOSTO`
-- Config em camadas: compartilhada (lista de plugins, schemas) e por dispositivo (hotkeys, layout). `PROPOSTO`
-- Arquivo placeholder de armazenamento sob demanda (iCloud, OneDrive) nunca é interpretado como deleção. `DECIDIDO` (promovido na v0.2, ADR 0043)
-- Sync fica fora de escopo até o fim da Fase 2. `DECIDIDO`
+- Native sync is essential, with an own server and with services such as Google Drive and OneDrive. `DECIDED`
+- Merge engine in the core (it understands blocks, frontmatter and the file model); transports as plugins (own server, WebDAV, S3, Google Drive, OneDrive). `DECIDED`
+- Candidate for the merge engine: Automerge. `PROPOSED`
+- Layered config: shared (plugin list, schemas) and per device (hotkeys, layout). `PROPOSED`
+- An on-demand storage placeholder file (iCloud, OneDrive) is never interpreted as a deletion. `DECIDED` (promoted in v0.2, ADR 0043)
+- Sync stays out of scope until the end of Phase 2. `DECIDED`
 
 ---
 
-## 9. Plataformas e stack
+## 9. Platforms and stack
 
-| Item | Valor | Status |
+| Item | Value | Status |
 |---|---|---|
-| Plataformas-alvo | macOS, Windows, Linux, iOS, Android | `DECIDIDO` |
-| Plataforma inicial | macOS | `DECIDIDO` |
-| Limitações por plataforma | aceitáveis, desde que explícitas | `DECIDIDO` |
-| Core | Rust | `DECIDIDO` |
-| Shell | Tauri v2 (desktop e mobile) | `DECIDIDO` |
-| Editor | CodeMirror 6 com Live Preview | `DECIDIDO` |
-| Board | Excalidraw (MIT) como camada de anotação livre | `DECIDIDO` |
-| Board — camada semântica | nós são notas, arestas são relações tipadas; seta livre pode ser promovida a relação tipada | `PROPOSTO` |
-| Persistência do board | sidecar em JSON Canvas, com ou sem extensões | `ABERTO` |
-| Índice | SQLite com FTS5 | `DECIDIDO` |
-| Geração de tipos TS a partir do Rust | ts-rs ou specta | `ABERTO` |
-| Parser base | pulldown-cmark, comrak ou próprio | `ABERTO` |
-| Servidor | mesmo binário do core sem UI (`verso serve`) | `PROPOSTO` |
-| Mobile inicial | cliente web (PWA) servido pelo servidor próprio | `PROPOSTO` |
-| Indexação para mobile | servidor companheiro indexa e entrega índice pronto ao celular | `PROPOSTO` |
+| Target platforms | macOS, Windows, Linux, iOS, Android | `DECIDED` |
+| Initial platform | macOS | `DECIDED` |
+| Per-platform limitations | acceptable, as long as they are explicit | `DECIDED` |
+| Core | Rust | `DECIDED` |
+| Shell | Tauri v2 (desktop and mobile) | `DECIDED` |
+| Editor | CodeMirror 6 with Live Preview | `DECIDED` |
+| Board | Excalidraw (MIT) as a free annotation layer | `DECIDED` |
+| Board — semantic layer | nodes are notes, edges are typed relations; a free arrow can be promoted to a typed relation | `PROPOSED` |
+| Board persistence | sidecar in JSON Canvas, with or without extensions | `OPEN` |
+| Index | SQLite with FTS5 | `DECIDED` |
+| TS type generation from Rust | ts-rs or specta | `OPEN` |
+| Base parser | pulldown-cmark, comrak or our own | `OPEN` |
+| Server | the same core binary without UI (`verso serve`) | `PROPOSED` |
+| Initial mobile | web client (PWA) served by the own server | `PROPOSED` |
+| Indexing for mobile | a companion server indexes and delivers a ready index to the phone | `PROPOSED` |
 
 ---
 
-## 10. Arquitetura
+## 10. Architecture
 
 ```
-┌─ Core Rust (processo nativo) ─────────────────┐
-│ fs + watcher · parser · índice SQLite/FTS5    │
-│ grafo · merge · MCP · sync                    │
+┌─ Rust core (native process) ──────────────────┐
+│ fs + watcher · parser · SQLite/FTS5 index     │
+│ graph · merge · MCP · sync                    │
 └───────────────────┬───────────────────────────┘
-                    │ contrato: comandos + eventos
-                    │ (IPC local ou WebSocket remoto)
+                    │ contract: commands + events
+                    │ (local IPC or remote WebSocket)
 ┌───────────────────┴───────────────────────────┐
-│ UI web: CM6 · Excalidraw · board · views      │
-│ Plugins TS em Web Worker, sem acesso a disco  │
+│ Web UI: CM6 · Excalidraw · board · views      │
+│ TS plugins in a Web Worker, no disk access    │
 └───────────────────────────────────────────────┘
 ```
 
-### 10.1 Regras invioláveis `DECIDIDO`
+### 10.1 Inviolable rules `DECIDED`
 
-1. A UI só fala com o core pelo contrato. Nenhum atalho.
-2. A UI não assume de que lado do fio o core está; latência e disponibilidade vêm das capabilities.
-3. O contrato é definido primeiro; tipos TS são gerados a partir do Rust.
-4. A API de filesystem trabalha com handles opacos, nunca com caminho POSIX em string.
-5. Acesso a disco só dentro do crate `verso-fs`.
-6. Plugins nunca acessam disco diretamente.
+1. The UI only talks to the core through the contract. No shortcuts.
+2. The UI does not assume which side of the wire the core is on; latency and availability come from the capabilities.
+3. The contract is defined first; TS types are generated from Rust.
+4. The filesystem API works with opaque handles, never with a POSIX path as a string.
+5. Disk access only inside the `verso-fs` crate.
+6. Plugins never access the disk directly.
 
-### 10.2 Capabilities em runtime `PROPOSTO`
+### 10.2 Runtime capabilities `PROPOSED`
 
-- Consultáveis pela UI e por plugins (ex.: `fs:arbitrary`, `fs:watch`, `net:fetch`, `proc:spawn`, `bg:sync`, `offline`).
-- Manifesto de plugin declara o que exige; o catálogo filtra por plataforma.
-- A UI explica a ausência de um recurso em vez de escondê-lo.
+- Queryable by the UI and by plugins (e.g. `fs:arbitrary`, `fs:watch`, `net:fetch`, `proc:spawn`, `bg:sync`, `offline`).
+- A plugin manifest declares what it requires; the catalog filters by platform.
+- The UI explains the absence of a feature instead of hiding it.
 
-### 10.3 Riscos conhecidos
+### 10.3 Known risks
 
-| Risco | Mitigação |
+| Risk | Mitigation |
 |---|---|
-| Parser do editor (Lezer, em JS) diverge do parser do índice (Rust) | Corpus de fixtures como suíte de conformidade para os dois; parser Rust puro, compilável para WASM |
-| API do Obsidian tem leituras síncronas; o contrato é assíncrono | Projeção somente-leitura do índice no lado JS, alimentada por eventos |
-| Mantenedor iniciante em Rust | Guardrails mecânicos, fixtures legíveis, revisão independente |
-| Escopo e burnout | Núcleo pequeno, features como plugins, portão de um mês de uso real |
-| Perda de dados | Escrita atômica, guarda contra placeholder, abrir nunca reescreve |
+| The editor parser (Lezer, in JS) diverges from the index parser (Rust) | A fixture corpus as a conformance suite for both; a pure Rust parser, compilable to WASM |
+| The Obsidian API has synchronous reads; the contract is asynchronous | A read-only projection of the index on the JS side, fed by events |
+| Maintainer new to Rust | Mechanical guardrails, readable fixtures, independent review |
+| Scope and burnout | Small core, features as plugins, a one-month real-use gate |
+| Data loss | Atomic writes, placeholder guard, opening never rewrites |
 
-### 10.4 Decisões caras de reverter
+### 10.4 Decisions that are expensive to reverse
 
-Licença (após contribuições), dialeto de arquivo (após existirem vaults) e API de plugin (após existirem plugins). Exigem mais evidência que qualquer outra decisão.
+The license (after contributions), the file dialect (after vaults exist) and the plugin API (after plugins exist). They require more evidence than any other decision.
 
 ---
 
-## 11. Dialeto de arquivo
+## 11. File dialect
 
-### 11.1 Base compatível com Obsidian `DECIDIDO`
+### 11.1 Obsidian-compatible base `DECIDED`
 
-Ler e escrever sem quebrar:
+Read and write without breaking:
 
 - wikilinks: `[[nota]]`, `[[nota|alias]]`, `[[nota#seção]]`, `[[nota#^bloco]]`
 - embeds: `![[...]]`
 - callouts
-- definição de bloco: `^id`
-- frontmatter YAML, incluindo `tags` e `aliases`
+- block definition: `^id`
+- YAML frontmatter, including `tags` and `aliases`
 - `.canvas` (JSON Canvas)
 
-O Verso estende esse dialeto; nunca o contradiz.
+Verso extends this dialect; it never contradicts it.
 
-### 11.2 Conversão explícita `PROPOSTO`
+### 11.2 Explicit conversion `PROPOSED`
 
-| Origem (Obsidian) | Destino (Verso) |
+| Source (Obsidian) | Target (Verso) |
 |---|---|
-| `.obsidian/` | config do Verso fora da árvore |
-| Campo inline do Dataview `chave:: valor` | frontmatter |
-| `.excalidraw.md` do plugin Excalidraw | formato do board |
+| `.obsidian/` | Verso config outside the tree |
+| Dataview inline field `key:: value` | frontmatter |
+| `.excalidraw.md` from the Excalidraw plugin | board format |
 
-### 11.3 Itens de dialeto
+### 11.3 Dialect items
 
-- Sintaxe de relação tipada. `ABERTO`
-- Formato e localização dos schemas. `ABERTO`
-- Sintaxe de visibilidade por bloco (segredo do mestre). `ABERTO`
-- i18n de schema: chave neutra de idioma com rótulo traduzido (ex.: `type: npc` exibido como "PdM" ou "NPC"). `PROPOSTO`
+- Typed relation syntax. `OPEN`
+- Schema format and location. `OPEN`
+- Per-block visibility syntax (game master's secret). `OPEN`
+- Schema i18n: language-neutral key with a translated label (e.g. `type: npc` displayed as "PdM" or "NPC"). `PROPOSED`
 
-### 11.4 Fixtures `DECIDIDO`
+### 11.4 Fixtures `DECIDED`
 
-Estrutura:
+Structure:
 
 ```
-fixtures/<categoria>/<caso>/input.md
-fixtures/<categoria>/<caso>/expected.yaml
+fixtures/<category>/<case>/input.md
+fixtures/<category>/<case>/expected.yaml
 ```
 
-Exemplo — `input.md`:
+Example — `input.md`:
 
 ```markdown
 Encontramos [[Barão Vermelho|o barão]] na [[Taverna#Porão]].
@@ -281,7 +282,7 @@ Encontramos [[Barão Vermelho|o barão]] na [[Taverna#Porão]].
 Ele jurou vingança. ^juramento
 ```
 
-Exemplo — `expected.yaml`:
+Example — `expected.yaml`:
 
 ```yaml
 links:
@@ -293,186 +294,186 @@ blocks:
   - id: juramento
 ```
 
-Categorias mínimas:
+Minimum categories:
 
-- wikilink simples, com alias, com heading, com `#^bloco`
+- simple wikilink, with alias, with heading, with `#^block`
 - embed `![[...]]`
-- definição de bloco `^id`
-- link dentro de código inline e de bloco de código (não conta como link)
-- frontmatter com `tags` e `aliases`
-- nomes de nota com acento e espaço
+- block definition `^id`
+- link inside inline code and inside a code block (does not count as a link)
+- frontmatter with `tags` and `aliases`
+- note names with accents and spaces
 
-Regras:
+Rules:
 
-- As fixtures são o contrato de comportamento entre o mantenedor e a IA.
-- `expected.yaml` só muda com aprovação explícita do mantenedor.
-- As 5 primeiras fixtures são escritas à mão pelo mantenedor; as seguintes podem ser rascunhadas pela IA e aprovadas por ele.
+- The fixtures are the behavior contract between the maintainer and the AI.
+- `expected.yaml` only changes with the maintainer's explicit approval.
+- The first 5 fixtures are written by hand by the maintainer; the following ones can be drafted by the AI and approved by them.
 
 ---
 
-## 12. RPG de mesa
+## 12. Tabletop RPG
 
-Suporte especial a quem joga e mestra é intenção declarada. `DECIDIDO` para a intenção; escopo abaixo `PROPOSTO`.
+Special support for people who play and run games is a declared intention. `DECIDED` for the intention; the scope below is `PROPOSED`.
 
-| Recurso | Status |
+| Feature | Status |
 |---|---|
-| Integração com Foundry VTT mapeando nota tipada ↔ Actor/Item com o data model do sistema; os módulos existentes só sincronizam journals | `PROPOSTO` |
-| Tabela aleatória como tipo de nota com ação de rolagem | `PROPOSTO` |
-| Visão de jogador: blocos marcados como secretos somem no compartilhamento e na exportação; mapeia para permissão de journal no Foundry | `PROPOSTO` |
-| Atalhos nomeados de viewport no board | `PROPOSTO` |
-| Packs de schema por sistema de jogo | `PROPOSTO` |
+| Integration with Foundry VTT mapping a typed note ↔ Actor/Item with the system's data model; the existing modules only sync journals | `PROPOSED` |
+| Random table as a note type with a roll action | `PROPOSED` |
+| Player view: blocks marked as secret disappear in sharing and in export; maps to journal permission in Foundry | `PROPOSED` |
+| Named viewport shortcuts on the board | `PROPOSED` |
+| Schema packs per game system | `PROPOSED` |
 
 ---
 
-## 13. Requisitos transversais
+## 13. Cross-cutting requirements
 
 | Item | Status |
 |---|---|
-| pt-BR e EN desde o primeiro commit | `DECIDIDO` |
-| Acessibilidade desde o início | `DECIDIDO` |
-| Board com vista equivalente acessível (lista ou tabela das mesmas notas e relações) | `PROPOSTO` |
-| Metas de performance | `ABERTO` — sem metas por ora |
-| Benchmark com vault sintético registrando linha de base | `DECIDIDO` |
+| pt-BR and EN from the first commit | `DECIDED` |
+| Accessibility from the start | `DECIDED` |
+| Board with an equivalent accessible view (a list or table of the same notes and relations) | `PROPOSED` |
+| Performance targets | `OPEN` — no targets for now |
+| Benchmark with a synthetic vault recording a baseline | `DECIDED` |
 
 ---
 
-## 14. Engenharia
+## 14. Engineering
 
-### 14.1 Papéis `DECIDIDO`
+### 14.1 Roles `DECIDED`
 
-- O mantenedor aprende Rust em paralelo, fora do projeto. A IA escreve o código; o mantenedor revisa comportamento pelas fixtures e questiona decisões.
-- Opus 5: autor de documentos, autor de UI/TS, revisor do código do core.
-- Fable 5.1: autor do código do core, revisor de documentos e do código de UI/TS.
-- Autor e revisor sempre em sessões separadas; o revisor não vê o raciocínio do autor. "Quem escreveu não revisa" vale para o modelo, não só para a sessão (precisado na v0.2, ADR 0032).
+- The maintainer learns Rust in parallel, outside the project. The AI writes the code; the maintainer reviews behavior through the fixtures and questions decisions.
+- Opus 5: document author, UI/TS author, reviewer of the core code.
+- Fable 5.1: author of the core code, reviewer of documents and of the UI/TS code.
+- Author and reviewer always in separate sessions; the reviewer does not see the author's reasoning. "Whoever wrote it does not review it" (original: "Quem escreveu não revisa") applies to the model, not only to the session (made precise in v0.2, ADR 0032).
 
-### 14.2 Estrutura de crates `DECIDIDO`
+### 14.2 Crate structure `DECIDED`
 
 ```
 crates/
-├── verso-dialect   # parser puro: sem IO, sem async
-├── verso-index     # SQLite/FTS5, grafo
-├── verso-fs        # handles opacos, watcher, escrita atômica, confinamento
-├── verso-core      # orquestra e expõe o contrato
+├── verso-dialect   # pure parser: no IO, no async
+├── verso-index     # SQLite/FTS5, graph
+├── verso-fs        # opaque handles, watcher, atomic writes, confinement
+├── verso-core      # orchestrates and exposes the contract
 └── verso-cli       # index, search, backlinks, mcp
 ```
 
-### 14.3 Guardrails `DECIDIDO`
+### 14.3 Guardrails `DECIDED`
 
-Todos no CI antes da primeira linha de lógica de produto.
+All of them in CI before the first line of product logic.
 
-| Guardrail | Evita |
+| Guardrail | Prevents |
 |---|---|
-| `unsafe_code = "forbid"` via `[workspace.lints]` | corrupção de memória |
-| clippy com `-D warnings`; `unwrap_used` e `expect_used` negados, permitidos só em testes | panic derrubando o app |
-| `cargo-deny`: allowlist de licenças compatível com a licença escolhida; advisories negadas | dependência incompatível ou vulnerável |
-| Fuzzing do parser com `cargo-fuzz` | arquivo malformado travando o app |
-| Property test de round-trip | abrir reescrevendo arquivo |
-| Escrita atômica (arquivo temporário + fsync + rename) | corrupção em queda de energia |
-| Confinamento de caminho no adapter | plugin ou agente saindo da pasta via `../` ou symlink |
-| Queries parametrizadas + escape da sintaxe FTS5 | busca quebrando com aspas e operadores |
-| Benchmark com vault sintético | regressão de performance |
+| `unsafe_code = "forbid"` via `[workspace.lints]` | memory corruption |
+| clippy with `-D warnings`; `unwrap_used` and `expect_used` denied, allowed only in tests | a panic taking the app down |
+| `cargo-deny`: license allowlist compatible with the chosen license; advisories denied | an incompatible or vulnerable dependency |
+| Parser fuzzing with `cargo-fuzz` | a malformed file hanging the app |
+| Round-trip property test | opening rewriting a file |
+| Atomic writes (temporary file + fsync + rename) | corruption on power loss |
+| Path confinement in the adapter | a plugin or agent escaping the folder via `../` or a symlink |
+| Parameterized queries + escaping of the FTS5 syntax | search breaking with quotes and operators |
+| Benchmark with a synthetic vault | performance regression |
 
-CI em macOS e Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo deny check`.
+CI on macOS and Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo deny check`.
 
-### 14.4 Fluxo de PR `DECIDIDO`
+### 14.4 PR flow `DECIDED`
 
-- PR pequeno, um assunto.
-- Template: O quê / Por quê / Alternativas descartadas / Como verificar / Conceito Rust usado (explicado para iniciante).
-- Se uma fixture parecer errada, o autor para e pergunta; nunca altera `expected.yaml`.
-- Dependência nova exige justificativa no PR.
-- Revisão independente classifica achados em BLOQUEANTE, IMPORTANTE ou MENOR.
-- Merge só com CI verde, sem BLOQUEANTE aberto, e se o mantenedor consegue explicar o PR com as próprias palavras.
+- Small PR, one subject.
+- Template: What / Why / Discarded alternatives / How to verify / Rust concept used (explained for a beginner).
+- If a fixture looks wrong, the author stops and asks; never changes `expected.yaml`.
+- A new dependency requires a justification in the PR.
+- Independent review classifies findings as BLOCKING, IMPORTANT or MINOR.
+- Merge only with green CI, with no open BLOCKING finding, and if the maintainer can explain the PR in their own words.
 
 ---
 
-## 15. Roadmap `DECIDIDO`
+## 15. Roadmap `DECIDED`
 
-### Fase 0 — Fundação
+### Phase 0 — Foundation
 
-ADRs, spec do dialeto v0, corpus inicial de fixtures, `CLAUDE.md`, template de PR; revisão crítica; decisão de licença; workspace e CI com todos os guardrails, sem nenhuma feature.
+ADRs, dialect spec v0, initial fixture corpus, `CLAUDE.md`, PR template; critical review; license decision; workspace and CI with all the guardrails, with no feature at all.
 
-**Saída:** zero BLOQUEANTE aberto; `LICENSE` presente; CI verde; guardrails comprovadamente disparando numa branch de teste.
+**Exit:** zero open BLOCKING findings; `LICENSE` present; green CI; guardrails demonstrably firing on a test branch.
 
-### Fase 1 — Core via CLI, sem UI
+### Phase 1 — Core through the CLI, no UI
 
-| # | Crate | Entrega |
+| # | Crate | Delivery |
 |---|---|---|
-| 1 | verso-dialect | parse de links, blocos, headings e frontmatter; round-trip; alvo de fuzz |
-| 2 | verso-fs | varrer pasta, confinamento de caminho, escrita atômica |
-| 3 | verso-index | schema SQLite, FTS5, backlinks |
+| 1 | verso-dialect | parsing of links, blocks, headings and frontmatter; round-trip; fuzz target |
+| 2 | verso-fs | scan the folder, path confinement, atomic writes |
+| 3 | verso-index | SQLite schema, FTS5, backlinks |
 | 4 | verso-cli | `verso index`, `verso search`, `verso backlinks` |
-| 5 | bench | gerador de vault sintético + linha de base |
-| 6 | verso-cli | `verso mcp` somente leitura |
+| 5 | bench | synthetic vault generator + baseline |
+| 6 | verso-cli | read-only `verso mcp` |
 
-**Saída:** vault real de campanha indexa sem erro; backlinks conferem com o esperado; guardrails verdes; notas consultáveis pelo Claude via MCP.
+**Exit:** a real campaign vault indexes without error; backlinks match what is expected; green guardrails; notes queryable by Claude through MCP.
 
-### Fase 2 — Esqueleto andante no macOS
+### Phase 2 — Walking skeleton on macOS
 
-Tauri + CM6: abrir pasta, árvore de arquivos, editor, backlinks e busca vindos do core; contrato com tipos gerados; um tipo de nota ponta a ponta.
+Tauri + CM6: open a folder, file tree, editor, backlinks and search coming from the core; contract with generated types; one note type end to end.
 
-**Saída:** um mês de uso real na preparação de mesa.
+**Exit:** one month of real use in game preparation.
 
-### Fora de escopo até o fim da Fase 2
+### Out of scope until the end of Phase 2
 
-Sync, mobile, plugins, board, shim de compatibilidade.
+Sync, mobile, plugins, board, compatibility shim.
 
 ---
 
-## 16. Contexto de mercado
+## 16. Market context
 
-### 16.1 Dores de usuários do Obsidian que motivam decisões
+### 16.1 Obsidian user pains that motivate decisions
 
-| Dor | Decisão relacionada |
+| Pain | Related decision |
 |---|---|
-| Apps mobile menos polidos; vaults grandes travam no iPhone | servidor companheiro; capabilities |
-| Sync de config (plugins, hotkeys) falha entre dispositivos | config em camadas |
-| Armazenamento sob demanda interpretado como deleção, causando perda | guarda contra placeholder |
-| Startup lento com muitos plugins | lazy por padrão; tempo de carga visível |
-| Backlink de bloco pedido desde 2020 | ID estável de bloco |
-| Resultado de consulta invisível a grafo, busca, git e agente | views materializáveis |
-| Paralisia de configuração inicial | packs de schema |
-| Dataview sem evolução; Bases lê só frontmatter | nota tipada e consulta nativas |
+| Less polished mobile apps; large vaults stall on the iPhone | companion server; capabilities |
+| Config sync (plugins, hotkeys) fails between devices | layered config |
+| On-demand storage interpreted as a deletion, causing loss | placeholder guard |
+| Slow startup with many plugins | lazy by default; visible load time |
+| Block backlink requested since 2020 | stable block ID |
+| Query results invisible to the graph, search, git and agent | materializable views |
+| Initial configuration paralysis | schema packs |
+| Dataview without evolution; Bases reads frontmatter only | native typed note and query |
 
-### 16.2 Projetos de referência
+### 16.2 Reference projects
 
-| Projeto | Relevância |
+| Project | Relevance |
 |---|---|
-| Zettlr | abre pasta arbitrária sem vault; GPL |
-| SilverBullet | server-first, no navegador; MIT; referência para o cliente web |
-| Logseq | AGPL; transição para versão em banco de dados ainda em beta |
-| Grimoire | app local-first em Markdown com pasta como tipo e backlinks tipados |
-| Alkemion Studio | board visual para mestres; relações tipadas; tabelas aleatórias; visão de jogador |
-| Módulos de sync Obsidian ↔ Foundry | sincronizam journals; não mapeiam para Actor/Item |
+| Zettlr | opens an arbitrary folder without a vault; GPL |
+| SilverBullet | server-first, in the browser; MIT; reference for the web client |
+| Logseq | AGPL; the transition to the database version is still in beta |
+| Grimoire | local-first Markdown app with the folder as a type and typed backlinks |
+| Alkemion Studio | visual board for game masters; typed relations; random tables; player view |
+| Obsidian ↔ Foundry sync modules | they sync journals; they do not map to Actor/Item |
 
 ---
 
-## 17. Itens em aberto — lista consolidada
+## 17. Open items — consolidated list
 
-| # | Item | Quando decidir |
+| # | Item | When to decide |
 |---|---|---|
-| 1 | ~~Licença: pacote A ou B~~ | decidido: pacote A (v0.3, ADR 0005) |
-| 2 | Disponibilidade do nome em crates.io, npm, org do GitHub e domínio | antes de tornar o repositório público |
-| 3 | ~~Idioma da documentação do repositório~~ | decidido: inglês fonte, pt-BR espelho (v0.5, ADR 0008) |
-| 4 | Parser base: pulldown-cmark, comrak ou próprio | PR da feature 1, com comparação justificada |
-| 5 | Geração de tipos TS: ts-rs ou specta | início da Fase 2 |
-| 6 | Sintaxe de relação tipada | antes de implementar relações |
-| 7 | Formato e localização dos schemas | antes da nota tipada (Fase 2) |
-| 8 | Sintaxe de visibilidade por bloco | antes de compartilhamento e exportação |
-| 9 | Persistência do board | antes do board |
-| 10 | Metas de performance | após a primeira linha de base |
+| 1 | ~~License: package A or B~~ | decided: package A (v0.3, ADR 0005) |
+| 2 | Name availability on crates.io, npm, the GitHub org and the domain | before making the repository public |
+| 3 | ~~Language of the repository documentation~~ | decided: English source, pt-BR mirror (v0.5, ADR 0008) |
+| 4 | Base parser: pulldown-cmark, comrak or our own | PR for feature 1, with a justified comparison |
+| 5 | TS type generation: ts-rs or specta | start of Phase 2 |
+| 6 | Typed relation syntax | before implementing relations |
+| 7 | Schema format and location | before the typed note (Phase 2) |
+| 8 | Per-block visibility syntax | before sharing and export |
+| 9 | Board persistence | before the board |
+| 10 | Performance targets | after the first baseline |
 
-Itens abertos levantados depois do briefing vivem nos ADRs 0044–0048 e na
-seção 9 da spec do dialeto, não aqui.
+Open items raised after the briefing live in ADRs 0044–0048 and in section 9
+of the dialect spec, not here.
 
 ---
 
-## Histórico
+## History
 
-| Versão | Data | Mudança |
+| Version | Date | Change |
 |---|---|---|
-| 0.1 | 2026-09-21 | Versão inicial. |
-| 0.1 | 2026-09-21 | §5.1: config fora da árvore e índice como cache promovidos a `DECIDIDO`; abertura pela linha de comando registrada como `DECIDIDO`. |
-| 0.2 | 2026-09-21 | Aplicação da revisão da Fase 0 (`docs/review/fase0.md`), aceita integralmente pelo mantenedor: §8 guarda contra placeholder promovida a `DECIDIDO` (ADR 0043); §3 critério de desempate corrigido e "Passo 5" substituído por "antes do fechamento da Fase 0" (§3, §17); §14.1 revisor de UI/TS definido. Nenhuma outra seção alterada. |
-| 0.3 | 2026-09-21 | §3 e §17 item 1: licença decidida pelo mantenedor — Pacote A, MPL-2.0 no core e app, MIT no SDK de plugin (ADR 0005). `LICENSE` adicionado à raiz. |
-| 0.4 | 2026-09-21 | §3: modelo de contribuição (DCO sem CLA) confirmado pelo mantenedor, com a regra para código escrito por IA: quem assina tem domínio e se responsabiliza (ADR 0006). |
-| 0.5 | 2026-09-21 | §3 e §17 item 3: idioma da documentação decidido pelo mantenedor — inglês fonte, pt-BR espelho em `docs/pt-BR/`; este briefing é a exceção, com o original pt-BR mandando (ADR 0008). |
+| 0.1 | 2026-09-21 | Initial version. |
+| 0.1 | 2026-09-21 | §5.1: config outside the tree and the index as a cache promoted to `DECIDED`; opening from the command line recorded as `DECIDED`. |
+| 0.2 | 2026-09-21 | Application of the Phase 0 review (`docs/review/phase-0.md`), accepted in full by the maintainer: §8 placeholder guard promoted to `DECIDED` (ADR 0043); §3 tie-breaking criterion corrected and "Step 5" replaced by "before the close of Phase 0" (§3, §17); §14.1 UI/TS reviewer defined. No other section changed. |
+| 0.3 | 2026-09-21 | §3 and §17 item 1: license decided by the maintainer — Package A, MPL-2.0 for the core and the app, MIT for the plugin SDK (ADR 0005). `LICENSE` added to the root. |
+| 0.4 | 2026-09-21 | §3: contribution model (DCO without CLA) confirmed by the maintainer, with the rule for code written by AI: whoever signs it has command of it and takes responsibility for it (ADR 0006). |
+| 0.5 | 2026-09-21 | §3 and §17 item 3: language of the documentation decided by the maintainer — English source, pt-BR mirror in `docs/pt-BR/`; this briefing is the exception, with the pt-BR original ruling (ADR 0008). |
