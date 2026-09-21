@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-09-21 in the session that merged PR #7, after the observation below (ADR 0031).
 # Construct: ATX headings with level, text and position. Spec: docs/spec/dialect.md §5.12.
 # Matching a heading against `[[nota#seção]]` and setext headings are Q19.
 headings:

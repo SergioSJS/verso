@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-09-21 in the session that merged PR #7, after the observation below (ADR 0031).
 # Construct: note names with accents and spaces. Spec: docs/spec/dialect.md §5.10.
 # The first link puts "ç" before the second, so its `col` is the first in the
 # corpus that counts characters and not bytes (spec §4.4): 43 in characters,

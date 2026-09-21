@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-09-21 in the session that merged PR #7, after the observation below (ADR 0031).
 # Construct: embed, to a file and to a block. Spec: docs/spec/dialect.md §5.6.
 # Whether an embed also counts as a link is Q2; this fixture asserts only the
 # `embeds` list.

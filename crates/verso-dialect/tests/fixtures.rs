@@ -37,13 +37,13 @@ macro_rules! fixture_tests {
 }
 
 fixture_tests! {
-    // Approved by the maintainer on 2026-09-21.
+    // All approved by the maintainer on 2026-09-21 (PR #1: the first five;
+    // PR #7: the other six). The first line of each expected.yaml says so.
     code_no_link_in_code => "code/no-link-in-code",
     wikilink_alias => "wikilink/alias",
     wikilink_block_reference => "wikilink/block-reference",
     wikilink_heading => "wikilink/heading",
     wikilink_simple => "wikilink/simple",
-    // AI drafts of this PR, awaiting approval (first line of each expected.yaml).
     block_definition => "block/definition",
     callout_simple => "callout/simple",
     embed_simple => "embed/simple",
