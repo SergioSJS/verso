@@ -8,9 +8,13 @@ links:
     pos: { line: 1, col: 20 }
 observed:
   app: Obsidian
-  version: "to be filled by the maintainer on approval"
+  version: "1.13.7 (installer 1.11.5), macOS"
   how: >-
-    Drafted from the public documentation (help.obsidian.md, "Internal links",
-    section "Link to a heading in a note"). The maintainer creates "Taverna"
-    with a "## Porão" heading, pastes input.md into another note, and checks
-    that the link opens the note at that heading and appears in its backlinks.
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md). Target note
+    "Taverna" had a "## Porão" heading.
+    `obsidian links file=fx-heading` -> `Taverna.md`.
+    `obsidian backlinks file=Taverna` lists fx-heading.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Taverna#Porão", displayText "Taverna > Porão",
+    original "[[Taverna#Porão]]", start col 19 (0-based).

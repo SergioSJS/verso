@@ -253,6 +253,7 @@ Stopping is the correct behavior, not a failure:
 | `docs/spec/dialect.md` | Dialect behavior, with the gaps marked `[OPEN]` |
 | `docs/roadmap.md` | Phases 0, 1 and 2, with a verifiable exit criterion |
 | `docs/review/` | Critical reviews per phase, with classified findings and the resolution of each one |
+| `docs/reference/` | Reference notes on external tools and behaviour observed from outside, such as the Obsidian CLI ([ADR 0009](docs/adr/0009-external-constraints.md)) |
 | `docs/pt-BR/` | pt-BR mirror of all the documentation, same structure and names ([ADR 0008](docs/adr/0008-documentation-language.md)) |
 | `fixtures/` | Behavior contract. `expected.yaml` is untouchable without approval; schema in `docs/spec/dialect.md` §4 |
 | `crates/` | The five crates of the core |

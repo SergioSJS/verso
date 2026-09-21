@@ -34,6 +34,12 @@ O Verso abre pela linha de comando, no modelo do `code .`: `verso <pasta>`.
 - Com workspace multi-raiz ([0041](0041-multi-root-workspace.md), `PROPOSTO`),
   abrir várias pastas de uma vez é a extensão natural. Não está decidido.
 
+- O CLI do Obsidian (app 1.13) é a descrição pública mais próxima do que o
+  índice do Obsidian responde: links, backlinks, não resolvidos, órfãos, becos
+  sem saída, busca, outline, propriedades, tags. `verso-cli` e `verso mcp`
+  devem cobrir pelo menos essa superfície, melhor; o mapeamento está em
+  `docs/reference/obsidian-cli.md`.
+
 ## Alternativas descartadas
 
 Nenhuma registrada no briefing.

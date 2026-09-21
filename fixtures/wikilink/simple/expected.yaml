@@ -5,8 +5,12 @@ links:
     pos: { line: 1, col: 15 }
 observed:
   app: Obsidian
-  version: "to be filled by the maintainer on approval"
+  version: "1.13.7 (installer 1.11.5), macOS"
   how: >-
-    Drafted from the public documentation (help.obsidian.md, "Internal links").
-    The maintainer pastes input.md into a test vault and checks that the
-    backlinks panel of the note "Barão Vermelho" lists this note.
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian links file=fx-simple` -> `Barão Vermelho.md`.
+    `obsidian backlinks file="Barão Vermelho"` lists fx-simple.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Barão Vermelho", original "[[Barão Vermelho]]", start col 14
+    (0-based; `pos.col` here is 1-based).

@@ -9,10 +9,14 @@ links:
     pos: { line: 1, col: 28 }
 observed:
   app: Obsidian
-  version: "to be filled by the maintainer on approval"
+  version: "1.13.7 (installer 1.11.5), macOS"
   how: >-
-    Drafted from the public documentation (help.obsidian.md, "Internal links",
-    section "Link to a block in a note"). The maintainer creates "Sessão 3"
-    with a paragraph ending in " ^juramento", pastes input.md into another
-    note, and checks that the link opens the note at that block and appears in
-    its backlinks.
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md). Target note
+    "Sessão 3" had a paragraph ending in " ^juramento"; its metadata cache
+    lists block id "juramento".
+    `obsidian links file=fx-block` -> `Sessão 3.md`.
+    `obsidian backlinks file="Sessão 3"` lists fx-block.
+    `obsidian eval` on `app.metadataCache.getCache(...).links` ->
+    link "Sessão 3#^juramento", displayText "Sessão 3 > ^juramento",
+    original "[[Sessão 3#^juramento]]", start col 27 (0-based).
