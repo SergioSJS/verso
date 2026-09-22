@@ -260,12 +260,33 @@ blocks:
   - id: juramento
 ```
 
+A mesma sintaxe no fim de um item de lista define o bloco daquele item:
+
+```markdown
+- Ele jurou vingança. ^juramento
+- Ela riu.
+```
+
+```yaml
+blocks:
+  - id: juramento
+    pos: { line: 1, col: 23 }
+```
+
+`pos` é a posição do `^` (seção 4.3), contada em caracteres (seção 4.4):
+coluna 23 aqui, e 24 se fosse contada em bytes, por causa do `ç` de
+"vingança".
+
 O ID estável de bloco, com backlinks e presença no grafo, é primitiva proposta
 ([ADR 0014](../adr/0014-primitives-catalog.md)). A **sintaxe** `^id` é
 compatível e decidida; o que o Verso faz com ela vai além do Obsidian.
 
-Posição admissível do `^id` (fim de linha, linha própria, depois de bloco de
-várias linhas) e escopo de unicidade: `[ABERTO]` (seção 9, Q3 e Q4).
+Duas posições estão decididas, em 2026-09-21 pelo mantenedor, com as fixtures
+`fixtures/block/definition` e `fixtures/block/list-item` como resposta: um `^id`
+como última palavra de um parágrafo e um `^id` como última palavra de um item de
+lista. As demais posições — um `^id` sozinho numa linha depois de linha em
+branco, um `^id` num heading e um `^id` depois de bloco de várias linhas — e o
+escopo de unicidade do id continuam `[ABERTO]` (seção 9, Q3 e Q4).
 
 ### 5.8 Callout
 
@@ -531,9 +552,29 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   pela aprovação, pelo mantenedor, da fixture
   `fixtures/wikilink/block-reference` (ADR 0031).
 - **Q2. Embed conta como link no grafo e nos backlinks?** `[ABERTO]` (seção 5.6)
-- **Q3. Posição admissível do `^id`.** `[ABERTO]`
-  Fim de linha, linha própria, depois de lista ou de bloco de várias linhas
-  (seção 5.7).
+- **Q3. Posição admissível do `^id`.** `DECIDIDO` para o fim de um parágrafo e
+  o fim de um item de lista; `[ABERTO]` para o resto.
+  Fechada para essas duas em 2026-09-21 pelo mantenedor, com as fixtures
+  `fixtures/block/definition` e `fixtures/block/list-item` como resposta
+  (ADR 0031): um `^id` como última palavra de um parágrafo e um `^id` como
+  última palavra de um item de lista definem o bloco (seção 5.7). Continuam
+  `[ABERTO]`: um `^id` sozinho numa linha depois de linha em branco, um `^id`
+  num heading e um `^id` depois de bloco de várias linhas.
+
+  Ficam registradas aqui duas observações do mesmo dia, e nenhuma das duas fecha
+  nada. (1) Na entrada `Primeiro parágrafo.`, linha em branco e `^solto`, o
+  Obsidian prende o id ao bloco **anterior**: observado pelo CLI do Obsidian,
+  só API pública (ADR 0009; `docs/reference/obsidian-cli.md`), em que
+  `app.metadataCache.getCache(...)` reporta `blocks.solto` com a posição do
+  parágrafo da linha 0, e a linha `^solto` não é seção própria. O nosso parser
+  trata essa linha como parágrafo próprio e reporta o `^` na posição dele
+  (linha 3, coluna 1), que é o que a seção 4.3 pede de `pos` seja qual for o
+  bloco que o id nomeia; **qual** bloco ele nomeia é esta questão, e depende da
+  Q21 ("o que é um bloco"). (2) Um `^id` num heading não foi observado e nada
+  está implementado para ele. Fica registrado também um limite da implementação
+  atual, igualmente não decidido: um item cuja própria linha termina em `^id`
+  mas que continua com uma lista aninhada não é reconhecido, porque o intervalo
+  do item termina com a lista aninhada.
 - **Q4. Escopo de unicidade do `^id`.** `[ABERTO]`
   Único por arquivo ou por pasta; o que fazer com duplicata (seção 5.7).
 - **Q5. Cobertura de callout.** `[ABERTO]`
@@ -680,3 +721,4 @@ ser escolhido.
 | v0.3 | 2026-09-21 | Mantenedor aprovou as cinco primeiras fixtures: schema §4 `DECIDIDO`; Q1 fechada (`block`). Primeira questão fechada |
 | v0.4 | 2026-09-21 | Q18 fechada pelo mantenedor: leitura (b), parser somente leitura com property test de round-trip de quatro propriedades (`docs/reference/parser-decision.md`, ADR 0037). Segunda questão fechada |
 | v0.5 | 2026-09-21 | Limites provisórios do frontmatter registrados sob a Q17 (64 níveis de aninhamento, 10 000 nós), vindos da revisão do PR do `verso-dialect` (`docs/review/phase-1-feature-1.md`). Nenhuma questão fechada |
+| v0.6 | 2026-09-21 | Q3 fechada pelo mantenedor para o fim de um parágrafo e o fim de um item de lista, com a fixture `fixtures/block/list-item` como resposta e a §5.7 atualizada; o `^id` em linha própria depois de linha em branco, num heading e depois de bloco de várias linhas continuam em aberto, e a Q4 também |

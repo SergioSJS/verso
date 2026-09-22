@@ -7,13 +7,13 @@
 - Item do roadmap: Fase 1, feature 1 — `verso-dialect`, parsing de links, blocos, headings e frontmatter ([`../roadmap.md`](../roadmap.md)).
 - Estado: todo achado BLOQUEANTE das quatro leituras está resolvido em código,
   e a quarta leitura não achou nenhum: o veredito dela é que a branch pode ser
-  mesclada como resolução da revisão original. Seis itens estavam **pendentes
-  do mantenedor** e aparecem na seção 6; nenhum deles é decidido aqui. Dois dos
-  seis — os dois defeitos do `pulldown-cmark` 0.13.4 e a lacuna no que o CI
-  anuncia — foram decididos pelo mantenedor em 2026-09-21 e estão marcados como
-  decididos naquela seção, de modo que quatro dos seis continuam pendentes.
-  Dois deles ganharam registro em `docs/` no mesmo PR deste documento: os
-  limites
+  mesclada como resolução da revisão original. Seis itens foram levantados como
+  **pendentes do mantenedor** e aparecem na seção 6; nenhum deles é decidido
+  aqui. Três dos seis — os dois defeitos do `pulldown-cmark` 0.13.4, a lacuna no
+  que o CI anuncia e o `^id` no fim de um item de lista — foram decididos pelo
+  mantenedor em 2026-09-21 e continuam na lista, marcados como decididos, de
+  modo que três dos seis seguem pendentes. Dois deles ganharam registro em
+  `docs/` no mesmo PR deste documento: os limites
   provisórios do frontmatter sob a Q17 de
   [`../spec/dialect.md`](../spec/dialect.md) §9, e os dois defeitos do
   `pulldown-cmark` 0.13.4 nas Consequências do
@@ -216,11 +216,16 @@ Nada nesta lista é decidido aqui.
    [ADR 0009](../adr/0009-external-constraints.md) proíbe olhar além). A Q5 está
    `[ABERTO]`. A fixture foi aprovada com o PR #7; a leitura pede que o
    mantenedor pese isso, e a fixture não foi editada.
-5. **`^id` no fim de um item de lista tight.** Um `^id` sozinho numa linha
-   depois de linha em branco é um parágrafo próprio e é reportado; um que termina
-   um item de lista tight não é, porque a base não emite evento de parágrafo
-   ali. Isso é efeito do parser base, não escolha: nada foi implementado num
-   sentido ou no outro, e a Q3 ("posição admissível do `^id`") está `[ABERTO]`.
+5. **`^id` no fim de um item de lista — decidido em 2026-09-21.** O mantenedor
+   decidiu que um `^id` que termina um item de lista define o bloco, exatamente
+   como um que termina um parágrafo:
+   [`../spec/dialect.md`](../spec/dialect.md) §5.7, a Q3 da §9 fechada para
+   essas duas posições e a fixture `fixtures/block/list-item` (rascunho de IA
+   aguardando aprovação) como resposta. O que a leitura tinha registrado — a
+   base não emite evento de parágrafo dentro de um item de lista tight — passa a
+   ser tratado pelo reconhecedor rodando também no fim do item. O resto da Q3
+   continua `[ABERTO]`: um `^id` sozinho numa linha depois de linha em branco,
+   que o Obsidian prende ao bloco anterior, e um `^id` num heading.
 6. **Nada no CI anuncia o release upstream** — **decidido em 2026-09-21.**
    Desde que a entrada de dez bytes deixou de ser semente de fuzz (terceira
    leitura, achado 1), os dois testes de regressão com `#[ignore]` do item 2
