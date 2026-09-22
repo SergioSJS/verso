@@ -10,6 +10,7 @@ const PATHS: Record<string, string> = {
   search: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14",
   refresh: "M13 8A5 5 0 1 1 11.6 4.5M13 2.5v3h-3",
   split: "M2.5 3.5h11v9h-11zM8 3.5v9",
+  splitDown: "M2.5 3.5h11v9h-11zM2.5 8h11",
   close: "M4 4l8 8M12 4l-8 8",
   reading: "M2 3.5h4.5A1.5 1.5 0 0 1 8 5v8a1.5 1.5 0 0 0-1.5-1.5H2zM14 3.5H9.5A1.5 1.5 0 0 0 8 5v8a1.5 1.5 0 0 1 1.5-1.5H14z",
   edit: "M11.5 2.5 13.5 4.5 6 12H4v-2zM10 4l2 2",
