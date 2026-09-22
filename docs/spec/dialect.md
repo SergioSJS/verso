@@ -279,6 +279,12 @@ blocks:
 (section 4.4): column 23 here, and 24 if it were counted in bytes, because of
 the `ç` of "vingança".
 
+In a list item the `^id` is looked for in the item's own text, before any
+nested block: a `^id` inside a code block, an HTML block or a nested list that
+ends the item does not define a block of that item — section 5.9 already puts
+code outside what is scanned — and an item keeps its `^id` when a nested list
+follows it. That is how the parser behaves; it is not a further decision.
+
 The stable block ID, with backlinks and presence in the graph, is a proposed
 primitive ([ADR 0014](../adr/0014-primitives-catalog.md)). The **syntax** `^id`
 is compatible and decided; what Verso does with it goes beyond Obsidian.
@@ -574,10 +580,12 @@ Raised while writing this spec. All of them need an answer before
   `^` at its own position (line 3, column 1), which is what section 4.3 asks of
   `pos` whichever block the id names; **which** block it names is this question,
   and it depends on Q21 ("what a block is"). (2) A `^id` on a heading was not
-  observed and nothing is implemented for it. One limit of the current
-  implementation is recorded too, also not decided: an item whose own line ends
-  with `^id` but that continues with a nested list is not recognized, because
-  the item's range ends with the nested list.
+  observed and nothing is implemented for it. A fact of the implementation is
+  recorded too, and it decides nothing: in a list item the `^id` is looked for
+  in the item's own text, up to its first block child, so a `^id` inside a code
+  block, an HTML block or a nested list that ends the item does not define a
+  block of that item (section 5.9), and an item whose own line ends with `^id`
+  keeps it when a nested list follows.
 - **Q4. Uniqueness scope of the `^id`.** `[OPEN]`
   Unique per file or per folder; what to do with a duplicate (section 5.7).
 - **Q5. Callout coverage.** `[OPEN]`

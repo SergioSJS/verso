@@ -223,7 +223,11 @@ Nada nesta lista é decidido aqui.
    essas duas posições e a fixture `fixtures/block/list-item` (rascunho de IA
    aguardando aprovação) como resposta. O que a leitura tinha registrado — a
    base não emite evento de parágrafo dentro de um item de lista tight — passa a
-   ser tratado pelo reconhecedor rodando também no fim do item. O resto da Q3
+   ser tratado pelo reconhecedor acompanhando o texto próprio de cada item, até
+   o primeiro filho de bloco, e procurando o `^id` só ali: um bloco de código,
+   um bloco HTML ou uma lista aninhada que termina o item nunca é varrido, e um
+   item cuja própria linha termina em `^id` mantém o id quando vem uma lista
+   aninhada depois. O resto da Q3
    continua `[ABERTO]`: um `^id` sozinho numa linha depois de linha em branco,
    que o Obsidian prende ao bloco anterior, e um `^id` num heading.
 6. **Nada no CI anuncia o release upstream** — **decidido em 2026-09-21.**

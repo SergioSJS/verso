@@ -277,6 +277,13 @@ blocks:
 coluna 23 aqui, e 24 se fosse contada em bytes, por causa do `ç` de
 "vingança".
 
+Num item de lista o `^id` é procurado no texto próprio do item, antes de
+qualquer bloco aninhado: um `^id` dentro de um bloco de código, de um bloco
+HTML ou de uma lista aninhada que termina o item não define bloco daquele item
+— a seção 5.9 já põe código fora do que é varrido — e um item mantém o seu
+`^id` quando vem uma lista aninhada depois. É como o parser se comporta; não é
+uma decisão a mais.
+
 O ID estável de bloco, com backlinks e presença no grafo, é primitiva proposta
 ([ADR 0014](../adr/0014-primitives-catalog.md)). A **sintaxe** `^id` é
 compatível e decidida; o que o Verso faz com ela vai além do Obsidian.
@@ -571,10 +578,12 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   (linha 3, coluna 1), que é o que a seção 4.3 pede de `pos` seja qual for o
   bloco que o id nomeia; **qual** bloco ele nomeia é esta questão, e depende da
   Q21 ("o que é um bloco"). (2) Um `^id` num heading não foi observado e nada
-  está implementado para ele. Fica registrado também um limite da implementação
-  atual, igualmente não decidido: um item cuja própria linha termina em `^id`
-  mas que continua com uma lista aninhada não é reconhecido, porque o intervalo
-  do item termina com a lista aninhada.
+  está implementado para ele. Fica registrado também um fato da implementação,
+  que não decide nada: num item de lista o `^id` é procurado no texto próprio do
+  item, até o primeiro filho de bloco, de modo que um `^id` dentro de um bloco
+  de código, de um bloco HTML ou de uma lista aninhada que termina o item não
+  define bloco daquele item (seção 5.9), e um item cuja própria linha termina em
+  `^id` mantém o id quando vem uma lista aninhada depois.
 - **Q4. Escopo de unicidade do `^id`.** `[ABERTO]`
   Único por arquivo ou por pasta; o que fazer com duplicata (seção 5.7).
 - **Q5. Cobertura de callout.** `[ABERTO]`
