@@ -43,27 +43,24 @@ fn deeply_nested_frontmatter_returns_an_error_not_an_abort() {
 }
 
 /// `pulldown-cmark` 0.13.4 panics on a list item holding a link reference
-/// definition followed by a line of tabs (upstream issue #1129; fixed on
-/// upstream `main`, not released on 2026-09-21). Found by the CI fuzz job on
-/// `main` after PR #7. Ignored until the base is updated; the input is not
-/// a fuzz seed, because libFuzzer runs seeds smallest first and this one
-/// would end every job before a single mutation (third reading, finding 1).
+/// definition followed by a line of tabs (upstream issue #1129). Found by the
+/// CI fuzz job on `main` after PR #7. Passes since the base is built from
+/// the upstream revision that fixes it (workspace `Cargo.toml`,
+/// `[patch.crates-io]`; ADR 0037). It is also the fuzz seed
+/// `fuzz/seeds/list-refdef-tabs.txt`.
 #[test]
-#[ignore = "pulldown-cmark 0.13.4 panics here (upstream #1129); fixed upstream, unreleased"]
 fn list_item_with_reference_definition_and_tab_line() {
     let _ = parse("- [a]:b\n\t\t");
 }
 
 /// `pulldown-cmark` 0.13.4 takes exponential time on this 5 068-byte input:
 /// 157 million events for its first 3 600 bytes, hours for the whole file
-/// (676 events and 313 µs on upstream `main`, verified as of `c51a2a4`).
+/// (676 events and 313 µs on the upstream revision the base is built from).
 /// `verso-dialect`'s pass is linear over the base's events. Found by the
-/// fuzz job after the fourth reading of the follow-up to PR #7; the limit
-/// and the behavior on slowness are Q17, `[OPEN]`, and the base parser is
-/// ADR 0037's subject. Ignored until the base is updated; then this test
-/// must finish in well under a second.
+/// fuzz job after the fourth reading of the follow-up to PR #7. The limit
+/// and the behavior on slowness in general are Q17, `[OPEN]`; this test
+/// only pins the base. It is also the fuzz seed `fuzz/seeds/pulldown-exponential.txt`.
 #[test]
-#[ignore = "pulldown-cmark 0.13.4 takes exponential time here; fixed upstream, unreleased"]
 fn list_with_brackets_that_explodes_the_base_parser() {
     let source = include_str!("data/pulldown-0.13.4-exponential.txt");
     let started = std::time::Instant::now();

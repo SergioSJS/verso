@@ -13,7 +13,10 @@ publish.workspace = true
 [dependencies]
 # Base parser (ADR 0037): CommonMark events with byte ranges. `std` only;
 # the `html` and `getopts` defaults are a renderer and a CLI we do not use.
-pulldown-cmark = { version = "0.13.4", default-features = false }
+# The requirement is "0.13" and not "0.13.4" because the workspace patches
+# the crate to an upstream revision whose manifest still says 0.13.1 (see
+# [patch.crates-io] in the workspace Cargo.toml); `std` is a feature there.
+pulldown-cmark = { version = "0.13", default-features = false, features = ["std"] }
 # YAML 1.2 for the frontmatter block the base hands over opaque (ADR 0037,
 # consequences; spec Q24 stays open). `encoding` off: the input is already
 # a `&str`; decoding is not this crate's job (spec Q25).

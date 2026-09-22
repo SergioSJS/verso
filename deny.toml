@@ -51,8 +51,22 @@ multiple-versions = "warn"
 wildcards = "deny"
 allow-wildcard-paths = true
 highlight = "all"
+deny = [
+  # Tripwire for the day the patch above is removed: a pulldown-cmark
+  # release newer than 0.13.4 turns CI red here so that the action is not
+  # forgotten. Action: run `cargo test -p verso-dialect --test regressions`
+  # on the release (the panic and the exponential-time inputs must pass),
+  # then delete this entry, the allow-git entry and the [patch.crates-io]
+  # block, in one PR. Maintainer's decision of 2026-09-21.
+  { crate = "pulldown-cmark@>=0.13.5", reason = "release 0.13.5 or later: confirm the two regression tests pass, then drop the patch, the allow-git entry and this ban (ADR 0037)" },
+]
 
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# pulldown-cmark is built from an upstream revision until the release after
+# 0.13.4 (workspace Cargo.toml, [patch.crates-io]; ADR 0037, Consequences).
+# Maintainer's decision of 2026-09-21; expires 2026-12-31. Remove together
+# with the patch and the ban below.
+allow-git = ["https://github.com/pulldown-cmark/pulldown-cmark"]

@@ -29,3 +29,8 @@ path = "fuzz_targets/parse.rs"
 test = false
 doc = false
 bench = false
+
+# Same patch as the workspace Cargo.toml: this harness is its own package,
+# so the patch has to be repeated here. Remove together (ADR 0037).
+[patch.crates-io]
+pulldown-cmark = { git = "https://github.com/pulldown-cmark/pulldown-cmark", rev = "c51a2a4cd8ed07a4b1467cc546edcc51eff40703" }

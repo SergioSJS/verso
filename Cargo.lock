@@ -127,14 +127,19 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
+version = "0.13.1"
+source = "git+https://github.com/pulldown-cmark/pulldown-cmark?rev=c51a2a4cd8ed07a4b1467cc546edcc51eff40703#c51a2a4cd8ed07a4b1467cc546edcc51eff40703"
 dependencies = [
  "bitflags",
  "memchr",
+ "pulldown-cmark-escape",
  "unicase",
 ]
+
+[[package]]
+name = "pulldown-cmark-escape"
+version = "0.11.0"
+source = "git+https://github.com/pulldown-cmark/pulldown-cmark?rev=c51a2a4cd8ed07a4b1467cc546edcc51eff40703#c51a2a4cd8ed07a4b1467cc546edcc51eff40703"
 
 [[package]]
 name = "quote"

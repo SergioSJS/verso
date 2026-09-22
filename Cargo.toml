@@ -32,3 +32,14 @@ expect_used = "forbid"
 # std::fs is denied outside verso-fs; the list is in clippy.toml
 # (ADR 0026, rule 5, delimited scope).
 disallowed_methods = "forbid"
+
+# pulldown-cmark 0.13.4 panics on one input and takes exponential time on
+# another (ADR 0037, Consequences; docs/review/phase-1-feature-1.md). Both
+# are fixed on upstream main and unreleased since 0.13.4 (2026-05-20). The
+# maintainer decided on 2026-09-21 to build from that revision until the
+# next release. Remove this block, the allow-git entry and the ban in
+# deny.toml together, once a release passes the two regression tests in
+# crates/verso-dialect/tests/regressions.rs. Expires 2026-12-31: if no
+# release by then, reconsider (ADR 0029, exception policy).
+[patch.crates-io]
+pulldown-cmark = { git = "https://github.com/pulldown-cmark/pulldown-cmark", rev = "c51a2a4cd8ed07a4b1467cc546edcc51eff40703" }
