@@ -11,10 +11,11 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { EditorView, basicSetup } from "codemirror";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { commands, type ContractError, type NoteText } from "./bindings";
+import { livePreview, redraw } from "./live";
 
 type Strings = {
   open: string;
@@ -34,6 +35,7 @@ type Strings = {
   error: string;
   showSource: string;
   showPreview: string;
+  showLive: string;
   unresolved: (t: string) => string;
   save: string;
   saved: string;
@@ -61,8 +63,9 @@ const pt: Strings = {
   noNotes: "Nenhuma nota.",
   line: "linha",
   error: "Erro",
-  showSource: "Editar",
-  showPreview: "Preview",
+  showSource: "Fonte",
+  showPreview: "Leitura",
+  showLive: "Editar",
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
   save: "Salvar",
   saved: "Salvo.",
@@ -90,8 +93,9 @@ const en: Strings = {
   noNotes: "No notes.",
   line: "line",
   error: "Error",
-  showSource: "Edit",
-  showPreview: "Preview",
+  showSource: "Source",
+  showPreview: "Reading",
+  showLive: "Edit",
   unresolved: (t) => `No note answers to [[${t}]].`,
   save: "Save",
   saved: "Saved.",
@@ -122,7 +126,10 @@ const ui = {
   notesHeading: el<HTMLHeadingElement>("notes-heading"),
   notes: el<HTMLUListElement>("notes"),
   noteTitle: el<HTMLHeadingElement>("note-title"),
-  view: el<HTMLButtonElement>("view"),
+  modes: el<HTMLDivElement>("modes"),
+  modePreview: el<HTMLButtonElement>("mode-preview"),
+  modeLive: el<HTMLButtonElement>("mode-live"),
+  modeSource: el<HTMLButtonElement>("mode-source"),
   save: el<HTMLButtonElement>("save"),
   dirty: el<HTMLSpanElement>("dirty"),
   noteFlags: el<HTMLParagraphElement>("note-flags"),
@@ -147,14 +154,20 @@ ui.notesHeading.textContent = t.notes;
 ui.backlinksHeading.textContent = t.backlinks;
 ui.folder.textContent = t.noFolder;
 ui.noteTitle.textContent = t.pick;
-ui.view.textContent = t.showSource;
+ui.modePreview.textContent = t.showPreview;
+ui.modeLive.textContent = t.showLive;
+ui.modeSource.textContent = t.showSource;
 ui.save.textContent = t.save;
 ui.conflictText.textContent = t.conflict;
 ui.conflictReload.textContent = t.reload;
 ui.conflictOverwrite.textContent = t.overwrite;
 
 let current: string | null = null;
-let showingSource = false;
+type Mode = "preview" | "live" | "source";
+let mode: Mode = "preview";
+const liveCompartment = new Compartment();
+/** Image embed targets already asked of the core: URL, or null. */
+const images = new Map<string, string | null>();
 /** What was read: the token `write_note` takes back (invariant 11). */
 let revision = "";
 /** The file's line ending, kept as it was: no normalization (ADR 0012). */
@@ -167,6 +180,23 @@ const editor = new EditorView({
   state: EditorState.create({ doc: "" }),
 });
 
+const live = livePreview({
+  imageUrl: (target) => {
+    if (images.has(target)) return images.get(target) ?? null;
+    images.set(target, null);
+    void commands.resolveAttachment(target).then((r) => {
+      images.set(target, r.status === "ok" && r.data ? convertFileSrc(r.data, "verso") : null);
+      editor.dispatch({ effects: redraw.of(null) });
+    });
+    return undefined;
+  },
+  navigate: (target) => {
+    const to = resolved.get(target.toLowerCase());
+    if (to) void show(to);
+    else ui.status.textContent = t.unresolved(target);
+  },
+});
+
 function editorState(doc: string): EditorState {
   return EditorState.create({
     doc,
@@ -174,6 +204,7 @@ function editorState(doc: string): EditorState {
       basicSetup,
       markdown(),
       EditorView.lineWrapping,
+      liveCompartment.of(mode === "live" ? live : []),
       keymap.of([
         {
           key: "Mod-s",
@@ -322,10 +353,14 @@ async function searchNotes(words: string): Promise<void> {
 }
 
 function applyView(): void {
-  ui.preview.hidden = showingSource;
-  ui.editor.hidden = !showingSource;
-  ui.view.textContent = showingSource ? t.showPreview : t.showSource;
-  if (showingSource) editor.focus();
+  ui.preview.hidden = mode !== "preview";
+  ui.editor.hidden = mode === "preview";
+  ui.modePreview.setAttribute("aria-pressed", String(mode === "preview"));
+  ui.modeLive.setAttribute("aria-pressed", String(mode === "live"));
+  ui.modeSource.setAttribute("aria-pressed", String(mode === "source"));
+  editor.dispatch({ effects: liveCompartment.reconfigure(mode === "live" ? live : []) });
+  ui.editor.classList.toggle("live", mode === "live");
+  if (mode !== "preview") editor.focus();
 }
 
 const IMAGE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
@@ -401,7 +436,7 @@ function load(note: NoteText): void {
   editor.setState(editorState(note.text));
   setDirty(false);
   ui.conflict.hidden = true;
-  ui.view.hidden = false;
+  ui.modes.hidden = false;
   applyView();
 }
 
@@ -458,7 +493,6 @@ async function save(overwrite = false): Promise<void> {
   const r = await commands.writeNote(current, mine, revision);
   if (r.status === "ok") {
     load(r.data.note);
-    showingSource = true;
     applyView();
     ui.status.textContent = r.data.warnings.length === 0 ? t.saved : `${t.saved} ${r.data.warnings.join("; ")}`;
     return;
@@ -551,7 +585,7 @@ async function openFolder(): Promise<void> {
   ui.editor.hidden = true;
   ui.conflict.hidden = true;
   ui.backlinks.replaceChildren();
-  ui.view.hidden = true;
+  ui.modes.hidden = true;
   setDirty(false);
   current = null;
   await listAll();
@@ -568,10 +602,16 @@ async function reindex(): Promise<void> {
 
 ui.open.addEventListener("click", () => void openFolder());
 ui.reindex.addEventListener("click", () => void reindex());
-ui.view.addEventListener("click", () => {
-  showingSource = !showingSource;
-  applyView();
-});
+for (const [button, m] of [
+  [ui.modePreview, "preview"],
+  [ui.modeLive, "live"],
+  [ui.modeSource, "source"],
+] as const) {
+  button.addEventListener("click", () => {
+    mode = m;
+    applyView();
+  });
+}
 let pending: number | undefined;
 ui.search.addEventListener("input", () => {
   window.clearTimeout(pending);

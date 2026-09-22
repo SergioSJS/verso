@@ -28,7 +28,11 @@
         <h2 id="note-title" class="note-title"></h2>
         <span id="dirty" class="dirty" hidden>●</span>
         <button id="save" type="button" class="small primary" hidden></button>
-        <button id="view" type="button" class="small" hidden></button>
+        <div id="modes" class="modes" role="group" hidden>
+          <button id="mode-preview" type="button" class="small" aria-pressed="true"></button>
+          <button id="mode-live" type="button" class="small" aria-pressed="false"></button>
+          <button id="mode-source" type="button" class="small" aria-pressed="false"></button>
+        </div>
       </div>
       <p id="note-flags" class="flags"></p>
       <dl id="props" class="props" hidden></dl>
