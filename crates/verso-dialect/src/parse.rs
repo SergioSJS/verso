@@ -17,11 +17,11 @@ use crate::{BlockId, Callout, Document, Embed, Fold, Heading, Link};
 
 /// Parse the text of one note into its [`Document`] report.
 ///
-/// Must never panic on any input (Q18, property 1; the fuzz target of
-/// ADR 0029 is what proves it). Known exception on 2026-09-21: `pulldown-cmark`
-/// 0.13.4 itself panics on one shape of list item (upstream issue #1129,
-/// fixed on their `main`, unreleased; `tests/regressions.rs`). Returns the
-/// same report for the same input (property 2),
+/// Never panics on any input (Q18, property 1; the fuzz target of ADR 0029
+/// is what proves it — `pulldown-cmark` 0.13.4 did, on one shape of list
+/// item, which is why the base is built from a later upstream revision;
+/// ADR 0037 and `tests/regressions.rs`). Returns the same report for the
+/// same input (property 2),
 /// and every span it reports slices back to the construct's own text
 /// (property 3). It reads `source` and nothing else (property 4).
 ///
