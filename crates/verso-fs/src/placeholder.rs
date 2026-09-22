@@ -12,6 +12,7 @@
 
 use std::ffi::OsStr;
 use std::fs::Metadata;
+use std::path::Path;
 
 /// `SF_DATALESS` from macOS's `<sys/stat.h>`: "file is dataless object".
 pub(crate) const SF_DATALESS: u32 = 0x4000_0000;
@@ -37,11 +38,64 @@ pub(crate) fn is_dataless(_meta: &Metadata) -> bool {
 
 /// If `name` is the older iCloud placeholder form `.Name.ext.icloud`, the
 /// name it stands for: `Name.ext`. Recognized before the hidden-entry rule,
-/// which would otherwise skip exactly the file the guard exists for.
-pub(crate) fn icloud_placeholder_of(name: &OsStr) -> Option<String> {
-    let name = name.to_str()?;
-    let stem = name.strip_prefix('.')?.strip_suffix(".icloud")?;
-    (!stem.is_empty()).then(|| stem.to_owned())
+/// which would otherwise skip exactly the file the guard exists for. Works
+/// on the raw bytes, so a name that is not UTF-8 is still recognized.
+pub(crate) fn icloud_placeholder_of(name: &OsStr) -> Option<std::ffi::OsString> {
+    let bytes = name.as_encoded_bytes();
+    let stem = bytes.strip_prefix(b".")?.strip_suffix(b".icloud")?;
+    if stem.is_empty() {
+        return None;
+    }
+    os_string_of(stem, name)
+}
+
+/// The `OsString` for the byte slice `stem` of `name`, without `unsafe`:
+/// through `str` when the name is UTF-8, through the Unix byte form
+/// otherwise (both ends of the cut are ASCII, so the slice is a valid
+/// name either way).
+fn os_string_of(stem: &[u8], name: &OsStr) -> Option<std::ffi::OsString> {
+    if let Some(s) = name.to_str() {
+        let start = 1;
+        let end = s.len() - ".icloud".len();
+        return Some(std::ffi::OsString::from(&s[start..end]));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStringExt;
+        Some(std::ffi::OsString::from_vec(stem.to_vec()))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = stem;
+        None
+    }
+}
+
+/// Whether the file at `path` is a placeholder in either form: the file
+/// itself is dataless, the file *is* a `.Name.ext.icloud` entry, or its
+/// `.Name.ext.icloud` sibling exists and stands in for it. `Ok(false)` also
+/// when the file does not exist at all: absence is reported by the read
+/// that follows, not here.
+pub(crate) fn stands_in(path: &Path) -> Result<bool, std::io::Error> {
+    let Some(name) = path.file_name() else {
+        return Ok(false);
+    };
+    if icloud_placeholder_of(name).is_some() {
+        return Ok(true);
+    }
+    if let Some(parent) = path.parent() {
+        let mut sibling = std::ffi::OsString::from(".");
+        sibling.push(name);
+        sibling.push(".icloud");
+        if parent.join(sibling).exists() {
+            return Ok(true);
+        }
+    }
+    match std::fs::metadata(path) {
+        Ok(meta) => Ok(is_dataless(&meta)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]
@@ -58,16 +112,27 @@ mod tests {
 
     #[test]
     fn icloud_name_form() {
+        let of = |n: &str| {
+            icloud_placeholder_of(OsStr::new(n)).map(|s| s.to_string_lossy().into_owned())
+        };
         assert_eq!(
-            icloud_placeholder_of(OsStr::new(".Mapa da Taverna.png.icloud")).as_deref(),
+            of(".Mapa da Taverna.png.icloud").as_deref(),
             Some("Mapa da Taverna.png")
         );
+        assert_eq!(of(".nota.md.icloud").as_deref(), Some("nota.md"));
+        assert_eq!(of("nota.md.icloud"), None);
+        assert_eq!(of(".icloud"), None);
+        assert_eq!(of(".obsidian"), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn icloud_name_form_survives_non_utf8() {
+        use std::os::unix::ffi::OsStrExt;
+        let name = OsStr::from_bytes(b".caf\xe9.md.icloud");
         assert_eq!(
-            icloud_placeholder_of(OsStr::new(".nota.md.icloud")).as_deref(),
-            Some("nota.md")
+            icloud_placeholder_of(name).map(|s| s.as_encoded_bytes().to_vec()),
+            Some(b"caf\xe9.md".to_vec())
         );
-        assert_eq!(icloud_placeholder_of(OsStr::new("nota.md.icloud")), None);
-        assert_eq!(icloud_placeholder_of(OsStr::new(".icloud")), None);
-        assert_eq!(icloud_placeholder_of(OsStr::new(".obsidian")), None);
     }
 }

@@ -20,7 +20,7 @@ xattr = "1.6"
 # `statfs` is not in std; the atomic write has to know when the folder is on
 # a network file system, where rename is not atomic (ADR 0029). macOS only
 # for now: the initial platform (ADR 0022); Linux reports "unknown".
-nix = { version = "0.31", default-features = false, features = ["fs"] }
+nix = { version = "0.31", default-features = false, features = ["fs", "mount"] }
 
 [dev-dependencies]
 # Every test builds a throwaway folder and walks or writes into it.

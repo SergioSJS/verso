@@ -17,7 +17,8 @@ use crate::{Handle, MAX_DEPTH, Root};
 /// What kind of thing an entry is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntryKind {
-    /// A regular file whose name ends in `.md`.
+    /// A regular file whose extension is exactly `md`. Provisional: `.MD`
+    /// and `.markdown` are `File` until spec Q12 decides.
     Note,
     /// Any other regular file.
     File,
@@ -54,7 +55,8 @@ pub enum Problem {
     },
     /// A directory already walked under another name (a second symlink to
     /// it). Listed as an entry; its content was walked once, under
-    /// `first_seen`.
+    /// `first_seen`. Provisional (ADR 0044): the alternative is to walk it
+    /// again under the second name, as hard links are two notes.
     Duplicate {
         relative: PathBuf,
         first_seen: PathBuf,
@@ -92,9 +94,9 @@ fn dir_id(meta: &Metadata) -> DirId {
 }
 
 #[cfg(not(unix))]
-fn dir_id(_meta: &Metadata) -> DirId {
-    DirId { dev: 0, ino: 0 }
-}
+compile_error!(
+    "verso-fs needs a directory identity for loop detection; only Unix (dev, ino) is implemented — ADR 0022: macOS first"
+);
 
 struct Walker<'a> {
     root: &'a mut Root,
@@ -133,8 +135,8 @@ pub(crate) fn walk(root: &mut Root) -> Walk {
 
 impl Walker<'_> {
     fn directory(&mut self, absolute: &Path, relative: &Path, depth: usize) {
-        let mut names: Vec<_> = match std::fs::read_dir(absolute) {
-            Ok(iter) => iter.filter_map(|e| e.ok().map(|e| e.file_name())).collect(),
+        let iter = match std::fs::read_dir(absolute) {
+            Ok(iter) => iter,
             Err(error) => {
                 self.out.problems.push(Problem::Io {
                     relative: relative.to_path_buf(),
@@ -143,6 +145,17 @@ impl Walker<'_> {
                 return;
             }
         };
+        let mut names = Vec::new();
+        for entry in iter {
+            match entry {
+                Ok(entry) => names.push(entry.file_name()),
+                // An entry that cannot be listed is reported, never dropped.
+                Err(error) => self.out.problems.push(Problem::Io {
+                    relative: relative.to_path_buf(),
+                    error,
+                }),
+            }
+        }
         names.sort();
         for name in names {
             let rel = relative.join(&name);
@@ -160,7 +173,7 @@ impl Walker<'_> {
                 });
                 continue;
             }
-            if name.as_encoded_bytes().starts_with(b".") || self.is_ignored(&rel) {
+            if name.as_encoded_bytes().starts_with(b".") || self.root.is_ignored(&rel) {
                 continue;
             }
             // Symlinks are followed: metadata of the target, not of the link.
@@ -237,12 +250,5 @@ impl Walker<'_> {
         self.ancestors.push((id, rel.clone()));
         self.directory(abs, &rel, depth + 1);
         self.ancestors.pop();
-    }
-
-    fn is_ignored(&self, rel: &Path) -> bool {
-        self.root
-            .ignored()
-            .iter()
-            .any(|i| rel == i || rel.starts_with(i))
     }
 }
