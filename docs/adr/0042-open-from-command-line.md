@@ -8,6 +8,9 @@
   pode ser útil pra gente implementar paralelos melhorados"); it names a
   reference, not a new scope item — Phase 1 features 4 and 6 stay as the
   roadmap lists them.
+- Revisions: 2026-09-22 — what the feature 4 code does recorded under
+  Consequences, as **provisional**; the disambiguation rule stays `[OPEN]`, the
+  Decision is unchanged (memo `docs/reference/cli-decision.md`).
 
 ## Context
 
@@ -45,6 +48,29 @@ Verso opens from the command line, on the model of `code .`: `verso <folder>`.
   search, outline, properties, tags. `verso-cli` and `verso mcp` should cover at
   least that surface, better; the mapping is in
   `docs/reference/obsidian-cli.md`.
+
+**What the feature 4 code does with the collision above. Recorded on
+2026-09-22 — provisional, the maintainer decides on waking**, on line 1 of
+`docs/reference/cli-decision.md` §10. This is what the binary does today, not a
+decision; the disambiguation rule above stays `[OPEN]`.
+
+- **In Phase 1 the first argument is always a subcommand.** The set is `index`,
+  `search` and `backlinks`, with `mcp` joining it in feature 6; `help`,
+  `--help` and `-h` print the usage. Anything else in first position is a usage
+  error that names the set, with exit code 2.
+- **The folder is the subcommand's first argument** — `verso index <folder>`,
+  `verso search <folder> <words…>`, `verso backlinks <folder> <note>` — and
+  there is no default folder: omitting it is a usage error. Whether the current
+  directory is implied belongs to the same Phase 2 question as `verso <folder>`.
+- **`verso <folder>` does not exist yet**, and cannot: opening needs a UI, which
+  is Phase 2 ([0034](0034-roadmap-in-phases.md)). So no Phase 1 invocation
+  exercises the ambiguity this ADR names, and adding the open command later is
+  additive over the surface above.
+- **The rule the memo recommends for Phase 2 is a recommendation, not a
+  decision of this ADR**: a first argument that names an existing directory
+  opens it, otherwise it is a subcommand, with `verso open <folder>` and
+  `verso -- <folder>` as the escape hatches for a folder named like a
+  subcommand. Nothing in the code implements it.
 
 ## Discarded alternatives
 

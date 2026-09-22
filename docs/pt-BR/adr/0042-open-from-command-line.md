@@ -8,6 +8,9 @@
   do cli que pode ser útil pra gente implementar paralelos melhorados"); nomeia
   uma referência, não um item de escopo novo — as features 4 e 6 da Fase 1
   ficam como o roadmap lista.
+- Revisões: 2026-09-22 — o que o código da feature 4 faz registrado em
+  Consequências, como **provisório**; a regra de desambiguação continua
+  `[ABERTO]`, a Decisão não muda (memo `docs/reference/cli-decision.md`).
 
 ## Contexto
 
@@ -43,6 +46,29 @@ O Verso abre pela linha de comando, no modelo do `code .`: `verso <pasta>`.
   sem saída, busca, outline, propriedades, tags. `verso-cli` e `verso mcp`
   devem cobrir pelo menos essa superfície, melhor; o mapeamento está em
   `docs/reference/obsidian-cli.md`.
+
+**O que o código da feature 4 faz com a colisão acima. Registrado em
+2026-09-22 — provisório, o mantenedor decide ao acordar**, na linha 1 da §10 de
+`docs/reference/cli-decision.md`. É o que o binário faz hoje, não uma decisão;
+a regra de desambiguação acima continua `[ABERTO]`.
+
+- **Na Fase 1 o primeiro argumento é sempre um subcomando.** O conjunto é
+  `index`, `search` e `backlinks`, com `mcp` entrando na feature 6; `help`,
+  `--help` e `-h` imprimem o uso. Qualquer outra coisa na primeira posição é
+  erro de uso que nomeia o conjunto, com código de saída 2.
+- **A pasta é o primeiro argumento do subcomando** — `verso index <pasta>`,
+  `verso search <pasta> <palavras…>`, `verso backlinks <pasta> <nota>` — e não
+  há pasta padrão: omiti-la é erro de uso. Se o diretório atual fica implícito
+  é parte da mesma pergunta da Fase 2 que o `verso <pasta>`.
+- **`verso <pasta>` ainda não existe**, e não pode existir: abrir exige UI, que
+  é Fase 2 ([0034](0034-roadmap-in-phases.md)). Então nenhuma invocação da
+  Fase 1 exercita a ambiguidade que este ADR nomeia, e acrescentar o comando de
+  abertura depois é aditivo sobre a superfície acima.
+- **A regra que o memo recomenda para a Fase 2 é recomendação, não decisão
+  deste ADR**: um primeiro argumento que nomeia um diretório existente abre esse
+  diretório, senão é subcomando, com `verso open <pasta>` e `verso -- <pasta>`
+  como saídas de emergência para uma pasta com nome de subcomando. Nada no
+  código implementa isso.
 
 ## Alternativas descartadas
 

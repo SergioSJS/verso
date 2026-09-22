@@ -96,6 +96,33 @@ silêncio.
   placeholder é diretório: o padrão nomeia um arquivo cujo conteúdo está em
   outro lugar, e diretório não tem conteúdo próprio.
 
+**A decisão 2 agora é o que o código faz, e a lacuna que o memo da feature 4
+registrou fecha por código, não por uma decisão nova. Registrado em 2026-09-22 a
+partir do código da feature 4 — os detalhes abaixo são provisórios, o mantenedor
+decide ao acordar.**
+
+- **O índice carrega a marca.** A versão 2 do esquema do `verso-index`
+  acrescenta `notes.unverified`; um índice em qualquer outra versão é destruído
+  e reconstruído, o que custa só tempo porque o índice é cache
+  ([0011](0011-config-outside-tree-index-as-cache.md)).
+- **Uma nota que a varredura reporta como placeholder mantém a última versão
+  conhecida, marcada como não verificada** (`Index::mark_placeholder`, chamada
+  pela execução de indexação do `verso-core` nas duas formas: uma entrada do
+  tipo placeholder, e uma nota cuja leitura responde "conteúdo indisponível").
+  Nada da nota é descartado, e nada é relido de um arquivo que não tem conteúdo
+  para dar.
+- **Uma nota só vista como placeholder ganha uma linha vazia, não
+  verificada**, para que links até ela resolvam e o caminho dela seja um alvo
+  conhecido em vez de um alvo não resolvido. Antes disso, um vault cujos
+  arquivos nunca foram baixados indexava como um vault sem nota nenhuma.
+- **Isto fecha por código, e não por decisão nova, a tensão que a §7.2 de
+  `docs/reference/cli-decision.md` registrou**: a decisão 2 acima pedia "a
+  última versão conhecida, marcada como não verificada", e o esquema da feature
+  3 não tinha onde pôr a marca. Nada aqui muda o que este ADR decidiu; o que
+  fica registrado é que a decisão está implementada. O que significam os
+  backlinks *de* uma nota não verificada — os links dela foram parseados quando
+  ela era legível e continuam no índice — não é respondido aqui.
+
 ## Alternativas descartadas
 
 - Tratar arquivo não legível como ausente — é o comportamento que causa a perda
