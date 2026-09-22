@@ -5,7 +5,8 @@
 - Status in the briefing: `DECIDED`
 - Revisions: 2026-09-21 — guardrails split into "workspace" and "feature" ones;
   lines for checking WASM, generated types and `std::fs` added; atomic write
-  requirements and advisory policy recorded (Phase 0 review, C3, C9, R1, R10).
+  requirements and advisory policy recorded (Phase 0 review, C3, C9, R1, R10);
+  2026-09-22 — where each operating system runs, after the cost incident.
 
 ## Context
 
@@ -47,6 +48,13 @@ it. The two groups are separated below.
 
 CI on macOS and Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, plus the commands of the feature guardrails as they come in.
+
+A pull request runs the guardrails on Linux only; macOS runs on `main`, after
+each merge. Both operating systems are therefore checked where the code lands.
+The reason is cost: a macOS minute is billed at ten times a Linux one, and one
+day of pushes to stacked branches spent the private repository's whole monthly
+quota, after which GitHub stopped starting jobs. Maintainer's decision of
+2026-09-22.
 
 ### Atomic write requirements
 
