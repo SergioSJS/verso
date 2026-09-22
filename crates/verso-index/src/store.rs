@@ -228,14 +228,17 @@ impl Index {
 
     /// A placeholder stands where the note is (ADR 0043): the last known
     /// version stays, marked unverified; a note never seen before gets an
-    /// empty, unverified row, so that links to it resolve and its path is
-    /// known. Returns whether the note was already known.
+    /// empty, unverified row — in `notes` and, as an empty document, in
+    /// `notes_fts` — so that links to it resolve and its path is known.
+    /// Returns whether the note was already known.
     pub fn mark_placeholder(&mut self, relative: &str) -> Result<bool, IndexError> {
-        let known = self.conn.execute(
+        let tx = self.conn.transaction()?;
+        let known = tx.execute(
             "UPDATE notes SET unverified = 1 WHERE path = ?1",
             params![relative],
         )?;
         if known > 0 {
+            tx.commit()?;
             return Ok(true);
         }
         let (path_key, name_key) = note_keys(relative);
@@ -245,11 +248,21 @@ impl Index {
             .unwrap_or(relative)
             .trim_end_matches(".md")
             .to_owned();
-        self.conn.execute(
+        tx.execute(
             "INSERT INTO notes (path, path_key, name_key, title, modified, len, hash, unverified)
              VALUES (?1, ?2, ?3, ?4, 0, 0, 0, 1)",
             params![relative, path_key, name_key, title],
         )?;
+        // External content: `notes_fts` only knows the rows it was told
+        // about, and the next `forget` will tell it to delete this one.
+        // An empty document keeps the two tables in step; the transaction
+        // keeps them in step even if this second insert fails.
+        let id = tx.last_insert_rowid();
+        tx.execute(
+            "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, '')",
+            params![id, relative],
+        )?;
+        tx.commit()?;
         Ok(false)
     }
 
@@ -300,6 +313,32 @@ impl Index {
         let known = forget(&tx, relative)?;
         tx.commit()?;
         Ok(known)
+    }
+
+    /// Is the index whole? Two checks on `notes_fts`, whose content lives
+    /// in `notes` (external content). FTS5's own `integrity-check` proves
+    /// the full-text index agrees with what it was given; it cannot see a
+    /// note it was never given, so the second check counts documents:
+    /// FTS5 keeps one row per document in its `_docsize` shadow table, and
+    /// that count has to equal the notes. A note without its FTS document
+    /// is the corruption a placeholder once caused (ADR 0043): harmless
+    /// until the next `forget`, fatal then (`SQLITE_CORRUPT_VTAB`).
+    pub fn check(&self) -> Result<(), IndexError> {
+        self.conn.execute(
+            "INSERT INTO notes_fts (notes_fts) VALUES ('integrity-check')",
+            [],
+        )?;
+        let (notes, documents): (i64, i64) = self.conn.query_row(
+            "SELECT (SELECT count(*) FROM notes), (SELECT count(*) FROM notes_fts_docsize)",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if notes != documents {
+            return Err(IndexError::Corrupt(format!(
+                "{notes} notes but {documents} full-text documents"
+            )));
+        }
+        Ok(())
     }
 
     /// The stamp the index has for a note, to skip an unchanged file.

@@ -232,3 +232,48 @@ fn headings_and_blocks_come_back_with_positions() {
     assert_eq!((b[0].id.as_str(), b[0].line), ("abc", 3));
     assert!(index.headings_of("nope.md").unwrap().is_empty());
 }
+
+// ADR 0043, the sequence the CLI meets on an iCloud folder: a note the
+// index only ever saw as a placeholder gets a `notes` row and, since
+// `notes_fts` is an external-content table, must get its FTS row too —
+// or the next `'delete'` FTS5 issues for it corrupts the index for good
+// (`SQLITE_CORRUPT_VTAB`). `check()` is FTS5's own integrity-check, so
+// each step proves the index is whole, not merely that the call returned.
+
+#[test]
+fn a_placeholder_never_seen_before_can_be_removed() {
+    let mut index = Index::in_memory().unwrap();
+    assert!(!index.mark_placeholder("Um.md").unwrap());
+    index.check().unwrap();
+    assert!(index.remove("Um.md").unwrap());
+    index.check().unwrap();
+    assert_eq!(index.is_unverified("Um.md").unwrap(), None);
+}
+
+#[test]
+fn a_placeholder_never_seen_before_can_be_replaced_by_the_real_note() {
+    let mut index = Index::in_memory().unwrap();
+    assert!(!index.mark_placeholder("Um.md").unwrap());
+    put(&mut index, "Um.md", "baixada");
+    index.check().unwrap();
+    assert_eq!(index.search("baixada", 10).unwrap().len(), 1);
+    assert_eq!(index.is_unverified("Um.md").unwrap(), Some(false));
+}
+
+#[test]
+fn an_icloud_folder_with_everything_evicted_survives_one_download() {
+    // Three placeholders, nothing read yet: the FTS index has no document.
+    let mut index = Index::in_memory().unwrap();
+    for path in ["Um.md", "Dois.md", "Tres.md"] {
+        assert!(!index.mark_placeholder(path).unwrap());
+    }
+    index.check().unwrap();
+    // One file materialises; the folder is indexed again, twice.
+    put(&mut index, "Um.md", "[[Dois]]");
+    index.check().unwrap();
+    put(&mut index, "Um.md", "[[Dois]] de novo");
+    index.check().unwrap();
+    assert_eq!(index.backlinks("Dois.md").unwrap().len(), 1);
+    assert_eq!(index.search("novo", 10).unwrap().len(), 1);
+    assert_eq!(index.is_unverified("Dois.md").unwrap(), Some(true));
+}

@@ -40,6 +40,9 @@ pub use store::{Backlink, Block, Heading, Link, NoteStamp, Unresolved};
 pub enum IndexError {
     Sqlite(rusqlite::Error),
     Io(std::io::Error),
+    /// The index disagrees with itself; rebuilding it is the answer (it
+    /// is a cache, ADR 0011). The string says what was found.
+    Corrupt(String),
 }
 
 impl std::fmt::Display for IndexError {
@@ -47,6 +50,7 @@ impl std::fmt::Display for IndexError {
         match self {
             Self::Sqlite(e) => write!(f, "index: {e}"),
             Self::Io(e) => write!(f, "index file: {e}"),
+            Self::Corrupt(what) => write!(f, "index is corrupt: {what}"),
         }
     }
 }
