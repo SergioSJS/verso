@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.3
+# Spec do dialeto do Verso — v0.7
 
-- Versão: v0.3 · 2026-09-21
+- Versão: v0.7 · 2026-09-21
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -69,10 +69,21 @@ fixtures). Fixture que não segue o schema é inválida.
 | `observed` | como o comportamento foi verificado no Obsidian | ver 4.5 |
 | `source` | ADR ou questão que autoriza um comportamento próprio do Verso | ver 4.5 |
 
-**Chave ausente não afirma nada**; `links: []` afirma que não há link. A ordem
-das listas é a ordem em que a construção aparece no arquivo. Uma fixture afirma
-só o que lista: o parser pode produzir mais do que a fixture pede, nunca menos
-nem diferente.
+**Chave ausente não afirma nada.** Chave presente afirma de forma estrita: uma
+chave de lista afirma a lista inteira — mesmo tamanho, mesma ordem, nenhum item
+a mais —, de modo que `links: []` afirma que não há link, e a ordem de uma lista
+é a ordem em que a construção aparece no arquivo. O `frontmatter:` é um mapa,
+não uma lista, e é a única exceção: afirma cada chave que nomeia e não diz nada
+sobre as chaves que não nomeia, então um frontmatter pode ter mais chaves do que
+a fixture lista. Dentro de um item de lista, um campo **opcional** ausente
+afirma que o campo está ausente, enquanto um `pos` ausente não afirma nada
+(seções 4.2 e 4.3).
+
+Decidido em 2026-09-21 pelo mantenedor, pela leitura estrita, fechando o item 3
+de [`../review/phase-1-feature-1.md`](../review/phase-1-feature-1.md) §6. A
+redação anterior — "o parser pode produzir mais do que a fixture pede, nunca
+menos nem diferente" — é falsa para listas e saiu. Quem faz valer a regra é o
+harness de fixtures (`crates/verso-dialect/tests/fixtures.rs`).
 
 ### 4.2 Itens de `links` e `embeds`
 
@@ -618,35 +629,41 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 - **Q16. Arquivos não-Markdown na pasta.** `[ABERTO]`
   Quais entram no índice como alvo de link (imagens, PDF, `.canvas`) e quais são
   ignorados.
-- **Q17. Limite de tamanho e comportamento com arquivo malformado.** `[ABERTO]`
+- **Q17. Limite de tamanho e comportamento com arquivo malformado.**
+  `[ABERTO]` — a parte do frontmatter está `DECIDIDA` abaixo; o resto da
+  questão continua aberto.
   O fuzzing garante que não trava ([ADR 0029](../adr/0029-guardrails-in-ci.md)),
   mas o resultado esperado — erro, parse parcial ou arquivo tratado como texto —
   não está definido. Inclui limites de recurso: arquivo de centenas de MB, linha
   única de dezenas de MB, colchetes aninhados aos milhares (parser quadrático).
   Fuzzing pega crash, não lentidão; o limite e o que acontece ao ultrapassá-lo
-  precisam ser ditos.
+  precisam ser ditos. **Continua `[ABERTO]`**: tamanho de arquivo, comprimento
+  de linha e aninhamento ou lentidão do lado do Markdown. O mantenedor observou
+  em 2026-09-21 que "lento" precisa de resposta fora do parser — um timeout no
+  core, não no `verso-dialect` —, e essa resposta também não está decidida.
 
-  Registrado em 2026-09-21, e a questão continua `[ABERTO]`: desde a revisão do
-  PR do `verso-dialect` (`docs/review/phase-1-feature-1.md`) o código carrega
-  dois limites **provisórios** no frontmatter — no máximo 64 níveis de
-  aninhamento e no máximo 10 000 nós. Os dois são contados no fluxo de eventos
-  do YAML antes de existir qualquer árvore; um alias é cobrado pelo que o
-  loader clona no lugar dele, e o nível a mais que uma tag acrescenta também é
-  contado. Um frontmatter acima de qualquer um dos limites é reportado com o
-  seu span e com `values` como erro; o corpo continua sendo parseado e nada
-  mais no arquivo muda. Os dois números foram escolhidos para manter o `parse`
-  retornando para toda entrada (Q18, propriedade 1), não como resposta a esta
-  questão: são do mantenedor, e vivem como constantes `pub(crate)` em
+  **Limites do frontmatter: `DECIDIDO`** — pelo mantenedor em 2026-09-21, sobre
+  a revisão do PR do `verso-dialect`
+  ([`../review/phase-1-feature-1.md`](../review/phase-1-feature-1.md) §6,
+  item 1): no máximo **64 níveis** de aninhamento e no máximo **10 000 nós** em
+  um frontmatter. Os dois são contados no fluxo de eventos do YAML antes de
+  existir qualquer árvore; um alias é cobrado pelo que o loader clona no lugar
+  dele, e o nível a mais que uma tag fora do core acrescenta também é contado.
+  Um frontmatter acima de qualquer um dos limites é reportado com o seu span e
+  com `values` como erro; o corpo continua sendo parseado e nada mais no
+  arquivo muda. A justificativa que o mantenedor aceitou: um frontmatter real
+  tem dois ou três níveis e dezenas de nós, então números maiores só aumentam o
+  que um arquivo malicioso pode custar. Os dois números não são mais
+  provisórios; vivem como constantes `pub(crate)` em
   `crates/verso-dialect/src/frontmatter.rs`, fora da API pública. Nenhuma
-  fixture as afirma, porque uma fixture que responde a uma questão `[ABERTO]`
-  só entra no PR que fecha a questão
-  ([ADR 0031](../adr/0031-fixtures-as-contract.md)). Nada aqui cobre o resto da
-  Q17: tamanho de arquivo, comprimento de linha e aninhamento do lado do
-  Markdown continuam indefinidos. Do lado do Markdown há um fato e nenhum
-  limite: o guardrail de fuzz achou uma entrada de cerca de 5 KB em que o parser
-  base leva tempo exponencial — exatamente a "lentidão" que esta questão nomeia
-  —, registrada no [ADR 0037](../adr/0037-base-parser.md) e corrigida na `main`
-  upstream daquele parser.
+  fixture as afirma: nenhuma foi pedida no PR que fecha esta parte, e uma que
+  venha depois cita esta questão em `source:` (seção 4.5).
+
+  Do lado do Markdown há um fato e nenhum limite: o guardrail de fuzz achou uma
+  entrada de cerca de 5 KB em que o parser base leva tempo exponencial —
+  exatamente a "lentidão" que esta questão nomeia. Ela está registrada no
+  [ADR 0037](../adr/0037-base-parser.md), e o que fazer a respeito é daquele
+  ADR, não desta questão.
 
 ### Lacunas levantadas na revisão da Fase 0
 
@@ -731,3 +748,4 @@ ser escolhido.
 | v0.4 | 2026-09-21 | Q18 fechada pelo mantenedor: leitura (b), parser somente leitura com property test de round-trip de quatro propriedades (`docs/reference/parser-decision.md`, ADR 0037). Segunda questão fechada |
 | v0.5 | 2026-09-21 | Limites provisórios do frontmatter registrados sob a Q17 (64 níveis de aninhamento, 10 000 nós), vindos da revisão do PR do `verso-dialect` (`docs/review/phase-1-feature-1.md`). Nenhuma questão fechada |
 | v0.6 | 2026-09-21 | Q3 fechada pelo mantenedor para o fim de um parágrafo e o fim de um item de lista, com a fixture `fixtures/block/list-item` como resposta e a §5.7 atualizada; o `^id` em linha própria depois de linha em branco, num heading e depois de bloco de várias linhas continuam em aberto, e a Q4 também |
+| v0.7 | 2026-09-21 | Q17 fechada pelo mantenedor na parte do frontmatter (64 níveis de aninhamento, 10 000 nós), com o resto da questão continuando `[ABERTO]`; contradição dentro da §4.1 resolvida pela leitura estrita (chave de lista afirma a lista inteira). Terceira questão fechada, em parte |
