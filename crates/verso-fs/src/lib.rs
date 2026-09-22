@@ -186,6 +186,18 @@ impl Root {
     /// to a file that does not exist is legal and its read fails later with
     /// `NotFound`.
     pub fn handle(&mut self, relative: &Path) -> Result<Handle, ConfinementError> {
+        let relative = self.confine(relative)?;
+        Ok(self.intern(relative))
+    }
+
+    /// What [`Root::handle`] checks, without keeping a handle: the confined
+    /// form of a path relative to the root — `.` dropped, `//` collapsed —
+    /// or why it is refused. Nothing on disk is checked and nothing is
+    /// remembered, so a caller that only needs to key the index by a path
+    /// asks here, and keys by the answer, never by the string it was
+    /// given: `./Taverna.md`, `Taverna//x/../Taverna.md` and `Taverna.md`
+    /// are refused or become one name.
+    pub fn confine(&self, relative: &Path) -> Result<PathBuf, ConfinementError> {
         let relative = confine::confine(relative)?;
         // The placeholder name form outranks the hidden rule here as in the
         // walk (ADR 0043), so a walked placeholder can be named again.
@@ -201,7 +213,7 @@ impl Root {
         if self.is_ignored(&relative) {
             return Err(ConfinementError::Ignored);
         }
-        Ok(self.intern(relative))
+        Ok(relative)
     }
 
     /// Walk the folder: every entry that is not ignored, in a deterministic
