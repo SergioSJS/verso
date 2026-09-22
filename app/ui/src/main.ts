@@ -46,6 +46,9 @@ type Strings = {
   yours: string;
   theirs: string;
   discard: string;
+  lessonTitle: string;
+  lessonBody: string;
+  lessonKeys: string;
 };
 
 const pt: Strings = {
@@ -77,6 +80,9 @@ const pt: Strings = {
   yours: "seu",
   theirs: "disco",
   discard: "Há mudanças não salvas nesta nota. Descartar?",
+  lessonTitle: "Abra uma pasta de notas.",
+  lessonBody: "Tudo fica nos seus arquivos Markdown, como no Obsidian. Nada é reescrito sem você pedir.",
+  lessonKeys: "⌘O abre uma pasta · ⌘K busca · ⌘E alterna leitura e edição",
 };
 
 const en: Strings = {
@@ -108,6 +114,9 @@ const en: Strings = {
   yours: "yours",
   theirs: "disk",
   discard: "This note has unsaved changes. Discard them?",
+  lessonTitle: "Open a folder of notes.",
+  lessonBody: "Everything stays in your Markdown files, as in Obsidian. Nothing is rewritten unless you ask.",
+  lessonKeys: "⌘O opens a folder · ⌘K searches · ⌘E toggles reading and editing",
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -151,15 +160,31 @@ const ui = {
   backlinks: el<HTMLUListElement>("backlinks"),
 };
 
-ui.open.textContent = t.open;
+ui.open.setAttribute("aria-label", t.open);
+ui.open.title = `${t.open} (⌘O)`;
 ui.reindex.textContent = t.reindex;
 ui.search.placeholder = t.search;
 ui.searchLabel.textContent = t.search;
 ui.notesHeading.textContent = t.notes;
 ui.backlinksHeading.textContent = t.backlinks;
 ui.outlineHeading.textContent = t.outline;
-ui.folder.textContent = t.noFolder;
-ui.noteTitle.textContent = t.pick;
+ui.folder.dataset["empty"] = t.noFolder;
+
+const page = document.querySelector<HTMLElement>(".page");
+function lesson(): void {
+  page?.classList.add("empty");
+  const box = document.createElement("div");
+  box.className = "lesson";
+  const h = document.createElement("h1");
+  h.textContent = t.lessonTitle;
+  const p = document.createElement("p");
+  p.textContent = t.lessonBody;
+  const k = document.createElement("p");
+  k.textContent = t.lessonKeys;
+  box.append(h, p, k);
+  ui.preview.replaceChildren(box);
+}
+lesson();
 ui.modePreview.textContent = t.showPreview;
 ui.modeLive.textContent = t.showLive;
 ui.modeSource.textContent = t.showSource;
@@ -311,6 +336,7 @@ async function listAll(): Promise<void> {
   const r = await commands.listNotes();
   if (r.status !== "ok") return fail(r.error);
   ui.notes.replaceChildren(...Array.from(renderTree(tree(r.data), 0).children));
+  Array.from(ui.notes.children).forEach((li, i) => (li as HTMLElement).style.setProperty("--i", String(i)));
   ui.notes.className = "tree";
   if (r.data.length === 0) {
     const li = document.createElement("li");
@@ -366,6 +392,7 @@ function applyView(): void {
   ui.modeSource.setAttribute("aria-pressed", String(mode === "source"));
   editor.dispatch({ effects: liveCompartment.reconfigure(mode === "live" ? live : []) });
   ui.editor.classList.toggle("live", mode === "live");
+  ui.editor.classList.toggle("source", mode === "source");
   if (mode !== "preview") editor.focus();
 }
 
@@ -633,8 +660,8 @@ async function openPath(path: string): Promise<boolean> {
   } catch {
     // A webview without storage: nothing to remember, nothing lost.
   }
-  ui.folder.textContent = r.data.folder;
-  ui.folder.title = r.data.folder;
+  ui.folder.textContent = r.data.folder.split("/").filter(Boolean).pop() ?? r.data.folder;
+  ui.open.title = `${r.data.folder} — ${t.open} (⌘O)`;
   const i = r.data.index;
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   return true;
@@ -648,6 +675,7 @@ async function openFolder(): Promise<void> {
 
 async function openPicked(picked: string): Promise<void> {
   if (!(await openPath(picked))) return;
+  page?.classList.remove("empty");
   ui.reindex.disabled = false;
   ui.search.disabled = false;
   ui.search.value = "";
@@ -699,3 +727,21 @@ try {
 } catch {
   // No storage: start empty.
 }
+
+// ⌘O opens a folder, ⌘K goes to search, ⌘E toggles reading and editing.
+document.addEventListener("keydown", (e) => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  const k = e.key.toLowerCase();
+  if (k === "o") {
+    e.preventDefault();
+    void openFolder();
+  } else if (k === "k" && !ui.search.disabled) {
+    e.preventDefault();
+    ui.search.focus();
+    ui.search.select();
+  } else if (k === "e" && current !== null) {
+    e.preventDefault();
+    mode = mode === "preview" ? "live" : "preview";
+    applyView();
+  }
+});

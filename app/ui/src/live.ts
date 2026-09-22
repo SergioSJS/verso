@@ -119,7 +119,10 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           if (!shown) for (const m of node.node.getChildren("QuoteMark")) hide(m.from, Math.min(m.to + 1, node.to));
         } else if (name === "ListItem") {
           const line = doc.lineAt(node.from);
-          out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-li" }) });
+          const mark = node.node.getChild("ListMark");
+          const bullet = mark !== null && /^[-*+]$/.test(doc.sliceString(mark.from, mark.to));
+          out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: bullet ? "cm-lp-li cm-lp-bullet" : "cm-lp-li" }) });
+          if (bullet && mark && !touched(line.from, line.to)) hide(mark.from, Math.min(mark.to + 1, line.to));
         } else if (name === "Link" && !shown) {
           out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-link" }) });
           const url = node.node.getChild("URL");
