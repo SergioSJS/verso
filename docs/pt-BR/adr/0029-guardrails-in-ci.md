@@ -6,7 +6,8 @@
 - Revisões: 2026-09-21 — guardrails separados em "de workspace" e "de feature";
   linhas de verificação de WASM, tipos gerados e `std::fs` acrescentadas;
   requisitos da escrita atômica e política de advisories registrados (revisão da
-  Fase 0, C3, C9, R1, R10).
+  Fase 0, C3, C9, R1, R10); 2026-09-22 — onde cada sistema operacional roda,
+  depois do incidente de custo.
 
 ## Contexto
 
@@ -48,6 +49,13 @@ com ela. Os dois grupos estão separados abaixo.
 
 CI em macOS e Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, mais os comandos dos guardrails de feature conforme entram.
+
+Um pull request roda os guardrails só no Linux; o macOS roda no `main`, depois
+de cada merge. Os dois sistemas operacionais ficam, portanto, verificados onde o
+código aterrissa. O motivo é custo: o minuto de macOS é cobrado a dez vezes o de
+Linux, e um dia de pushes em branches empilhadas gastou a cota mensal inteira do
+repositório privado, depois do que o GitHub parou de iniciar jobs. Decisão do
+mantenedor de 2026-09-22.
 
 ### Requisitos da escrita atômica
 
