@@ -14,13 +14,15 @@
 //! Provisional (`docs/reference/cli-decision.md`, the maintainer decides):
 //! where the configuration directory is ([`config_dir`]); that a second
 //! `index` run re-reads every note and skips the ones whose stamp the
-//! index already has; that a note the walk reported a problem for, or a
-//! placeholder (ADR 0043), is never removed from the index.
+//! index already has; that a note under a path the walk reported a
+//! problem for, or a placeholder (ADR 0043), is never removed from the
+//! index.
 
-use std::path::{Path, PathBuf};
+use std::collections::HashSet;
+use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use verso_fs::{EntryKind, Root};
+use verso_fs::{EntryKind, Problem, Root};
 use verso_index::{Backlink, Hit, Index, NoteStamp, Unresolved};
 
 /// Why the workspace could not be opened or refreshed.
@@ -28,6 +30,9 @@ use verso_index::{Backlink, Hit, Index, NoteStamp, Unresolved};
 pub enum CoreError {
     Folder(std::io::Error),
     Index(verso_index::IndexError),
+    /// No configuration directory can be named: neither `VERSO_CONFIG_DIR`
+    /// nor `XDG_CONFIG_HOME` nor `HOME` is set. Never a relative fallback.
+    NoConfigDir,
 }
 
 impl std::fmt::Display for CoreError {
@@ -35,6 +40,10 @@ impl std::fmt::Display for CoreError {
         match self {
             Self::Folder(e) => write!(f, "folder: {e}"),
             Self::Index(e) => write!(f, "{e}"),
+            Self::NoConfigDir => write!(
+                f,
+                "no configuration directory: HOME, XDG_CONFIG_HOME and VERSO_CONFIG_DIR are all unset"
+            ),
         }
     }
 }
@@ -44,38 +53,104 @@ impl std::error::Error for CoreError {}
 /// The configuration directory (ADR 0011): `$VERSO_CONFIG_DIR` if set (tests,
 /// sensitive setups), else `$XDG_CONFIG_HOME/verso` if set, else
 /// `~/Library/Application Support/verso` on macOS and `~/.config/verso`
-/// elsewhere. Provisional.
-#[must_use]
-pub fn config_dir() -> PathBuf {
+/// elsewhere. Without any of the three it is an error, never a path
+/// relative to the current directory. Provisional.
+pub fn config_dir() -> Result<PathBuf, CoreError> {
     let get = |name: &str| std::env::var_os(name).filter(|v| !v.is_empty());
     config_dir_from(
         get("VERSO_CONFIG_DIR").as_deref(),
         get("XDG_CONFIG_HOME").as_deref(),
-        &get("HOME").map(PathBuf::from).unwrap_or_default(),
+        get("HOME").map(PathBuf::from).as_deref(),
         cfg!(target_os = "macos"),
     )
+    .ok_or(CoreError::NoConfigDir)
 }
 
-/// [`config_dir`] as a pure function of its inputs, for tests.
+/// [`config_dir`] as a pure function of its inputs, for tests. `None`
+/// when nothing names a directory.
 #[must_use]
 pub fn config_dir_from(
     verso: Option<&std::ffi::OsStr>,
     xdg: Option<&std::ffi::OsStr>,
-    home: &Path,
+    home: Option<&Path>,
     macos: bool,
-) -> PathBuf {
+) -> Option<PathBuf> {
     if let Some(dir) = verso {
-        return PathBuf::from(dir);
+        return Some(PathBuf::from(dir));
     }
     if let Some(xdg) = xdg {
-        return PathBuf::from(xdg).join("verso");
+        return Some(PathBuf::from(xdg).join("verso"));
     }
-    if macos {
+    let home = home?;
+    Some(if macos {
         home.join("Library")
             .join("Application Support")
             .join("verso")
     } else {
         home.join(".config").join("verso")
+    })
+}
+
+/// A problem the walk reported, in the shape the CLI and the contract
+/// print: the path is relative to the folder; the `Io` text is the
+/// operating system's and is not translated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WalkProblem {
+    /// A symlink loop: `path` leads back to `first_seen`, higher up.
+    Loop { path: String, first_seen: String },
+    /// A directory already walked as `first_seen`; walked once.
+    Duplicate { path: String, first_seen: String },
+    /// Nesting deeper than `verso-fs` descends.
+    TooDeep { path: String },
+    /// The entry could not be examined.
+    Io {
+        path: String,
+        kind: String,
+        error: String,
+    },
+}
+
+impl WalkProblem {
+    /// The path the problem is about; everything under it is protected
+    /// from removal on that run.
+    #[must_use]
+    pub fn path(&self) -> &str {
+        match self {
+            Self::Loop { path, .. }
+            | Self::Duplicate { path, .. }
+            | Self::TooDeep { path }
+            | Self::Io { path, .. } => path,
+        }
+    }
+}
+
+impl From<&Problem> for WalkProblem {
+    fn from(problem: &Problem) -> Self {
+        let text = |p: &Path| p.to_string_lossy().into_owned();
+        match problem {
+            Problem::Loop {
+                relative,
+                first_seen,
+            } => Self::Loop {
+                path: text(relative),
+                first_seen: text(first_seen),
+            },
+            Problem::Duplicate {
+                relative,
+                first_seen,
+            } => Self::Duplicate {
+                path: text(relative),
+                first_seen: text(first_seen),
+            },
+            Problem::DepthExceeded { relative } => Self::TooDeep {
+                path: text(relative),
+            },
+            Problem::Io { relative, error } => Self::Io {
+                path: text(relative),
+                kind: error.kind().to_string(),
+                error: error.to_string(),
+            },
+        }
     }
 }
 
@@ -92,8 +167,8 @@ pub struct IndexReport {
     pub placeholders: usize,
     /// Notes the walk listed but that could not be read, with the error.
     pub unreadable: Vec<(String, String)>,
-    /// Problems the walk reported, as text.
-    pub problems: Vec<String>,
+    /// Problems the walk reported.
+    pub problems: Vec<WalkProblem>,
 }
 
 /// An open folder with its index.
@@ -111,13 +186,42 @@ impl std::fmt::Debug for Workspace {
     }
 }
 
+/// `folder` absolute and normalized: `.` and a trailing separator
+/// dropped, so `vault`, `vault/` and `vault/.` key one index. `..` is
+/// kept: resolving it would mean following symlinks, which is `verso-fs`'s
+/// business (ADR 0044).
+fn normalized(folder: &Path) -> Result<PathBuf, std::io::Error> {
+    let absolute = std::path::absolute(folder)?;
+    Ok(absolute
+        .components()
+        .filter(|c| !matches!(c, Component::CurDir))
+        .collect())
+}
+
+fn seconds_since_epoch(t: std::time::SystemTime) -> i64 {
+    t.duration_since(UNIX_EPOCH)
+        .map(|d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+        .unwrap_or(0)
+}
+
+fn note_stamp(stamp: &verso_fs::Stamp) -> NoteStamp {
+    NoteStamp {
+        modified: seconds_since_epoch(stamp.modified),
+        len: stamp.len,
+        hash: stamp.hash,
+    }
+}
+
 impl Workspace {
-    /// Open `folder` with its index under `config_dir()` (or the given
+    /// Open `folder` with its index under [`config_dir`] (or the given
     /// directory). Nothing is read yet.
     pub fn open(folder: &Path, config: Option<&Path>) -> Result<Self, CoreError> {
         let root = Root::open(folder, Vec::new()).map_err(CoreError::Folder)?;
-        let folder = std::path::absolute(folder).map_err(CoreError::Folder)?;
-        let config = config.map_or_else(config_dir, Path::to_path_buf);
+        let folder = normalized(folder).map_err(CoreError::Folder)?;
+        let config = match config {
+            Some(dir) => dir.to_path_buf(),
+            None => config_dir()?,
+        };
         let file = config.join("index").join(Index::file_name_for(&folder));
         let index = Index::open(file).map_err(CoreError::Index)?;
         Ok(Self {
@@ -127,36 +231,45 @@ impl Workspace {
         })
     }
 
-    /// The folder, absolute.
+    /// The folder, absolute and normalized.
     #[must_use]
     pub fn folder(&self) -> &Path {
         &self.folder
     }
 
-    /// Walk the folder and bring the index up to date.
+    /// Where the index file is.
+    #[must_use]
+    pub fn index_path(&self) -> &Path {
+        self.index.path()
+    }
+
+    /// Walk the folder and bring the index up to date. A note the walk no
+    /// longer lists is removed, unless it lies under a path the walk
+    /// reported a problem for: an unreadable directory does not empty the
+    /// graph beneath it.
     pub fn index(&mut self) -> Result<IndexReport, CoreError> {
         let walk = self.root.walk();
         let mut report = IndexReport::default();
-        let mut present: Vec<String> = Vec::new();
+        let mut present: HashSet<String> = HashSet::new();
         for entry in &walk.entries {
             let relative = entry.relative.to_string_lossy().into_owned();
             match &entry.kind {
                 EntryKind::Note => {
-                    present.push(relative.clone());
+                    present.insert(relative.clone());
                     match self.root.read(entry.handle) {
                         Ok((bytes, stamp)) => {
-                            let stamp = NoteStamp {
-                                modified: stamp
-                                    .modified
-                                    .duration_since(UNIX_EPOCH)
-                                    .map(|d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
-                                    .unwrap_or(0),
-                                len: stamp.len,
-                                hash: stamp.hash,
-                            };
-                            if self.index.stamp_of(&relative).map_err(CoreError::Index)?
-                                == Some(stamp)
-                            {
+                            let stamp = note_stamp(&stamp);
+                            let same = self.index.stamp_of(&relative).map_err(CoreError::Index)?
+                                == Some(stamp);
+                            // A row left unverified by a placeholder is
+                            // re-read even when its stamp matches: reading
+                            // the note is what verifies it (ADR 0043).
+                            let unverified = self
+                                .index
+                                .is_unverified(&relative)
+                                .map_err(CoreError::Index)?
+                                .unwrap_or(false);
+                            if same && !unverified {
                                 report.unchanged += 1;
                                 continue;
                             }
@@ -187,28 +300,34 @@ impl Workspace {
                             .mark_placeholder(&real)
                             .map_err(CoreError::Index)?;
                     }
-                    present.push(real);
+                    present.insert(real);
                     report.placeholders += 1;
                 }
                 EntryKind::File | EntryKind::Directory => {}
             }
         }
-        for problem in &walk.problems {
-            report.problems.push(format!("{problem:?}"));
-            if let verso_fs::Problem::Io { relative, .. } = problem {
-                // Not walked because of an error: do not treat as gone.
-                present.push(relative.to_string_lossy().into_owned());
-            }
-        }
+        report.problems = walk.problems.iter().map(WalkProblem::from).collect();
+        // Not walked because of a problem: nothing under it is gone. The
+        // root itself (an empty path) protects every note.
+        let protected: Vec<&str> = report.problems.iter().map(WalkProblem::path).collect();
+        let under_problem = |note: &str| {
+            protected.iter().any(|p| {
+                p.is_empty()
+                    || note == *p
+                    || note
+                        .strip_prefix(p)
+                        .is_some_and(|rest| rest.starts_with('/'))
+            })
+        };
         for known in self.index.notes().map_err(CoreError::Index)? {
-            if !present.contains(&known) && self.index.remove(&known).map_err(CoreError::Index)? {
+            if !present.contains(&known)
+                && !under_problem(&known)
+                && self.index.remove(&known).map_err(CoreError::Index)?
+            {
                 report.removed += 1;
             }
         }
-        let now = std::time::SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
-            .unwrap_or(0);
+        let now = seconds_since_epoch(std::time::SystemTime::now());
         self.index
             .set_root(&self.folder.to_string_lossy(), now)
             .map_err(CoreError::Index)?;
@@ -219,15 +338,39 @@ impl Workspace {
         self.index.search(words, limit).map_err(CoreError::Index)
     }
 
-    /// Backlinks of a note given by its path relative to the folder, with
-    /// or without `.md`.
-    pub fn backlinks(&self, note: &str) -> Result<Vec<Backlink>, CoreError> {
-        let path = if note.ends_with(".md") {
+    /// The path of a note as the index keys it: relative, with `.md`.
+    fn note_path(note: &str) -> String {
+        if note.ends_with(".md") {
             note.to_owned()
         } else {
             format!("{note}.md")
-        };
-        self.index.backlinks(&path).map_err(CoreError::Index)
+        }
+    }
+
+    /// Backlinks of a note given by its path relative to the folder, with
+    /// or without `.md`; `None` when the index does not know the note.
+    pub fn backlinks(&self, note: &str) -> Result<Option<Vec<Backlink>>, CoreError> {
+        let path = Self::note_path(note);
+        if self
+            .index
+            .stamp_of(&path)
+            .map_err(CoreError::Index)?
+            .is_none()
+        {
+            return Ok(None);
+        }
+        self.index
+            .backlinks(&path)
+            .map(Some)
+            .map_err(CoreError::Index)
+    }
+
+    /// Whether the index holds the note only as an unverified last version
+    /// (ADR 0043); `None` when it does not know the note.
+    pub fn is_unverified(&self, note: &str) -> Result<Option<bool>, CoreError> {
+        self.index
+            .is_unverified(&Self::note_path(note))
+            .map_err(CoreError::Index)
     }
 
     pub fn unresolved(&self) -> Result<Vec<Unresolved>, CoreError> {
