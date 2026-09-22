@@ -14,6 +14,9 @@
   2026-09-21 — um segundo defeito da mesma versão, tempo de parsing
   exponencial, registrado nas Consequências, vindo da quarta leitura daquele
   PR. Decisão e Status inalterados.
+  2026-09-21 — a saída do mantenedor para esses dois defeitos registrados nas
+  Consequências: construir a base a partir da revisão upstream que os corrige,
+  até o release seguinte à 0.13.4. Decisão e Status inalterados.
 
 ## Contexto
 
@@ -105,16 +108,17 @@ leitura, edições por patch textual; `docs/spec/dialect.md` §9):
   `features = ["std"]` junto com `default-features = false`; uma cópia de
   rascunho do crate nessa revisão passou em todos os testes daqui e em 6 M
   execuções de fuzz, e o `comrak` 0.55 — o fallback do item 2 da Decisão —
-  também sobrevive à entrada. Enquanto isso o repositório registra o panic em
-  vez de contorná-lo: a entrada é um teste de regressão em
+  também sobrevive à entrada. Até a decisão abaixo, o repositório registrou o
+  panic em vez de contorná-lo: a entrada foi mantida como teste de regressão em
   `crates/verso-dialect/tests/regressions.rs`, com `#[ignore]` e a condição
   para tirar o `#[ignore]` escrita nele (a base parar de dar panic ali); ela
-  **não** é semente de fuzz, porque o libFuzzer roda as sementes da menor para
-  a maior e esta encerrava todo job de fuzz antes da primeira mutação; e o job
-  de fuzz roda o seu orçamento a partir da semente restante. **A saída é do
-  mantenedor:** esperar o release upstream, fixar a revisão de git — o que
-  também exige mexer em `[sources]` no `deny.toml`, onde `unknown-git` está
-  como `deny` — ou trocar para o fallback `comrak` já registrado no item 2.
+  deliberadamente **não** era semente de fuzz, porque o libFuzzer roda as
+  sementes da menor para a maior e esta encerrava todo job de fuzz antes da
+  primeira mutação; e o job de fuzz rodava o seu orçamento a partir da semente
+  restante. **A saída era do mantenedor:** esperar o release upstream, fixar a
+  revisão de git — o que também exigia mexer em `[sources]` no `deny.toml`,
+  onde `unknown-git` está como `deny` — ou trocar para o fallback `comrak` já
+  registrado no item 2.
 - **O `pulldown-cmark` 0.13.4 também leva tempo exponencial em certas
   entradas**, registrado em 2026-09-21 pela quarta leitura do PR da feature 1,
   que a achou com o guardrail de fuzz: uma entrada UTF-8 de 5 068 bytes em que o
@@ -126,13 +130,34 @@ leitura, edições por patch textual; `docs/spec/dialect.md` §9):
   `verso-dialect` é linear sobre os eventos dela. Esta é a "lentidão" que a Q17
   de `docs/spec/dialect.md` já nomeia, e contradiz o propósito que o
   [0029](0029-guardrails-in-ci.md) declara para o guardrail de fuzz. Duas
-  consequências enquanto isso durar: o job de fuzz do CI pode ficar vermelho em
-  qualquer PR ao achar a entrada de novo (não visto em execuções de 60 segundos,
-  visto uma vez numa de 600 segundos), e o reprodutor é um segundo teste de
-  regressão com `#[ignore]`, que lê
-  `crates/verso-dialect/tests/data/pulldown-0.13.4-exponential.txt`. **A saída é
-  o mesmo trio de opções do panic, e a mesma decisão**, já que os dois defeitos
-  não existem na `main` upstream.
+  consequências enquanto isso durou: o job de fuzz do CI podia ficar vermelho
+  em qualquer PR ao achar a entrada de novo (não visto em execuções de 60
+  segundos, visto uma vez numa de 600 segundos), e o reprodutor era um segundo
+  teste de regressão com `#[ignore]`, que lê
+  `crates/verso-dialect/tests/data/pulldown-0.13.4-exponential.txt`. **A saída
+  era o mesmo trio de opções do panic, e a mesma decisão**, já que os dois
+  defeitos não existem na `main` upstream.
+- **A base é construída a partir da revisão upstream `c51a2a4` até o release
+  seguinte à 0.13.4**, decisão do mantenedor em 2026-09-21 sobre as três saídas
+  que os dois itens acima deixam em aberto. Os dois defeitos já estão
+  corrigidos nessa revisão e não há release de onde tirar a correção, então o
+  `Cargo.toml` do workspace e o harness de fuzz — pacote próprio — levam o
+  mesmo `[patch.crates-io]`, e o `deny.toml` ganha um `allow-git` restrito a
+  esse único repositório, com a justificativa escrita no lugar e prazo de
+  validade 2026-12-31, como exige a política de exceções do
+  [0029](0029-guardrails-in-ci.md). As outras duas saídas não foram tomadas: o
+  `comrak` trocaria a base para escapar de um bug que já está corrigido, e
+  esperar o release deixa o job de fuzz do CI vermelho de forma intermitente e
+  dois testes de regressão ignorados indefinidamente. Elas ficam registradas
+  aqui e não nas Alternativas descartadas porque eram saídas desta
+  consequência, não alternativas à Decisão. Os dois testes de regressão em
+  `crates/verso-dialect/tests/regressions.rs` perdem, portanto, o `#[ignore]`,
+  e as duas entradas passam a ser sementes de fuzz, já que uma semente só é
+  acrescentada depois de passar. O fio de disparo é uma proibição do
+  `cargo-deny` a `pulldown-cmark >= 0.13.5` cuja justificativa nomeia a ação do
+  dia em que ela disparar: rodar esses dois testes no release e então remover o
+  patch, a entrada `allow-git` e a proibição juntos, num PR só. Se nenhum
+  release chegar até o prazo, a decisão volta para o mantenedor.
 
 ## Alternativas descartadas
 

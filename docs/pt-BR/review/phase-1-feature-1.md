@@ -7,9 +7,13 @@
 - Item do roadmap: Fase 1, feature 1 — `verso-dialect`, parsing de links, blocos, headings e frontmatter ([`../roadmap.md`](../roadmap.md)).
 - Estado: todo achado BLOQUEANTE das quatro leituras está resolvido em código,
   e a quarta leitura não achou nenhum: o veredito dela é que a branch pode ser
-  mesclada como resolução da revisão original. Seis itens estão **pendentes do
-  mantenedor** e aparecem na seção 6; nenhum deles é decidido aqui. Dois deles
-  ganharam registro em `docs/` no mesmo PR deste documento: os limites
+  mesclada como resolução da revisão original. Seis itens estavam **pendentes
+  do mantenedor** e aparecem na seção 6; nenhum deles é decidido aqui. Dois dos
+  seis — os dois defeitos do `pulldown-cmark` 0.13.4 e a lacuna no que o CI
+  anuncia — foram decididos pelo mantenedor em 2026-09-21 e estão marcados como
+  decididos naquela seção, de modo que quatro dos seis continuam pendentes.
+  Dois deles ganharam registro em `docs/` no mesmo PR deste documento: os
+  limites
   provisórios do frontmatter sob a Q17 de
   [`../spec/dialect.md`](../spec/dialect.md) §9, e os dois defeitos do
   `pulldown-cmark` 0.13.4 nas Consequências do
@@ -164,9 +168,9 @@ Nada nesta lista é decidido aqui.
    ([ADR 0031](../adr/0031-fixtures-as-contract.md); `CLAUDE.md` invariante 17).
    Outros números considerados: nenhum registrado — os dois foram escolhidos
    para manter o `parse` retornando, não como resposta à Q17.
-2. **Os dois defeitos do `pulldown-cmark` 0.13.4.** O primeiro: a entrada de
-   dez bytes `- [a]:b` seguida de uma linha com dois tabs dá panic dentro do
-   parser base, o que contradiz o que o
+2. **Os dois defeitos do `pulldown-cmark` 0.13.4** — **decidido em
+   2026-09-21.** O primeiro: a entrada de dez bytes `- [a]:b` seguida de uma
+   linha com dois tabs dá panic dentro do parser base, o que contradiz o que o
    [ADR 0037](../adr/0037-base-parser.md) esperava dele e viola a propriedade 1
    da Q18 (issue upstream #1129). O segundo, achado pelo guardrail de fuzz em
    `71a4bcd`: uma entrada UTF-8 de 5 068 bytes em que o parser base leva tempo
@@ -184,8 +188,21 @@ Nada nesta lista é decidido aqui.
    `deny.toml`; ou trocar para o fallback `comrak` do item 2 da Decisão daquele
    ADR. Uma cópia de rascunho do crate em `c51a2a4` passou em todos os testes e
    em 6 M execuções de fuzz, e o `comrak` 0.55 também sobrevive à entrada de dez
-   bytes. Os dois reprodutores ficam em
-   `crates/verso-dialect/tests/regressions.rs`, com `#[ignore]`.
+   bytes. Os dois reprodutores ficaram em
+   `crates/verso-dialect/tests/regressions.rs`, com `#[ignore]`, até a decisão
+   abaixo.
+   **O mantenedor decidiu em 2026-09-21** pela segunda saída: o workspace e o
+   harness de fuzz constroem o `pulldown-cmark` a partir da revisão upstream
+   `c51a2a4` via `[patch.crates-io]`, com `allow-git` no `deny.toml` restrito a
+   esse único repositório e prazo de validade 2026-12-31 (política de exceções
+   do [ADR 0029](../adr/0029-guardrails-in-ci.md)), até o release seguinte à
+   0.13.4. O `comrak` não foi tomado porque trocaria a base para escapar de um
+   bug que já está corrigido; esperar não foi tomado porque deixa o job de fuzz
+   vermelho de forma intermitente e os dois testes ignorados indefinidamente.
+   Os dois testes perdem, portanto, o `#[ignore]`, e as duas entradas passam a
+   ser sementes de fuzz. Registrado nas Consequências do
+   [ADR 0037](../adr/0037-base-parser.md), cuja Decisão e cujo Status não
+   mudaram.
 3. **A contradição dentro da spec §4.1.** O mesmo parágrafo diz
    "`links: []` afirma que não há link" e "o parser pode produzir mais do que a
    fixture pede, nunca menos e nunca diferente". O harness de fixtures resolveu
@@ -204,12 +221,21 @@ Nada nesta lista é decidido aqui.
    um item de lista tight não é, porque a base não emite evento de parágrafo
    ali. Isso é efeito do parser base, não escolha: nada foi implementado num
    sentido ou no outro, e a Q3 ("posição admissível do `^id`") está `[ABERTO]`.
-6. **Nada no CI anuncia o release upstream.** Desde que a entrada de dez bytes
-   deixou de ser semente de fuzz (terceira leitura, achado 1), os dois testes de
-   regressão com `#[ignore]` do item 2 podem ficar ignorados indefinidamente,
+6. **Nada no CI anuncia o release upstream** — **decidido em 2026-09-21.**
+   Desde que a entrada de dez bytes deixou de ser semente de fuzz (terceira
+   leitura, achado 1), os dois testes de regressão com `#[ignore]` do item 2
+   podem ficar ignorados indefinidamente,
    inclusive atravessando um `cargo update` que traga a correção. A quarta
    leitura registra duas opções e não escolhe nenhuma: um passo de CI não
    bloqueante que rode os testes ignorados, para que um verde fique visível; ou
    uma proibição no `deny.toml` de `pulldown-cmark > 0.13.4` cuja justificativa
    nomeie o teste a designorar, para que a própria atualização quebre o build
    até alguém olhar. Outras opções consideradas: nenhuma registrada.
+   **O mantenedor decidiu em 2026-09-21** pela segunda opção, como fio de
+   disparo do patch decidido no item 2: o `deny.toml` proíbe
+   `pulldown-cmark >= 0.13.5` — o `>` não casa no cargo-deny 0.20.2, daí o
+   `>=` — e a justificativa dela nomeia a ação do dia em que disparar, que é
+   rodar os dois testes de regressão no release e então remover o patch, a
+   entrada `allow-git` e a proibição juntos. O passo de CI não bloqueante fica
+   desnecessário assim que esses testes deixam de ser ignorados. Registrado nas
+   Consequências do [ADR 0037](../adr/0037-base-parser.md).
