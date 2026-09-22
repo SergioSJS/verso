@@ -7,7 +7,10 @@
   mantenedor sobre o memo
   [`docs/reference/fs-decision.md`](../reference/fs-decision.md); o watcher
   colocado depois da feature 2; o grupo dos handles opacos intocado e ainda
-  `[ABERTO]`.
+  `[ABERTO]`. 2026-09-22 — fatos do código da feature 2 registrados dentro dos
+  dois grupos decididos: o caminho de escrita de um symlink (decidido, decorre
+  da escolha) e três itens marcados como **provisórios**, para o mantenedor
+  confirmar ou mudar.
 
 ## Contexto
 
@@ -56,6 +59,28 @@ Decidido pelo mantenedor em 2026-09-22, sobre o memo
   esgotar, degradar para varredura periódica com aviso exposto pelas
   capacidades de runtime ([0027](0027-runtime-capabilities.md)) — nunca falhar
   em silêncio, nunca fingir que a pasta parou de mudar.
+- **Escrita através de um symlink cai no alvo do symlink, e o link continua
+  lá.** Seguir um symlink tem uma metade no caminho de escrita, e ela não é
+  opcional: a escrita atômica resolve o link e substitui o arquivo para o qual
+  ele aponta. Um `rename` por cima do próprio link substituiria o link por um
+  arquivo comum e deixaria o arquivo real do usuário intocado e desatualizado —
+  a nota pareceria salva sem estar. Registrado aqui porque decorre de "todo
+  symlink é seguido"; foi reproduzido na leitura do código da feature 2 e
+  corrigido lá.
+
+**Provisório, registrado em 2026-09-22 a partir do código da feature 2, não
+decidido.** O mantenedor decide isto ao acordar; está aqui porque o código
+precisou escolher alguma coisa, e escolha não registrada é pior do que escolha
+registrada:
+
+- **Diretório alcançado uma segunda vez por outro nome é listado uma vez e
+  percorrido uma vez.** Dois symlinks para a mesma pasta de anexos produzem duas
+  entradas; o conteúdo é percorrido só sob o primeiro nome, e o segundo é
+  reportado como problema `Duplicate`. É provisório porque este mesmo ADR diz
+  que dois caminhos com hard link são duas notas, e o mantenedor pode preferir
+  que a segunda subárvore também seja percorrida. O preço de percorrer: dois
+  symlinks para uma pasta grande dobram essa pasta no índice, e uma cadeia deles
+  cresce exponencialmente, limitada apenas pela profundidade máxima de 64.
 
 ### Caminhos ignorados — decidido em 2026-09-22
 
@@ -83,6 +108,25 @@ também a resposta da Q26 de [`docs/spec/dialect.md`](../spec/dialect.md):
   backlink, nem como link não resolvido. Não percorrido significa não contado,
   nos dois sentidos, que é a regra única que a lista escrita à mão e o programa
   seguem no critério de saída 2 da Fase 1.
+- **A lista de ignorados é confinada como um pedido, na abertura da raiz.** Uma
+  entrada com caminho absoluto ou componente `..` é erro nesse momento, e
+  `./anexos` é normalizado para `anexos`. Entrada escrita errada que ignora nada
+  em silêncio é a falha pior: o usuário acredita que uma pasta está fora do
+  índice e ela não está.
+
+**Provisório, registrado em 2026-09-22 a partir do código da feature 2, não
+decidido.**
+
+- **Handle é recusado para entrada oculta ou caminho ignorado.** `Root::handle`
+  responde `ConfinementError::Hidden` ou `ConfinementError::Ignored`. O
+  raciocínio que o código segue: a varredura não lista essas entradas, e a API
+  de handles é a única porta que plugins e agentes têm
+  ([0026](0026-core-ui-contract-inviolable-rules.md), regra 6), então ler
+  `.obsidian/app.json` ou escrever `.git/config` por ela é recusado em vez de
+  liberado por um caminho que ninguém listou. É provisório porque "não indexado"
+  e "não legível de jeito nenhum" são duas regras diferentes, e ler `.obsidian/`
+  pode muito bem ser desejável depois — um tema ou uma configuração de plugin é
+  exatamente o tipo de coisa que se pode perguntar a um agente.
 
 ### O watcher — depois da feature 2
 
@@ -152,4 +196,7 @@ Consideradas pelo mantenedor, sobre o memo, e postas de lado:
 
 Symlinks, laços e caminhos ignorados: decidido em 2026-09-22 pelo mantenedor,
 Aceito. Handles opacos: `[ABERTO]`, antes da feature 6 da Fase 1 e do item 2.1
-da Fase 2. O watcher: depois da feature 2, sem data marcada.
+da Fase 2. O watcher: depois da feature 2, sem data marcada. Os itens marcados
+como **provisórios** dentro dos dois grupos decididos não estão decididos: são o
+que o código da feature 2 faz, registrados para que nada seja resolvido por
+silêncio, e esperam o mantenedor.

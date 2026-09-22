@@ -3,6 +3,8 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §5.2
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-09-22 — what the concurrent-modification check compares in the
+  feature 2 code (time, length and a content hash), recorded as provisional.
 
 ## Context
 
@@ -34,6 +36,16 @@ note-taking app is lost the first time it touches a file without being told to.
   action, and it is the most common way to lose data with two apps in the same
   folder. This holds for the UI ([0048](0048-file-operations-in-ui.md)), the
   agent and conversion. (Added in the Phase 0 review, R2.)
+- **What the check compares, recorded on 2026-09-22 from the feature 2 code and
+  provisional — the maintainer decides on waking.** The rule above says "mtime
+  and size, or hash"; the code does both. The stamp a read returns carries the
+  modified time, the length **and** a content hash (FNV-1a), and the write
+  re-reads the file and compares all three before replacing it. The reason is a
+  case that was reproduced while reading the code: a rewrite of the same length
+  that preserves the modified time — `cp -p`, `rsync`, a restore from a backup,
+  some sync clients — passes a check made of time and length alone, and the
+  write then lands on top of the other edit, which is exactly what this rule
+  exists to stop. The cost is one full read of the file before writing.
 - "Round-trip" had two possible readings, and they selected different parsers.
   The maintainer decided `docs/spec/dialect.md` Q18 on 2026-09-21: reading
   (b), a read-only parser with a four-property round-trip test; the base

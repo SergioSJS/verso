@@ -543,3 +543,18 @@ feature 6); o esquema de fixture do `verso-fs`; se a escrita atômica detecta e
 avisa sobre hard links (ADR 0029, item 3 da seção 5.1); o workspace com
 múltiplas raízes (ADR 0041, `PROPOSED`), que é para onde vai o caso da pasta de
 anexos; e toda questão de dialeto que a feature 2 não toca.
+
+## 8. Depois da decisão: o que precisa ser conferido num Mac
+
+Acrescentado em 2026-09-22, quando o código da feature 2 passou a existir. As
+decisões acima continuam como estão; isto é uma nota de verificação.
+
+Duas das coisas que este memo resolveu estão implementadas atrás de
+`#[cfg(target_os = "macos")]`: a verificação de `st_flags` para arquivo dataless
+(seção 4.1) e a verificação de `statfs` que distingue sistema de arquivos de
+rede de local. Um pull request roda só no Linux, e o macOS roda no `main` depois
+do merge ([ADR 0029](../adr/0029-guardrails-in-ci.md)) — então nenhum dos dois
+caminhos é sequer compilado, muito menos exercitado, pelo CI que guarda o PR da
+feature 2. O PR leva, portanto, um passo manual, declarado em "Como verificar":
+rodar `cargo test` no Mac do mantenedor antes de mesclar. Nada mais no memo
+depende da plataforma.

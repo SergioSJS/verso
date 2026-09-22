@@ -3,6 +3,9 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §5.2
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-09-22 — o que a verificação de modificação concorrente compara
+  no código da feature 2 (tempo, tamanho e hash de conteúdo), registrado como
+  provisório.
 
 ## Contexto
 
@@ -34,6 +37,17 @@ notas se perde na primeira vez que ele mexe em um arquivo sem ser mandado.
   e é a forma mais comum de perder dado com dois apps na mesma pasta. Vale para
   UI ([0048](0048-file-operations-in-ui.md)), agente e conversão.
   (Acrescentado na revisão da Fase 0, R2.)
+- **O que a verificação compara, registrado em 2026-09-22 a partir do código da
+  feature 2 e provisório — o mantenedor decide ao acordar.** A regra acima diz
+  "mtime e tamanho, ou hash"; o código faz os dois. O stamp que uma leitura
+  devolve carrega o tempo de modificação, o tamanho **e** um hash de conteúdo
+  (FNV-1a), e a escrita relê o arquivo e compara os três antes de substituí-lo.
+  O motivo é um caso reproduzido na leitura do código: uma reescrita do mesmo
+  tamanho que preserva o tempo de modificação — `cp -p`, `rsync`, restauração de
+  backup, alguns clientes de sync — passa por uma verificação feita só de tempo
+  e tamanho, e a escrita então cai por cima da edição alheia, que é exatamente o
+  que esta regra existe para impedir. O custo é uma leitura inteira do arquivo
+  antes de gravar.
 - "Round-trip" tinha duas leituras possíveis, e elas escolhiam parsers
   diferentes. O mantenedor decidiu `docs/spec/dialect.md` Q18 em 2026-09-21:
   leitura (b), parser somente leitura com property test de round-trip de

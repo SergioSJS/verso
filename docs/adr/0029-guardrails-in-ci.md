@@ -8,7 +8,8 @@
   requirements and advisory policy recorded (Phase 0 review, C3, C9, R1, R10);
   2026-09-22 — where each operating system runs, after the cost incident;
   2026-09-22 — the path confinement row reworded after the symlink decision
-  ([0044](0044-verso-fs-semantics.md)).
+  ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — how the feature 2 code
+  answers the atomic write requirements, recorded as provisional.
 
 ## Context
 
@@ -78,6 +79,38 @@ handle, with a test for each item:
 - Windows: replacing an existing file requires `MoveFileEx` with
   `REPLACE_EXISTING`; a handle held open by antivirus or OneDrive makes the
   rename fail. Goes in when Windows goes in.
+
+**How the feature 2 code answers the list above, recorded on 2026-09-22 and
+provisional: the maintainer decides on waking.** Each item is what the code
+does, not a decision; the requirements above are unchanged.
+
+- **Hard links: it detects and warns.** The write reports
+  `WriteReport::hard_link_shared` when the file it replaced carried more than
+  one name, so the user learns that the other name kept the old content. The
+  requirement above still says "decide whether it detects and warns", and that
+  decision stays the maintainer's — the code chose the louder of the two.
+- **The owner is not changed.** The temporary file belongs to whoever is
+  writing, and `chown` needs privileges Verso does not ask for; the report says
+  whether the owner ended up the same as the original's. Mode and extended
+  attributes are preserved as the requirement asks.
+- **The extended attributes are copied before the file's `fsync`**, so they
+  become durable together with the content rather than after it.
+- **The two `fsync` calls are not observable from a test.** Neither the file's
+  nor the directory's: no portable assertion distinguishes "synced" from "not
+  synced" without pulling the power. The requirement is met by reading the code,
+  and this line records that the test for that item does not exist.
+- **A failure after the `rename` is reported, not raised as a failed write.**
+  The directory `fsync` and the read-back of the new stamp happen when the
+  content is already in place; the report carries `durability_not_confirmed`
+  instead of an error, because a retry of a write that already landed would
+  show the user a diff against their own edit.
+- **A network file system is detected on macOS by `MNT_LOCAL` being absent from
+  the mount flags**, not by a list of filesystem names. On the other platforms
+  it is not detected at all yet.
+- **The sync-client test is pending the maintainer.** "Test with a folder inside
+  at least one of them before closing the feature" was not done: it needs a real
+  iCloud Drive, Dropbox, OneDrive or Syncthing folder on the maintainer's
+  machine. The requirement stands, unmet.
 
 ## Consequences
 

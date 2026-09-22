@@ -7,6 +7,9 @@
   maintainer on the memo
   [`docs/reference/fs-decision.md`](../reference/fs-decision.md); the watcher
   placed after feature 2; the opaque handles group untouched and still `[OPEN]`.
+  2026-09-22 — facts from the feature 2 code recorded inside the two decided
+  groups: the write path of a symlink (decided, it follows from the choice) and
+  three items marked **provisional**, for the maintainer to confirm or change.
 
 ## Context
 
@@ -53,6 +56,26 @@ Decided by the maintainer on 2026-09-22, on the memo
   exhaustion, degrade to a periodic scan with a warning surfaced through the
   runtime capabilities ([0027](0027-runtime-capabilities.md)) — never fail
   silently, never pretend the folder stopped changing.
+- **A write through a symlink lands on the symlink's target, and the link
+  stays.** Following a symlink has a write-path half, and it is not optional:
+  the atomic write resolves the link and replaces the file it points at. A
+  `rename` over the link itself would replace the link with a regular file and
+  leave the user's real file untouched and stale — the note would look saved and
+  would not be. Recorded here because it follows from "every symlink is
+  followed"; it was reproduced while reading the feature 2 code and fixed there.
+
+**Provisional, recorded on 2026-09-22 from the feature 2 code, not decided.**
+The maintainer decides these on waking; they are here because the code had to
+choose something and an unrecorded choice is worse than a recorded one:
+
+- **A directory reached a second time under another name is listed once and
+  walked once.** Two symlinks to the same attachments folder produce two
+  entries; the content is walked under the first name only, and the second is
+  reported as a `Duplicate` problem. It is provisional because this same ADR
+  says two hard-linked paths are two notes, and the maintainer may prefer the
+  second subtree to be walked as well. The price of walking it: two symlinks to
+  one large folder double that folder in the index, and a chain of them grows
+  exponentially, bounded only by the depth cap of 64.
 
 ### Ignored paths — decided on 2026-09-22
 
@@ -80,6 +103,24 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   not as an unresolved link. Not walked means not counted, both ways, which is
   the single rule the hand-written list and the program both follow in exit
   criterion 2 of Phase 1.
+- **The ignore list is confined like a request, when the root opens.** An entry
+  carrying an absolute path or a `..` component is an error at that moment, and
+  `./anexos` is normalized to `anexos`. A misspelled entry that silently ignores
+  nothing is the worse failure: the user believes a folder is out of the index
+  and it is not.
+
+**Provisional, recorded on 2026-09-22 from the feature 2 code, not decided.**
+
+- **A handle is refused for a hidden entry or an ignored path.** `Root::handle`
+  answers `ConfinementError::Hidden` or `ConfinementError::Ignored`. The
+  reasoning the code follows: the walk does not list those entries, and the
+  handle API is the only door plugins and agents have
+  ([0026](0026-core-ui-contract-inviolable-rules.md), rule 6), so reading
+  `.obsidian/app.json` or writing `.git/config` through it is refused rather
+  than allowed by a path nobody listed. It is provisional because "not indexed"
+  and "not readable at all" are two different rules, and reading `.obsidian/`
+  may well be wanted later — a theme or a plugin setting is exactly the kind of
+  thing an agent could be asked about.
 
 ### The watcher — after feature 2
 
@@ -149,4 +190,7 @@ Considered by the maintainer, on the memo, and set aside:
 
 Symlinks, loops and ignored paths: decided on 2026-09-22 by the maintainer,
 Accepted. Opaque handles: `[OPEN]`, before feature 6 of Phase 1 and item 2.1 of
-Phase 2. The watcher: after feature 2, with no date set.
+Phase 2. The watcher: after feature 2, with no date set. The items marked
+**provisional** inside the two decided groups are not decided: they are what the
+feature 2 code does, recorded so that nothing is settled by silence, and they
+wait for the maintainer.

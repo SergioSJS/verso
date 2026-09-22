@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.8
+# Verso dialect spec — v0.9
 
-- Version: v0.8 · 2026-09-22
+- Version: v0.9 · 2026-09-22
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -619,6 +619,14 @@ Raised while writing this spec. All of them need an answer before
   part. With a multi-root workspace
   ([ADR 0041](../adr/0041-multi-root-workspace.md), `PROPOSED`), resolution
   also crosses roots.
+
+  **Provisional fact from `verso-fs`, recorded on 2026-09-22, not an answer to
+  this question.** The walk classifies a regular file as a note when its
+  extension is exactly `md`; `.MD`, `.Md` and `.markdown` are plain files until
+  this question and Q8 are decided. The case half belongs with Q8 rather than
+  here: on case-insensitive APFS `NOTA.MD` and `nota.md` are the same file, so
+  "accept any case" and "one note per path" interact. The maintainer decides;
+  this line only records what the code does in the meantime.
 - **Q13. Inline tags (`#tag` in the body).** `[OPEN]`
   The briefing only mentions `tags` in the frontmatter. Whether `#tag` in the
   body counts as a tag, and how it coexists with the `#` of a heading and with
@@ -758,3 +766,4 @@ the parser was chosen.
 | v0.6 | 2026-09-21 | Q3 closed by the maintainer for the end of a paragraph and the end of a list item, with the fixture `fixtures/block/list-item` as the answer and §5.7 updated; the `^id` on its own line after a blank line, on a heading and after a multi-line block stay open, and so does Q4 |
 | v0.7 | 2026-09-21 | Q17 closed by the maintainer in its frontmatter part (64 levels of nesting, 10 000 nodes), the rest of the question staying `[OPEN]`; the contradiction inside §4.1 resolved on the strict reading (a list key asserts the whole list). Third question closed, in part |
 | v0.8 | 2026-09-22 | Q26 closed by the maintainer (ADR 0044, memo `docs/reference/fs-decision.md`): hidden entries are not walked at any depth, and an ignored note is an unresolved target and never a backlink source |
+| v0.9 | 2026-09-22 | Provisional fact recorded under Q12, from the `verso-fs` code: a note is a regular file whose extension is exactly `md`; `.MD`, `.Md` and `.markdown` are plain files until Q12 and Q8 are decided. No question closed |
