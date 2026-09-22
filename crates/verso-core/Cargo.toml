@@ -16,6 +16,10 @@ publish.workspace = true
 verso-dialect = { path = "../verso-dialect" }
 verso-fs = { path = "../verso-fs" }
 verso-index = { path = "../verso-index" }
+# The index's sidecar (src/sidecar.rs). Both already in the lockfile through
+# verso-cli: no new crate, no new licence.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [dev-dependencies]
 tempfile = "3.27"

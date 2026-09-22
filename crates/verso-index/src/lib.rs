@@ -35,6 +35,11 @@ pub use keys::{note_keys, target_key};
 pub use search::Hit;
 pub use store::{Backlink, Block, Heading, Link, NoteStamp, Unresolved};
 
+/// The schema version this build writes. The sidecar beside the index
+/// records it (`docs/reference/index-decision.md` §2.4); a different
+/// version on open means a rebuild (`schema.rs`).
+pub const SCHEMA_VERSION: i64 = schema::VERSION;
+
 /// Why the index could not do something.
 #[derive(Debug)]
 pub enum IndexError {

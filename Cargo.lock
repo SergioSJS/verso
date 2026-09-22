@@ -961,6 +961,8 @@ dependencies = [
 name = "verso-core"
 version = "0.0.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "tempfile",
  "verso-dialect",
  "verso-fs",
