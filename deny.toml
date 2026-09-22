@@ -52,13 +52,19 @@ wildcards = "deny"
 allow-wildcard-paths = true
 highlight = "all"
 deny = [
-  # Tripwire for the day the patch above is removed: a pulldown-cmark
-  # release newer than 0.13.4 turns CI red here so that the action is not
-  # forgotten. Action: run `cargo test -p verso-dialect --test regressions`
-  # on the release (the panic and the exponential-time inputs must pass),
-  # then delete this entry, the allow-git entry and the [patch.crates-io]
-  # block, in one PR. Maintainer's decision of 2026-09-21.
-  { crate = "pulldown-cmark@>=0.13.5", reason = "release 0.13.5 or later: confirm the two regression tests pass, then drop the patch, the allow-git entry and this ban (ADR 0037)" },
+  # Tripwire for the day the [patch.crates-io] block in the workspace
+  # Cargo.toml is removed: any pulldown-cmark release from 0.13.5 on turns
+  # CI red here so that the action is not forgotten. Action: run
+  # `cargo test -p verso-dialect --test regressions` on the release (the
+  # panic and the exponential-time inputs must pass) and check that the
+  # release has the `std` feature, then delete this entry, the allow-git
+  # entry below and the patch, in one PR. Maintainer's decision of
+  # 2026-09-21; expires 2026-12-31 with the patch.
+  #
+  # `name` + `version` on purpose: `version` is a real semver requirement.
+  # The newer `crate = "name@..."` form is a package-id spec that drops the
+  # comparison operator and matches one exact version (cargo-deny 0.20.2).
+  { name = "pulldown-cmark", version = ">=0.13.5", reason = "release 0.13.5 or later: confirm the two regression tests pass and the std feature exists, then drop the patch, the allow-git entry and this ban (ADR 0037)" },
 ]
 
 [sources]
@@ -68,5 +74,5 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # pulldown-cmark is built from an upstream revision until the release after
 # 0.13.4 (workspace Cargo.toml, [patch.crates-io]; ADR 0037, Consequences).
 # Maintainer's decision of 2026-09-21; expires 2026-12-31. Remove together
-# with the patch and the ban below.
+# with the patch and the ban above.
 allow-git = ["https://github.com/pulldown-cmark/pulldown-cmark"]
