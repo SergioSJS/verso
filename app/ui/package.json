@@ -1,0 +1,19 @@
+{
+  "name": "verso-ui",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The window's HTML/TypeScript (Phase 2, walking skeleton). Talks to the core only through the generated bindings.",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "esbuild src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/main.js --sourcemap && cp index.html style.css dist/"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

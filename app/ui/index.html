@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verso</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <button id="open" type="button" class="primary"></button>
+    <span id="folder" class="folder" aria-live="polite"></span>
+    <button id="reindex" type="button" disabled></button>
+    <label class="search">
+      <span id="search-label" class="sr-only"></span>
+      <input id="search" type="search" autocomplete="off" spellcheck="false" disabled>
+    </label>
+    <span id="status" class="status" role="status" aria-live="polite"></span>
+  </header>
+  <main class="panes">
+    <nav class="side" aria-labelledby="notes-heading">
+      <h2 id="notes-heading" class="side-title"></h2>
+      <ul id="notes" class="list"></ul>
+    </nav>
+    <section class="note" aria-labelledby="note-title">
+      <h2 id="note-title" class="note-title"></h2>
+      <p id="note-flags" class="flags"></p>
+      <ol id="lines" class="lines"></ol>
+      <h3 id="backlinks-heading" class="section-title"></h3>
+      <ul id="backlinks" class="list"></ul>
+    </section>
+  </main>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
