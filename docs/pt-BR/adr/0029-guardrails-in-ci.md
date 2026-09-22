@@ -190,6 +190,25 @@ como está; isto é o que o `verso-index` faz.
 - Benchmark é guardrail sem meta: a linha de base existe, mas metas de
   performance são `[ABERTO]` ([0039](0039-performance-targets.md)).
 
+**O guardrail do benchmark, decidido em 2026-09-22 pelo mantenedor**
+(`docs/reference/bench-decision.md` §9). Um gerador determinístico e versionado
+monta um vault sintético de 1 000, 10 000 e 50 000 notas de uma forma fixa,
+incluindo 1 % de placeholders do iCloud; sete operações são medidas —
+indexação fresca, incremental sem nada mudado, incremental com 1 % mudado,
+busca de palavra comum e de palavra rara, backlinks da nota mais ligada e não
+resolvidos do vault inteiro —, cada uma com tempo de relógio, pico de memória
+residente e tamanho do arquivo de índice, pela mediana de execuções repetidas
+depois de um aquecimento descartado. Ele roda **só na `main`, só no Linux,
+depois de cada merge, nunca em pull request**, pelo motivo de custo registrado
+acima, e a partir de um comando local com a mesma saída. Fica vermelho quando a
+mediana de tempo passa de 1,5× a linha de base registrada, o arquivo de índice
+de 1,05×, ou o pico de memória de 1,3× — nenhuma tolerância mais apertada que o
+ruído medido, que foi de ±45 % entre execuções com 20 000 notas num laptop
+ocioso. Visto falhando, como todo guardrail de feature precisa: revertendo o
+delete de `notes_fts` para o full scan que ele tinha antes do commit
+`4e99082`, que levava 4 000 notas de 0,71 s para 4,94 s. A linha de base não é
+meta: as metas seguem `[OPEN]` ([0039](0039-performance-targets.md)).
+
 ## Alternativas descartadas
 
 - Adicionar guardrails depois de ter features — descartado em §14.3 ("Todos no

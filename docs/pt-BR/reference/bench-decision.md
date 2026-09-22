@@ -8,6 +8,18 @@
   foi começada. O memorando vem primeiro de propósito, porque *o que* o
   benchmark mede é a parte cara de mudar depois — uma linha de base tirada
   contra a forma errada é uma linha de base para jogar fora.
+- **Decisão: tomada pelo mantenedor em 2026-09-22**, em sessão, em três
+  palavras — *"pode fazer tudo"*: as cinco linhas da seção 9 como recomendado.
+  A escada de 1 000 / 10 000 / 50 000 notas com a forma da seção 2.5, incluindo
+  o 1 % de placeholders do iCloud; as sete operações com tempo de relógio, pico
+  de RSS e tamanho do arquivo de índice; um comando local e um job de CI só na
+  `main`, só no Linux, com as tolerâncias da seção 4.3; um binário simples em
+  `crates/verso-bench`, sem dependência de benchmark; e a linha de base tirada
+  na ordem da seção 6.3, com a
+  [ADR 0039](../adr/0039-performance-targets.md) deixada `[OPEN]`. O código é
+  Rust e portanto sessão da Fable 5.1
+  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)); este memorando fica
+  sendo a especificação contra a qual ela escreve.
 - Autor: Opus 5 (documentos,
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md)). Revisor: Fable 5.1.
   Nos memorandos anteriores as recomendações eram da Fable 5.1, registradas

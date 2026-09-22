@@ -41,6 +41,16 @@ crates/
   `cargo-deny` allowlist ([0029](0029-guardrails-in-ci.md),
   [0033](0033-pr-workflow.md)).
 
+**A sixth crate, decided on 2026-09-22 by the maintainer**
+(`docs/reference/bench-decision.md` §9, line 4): `crates/verso-bench`,
+`publish = false`, not part of the product — the synthetic vault generator and
+the benchmark of feature 5. It carries its own `clippy.toml` declaring why it
+may call `std::fs`: it writes only into a temporary directory it created
+itself, never into an open folder, which is what invariant 5 protects. The
+same shape as the exceptions `verso-fs` and `verso-index` already carry. No
+benchmark harness dependency; `divan` is named as the fallback if statistics
+later justify one.
+
 ## Discarded alternatives
 
 None recorded. (A single crate with modules was not evaluated; the five-crate
