@@ -537,6 +537,7 @@ async function save(overwrite = false): Promise<void> {
   if (r.error.kind !== "changed") return fail(r.error);
   // Invariant 11: the file moved on. Read it again, show both versions;
   // writing over it is the user's explicit choice, with the diff seen.
+  ui.status.textContent = "";
   const fresh = await commands.readNote(current);
   if (fresh.status !== "ok") return fail(fresh.error);
   revision = fresh.data.revision;
