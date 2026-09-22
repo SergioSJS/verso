@@ -178,3 +178,6 @@ button.small.primary { background: var(--accent); color: var(--accent-fg); borde
 .outline li > button.level-1 { font-weight: 600; color: var(--fg); }
 .outline li > button.level-3 { padding-left: 1.4rem; }
 .outline li > button.level-4, .outline li > button.level-5, .outline li > button.level-6 { padding-left: 2.2rem; }
+
+/* `hidden` must win over any display set above. */
+[hidden] { display: none !important; }
