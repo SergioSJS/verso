@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.9
+# Verso dialect spec — v0.10
 
-- Version: v0.9 · 2026-09-22
+- Version: v0.10 · 2026-09-22
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -572,6 +572,16 @@ Raised while writing this spec. All of them need an answer before
   `fixtures/wikilink/block-reference` (ADR 0031).
 - **Q2. Does an embed count as a link in the graph and in backlinks?** `[OPEN]`
   (section 5.6)
+
+  **Provisional fact from `verso-index`, recorded on 2026-09-22, not an answer
+  to this question.** An embed counts as a link **and** as a backlink: it is
+  stored with its kind, resolves by the same rule as a link, and appears in
+  the backlinks of its target, marked as an embed so that a caller can tell
+  the two apart. Observed in Obsidian 1.13.7 through its CLI on 2026-09-22
+  (ADR 0009; the run is in `docs/reference/index-decision.md` §4.1): the five
+  links `resolvedLinks` counts from the sandbox note to `Alvo.md` include the
+  embed `![[Alvo]]`. The maintainer decides; this line only records what the
+  code does in the meantime.
 - **Q3. Admissible position of the `^id`.** `DECIDED` for the end of a
   paragraph and the end of a list item; `[OPEN]` for the rest.
   Closed for those two on 2026-09-21 by the maintainer, with the fixtures
@@ -609,10 +619,27 @@ Raised while writing this spec. All of them need an answer before
   and does a normalization-insensitive lookup; HFS+ forced NFD; Linux compares
   bytes. A vault that went through sync or through HFS+ mixes the two forms
   (section 5.10).
+
+  **Provisional fact from `verso-index`, recorded on 2026-09-22, not an answer
+  to this question.** Both sides of a name comparison go through NFC before
+  being compared, so a name written in NFC and the same name written in NFD
+  are one name. This was **not** observed in Obsidian: it follows from the
+  definition of the two forms, and APFS being normalization-insensitive hides
+  the difference on the initial platform. The maintainer decides; this line
+  only records what the code does in the meantime.
 - **Q8. Case sensitivity in name resolution.** `[OPEN]`
   It interacts with case-insensitive file systems (macOS by default — APFS can
   be case-sensitive per volume —, Windows) and case-sensitive ones (Linux) — the
   same vault may resolve differently per platform (section 5.10).
+
+  **Provisional fact from `verso-index`, recorded on 2026-09-22, not an answer
+  to this question.** Resolution is case-insensitive: both sides are
+  lower-cased before being compared, so `[[alvo]]`, `[[ALVO]]` and `[[Alvo]]`
+  all reach `Alvo.md`. Observed in Obsidian 1.13.7 through its CLI on
+  2026-09-22 (`docs/reference/index-decision.md` §4.1). The other half of this
+  question — which extensions make a file a note — is the `verso-fs` fact
+  recorded under Q12. The maintainer decides; this line only records what the
+  code does in the meantime.
 - **Q12. Rule for resolving a link to a file.** `[OPEN]`
   How `[[nota]]` becomes a file: relative path, unique shortest path, implicit
   `.md` extension, behavior with an ambiguous name, and how `aliases` takes
@@ -627,6 +654,28 @@ Raised while writing this spec. All of them need an answer before
   here: on case-insensitive APFS `NOTA.MD` and `nota.md` are the same file, so
   "accept any case" and "one note per path" interact. The maintainer decides;
   this line only records what the code does in the meantime.
+
+  **Second provisional fact, from `verso-index`, recorded on 2026-09-22, and
+  not an answer to this question either.** A link resolves like this: the
+  target text as written, minus a `.md` extension when it is there, folded —
+  NFC and lower-case — is compared first against each note's path from the
+  root without the extension and, when nothing matches, against each note's
+  bare name without the extension; when several notes answer to the same bare
+  name, the first in byte order of the relative path wins; a frontmatter alias
+  does not resolve a link. Resolution happens at query time, so adding a note
+  resolves the links that were waiting for it. Observed in Obsidian 1.13.7
+  through its CLI on 2026-09-22 (ADR 0009), in a sandbox folder with
+  `a/dup.md`, `b/dup.md`, `Alvo.md` (frontmatter `aliases: [apelido]`) and one
+  note linking to all of them: `getFirstLinkpathDest` answered `a/dup.md` for
+  `dup`, `Alvo.md` for `alvo`, for `ALVO` and for `Alvo.md`, `a/dup.md` for
+  `a/dup`, and `null` for `apelido`; the whole run is in
+  `docs/reference/index-decision.md` §4.1. The alias line **contradicts
+  Obsidian's public documentation**, which describes aliases as a way of
+  linking to a note; the contradiction is recorded and not resolved, and the
+  code follows the observation because that is the reversible direction — a
+  later "aliases resolve" turns unresolved links into resolved ones, and the
+  opposite would take away backlinks. The maintainer decides; this line only
+  records what the code does in the meantime.
 - **Q13. Inline tags (`#tag` in the body).** `[OPEN]`
   The briefing only mentions `tags` in the frontmatter. Whether `#tag` in the
   body counts as a tag, and how it coexists with the `#` of a heading and with
@@ -634,6 +683,16 @@ Raised while writing this spec. All of them need an answer before
 - **Q14. Link to a file that does not exist.** `[OPEN]`
   Whether it enters the index as a pending target, whether it appears in the
   graph, whether it counts as a backlink.
+
+  **Provisional fact from `verso-index`, recorded on 2026-09-22, not an answer
+  to this question.** A target no note answers to is kept — with its text as
+  written and a count of how often it appears — and is listed by the index's
+  query for unresolved targets; it is **not** a backlink of anything. Observed
+  in Obsidian 1.13.7 through its CLI on 2026-09-22
+  (`docs/reference/index-decision.md` §4.1): `unresolvedLinks` reports
+  `nao-existe` with its count, in a map separate from the resolved links. The
+  maintainer decides; this line only records what the code does in the
+  meantime.
 - **Q15. Markdown extensions outside the base.** `[OPEN]`
   Tables, footnotes, task lists, math, highlight `==texto==`, strikethrough.
   The briefing lists none; the choice of base parser
@@ -767,3 +826,4 @@ the parser was chosen.
 | v0.7 | 2026-09-21 | Q17 closed by the maintainer in its frontmatter part (64 levels of nesting, 10 000 nodes), the rest of the question staying `[OPEN]`; the contradiction inside §4.1 resolved on the strict reading (a list key asserts the whole list). Third question closed, in part |
 | v0.8 | 2026-09-22 | Q26 closed by the maintainer (ADR 0044, memo `docs/reference/fs-decision.md`): hidden entries are not walked at any depth, and an ignored note is an unresolved target and never a backlink source |
 | v0.9 | 2026-09-22 | Provisional fact recorded under Q12, from the `verso-fs` code: a note is a regular file whose extension is exactly `md`; `.MD`, `.Md` and `.markdown` are plain files until Q12 and Q8 are decided. No question closed |
+| v0.10 | 2026-09-22 | Provisional facts recorded under Q2, Q8, Q12, Q14 and Q7, from the `verso-index` code and from the observation of Obsidian 1.13.7 on the same day (`docs/reference/index-decision.md`): how a link resolves, case, embeds, unresolved targets and NFC. No question closed |

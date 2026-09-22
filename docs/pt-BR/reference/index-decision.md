@@ -5,7 +5,12 @@
   registra fatos e carrega recomendações que estão marcadas como tais. Quem
   decide é o mantenedor (`CLAUDE.md` §1). Enquanto não há decisão, o código da
   feature 3 é escrito **sob as recomendações, marcado como provisório**, e muda
-  se o mantenedor decidir outra coisa — o mesmo arranjo usado na feature 2.
+  se o mantenedor decidir outra coisa — o mesmo arranjo usado na feature 2. Esse
+  código já está na árvore: o commit `2a1919f` implementa as recomendações das
+  seções 2 a 6 de forma provisória, à espera das cinco respostas da seção 9, com
+  um desvio que vale nomear — a tabela FTS5 é comum e guarda o texto da nota (a
+  única cópia dele no índice), não a tabela de `external content` que a seção
+  5.3 recomenda.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2 a 6 são da **Fable 5.1**,
   registradas aqui como insumo do autor; não são decisões. Nenhum Rust neste

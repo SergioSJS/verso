@@ -6,7 +6,12 @@
   such. The maintainer decides (`CLAUDE.md` §1). While
   there is no decision, the feature 3 code is written **under the
   recommendations, marked provisional**, and changes if the maintainer decides
-  otherwise — the same arrangement used for feature 2.
+  otherwise — the same arrangement used for feature 2. That code is now in the
+  tree: commit `2a1919f` implements the recommendations of sections 2 to 6
+  provisionally, pending the five answers of section 9, with one deviation
+  worth naming — the FTS5 table is an ordinary one holding the note's text (the
+  only copy of it in the index), not the `external content` table section 5.3
+  recommends.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2 to 6 are **Fable
   5.1's**, recorded here as the author's input; they are not decisions. No Rust

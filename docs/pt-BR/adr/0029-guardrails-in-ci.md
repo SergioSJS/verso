@@ -11,7 +11,8 @@
   reescrita depois da decisão sobre symlinks
   ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — como o código da feature 2
   responde aos requisitos da escrita atômica, registrado como provisório, vindo
-  de duas leituras desse código.
+  de duas leituras desse código; 2026-09-22 — como o código da feature 3
+  atende ao guardrail do FTS5, registrado como provisório.
 
 ## Contexto
 
@@ -133,6 +134,26 @@ não uma decisão; os requisitos acima continuam como estão.
   leitura de 2026-09-22 compilou e rodou os 35 testes no macOS 15 com a
   toolchain fixada 1.98.1, todos verdes; essa execução manual está declarada
   como passo no PR, e é o que a execução no Linux não dá.
+
+### FTS5 e queries parametrizadas — como o código da feature 3 atende ao guardrail
+
+**Registrado em 2026-09-22 e provisório: o mantenedor decide ao acordar**, na
+linha 5 da §9 de `docs/reference/index-decision.md`. O guardrail acima continua
+como está; isto é o que o `verso-index` faz.
+
+- **Todo valor entra como parâmetro ligado.** Nenhuma query é montada
+  formatando um valor dentro do SQL: caminhos, alvos e limites entram como
+  `?1`, `?2`.
+- **As palavras do usuário nunca chegam à gramática de consulta do FTS5.** Cada
+  palavra separada por espaço numa busca vira uma string do FTS5 — entre aspas
+  duplas, com aspa dupla interna duplicada — e as palavras são unidas pelo AND
+  implícito do FTS5. Assim `NOT`, `OR`, `*`, `:`, `(` e `"` são procurados como
+  texto e não conseguem mudar a query.
+- **O que isso custa, declarado em vez de escondido:** o usuário não consegue
+  digitar `casa*` para busca por prefixo nem `titulo:casa` para filtro de
+  coluna. Isso vira flag do `verso search` se o mantenedor quiser (feature 4).
+- **Visto falhando**, como este ADR exige: com o uso de aspas removido, o teste
+  da gramática falha com `fts5: syntax error near "NOT"`.
 
 ## Consequências
 
