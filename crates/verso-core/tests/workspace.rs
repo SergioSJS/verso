@@ -56,14 +56,17 @@ fn index_search_backlinks_and_incremental_runs() {
     let obsidian = subdir(vault.path(), ".obsidian");
     let _app = note(obsidian.path(), "app.json", "{}");
     let _placeholder = note(vault.path(), ".Mapa.png.icloud", "<plist/>");
+    let _evicted = note(vault.path(), ".Segredo.md.icloud", "<plist/>");
 
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     let r = ws.index().unwrap();
     assert_eq!(
         (r.indexed, r.unchanged, r.removed, r.placeholders),
-        (2, 0, 0, 1),
+        (2, 0, 0, 2),
         "{r:?}"
     );
+    // The evicted note is known, unverified, and a link target (ADR 0043).
+    assert!(ws.notes().unwrap().contains(&"Segredo.md".to_owned()));
     assert!(r.problems.is_empty() && r.unreadable.is_empty(), "{r:?}");
 
     let back = ws.backlinks("Barão Vermelho").unwrap();
@@ -93,7 +96,10 @@ fn index_search_backlinks_and_incremental_runs() {
     assert!(ws.backlinks("Barão Vermelho").unwrap().is_empty());
     assert_eq!(ws.backlinks("Taverna").unwrap().len(), 1);
     assert_eq!(ws.unresolved().unwrap().len(), 0);
-    assert_eq!(ws.notes().unwrap(), vec!["Nova.md", "Taverna.md"]);
+    assert_eq!(
+        ws.notes().unwrap(),
+        vec!["Nova.md", "Segredo.md", "Taverna.md"]
+    );
 }
 
 #[test]
