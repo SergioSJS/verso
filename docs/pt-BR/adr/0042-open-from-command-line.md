@@ -70,6 +70,28 @@ a regra de desambiguação acima continua `[ABERTO]`.
   como saídas de emergência para uma pasta com nome de subcomando. Nada no
   código implementa isso.
 
+**Depois da leitura da Opus 5 de 2026-09-22 o código também faz:**
+
+- **Um argumento que começa com `--` e não é uma opção conhecida é erro de
+  uso** que o nomeia, com código de saída 2 — e também são erro de uso um valor
+  ausente ou inválido para `--limit` ou `--lang`, um posicional que o subcomando
+  não pediu e o `--unresolved` fora do `backlinks`. Antes disso,
+  `verso search <pasta> dragões --limit castelos` buscava silenciosamente só por
+  `dragões` com o limite padrão: resposta errada sem diagnóstico nenhum.
+- **O `--lang` continua sendo lido antes de qualquer um desses erros ser
+  impresso**, então o erro sai no idioma que o usuário pediu mesmo quando o
+  resto da linha está errado.
+- **`verso help` imprime o uso e sai com 0**; pedir ajuda não é erro de uso. O
+  `verso -h` e o `verso --help` fazem o mesmo: `--help` é o único argumento que
+  começa com `--` que a regra de opção desconhecida acima deixa passar.
+- **O `--` não é suportado como separador.** Ele cai na mesma regra, então uma
+  pasta cujo nome começa com `--` não pode ser passada de jeito nenhum na
+  Fase 1. O memo só quer o separador a partir da Fase 2; a lacuna fica
+  registrada, não decidida.
+- **Um nome de pasta que não é UTF-8 continua `OsString`**, do `args_os` até
+  virar `PathBuf` para o `verso-fs`. Só o subcomando, as palavras da busca e a
+  nota são lidos como texto.
+
 ## Alternativas descartadas
 
 Nenhuma registrada no briefing.

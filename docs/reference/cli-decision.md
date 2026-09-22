@@ -18,7 +18,12 @@
   (`Index::set_root`), which is where an orphan listing would read them; the
   `--list` and `--forget` flags are not written. **The exit-code tension of
   §6.2 stays open** — the code returns `1` when the run reported a walk problem
-  or a note it could not read, and `0` otherwise.
+  or a note it could not read, and `0` otherwise. **A third commit, `9f4e8e1`,
+  applies the Opus 5 reading of the two above**: one BLOCKING — a walk problem
+  protected only its own path, so an unreadable directory removed the notes
+  under it from the index — and eight IMPORTANT, all of them applied. What the
+  code does after it is recorded in the four ADRs this memo touches and in
+  §6.3 below.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2 to 7 are **Fable
   5.1's**, recorded here as the author's input; they are not decisions. No Rust
@@ -512,6 +517,28 @@ not discovered later:
   line in the PR.
 - The human-readable output has **no** such promise: it is for eyes, and it is
   translated, so a script that parses it is a script that will break.
+
+**What the code does after `9f4e8e1`**, provisional like everything else it
+does here: `search`, `backlinks` and `backlinks --unresolved` each print **one
+object** — `{"hits":[…]}`, `{"backlinks":[…]}`, `{"unresolved":[…]}` — where
+they used to print a bare array; and `index --json` prints each walk problem as
+a typed object, `{"kind":"io"|"loop"|"duplicate"|"too_deep","path":…}`, with
+`first_seen` on a loop and on a duplicate and `io_kind` and `error` on an io
+problem, where it used to print a Rust `Debug` rendering inside a string.
+
+**Deferred, not done.** Recorded here so that the absence is a record and not
+an oversight:
+
+- **`verso index --force`** (and `--rebuild`, §7.3) is not written: re-reading
+  everything is only possible by deleting the index file, which is safe
+  ([ADR 0011](../adr/0011-config-outside-tree-index-as-cache.md)) but is not a
+  command.
+- **"not indexed yet"**: `search` and `backlinks` on a folder that was never
+  indexed create an empty index and answer "no note found" / "unknown note",
+  which does not tell the user that the folder has not been indexed.
+- **`--` as a separator** (§2.3) is not supported, so a folder whose name
+  begins with `--` cannot be passed in Phase 1
+  ([ADR 0042](../adr/0042-open-from-command-line.md)).
 
 ### 6.4 Recommendation of Fable 5.1 for decision 5
 

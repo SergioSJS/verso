@@ -19,7 +19,12 @@
   órfãos as leria; as flags `--list` e `--forget` não estão escritas. **A tensão
   de código de saída da §6.2 continua aberta** — o código devolve `1` quando a
   execução relatou um problema de varredura ou uma nota que não conseguiu ler, e
-  `0` caso contrário.
+  `0` caso contrário. **Um terceiro commit, `9f4e8e1`, aplica a
+  leitura da Opus 5 sobre os dois acima**: um BLOCKING — um problema de
+  varredura protegia só o caminho dele, então um diretório ilegível removia do
+  índice as notas sob ele — e oito IMPORTANT, todos aplicados. O que o código
+  faz depois dele está registrado nos quatro ADRs que este memo toca e na §6.3
+  abaixo.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2 a 7 são da **Fable 5.1**,
   registradas aqui como insumo do autor; não são decisões. Nenhum Rust neste
@@ -527,6 +532,29 @@ agora para não ser descoberto depois:
   PR.
 - A saída legível por humano **não** tem essa promessa: ela é para o olho, e é
   traduzida, então um script que faz parse dela é um script que vai quebrar.
+
+**O que o código faz depois do `9f4e8e1`**, provisório como tudo o que ele faz
+aqui: `search`, `backlinks` e `backlinks --unresolved` imprimem cada um **um
+objeto** — `{"hits":[…]}`, `{"backlinks":[…]}`, `{"unresolved":[…]}` — onde
+antes imprimiam um array pelado; e o `index --json` imprime cada problema da
+varredura como objeto tipado —
+`{"kind":"io"|"loop"|"duplicate"|"too_deep","path":…}` —
+com `first_seen` em laço e em duplicata e `io_kind` e `error` num problema de
+io, onde antes imprimia uma renderização `Debug` do Rust dentro de uma string.
+
+**Adiado, não feito.** Registrado aqui para que a ausência seja registro e não
+esquecimento:
+
+- **`verso index --force`** (e `--rebuild`, §7.3) não está escrito: reler tudo
+  só é possível apagando o arquivo de índice, o que é seguro
+  ([ADR 0011](../adr/0011-config-outside-tree-index-as-cache.md)) mas não é um
+  comando.
+- **"ainda não indexada"**: `search` e `backlinks` sobre uma pasta que nunca foi
+  indexada criam um índice vazio e respondem "nenhuma nota encontrada" / "nota
+  desconhecida", o que não diz ao usuário que a pasta não foi indexada.
+- **O `--` como separador** (§2.3) não é suportado, então uma pasta cujo nome
+  começa com `--` não pode ser passada na Fase 1
+  ([ADR 0042](../adr/0042-open-from-command-line.md)).
 
 ### 6.4 Recomendação da Fable 5.1 para a decisão 5
 

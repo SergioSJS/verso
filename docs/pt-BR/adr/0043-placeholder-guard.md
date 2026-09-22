@@ -123,6 +123,22 @@ decide ao acordar.**
   backlinks *de* uma nota não verificada — os links dela foram parseados quando
   ela era legível e continuam no índice — não é respondido aqui.
 
+**Depois da leitura da Opus 5 de 2026-09-22 o código também faz:**
+
+- **Um problema relatado pela varredura protege uma subárvore inteira da
+  remoção, não um caminho só.** Uma nota sob um diretório que não deu para ler,
+  sob um laço de symlink, sob uma duplicata ou sob um caminho fundo demais para
+  entrar continua no índice naquela execução; e um problema na própria raiz — um
+  caminho vazio — protege todas as notas. Antes disso, um diretório que ficou
+  ilegível removia as notas sob ele, e uma raiz que não deu para listar
+  esvaziava o índice inteiro, que é a leitura proibida pela decisão 1 chegando
+  por uma permissão em vez de por um placeholder.
+- **Um placeholder que volta é relido mesmo quando o carimbo é o que o índice já
+  tem.** A execução olha a marca `unverified` da linha antes de pular pelo
+  carimbo, porque é a leitura da nota que limpa a marca: senão um arquivo que o
+  iCloud despejou e depois baixou de novo, byte por byte e com o mesmo mtime,
+  ficava marcado como não verificado para sempre.
+
 ## Alternativas descartadas
 
 - Tratar arquivo não legível como ausente — é o comportamento que causa a perda
