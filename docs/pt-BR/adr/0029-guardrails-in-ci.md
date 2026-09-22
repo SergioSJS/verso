@@ -9,7 +9,8 @@
   Fase 0, C3, C9, R1, R10); 2026-09-22 — onde cada sistema operacional roda,
   depois do incidente de custo; 2026-09-22 — a linha do confinamento de caminho
   reescrita depois da decisão sobre symlinks
-  ([0044](0044-verso-fs-semantics.md)).
+  ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — como o código da feature 2
+  responde aos requisitos da escrita atômica, registrado como provisório.
 
 ## Contexto
 
@@ -78,6 +79,39 @@ tratar, com teste para cada item:
 - Windows: substituir arquivo existente exige `MoveFileEx` com
   `REPLACE_EXISTING`; handle aberto por antivírus ou OneDrive faz o rename
   falhar. Entra quando Windows entrar.
+
+**Como o código da feature 2 responde à lista acima, registrado em 2026-09-22 e
+provisório: o mantenedor decide ao acordar.** Cada item é o que o código faz,
+não uma decisão; os requisitos acima continuam como estão.
+
+- **Hard links: detecta e avisa.** A escrita reporta
+  `WriteReport::hard_link_shared` quando o arquivo substituído tinha mais de um
+  nome, para o usuário saber que o outro nome ficou com o conteúdo antigo. O
+  requisito acima continua dizendo "decidir se detecta e avisa", e essa decisão
+  continua sendo do mantenedor — o código escolheu a opção mais barulhenta das
+  duas.
+- **O dono não é alterado.** O arquivo temporário pertence a quem está
+  escrevendo, e `chown` exige privilégios que o Verso não pede; o relatório diz
+  se o dono ficou igual ao do original. Modo e atributos estendidos são
+  preservados como o requisito pede.
+- **Os atributos estendidos são copiados antes do `fsync` do arquivo**, então
+  ficam duráveis junto com o conteúdo, e não depois dele.
+- **Os dois `fsync` não são observáveis por teste.** Nem o do arquivo, nem o do
+  diretório: nenhuma asserção portável distingue "sincronizado" de "não
+  sincronizado" sem tirar da tomada. O requisito é cumprido pela leitura do
+  código, e esta linha registra que o teste desse item não existe.
+- **Falha depois do `rename` é reportada, não levantada como escrita falha.** O
+  `fsync` do diretório e a releitura do novo stamp acontecem com o conteúdo já
+  no lugar; o relatório carrega `durability_not_confirmed` em vez de erro,
+  porque repetir uma escrita que já caiu mostraria ao usuário um diff contra a
+  edição dele mesmo.
+- **Sistema de arquivos de rede é detectado no macOS pela ausência de
+  `MNT_LOCAL` nas flags de montagem**, não por uma lista de nomes de sistema de
+  arquivos. Nas demais plataformas ainda não é detectado.
+- **O teste com cliente de sync está pendente do mantenedor.** "Testar com pasta
+  dentro de pelo menos um deles antes de fechar a feature" não foi feito: exige
+  uma pasta real de iCloud Drive, Dropbox, OneDrive ou Syncthing na máquina do
+  mantenedor. O requisito continua de pé, não cumprido.
 
 ## Consequências
 

@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.8
+# Spec do dialeto do Verso — v0.9
 
-- Versão: v0.8 · 2026-09-22
+- Versão: v0.9 · 2026-09-22
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -616,6 +616,15 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   participa. Com workspace multi-raiz
   ([ADR 0041](../adr/0041-multi-root-workspace.md), `PROPOSTO`), a resolução
   também atravessa raízes.
+
+  **Fato provisório vindo do `verso-fs`, registrado em 2026-09-22, que não
+  responde a esta questão.** A varredura classifica um arquivo comum como nota
+  quando a extensão dele é exatamente `md`; `.MD`, `.Md` e `.markdown` são
+  arquivos comuns até esta questão e a Q8 serem decididas. A metade de
+  maiúsculas e minúsculas pertence à Q8, não aqui: no APFS insensível a caixa,
+  `NOTA.MD` e `nota.md` são o mesmo arquivo, então "aceitar qualquer caixa" e
+  "uma nota por caminho" interagem. Quem decide é o mantenedor; esta linha só
+  registra o que o código faz enquanto isso.
 - **Q13. Tags inline (`#tag` no corpo).** `[ABERTO]`
   O briefing só cita `tags` no frontmatter. Se `#tag` no corpo conta como tag,
   e como conviver com `#` de heading e com `#` de URL.
@@ -756,3 +765,4 @@ ser escolhido.
 | v0.6 | 2026-09-21 | Q3 fechada pelo mantenedor para o fim de um parágrafo e o fim de um item de lista, com a fixture `fixtures/block/list-item` como resposta e a §5.7 atualizada; o `^id` em linha própria depois de linha em branco, num heading e depois de bloco de várias linhas continuam em aberto, e a Q4 também |
 | v0.7 | 2026-09-21 | Q17 fechada pelo mantenedor na parte do frontmatter (64 níveis de aninhamento, 10 000 nós), com o resto da questão continuando `[ABERTO]`; contradição dentro da §4.1 resolvida pela leitura estrita (chave de lista afirma a lista inteira). Terceira questão fechada, em parte |
 | v0.8 | 2026-09-22 | Q26 fechada pelo mantenedor (ADR 0044, memo `docs/reference/fs-decision.md`): entradas ocultas não são percorridas em nenhuma profundidade, e nota ignorada é alvo não resolvido e nunca fonte de backlink |
+| v0.9 | 2026-09-22 | Fato provisório registrado sob a Q12, vindo do código do `verso-fs`: nota é arquivo comum cuja extensão é exatamente `md`; `.MD`, `.Md` e `.markdown` são arquivos comuns até Q12 e Q8 serem decididas. Nenhuma questão fechada |

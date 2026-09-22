@@ -20,7 +20,8 @@
   [`docs/spec/dialect.md`](../spec/dialect.md) §9 Q26 and the
   [roadmap](../roadmap.md). Sections 1 to 6 are the comparison as it stood when
   the decision was made, kept unchanged; section 7 is kept as the record of how
-  it was decided. One line of section 2.1 is superseded by the decision: where
+  it was decided; section 8 was added afterwards, when the feature 2 code
+  existed. One line of section 2.1 is superseded by the decision: where
   the (c) column says the confinement guardrail "has no meaning", the reworded
   guardrail in ADR 0029 says what it does mean — confinement is a property of
   the **request** (absolute path, `..`, NUL byte), while a symlink the user
@@ -530,3 +531,18 @@ feature 6); the `verso-fs` fixture schema; whether the atomic write detects and
 warns on hard links (ADR 0029, section 5.1 item 3); the multi-root workspace
 (ADR 0041, `PROPOSED`), which is where the attachments-folder case goes; and
 every dialect question feature 2 does not touch.
+
+## 8. After the decision: what has to be checked on a Mac
+
+Added on 2026-09-22, when the feature 2 code existed. The decisions above are
+unchanged; this is one verification note.
+
+Two of the things this memo settled are implemented behind
+`#[cfg(target_os = "macos")]`: the `st_flags` check for a dataless file
+(section 4.1) and the `statfs` check that tells a network filesystem from a
+local one. A pull request runs on Linux only, and macOS runs on `main` after
+the merge ([ADR 0029](../adr/0029-guardrails-in-ci.md)) — so neither path is
+compiled, let alone exercised, by the CI that gates feature 2's PR. The PR
+therefore carries a manual step, stated in "How to verify": run `cargo test` on
+the maintainer's Mac before merging. Nothing else in the memo depends on the
+platform.
