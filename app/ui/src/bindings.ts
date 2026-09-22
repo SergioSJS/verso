@@ -45,6 +45,13 @@ export const commands = {
 	 *  none. The UI then loads it through the `verso://` protocol below.
 	 */
 	resolveAttachment: (target: string) => typedError<string | null, ContractError>(__TAURI_INVOKE("resolve_attachment", { target })),
+	/**  Every regular file of the folder that is not a note, for the tree. */
+	listFiles: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_files")),
+	/**
+	 *  The bytes of a text file that is not a note (UTF-8, lossily), for
+	 *  viewing; confined like every path.
+	 */
+	readFileText: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("read_file_text", { path })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 };

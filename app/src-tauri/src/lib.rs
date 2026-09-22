@@ -231,6 +231,24 @@ fn write_note(
     })
 }
 
+/// Every regular file of the folder that is not a note, for the tree.
+#[tauri::command]
+#[specta::specta]
+fn list_files(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
+    with(&state, |ws| Ok(ws.files()))
+}
+
+/// The bytes of a text file that is not a note (UTF-8, lossily), for
+/// viewing; confined like every path.
+#[tauri::command]
+#[specta::specta]
+fn read_file_text(state: State<'_, App>, path: String) -> Result<String, ContractError> {
+    with(&state, |ws| {
+        ws.read_file(&path)
+            .map(|b| String::from_utf8_lossy(&b).into_owned())
+    })
+}
+
 /// The file an embed names (`![[mapa.png]]`), relative to the folder, or
 /// none. The UI then loads it through the `verso://` protocol below.
 #[tauri::command]
@@ -303,6 +321,8 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         delete_note,
         rename_note,
         resolve_attachment,
+        list_files,
+        read_file_text,
         reindex
     ])
 }

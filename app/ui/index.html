@@ -13,6 +13,8 @@
         <span class="ic" data-icon="folder"></span>
         <span id="folder" class="folder-name"></span>
       </button>
+      <button id="new" type="button" class="ghost iconic" disabled></button>
+      <button id="collapse" type="button" class="ghost iconic" disabled></button>
       <button id="reindex" type="button" class="ghost iconic" disabled></button>
     </header>
     <label class="search">
@@ -21,7 +23,7 @@
       <input id="search" type="search" autocomplete="off" spellcheck="false" disabled>
       <kbd>⌘K</kbd>
     </label>
-    <nav class="side-body" aria-labelledby="notes-heading">
+    <nav id="tree-root" class="side-body" aria-labelledby="notes-heading">
       <h2 id="notes-heading" class="side-title"></h2>
       <ul id="notes" class="tree"></ul>
     </nav>
@@ -32,10 +34,11 @@
   </aside>
 
   <main class="page">
+    <div id="spaces" class="spaces" role="tablist"></div>
     <div id="panes" class="panes"></div>
     <footer class="status-bar">
       <span id="status" class="status" role="status" aria-live="polite"></span>
-      <span class="status-keys"><kbd>⌘E</kbd> <span id="keys-edit"></span> · <kbd>⌘\</kbd> <span id="keys-split"></span> · <kbd>⌘W</kbd> <span id="keys-close"></span></span>
+      <span class="status-keys"><kbd>⌘N</kbd> <span id="keys-new"></span> · <kbd>⌘E</kbd> <span id="keys-edit"></span> · <kbd>⌘\</kbd> <span id="keys-split"></span> · <kbd>⌘T</kbd> <span id="keys-space"></span></span>
     </footer>
   </main>
   <script type="module" src="main.js"></script>
