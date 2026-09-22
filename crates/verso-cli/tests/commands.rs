@@ -27,7 +27,8 @@ mod support {
         file
     }
 
-    pub fn verso(config: &Path, lang: &str, args: &[&str]) -> (i32, String) {
+    /// Exit code, stdout, stderr.
+    pub fn verso(config: &Path, lang: &str, args: &[&str]) -> (i32, String, String) {
         let out = Command::new(env!("CARGO_BIN_EXE_verso"))
             .args(args)
             .env("VERSO_CONFIG_DIR", config)
@@ -37,6 +38,7 @@ mod support {
         (
             out.status.code().unwrap_or(-1),
             String::from_utf8_lossy(&out.stdout).into_owned(),
+            String::from_utf8_lossy(&out.stderr).into_owned(),
         )
     }
 }
@@ -58,45 +60,49 @@ fn index_search_and_backlinks_in_both_languages() {
     );
     let v = vault.path().to_str().unwrap();
 
-    let (code, out) = verso(config.path(), "pt_BR", &["index", v]);
-    assert_eq!(code, 0, "{out}");
+    let (code, out, err) = verso(config.path(), "pt_BR", &["index", v]);
+    assert_eq!(code, 0, "{out}{err}");
     assert_eq!(
         out.trim(),
         "indexadas 2, sem mudança 0, removidas 0, placeholders presentes 0"
     );
+    assert!(err.is_empty(), "{err}");
 
-    let (code, out) = verso(config.path(), "en", &["index", v]);
+    let (code, out, _) = verso(config.path(), "en", &["index", v]);
     assert_eq!(code, 0);
     assert_eq!(
         out.trim(),
         "indexed 0, unchanged 2, removed 0, placeholders present 0"
     );
 
-    let (code, out) = verso(config.path(), "en", &["backlinks", v, "Barão Vermelho"]);
+    let (code, out, _) = verso(config.path(), "en", &["backlinks", v, "Barão Vermelho"]);
     assert_eq!(code, 0);
     assert_eq!(out.trim(), "Taverna.md: 3:3  [[Barão Vermelho]]");
 
-    let (code, out) = verso(config.path(), "pt_BR", &["backlinks", v, "Nada"]);
+    // A note the index does not know is said so, on stderr.
+    let (code, out, err) = verso(config.path(), "pt_BR", &["backlinks", v, "Nada"]);
     assert_eq!(code, 0);
-    assert_eq!(out.trim(), "nenhum backlink para Nada");
+    assert!(out.is_empty(), "{out}");
+    assert_eq!(err.trim(), "nota desconhecida: Nada (indexe a pasta?)");
 
-    let (code, out) = verso(config.path(), "en", &["backlinks", v, "--unresolved"]);
+    let (code, out, _) = verso(config.path(), "en", &["backlinks", v, "--unresolved"]);
     assert_eq!(code, 0);
     assert_eq!(out.trim(), "Mapa.png  (1)");
 
-    let (code, out) = verso(config.path(), "en", &["search", v, "DISTRITO"]);
+    let (code, out, _) = verso(config.path(), "en", &["search", v, "DISTRITO"]);
     assert_eq!(code, 0);
     assert!(out.starts_with("Barão Vermelho.md: "), "{out}");
 
-    let (code, out) = verso(config.path(), "en", &["search", v, "distrito", "--json"]);
+    // One JSON object per run (memo §6.3).
+    let (code, out, _) = verso(config.path(), "en", &["search", v, "distrito", "--json"]);
     assert_eq!(code, 0);
     assert!(
         out.trim()
-            .starts_with("[{\"path\":\"Barão Vermelho.md\",\"snippet\":"),
+            .starts_with("{\"hits\":[{\"path\":\"Barão Vermelho.md\",\"snippet\":"),
         "{out}"
     );
 
-    let (code, out) = verso(
+    let (code, out, _) = verso(
         config.path(),
         "en",
         &["backlinks", v, "Barão Vermelho", "--json"],
@@ -104,24 +110,69 @@ fn index_search_and_backlinks_in_both_languages() {
     assert_eq!(code, 0);
     assert_eq!(
         out.trim(),
-        "[{\"from\":\"Taverna.md\",\"line\":3,\"col\":3,\"target\":\"Barão Vermelho\",\"embed\":false}]"
+        "{\"backlinks\":[{\"from\":\"Taverna.md\",\"line\":3,\"col\":3,\"target\":\"Barão Vermelho\",\"embed\":false}]}"
+    );
+    let (code, out, _) = verso(
+        config.path(),
+        "en",
+        &["backlinks", v, "--unresolved", "--json"],
+    );
+    assert_eq!(code, 0);
+    assert_eq!(
+        out.trim(),
+        "{\"unresolved\":[{\"target\":\"Mapa.png\",\"count\":1}]}"
     );
 }
 
 #[test]
-fn usage_and_open_errors_have_their_exit_codes() {
+fn usage_and_open_errors_have_their_exit_codes_and_go_to_stderr() {
     let config = tempfile::tempdir().unwrap();
-    let (code, out) = verso(config.path(), "en", &[]);
+    let (code, out, err) = verso(config.path(), "en", &[]);
     assert_eq!(code, 2);
+    assert!(out.is_empty(), "{out}");
+    assert!(err.starts_with("usage: verso"), "{err}");
+    // Asking for help is not an error.
+    let (code, out, err) = verso(config.path(), "en", &["help"]);
+    assert_eq!(code, 0);
     assert!(out.starts_with("usage: verso"), "{out}");
-    let (code, out) = verso(config.path(), "pt_BR", &["frob"]);
+    assert!(err.is_empty(), "{err}");
+    let (code, _, err) = verso(config.path(), "pt_BR", &["frob"]);
     assert_eq!(code, 2);
-    assert!(out.starts_with("comando desconhecido: frob"), "{out}");
-    let (code, out) = verso(config.path(), "en", &["index", "/nowhere/at/all"]);
+    assert!(err.starts_with("comando desconhecido: frob"), "{err}");
+    let (code, _, err) = verso(config.path(), "en", &["index", "/nowhere/at/all"]);
     assert_eq!(code, 3);
-    assert!(out.starts_with("could not open:"), "{out}");
+    assert!(err.starts_with("could not open:"), "{err}");
     // --lang overrides the environment.
-    let (code, out) = verso(config.path(), "en", &["index", "--lang", "pt-BR"]);
+    let (code, _, err) = verso(config.path(), "en", &["index", "--lang", "pt-BR"]);
     assert_eq!(code, 2);
-    assert!(out.starts_with("falta a pasta"), "{out}");
+    assert!(err.starts_with("falta a pasta"), "{err}");
+    // A bad option value never changes the answer silently.
+    let (code, out, err) = verso(
+        config.path(),
+        "en",
+        &["search", "/v", "dragoes", "--limit", "castelos", "--json"],
+    );
+    assert_eq!(code, 2);
+    assert!(out.is_empty(), "{out}");
+    assert!(
+        err.starts_with("missing or invalid value for --limit"),
+        "{err}"
+    );
+    // No configuration directory at all: an error, not a relative path.
+    let vault = tempfile::tempdir().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_verso"))
+        .arg("index")
+        .arg(vault.path())
+        .env_remove("VERSO_CONFIG_DIR")
+        .env_remove("XDG_CONFIG_HOME")
+        .env_remove("HOME")
+        .env("VERSO_LANG", "en")
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(3));
+    assert!(
+        String::from_utf8_lossy(&out.stderr).starts_with("no configuration directory"),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
