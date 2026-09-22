@@ -121,6 +121,13 @@ export type NoteText = {
 	path: string,
 	/**  Without line endings; line `n` (1-based) is `lines[n - 1]`. */
 	lines: string[],
+	/**
+	 *  The note rendered as HTML by the core's own parser, for a preview:
+	 *  wikilinks are `<a class="wikilink" data-target>`, embeds
+	 *  `<span class="embed" data-target>`; the UI resolves targets
+	 *  through `links`.
+	 */
+	html: string,
 	headings: Heading[],
 	blocks: Block[],
 	/**

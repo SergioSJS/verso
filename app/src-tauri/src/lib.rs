@@ -118,6 +118,7 @@ fn read_note(state: State<'_, App>, path: String) -> Result<NoteText, ContractEr
         Ok(NoteText {
             path: t.path,
             lines: t.lines,
+            html: t.html,
             headings: t
                 .headings
                 .into_iter()
