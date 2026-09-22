@@ -676,6 +676,20 @@ Raised while writing this spec. All of them need an answer before
   later "aliases resolve" turns unresolved links into resolved ones, and the
   opposite would take away backlinks. The maintainer decides; this line only
   records what the code does in the meantime.
+
+  **Third provisional fact, from `verso-index`, recorded on 2026-09-22, and not
+  an answer to this question either.** Two ties that the fact above leaves
+  unstated. (1) Two *paths* that differ only in case — `x/nota.md` and
+  `x/Nota.md`, which can coexist on Linux and cannot on APFS with its default
+  settings — resolve the way two notes sharing a bare name do: the first in
+  byte order of the relative path wins, so `[[x/nota]]` reaches `x/Nota.md`,
+  `N` coming before `n`. (2) The spelling shown for a target no note answers to
+  (the Q14 fact below) is the smallest of its spellings in byte order, not the
+  first one seen: five links written `alvo`, `ALVO`, `Alvo.md` and `Alvo` are
+  one entry with a count of 5, displayed as `ALVO`. Neither was observed in
+  Obsidian; both exist so that the answer does not depend on the order the rows
+  happen to come back in. The maintainer decides; this line only records what
+  the code does in the meantime.
 - **Q13. Inline tags (`#tag` in the body).** `[OPEN]`
   The briefing only mentions `tags` in the frontmatter. Whether `#tag` in the
   body counts as a tag, and how it coexists with the `#` of a heading and with
@@ -693,6 +707,18 @@ Raised while writing this spec. All of them need an answer before
   `nao-existe` with its count, in a map separate from the resolved links. The
   maintainer decides; this line only records what the code does in the
   meantime.
+
+  **Second provisional fact from `verso-index`, recorded on 2026-09-22, and not
+  an answer to this question either.** A link whose target is empty —
+  `[[#Heading]]`, `[[#^id]]`, which section 4 gives as `target == ""` —
+  resolves to the note that contains it. It is not a link to a file that does
+  not exist: it never appears among the unresolved targets, and it is not a
+  backlink of the note to itself, so a note that links to its own headings does
+  not show up in its own backlinks. Nothing was observed in Obsidian for this
+  case; the code chose it because the alternative counts every same-note
+  heading link as a missing file and puts an empty target at the head of the
+  unresolved list of any folder that uses them. The maintainer decides; this
+  line only records what the code does in the meantime.
 - **Q15. Markdown extensions outside the base.** `[OPEN]`
   Tables, footnotes, task lists, math, highlight `==texto==`, strikethrough.
   The briefing lists none; the choice of base parser
@@ -827,3 +853,4 @@ the parser was chosen.
 | v0.8 | 2026-09-22 | Q26 closed by the maintainer (ADR 0044, memo `docs/reference/fs-decision.md`): hidden entries are not walked at any depth, and an ignored note is an unresolved target and never a backlink source |
 | v0.9 | 2026-09-22 | Provisional fact recorded under Q12, from the `verso-fs` code: a note is a regular file whose extension is exactly `md`; `.MD`, `.Md` and `.markdown` are plain files until Q12 and Q8 are decided. No question closed |
 | v0.10 | 2026-09-22 | Provisional facts recorded under Q2, Q8, Q12, Q14 and Q7, from the `verso-index` code and from the observation of Obsidian 1.13.7 on the same day (`docs/reference/index-decision.md`): how a link resolves, case, embeds, unresolved targets and NFC. No question closed |
+| v0.11 | 2026-09-22 | Provisional facts recorded under Q12 and Q14, from the `verso-index` code as it stands after the Opus 5 reading: an empty target (`[[#Heading]]`) resolves to the note itself, a case collision of two paths resolves like one of bare names, and an unresolved target is shown under the smallest of its spellings in byte order. Nothing observed in Obsidian for these three; no question closed |

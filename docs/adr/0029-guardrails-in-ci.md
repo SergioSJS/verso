@@ -11,7 +11,8 @@
   ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — how the feature 2 code
   answers the atomic write requirements, recorded as provisional, from two
   readings of that code; 2026-09-22 — how the feature 3 code meets the FTS5
-  guardrail, recorded as provisional.
+  guardrail, recorded as provisional, and extended after the reading of that
+  code with the control characters and the breadth of the test.
 
 ## Context
 
@@ -147,9 +148,24 @@ unchanged; this is what `verso-index` does.
   double quotes, with an inner double quote doubled — and the words are joined
   by FTS5's implicit AND. So `NOT`, `OR`, `*`, `:`, `(` and `"` are searched
   for as text and cannot change the query.
+- **Control characters are dropped from each word before it is quoted.**
+  Quoting alone was not enough: FTS5 reads the whole expression as a C string,
+  so a NUL byte inside a quoted word ends the string there and SQLite answers
+  `unterminated string`. Not an injection — the quotes stay balanced — but
+  memo §6.3.2 asks that a query must not make SQLite return an error either.
+  So `ca<NUL>fe` is searched for as `cafe`, and a query made only of control
+  characters searches for nothing at all.
 - **What that costs, stated rather than hidden:** the user cannot type `casa*`
   for a prefix search or `titulo:casa` for a column filter. Those become flags
   of `verso search` if the maintainer wants them (feature 4).
+- **The test covers every operator of the table in memo §6.3.4** — `"`, `OR`,
+  `NOT`, `NEAR(x y)`, `col:x`, `*`, `-x`, a lone `^`, an unbalanced `(` — and
+  asserts **which notes each query matches**, not merely that it does not
+  fail: an operator searched for as text matches the note that contains that
+  text and no other, and matches nothing when no note contains it. That is
+  what tells the two apart: `-texto` returns the notes that contain `texto`,
+  which is what a word does, instead of every note except them, which is what
+  the operator would do.
 - **Seen failing**, as this ADR requires: with the quoting removed, the grammar
   test fails with `fts5: syntax error near "NOT"`.
 

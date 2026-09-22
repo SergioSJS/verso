@@ -7,6 +7,9 @@
 - Revisions: 2026-09-22 — what the feature 3 code does recorded under
   Consequences, as **provisional**; the Decision stays "None" and both
   questions stay `[OPEN]` (memo `docs/reference/index-decision.md`).
+  2026-09-22 — the same record brought up to the code as it stands after the
+  Opus 5 reading: two of those items rewritten where the code changed, five
+  more added, all still **provisional**.
 
 ## Context
 
@@ -73,12 +76,19 @@ today, not a decision; the questions above are unchanged.
   extended attributes gets no exclusion and no error. That Time Machine really
   skips the file was not verified.
 - **WAL journal mode**, so the `-wal` and `-shm` companions exist next to the
-  index file. Their permissions are SQLite's own: the code does not set them,
-  and what SQLite gives them was not verified.
-- **The schema version lives in a `meta` table** (version 1 today). An index
-  carrying any other version is dropped and recreated from scratch, because
-  the index is a cache ([0011](0011-config-outside-tree-index-as-cache.md));
-  that is also the mechanism a tokenizer change would use.
+  index file. The code does not set their permissions; they come out `0600`
+  because SQLite creates them with the mode of the database file and the file
+  is chmodded before WAL is switched on. The reading of 2026-09-22 saw that
+  mode on both. The order of those two lines is what produces it, and a
+  comment in the code pins it: reordering them would widen the companions
+  without anything failing.
+- **The schema version and the tokenizer live in a `meta` table** (version 3
+  today). An index carrying any other version — or the same version built with
+  another tokenizer — is dropped and recreated from scratch, because the index
+  is a cache ([0011](0011-config-outside-tree-index-as-cache.md)). Recording
+  the tokenizer is what makes a tokenizer change take effect: without it, an
+  existing FTS5 table would stay tokenized the old way and nothing would say
+  so.
 - **An in-memory index exists** (`Index::in_memory`), used by the tests and
   available later for a folder the user does not want on disk. Nothing chooses
   it for the user yet.
@@ -87,6 +97,44 @@ today, not a decision; the questions above are unchanged.
 - **Tokenizer `unicode61 remove_diacritics 2`**, no stemming, `tokenchars` and
   `separators` left at their defaults: `Café`, `cafe` and `CAFÉ` are one term,
   and `cantar` and `cantando` are two.
+
+**Recorded on 2026-09-22 from the feature 3 code as it stands after the Opus 5
+reading — provisional, the maintainer decides.** The two items above about the
+`meta` table and the WAL companions were rewritten in place, because they say
+what the code does and the code changed. These five are new, and none of them
+is a decision either:
+
+- **The note's text is stored once.** `notes_fts` is an FTS5 external-content
+  table over the `notes.content` column (`content = 'notes'`,
+  `content_rowid = 'id'`), which is what memo `docs/reference/index-decision.md`
+  §5.3 recommends. The first commit of the crate used an ordinary FTS5 table
+  and kept a second copy of every note inside it; it no longer does. FTS5 now
+  holds only its own tokens, tied to `notes.id` by row id, and a note's tokens
+  are dropped through the `'delete'` command with the old text handed back to
+  it, instead of by a scan over an unindexed column.
+- **A SQLite file at the index path that is not ours is rebuilt, not
+  refused.** Opening an index whose `meta` table is missing, or whose version
+  or tokenizer differs, runs `DROP TABLE IF EXISTS` over the crate's six
+  tables and then creates them; anything else the file happens to contain is
+  left alone. The alternative was failing with "table already exists" on a
+  file the user had put there; the index is a cache
+  ([0011](0011-config-outside-tree-index-as-cache.md)), so the code treats the
+  path as its own.
+- **Opening the index chmods the parent directory even when the crate did not
+  create it.** `create_dir_all` is followed by `0700` unconditionally, so a
+  directory that already existed at `0755` comes out `0700`. It is a side
+  effect on something that may not be ours, stated rather than hidden; the one
+  case left alone is a bare file name, whose parent is the empty path.
+- **`xattr` is a macOS-only dependency**, declared under
+  `[target.'cfg(target_os = "macos")'.dependencies]`. The Time Machine
+  exclusion is the only thing that uses it, and it exists only on macOS
+  ([0022](0022-target-platforms-macos-first.md)); on the other platforms the
+  crate does not build or audit a dependency it cannot call.
+- **The note's hash is stored little-endian.** SQLite integers are signed and
+  64 bits, so the stamp's `u64` goes in through `to_le_bytes` and comes back
+  through `from_le_bytes` rather than through the machine's native order: an
+  index file read on a machine of the other endianness still reports the stamp
+  it stored, instead of reporting every note as changed.
 
 ## Discarded alternatives
 
