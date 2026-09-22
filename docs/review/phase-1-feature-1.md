@@ -7,9 +7,12 @@
 - Roadmap item: Phase 1, feature 1 — `verso-dialect`, parsing of links, blocks, headings and frontmatter ([`../roadmap.md`](../roadmap.md)).
 - State: every BLOCKING finding of the four readings is resolved in code, and
   the fourth reading found none: its verdict is that the branch may merge as the
-  resolution of the original review. Six items are **pending the maintainer**
-  and are listed in section 6; none of them is decided here. Two of them gained
-  a record in `docs/` in the same PR as this document: the provisional
+  resolution of the original review. Six items were **pending the maintainer**
+  and are listed in section 6; none of them is decided here. Two of the six —
+  the two defects of `pulldown-cmark` 0.13.4 and the gap in what CI announces —
+  were decided by the maintainer on 2026-09-21 and are marked decided in that
+  section, so four of the six are still pending. Two of them gained a record
+  in `docs/` in the same PR as this document: the provisional
   frontmatter limits under Q17 of
   [`../spec/dialect.md`](../spec/dialect.md) §9, and the two defects of
   `pulldown-cmark` 0.13.4 under Consequences of
@@ -163,11 +166,12 @@ Nothing in this list is decided here.
    `[OPEN]`. No fixture asserts them ([ADR 0031](../adr/0031-fixtures-as-contract.md);
    `CLAUDE.md` invariant 17). Other numbers considered: none recorded — the
    two were chosen to keep `parse` returning, not as an answer to Q17.
-2. **The two defects of `pulldown-cmark` 0.13.4.** The first: the ten-byte
-   input `- [a]:b` followed by a line of two tabs panics inside the base
-   parser, which contradicts what [ADR 0037](../adr/0037-base-parser.md)
-   expected of it and violates Q18 property 1 (upstream issue #1129). The
-   second, found by the fuzz guardrail on `71a4bcd`: a 5 068-byte UTF-8 input
+2. **The two defects of `pulldown-cmark` 0.13.4** — **decided on 2026-09-21.**
+   The first: the ten-byte input `- [a]:b` followed by a line of two tabs
+   panics inside the base parser, which contradicts what
+   [ADR 0037](../adr/0037-base-parser.md) expected of it and violates Q18
+   property 1 (upstream issue #1129). The second, found by the fuzz guardrail
+   on `71a4bcd`: a 5 068-byte UTF-8 input
    on which the base parser takes exponential time — 157 million events for
    the first 3 600 bytes, roughly doubling per 100 bytes — so `parse` does not
    return in practical time. Both are fixed on upstream `main` (verified as of
@@ -181,8 +185,21 @@ Nothing in this list is decided here.
    the git revision, which also needs a `[sources]` change in `deny.toml`; or
    switch to the `comrak` fallback of item 2 of that ADR's Decision. A scratch
    copy of the crate at `c51a2a4` passed every test and 6 M fuzz runs, and
-   `comrak` 0.55 also survives the ten-byte input. Both reproducers stay in
-   `crates/verso-dialect/tests/regressions.rs`, `#[ignore]`d.
+   `comrak` 0.55 also survives the ten-byte input. Both reproducers stayed in
+   `crates/verso-dialect/tests/regressions.rs`, `#[ignore]`d, until the
+   decision below.
+   **The maintainer decided on 2026-09-21** for the second way out: the
+   workspace and the fuzz harness build `pulldown-cmark` from upstream
+   revision `c51a2a4` through `[patch.crates-io]`, with `allow-git` in
+   `deny.toml` restricted to that one repository and an expiry of 2026-12-31
+   ([ADR 0029](../adr/0029-guardrails-in-ci.md)'s exception policy), until the
+   release after 0.13.4. `comrak` was not taken, because it would swap the base
+   to escape a bug that is already fixed; waiting was not taken, because it
+   leaves the fuzz job intermittently red and both tests ignored indefinitely.
+   Both tests therefore lose their `#[ignore]` and both inputs become fuzz
+   seeds. Recorded under Consequences of
+   [ADR 0037](../adr/0037-base-parser.md), whose Decision and Status did not
+   change.
 3. **The contradiction inside spec §4.1.** The same paragraph says
    "`links: []` asserts that there is no link" and "the parser may produce more
    than the fixture asks for, never less and never different". The fixture
@@ -201,12 +218,21 @@ Nothing in this list is decided here.
    is not, because the base emits no paragraph event there. This is an effect of
    the base parser, not a choice: nothing was implemented either way, and Q3
    ("admissible position of the `^id`") is `[OPEN]`.
-6. **Nothing in CI announces the upstream release.** Since the ten-byte input
-   stopped being a fuzz seed (third reading, finding 1), the two `#[ignore]`d
-   regression tests of item 2 can stay ignored indefinitely, including across a
+6. **Nothing in CI announces the upstream release** — **decided on
+   2026-09-21.** Since the ten-byte input stopped being a fuzz seed (third
+   reading, finding 1), the two `#[ignore]`d regression tests of item 2 can
+   stay ignored indefinitely, including across a
    `cargo update` that brings the fix in. The fourth reading records two
    options and chooses neither: a non-blocking CI step that runs the ignored
    tests, so that a green one is visible; or a `deny.toml` ban on
    `pulldown-cmark > 0.13.4` whose reason names the test to un-ignore, so that
    the update itself fails the build until someone looks. Other options
    considered: none recorded.
+   **The maintainer decided on 2026-09-21** for the second option, as the
+   tripwire of the patch decided in item 2: `deny.toml` bans
+   `pulldown-cmark >= 0.13.5` — `>` does not match in cargo-deny 0.20.2, hence
+   `>=` — and its reason names the action for the day it fires, which is to run
+   the two regression tests on the release and then drop the patch, the
+   `allow-git` entry and the ban together. The non-blocking CI step is not
+   needed once those tests stop being ignored. Recorded under Consequences of
+   [ADR 0037](../adr/0037-base-parser.md).

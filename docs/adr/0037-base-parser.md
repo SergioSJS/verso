@@ -14,6 +14,9 @@
   2026-09-21 — a second defect of the same version, exponential parsing time,
   recorded under Consequences, from the fourth reading of that PR. Decision and
   Status unchanged.
+  2026-09-21 — the maintainer's way out of those two defects recorded under
+  Consequences: build the base from the upstream revision that fixes them,
+  until the release after 0.13.4. Decision and Status unchanged.
 
 ## Context
 
@@ -103,16 +106,17 @@ parser, edits by textual patch; `docs/spec/dialect.md` §9):
   `main` needs `features = ["std"]` together with `default-features = false`;
   a scratch copy of the crate at that revision passed every test here and
   6 M fuzz runs, and `comrak` 0.55 — the fallback of item 2 of the Decision —
-  also survives the input. Meanwhile the repository records the panic instead
-  of working around it: the input is a regression test in
-  `crates/verso-dialect/tests/regressions.rs`, `#[ignore]`d with the condition
-  for removing the `#[ignore]` written in it (the base stops panicking on it);
-  it is **not** a fuzz seed, because libFuzzer runs seeds smallest first and
-  this one ended every fuzz job before the first mutation; and the fuzz job
-  runs its budget from the remaining seed. **The way out is open for the
-  maintainer:** wait for the upstream release, pin the git revision — which
-  also needs a `[sources]` change in `deny.toml`, where `unknown-git` is
-  `deny` — or switch to the `comrak` fallback already recorded in item 2.
+  also survives the input. Until the decision below, the repository recorded
+  the panic instead of working around it: the input was kept as a regression
+  test in `crates/verso-dialect/tests/regressions.rs`, `#[ignore]`d with the
+  condition for removing the `#[ignore]` written in it (the base stops
+  panicking on it); it was deliberately **not** a fuzz seed, because libFuzzer
+  runs seeds smallest first and this one ended every fuzz job before the first
+  mutation; and the fuzz job ran its budget from the remaining seed. **The way
+  out was open for the maintainer:** wait for the upstream release, pin the git
+  revision — which also needed a `[sources]` change in `deny.toml`, where
+  `unknown-git` is `deny` — or switch to the `comrak` fallback already recorded
+  in item 2.
 - **`pulldown-cmark` 0.13.4 also takes exponential time on some input**,
   recorded on 2026-09-21 by the fourth reading of the feature 1 PR, which found
   it with the fuzz guardrail: a 5 068-byte UTF-8 input on which `parse` does not
@@ -123,13 +127,34 @@ parser, edits by textual patch; `docs/spec/dialect.md` §9):
   the defect is in the base and `verso-dialect`'s own pass is linear over the
   base's events. This is the "slowness" Q17 of `docs/spec/dialect.md` already
   names, and it contradicts the purpose [0029](0029-guardrails-in-ci.md) states
-  for the fuzz guardrail. Two consequences while it stands: the CI fuzz job can
-  go red on any PR by finding the input again (not seen in runs of 60 seconds,
-  seen once in a run of 600 seconds), and the reproducer is a second
+  for the fuzz guardrail. Two consequences while it stood: the CI fuzz job
+  could go red on any PR by finding the input again (not seen in runs of 60
+  seconds, seen once in a run of 600 seconds), and the reproducer was a second
   `#[ignore]`d regression test, reading
   `crates/verso-dialect/tests/data/pulldown-0.13.4-exponential.txt`. **The way
-  out is the same three options as the panic, and the same decision**, since
+  out was the same three options as the panic, and the same decision**, since
   both defects are gone on upstream `main`.
+- **The base is built from upstream revision `c51a2a4` until the release after
+  0.13.4**, the maintainer's decision of 2026-09-21 on the three ways out the
+  two bullets above leave open. Both defects are already fixed at that
+  revision and there is no release to take the fix from, so the workspace
+  `Cargo.toml` and the fuzz harness — its own package — carry the same
+  `[patch.crates-io]`, and `deny.toml` gains an `allow-git` restricted to that
+  one repository, with the reason written in place and an expiry of
+  2026-12-31, as [0029](0029-guardrails-in-ci.md)'s exception policy requires.
+  The other two ways out were not taken: `comrak` would swap the base to
+  escape a bug that is already fixed, and waiting for the release leaves the
+  CI fuzz job intermittently red and two regression tests ignored
+  indefinitely. They are recorded here and not under Discarded alternatives
+  because they were ways out of this consequence, not alternatives to the
+  Decision. Both regression tests in
+  `crates/verso-dialect/tests/regressions.rs` therefore lose their `#[ignore]`
+  and both inputs are now fuzz seeds, a seed being added only once it passes.
+  The tripwire is a `cargo-deny` ban on `pulldown-cmark >= 0.13.5` whose
+  reason names the action for the day it fires: run those two tests on the
+  release, then drop the patch, the `allow-git` entry and the ban together, in
+  one PR. If no release arrives by the expiry, the decision comes back to the
+  maintainer.
 
 ## Discarded alternatives
 
