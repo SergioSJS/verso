@@ -153,11 +153,33 @@ leitura, edições por patch textual; `docs/spec/dialect.md` §9):
   consequência, não alternativas à Decisão. Os dois testes de regressão em
   `crates/verso-dialect/tests/regressions.rs` perdem, portanto, o `#[ignore]`,
   e as duas entradas passam a ser sementes de fuzz, já que uma semente só é
-  acrescentada depois de passar. O fio de disparo é uma proibição do
-  `cargo-deny` a `pulldown-cmark >= 0.13.5` cuja justificativa nomeia a ação do
-  dia em que ela disparar: rodar esses dois testes no release e então remover o
-  patch, a entrada `allow-git` e a proibição juntos, num PR só. Se nenhum
-  release chegar até o prazo, a decisão volta para o mantenedor.
+  acrescentada depois de passar. O que impede um build sem o patch de cair de
+  volta na 0.13.4 defeituosa é o próprio requisito do crate: ele é afrouxado
+  para `"0.13"`, já que o manifesto da revisão com patch ainda diz 0.13.1, e
+  pede `features = ["std"]`, uma feature que nenhuma 0.13.x publicada tem — a
+  0.13.4 oferece `default`, `gen-tests`, `html` e `simd` —, de modo que sem o
+  patch a resolução falha com "does not have that feature" em vez de resolver
+  para a 0.13.4. No dia em que o patch sair, o release tem de trazer a feature
+  `std` — a separação `no_std` — ou essa linha muda no mesmo PR. O fio de
+  disparo para esse dia é uma proibição do `cargo-deny` a `pulldown-cmark`
+  `>=0.13.5`, escrita com as chaves antigas `name` e `version`, porque o
+  `version` ali é um requisito semver de verdade, enquanto a forma mais nova
+  `crate = "name@>=0.13.5"` é um package-id spec que descarta o operador de
+  comparação e casa com uma versão exata (cargo-deny 0.20.2); a proibição foi
+  vista disparando com o limite baixado para `>=0.13.1` contra a 0.13.1 com
+  patch e ficando calada em `>=0.13.2`. A justificativa dela nomeia a ação do
+  dia em que disparar: rodar esses dois testes no release, conferir que o
+  release tem `std` e então remover o patch, a entrada `allow-git` e a
+  proibição juntos, num PR só. O prazo de validade é uma data em três
+  comentários — o bloco do patch e as duas entradas do `deny.toml` — e nada o
+  faz valer mecanicamente, que é a mesma situação que o
+  [0029](0029-guardrails-in-ci.md) dá às suas exceções de advisory; se nenhum
+  release chegar até lá, a decisão volta para o mantenedor por alguém ler a
+  data. O custo de cadeia de suprimentos fica registrado aqui para que a
+  escolha seja consciente: a dependência é fixada por SHA-1 completo, o CI
+  precisa alcançar o github.com para o próprio parser, um force-push upstream
+  deixaria o build impossível de baixar, e nada é vendorizado — nenhum ADR
+  exige vendorizar.
 
 ## Alternativas descartadas
 

@@ -230,9 +230,18 @@ Nothing in this list is decided here.
    considered: none recorded.
    **The maintainer decided on 2026-09-21** for the second option, as the
    tripwire of the patch decided in item 2: `deny.toml` bans
-   `pulldown-cmark >= 0.13.5` — `>` does not match in cargo-deny 0.20.2, hence
-   `>=` — and its reason names the action for the day it fires, which is to run
-   the two regression tests on the release and then drop the patch, the
-   `allow-git` entry and the ban together. The non-blocking CI step is not
+   `pulldown-cmark` `>=0.13.5`, written with the legacy `name` and `version`
+   keys, because `version` there is a real semver requirement while the newer
+   `crate = "name@>=0.13.5"` form is a package-id spec that drops the
+   comparison operator and matches one exact version (cargo-deny 0.20.2); it
+   was seen firing with the bound lowered to `>=0.13.1` against the patched
+   0.13.1 and staying silent at `>=0.13.2`. Its reason names the action for
+   the day it fires: run the two regression tests on the release, check that
+   the release has the `std` feature, then drop the patch, the `allow-git`
+   entry and the ban together. The ban announces the release; what protects
+   the build is the crate requirement asking for `features = ["std"]`, which
+   no published 0.13.x has, so a build without the patch fails to resolve
+   instead of falling back to 0.13.4 — and that is why dropping the patch
+   means checking the release carries `std`. The non-blocking CI step is not
    needed once those tests stop being ignored. Recorded under Consequences of
    [ADR 0037](../adr/0037-base-parser.md).
