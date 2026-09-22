@@ -84,6 +84,8 @@ fn parse(args: &[OsString]) -> (Options, Result<Command, Msg>) {
                     error.get_or_insert(Msg::BadOptionValue("--limit".to_owned()));
                 }
             },
+            // Asking for help is a command, not an unknown option.
+            "--help" => positional.push(arg.clone()),
             other if other.starts_with("--") => {
                 error.get_or_insert(Msg::UnknownOption(other.to_owned()));
             }
@@ -514,6 +516,8 @@ mod tests {
             }
         );
         assert_eq!(parse(&args(&["help"])).1.unwrap(), Command::Help);
+        assert_eq!(parse(&args(&["--help"])).1.unwrap(), Command::Help);
+        assert_eq!(parse(&args(&["-h"])).1.unwrap(), Command::Help);
         assert_eq!(parse(&args(&[])).1.unwrap_err(), Msg::Usage);
         assert_eq!(parse(&args(&["index"])).1.unwrap_err(), Msg::MissingFolder);
         assert_eq!(
