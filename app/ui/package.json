@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "esbuild src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/main.js --sourcemap && cp index.html style.css dist/"
+    "build": "esbuild src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/main.js --sourcemap && cp index.html style.css dist/ && mkdir -p dist/fonts && cp fonts/*.woff2 dist/fonts/"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
@@ -14,6 +14,9 @@
     "@codemirror/language": "^6.12.4",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.13",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource/literata": "^5.3.0",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.3",
     "codemirror": "^6.0.2"
