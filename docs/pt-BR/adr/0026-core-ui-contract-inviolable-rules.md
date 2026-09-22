@@ -21,8 +21,12 @@ As seis regras abaixo são invioláveis:
 2. A UI não assume de que lado do fio o core está; latência e disponibilidade
    vêm das capabilities.
 3. O contrato é definido primeiro; tipos TS são gerados a partir do Rust.
-4. A API de filesystem trabalha com handles opacos, nunca com caminho POSIX em
-   string.
+4. A API de filesystem separa **acesso** de **identidade**: uma capacidade de
+   ler ou escrever um arquivo cruza o contrato só como handle opaco, e uma nota
+   é nomeada pelo caminho relativo à pasta aberta. Caminho absoluto, ou com
+   `..`, nunca cruza o contrato em nenhuma direção. (Emendada em 2026-09-22; o
+   texto original dizia "trabalha com handles opacos, nunca com caminho POSIX
+   em string".)
 5. Acesso a disco só dentro do crate `verso-fs`.
 6. Plugins nunca acessam disco diretamente.
 
@@ -35,11 +39,28 @@ e a config é indexada pelo caminho da pasta
 ([0011](0011-config-outside-tree-index-as-cache.md)). A fronteira em que
 elas valem é esta:
 
-- **Regra 4** vale para tudo que atravessa o contrato: UI, plugins e MCP recebem
-  e devolvem handles, nunca strings de caminho. Caminho em string existe só na
-  borda de entrada (argumento da CLI, chave da config) e dentro de `verso-fs`.
-  O que um handle identifica e quanto tempo vale é `[ABERTO]` em
-  [0044](0044-verso-fs-semantics.md).
+- **Regra 4** vale para tudo que cruza o contrato: UI, plugins e MCP. Até
+  2026-09-22 ela exigia handle para *tudo*, caminho em string incluído. A
+  feature 6 mostrou o custo disso, e o mantenedor a emendou:
+
+  - Uma **capacidade de acesso** — abrir, ler, escrever este arquivo — cruza só
+    como **handle opaco**. Era para isso que a regra existia: no iOS a
+    capacidade é um bookmark com escopo de segurança e no Android uma URI do
+    SAF, e nenhum dos dois é caminho; um contrato construído sobre caminhos não
+    conseguiria carregá-los.
+  - A **identidade de uma nota dentro da pasta aberta** cruza como o **caminho
+    relativo à raiz**, em NFC, com `/` e a extensão `.md`. Essa string não é
+    caminho POSIX: não é absoluta, não nomeia nada fora da pasta e não dá
+    acesso a nada. É o que o índice usa como chave, o que uma citação precisa
+    conter para ser verificável por uma pessoa, e o que o usuário vê no app.
+  - **Caminho absoluto, ou com `..`**, nunca cruza. Todo caminho que um cliente
+    manda é confinado pelo `verso-fs` antes de qualquer abertura.
+
+  A emenda não é exceção aberta para o MCP: a árvore de arquivos da Fase 2
+  mostra caminhos, então o texto original também quebraria lá. Caminho em
+  string também existe na borda de entrada (argumento da CLI, chave da config) e
+  dentro de `verso-fs`. O que um handle identifica e por quanto tempo vale
+  continua `[ABERTO]` na [0044](0044-verso-fs-semantics.md).
 - **Regra 5** vale para **os arquivos da pasta aberta** (e de cada raiz de um
   workspace). Só `verso-fs` lê, grava, renomeia, apaga ou observa esses
   arquivos. Ficam fora da regra, por serem arquivos do app e não do usuário: o

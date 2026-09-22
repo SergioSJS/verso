@@ -34,6 +34,35 @@ Nenhuma. Questões registradas, com o momento de decidir.
   acontece quando ela muda (a especificação já trocou de transporte e de modelo
   de autorização mais de uma vez).
 
+**`verso mcp` decidido em 2026-09-22 pelo mantenedor**
+(`docs/reference/mcp-decision.md` §9). As três perguntas acima, respondidas:
+
+- **Transporte: stdio.** O cliente sobe `verso mcp <pasta>` como processo
+  filho. Sem porta, logo sem checagem de `Origin`, sem defesa contra DNS
+  rebinding e sem token de sessão para errar. HTTP fica como feature posterior
+  e traz junto as perguntas do `verso serve` quando vier.
+- **Superfície: sete ferramentas só de leitura** — `search`, `read_note`,
+  `links`, `backlinks`, `unresolved`, `list_notes`, `index` — com citação por
+  `^id`, ou por linha e coluna quando o bloco não tem id. Nenhuma ferramenta
+  escreve. O aviso da Q9 continua de pé e entra na ajuda do próprio comando:
+  enquanto não existir visibilidade por bloco na spec, **`verso mcp <pasta>`
+  entrega a pasta inteira a quem conectar**, e o único controle é qual pasta se
+  abre. A lista de ignorados da [0044](0044-verso-fs-semantics.md) serve como
+  segunda linha de defesa grosseira, ao preço de essas notas também saírem do
+  índice.
+- **Versão do protocolo:** a que o `initialize` negociar com o cliente,
+  registrada no PR; a dependência é `rmcp` 3.4, que traz 61 crates e passa no
+  `cargo deny check licenses`. O mantenedor aceitou esse peso de olhos abertos,
+  já que a alternativa é escrever o protocolo à mão.
+- **Identificador de nota:** o caminho relativo à raiz, em string, sob a regra 4
+  emendada da [0026](0026-core-ui-contract-inviolable-rules.md) — identidade
+  cruza como caminho relativo, acesso cruza como handle — com confinamento
+  aplicado a todo caminho que um cliente manda e o `Handle` opaco ficando
+  dentro do processo.
+- **Desatualização:** um índice incremental ao iniciar, uma ferramenta
+  `index()` para atualizar, sem watcher, e `stale: true` no `read_note` quando
+  o carimbo do arquivo difere do do índice.
+
 ### Contrato core↔UI — decidir antes do item 2.1 da Fase 2
 
 - O contrato precisa ter, desde o primeiro desenho, identidade de sessão,
@@ -120,5 +149,5 @@ Nenhuma registrada.
 
 ## Status
 
-`[ABERTO]`. MCP: antes da feature 6 da Fase 1. Contrato: antes do item 2.1 da
+`[ABERTO]` para o contrato e o servidor; **MCP decidido em 2026-09-22** (acima). MCP: fechado. Contrato: antes do item 2.1 da
 Fase 2. Servidor: antes de entrar em escopo.

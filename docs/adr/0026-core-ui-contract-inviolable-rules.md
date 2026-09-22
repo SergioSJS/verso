@@ -22,8 +22,12 @@ The six rules below are inviolable:
 2. The UI does not assume which side of the wire the core is on; latency and
    availability come from the capabilities.
 3. The contract is defined first; TS types are generated from the Rust.
-4. The filesystem API works with opaque handles, never with a POSIX path as a
-   string.
+4. The filesystem API separates **access** from **identity**: a capability to
+   read or write a file crosses the contract only as an opaque handle, and a
+   note is named by its path relative to the open folder. An absolute path, or
+   a path containing `..`, never crosses the contract in either direction.
+   (Amended 2026-09-22; the original wording was "works with opaque handles,
+   never with a POSIX path as a string".)
 5. Disk access only inside the `verso-fs` crate.
 6. Plugins never access disk directly.
 
@@ -37,10 +41,27 @@ and the config is indexed by the folder path
 hold is this:
 
 - **Rule 4** holds for everything that crosses the contract: UI, plugins and
-  MCP receive and return handles, never path strings. A path as a string exists
-  only at the entry edge (CLI argument, config key) and inside `verso-fs`.
-  What a handle identifies and how long it is valid is `[OPEN]` in
-  [0044](0044-verso-fs-semantics.md).
+  MCP. Until 2026-09-22 it required a handle for *everything*, path strings
+  included. Feature 6 showed what that costs, and the maintainer amended it:
+
+  - A **capability of access** — open, read, write this file — crosses only as
+    an **opaque handle**. That is what the rule was for: on iOS the capability
+    is a security-scoped bookmark and on Android a SAF URI, neither of which is
+    a path, and a contract built on paths could not carry them.
+  - The **identity of a note inside the open folder** crosses as its **path
+    relative to the root**, in NFC, with `/` and the `.md` extension. That
+    string is not a POSIX path: it is not absolute, it names nothing outside
+    the folder, and it grants no access. It is what the index keys by, what a
+    citation has to contain to be verifiable by a human, and what the user sees
+    in the app.
+  - An **absolute path, or one containing `..`**, never crosses. Every path a
+    client sends is confined by `verso-fs` before anything is opened.
+
+  The amendment is not an exception carved out for MCP: the Phase 2 file tree
+  displays paths, so the original wording would have been broken there too. A
+  path as a string also exists at the entry edge (CLI argument, config key) and
+  inside `verso-fs`. What a handle identifies and how long it is valid is still
+  `[OPEN]` in [0044](0044-verso-fs-semantics.md).
 - **Rule 5** holds for **the files of the open folder** (and of each root of a
   workspace). Only `verso-fs` reads, writes, renames, deletes or watches those
   files. Outside the rule, because they are app files and not user files: the

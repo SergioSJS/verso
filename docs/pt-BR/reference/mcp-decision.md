@@ -15,6 +15,28 @@
   como última versão conhecida, porque um placeholder estava no lugar dela), e
   as **mensagens de `ErrorData`** que o cliente recebe estão em inglês, como as
   descrições das ferramentas e pelo mesmo motivo `[ABERTO]` (seção 7).
+- **Decisão: tomada pelo mantenedor em 2026-09-22**, em sessão, registrada aqui
+  e no PR de fechamento: as cinco linhas da seção 9 como recomendado, com uma
+  instrução junto — *"reavalie especialmente as contradições, às vezes o
+  memorando estava teórico demais e não refletia a realidade, adapte o que
+  precisar e resolva o problema"*. A contradição era a linha 3: a regra 4 da
+  [ADR 0026](../adr/0026-core-ui-contract-inviolable-rules.md) exigia handle
+  para tudo que cruza o contrato, e o `verso mcp` nomeia notas por caminho. **A
+  regra foi emendada** em vez do código: capacidade de acesso cruza como handle
+  opaco, identidade de nota cruza como caminho relativo à raiz, e caminho
+  absoluto ou com `..` nunca cruza. A emenda está na ADR 0026 e no `CLAUDE.md`
+  §2.1. O que fez desse o lado certo para ceder: a regra existe para que
+  bookmarks do iOS e URIs do SAF do Android possam cruzar um contrato que
+  caminhos não carregariam, e um nome relativo ao vault não é esse tipo de
+  caminho — é o que o índice usa como chave, o que uma citação precisa para ser
+  verificável, e o que a árvore de arquivos da Fase 2 vai ter de mostrar de
+  qualquer jeito.
+
+  **Ainda devido nesta branch, e é Rust**
+  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)): os achados 2 a 5 da
+  leitura da Opus 5 do `verso mcp` — o caminho confinado como chave do índice e
+  como `path` ecoado, recusas como resultado de ferramenta em vez de erro
+  JSON-RPC, `problems` tipado, e os limites da janela do `read_note`.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2 a 6 são da **Fable 5.1**,
   registradas aqui como insumo do autor; não são decisões. Nenhum Rust neste
