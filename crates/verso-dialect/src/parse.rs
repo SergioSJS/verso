@@ -93,17 +93,12 @@ pub fn parse(source: &str) -> Document {
     document
 }
 
-/// Report a block id once. A loose item's paragraph and, for a paragraph
-/// that is the whole of an item's text, nothing else ends at the same span;
-/// comparing with the last block reported is enough because blocks are
-/// pushed in document order and a candidate can only repeat the block that
-/// was pushed immediately before it (its own paragraph, closed just before
-/// the item). Two distinct blocks with the same id text have different
-/// spans and are both reported.
+/// Report a block id. Each `^id` token is looked at by exactly one closing:
+/// a paragraph's end, or the end of a list item's own text — a loose item
+/// has no own text (its first block child, the paragraph, closes it empty),
+/// so nothing is ever a candidate twice and no deduplication is needed.
 fn push_block(document: &mut Document, candidate: Option<BlockId>) {
-    if let Some(block) = candidate
-        && document.blocks.last().map(|b| b.span) != Some(block.span)
-    {
+    if let Some(block) = candidate {
         document.blocks.push(block);
     }
 }
@@ -164,7 +159,11 @@ fn track_item(
 
 /// The tags that live inside a line of text. Anything else is a block, and
 /// a tag added to the base later counts as a block until listed here: that
-/// direction only stops an item's own text early, never scans a block.
+/// direction only stops an item's own text early, never scans a block. The
+/// same is not automatic for a block that the base emits as a standalone
+/// event rather than a tag, such as `Rule`: those go into the `Rule` arm of
+/// [`track_item`] by hand (a display-math block would be the next one, if
+/// math is ever enabled).
 fn is_inline(tag: &Tag<'_>) -> bool {
     matches!(
         tag,
@@ -173,6 +172,7 @@ fn is_inline(tag: &Tag<'_>) -> bool {
             | Tag::Strikethrough
             | Tag::Superscript
             | Tag::Subscript
+            | Tag::Highlight
             | Tag::Link { .. }
             | Tag::Image { .. }
     )
@@ -388,7 +388,19 @@ mod tests {
         assert_eq!(ids("- um\n\n      codigo ^a\n"), vec![]);
         assert_eq!(ids("- um\n  ```\n  texto ^a\n"), vec![]);
         assert_eq!(ids("- um\n  <div>\n  ^a\n"), vec![]);
-        // A blockquote inside an item: the quote's paragraph reports it once.
+        // A blockquote inside an item: the quote's paragraph reports it once;
+        // with an id on the item too, the item's comes first (document order:
+        // the own text closes before anything inside the child is reported).
         assert_eq!(ids("- um\n  > nota ^b\n"), vec![("b".into(), 2, 10)]);
+        assert_eq!(
+            ids("- um ^a\n  > nota ^b\n"),
+            vec![("a".into(), 1, 6), ("b".into(), 2, 10)]
+        );
+        // Ordered items and CRLF go through the same path.
+        assert_eq!(ids("1. um ^a\n"), vec![("a".into(), 1, 7)]);
+        assert_eq!(
+            ids("- um ^a\r\n  - dois ^b\r\n"),
+            vec![("a".into(), 1, 6), ("b".into(), 2, 10)]
+        );
     }
 }

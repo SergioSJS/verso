@@ -57,6 +57,9 @@ fuzz_target!(|data: &[u8]| {
     }
     for block in &document.blocks {
         check(source, block.span, block.pos);
+        // The span must be the `^id` token itself: a block reported from
+        // inside a code block would slice fine and still be wrong here.
+        assert_eq!(block.span.slice(source), Some(format!("^{}", block.id).as_str()));
     }
     for callout in &document.callouts {
         check(source, callout.span, callout.pos);
