@@ -139,6 +139,14 @@ on waking.**
   file that iCloud evicted and then downloaded again, byte for byte and with
   the same mtime, stayed marked unverified for good.
 
+**Decided on 2026-09-22 by the maintainer** (`docs/reference/cli-decision.md`
+§10, line 6). A second `verso index` skips a note whose stamp the index already
+has, removes from the index what the walk no longer lists — **except** a
+placeholder, and except a note under a path the walk reported a problem for —
+and re-reads a note the index holds as unverified even when its stamp matches,
+because reading the note is what verifies it. The `unverified` column that
+carries this is in the schema already; no further bump is owed.
+
 ## Discarded alternatives
 
 - Treating an unreadable file as absent — that is the behavior that causes the

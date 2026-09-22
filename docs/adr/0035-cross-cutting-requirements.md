@@ -22,6 +22,23 @@ the UI.
 
 ## Consequences
 
+**Revision of 2026-09-22, by the maintainer.** Decision 1 binds **the
+application's interface**: the Phase 2 UI is pt-BR and EN. It does **not** bind
+the CLI, which is a developer's tool and may be in one language. The reason
+given, verbatim: *"a interface da aplicação deve ter pt-BR, o resto não
+precisa"*. What follows from it:
+
+- The bilingual `verso-cli` built in feature 7 **stays as it is** — it works,
+  it is tested, and removing it would be work that buys nothing. It is no
+  longer a requirement, so a future command may be written in one language
+  without breaking this ADR.
+- Phase 1's exit criterion 6 is relaxed accordingly (`docs/roadmap.md`).
+- "No loose string literal" survives on its own merit for the UI, where it is
+  what makes a second language possible at all. In the CLI it is now a
+  convention of the existing code, not a rule of this ADR.
+- `verso mcp`'s tool results are data for a model, not an interface: English,
+  and outside this decision either way.
+
 - "From the first commit" means **from the first commit of product code**:
   Phase 0 is documentation and empty crates. It holds for the Phase 2 UI and
   for the Phase 1 CLI messages: no loose string literal. Phase 1 gets a scope

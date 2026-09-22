@@ -117,7 +117,7 @@ Execution order from briefing §15:
 | ~~Symlinks, loops and ignored paths (Q26)~~ | decided 2026-09-22: every symlink is followed, maximum depth 64 with an error at the cap; hidden entries are not walked; an ignored note is an unresolved target and never a backlink source (`docs/reference/fs-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 | ~~Placeholder detection mechanism per provider, starting with iCloud Drive~~ | decided 2026-09-22: both iCloud forms (`SF_DATALESS` and `.Name.ext.icloud`), checked before the file is opened; the other providers deferred (`docs/reference/fs-decision.md`) | [0043](adr/0043-placeholder-guard.md) |
 | Location, permissions and cleanup of the index | before feature 3 closes | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
-| Disambiguation rule between `verso <folder>` and a subcommand | before feature 4 closes the set of subcommands | [0042](adr/0042-open-from-command-line.md) |
+| ~~Disambiguation rule between `verso <folder>` and a subcommand~~ | decided 2026-09-22: a subcommand is required in Phase 1; the Phase 2 rule recorded and still open (`docs/reference/cli-decision.md`) | [0042](adr/0042-open-from-command-line.md) |
 | FTS5 tokenizer for pt-BR and EN | before feature 5 takes the baseline | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Performance targets | after feature 5 produces the baseline | [0039](adr/0039-performance-targets.md) |
 | MCP transport, exposed surface, protocol version | before feature 6 closes | [0045](adr/0045-server-and-mcp-security.md) |
@@ -126,9 +126,13 @@ Execution order from briefing §15:
 ### Exit criterion
 
 1. **A real vault indexes without error.** `verso index` runs over the
-   maintainer's real campaign vault and finishes with exit code 0, with no error
-   and no panic. Verification: run the command and check the exit code and the
-   standard output.
+   maintainer's real campaign vault and finishes with **exit code 0, or 1 when
+   the walk reported a problem in the folder**, with no error and no panic.
+   The `1` was decided by the maintainer on 2026-09-22 together with the exit
+   codes (`docs/reference/cli-decision.md` §6.2): an unreadable directory is
+   news about the folder, not a failure of the command, and it must not be
+   reported as success either. Verification: run the command and check the exit
+   code and the standard output.
 2. **Backlinks match what was expected.** For a set of notes chosen by the
    maintainer, the output of `verso backlinks` matches the list they wrote by hand
    before running the command. Verification: compare the two lists; a divergence
@@ -152,10 +156,13 @@ Execution order from briefing §15:
    changed without the maintainer's explicit approval.
    Verification: `cargo test` green, plus a `git log` of
    `fixtures/**/expected.yaml` with no unapproved commit.
-6. **CLI in two languages.** `verso index`, `verso search` and `verso backlinks`
-   answer in pt-BR and in EN according to the locale. Verification: run each
-   command with both locales and check that no message stays in the other
-   language.
+6. **CLI in two languages — no longer required, and satisfied anyway.** The
+   maintainer narrowed the requirement on 2026-09-22
+   ([ADR 0035](adr/0035-cross-cutting-requirements.md)): pt-BR and EN bind the
+   application's interface, not the CLI. Feature 7 built it bilingual before
+   that, and it stays. Verification, if anyone wants it: run each command with
+   both locales and check that no message stays in the other language; a
+   divergence is no longer a reason to hold the phase.
 
 ---
 

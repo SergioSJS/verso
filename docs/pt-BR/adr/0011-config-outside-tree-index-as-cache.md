@@ -94,6 +94,29 @@ código faz, não uma decisão.
   índice onde o processo estivesse rodando, possivelmente dentro da própria
   pasta aberta.
 
+**Decidido em 2026-09-22 pelo mantenedor** (`docs/reference/cli-decision.md`
+§10, linha 2). O diretório de configuração é `$VERSO_CONFIG_DIR` quando
+definido e não vazio; senão `$XDG_CONFIG_HOME/verso` quando essa variável
+estiver definida; senão `~/Library/Application Support/verso` no macOS e
+`~/.config/verso` no resto. Sem nenhum dos três — e sem `HOME` — o comando
+**falha com mensagem**; nunca cai para um diretório relativo ao atual, que num
+job do `launchd` ou num contêiner poderia cair dentro da pasta aberta. Sem
+dependência `dirs`/`directories`: a regra são nove linhas nossas.
+
+O índice de uma pasta é `<config>/index/<nome>-<hash>.sqlite`, chaveado pelo
+caminho absoluto da pasta depois de normalizado, com um sidecar `<mesmo>.json`
+registrando esse caminho e a hora da última indexação, para que um índice órfão
+possa ser listado e esquecido
+([0046](0046-index-location-lifecycle-tokenizer.md)). O sidecar **ainda não é
+escrito**: é o que falta da feature 4.
+
+Por que essa ordem e não só o padrão da plataforma: as próprias bibliotecas do
+ecossistema Rust devolvem `Application Support` no macOS, e a reclamação
+recorrente contra elas é que um `XDG_CONFIG_HOME` explicitamente definido é
+ignorado. Respeitá-lo quando está definido, e cair no padrão da plataforma
+quando não está, é o meio-termo que os dois lados pedem, e é o que espera quem
+mantém dotfiles.
+
 ## Alternativas descartadas
 
 - Diretório de configuração dentro da pasta, no modelo `.obsidian/` — descartado

@@ -139,6 +139,14 @@ decide ao acordar.**
   iCloud despejou e depois baixou de novo, byte por byte e com o mesmo mtime,
   ficava marcado como não verificado para sempre.
 
+**Decidido em 2026-09-22 pelo mantenedor** (`docs/reference/cli-decision.md`
+§10, linha 6). Um segundo `verso index` pula a nota cujo carimbo o índice já
+tem, remove do índice o que o walk não lista mais — **menos** um placeholder, e
+menos uma nota sob um caminho para o qual o walk reportou problema — e relê uma
+nota que o índice guarda como não verificada mesmo quando o carimbo bate,
+porque ler a nota é o que a verifica. A coluna `unverified` que carrega isso já
+está no schema; não se deve outro bump.
+
 ## Alternativas descartadas
 
 - Tratar arquivo não legível como ausente — é o comportamento que causa a perda
