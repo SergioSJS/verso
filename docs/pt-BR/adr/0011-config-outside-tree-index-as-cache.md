@@ -76,6 +76,24 @@ código faz, não uma decisão.
   faz hoje, e se o Linux deve usar o diretório de configuração, o de dados ou o
   de cache é respondido no PR que trouxer o Linux.
 
+**Depois da leitura da Opus 5 de 2026-09-22 o código também faz:**
+
+- **O caminho da pasta é normalizado antes de o índice ser chaveado.** O
+  `Workspace::open` torna o caminho absoluto e então descarta o `.` e o
+  separador final (via `Path::components`), de modo que `vault`, `vault/` e
+  `vault/.` nomeiam um arquivo de índice só em vez de três. O shell que
+  completa um nome de diretório acrescenta o separador, então esse era o
+  problema da primeira execução, não um caso exótico.
+- **O `..` é mantido, não resolvido**, porque resolvê-lo significa seguir
+  symlink, que é assunto do `verso-fs`
+  ([0044](0044-verso-fs-semantics.md)). Então `vault/../vault` ainda chaveia um
+  índice próprio: lacuna conhecida, registrada e não decidida.
+- **Sem `HOME`, sem `XDG_CONFIG_HOME` e sem `VERSO_CONFIG_DIR` é um erro que o
+  usuário vê** (`CoreError::NoConfigDir`, código de saída 3), nunca um diretório
+  relativo ao atual. Sob `launchd` ou num contêiner pelado, o fallback punha o
+  índice onde o processo estivesse rodando, possivelmente dentro da própria
+  pasta aberta.
+
 ## Alternativas descartadas
 
 - Diretório de configuração dentro da pasta, no modelo `.obsidian/` — descartado

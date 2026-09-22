@@ -78,6 +78,24 @@ code does, not a decision.
   the code does today, and whether Linux should use the configuration, the data
   or the cache directory is answered in the PR that brings Linux.
 
+**After the Opus 5 reading of 2026-09-22 the code also does:**
+
+- **The folder path is normalized before the index is keyed.**
+  `Workspace::open` makes the path absolute and then drops `.` and the trailing
+  separator (through `Path::components`), so `vault`, `vault/` and `vault/.`
+  name one index file instead of three. A shell that completes a directory name
+  appends the separator, so this was the first run's problem, not an exotic
+  one.
+- **`..` is kept, not resolved**, because resolving it means following
+  symlinks, which is `verso-fs`'s business
+  ([0044](0044-verso-fs-semantics.md)). So `vault/../vault` still keys an index
+  of its own: a known gap, recorded rather than decided.
+- **No `HOME`, no `XDG_CONFIG_HOME` and no `VERSO_CONFIG_DIR` is an error the
+  user sees** (`CoreError::NoConfigDir`, exit code 3), never a directory
+  relative to the current one. Under `launchd` or in a bare container the
+  fallback used to put the index wherever the process happened to be running,
+  possibly inside the open folder itself.
+
 ## Discarded alternatives
 
 - A configuration directory inside the folder, on the `.obsidian/` model —

@@ -67,6 +67,28 @@ decision.
   (`docs/reference/cli-decision.md` §4.2); the question is reopened for the
   Phase 2 UI, with a UI's requirements rather than a CLI's.
 
+**After the Opus 5 reading of 2026-09-22 the code also does:**
+
+- **The walk's problems go through the same table as everything else.**
+  `verso-core` hands them over as `WalkProblem` — loop, duplicate, too deep,
+  io — and the CLI renders them as four `Msg` variants in both languages. No
+  Rust `Debug` rendering reaches the user any more, and none reaches the
+  `--json` output either.
+- **The one untranslated part is the operating system's own error text**,
+  inside the io variant. It is the system's string, in the system's locale, and
+  not ours to translate; this line records the exception instead of leaving it
+  implied.
+- **`backlinks` on a note the index does not know says so** — "unknown note",
+  on stderr — instead of answering "no backlinks" like a note that exists and
+  has none. Exit criterion 2 is read on that output.
+- **stdout carries the answer only.** Usage errors, errors opening the folder
+  or the index, the unreadable lines and the problem lines of a run go to
+  stderr, so `--json > file` never mixes a translated sentence into the JSON.
+- **A closed pipe ends the output quietly.** Every line goes through `writeln!`
+  on a locked handle and the writing stops at the first error, so
+  `verso search … | head -1` ends with the command's own exit code instead of a
+  panic on a broken pipe.
+
 ## Discarded alternatives
 
 - Launching in one language only and translating later — discarded in §13.
