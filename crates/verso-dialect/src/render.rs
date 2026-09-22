@@ -66,8 +66,146 @@ pub fn to_html(source: &str) -> String {
         Event::End(TagEnd::Image) => Some(Event::Html("</span>".into())),
         other => Some(other),
     });
+    let events = events.flat_map(|event| match event {
+        Event::Text(text) if text.contains("==") => highlights(&text),
+        other => vec![other],
+    });
     let mut out = String::with_capacity(source.len() * 2);
     html::push_html(&mut out, events);
+    callouts(&out)
+}
+
+/// `==marked==` inside one text run becomes `<mark>`; an odd `==` is
+/// text. Obsidian's highlight, which the base parser does not know.
+fn highlights(text: &str) -> Vec<Event<'static>> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(a) = rest.find("==") {
+        let after = &rest[a + 2..];
+        let Some(b) = after.find("==") else { break };
+        if b == 0 {
+            // `====`: not a highlight; keep going after it.
+            out.push(Event::Text(rest[..a + 2].to_owned().into()));
+            rest = after;
+            continue;
+        }
+        out.push(Event::Text(rest[..a].to_owned().into()));
+        out.push(Event::Html("<mark>".into()));
+        out.push(Event::Text(after[..b].to_owned().into()));
+        out.push(Event::Html("</mark>".into()));
+        rest = &after[b + 2..];
+    }
+    if !rest.is_empty() {
+        out.push(Event::Text(rest.to_owned().into()));
+    }
+    out
+}
+
+/// A blockquote whose first line is `[!type]`, `[!type]+` or `[!type]-`
+/// with an optional title becomes an Obsidian callout:
+/// `<div class="callout" data-callout="type" data-fold="+|-">` with a
+/// `<p class="callout-title">`. Nested blockquotes inside it are kept.
+fn callouts(html: &str) -> String {
+    const OPEN: &str = "<blockquote>\n<p>[!";
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(i) = rest.find(OPEN) {
+        out.push_str(&rest[..i]);
+        let body = &rest[i + OPEN.len()..];
+        // `type]` then fold then the title up to the end of the line.
+        let Some(close) = body.find(']') else {
+            out.push_str(OPEN);
+            rest = body;
+            continue;
+        };
+        let kind: String = body[..close].trim().to_lowercase();
+        if kind.is_empty()
+            || !kind
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            out.push_str(OPEN);
+            rest = body;
+            continue;
+        }
+        let mut after = &body[close + 1..];
+        let fold = match after.chars().next() {
+            Some(c @ ('+' | '-')) => {
+                after = &after[1..];
+                Some(c)
+            }
+            _ => None,
+        };
+        let line_end = after.find('\n').unwrap_or(after.len());
+        let first_line = &after[..line_end];
+        let (title, inline_rest) = match first_line.find("</p>") {
+            Some(k) => (&first_line[..k], &first_line[k..]),
+            None => (first_line, ""),
+        };
+        let title = title.trim();
+        // The end of this blockquote, nesting counted.
+        let mut depth = 1;
+        let mut scan = &rest[i + "<blockquote>".len()..];
+        let mut consumed = "<blockquote>".len();
+        let end = loop {
+            let open = scan.find("<blockquote>");
+            let close_tag = scan.find("</blockquote>");
+            match (open, close_tag) {
+                (Some(o), Some(c)) if o < c => {
+                    depth += 1;
+                    consumed += o + "<blockquote>".len();
+                    scan = &scan[o + "<blockquote>".len()..];
+                }
+                (_, Some(c)) => {
+                    depth -= 1;
+                    consumed += c;
+                    if depth == 0 {
+                        break Some(consumed);
+                    }
+                    consumed += "</blockquote>".len();
+                    scan = &scan[c + "</blockquote>".len()..];
+                }
+                _ => break None,
+            }
+        };
+        let Some(end) = end else {
+            out.push_str(OPEN);
+            rest = body;
+            continue;
+        };
+        let inner_start = OPEN.len() + close + 1 + usize::from(fold.is_some()) + line_end;
+        let inner = &rest[i + inner_start..i + end];
+        out.push_str(&format!("<div class=\"callout\" data-callout=\"{kind}\""));
+        if let Some(f) = fold {
+            out.push_str(&format!(" data-fold=\"{f}\""));
+        }
+        out.push_str(">\n<p class=\"callout-title\">");
+        if title.is_empty() {
+            let mut chars = kind.chars();
+            if let Some(c) = chars.next() {
+                out.push_str(&c.to_uppercase().collect::<String>());
+                out.push_str(chars.as_str());
+            }
+        } else {
+            out.push_str(title);
+        }
+        out.push_str("</p>\n");
+        // The paragraph that held the title: closed on that line, closed
+        // later (its remaining lines are the body's first paragraph), or
+        // only the title.
+        let inner = inner.trim_start_matches('\n');
+        if !inline_rest.is_empty() {
+            out.push_str(inner);
+        } else if let Some(after_p) = inner.strip_prefix("</p>") {
+            out.push_str(after_p.trim_start_matches('\n'));
+        } else {
+            out.push_str("<p>");
+            out.push_str(inner);
+        }
+        out.push_str("</div>");
+        rest = &rest[i + end + "</blockquote>".len()..];
+    }
+    out.push_str(rest);
     out
 }
 
@@ -111,5 +249,43 @@ mod tests {
     fn a_quote_in_a_target_is_escaped() {
         let html = to_html(r#"[[a"b]]"#);
         assert!(html.contains(r#"data-target="a&quot;b""#), "{html}");
+    }
+
+    #[test]
+    fn a_callout_is_a_div_with_its_kind_title_and_fold() {
+        let html = to_html(
+            "> [!warning]- Cuidado\n> Texto do aviso.\n\n> [!note]\n> Só corpo.\n\n> citação normal\n",
+        );
+        assert!(
+            html.contains(r#"<div class="callout" data-callout="warning" data-fold="-">"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<p class="callout-title">Cuidado</p>"#),
+            "{html}"
+        );
+        assert!(html.contains("Texto do aviso."), "{html}");
+        assert!(
+            html.contains(r#"<div class="callout" data-callout="note">"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<p class="callout-title">Note</p>"#),
+            "{html}"
+        );
+        assert!(html.contains("<p>Só corpo.</p>"), "{html}");
+        assert!(
+            html.contains("<blockquote>\n<p>citação normal</p>"),
+            "{html}"
+        );
+        assert_eq!(html.matches("</div>").count(), 2, "{html}");
+    }
+
+    #[test]
+    fn highlights_become_mark_and_odd_ones_stay_text() {
+        let html = to_html("a ==b== c ==d\n");
+        assert!(html.contains("a <mark>b</mark> c ==d"), "{html}");
+        let html = to_html("`==x==`\n");
+        assert!(html.contains("<code>==x==</code>"), "{html}");
     }
 }

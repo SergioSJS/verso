@@ -666,6 +666,7 @@ class Leaf {
     this.revision = note.revision;
     this.preview.innerHTML = note.html;
     void this.embedImages(note.path);
+    this.dress(note.path);
     const flags: string[] = [];
     if (note.stale) flags.push(t.stale);
     if (note.unverified) flags.push(t.unverified);
@@ -710,6 +711,7 @@ class Leaf {
       const target = (a.dataset["target"] ?? "").split("#")[0] ?? "";
       if (this.resolved.get(target.toLowerCase()) == null) a.classList.add("unresolved");
     }
+    this.dress(this.path);
     if (back.status === "ok") {
       this.backlinks.replaceChildren(
         ...back.data.map((b) => {
@@ -726,6 +728,56 @@ class Leaf {
     }
     this.applyMode();
     markCurrent();
+  }
+
+  /** `![[Nota]]` in the reading view: the note's own rendering, once
+   *  deep, under its name; and a task's checkbox, once clicked, is
+   *  toggled in the file (a user action, ADR 0012), through write_note. */
+  private dress(forPath: string): void {
+    for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed:not(.file)")) {
+      const target = (span.dataset["target"] ?? "").split("#")[0] ?? "";
+      const to = this.resolved.get(target.toLowerCase());
+      if (!to || !to.endsWith(".md")) continue;
+      void commands.readNote(to).then((r) => {
+        if (r.status !== "ok" || this.path !== forPath) return;
+        const box = h("section", "embed-note");
+        const head = h("a", "embed-note-title", name(to));
+        head.href = "#";
+        head.addEventListener("click", (e) => {
+          e.preventDefault();
+          openNote(to, false);
+        });
+        const body = h("div", "embed-note-body");
+        body.innerHTML = r.data.html;
+        for (const inner of body.querySelectorAll("span.embed")) inner.classList.add("file");
+        box.append(head, body);
+        span.replaceWith(box);
+      });
+    }
+    const boxes = Array.from(this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox]"));
+    boxes.forEach((box, n) => {
+      box.disabled = false;
+      box.addEventListener("change", () => void this.toggleTask(n, box.checked));
+    });
+  }
+
+  private async toggleTask(n: number, checked: boolean): Promise<void> {
+    if (!this.note) return;
+    const lines = this.note.text.split(/(?<=\n)/);
+    let seen = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const m = /^(\s*(?:[-*+]|\d+[.)])\s+\[)( |x|X)(\])/.exec(lines[i] ?? "");
+      if (!m) continue;
+      if (seen++ === n) {
+        lines[i] = (lines[i] ?? "").replace(/^(\s*(?:[-*+]|\d+[.)])\s+\[)( |x|X)(\])/, `$1${checked ? "x" : " "}$3`);
+        const r = await commands.writeNote(this.path, lines.join(""), this.revision);
+        if (r.status === "ok") {
+          this.refresh(r.data.note);
+          this.editor.setState(this.editorState(r.data.note.text));
+        } else fail(r.error);
+        return;
+      }
+    }
   }
 
   private async embedImages(forPath: string): Promise<void> {
