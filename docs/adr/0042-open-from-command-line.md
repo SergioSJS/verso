@@ -72,6 +72,28 @@ decision; the disambiguation rule above stays `[OPEN]`.
   `verso -- <folder>` as the escape hatches for a folder named like a
   subcommand. Nothing in the code implements it.
 
+**After the Opus 5 reading of 2026-09-22 the code also does:**
+
+- **An argument beginning with `--` that is not a known option is a usage
+  error** that names it, with exit code 2 — and so are a missing or invalid
+  value for `--limit` or `--lang`, a positional the subcommand did not ask for,
+  and `--unresolved` outside `backlinks`. Before this,
+  `verso search <folder> dragões --limit castelos` silently searched for
+  `dragões` alone with the default limit: a wrong answer with no diagnostic.
+- **`--lang` is still read before any of those errors is printed**, so the
+  error comes out in the language the user asked for even when the rest of the
+  line is wrong.
+- **`verso help` prints the usage and exits 0**; asking for help is not a usage
+  error. `verso -h` and `verso --help` do the same: `--help` is the one
+  argument beginning with `--` that the unknown-option rule above lets through.
+- **`--` is not supported as a separator.** It falls under the same rule, so a
+  folder whose name begins with `--` cannot be passed at all in Phase 1. The
+  memo only wants the separator from Phase 2 on; the gap is recorded rather
+  than decided.
+- **A folder name that is not UTF-8 stays an `OsString`**, from `args_os` until
+  it becomes a `PathBuf` for `verso-fs`. Only the subcommand, the search words
+  and the note are read as text.
+
 ## Discarded alternatives
 
 None recorded in the briefing.

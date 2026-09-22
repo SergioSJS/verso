@@ -123,6 +123,22 @@ on waking.**
   backlinks mean — its links were parsed when it was last readable and are still
   in the index — is not answered here.
 
+**After the Opus 5 reading of 2026-09-22 the code also does:**
+
+- **A problem the walk reported protects a whole subtree from removal, not a
+  single path.** A note under a directory that could not be read, under a
+  symlink loop, under a duplicate or under a path too deep to enter stays in
+  the index on that run; and a problem on the root itself — an empty path —
+  protects every note. Before this, one directory that became unreadable
+  removed the notes under it, and a root that could not be listed emptied the
+  whole index, which is decision 1's forbidden reading arrived at through a
+  permission rather than through a placeholder.
+- **A placeholder that comes back is re-read even when its stamp is the one the
+  index already has.** The run looks at the row's `unverified` mark before it
+  skips by stamp, because reading the note is what clears the mark: otherwise a
+  file that iCloud evicted and then downloaded again, byte for byte and with
+  the same mtime, stayed marked unverified for good.
+
 ## Discarded alternatives
 
 - Treating an unreadable file as absent — that is the behavior that causes the

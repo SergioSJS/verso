@@ -66,6 +66,29 @@ código faz, não uma decisão.
   `docs/reference/cli-decision.md`); a pergunta é reaberta para a UI da Fase 2,
   com os requisitos de uma UI e não de uma CLI.
 
+**Depois da leitura da Opus 5 de 2026-09-22 o código também faz:**
+
+- **Os problemas da varredura passam pela mesma tabela que o resto.** O
+  `verso-core` os entrega como `WalkProblem` — laço, duplicata, fundo demais e
+  io — e a CLI os renderiza como quatro variantes de `Msg` nos dois idiomas.
+  Nenhuma renderização `Debug` do Rust chega mais ao usuário, e nenhuma chega
+  também à saída `--json`.
+- **A única parte não traduzida é o texto de erro do próprio sistema
+  operacional**, dentro da variante io. É a string do sistema, no locale do
+  sistema, e não é nossa para traduzir; esta linha registra a exceção em vez de
+  deixá-la implícita.
+- **O `backlinks` sobre uma nota que o índice não conhece diz isso** — "nota
+  desconhecida", no stderr — em vez de responder "sem backlinks" como uma nota
+  que existe e não tem nenhum. O critério de saída 2 é lido nessa saída.
+- **O stdout carrega só a resposta.** Erros de uso, erros ao abrir a pasta ou o
+  índice, as linhas de arquivo ilegível e as linhas de problema de uma execução
+  vão para o stderr, de modo que `--json > arquivo` nunca mistura uma frase
+  traduzida no JSON.
+- **Um pipe fechado encerra a saída em silêncio.** Toda linha passa por
+  `writeln!` num handle travado e a escrita para no primeiro erro, então
+  `verso search … | head -1` termina com o código de saída do próprio comando
+  em vez de um pânico por pipe quebrado.
+
 ## Alternativas descartadas
 
 - Lançar só em um idioma e traduzir depois — descartado em §13.
