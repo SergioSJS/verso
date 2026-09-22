@@ -85,11 +85,17 @@ impl Index {
     /// rebuilt from scratch: it is a cache (ADR 0011).
     pub fn open(path: impl Into<PathBuf>) -> Result<Self, IndexError> {
         let path = path.into();
-        if let Some(dir) = path.parent() {
+        // The caller passes `<config>/index/<file>` (ADR 0011); a bare
+        // file name has an empty parent, which is the current directory
+        // and nobody's to chmod.
+        if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
             std::fs::create_dir_all(dir)?;
             restrict(dir, 0o700)?;
         }
         let conn = Connection::open(&path)?;
+        // The chmod comes before WAL is switched on: the `-wal` and `-shm`
+        // companions inherit the database file's mode when they are
+        // created, so reordering these two lines would widen them.
         restrict(&path, 0o600)?;
         exclude_from_backup(&path);
         conn.pragma_update(None, "journal_mode", "WAL")?;

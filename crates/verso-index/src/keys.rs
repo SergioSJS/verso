@@ -27,10 +27,14 @@ pub fn target_key(target: &str) -> String {
     fold(strip_md(target.trim()))
 }
 
+/// `s` without a final `.md`, in any case. The cut is at a byte offset,
+/// so it is only taken when that offset is a character boundary: a name
+/// that ends in a multi-byte character (`Bar 🍻`) is not `.md` and must
+/// not be sliced inside the character.
 fn strip_md(s: &str) -> &str {
-    let lower_ends_with_md = s.len() >= 3 && s[s.len() - 3..].eq_ignore_ascii_case(".md");
-    if lower_ends_with_md {
-        &s[..s.len() - 3]
+    let cut = s.len().wrapping_sub(3);
+    if s.len() >= 3 && s.is_char_boundary(cut) && s[cut..].eq_ignore_ascii_case(".md") {
+        &s[..cut]
     } else {
         s
     }
@@ -57,5 +61,17 @@ mod tests {
             note_keys("Sess\u{e3}o 3.md").1,
             target_key("sessa\u{303}o 3")
         );
+    }
+
+    #[test]
+    fn a_name_ending_in_a_multibyte_character_is_not_sliced() {
+        assert_eq!(target_key("Bar \u{1f37b}"), "bar \u{1f37b}");
+        assert_eq!(
+            note_keys("\u{1f37b}.md"),
+            ("\u{1f37b}".into(), "\u{1f37b}".into())
+        );
+        assert_eq!(target_key("\u{e9}"), "\u{e9}");
+        assert_eq!(target_key("md"), "md");
+        assert_eq!(target_key(".md"), "");
     }
 }

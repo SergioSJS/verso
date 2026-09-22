@@ -21,11 +21,16 @@ pub struct Hit {
 
 /// The FTS5 MATCH expression for the user's words: each whitespace-separated
 /// word becomes a quoted string with inner quotes doubled, and the words are
-/// joined by AND (FTS5's implicit operator). Empty input gives `None`.
+/// joined by AND (FTS5's implicit operator). Control characters are dropped
+/// first: FTS5 reads the expression as a C string, so a NUL would end it
+/// inside a quote and SQLite would answer with an error. Empty input gives
+/// `None`.
 #[must_use]
 pub fn match_expression(query: &str) -> Option<String> {
     let words: Vec<String> = query
         .split_whitespace()
+        .map(|w| w.chars().filter(|c| !c.is_control()).collect::<String>())
+        .filter(|w| !w.is_empty())
         .map(|w| format!("\"{}\"", w.replace('"', "\"\"")))
         .collect();
     if words.is_empty() {
@@ -81,5 +86,10 @@ mod tests {
             Some("\"x*\" \"col:y\" \"(z)\"")
         );
         assert_eq!(match_expression("   "), None);
+        assert_eq!(
+            match_expression("ca\u{0}fe \u{1}").as_deref(),
+            Some("\"cafe\"")
+        );
+        assert_eq!(match_expression("\u{0}"), None);
     }
 }

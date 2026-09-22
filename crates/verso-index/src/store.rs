@@ -52,12 +52,37 @@ pub struct Unresolved {
 }
 
 /// The SQL that resolves a target key to a note id: a path from the root
-/// first, then a name; several names → the first by path order (observed
-/// in Obsidian; provisional). Used inside the queries below.
-const RESOLVE: &str = "COALESCE(
-    (SELECT id FROM notes WHERE path_key = l.target_key),
+/// first, then a name; several of either → the first by path order in
+/// byte order (observed in Obsidian for names; provisional). An empty
+/// target (`[[#Heading]]`, `[[^id]]`) names the note itself (provisional:
+/// not a missing file, spec Q14). Used inside the queries below, where
+/// `l` is the `links` row.
+const RESOLVE: &str = "CASE WHEN l.target_key = '' THEN l.note ELSE COALESCE(
+    (SELECT id FROM notes WHERE path_key = l.target_key ORDER BY path LIMIT 1),
     (SELECT id FROM notes WHERE name_key = l.target_key ORDER BY path LIMIT 1)
-)";
+) END";
+
+/// Remove a note's row from `notes_fts` (external content: FTS5 needs the
+/// old values to drop its tokens) and from `notes`. Returns whether there
+/// was one.
+fn forget(tx: &rusqlite::Transaction<'_>, relative: &str) -> Result<bool, IndexError> {
+    let old: Option<(i64, String)> = tx
+        .query_row(
+            "SELECT id, content FROM notes WHERE path = ?1",
+            params![relative],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let Some((id, content)) = old else {
+        return Ok(false);
+    };
+    tx.execute(
+        "INSERT INTO notes_fts (notes_fts, rowid, path, content) VALUES ('delete', ?1, ?2, ?3)",
+        params![id, relative, content],
+    )?;
+    tx.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+    Ok(true)
+}
 
 impl Index {
     /// Store a note's report, replacing what the index had for that path.
@@ -75,12 +100,8 @@ impl Index {
             .find(|h| h.level == 1)
             .map(|h| h.text.clone())
             .unwrap_or_else(|| {
-                relative
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or(relative)
-                    .trim_end_matches(".md")
-                    .to_owned()
+                let name = relative.rsplit('/').next().unwrap_or(relative);
+                name.strip_suffix(".md").unwrap_or(name).to_owned()
             });
         let (tags, aliases, frontmatter_ok) = match report.frontmatter.as_ref().map(|f| &f.values) {
             Some(Ok(Value::Mapping(map))) => {
@@ -90,11 +111,10 @@ impl Index {
             Some(Err(_)) => (Vec::new(), Vec::new(), false),
         };
         let tx = self.conn.transaction()?;
-        tx.execute("DELETE FROM notes WHERE path = ?1", params![relative])?;
-        tx.execute("DELETE FROM notes_fts WHERE path = ?1", params![relative])?;
+        forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0)",
+            "INSERT INTO notes (path, path_key, name_key, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11)",
             params![
                 relative,
                 path_key,
@@ -102,11 +122,13 @@ impl Index {
                 title,
                 stamp.modified,
                 i64::try_from(stamp.len).unwrap_or(i64::MAX),
-                // Stored as the two's-complement of the u64: SQLite integers are i64.
-                i64::from_ne_bytes(stamp.hash.to_ne_bytes()),
+                // Stored as the two's-complement of the u64: SQLite integers
+                // are i64. Little-endian, so the file stays portable.
+                i64::from_le_bytes(stamp.hash.to_le_bytes()),
                 json_list(&tags),
                 json_list(&aliases),
                 frontmatter_ok,
+                content,
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -177,9 +199,10 @@ impl Index {
                 ])?;
             }
         }
+        // External content: the row id ties the tokens to `notes.id`.
         tx.execute(
-            "INSERT INTO notes_fts (path, content) VALUES (?1, ?2)",
-            params![relative, content],
+            "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, ?3)",
+            params![note, relative, content],
         )?;
         tx.commit()?;
         Ok(())
@@ -256,10 +279,9 @@ impl Index {
     /// to it from other notes become unresolved.
     pub fn remove(&mut self, relative: &str) -> Result<bool, IndexError> {
         let tx = self.conn.transaction()?;
-        let n = tx.execute("DELETE FROM notes WHERE path = ?1", params![relative])?;
-        tx.execute("DELETE FROM notes_fts WHERE path = ?1", params![relative])?;
+        let known = forget(&tx, relative)?;
         tx.commit()?;
-        Ok(n > 0)
+        Ok(known)
     }
 
     /// The stamp the index has for a note, to skip an unchanged file.
@@ -273,7 +295,7 @@ impl Index {
                     Ok(NoteStamp {
                         modified: r.get(0)?,
                         len: u64::try_from(r.get::<_, i64>(1)?).unwrap_or(0),
-                        hash: u64::from_ne_bytes(r.get::<_, i64>(2)?.to_ne_bytes()),
+                        hash: u64::from_le_bytes(r.get::<_, i64>(2)?.to_le_bytes()),
                     })
                 },
             )
@@ -314,13 +336,15 @@ impl Index {
 
     /// The notes that link to `relative` — by its path or, when it is the
     /// first of its name in path order, by its bare name — with the
-    /// position of each link. Embeds count (observed, provisional).
+    /// position of each link. Embeds count (observed, provisional). A
+    /// note's links to its own headings and blocks (`[[#x]]`) are not
+    /// backlinks (provisional).
     pub fn backlinks(&self, relative: &str) -> Result<Vec<Backlink>, IndexError> {
         let sql = format!(
             "SELECT src.path, l.target, l.kind, l.line, l.col
              FROM links l JOIN notes src ON src.id = l.note
              JOIN notes t ON t.path = ?1
-             WHERE {RESOLVE} = t.id
+             WHERE l.target_key <> '' AND {RESOLVE} = t.id
              ORDER BY src.path, l.start"
         );
         let mut st = self.conn.prepare(&sql)?;
@@ -336,11 +360,15 @@ impl Index {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
-    /// Targets no note answers to, with counts, by target text.
+    /// Targets no note answers to, with counts of links vault-wide, one
+    /// row per folded key; the text shown is the smallest spelling in byte
+    /// order (`min`), so the answer does not depend on the query plan.
+    /// An empty target (`[[#x]]`) is the note itself, never missing.
     pub fn unresolved(&self) -> Result<Vec<Unresolved>, IndexError> {
         let sql = format!(
-            "SELECT l.target, count(*) FROM links l WHERE {RESOLVE} IS NULL
-             GROUP BY l.target_key ORDER BY l.target"
+            "SELECT min(l.target), count(*) FROM links l
+             WHERE l.target_key <> '' AND {RESOLVE} IS NULL
+             GROUP BY l.target_key ORDER BY 1"
         );
         let mut st = self.conn.prepare(&sql)?;
         let rows = st.query_map([], |r| {
