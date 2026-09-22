@@ -12,6 +12,19 @@ publish.workspace = true
 # ADR 0028). File IO dependencies (walkdir, notify, tempfile and the like)
 # belong here and nowhere else.
 [dependencies]
+# Extended attributes are not in std; the atomic write has to carry them
+# over (Finder tags, quarantine) or say it could not (ADR 0029).
+xattr = "1.6"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# `statfs` is not in std; the atomic write has to know when the folder is on
+# a network file system, where rename is not atomic (ADR 0029). macOS only
+# for now: the initial platform (ADR 0022); Linux reports "unknown".
+nix = { version = "0.31", default-features = false, features = ["fs"] }
+
+[dev-dependencies]
+# Every test builds a throwaway folder and walks or writes into it.
+tempfile = "3.27"
 
 [lints]
 workspace = true
