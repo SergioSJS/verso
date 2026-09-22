@@ -674,6 +674,20 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   posterior transforma links não resolvidos em resolvidos, e o contrário
   tiraria backlinks. Quem decide é o mantenedor; esta linha só registra o que o
   código faz enquanto isso.
+
+  **Terceiro fato provisório, vindo do `verso-index`, registrado em 2026-09-22,
+  que também não responde a esta questão.** Dois empates que o fato acima
+  deixa sem dizer. (1) Dois *caminhos* que só diferem na caixa — `x/nota.md` e
+  `x/Nota.md`, que podem coexistir no Linux e não coexistem no APFS com a
+  configuração padrão — resolvem como duas notas de mesmo nome simples: vence a
+  primeira na ordem de bytes do caminho relativo, então `[[x/nota]]` chega em
+  `x/Nota.md`, porque `N` vem antes de `n`. (2) A grafia mostrada para um alvo
+  a que nenhuma nota atende (o fato da Q14 abaixo) é a menor das grafias dele na
+  ordem de bytes, e não a primeira vista: cinco links escritos `alvo`, `ALVO`,
+  `Alvo.md` e `Alvo` são uma entrada só, com contagem 5, exibida como `ALVO`.
+  Nenhum dos dois foi observado no Obsidian; os dois existem para a resposta não
+  depender da ordem em que as linhas voltam do banco. Quem decide é o
+  mantenedor; esta linha só registra o que o código faz enquanto isso.
 - **Q13. Tags inline (`#tag` no corpo).** `[ABERTO]`
   O briefing só cita `tags` no frontmatter. Se `#tag` no corpo conta como tag,
   e como conviver com `#` de heading e com `#` de URL.
@@ -690,6 +704,18 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   `nao-existe` com a contagem dele, num mapa separado dos links resolvidos.
   Quem decide é o mantenedor; esta linha só registra o que o código faz
   enquanto isso.
+
+  **Segundo fato provisório vindo do `verso-index`, registrado em 2026-09-22,
+  que também não responde a esta questão.** Um link de alvo vazio —
+  `[[#Heading]]`, `[[#^id]]`, que a seção 4 dá como `target == ""` — resolve
+  para a própria nota que o contém. Ele não é link para arquivo que não existe:
+  nunca aparece entre os alvos não resolvidos, e não é backlink da nota para
+  ela mesma, então uma nota que linka para os próprios headings não aparece nos
+  backlinks dela. Nada foi observado no Obsidian para esse caso; o código
+  escolheu assim porque a alternativa conta todo link para heading da própria
+  nota como arquivo faltando e põe um alvo vazio no topo da lista de não
+  resolvidos de qualquer pasta que os use. Quem decide é o mantenedor; esta
+  linha só registra o que o código faz enquanto isso.
 - **Q15. Extensões de Markdown fora da base.** `[ABERTO]`
   Tabelas, footnotes, task list, matemática, destaque `==texto==`, strikethrough.
   O briefing não lista nenhuma; a escolha do parser base
@@ -826,3 +852,4 @@ ser escolhido.
 | v0.8 | 2026-09-22 | Q26 fechada pelo mantenedor (ADR 0044, memo `docs/reference/fs-decision.md`): entradas ocultas não são percorridas em nenhuma profundidade, e nota ignorada é alvo não resolvido e nunca fonte de backlink |
 | v0.9 | 2026-09-22 | Fato provisório registrado sob a Q12, vindo do código do `verso-fs`: nota é arquivo comum cuja extensão é exatamente `md`; `.MD`, `.Md` e `.markdown` são arquivos comuns até Q12 e Q8 serem decididas. Nenhuma questão fechada |
 | v0.10 | 2026-09-22 | Fatos provisórios registrados sob Q2, Q8, Q12, Q14 e Q7, vindos do código do `verso-index` e da observação do Obsidian 1.13.7 no mesmo dia (`docs/reference/index-decision.md`): como um link resolve, caixa, embeds, alvos não resolvidos e NFC. Nenhuma questão fechada |
+| v0.11 | 2026-09-22 | Fatos provisórios registrados sob Q12 e Q14, vindos do código do `verso-index` como ele ficou depois da leitura do Opus 5: alvo vazio (`[[#Heading]]`) resolve para a própria nota, colisão de caixa entre dois caminhos resolve como colisão de nomes simples, e alvo não resolvido é mostrado pela menor das grafias dele na ordem de bytes. Nada observado no Obsidian para esses três; nenhuma questão fechada |

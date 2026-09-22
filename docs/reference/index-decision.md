@@ -7,11 +7,48 @@
   there is no decision, the feature 3 code is written **under the
   recommendations, marked provisional**, and changes if the maintainer decides
   otherwise — the same arrangement used for feature 2. That code is now in the
-  tree: commit `2a1919f` implements the recommendations of sections 2 to 6
-  provisionally, pending the five answers of section 9, with one deviation
-  worth naming — the FTS5 table is an ordinary one holding the note's text (the
-  only copy of it in the index), not the `external content` table section 5.3
-  recommends.
+  tree: commits `70415ac`, `3ab3e48` and `4e99082` implement the
+  recommendations of sections 2 to 6 provisionally, pending the five answers of
+  section 9. What departs from those sections, or adds to them, one sentence
+  each:
+
+  1. the FTS5 table is **external content** over a `notes.content` column, as
+     section 5.3 recommends — the first of the three commits held an ordinary
+     table with a second copy of every note inside it, and no longer does;
+  2. `meta` records the **tokenizer** next to the schema version (3 today), so
+     that changing the tokenizer rebuilds the index the way changing the
+     version does (section 5.1);
+  3. a SQLite file at the index path that is **not ours** is rebuilt — the
+     crate's tables dropped if they exist, then created — instead of the open
+     failing;
+  4. opening the index sets the parent directory to `0700` **even when the
+     crate did not create it**, so a directory that was already there at
+     `0755` comes out `0700`;
+  5. the `-wal` and `-shm` companions come out `0600` because the chmod of the
+     index file happens **before** WAL is switched on, and the code says so in
+     a comment;
+  6. `xattr` is declared as a **macOS-only** dependency, since the Time
+     Machine exclusion is all that uses it;
+  7. the note's hash is stored **little-endian**, so the file reads the same on
+     either endianness;
+  8. an **empty target** (`[[#Heading]]`, `[[#^id]]`) resolves to the note
+     itself: never unresolved, and never a backlink of the note to itself
+     (spec §9, Q14; nothing observed in Obsidian);
+  9. a **case collision of two paths** (`x/nota.md` and `x/Nota.md`, possible
+     on Linux) resolves like a collision of bare names, first in byte order
+     (spec §9, Q12; not observed either);
+  10. an **unresolved target is shown under the smallest of its spellings** in
+      byte order, not the first one seen, so the listing does not depend on the
+      query plan (spec §9, Q12);
+  11. the search guardrail also **drops control characters** from the query
+      words, because a NUL ends FTS5's C string inside a quote and SQLite
+      answers with an error ([ADR 0029](../adr/0029-guardrails-in-ci.md)).
+
+  The Opus 5 reading of the code on 2026-09-22 ([ADR 0032](../adr/0032-author-and-reviewer-roles.md):
+  Fable 5.1 writes the Rust, Opus 5 reads it) found one BLOCKING — a target
+  ending in a multi-byte character (`[[Bar 🍻]]`) panicked the whole ingestion —
+  and nine IMPORTANT. All of them are applied or recorded, the BLOCKING with a
+  regression test of its own.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2 to 6 are **Fable
   5.1's**, recorded here as the author's input; they are not decisions. No Rust

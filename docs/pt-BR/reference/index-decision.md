@@ -6,11 +6,49 @@
   decide é o mantenedor (`CLAUDE.md` §1). Enquanto não há decisão, o código da
   feature 3 é escrito **sob as recomendações, marcado como provisório**, e muda
   se o mantenedor decidir outra coisa — o mesmo arranjo usado na feature 2. Esse
-  código já está na árvore: o commit `2a1919f` implementa as recomendações das
-  seções 2 a 6 de forma provisória, à espera das cinco respostas da seção 9, com
-  um desvio que vale nomear — a tabela FTS5 é comum e guarda o texto da nota (a
-  única cópia dele no índice), não a tabela de `external content` que a seção
-  5.3 recomenda.
+  código já está na árvore: os commits `70415ac`, `3ab3e48` e `4e99082`
+  implementam as recomendações das seções 2 a 6 de forma provisória, à espera
+  das cinco respostas da seção 9. O que foge dessas seções, ou acrescenta a
+  elas, uma frase para cada:
+
+  1. a tabela FTS5 é de **conteúdo externo** sobre uma coluna `notes.content`,
+     como a seção 5.3 recomenda — o primeiro dos três commits tinha uma tabela
+     comum com uma segunda cópia de cada nota dentro dela, e não tem mais;
+  2. a `meta` registra o **tokenizador** ao lado da versão do esquema (3 hoje),
+     para que trocar o tokenizador refaça o índice como trocar a versão faz
+     (seção 5.1);
+  3. um arquivo SQLite no caminho do índice que **não seja nosso** é refeito —
+     as tabelas do crate derrubadas se existirem, depois criadas — em vez de a
+     abertura falhar;
+  4. abrir o índice põe o diretório pai em `0700` **mesmo quando não foi o
+     crate que o criou**, então um diretório que já estava lá em `0755` sai
+     `0700`;
+  5. os companheiros `-wal` e `-shm` saem `0600` porque o chmod do arquivo do
+     índice acontece **antes** de o WAL ser ligado, e o código diz isso num
+     comentário;
+  6. o `xattr` é declarado como dependência **só de macOS**, já que a exclusão
+     do Time Machine é a única coisa que o usa;
+  7. o hash da nota é guardado em **little-endian**, para o arquivo ser lido
+     igual nas duas endiannesses;
+  8. um **alvo vazio** (`[[#Heading]]`, `[[#^id]]`) resolve para a própria
+     nota: nunca fica como não resolvido, e nunca é backlink da nota para ela
+     mesma (spec §9, Q14; nada observado no Obsidian);
+  9. uma **colisão de caixa entre dois caminhos** (`x/nota.md` e `x/Nota.md`,
+     possível no Linux) resolve como colisão de nomes simples, a primeira na
+     ordem de bytes (spec §9, Q12; também não observado);
+  10. um **alvo não resolvido é mostrado pela menor das grafias dele** na ordem
+      de bytes, e não pela primeira vista, para a listagem não depender do plano
+      de consulta (spec §9, Q12);
+  11. o guardrail da busca também **remove os caracteres de controle** das
+      palavras da consulta, porque um NUL termina a string C do FTS5 dentro das
+      aspas e o SQLite responde com erro
+      ([ADR 0029](../adr/0029-guardrails-in-ci.md)).
+
+  A leitura do código pelo Opus 5 em 2026-09-22 ([ADR 0032](../adr/0032-author-and-reviewer-roles.md):
+  a Fable 5.1 escreve o Rust, o Opus 5 lê) achou um BLOQUEANTE — um alvo
+  terminado em caractere de mais de um byte (`[[Bar 🍻]]`) derrubava a ingestão
+  inteira — e nove IMPORTANTES. Todos estão aplicados ou registrados, o
+  BLOQUEANTE com teste de regressão próprio.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2 a 6 são da **Fable 5.1**,
   registradas aqui como insumo do autor; não são decisões. Nenhum Rust neste

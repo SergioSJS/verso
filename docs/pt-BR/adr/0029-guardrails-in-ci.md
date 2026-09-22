@@ -12,7 +12,8 @@
   ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — como o código da feature 2
   responde aos requisitos da escrita atômica, registrado como provisório, vindo
   de duas leituras desse código; 2026-09-22 — como o código da feature 3
-  atende ao guardrail do FTS5, registrado como provisório.
+  atende ao guardrail do FTS5, registrado como provisório, e ampliado depois da
+  leitura desse código com os caracteres de controle e a abrangência do teste.
 
 ## Contexto
 
@@ -149,9 +150,24 @@ como está; isto é o que o `verso-index` faz.
   duplas, com aspa dupla interna duplicada — e as palavras são unidas pelo AND
   implícito do FTS5. Assim `NOT`, `OR`, `*`, `:`, `(` e `"` são procurados como
   texto e não conseguem mudar a query.
+- **Os caracteres de controle são removidos de cada palavra antes de ela ser
+  posta entre aspas.** Só as aspas não bastavam: o FTS5 lê a expressão inteira
+  como string C, então um byte NUL dentro de uma palavra entre aspas termina a
+  string ali e o SQLite responde `unterminated string`. Não é injeção — as
+  aspas continuam equilibradas —, mas a §6.3.2 do memo pede que uma busca
+  também não faça o SQLite devolver erro. Então `ca<NUL>fe` é procurado como
+  `cafe`, e uma busca feita só de caracteres de controle não procura nada.
 - **O que isso custa, declarado em vez de escondido:** o usuário não consegue
   digitar `casa*` para busca por prefixo nem `titulo:casa` para filtro de
   coluna. Isso vira flag do `verso search` se o mantenedor quiser (feature 4).
+- **O teste cobre todos os operadores da tabela da §6.3.4 do memo** — `"`,
+  `OR`, `NOT`, `NEAR(x y)`, `col:x`, `*`, `-x`, um `^` sozinho, um `(` sem
+  fechar — e verifica **quais notas cada busca encontra**, não apenas que ela
+  não falha: um operador procurado como texto encontra a nota que contém aquele
+  texto e nenhuma outra, e não encontra nada quando nota nenhuma o contém. É
+  isso que separa os dois casos: `-texto` devolve as notas que contêm `texto`,
+  que é o que uma palavra faz, em vez de todas as notas menos elas, que é o que
+  o operador faria.
 - **Visto falhando**, como este ADR exige: com o uso de aspas removido, o teste
   da gramática falha com `fts5: syntax error near "NOT"`.
 
