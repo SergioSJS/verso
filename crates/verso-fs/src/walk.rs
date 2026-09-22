@@ -160,26 +160,34 @@ impl Walker<'_> {
         for name in names {
             let rel = relative.join(&name);
             let abs = absolute.join(&name);
-            // The iCloud sibling form is recognized before the hidden rule.
-            if let Some(of) = placeholder::icloud_placeholder_of(&name) {
-                let handle = self.root.intern(rel.clone());
-                self.out.entries.push(Entry {
-                    handle,
-                    relative: rel,
-                    kind: EntryKind::Placeholder {
-                        of: relative.join(of),
-                    },
-                    depth,
-                });
+            if self.root.is_ignored(&rel) {
                 continue;
             }
-            if name.as_encoded_bytes().starts_with(b".") || self.root.is_ignored(&rel) {
+            let placeholder_of = placeholder::icloud_placeholder_of(&name);
+            // The iCloud sibling form is recognized before the hidden rule
+            // (ADR 0043); any other dot entry is not walked (ADR 0044).
+            if name.as_encoded_bytes().starts_with(b".") && placeholder_of.is_none() {
                 continue;
             }
             // Symlinks are followed: metadata of the target, not of the link.
             let meta = match std::fs::metadata(&abs) {
                 Ok(meta) => meta,
                 Err(error) => {
+                    // A symlink to a name iCloud evicted in the older form:
+                    // the sibling stands in for it (ADR 0043, provisional),
+                    // not a broken link.
+                    if error.kind() == std::io::ErrorKind::NotFound
+                        && placeholder::follow(&abs).is_ok_and(|t| placeholder::sibling_exists(&t))
+                    {
+                        let handle = self.root.intern(rel.clone());
+                        self.out.entries.push(Entry {
+                            handle,
+                            relative: rel.clone(),
+                            kind: EntryKind::Placeholder { of: rel },
+                            depth,
+                        });
+                        continue;
+                    }
                     self.out.problems.push(Problem::Io {
                         relative: rel,
                         error,
@@ -188,9 +196,14 @@ impl Walker<'_> {
                 }
             };
             if meta.is_dir() {
+                // A directory named like a placeholder is a directory.
                 self.subdirectory(&abs, rel, depth, &meta);
             } else {
-                let kind = if placeholder::is_dataless(&meta) {
+                let kind = if let Some(of) = placeholder_of {
+                    EntryKind::Placeholder {
+                        of: relative.join(of),
+                    }
+                } else if placeholder::is_dataless(&meta) {
                     EntryKind::Placeholder { of: rel.clone() }
                 } else if rel.extension().is_some_and(|e| e == "md") {
                     EntryKind::Note

@@ -14,8 +14,9 @@
 //! is handed to the index next to the handle because the index is keyed by
 //! path; it is not an identifier for anything across the contract.
 //!
-//! Decisions carried out here, all recorded in ADR 0044 and ADR 0043 on
-//! 2026-09-22 (`docs/reference/fs-decision.md`):
+//! Decisions carried out here, recorded in ADR 0044 and ADR 0043 on
+//! 2026-09-22 (`docs/reference/fs-decision.md`), and the choices the code
+//! had to make on top of them, recorded there as provisional:
 //! - symlinks are the user's and are **followed**, files and directories
 //!   alike, wherever they point — reading and writing go to the target; a
 //!   loop is detected by the identity of the directories already entered,
@@ -69,8 +70,13 @@ pub struct Handle {
 pub struct Stamp {
     pub modified: SystemTime,
     pub len: u64,
-    /// FNV-1a of the content, 64 bits. Not cryptographic: it tells "same
-    /// bytes as read" from "rewritten", which is all invariant 11 asks.
+    /// FNV-1a of the content, 64 bits. Not cryptographic and not
+    /// collision-resistant against an adversary: it tells "same bytes as
+    /// read" from "rewritten" by accident, which is what invariant 11 asks
+    /// of an honest file system. The write re-reads the file to compare
+    /// it: one extra read per write, two copies of the content in memory
+    /// for a moment (about 33 ms to read and 97 ms to write an 8 MiB file
+    /// here; the cost goes to ADR 0039 when targets exist).
     pub hash: u64,
 }
 
@@ -141,7 +147,10 @@ impl Root {
     /// absolute path or a `..` in the list is an error here, not a silent
     /// no-op. Nothing is read yet.
     pub fn open(path: impl Into<PathBuf>, ignored: Vec<PathBuf>) -> Result<Self, std::io::Error> {
-        let path = path.into();
+        // Absolute, so that a later change of the working directory cannot
+        // retarget every handle; not canonicalized — a root that is itself
+        // a symlink stays the name the user typed (provisional, ADR 0044).
+        let path = std::path::absolute(path.into())?;
         let meta = std::fs::metadata(&path)?;
         if !meta.is_dir() {
             return Err(std::io::Error::new(
@@ -178,10 +187,15 @@ impl Root {
     /// `NotFound`.
     pub fn handle(&mut self, relative: &Path) -> Result<Handle, ConfinementError> {
         let relative = confine::confine(relative)?;
-        if relative
-            .components()
-            .any(|c| c.as_os_str().as_encoded_bytes().starts_with(b"."))
-        {
+        // The placeholder name form outranks the hidden rule here as in the
+        // walk (ADR 0043), so a walked placeholder can be named again.
+        let hidden = relative.components().enumerate().any(|(i, c)| {
+            let name = c.as_os_str();
+            let last = i + 1 == relative.components().count();
+            name.as_encoded_bytes().starts_with(b".")
+                && !(last && placeholder::icloud_placeholder_of(name).is_some())
+        });
+        if hidden {
             return Err(ConfinementError::Hidden);
         }
         if self.is_ignored(&relative) {
@@ -205,11 +219,17 @@ impl Root {
         let path = self
             .path_of(handle)
             .ok_or(ReadError::UnknownHandle(handle))?;
+        // The guard runs on the name as given and, through a symlink, on
+        // the target: both doors ask the same question as `write`.
         if placeholder::stands_in(&path).map_err(ReadError::Io)? {
             return Err(ReadError::Unavailable);
         }
-        let bytes = std::fs::read(&path).map_err(ReadError::Io)?;
-        let meta = std::fs::metadata(&path).map_err(ReadError::Io)?;
+        let target = placeholder::follow(&path).map_err(ReadError::Io)?;
+        if target != path && placeholder::stands_in(&target).map_err(ReadError::Io)? {
+            return Err(ReadError::Unavailable);
+        }
+        let bytes = std::fs::read(&target).map_err(ReadError::Io)?;
+        let meta = std::fs::metadata(&target).map_err(ReadError::Io)?;
         let stamp = Stamp::of(&meta, &bytes).map_err(ReadError::Io)?;
         Ok((bytes, stamp))
     }

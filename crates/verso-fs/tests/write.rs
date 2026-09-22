@@ -209,7 +209,12 @@ fn a_long_file_name_is_still_writable() {
     let (dir, mut root) = root_with(&name, "antes");
     let h = root.handle(Path::new(&name)).unwrap();
     let (_, stamp) = root.read(h).unwrap();
-    root.write(h, b"depois", &stamp).unwrap();
+    assert!(
+        root.write(h, b"depois", &stamp)
+            .unwrap()
+            .warnings()
+            .is_empty()
+    );
     assert_eq!(fs::read(dir.path().join(&name)).unwrap(), b"depois");
 }
 
@@ -260,8 +265,14 @@ fn a_failure_before_the_rename_leaves_the_original_untouched() {
     let (_, stamp) = root.read(h).unwrap();
     // A read-only directory: the temporary file cannot be created.
     fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o500)).unwrap();
+    let probe = fs::write(dir.path().join("probe"), "");
     let result = root.write(h, b"depois", &stamp);
     fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o700)).unwrap();
+    if probe.is_ok() {
+        // Running as a user the mode does not restrict (root): nothing to prove.
+        let _ = fs::remove_file(dir.path().join("probe"));
+        return;
+    }
     assert!(matches!(result, Err(WriteError::Io(_))), "{result:?}");
     assert_eq!(fs::read(dir.path().join("nota.md")).unwrap(), b"antes");
     let leftovers: Vec<_> = fs::read_dir(dir.path())
@@ -269,4 +280,125 @@ fn a_failure_before_the_rename_leaves_the_original_untouched() {
         .map(|e| e.unwrap().file_name())
         .collect();
     assert_eq!(leftovers.len(), 1, "{leftovers:?}");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlink_to_an_evicted_file_is_a_placeholder_not_a_broken_link() {
+    use std::os::unix::fs::symlink;
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join(".Real.md.icloud"), "<plist/>").unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    symlink(outside.path().join("Real.md"), dir.path().join("nota.md")).unwrap();
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let walk = root.walk();
+    assert!(walk.problems.is_empty(), "{:?}", walk.problems);
+    assert!(
+        matches!(walk.entries.as_slice(), [e] if matches!(e.kind, verso_fs::EntryKind::Placeholder { .. }))
+    );
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    assert!(matches!(root.read(h), Err(ReadError::Unavailable)));
+    // A symlink straight at a `.icloud` file: unavailable through the target too.
+    symlink(
+        outside.path().join(".Real.md.icloud"),
+        dir.path().join("direto.md"),
+    )
+    .unwrap();
+    let h2 = root.handle(Path::new("direto.md")).unwrap();
+    assert!(matches!(root.read(h2), Err(ReadError::Unavailable)));
+}
+
+#[test]
+fn a_real_file_wins_over_a_stale_placeholder_sibling() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("Nota.md"), "real").unwrap();
+    fs::write(dir.path().join(".Nota.md.icloud"), "<plist/>").unwrap();
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let walk = root.walk();
+    let kinds: Vec<_> = walk
+        .entries
+        .iter()
+        .map(|e| (e.relative.clone(), e.kind.clone()))
+        .collect();
+    assert!(
+        kinds
+            .iter()
+            .any(|(p, k)| p == Path::new("Nota.md") && *k == verso_fs::EntryKind::Note)
+    );
+    let h = root.handle(Path::new("Nota.md")).unwrap();
+    let (bytes, stamp) = root.read(h).unwrap();
+    assert_eq!(bytes, b"real");
+    let _ = root.write(h, b"editado", &stamp).unwrap();
+    assert_eq!(fs::read(dir.path().join("Nota.md")).unwrap(), b"editado");
+    // And the placeholder entry itself stays unavailable and is addressable.
+    let hp = root.handle(Path::new(".Nota.md.icloud")).unwrap();
+    assert!(matches!(root.read(hp), Err(ReadError::Unavailable)));
+}
+
+#[test]
+fn a_directory_named_like_a_placeholder_is_a_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::create_dir(dir.path().join(".Pasta.md.icloud")).unwrap();
+    fs::write(dir.path().join(".Pasta.md.icloud/dentro.md"), "x").unwrap();
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let walk = root.walk();
+    assert!(
+        walk.entries
+            .iter()
+            .any(|e| e.relative == Path::new(".Pasta.md.icloud/dentro.md"))
+    );
+}
+
+#[test]
+fn a_foreign_handle_is_refused_for_writing_too() {
+    let (_a, mut root_a) = root_with("nota.md", "vault A");
+    let (_b, mut root_b) = root_with("nota.md", "vault B");
+    let ha = root_a.handle(Path::new("nota.md")).unwrap();
+    let (_, stamp) = root_a.read(ha).unwrap();
+    let _ = root_b.handle(Path::new("nota.md")).unwrap();
+    assert!(matches!(
+        root_b.write(ha, b"x", &stamp),
+        Err(WriteError::UnknownHandle(_))
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn the_temporary_file_of_a_symlinked_write_is_made_next_to_the_target() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("real.md"), "antes").unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    symlink(outside.path().join("real.md"), dir.path().join("nota.md")).unwrap();
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    // The link's own directory cannot be written: a temporary file there
+    // would fail; next to the target it succeeds.
+    fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o500)).unwrap();
+    let result = root.write(h, b"depois", &stamp);
+    fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o700)).unwrap();
+    if fs::write(dir.path().join("probe"), "").is_ok() && result.is_err() {
+        // Running as a user the mode does not restrict (root): nothing to prove here.
+        return;
+    }
+    let _ = result.unwrap();
+    assert_eq!(fs::read(outside.path().join("real.md")).unwrap(), b"depois");
+}
+
+#[test]
+fn a_relative_root_survives_a_change_of_working_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::create_dir(dir.path().join("a")).unwrap();
+    fs::create_dir(dir.path().join("b")).unwrap();
+    fs::write(dir.path().join("a/nota.md"), "A").unwrap();
+    fs::write(dir.path().join("b/nota.md"), "B").unwrap();
+    let previous = std::env::current_dir().unwrap();
+    std::env::set_current_dir(dir.path().join("a")).unwrap();
+    let mut root = Root::open(".", vec![]).unwrap();
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    std::env::set_current_dir(dir.path().join("b")).unwrap();
+    let (bytes, _) = root.read(h).unwrap();
+    std::env::set_current_dir(previous).unwrap();
+    assert_eq!(bytes, b"A");
 }

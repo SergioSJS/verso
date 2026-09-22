@@ -72,30 +72,59 @@ fn os_string_of(stem: &[u8], name: &OsStr) -> Option<std::ffi::OsString> {
 }
 
 /// Whether the file at `path` is a placeholder in either form: the file
-/// itself is dataless, the file *is* a `.Name.ext.icloud` entry, or its
-/// `.Name.ext.icloud` sibling exists and stands in for it. `Ok(false)` also
-/// when the file does not exist at all: absence is reported by the read
-/// that follows, not here.
+/// *is* a `.Name.ext.icloud` entry (a regular file, not a directory), the
+/// file is dataless, or the file does not exist and its `.Name.ext.icloud`
+/// sibling stands in for it. A real, readable `Name.ext` wins over a stale
+/// sibling (provisional, ADR 0043), so the walk's `EntryKind` and this
+/// answer agree. `Ok(false)` when neither the file nor a sibling exists:
+/// absence is reported by the read that follows, not here.
 pub(crate) fn stands_in(path: &Path) -> Result<bool, std::io::Error> {
     let Some(name) = path.file_name() else {
         return Ok(false);
     };
-    if icloud_placeholder_of(name).is_some() {
-        return Ok(true);
-    }
-    if let Some(parent) = path.parent() {
-        let mut sibling = std::ffi::OsString::from(".");
-        sibling.push(name);
-        sibling.push(".icloud");
-        if parent.join(sibling).exists() {
-            return Ok(true);
-        }
-    }
     match std::fs::metadata(path) {
-        Ok(meta) => Ok(is_dataless(&meta)),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Ok(meta) if meta.is_dir() => Ok(false),
+        Ok(meta) => Ok(is_dataless(&meta) || icloud_placeholder_of(name).is_some()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(sibling_exists(path)),
         Err(e) => Err(e),
     }
+}
+
+/// Whether `.Name.ext.icloud` exists next to `path`.
+pub(crate) fn sibling_exists(path: &Path) -> bool {
+    let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
+        return false;
+    };
+    let mut sibling = std::ffi::OsString::from(".");
+    sibling.push(name);
+    sibling.push(".icloud");
+    parent.join(sibling).is_file()
+}
+
+/// The path a symlink chain ends at, resolved one link at a time (so a
+/// link to a name that no longer exists still yields that name, for the
+/// sibling check); a non-symlink is returned as is.
+pub(crate) fn follow(path: &Path) -> Result<std::path::PathBuf, std::io::Error> {
+    let mut current = path.to_path_buf();
+    for _ in 0..40 {
+        match std::fs::symlink_metadata(&current) {
+            Ok(meta) if meta.is_symlink() => {
+                let target = std::fs::read_link(&current)?;
+                current = if target.is_absolute() {
+                    target
+                } else {
+                    current.parent().map(|p| p.join(&target)).unwrap_or(target)
+                };
+            }
+            Ok(_) => return Ok(current),
+            // The end of the chain names something that is not there: hand
+            // back that name, so the caller can ask whether a placeholder
+            // stands in for it.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(current),
+            Err(e) => return Err(e),
+        }
+    }
+    Err(std::io::Error::other("too many levels of symbolic links"))
 }
 
 #[cfg(test)]

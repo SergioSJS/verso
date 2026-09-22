@@ -7,8 +7,9 @@
 //! Before any of it, the file on disk must be the one that was read
 //! (invariant 11, ADR 0012) and must not be a placeholder (ADR 0043). A
 //! symlink is followed: the write lands on its target and the link stays
-//! (ADR 0044). Mode and extended attributes are carried over; owner is not;
-//! what could not be preserved is reported, not hidden.
+//! (ADR 0044). Mode and extended attributes are carried over; the owner is
+//! reported, never changed; what could not be preserved is reported, not
+//! hidden.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -50,6 +51,9 @@ impl std::error::Error for WriteError {}
 
 /// What the write managed to keep from the original, and what it noticed.
 /// Returned only when the rename happened: the new content is in place.
+/// Several fields mean "tell the user something"; [`WriteReport::warnings`]
+/// lists them.
+#[must_use = "the report says what was not preserved and whether durability was confirmed"]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct WriteReport {
     /// The original's permission bits were applied to the new file.
@@ -82,6 +86,38 @@ pub struct WriteReport {
     pub wrote_through_symlink_to: Option<PathBuf>,
 }
 
+impl WriteReport {
+    /// What the caller should tell the user, one line each; empty when the
+    /// write kept everything and is durable.
+    #[must_use]
+    pub fn warnings(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if !self.mode_preserved {
+            out.push("the file's permissions could not be preserved".to_owned());
+        }
+        if !self.owner_preserved {
+            out.push("the file's owner is now the writer".to_owned());
+        }
+        for (name, error) in &self.xattrs_not_preserved {
+            out.push(format!("extended attribute {name} not preserved: {error}"));
+        }
+        if self.hard_link_shared {
+            out.push("the file had another hard link, which keeps the old content".to_owned());
+        }
+        if let Some(fs) = &self.network_fs {
+            out.push(format!(
+                "the folder is on a network file system ({fs}); rename is not atomic there"
+            ));
+        }
+        if let Some(error) = &self.durability_not_confirmed {
+            out.push(format!(
+                "the content is in place but its durability was not confirmed: {error}"
+            ));
+        }
+        out
+    }
+}
+
 static COUNTER: AtomicU32 = AtomicU32::new(0);
 
 pub(crate) fn write_atomically(
@@ -97,20 +133,14 @@ pub(crate) fn write_atomically(
         return Err(WriteError::Placeholder);
     }
 
-    // A symlink is followed: the target is what gets replaced (ADR 0044).
-    let link_meta = std::fs::symlink_metadata(path).map_err(WriteError::Io)?;
-    let target: PathBuf = if link_meta.is_symlink() {
-        let resolved = std::fs::canonicalize(path).map_err(WriteError::Io)?;
-        report.wrote_through_symlink_to = Some(resolved.clone());
-        resolved
-    } else {
-        path.to_path_buf()
-    };
-
-    if report.wrote_through_symlink_to.is_some()
-        && placeholder::stands_in(&target).map_err(WriteError::Io)?
-    {
-        return Err(WriteError::Placeholder);
+    // A symlink is followed: the target is what gets replaced (ADR 0044),
+    // and the guard runs on the target too.
+    let target: PathBuf = placeholder::follow(path).map_err(WriteError::Io)?;
+    if target != path {
+        if placeholder::stands_in(&target).map_err(WriteError::Io)? {
+            return Err(WriteError::Placeholder);
+        }
+        report.wrote_through_symlink_to = Some(target.clone());
     }
 
     // Invariant 11: the file on disk must be the one that was read — by
@@ -143,10 +173,9 @@ pub(crate) fn write_atomically(
     // Everything up to and including the rename: a failure here leaves the
     // original untouched and removes the temporary file.
     let before_rename = (|| {
-        let mut out = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp)?;
+        // Created with the original's mode from the first instant: a 0600
+        // note is never visible as 0644 under the temporary name.
+        let mut out = open_new_with_mode(&temp, &original)?;
         out.write_all(content)?;
         report.mode_preserved = out.set_permissions(original.permissions()).is_ok();
         report.owner_preserved = same_owner(&original, &out.metadata()?);
@@ -205,6 +234,21 @@ fn copy_xattrs(from: &Path, to: &Path) -> Vec<(String, String)> {
         }
     }
     failed
+}
+
+#[cfg(unix)]
+fn open_new_with_mode(temp: &Path, original: &std::fs::Metadata) -> Result<File, std::io::Error> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(original.permissions().mode())
+        .open(temp)
+}
+
+#[cfg(not(unix))]
+fn open_new_with_mode(temp: &Path, _original: &std::fs::Metadata) -> Result<File, std::io::Error> {
+    OpenOptions::new().write(true).create_new(true).open(temp)
 }
 
 #[cfg(unix)]
