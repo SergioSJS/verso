@@ -9,6 +9,10 @@
 // the first commit (ADR 0035), by the system language.
 
 import { open } from "@tauri-apps/plugin-dialog";
+import { EditorView, basicSetup } from "codemirror";
+import { EditorState } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
+import { markdown } from "@codemirror/lang-markdown";
 import { commands, type ContractError, type NoteText } from "./bindings";
 
 type Strings = {
@@ -30,6 +34,14 @@ type Strings = {
   showSource: string;
   showPreview: string;
   unresolved: (t: string) => string;
+  save: string;
+  saved: string;
+  conflict: string;
+  reload: string;
+  overwrite: string;
+  yours: string;
+  theirs: string;
+  discard: string;
 };
 
 const pt: Strings = {
@@ -48,9 +60,17 @@ const pt: Strings = {
   noNotes: "Nenhuma nota.",
   line: "linha",
   error: "Erro",
-  showSource: "Fonte",
+  showSource: "Editar",
   showPreview: "Preview",
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
+  save: "Salvar",
+  saved: "Salvo.",
+  conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
+  reload: "Descartar o meu e recarregar",
+  overwrite: "Gravar o meu por cima",
+  yours: "seu",
+  theirs: "disco",
+  discard: "Há mudanças não salvas nesta nota. Descartar?",
 };
 
 const en: Strings = {
@@ -69,9 +89,17 @@ const en: Strings = {
   noNotes: "No notes.",
   line: "line",
   error: "Error",
-  showSource: "Source",
+  showSource: "Edit",
   showPreview: "Preview",
   unresolved: (t) => `No note answers to [[${t}]].`,
+  save: "Save",
+  saved: "Saved.",
+  conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
+  reload: "Discard mine and reload",
+  overwrite: "Write mine over it",
+  yours: "yours",
+  theirs: "disk",
+  discard: "This note has unsaved changes. Discard them?",
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -94,9 +122,16 @@ const ui = {
   notes: el<HTMLUListElement>("notes"),
   noteTitle: el<HTMLHeadingElement>("note-title"),
   view: el<HTMLButtonElement>("view"),
+  save: el<HTMLButtonElement>("save"),
+  dirty: el<HTMLSpanElement>("dirty"),
   noteFlags: el<HTMLParagraphElement>("note-flags"),
   preview: el<HTMLElement>("preview"),
-  lines: el<HTMLOListElement>("lines"),
+  editor: el<HTMLDivElement>("editor"),
+  conflict: el<HTMLDivElement>("conflict"),
+  conflictText: el<HTMLParagraphElement>("conflict-text"),
+  conflictDiff: el<HTMLPreElement>("conflict-diff"),
+  conflictReload: el<HTMLButtonElement>("conflict-reload"),
+  conflictOverwrite: el<HTMLButtonElement>("conflict-overwrite"),
   backlinksHeading: el<HTMLHeadingElement>("backlinks-heading"),
   backlinks: el<HTMLUListElement>("backlinks"),
 };
@@ -110,9 +145,57 @@ ui.backlinksHeading.textContent = t.backlinks;
 ui.folder.textContent = t.noFolder;
 ui.noteTitle.textContent = t.pick;
 ui.view.textContent = t.showSource;
+ui.save.textContent = t.save;
+ui.conflictText.textContent = t.conflict;
+ui.conflictReload.textContent = t.reload;
+ui.conflictOverwrite.textContent = t.overwrite;
 
 let current: string | null = null;
 let showingSource = false;
+/** What was read: the token `write_note` takes back (invariant 11). */
+let revision = "";
+/** The file's line ending, kept as it was: no normalization (ADR 0012). */
+let eol = "\n";
+let dirty = false;
+let onDisk: string | null = null;
+
+const editor = new EditorView({
+  parent: ui.editor,
+  state: EditorState.create({ doc: "" }),
+});
+
+function editorState(doc: string): EditorState {
+  return EditorState.create({
+    doc,
+    extensions: [
+      basicSetup,
+      markdown(),
+      EditorView.lineWrapping,
+      keymap.of([
+        {
+          key: "Mod-s",
+          run: () => {
+            void save();
+            return true;
+          },
+        },
+      ]),
+      EditorView.updateListener.of((u) => {
+        if (u.docChanged) setDirty(true);
+      }),
+    ],
+  });
+}
+
+function setDirty(d: boolean): void {
+  dirty = d;
+  ui.dirty.hidden = !d;
+  ui.save.hidden = !d;
+}
+
+function editorText(): string {
+  return editor.state.doc.toString().replaceAll("\n", eol);
+}
 /** Link target as written (lower-cased) → the note it resolves to. */
 let resolved = new Map<string, string | null>();
 
@@ -235,34 +318,110 @@ async function searchNotes(words: string): Promise<void> {
   ui.status.textContent = t.hits(r.data.length);
 }
 
-function renderSource(note: NoteText): void {
-  const headings = new Set(note.headings.map((h) => h.line));
-  const blocks = new Map(note.blocks.map((b) => [b.line, b.id]));
-  ui.lines.replaceChildren(
-    ...note.lines.map((text, i) => {
-      const li = document.createElement("li");
-      li.value = i + 1;
-      li.textContent = text;
-      if (headings.has(i + 1)) li.classList.add("heading");
-      const id = blocks.get(i + 1);
-      if (id !== undefined) {
-        const badge = document.createElement("span");
-        badge.className = "block-id";
-        badge.textContent = `^${id}`;
-        li.append(badge);
-      }
-      return li;
-    }),
-  );
-}
-
 function applyView(): void {
   ui.preview.hidden = showingSource;
-  ui.lines.hidden = !showingSource;
+  ui.editor.hidden = !showingSource;
   ui.view.textContent = showingSource ? t.showPreview : t.showSource;
+  if (showingSource) editor.focus();
 }
 
-async function show(path: string): Promise<void> {
+/** Load a note into the page: preview, editor, revision. */
+function load(note: NoteText): void {
+  ui.noteTitle.textContent = name(note.path);
+  const flags: string[] = [];
+  if (note.stale) flags.push(t.stale);
+  if (note.unverified) flags.push(t.unverified);
+  ui.noteFlags.textContent = flags.join(" ");
+  // The HTML is the core's rendering of the user's own file (see
+  // verso_dialect::to_html); the webview's policy runs no script from it.
+  ui.preview.innerHTML = note.html;
+  revision = note.revision;
+  eol = note.text.includes("\r\n") ? "\r\n" : "\n";
+  onDisk = note.text;
+  editor.setState(editorState(note.text));
+  setDirty(false);
+  ui.conflict.hidden = true;
+  ui.view.hidden = false;
+  applyView();
+}
+
+/* A line diff (LCS), enough to show what changed on disk versus here. */
+function diffLines(a: string[], b: string[]): string {
+  const n = a.length;
+  const m = b.length;
+  const table: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      table[i]![j] = a[i] === b[j] ? table[i + 1]![j + 1]! + 1 : Math.max(table[i + 1]![j]!, table[i]![j + 1]!);
+    }
+  }
+  const out: string[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      out.push(`  ${a[i]}`);
+      i++;
+      j++;
+    } else if (table[i + 1]![j]! >= table[i]![j + 1]!) {
+      out.push(`- ${a[i]}`);
+      i++;
+    } else {
+      out.push(`+ ${b[j]}`);
+      j++;
+    }
+  }
+  while (i < n) out.push(`- ${a[i++]}`);
+  while (j < m) out.push(`+ ${b[j++]}`);
+  return out.join("\n");
+}
+
+function showConflict(disk: string, mine: string): void {
+  ui.conflictDiff.replaceChildren(
+    ...diffLines(disk.split(/\r?\n/), mine.split(/\r?\n/))
+      .split("\n")
+      .map((line) => {
+        const span = document.createElement("span");
+        span.textContent = line + "\n";
+        if (line.startsWith("- ")) span.className = "del";
+        if (line.startsWith("+ ")) span.className = "add";
+        return span;
+      }),
+  );
+  ui.conflict.hidden = false;
+  ui.conflict.scrollIntoView({ block: "start" });
+}
+
+async function save(overwrite = false): Promise<void> {
+  if (current === null) return;
+  const mine = editorText();
+  const r = await commands.writeNote(current, mine, revision);
+  if (r.status === "ok") {
+    load(r.data.note);
+    showingSource = true;
+    applyView();
+    ui.status.textContent = r.data.warnings.length === 0 ? t.saved : `${t.saved} ${r.data.warnings.join("; ")}`;
+    return;
+  }
+  if (r.error.kind !== "changed") return fail(r.error);
+  // Invariant 11: the file moved on. Read it again, show both versions;
+  // writing over it is the user's explicit choice, with the diff seen.
+  const fresh = await commands.readNote(current);
+  if (fresh.status !== "ok") return fail(fresh.error);
+  revision = fresh.data.revision;
+  onDisk = fresh.data.text;
+  if (overwrite) return save(false);
+  showConflict(fresh.data.text, mine);
+}
+
+ui.conflictReload.addEventListener("click", () => {
+  if (current !== null) void show(current, true);
+});
+ui.conflictOverwrite.addEventListener("click", () => void save(true));
+ui.save.addEventListener("click", () => void save());
+
+async function show(path: string, force = false): Promise<void> {
+  if (dirty && !force && path !== current && !window.confirm(t.discard)) return;
   current = path;
   const [note, back, links] = await Promise.all([
     commands.readNote(path),
@@ -270,17 +429,7 @@ async function show(path: string): Promise<void> {
     commands.links(path),
   ]);
   if (note.status !== "ok") return fail(note.error);
-  ui.noteTitle.textContent = name(note.data.path);
-  const flags: string[] = [];
-  if (note.data.stale) flags.push(t.stale);
-  if (note.data.unverified) flags.push(t.unverified);
-  ui.noteFlags.textContent = flags.join(" ");
-  // The HTML is the core's rendering of the user's own file (see
-  // verso_dialect::to_html); the webview's policy runs no script from it.
-  ui.preview.innerHTML = note.data.html;
-  renderSource(note.data);
-  ui.view.hidden = false;
-  applyView();
+  load(note.data);
   resolved = new Map();
   if (links.status === "ok") {
     for (const l of links.data) resolved.set(l.target.toLowerCase(), l.resolved);
@@ -337,9 +486,11 @@ async function openFolder(): Promise<void> {
   ui.noteTitle.textContent = "";
   ui.noteFlags.textContent = "";
   ui.preview.replaceChildren();
-  ui.lines.replaceChildren();
+  ui.editor.hidden = true;
+  ui.conflict.hidden = true;
   ui.backlinks.replaceChildren();
   ui.view.hidden = true;
+  setDirty(false);
   current = null;
   await listAll();
   ui.search.focus();

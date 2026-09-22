@@ -25,11 +25,45 @@ use std::time::UNIX_EPOCH;
 
 use verso_fs::{EntryKind, Problem, Root};
 // The two error types `CoreError` carries, so a caller can match on them.
-pub use verso_fs::{ConfinementError, ReadError};
+pub use verso_fs::{ConfinementError, ReadError, WriteError};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 mod sidecar;
 pub use sidecar::Sidecar;
+
+/// The opaque revision token of a note: its `verso_fs::Stamp`, encoded so
+/// the UI can hand it back without knowing what is in it.
+mod revision {
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    use verso_fs::Stamp;
+
+    pub fn encode(stamp: &Stamp) -> String {
+        let nanos = stamp
+            .modified
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        format!("{nanos}:{}:{:016x}", stamp.len, stamp.hash)
+    }
+
+    pub fn decode(token: &str) -> Option<Stamp> {
+        let mut parts = token.split(':');
+        let nanos: u128 = parts.next()?.parse().ok()?;
+        let len: u64 = parts.next()?.parse().ok()?;
+        let hash = u64::from_str_radix(parts.next()?, 16).ok()?;
+        if parts.next().is_some() {
+            return None;
+        }
+        let secs = u64::try_from(nanos / 1_000_000_000).ok()?;
+        let sub = u32::try_from(nanos % 1_000_000_000).ok()?;
+        Some(Stamp {
+            modified: SystemTime::UNIX_EPOCH + Duration::new(secs, sub),
+            len,
+            hash,
+        })
+    }
+}
 
 /// Why the workspace could not be opened or refreshed.
 #[derive(Debug)]
@@ -47,6 +81,10 @@ pub enum CoreError {
     Read(ReadError),
     /// The index was refreshed but its sidecar could not be written.
     Sidecar(std::io::Error),
+    /// The note could not be written; `WriteError::Changed` is invariant
+    /// 11 — the file on disk is not the one that was read, nothing was
+    /// written, the caller shows the diff.
+    Write(WriteError),
 }
 
 impl std::fmt::Display for CoreError {
@@ -61,6 +99,7 @@ impl std::fmt::Display for CoreError {
             Self::Confined(e) => write!(f, "{e}"),
             Self::Read(e) => write!(f, "read: {e}"),
             Self::Sidecar(e) => write!(f, "index sidecar: {e}"),
+            Self::Write(e) => write!(f, "write: {e}"),
         }
     }
 }
@@ -188,6 +227,45 @@ pub struct IndexReport {
     pub problems: Vec<WalkProblem>,
 }
 
+/// What a write left behind: the note as it now is, and what the atomic
+/// write could not guarantee (`verso_fs::WriteReport`), one line each,
+/// for the user to see — none of them means the content was lost.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Written {
+    pub note: NoteText,
+    pub warnings: Vec<String>,
+}
+
+fn write_warnings(r: &verso_fs::WriteReport) -> Vec<String> {
+    let mut out = Vec::new();
+    if !r.mode_preserved {
+        out.push("the file's permission bits were not preserved".to_owned());
+    }
+    if !r.owner_preserved {
+        out.push("the file's owner was not preserved".to_owned());
+    }
+    for (name, error) in &r.xattrs_not_preserved {
+        out.push(format!(
+            "extended attribute {name} was not preserved: {error}"
+        ));
+    }
+    if r.hard_link_shared {
+        out.push("the file had other hard links; they still point at the old content".to_owned());
+    }
+    if let Some(fs) = &r.network_fs {
+        out.push(format!(
+            "{fs} is a network file system: the replace was not atomic"
+        ));
+    }
+    if let Some(e) = &r.durability_not_confirmed {
+        out.push(format!("written, but durability was not confirmed: {e}"));
+    }
+    if let Some(target) = &r.wrote_through_symlink_to {
+        out.push(format!("written through a symlink to {}", target.display()));
+    }
+    out
+}
+
 /// A note's text as read from the folder now, with what the index knows
 /// about its positions (feature 6: `read_note`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,6 +285,13 @@ pub struct NoteText {
     pub blocks: Vec<Block>,
     /// The note rendered for a preview (`verso_dialect::to_html`).
     pub html: String,
+    /// The whole text as read (UTF-8, lossily), line endings included,
+    /// for an editor: what it gives back is written as is.
+    pub text: String,
+    /// What was read — modified time, length and content hash — as an
+    /// opaque token a write hands back, so the write can refuse a file
+    /// that changed meanwhile (invariant 11).
+    pub revision: String,
 }
 
 /// An open folder with its index.
@@ -479,7 +564,46 @@ impl Workspace {
             unverified,
             headings: self.index.headings_of(&path).map_err(CoreError::Index)?,
             blocks: self.index.blocks_of(&path).map_err(CoreError::Index)?,
+            revision: revision::encode(&stamp),
+            text: content.into_owned(),
             path,
+        })
+    }
+
+    /// Write a note's text over the file that `revision` describes —
+    /// atomically, through `verso-fs` (ADR 0029) — and bring the index up
+    /// to date for that note. The bytes are the caller's, as given: no
+    /// normalization (ADR 0012). If the file on disk is no longer the one
+    /// that was read, nothing is written and the answer is
+    /// `CoreError::Write(WriteError::Changed)`: the caller reads again and
+    /// shows the user both versions (invariant 11). Returns the note as it
+    /// now is.
+    pub fn write_note(
+        &mut self,
+        note: &str,
+        text: &str,
+        revision: &str,
+    ) -> Result<Written, CoreError> {
+        let (path, handle) = self.note_path(note)?;
+        let expected = revision::decode(revision).ok_or_else(|| {
+            CoreError::Write(WriteError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "the revision token is not one this core issued",
+            )))
+        })?;
+        let report = self
+            .root
+            .write(handle, text.as_bytes(), &expected)
+            .map_err(CoreError::Write)?;
+        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        let content = String::from_utf8_lossy(&bytes);
+        let parsed = verso_dialect::parse(&content);
+        self.index
+            .upsert(&path, note_stamp(&stamp), &content, &parsed)
+            .map_err(CoreError::Index)?;
+        Ok(Written {
+            note: self.read_note(&path)?,
+            warnings: write_warnings(&report),
         })
     }
 

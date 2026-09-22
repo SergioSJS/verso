@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::Path;
 
 use tempfile::{Builder, NamedTempFile, TempDir};
-use verso_core::{Sidecar, Workspace};
+use verso_core::{CoreError, Sidecar, Workspace};
 
 #[cfg(test)]
 mod support {
@@ -326,4 +326,60 @@ fn indexing_writes_a_sidecar_naming_the_folder_beside_the_index() {
     let second = Sidecar::read(ws.index_path()).unwrap();
     assert!(second.indexed_at >= first.indexed_at);
     assert_eq!(second.folder, first.folder);
+}
+
+#[test]
+fn writing_a_note_goes_through_the_atomic_write_and_refuses_a_changed_file() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _file = note(vault.path(), "Nota.md", "# Nota\n\nantiga\r\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let before = ws.read_note("Nota").unwrap();
+    assert_eq!(before.text, "# Nota\n\nantiga\r\n");
+    assert!(!before.revision.is_empty());
+
+    // Written as given, CRLF included; the index knows the new word.
+    let written = ws
+        .write_note("Nota", "# Nota\n\nnova palavra\r\n", &before.revision)
+        .unwrap();
+    assert!(written.warnings.is_empty(), "{:?}", written.warnings);
+    let after = written.note;
+    assert_eq!(after.text, "# Nota\n\nnova palavra\r\n");
+    assert_ne!(after.revision, before.revision);
+    assert!(!after.stale);
+    assert_eq!(ws.search("palavra", 10).unwrap().len(), 1);
+
+    // The old revision no longer names the file on disk: refused, nothing
+    // written (invariant 11).
+    let refused = ws.write_note("Nota", "perdido\n", &before.revision);
+    assert!(
+        matches!(
+            refused,
+            Err(CoreError::Write(verso_core::WriteError::Changed { .. }))
+        ),
+        "{refused:?}"
+    );
+    assert_eq!(
+        ws.read_note("Nota").unwrap().text,
+        "# Nota\n\nnova palavra\r\n"
+    );
+
+    // Changed on disk behind the editor's back: the fresh revision is stale
+    // too. Through the shell, as `chmod` is above: the temp handle points
+    // at the inode the atomic write replaced, not at the path.
+    let status = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("printf 'externo\\n' >> \"$0\"")
+        .arg(vault.path().join("Nota.md"))
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let refused = ws.write_note("Nota", "meu\n", &after.revision);
+    assert!(matches!(refused, Err(CoreError::Write(_))), "{refused:?}");
+    // A token the core did not issue.
+    assert!(matches!(
+        ws.write_note("Nota", "x", "garbage"),
+        Err(CoreError::Write(_))
+    ));
 }

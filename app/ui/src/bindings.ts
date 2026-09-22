@@ -21,6 +21,12 @@ export const commands = {
 	links: (path: string) => typedError<Link[], ContractError>(__TAURI_INVOKE("links", { path })),
 	/**  The notes that link to this one; empty when the index does not know it. */
 	backlinks: (path: string) => typedError<Backlink[], ContractError>(__TAURI_INVOKE("backlinks", { path })),
+	/**
+	 *  Write a note's text over the revision that was read — atomically, no
+	 *  normalization — and index it. `changed` when the file moved on
+	 *  meanwhile: nothing written, read again and show the diff (invariant 11).
+	 */
+	writeNote: (path: string, text: string, revision: string) => typedError<Written, ContractError>(__TAURI_INVOKE("write_note", { path, text, revision })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 };
@@ -65,6 +71,11 @@ export type ErrorKind =
 "not_found" | 
 /**  A placeholder: present, content not downloaded (ADR 0043). */
 "unavailable" | 
+/**
+ *  The file on disk is not the one that was read: nothing was
+ *  written; read again and show both versions (invariant 11).
+ */
+"changed" | 
 /**  The core could not answer. */
 "failed";
 
@@ -128,6 +139,16 @@ export type NoteText = {
 	 *  through `links`.
 	 */
 	html: string,
+	/**
+	 *  The whole text as read, line endings included: what the editor
+	 *  gives back is written as is, no normalization (ADR 0012).
+	 */
+	text: string,
+	/**
+	 *  Opaque: what was read. `write_note` takes it back and refuses a
+	 *  file that changed meanwhile (invariant 11, `changed`).
+	 */
+	revision: string,
 	headings: Heading[],
 	blocks: Block[],
 	/**
@@ -140,6 +161,17 @@ export type NoteText = {
 	 *  placeholder stood where it was (ADR 0043).
 	 */
 	unverified: boolean,
+};
+
+/**
+ *  What a write left behind: the note as it now is, and what the atomic
+ *  write could not guarantee, one line each (permissions, owner, extended
+ *  attributes, hard links, network file system, durability). None means
+ *  the content was lost; all are for the user to see.
+ */
+export type Written = {
+	note: NoteText,
+	warnings: string[],
 };
 
 /* Tauri Specta runtime */
