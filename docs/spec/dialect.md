@@ -262,12 +262,33 @@ blocks:
   - id: juramento
 ```
 
+The same syntax at the end of a list item defines the block of that item:
+
+```markdown
+- Ele jurou vingança. ^juramento
+- Ela riu.
+```
+
+```yaml
+blocks:
+  - id: juramento
+    pos: { line: 1, col: 23 }
+```
+
+`pos` is the position of the `^` (section 4.3), counted in characters
+(section 4.4): column 23 here, and 24 if it were counted in bytes, because of
+the `ç` of "vingança".
+
 The stable block ID, with backlinks and presence in the graph, is a proposed
 primitive ([ADR 0014](../adr/0014-primitives-catalog.md)). The **syntax** `^id`
 is compatible and decided; what Verso does with it goes beyond Obsidian.
 
-Admissible position of the `^id` (end of line, its own line, after a multi-line
-block) and uniqueness scope: `[OPEN]` (section 9, Q3 and Q4).
+Two positions are decided, on 2026-09-21 by the maintainer, with the fixtures
+`fixtures/block/definition` and `fixtures/block/list-item` as the answer: a
+`^id` as the last word of a paragraph, and a `^id` as the last word of a list
+item. The other positions — a `^id` alone on a line after a blank line, a `^id`
+on a heading, and a `^id` after a multi-line block — and the uniqueness scope of
+the id stay `[OPEN]` (section 9, Q3 and Q4).
 
 ### 5.8 Callout
 
@@ -534,9 +555,29 @@ Raised while writing this spec. All of them need an answer before
   `fixtures/wikilink/block-reference` (ADR 0031).
 - **Q2. Does an embed count as a link in the graph and in backlinks?** `[OPEN]`
   (section 5.6)
-- **Q3. Admissible position of the `^id`.** `[OPEN]`
-  End of line, its own line, after a list or after a multi-line block
-  (section 5.7).
+- **Q3. Admissible position of the `^id`.** `DECIDED` for the end of a
+  paragraph and the end of a list item; `[OPEN]` for the rest.
+  Closed for those two on 2026-09-21 by the maintainer, with the fixtures
+  `fixtures/block/definition` and `fixtures/block/list-item` as the answer
+  (ADR 0031): a `^id` as the last word of a paragraph and a `^id` as the last
+  word of a list item define the block (section 5.7). Still `[OPEN]`: a `^id`
+  alone on a line after a blank line, a `^id` on a heading, and a `^id` after a
+  multi-line block.
+
+  Two observations of the same day are recorded here, and neither closes
+  anything. (1) On the input `Primeiro parágrafo.`, a blank line and `^solto`,
+  Obsidian attaches the id to the block **before** it: observed through the
+  Obsidian CLI, public API only (ADR 0009; `docs/reference/obsidian-cli.md`),
+  where `app.metadataCache.getCache(...)` reports `blocks.solto` with the
+  position of the paragraph on line 0, and the `^solto` line is not a section of
+  its own. Our parser treats that line as a paragraph of its own and reports the
+  `^` at its own position (line 3, column 1), which is what section 4.3 asks of
+  `pos` whichever block the id names; **which** block it names is this question,
+  and it depends on Q21 ("what a block is"). (2) A `^id` on a heading was not
+  observed and nothing is implemented for it. One limit of the current
+  implementation is recorded too, also not decided: an item whose own line ends
+  with `^id` but that continues with a nested list is not recognized, because
+  the item's range ends with the nested list.
 - **Q4. Uniqueness scope of the `^id`.** `[OPEN]`
   Unique per file or per folder; what to do with a duplicate (section 5.7).
 - **Q5. Callout coverage.** `[OPEN]`
@@ -685,3 +726,4 @@ the parser was chosen.
 | v0.3 | 2026-09-21 | Maintainer approved the first five fixtures: schema §4 `DECIDED`; Q1 closed (`block`). First question closed |
 | v0.4 | 2026-09-21 | Q18 closed by the maintainer: reading (b), read-only parser with a four-property round-trip test (`docs/reference/parser-decision.md`, ADR 0037). Second question closed |
 | v0.5 | 2026-09-21 | Provisional limits on the frontmatter recorded under Q17 (64 levels of nesting, 10 000 nodes), from the review of the `verso-dialect` PR (`docs/review/phase-1-feature-1.md`). No question closed |
+| v0.6 | 2026-09-21 | Q3 closed by the maintainer for the end of a paragraph and the end of a list item, with the fixture `fixtures/block/list-item` as the answer and §5.7 updated; the `^id` on its own line after a blank line, on a heading and after a multi-line block stay open, and so does Q4 |

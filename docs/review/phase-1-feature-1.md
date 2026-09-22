@@ -7,12 +7,13 @@
 - Roadmap item: Phase 1, feature 1 — `verso-dialect`, parsing of links, blocks, headings and frontmatter ([`../roadmap.md`](../roadmap.md)).
 - State: every BLOCKING finding of the four readings is resolved in code, and
   the fourth reading found none: its verdict is that the branch may merge as the
-  resolution of the original review. Six items were **pending the maintainer**
-  and are listed in section 6; none of them is decided here. Two of the six —
-  the two defects of `pulldown-cmark` 0.13.4 and the gap in what CI announces —
-  were decided by the maintainer on 2026-09-21 and are marked decided in that
-  section, so four of the six are still pending. Two of them gained a record
-  in `docs/` in the same PR as this document: the provisional
+  resolution of the original review. Six items were raised as **pending the
+  maintainer** and are listed in section 6; none of them is decided here. Three
+  of the six — the two defects of `pulldown-cmark` 0.13.4, the gap in what CI
+  announces, and the `^id` at the end of a list item — were decided by the
+  maintainer on 2026-09-21 and stay in the list marked as decided, so three of
+  the six are still pending. Two of them gained a record in `docs/` in the same
+  PR as this document: the provisional
   frontmatter limits under Q17 of
   [`../spec/dialect.md`](../spec/dialect.md) §9, and the two defects of
   `pulldown-cmark` 0.13.4 under Consequences of
@@ -213,11 +214,15 @@ Nothing in this list is decided here.
    and no title ([ADR 0009](../adr/0009-external-constraints.md) forbids looking
    further). Q5 is `[OPEN]`. The fixture was approved with PR #7; the reading
    asks the maintainer to weigh it, and the fixture was not edited.
-5. **`^id` at the end of a tight list item.** An `^id` alone on a line after a
-   blank line is its own paragraph and is reported; one ending a tight list item
-   is not, because the base emits no paragraph event there. This is an effect of
-   the base parser, not a choice: nothing was implemented either way, and Q3
-   ("admissible position of the `^id`") is `[OPEN]`.
+5. **`^id` at the end of a list item — decided on 2026-09-21.** The maintainer
+   decided that a `^id` ending a list item defines the block, exactly as one
+   ending a paragraph: [`../spec/dialect.md`](../spec/dialect.md) §5.7, Q3 in §9
+   closed for those two positions, and the fixture `fixtures/block/list-item`
+   (an AI draft awaiting approval) as the answer. What the reading had recorded
+   — the base emits no paragraph event inside a tight list item — is now handled
+   by the recognizer running at the end of an item as well. The rest of Q3 stays
+   `[OPEN]`: a `^id` alone on a line after a blank line, which Obsidian attaches
+   to the block before it, and a `^id` on a heading.
 6. **Nothing in CI announces the upstream release** — **decided on
    2026-09-21.** Since the ten-byte input stopped being a fuzz seed (third
    reading, finding 1), the two `#[ignore]`d regression tests of item 2 can
