@@ -8,17 +8,18 @@
 - Estado: todo achado BLOQUEANTE das quatro leituras está resolvido em código,
   e a quarta leitura não achou nenhum: o veredito dela é que a branch pode ser
   mesclada como resolução da revisão original. Seis itens foram levantados como
-  **pendentes do mantenedor** e aparecem na seção 6; nenhum deles é decidido
-  aqui. Três dos seis — os dois defeitos do `pulldown-cmark` 0.13.4, a lacuna no
-  que o CI anuncia e o `^id` no fim de um item de lista — foram decididos pelo
-  mantenedor em 2026-09-21 e continuam na lista, marcados como decididos, de
-  modo que três dos seis seguem pendentes. Dois deles ganharam registro em
-  `docs/` no mesmo PR deste documento: os limites
-  provisórios do frontmatter sob a Q17 de
-  [`../spec/dialect.md`](../spec/dialect.md) §9, e os dois defeitos do
-  `pulldown-cmark` 0.13.4 nas Consequências do
-  [ADR 0037](../adr/0037-base-parser.md). Registrar não é fechar: a Q17
-  continua `[ABERTO]` e o Status e a Decisão do ADR 0037 não mudaram.
+  **pendentes do mantenedor** e aparecem na seção 6; nenhum deles é decidido por
+  esta revisão. Em 2026-09-21 o mantenedor decidiu cinco deles — os dois números
+  da Q17 (item 1), os dois defeitos do `pulldown-cmark` 0.13.4 (item 2), a
+  contradição dentro da spec §4.1 (item 3), o `^id` no fim de um item de lista
+  (item 5) e a lacuna no que o CI anuncia (item 6) — e cada um continua na lista,
+  marcado como decidido, com a decisão registrada em
+  [`../spec/dialect.md`](../spec/dialect.md) (§4.1, §5.7, §9) ou em
+  Consequências do [ADR 0037](../adr/0037-base-parser.md). O item 4 segue
+  pendente. A Q17 fecha só na parte do frontmatter: tamanho de arquivo,
+  comprimento de linha e o lado Markdown continuam `[ABERTO]`; a Q3 só para o
+  fim de um parágrafo e de um item de lista. Nada neste documento muda o Status
+  ou a Decisão daquele ADR.
 
 ## Como ler
 
@@ -157,14 +158,16 @@ Nas quatro leituras, e repetido em cada commit:
 
 Nada nesta lista é decidido aqui.
 
-1. **Os dois números da Q17.** O código recusa um frontmatter aninhado mais
-   fundo que 64 níveis ou que expanda para mais de 10 000 nós, contados antes de
-   existir qualquer árvore, com os aliases cobrados pelo que o loader clona e
-   com o nível que uma tag acrescenta contado. Acima de qualquer um dos limites,
-   o bloco é reportado com o seu span e `values` como erro, e o corpo continua
-   sendo parseado. As duas constantes são `pub(crate)`, as duas são provisórias,
-   e o registro sob a Q17 em [`../spec/dialect.md`](../spec/dialect.md) §9 diz
-   isso; a questão continua `[ABERTO]`. Nenhuma fixture as afirma
+1. **Os dois números da Q17 — decididos em 2026-09-21.** O código recusa um
+   frontmatter aninhado mais fundo que 64 níveis ou que expanda para mais de
+   10 000 nós, contados antes de existir qualquer árvore, com os aliases
+   cobrados pelo que o loader clona e com o nível que uma tag acrescenta
+   contado. Acima de qualquer um dos limites, o bloco é reportado com o seu span
+   e `values` como erro, e o corpo continua sendo parseado. O mantenedor
+   confirmou os dois números e esse comportamento: eles não são mais
+   provisórios, e [`../spec/dialect.md`](../spec/dialect.md) §9 registra a parte
+   do frontmatter da Q17 como `DECIDIDA`, com o resto da questão continuando
+   `[ABERTO]`. As constantes continuam `pub(crate)` e nenhuma fixture as afirma
    ([ADR 0031](../adr/0031-fixtures-as-contract.md); `CLAUDE.md` invariante 17).
    Outros números considerados: nenhum registrado — os dois foram escolhidos
    para manter o `parse` retornando, não como resposta à Q17.
@@ -203,12 +206,13 @@ Nada nesta lista é decidido aqui.
    ser sementes de fuzz. Registrado nas Consequências do
    [ADR 0037](../adr/0037-base-parser.md), cuja Decisão e cujo Status não
    mudaram.
-3. **A contradição dentro da spec §4.1.** O mesmo parágrafo diz
-   "`links: []` afirma que não há link" e "o parser pode produzir mais do que a
-   fixture pede, nunca menos e nunca diferente". O harness de fixtures resolveu
-   pelo lado estrito: afirma a lista inteira, mesmo tamanho e mesma ordem. Uma
-   das duas redações tem de mudar, e o harness segue a que o mantenedor
-   escolher. O texto não foi tocado, conforme o `CLAUDE.md` §1 regra 3.
+3. **A contradição dentro da spec §4.1 — decidida em 2026-09-21.** O mantenedor
+   escolheu a leitura estrita, a que o harness de fixtures já implementava: uma
+   chave de lista afirma a lista inteira, mesmo tamanho e mesma ordem. A frase
+   "o parser pode produzir mais do que a fixture pede, nunca menos e nunca
+   diferente" saiu de [`../spec/dialect.md`](../spec/dialect.md) §4.1, que agora
+   também diz que o `frontmatter:`, por ser um mapa, afirma só as chaves que
+   nomeia.
 4. **`fixtures/callout/simple` afirma o que não foi observado.** O `kind` e o
    `title` dela se apoiam na documentação pública do Obsidian; o próprio
    `observed:` dela registra que a API pública expõe apenas uma seção de tipo

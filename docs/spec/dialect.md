@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.3
+# Verso dialect spec — v0.7
 
-- Version: v0.3 · 2026-09-21
+- Version: v0.7 · 2026-09-21
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -70,10 +70,21 @@ does not follow the schema is invalid.
 | `observed` | how the behavior was verified in Obsidian | see 4.5 |
 | `source` | ADR or question that authorizes a behavior that is Verso's own | see 4.5 |
 
-**An absent key asserts nothing**; `links: []` asserts that there is no link.
-The order of the lists is the order in which the construct appears in the file.
-A fixture asserts only what it lists: the parser may produce more than the
-fixture asks for, never less and never different.
+**An absent key asserts nothing.** A key that is present asserts strictly: a
+list key asserts the whole list — same length, same order, no extra item — so
+`links: []` asserts that there is no link, and the order of a list is the order
+in which the construct appears in the file. `frontmatter:` is a map, not a
+list, and is the one exception: it asserts each key it names and says nothing
+about the keys it does not name, so a frontmatter may hold more keys than the
+fixture lists. Inside an item of a list, an absent **optional** field asserts
+that the field is absent, while an absent `pos` asserts nothing (sections 4.2
+and 4.3).
+
+Decided on 2026-09-21 by the maintainer, on the strict reading, closing item 3
+of [`../review/phase-1-feature-1.md`](../review/phase-1-feature-1.md) §6. The
+earlier wording — "the parser may produce more than the fixture asks for, never
+less and never different" — is false for lists and is gone. The fixture harness
+(`crates/verso-dialect/tests/fixtures.rs`) is what enforces this rule.
 
 ### 4.2 Items of `links` and `embeds`
 
@@ -622,35 +633,40 @@ Raised while writing this spec. All of them need an answer before
 - **Q16. Non-Markdown files in the folder.** `[OPEN]`
   Which ones enter the index as a link target (images, PDF, `.canvas`) and which
   ones are ignored.
-- **Q17. Size limit and behavior with a malformed file.** `[OPEN]`
+- **Q17. Size limit and behavior with a malformed file.** `[OPEN]` — the
+  frontmatter part is `DECIDED` below; the rest of the question stays open.
   Fuzzing guarantees that it does not hang
   ([ADR 0029](../adr/0029-guardrails-in-ci.md)), but the expected result —
   error, partial parse or the file treated as text — is not defined. It includes
   resource limits: a file of hundreds of MB, a single line of tens of MB,
   brackets nested thousands deep (quadratic parser). Fuzzing catches crashes,
   not slowness; the limit and what happens when it is exceeded have to be
-  stated.
+  stated. **Still `[OPEN]`**: file size, line length, and nesting or slowness on
+  the Markdown side. The maintainer noted on 2026-09-21 that "slow" needs an
+  answer outside the parser — a timeout in the core, not in `verso-dialect` —
+  and that answer is not decided either.
 
-  Recorded on 2026-09-21, and the question stays `[OPEN]`: since the review of
-  the `verso-dialect` PR (`docs/review/phase-1-feature-1.md`) the code carries
-  two **provisional** limits on the frontmatter — at most 64 levels of nesting
-  and at most 10 000 nodes. Both are counted on the YAML event stream before
-  any tree is built; an alias is charged what the loader clones in its place,
-  and the extra level a tag adds is counted too. A frontmatter over either
-  limit is reported with its span and with `values` as an error; the body is
-  still parsed and nothing else in the file changes. The two numbers were
-  chosen to keep `parse` returning for every input (Q18, property 1), not as an
-  answer to this question: they are the maintainer's to set, and they live as
-  `pub(crate)` constants in `crates/verso-dialect/src/frontmatter.rs`, not in
-  the public API. No fixture asserts them, because a fixture that answers an
-  `[OPEN]` question only enters in the PR that closes the question
-  ([ADR 0031](../adr/0031-fixtures-as-contract.md)). Nothing here covers the
-  rest of Q17: file size, line length and nesting on the Markdown side are
-  still undefined. On the Markdown side there is one fact and no limit: the
-  fuzz guardrail found an input of about 5 KB on which the base parser takes
-  exponential time — exactly the "slowness" this question names — recorded in
-  [ADR 0037](../adr/0037-base-parser.md) and fixed on that parser's upstream
-  `main`.
+  **Frontmatter limits: `DECIDED`** — by the maintainer on 2026-09-21, on the
+  review of the `verso-dialect` PR
+  ([`../review/phase-1-feature-1.md`](../review/phase-1-feature-1.md) §6,
+  item 1): at most **64 levels** of nesting and at most **10 000 nodes** in one
+  frontmatter. Both are counted on the YAML event stream before any tree is
+  built; an alias is charged what the loader clones in its place, and the extra
+  level a non-core tag adds is counted too. A frontmatter over either limit is
+  reported with its span and with `values` as an error; the body is still
+  parsed and nothing else in the file changes. The rationale the maintainer
+  accepted: a real frontmatter has two or three levels and dozens of nodes, so
+  larger numbers would only raise what a malicious file can cost. The two
+  numbers are no longer provisional; they live as `pub(crate)` constants in
+  `crates/verso-dialect/src/frontmatter.rs`, not in the public API. No fixture
+  asserts them: none was asked for in the PR that closes this part, and one
+  added later cites this question in `source:` (section 4.5).
+
+  On the Markdown side there is one fact and no limit: the fuzz guardrail found
+  an input of about 5 KB on which the base parser takes exponential time —
+  exactly the "slowness" this question names. It is recorded in
+  [ADR 0037](../adr/0037-base-parser.md), and what to do about it belongs to
+  that ADR, not to this question.
 
 ### Gaps raised in the Phase 0 review
 
@@ -735,3 +751,4 @@ the parser was chosen.
 | v0.4 | 2026-09-21 | Q18 closed by the maintainer: reading (b), read-only parser with a four-property round-trip test (`docs/reference/parser-decision.md`, ADR 0037). Second question closed |
 | v0.5 | 2026-09-21 | Provisional limits on the frontmatter recorded under Q17 (64 levels of nesting, 10 000 nodes), from the review of the `verso-dialect` PR (`docs/review/phase-1-feature-1.md`). No question closed |
 | v0.6 | 2026-09-21 | Q3 closed by the maintainer for the end of a paragraph and the end of a list item, with the fixture `fixtures/block/list-item` as the answer and §5.7 updated; the `^id` on its own line after a blank line, on a heading and after a multi-line block stay open, and so does Q4 |
+| v0.7 | 2026-09-21 | Q17 closed by the maintainer in its frontmatter part (64 levels of nesting, 10 000 nodes), the rest of the question staying `[OPEN]`; the contradiction inside §4.1 resolved on the strict reading (a list key asserts the whole list). Third question closed, in part |

@@ -8,17 +8,18 @@
 - State: every BLOCKING finding of the four readings is resolved in code, and
   the fourth reading found none: its verdict is that the branch may merge as the
   resolution of the original review. Six items were raised as **pending the
-  maintainer** and are listed in section 6; none of them is decided here. Three
-  of the six — the two defects of `pulldown-cmark` 0.13.4, the gap in what CI
-  announces, and the `^id` at the end of a list item — were decided by the
-  maintainer on 2026-09-21 and stay in the list marked as decided, so three of
-  the six are still pending. Two of them gained a record in `docs/` in the same
-  PR as this document: the provisional
-  frontmatter limits under Q17 of
-  [`../spec/dialect.md`](../spec/dialect.md) §9, and the two defects of
-  `pulldown-cmark` 0.13.4 under Consequences of
-  [ADR 0037](../adr/0037-base-parser.md). Recording is not closing: Q17 stays
-  `[OPEN]` and the Status and Decision of ADR 0037 did not change.
+  maintainer** and are listed in section 6; none of them is decided by this
+  review. On 2026-09-21 the maintainer decided five of them — the two numbers of
+  Q17 (item 1), the two defects of `pulldown-cmark` 0.13.4 (item 2), the
+  contradiction inside spec §4.1 (item 3), the `^id` at the end of a list item
+  (item 5) and the gap in what CI announces (item 6) — and each stays in the
+  list marked as decided, with the decision recorded in
+  [`../spec/dialect.md`](../spec/dialect.md) (§4.1, §5.7, §9) or under
+  Consequences of [ADR 0037](../adr/0037-base-parser.md). Item 4 is still
+  pending. Q17 is closed only in its frontmatter part: file size, line length
+  and the Markdown side stay `[OPEN]`; Q3 only for the end of a paragraph and
+  of a list item. Nothing in this document changes that ADR's Status or
+  Decision.
 
 ## How to read
 
@@ -157,16 +158,18 @@ Across the four readings, and repeated on each commit:
 
 Nothing in this list is decided here.
 
-1. **The two numbers of Q17.** The code refuses a frontmatter nested deeper than
-   64 levels or expanding to more than 10 000 nodes, counted before any tree is
-   built, with aliases charged what the loader clones and with the level a tag
-   adds counted. Over either limit, the block is reported with its span and
-   `values` as an error, and the body is still parsed. Both constants are
-   `pub(crate)`, both are provisional, and the record under Q17 in
-   [`../spec/dialect.md`](../spec/dialect.md) §9 says so; the question stays
-   `[OPEN]`. No fixture asserts them ([ADR 0031](../adr/0031-fixtures-as-contract.md);
-   `CLAUDE.md` invariant 17). Other numbers considered: none recorded — the
-   two were chosen to keep `parse` returning, not as an answer to Q17.
+1. **The two numbers of Q17 — decided on 2026-09-21.** The code refuses a
+   frontmatter nested deeper than 64 levels or expanding to more than 10 000
+   nodes, counted before any tree is built, with aliases charged what the loader
+   clones and with the level a tag adds counted. Over either limit, the block is
+   reported with its span and `values` as an error, and the body is still
+   parsed. The maintainer confirmed the two numbers and that behavior: they are
+   no longer provisional, and [`../spec/dialect.md`](../spec/dialect.md) §9
+   records the frontmatter part of Q17 as `DECIDED`, the rest of the question
+   staying `[OPEN]`. The constants stay `pub(crate)` and no fixture asserts them
+   ([ADR 0031](../adr/0031-fixtures-as-contract.md); `CLAUDE.md` invariant 17).
+   Other numbers considered: none recorded — the two were chosen to keep
+   `parse` returning, not as an answer to Q17.
 2. **The two defects of `pulldown-cmark` 0.13.4** — **decided on 2026-09-21.**
    The first: the ten-byte input `- [a]:b` followed by a line of two tabs
    panics inside the base parser, which contradicts what
@@ -201,13 +204,13 @@ Nothing in this list is decided here.
    seeds. Recorded under Consequences of
    [ADR 0037](../adr/0037-base-parser.md), whose Decision and Status did not
    change.
-3. **The contradiction inside spec §4.1.** The same paragraph says
-   "`links: []` asserts that there is no link" and "the parser may produce more
-   than the fixture asks for, never less and never different". The fixture
-   harness resolved it on the strict side: it asserts the whole list, same
-   length and same order. Either wording has to change, and the harness follows
-   whichever the maintainer picks. The text was not touched, per `CLAUDE.md` §1
-   rule 3.
+3. **The contradiction inside spec §4.1 — decided on 2026-09-21.** The
+   maintainer picked the strict reading, the one the fixture harness already
+   implemented: a list key asserts the whole list, same length and same order.
+   The sentence "the parser may produce more than the fixture asks for, never
+   less and never different" is gone from
+   [`../spec/dialect.md`](../spec/dialect.md) §4.1, which now also says that
+   `frontmatter:`, being a map, asserts only the keys it names.
 4. **`fixtures/callout/simple` asserts what was not observed.** Its `kind` and
    `title` rest on Obsidian's public documentation; its own `observed:` records
    that the public API exposes only a section of type `callout`, with no kind
