@@ -8,7 +8,7 @@
 use rusqlite::{OptionalExtension, params};
 use verso_dialect::{Document, Value};
 
-use crate::keys::{note_keys, target_key};
+use crate::keys::{dir_of, note_keys, relative_key, target_key};
 use crate::{Index, IndexError};
 
 /// What was on disk when the note was read, as `verso-fs` reports it.
@@ -75,10 +75,20 @@ pub struct Unresolved {
 /// target (`[[#Heading]]`, `[[^id]]`) names the note itself (provisional:
 /// not a missing file, spec Q14). Used inside the queries below, where
 /// `l` is the `links` row.
-const RESOLVE: &str = "CASE WHEN l.target_key = '' THEN l.note ELSE COALESCE(
-    (SELECT id FROM notes WHERE path_key = l.target_key ORDER BY path LIMIT 1),
-    (SELECT id FROM notes WHERE name_key = l.target_key ORDER BY path LIMIT 1)
-) END";
+const RESOLVE: &str = "CASE
+    WHEN l.target_key IS NULL THEN NULL
+    WHEN l.target_key = '' THEN l.note
+    ELSE COALESCE(
+        (SELECT id FROM notes WHERE path_key = l.target_key ORDER BY path LIMIT 1),
+        (SELECT id FROM notes WHERE path_key = l.rel_key ORDER BY path LIMIT 1),
+        (SELECT n.id FROM notes n JOIN notes s ON s.id = l.note
+         WHERE n.name_key = l.target_key
+         ORDER BY CASE WHEN s.dir = '' OR substr(n.path, 1, length(s.dir) + 1) = s.dir || '/'
+                       THEN 0 ELSE 1 END,
+                  length(n.path) - length(replace(n.path, '/', '')),
+                  n.path
+         LIMIT 1)
+    ) END";
 
 /// Remove a note's row from `notes_fts` (external content: FTS5 needs the
 /// old values to drop its tokens) and from `notes`. Returns whether there
@@ -131,8 +141,8 @@ impl Index {
         let tx = self.conn.transaction()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11)",
             params![
                 relative,
                 path_key,
@@ -147,6 +157,7 @@ impl Index {
                 json_list(&aliases),
                 frontmatter_ok,
                 content,
+                dir_of(relative),
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -183,8 +194,8 @@ impl Index {
         }
         {
             let mut ins = tx.prepare(
-                "INSERT INTO links (note, kind, target, target_key, heading, block, alias, line, col, start, end)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end)
+                 VALUES (?1, ?2, ?3, ?4, ?12, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             )?;
             for l in &report.links {
                 ins.execute(params![
@@ -198,7 +209,8 @@ impl Index {
                     l.pos.line,
                     l.pos.col,
                     offset(l.span.start),
-                    offset(l.span.end)
+                    offset(l.span.end),
+                    relative_key(relative, &l.target)
                 ])?;
             }
             for e in &report.embeds {
@@ -213,7 +225,8 @@ impl Index {
                     e.pos.line,
                     e.pos.col,
                     offset(e.span.start),
-                    offset(e.span.end)
+                    offset(e.span.end),
+                    relative_key(relative, &e.target)
                 ])?;
             }
         }
@@ -249,9 +262,9 @@ impl Index {
             .trim_end_matches(".md")
             .to_owned();
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, title, modified, len, hash, unverified)
-             VALUES (?1, ?2, ?3, ?4, 0, 0, 0, 1)",
-            params![relative, path_key, name_key, title],
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, unverified)
+             VALUES (?1, ?2, ?3, ?5, ?4, 0, 0, 0, 1)",
+            params![relative, path_key, name_key, title, dir_of(relative)],
         )?;
         // External content: `notes_fts` only knows the rows it was told
         // about, and the next `forget` will tell it to delete this one.
@@ -434,7 +447,7 @@ impl Index {
             "SELECT src.path, l.target, l.kind, l.line, l.col
              FROM links l JOIN notes src ON src.id = l.note
              JOIN notes t ON t.path = ?1
-             WHERE l.target_key <> '' AND {RESOLVE} = t.id
+             WHERE l.target_key IS NOT NULL AND {RESOLVE} = t.id
              ORDER BY src.path, l.start"
         );
         let mut st = self.conn.prepare(&sql)?;
@@ -457,8 +470,8 @@ impl Index {
     pub fn unresolved(&self) -> Result<Vec<Unresolved>, IndexError> {
         let sql = format!(
             "SELECT min(l.target), count(*) FROM links l
-             WHERE l.target_key <> '' AND {RESOLVE} IS NULL
-             GROUP BY l.target_key ORDER BY 1"
+             WHERE l.target_key IS NULL OR (l.target_key <> '' AND {RESOLVE} IS NULL)
+             GROUP BY COALESCE(l.target_key, l.target) ORDER BY 1"
         );
         let mut st = self.conn.prepare(&sql)?;
         let rows = st.query_map([], |r| {
