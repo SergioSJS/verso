@@ -1,0 +1,19 @@
+# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Construct: block ID definition at the end of a list item. Spec: docs/spec/dialect.md §5.7.
+# Answers the list-item part of Q3, decided by the maintainer on 2026-09-21;
+# the spec's section 9 is updated in the same PR (ADR 0031). "vingança"
+# puts a non-ASCII character before the `^`: col 23 in characters, 24 in bytes.
+blocks:
+  - id: juramento
+    pos: { line: 1, col: 23 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-21 against a throwaway folder in a sandbox vault,
+    public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)` ->
+    blocks { juramento: { id: "juramento", position: line 0 col 0 .. line 0
+    col 32 } }, and listItems[0].id "juramento": the id is attached to the
+    first list item, whose position is the whole item; the second item has
+    no id. The spec's `pos` is the `^` (§4.3), 0-based char 22 of line 0.
