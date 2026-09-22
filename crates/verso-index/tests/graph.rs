@@ -104,7 +104,9 @@ fn removing_a_note_makes_links_to_it_unresolved_and_reindexing_replaces() {
             .unresolved()
             .unwrap()
             .iter()
-            .any(|u| u.target == "alvo" && u.count == 5)
+            // Five spellings (`alvo`, `ALVO`, `Alvo.md`, `Alvo`, `Alvo`),
+            // one row: the smallest in byte order names it.
+            .any(|u| u.target == "ALVO" && u.count == 5)
     );
     put(&mut index, "src.md", "Only [[b/dup]] now.\n");
     assert_eq!(index.links_of("src.md").unwrap().len(), 1);
@@ -168,4 +170,48 @@ fn the_index_records_its_folder_and_last_run() {
     index.set_root("/Users/x/Vault", 1_700_000_000).unwrap();
     index.set_root("/Users/x/Vault", 1_700_000_001).unwrap();
     assert_eq!(index.root().unwrap().as_deref(), Some("/Users/x/Vault"));
+}
+
+#[test]
+fn a_target_ending_in_a_multibyte_character_does_not_panic() {
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "\u{1f37b}.md", "Cerveja.\n");
+    put(
+        &mut index,
+        "src.md",
+        "Vamos ao [[Bar \u{1f37b}]] e ao [[\u{1f37b}]] hoje.\n",
+    );
+    let links = index.links_of("src.md").unwrap();
+    assert_eq!(links[0].resolved, None);
+    assert_eq!(links[1].resolved.as_deref(), Some("\u{1f37b}.md"));
+    assert_eq!(index.backlinks("\u{1f37b}.md").unwrap().len(), 1);
+    assert_eq!(index.unresolved().unwrap()[0].target, "Bar \u{1f37b}");
+}
+
+#[test]
+fn a_link_to_a_heading_of_the_same_note_is_not_a_missing_file() {
+    let mut index = Index::in_memory().unwrap();
+    put(
+        &mut index,
+        "t.md",
+        "# T\n\n[[#T]] e [[#Outra]] e [[#^id]]\n",
+    );
+    put(&mut index, "u.md", "[[#T]]\n");
+    assert!(index.unresolved().unwrap().is_empty());
+    // Resolved to the note itself; not a backlink of itself.
+    let links = index.links_of("t.md").unwrap();
+    assert!(links.iter().all(|l| l.resolved.as_deref() == Some("t.md")));
+    assert!(index.backlinks("t.md").unwrap().is_empty());
+}
+
+#[test]
+fn a_case_collision_of_two_paths_resolves_to_the_first_in_byte_order() {
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "x/nota.md", "minúscula\n");
+    put(&mut index, "x/Nota.md", "Maiúscula\n");
+    put(&mut index, "src.md", "[[x/nota]]\n");
+    assert_eq!(
+        index.links_of("src.md").unwrap()[0].resolved.as_deref(),
+        Some("x/Nota.md")
+    );
 }

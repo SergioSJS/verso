@@ -23,6 +23,7 @@ verso-dialect = { path = "../verso-dialect" }
 # (provisional, spec Q7: a folder that went through HFS+ or sync mixes NFC
 # and NFD; APFS itself looks names up normalization-insensitively).
 unicode-normalization = "0.1"
+[target.'cfg(target_os = "macos")'.dependencies]
 # The index file is a cache and may hold everything the notes say: it is
 # excluded from Time Machine through the backup-exclusion extended
 # attribute (ADR 0046, provisional).

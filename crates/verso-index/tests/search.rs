@@ -53,31 +53,44 @@ fn the_fts5_grammar_is_never_reached_by_a_query() {
     put(
         &mut index,
         "a.md",
-        "texto com aspas \" e NOT e col: e (parenteses) e asterisco*\n",
+        "texto com aspas \" e NOT e col: e (parenteses) e asterisco* e -menos e ^circunflexo e NEAR(x y)\n",
     );
     put(&mut index, "b.md", "outro texto\n");
-    // Operators as words: no syntax error, matched as text.
-    for q in [
-        "NOT",
-        "col:",
-        "(parenteses)",
-        "asterisco*",
-        "\"",
-        "a\"b",
-        "texto OR",
+    let paths = |hits: Vec<verso_index::Hit>| {
+        let mut p: Vec<String> = hits.into_iter().map(|h| h.path).collect();
+        p.sort();
+        p
+    };
+    // Every operator of the FTS5 grammar (memo §6.3.4), as a word: no
+    // error, and it matches the note that contains it as text — or nothing,
+    // never "everything except" or a prefix.
+    for (q, expected) in [
+        ("NOT", vec!["a.md"]),
+        ("col:", vec!["a.md"]),
+        ("col:texto", vec![]),
+        ("(parenteses)", vec!["a.md"]),
+        ("(", vec![]),
+        ("asterisco*", vec!["a.md"]),
+        ("*", vec![]),
+        ("aster*", vec![]),
+        ("-menos", vec!["a.md"]),
+        ("-texto", vec!["a.md", "b.md"]),
+        ("^circunflexo", vec!["a.md"]),
+        ("^", vec![]),
+        ("NEAR(x y)", vec!["a.md"]),
+        ("\"", vec![]),
+        ("a\"b", vec![]),
+        ("texto OR", vec![]),
+        ("texto AND outro", vec![]),
+        ("ca\u{0}fe", vec![]),
+        ("tex\u{0}to", vec!["a.md", "b.md"]),
     ] {
         let r = index.search(q, 10);
         assert!(r.is_ok(), "{q}: {r:?}");
+        assert_eq!(paths(r.unwrap()), expected, "{q}");
     }
-    // `NOT` as a word matches the note that contains the word, not "everything except".
-    let hits = index.search("NOT", 10).unwrap();
-    assert_eq!(
-        hits.iter().map(|h| h.path.as_str()).collect::<Vec<_>>(),
-        vec!["a.md"]
-    );
-    // `texto OR` requires both words: OR is a word here, present in "outro"? no — only a.md has neither...
-    let hits = index.search("texto OR", 10).unwrap();
-    assert!(hits.is_empty(), "{hits:?}");
+    // `texto OR` requires both words; `OR` is a word here and no note
+    // contains the token `or` (`outro` is one token), so nothing matches.
     // A snippet marks the match.
     let hits = index.search("aspas", 10).unwrap();
     assert!(hits[0].snippet.contains("[aspas]"), "{hits:?}");
