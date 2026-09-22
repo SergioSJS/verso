@@ -21,10 +21,10 @@
 use std::path::Path;
 use std::sync::Mutex;
 
-use tauri::State;
+use tauri::{Manager, State};
 use verso_contract::{
     Backlink, Block, ContractError, ErrorKind, FolderInfo, Heading, Hit, IndexSummary, Link,
-    NoteText, Written,
+    NoteText, Property, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -123,6 +123,11 @@ fn note_out(t: verso_core::NoteText) -> NoteText {
         path: t.path,
         lines: t.lines,
         html: t.html,
+        properties: t
+            .properties
+            .into_iter()
+            .map(|(key, value)| Property { key, value })
+            .collect(),
         text: t.text,
         revision: t.revision,
         headings: t
@@ -225,6 +230,17 @@ fn write_note(
     })
 }
 
+/// The file an embed names (`![[mapa.png]]`), relative to the folder, or
+/// none. The UI then loads it through the `verso://` protocol below.
+#[tauri::command]
+#[specta::specta]
+fn resolve_attachment(
+    state: State<'_, App>,
+    target: String,
+) -> Result<Option<String>, ContractError> {
+    with(&state, |ws| Ok(ws.resolve_file(&target)))
+}
+
 /// Refresh the index from the folder: only what changed is re-read.
 #[tauri::command]
 #[specta::specta]
@@ -242,6 +258,7 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         links,
         backlinks,
         write_note,
+        resolve_attachment,
         reindex
     ])
 }
@@ -257,11 +274,94 @@ pub fn export_bindings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// `%XX` sequences of a URL path back to bytes, then to text.
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%'
+            && i + 2 < bytes.len()
+            && let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16)
+        {
+            out.push(v);
+            i += 3;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn mime_of(path: &str) -> &'static str {
+    match path
+        .rsplit('.')
+        .next()
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        Some("bmp") => "image/bmp",
+        Some("avif") => "image/avif",
+        Some("pdf") => "application/pdf",
+        Some("mp3") => "audio/mpeg",
+        Some("m4a") => "audio/mp4",
+        Some("ogg") => "audio/ogg",
+        Some("wav") => "audio/wav",
+        Some("mp4") => "video/mp4",
+        Some("webm") => "video/webm",
+        _ => "application/octet-stream",
+    }
+}
+
+/// `verso://localhost/<relative path>`: a file of the folder for the
+/// preview — an image an embed names — read through the core, so the
+/// only door to the disk stays `verso-fs` (ADR 0026 rule 5) and every
+/// path is confined. Never a note's text: that is `read_note`'s.
+fn serve_file(
+    ctx: tauri::UriSchemeContext<'_, tauri::Wry>,
+    request: tauri::http::Request<Vec<u8>>,
+) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
+    let relative = percent_decode(request.uri().path().trim_start_matches('/'));
+    let answer = ctx
+        .app_handle()
+        .state::<App>()
+        .workspace
+        .lock()
+        .map_err(|e| failed(e.to_string()))
+        .and_then(|mut guard| {
+            let ws = guard.as_mut().ok_or_else(no_folder)?;
+            ws.read_file(&relative).map_err(convert)
+        });
+    let (status, mime, body): (u16, &str, Vec<u8>) = match answer {
+        Ok(bytes) => (200, mime_of(&relative), bytes),
+        Err(e) => {
+            let status = match e.kind {
+                ErrorKind::NotFound | ErrorKind::Refused | ErrorKind::NoFolder => 404,
+                _ => 500,
+            };
+            (status, "text/plain; charset=utf-8", e.message.into_bytes())
+        }
+    };
+    let body: std::borrow::Cow<'static, [u8]> = std::borrow::Cow::Owned(body);
+    tauri::http::Response::builder()
+        .status(status)
+        .header("Content-Type", mime)
+        .body(body)
+        .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())))
+}
+
 /// Open the window and serve it until it closes.
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let commands = commands();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .register_uri_scheme_protocol("verso", serve_file)
         .manage(App {
             workspace: Mutex::new(None),
         })
