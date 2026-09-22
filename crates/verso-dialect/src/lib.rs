@@ -26,11 +26,13 @@
 mod frontmatter;
 mod parse;
 mod position;
+mod render;
 mod wikilink;
 
 pub use frontmatter::{Frontmatter, Value};
 pub use parse::parse;
 pub use position::{Pos, Span};
+pub use render::to_html;
 
 /// Everything the parser found in one note, in document order per list.
 ///

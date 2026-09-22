@@ -205,6 +205,8 @@ pub struct NoteText {
     pub unverified: bool,
     pub headings: Vec<Heading>,
     pub blocks: Vec<Block>,
+    /// The note rendered for a preview (`verso_dialect::to_html`).
+    pub html: String,
 }
 
 /// An open folder with its index.
@@ -472,6 +474,7 @@ impl Workspace {
         let content = String::from_utf8_lossy(&bytes);
         Ok(NoteText {
             lines: content.lines().map(str::to_owned).collect(),
+            html: verso_dialect::to_html(&content),
             stale,
             unverified,
             headings: self.index.headings_of(&path).map_err(CoreError::Index)?,

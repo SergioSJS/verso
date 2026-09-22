@@ -19,7 +19,7 @@ publish.workspace = true
 # and on no published 0.13.x, so a build without the patch fails to
 # resolve instead of falling back to the buggy 0.13.4. When the patch goes,
 # the release must have the `std` feature or this line changes with it.
-pulldown-cmark = { version = "0.13", default-features = false, features = ["std"] }
+pulldown-cmark = { version = "0.13", default-features = false, features = ["std", "html"] }
 # YAML 1.2 for the frontmatter block the base hands over opaque (ADR 0037,
 # consequences; spec Q24 stays open). `encoding` off: the input is already
 # a `&str`; decoding is not this crate's job (spec Q25).

@@ -62,6 +62,11 @@ pub struct NoteText {
     pub path: String,
     /// Without line endings; line `n` (1-based) is `lines[n - 1]`.
     pub lines: Vec<String>,
+    /// The note rendered as HTML by the core's own parser, for a preview:
+    /// wikilinks are `<a class="wikilink" data-target>`, embeds
+    /// `<span class="embed" data-target>`; the UI resolves targets
+    /// through `links`.
+    pub html: String,
     pub headings: Vec<Heading>,
     pub blocks: Vec<Block>,
     /// The file differs from what the index holds: graph answers may be

@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The window (Phase 2, walking skeleton). Everything it knows about notes
-// comes through `./bindings`, generated from the Rust contract (ADR 0026
-// rule 3; ADR 0038): nothing here is typed by hand, and nothing here
-// touches a file. pt-BR and EN from the first commit (ADR 0035), by the
-// system language.
+// The window (Phase 2). Everything it knows about notes comes through
+// `./bindings`, generated from the Rust contract (ADR 0026 rule 3; ADR
+// 0038): nothing here is typed by hand, nothing here touches a file, and
+// the preview's HTML comes from the core's own parser. pt-BR and EN from
+// the first commit (ADR 0035), by the system language.
 
 import { open } from "@tauri-apps/plugin-dialog";
 import { commands, type ContractError, type NoteText } from "./bindings";
@@ -27,6 +27,9 @@ type Strings = {
   noNotes: string;
   line: string;
   error: string;
+  showSource: string;
+  showPreview: string;
+  unresolved: (t: string) => string;
 };
 
 const pt: Strings = {
@@ -45,6 +48,9 @@ const pt: Strings = {
   noNotes: "Nenhuma nota.",
   line: "linha",
   error: "Erro",
+  showSource: "Fonte",
+  showPreview: "Preview",
+  unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
 };
 
 const en: Strings = {
@@ -63,6 +69,9 @@ const en: Strings = {
   noNotes: "No notes.",
   line: "line",
   error: "Error",
+  showSource: "Source",
+  showPreview: "Preview",
+  unresolved: (t) => `No note answers to [[${t}]].`,
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -84,7 +93,9 @@ const ui = {
   notesHeading: el<HTMLHeadingElement>("notes-heading"),
   notes: el<HTMLUListElement>("notes"),
   noteTitle: el<HTMLHeadingElement>("note-title"),
+  view: el<HTMLButtonElement>("view"),
   noteFlags: el<HTMLParagraphElement>("note-flags"),
+  preview: el<HTMLElement>("preview"),
   lines: el<HTMLOListElement>("lines"),
   backlinksHeading: el<HTMLHeadingElement>("backlinks-heading"),
   backlinks: el<HTMLUListElement>("backlinks"),
@@ -98,8 +109,12 @@ ui.notesHeading.textContent = t.notes;
 ui.backlinksHeading.textContent = t.backlinks;
 ui.folder.textContent = t.noFolder;
 ui.noteTitle.textContent = t.pick;
+ui.view.textContent = t.showSource;
 
 let current: string | null = null;
+let showingSource = false;
+/** Link target as written (lower-cased) → the note it resolves to. */
+let resolved = new Map<string, string | null>();
 
 function fail(e: ContractError | unknown): void {
   const message =
@@ -112,64 +127,115 @@ function name(path: string): string {
   return base.endsWith(".md") ? base.slice(0, -3) : base;
 }
 
-function entry(path: string, snippet?: string): HTMLLIElement {
+function noteButton(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIElement {
   const li = document.createElement("li");
+  li.dataset["path"] = path;
   const b = document.createElement("button");
   b.type = "button";
   b.textContent = name(path);
-  if (path.includes("/")) {
-    const p = document.createElement("span");
-    p.className = "path";
-    p.textContent = path.slice(0, path.lastIndexOf("/"));
-    b.append(p);
-  }
-  if (snippet !== undefined) {
-    const s = document.createElement("span");
-    s.className = "snippet";
-    // The snippet marks hits with [ ]; show them as <mark>.
-    for (const part of snippet.split(/(\[[^\]]*\])/)) {
-      if (part.startsWith("[") && part.endsWith("]")) {
-        const m = document.createElement("mark");
-        m.textContent = part.slice(1, -1);
-        s.append(m);
-      } else {
-        s.append(part);
-      }
-    }
-    b.append(s);
-  }
   b.setAttribute("aria-current", String(path === current));
   b.addEventListener("click", () => void show(path));
+  extra?.(b);
   li.append(b);
   return li;
+}
+
+function markCurrent(): void {
+  for (const li of document.querySelectorAll<HTMLLIElement>("li[data-path]")) {
+    li.querySelector("button")?.setAttribute("aria-current", String(li.dataset["path"] === current));
+  }
+}
+
+/* The tree: folders as <details>, notes as buttons, both in path order. */
+type Folder = { folders: Map<string, Folder>; notes: string[] };
+
+function tree(paths: string[]): Folder {
+  const root: Folder = { folders: new Map(), notes: [] };
+  for (const p of paths) {
+    const parts = p.split("/");
+    let node = root;
+    for (const part of parts.slice(0, -1)) {
+      let next = node.folders.get(part);
+      if (!next) {
+        next = { folders: new Map(), notes: [] };
+        node.folders.set(part, next);
+      }
+      node = next;
+    }
+    node.notes.push(p);
+  }
+  return root;
+}
+
+function renderTree(node: Folder, depth: number): HTMLUListElement {
+  const ul = document.createElement("ul");
+  if (depth === 0) ul.className = "tree";
+  for (const [folder, child] of node.folders) {
+    const li = document.createElement("li");
+    const d = document.createElement("details");
+    d.open = depth < 1;
+    const s = document.createElement("summary");
+    s.textContent = folder;
+    d.append(s, renderTree(child, depth + 1));
+    li.append(d);
+    ul.append(li);
+  }
+  for (const p of node.notes) ul.append(noteButton(p));
+  return ul;
 }
 
 async function listAll(): Promise<void> {
   const r = await commands.listNotes();
   if (r.status !== "ok") return fail(r.error);
-  ui.notes.replaceChildren(...r.data.map((p) => entry(p)));
+  ui.notes.replaceChildren(...Array.from(renderTree(tree(r.data), 0).children));
+  ui.notes.className = "tree";
   if (r.data.length === 0) {
     const li = document.createElement("li");
     li.className = "empty";
     li.textContent = t.noNotes;
     ui.notes.append(li);
   }
+  markCurrent();
+}
+
+function snippetNode(snippet: string): HTMLSpanElement {
+  const s = document.createElement("span");
+  s.className = "snippet";
+  // The core marks hits with [ ]; show them as <mark>.
+  for (const part of snippet.split(/(\[[^\]]*\])/)) {
+    if (part.startsWith("[") && part.endsWith("]")) {
+      const m = document.createElement("mark");
+      m.textContent = part.slice(1, -1);
+      s.append(m);
+    } else {
+      s.append(part);
+    }
+  }
+  return s;
 }
 
 async function searchNotes(words: string): Promise<void> {
   if (words.trim() === "") return listAll();
   const r = await commands.search(words, 50);
   if (r.status !== "ok") return fail(r.error);
-  ui.notes.replaceChildren(...r.data.map((h) => entry(h.path, h.snippet)));
+  ui.notes.className = "list";
+  ui.notes.replaceChildren(
+    ...r.data.map((h) =>
+      noteButton(h.path, (b) => {
+        if (h.path.includes("/")) {
+          const p = document.createElement("span");
+          p.className = "path";
+          p.textContent = h.path.slice(0, h.path.lastIndexOf("/"));
+          b.append(p);
+        }
+        b.append(snippetNode(h.snippet));
+      }),
+    ),
+  );
   ui.status.textContent = t.hits(r.data.length);
 }
 
-function render(note: NoteText): void {
-  ui.noteTitle.textContent = name(note.path);
-  const flags: string[] = [];
-  if (note.stale) flags.push(t.stale);
-  if (note.unverified) flags.push(t.unverified);
-  ui.noteFlags.textContent = flags.join(" ");
+function renderSource(note: NoteText): void {
   const headings = new Set(note.headings.map((h) => h.line));
   const blocks = new Map(note.blocks.map((b) => [b.line, b.id]));
   ui.lines.replaceChildren(
@@ -190,24 +256,49 @@ function render(note: NoteText): void {
   );
 }
 
+function applyView(): void {
+  ui.preview.hidden = showingSource;
+  ui.lines.hidden = !showingSource;
+  ui.view.textContent = showingSource ? t.showPreview : t.showSource;
+}
+
 async function show(path: string): Promise<void> {
   current = path;
-  for (const b of ui.notes.querySelectorAll("button")) {
-    b.setAttribute("aria-current", String(b.textContent !== null && b.closest("li") !== null && false));
-  }
-  const [note, back] = await Promise.all([commands.readNote(path), commands.backlinks(path)]);
+  const [note, back, links] = await Promise.all([
+    commands.readNote(path),
+    commands.backlinks(path),
+    commands.links(path),
+  ]);
   if (note.status !== "ok") return fail(note.error);
-  render(note.data);
+  ui.noteTitle.textContent = name(note.data.path);
+  const flags: string[] = [];
+  if (note.data.stale) flags.push(t.stale);
+  if (note.data.unverified) flags.push(t.unverified);
+  ui.noteFlags.textContent = flags.join(" ");
+  // The HTML is the core's rendering of the user's own file (see
+  // verso_dialect::to_html); the webview's policy runs no script from it.
+  ui.preview.innerHTML = note.data.html;
+  renderSource(note.data);
+  ui.view.hidden = false;
+  applyView();
+  resolved = new Map();
+  if (links.status === "ok") {
+    for (const l of links.data) resolved.set(l.target.toLowerCase(), l.resolved);
+  }
+  for (const a of ui.preview.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
+    const target = (a.dataset["target"] ?? "").split("#")[0] ?? "";
+    if (resolved.get(target.toLowerCase()) == null) a.classList.add("unresolved");
+  }
   if (back.status !== "ok") return fail(back.error);
   ui.backlinks.replaceChildren(
-    ...back.data.map((b) => {
-      const li = entry(b.from);
-      const where = document.createElement("span");
-      where.className = "path";
-      where.textContent = `${t.line} ${b.line}`;
-      li.querySelector("button")?.append(where);
-      return li;
-    }),
+    ...back.data.map((b) =>
+      noteButton(b.from, (btn) => {
+        const where = document.createElement("span");
+        where.className = "path";
+        where.textContent = `${b.from.includes("/") ? b.from.slice(0, b.from.lastIndexOf("/")) + " · " : ""}${t.line} ${b.line}`;
+        btn.append(where);
+      }),
+    ),
   );
   if (back.data.length === 0) {
     const li = document.createElement("li");
@@ -215,15 +306,20 @@ async function show(path: string): Promise<void> {
     li.textContent = t.noBacklinks;
     ui.backlinks.append(li);
   }
-  // Mark the current entry in the list, whichever list is showing.
-  for (const b of ui.notes.querySelectorAll("button")) {
-    b.setAttribute("aria-current", "false");
-  }
-  ui.notes.querySelectorAll("li").forEach((li) => {
-    const b = li.querySelector("button");
-    if (b && li.dataset["path"] === path) b.setAttribute("aria-current", "true");
-  });
+  markCurrent();
+  ui.preview.scrollIntoView({ block: "start" });
 }
+
+ui.preview.addEventListener("click", (ev) => {
+  const a = (ev.target as HTMLElement).closest("a");
+  if (!a) return;
+  ev.preventDefault();
+  if (!a.classList.contains("wikilink")) return;
+  const target = (a.dataset["target"] ?? "").split("#")[0] ?? "";
+  const to = resolved.get(target.toLowerCase());
+  if (to) void show(to);
+  else ui.status.textContent = t.unresolved(target);
+});
 
 async function openFolder(): Promise<void> {
   const picked = await open({ directory: true, multiple: false, title: t.open });
@@ -240,8 +336,10 @@ async function openFolder(): Promise<void> {
   ui.search.value = "";
   ui.noteTitle.textContent = "";
   ui.noteFlags.textContent = "";
+  ui.preview.replaceChildren();
   ui.lines.replaceChildren();
   ui.backlinks.replaceChildren();
+  ui.view.hidden = true;
   current = null;
   await listAll();
   ui.search.focus();
@@ -257,6 +355,10 @@ async function reindex(): Promise<void> {
 
 ui.open.addEventListener("click", () => void openFolder());
 ui.reindex.addEventListener("click", () => void reindex());
+ui.view.addEventListener("click", () => {
+  showingSource = !showingSource;
+  applyView();
+});
 let pending: number | undefined;
 ui.search.addEventListener("input", () => {
   window.clearTimeout(pending);
