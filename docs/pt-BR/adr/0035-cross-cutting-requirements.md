@@ -21,6 +21,24 @@ semântica acessível a uma UI pronta costuma exigir reescrever a UI.
 
 ## Consequências
 
+**Revisão de 2026-09-22, pelo mantenedor.** A decisão 1 obriga **a interface da
+aplicação**: a UI da Fase 2 é pt-BR e EN. Ela **não** obriga a CLI, que é
+ferramenta de quem desenvolve e pode ficar num idioma só. A razão dada, com as
+palavras dele: *"a interface da aplicação deve ter pt-BR, o resto não
+precisa"*. O que decorre disso:
+
+- A `verso-cli` bilíngue construída na feature 7 **fica como está** — funciona,
+  tem teste, e removê-la seria trabalho que não compra nada. Deixa de ser
+  exigência, então um comando futuro pode nascer num idioma só sem quebrar esta
+  ADR.
+- O critério de saída 6 da Fase 1 é afrouxado na mesma medida
+  (`docs/roadmap.md`).
+- "Nenhuma string solta" continua de pé por mérito próprio na UI, onde é o que
+  torna um segundo idioma possível. Na CLI passa a ser convenção do código
+  existente, não regra desta ADR.
+- Os resultados das ferramentas do `verso mcp` são dados para um modelo, não
+  interface: inglês, e fora desta decisão de qualquer forma.
+
 - "Desde o primeiro commit" significa **desde o primeiro commit de código de
   produto**: a Fase 0 é documentação e crates vazios. Vale para a UI da Fase 2 e
   para as mensagens da CLI da Fase 1: nenhuma string literal solta. A Fase 1

@@ -22,6 +22,20 @@ to be that of a code editor: from the terminal, where the person already is.
 
 Verso opens from the command line, on the model of `code .`: `verso <folder>`.
 
+**Decided on 2026-09-22 by the maintainer, for Phase 1**
+(`docs/reference/cli-decision.md` §10, line 1). A **subcommand is required in
+first position**: `verso index <folder>`, `verso search <folder> <words…>`,
+`verso backlinks <folder> <note>`, `verso mcp <folder>`, `verso help`. The
+folder is an argument of the subcommand and there is no default folder. An
+argument that starts with `--` and is not a known option is a usage error, not
+a folder.
+
+**Recorded, not decided, for Phase 2**: a first argument that names an existing
+directory opens it, anything else is read as a subcommand, with
+`verso open <folder>` and `verso -- <folder>` as the escape hatches. `--` as a
+separator is not supported in Phase 1, so a folder whose name begins with `--`
+cannot be passed yet.
+
 ## Consequences
 
 - It requires an executable on `PATH` and a way to install it; how that is done

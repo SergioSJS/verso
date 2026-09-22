@@ -117,7 +117,7 @@ Ordem de execução do briefing §15:
 | ~~Symlinks, laços e caminhos ignorados (Q26)~~ | decidido em 2026-09-22: todo symlink é seguido, profundidade máxima 64 com erro ao bater no limite; entradas ocultas não são percorridas; nota ignorada é alvo não resolvido e nunca fonte de backlink (`docs/reference/fs-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 | ~~Mecanismo de detecção de placeholder por provedor, começando pelo iCloud Drive~~ | decidido em 2026-09-22: as duas formas do iCloud (`SF_DATALESS` e `.Nome.ext.icloud`), verificadas antes de o arquivo ser aberto; os demais provedores adiados (`docs/reference/fs-decision.md`) | [0043](adr/0043-placeholder-guard.md) |
 | Localização, permissões e limpeza do índice | antes da feature 3 fechar | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
-| Regra de desambiguação entre `verso <pasta>` e subcomando | antes de a feature 4 fechar o conjunto de subcomandos | [0042](adr/0042-open-from-command-line.md) |
+| ~~Regra de desambiguação entre `verso <pasta>` e subcomando~~ | decidido 2026-09-22: subcomando obrigatório na Fase 1; a regra da Fase 2 registrada e ainda aberta (`docs/reference/cli-decision.md`) | [0042](adr/0042-open-from-command-line.md) |
 | Tokenizador do FTS5 para pt-BR e EN | antes de a feature 5 tirar a linha de base | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Metas de performance | depois da feature 5 produzir a linha de base | [0039](adr/0039-performance-targets.md) |
 | Transporte do MCP, superfície exposta, versão do protocolo | antes da feature 6 fechar | [0045](adr/0045-server-and-mcp-security.md) |
@@ -126,8 +126,13 @@ Ordem de execução do briefing §15:
 ### Critério de saída
 
 1. **Vault real indexa sem erro.** `verso index` roda sobre o vault real de
-   campanha do mantenedor e termina com código de saída 0, sem erro e sem panic.
-   Verificação: executar o comando e conferir o código de saída e a saída padrão.
+   campanha do mantenedor e termina com **código de saída 0, ou 1 quando o walk
+   reportou um problema na pasta**, sem erro e sem panic. O `1` foi decidido
+   pelo mantenedor em 2026-09-22 junto com os códigos de saída
+   (`docs/reference/cli-decision.md` §6.2): um diretório ilegível é notícia
+   sobre a pasta, não falha do comando, e também não pode ser reportado como
+   sucesso. Verificação: executar o comando e conferir o código de saída e a
+   saída padrão.
 2. **Backlinks conferem com o esperado.** Para um conjunto de notas escolhido
    pelo mantenedor, a saída de `verso backlinks` bate com a lista que ele
    escreveu à mão antes de rodar o comando. Verificação: comparar as duas listas;
@@ -152,9 +157,13 @@ Ordem de execução do briefing §15:
    `expected.yaml` foi alterado sem aprovação explícita do mantenedor.
    Verificação: `cargo test` verde, mais `git log` de `fixtures/**/expected.yaml`
    sem commit não aprovado.
-6. **CLI em dois idiomas.** `verso index`, `verso search` e `verso backlinks`
-   respondem em pt-BR e em EN conforme o locale. Verificação: rodar cada comando
-   com os dois locales e conferir que nenhuma mensagem fica no outro idioma.
+6. **CLI em dois idiomas — não é mais exigência, e está satisfeito assim
+   mesmo.** O mantenedor estreitou a exigência em 2026-09-22
+   ([ADR 0035](adr/0035-cross-cutting-requirements.md)): pt-BR e EN obrigam a
+   interface da aplicação, não a CLI. A feature 7 a construiu bilíngue antes
+   disso, e ela fica. Verificação, para quem quiser: rodar cada comando com os
+   dois locales e conferir que nenhuma mensagem fica no outro idioma; uma
+   divergência deixou de ser motivo para segurar a fase.
 
 ---
 

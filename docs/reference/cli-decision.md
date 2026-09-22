@@ -24,6 +24,26 @@
   under it from the index — and eight IMPORTANT, all of them applied. What the
   code does after it is recorded in the four ADRs this memo touches and in
   §6.3 below.
+- **Decision: taken by the maintainer on 2026-09-22**, in session, recorded
+  here and in the closing PR. (1) Command surface as recommended: a subcommand
+  is required in Phase 1. (2) Configuration directory as recommended, and the
+  Linux half is closed, not left open: `$XDG_CONFIG_HOME` else `~/.config`.
+  (3) Messages as recommended. (4) Argument parsing stays hand-rolled — `clap`
+  was reconsidered on the day and set aside, see below. (5) Output and exit
+  codes as recommended, and the tension of section 6.2 is resolved in favour of
+  **exit 1**: a reported walk problem makes `verso index` exit 1, and exit
+  criterion 1 of the roadmap is reworded to "0, or 1 when the walk reported a
+  problem". (6) Second run as recommended; the placeholder column already
+  exists, so nothing further is owed.
+
+  **On line 4.** The maintainer asked for `clap` if it were cheap. It is not
+  the dependency that decides it: `clap` prints its own help and its own errors,
+  and on the same day the maintainer narrowed
+  [ADR 0035](../adr/0035-cross-cutting-requirements.md) so that only the
+  application's interface must be bilingual — which removes the objection but
+  leaves `clap` buying little that the ~90 tested lines of hand-rolled parsing
+  do not already do. Recorded as reconsidered and deferred to the moment the
+  surface grows, with `lexopt` still the lighter candidate.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2 to 7 are **Fable
   5.1's**, recorded here as the author's input; they are not decisions. No Rust

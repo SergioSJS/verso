@@ -96,6 +96,28 @@ code does, not a decision.
   fallback used to put the index wherever the process happened to be running,
   possibly inside the open folder itself.
 
+**Decided on 2026-09-22 by the maintainer** (`docs/reference/cli-decision.md`
+§10, line 2). The configuration directory is `$VERSO_CONFIG_DIR` when set and
+non-empty; otherwise `$XDG_CONFIG_HOME/verso` when that is set; otherwise
+`~/Library/Application Support/verso` on macOS and `~/.config/verso`
+elsewhere. With none of the three — no `HOME` either — the command **fails
+with a message**; it never falls back to a directory relative to the current
+one, which in a `launchd` job or a container could land inside the open folder.
+No `dirs`/`directories` dependency: the rule is nine lines of our own.
+
+The index of a folder is `<config>/index/<name>-<hash>.sqlite`, keyed on the
+folder's absolute path after normalisation, with a `<same>.json` sidecar
+recording that path and the time of the last indexing, so an orphaned index can
+be listed and forgotten ([0046](0046-index-location-lifecycle-tokenizer.md)).
+The sidecar is **not written yet**: it is feature 4's remaining work.
+
+Why this order rather than the platform default alone: the Rust ecosystem's
+own libraries return `Application Support` on macOS, and the recurring
+complaint against them is that an explicitly set `XDG_CONFIG_HOME` is ignored.
+Honouring it when it is set, and falling back to the platform default when it
+is not, is the compromise both sides ask for, and it is what a user who keeps
+dotfiles expects.
+
 ## Discarded alternatives
 
 - A configuration directory inside the folder, on the `.obsidian/` model —

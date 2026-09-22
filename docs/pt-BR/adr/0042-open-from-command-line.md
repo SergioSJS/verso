@@ -22,6 +22,19 @@ precisa ser o de um editor de código: do terminal, onde a pessoa já está.
 
 O Verso abre pela linha de comando, no modelo do `code .`: `verso <pasta>`.
 
+**Decidido em 2026-09-22 pelo mantenedor, para a Fase 1**
+(`docs/reference/cli-decision.md` §10, linha 1). **Subcomando obrigatório na
+primeira posição**: `verso index <pasta>`, `verso search <pasta> <palavras…>`,
+`verso backlinks <pasta> <nota>`, `verso mcp <pasta>`, `verso help`. A pasta é
+argumento do subcomando e não existe pasta padrão. Um argumento que começa com
+`--` e não é opção conhecida é erro de uso, não pasta.
+
+**Registrado, não decidido, para a Fase 2**: um primeiro argumento que nomeia um
+diretório existente abre esse diretório, qualquer outra coisa é lida como
+subcomando, com `verso open <pasta>` e `verso -- <pasta>` como saídas de
+emergência. `--` como separador não existe na Fase 1, então uma pasta cujo nome
+começa com `--` ainda não pode ser passada.
+
 ## Consequências
 
 - Exige um executável no `PATH` e uma forma de instalá-lo; como isso é feito em
