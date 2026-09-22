@@ -215,3 +215,20 @@ fn a_case_collision_of_two_paths_resolves_to_the_first_in_byte_order() {
         Some("x/Nota.md")
     );
 }
+
+#[test]
+fn headings_and_blocks_come_back_with_positions() {
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "n.md", "# Título\n\ntexto ^abc\n\n## Sub\n");
+    let h = index.headings_of("n.md").unwrap();
+    assert_eq!(h.len(), 2);
+    assert_eq!(
+        (h[0].level, h[0].text.as_str(), h[0].line, h[0].col),
+        (1, "Título", 1, 1)
+    );
+    assert_eq!((h[1].level, h[1].line), (2, 5));
+    let b = index.blocks_of("n.md").unwrap();
+    assert_eq!(b.len(), 1);
+    assert_eq!((b[0].id.as_str(), b[0].line), ("abc", 3));
+    assert!(index.headings_of("nope.md").unwrap().is_empty());
+}

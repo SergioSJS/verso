@@ -22,8 +22,8 @@ use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use verso_fs::{EntryKind, Problem, Root};
-use verso_index::{Backlink, Hit, Index, NoteStamp, Unresolved};
+use verso_fs::{ConfinementError, EntryKind, Problem, ReadError, Root};
+use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 /// Why the workspace could not be opened or refreshed.
 #[derive(Debug)]
@@ -33,6 +33,12 @@ pub enum CoreError {
     /// No configuration directory can be named: neither `VERSO_CONFIG_DIR`
     /// nor `XDG_CONFIG_HOME` nor `HOME` is set. Never a relative fallback.
     NoConfigDir,
+    /// A path a caller sent cannot name a note of the folder (ADR 0044:
+    /// absolute, `..`, NUL, hidden, ignored). Checked on every path that
+    /// crosses the edge, whether the call reads the disk or the index.
+    Confined(ConfinementError),
+    /// The note could not be read from the folder.
+    Read(ReadError),
 }
 
 impl std::fmt::Display for CoreError {
@@ -44,6 +50,8 @@ impl std::fmt::Display for CoreError {
                 f,
                 "no configuration directory: HOME, XDG_CONFIG_HOME and VERSO_CONFIG_DIR are all unset"
             ),
+            Self::Confined(e) => write!(f, "{e}"),
+            Self::Read(e) => write!(f, "read: {e}"),
         }
     }
 }
@@ -169,6 +177,25 @@ pub struct IndexReport {
     pub unreadable: Vec<(String, String)>,
     /// Problems the walk reported.
     pub problems: Vec<WalkProblem>,
+}
+
+/// A note's text as read from the folder now, with what the index knows
+/// about its positions (feature 6: `read_note`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoteText {
+    /// The path relative to the folder, with `.md`.
+    pub path: String,
+    /// The lines of the file, without their line endings; line `n` of the
+    /// citation is `lines[n - 1]` (spec §4.4).
+    pub lines: Vec<String>,
+    /// The file differs from the version the index holds (or the index
+    /// does not hold it): graph answers may predate this text.
+    pub stale: bool,
+    /// The index holds this note only as an unverified last version
+    /// (ADR 0043): a placeholder stood where it was.
+    pub unverified: bool,
+    pub headings: Vec<Heading>,
+    pub blocks: Vec<Block>,
 }
 
 /// An open folder with its index.
@@ -338,25 +365,36 @@ impl Workspace {
         self.index.search(words, limit).map_err(CoreError::Index)
     }
 
-    /// The path of a note as the index keys it: relative, with `.md`.
-    fn note_path(note: &str) -> String {
-        if note.ends_with(".md") {
+    /// The path of a note as the index keys it — relative, with `.md` —
+    /// after confinement: a path that cannot name a file of the folder is
+    /// refused here, whether the caller goes on to the disk or only to the
+    /// index (ADR 0044; `docs/reference/mcp-decision.md` §4.3).
+    fn note_path(&mut self, note: &str) -> Result<(String, verso_fs::Handle), CoreError> {
+        let path = if note.ends_with(".md") {
             note.to_owned()
         } else {
             format!("{note}.md")
-        }
+        };
+        let handle = self
+            .root
+            .handle(Path::new(&path))
+            .map_err(CoreError::Confined)?;
+        Ok((path, handle))
+    }
+
+    fn known(&self, path: &str) -> Result<bool, CoreError> {
+        Ok(self
+            .index
+            .stamp_of(path)
+            .map_err(CoreError::Index)?
+            .is_some())
     }
 
     /// Backlinks of a note given by its path relative to the folder, with
     /// or without `.md`; `None` when the index does not know the note.
-    pub fn backlinks(&self, note: &str) -> Result<Option<Vec<Backlink>>, CoreError> {
-        let path = Self::note_path(note);
-        if self
-            .index
-            .stamp_of(&path)
-            .map_err(CoreError::Index)?
-            .is_none()
-        {
+    pub fn backlinks(&mut self, note: &str) -> Result<Option<Vec<Backlink>>, CoreError> {
+        let (path, _) = self.note_path(note)?;
+        if !self.known(&path)? {
             return Ok(None);
         }
         self.index
@@ -365,12 +403,49 @@ impl Workspace {
             .map_err(CoreError::Index)
     }
 
+    /// The links a note makes, with what each resolves to; `None` when the
+    /// index does not know the note.
+    pub fn links(&mut self, note: &str) -> Result<Option<Vec<Link>>, CoreError> {
+        let (path, _) = self.note_path(note)?;
+        if !self.known(&path)? {
+            return Ok(None);
+        }
+        self.index
+            .links_of(&path)
+            .map(Some)
+            .map_err(CoreError::Index)
+    }
+
     /// Whether the index holds the note only as an unverified last version
     /// (ADR 0043); `None` when it does not know the note.
-    pub fn is_unverified(&self, note: &str) -> Result<Option<bool>, CoreError> {
-        self.index
-            .is_unverified(&Self::note_path(note))
-            .map_err(CoreError::Index)
+    pub fn is_unverified(&mut self, note: &str) -> Result<Option<bool>, CoreError> {
+        let (path, _) = self.note_path(note)?;
+        self.index.is_unverified(&path).map_err(CoreError::Index)
+    }
+
+    /// The note's text as it is on disk now, through `verso-fs` (a
+    /// placeholder answers `Read(Unavailable)`, never empty text — ADR
+    /// 0043), with the positions the index has for it and whether the
+    /// index is behind the file.
+    pub fn read_note(&mut self, note: &str) -> Result<NoteText, CoreError> {
+        let (path, handle) = self.note_path(note)?;
+        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        let known = self.index.stamp_of(&path).map_err(CoreError::Index)?;
+        let stale = known != Some(note_stamp(&stamp));
+        let unverified = self
+            .index
+            .is_unverified(&path)
+            .map_err(CoreError::Index)?
+            .unwrap_or(false);
+        let content = String::from_utf8_lossy(&bytes);
+        Ok(NoteText {
+            lines: content.lines().map(str::to_owned).collect(),
+            stale,
+            unverified,
+            headings: self.index.headings_of(&path).map_err(CoreError::Index)?,
+            blocks: self.index.blocks_of(&path).map_err(CoreError::Index)?,
+            path,
+        })
     }
 
     pub fn unresolved(&self) -> Result<Vec<Unresolved>, CoreError> {
