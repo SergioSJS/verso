@@ -33,7 +33,7 @@ use rusqlite::Connection;
 
 pub use keys::{note_keys, target_key};
 pub use search::Hit;
-pub use store::{Backlink, Link, NoteStamp, Unresolved};
+pub use store::{Backlink, Block, Heading, Link, NoteStamp, Unresolved};
 
 /// Why the index could not do something.
 #[derive(Debug)]

@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! `verso index | search | backlinks` (Phase 1, feature 4; feature 7's
-//! two languages come with it). The binary reads arguments and prints;
+//! `verso index | search | backlinks | mcp` (Phase 1, features 4 and 6;
+//! feature 7's two languages come with them). The binary reads arguments and prints;
 //! `verso-core` does the work (ADR 0026 rule 5). Provisional choices —
 //! the subcommand-first shape, the exit codes, the JSON shape — are in
 //! `docs/reference/cli-decision.md` for the maintainer.
@@ -12,6 +12,7 @@
 //! problem lines of a run go to stderr, so `--json > file` never mixes
 //! a sentence into the JSON.
 
+mod mcp;
 mod messages;
 
 use std::ffi::OsString;
@@ -39,6 +40,10 @@ enum Command {
         note: String,
     },
     Unresolved {
+        folder: PathBuf,
+    },
+    /// Serve the folder over MCP on stdin/stdout until stdin closes.
+    Mcp {
         folder: PathBuf,
     },
 }
@@ -151,10 +156,24 @@ fn command_of(positional: Vec<OsString>, limit: usize, unresolved: bool) -> Resu
                 Command::Backlinks { folder, note }
             }
         }
+        "mcp" => {
+            if unresolved {
+                return Err(Msg::ExtraArgument("--unresolved".to_owned()));
+            }
+            extra(&mut rest)?;
+            Command::Mcp {
+                folder: folder.ok_or(Msg::MissingFolder)?,
+            }
+        }
         "help" | "--help" | "-h" => Command::Help,
         other => return Err(Msg::UnknownSubcommand(other.to_owned())),
     };
     Ok(command)
+}
+
+fn with_code(mut out: Output, code: u8) -> Output {
+    out.code = code;
+    out
 }
 
 /// What a run prints and how it exits.
@@ -216,7 +235,8 @@ fn run(args: &[OsString]) -> Output {
         Command::Index { folder }
         | Command::Search { folder, .. }
         | Command::Backlinks { folder, .. }
-        | Command::Unresolved { folder } => folder.clone(),
+        | Command::Unresolved { folder }
+        | Command::Mcp { folder } => folder.clone(),
         Command::Help => return out,
     };
     let mut ws = match Workspace::open(&folder, None) {
@@ -229,6 +249,39 @@ fn run(args: &[OsString]) -> Output {
     };
     out.code = match command {
         Command::Help => 0,
+        Command::Mcp { .. } => {
+            // One incremental pass before the first answer (memo §6.3);
+            // its report goes to stderr, stdout is the protocol.
+            match ws.index() {
+                Ok(r) => out.stderr.push(text(
+                    &Msg::McpServing {
+                        folder: ws.folder().to_string_lossy().into_owned(),
+                        indexed: r.indexed,
+                        unchanged: r.unchanged,
+                    },
+                    lang,
+                )),
+                Err(e) => {
+                    out.stderr
+                        .push(text(&Msg::IndexFailed(e.to_string()), lang));
+                    return with_code(out, 3);
+                }
+            }
+            emit(std::io::stderr().lock(), &out.stderr);
+            out.stderr.clear();
+            let served = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| e.to_string())
+                .and_then(|rt| rt.block_on(mcp::serve(ws)).map_err(|e| e.to_string()));
+            match served {
+                Ok(()) => 0,
+                Err(e) => {
+                    out.stderr.push(text(&Msg::McpFailed(e), lang));
+                    3
+                }
+            }
+        }
         Command::Index { .. } => match ws.index() {
             Ok(r) => {
                 if options.json {
@@ -518,6 +571,13 @@ mod tests {
         assert_eq!(parse(&args(&["help"])).1.unwrap(), Command::Help);
         assert_eq!(parse(&args(&["--help"])).1.unwrap(), Command::Help);
         assert_eq!(parse(&args(&["-h"])).1.unwrap(), Command::Help);
+        assert_eq!(
+            parse(&args(&["mcp", "/v"])).1.unwrap(),
+            Command::Mcp {
+                folder: "/v".into()
+            }
+        );
+        assert_eq!(parse(&args(&["mcp"])).1.unwrap_err(), Msg::MissingFolder);
         assert_eq!(parse(&args(&[])).1.unwrap_err(), Msg::Usage);
         assert_eq!(parse(&args(&["index"])).1.unwrap_err(), Msg::MissingFolder);
         assert_eq!(

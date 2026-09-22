@@ -44,6 +44,24 @@ pub struct Backlink {
     pub col: u32,
 }
 
+/// A heading of a note, with its position (ADR 0018: cited by line and
+/// column when the block has no `^id`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Heading {
+    pub level: u32,
+    pub text: String,
+    pub line: u32,
+    pub col: u32,
+}
+
+/// A `^id` block of a note, with the position of the id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Block {
+    pub id: String,
+    pub line: u32,
+    pub col: u32,
+}
+
 /// A target no note answers to, with how many links name it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unresolved {
@@ -306,6 +324,39 @@ impl Index {
     pub fn notes(&self) -> Result<Vec<String>, IndexError> {
         let mut st = self.conn.prepare("SELECT path FROM notes ORDER BY path")?;
         let rows = st.query_map([], |r| r.get(0))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// The headings of a note, in document order.
+    pub fn headings_of(&self, relative: &str) -> Result<Vec<Heading>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT h.level, h.text, h.line, h.col FROM headings h
+             JOIN notes n ON n.id = h.note WHERE n.path = ?1 ORDER BY h.start",
+        )?;
+        let rows = st.query_map(params![relative], |r| {
+            Ok(Heading {
+                level: r.get(0)?,
+                text: r.get(1)?,
+                line: r.get(2)?,
+                col: r.get(3)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// The `^id` blocks of a note, in document order.
+    pub fn blocks_of(&self, relative: &str) -> Result<Vec<Block>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT b.id, b.line, b.col FROM blocks b
+             JOIN notes n ON n.id = b.note WHERE n.path = ?1 ORDER BY b.start",
+        )?;
+        let rows = st.query_map(params![relative], |r| {
+            Ok(Block {
+                id: r.get(0)?,
+                line: r.get(1)?,
+                col: r.get(2)?,
+            })
+        })?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
