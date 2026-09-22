@@ -1,0 +1,46 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// A small stroke icon set, drawn for this window: 16-unit grid, 1.5 stroke,
+// round joins. Inline SVG, so they take the text colour.
+
+const PATHS: Record<string, string> = {
+  folder: "M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 1.5h4.5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z",
+  search: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14",
+  refresh: "M13 8A5 5 0 1 1 11.6 4.5M13 2.5v3h-3",
+  split: "M2.5 3.5h11v9h-11zM8 3.5v9",
+  close: "M4 4l8 8M12 4l-8 8",
+  reading: "M2 3.5h4.5A1.5 1.5 0 0 1 8 5v8a1.5 1.5 0 0 0-1.5-1.5H2zM14 3.5H9.5A1.5 1.5 0 0 0 8 5v8a1.5 1.5 0 0 1 1.5-1.5H14z",
+  edit: "M11.5 2.5 13.5 4.5 6 12H4v-2zM10 4l2 2",
+  source: "M6 4 2.5 8 6 12M10 4l3.5 4L10 12",
+  save: "M3 2.5h8l2.5 2.5v8.5h-10.5zM5 2.5v4h6v-4M5 13.5V9h6v4.5",
+  chevron: "M6 3.5 10.5 8 6 12.5",
+  plus: "M8 3v10M3 8h10",
+  warn: "M8 2.5 14 13H2zM8 6.5v3M8 11.2v.3",
+  outline: "M3 4h10M5 8h8M7 12h6",
+  link: "M6.5 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1M9.5 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l1-1",
+};
+
+export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.5");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.classList.add("icon");
+  if (label) {
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", label);
+  } else {
+    svg.setAttribute("aria-hidden", "true");
+  }
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", PATHS[name] ?? "");
+  svg.append(path);
+  return svg;
+}

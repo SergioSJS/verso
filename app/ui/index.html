@@ -10,11 +10,13 @@
   <aside class="side">
     <header class="side-head">
       <button id="open" type="button" class="folder-button" title="⌘O">
+        <span class="ic" data-icon="folder"></span>
         <span id="folder" class="folder-name"></span>
       </button>
-      <button id="reindex" type="button" class="ghost" disabled></button>
+      <button id="reindex" type="button" class="ghost iconic" disabled></button>
     </header>
     <label class="search">
+      <span class="ic" data-icon="search"></span>
       <span id="search-label" class="sr-only"></span>
       <input id="search" type="search" autocomplete="off" spellcheck="false" disabled>
       <kbd>⌘K</kbd>
@@ -23,50 +25,17 @@
       <h2 id="notes-heading" class="side-title"></h2>
       <ul id="notes" class="tree"></ul>
     </nav>
+    <section class="side-outline" aria-labelledby="outline-heading" hidden>
+      <h2 id="outline-heading" class="side-title"></h2>
+      <ul id="outline" class="outline"></ul>
+    </section>
   </aside>
 
   <main class="page">
-    <header class="page-head">
-      <nav id="crumbs" class="crumbs" aria-label="breadcrumb"></nav>
-      <div id="modes" class="modes" role="group" hidden>
-        <button id="mode-preview" type="button" aria-pressed="true"></button>
-        <button id="mode-live" type="button" aria-pressed="false"></button>
-        <button id="mode-source" type="button" aria-pressed="false"></button>
-      </div>
-    </header>
-
-    <article class="sheet">
-      <div class="title-row">
-        <h1 id="note-title" class="note-title"></h1>
-        <span id="dirty" class="dirty" hidden aria-label="não salvo">•</span>
-        <button id="save" type="button" class="save" hidden title="⌘S"></button>
-      </div>
-      <p id="note-flags" class="flags"></p>
-      <dl id="props" class="props" hidden></dl>
-      <div id="conflict" class="conflict" hidden>
-        <p id="conflict-text"></p>
-        <pre id="conflict-diff" class="diff"></pre>
-        <div class="conflict-actions">
-          <button id="conflict-reload" type="button" class="ghost"></button>
-          <button id="conflict-overwrite" type="button" class="ghost danger"></button>
-        </div>
-      </div>
-      <div id="preview" class="preview"></div>
-      <div id="editor" class="editor" hidden></div>
-
-      <section class="links" aria-labelledby="backlinks-heading">
-        <h2 id="backlinks-heading" class="section-title"></h2>
-        <ul id="backlinks" class="link-list"></ul>
-      </section>
-    </article>
-
-    <aside class="rail" aria-labelledby="outline-heading">
-      <h2 id="outline-heading" class="section-title" hidden></h2>
-      <ul id="outline" class="outline" hidden></ul>
-    </aside>
-
+    <div id="panes" class="panes"></div>
     <footer class="status-bar">
       <span id="status" class="status" role="status" aria-live="polite"></span>
+      <span class="status-keys"><kbd>⌘E</kbd> <span id="keys-edit"></span> · <kbd>⌘\</kbd> <span id="keys-split"></span> · <kbd>⌘W</kbd> <span id="keys-close"></span></span>
     </footer>
   </main>
   <script type="module" src="main.js"></script>
