@@ -41,15 +41,16 @@ pub fn match_expression(query: &str) -> Option<String> {
 }
 
 impl Index {
-    /// Notes whose content contains every word of `query`, best matches
-    /// first, at most `limit`. Accents and case do not matter (tokenizer,
-    /// ADR 0046, provisional).
+    /// Notes whose title or content contains every word of `query`, best
+    /// matches first, at most `limit`. The title is the first heading or
+    /// the file name, so a note is found by its name as in Obsidian.
+    /// Accents and case do not matter (tokenizer, ADR 0046, provisional).
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<Hit>, IndexError> {
         let Some(expr) = match_expression(query) else {
             return Ok(Vec::new());
         };
         let mut st = self.conn.prepare(
-            "SELECT path, snippet(notes_fts, 1, '[', ']', '…', 12)
+            "SELECT path, snippet(notes_fts, -1, '[', ']', '…', 12)
              FROM notes_fts WHERE notes_fts MATCH ?1
              ORDER BY rank LIMIT ?2",
         )?;
