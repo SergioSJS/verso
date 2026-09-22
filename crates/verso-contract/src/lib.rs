@@ -96,6 +96,24 @@ pub struct Written {
     pub warnings: Vec<String>,
 }
 
+/// A note that links to a renamed note: its text before and after the
+/// links are pointed at the new name, with the revision `write_note`
+/// takes back. Shown, then applied, one note at a time (ADR 0048).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LinkRewrite {
+    pub path: String,
+    pub revision: String,
+    pub before: String,
+    pub after: String,
+}
+
+/// What a rename left: the new path, and the rewrites it calls for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Renamed {
+    pub path: String,
+    pub rewrites: Vec<LinkRewrite>,
+}
+
 /// One frontmatter key and its value as text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Property {
@@ -151,6 +169,8 @@ pub enum ErrorKind {
     /// The file on disk is not the one that was read: nothing was
     /// written; read again and show both versions (invariant 11).
     Changed,
+    /// Something already stands where a note would be created or moved.
+    Exists,
     /// The core could not answer.
     Failed,
 }

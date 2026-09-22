@@ -32,6 +32,7 @@
 //!   download it.
 
 mod confine;
+mod ops;
 mod placeholder;
 mod walk;
 mod write;
@@ -263,6 +264,53 @@ impl Root {
             .path_of(handle)
             .ok_or(WriteError::UnknownHandle(handle))?;
         write::write_atomically(&path, content, expected)
+    }
+
+    /// Create a file that does not exist yet, confined like every path,
+    /// with `content`, atomically (ADR 0048). `WriteError::Exists` when
+    /// something already stands there.
+    pub fn create(
+        &mut self,
+        relative: &Path,
+        content: &[u8],
+    ) -> Result<(Handle, Stamp), WriteError> {
+        let relative = self.confine(relative).map_err(|e| {
+            WriteError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                e.to_string(),
+            ))
+        })?;
+        let stamp = ops::create_atomically(&self.path.join(&relative), content)?;
+        Ok((self.intern(relative), stamp))
+    }
+
+    /// Move a file to another path of the folder, both confined; refuses
+    /// an occupied destination; creates the destination's folders.
+    pub fn rename(&mut self, from: &Path, to: &Path) -> Result<Handle, WriteError> {
+        let confined = |p: &Path| {
+            self.confine(p).map_err(|e| {
+                WriteError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    e.to_string(),
+                ))
+            })
+        };
+        let from = confined(from)?;
+        let to = confined(to)?;
+        ops::rename_path(&self.path.join(&from), &self.path.join(&to))?;
+        Ok(self.intern(to))
+    }
+
+    /// Move a file into `.trash/` at the root (Obsidian's bin), keeping
+    /// its relative path. Returns where it went, relative to the root.
+    pub fn trash(&mut self, relative: &Path) -> Result<PathBuf, WriteError> {
+        let relative = self.confine(relative).map_err(|e| {
+            WriteError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                e.to_string(),
+            ))
+        })?;
+        ops::trash(&self.path, &relative)
     }
 
     fn intern(&mut self, relative: PathBuf) -> Handle {

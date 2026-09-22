@@ -227,6 +227,70 @@ pub struct IndexReport {
     pub problems: Vec<WalkProblem>,
 }
 
+/// A note that links to a renamed note, and its text with the links
+/// pointing at the new name — for the user to see, then to apply.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkRewrite {
+    pub path: String,
+    pub revision: String,
+    pub before: String,
+    pub after: String,
+}
+
+/// What a rename left: the note's new path and the rewrites it calls for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Renamed {
+    pub path: String,
+    pub rewrites: Vec<LinkRewrite>,
+}
+
+/// Every `[[target…]]` and `![[target…]]` in `text` whose target names the
+/// note at `old` (by bare name or by path, `.md` optional, case-
+/// insensitively) rewritten to name `new` — in the form the writer used:
+/// a bare name stays a bare name, a path becomes the new path. Fragments
+/// and aliases are kept. Code is not parsed here: a link inside a code
+/// span is a string to the parser and to this rewrite alike, which is the
+/// one place they disagree; it is the caller's diff that shows it.
+fn rewrite_links(text: &str, old: &str, new: &str) -> String {
+    let stem = |p: &str| p.strip_suffix(".md").unwrap_or(p).to_owned();
+    let old_path = stem(old);
+    let old_name = old_path.rsplit('/').next().unwrap_or(&old_path).to_owned();
+    let new_path = stem(new);
+    let new_name = new_path.rsplit('/').next().unwrap_or(&new_path).to_owned();
+    let fold = |s: &str| s.trim().to_lowercase();
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find("[[") {
+        let Some(j) = rest[i..].find("]]") else { break };
+        let inner = &rest[i + 2..i + j];
+        let (target, tail) = match inner.find(['#', '|']) {
+            Some(k) => (&inner[..k], &inner[k..]),
+            None => (inner, ""),
+        };
+        let t = fold(target);
+        let t = t.strip_suffix(".md").unwrap_or(&t).to_owned();
+        let replacement = if t == fold(&old_path) {
+            Some(new_path.clone())
+        } else if !t.contains('/') && t == fold(&old_name) {
+            Some(new_name.clone())
+        } else {
+            None
+        };
+        out.push_str(&rest[..i + 2]);
+        match replacement {
+            Some(r) => {
+                out.push_str(&r);
+                out.push_str(tail);
+            }
+            None => out.push_str(inner),
+        }
+        out.push_str("]]");
+        rest = &rest[i + j + 2..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// What a write left behind: the note as it now is, and what the atomic
 /// write could not guarantee (`verso_fs::WriteReport`), one line each,
 /// for the user to see — none of them means the content was lost.
@@ -660,6 +724,93 @@ impl Workspace {
         Ok(Written {
             note: self.read_note(&path)?,
             warnings: write_warnings(&report),
+        })
+    }
+
+    /// Create a note that does not exist yet (ADR 0048): `name` with or
+    /// without `.md`, in a folder that is created if needed; refused when
+    /// something already stands there. Indexed at once.
+    pub fn create_note(&mut self, name: &str, text: &str) -> Result<NoteText, CoreError> {
+        let key = self.note_key(name)?;
+        let (handle, _) = self
+            .root
+            .create(Path::new(&key), text.as_bytes())
+            .map_err(CoreError::Write)?;
+        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        let content = String::from_utf8_lossy(&bytes);
+        self.index
+            .upsert(
+                &key,
+                note_stamp(&stamp),
+                &content,
+                &verso_dialect::parse(&content),
+            )
+            .map_err(CoreError::Index)?;
+        self.read_note(&key)
+    }
+
+    /// Move a note to `.trash/` at the root (Obsidian's bin; nothing is
+    /// unlinked) and forget it in the index. Returns where it went.
+    pub fn delete_note(&mut self, note: &str) -> Result<String, CoreError> {
+        let key = self.note_key(note)?;
+        let gone = self.root.trash(Path::new(&key)).map_err(CoreError::Write)?;
+        self.index.remove(&key).map_err(CoreError::Index)?;
+        Ok(gone.to_string_lossy().into_owned())
+    }
+
+    /// Rename or move a note, and say which notes link to it and how
+    /// their text would change (ADR 0048, option (b)): the file moves,
+    /// the index follows, and the rewrites come back as a plan — before
+    /// and after, with each note's revision — for the caller to show and
+    /// then apply through `write_note`, one atomic write per note.
+    /// Nothing but the renamed file is written here.
+    pub fn rename_note(&mut self, from: &str, to: &str) -> Result<Renamed, CoreError> {
+        let old = self.note_key(from)?;
+        let new = self.note_key(to)?;
+        let linkers: Vec<String> = {
+            let mut v: Vec<String> = self
+                .index
+                .backlinks(&old)
+                .map_err(CoreError::Index)?
+                .into_iter()
+                .map(|b| b.from)
+                .filter(|p| *p != old)
+                .collect();
+            v.sort();
+            v.dedup();
+            v
+        };
+        let handle = self
+            .root
+            .rename(Path::new(&old), Path::new(&new))
+            .map_err(CoreError::Write)?;
+        self.index.remove(&old).map_err(CoreError::Index)?;
+        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        let content = String::from_utf8_lossy(&bytes);
+        self.index
+            .upsert(
+                &new,
+                note_stamp(&stamp),
+                &content,
+                &verso_dialect::parse(&content),
+            )
+            .map_err(CoreError::Index)?;
+        let mut rewrites = Vec::new();
+        for path in linkers {
+            let note = self.read_note(&path)?;
+            let after = rewrite_links(&note.text, &old, &new);
+            if after != note.text {
+                rewrites.push(LinkRewrite {
+                    path,
+                    revision: note.revision,
+                    before: note.text,
+                    after,
+                });
+            }
+        }
+        Ok(Renamed {
+            path: new,
+            rewrites,
         })
     }
 
