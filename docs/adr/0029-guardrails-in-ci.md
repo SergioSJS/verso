@@ -6,7 +6,9 @@
 - Revisions: 2026-09-21 — guardrails split into "workspace" and "feature" ones;
   lines for checking WASM, generated types and `std::fs` added; atomic write
   requirements and advisory policy recorded (Phase 0 review, C3, C9, R1, R10);
-  2026-09-22 — where each operating system runs, after the cost incident.
+  2026-09-22 — where each operating system runs, after the cost incident;
+  2026-09-22 — the path confinement row reworded after the symlink decision
+  ([0044](0044-verso-fs-semantics.md)).
 
 ## Context
 
@@ -41,7 +43,7 @@ it. The two groups are separated below.
 | Round-trip property test (definition in `docs/spec/dialect.md`, Q18) | opening rewriting the file | Phase 1, feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | the parser ceasing to compile to WASM and losing the conformance suite with the editor | Phase 1, feature 1 |
 | Atomic write (see requirements below) | corruption on power loss | Phase 1, feature 2 |
-| Path confinement in the adapter | a plugin or agent leaving the folder via `../` or a symlink | Phase 1, feature 2 |
+| Path confinement in the adapter | a plugin or agent reaching outside the folder with an absolute path, a `..` component or a NUL byte; a symlink inside the folder is the user's, is followed, and what it reaches counts as inside the folder ([0044](0044-verso-fs-semantics.md)) | Phase 1, feature 2 |
 | Parameterized queries + escaping of the FTS5 syntax | search breaking with quotes and operators | Phase 1, feature 3 |
 | Benchmark with a synthetic vault | performance regression | Phase 1, feature 5 |
 | Check that the generated TS types are up to date | rule 3 of the contract turning into a convention ([0038](0038-ts-type-generation.md)) | Phase 2, item 2.1 |

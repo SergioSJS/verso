@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.7
+# Spec do dialeto do Verso — v0.8
 
-- Versão: v0.7 · 2026-09-21
+- Versão: v0.8 · 2026-09-22
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -733,9 +733,15 @@ ser escolhido.
   do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
   porque codificação não é sintaxe.
 - **Q26. Caminhos ignorados pela varredura e seu efeito em backlinks.**
-  `[ABERTO]` — vive em [ADR 0044](../adr/0044-verso-fs-semantics.md) por ser
-  de `verso-fs`, mas muda o resultado do critério de saída 2 da Fase 1: nota em
-  `.trash/` que linka para outra conta como backlink?
+  `DECIDIDA` em 2026-09-22 pelo mantenedor, sobre o memo
+  `docs/reference/fs-decision.md`; a regra em si vive no
+  [ADR 0044](../adr/0044-verso-fs-semantics.md), por ser de `verso-fs`. Entrada
+  cujo nome começa com `.` não é percorrida em nenhuma profundidade — o que
+  cobre `.obsidian/`, `.git/` e `.trash/` — mais uma lista configurável de
+  caminhos relativos na configuração fora da árvore, vazia por padrão, e nenhum
+  `.gitignore` na Fase 1. Nota ignorada é alvo de link não resolvido e nunca é
+  fonte de backlink, então nota em `.trash/` que linka para outra não conta como
+  backlink no critério de saída 2 da Fase 1.
 
 ## 10. Histórico
 
@@ -749,3 +755,4 @@ ser escolhido.
 | v0.5 | 2026-09-21 | Limites provisórios do frontmatter registrados sob a Q17 (64 níveis de aninhamento, 10 000 nós), vindos da revisão do PR do `verso-dialect` (`docs/review/phase-1-feature-1.md`). Nenhuma questão fechada |
 | v0.6 | 2026-09-21 | Q3 fechada pelo mantenedor para o fim de um parágrafo e o fim de um item de lista, com a fixture `fixtures/block/list-item` como resposta e a §5.7 atualizada; o `^id` em linha própria depois de linha em branco, num heading e depois de bloco de várias linhas continuam em aberto, e a Q4 também |
 | v0.7 | 2026-09-21 | Q17 fechada pelo mantenedor na parte do frontmatter (64 níveis de aninhamento, 10 000 nós), com o resto da questão continuando `[ABERTO]`; contradição dentro da §4.1 resolvida pela leitura estrita (chave de lista afirma a lista inteira). Terceira questão fechada, em parte |
+| v0.8 | 2026-09-22 | Q26 fechada pelo mantenedor (ADR 0044, memo `docs/reference/fs-decision.md`): entradas ocultas não são percorridas em nenhuma profundidade, e nota ignorada é alvo não resolvido e nunca fonte de backlink |

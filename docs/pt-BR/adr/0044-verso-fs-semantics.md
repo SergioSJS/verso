@@ -3,6 +3,11 @@
 - Data: 2026-09-21
 - Fonte: `docs/review/phase-0.md` R3, I6, L5, R11
 - Status no briefing: não consta
+- Revisões: 2026-09-22 — symlinks, laços e caminhos ignorados decididos pelo
+  mantenedor sobre o memo
+  [`docs/reference/fs-decision.md`](../reference/fs-decision.md); o watcher
+  colocado depois da feature 2; o grupo dos handles opacos intocado e ainda
+  `[ABERTO]`.
 
 ## Contexto
 
@@ -14,19 +19,79 @@ que precisam de resposta antes de `verso-fs` existir.
 
 ## Decisão
 
-Nenhuma. As questões abaixo ficam registradas com o momento de decidir.
+Dois dos três grupos estão decididos. O terceiro continua registrado com o
+momento de decidir.
 
-### Symlinks e laços — decidir antes da feature 2 da Fase 1
+### Symlinks e laços — decidido em 2026-09-22
 
-- Symlink **dentro** da pasta apontando para **fora**: seguido (o índice, o MCP
-  e os plugins passam a ver dado de fora da pasta) ou ignorado (quebra a prática
-  comum de pasta de anexos por link simbólico)? Se seguido, com que limite?
-- Symlink para diretório com laço: detectar por inode visitado, por profundidade
-  máxima, ou ambos.
-- Hard links e aliases do macOS: se contam como o mesmo arquivo.
-- Profundidade máxima de diretórios e limite de `inotify` no Linux (vaults
-  grandes estouram o padrão do kernel): falha explícita ou degradação para
-  varredura periódica.
+Decidido pelo mantenedor em 2026-09-22, sobre o memo
+[`docs/reference/fs-decision.md`](../reference/fs-decision.md), seção 2:
+
+- **Todo symlink é seguido** — opção (c) do memo. Symlink dentro da pasta
+  apontando para fora é atravessado, e o que ele alcança é lido como qualquer
+  outra entrada: sem teste de o alvo continuar dentro da raiz, sem recusa. Um
+  symlink dentro da pasta é do usuário, e segui-lo é justamente o ponto.
+- **Profundidade máxima 64.** Bater no limite é **erro registrado, nomeando o
+  caminho**, nunca silêncio; a varredura segue com o resto da pasta. É o mesmo
+  princípio da linha de sistemas de arquivos de rede do
+  [0029](0029-guardrails-in-ci.md): limite é reportado, não aplicado em
+  silêncio.
+- **Laços são detectados pelo par (device, inode) de todo diretório já
+  entrado**, junto com o limite de profundidade. Isso decorre da escolha, não é
+  uma decisão à parte: seguir todos os symlinks torna ciclos possíveis, então o
+  conjunto de diretórios visitados é obrigatório, e o limite continua
+  necessário porque dois symlinks constroem um caminho arbitrariamente fundo
+  que nunca repete um diretório.
+- **Hard links: dois caminhos são duas notas.** O índice é chaveado por
+  caminho, então um inode com dois nomes aparece duas vezes, e uma edição por um
+  dos nomes aparece nos dois porque o inode é um só. Se a escrita atômica
+  detecta e avisa que o `rename` quebra o hard link continua onde o
+  [0029](0029-guardrails-in-ci.md) colocou, dentro dos requisitos da escrita
+  atômica; não é respondido aqui.
+- **Aliases do macOS são arquivos comuns, por caminho.** Um alias do Finder é um
+  arquivo com dados de alias dentro e uma flag `kIsAlias`; o sistema de arquivos
+  não o resolve. Não é symlink, e não é seguido.
+- **O limite de `inotify` no Linux vai junto com o watcher**, não com a feature
+  2. Comportamento registrado, a implementar quando o Linux virar alvo: ao
+  esgotar, degradar para varredura periódica com aviso exposto pelas
+  capacidades de runtime ([0027](0027-runtime-capabilities.md)) — nunca falhar
+  em silêncio, nunca fingir que a pasta parou de mudar.
+
+### Caminhos ignorados — decidido em 2026-09-22
+
+Decidido pelo mantenedor em 2026-09-22, sobre o mesmo memo, seção 3. Esta é
+também a resposta da Q26 de [`docs/spec/dialect.md`](../spec/dialect.md):
+
+- **Entradas ocultas não são percorridas, em nenhuma profundidade.** Nome que
+  começa com `.` é pulado, o que cobre `.obsidian/`, `.git/` e `.trash/` sem uma
+  lista curada de nomes para manter atualizada.
+- **O padrão de placeholder é reconhecido antes da regra de oculto.** Um irmão
+  chamado `.Nome.ext.icloud` começa com ponto; ele é reportado como placeholder
+  de `Nome.ext` ([0043](0043-placeholder-guard.md)) e nunca pulado como oculto,
+  porque placeholder pulado lê como arquivo ausente, o que a invariante 10
+  proíbe.
+- **Mais uma lista configurável de caminhos relativos**, no diretório de
+  configuração fora da árvore
+  ([0011](0011-config-outside-tree-index-as-cache.md)), **vazia por padrão**.
+  `node_modules/` não é oculto, então é percorrido a menos que o usuário o
+  liste: é o preço de uma regra de uma frase em vez de uma blocklist.
+- **`.gitignore` não é lido na Fase 1.** A gramática dele é um projeto à parte, e
+  o modo de falha é nota sumindo em silêncio.
+- **Nota ignorada é alvo de link não resolvido e nunca é fonte de backlink.** Um
+  `[[link]]` de uma nota visível para uma ignorada continua não resolvido; um
+  link escrito dentro de uma nota ignorada não conta para nada — nem como
+  backlink, nem como link não resolvido. Não percorrido significa não contado,
+  nos dois sentidos, que é a regra única que a lista escrita à mão e o programa
+  seguem no critério de saída 2 da Fase 1.
+
+### O watcher — depois da feature 2
+
+Decidido pelo mantenedor em 2026-09-22, respondendo à contradição que o memo
+registrou na seção 2.2: a feature 2 é **varredura, confinamento de caminho e
+escrita atômica**, como diz a linha do roadmap. A descrição de `verso-fs` no
+[0028](0028-crate-structure.md) — "handles opacos, watcher, escrita atômica,
+confinamento" — fica como está, lida como a forma final do crate: o watcher
+chega depois da feature 2, e nenhuma data é marcada para ele aqui.
 
 ### Handles opacos — decidir antes da feature 6 da Fase 1 (`verso mcp`) e do contrato (Fase 2, item 2.1)
 
@@ -40,19 +105,23 @@ Nenhuma. As questões abaixo ficam registradas com o momento de decidir.
 - Se o identificador estável acabar sendo o caminho relativo à raiz, a regra 4
   precisa dizer isso, em vez de fingir que não é.
 
-### Caminhos ignorados — decidir antes da feature 2 da Fase 1
-
-- O que a varredura não indexa: `.obsidian/`, `.git/`, `.trash/` (lixeira do
-  Obsidian, cheia de notas com links), arquivos e diretórios ocultos,
-  `node_modules/`, pasta de anexos.
-- Se uma nota ignorada pode ser alvo de link (aparece como pendente) e se
-  conta como backlink. Isso muda o resultado do critério de saída 2 da Fase 1.
-- Se a lista é fixa, configurável, ou lê `.gitignore`.
-
 ## Consequências
 
 - Nenhuma dessas respostas pode vir "no código": cada uma vira linha neste ADR
-  (ou ADR próprio, se crescer) e fixture de `verso-fs`.
+  (ou ADR próprio, se crescer) e fixture de `verso-fs`. **Ainda não existe
+  schema de fixture para `verso-fs`** — `scripts/check-fixtures.sh` e a seção 4
+  da spec do dialeto definem o schema só das fixtures de dialeto (memo, seção
+  6). As duas decisões acima são, portanto, linhas neste ADR agora, e fixtures
+  quando esse schema existir; escrevê-lo é parte da feature 2, não desta
+  decisão.
+- **O guardrail de confinamento de caminho muda de sentido, não de força.** Com
+  todo symlink sendo seguido, confinamento é propriedade do **pedido**, não de
+  para onde o conteúdo da própria pasta leva: um pedido com caminho absoluto,
+  componente `..` ou byte NUL é recusado. Um symlink colocado dentro da pasta é
+  do usuário, é seguido, e o que ele alcança conta como dentro da pasta para
+  todos os efeitos — índice, MCP e plugins. O texto da linha do guardrail no
+  [0029](0029-guardrails-in-ci.md) é corrigido de acordo, no mesmo PR desta
+  revisão.
 - Enquanto a semântica de handle estiver aberta, a regra 4 de
   [0026](0026-core-ui-contract-inviolable-rules.md) é uma restrição de forma
   (não expor string), não uma garantia de segurança.
@@ -61,9 +130,26 @@ Nenhuma. As questões abaixo ficam registradas com o momento de decidir.
 
 ## Alternativas descartadas
 
-Nenhuma registrada.
+Consideradas pelo mantenedor, sobre o memo, e postas de lado:
+
+- **Symlinks: (a) não seguir nenhum** — o guardrail de confinamento seria uma
+  verificação léxica em vez de uma regra de travessia, e é a única opção que
+  poderia ser ampliada depois sem quebrar um vault que já funcionava. A prática
+  da pasta de anexos por link simbólico é o que se perde com ela.
+- **Symlinks: (b) seguir só enquanto o alvo ficar dentro da raiz** — exige
+  canonicalizar toda entrada, uma regra para raiz que é ela própria um symlink,
+  e deixa uma janela de TOCTOU que só travessia estilo `openat` fecha.
+- **Caminhos ignorados: blocklist curada de nomes** (`.obsidian/`, `.git/`,
+  `.trash/`, `node_modules/`) — uma lista sempre um nome desatualizada.
+- **Caminhos ignorados: ler `.gitignore`** — a gramática inteira é um projeto à
+  parte, e uma linha `*.md` no `.gitignore` de um repositório esvaziaria o
+  vault.
+- **Nota ignorada totalmente indexada, ou alvo que resolve** — "ignorado"
+  passaria a significar "percorrido mas não contado", e o critério de saída 2
+  dependeria de o mantenedor lembrar o que está em `.trash/`.
 
 ## Status
 
-`[ABERTO]`. Symlinks e caminhos ignorados: antes da feature 2 da Fase 1.
-Handles: antes da feature 6 da Fase 1 e do item 2.1 da Fase 2.
+Symlinks, laços e caminhos ignorados: decidido em 2026-09-22 pelo mantenedor,
+Aceito. Handles opacos: `[ABERTO]`, antes da feature 6 da Fase 1 e do item 2.1
+da Fase 2. O watcher: depois da feature 2, sem data marcada.
