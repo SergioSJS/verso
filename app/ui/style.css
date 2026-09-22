@@ -287,3 +287,40 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .lesson h1 { font-family: var(--display); font-weight: 500; font-style: italic; font-size: 2rem; line-height: 1.15; margin: 0 0 .8rem; color: var(--ink); font-variation-settings: "opsz" 72, "SOFT" 60; }
 .lesson p { font-family: var(--book); color: var(--ink-2); margin: 0 0 .6rem; }
 .lesson .keys { font-family: var(--ui); font-size: .85rem; color: var(--ink-3); }
+
+/* Menu at the pointer */
+.menu { position: fixed; z-index: 20; list-style: none; margin: 0; padding: .3rem; min-width: 14rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-size: .88rem; }
+.menu li > button { display: block; width: 100%; text-align: left; padding: .4rem .7rem; border-radius: 5px; }
+.menu li > button:hover, .menu li > button:focus-visible { background: var(--seal-wash); color: var(--seal); outline: none; }
+.menu li:last-child > button { color: var(--seal); }
+
+/* Rename in place, new note */
+input.rename, .new-note-row input { width: 100%; font: inherit; font-size: .93rem; padding: .25rem .5rem; background: var(--paper); color: var(--ink); border: 1px solid var(--brass); border-radius: 5px; }
+input.rename:focus, .new-note-row input:focus { outline: none; }
+.new-note-row { display: flex; align-items: center; gap: .3rem; margin: .2rem .5rem .5rem; }
+.new-note-where { font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
+
+/* The rewrite plan */
+.plan { position: fixed; inset: 0; z-index: 15; display: grid; place-content: center; background: color-mix(in oklch, var(--paper) 60%, transparent); }
+.plan-box { width: min(80ch, 92vw); max-height: 84vh; overflow: auto; padding: 1.2rem 1.4rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
+.plan-box h2 { font-family: var(--display); font-weight: 600; font-size: 1.2rem; margin: 0 0 .8rem; }
+.plan-box details { margin: .4rem 0; }
+.plan-box summary { cursor: pointer; font-size: .9rem; color: var(--ink-2); }
+.plan-box .diff { margin: .3rem 0 .6rem; max-height: 14rem; }
+.plan-box .conflict-actions { margin-top: .8rem; }
+
+/* CodeMirror's own panels (⌘F) in the house style */
+.editor .cm-panels { background: var(--paper-2); border-color: var(--hair); color: var(--ink); font-family: var(--ui); font-size: .85rem; }
+.editor .cm-panels.cm-panels-top { border-bottom: 1px solid var(--hair); }
+.editor .cm-panel.cm-search { padding: .4rem .6rem; }
+.editor .cm-panel.cm-search input, .editor .cm-panel.cm-search button { font: inherit; font-size: .85rem; }
+.editor .cm-panel.cm-search input { background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 5px; padding: .2rem .45rem; }
+.editor .cm-panel.cm-search button { background: var(--paper); color: var(--ink-2); border: 1px solid var(--hair); border-radius: 5px; padding: .2rem .55rem; margin-left: .2rem; cursor: pointer; }
+.editor .cm-panel.cm-search button:hover { color: var(--ink); background: var(--paper-3); }
+.editor .cm-panel.cm-search label { color: var(--ink-3); margin-left: .5rem; }
+.editor .cm-searchMatch { background: var(--brass-wash); outline: 1px solid var(--brass); border-radius: 2px; }
+.editor .cm-searchMatch-selected { background: var(--selection); }
+.editor .cm-tooltip.cm-tooltip-autocomplete { background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-family: var(--ui); font-size: .88rem; }
+.editor .cm-tooltip-autocomplete ul li { padding: .3rem .6rem; }
+.editor .cm-tooltip-autocomplete ul li[aria-selected] { background: var(--seal-wash); color: var(--seal); }
+.editor .cm-completionDetail { color: var(--ink-3); font-style: normal; margin-left: .8em; font-size: .8em; }

@@ -17,6 +17,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { EditorView, basicSetup } from "codemirror";
 import { Compartment, EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
+import { type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { commands, type ContractError, type NoteText } from "./bindings";
 import { icon } from "./icons";
@@ -58,6 +59,20 @@ type Strings = {
   keysEdit: string;
   keysSplit: string;
   keysClose: string;
+  newNote: string;
+  newNoteName: string;
+  rename: string;
+  deleteNote: string;
+  confirmDelete: (n: string) => string;
+  deleted: (where: string) => string;
+  openTab: string;
+  openPane: string;
+  newHere: string;
+  planTitle: (n: number) => string;
+  planApply: string;
+  planSkip: string;
+  planDone: (ok: number, failed: number) => string;
+  exists: string;
 };
 
 const pt: Strings = {
@@ -96,6 +111,20 @@ const pt: Strings = {
   keysEdit: "editar",
   keysSplit: "dividir",
   keysClose: "fechar",
+  newNote: "Nova nota",
+  newNoteName: "Nome da nota (Enter cria, Esc cancela)",
+  rename: "Renomear",
+  deleteNote: "Apagar",
+  confirmDelete: (n) => `Apagar "${n}"? Vai para .trash/ na pasta, como no Obsidian.`,
+  deleted: (where) => `Movida para ${where}.`,
+  openTab: "Abrir em aba nova",
+  openPane: "Abrir ao lado",
+  newHere: "Nova nota nesta pasta",
+  planTitle: (n) => `${n} nota${n === 1 ? "" : "s"} aponta${n === 1 ? "" : "m"} para o nome antigo. Atualizar os links?`,
+  planApply: "Atualizar links",
+  planSkip: "Deixar como está",
+  planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
+  exists: "Já existe uma nota com esse nome.",
 };
 
 const en: Strings = {
@@ -134,6 +163,20 @@ const en: Strings = {
   keysEdit: "edit",
   keysSplit: "split",
   keysClose: "close",
+  newNote: "New note",
+  newNoteName: "Note name (Enter creates, Esc cancels)",
+  rename: "Rename",
+  deleteNote: "Delete",
+  confirmDelete: (n) => `Delete "${n}"? It goes to .trash/ in the folder, as in Obsidian.`,
+  deleted: (where) => `Moved to ${where}.`,
+  openTab: "Open in new tab",
+  openPane: "Open to the side",
+  newHere: "New note in this folder",
+  planTitle: (n) => `${n} note${n === 1 ? "" : "s"} link${n === 1 ? "s" : ""} to the old name. Update the links?`,
+  planApply: "Update links",
+  planSkip: "Leave them",
+  planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
+  exists: "A note with that name already exists.",
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -195,6 +238,8 @@ function dirOf(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
 }
 
+const LAST_FOLDER = "verso.lastFolder";
+
 /* ---------- Images for embeds, asked of the core once each ---------- */
 const images = new Map<string, string | null>();
 const IMAGE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
@@ -239,6 +284,184 @@ function diffLines(a: string[], b: string[]): string[] {
   return out;
 }
 
+/* ---------- `[[` completes to a note of the vault ---------- */
+function completeWikilinks(ctx: CompletionContext): CompletionResult | null {
+  const before = ctx.matchBefore(/\[\[([^\]\n]*)$/);
+  if (!before) return null;
+  const typed = before.text.slice(2).toLowerCase();
+  const after = ctx.state.sliceDoc(ctx.pos, ctx.pos + 2);
+  const closing = after === "]]" ? "" : "]]";
+  const options = allNotes
+    .map((p) => ({ path: p, label: name(p) }))
+    .filter((o) => typed === "" || o.label.toLowerCase().includes(typed) || o.path.toLowerCase().includes(typed))
+    .sort((a, b) => Number(b.label.toLowerCase().startsWith(typed)) - Number(a.label.toLowerCase().startsWith(typed)) || a.label.localeCompare(b.label))
+    .slice(0, 40)
+    .map((o) => ({ label: o.label, detail: dirOf(o.path), type: "text", apply: o.label + closing }));
+  return { from: before.from + 2, options, validFor: /^[^\]\n]*$/ };
+}
+
+/* ---------- File operations, with the tree and the tabs kept honest ---------- */
+async function afterFileChange(): Promise<void> {
+  await searchNotes(ui.search.value);
+}
+
+function leavesOf(path: string): Leaf[] {
+  return layout.panes().flatMap((p) => p.leaves.filter((l) => l.path === path));
+}
+
+async function createNote(folder: string, nameTyped: string): Promise<void> {
+  const clean = nameTyped.trim().replace(/\.md$/i, "");
+  if (!clean) return;
+  const path = folder ? `${folder}/${clean}` : clean;
+  const r = await commands.createNote(path, `# ${clean.split("/").pop() ?? clean}\n\n`);
+  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  await afterFileChange();
+  const leaf = openNote(r.data.path, false);
+  if (leaf) {
+    await leaf.loading;
+    leaf.editAtEnd();
+  }
+}
+
+async function deleteNote(path: string): Promise<void> {
+  if (!window.confirm(t.confirmDelete(name(path)))) return;
+  const r = await commands.deleteNote(path);
+  if (r.status !== "ok") return fail(r.error);
+  for (const l of leavesOf(path)) {
+    l.setDirty(false);
+    void l.close();
+  }
+  ui.status.textContent = t.deleted(r.data);
+  await afterFileChange();
+}
+
+async function renameNote(from: string, toName: string): Promise<void> {
+  const clean = toName.trim().replace(/\.md$/i, "");
+  if (!clean || clean === name(from)) return;
+  const to = clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean;
+  const r = await commands.renameNote(from, to);
+  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  for (const l of leavesOf(from)) void l.load(r.data.path, true);
+  await afterFileChange();
+  if (r.data.rewrites.length > 0) plan.show(r.data.rewrites);
+}
+
+/* A menu at the pointer, for a tree row. */
+const menu = h("ul", "menu");
+menu.hidden = true;
+menu.setAttribute("role", "menu");
+document.body.append(menu);
+function showMenu(x: number, y: number, items: [string, () => void][]): void {
+  menu.replaceChildren(
+    ...items.map(([label, run]) => {
+      const li = h("li");
+      const b = h("button", "", label);
+      b.type = "button";
+      b.setAttribute("role", "menuitem");
+      b.addEventListener("click", () => {
+        menu.hidden = true;
+        run();
+      });
+      li.append(b);
+      return li;
+    }),
+  );
+  menu.hidden = false;
+  const w = menu.offsetWidth;
+  const hgt = menu.offsetHeight;
+  menu.style.left = `${Math.min(x, window.innerWidth - w - 8)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - hgt - 8)}px`;
+  menu.querySelector("button")?.focus();
+}
+document.addEventListener("mousedown", (e) => {
+  if (!menu.contains(e.target as globalThis.Node)) menu.hidden = true;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") menu.hidden = true;
+});
+
+/* Rename in place: the row becomes an input. */
+function renameInline(li: HTMLLIElement, path: string): void {
+  const button = li.querySelector("button");
+  if (!button) return;
+  const input = h("input", "rename");
+  input.value = name(path);
+  input.setAttribute("aria-label", t.rename);
+  button.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = (commit: boolean) => {
+    if (done) return;
+    done = true;
+    const value = input.value;
+    input.replaceWith(button);
+    if (commit) void renameNote(path, value);
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") finish(true);
+    else if (e.key === "Escape") finish(false);
+  });
+  input.addEventListener("blur", () => finish(false));
+}
+
+/* The link-rewrite plan of a rename (ADR 0048, option b): seen, then applied. */
+class Plan {
+  readonly el = h("div", "plan");
+  private rewrites: { path: string; revision: string; before: string; after: string }[] = [];
+  constructor() {
+    this.el.hidden = true;
+    document.body.append(this.el);
+  }
+  show(rewrites: Plan["rewrites"]): void {
+    this.rewrites = rewrites;
+    const box = h("div", "plan-box");
+    box.append(h("h2", "", t.planTitle(rewrites.length)));
+    for (const w of rewrites) {
+      const d = h("details");
+      d.open = rewrites.length <= 3;
+      d.append(h("summary", "", w.path));
+      const pre = h("pre", "diff");
+      pre.replaceChildren(
+        ...diffLines(w.before.split(/\r?\n/), w.after.split(/\r?\n/))
+          .filter((line, i, all) => !line.startsWith("  ") || all.slice(Math.max(0, i - 1), i + 2).some((l) => !l.startsWith("  ")))
+          .map((line) => h("span", line.startsWith("- ") ? "del" : line.startsWith("+ ") ? "add" : "", line + "\n")),
+      );
+      d.append(pre);
+      box.append(d);
+    }
+    const apply = h("button", "save", t.planApply);
+    apply.type = "button";
+    apply.addEventListener("click", () => void this.apply());
+    const skip = h("button", "ghost", t.planSkip);
+    skip.type = "button";
+    skip.addEventListener("click", () => this.hide());
+    const actions = h("div", "conflict-actions");
+    actions.append(apply, skip);
+    box.append(actions);
+    this.el.replaceChildren(box);
+    this.el.hidden = false;
+    apply.focus();
+  }
+  hide(): void {
+    this.el.hidden = true;
+  }
+  private async apply(): Promise<void> {
+    let ok = 0;
+    let failed = 0;
+    for (const w of this.rewrites) {
+      const r = await commands.writeNote(w.path, w.after, w.revision);
+      if (r.status === "ok") {
+        ok++;
+        for (const l of leavesOf(w.path)) if (!l.dirty) void l.load(w.path, true);
+      } else failed++;
+    }
+    this.hide();
+    ui.status.textContent = t.planDone(ok, failed);
+  }
+}
+const plan = new Plan();
+
 /* ---------- Leaf: one note in one tab ---------- */
 type Mode = "preview" | "live" | "source";
 
@@ -271,6 +494,8 @@ class Leaf {
   eol = "\n";
   dirty = false;
   resolved = new Map<string, string | null>();
+  /** The load in flight, for a caller that wants the note ready. */
+  loading: Promise<void> = Promise.resolve();
 
   constructor(readonly pane: Pane) {
     this.tab.type = "button";
@@ -378,6 +603,7 @@ class Leaf {
       doc,
       extensions: [
         basicSetup,
+        markdown().language.data.of({ autocomplete: completeWikilinks }),
         markdown(),
         EditorView.lineWrapping,
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
@@ -407,6 +633,7 @@ class Leaf {
   setMode(mode: Mode): void {
     this.mode = mode;
     this.applyMode();
+    if (mode !== "preview" && this.note) this.editor.focus();
   }
 
   applyMode(): void {
@@ -417,7 +644,6 @@ class Leaf {
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? this.live : []) });
     this.editorHost.classList.toggle("live", m === "live");
     this.editorHost.classList.toggle("source", m === "source");
-    if (m !== "preview" && this.note) this.editor.focus();
   }
 
   toggleMode(): void {
@@ -449,7 +675,12 @@ class Leaf {
     if (this.pane.active === this) showOutline(this);
   }
 
-  async load(path: string, force = false): Promise<void> {
+  load(path: string, force = false): Promise<void> {
+    this.loading = this.doLoad(path, force);
+    return this.loading;
+  }
+
+  private async doLoad(path: string, force: boolean): Promise<void> {
     if (this.dirty && !force && path !== this.path && !window.confirm(t.discard)) return;
     const [note, back, links] = await Promise.all([
       commands.readNote(path),
@@ -460,6 +691,7 @@ class Leaf {
     this.path = note.data.path;
     this.tabName.textContent = name(this.path);
     this.tab.title = this.path;
+    persistSoon();
     this.title.textContent = name(this.path);
     this.crumbs.replaceChildren(
       ...dirOf(this.path)
@@ -551,6 +783,14 @@ class Leaf {
     );
     this.conflict.hidden = false;
     this.conflict.scrollIntoView({ block: "start" });
+  }
+
+  /** Writing starts at the end: for a note just created. */
+  editAtEnd(): void {
+    this.setMode("live");
+    const end = this.editor.state.doc.length;
+    this.editor.dispatch({ selection: { anchor: end }, scrollIntoView: true });
+    this.editor.focus();
   }
 
   jumpTo(line: number): void {
@@ -657,14 +897,15 @@ class Pane {
     return "center";
   }
 
-  /** Open a note here: its tab if it has one, else a new tab. */
-  open(path: string): Leaf {
+  /** Open a note here: its tab if it has one, else a new tab. The
+   *  focus stays where the user is (the tree, the search) unless asked. */
+  open(path: string, focus = false): Leaf {
     let leaf = this.leaves.find((l) => l.path === path);
     if (!leaf) {
       leaf = this.add();
       void leaf.load(path);
     }
-    this.activate(leaf);
+    this.activate(leaf, focus);
     return leaf;
   }
 
@@ -682,6 +923,7 @@ class Pane {
     else this.tabs.append(leaf.tab);
     this.body.append(leaf.el);
     this.empty.hidden = true;
+    persistSoon();
   }
 
   activate(leaf: Leaf, focus = true): void {
@@ -693,6 +935,7 @@ class Pane {
     layout.focus(this);
     showOutline(leaf);
     markCurrent();
+    persistSoon();
     if (focus && leaf.mode !== "preview") leaf.editor.focus();
   }
 
@@ -806,6 +1049,44 @@ class Layout {
 
   render(): void {
     ui.panes.replaceChildren(this.build(this.root));
+    persistSoon();
+  }
+
+  /** Tabs per pane, as a tree, for the next launch. */
+  serialize(node: LNode = this.root): unknown {
+    if (node.kind === "pane") {
+      return { tabs: node.pane.leaves.map((l) => l.path).filter(Boolean), active: node.pane.active?.path ?? null, grow: node.pane.el.style.flexGrow || "1" };
+    }
+    return { dir: node.dir, children: node.children.map((c) => this.serialize(c)), grow: node.el.style.flexGrow || "1" };
+  }
+
+  restore(saved: unknown): void {
+    const build = (v: unknown): LNode | null => {
+      if (typeof v !== "object" || v === null) return null;
+      const o = v as { tabs?: unknown; active?: unknown; dir?: unknown; children?: unknown; grow?: unknown };
+      if (Array.isArray(o.tabs)) {
+        const pane = new Pane();
+        pane.el.style.flexGrow = String(o.grow ?? "1");
+        for (const p of o.tabs) if (typeof p === "string" && allNotes.includes(p)) pane.open(p, false);
+        const active = pane.leaves.find((l) => l.path === o.active);
+        if (active) pane.activate(active, false);
+        return pane.leaves.length > 0 ? { kind: "pane", pane } : null;
+      }
+      if ((o.dir === "row" || o.dir === "col") && Array.isArray(o.children)) {
+        const children = o.children.map(build).filter((c): c is LNode => c !== null);
+        if (children.length === 0) return null;
+        if (children.length === 1) return children[0]!;
+        const el = h("div", `split ${o.dir}`);
+        el.style.flexGrow = String(o.grow ?? "1");
+        return { kind: "split", dir: o.dir, children, el };
+      }
+      return null;
+    };
+    const root = build(saved);
+    if (!root) return;
+    this.root = root.kind === "split" ? root : { kind: "split", dir: "row", children: [root], el: h("div", "split row") };
+    this.render();
+    this.focus(this.panes()[0] ?? null);
   }
 
   private build(node: LNode): HTMLElement {
@@ -865,15 +1146,28 @@ class Layout {
 
 const layout = new Layout();
 
+let persistTimer: number | undefined;
+function persistSoon(): void {
+  window.clearTimeout(persistTimer);
+  persistTimer = window.setTimeout(() => {
+    try {
+      const folder = localStorage.getItem(LAST_FOLDER);
+      if (folder) localStorage.setItem(`verso.layout:${folder}`, JSON.stringify(layout.serialize()));
+    } catch {
+      // No storage: nothing remembered.
+    }
+  }, 300);
+}
+
 /* ---------- Sidebar: tree, search, outline ---------- */
 let allNotes: string[] = [];
 
 /** Open a note in the focused pane, in its own tab; ⌘-click: in a new
  *  pane to the right. */
-function openNote(path: string, aside: boolean): void {
+function openNote(path: string, aside: boolean): Leaf | null {
   let pane = layout.focused ?? layout.panes()[0] ?? layout.reset();
   if (aside) pane = layout.split(pane, "row");
-  pane.open(path);
+  return pane.open(path);
 }
 
 function markCurrent(): void {
@@ -905,9 +1199,57 @@ function noteButton(path: string, extra?: (b: HTMLButtonElement) => void): HTMLL
   b.type = "button";
   b.textContent = name(path);
   b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey));
+  // WebKit on macOS does not focus a button on click; the keyboard
+  // (F2, Delete, arrows) must find the row that was just clicked.
+  b.addEventListener("mousedown", () => b.focus());
+  b.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    showMenu(e.clientX, e.clientY, [
+      [t.openTab, () => openNote(path, false)],
+      [t.openPane, () => openNote(path, true)],
+      [t.rename, () => renameInline(li, path)],
+      [t.newHere, () => newNotePrompt(dirOf(path))],
+      [t.deleteNote, () => void deleteNote(path)],
+    ]);
+  });
+  b.addEventListener("keydown", (e) => {
+    if (e.key === "F2") {
+      e.preventDefault();
+      renameInline(li, path);
+    } else if (e.key === "Delete" || (e.key === "Backspace" && e.metaKey)) {
+      e.preventDefault();
+      void deleteNote(path);
+    } else if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+      e.preventDefault();
+      const r = b.getBoundingClientRect();
+      b.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.left + 24, clientY: r.bottom, bubbles: true, cancelable: true }));
+    }
+  });
   extra?.(b);
   li.append(b);
   return li;
+}
+
+/* ⌘N: a name, typed where the search is, creates the note. */
+function newNotePrompt(folder: string): void {
+  const input = h("input", "new-note");
+  input.placeholder = t.newNoteName;
+  input.setAttribute("aria-label", t.newNote);
+  const where = h("span", "new-note-where", folder ? `${folder}/` : "");
+  const row = h("div", "new-note-row");
+  row.append(where, input);
+  ui.notesHeading.after(row);
+  input.focus();
+  const finish = (commit: boolean) => {
+    const v = input.value;
+    row.remove();
+    if (commit) void createNote(folder, v);
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") finish(true);
+    else if (e.key === "Escape") finish(false);
+  });
+  input.addEventListener("blur", () => finish(false));
 }
 
 type Folder = { folders: Map<string, Folder>; notes: string[] };
@@ -927,14 +1269,19 @@ function tree(paths: string[]): Folder {
   }
   return root;
 }
-function renderTree(node: Folder, depth: number): HTMLUListElement {
+function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement {
   const ul = h("ul", depth === 0 ? "tree" : "");
   for (const [folder, child] of node.folders) {
     const li = h("li");
     const d = h("details");
     d.open = depth < 1;
     const s = h("summary", "", folder);
-    d.append(s, renderTree(child, depth + 1));
+    s.dataset["folder"] = prefix ? `${prefix}/${folder}` : folder;
+    s.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY, [[t.newHere, () => newNotePrompt(s.dataset["folder"] ?? "")]]);
+    });
+    d.append(s, renderTree(child, depth + 1, s.dataset["folder"]));
     li.append(d);
     ul.append(li);
   }
@@ -980,7 +1327,6 @@ async function searchNotes(words: string): Promise<void> {
 
 /* ---------- Folder ---------- */
 const page = document.querySelector<HTMLElement>(".page");
-const LAST_FOLDER = "verso.lastFolder";
 
 function lesson(): void {
   page?.classList.add("empty");
@@ -1012,6 +1358,12 @@ async function openPath(path: string): Promise<boolean> {
   ui.search.value = "";
   showOutline(null);
   await listAll();
+  try {
+    const saved = localStorage.getItem(`verso.layout:${r.data.folder}`);
+    if (saved) layout.restore(JSON.parse(saved));
+  } catch {
+    // A layout that does not parse: start with one empty pane.
+  }
   ui.search.focus();
   return true;
 }
@@ -1061,6 +1413,9 @@ document.addEventListener("keydown", (e) => {
   } else if (k === "\\" && layout.focused) {
     e.preventDefault();
     layout.split(layout.focused, e.shiftKey ? "col" : "row");
+  } else if (k === "n" && !ui.search.disabled) {
+    e.preventDefault();
+    newNotePrompt(layout.activeLeaf?.path ? dirOf(layout.activeLeaf.path) : "");
   } else if (k === "p" && !ui.search.disabled) {
     e.preventDefault();
     quick.show();
