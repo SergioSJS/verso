@@ -7,7 +7,9 @@
   linhas de verificação de WASM, tipos gerados e `std::fs` acrescentadas;
   requisitos da escrita atômica e política de advisories registrados (revisão da
   Fase 0, C3, C9, R1, R10); 2026-09-22 — onde cada sistema operacional roda,
-  depois do incidente de custo.
+  depois do incidente de custo; 2026-09-22 — a linha do confinamento de caminho
+  reescrita depois da decisão sobre symlinks
+  ([0044](0044-verso-fs-semantics.md)).
 
 ## Contexto
 
@@ -42,7 +44,7 @@ com ela. Os dois grupos estão separados abaixo.
 | Property test de round-trip (definição em `docs/spec/dialect.md`, Q18) | abrir reescrevendo arquivo | Fase 1, feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | parser deixar de compilar para WASM e perder a suíte de conformidade com o editor | Fase 1, feature 1 |
 | Escrita atômica (ver requisitos abaixo) | corrupção em queda de energia | Fase 1, feature 2 |
-| Confinamento de caminho no adapter | plugin ou agente saindo da pasta via `../` ou symlink | Fase 1, feature 2 |
+| Confinamento de caminho no adapter | plugin ou agente alcançando fora da pasta com caminho absoluto, componente `..` ou byte NUL; symlink dentro da pasta é do usuário, é seguido, e o que ele alcança conta como dentro da pasta ([0044](0044-verso-fs-semantics.md)) | Fase 1, feature 2 |
 | Queries parametrizadas + escape da sintaxe FTS5 | busca quebrando com aspas e operadores | Fase 1, feature 3 |
 | Benchmark com vault sintético | regressão de performance | Fase 1, feature 5 |
 | Verificação de que os tipos TS gerados estão atualizados | regra 3 do contrato virar convenção ([0038](0038-ts-type-generation.md)) | Fase 2, item 2.1 |

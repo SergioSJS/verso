@@ -1,12 +1,31 @@
 # Memo de decisão: semântica do `verso-fs` para a feature 2 (symlinks, caminhos ignorados, placeholders)
 
 - Data: 2026-09-21
-- Status: **aberto. Este memo não decide nada.** Ele expõe três perguntas que o
-  [ADR 0044](../adr/0044-verso-fs-semantics.md) e o
-  [ADR 0043](../adr/0043-placeholder-guard.md) deixam `[OPEN]` com a nota
-  "decidir antes da feature 2 da Fase 1", põe as opções lado a lado e registra
-  uma recomendação para cada uma. Quem decide é o mantenedor
-  (`CLAUDE.md` §1).
+- Status: **decidido pelo mantenedor em 2026-09-22**, em sessão, depois de ler
+  este memo:
+  1. **symlinks = opção (c)**, seguir todos, com profundidade máxima de 64 e
+     erro registrado ao bater no limite — *não* a recomendação da seção 2.4, que
+     era a opção (a);
+  2. **caminhos ignorados = a recomendação da seção 3.4** (entradas ocultas não
+     percorridas em nenhuma profundidade, mais uma lista configurável na config
+     fora da árvore, vazia por padrão, nenhum `.gitignore` na Fase 1; nota
+     ignorada é alvo não resolvido e nunca fonte de backlink);
+  3. **detecção de placeholder = a recomendação da seção 4.4** (as duas formas
+     do iCloud, demais provedores adiados);
+  4. **o watcher não faz parte da feature 2** — vem depois.
+
+  Registrado no [ADR 0044](../adr/0044-verso-fs-semantics.md), no
+  [ADR 0043](../adr/0043-placeholder-guard.md), no
+  [ADR 0029](../adr/0029-guardrails-in-ci.md) (a linha do confinamento de
+  caminho), em [`docs/spec/dialect.md`](../spec/dialect.md) §9 Q26 e no
+  [roadmap](../roadmap.md). As seções 1 a 6 são a comparação como estava quando
+  a decisão foi tomada, mantidas sem alteração; a seção 7 fica como registro de
+  como foi decidido. Uma linha da seção 2.1 é superada pela decisão: onde a
+  coluna (c) diz que o guardrail de confinamento "não quer dizer nada", o
+  guardrail reescrito no ADR 0029 diz o que ele quer dizer — confinamento é
+  propriedade do **pedido** (caminho absoluto, `..`, byte NUL), enquanto um
+  symlink que o usuário colocou dentro da pasta é seguido e o que ele alcança
+  conta como dentro da pasta.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2, 3 e 4 são da
   **Fable 5.1**, registradas aqui como insumo do autor; não são decisões.

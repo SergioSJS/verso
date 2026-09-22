@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.7
+# Verso dialect spec — v0.8
 
-- Version: v0.7 · 2026-09-21
+- Version: v0.8 · 2026-09-22
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -735,10 +735,15 @@ the parser was chosen.
   BOM from Windows): error, text with replacement, or ignored. Separate from
   Q17 because encoding is not syntax.
 - **Q26. Paths ignored by the scan and their effect on backlinks.**
-  `[OPEN]` — it lives in [ADR 0044](../adr/0044-verso-fs-semantics.md) because
-  it belongs to `verso-fs`, but it changes the result of exit criterion 2 of
-  Phase 1: does a note in `.trash/` that links to another one count as a
-  backlink?
+  `DECIDED` on 2026-09-22 by the maintainer, on the memo
+  `docs/reference/fs-decision.md`; the rule itself lives in
+  [ADR 0044](../adr/0044-verso-fs-semantics.md), because it belongs to
+  `verso-fs`. An entry whose name starts with `.` is not walked at any depth —
+  which covers `.obsidian/`, `.git/` and `.trash/` — plus a configurable list of
+  relative paths in the configuration outside the tree, empty by default, and no
+  `.gitignore` in Phase 1. An ignored note is an unresolved link target and is
+  never a backlink source, so a note in `.trash/` that links to another one does
+  not count as a backlink in exit criterion 2 of Phase 1.
 
 ## 10. History
 
@@ -752,3 +757,4 @@ the parser was chosen.
 | v0.5 | 2026-09-21 | Provisional limits on the frontmatter recorded under Q17 (64 levels of nesting, 10 000 nodes), from the review of the `verso-dialect` PR (`docs/review/phase-1-feature-1.md`). No question closed |
 | v0.6 | 2026-09-21 | Q3 closed by the maintainer for the end of a paragraph and the end of a list item, with the fixture `fixtures/block/list-item` as the answer and §5.7 updated; the `^id` on its own line after a blank line, on a heading and after a multi-line block stay open, and so does Q4 |
 | v0.7 | 2026-09-21 | Q17 closed by the maintainer in its frontmatter part (64 levels of nesting, 10 000 nodes), the rest of the question staying `[OPEN]`; the contradiction inside §4.1 resolved on the strict reading (a list key asserts the whole list). Third question closed, in part |
+| v0.8 | 2026-09-22 | Q26 closed by the maintainer (ADR 0044, memo `docs/reference/fs-decision.md`): hidden entries are not walked at any depth, and an ignored note is an unresolved target and never a backlink source |

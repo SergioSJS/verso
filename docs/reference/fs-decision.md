@@ -1,12 +1,31 @@
 # Decision memo: `verso-fs` semantics for feature 2 (symlinks, ignored paths, placeholders)
 
 - Date: 2026-09-21
-- Status: **open. This memo decides nothing.** It lays out three questions that
-  [ADR 0044](../adr/0044-verso-fs-semantics.md) and
-  [ADR 0043](../adr/0043-placeholder-guard.md) leave `[OPEN]` with the note
-  "decide before feature 2 of Phase 1", puts the options side by side, and
-  records a recommendation for each one. The maintainer decides
-  (`CLAUDE.md` §1).
+- Status: **decided by the maintainer on 2026-09-22**, in session, after reading
+  this memo:
+  1. **symlinks = option (c)**, follow all, with a maximum depth of 64 and a
+     recorded error at the cap — *not* the recommendation of section 2.4, which
+     was option (a);
+  2. **ignored paths = the recommendation of section 3.4** (hidden entries not
+     walked at any depth, plus a configurable list in the config outside the
+     tree, empty by default, no `.gitignore` in Phase 1; an ignored note is an
+     unresolved target and never a backlink source);
+  3. **placeholder detection = the recommendation of section 4.4** (both iCloud
+     forms, other providers deferred);
+  4. **the watcher is not part of feature 2** — it comes later.
+
+  Recorded in [ADR 0044](../adr/0044-verso-fs-semantics.md),
+  [ADR 0043](../adr/0043-placeholder-guard.md),
+  [ADR 0029](../adr/0029-guardrails-in-ci.md) (the path confinement row),
+  [`docs/spec/dialect.md`](../spec/dialect.md) §9 Q26 and the
+  [roadmap](../roadmap.md). Sections 1 to 6 are the comparison as it stood when
+  the decision was made, kept unchanged; section 7 is kept as the record of how
+  it was decided. One line of section 2.1 is superseded by the decision: where
+  the (c) column says the confinement guardrail "has no meaning", the reworded
+  guardrail in ADR 0029 says what it does mean — confinement is a property of
+  the **request** (absolute path, `..`, NUL byte), while a symlink the user
+  placed inside the folder is followed and what it reaches counts as inside the
+  folder.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2, 3 and 4 are
   **Fable 5.1's**, recorded here as the author's input; they are not decisions.

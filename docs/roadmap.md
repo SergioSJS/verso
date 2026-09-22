@@ -114,8 +114,8 @@ Execution order from briefing §15:
 | ~~Definition of round-trip (Q18)~~ | decided 2026-09-21: reading (b), read-only parser (`docs/reference/parser-decision.md`) | `docs/spec/dialect.md` Q18, [0037](adr/0037-base-parser.md) |
 | ~~Base parser: `pulldown-cmark`, `comrak` or our own~~ | decided 2026-09-21: `pulldown-cmark`, `comrak` as the fallback (`docs/reference/parser-decision.md`) | [0037](adr/0037-base-parser.md) |
 | Parsing questions Q2–Q8, Q12–Q17 and Q19–Q25 of the spec | before feature 1 closes | `docs/spec/dialect.md` §9 |
-| Symlinks, loops and ignored paths (Q26) | before feature 2 closes | [0044](adr/0044-verso-fs-semantics.md) |
-| Placeholder detection mechanism per provider, starting with iCloud Drive | before feature 2 closes | [0043](adr/0043-placeholder-guard.md) |
+| ~~Symlinks, loops and ignored paths (Q26)~~ | decided 2026-09-22: every symlink is followed, maximum depth 64 with an error at the cap; hidden entries are not walked; an ignored note is an unresolved target and never a backlink source (`docs/reference/fs-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
+| ~~Placeholder detection mechanism per provider, starting with iCloud Drive~~ | decided 2026-09-22: both iCloud forms (`SF_DATALESS` and `.Name.ext.icloud`), checked before the file is opened; the other providers deferred (`docs/reference/fs-decision.md`) | [0043](adr/0043-placeholder-guard.md) |
 | Location, permissions and cleanup of the index | before feature 3 closes | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Disambiguation rule between `verso <folder>` and a subcommand | before feature 4 closes the set of subcommands | [0042](adr/0042-open-from-command-line.md) |
 | FTS5 tokenizer for pt-BR and EN | before feature 5 takes the baseline | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
