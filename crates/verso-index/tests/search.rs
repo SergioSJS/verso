@@ -133,3 +133,28 @@ fn an_index_file_is_private_and_survives_reopening() {
             .starts_with("Vault-")
     );
 }
+
+#[test]
+fn a_note_is_found_by_its_name_even_when_the_body_never_says_it() {
+    // Seen in the window on 2026-09-22: "Coroa Afogada" gave no hit for the
+    // note of that name, whose body lists characters. The title — first
+    // heading, or the file name — is indexed too, as in Obsidian.
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "RPG/A Coroa Afogada.md", "- Vax\n- Vincent\n");
+    put(&mut index, "Outra.md", "# Título próprio\n\nsem nome\n");
+    let hits = index.search("coroa afogada", 10).unwrap();
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert_eq!(hits[0].path, "RPG/A Coroa Afogada.md");
+    assert!(hits[0].snippet.contains("[Coroa]"), "{}", hits[0].snippet);
+    assert_eq!(index.search("título próprio", 10).unwrap().len(), 1);
+    // Replacing and removing keep the FTS in step with the title column.
+    put(
+        &mut index,
+        "RPG/A Coroa Afogada.md",
+        "# Renomeada\n\ncorpo\n",
+    );
+    assert!(index.search("coroa", 10).unwrap().is_empty());
+    assert_eq!(index.search("renomeada", 10).unwrap().len(), 1);
+    assert!(index.remove("RPG/A Coroa Afogada.md").unwrap());
+    index.check().unwrap();
+}

@@ -11,7 +11,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 4;
+pub(crate) const VERSION: i64 = 5;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -97,7 +97,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
     conn.execute_batch(CREATE)?;
     conn.execute_batch(&format!(
-        "CREATE VIRTUAL TABLE notes_fts USING fts5(path UNINDEXED, content,
+        "CREATE VIRTUAL TABLE notes_fts USING fts5(path UNINDEXED, title, content,
              content = 'notes', content_rowid = 'id', tokenize = '{TOKENIZER}');"
     ))?;
     conn.execute(

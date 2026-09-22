@@ -94,19 +94,19 @@ const RESOLVE: &str = "CASE
 /// old values to drop its tokens) and from `notes`. Returns whether there
 /// was one.
 fn forget(tx: &rusqlite::Transaction<'_>, relative: &str) -> Result<bool, IndexError> {
-    let old: Option<(i64, String)> = tx
+    let old: Option<(i64, Option<String>, String)> = tx
         .query_row(
-            "SELECT id, content FROM notes WHERE path = ?1",
+            "SELECT id, title, content FROM notes WHERE path = ?1",
             params![relative],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()?;
-    let Some((id, content)) = old else {
+    let Some((id, title, content)) = old else {
         return Ok(false);
     };
     tx.execute(
-        "INSERT INTO notes_fts (notes_fts, rowid, path, content) VALUES ('delete', ?1, ?2, ?3)",
-        params![id, relative, content],
+        "INSERT INTO notes_fts (notes_fts, rowid, path, title, content) VALUES ('delete', ?1, ?2, ?3, ?4)",
+        params![id, relative, title, content],
     )?;
     tx.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
     Ok(true)
@@ -232,8 +232,8 @@ impl Index {
         }
         // External content: the row id ties the tokens to `notes.id`.
         tx.execute(
-            "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, ?3)",
-            params![note, relative, content],
+            "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, ?4)",
+            params![note, relative, title, content],
         )?;
         tx.commit()?;
         Ok(())
@@ -272,8 +272,8 @@ impl Index {
         // keeps them in step even if this second insert fails.
         let id = tx.last_insert_rowid();
         tx.execute(
-            "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, '')",
-            params![id, relative],
+            "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, '')",
+            params![id, relative, title],
         )?;
         tx.commit()?;
         Ok(false)
