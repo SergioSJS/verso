@@ -220,7 +220,10 @@ Nothing in this list is decided here.
    closed for those two positions, and the fixture `fixtures/block/list-item`
    (an AI draft awaiting approval) as the answer. What the reading had recorded
    — the base emits no paragraph event inside a tight list item — is now handled
-   by the recognizer running at the end of an item as well. The rest of Q3 stays
+   by the recognizer tracking each item's own text, up to its first block child,
+   and looking for the `^id` only there: a code block, an HTML block or a nested
+   list that ends the item is never scanned, and an item whose own line ends
+   with `^id` keeps it when a nested list follows. The rest of Q3 stays
    `[OPEN]`: a `^id` alone on a line after a blank line, which Obsidian attaches
    to the block before it, and a `^id` on a heading.
 6. **Nothing in CI announces the upstream release** — **decided on
