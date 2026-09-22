@@ -56,6 +56,64 @@ Nenhuma. Questões registradas, com o momento de decidir.
 - A escolha de transporte do MCP na Fase 1 é reversível; a forma do contrato na
   Fase 2 não é barata de reverter.
 
+**O grupo do `verso mcp` como o código da feature 6 o implementa. Registrado em
+2026-09-22 a partir do código da feature 6 — provisório, o mantenedor decide**,
+sob as recomendações das §2 a §6 de `docs/reference/mcp-decision.md`. É o que o
+código faz, não uma decisão: as três questões acima seguem `[ABERTO]`, e o
+código muda se o mantenedor decidir outra coisa.
+
+- **Transporte: stdio, e nada fica escutando.** O `verso mcp <pasta>` é lançado
+  pelo cliente como processo filho e fala JSON-RPC pela própria entrada e saída
+  padrão. Nenhuma porta é aberta, então a superfície de `Origin`, DNS rebinding
+  e token por sessão citada acima não existe para ser errada. O processo faz uma
+  passada incremental de índice antes da primeira resposta, serve até o cliente
+  fechar o stdin e sai com 0. **O stdout carrega o protocolo**: tudo que é dito
+  a um humano — a linha de que está servindo, uma falha — vai para o stderr.
+- **Superfície: sete ferramentas, só de leitura**, com as formas JSON da §3.3 do
+  memo: `search` (palavras, `limit`), `read_note` (caminho,
+  `from_line`/`to_line`), `links`, `backlinks`, `unresolved`, `list_notes` e
+  `index`. São **ferramentas** MCP e não recursos, então todo acesso à pasta é
+  uma chamada que o cliente pode mostrar e recusar. O `index` é a única que
+  escreve alguma coisa, e o que ela escreve é o arquivo de índice fora da árvore
+  ([0011](0011-config-outside-tree-index-as-cache.md)); nenhuma ferramenta cria,
+  renomeia, apaga ou edita uma nota ([0018](0018-llm-native-mcp-in-core.md),
+  [0034](0034-roadmap-in-phases.md)).
+- **Limites, com `truncated` em toda resposta que corta:** o `search` devolve 20
+  acertos por padrão e no máximo 100, o `read_note` no máximo 400 linhas por
+  chamada, o `list_notes` no máximo 5000 caminhos. Cada número está na descrição
+  da sua ferramenta, então um modelo que recebe meia resposta é avisado. São
+  números redondos, não medições (§8 do memo).
+- **Versão do protocolo: negociada pelo SDK, não escolhida pelo nosso código.**
+  O `rmcp` 3.4.0 negocia no `initialize` contra o próprio teto (`LATEST`,
+  `2025-11-25` nessa versão) e o código não sobrescreve nada. Os testes ponta a
+  ponta pedem `2025-06-18` e `2025-03-26` e observam cada um respondido como
+  pedido. Que data o Claude Desktop ou o Claude Code envia segue não observado:
+  nenhum cliente externo conectou.
+- **A exposição da Q9 está escrita onde um humano lê.** O `verso help` imprime,
+  nos dois idiomas, que *"o cliente que se conectar lê a pasta inteira (toda
+  nota que o índice lista); ainda não há como esconder um bloco ou uma nota.
+  Escolha a pasta."* A visibilidade por bloco (Q9 da spec) não tem sintaxe,
+  então nada dentro de uma nota fica escondido de um cliente conectado; o que
+  fica de fora é só o que a varredura já exclui — entradas ocultas em qualquer
+  profundidade e caminhos ignorados ([0044](0044-verso-fs-semantics.md)) — mais
+  o conteúdo de um placeholder, que nunca é aberto
+  ([0043](0043-placeholder-guard.md)).
+- **As descrições das ferramentas e as instruções do servidor são literais só em
+  inglês**, e as mensagens de `ErrorData` que o cliente recebe também. Se o que
+  um modelo lê é bilíngue como as mensagens voltadas ao usuário
+  ([0035](0035-cross-cutting-requirements.md)) é `[ABERTO]` (§7 do memo): não
+  está decidido, e o código tomou a opção mais estreita em vez de inventar uma.
+- **Dependência:** `rmcp` 3.4 com `default-features = false` e
+  `features = ["server", "transport-io", "macros"]` — o lado servidor, o
+  transporte stdio e as macros de ferramenta, com toda a metade de HTTP, auth e
+  cliente sem compilar — mais `tokio` (`rt`, `macros`, `io-std`), `serde` e
+  `serde_json`. O `verso-cli` é o único crate que depende de qualquer disso, a
+  árvore dele resolve em 97 crates, e o `cargo deny` passa nela. A fronteira
+  assíncrona tem um crate de profundidade: os handlers das ferramentas são
+  `async fn` sobre chamadas síncronas do `verso-core`.
+- **Um workspace aberto atrás de um mutex**, para que duas chamadas nunca se
+  entrelacem no índice e um segundo `index` espere o primeiro (§6.3 do memo).
+
 ## Alternativas descartadas
 
 Nenhuma registrada.

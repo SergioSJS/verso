@@ -51,6 +51,35 @@ the structure that serves the person is the same one that serves the agent.
 - On mobile there is no resident process: MCP is remote or in-process
   ([0009](0009-external-constraints.md)).
 
+**Citation and staleness as the feature 6 code implements them. Recorded on
+2026-09-22 from the feature 6 code — provisional, the maintainer decides**
+(§3.4 and §6 of `docs/reference/mcp-decision.md`). This is what the code does,
+not a decision.
+
+- **`read_note` returns numbered lines.** Each line arrives as
+  `{ "n": 12, "text": "…" }`, so the number a model cites is **read from the
+  payload, not counted**. Beside them come the note's headings and its `^id`
+  blocks, each with `line` and `col`, 1-based, `col` counting Unicode scalar
+  values (`docs/spec/dialect.md` §4.4). Both citation forms are therefore in one
+  answer: the `^id` when the block has one, the position when it does not.
+- **No `^id` is invented.** No tool proposes an id for a block that has none,
+  which would be the app rewriting a file on read
+  ([0012](0012-files-are-source-of-truth.md)).
+- **`stale: true`** when the file's stamp — modified time, length, hash —
+  differs from the one the index holds. It is one boolean, and it tells the
+  model that the graph answers it got may predate the text it is reading, and
+  that calling `index` fixes that. There is no watcher in feature 6
+  ([0044](0044-verso-fs-semantics.md)).
+- **`unverified: true`** when the index holds the note only as a last known
+  version, because a placeholder stood where it was
+  ([0043](0043-placeholder-guard.md)).
+- **A placeholder is an error, never empty text.** `read_note` on a note whose
+  content has not been downloaded answers "content not available"; a model is
+  never handed an empty note it could read as a deletion
+  ([0043](0043-placeholder-guard.md)).
+- **There is no write tool in Phase 1**, so the diff-before-apply mitigation
+  above is not exercised, and nothing the model reads can cause a write.
+
 ## Discarded alternatives
 
 - MCP as a plugin — discarded explicitly in §7.

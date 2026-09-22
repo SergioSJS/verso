@@ -51,6 +51,37 @@ que serve a pessoa é a mesma que serve o agente.
 - No mobile não há processo residente: o MCP é remoto ou in-process
   ([0009](0009-external-constraints.md)).
 
+**A citação e o índice desatualizado como o código da feature 6 os implementa.
+Registrado em 2026-09-22 a partir do código da feature 6 — provisório, o
+mantenedor decide** (§3.4 e §6 de `docs/reference/mcp-decision.md`). É o que o
+código faz, não uma decisão.
+
+- **O `read_note` devolve linhas numeradas.** Cada linha chega como
+  `{ "n": 12, "text": "…" }`, então o número que um modelo cita é **lido do
+  payload, não contado**. Ao lado delas vêm os títulos da nota e os blocos com
+  `^id`, cada um com `line` e `col`, base 1, com `col` contando escalares
+  Unicode (§4.4 de `docs/spec/dialect.md`). As duas formas de citação estão,
+  portanto, numa resposta só: o `^id` quando o bloco tem um, a posição quando
+  não tem.
+- **Nenhum `^id` é inventado.** Nenhuma ferramenta propõe um id para um bloco
+  que não tem, o que seria o app reescrever um arquivo na leitura
+  ([0012](0012-files-are-source-of-truth.md)).
+- **`stale: true`** quando o carimbo do arquivo — data de modificação, tamanho,
+  hash — difere do que o índice guarda. É um booleano só, e diz ao modelo que as
+  respostas de grafo que ele recebeu podem ser anteriores ao texto que está
+  lendo, e que chamar o `index` resolve. Não há watcher na feature 6
+  ([0044](0044-verso-fs-semantics.md)).
+- **`unverified: true`** quando o índice guarda a nota apenas como última versão
+  conhecida, porque um placeholder estava no lugar dela
+  ([0043](0043-placeholder-guard.md)).
+- **Um placeholder é erro, nunca texto vazio.** O `read_note` numa nota cujo
+  conteúdo não foi baixado responde "conteúdo indisponível"; um modelo nunca
+  recebe uma nota vazia que poderia ler como exclusão
+  ([0043](0043-placeholder-guard.md)).
+- **Não existe ferramenta de escrita na Fase 1**, então a mitigação de diff
+  antes de aplicar, acima, não é exercitada, e nada do que o modelo lê pode
+  causar uma escrita.
+
 ## Alternativas descartadas
 
 - MCP como plugin — descartado explicitamente em §7.

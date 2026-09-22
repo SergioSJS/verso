@@ -185,6 +185,30 @@ arrives after feature 2, and no date is set for it here.
 - The resource limits (depth, file size, line length) complement Q17 of the
   dialect spec: fuzzing catches crashes, not slowness.
 
+**The MCP half of the handles group as the feature 6 code implements it.
+Recorded on 2026-09-22 from the feature 6 code — provisional, the maintainer
+decides**, under §4 of `docs/reference/mcp-decision.md`. The group stays
+`[OPEN]`; this is what the code does, not a decision.
+
+- **What the agent receives as a note identifier is the path relative to the
+  root, as a string, with `.md`** — the same string `list_notes`, `search` and
+  the CLI print, and the only one from which a citation leads anywhere without
+  the server. A path without `.md` is still accepted, as `backlinks` already
+  accepted it.
+- **The opaque `Handle` never leaves the process.** It is what `verso-core` uses
+  to reach `verso-fs`; it appears in no tool argument and in no tool result, and
+  nothing serializes it.
+- **Confinement is applied by `verso-core` to every path a client sends**,
+  before the index or the disk is touched: `Root::handle` refuses an absolute
+  path, a `..` component, an empty path, a NUL byte, a hidden component at any
+  depth and an ignored path. It is applied **including on the calls that only
+  read the index** (`links`, `backlinks`), where a bad path would escape
+  nothing — which is what makes the refusal list a property of the surface
+  rather than of each tool's implementation.
+- **The other half of the group is untouched**: what a handle identifies inside
+  the process (open descriptor or table index) and how long it stays valid is
+  still `[OPEN]`, for item 2.1 of Phase 2.
+
 ## Discarded alternatives
 
 Considered by the maintainer, on the memo, and set aside:
