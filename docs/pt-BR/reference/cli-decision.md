@@ -6,7 +6,20 @@
   decide é o mantenedor (`CLAUDE.md` §1). Enquanto não há decisão, o código da
   feature 4 é escrito **sob as recomendações, marcado como provisório**, e muda
   se o mantenedor decidir outra coisa — o mesmo arranjo usado nas features 2
-  e 3.
+  e 3. Esse código já está na árvore: os commits `e3d86c0` e `e7975b3`
+  implementam as seções 2 a 7 de forma provisória, à espera das seis respostas
+  da seção 10, com dois afastamentos do que estas páginas recomendam. **A tensão
+  da §7.2 está resolvida no código, não por decisão:** o `verso-index` ganhou
+  `notes.unverified` (versão 2 do esquema), um placeholder mantém a última
+  versão conhecida da nota marcada como não verificada, e uma nota só vista como
+  placeholder ganha uma linha vazia não verificada — ou seja, a decisão 2 do
+  ADR 0043 está implementada. **O sidecar da §3.4 não foi adotado:** o caminho
+  absoluto da pasta e a hora da última execução são linhas da própria tabela
+  `meta` do arquivo de índice (`Index::set_root`), que é de onde uma listagem de
+  órfãos as leria; as flags `--list` e `--forget` não estão escritas. **A tensão
+  de código de saída da §6.2 continua aberta** — o código devolve `1` quando a
+  execução relatou um problema de varredura ou uma nota que não conseguiu ler, e
+  `0` caso contrário.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2 a 7 são da **Fable 5.1**,
   registradas aqui como insumo do autor; não são decisões. Nenhum Rust neste

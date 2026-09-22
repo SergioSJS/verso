@@ -4,6 +4,9 @@
 - Fonte: `docs/BRIEFING.md` §13
 - Status no briefing: `DECIDIDO` (i18n, acessibilidade, benchmark);
   `PROPOSTO` (vista acessível do board); `ABERTO` (metas de performance)
+- Revisões: 2026-09-22 — como o código da feature 4 cumpre "nenhuma string
+  literal solta" registrado em Consequências, como **provisório**; a Decisão não
+  muda (memo `docs/reference/cli-decision.md`).
 
 ## Contexto
 
@@ -34,6 +37,34 @@ semântica acessível a uma UI pronta costuma exigir reescrever a UI.
   `[ABERTO]` ([0039](0039-performance-targets.md)).
 - i18n de schema com chave neutra de idioma é proposta separada
   (`docs/spec/dialect.md`).
+
+**Como "nenhuma string literal solta" é cumprido na CLI. Registrado em
+2026-09-22 a partir do código da feature 4 — provisório, o mantenedor decide ao
+acordar**, na linha 3 da §10 de `docs/reference/cli-decision.md`. É o que o
+código faz, não uma decisão.
+
+- **Um enum `Msg`**, uma variante por mensagem voltada ao usuário, carregando
+  seus dados como campos, e uma função `messages::text(msg, lang)` com um
+  **`match` exaustivo por idioma**. Uma mensagem que existe num idioma e não no
+  outro não compila: esse é o mecanismo inteiro, e não custa dependência
+  nenhuma.
+- **Um teste renderiza toda variante nos dois idiomas**, o que pega o
+  copiar-e-colar que deixa a string em inglês no braço do pt-BR — a falha que o
+  compilador não enxerga.
+- **O idioma** vem de `--lang pt-BR|en`, senão da primeira entre `VERSO_LANG`,
+  `LC_ALL`, `LC_MESSAGES` e `LANG` que estiver definida e não vazia: um valor
+  que começa com `pt` seleciona pt-BR, qualquer outro seleciona EN, e um
+  ambiente sem nenhuma delas é EN. O texto de uso e de ajuda passa pela mesma
+  tabela, então o `verso help` também responde em dois idiomas.
+- **"Toda impressão passa pelo `text`" é sustentado por revisão, não por
+  lint.** `println!` é macro e o `disallowed_methods` do clippy nomeia métodos;
+  não existe regra para "este `&str` chega na saída padrão". O código concentra
+  a impressão para que a verificação seja um grep, e esta linha registra que o
+  resto da garantia é humano ([0033](0033-pr-workflow.md)).
+- **Nenhum crate de i18n.** `fluent`, `rust-i18n` e `gettext-rs` foram olhados e
+  não tomados para três comandos e algumas dezenas de strings (§4.2 de
+  `docs/reference/cli-decision.md`); a pergunta é reaberta para a UI da Fase 2,
+  com os requisitos de uma UI e não de uma CLI.
 
 ## Alternativas descartadas
 
