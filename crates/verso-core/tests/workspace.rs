@@ -225,3 +225,81 @@ fn a_placeholder_that_comes_back_unchanged_is_verified_again() {
     assert_eq!((r.indexed, r.unchanged, r.placeholders), (1, 0, 0), "{r:?}");
     assert_eq!(ws.is_unverified("Segredo").unwrap(), Some(false));
 }
+
+#[test]
+fn read_note_gives_lines_positions_and_staleness_and_every_path_is_confined() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _n = note(
+        vault.path(),
+        "Nota.md",
+        "# Título\n\nUm parágrafo. ^p1\n\n## Sub\n\n[[Outra]]\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    // Before any index run: readable, stale, nothing known.
+    let t = ws.read_note("Nota").unwrap();
+    assert_eq!(t.path, "Nota.md");
+    assert_eq!(t.lines.len(), 7);
+    assert_eq!(t.lines[2], "Um parágrafo. ^p1");
+    assert!(t.stale && !t.unverified);
+    assert!(t.headings.is_empty() && t.blocks.is_empty());
+
+    ws.index().unwrap();
+    let t = ws.read_note("Nota.md").unwrap();
+    assert!(!t.stale);
+    assert_eq!(t.headings.len(), 2);
+    assert_eq!(
+        (t.headings[1].text.as_str(), t.headings[1].line),
+        ("Sub", 5)
+    );
+    assert_eq!(
+        (t.blocks[0].id.as_str(), t.blocks[0].line, t.blocks[0].col),
+        ("p1", 3, 15)
+    );
+    let links = ws.links("Nota").unwrap().unwrap();
+    assert_eq!(
+        (links[0].target.as_str(), links[0].resolved.as_deref()),
+        ("Outra", None)
+    );
+    assert_eq!(ws.links("Outra").unwrap(), None);
+
+    // Edited on disk after the run: the text is fresh and says the graph is not.
+    {
+        let mut root = verso_fs::Root::open(vault.path(), vec![]).unwrap();
+        let h = root.handle(Path::new("Nota.md")).unwrap();
+        let (_, stamp) = root.read(h).unwrap();
+        let _ = root.write(h, b"# Novo\n", &stamp).unwrap();
+    }
+    let t = ws.read_note("Nota").unwrap();
+    assert_eq!(t.lines, vec!["# Novo"]);
+    assert!(t.stale);
+
+    // Confinement on every path, disk or index (ADR 0044).
+    for bad in ["../fora", "/etc/passwd", ".obsidian/app", "a\u{0}b", ""] {
+        assert!(
+            matches!(ws.read_note(bad), Err(verso_core::CoreError::Confined(_))),
+            "{bad:?}"
+        );
+        assert!(
+            matches!(ws.backlinks(bad), Err(verso_core::CoreError::Confined(_))),
+            "{bad:?}"
+        );
+        assert!(
+            matches!(ws.links(bad), Err(verso_core::CoreError::Confined(_))),
+            "{bad:?}"
+        );
+    }
+    // A note that is not there is a read error, not a confinement one.
+    assert!(matches!(
+        ws.read_note("Inexistente"),
+        Err(verso_core::CoreError::Read(_))
+    ));
+    // A placeholder answers unavailable, never empty text (ADR 0043).
+    let _ph = note(vault.path(), ".Evicted.md.icloud", "<plist/>");
+    assert!(matches!(
+        ws.read_note("Evicted"),
+        Err(verso_core::CoreError::Read(
+            verso_fs::ReadError::Unavailable
+        ))
+    ));
+}

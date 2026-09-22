@@ -92,6 +92,13 @@ pub enum Msg {
         snippet: String,
     },
     IndexFailed(String),
+    /// `verso mcp` is up: said once, on stderr, before the first answer.
+    McpServing {
+        folder: String,
+        indexed: usize,
+        unchanged: usize,
+    },
+    McpFailed(String),
 }
 
 /// The text of a message in a language.
@@ -106,10 +113,14 @@ uso: verso <comando> <pasta> [...]
   verso search <pasta> <palavras...>   busca no texto das notas
   verso backlinks <pasta> <nota>       quem linka para a nota
   verso backlinks <pasta> --unresolved alvos que nenhuma nota responde
+  verso mcp <pasta>                    servidor MCP (stdio) só de leitura para um agente
   verso help                           esta ajuda
 
 opções: --json (saída em JSON), --limit N (busca), --lang pt-BR|en
-códigos de saída: 0 ok, 1 problemas na pasta reportados, 2 uso, 3 não abriu"
+códigos de saída: 0 ok, 1 problemas na pasta reportados, 2 uso, 3 não abriu
+
+mcp: o cliente que se conectar lê a pasta inteira (toda nota que o índice
+lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                 .to_owned(),
             Msg::UnknownSubcommand(s) => format!("comando desconhecido: {s}"),
             Msg::UnknownOption(s) => format!("opção desconhecida: {s}"),
@@ -159,6 +170,14 @@ códigos de saída: 0 ok, 1 problemas na pasta reportados, 2 uso, 3 não abriu"
             Msg::UnresolvedLine { target, count } => format!("{target}  ({count})"),
             Msg::HitLine { path, snippet } => format!("{path}: {snippet}"),
             Msg::IndexFailed(e) => format!("indexação falhou: {e}"),
+            Msg::McpServing {
+                folder,
+                indexed,
+                unchanged,
+            } => format!(
+                "verso mcp: servindo {folder} (indexadas {indexed}, sem mudança {unchanged}); aguardando o cliente"
+            ),
+            Msg::McpFailed(e) => format!("verso mcp falhou: {e}"),
         },
         Lang::En => match msg {
             Msg::Usage => "\
@@ -168,10 +187,14 @@ usage: verso <command> <folder> [...]
   verso search <folder> <words...>     search the notes' text
   verso backlinks <folder> <note>      who links to the note
   verso backlinks <folder> --unresolved targets no note answers to
+  verso mcp <folder>                   read-only MCP server (stdio) for an agent
   verso help                           this help
 
 options: --json (JSON output), --limit N (search), --lang pt-BR|en
-exit codes: 0 ok, 1 problems in the folder reported, 2 usage, 3 could not open"
+exit codes: 0 ok, 1 problems in the folder reported, 2 usage, 3 could not open
+
+mcp: the client that connects reads the whole folder (every note the index
+lists); there is no way to hide a block or a note yet. Choose the folder."
                 .to_owned(),
             Msg::UnknownSubcommand(s) => format!("unknown command: {s}"),
             Msg::UnknownOption(s) => format!("unknown option: {s}"),
@@ -223,6 +246,14 @@ exit codes: 0 ok, 1 problems in the folder reported, 2 usage, 3 could not open"
             Msg::UnresolvedLine { target, count } => format!("{target}  ({count})"),
             Msg::HitLine { path, snippet } => format!("{path}: {snippet}"),
             Msg::IndexFailed(e) => format!("indexing failed: {e}"),
+            Msg::McpServing {
+                folder,
+                indexed,
+                unchanged,
+            } => format!(
+                "verso mcp: serving {folder} (indexed {indexed}, unchanged {unchanged}); waiting for the client"
+            ),
+            Msg::McpFailed(e) => format!("verso mcp failed: {e}"),
         },
     }
 }
@@ -286,6 +317,12 @@ mod tests {
                 snippet: "s".into(),
             },
             Msg::IndexFailed("e".into()),
+            Msg::McpServing {
+                folder: "/v".into(),
+                indexed: 1,
+                unchanged: 2,
+            },
+            Msg::McpFailed("e".into()),
         ]
     }
 
@@ -317,6 +354,8 @@ mod tests {
             Msg::UnresolvedLine { .. } => 21,
             Msg::HitLine { .. } => 22,
             Msg::IndexFailed(_) => 23,
+            Msg::McpServing { .. } => 24,
+            Msg::McpFailed(_) => 25,
         }
     }
 
@@ -326,7 +365,7 @@ mod tests {
         seen.sort_unstable();
         // `ordinal` is exhaustive, so its highest arm is the variant count
         // minus one; the samples must reach it without a gap.
-        let expected: Vec<usize> = (0..=23).collect();
+        let expected: Vec<usize> = (0..=25).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
     }
 
