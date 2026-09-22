@@ -198,10 +198,14 @@ fn a_link_to_a_heading_of_the_same_note_is_not_a_missing_file() {
     );
     put(&mut index, "u.md", "[[#T]]\n");
     assert!(index.unresolved().unwrap().is_empty());
-    // Resolved to the note itself; not a backlink of itself.
+    // Resolved to the note itself, and a backlink of itself (Q12, decided
+    // 2026-09-22 as observed): three from t.md, none from u.md, whose
+    // [[#T]] names u.md.
     let links = index.links_of("t.md").unwrap();
     assert!(links.iter().all(|l| l.resolved.as_deref() == Some("t.md")));
-    assert!(index.backlinks("t.md").unwrap().is_empty());
+    let back = index.backlinks("t.md").unwrap();
+    assert_eq!(back.len(), 3, "{back:?}");
+    assert!(back.iter().all(|b| b.from == "t.md"));
 }
 
 #[test]
@@ -276,4 +280,124 @@ fn an_icloud_folder_with_everything_evicted_survives_one_download() {
     assert_eq!(index.backlinks("Dois.md").unwrap().len(), 1);
     assert_eq!(index.search("novo", 10).unwrap().len(), 1);
     assert_eq!(index.is_unverified("Dois.md").unwrap(), Some(true));
+}
+
+// Spec Q12, closed on 2026-09-22 with Obsidian 1.13.7's behaviour as
+// observed twice (`docs/reference/index-decision.md` §4.1, second and
+// third observations): a path is tried from the root, then from the
+// source note's folder (`..` included); a bare name prefers a candidate
+// under the source's folder, then the fewest path segments, then byte
+// order; an empty target is the note itself and one of its own
+// backlinks; `[[.md]]` and `[[nota/]]` are not names.
+#[test]
+fn resolution_follows_the_source_folder_as_obsidian_does() {
+    let mut index = Index::in_memory().unwrap();
+    for (path, text) in [
+        ("nota.md", "raiz\n"),
+        ("sub/nota.md", "sub\n"),
+        ("sub/deep/src5.md", "[[nota]]\n"),
+        ("sub/src2.md", "[[nota]] [[../nota]]\n"),
+        (
+            "src.md",
+            "[[nota]] [[sub/nota]] [[#Cabecalho]] [[.md]] [[nota/]] [[NOTA.MD]]\n",
+        ),
+        ("src4.md", "[[prof]]\n"),
+        ("zz/prof.md", "zz\n"),
+        ("aa/bb/prof.md", "aabb\n"),
+        ("B/dup.md", "B\n"),
+        ("a/dup.md", "a\n"),
+        ("src6.md", "[[dup]]\n"),
+        // The third observation (verso-probe): a candidate under the
+        // source's folder wins at any depth; an ancestor gains nothing.
+        (
+            "verso-probe/a/src.md",
+            "[[sub/x]] [[x]] [[z]] [[w]] [[u]] [[t]]\n",
+        ),
+        ("sub/x.md", "root-relative\n"),
+        ("verso-probe/a/sub/x.md", "child\n"),
+        ("verso-probe/a/zz/z.md", "z1\n"),
+        ("verso-probe/a/aa/deep/z.md", "z2\n"),
+        ("verso-probe/w.md", "parent\n"),
+        ("sub/w.md", "unrelated\n"),
+        ("verso-probe/a/sub/u.md", "child u\n"),
+        ("verso-probe/u.md", "parent u\n"),
+        ("verso-probe/a/sub/deep/t.md", "deep t\n"),
+        ("sub/t.md", "shallow t\n"),
+    ] {
+        put(&mut index, path, text);
+    }
+    let resolved = |src: &str| -> Vec<Option<String>> {
+        index
+            .links_of(src)
+            .unwrap()
+            .into_iter()
+            .map(|l| l.resolved)
+            .collect()
+    };
+    // A bare name is a path from the root first: nota.md wins everywhere.
+    assert_eq!(resolved("sub/deep/src5.md"), [Some("nota.md".into())]);
+    // From sub/: the root file still wins; `..` is honoured.
+    assert_eq!(
+        resolved("sub/src2.md"),
+        [Some("nota.md".into()), Some("nota.md".into())]
+    );
+    assert_eq!(
+        resolved("src.md"),
+        [
+            Some("nota.md".into()),
+            Some("sub/nota.md".into()),
+            Some("src.md".into()),
+            None,
+            None,
+            Some("nota.md".into()),
+        ]
+    );
+    // Fewest segments beats byte order; byte order decides among equals.
+    assert_eq!(resolved("src4.md"), [Some("zz/prof.md".into())]);
+    assert_eq!(resolved("src6.md"), [Some("B/dup.md".into())]);
+    assert_eq!(
+        resolved("verso-probe/a/src.md"),
+        [
+            Some("sub/x.md".into()),
+            Some("verso-probe/a/sub/x.md".into()),
+            Some("verso-probe/a/zz/z.md".into()),
+            Some("sub/w.md".into()),
+            Some("verso-probe/a/sub/u.md".into()),
+            Some("verso-probe/a/sub/deep/t.md".into()),
+        ]
+    );
+    // [[#Cabecalho]] is a backlink of the note itself.
+    assert!(
+        index
+            .backlinks("src.md")
+            .unwrap()
+            .iter()
+            .any(|b| b.from == "src.md")
+    );
+    // Neither `[[.md]]` nor `[[nota/]]` is a name: unresolved, as written.
+    let un: Vec<String> = index
+        .unresolved()
+        .unwrap()
+        .into_iter()
+        .map(|u| u.target)
+        .collect();
+    assert!(
+        un.contains(&".md".to_owned()) && un.contains(&"nota/".to_owned()),
+        "{un:?}"
+    );
+}
+
+#[test]
+fn a_note_that_only_ever_lived_under_the_source_folder_is_found_after_it_appears() {
+    // Resolution stays at query time: a note added later resolves the
+    // links that were waiting for it, with the same rule.
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "a/src.md", "[[alvo]]\n");
+    assert_eq!(index.unresolved().unwrap().len(), 1);
+    put(&mut index, "b/alvo.md", "b\n");
+    put(&mut index, "a/x/alvo.md", "under a\n");
+    assert_eq!(
+        index.links_of("a/src.md").unwrap()[0].resolved.as_deref(),
+        Some("a/x/alvo.md")
+    );
 }
