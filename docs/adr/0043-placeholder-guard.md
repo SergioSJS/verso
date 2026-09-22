@@ -97,6 +97,32 @@ down is deciding them by silence.
   directory: the pattern names a file whose content is elsewhere, and a
   directory has no content of its own.
 
+**Decision 2 is now what the code does, and the gap the feature 4 memo recorded
+is closed by code rather than by a new decision. Recorded on 2026-09-22 from
+the feature 4 code — the details below are provisional, the maintainer decides
+on waking.**
+
+- **The index carries the mark.** Schema version 2 of `verso-index` adds
+  `notes.unverified`; an index at any other version is dropped and rebuilt,
+  which costs nothing but time because the index is a cache
+  ([0011](0011-config-outside-tree-index-as-cache.md)).
+- **A note the walk reports as a placeholder keeps its last known version,
+  marked unverified** (`Index::mark_placeholder`, called from `verso-core`'s
+  index run for both forms: an entry of kind placeholder, and a note whose read
+  answers "content unavailable"). Nothing of the note is discarded, and nothing
+  is re-read from a file that has no content to give.
+- **A note only ever seen as a placeholder gets an empty, unverified row**, so
+  that links to it resolve and its path is a known target instead of an
+  unresolved one. Before this, a vault whose files had never been downloaded
+  indexed as a vault with no notes at all.
+- **This closes by code, and not by a new decision, the tension that
+  `docs/reference/cli-decision.md` §7.2 recorded**: decision 2 above asked for
+  "the last known version, marked as unverified", and the feature 3 schema had
+  nowhere to put the mark. Nothing here changes what this ADR decided; what it
+  records is that the decision is now implemented. What an unverified note's own
+  backlinks mean — its links were parsed when it was last readable and are still
+  in the index — is not answered here.
+
 ## Discarded alternatives
 
 - Treating an unreadable file as absent — that is the behavior that causes the

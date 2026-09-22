@@ -4,6 +4,9 @@
 - Source: `docs/BRIEFING.md` §13
 - Status in the briefing: `DECIDED` (i18n, accessibility, benchmark);
   `PROPOSED` (accessible board view); `OPEN` (performance targets)
+- Revisions: 2026-09-22 — how the feature 4 code meets "no loose string
+  literal" recorded under Consequences, as **provisional**; the Decision is
+  unchanged (memo `docs/reference/cli-decision.md`).
 
 ## Context
 
@@ -35,6 +38,34 @@ the UI.
   are `[OPEN]` ([0039](0039-performance-targets.md)).
 - Schema i18n with a language-neutral key is a separate proposal
   (`docs/spec/dialect.md`).
+
+**How "no loose string literal" is met in the CLI. Recorded on 2026-09-22 from
+the feature 4 code — provisional, the maintainer decides on waking**, on line 3
+of `docs/reference/cli-decision.md` §10. This is what the code does, not a
+decision.
+
+- **A `Msg` enum**, one variant per user-facing message, carrying its data as
+  fields, and one function `messages::text(msg, lang)` with an **exhaustive
+  `match` per language**. A message that exists in one language and not in the
+  other does not compile: that is the whole mechanism, and it costs no
+  dependency.
+- **A test renders every variant in both languages**, which catches the
+  copy-paste that leaves the English string in the pt-BR arm — the failure the
+  compiler cannot see.
+- **The language** comes from `--lang pt-BR|en`, else from the first of
+  `VERSO_LANG`, `LC_ALL`, `LC_MESSAGES` and `LANG` that is set and non-empty: a
+  value beginning with `pt` selects pt-BR, anything else selects EN, and an
+  environment with none of them is EN. The usage and help text go through the
+  same table, so `verso help` answers in two languages as well.
+- **"Every print goes through `text`" is held by review, not by a lint.**
+  `println!` is a macro and clippy's `disallowed_methods` names methods; there
+  is no rule for "this `&str` reaches standard output". The code concentrates
+  the printing so that the check is a grep, and this line records that the rest
+  of the guarantee is human ([0033](0033-pr-workflow.md)).
+- **No i18n crate.** `fluent`, `rust-i18n` and `gettext-rs` were looked at and
+  not taken for three commands and a few dozen strings
+  (`docs/reference/cli-decision.md` §4.2); the question is reopened for the
+  Phase 2 UI, with a UI's requirements rather than a CLI's.
 
 ## Discarded alternatives
 

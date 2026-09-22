@@ -6,7 +6,19 @@
   such. The maintainer decides (`CLAUDE.md` §1). While there is no decision,
   the feature 4 code is written **under the recommendations, marked
   provisional**, and changes if the maintainer decides otherwise — the same
-  arrangement used for features 2 and 3.
+  arrangement used for features 2 and 3. That code is now in the tree: commits
+  `e3d86c0` and `e7975b3` implement sections 2 to 7 provisionally, pending the
+  six answers of section 10, with two departures from what these pages
+  recommend. **The tension of §7.2 is resolved in the code, not by a decision:**
+  `verso-index` gained `notes.unverified` (schema version 2), a placeholder
+  keeps the note's last known version marked unverified, and a note only ever
+  seen as a placeholder gets an empty unverified row, so ADR 0043 decision 2 is
+  implemented. **The sidecar of §3.4 was not taken:** the folder's absolute path
+  and the time of the last run are rows of the index file's own `meta` table
+  (`Index::set_root`), which is where an orphan listing would read them; the
+  `--list` and `--forget` flags are not written. **The exit-code tension of
+  §6.2 stays open** — the code returns `1` when the run reported a walk problem
+  or a note it could not read, and `0` otherwise.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2 to 7 are **Fable
   5.1's**, recorded here as the author's input; they are not decisions. No Rust
