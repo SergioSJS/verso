@@ -23,6 +23,7 @@ type Strings = {
   search: string;
   notes: string;
   backlinks: string;
+  outline: string;
   noFolder: string;
   pick: string;
   indexed: (n: number, u: number, p: number) => string;
@@ -53,6 +54,7 @@ const pt: Strings = {
   search: "Buscar nas notas",
   notes: "Notas",
   backlinks: "Backlinks",
+  outline: "Estrutura",
   noFolder: "Nenhuma pasta aberta.",
   pick: "Abra uma pasta de notas para começar.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
@@ -83,6 +85,7 @@ const en: Strings = {
   search: "Search the notes",
   notes: "Notes",
   backlinks: "Backlinks",
+  outline: "Outline",
   noFolder: "No folder is open.",
   pick: "Open a folder of notes to begin.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
@@ -142,6 +145,8 @@ const ui = {
   conflictDiff: el<HTMLPreElement>("conflict-diff"),
   conflictReload: el<HTMLButtonElement>("conflict-reload"),
   conflictOverwrite: el<HTMLButtonElement>("conflict-overwrite"),
+  outlineHeading: el<HTMLHeadingElement>("outline-heading"),
+  outline: el<HTMLUListElement>("outline"),
   backlinksHeading: el<HTMLHeadingElement>("backlinks-heading"),
   backlinks: el<HTMLUListElement>("backlinks"),
 };
@@ -152,6 +157,7 @@ ui.search.placeholder = t.search;
 ui.searchLabel.textContent = t.search;
 ui.notesHeading.textContent = t.notes;
 ui.backlinksHeading.textContent = t.backlinks;
+ui.outlineHeading.textContent = t.outline;
 ui.folder.textContent = t.noFolder;
 ui.noteTitle.textContent = t.pick;
 ui.modePreview.textContent = t.showPreview;
@@ -422,6 +428,20 @@ function load(note: NoteText): void {
     }),
   );
   ui.props.hidden = note.properties.length === 0;
+  ui.outline.replaceChildren(
+    ...note.headings.map((h) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = `level-${h.level}`;
+      b.textContent = h.text;
+      b.setAttribute("data-line", String(h.line));
+      b.addEventListener("click", () => jumpTo(h.line));
+      li.append(b);
+      return li;
+    }),
+  );
+  ui.outlineHeading.hidden = ui.outline.hidden = note.headings.length === 0;
   const flags: string[] = [];
   if (note.stale) flags.push(t.stale);
   if (note.unverified) flags.push(t.unverified);
@@ -564,16 +584,52 @@ ui.preview.addEventListener("click", (ev) => {
   else ui.status.textContent = t.unresolved(target);
 });
 
-async function openFolder(): Promise<void> {
-  const picked = await open({ directory: true, multiple: false, title: t.open });
-  if (typeof picked !== "string") return;
+/** Go to a line: in the editor, the cursor; in reading mode, the
+ *  heading with that text is scrolled to. */
+function jumpTo(line: number): void {
+  if (mode === "preview") {
+    // The n-th heading of the outline is the n-th heading of the HTML.
+    const heads = Array.from(ui.preview.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+    const n = Array.from(ui.outline.querySelectorAll("button")).findIndex(
+      (b) => b.getAttribute("data-line") === String(line),
+    );
+    heads[n]?.scrollIntoView({ block: "start", behavior: "smooth" });
+    return;
+  }
+  const l = editor.state.doc.line(Math.min(line, editor.state.doc.lines));
+  editor.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+  editor.focus();
+}
+
+const LAST_FOLDER = "verso.lastFolder";
+
+async function openPath(path: string): Promise<boolean> {
   ui.status.textContent = "…";
-  const r = await commands.openFolder(picked);
-  if (r.status !== "ok") return fail(r.error);
+  const r = await commands.openFolder(path);
+  if (r.status !== "ok") {
+    fail(r.error);
+    return false;
+  }
+  try {
+    localStorage.setItem(LAST_FOLDER, r.data.folder);
+  } catch {
+    // A webview without storage: nothing to remember, nothing lost.
+  }
   ui.folder.textContent = r.data.folder;
   ui.folder.title = r.data.folder;
   const i = r.data.index;
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
+  return true;
+}
+
+async function openFolder(): Promise<void> {
+  const picked = await open({ directory: true, multiple: false, title: t.open });
+  if (typeof picked !== "string") return;
+  await openPicked(picked);
+}
+
+async function openPicked(picked: string): Promise<void> {
+  if (!(await openPath(picked))) return;
   ui.reindex.disabled = false;
   ui.search.disabled = false;
   ui.search.value = "";
@@ -617,3 +673,11 @@ ui.search.addEventListener("input", () => {
   window.clearTimeout(pending);
   pending = window.setTimeout(() => void searchNotes(ui.search.value), 150);
 });
+
+// Reopen the last folder (a webview preference, not the core's config).
+try {
+  const last = localStorage.getItem(LAST_FOLDER);
+  if (last) void openPicked(last);
+} catch {
+  // No storage: start empty.
+}

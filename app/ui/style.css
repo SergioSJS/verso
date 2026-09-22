@@ -172,3 +172,9 @@ button.small.primary { background: var(--accent); color: var(--accent-fg); borde
 .editor.live .cm-scroller { font-family: var(--sans); font-size: 1.02em; line-height: 1.65; }
 .editor.live .cm-gutters { display: none; }
 .editor.live .cm-content { padding: .8rem 1.2rem; }
+
+/* Outline */
+.outline li > button { padding: .15rem .6rem; font-size: .9em; color: var(--muted); }
+.outline li > button.level-1 { font-weight: 600; color: var(--fg); }
+.outline li > button.level-3 { padding-left: 1.4rem; }
+.outline li > button.level-4, .outline li > button.level-5, .outline li > button.level-6 { padding-left: 2.2rem; }
