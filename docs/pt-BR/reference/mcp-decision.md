@@ -6,7 +6,15 @@
   decide é o mantenedor (`CLAUDE.md` §1). Enquanto não há decisão, o código da
   feature 6 é escrito **sob as recomendações, marcado como provisório**, e muda
   se o mantenedor decidir outra coisa — o mesmo arranjo usado nas features 2
-  e 3.
+  e 3. **Anotado em 2026-09-22:** o commit `61046f8` implementa as seções 2 a 6
+  provisoriamente, à espera das cinco respostas da seção 9. Ele **não** se
+  afasta das recomendações em nada; acrescenta duas coisas que elas não citam, e
+  as duas ficam registradas aqui em vez de serem descobertas depois: o
+  `read_note` também carrega **`unverified`**, vindo da decisão 2 do
+  [ADR 0043](../adr/0043-placeholder-guard.md) (o índice guarda a nota apenas
+  como última versão conhecida, porque um placeholder estava no lugar dela), e
+  as **mensagens de `ErrorData`** que o cliente recebe estão em inglês, como as
+  descrições das ferramentas e pelo mesmo motivo `[ABERTO]` (seção 7).
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2 a 6 são da **Fable 5.1**,
   registradas aqui como insumo do autor; não são decisões. Nenhum Rust neste
@@ -720,9 +728,15 @@ existem os do `verso-fs` e do `verso-index`.
 
 ## 8. O que este memo não verificou
 
-- **Nenhum servidor MCP foi executado, e nenhum cliente foi conectado.** Nada
-  aqui foi observado ponta a ponta. A sessão gravada do critério de saída é a
-  primeira vez que qualquer disso é visto funcionando.
+- **O servidor foi executado; nenhum cliente foi conectado.** Marcado em
+  2026-09-22 — originalmente *"nenhum servidor MCP foi executado, e nenhum
+  cliente foi conectado"*. O commit `61046f8` dirige o binário compilado em
+  JSON-RPC pelo stdin dele em dois testes ponta a ponta, então o `initialize`, o
+  `tools/list` e o `tools/call` são observados funcionando, com `2025-06-18` e
+  `2025-03-26` negociados como pedidos. O que segue não observado é um
+  **cliente**: nem o Claude Desktop nem o Claude Code conectou, e nenhuma sessão
+  foi gravada. **O critério de saída 4 da fase, portanto, continua inteiro para
+  o mantenedor.**
 - **A API exata do `rmcp` foi lida, não compilada contra.** `stdio()`,
   `ServiceExt::serve`, `#[tool_router]`, `#[tool]`, `#[tool_handler]` e
   `negotiate_protocol_version` foram lidos no código do crate no cache local do

@@ -6,7 +6,15 @@
   such. The maintainer decides (`CLAUDE.md` §1). While there is no decision,
   the feature 6 code is written **under the recommendations, marked
   provisional**, and changes if the maintainer decides otherwise — the same
-  arrangement used for features 2 and 3.
+  arrangement used for features 2 and 3. **Written down on 2026-09-22:** commit
+  `61046f8` implements sections 2 to 6 provisionally, pending the five answers
+  of section 9. It departs from the recommendations in **nothing**; it adds two
+  things they do not mention, and both are recorded here rather than left to be
+  found: `read_note` also carries **`unverified`**, from decision 2 of
+  [ADR 0043](../adr/0043-placeholder-guard.md) (the index holds the note only as
+  a last known version, because a placeholder stood where it was), and the
+  **`ErrorData` messages** the client receives are English, like the tool
+  descriptions and for the same `[OPEN]` reason (section 7).
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2 to 6 are **Fable
   5.1's**, recorded here as the author's input; they are not decisions. No Rust
@@ -711,9 +719,14 @@ MCP fixture schema, which does not exist any more than the `verso-fs` and
 
 ## 8. What this memo did not verify
 
-- **No MCP server was run, and no client was connected.** Nothing here was
-  observed end to end. The exit criterion's recorded session is the first time
-  any of this is seen working.
+- **The server was run; no client was connected.** Marked on 2026-09-22 —
+  originally *"no MCP server was run, and no client was connected"*. Commit
+  `61046f8` drives the built binary in JSON-RPC over its stdin in two end-to-end
+  tests, so `initialize`, `tools/list` and `tools/call` are observed working,
+  with `2025-06-18` and `2025-03-26` each negotiated as asked. What is still not
+  observed is a **client**: neither Claude Desktop nor Claude Code has
+  connected, and no session has been recorded. **Exit criterion 4 of the phase
+  therefore remains entirely for the maintainer.**
 - **The exact `rmcp` API was read, not compiled against.** `stdio()`,
   `ServiceExt::serve`, `#[tool_router]`, `#[tool]`, `#[tool_handler]` and
   `negotiate_protocol_version` were read in the crate source in the local

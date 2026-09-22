@@ -58,6 +58,63 @@ None. Questions recorded, with the moment to decide them.
 - The choice of MCP transport in Phase 1 is reversible; the shape of the
   contract in Phase 2 is not cheap to reverse.
 
+**The `verso mcp` group as the feature 6 code implements it. Recorded on
+2026-09-22 from the feature 6 code — provisional, the maintainer decides**,
+under the recommendations of `docs/reference/mcp-decision.md` §2 to §6. This is
+what the code does, not a decision: the three questions above stay `[OPEN]`, and
+the code changes if the maintainer decides otherwise.
+
+- **Transport: stdio, and nothing listens.** `verso mcp <folder>` is spawned by
+  the client as a child process and speaks JSON-RPC over its own standard input
+  and output. No port is bound, so the `Origin`, DNS-rebinding and per-session
+  token surface named above does not exist to get wrong. The process runs one
+  incremental index pass before the first answer, serves until the client closes
+  stdin, and exits 0. **stdout carries the protocol**: everything said to a
+  human — the serving line, a failure — goes to stderr.
+- **Surface: seven tools, read-only**, with the JSON shapes of the memo's §3.3:
+  `search` (words, `limit`), `read_note` (path, `from_line`/`to_line`), `links`,
+  `backlinks`, `unresolved`, `list_notes` and `index`. They are MCP **tools**
+  and not resources, so every access to the folder is a call the client can show
+  and refuse. `index` is the only one that writes anything, and what it writes
+  is the index file outside the tree
+  ([0011](0011-config-outside-tree-index-as-cache.md)); no tool creates,
+  renames, deletes or edits a note ([0018](0018-llm-native-mcp-in-core.md),
+  [0034](0034-roadmap-in-phases.md)).
+- **Caps, with `truncated` on every capped answer:** `search` returns 20 hits by
+  default and at most 100, `read_note` at most 400 lines per call, `list_notes`
+  at most 5000 paths. Each number is in its tool's description, so a model that
+  gets half an answer is told so. They are round numbers, not measurements
+  (memo §8).
+- **Protocol version: negotiated by the SDK, not chosen by our code.** `rmcp`
+  3.4.0 negotiates at `initialize` against its own ceiling (`LATEST`,
+  `2025-11-25` in that version) and the code overrides nothing. The end-to-end
+  tests ask for `2025-06-18` and for `2025-03-26` and observe each one answered
+  as asked. Which date Claude Desktop or Claude Code sends is still unobserved:
+  no external client has connected.
+- **The Q9 exposure is written where a human reads it.** `verso help` prints, in
+  both languages, that *"the client that connects reads the whole folder (every
+  note the index lists); there is no way to hide a block or a note yet. Choose
+  the folder."* Per-block visibility (spec Q9) has no syntax, so nothing inside
+  a note is hidden from a connected client; what is excluded is only what the
+  walk already excludes — hidden entries at any depth and ignored paths
+  ([0044](0044-verso-fs-semantics.md)) — plus a placeholder's content, which is
+  never opened ([0043](0043-placeholder-guard.md)).
+- **The tool descriptions and the server instructions are English-only string
+  literals**, and so are the `ErrorData` messages the client receives. Whether
+  what a model reads is bilingual like the user-facing messages
+  ([0035](0035-cross-cutting-requirements.md)) is `[OPEN]` (memo §7): it is not
+  decided, and the code took the narrower option instead of inventing one.
+- **Dependency:** `rmcp` 3.4 with `default-features = false` and
+  `features = ["server", "transport-io", "macros"]` — the server side, the
+  stdio transport and the tool macros, with the whole HTTP, auth and client half
+  left uncompiled — plus `tokio` (`rt`, `macros`, `io-std`), `serde` and
+  `serde_json`. `verso-cli` is the only crate that depends on any of it, its
+  tree resolves to 97 crates, and `cargo deny` is green on it. The async
+  boundary is one crate deep: the tool handlers are `async fn` over synchronous
+  `verso-core` calls.
+- **One open workspace behind a mutex**, so two calls never interleave on the
+  index and a second `index` waits for the first (memo §6.3).
+
 ## Discarded alternatives
 
 None recorded.
