@@ -1,6 +1,6 @@
 [package]
 name = "verso-core"
-description = "Orchestrates the crates and exposes the core<->UI contract"
+description = "Orchestrates the folder, the parser and the index; exposes the contract"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,8 +9,16 @@ repository.workspace = true
 publish.workspace = true
 
 # Reads and writes the configuration directory only; never the open folder
-# (ADR 0026, rule 5, delimited scope; ADR 0011).
+# (ADR 0026, rule 5, delimited scope; ADR 0011). Today it needs no std::fs
+# call of its own: the index creates its directory, and the folder is
+# verso-fs's.
 [dependencies]
+verso-dialect = { path = "../verso-dialect" }
+verso-fs = { path = "../verso-fs" }
+verso-index = { path = "../verso-index" }
+
+[dev-dependencies]
+tempfile = "3.27"
 
 [lints]
 workspace = true

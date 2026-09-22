@@ -1,6 +1,6 @@
 [package]
 name = "verso-cli"
-description = "The verso command: index, search, backlinks, mcp"
+description = "The verso command: index, search, backlinks (Phase 1); mcp (feature 6)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,8 +14,15 @@ path = "src/main.rs"
 
 # Reads arguments and prints; never touches the open folder directly
 # (ADR 0026, rule 5, delimited scope). Messages in pt-BR and EN from the
-# first feature (ADR 0035).
+# first feature (ADR 0035): every user-facing string goes through
+# `messages::text`. Arguments are parsed by hand — three subcommands, two
+# options — and the help text is in both languages, which no parser crate
+# gives for free (`docs/reference/cli-decision.md`, provisional).
 [dependencies]
+verso-core = { path = "../verso-core" }
+
+[dev-dependencies]
+tempfile = "3.27"
 
 [lints]
 workspace = true
