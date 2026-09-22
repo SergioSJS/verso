@@ -10,7 +10,8 @@
   2026-09-22 — the path confinement row reworded after the symlink decision
   ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — how the feature 2 code
   answers the atomic write requirements, recorded as provisional, from two
-  readings of that code.
+  readings of that code; 2026-09-22 — how the feature 3 code meets the FTS5
+  guardrail, recorded as provisional.
 
 ## Context
 
@@ -132,6 +133,25 @@ does, not a decision; the requirements above are unchanged.
   ran all 35 tests on macOS 15 with the pinned 1.98.1 toolchain, all green; that
   manual run is stated as a step in the PR, and it is what the Linux run cannot
   give.
+
+### FTS5 and parameterized queries — how the feature 3 code meets the guardrail
+
+**Recorded on 2026-09-22 and provisional: the maintainer decides on waking**,
+on line 5 of `docs/reference/index-decision.md` §9. The guardrail above is
+unchanged; this is what `verso-index` does.
+
+- **Every value is a bound parameter.** No query is assembled by formatting a
+  value into SQL: paths, targets and limits go in as `?1`, `?2`.
+- **The user's words never reach FTS5's query grammar.** Each
+  whitespace-separated word of a search becomes an FTS5 string — wrapped in
+  double quotes, with an inner double quote doubled — and the words are joined
+  by FTS5's implicit AND. So `NOT`, `OR`, `*`, `:`, `(` and `"` are searched
+  for as text and cannot change the query.
+- **What that costs, stated rather than hidden:** the user cannot type `casa*`
+  for a prefix search or `titulo:casa` for a column filter. Those become flags
+  of `verso search` if the maintainer wants them (feature 4).
+- **Seen failing**, as this ADR requires: with the quoting removed, the grammar
+  test fails with `fts5: syntax error near "NOT"`.
 
 ## Consequences
 
