@@ -9,7 +9,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 1;
+pub(crate) const VERSION: i64 = 2;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -29,7 +29,10 @@ CREATE TABLE notes (
     hash      INTEGER NOT NULL,
     tags      TEXT NOT NULL DEFAULT '[]',
     aliases   TEXT NOT NULL DEFAULT '[]',
-    frontmatter_ok INTEGER NOT NULL DEFAULT 1
+    frontmatter_ok INTEGER NOT NULL DEFAULT 1,
+    -- ADR 0043: a placeholder keeps the last known version, marked as
+    -- unverified (1); a note read from disk is verified (0).
+    unverified INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX notes_path_key ON notes(path_key);
 CREATE INDEX notes_name_key ON notes(name_key);

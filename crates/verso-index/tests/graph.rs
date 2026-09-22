@@ -139,3 +139,33 @@ fn stamp_round_trips_and_title_comes_from_the_first_h1() {
     assert_eq!(index.stamp_of("t.md").unwrap(), Some(stamp));
     assert_eq!(index.stamp_of("nao.md").unwrap(), None);
 }
+
+#[test]
+fn a_placeholder_keeps_the_last_version_unverified_and_stays_a_link_target() {
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "Alvo.md", "conteudo real");
+    put(&mut index, "src.md", "[[Alvo]] e [[Nunca Baixada]]");
+    // Alvo is evicted: its last version stays, marked unverified.
+    assert!(index.mark_placeholder("Alvo.md").unwrap());
+    assert_eq!(index.is_unverified("Alvo.md").unwrap(), Some(true));
+    assert_eq!(index.search("conteudo", 10).unwrap().len(), 1);
+    assert_eq!(index.backlinks("Alvo.md").unwrap().len(), 1);
+    // A note only ever seen as a placeholder: an empty unverified row, so
+    // the link to it resolves and it is not listed as unresolved.
+    assert!(!index.mark_placeholder("Nunca Baixada.md").unwrap());
+    assert_eq!(index.backlinks("Nunca Baixada.md").unwrap().len(), 1);
+    assert!(index.unresolved().unwrap().is_empty());
+    // Downloaded and read again: verified.
+    put(&mut index, "Alvo.md", "conteudo novo");
+    assert_eq!(index.is_unverified("Alvo.md").unwrap(), Some(false));
+    assert_eq!(index.is_unverified("x.md").unwrap(), None);
+}
+
+#[test]
+fn the_index_records_its_folder_and_last_run() {
+    let mut index = Index::in_memory().unwrap();
+    assert_eq!(index.root().unwrap(), None);
+    index.set_root("/Users/x/Vault", 1_700_000_000).unwrap();
+    index.set_root("/Users/x/Vault", 1_700_000_001).unwrap();
+    assert_eq!(index.root().unwrap().as_deref(), Some("/Users/x/Vault"));
+}
