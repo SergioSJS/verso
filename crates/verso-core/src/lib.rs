@@ -6,10 +6,11 @@
 //! notes with `verso-dialect`, keeps `verso-index` current, and answers
 //! the questions the CLI and, later, the contract ask. Phase 1, feature 4.
 //!
-//! This crate never touches the folder itself and needs no `std::fs` call:
-//! the folder is `verso-fs`'s, the index file is `verso-index`'s, and the
-//! configuration directory (ADR 0011) is only computed here — its
-//! creation belongs to the index that lives in it.
+//! This crate never touches the folder itself: the folder is `verso-fs`'s,
+//! the index file is `verso-index`'s, and the configuration directory
+//! (ADR 0011) is only computed here — its creation belongs to the index
+//! that lives in it. Its one `std::fs` exception is the index's sidecar
+//! ([`Sidecar`], `sidecar.rs`, `clippy.toml`), a file of that directory.
 //!
 //! Provisional (`docs/reference/cli-decision.md`, the maintainer decides):
 //! where the configuration directory is ([`config_dir`]); that a second
@@ -25,6 +26,9 @@ use std::time::UNIX_EPOCH;
 use verso_fs::{ConfinementError, EntryKind, Problem, ReadError, Root};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
+mod sidecar;
+pub use sidecar::Sidecar;
+
 /// Why the workspace could not be opened or refreshed.
 #[derive(Debug)]
 pub enum CoreError {
@@ -39,6 +43,8 @@ pub enum CoreError {
     Confined(ConfinementError),
     /// The note could not be read from the folder.
     Read(ReadError),
+    /// The index was refreshed but its sidecar could not be written.
+    Sidecar(std::io::Error),
 }
 
 impl std::fmt::Display for CoreError {
@@ -52,6 +58,7 @@ impl std::fmt::Display for CoreError {
             ),
             Self::Confined(e) => write!(f, "{e}"),
             Self::Read(e) => write!(f, "read: {e}"),
+            Self::Sidecar(e) => write!(f, "index sidecar: {e}"),
         }
     }
 }
@@ -358,6 +365,16 @@ impl Workspace {
         self.index
             .set_root(&self.folder.to_string_lossy(), now)
             .map_err(CoreError::Index)?;
+        // Beside the index, so that the directory can say which folder
+        // each index belongs to; written from the first run, since a
+        // sidecar that starts later cannot describe what already exists.
+        Sidecar {
+            folder: self.folder.clone(),
+            indexed_at: now,
+            schema: verso_index::SCHEMA_VERSION,
+        }
+        .write(self.index.path())
+        .map_err(CoreError::Sidecar)?;
         Ok(report)
     }
 

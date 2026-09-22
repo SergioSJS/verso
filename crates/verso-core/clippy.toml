@@ -1,0 +1,51 @@
+# verso-core computes the configuration directory (ADR 0011) and writes one
+# file in it: the index's sidecar, `<key>.json` beside `<key>.sqlite`
+# (src/sidecar.rs; docs/reference/index-decision.md §2.4). Never a file of
+# the open folder (ADR 0026, rule 5). Clippy does not merge this file with
+# the workspace one, so the test allowances are repeated and the std::fs
+# list is the workspace's minus the three calls the sidecar needs: a write
+# to a temporary name, a rename over the sidecar, a read of it. Everything
+# that lists, inspects or removes a path stays denied here.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+disallowed-methods = [
+  { path = "std::fs::read", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::copy", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::remove_file", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::remove_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::remove_dir_all", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::create_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::create_dir_all", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::hard_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::soft_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::read_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::read_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::symlink_metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::canonicalize", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::set_permissions", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::File::open", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::File::create", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::File::create_new", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::File::options", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::OpenOptions::open", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::os::unix::fs::symlink", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::os::unix::fs::chown", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::fs::DirBuilder::create", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  # Path methods inspect or traverse the filesystem too.
+  { path = "std::path::Path::exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::try_exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_file", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::is_symlink", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::symlink_metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::read_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::read_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  { path = "std::path::Path::canonicalize", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+]
+# Allowed here, for the sidecar only: std::fs::write, std::fs::rename,
+# std::fs::read_to_string.

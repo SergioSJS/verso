@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::Path;
 
 use tempfile::{Builder, NamedTempFile, TempDir};
-use verso_core::Workspace;
+use verso_core::{Sidecar, Workspace};
 
 #[cfg(test)]
 mod support {
@@ -302,4 +302,28 @@ fn read_note_gives_lines_positions_and_staleness_and_every_path_is_confined() {
             verso_fs::ReadError::Unavailable
         ))
     ));
+}
+
+#[test]
+fn indexing_writes_a_sidecar_naming_the_folder_beside_the_index() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _note = note(vault.path(), "Uma.md", "# Uma\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    // Opening writes nothing; the first `index` does.
+    assert!(Sidecar::read(ws.index_path()).is_err());
+    ws.index().unwrap();
+    let first = Sidecar::read(ws.index_path()).unwrap();
+    assert_eq!(first.folder, ws.folder());
+    assert!(first.indexed_at > 0);
+    assert_eq!(first.schema, verso_index::SCHEMA_VERSION);
+    assert_eq!(
+        Sidecar::path_for(ws.index_path()),
+        ws.index_path().with_extension("json")
+    );
+    // Every run rewrites it; time does not go backwards.
+    ws.index().unwrap();
+    let second = Sidecar::read(ws.index_path()).unwrap();
+    assert!(second.indexed_at >= first.indexed_at);
+    assert_eq!(second.folder, first.folder);
 }
