@@ -1,0 +1,53 @@
+/* Verso — the walking skeleton's window. System font, both colour
+   schemes, visible focus: accessibility is a Phase 2 requirement (ADR
+   0035), not a later coat of paint. */
+:root {
+  --bg: #fbfaf7; --fg: #1f1d1a; --muted: #6b665e; --line: #e3dfd6;
+  --side: #f2efe8; --accent: #7a4a1e; --accent-fg: #fff; --hit: #fff1c2;
+  --warn: #8a5a00;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px; line-height: 1.45;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1a17; --fg: #ece8e0; --muted: #a39d92; --line: #35312b;
+    --side: #24211d; --accent: #d9a066; --accent-fg: #1c1a17; --hit: #4a3a12;
+    --warn: #e0b45a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); }
+body { display: flex; flex-direction: column; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.bar { display: flex; align-items: center; gap: .6rem; padding: .5rem .8rem; border-bottom: 1px solid var(--line); }
+.bar button { font: inherit; padding: .35rem .7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--side); color: var(--fg); cursor: pointer; }
+.bar button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.bar button:disabled { opacity: .5; cursor: default; }
+.folder { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30ch; }
+.search { flex: 1; }
+.search input { width: 100%; font: inherit; padding: .35rem .6rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+.status { color: var(--muted); font-size: .9em; white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.panes { flex: 1; display: grid; grid-template-columns: minmax(220px, 28%) 1fr; min-height: 0; }
+.side { background: var(--side); border-right: 1px solid var(--line); overflow: auto; padding: .5rem 0; }
+.side-title, .section-title { font-size: .8em; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: .4rem .9rem; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list button { display: block; width: 100%; text-align: left; font: inherit; padding: .3rem .9rem; border: 0; background: none; color: var(--fg); cursor: pointer; }
+.list button:hover { background: var(--line); }
+.list button[aria-current="true"] { background: var(--accent); color: var(--accent-fg); }
+.list .path { display: block; font-size: .8em; color: var(--muted); }
+.list button[aria-current="true"] .path { color: inherit; opacity: .8; }
+.list .snippet { display: block; font-size: .85em; color: var(--muted); }
+.list mark { background: var(--hit); color: inherit; }
+
+.note { overflow: auto; padding: .8rem 1.2rem 2rem; }
+.note-title { margin: .2rem 0 .1rem; font-size: 1.25em; }
+.flags { margin: 0 0 .8rem; color: var(--warn); font-size: .9em; min-height: 1.2em; }
+.lines { margin: 0; padding-left: 4ch; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; white-space: pre-wrap; word-break: break-word; }
+.lines li::marker { color: var(--muted); }
+.lines li.heading { font-weight: 600; }
+.lines .block-id { margin-left: .5ch; padding: 0 .4ch; border-radius: 4px; background: var(--hit); font-size: .85em; }
+.empty { color: var(--muted); padding: .3rem .9rem; }
