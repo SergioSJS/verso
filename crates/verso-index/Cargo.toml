@@ -1,6 +1,6 @@
 [package]
 name = "verso-index"
-description = "SQLite/FTS5 index and graph; a rebuildable cache"
+description = "SQLite/FTS5 index of the open folder: notes, links, backlinks, search"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,25 @@ publish.workspace = true
 # Opens the index file only; never the open folder (ADR 0026, rule 5,
 # delimited scope). The index is a cache: deleting it loses no data (ADR 0011).
 [dependencies]
+# SQLite with FTS5 (ADR 0023). `bundled` compiles SQLite's own amalgamation
+# at build time, so every machine and CI use one SQLite version with FTS5
+# built in; the system library would differ per platform and Linux CI has
+# none. SQLite is public domain; rusqlite and libsqlite3-sys are MIT.
+rusqlite = { version = "0.40", default-features = false, features = ["bundled", "cache"] }
+# The reports the index stores come from the parser (ADR 0028: dialect has
+# no IO; the index has no parser).
+verso-dialect = { path = "../verso-dialect" }
+# Link targets and note names are compared after NFC normalization
+# (provisional, spec Q7: a folder that went through HFS+ or sync mixes NFC
+# and NFD; APFS itself looks names up normalization-insensitively).
+unicode-normalization = "0.1"
+# The index file is a cache and may hold everything the notes say: it is
+# excluded from Time Machine through the backup-exclusion extended
+# attribute (ADR 0046, provisional).
+xattr = "1.6"
+
+[dev-dependencies]
+tempfile = "3.27"
 
 [lints]
 workspace = true
