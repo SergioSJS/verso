@@ -47,7 +47,8 @@ pub struct Document {
     pub links: Vec<Link>,
     /// Embeds `![[…]]` (spec §5.6).
     pub embeds: Vec<Embed>,
-    /// Block ID definitions `^id` at the end of a paragraph (spec §5.7).
+    /// Block ID definitions `^id` at the end of a paragraph or of a list
+    /// item's own text (spec §5.7).
     pub blocks: Vec<BlockId>,
     /// Callouts: blockquotes whose first line starts with `[!kind]` (spec §5.8).
     pub callouts: Vec<Callout>,
@@ -102,7 +103,7 @@ pub struct Heading {
     pub pos: Pos,
 }
 
-/// A block ID definition `^id` at the end of a paragraph.
+/// A block ID definition `^id` at the end of a paragraph or of a list item.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockId {
     /// The id, without the `^`.
