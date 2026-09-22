@@ -640,56 +640,42 @@ Raised while writing this spec. All of them need an answer before
   question — which extensions make a file a note — is the `verso-fs` fact
   recorded under Q12. The maintainer decides; this line only records what the
   code does in the meantime.
-- **Q12. Rule for resolving a link to a file.** `[OPEN]`
-  How `[[nota]]` becomes a file: relative path, unique shortest path, implicit
-  `.md` extension, behavior with an ambiguous name, and how `aliases` takes
-  part. With a multi-root workspace
-  ([ADR 0041](../adr/0041-multi-root-workspace.md), `PROPOSED`), resolution
-  also crosses roots.
+- **Q12. Rule for resolving a link to a file.** **CLOSED on 2026-09-22 by the
+  maintainer**, following Obsidian 1.13.7 as observed
+  (`docs/reference/index-decision.md` §4.1 and §4.6,
+  [ADR 0009](../adr/0009-external-constraints.md)). The rule:
 
-  **Provisional fact from `verso-fs`, recorded on 2026-09-22, not an answer to
-  this question.** The walk classifies a regular file as a note when its
-  extension is exactly `md`; `.MD`, `.Md` and `.markdown` are plain files until
-  this question and Q8 are decided. The case half belongs with Q8 rather than
-  here: on case-insensitive APFS `NOTA.MD` and `nota.md` are the same file, so
-  "accept any case" and "one note per path" interact. The maintainer decides;
-  this line only records what the code does in the meantime.
+  1. `#…`, `^…` and `|alias` are removed from the target first. An **empty
+     target** (`[[#Heading]]`) is the note itself, and the note is then a
+     source of its own backlinks.
+  2. The rest is tried **as a path**, extension optional, case-insensitive,
+     compared after NFC: relative to the **source note's own folder**,
+     honouring `..`, and from the **root of the open folder**.
+  3. If no path matches, the **bare name** is matched case-insensitively:
+     first a candidate **in the source note's own folder**; otherwise the one
+     with the **fewest path segments**; among equals, the **first in byte
+     order** (`B/dup.md` before `a/dup.md`).
+  4. Nothing answers: the target is **unresolved**, stored with its text as
+     written, and is never a backlink (Q14).
+  5. A frontmatter **alias does not resolve** a link; an **embed** resolves by
+     the same rule and counts as a link (Q2); `[[nota/]]` and `[[.md]]` do not
+     resolve.
 
-  **Second provisional fact, from `verso-index`, recorded on 2026-09-22, and
-  not an answer to this question either.** A link resolves like this: the
-  target text as written, minus a `.md` extension when it is there, folded —
-  NFC and lower-case — is compared first against each note's path from the
-  root without the extension and, when nothing matches, against each note's
-  bare name without the extension; when several notes answer to the same bare
-  name, the first in byte order of the relative path wins; a frontmatter alias
-  does not resolve a link. Resolution happens at query time, so adding a note
-  resolves the links that were waiting for it. Observed in Obsidian 1.13.7
-  through its CLI on 2026-09-22 (ADR 0009), in a sandbox folder with
-  `a/dup.md`, `b/dup.md`, `Alvo.md` (frontmatter `aliases: [apelido]`) and one
-  note linking to all of them: `getFirstLinkpathDest` answered `a/dup.md` for
-  `dup`, `Alvo.md` for `alvo`, for `ALVO` and for `Alvo.md`, `a/dup.md` for
-  `a/dup`, and `null` for `apelido`; the whole run is in
-  `docs/reference/index-decision.md` §4.1. The alias line **contradicts
-  Obsidian's public documentation**, which describes aliases as a way of
-  linking to a note; the contradiction is recorded and not resolved, and the
-  code follows the observation because that is the reversible direction — a
-  later "aliases resolve" turns unresolved links into resolved ones, and the
-  opposite would take away backlinks. The maintainer decides; this line only
-  records what the code does in the meantime.
+  Resolution happens at query time, so adding a note resolves the links that
+  were waiting for it. With a multi-root workspace
+  ([ADR 0041](../adr/0041-multi-root-workspace.md), `PROPOSED`), whether
+  resolution crosses roots stays open. The alias line still **contradicts
+  Obsidian's public documentation**, which presents aliases as a way of linking
+  to a note; the contradiction is recorded, not resolved, and the decision
+  follows what was observed.
 
-  **Third provisional fact, from `verso-index`, recorded on 2026-09-22, and not
-  an answer to this question either.** Two ties that the fact above leaves
-  unstated. (1) Two *paths* that differ only in case — `x/nota.md` and
-  `x/Nota.md`, which can coexist on Linux and cannot on APFS with its default
-  settings — resolve the way two notes sharing a bare name do: the first in
-  byte order of the relative path wins, so `[[x/nota]]` reaches `x/Nota.md`,
-  `N` coming before `n`. (2) The spelling shown for a target no note answers to
-  (the Q14 fact below) is the smallest of its spellings in byte order, not the
-  first one seen: five links written `alvo`, `ALVO`, `Alvo.md` and `Alvo` are
-  one entry with a count of 5, displayed as `ALVO`. Neither was observed in
-  Obsidian; both exist so that the answer does not depend on the order the rows
-  happen to come back in. The maintainer decides; this line only records what
-  the code does in the meantime.
+  The `verso-index` code of 2026-09-22 does **not** implement points 2, 3 and 5
+  in full — the five differences are listed in
+  `docs/reference/index-decision.md` §4.6 and are what the feature 3 code owes.
+
+  **Fact from `verso-fs`, unchanged by this closure.** The walk classifies a
+  regular file as a note when its extension is exactly `md`; `.MD`, `.Md` and
+  `.markdown` are plain files until Q8 is decided.
 - **Q13. Inline tags (`#tag` in the body).** `[OPEN]`
   The briefing only mentions `tags` in the frontmatter. Whether `#tag` in the
   body counts as a tag, and how it coexists with the `#` of a heading and with
@@ -854,3 +840,4 @@ the parser was chosen.
 | v0.9 | 2026-09-22 | Provisional fact recorded under Q12, from the `verso-fs` code: a note is a regular file whose extension is exactly `md`; `.MD`, `.Md` and `.markdown` are plain files until Q12 and Q8 are decided. No question closed |
 | v0.10 | 2026-09-22 | Provisional facts recorded under Q2, Q8, Q12, Q14 and Q7, from the `verso-index` code and from the observation of Obsidian 1.13.7 on the same day (`docs/reference/index-decision.md`): how a link resolves, case, embeds, unresolved targets and NFC. No question closed |
 | v0.11 | 2026-09-22 | Provisional facts recorded under Q12 and Q14, from the `verso-index` code as it stands after the Opus 5 reading: an empty target (`[[#Heading]]`) resolves to the note itself, a case collision of two paths resolves like one of bare names, and an unresolved target is shown under the smallest of its spellings in byte order. Nothing observed in Obsidian for these three; no question closed |
+| v0.12 | 2026-09-22 | **Q12 closed by the maintainer**, following Obsidian 1.13.7 as observed a second time on the same day (`docs/reference/index-decision.md` §4.1, §4.6): empty target is the note itself and a backlink of it; a path is resolved relative to the source note's folder as well as from the root; a bare name prefers the source's own folder, then the fewest segments, then byte order; aliases do not resolve; `[[nota/]]` and `[[.md]]` do not resolve. The parts of Q2, Q8 and Q14 that the rule needs are answered with it; the rest of those three stays open. Fourth question closed |

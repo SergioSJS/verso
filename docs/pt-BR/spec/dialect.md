@@ -637,57 +637,42 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   A outra metade desta questão — quais extensões fazem de um arquivo uma nota —
   é o fato do `verso-fs` registrado sob a Q12. Quem decide é o mantenedor; esta
   linha só registra o que o código faz enquanto isso.
-- **Q12. Regra de resolução de link para arquivo.** `[ABERTO]`
-  Como `[[nota]]` vira um arquivo: caminho relativo, caminho mais curto único,
-  extensão `.md` implícita, comportamento com nome ambíguo, e como `aliases`
-  participa. Com workspace multi-raiz
-  ([ADR 0041](../adr/0041-multi-root-workspace.md), `PROPOSTO`), a resolução
-  também atravessa raízes.
+- **Q12. Regra de resolução de link para arquivo.** **FECHADA em 2026-09-22
+  pelo mantenedor**, seguindo o Obsidian 1.13.7 como observado
+  (`docs/reference/index-decision.md` §4.1 e §4.6,
+  [ADR 0009](../adr/0009-external-constraints.md)). A regra:
 
-  **Fato provisório vindo do `verso-fs`, registrado em 2026-09-22, que não
-  responde a esta questão.** A varredura classifica um arquivo comum como nota
-  quando a extensão dele é exatamente `md`; `.MD`, `.Md` e `.markdown` são
-  arquivos comuns até esta questão e a Q8 serem decididas. A metade de
-  maiúsculas e minúsculas pertence à Q8, não aqui: no APFS insensível a caixa,
-  `NOTA.MD` e `nota.md` são o mesmo arquivo, então "aceitar qualquer caixa" e
-  "uma nota por caminho" interagem. Quem decide é o mantenedor; esta linha só
-  registra o que o código faz enquanto isso.
+  1. `#…`, `^…` e `|apelido` saem do alvo primeiro. **Alvo vazio**
+     (`[[#Cabeçalho]]`) é a própria nota, e ela passa a ser fonte dos próprios
+     backlinks.
+  2. O resto é tentado **como caminho**, extensão opcional, sem diferenciar
+     maiúsculas, comparado depois de NFC: relativo à **pasta da própria nota de
+     origem**, respeitando `..`, e a partir da **raiz da pasta aberta**.
+  3. Se nenhum caminho casa, casa-se o **nome puro** sem diferenciar
+     maiúsculas: primeiro um candidato **na pasta da própria nota de origem**;
+     senão o de **menos segmentos de caminho**; entre iguais, o **primeiro em
+     ordem de bytes** (`B/dup.md` antes de `a/dup.md`).
+  4. Nada responde: o alvo fica **não resolvido**, guardado com o texto como
+     escrito, e nunca é backlink (Q14).
+  5. **Alias** de frontmatter **não resolve** link; **embed** resolve pela
+     mesma regra e conta como link (Q2); `[[nota/]]` e `[[.md]]` não resolvem.
 
-  **Segundo fato provisório, vindo do `verso-index`, registrado em 2026-09-22,
-  que também não responde a esta questão.** Um link resolve assim: o texto do
-  alvo como escrito, menos a extensão `.md` quando ela está lá, dobrado — NFC e
-  minúsculas — é comparado primeiro com o caminho de cada nota a partir da raiz
-  sem a extensão e, quando nada casa, com o nome simples de cada nota sem a
-  extensão; quando várias notas atendem pelo mesmo nome simples, vence a
-  primeira na ordem de bytes do caminho relativo; um alias de frontmatter não
-  resolve um link. A resolução acontece no momento da consulta, então criar uma
-  nota resolve os links que esperavam por ela. Observado no Obsidian 1.13.7
-  pelo CLI dele em 2026-09-22 (ADR 0009), numa pasta descartável com
-  `a/dup.md`, `b/dup.md`, `Alvo.md` (frontmatter `aliases: [apelido]`) e uma
-  nota linkando para todos eles: o `getFirstLinkpathDest` respondeu `a/dup.md`
-  para `dup`, `Alvo.md` para `alvo`, para `ALVO` e para `Alvo.md`, `a/dup.md`
-  para `a/dup`, e `null` para `apelido`; a execução inteira está em
-  `docs/reference/index-decision.md` §4.1. A linha do alias **contradiz a
-  documentação pública do Obsidian**, que descreve aliases como forma de linkar
-  para uma nota; a contradição fica registrada e não resolvida, e o código
-  segue a observação por ser a direção reversível — um "aliases resolvem"
-  posterior transforma links não resolvidos em resolvidos, e o contrário
-  tiraria backlinks. Quem decide é o mantenedor; esta linha só registra o que o
-  código faz enquanto isso.
+  A resolução acontece em tempo de consulta, então acrescentar uma nota resolve
+  os links que a esperavam. Com workspace multi-raiz
+  ([ADR 0041](../adr/0041-multi-root-workspace.md), `PROPOSTO`), se a resolução
+  cruza raízes continua em aberto. A linha do alias continua **contradizendo a
+  documentação pública do Obsidian**, que apresenta aliases como forma de ligar
+  para uma nota; a contradição fica registrada, não resolvida, e a decisão
+  segue o que foi observado.
 
-  **Terceiro fato provisório, vindo do `verso-index`, registrado em 2026-09-22,
-  que também não responde a esta questão.** Dois empates que o fato acima
-  deixa sem dizer. (1) Dois *caminhos* que só diferem na caixa — `x/nota.md` e
-  `x/Nota.md`, que podem coexistir no Linux e não coexistem no APFS com a
-  configuração padrão — resolvem como duas notas de mesmo nome simples: vence a
-  primeira na ordem de bytes do caminho relativo, então `[[x/nota]]` chega em
-  `x/Nota.md`, porque `N` vem antes de `n`. (2) A grafia mostrada para um alvo
-  a que nenhuma nota atende (o fato da Q14 abaixo) é a menor das grafias dele na
-  ordem de bytes, e não a primeira vista: cinco links escritos `alvo`, `ALVO`,
-  `Alvo.md` e `Alvo` são uma entrada só, com contagem 5, exibida como `ALVO`.
-  Nenhum dos dois foi observado no Obsidian; os dois existem para a resposta não
-  depender da ordem em que as linhas voltam do banco. Quem decide é o
-  mantenedor; esta linha só registra o que o código faz enquanto isso.
+  O código do `verso-index` de 2026-09-22 **não** implementa os pontos 2, 3 e 5
+  por inteiro — as cinco diferenças estão em
+  `docs/reference/index-decision.md` §4.6 e são o que o código da feature 3
+  deve.
+
+  **Fato do `verso-fs`, inalterado por este fechamento.** O walk classifica um
+  arquivo comum como nota quando a extensão é exatamente `md`; `.MD`, `.Md` e
+  `.markdown` são arquivos comuns até a Q8 ser decidida.
 - **Q13. Tags inline (`#tag` no corpo).** `[ABERTO]`
   O briefing só cita `tags` no frontmatter. Se `#tag` no corpo conta como tag,
   e como conviver com `#` de heading e com `#` de URL.
@@ -853,3 +838,4 @@ ser escolhido.
 | v0.9 | 2026-09-22 | Fato provisório registrado sob a Q12, vindo do código do `verso-fs`: nota é arquivo comum cuja extensão é exatamente `md`; `.MD`, `.Md` e `.markdown` são arquivos comuns até Q12 e Q8 serem decididas. Nenhuma questão fechada |
 | v0.10 | 2026-09-22 | Fatos provisórios registrados sob Q2, Q8, Q12, Q14 e Q7, vindos do código do `verso-index` e da observação do Obsidian 1.13.7 no mesmo dia (`docs/reference/index-decision.md`): como um link resolve, caixa, embeds, alvos não resolvidos e NFC. Nenhuma questão fechada |
 | v0.11 | 2026-09-22 | Fatos provisórios registrados sob Q12 e Q14, vindos do código do `verso-index` como ele ficou depois da leitura do Opus 5: alvo vazio (`[[#Heading]]`) resolve para a própria nota, colisão de caixa entre dois caminhos resolve como colisão de nomes simples, e alvo não resolvido é mostrado pela menor das grafias dele na ordem de bytes. Nada observado no Obsidian para esses três; nenhuma questão fechada |
+| v0.12 | 2026-09-22 | **Q12 fechada pelo mantenedor**, seguindo o Obsidian 1.13.7 observado uma segunda vez no mesmo dia (`docs/reference/index-decision.md` §4.1, §4.6): alvo vazio é a própria nota e backlink dela; caminho é resolvido relativo à pasta da nota de origem além de a partir da raiz; nome puro prefere a pasta da própria origem, depois menos segmentos, depois ordem de bytes; alias não resolve; `[[nota/]]` e `[[.md]]` não resolvem. As partes de Q2, Q8 e Q14 de que a regra precisa são respondidas junto; o resto dessas três continua aberto. Quarta questão fechada |

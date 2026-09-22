@@ -28,23 +28,51 @@ does not handle accents (`Café` ≠ `cafe`).
 
 ## Decision
 
-None. Questions recorded, with the moment to decide them.
+Taken by the maintainer on 2026-09-22, on the five lines of
+`docs/reference/index-decision.md` §9.
 
 ### Location and lifecycle — decide before feature 3 of Phase 1
 
-- Where the index lives when the folder is sensitive: always in the config
-  directory, next to the folder (contradicts "no mandatory directory inside
-  it"), or configurable per folder.
-- Cleanup: when the folder disappears or is moved, what happens to the orphaned
-  index.
-- Permissions on the index file (minimum: only the user can read it).
-- Whether or not the index goes into system backup (Time Machine, iCloud).
+**Decided 2026-09-22.** One SQLite file per open folder, under the user's
+configuration directory — never inside the folder — named
+`<folder-name>-<hash>.sqlite`, with a `<same>.json` sidecar recording the
+folder's absolute path and the time of the last indexing, so that an orphaned
+index can be listed and forgotten. Directory `0700`, file `0600` on Unix.
+Excluded from system backup on macOS by the extended attribute
+`com.apple.metadata:com_apple_backup_excludeItem`, best effort. Cleanup only
+on demand: an index whose folder disappeared is not deleted on its own, since
+the folder may be on a volume that is merely unmounted. "No persistent index"
+is recorded as a later option, not taken.
+
+Observed, for scale: Obsidian 1.13.7 keeps its own cache outside the vault too
+— one Chromium IndexedDB store shared by every vault, under
+`~/Library/Application Support/obsidian/`, 470 MB on the maintainer's machine
+on 2026-09-22 — and marks it with no backup-exclusion attribute. One file per
+folder and the exclusion are where this decision goes further than the app
+(observed from outside only; [0009](0009-external-constraints.md)).
 
 ### Tokenizer — decide before feature 5 of Phase 1 (baseline)
 
-- FTS5 tokenizer with diacritic removal and case handling suitable for pt-BR and
-  EN, decided **before** taking the first benchmark baseline; changing it later
-  is just a reindex (the index is a cache), but it invalidates the baseline.
+**Decided 2026-09-22.** `unicode61` with `remove_diacritics 2`, default case
+folding, no stemming, defaults for `tokenchars` and `separators`. The feature 5
+baseline is taken with it.
+
+Why, from SQLite's own documentation: FTS5 ships four tokenizers; `porter` is
+"designed for use with English language terms only" and **no stemmer for
+Portuguese ships with SQLite**; `trigram` is for substring matching and ignores
+terms shorter than three characters; `remove_diacritics 1` misses codepoints
+carrying more than one diacritic, and `2` removes all Latin diacritics
+correctly. So `unicode61 remove_diacritics 2` is the only built-in setting that
+treats `café`, `cafe` and `CAFÉ` as one word in both product languages without
+distorting either.
+
+**The consequence, accepted knowingly: there is no stemming in either
+language.** `castelo` does not find `castelos`, and `walk` does not find
+`walking`. The cheap remedy, if it turns out to matter, is prefix matching
+(`castelo*`), which today is impossible because the feature 3 guardrail quotes
+every user word to neutralise the FTS5 grammar ([0029](0029-guardrails-in-ci.md));
+adding an explicit "prefix" option would put the `*` outside the quotes. Not
+decided here.
 
 ## Consequences
 
@@ -142,6 +170,8 @@ None recorded.
 
 ## Status
 
-`[OPEN]`. Location: before feature 3 of Phase 1. Tokenizer: before feature 5 of
-Phase 1. The feature 3 code runs on the provisional choices recorded under
-Consequences; recording them closes nothing.
+Accepted on 2026-09-22. Location, lifecycle, permissions, backup, cleanup and
+tokenizer are decided above. The `verso-index` code implements them except for
+the sidecar, which is feature 4's to write; what the code does today is
+recorded under Consequences, and the two items that differ from this Decision
+are the sidecar and nothing else.

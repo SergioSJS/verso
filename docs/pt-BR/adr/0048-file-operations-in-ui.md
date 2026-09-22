@@ -40,6 +40,17 @@ Nenhuma. Questões registradas, a decidir antes do item 2.3 da Fase 2.
 - O critério de saída 2 da Fase 2 ("nenhuma perda de dado no período") é o
   teste dessas decisões.
 
+**Requisito registrado em 2026-09-22, do mantenedor, quando a Q12 foi
+fechada.** Quando o próprio app mover ou renomear uma nota, ele deve
+**atualizar os links que apontam para ela**, como o Obsidian faz. O requisito
+não é enfeite: a regra da Q12 resolve nome puro preferindo um candidato na
+pasta da própria nota de origem, e resolve caminho relativo a essa pasta, então
+mover uma nota pode mudar qual nota um link alcança e pode fazer um link
+escrito como caminho deixar de resolver. Tudo o que esta ADR deixa em aberto —
+o que acontece com modificação externa, o que é atômico, o que é mostrado como
+diff — vale para essa reescrita, que é escrita em notas que o usuário não
+editou. Fase 2: a Fase 1 não tem UI e não move arquivo.
+
 ## Alternativas descartadas
 
 Nenhuma registrada.

@@ -49,6 +49,17 @@
   terminado em caractere de mais de um byte (`[[Bar 🍻]]`) derrubava a ingestão
   inteira — e nove IMPORTANTES. Todos estão aplicados ou registrados, o
   BLOQUEANTE com teste de regressão próprio.
+- **Decisão: tomada pelo mantenedor em 2026-09-22**, em sessão, registrada
+  aqui e no PR de fechamento. As cinco respostas: (1) localização e ciclo de
+  vida como recomendado na seção 2.6, com o sidecar `<chave>.json` incluído;
+  (2) tokenizer como recomendado na seção 3.4, com a consequência "sem
+  stemming" registrada na
+  [ADR 0046](../adr/0046-index-location-lifecycle-tokenizer.md); (3) a regra de
+  resolução **mudou** — uma segunda observação do Obsidian no mesmo dia (seção
+  4.1) mostrou onde a recomendação da Fable 5.1 e o app divergem, e o
+  mantenedor decidiu seguir o app: a regra está na seção 4.6, e não é a que o
+  código implementa hoje; (4) o que o índice guarda, como recomendado na seção
+  5.3; (5) a dependência como recomendado na seção 6.4.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2 a 6 são da **Fable 5.1**,
   registradas aqui como insumo do autor; não são decisões. Nenhum Rust neste
@@ -420,6 +431,31 @@ Duas contagens dessa tabela carregam respostas próprias. `Alvo.md: 5` soma
 `nao-existe` é guardado como alvo não resolvido com contagem (Q14), num mapa
 separado dos resolvidos.
 
+
+**Segunda observação, 2026-09-22, pela Opus 5.** Mesmo método
+([ADR 0009](../adr/0009-external-constraints.md), Obsidian 1.13.7, API pública,
+pasta descartável apagada depois), montada para separar as hipóteses que a
+primeira rodada não separava: `verso-obs/nota.md`, `verso-obs/sub/nota.md`,
+`verso-obs/B/dup.md`, `verso-obs/a/dup.md`, `verso-obs/aa/bb/prof.md`,
+`verso-obs/zz/prof.md`, e notas de origem em três profundidades.
+
+| Sonda | Resultado | O que separa |
+|---|---|---|
+| `[[nota]]` de `verso-obs/src.md` | `verso-obs/nota.md` | — |
+| `[[nota]]` de `verso-obs/sub/src2.md` | `verso-obs/sub/nota.md` | um candidato na pasta da própria origem ganha |
+| `[[nota]]` de `verso-obs/sub/deep/src5.md` | `verso-obs/nota.md` | é a **mesma** pasta, não o ancestral mais próximo |
+| as mesmas três, com `nota.md` acrescentado na raiz do vault | `nota.md` nas três | caminho a partir da raiz é tentado antes de qualquer nome |
+| `[[prof]]` de `verso-obs/src4.md` | `verso-obs/zz/prof.md` | menos segmentos ganha da ordem de bytes (`zz` sobre `aa/bb`) |
+| `[[dup]]`, candidatos na mesma profundidade | `verso-obs/B/dup.md` | a ordem de bytes decide entre iguais: `B` antes de `a` |
+| `[[sub/nota]]` de `verso-obs/src.md` | `verso-obs/sub/nota.md` | caminho também é resolvido relativo à origem |
+| `[[../nota]]` de `verso-obs/sub/src2.md` | `verso-obs/nota.md` | `..` é respeitado |
+| `[[#Cabecalho]]` | a própria nota de origem, e ela aparece nos próprios backlinks | alvo vazio resolve, e é backlink |
+| `[[.md]]`, `[[nota/]]` | não resolvem | nenhum dos dois é nome |
+| `[[NOTA.MD]]` | `verso-obs/nota.md` | a extensão também casa sem diferenciar maiúsculas |
+
+Duas dessas contradizem o que a seção 4.5 recomenda, e uma contradiz o que o
+código faz. São elas que a seção 4.6 decide.
+
 ### 4.2 O que a observação resolve, e uma contradição que ela levanta
 
 Resolve, como descrição do Obsidian: extensão opcional e `.md` aceita,
@@ -550,6 +586,58 @@ em notas reais.
 
 **Alternativas descartadas consideradas:** as opções (a) e (c) da seção 4.3;
 nada além.
+
+### 4.6 A regra que o mantenedor decidiu em 2026-09-22
+
+Decidida em sessão, com o comportamento do app como medida: *seguir o
+Obsidian*. A seção 4.5 fica como foi escrita, como a recomendação que
+antecedeu a segunda observação.
+
+**A regra que o Verso implementa**, como observado no Obsidian 1.13.7 (seção
+4.1):
+
+1. Tirar `#…`, `^…` e `|apelido` do alvo primeiro. **Alvo vazio**
+   (`[[#Cabeçalho]]`) é a própria nota, e ela passa a ser fonte dos próprios
+   backlinks.
+2. Tentar o resto **como caminho**, extensão opcional e sem diferenciar
+   maiúsculas, comparado depois de NFC: relativo à **pasta da própria nota de
+   origem**, respeitando `..`, e a partir da **raiz da pasta aberta**.
+3. Nenhum caminho casa: casar pelo **nome puro**, sem diferenciar maiúsculas —
+   primeiro um candidato **na pasta da própria nota de origem**; senão o
+   candidato com **menos segmentos de caminho**; entre iguais, o **primeiro em
+   ordem de bytes** (`B/dup.md` antes de `a/dup.md`).
+4. Nada responde: **não resolvido**, guardado com o texto do alvo como
+   escrito. Link não resolvido nunca é backlink (Q14).
+5. **Alias de frontmatter não resolve link. Embed resolve pela mesma regra e
+   conta como link** (Q2). `[[nota/]]` e `[[.md]]` não resolvem.
+
+**O que precisa mudar no `verso-index`** — cinco pontos, todos em Rust, logo
+uma sessão da Fable 5.1
+([ADR 0032](../adr/0032-author-and-reviewer-roles.md)):
+
+| # | O código hoje | Decidido |
+|---|---|---|
+| a | a resolução ignora em que nota o link está | ganha um candidato na pasta da própria nota de origem |
+| b | empate pela ordem de bytes do caminho inteiro | menos segmentos primeiro; ordem de bytes só entre iguais |
+| c | caminho só casa a partir da raiz | também relativo à pasta da origem, `..` incluído |
+| d | `[[.md]]` dobra para a chave vazia e resolve para a própria nota | não resolve |
+| e | `[[#Cabeçalho]]` fica de fora dos backlinks da própria nota | é backlink |
+
+Para que a regra continue sendo uma expressão SQL só: `links` já carrega o id
+da nota de origem, então "a pasta da própria origem" é comparação de prefixo
+contra o `notes.path` da origem; "menos segmentos" é
+`length(path) - length(replace(path, '/', ''))`; ordem de bytes é a colação
+`BINARY` padrão. A resolução continua em tempo de consulta, então acrescentar
+uma nota continua resolvendo os links que a esperavam.
+
+**Uma consequência que o mantenedor pediu para registrar: mover uma nota.** Uma
+vez que a resolução depende da pasta da origem, mover uma nota pode mudar qual
+nota um link alcança, e um link escrito como caminho (`[[sub/nota]]`) pode
+deixar de resolver. A resposta do Obsidian é reescrever os links quando o
+próprio app move o arquivo, e o mantenedor quer o mesmo. Isso é da
+[ADR 0048](../adr/0048-file-operations-in-ui.md) e da Fase 2 — a Fase 1 não tem
+UI e não move arquivo — e fica registrado lá como requisito, não implementado
+aqui.
 
 ## 5. Decisão 4 — o que o índice guarda
 
