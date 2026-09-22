@@ -103,7 +103,8 @@ pub struct Heading {
     pub pos: Pos,
 }
 
-/// A block ID definition `^id` at the end of a paragraph or of a list item.
+/// A block ID definition `^id` at the end of a paragraph or of a list item's
+/// own text.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockId {
     /// The id, without the `^`.
