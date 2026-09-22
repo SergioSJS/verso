@@ -26,23 +26,50 @@ e o tokenizador padrão do FTS5 não trata acentos (`Café` ≠ `cafe`).
 
 ## Decisão
 
-Nenhuma. Questões registradas, com o momento de decidir.
+Tomada pelo mantenedor em 2026-09-22, nas cinco linhas do
+`docs/reference/index-decision.md` §9.
 
 ### Localização e ciclo de vida — decidir antes da feature 3 da Fase 1
 
-- Onde o índice mora quando a pasta é sensível: sempre no diretório de config,
-  ao lado da pasta (contradiz "nenhum diretório obrigatório dentro dela"), ou
-  configurável por pasta.
-- Limpeza: quando a pasta some ou é movida, o que acontece com o índice órfão.
-- Permissões do arquivo do índice (mínimo: só o usuário lê).
-- Se o índice entra ou não em backup do sistema (Time Machine, iCloud).
+**Decidido em 2026-09-22.** Um arquivo SQLite por pasta aberta, no diretório de
+configuração do usuário — nunca dentro da pasta —, chamado
+`<nome-da-pasta>-<hash>.sqlite`, com um sidecar `<mesmo>.json` registrando o
+caminho absoluto da pasta e a hora da última indexação, para que um índice
+órfão possa ser listado e esquecido. Diretório `0700`, arquivo `0600` no Unix.
+Excluído do backup do sistema no macOS pelo atributo estendido
+`com.apple.metadata:com_apple_backup_excludeItem`, em melhor esforço. Limpeza
+só sob demanda: um índice cuja pasta sumiu não é apagado sozinho, já que a
+pasta pode estar num volume apenas desmontado. "Sem índice persistente" fica
+registrado como opção posterior, não tomada.
+
+Observado, para dar escala: o Obsidian 1.13.7 também mantém o cache dele fora
+do vault — um store IndexedDB do Chromium compartilhado por todos os vaults, em
+`~/Library/Application Support/obsidian/`, 470 MB na máquina do mantenedor em
+2026-09-22 — e não marca nenhum atributo de exclusão de backup. Um arquivo por
+pasta e a exclusão são onde esta decisão vai além do app (observado só de fora;
+[0009](0009-external-constraints.md)).
 
 ### Tokenizador — decidir antes da feature 5 da Fase 1 (linha de base)
 
-- Tokenizador do FTS5 com remoção de diacríticos e tratamento de maiúsculas
-  adequado a pt-BR e EN, decidido **antes** de tirar a primeira linha de base do
-  benchmark; trocar depois é só reindexar (o índice é cache), mas invalida a
-  linha de base.
+**Decidido em 2026-09-22.** `unicode61` com `remove_diacritics 2`, dobra de
+maiúsculas padrão, sem stemming, padrões para `tokenchars` e `separators`. A
+linha de base da feature 5 é tirada com ele.
+
+Por quê, pela documentação do próprio SQLite: o FTS5 traz quatro tokenizadores;
+o `porter` é "feito para termos em inglês apenas" e **nenhum stemmer de
+português vem com o SQLite**; o `trigram` serve para casar substring e ignora
+termos com menos de três caracteres; `remove_diacritics 1` erra em codepoints
+que carregam mais de um diacrítico, e `2` remove todos os diacríticos latinos
+corretamente. Então `unicode61 remove_diacritics 2` é a única configuração
+embutida que trata `café`, `cafe` e `CAFÉ` como uma palavra só nos dois idiomas
+do produto sem distorcer nenhum deles.
+
+**A consequência, aceita de olhos abertos: não há stemming em nenhum dos dois
+idiomas.** `castelo` não acha `castelos`, e `walk` não acha `walking`. O
+remédio barato, se isso pesar, é casar por prefixo (`castelo*`), hoje
+impossível porque o guardrail da feature 3 cita toda palavra do usuário para
+neutralizar a gramática do FTS5 ([0029](0029-guardrails-in-ci.md)); uma opção
+explícita de "prefixo" poria o `*` fora das aspas. Não decidido aqui.
 
 ## Consequências
 
@@ -139,6 +166,7 @@ Nenhuma registrada.
 
 ## Status
 
-`[ABERTO]`. Localização: antes da feature 3 da Fase 1. Tokenizador: antes da
-feature 5 da Fase 1. O código da feature 3 roda sobre as escolhas provisórias
-registradas nas Consequências; registrá-las não fecha nada.
+Aceita em 2026-09-22. Localização, ciclo de vida, permissões, backup, limpeza e
+tokenizador estão decididos acima. O código do `verso-index` os implementa
+menos o sidecar, que é da feature 4; o que o código faz hoje está registrado em
+Consequências, e o único item que difere desta Decisão é o sidecar.

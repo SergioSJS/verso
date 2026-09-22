@@ -49,6 +49,17 @@
   ending in a multi-byte character (`[[Bar 🍻]]`) panicked the whole ingestion —
   and nine IMPORTANT. All of them are applied or recorded, the BLOCKING with a
   regression test of its own.
+- **Decision: taken by the maintainer on 2026-09-22**, in session, recorded
+  here and in the closing PR. The five answers: (1) location and lifecycle as
+  recommended in section 2.6, the `<key>.json` sidecar included; (2) tokenizer
+  as recommended in section 3.4, with the "no stemming" consequence recorded
+  in [ADR 0046](../adr/0046-index-location-lifecycle-tokenizer.md); (3) the
+  resolution rule **changed** — a second observation of Obsidian on the same
+  day (section 4.1) showed where Fable 5.1's recommendation and the app
+  disagree, and the maintainer decided to follow the app: the rule is in
+  section 4.6, and it is not the one the code implements today; (4) what the
+  index stores, as recommended in section 5.3; (5) the dependency as
+  recommended in section 6.4.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2 to 6 are **Fable
   5.1's**, recorded here as the author's input; they are not decisions. No Rust
@@ -418,6 +429,31 @@ Two counts in that table carry answers of their own. `Alvo.md: 5` accounts for
 `nao-existe` is kept as an unresolved target with a count (Q14), in a map
 separate from the resolved ones.
 
+
+**Second observation, 2026-09-22, by Opus 5.** Same method
+([ADR 0009](../adr/0009-external-constraints.md), Obsidian 1.13.7, public API,
+throwaway folder deleted afterwards), set up to separate the hypotheses the
+first run could not: `verso-obs/nota.md`, `verso-obs/sub/nota.md`,
+`verso-obs/B/dup.md`, `verso-obs/a/dup.md`, `verso-obs/aa/bb/prof.md`,
+`verso-obs/zz/prof.md`, and source notes at three depths.
+
+| Probe | Result | What it separates |
+|---|---|---|
+| `[[nota]]` from `verso-obs/src.md` | `verso-obs/nota.md` | — |
+| `[[nota]]` from `verso-obs/sub/src2.md` | `verso-obs/sub/nota.md` | a candidate in the source's own folder wins |
+| `[[nota]]` from `verso-obs/sub/deep/src5.md` | `verso-obs/nota.md` | it is the **same** folder, not the nearest ancestor |
+| the same three, with `nota.md` added at the vault root | `nota.md` for all three | a path from the root is tried before any bare name |
+| `[[prof]]` from `verso-obs/src4.md` | `verso-obs/zz/prof.md` | fewest segments beats byte order (`zz` over `aa/bb`) |
+| `[[dup]]`, candidates at the same depth | `verso-obs/B/dup.md` | byte order decides among equals: `B` before `a` |
+| `[[sub/nota]]` from `verso-obs/src.md` | `verso-obs/sub/nota.md` | a path is also resolved relative to the source |
+| `[[../nota]]` from `verso-obs/sub/src2.md` | `verso-obs/nota.md` | `..` is honoured |
+| `[[#Cabecalho]]` | the source note itself, and the note appears in its own backlinks | an empty target resolves, and it is a backlink |
+| `[[.md]]`, `[[nota/]]` | unresolved | neither is a name |
+| `[[NOTA.MD]]` | `verso-obs/nota.md` | the extension is matched case-insensitively too |
+
+Two of these contradict what section 4.5 recommends, and one contradicts what
+the code does. They are what section 4.6 decides.
+
 ### 4.2 What the observation settles, and one contradiction it raises
 
 It settles, as a description of Obsidian: extension optional and `.md`
@@ -543,6 +579,57 @@ notes.
 
 **Discarded alternatives considered:** options (a) and (c) of section 4.3;
 nothing else.
+
+### 4.6 The rule the maintainer decided on 2026-09-22
+
+Decided in session, with the app's behaviour as the measure: *follow Obsidian*.
+Section 4.5 stays as it was written, as the recommendation that preceded the
+second observation.
+
+**The rule Verso implements**, as observed in Obsidian 1.13.7 (section 4.1):
+
+1. Strip `#…`, `^…` and `|alias` from the target first. An **empty target**
+   (`[[#Heading]]`) is the note itself, and the note is then a source of its
+   own backlinks.
+2. Try the rest **as a path**, extension optional and case-insensitive,
+   compared after NFC: relative to the **source note's own folder**, honouring
+   `..`, and from the **root of the open folder**.
+3. No path matches: match the **bare name**, case-insensitively — first a
+   candidate **in the source note's own folder**; otherwise the candidate with
+   the **fewest path segments**; among equals, the **first in byte order**
+   (`B/dup.md` before `a/dup.md`).
+4. Nothing answers: **unresolved**, stored with the target text as written. An
+   unresolved link is never a backlink (Q14).
+5. **A frontmatter alias does not resolve a link. An embed resolves by the
+   same rule and counts as a link** (Q2). `[[nota/]]` and `[[.md]]` do not
+   resolve.
+
+**What has to change in `verso-index`** — five points, all of them Rust, so a
+Fable 5.1 session ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)):
+
+| # | The code today | Decided |
+|---|---|---|
+| a | resolution ignores which note the link is in | a candidate in the source note's own folder wins |
+| b | ties by byte order of the whole path | fewest segments first; byte order only among equals |
+| c | a path is matched only from the root | also relative to the source's folder, `..` included |
+| d | `[[.md]]` folds to the empty key and resolves to the note itself | unresolved |
+| e | `[[#Heading]]` is excluded from the note's own backlinks | it is one |
+
+So that the rule stays one SQL expression: `links` already carries the source
+note's id, so "the source's own folder" is a prefix comparison against the
+source's `notes.path`; "fewest segments" is
+`length(path) - length(replace(path, '/', ''))`; byte order is the default
+`BINARY` collation. Resolution stays at query time, so adding a note still
+resolves the links that were waiting for it.
+
+**A consequence the maintainer asked to record: moving a note.** Once
+resolution depends on the source's folder, moving a note can change which note
+a link reaches, and a link written as a path (`[[sub/nota]]`) can stop
+resolving altogether. Obsidian's answer is to rewrite the links when the app
+itself moves the file, and the maintainer wants the same. That belongs to
+[ADR 0048](../adr/0048-file-operations-in-ui.md) and to Phase 2 — Phase 1 has
+no UI and moves no file — and is recorded there as a requirement, not
+implemented here.
 
 ## 5. Decision 4 — what the index stores
 

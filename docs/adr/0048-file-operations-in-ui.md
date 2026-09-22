@@ -41,6 +41,17 @@ None. Questions recorded, to be decided before item 2.3 of Phase 2.
 - Phase 2 exit criterion 2 ("no data loss in the period") is the test of these
   decisions.
 
+**Requirement recorded on 2026-09-22, from the maintainer, when Q12 was
+closed.** When the app itself moves or renames a note, it should **update the
+links that point at it**, as Obsidian does. The requirement is not decorative:
+Q12's rule resolves a bare name by preferring a candidate in the source note's
+own folder, and resolves a path relative to that folder, so moving a note can
+change which note a link reaches and can make a link written as a path stop
+resolving. Everything this ADR leaves open — what happens to an external
+modification, what is atomic, what is shown as a diff — applies to that
+rewrite, which is a write to notes the user did not edit. Phase 2: Phase 1 has
+no UI and moves no file.
+
 ## Discarded alternatives
 
 None recorded.
