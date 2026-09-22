@@ -1,0 +1,141 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! Links, backlinks and unresolved targets, resolved by the rule observed
+//! in Obsidian 1.13.7 on 2026-09-22 (provisional, spec Q12/Q8/Q2/Q14;
+//! `docs/reference/index-decision.md`).
+
+use verso_index::{Index, NoteStamp};
+
+#[cfg(test)]
+mod support {
+    use super::*;
+
+    pub fn stamp(n: i64) -> NoteStamp {
+        NoteStamp {
+            modified: n,
+            len: 1,
+            hash: 7,
+        }
+    }
+
+    pub fn put(index: &mut Index, path: &str, content: &str) {
+        let report = verso_dialect::parse(content);
+        index.upsert(path, stamp(1), content, &report).unwrap();
+    }
+
+    /// The sandbox of 2026-09-22, as observed through the Obsidian CLI.
+    pub fn sandbox() -> Index {
+        let mut index = Index::in_memory().unwrap();
+        put(&mut index, "a/dup.md", "Alvo A.\n");
+        put(&mut index, "b/dup.md", "Alvo B.\n");
+        put(
+            &mut index,
+            "Alvo.md",
+            "---\naliases: [apelido]\n---\nCom alias.\n",
+        );
+        put(
+            &mut index,
+            "src.md",
+            "Links: [[dup]] [[a/dup]] [[alvo]] [[ALVO]] [[apelido]] [[Alvo.md]] [[nao-existe]] ![[Alvo]] [[Alvo#Heading]] [[b/dup|alias b]].\n",
+        );
+        index
+    }
+}
+use support::*;
+
+#[test]
+fn resolution_matches_what_obsidian_did() {
+    let index = sandbox();
+    let links = index.links_of("src.md").unwrap();
+    let resolved: Vec<(String, Option<String>)> = links
+        .iter()
+        .map(|l| (l.target.clone(), l.resolved.clone()))
+        .collect();
+    assert_eq!(
+        resolved,
+        vec![
+            ("dup".into(), Some("a/dup.md".into())), // ambiguous: first by path
+            ("a/dup".into(), Some("a/dup.md".into())), // path from the root
+            ("alvo".into(), Some("Alvo.md".into())), // case-insensitive
+            ("ALVO".into(), Some("Alvo.md".into())),
+            ("apelido".into(), None), // an alias does not resolve
+            ("Alvo.md".into(), Some("Alvo.md".into())), // explicit extension
+            ("nao-existe".into(), None),
+            ("Alvo".into(), Some("Alvo.md".into())), // the embed
+            ("Alvo".into(), Some("Alvo.md".into())), // heading link counts for the note
+            ("b/dup".into(), Some("b/dup.md".into())),
+        ]
+    );
+    assert!(links[7].embed);
+    assert_eq!(links[8].heading.as_deref(), Some("Heading"));
+    assert_eq!(links[9].alias.as_deref(), Some("alias b"));
+}
+
+#[test]
+fn backlinks_count_embeds_and_heading_links_and_come_with_positions() {
+    let index = sandbox();
+    let back = index.backlinks("Alvo.md").unwrap();
+    assert_eq!(back.len(), 5, "{back:?}");
+    assert!(back.iter().all(|b| b.from == "src.md"));
+    assert_eq!(back.iter().filter(|b| b.embed).count(), 1);
+    assert_eq!(back[0].line, 1);
+    assert_eq!(index.backlinks("a/dup.md").unwrap().len(), 2);
+    assert_eq!(index.backlinks("b/dup.md").unwrap().len(), 1);
+    assert!(index.backlinks("nao-existe.md").unwrap().is_empty());
+}
+
+#[test]
+fn unresolved_targets_are_listed_with_counts() {
+    let index = sandbox();
+    let un = index.unresolved().unwrap();
+    let texts: Vec<(String, u64)> = un.iter().map(|u| (u.target.clone(), u.count)).collect();
+    assert_eq!(texts, vec![("apelido".into(), 1), ("nao-existe".into(), 1)]);
+}
+
+#[test]
+fn removing_a_note_makes_links_to_it_unresolved_and_reindexing_replaces() {
+    let mut index = sandbox();
+    assert!(index.remove("Alvo.md").unwrap());
+    assert!(!index.remove("Alvo.md").unwrap());
+    assert!(
+        index
+            .unresolved()
+            .unwrap()
+            .iter()
+            .any(|u| u.target == "alvo" && u.count == 5)
+    );
+    put(&mut index, "src.md", "Only [[b/dup]] now.\n");
+    assert_eq!(index.links_of("src.md").unwrap().len(), 1);
+    assert_eq!(
+        index.notes().unwrap(),
+        vec!["a/dup.md", "b/dup.md", "src.md"]
+    );
+}
+
+#[test]
+fn nfc_and_nfd_names_meet() {
+    let mut index = Index::in_memory().unwrap();
+    // The file is stored NFD (as HFS+ or some sync clients leave it); the link is typed NFC.
+    put(&mut index, "Sessa\u{303}o 3.md", "x");
+    put(&mut index, "src.md", "[[Sess\u{e3}o 3#^juramento]]");
+    let back = index.backlinks("Sessa\u{303}o 3.md").unwrap();
+    assert_eq!(back.len(), 1);
+}
+
+#[test]
+fn stamp_round_trips_and_title_comes_from_the_first_h1() {
+    let mut index = Index::in_memory().unwrap();
+    let report = verso_dialect::parse("# Taverna\n\ntexto");
+    let stamp = NoteStamp {
+        modified: 1_700_000_000,
+        len: 17,
+        hash: u64::MAX - 5,
+    };
+    index
+        .upsert("t.md", stamp, "# Taverna\n\ntexto", &report)
+        .unwrap();
+    assert_eq!(index.stamp_of("t.md").unwrap(), Some(stamp));
+    assert_eq!(index.stamp_of("nao.md").unwrap(), None);
+}
