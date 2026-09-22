@@ -93,8 +93,8 @@ impl Index {
         tx.execute("DELETE FROM notes WHERE path = ?1", params![relative])?;
         tx.execute("DELETE FROM notes_fts WHERE path = ?1", params![relative])?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, title, modified, len, hash, tags, aliases, frontmatter_ok)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO notes (path, path_key, name_key, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0)",
             params![
                 relative,
                 path_key,
@@ -183,6 +183,73 @@ impl Index {
         )?;
         tx.commit()?;
         Ok(())
+    }
+
+    /// A placeholder stands where the note is (ADR 0043): the last known
+    /// version stays, marked unverified; a note never seen before gets an
+    /// empty, unverified row, so that links to it resolve and its path is
+    /// known. Returns whether the note was already known.
+    pub fn mark_placeholder(&mut self, relative: &str) -> Result<bool, IndexError> {
+        let known = self.conn.execute(
+            "UPDATE notes SET unverified = 1 WHERE path = ?1",
+            params![relative],
+        )?;
+        if known > 0 {
+            return Ok(true);
+        }
+        let (path_key, name_key) = note_keys(relative);
+        let title = relative
+            .rsplit('/')
+            .next()
+            .unwrap_or(relative)
+            .trim_end_matches(".md")
+            .to_owned();
+        self.conn.execute(
+            "INSERT INTO notes (path, path_key, name_key, title, modified, len, hash, unverified)
+             VALUES (?1, ?2, ?3, ?4, 0, 0, 0, 1)",
+            params![relative, path_key, name_key, title],
+        )?;
+        Ok(false)
+    }
+
+    /// Whether the index holds a note only as an unverified last version
+    /// (a placeholder stood where it was), `None` if unknown.
+    pub fn is_unverified(&self, relative: &str) -> Result<Option<bool>, IndexError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT unverified FROM notes WHERE path = ?1",
+                params![relative],
+                |r| r.get::<_, i64>(0).map(|v| v != 0),
+            )
+            .optional()?)
+    }
+
+    /// Record which folder this index is for and when it was last brought
+    /// up to date (seconds since the epoch), in the file itself: no
+    /// sidecar, one file per folder.
+    pub fn set_root(&mut self, root: &str, indexed_at: i64) -> Result<(), IndexError> {
+        self.conn.execute(
+            "INSERT INTO meta (key, value) VALUES ('root', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![root],
+        )?;
+        self.conn.execute(
+            "INSERT INTO meta (key, value) VALUES ('indexed_at', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![indexed_at.to_string()],
+        )?;
+        Ok(())
+    }
+
+    /// The folder this index is for, if recorded.
+    pub fn root(&self) -> Result<Option<String>, IndexError> {
+        Ok(self
+            .conn
+            .query_row("SELECT value FROM meta WHERE key = 'root'", [], |r| {
+                r.get(0)
+            })
+            .optional()?)
     }
 
     /// Forget a note (deleted or moved away). Its links go with it; links
