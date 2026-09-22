@@ -47,7 +47,11 @@ notas se perde na primeira vez que ele mexe em um arquivo sem ser mandado.
   backup, alguns clientes de sync — passa por uma verificação feita só de tempo
   e tamanho, e a escrita então cai por cima da edição alheia, que é exatamente o
   que esta regra existe para impedir. O custo é uma leitura inteira do arquivo
-  antes de gravar.
+  a mais por escrita, já que a escrita o relê para comparar. O FNV-1a é
+  adequado contra acidente, que é do que esta regra trata, e não contra um
+  adversário que escolhe os bytes: quem consegue forjar uma colisão já consegue
+  escrever dentro do vault, e a invariante 11 pressupõe um sistema de arquivos
+  honesto por baixo.
 - "Round-trip" tinha duas leituras possíveis, e elas escolhiam parsers
   diferentes. O mantenedor decidiu `docs/spec/dialect.md` Q18 em 2026-09-21:
   leitura (b), parser somente leitura com property test de round-trip de

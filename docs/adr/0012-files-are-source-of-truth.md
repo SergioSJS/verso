@@ -45,7 +45,11 @@ note-taking app is lost the first time it touches a file without being told to.
   that preserves the modified time — `cp -p`, `rsync`, a restore from a backup,
   some sync clients — passes a check made of time and length alone, and the
   write then lands on top of the other edit, which is exactly what this rule
-  exists to stop. The cost is one full read of the file before writing.
+  exists to stop. The cost is one extra read of the whole file per write, since
+  the write re-reads it to compare. FNV-1a is adequate against accident, which
+  is what this rule is about, and not against an adversary who can choose the
+  bytes: someone able to craft a collision can already write into the vault, and
+  invariant 11 assumes an honest file system underneath.
 - "Round-trip" had two possible readings, and they selected different parsers.
   The maintainer decided `docs/spec/dialect.md` Q18 on 2026-09-21: reading
   (b), a read-only parser with a four-property round-trip test; the base

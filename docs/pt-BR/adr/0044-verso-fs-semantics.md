@@ -10,7 +10,8 @@
   `[ABERTO]`. 2026-09-22 — fatos do código da feature 2 registrados dentro dos
   dois grupos decididos: o caminho de escrita de um symlink (decidido, decorre
   da escolha) e três itens marcados como **provisórios**, para o mantenedor
-  confirmar ou mudar.
+  confirmar ou mudar; mais dois itens provisórios vindos da segunda leitura
+  desse código — raiz absoluta, e handle para nome de placeholder.
 
 ## Contexto
 
@@ -81,6 +82,15 @@ registrada:
   que a segunda subárvore também seja percorrida. O preço de percorrer: dois
   symlinks para uma pasta grande dobram essa pasta no índice, e uma cadeia deles
   cresce exponencialmente, limitada apenas pela profundidade máxima de 64.
+- **A raiz é tornada absoluta na abertura da pasta, e não canonicalizada.** Uma
+  raiz relativa mais uma mudança posterior do diretório de trabalho do processo
+  redirecionaria todo handle derivado dela: mesmo nome de pasta, outra pasta,
+  sem erro nenhum em lugar algum. Torná-la absoluta na abertura fecha isso. Não
+  canonicalizá-la é a outra metade: uma raiz que é ela própria um symlink
+  mantém o nome que o usuário digitou, que é o nome que ele vê em toda
+  mensagem. Provisório porque canonicalizar uma vez na abertura é alternativa
+  defensável — também consertaria o que o `wrote_through_symlink_to` reporta,
+  que hoje nomeia o caminho como foi dado, e não aquele onde os bytes caíram.
 
 ### Caminhos ignorados — decidido em 2026-09-22
 
@@ -127,6 +137,13 @@ decidido.**
   e "não legível de jeito nenhum" são duas regras diferentes, e ler `.obsidian/`
   pode muito bem ser desejável depois — um tema ou uma configuração de plugin é
   exatamente o tipo de coisa que se pode perguntar a um agente.
+- **O handle é aceito quando o último componente tem a forma de placeholder.**
+  `.Nota.md.icloud` passa, com a mesma precedência que a varredura aplica — o
+  padrão de placeholder é reconhecido antes da regra de oculto
+  ([0043](0043-placeholder-guard.md)) —, então uma entrada que a varredura
+  listou pode ser nomeada de novo depois de um reinício. Handle recusado para
+  algo que a varredura acabou de mostrar é a surpresa que isso evita. Todo outro
+  componente começando com ponto continua recusado, como acima.
 
 ### O watcher — depois da feature 2
 

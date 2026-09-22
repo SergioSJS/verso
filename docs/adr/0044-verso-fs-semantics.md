@@ -9,7 +9,9 @@
   placed after feature 2; the opaque handles group untouched and still `[OPEN]`.
   2026-09-22 — facts from the feature 2 code recorded inside the two decided
   groups: the write path of a symlink (decided, it follows from the choice) and
-  three items marked **provisional**, for the maintainer to confirm or change.
+  three items marked **provisional**, for the maintainer to confirm or change;
+  two more provisional items from the second reading of that code — an absolute
+  root, and a handle for a placeholder name.
 
 ## Context
 
@@ -76,6 +78,16 @@ choose something and an unrecorded choice is worse than a recorded one:
   second subtree to be walked as well. The price of walking it: two symlinks to
   one large folder double that folder in the index, and a chain of them grows
   exponentially, bounded only by the depth cap of 64.
+- **The root is made absolute when the folder is opened, and not
+  canonicalized.** A relative root plus a later change of the process's working
+  directory would otherwise retarget every handle derived from it: the same
+  folder name, a different folder, with no error anywhere. Making it absolute at
+  open closes that. Not canonicalizing it is the other half: a root that is
+  itself a symlink keeps the name the user typed, which is the name they see in
+  every message. Provisional because canonicalizing once at open is a
+  defensible alternative — it would also fix what `wrote_through_symlink_to`
+  reports, which today names the path as it was given rather than the one the
+  bytes landed on.
 
 ### Ignored paths — decided on 2026-09-22
 
@@ -121,6 +133,13 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   and "not readable at all" are two different rules, and reading `.obsidian/`
   may well be wanted later — a theme or a plugin setting is exactly the kind of
   thing an agent could be asked about.
+- **A handle is accepted when the final component has the placeholder form.**
+  `.Nota.md.icloud` passes, with the same precedence the walk applies — the
+  placeholder pattern is recognized before the hidden rule
+  ([0043](0043-placeholder-guard.md)) — so an entry the walk listed can be named
+  again after a restart. A handle refused for something the walk had just shown
+  is the surprise this avoids. Every other dot-leading component stays refused,
+  as above.
 
 ### The watcher — after feature 2
 

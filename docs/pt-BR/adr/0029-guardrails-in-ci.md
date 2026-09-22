@@ -10,7 +10,8 @@
   depois do incidente de custo; 2026-09-22 — a linha do confinamento de caminho
   reescrita depois da decisão sobre symlinks
   ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — como o código da feature 2
-  responde aos requisitos da escrita atômica, registrado como provisório.
+  responde aos requisitos da escrita atômica, registrado como provisório, vindo
+  de duas leituras desse código.
 
 ## Contexto
 
@@ -96,10 +97,21 @@ não uma decisão; os requisitos acima continuam como estão.
   preservados como o requisito pede.
 - **Os atributos estendidos são copiados antes do `fsync` do arquivo**, então
   ficam duráveis junto com o conteúdo, e não depois dele.
+- **O arquivo temporário é criado já com o modo do original**, em vez de criado
+  no padrão e ajustado depois. A janela entre as duas coisas é curta e real:
+  a substituição de uma nota que o usuário tinha posto em `0600` ficaria legível
+  para todo mundo durante uma escrita, e uma janela basta para quem está
+  olhando.
+- **`WriteReport` é `#[must_use]` e lista os avisos dele.** Um relatório que
+  carrega `hard_link_shared` ou `durability_not_confirmed` e é descartado sem
+  ser lido não avisa ninguém; o tipo transforma ignorá-lo em aviso do
+  compilador, em vez de hábito.
 - **Os dois `fsync` não são observáveis por teste.** Nem o do arquivo, nem o do
   diretório: nenhuma asserção portável distingue "sincronizado" de "não
   sincronizado" sem tirar da tomada. O requisito é cumprido pela leitura do
-  código, e esta linha registra que o teste desse item não existe.
+  código. Registrado sem rodeio, porque é o único requisito acima sem teste por
+  trás: **o `fsync` do diretório não tem teste, adiado**, e o que faz as vezes
+  de um é alguém lendo o código.
 - **Falha depois do `rename` é reportada, não levantada como escrita falha.** O
   `fsync` do diretório e a releitura do novo stamp acontecem com o conteúdo já
   no lugar; o relatório carrega `durability_not_confirmed` em vez de erro,
@@ -108,10 +120,19 @@ não uma decisão; os requisitos acima continuam como estão.
 - **Sistema de arquivos de rede é detectado no macOS pela ausência de
   `MNT_LOCAL` nas flags de montagem**, não por uma lista de nomes de sistema de
   arquivos. Nas demais plataformas ainda não é detectado.
-- **O teste com cliente de sync está pendente do mantenedor.** "Testar com pasta
-  dentro de pelo menos um deles antes de fechar a feature" não foi feito: exige
-  uma pasta real de iCloud Drive, Dropbox, OneDrive ou Syncthing na máquina do
-  mantenedor. O requisito continua de pé, não cumprido.
+- **O teste com cliente de sync está pendente do mantenedor, e ele trava o
+  fechamento da feature.** "Testar com pasta dentro de pelo menos um deles antes
+  de fechar a feature" não foi feito: exige uma pasta real de iCloud Drive,
+  Dropbox, OneDrive ou Syncthing na máquina do mantenedor. O requisito continua
+  de pé, não cumprido, e a feature 2 não fecha enquanto ele não for cumprido.
+- **O código só de macOS é compilado por um pull request apenas num Mac.** A
+  verificação de `st_flags` da guarda de placeholder e a de `statfs` para
+  sistema de arquivos de rede estão atrás de `#[cfg(target_os = "macos")]`, e um
+  pull request roda no Linux, com o macOS rodando no `main` depois do merge —
+  então o CI que guarda o PR não compila nem exercita nenhuma das duas. A
+  leitura de 2026-09-22 compilou e rodou os 35 testes no macOS 15 com a
+  toolchain fixada 1.98.1, todos verdes; essa execução manual está declarada
+  como passo no PR, e é o que a execução no Linux não dá.
 
 ## Consequências
 
