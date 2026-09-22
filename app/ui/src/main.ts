@@ -414,6 +414,21 @@ function crumbs(path: string): void {
   );
 }
 
+/** What a save changes: the revision, the preview, the flags, the
+ *  outline — not the editor's document or history. */
+function refresh(note: NoteText): void {
+  revision = note.revision;
+  onDisk = note.text;
+  ui.preview.innerHTML = note.html;
+  void embedImages(note.path);
+  const flags: string[] = [];
+  if (note.stale) flags.push(t.stale);
+  if (note.unverified) flags.push(t.unverified);
+  ui.noteFlags.textContent = flags.join(" ");
+  setDirty(false);
+  ui.conflict.hidden = true;
+}
+
 /** Load a note into the page: preview, editor, revision. */
 function load(note: NoteText): void {
   ui.noteTitle.textContent = name(note.path);
@@ -512,7 +527,9 @@ async function save(overwrite = false): Promise<void> {
   const mine = editorText();
   const r = await commands.writeNote(current, mine, revision);
   if (r.status === "ok") {
-    load(r.data.note);
+    // Saved: take the new revision and preview, keep the editor as it is —
+    // its undo history included. Only navigation rebuilds the editor.
+    refresh(r.data.note);
     applyView();
     ui.status.textContent = r.data.warnings.length === 0 ? t.saved : `${t.saved} ${r.data.warnings.join("; ")}`;
     return;
