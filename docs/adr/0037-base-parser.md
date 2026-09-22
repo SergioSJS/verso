@@ -150,11 +150,31 @@ parser, edits by textual patch; `docs/spec/dialect.md` §9):
   Decision. Both regression tests in
   `crates/verso-dialect/tests/regressions.rs` therefore lose their `#[ignore]`
   and both inputs are now fuzz seeds, a seed being added only once it passes.
-  The tripwire is a `cargo-deny` ban on `pulldown-cmark >= 0.13.5` whose
-  reason names the action for the day it fires: run those two tests on the
-  release, then drop the patch, the `allow-git` entry and the ban together, in
-  one PR. If no release arrives by the expiry, the decision comes back to the
-  maintainer.
+  What keeps a build without the patch from falling back to the buggy 0.13.4
+  is the crate requirement itself: it is relaxed to `"0.13"`, since the
+  patched revision's manifest still says 0.13.1, and it asks for
+  `features = ["std"]`, a feature no published 0.13.x has — 0.13.4 offers
+  `default`, `gen-tests`, `html` and `simd` — so without the patch resolution
+  fails with "does not have that feature" instead of resolving to 0.13.4.
+  The day the patch is dropped, the release has to carry the `std` feature —
+  the `no_std` split — or that line changes in the same PR. The tripwire for
+  that day is a `cargo-deny` ban on `pulldown-cmark` `>=0.13.5`, written with
+  the legacy `name` and `version` keys, because `version` there is a real
+  semver requirement while the newer `crate = "name@>=0.13.5"` form is a
+  package-id spec that drops the comparison operator and matches one exact
+  version (cargo-deny 0.20.2); the ban was seen firing with the bound lowered
+  to `>=0.13.1` against the patched 0.13.1 and staying silent at `>=0.13.2`.
+  Its reason names the action for the day it fires: run those two tests on the
+  release, check that the release has `std`, then drop the patch, the
+  `allow-git` entry and the ban together, in one PR. The expiry is a date in
+  three comments — the patch block and the two `deny.toml` entries — and
+  nothing enforces it mechanically, which is the same standing
+  [0029](0029-guardrails-in-ci.md) gives its advisory exceptions; if no
+  release arrives by then, the decision comes back to the maintainer through
+  someone reading the date. The supply-chain cost is recorded here so the
+  choice is conscious: the dependency is pinned by full SHA-1, CI has to reach
+  github.com for the parser itself, an upstream force-push would make the
+  build unfetchable, and nothing is vendored — no ADR requires vendoring.
 
 ## Discarded alternatives
 

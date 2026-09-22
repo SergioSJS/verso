@@ -233,9 +233,19 @@ Nada nesta lista é decidido aqui.
    até alguém olhar. Outras opções consideradas: nenhuma registrada.
    **O mantenedor decidiu em 2026-09-21** pela segunda opção, como fio de
    disparo do patch decidido no item 2: o `deny.toml` proíbe
-   `pulldown-cmark >= 0.13.5` — o `>` não casa no cargo-deny 0.20.2, daí o
-   `>=` — e a justificativa dela nomeia a ação do dia em que disparar, que é
-   rodar os dois testes de regressão no release e então remover o patch, a
-   entrada `allow-git` e a proibição juntos. O passo de CI não bloqueante fica
-   desnecessário assim que esses testes deixam de ser ignorados. Registrado nas
-   Consequências do [ADR 0037](../adr/0037-base-parser.md).
+   `pulldown-cmark` `>=0.13.5`, escrito com as chaves antigas `name` e
+   `version`, porque o `version` ali é um requisito semver de verdade,
+   enquanto a forma mais nova `crate = "name@>=0.13.5"` é um package-id spec
+   que descarta o operador de comparação e casa com uma versão exata
+   (cargo-deny 0.20.2); foi visto disparando com o limite baixado para
+   `>=0.13.1` contra a 0.13.1 com patch e ficando calado em `>=0.13.2`. A
+   justificativa dela nomeia a ação do dia em que disparar: rodar os dois
+   testes de regressão no release, conferir que o release tem a feature `std`
+   e então remover o patch, a entrada `allow-git` e a proibição juntos. A
+   proibição anuncia o release; o que protege o build é o requisito do crate
+   pedir `features = ["std"]`, que nenhuma 0.13.x publicada tem, de modo que
+   um build sem o patch falha em resolver em vez de cair de volta na 0.13.4 —
+   e é por isso que remover o patch significa conferir que o release traz o
+   `std`. O passo de CI não bloqueante fica desnecessário assim que esses
+   testes deixam de ser ignorados. Registrado nas Consequências do
+   [ADR 0037](../adr/0037-base-parser.md).
