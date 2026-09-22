@@ -72,6 +72,19 @@ elas valem é esta:
   a mitigação registrada é uma projeção somente-leitura do índice no lado JS,
   alimentada por eventos (§10.3).
 
+**A regra 4 na borda do MCP, como o código da feature 6 a implementa.
+Registrado em 2026-09-22 a partir do código da feature 6 — provisório, o
+mantenedor decide** (§4 de `docs/reference/mcp-decision.md`). O que um cliente
+do `verso mcp` envia e recebe como identificador de nota é o **caminho relativo
+à raiz, como string**, não um handle: a frase que o
+[0044](0044-verso-fs-semantics.md) antecipa para o caso de o identificador
+estável acabar sendo o caminho relativo. O handle opaco fica dentro do processo,
+e o que sustenta o peso da regra naquela borda é o **confinamento de todo
+caminho que um cliente envia**, verificado antes de tocar o índice ou o disco,
+inclusive nas chamadas que só leem o índice. A regra 4 **não** é reescrita aqui:
+reescrevê-la é do mantenedor, no PR que fechar o grupo dos handles do
+[0044](0044-verso-fs-semantics.md).
+
 ## Alternativas descartadas
 
 - UI acessando disco ou índice por atalho — descartado em §10.1.

@@ -73,6 +73,19 @@ hold is this:
   asynchronous; the recorded mitigation is a read-only projection of the index
   on the JS side, fed by events (§10.3).
 
+**Rule 4 at the MCP edge, as the feature 6 code implements it. Recorded on
+2026-09-22 from the feature 6 code — provisional, the maintainer decides**
+(§4 of `docs/reference/mcp-decision.md`). What a client of `verso mcp` sends and
+receives as a note identifier is the **path relative to the root, as a
+string**, not a handle: the sentence [0044](0044-verso-fs-semantics.md)
+anticipated for the case where the stable identifier turns out to be the
+relative path. The opaque handle stays inside the process, and what carries the
+rule's weight at that edge is **confinement of every path a client sends**,
+checked before the index or the disk is touched, including on the calls that
+only read the index. Rule 4 itself is **not** rewritten here: rewriting it
+belongs to the maintainer, in the PR that closes the
+[0044](0044-verso-fs-semantics.md) handles group.
+
 ## Discarded alternatives
 
 - UI accessing disk or index through a shortcut — discarded in §10.1.

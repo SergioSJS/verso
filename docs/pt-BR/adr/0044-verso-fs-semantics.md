@@ -189,6 +189,30 @@ chega depois da feature 2, e nenhuma data é marcada para ele aqui.
 - Os limites de recurso (profundidade, tamanho de arquivo, comprimento de linha)
   complementam Q17 da spec do dialeto: o fuzzing pega crash, não lentidão.
 
+**A metade MCP do grupo dos handles como o código da feature 6 a implementa.
+Registrado em 2026-09-22 a partir do código da feature 6 — provisório, o
+mantenedor decide**, sob a §4 de `docs/reference/mcp-decision.md`. O grupo segue
+`[ABERTO]`; isto é o que o código faz, não uma decisão.
+
+- **O que o agente recebe como identificador de nota é o caminho relativo à
+  raiz, como string, com `.md`** — a mesma string que o `list_notes`, o `search`
+  e a CLI imprimem, e a única a partir da qual uma citação leva a algum lugar
+  sem o servidor. Um caminho sem `.md` continua aceito, como o `backlinks` já
+  aceitava.
+- **O `Handle` opaco nunca sai do processo.** É o que o `verso-core` usa para
+  chegar ao `verso-fs`; não aparece em nenhum argumento nem em nenhum resultado
+  de ferramenta, e nada o serializa.
+- **O confinamento é aplicado pelo `verso-core` a todo caminho que um cliente
+  envia**, antes de tocar o índice ou o disco: o `Root::handle` recusa caminho
+  absoluto, componente `..`, caminho vazio, byte NUL, componente oculto em
+  qualquer profundidade e caminho ignorado. É aplicado **inclusive nas chamadas
+  que só leem o índice** (`links`, `backlinks`), onde um caminho ruim não
+  escaparia de nada — e é isso que faz da lista de recusas uma propriedade da
+  superfície, e não da implementação de cada ferramenta.
+- **A outra metade do grupo fica intocada**: o que um handle identifica dentro
+  do processo (descritor aberto ou índice de tabela) e por quanto tempo vale
+  segue `[ABERTO]`, para o item 2.1 da Fase 2.
+
 ## Alternativas descartadas
 
 Consideradas pelo mantenedor, sobre o memo, e postas de lado:
