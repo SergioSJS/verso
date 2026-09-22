@@ -37,6 +37,34 @@ None. Questions recorded, with the moment to decide them.
   what happens when it changes (the specification has already changed transport
   and authorization model more than once).
 
+**`verso mcp` decided on 2026-09-22 by the maintainer**
+(`docs/reference/mcp-decision.md` §9). The three questions above, answered:
+
+- **Transport: stdio.** The client spawns `verso mcp <folder>` as a child
+  process. No port, so no `Origin` checking, no DNS-rebinding defence and no
+  session token to get wrong. HTTP stays a later feature and brings the
+  `verso serve` questions with it when it comes.
+- **Surface: seven read-only tools** — `search`, `read_note`, `links`,
+  `backlinks`, `unresolved`, `list_notes`, `index` — with citations by `^id`,
+  or by line and column when the block has none. No tool writes. The Q9
+  warning stands and is written into the command's own help: until per-block
+  visibility exists in the spec, **`verso mcp <folder>` hands the whole folder
+  to whoever connects**, and the only control is which folder is opened. The
+  ignore list of [0044](0044-verso-fs-semantics.md) is available as a blunt
+  second line of defence, at the price of those notes also leaving the index.
+- **Protocol version:** whatever `initialize` negotiates with the client,
+  recorded in the PR; the dependency is `rmcp` 3.4, which brings 61 crates and
+  passes `cargo deny check licenses`. The maintainer accepted that weight
+  knowingly, as the alternative is writing the protocol by hand.
+- **Note identifier:** the path relative to the root, as a string, under the
+  amended rule 4 of [0026](0026-core-ui-contract-inviolable-rules.md) —
+  identity crosses as a relative path, access crosses as a handle — with
+  confinement applied to every path a client sends and the opaque `Handle`
+  staying inside the process.
+- **Staleness:** one incremental index at start, an `index()` tool to refresh,
+  no watcher, and `stale: true` on `read_note` when the file's stamp differs
+  from the index's.
+
 ### Core↔UI contract — decide before item 2.1 of Phase 2
 
 - The contract has to have, from the first design on, session identity,
@@ -121,5 +149,5 @@ None recorded.
 
 ## Status
 
-`[OPEN]`. MCP: before feature 6 of Phase 1. Contract: before item 2.1 of
+`[OPEN]` for the contract and the server; **MCP decided on 2026-09-22** (above). MCP: closed. Contract: before item 2.1 of
 Phase 2. Server: before it enters scope.

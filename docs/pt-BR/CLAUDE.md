@@ -34,9 +34,13 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
    vêm das capabilities.
 3. O contrato é definido primeiro; tipos TS são gerados a partir do Rust, nunca
    escritos à mão.
-4. A API de filesystem **do contrato** (UI, plugins, MCP) trabalha com handles
-   opacos, nunca com caminho POSIX em string. Caminho em string existe só na
-   borda de entrada (argumento da CLI, chave da config) e dentro de `verso-fs`.
+4. A API de filesystem **do contrato** (UI, plugins, MCP) separa acesso de
+   identidade ([ADR 0026](adr/0026-core-ui-contract-inviolable-rules.md),
+   emendada em 2026-09-22): uma capacidade de ler ou escrever um arquivo cruza
+   só como handle opaco; uma nota é nomeada pelo caminho relativo à pasta
+   aberta. Caminho absoluto, ou com `..`, nunca cruza. Caminho em string também
+   existe na borda de entrada (argumento da CLI, chave da config) e dentro de
+   `verso-fs`.
 5. Acesso aos **arquivos da pasta aberta** só dentro do crate `verso-fs`. O
    arquivo do índice (`verso-index`), o diretório de configuração
    (`verso-core`) e a entrada e saída da CLI ficam fora da regra; nenhum deles

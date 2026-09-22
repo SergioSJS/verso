@@ -35,9 +35,13 @@ Violating an invariant is BLOCKING by definition, with no discussion of merit.
    availability come from the capabilities.
 3. The contract is defined first; TS types are generated from Rust, never
    written by hand.
-4. The filesystem API **of the contract** (UI, plugins, MCP) works with opaque
-   handles, never with a POSIX path as a string. A path as a string exists only
-   at the entry edge (CLI argument, config key) and inside `verso-fs`.
+4. The filesystem API **of the contract** (UI, plugins, MCP) separates access
+   from identity ([ADR 0026](docs/adr/0026-core-ui-contract-inviolable-rules.md),
+   amended 2026-09-22): a capability to read or write a file crosses only as an
+   opaque handle; a note is named by its path relative to the open folder. An
+   absolute path, or one containing `..`, never crosses. A path as a string
+   also exists at the entry edge (CLI argument, config key) and inside
+   `verso-fs`.
 5. Access to the **files of the open folder** only inside the `verso-fs` crate.
    The index file (`verso-index`), the configuration directory (`verso-core`)
    and the CLI's input and output are outside the rule; none of them touches the
