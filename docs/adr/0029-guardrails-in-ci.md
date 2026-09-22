@@ -188,6 +188,24 @@ unchanged; this is what `verso-index` does.
 - The benchmark is a guardrail with no target: the baseline exists, but
   performance targets are `[OPEN]` ([0039](0039-performance-targets.md)).
 
+**The benchmark guardrail, decided on 2026-09-22 by the maintainer**
+(`docs/reference/bench-decision.md` §9). A deterministic, versioned generator
+builds a synthetic vault of 1 000, 10 000 and 50 000 notes of one fixed shape,
+including a 1 % share of iCloud placeholders; seven operations are measured —
+fresh index, incremental with nothing changed, incremental with 1 % changed,
+search for a common and for a rare word, backlinks of the most-linked note, and
+unresolved over the whole vault — each with wall time, peak resident memory and
+index file size, the median of repeated runs after a discarded warm-up. It runs
+**on `main` only, on Linux only, after each merge, never on a pull request**,
+for the cost reason recorded above, and from one local command with the same
+output. Red when the median time exceeds 1.5× the recorded baseline, the index
+file 1.05×, or peak memory 1.3× — no tolerance tighter than the measured noise,
+which was ±45 % between runs at 20 000 notes on an idle laptop. Seen failing,
+as every feature guardrail must be: by reverting the `notes_fts` delete to the
+full scan it had before commit `4e99082`, which took 4 000 notes from 0.71 s to
+4.94 s. The baseline itself is not a target: targets stay `[OPEN]`
+([0039](0039-performance-targets.md)).
+
 ## Discarded alternatives
 
 - Adding guardrails after having features — discarded in §14.3 ("All of them in

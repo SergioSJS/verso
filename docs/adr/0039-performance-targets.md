@@ -26,6 +26,14 @@ in Phase 1.
 - The recorded pain of large vaults freezing on the iPhone (§16.1) is the
   scenario that most likely defines the first target.
 
+**What was decided on 2026-09-22, and what was not.** The maintainer approved
+the shape of the benchmark and of the baseline
+(`docs/reference/bench-decision.md`, [0029](0029-guardrails-in-ci.md)): the
+generator, the sizes, the operations, the metrics, where it runs and the
+regression tolerances. **No target was set**, and this ADR stays `[OPEN]` on
+purpose. The tolerances are thresholds against a recorded baseline, not a
+promise about absolute performance, and they are not to be read as one.
+
 ## Discarded alternatives
 
 None. The briefing does not propose numbers.

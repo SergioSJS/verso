@@ -8,6 +8,18 @@
   been started. The memo comes first on purpose, because what the benchmark
   measures is the part that is expensive to change afterwards — a baseline
   taken against the wrong shape has to be thrown away.
+- **Decision: taken by the maintainer on 2026-09-22**, in session, in three
+  words — *"pode fazer tudo"*: all five lines of section 9 as recommended. The
+  ladder of 1 000 / 10 000 / 50 000 notes with the shape of section 2.5,
+  including the 1 % of iCloud placeholders; the seven operations with wall
+  time, peak RSS and index file size; one local command and one CI job on
+  `main` only, Linux only, with the tolerances of section 4.3; a plain binary
+  in `crates/verso-bench` with no benchmark dependency; and the baseline taken
+  in the order of section 6.3, with
+  [ADR 0039](../adr/0039-performance-targets.md) left `[OPEN]`. The code is
+  Rust and therefore a Fable 5.1 session
+  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)); this memo stays the
+  specification it writes against.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. In the earlier memos the recommendations were Fable
   5.1's, recorded by the author, because Fable was writing the feature's code in

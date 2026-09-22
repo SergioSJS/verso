@@ -26,6 +26,14 @@ sai na Fase 1.
 - A dor registrada de vaults grandes travando no iPhone (§16.1) é o cenário que
   mais provavelmente define a primeira meta.
 
+**O que foi decidido em 2026-09-22, e o que não foi.** O mantenedor aprovou a
+forma do benchmark e da linha de base (`docs/reference/bench-decision.md`,
+[0029](0029-guardrails-in-ci.md)): o gerador, os tamanhos, as operações, as
+métricas, onde roda e as tolerâncias de regressão. **Nenhuma meta foi
+definida**, e esta ADR continua `[OPEN]` de propósito. As tolerâncias são
+limiares contra uma linha de base registrada, não promessa sobre performance
+absoluta, e não devem ser lidas como tal.
+
 ## Alternativas descartadas
 
 Nenhuma. O briefing não propõe números.
