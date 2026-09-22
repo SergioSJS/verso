@@ -24,9 +24,9 @@ use std::sync::Mutex;
 use tauri::State;
 use verso_contract::{
     Backlink, Block, ContractError, ErrorKind, FolderInfo, Heading, Hit, IndexSummary, Link,
-    NoteText,
+    NoteText, Written,
 };
-use verso_core::{CoreError, ReadError, Workspace};
+use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
 /// The one open folder, or none yet. One mutex: two commands never
 /// interleave on the index.
@@ -41,6 +41,8 @@ fn convert(e: CoreError) -> ContractError {
         CoreError::Read(ReadError::Io(io)) if io.kind() == std::io::ErrorKind::NotFound => {
             ErrorKind::NotFound
         }
+        CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
+        CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
         _ => ErrorKind::Failed,
     };
     ContractError {
@@ -113,35 +115,38 @@ fn list_notes(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
 #[tauri::command]
 #[specta::specta]
 fn read_note(state: State<'_, App>, path: String) -> Result<NoteText, ContractError> {
-    with(&state, |ws| {
-        let t = ws.read_note(&path)?;
-        Ok(NoteText {
-            path: t.path,
-            lines: t.lines,
-            html: t.html,
-            headings: t
-                .headings
-                .into_iter()
-                .map(|h| Heading {
-                    level: h.level,
-                    text: h.text,
-                    line: h.line,
-                    col: h.col,
-                })
-                .collect(),
-            blocks: t
-                .blocks
-                .into_iter()
-                .map(|b| Block {
-                    id: b.id,
-                    line: b.line,
-                    col: b.col,
-                })
-                .collect(),
-            stale: t.stale,
-            unverified: t.unverified,
-        })
-    })
+    with(&state, |ws| ws.read_note(&path)).map(note_out)
+}
+
+fn note_out(t: verso_core::NoteText) -> NoteText {
+    NoteText {
+        path: t.path,
+        lines: t.lines,
+        html: t.html,
+        text: t.text,
+        revision: t.revision,
+        headings: t
+            .headings
+            .into_iter()
+            .map(|h| Heading {
+                level: h.level,
+                text: h.text,
+                line: h.line,
+                col: h.col,
+            })
+            .collect(),
+        blocks: t
+            .blocks
+            .into_iter()
+            .map(|b| Block {
+                id: b.id,
+                line: b.line,
+                col: b.col,
+            })
+            .collect(),
+        stale: t.stale,
+        unverified: t.unverified,
+    }
 }
 
 /// Full-text search: every word must occur, accents and case ignored.
@@ -203,6 +208,23 @@ fn backlinks(state: State<'_, App>, path: String) -> Result<Vec<Backlink>, Contr
     })
 }
 
+/// Write a note's text over the revision that was read — atomically, no
+/// normalization — and index it. `changed` when the file moved on
+/// meanwhile: nothing written, read again and show the diff (invariant 11).
+#[tauri::command]
+#[specta::specta]
+fn write_note(
+    state: State<'_, App>,
+    path: String,
+    text: String,
+    revision: String,
+) -> Result<Written, ContractError> {
+    with(&state, |ws| ws.write_note(&path, &text, &revision)).map(|w| Written {
+        note: note_out(w.note),
+        warnings: w.warnings,
+    })
+}
+
 /// Refresh the index from the folder: only what changed is re-read.
 #[tauri::command]
 #[specta::specta]
@@ -219,6 +241,7 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         search,
         links,
         backlinks,
+        write_note,
         reindex
     ])
 }

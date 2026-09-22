@@ -9,8 +9,13 @@
     "build": "esbuild src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/main.js --sourcemap && cp index.html style.css dist/"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
     "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-dialog": "^2.7.3"
+    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "codemirror": "^6.0.2"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

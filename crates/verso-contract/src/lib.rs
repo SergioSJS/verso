@@ -67,6 +67,12 @@ pub struct NoteText {
     /// `<span class="embed" data-target>`; the UI resolves targets
     /// through `links`.
     pub html: String,
+    /// The whole text as read, line endings included: what the editor
+    /// gives back is written as is, no normalization (ADR 0012).
+    pub text: String,
+    /// Opaque: what was read. `write_note` takes it back and refuses a
+    /// file that changed meanwhile (invariant 11, `changed`).
+    pub revision: String,
     pub headings: Vec<Heading>,
     pub blocks: Vec<Block>,
     /// The file differs from what the index holds: graph answers may be
@@ -75,6 +81,16 @@ pub struct NoteText {
     /// The index holds the note only as a last known version: a
     /// placeholder stood where it was (ADR 0043).
     pub unverified: bool,
+}
+
+/// What a write left behind: the note as it now is, and what the atomic
+/// write could not guarantee, one line each (permissions, owner, extended
+/// attributes, hard links, network file system, durability). None means
+/// the content was lost; all are for the user to see.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Written {
+    pub note: NoteText,
+    pub warnings: Vec<String>,
 }
 
 /// One search hit.
@@ -122,6 +138,9 @@ pub enum ErrorKind {
     NotFound,
     /// A placeholder: present, content not downloaded (ADR 0043).
     Unavailable,
+    /// The file on disk is not the one that was read: nothing was
+    /// written; read again and show both versions (invariant 11).
+    Changed,
     /// The core could not answer.
     Failed,
 }

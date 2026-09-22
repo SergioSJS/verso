@@ -25,11 +25,21 @@
     <section class="note" aria-labelledby="note-title">
       <div class="note-head">
         <h2 id="note-title" class="note-title"></h2>
+        <span id="dirty" class="dirty" hidden>●</span>
+        <button id="save" type="button" class="small primary" hidden></button>
         <button id="view" type="button" class="small" hidden></button>
       </div>
       <p id="note-flags" class="flags"></p>
+      <div id="conflict" class="conflict" hidden>
+        <p id="conflict-text"></p>
+        <pre id="conflict-diff" class="diff"></pre>
+        <div class="conflict-actions">
+          <button id="conflict-reload" type="button" class="small"></button>
+          <button id="conflict-overwrite" type="button" class="small"></button>
+        </div>
+      </div>
       <article id="preview" class="preview"></article>
-      <ol id="lines" class="lines" hidden></ol>
+      <div id="editor" class="editor" hidden></div>
       <h3 id="backlinks-heading" class="section-title"></h3>
       <ul id="backlinks" class="list"></ul>
     </section>
