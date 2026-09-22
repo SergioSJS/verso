@@ -154,10 +154,23 @@ fn a_client_initializes_lists_the_tools_and_walks_the_graph() {
             "read_note",
             json!({"path":"Taverna","from_line":3,"to_line":3}),
         ),
+        // The confined path is the key and the echo (finding 2).
+        call(14, "read_note", json!({"path":"./Taverna"})),
+        call(15, "links", json!({"path":"Taverna/"})),
+        call(16, "read_note", json!({"path":""})),
+        // Windows that make no sense are refused, not answered empty (finding 5).
+        call(17, "read_note", json!({"path":"Taverna","from_line":0})),
+        call(18, "read_note", json!({"path":"Taverna","from_line":2000})),
+        call(
+            19,
+            "read_note",
+            json!({"path":"Taverna","from_line":4,"to_line":3}),
+        ),
+        call(20, "read_note", json!({"path":"Taverna","from_line":5})),
     ]);
     let r = session.requests(&requests);
     let stderr = session.close();
-    assert_eq!(r.len(), 13, "{r:?}");
+    assert_eq!(r.len(), 20, "{r:?}");
     // stderr carries the human line; stdout carried only the protocol.
     assert!(stderr.starts_with("verso mcp: serving "), "{stderr}");
 
@@ -234,24 +247,29 @@ fn a_client_initializes_lists_the_tools_and_walks_the_graph() {
     assert_eq!(ls["count"], 2);
 
     // Confinement on every path a client sends: `..` and a hidden entry
-    // are refused as invalid params, not read.
-    assert_eq!(r[8]["error"]["code"], -32602);
-    assert!(r[8]["error"]["message"].as_str().unwrap().contains("`..`"));
-    assert_eq!(r[9]["error"]["code"], -32602);
+    // are refused — as tool errors the model reads, not protocol errors
+    // (finding 3), typed by `kind`, echoing what was sent.
+    assert_eq!(r[8]["result"]["isError"], true, "{:?}", r[8]);
+    assert_eq!(structured(&r[8])["kind"], "refused");
+    assert_eq!(structured(&r[8])["path"], "../fora");
     assert!(
-        r[9]["error"]["message"]
+        structured(&r[8])["message"]
+            .as_str()
+            .unwrap()
+            .contains("`..`")
+    );
+    assert_eq!(r[9]["result"]["isError"], true);
+    assert_eq!(structured(&r[9])["kind"], "refused");
+    assert!(
+        structured(&r[9])["message"]
             .as_str()
             .unwrap()
             .contains("hidden")
     );
-    // A note the index does not know.
-    assert_eq!(r[10]["error"]["code"], -32602);
-    assert!(
-        r[10]["error"]["message"]
-            .as_str()
-            .unwrap()
-            .starts_with("unknown note: Nada")
-    );
+    // A note the index does not know: named by its key.
+    assert_eq!(r[10]["result"]["isError"], true);
+    assert_eq!(structured(&r[10])["kind"], "unknown_note");
+    assert_eq!(structured(&r[10])["path"], "Nada.md");
 
     // index: nothing changed since the start.
     let i = structured(&r[11]);
@@ -265,6 +283,74 @@ fn a_client_initializes_lists_the_tools_and_walks_the_graph() {
     assert_eq!(w["from_line"], 3);
     assert_eq!(w["to_line"], 3);
     assert_eq!(w["truncated"], false);
+
+    // `./Taverna` is Taverna.md: the same key, the same positions, not
+    // stale — before, the raw string reached the index and found nothing.
+    let n = structured(&r[13]);
+    assert_eq!(r[13]["result"]["isError"], false, "{:?}", r[13]);
+    assert_eq!(n["path"], "Taverna.md");
+    assert_eq!(n["stale"], false);
+    assert_eq!(n["headings"].as_array().unwrap().len(), 2);
+    assert_eq!(n["blocks"][0]["id"], "b1");
+    let l = structured(&r[14]);
+    assert_eq!(l["path"], "Taverna.md");
+    assert_eq!(l["links"][0]["target"], "Barão Vermelho");
+    // An empty path is refused as empty, not as a hidden `.md`.
+    assert_eq!(structured(&r[15])["kind"], "refused");
+    assert!(
+        structured(&r[15])["message"]
+            .as_str()
+            .unwrap()
+            .contains("empty")
+    );
+    // Bad windows, each with the reason and the note's length to re-ask.
+    for (i, what) in [(16, "1-based"), (17, "5 lines"), (18, "before")] {
+        assert_eq!(r[i]["result"]["isError"], true, "{:?}", r[i]);
+        assert_eq!(structured(&r[i])["kind"], "bad_window", "{:?}", r[i]);
+        assert_eq!(structured(&r[i])["path"], "Taverna.md");
+        assert!(
+            structured(&r[i])["message"]
+                .as_str()
+                .unwrap()
+                .contains(what),
+            "{:?}",
+            r[i]
+        );
+    }
+    // The last line alone: a window that reaches the end is not truncated.
+    let w = structured(&r[19]);
+    assert_eq!(w["lines"].as_array().unwrap().len(), 1);
+    assert_eq!(w["lines"][0]["n"], 5);
+    assert_eq!(w["truncated"], false);
+}
+
+#[test]
+fn index_reports_a_walk_problem_as_the_object_the_cli_prints() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _nota = note(vault.path(), "Nota.md", "um\n");
+    let d = Builder::new()
+        .prefix("d")
+        .rand_bytes(0)
+        .tempdir_in(vault.path())
+        .unwrap();
+    // A symlink loop, made as `chmod` is elsewhere in these tests: the
+    // `std::fs` guardrail holds for tests too.
+    let status = std::process::Command::new("ln")
+        .args(["-s", ".", "loop"])
+        .current_dir(d.path())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let mut session = Session::start(vault.path(), config.path());
+    session.requests(&initialize("2025-06-18"));
+    let r = session.request(&call(2, "index", json!({})));
+    session.close();
+    let p = &structured(&r)["problems"][0];
+    assert_eq!(p["kind"], "loop", "{r:?}");
+    assert_eq!(p["path"], "d/loop");
+    assert!(p["first_seen"].is_string());
+    assert!(p.get("error").is_none());
 }
 
 #[test]
@@ -278,11 +364,14 @@ fn a_placeholder_is_unavailable_and_an_edit_makes_read_note_stale() {
     // An older protocol date is negotiated as asked.
     assert_eq!(r[0]["result"]["protocolVersion"], "2025-03-26");
 
-    // Present, content unavailable: an error, never an empty note (ADR 0043).
+    // Present, content unavailable: a tool error the model reads, never an
+    // empty note (ADR 0043) — that is how the agent learns of the placeholder.
     let r = session.request(&call(2, "read_note", json!({"path":"Evicted"})));
-    assert_eq!(r["error"]["code"], -32602);
+    assert_eq!(r["result"]["isError"], true, "{r:?}");
+    assert_eq!(structured(&r)["kind"], "unavailable");
+    assert_eq!(structured(&r)["path"], "Evicted.md");
     assert!(
-        r["error"]["message"]
+        structured(&r)["message"]
             .as_str()
             .unwrap()
             .contains("placeholder")

@@ -23,7 +23,9 @@ use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use verso_fs::{ConfinementError, EntryKind, Problem, ReadError, Root};
+use verso_fs::{EntryKind, Problem, Root};
+// The two error types `CoreError` carries, so a caller can match on them.
+pub use verso_fs::{ConfinementError, ReadError};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 mod sidecar;
@@ -382,21 +384,34 @@ impl Workspace {
         self.index.search(words, limit).map_err(CoreError::Index)
     }
 
-    /// The path of a note as the index keys it — relative, with `.md` —
-    /// after confinement: a path that cannot name a file of the folder is
+    /// The path of a note as the index keys it and as every answer echoes
+    /// it — relative to the folder, normalized, with `.md` — after
+    /// confinement: a path that cannot name a file of the folder is
     /// refused here, whether the caller goes on to the disk or only to the
-    /// index (ADR 0044; `docs/reference/mcp-decision.md` §4.3).
+    /// index (ADR 0044; `docs/reference/mcp-decision.md` §4.3). The key is
+    /// the confined form, never the string the caller sent: `./Taverna`,
+    /// `Taverna/` and `Taverna.md` name one note, and `.`, `` and `x/`
+    /// with nothing after are refused as empty, not as a hidden `.md`.
+    pub fn note_key(&self, note: &str) -> Result<String, CoreError> {
+        let confined = self
+            .root
+            .confine(Path::new(note))
+            .map_err(CoreError::Confined)?;
+        let mut key = confined.to_string_lossy().into_owned();
+        if !key.ends_with(".md") {
+            key.push_str(".md");
+        }
+        Ok(key)
+    }
+
+    /// [`Self::note_key`] and the handle to read the file.
     fn note_path(&mut self, note: &str) -> Result<(String, verso_fs::Handle), CoreError> {
-        let path = if note.ends_with(".md") {
-            note.to_owned()
-        } else {
-            format!("{note}.md")
-        };
+        let key = self.note_key(note)?;
         let handle = self
             .root
-            .handle(Path::new(&path))
+            .handle(Path::new(&key))
             .map_err(CoreError::Confined)?;
-        Ok((path, handle))
+        Ok((key, handle))
     }
 
     fn known(&self, path: &str) -> Result<bool, CoreError> {
@@ -410,7 +425,7 @@ impl Workspace {
     /// Backlinks of a note given by its path relative to the folder, with
     /// or without `.md`; `None` when the index does not know the note.
     pub fn backlinks(&mut self, note: &str) -> Result<Option<Vec<Backlink>>, CoreError> {
-        let (path, _) = self.note_path(note)?;
+        let path = self.note_key(note)?;
         if !self.known(&path)? {
             return Ok(None);
         }
@@ -423,7 +438,7 @@ impl Workspace {
     /// The links a note makes, with what each resolves to; `None` when the
     /// index does not know the note.
     pub fn links(&mut self, note: &str) -> Result<Option<Vec<Link>>, CoreError> {
-        let (path, _) = self.note_path(note)?;
+        let path = self.note_key(note)?;
         if !self.known(&path)? {
             return Ok(None);
         }
@@ -436,7 +451,7 @@ impl Workspace {
     /// Whether the index holds the note only as an unverified last version
     /// (ADR 0043); `None` when it does not know the note.
     pub fn is_unverified(&mut self, note: &str) -> Result<Option<bool>, CoreError> {
-        let (path, _) = self.note_path(note)?;
+        let path = self.note_key(note)?;
         self.index.is_unverified(&path).map_err(CoreError::Index)
     }
 
