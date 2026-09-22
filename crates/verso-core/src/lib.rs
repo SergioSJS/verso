@@ -814,6 +814,16 @@ impl Workspace {
         })
     }
 
+    /// Every regular file that is not a note, relative path, in byte
+    /// order, as the last walk listed it: what a file tree shows beside
+    /// the notes.
+    #[must_use]
+    pub fn files(&self) -> Vec<String> {
+        let mut v: Vec<String> = self.files.values().flatten().cloned().collect();
+        v.sort();
+        v
+    }
+
     /// The file an embed or an attachment link names: by path from the
     /// root when the target has a `/`, otherwise by file name — with or
     /// without its extension — case-insensitively; several, the one with
