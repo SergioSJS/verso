@@ -33,6 +33,8 @@ pub enum WriteError {
     /// The file is an on-demand storage placeholder (ADR 0043): its content
     /// is in the cloud; writing over it would destroy the marker.
     Placeholder,
+    /// Something already stands at the destination (a create or a rename).
+    Exists,
     Io(std::io::Error),
 }
 
@@ -41,6 +43,7 @@ impl std::fmt::Display for WriteError {
         match self {
             Self::UnknownHandle(h) => write!(f, "unknown handle {h:?}"),
             Self::Changed { .. } => write!(f, "the file on disk changed since it was read"),
+            Self::Exists => write!(f, "something already stands at the destination"),
             Self::Placeholder => write!(f, "placeholder: content not available, not written"),
             Self::Io(e) => write!(f, "{e}"),
         }
@@ -118,7 +121,7 @@ impl WriteReport {
     }
 }
 
-static COUNTER: AtomicU32 = AtomicU32::new(0);
+pub(crate) static COUNTER: AtomicU32 = AtomicU32::new(0);
 
 pub(crate) fn write_atomically(
     path: &Path,

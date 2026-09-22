@@ -24,7 +24,7 @@ use std::sync::Mutex;
 use tauri::{Manager, State};
 use verso_contract::{
     Backlink, Block, ContractError, ErrorKind, FolderInfo, Heading, Hit, IndexSummary, Link,
-    NoteText, Property, Written,
+    LinkRewrite, NoteText, Property, Renamed, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -42,6 +42,7 @@ fn convert(e: CoreError) -> ContractError {
             ErrorKind::NotFound
         }
         CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
+        CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
         CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
         _ => ErrorKind::Failed,
     };
@@ -241,6 +242,46 @@ fn resolve_attachment(
     with(&state, |ws| Ok(ws.resolve_file(&target)))
 }
 
+/// Create a note (`name`, with or without `.md`, folders created) with
+/// `text`; `exists` when something stands there (ADR 0048).
+#[tauri::command]
+#[specta::specta]
+fn create_note(
+    state: State<'_, App>,
+    name: String,
+    text: String,
+) -> Result<NoteText, ContractError> {
+    with(&state, |ws| ws.create_note(&name, &text)).map(note_out)
+}
+
+/// Move a note to `.trash/` at the root, Obsidian's bin; returns where.
+#[tauri::command]
+#[specta::specta]
+fn delete_note(state: State<'_, App>, path: String) -> Result<String, ContractError> {
+    with(&state, |ws| ws.delete_note(&path))
+}
+
+/// Rename or move a note. The file moves; the notes that link to it come
+/// back as rewrites — before, after, revision — for the UI to show and
+/// apply through `write_note` (ADR 0048, option (b)).
+#[tauri::command]
+#[specta::specta]
+fn rename_note(state: State<'_, App>, from: String, to: String) -> Result<Renamed, ContractError> {
+    with(&state, |ws| ws.rename_note(&from, &to)).map(|r| Renamed {
+        path: r.path,
+        rewrites: r
+            .rewrites
+            .into_iter()
+            .map(|w| LinkRewrite {
+                path: w.path,
+                revision: w.revision,
+                before: w.before,
+                after: w.after,
+            })
+            .collect(),
+    })
+}
+
 /// Refresh the index from the folder: only what changed is re-read.
 #[tauri::command]
 #[specta::specta]
@@ -258,6 +299,9 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         links,
         backlinks,
         write_note,
+        create_note,
+        delete_note,
+        rename_note,
         resolve_attachment,
         reindex
     ])

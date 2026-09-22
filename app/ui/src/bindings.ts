@@ -28,6 +28,19 @@ export const commands = {
 	 */
 	writeNote: (path: string, text: string, revision: string) => typedError<Written, ContractError>(__TAURI_INVOKE("write_note", { path, text, revision })),
 	/**
+	 *  Create a note (`name`, with or without `.md`, folders created) with
+	 *  `text`; `exists` when something stands there (ADR 0048).
+	 */
+	createNote: (name: string, text: string) => typedError<NoteText, ContractError>(__TAURI_INVOKE("create_note", { name, text })),
+	/**  Move a note to `.trash/` at the root, Obsidian's bin; returns where. */
+	deleteNote: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("delete_note", { path })),
+	/**
+	 *  Rename or move a note. The file moves; the notes that link to it come
+	 *  back as rewrites — before, after, revision — for the UI to show and
+	 *  apply through `write_note` (ADR 0048, option (b)).
+	 */
+	renameNote: (from: string, to: string) => typedError<Renamed, ContractError>(__TAURI_INVOKE("rename_note", { from, to })),
+	/**
 	 *  The file an embed names (`![[mapa.png]]`), relative to the folder, or
 	 *  none. The UI then loads it through the `verso://` protocol below.
 	 */
@@ -81,6 +94,8 @@ export type ErrorKind =
  *  written; read again and show both versions (invariant 11).
  */
 "changed" | 
+/**  Something already stands where a note would be created or moved. */
+"exists" | 
 /**  The core could not answer. */
 "failed";
 
@@ -132,6 +147,18 @@ export type Link = {
 	col: number,
 };
 
+/**
+ *  A note that links to a renamed note: its text before and after the
+ *  links are pointed at the new name, with the revision `write_note`
+ *  takes back. Shown, then applied, one note at a time (ADR 0048).
+ */
+export type LinkRewrite = {
+	path: string,
+	revision: string,
+	before: string,
+	after: string,
+};
+
 /**  A note's text as it is on disk now, with what the index knows of it. */
 export type NoteText = {
 	path: string,
@@ -177,6 +204,12 @@ export type NoteText = {
 export type Property = {
 	key: string,
 	value: string,
+};
+
+/**  What a rename left: the new path, and the rewrites it calls for. */
+export type Renamed = {
+	path: string,
+	rewrites: LinkRewrite[],
 };
 
 /**

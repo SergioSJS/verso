@@ -422,3 +422,73 @@ fn an_attachment_resolves_by_name_or_stem_and_reads_through_the_core() {
         ]
     );
 }
+
+#[test]
+fn notes_are_created_renamed_with_a_link_plan_and_trashed() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _src = note(
+        vault.path(),
+        "Origem.md",
+        "Ver [[Alvo]], [[alvo.md|apelido]], [[Alvo#Sec]] e `[[Alvo]]` e [[Outra]].\n",
+    );
+    let _far = subdir(vault.path(), "pasta");
+    let _src2 = note(
+        &vault.path().join("pasta"),
+        "Longe.md",
+        "[[../Alvo]] [[Alvo]]\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    // Create, in a folder that does not exist yet; twice is refused.
+    let created = ws.create_note("nova/Alvo", "# Alvo\n").unwrap();
+    assert_eq!(created.path, "nova/Alvo.md");
+    assert!(matches!(
+        ws.create_note("nova/Alvo.md", "x"),
+        Err(CoreError::Write(verso_core::WriteError::Exists))
+    ));
+    assert_eq!(ws.backlinks("nova/Alvo").unwrap().unwrap().len(), 4);
+
+    // Rename: the file moves, the index follows, the plan names the two
+    // linking notes with their links pointed at the new name — bare names
+    // stay bare, the code span is rewritten too (the diff shows it), the
+    // alias and the fragment are kept; the unrelated link is untouched.
+    let renamed = ws.rename_note("nova/Alvo", "nova/Meta.md").unwrap();
+    assert_eq!(renamed.path, "nova/Meta.md");
+    assert!(ws.read_note("nova/Meta").is_ok());
+    assert!(ws.read_note("nova/Alvo").is_err());
+    let plan: Vec<(&str, &str)> = renamed
+        .rewrites
+        .iter()
+        .map(|r| (r.path.as_str(), r.after.as_str()))
+        .collect();
+    assert_eq!(
+        plan,
+        [
+            (
+                "Origem.md",
+                "Ver [[Meta]], [[Meta|apelido]], [[Meta#Sec]] e `[[Meta]]` e [[Outra]].\n"
+            ),
+            ("pasta/Longe.md", "[[../Alvo]] [[Meta]]\n"),
+        ],
+        "{plan:?}"
+    );
+    // Nothing but the renamed file was written: the plan is applied by
+    // the caller, one atomic write per note, with the revision it carries.
+    assert_eq!(
+        ws.read_note("Origem").unwrap().text,
+        "Ver [[Alvo]], [[alvo.md|apelido]], [[Alvo#Sec]] e `[[Alvo]]` e [[Outra]].\n"
+    );
+    for w in &renamed.rewrites {
+        ws.write_note(&w.path, &w.after, &w.revision).unwrap();
+    }
+    assert_eq!(ws.backlinks("nova/Meta").unwrap().unwrap().len(), 4);
+
+    // Delete: into .trash/, keeping the relative path; gone from the index.
+    let gone = ws.delete_note("nova/Meta").unwrap();
+    assert_eq!(gone, ".trash/nova/Meta.md");
+    assert!(ws.read_note("nova/Meta").is_err());
+    assert!(ws.notes().unwrap().iter().all(|p| p != "nova/Meta.md"));
+    assert_eq!(ws.index().unwrap().removed, 0);
+}
