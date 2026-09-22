@@ -139,3 +139,134 @@ fn a_local_folder_is_not_a_network_file_system() {
     let report = root.write(h, b"depois", &stamp).unwrap();
     assert_eq!(report.network_fs, None);
 }
+
+#[cfg(unix)]
+#[test]
+fn a_write_through_a_symlink_lands_on_the_target_and_keeps_the_link() {
+    use std::os::unix::fs::symlink;
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("real.md"), "conteudo real").unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    symlink(outside.path().join("real.md"), dir.path().join("nota.md")).unwrap();
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    let (bytes, stamp) = root.read(h).unwrap();
+    assert_eq!(bytes, b"conteudo real");
+    let report = root.write(h, b"editado", &stamp).unwrap();
+    assert_eq!(
+        fs::read(outside.path().join("real.md")).unwrap(),
+        b"editado"
+    );
+    assert!(
+        fs::symlink_metadata(dir.path().join("nota.md"))
+            .unwrap()
+            .is_symlink()
+    );
+    assert!(report.wrote_through_symlink_to.is_some());
+}
+
+#[test]
+fn refuses_to_write_over_a_placeholder_and_read_reports_it_unavailable() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join(".Nota.md.icloud"), "<plist>junk</plist>").unwrap();
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    // Through the name of the real file: present, unavailable — not absent.
+    let h = root.handle(Path::new("Nota.md")).unwrap();
+    assert!(matches!(root.read(h), Err(ReadError::Unavailable)));
+    let fake = verso_fs::Stamp {
+        modified: std::time::SystemTime::UNIX_EPOCH,
+        len: 0,
+        hash: 0,
+    };
+    assert!(matches!(
+        root.write(h, b"x", &fake),
+        Err(WriteError::Placeholder)
+    ));
+    // The placeholder entry the walk lists is not readable as content either.
+    let walk = root.walk();
+    let entry = walk
+        .entries
+        .iter()
+        .find(|e| matches!(e.kind, verso_fs::EntryKind::Placeholder { .. }))
+        .unwrap();
+    assert!(matches!(
+        root.read(entry.handle),
+        Err(ReadError::Unavailable)
+    ));
+    assert!(matches!(
+        root.write(entry.handle, b"x", &fake),
+        Err(WriteError::Placeholder)
+    ));
+    assert_eq!(
+        fs::read(dir.path().join(".Nota.md.icloud")).unwrap(),
+        b"<plist>junk</plist>"
+    );
+}
+
+#[test]
+fn a_long_file_name_is_still_writable() {
+    let name = format!("{}.md", "n".repeat(247)); // 250 bytes, under NAME_MAX
+    let (dir, mut root) = root_with(&name, "antes");
+    let h = root.handle(Path::new(&name)).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    root.write(h, b"depois", &stamp).unwrap();
+    assert_eq!(fs::read(dir.path().join(&name)).unwrap(), b"depois");
+}
+
+#[test]
+fn a_same_length_rewrite_with_the_time_restored_is_still_refused() {
+    let (dir, mut root) = root_with("nota.md", "aaaaa");
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    let path = dir.path().join("nota.md");
+    fs::write(&path, "ccccc").unwrap();
+    // Restore the modified time, as cp -p, rsync or a restore would.
+    fs::File::options()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_modified(stamp.modified)
+        .unwrap();
+    let err = root.write(h, b"depois", &stamp).unwrap_err();
+    assert!(matches!(err, WriteError::Changed { .. }), "{err:?}");
+    assert_eq!(fs::read(&path).unwrap(), b"ccccc");
+}
+
+#[test]
+fn a_handle_from_another_root_is_refused() {
+    let (_a, mut root_a) = root_with("nota.md", "vault A");
+    let (_b, mut root_b) = root_with("nota.md", "vault B");
+    let ha = root_a.handle(Path::new("nota.md")).unwrap();
+    let _hb = root_b.handle(Path::new("nota.md")).unwrap();
+    assert!(matches!(root_b.read(ha), Err(ReadError::UnknownHandle(_))));
+}
+
+#[test]
+fn owner_is_reported_preserved_when_the_writer_owns_the_file() {
+    let (_dir, mut root) = root_with("nota.md", "antes");
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    let report = root.write(h, b"depois", &stamp).unwrap();
+    assert!(report.owner_preserved);
+    assert_eq!(report.durability_not_confirmed, None);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failure_before_the_rename_leaves_the_original_untouched() {
+    use std::os::unix::fs::PermissionsExt;
+    let (dir, mut root) = root_with("nota.md", "antes");
+    let h = root.handle(Path::new("nota.md")).unwrap();
+    let (_, stamp) = root.read(h).unwrap();
+    // A read-only directory: the temporary file cannot be created.
+    fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o500)).unwrap();
+    let result = root.write(h, b"depois", &stamp);
+    fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o700)).unwrap();
+    assert!(matches!(result, Err(WriteError::Io(_))), "{result:?}");
+    assert_eq!(fs::read(dir.path().join("nota.md")).unwrap(), b"antes");
+    let leftovers: Vec<_> = fs::read_dir(dir.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name())
+        .collect();
+    assert_eq!(leftovers.len(), 1, "{leftovers:?}");
+}

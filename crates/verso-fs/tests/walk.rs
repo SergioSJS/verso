@@ -213,3 +213,23 @@ fn a_root_must_be_a_directory() {
     assert!(Root::open(dir.path().join("nota.md"), vec![]).is_err());
     assert!(Root::open(dir.path().join("nao-existe"), vec![]).is_err());
 }
+
+#[test]
+fn hidden_and_ignored_paths_have_no_handle() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join(".obsidian/app.json"), "{}");
+    touch(&dir.path().join("anexos/segredo.md"), "segredo");
+    let mut root = Root::open(dir.path(), vec![PathBuf::from("./anexos")]).unwrap();
+    assert_eq!(
+        root.handle(Path::new(".obsidian/app.json")),
+        Err(verso_fs::ConfinementError::Hidden)
+    );
+    assert_eq!(
+        root.handle(Path::new("anexos/segredo.md")),
+        Err(verso_fs::ConfinementError::Ignored)
+    );
+    // `./anexos` was normalized: the walk skips it too.
+    assert!(relatives(&mut root).is_empty());
+    // An ignore entry that leaves the folder is an error at open time.
+    assert!(Root::open(dir.path(), vec![PathBuf::from("../x")]).is_err());
+}

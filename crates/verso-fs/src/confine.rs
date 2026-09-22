@@ -19,6 +19,11 @@ pub enum ConfinementError {
     ParentComponent,
     Empty,
     NulByte,
+    /// A component starts with `.`: the walk does not list it, and a
+    /// handle to it is refused too (provisional, ADR 0044).
+    Hidden,
+    /// Under a path the caller asked to ignore (provisional, ADR 0044).
+    Ignored,
 }
 
 impl std::fmt::Display for ConfinementError {
@@ -28,6 +33,8 @@ impl std::fmt::Display for ConfinementError {
             Self::ParentComponent => "a `..` component",
             Self::Empty => "an empty path",
             Self::NulByte => "a NUL byte",
+            Self::Hidden => "a hidden entry",
+            Self::Ignored => "an ignored path",
         };
         write!(
             f,
