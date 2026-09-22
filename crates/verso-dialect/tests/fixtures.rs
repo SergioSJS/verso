@@ -45,6 +45,8 @@ fixture_tests! {
     wikilink_simple => "wikilink/simple",
     // AI drafts of this PR, awaiting approval (first line of each expected.yaml).
     block_definition => "block/definition",
+    // AI draft of the Q3 PR, awaiting approval (first line of its expected.yaml).
+    block_list_item => "block/list-item",
     callout_simple => "callout/simple",
     embed_simple => "embed/simple",
     frontmatter_tags_aliases => "frontmatter/tags-aliases",

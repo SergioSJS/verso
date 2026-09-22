@@ -1,0 +1,2 @@
+- Ele jurou vingança. ^juramento
+- Ela riu.

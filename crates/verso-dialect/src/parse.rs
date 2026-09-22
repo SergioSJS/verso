@@ -58,8 +58,16 @@ pub fn parse(source: &str) -> Document {
                     document.headings.push(heading);
                 }
             }
-            Event::End(TagEnd::Paragraph) => {
-                if let Some(block) = block_id(source, &lines, range) {
+            // A `^id` ends a paragraph, or a list item (spec §5.7; Q3 closed
+            // for these two on 2026-09-21). A tight list item has no
+            // paragraph event, so both ends are checked; a loose item ends
+            // with the same `^id` its last paragraph ended with, and a
+            // nested list ends with its inner item's, so a candidate already
+            // reported at the same span is skipped.
+            Event::End(TagEnd::Paragraph | TagEnd::Item) => {
+                if let Some(block) = block_id(source, &lines, range)
+                    && document.blocks.last().map(|b| b.span) != Some(block.span)
+                {
                     document.blocks.push(block);
                 }
             }
@@ -163,15 +171,18 @@ fn strip_closing_sequence(content: &str) -> &str {
     }
 }
 
-/// A `^id` as the last word of a paragraph (spec §5.7). The id is letters,
-/// digits and hyphen, Obsidian's documented charset; the other admissible
-/// positions and charsets are Q3 and Q22. Two consequences of "paragraph",
-/// both undecided and recorded, not chosen: a `^id` alone on a line after a
-/// blank line is a paragraph of its own and is reported; a `^id` at the end
-/// of a tight list item is not, because the base emits no paragraph inside a
-/// tight item. The paragraph's own text is checked, not the base's text
-/// events, so a `^id` at the end of a code span, which is followed by a
-/// backtick, does not qualify.
+/// A `^id` as the last word of a paragraph or of a list item (spec §5.7;
+/// `fixtures/block/definition` and `fixtures/block/list-item`). The id is
+/// letters, digits and hyphen, Obsidian's documented charset; the charset
+/// is Q22 and the remaining positions of Q3 (its own line after a blank
+/// line, which Obsidian attaches to the block before it; the end of a
+/// heading) stay open: a `^id` alone on a line after a blank line is a
+/// paragraph of its own here and is reported at the `^`, which is what
+/// spec §4.3 asks of `pos` whichever block it names. The block's own text
+/// is checked, not the base's text events, so a `^id` at the end of a code
+/// span, which is followed by a backtick, does not qualify. An item whose
+/// own line ends with `^id` but that continues with a nested list is not
+/// recognized: the item's range ends with the nested list.
 fn block_id(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<BlockId> {
     let text = source.get(range.clone())?;
     let trimmed = text.trim_end();
@@ -242,4 +253,39 @@ fn frontmatter(source: &str, range: Range<usize>) -> Option<Frontmatter> {
         span: span(&range),
         values: parse_yaml(body),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    fn ids(source: &str) -> Vec<(String, u32, u32)> {
+        parse(source)
+            .blocks
+            .iter()
+            .map(|b| (b.id.clone(), b.pos.line, b.pos.col))
+            .collect()
+    }
+
+    #[test]
+    fn block_id_at_the_end_of_a_paragraph_or_a_list_item_once() {
+        assert_eq!(ids("Ele jurou. ^a\n"), vec![("a".into(), 1, 12)]);
+        // Tight list: no paragraph event, the item end is what reports it.
+        assert_eq!(
+            ids("- um ^a\n- dois ^b\n"),
+            vec![("a".into(), 1, 6), ("b".into(), 2, 8)]
+        );
+        // Loose list: the paragraph and the item end with the same `^id`;
+        // reported once.
+        assert_eq!(
+            ids("- um ^a\n\n- dois ^b\n"),
+            vec![("a".into(), 1, 6), ("b".into(), 3, 8)]
+        );
+        // Nested list: the outer item ends with the inner item's `^id`;
+        // reported once, at the inner position.
+        assert_eq!(ids("- um\n  - dois ^b\n"), vec![("b".into(), 2, 10)]);
+        // Not a block id: inside a code span, or not the last word.
+        assert_eq!(ids("- um `^a`\n"), vec![]);
+        assert_eq!(ids("- ^a um\n"), vec![]);
+    }
 }
