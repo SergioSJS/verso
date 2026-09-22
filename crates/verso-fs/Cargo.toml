@@ -19,7 +19,8 @@ xattr = "1.6"
 [target.'cfg(target_os = "macos")'.dependencies]
 # `statfs` is not in std; the atomic write has to know when the folder is on
 # a network file system, where rename is not atomic (ADR 0029). macOS only
-# for now: the initial platform (ADR 0022); Linux reports "unknown".
+# for now: the initial platform (ADR 0022); elsewhere the report says
+# nothing (`None`: not detected).
 nix = { version = "0.31", default-features = false, features = ["fs", "mount"] }
 
 [dev-dependencies]
