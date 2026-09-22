@@ -51,6 +51,9 @@ type Strings = {
   lessonBody: string;
   lessonKeys: string;
   split: string;
+  splitDown: string;
+  emptyPane: string;
+  quick: string;
   close: string;
   keysEdit: string;
   keysSplit: string;
@@ -84,8 +87,11 @@ const pt: Strings = {
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
   lessonTitle: "Abra uma pasta de notas.",
   lessonBody: "Tudo fica nos seus arquivos Markdown, como no Obsidian. Nada é reescrito sem você pedir.",
-  lessonKeys: "⌘O abre uma pasta · ⌘K busca · ⌘-clique numa nota abre em aba nova · ⌘\\ divide a tela",
+  lessonKeys: "⌘O abre uma pasta · ⌘P abre uma nota pelo nome · ⌘K busca · ⌘\\ e ⌘⇧\\ dividem · arraste abas entre painéis",
   split: "Dividir à direita",
+  splitDown: "Dividir abaixo",
+  emptyPane: "Escolha uma nota na lista, ou arraste uma aba para cá.",
+  quick: "Abrir nota…",
   close: "Fechar aba",
   keysEdit: "editar",
   keysSplit: "dividir",
@@ -119,8 +125,11 @@ const en: Strings = {
   unresolved: (t) => `No note answers to [[${t}]].`,
   lessonTitle: "Open a folder of notes.",
   lessonBody: "Everything stays in your Markdown files, as in Obsidian. Nothing is rewritten unless you ask.",
-  lessonKeys: "⌘O opens a folder · ⌘K searches · ⌘-click a note for a new tab · ⌘\\ splits the view",
+  lessonKeys: "⌘O opens a folder · ⌘P opens a note by name · ⌘K searches · ⌘\\ and ⌘⇧\\ split · drag tabs between panes",
   split: "Split right",
+  splitDown: "Split down",
+  emptyPane: "Pick a note from the list, or drag a tab here.",
+  quick: "Open a note…",
   close: "Close tab",
   keysEdit: "edit",
   keysSplit: "split",
@@ -280,13 +289,30 @@ class Leaf {
       live: this.modeButton("live", "edit", t.edit),
       source: this.modeButton("source", "source", t.source),
     };
-    const splitButton = h("button", "ghost iconic");
-    splitButton.type = "button";
-    splitButton.title = `${t.split} (⌘\\)`;
-    splitButton.append(icon("split", t.split));
-    splitButton.addEventListener("click", () => layout.split(this.pane, this.path));
+    const splitRight = h("button", "ghost iconic");
+    splitRight.type = "button";
+    splitRight.title = `${t.split} (⌘\\)`;
+    splitRight.append(icon("split", t.split));
+    splitRight.addEventListener("click", () => layout.split(this.pane, "row"));
+    const splitDown = h("button", "ghost iconic");
+    splitDown.type = "button";
+    splitDown.title = `${t.splitDown} (⌘⇧\\)`;
+    splitDown.append(icon("splitDown", t.splitDown));
+    splitDown.addEventListener("click", () => layout.split(this.pane, "col"));
     const head = h("header", "leaf-head");
-    head.append(this.crumbs, this.modes, splitButton);
+    head.append(this.crumbs, this.modes, splitRight, splitDown);
+    this.tab.draggable = true;
+    this.tab.addEventListener("dragstart", (e) => {
+      dragging = this;
+      this.tab.classList.add("dragging");
+      e.dataTransfer?.setData("text/plain", this.path);
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+    });
+    this.tab.addEventListener("dragend", () => {
+      dragging = null;
+      this.tab.classList.remove("dragging");
+      clearDropHints();
+    });
 
     this.saveButton.type = "button";
     this.saveButton.title = "⌘S";
@@ -544,6 +570,20 @@ class Leaf {
     this.editor.destroy();
     this.pane.remove(this);
   }
+
+  /** Move to another pane, at `index` among its tabs. */
+  moveTo(pane: Pane, index?: number): void {
+    if (pane === this.pane && index === undefined) return;
+    this.pane.remove(this);
+    (this as { pane: Pane }).pane = pane;
+    pane.insert(this, index);
+    pane.activate(this);
+  }
+}
+
+let dragging: Leaf | null = null;
+function clearDropHints(): void {
+  for (const e of document.querySelectorAll(".drop-hint, .tabs.drop")) e.classList.remove("drop-hint", "drop", "left", "right", "top", "bottom", "center");
 }
 
 /* ---------- Pane: tabs and one visible leaf ---------- */
@@ -551,19 +591,77 @@ class Pane {
   readonly el = h("div", "pane");
   readonly tabs = h("div", "tabs");
   readonly body = h("div", "pane-body");
+  readonly empty = h("div", "pane-empty");
   readonly leaves: Leaf[] = [];
   active: Leaf | null = null;
 
   constructor() {
     this.tabs.setAttribute("role", "tablist");
+    this.empty.append(icon("outline"), h("p", "", t.emptyPane));
+    this.body.append(this.empty);
     this.el.append(this.tabs, this.body);
     this.el.addEventListener("mousedown", () => layout.focus(this));
+
+    // Drop a tab on the tab bar: reorder or move here.
+    this.tabs.addEventListener("dragover", (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      this.tabs.classList.add("drop");
+    });
+    this.tabs.addEventListener("dragleave", () => this.tabs.classList.remove("drop"));
+    this.tabs.addEventListener("drop", (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const tabsAt = this.leaves.map((l) => l.tab.getBoundingClientRect());
+      let index = tabsAt.findIndex((r) => e.clientX < r.left + r.width / 2);
+      if (index < 0) index = this.leaves.length;
+      dragging.moveTo(this, index);
+      clearDropHints();
+    });
+    // Drop a tab on the body: the edges split, the middle moves here.
+    this.body.addEventListener("dragover", (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const zone = this.zone(e);
+      this.body.classList.remove("left", "right", "top", "bottom", "center");
+      this.body.classList.add("drop-hint", zone);
+    });
+    this.body.addEventListener("dragleave", (e) => {
+      if (!this.body.contains(e.relatedTarget as globalThis.Node | null)) this.body.classList.remove("drop-hint", "left", "right", "top", "bottom", "center");
+    });
+    this.body.addEventListener("drop", (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const leaf = dragging;
+      const zone = this.zone(e);
+      clearDropHints();
+      if (zone === "center") {
+        leaf.moveTo(this);
+        return;
+      }
+      if (leaf.pane === this && this.leaves.length === 1) return;
+      const dir = zone === "left" || zone === "right" ? "row" : "col";
+      const pane = layout.split(this, dir, zone === "left" || zone === "top" ? "before" : "after");
+      leaf.moveTo(pane);
+    });
   }
 
-  open(path: string, newTab: boolean): Leaf {
+  private zone(e: DragEvent): "left" | "right" | "top" | "bottom" | "center" {
+    const r = this.body.getBoundingClientRect();
+    const fx = (e.clientX - r.left) / r.width;
+    const fy = (e.clientY - r.top) / r.height;
+    if (fx < 0.22) return "left";
+    if (fx > 0.78) return "right";
+    if (fy < 0.22) return "top";
+    if (fy > 0.78) return "bottom";
+    return "center";
+  }
+
+  /** Open a note here: its tab if it has one, else a new tab. */
+  open(path: string): Leaf {
     let leaf = this.leaves.find((l) => l.path === path);
     if (!leaf) {
-      leaf = this.active && !newTab ? this.active : this.add();
+      leaf = this.add();
       void leaf.load(path);
     }
     this.activate(leaf);
@@ -572,10 +670,18 @@ class Pane {
 
   add(): Leaf {
     const leaf = new Leaf(this);
-    this.leaves.push(leaf);
-    this.tabs.append(leaf.tab);
-    this.body.append(leaf.el);
+    this.insert(leaf);
     return leaf;
+  }
+
+  insert(leaf: Leaf, index?: number): void {
+    const i = index === undefined ? this.leaves.length : Math.min(index, this.leaves.length);
+    this.leaves.splice(i, 0, leaf);
+    const before = this.leaves[i + 1];
+    if (before) this.tabs.insertBefore(leaf.tab, before.tab);
+    else this.tabs.append(leaf.tab);
+    this.body.append(leaf.el);
+    this.empty.hidden = true;
   }
 
   activate(leaf: Leaf, focus = true): void {
@@ -590,6 +696,8 @@ class Pane {
     if (focus && leaf.mode !== "preview") leaf.editor.focus();
   }
 
+  /** Take a leaf out (moved or closed). A pane left empty goes away,
+   *  unless it is the last one. */
   remove(leaf: Leaf): void {
     const i = this.leaves.indexOf(leaf);
     if (i < 0) return;
@@ -601,7 +709,8 @@ class Pane {
       if (next) this.activate(next);
       else {
         this.active = null;
-        if (layout.panes.length > 1) layout.remove(this);
+        this.empty.hidden = false;
+        if (layout.paneCount() > 1) layout.remove(this);
         else showOutline(null);
       }
     }
@@ -609,74 +718,139 @@ class Pane {
   }
 }
 
-/* ---------- Layout: a row of panes with draggable dividers ---------- */
+/* ---------- Layout: a tree of splits, each with draggable dividers ---------- */
+type Dir = "row" | "col";
+type Split = { kind: "split"; dir: Dir; children: LNode[]; el: HTMLElement };
+type PaneNode = { kind: "pane"; pane: Pane };
+type LNode = Split | PaneNode;
+
 class Layout {
-  readonly panes: Pane[] = [];
+  root: LNode = { kind: "split", dir: "row", children: [], el: h("div", "split row") };
   focused: Pane | null = null;
 
-  add(after?: Pane): Pane {
+  paneCount(): number {
+    return this.panes().length;
+  }
+  panes(node: LNode = this.root): Pane[] {
+    return node.kind === "pane" ? [node.pane] : node.children.flatMap((c) => this.panes(c));
+  }
+  private parentOf(target: Pane, node: LNode = this.root): Split | null {
+    if (node.kind === "pane") return null;
+    for (const c of node.children) {
+      if (c.kind === "pane" && c.pane === target) return node;
+      const deeper = this.parentOf(target, c);
+      if (deeper) return deeper;
+    }
+    return null;
+  }
+
+  reset(): Pane {
+    for (const p of this.panes()) for (const l of p.leaves.slice()) {
+      l.editor.destroy();
+      p.remove(l);
+    }
+    this.root = { kind: "split", dir: "row", children: [], el: h("div", "split row") };
     const pane = new Pane();
-    const i = after ? this.panes.indexOf(after) + 1 : this.panes.length;
-    this.panes.splice(i, 0, pane);
+    this.root.children.push({ kind: "pane", pane });
     this.render();
     this.focus(pane);
     return pane;
   }
 
-  split(from: Pane, path: string): void {
-    const pane = this.add(from);
-    if (path) pane.open(path, true);
+  /** A new, empty pane beside `from`, in direction `dir`. */
+  split(from: Pane, dir: Dir, where: "before" | "after" = "after"): Pane {
+    const pane = new Pane();
+    const parent = this.parentOf(from);
+    const node: PaneNode = { kind: "pane", pane };
+    if (!parent) return this.reset();
+    const i = parent.children.findIndex((c) => c.kind === "pane" && c.pane === from);
+    if (parent.dir === dir) {
+      parent.children.splice(where === "after" ? i + 1 : i, 0, node);
+    } else {
+      const me = parent.children[i]!;
+      const inner: Split = { kind: "split", dir, children: where === "after" ? [me, node] : [node, me], el: h("div", `split ${dir}`) };
+      parent.children[i] = inner;
+    }
+    this.render();
+    this.focus(pane);
+    return pane;
   }
 
   remove(pane: Pane): void {
-    const i = this.panes.indexOf(pane);
-    if (i < 0 || this.panes.length === 1) return;
-    this.panes.splice(i, 1);
+    const parent = this.parentOf(pane);
+    if (!parent) return;
+    const i = parent.children.findIndex((c) => c.kind === "pane" && c.pane === pane);
+    parent.children.splice(i, 1);
+    this.collapse();
     this.render();
-    this.focus(this.panes[Math.max(0, i - 1)] ?? null);
+    const left = this.panes();
+    this.focus(left[Math.min(i, left.length - 1)] ?? null);
+  }
+
+  /** A split with one child is that child; with none, it goes. */
+  private collapse(node: LNode = this.root): void {
+    if (node.kind === "pane") return;
+    for (const c of node.children) this.collapse(c);
+    node.children = node.children.filter((c) => c.kind === "pane" || c.children.length > 0);
+    node.children = node.children.map((c) => (c.kind === "split" && c.children.length === 1 ? c.children[0]! : c));
   }
 
   focus(pane: Pane | null): void {
     this.focused = pane;
-    for (const p of this.panes) p.el.classList.toggle("focused", p === pane);
+    for (const p of this.panes()) p.el.classList.toggle("focused", p === pane);
   }
 
   get activeLeaf(): Leaf | null {
     return this.focused?.active ?? null;
   }
 
-  /** The panes and the dividers between them; widths are flex weights. */
   render(): void {
-    const nodes: HTMLElement[] = [];
-    this.panes.forEach((p, i) => {
-      if (i > 0) nodes.push(this.divider(i));
-      if (!p.el.style.flexGrow) p.el.style.flexGrow = "1";
-      nodes.push(p.el);
-    });
-    ui.panes.replaceChildren(...nodes);
+    ui.panes.replaceChildren(this.build(this.root));
   }
 
-  private divider(i: number): HTMLElement {
-    const d = h("div", "divider");
+  private build(node: LNode): HTMLElement {
+    if (node.kind === "pane") {
+      if (!node.pane.el.style.flexGrow) node.pane.el.style.flexGrow = "1";
+      return node.pane.el;
+    }
+    node.el.className = `split ${node.dir}`;
+    const parts: HTMLElement[] = [];
+    node.children.forEach((c, i) => {
+      if (i > 0) parts.push(this.divider(node, i));
+      const el = this.build(c);
+      if (c.kind === "split" && !el.style.flexGrow) el.style.flexGrow = "1";
+      parts.push(el);
+    });
+    node.el.replaceChildren(...parts);
+    return node.el;
+  }
+
+  private elOf(node: LNode): HTMLElement {
+    return node.kind === "pane" ? node.pane.el : node.el;
+  }
+
+  private divider(split: Split, i: number): HTMLElement {
+    const d = h("div", `divider ${split.dir}`);
     d.setAttribute("role", "separator");
-    d.setAttribute("aria-orientation", "vertical");
+    d.setAttribute("aria-orientation", split.dir === "row" ? "vertical" : "horizontal");
     d.addEventListener("pointerdown", (e) => {
-      const left = this.panes[i - 1];
-      const right = this.panes[i];
-      if (!left || !right) return;
+      const a = split.children[i - 1];
+      const b = split.children[i];
+      if (!a || !b) return;
+      const ea = this.elOf(a);
+      const eb = this.elOf(b);
       d.setPointerCapture(e.pointerId);
-      const x0 = e.clientX;
-      const lw = left.el.getBoundingClientRect().width;
-      const rw = right.el.getBoundingClientRect().width;
-      const total = lw + rw;
-      const gl = Number(left.el.style.flexGrow || 1);
-      const gr = Number(right.el.style.flexGrow || 1);
-      const sum = gl + gr;
+      const horizontal = split.dir === "row";
+      const start = horizontal ? e.clientX : e.clientY;
+      const sa = horizontal ? ea.getBoundingClientRect().width : ea.getBoundingClientRect().height;
+      const sb = horizontal ? eb.getBoundingClientRect().width : eb.getBoundingClientRect().height;
+      const total = sa + sb;
+      const sum = Number(ea.style.flexGrow || 1) + Number(eb.style.flexGrow || 1);
       const move = (ev: PointerEvent) => {
-        const dx = ev.clientX - x0;
-        const nl = Math.min(Math.max(lw + dx, 160), total - 160);
-        left.el.style.flexGrow = String((sum * nl) / total);
-        right.el.style.flexGrow = String((sum * (total - nl)) / total);
+        const delta = (horizontal ? ev.clientX : ev.clientY) - start;
+        const na = Math.min(Math.max(sa + delta, 140), total - 140);
+        ea.style.flexGrow = String((sum * na) / total);
+        eb.style.flexGrow = String((sum * (total - na)) / total);
       };
       const up = () => {
         d.removeEventListener("pointermove", move);
@@ -694,9 +868,12 @@ const layout = new Layout();
 /* ---------- Sidebar: tree, search, outline ---------- */
 let allNotes: string[] = [];
 
-function openNote(path: string, newTab: boolean): void {
-  const pane = layout.focused ?? layout.panes[0] ?? layout.add();
-  pane.open(path, newTab);
+/** Open a note in the focused pane, in its own tab; ⌘-click: in a new
+ *  pane to the right. */
+function openNote(path: string, aside: boolean): void {
+  let pane = layout.focused ?? layout.panes()[0] ?? layout.reset();
+  if (aside) pane = layout.split(pane, "row");
+  pane.open(path);
 }
 
 function markCurrent(): void {
@@ -829,9 +1006,7 @@ async function openPath(path: string): Promise<boolean> {
   const i = r.data.index;
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   page?.classList.remove("empty");
-  for (const p of layout.panes.slice()) for (const l of p.leaves.slice()) l.pane.remove(l);
-  layout.panes.length = 0;
-  layout.add();
+  layout.reset();
   ui.reindex.disabled = false;
   ui.search.disabled = false;
   ui.search.value = "";
@@ -885,12 +1060,121 @@ document.addEventListener("keydown", (e) => {
     leaf.toggleMode();
   } else if (k === "\\" && layout.focused) {
     e.preventDefault();
-    layout.split(layout.focused, leaf?.path ?? "");
+    layout.split(layout.focused, e.shiftKey ? "col" : "row");
+  } else if (k === "p" && !ui.search.disabled) {
+    e.preventDefault();
+    quick.show();
+  } else if ((k === "[" || k === "]") && e.shiftKey && layout.focused?.active) {
+    e.preventDefault();
+    const pane = layout.focused;
+    const i = pane.leaves.indexOf(pane.active!);
+    const n = pane.leaves.length;
+    const next = pane.leaves[(i + (k === "]" ? 1 : n - 1)) % n];
+    if (next) pane.activate(next);
   } else if (k === "w" && leaf) {
     e.preventDefault();
     void leaf.close();
   }
 });
+
+/* ---------- ⌘P: open a note by name ---------- */
+class QuickSwitcher {
+  readonly el = h("div", "quick");
+  readonly input = h("input");
+  readonly list = h("ul", "quick-list");
+  private items: string[] = [];
+  private sel = 0;
+  constructor() {
+    this.el.hidden = true;
+    this.input.type = "text";
+    this.input.placeholder = t.quick;
+    this.input.setAttribute("aria-label", t.quick);
+    this.el.append(this.input, this.list);
+    document.body.append(this.el);
+    this.input.addEventListener("input", () => this.update());
+    this.input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") this.hide();
+      else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        this.sel = Math.min(this.sel + 1, this.items.length - 1);
+        this.paint();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        this.sel = Math.max(this.sel - 1, 0);
+        this.paint();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        this.choose(this.items[this.sel], e.metaKey || e.ctrlKey);
+      }
+    });
+    this.el.addEventListener("mousedown", (e) => {
+      if (e.target === this.el) this.hide();
+    });
+  }
+  show(): void {
+    this.el.hidden = false;
+    this.input.value = "";
+    this.update();
+    this.input.focus();
+  }
+  hide(): void {
+    this.el.hidden = true;
+  }
+  private choose(path: string | undefined, aside: boolean): void {
+    if (!path) return;
+    this.hide();
+    openNote(path, aside);
+  }
+  /** Every character of the query in order, name matches first. */
+  private update(): void {
+    const q = this.input.value.trim().toLowerCase();
+    const score = (path: string): number => {
+      const base = name(path).toLowerCase();
+      const full = path.toLowerCase();
+      if (q === "") return 1;
+      const sub = (s: string): number => {
+        let i = 0;
+        let run = 0;
+        let best = 0;
+        for (const ch of s) {
+          if (ch === q[i]) {
+            i++;
+            run++;
+            best = Math.max(best, run);
+            if (i === q.length) return 1 + best / q.length;
+          } else run = 0;
+        }
+        return 0;
+      };
+      if (base.startsWith(q)) return 10;
+      if (base.includes(q)) return 6;
+      return Math.max(sub(base) * 2, sub(full));
+    };
+    this.items = allNotes
+      .map((p) => [p, score(p)] as const)
+      .filter(([, sc]) => sc > 0)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 12)
+      .map(([p]) => p);
+    this.sel = 0;
+    this.paint();
+  }
+  private paint(): void {
+    this.list.replaceChildren(
+      ...this.items.map((p, i) => {
+        const li = h("li", i === this.sel ? "selected" : "");
+        const b = h("button");
+        b.type = "button";
+        b.append(h("span", "", name(p)), h("span", "path", dirOf(p)));
+        b.addEventListener("click", (e) => this.choose(p, e.metaKey || e.ctrlKey));
+        li.append(b);
+        return li;
+      }),
+    );
+    this.list.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
+  }
+}
+const quick = new QuickSwitcher();
 
 lesson();
 try {
@@ -899,4 +1183,3 @@ try {
 } catch {
   // No storage: start empty.
 }
-void allNotes;
