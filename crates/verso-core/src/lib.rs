@@ -167,14 +167,27 @@ impl Workspace {
                                 .map_err(CoreError::Index)?;
                             report.indexed += 1;
                         }
-                        Err(verso_fs::ReadError::Unavailable) => report.placeholders += 1,
+                        Err(verso_fs::ReadError::Unavailable) => {
+                            // Present, content unavailable (ADR 0043): the
+                            // last known version stays, marked unverified.
+                            self.index
+                                .mark_placeholder(&relative)
+                                .map_err(CoreError::Index)?;
+                            report.placeholders += 1;
+                        }
                         Err(e) => report.unreadable.push((relative, e.to_string())),
                     }
                 }
                 EntryKind::Placeholder { of } => {
-                    // Present, content unavailable: the index keeps what it
-                    // had for the real file (ADR 0043).
-                    present.push(of.to_string_lossy().into_owned());
+                    // Present, content unavailable: the last known version
+                    // of the real file stays, marked unverified (ADR 0043).
+                    let real = of.to_string_lossy().into_owned();
+                    if real.ends_with(".md") {
+                        self.index
+                            .mark_placeholder(&real)
+                            .map_err(CoreError::Index)?;
+                    }
+                    present.push(real);
                     report.placeholders += 1;
                 }
                 EntryKind::File | EntryKind::Directory => {}
@@ -192,6 +205,13 @@ impl Workspace {
                 report.removed += 1;
             }
         }
+        let now = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+            .unwrap_or(0);
+        self.index
+            .set_root(&self.folder.to_string_lossy(), now)
+            .map_err(CoreError::Index)?;
         Ok(report)
     }
 
