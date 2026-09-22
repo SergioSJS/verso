@@ -10,14 +10,23 @@
 # RUSTFLAGS would apply to dependency crates too, and a dependency that merely
 # warns would turn CI red with no fix in this repository.
 
+# Cost (2026-09-22): Actions minutes in a private repository are a monthly
+# budget and macOS is billed at 10x Linux. One day of pushing to five
+# stacked branches, each push running the workflow twice (push and
+# pull_request), with macOS on every job, spent the whole month's quota.
+# Since then: a branch runs only as a pull request; a push runs only on
+# main; macOS runs only on main. A PR is Linux-only; the merge into main is
+# where both operating systems are checked (ADR 0029, revision of
+# 2026-09-22).
+
 name: ci
 
 on:
   push:
-    branches: ["main", "fase0/**", "phase*", "phase*/**", "test/**"]
+    branches: ["main"]
   pull_request:
 
-# A PR from a fase0/** branch triggers both events; keep only the latest run.
+# One run per PR head; a new push cancels the previous run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
@@ -40,6 +49,8 @@ jobs:
 
   rust:
     name: fmt, clippy, test (${{ matrix.os }})
+    # macOS only on main: a PR runs on Linux (cost note at the top).
+    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -61,6 +72,8 @@ jobs:
   # failing before the PR that added it was merged; the PR records how.
   dialect-wasm:
     name: verso-dialect compiles to wasm32 (${{ matrix.os }}, ADR 0029)
+    # macOS only on main: a PR runs on Linux (cost note at the top).
+    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -77,6 +90,8 @@ jobs:
   dialect-fuzz:
     # cargo-fuzz needs nightly for its sanitizer; the pinned toolchain in
     # rust-toolchain.toml is bypassed with `+nightly` for this job only.
+    # macOS only on main: a PR runs on Linux (cost note at the top).
+    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
     # A short run on every PR, from the versioned seeds in `fuzz/seeds`
     # (one file per input that once broke something; see the fuzz target's
     # doc); the corpus grows in `fuzz/corpus` locally and is not versioned,
@@ -123,6 +138,8 @@ jobs:
     # On both operating systems: ADR 0029 and roadmap exit criterion 3 list
     # `cargo deny check` with the other three, on macOS and Linux.
     name: cargo deny (${{ matrix.os }})
+    # macOS only on main: a PR runs on Linux (cost note at the top).
+    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
