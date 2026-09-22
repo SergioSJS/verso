@@ -19,7 +19,7 @@
 //! problem for, or a placeholder (ADR 0043), is never removed from the
 //! index.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
@@ -236,6 +236,42 @@ pub struct Written {
     pub warnings: Vec<String>,
 }
 
+/// One line per frontmatter value, for a properties panel.
+fn property_text(v: &verso_dialect::Value) -> String {
+    use verso_dialect::Value;
+    match v {
+        Value::Null => String::new(),
+        Value::Bool(b) => b.to_string(),
+        Value::Integer(n) => n.to_string(),
+        Value::Float(x) => x.to_string(),
+        Value::String(s) => s.clone(),
+        Value::Sequence(items) => items
+            .iter()
+            .map(property_text)
+            .collect::<Vec<_>>()
+            .join(", "),
+        Value::Mapping(pairs) => pairs
+            .iter()
+            .map(|(k, v)| format!("{k}: {}", property_text(v)))
+            .collect::<Vec<_>>()
+            .join("; "),
+    }
+}
+
+fn properties(content: &str) -> Vec<(String, String)> {
+    match verso_dialect::parse(content)
+        .frontmatter
+        .as_ref()
+        .map(|f| &f.values)
+    {
+        Some(Ok(verso_dialect::Value::Mapping(pairs))) => pairs
+            .iter()
+            .map(|(k, v)| (k.clone(), property_text(v)))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
 fn write_warnings(r: &verso_fs::WriteReport) -> Vec<String> {
     let mut out = Vec::new();
     if !r.mode_preserved {
@@ -285,6 +321,9 @@ pub struct NoteText {
     pub blocks: Vec<Block>,
     /// The note rendered for a preview (`verso_dialect::to_html`).
     pub html: String,
+    /// The frontmatter's keys and values, each value as one line of text,
+    /// in the order written; empty when there is none or it is not YAML.
+    pub properties: Vec<(String, String)>,
     /// The whole text as read (UTF-8, lossily), line endings included,
     /// for an editor: what it gives back is written as is.
     pub text: String,
@@ -299,6 +338,11 @@ pub struct Workspace {
     folder: PathBuf,
     root: Root,
     index: Index,
+    /// Every regular file that is not a note, by lower-cased file name,
+    /// as the last walk listed it: what an embed such as `![[mapa.png]]`
+    /// resolves against (spec Q2, the same folder-blind name match as a
+    /// link, until the resolution rule of Q12 covers attachments).
+    files: HashMap<String, Vec<String>>,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -351,6 +395,7 @@ impl Workspace {
             folder,
             root,
             index,
+            files: HashMap::new(),
         })
     }
 
@@ -374,6 +419,7 @@ impl Workspace {
         let walk = self.root.walk();
         let mut report = IndexReport::default();
         let mut present: HashSet<String> = HashSet::new();
+        let mut files: HashMap<String, Vec<String>> = HashMap::new();
         for entry in &walk.entries {
             let relative = entry.relative.to_string_lossy().into_owned();
             match &entry.kind {
@@ -426,9 +472,18 @@ impl Workspace {
                     present.insert(real);
                     report.placeholders += 1;
                 }
-                EntryKind::File | EntryKind::Directory => {}
+                EntryKind::File => {
+                    let name = relative
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(&relative)
+                        .to_lowercase();
+                    files.entry(name).or_default().push(relative.clone());
+                }
+                EntryKind::Directory => {}
             }
         }
+        self.files = files;
         report.problems = walk.problems.iter().map(WalkProblem::from).collect();
         // Not walked because of a problem: nothing under it is gone. The
         // root itself (an empty path) protects every note.
@@ -560,6 +615,7 @@ impl Workspace {
         Ok(NoteText {
             lines: content.lines().map(str::to_owned).collect(),
             html: verso_dialect::to_html(&content),
+            properties: properties(&content),
             stale,
             unverified,
             headings: self.index.headings_of(&path).map_err(CoreError::Index)?,
@@ -605,6 +661,52 @@ impl Workspace {
             note: self.read_note(&path)?,
             warnings: write_warnings(&report),
         })
+    }
+
+    /// The file an embed or an attachment link names: by path from the
+    /// root when the target has a `/`, otherwise by file name — with or
+    /// without its extension — case-insensitively; several, the one with
+    /// the fewest path segments, then the first in byte order. Notes are
+    /// not files here: `links` answers for them.
+    #[must_use]
+    pub fn resolve_file(&self, target: &str) -> Option<String> {
+        let wanted = target.trim().to_lowercase();
+        if wanted.is_empty() {
+            return None;
+        }
+        let mut candidates: Vec<&String> = if wanted.contains('/') {
+            self.files
+                .values()
+                .flatten()
+                .filter(|p| p.to_lowercase() == wanted)
+                .collect()
+        } else {
+            self.files
+                .iter()
+                .filter(|(name, _)| {
+                    **name == wanted
+                        || name
+                            .rsplit_once('.')
+                            .is_some_and(|(stem, _)| stem == wanted)
+                })
+                .flat_map(|(_, paths)| paths)
+                .collect()
+        };
+        candidates.sort_by_key(|p| (p.matches('/').count(), (*p).clone()));
+        candidates.first().map(|p| (*p).clone())
+    }
+
+    /// The bytes of a file of the folder that is not a note (an image,
+    /// an attachment), confined like every path (ADR 0044), read through
+    /// `verso-fs`. A placeholder answers `Read(Unavailable)`.
+    pub fn read_file(&mut self, relative: &str) -> Result<Vec<u8>, CoreError> {
+        let confined = self
+            .root
+            .confine(Path::new(relative))
+            .map_err(CoreError::Confined)?;
+        let handle = self.root.handle(&confined).map_err(CoreError::Confined)?;
+        let (bytes, _) = self.root.read(handle).map_err(CoreError::Read)?;
+        Ok(bytes)
     }
 
     pub fn unresolved(&self) -> Result<Vec<Unresolved>, CoreError> {

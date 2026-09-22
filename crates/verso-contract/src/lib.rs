@@ -67,6 +67,9 @@ pub struct NoteText {
     /// `<span class="embed" data-target>`; the UI resolves targets
     /// through `links`.
     pub html: String,
+    /// The frontmatter as a properties panel shows it: key and one line
+    /// of text per value, in the order written.
+    pub properties: Vec<Property>,
     /// The whole text as read, line endings included: what the editor
     /// gives back is written as is, no normalization (ADR 0012).
     pub text: String,
@@ -91,6 +94,13 @@ pub struct NoteText {
 pub struct Written {
     pub note: NoteText,
     pub warnings: Vec<String>,
+}
+
+/// One frontmatter key and its value as text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Property {
+    pub key: String,
+    pub value: String,
 }
 
 /// One search hit.

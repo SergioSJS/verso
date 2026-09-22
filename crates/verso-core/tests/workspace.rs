@@ -383,3 +383,42 @@ fn writing_a_note_goes_through_the_atomic_write_and_refuses_a_changed_file() {
         Err(CoreError::Write(_))
     ));
 }
+
+#[test]
+fn an_attachment_resolves_by_name_or_stem_and_reads_through_the_core() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let assets = subdir(vault.path(), "assets");
+    let deep = subdir(&assets.path().join(""), "deep");
+    let _png = note(assets.path(), "Mapa.png", "PNG?");
+    let _dup = note(deep.path(), "mapa.png", "deeper");
+    let _md = note(
+        vault.path(),
+        "Nota.md",
+        "---\ntags: [a, b]\nnivel: 3\n---\n![[Mapa]] ![[mapa.png]]\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    // Fewest segments wins; the stem and the case are accepted.
+    assert_eq!(ws.resolve_file("Mapa").as_deref(), Some("assets/Mapa.png"));
+    assert_eq!(
+        ws.resolve_file("MAPA.PNG").as_deref(),
+        Some("assets/Mapa.png")
+    );
+    assert_eq!(
+        ws.resolve_file("assets/deep/mapa.png").as_deref(),
+        Some("assets/deep/mapa.png")
+    );
+    assert_eq!(ws.resolve_file("nada"), None);
+    assert_eq!(ws.read_file("assets/Mapa.png").unwrap(), b"PNG?");
+    assert!(ws.read_file("../fora").is_err());
+    // Frontmatter as properties.
+    let n = ws.read_note("Nota").unwrap();
+    assert_eq!(
+        n.properties,
+        vec![
+            ("tags".to_owned(), "a, b".to_owned()),
+            ("nivel".to_owned(), "3".to_owned())
+        ]
+    );
+}

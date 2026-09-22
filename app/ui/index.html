@@ -23,6 +23,7 @@
       <ul id="notes" class="list"></ul>
     </nav>
     <section class="note" aria-labelledby="note-title">
+      <nav id="crumbs" class="crumbs" aria-label="breadcrumb"></nav>
       <div class="note-head">
         <h2 id="note-title" class="note-title"></h2>
         <span id="dirty" class="dirty" hidden>●</span>
@@ -30,6 +31,7 @@
         <button id="view" type="button" class="small" hidden></button>
       </div>
       <p id="note-flags" class="flags"></p>
+      <dl id="props" class="props" hidden></dl>
       <div id="conflict" class="conflict" hidden>
         <p id="conflict-text"></p>
         <pre id="conflict-diff" class="diff"></pre>

@@ -27,6 +27,11 @@ export const commands = {
 	 *  meanwhile: nothing written, read again and show the diff (invariant 11).
 	 */
 	writeNote: (path: string, text: string, revision: string) => typedError<Written, ContractError>(__TAURI_INVOKE("write_note", { path, text, revision })),
+	/**
+	 *  The file an embed names (`![[mapa.png]]`), relative to the folder, or
+	 *  none. The UI then loads it through the `verso://` protocol below.
+	 */
+	resolveAttachment: (target: string) => typedError<string | null, ContractError>(__TAURI_INVOKE("resolve_attachment", { target })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 };
@@ -140,6 +145,11 @@ export type NoteText = {
 	 */
 	html: string,
 	/**
+	 *  The frontmatter as a properties panel shows it: key and one line
+	 *  of text per value, in the order written.
+	 */
+	properties: Property[],
+	/**
 	 *  The whole text as read, line endings included: what the editor
 	 *  gives back is written as is, no normalization (ADR 0012).
 	 */
@@ -161,6 +171,12 @@ export type NoteText = {
 	 *  placeholder stood where it was (ADR 0043).
 	 */
 	unverified: boolean,
+};
+
+/**  One frontmatter key and its value as text. */
+export type Property = {
+	key: string,
+	value: string,
 };
 
 /**

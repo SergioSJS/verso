@@ -8,6 +8,7 @@
 // the preview's HTML comes from the core's own parser. pt-BR and EN from
 // the first commit (ADR 0035), by the system language.
 
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { EditorView, basicSetup } from "codemirror";
 import { EditorState } from "@codemirror/state";
@@ -125,6 +126,8 @@ const ui = {
   save: el<HTMLButtonElement>("save"),
   dirty: el<HTMLSpanElement>("dirty"),
   noteFlags: el<HTMLParagraphElement>("note-flags"),
+  crumbs: el<HTMLElement>("crumbs"),
+  props: el<HTMLDListElement>("props"),
   preview: el<HTMLElement>("preview"),
   editor: el<HTMLDivElement>("editor"),
   conflict: el<HTMLDivElement>("conflict"),
@@ -325,9 +328,65 @@ function applyView(): void {
   if (showingSource) editor.focus();
 }
 
+const IMAGE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
+
+/** Embeds that name an image become the image, loaded through the
+ *  `verso://` protocol — read by the core, never by the webview. */
+async function embedImages(forPath: string): Promise<void> {
+  const spans = Array.from(ui.preview.querySelectorAll<HTMLElement>("span.embed"));
+  const targets = new Set(spans.map((e) => (e.dataset["target"] ?? "").split("#")[0] ?? ""));
+  const found = new Map<string, string | null>();
+  await Promise.all(
+    Array.from(targets).map(async (target) => {
+      const r = await commands.resolveAttachment(target);
+      found.set(target, r.status === "ok" ? r.data : null);
+    }),
+  );
+  if (current !== forPath) return;
+  for (const span of spans) {
+    const target = (span.dataset["target"] ?? "").split("#")[0] ?? "";
+    const rel = found.get(target);
+    if (!rel) continue;
+    if (IMAGE.test(rel)) {
+      const img = document.createElement("img");
+      img.src = convertFileSrc(rel, "verso");
+      img.alt = target;
+      img.loading = "lazy";
+      const p = span.parentElement;
+      span.replaceWith(img);
+      if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
+    } else {
+      span.classList.add("file");
+      span.title = rel;
+    }
+  }
+}
+
+function crumbs(path: string): void {
+  const parts = path.split("/").slice(0, -1);
+  ui.crumbs.replaceChildren(
+    ...parts.flatMap((part, i) => {
+      const s = document.createElement("span");
+      s.textContent = part;
+      return i === 0 ? [s] : [document.createTextNode(" / "), s];
+    }),
+  );
+}
+
 /** Load a note into the page: preview, editor, revision. */
 function load(note: NoteText): void {
   ui.noteTitle.textContent = name(note.path);
+  crumbs(note.path);
+  ui.props.replaceChildren(
+    ...note.properties.flatMap((p) => {
+      const dt = document.createElement("dt");
+      dt.textContent = p.key;
+      const dd = document.createElement("dd");
+      dd.textContent = p.value;
+      return [dt, dd];
+    }),
+  );
+  ui.props.hidden = note.properties.length === 0;
   const flags: string[] = [];
   if (note.stale) flags.push(t.stale);
   if (note.unverified) flags.push(t.unverified);
@@ -335,6 +394,7 @@ function load(note: NoteText): void {
   // The HTML is the core's rendering of the user's own file (see
   // verso_dialect::to_html); the webview's policy runs no script from it.
   ui.preview.innerHTML = note.html;
+  void embedImages(note.path);
   revision = note.revision;
   eol = note.text.includes("\r\n") ? "\r\n" : "\n";
   onDisk = note.text;
@@ -485,6 +545,8 @@ async function openFolder(): Promise<void> {
   ui.search.value = "";
   ui.noteTitle.textContent = "";
   ui.noteFlags.textContent = "";
+  ui.crumbs.replaceChildren();
+  ui.props.hidden = true;
   ui.preview.replaceChildren();
   ui.editor.hidden = true;
   ui.conflict.hidden = true;
