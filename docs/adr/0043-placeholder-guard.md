@@ -7,7 +7,9 @@
 - Revisions: 2026-09-22 — the detection mechanism decided for iCloud Drive by
   the maintainer, on the memo
   [`docs/reference/fs-decision.md`](../reference/fs-decision.md); the other
-  providers stay `[OPEN]`.
+  providers stay `[OPEN]`. 2026-09-22 — where the guard runs and what wins
+  between a real file and a stale `.icloud` sibling, from the feature 2 code,
+  recorded as provisional.
 
 ## Context
 
@@ -67,6 +69,33 @@ maintainer resolved it by promoting the rule.
   recording how it was observed. No `verso-fs` fixture schema exists yet
   ([0044](0044-verso-fs-semantics.md)), so the iCloud Drive mechanism lands as a
   line in this ADR now and as a fixture once the schema exists.
+
+**Where the guard runs, and what wins when two things claim the same note.
+Recorded on 2026-09-22 from the second reading of the feature 2 code —
+provisional, the maintainer decides on waking.** These are what the code does,
+not decisions; they are written down because the alternative to writing them
+down is deciding them by silence.
+
+- **A symlink whose target iCloud evicted in the older form is a placeholder,
+  not a broken link.** `nota.md` points at `out/Real.md`, and what exists on
+  disk is `out/.Real.md.icloud`: the walk emits a placeholder entry and a read
+  answers "content unavailable". The alternative is the dangerous one — a
+  dangling symlink reads as a file that is gone, which is decision 1's forbidden
+  reading with one extra hop. This also answers, for the three states above,
+  which one a link to a placeholder falls into: **placeholder**.
+- **When both `Nota.md` and `.Nota.md.icloud` exist, the real file wins.**
+  `Nota.md` is a note, readable and writable; the `.icloud` entry is still
+  listed, still a placeholder, still unavailable. A stale sibling left behind by
+  a finished download does not make a file that is right there unreadable. It is
+  provisional because the safe direction could as well be the opposite — refuse
+  while a download may still be in progress — and what matters for now is that
+  the walk's `EntryKind` and `read` agree, whichever way the maintainer decides;
+  before this they did not.
+- **The guard runs on the name as given and on a symlink's target, on the read
+  path and on the write path alike.** One rule in three places instead of three
+  rules that drift apart. A directory whose name has the placeholder form is a
+  directory: the pattern names a file whose content is elsewhere, and a
+  directory has no content of its own.
 
 ## Discarded alternatives
 

@@ -9,7 +9,8 @@
   2026-09-22 — where each operating system runs, after the cost incident;
   2026-09-22 — the path confinement row reworded after the symlink decision
   ([0044](0044-verso-fs-semantics.md)); 2026-09-22 — how the feature 2 code
-  answers the atomic write requirements, recorded as provisional.
+  answers the atomic write requirements, recorded as provisional, from two
+  readings of that code.
 
 ## Context
 
@@ -95,10 +96,21 @@ does, not a decision; the requirements above are unchanged.
   attributes are preserved as the requirement asks.
 - **The extended attributes are copied before the file's `fsync`**, so they
   become durable together with the content rather than after it.
+- **The temporary file is created with the original's mode from the first
+  instant**, rather than created at the default and adjusted afterwards. The
+  window in between is short and real: a replacement for a note the user had
+  set to `0600` would be world-readable for the length of a write, and a window
+  is enough for whoever is looking.
+- **`WriteReport` is `#[must_use]` and lists its warnings.** A report that
+  carries `hard_link_shared` or `durability_not_confirmed` and is dropped
+  without being read warns nobody; the type makes ignoring it a compiler
+  warning instead of a habit.
 - **The two `fsync` calls are not observable from a test.** Neither the file's
   nor the directory's: no portable assertion distinguishes "synced" from "not
-  synced" without pulling the power. The requirement is met by reading the code,
-  and this line records that the test for that item does not exist.
+  synced" without pulling the power. The requirement is met by reading the code.
+  Recorded plainly, because it is the one requirement above with no test behind
+  it: **the directory `fsync` has no test, deferred**, and what stands in for
+  one is a human reading the code.
 - **A failure after the `rename` is reported, not raised as a failed write.**
   The directory `fsync` and the read-back of the new stamp happen when the
   content is already in place; the report carries `durability_not_confirmed`
@@ -107,10 +119,19 @@ does, not a decision; the requirements above are unchanged.
 - **A network file system is detected on macOS by `MNT_LOCAL` being absent from
   the mount flags**, not by a list of filesystem names. On the other platforms
   it is not detected at all yet.
-- **The sync-client test is pending the maintainer.** "Test with a folder inside
-  at least one of them before closing the feature" was not done: it needs a real
-  iCloud Drive, Dropbox, OneDrive or Syncthing folder on the maintainer's
-  machine. The requirement stands, unmet.
+- **The sync-client test is pending the maintainer, and it gates closing the
+  feature.** "Test with a folder inside at least one of them before closing the
+  feature" was not done: it needs a real iCloud Drive, Dropbox, OneDrive or
+  Syncthing folder on the maintainer's machine. The requirement stands, unmet,
+  and feature 2 does not close while it is unmet.
+- **The macOS-only code is compiled by a pull request only on a Mac.** The
+  `st_flags` check of the placeholder guard and the `statfs` check for a network
+  filesystem are behind `#[cfg(target_os = "macos")]`, and a pull request runs on
+  Linux, with macOS running on `main` after the merge — so the CI that gates the
+  PR neither compiles nor exercises them. The reading of 2026-09-22 built and
+  ran all 35 tests on macOS 15 with the pinned 1.98.1 toolchain, all green; that
+  manual run is stated as a step in the PR, and it is what the Linux run cannot
+  give.
 
 ## Consequences
 

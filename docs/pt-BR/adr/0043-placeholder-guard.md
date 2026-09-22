@@ -7,7 +7,9 @@
 - Revisões: 2026-09-22 — mecanismo de detecção decidido para o iCloud Drive pelo
   mantenedor, sobre o memo
   [`docs/reference/fs-decision.md`](../reference/fs-decision.md); os demais
-  provedores continuam `[ABERTO]`.
+  provedores continuam `[ABERTO]`. 2026-09-22 — onde a guarda roda e o que ganha
+  entre um arquivo real e um irmão `.icloud` obsoleto, vindo do código da
+  feature 2, registrado como provisório.
 
 ## Contexto
 
@@ -66,6 +68,33 @@ contradição (C1); o mantenedor resolveu promovendo a regra.
   `verso-fs` ([0044](0044-verso-fs-semantics.md)), então o mecanismo do iCloud
   Drive entra como linha neste ADR agora e como fixture quando o schema
   existir.
+
+**Onde a guarda roda, e o que ganha quando duas coisas reivindicam a mesma nota.
+Registrado em 2026-09-22 a partir da segunda leitura do código da feature 2 —
+provisório, o mantenedor decide ao acordar.** São coisas que o código faz, não
+decisões; estão escritas porque a alternativa a escrevê-las é decidi-las por
+silêncio.
+
+- **Symlink cujo alvo o iCloud removeu na forma antiga é placeholder, não link
+  quebrado.** `nota.md` aponta para `out/Real.md`, e o que existe em disco é
+  `out/.Real.md.icloud`: a varredura emite uma entrada de placeholder e a
+  leitura responde "conteúdo indisponível". A alternativa é a perigosa — symlink
+  pendurado lê como arquivo que sumiu, que é a leitura proibida pela decisão 1
+  com um salto a mais. Isso também responde, para os três estados acima, em qual
+  deles cai um link para um placeholder: **placeholder**.
+- **Quando `Nota.md` e `.Nota.md.icloud` existem os dois, o arquivo real
+  ganha.** `Nota.md` é nota, legível e gravável; a entrada `.icloud` continua
+  listada, continua placeholder, continua indisponível. Um irmão obsoleto
+  deixado por um download concluído não torna ilegível um arquivo que está ali.
+  É provisório porque a direção segura poderia muito bem ser a oposta — recusar
+  enquanto um download pode estar em curso — e o que importa por ora é que o
+  `EntryKind` da varredura e o `read` concordem, seja qual for a decisão do
+  mantenedor; antes disso eles não concordavam.
+- **A guarda roda sobre o nome como dado e sobre o alvo de um symlink, tanto no
+  caminho de leitura quanto no de escrita.** Uma regra em três lugares em vez de
+  três regras que se afastam com o tempo. Diretório cujo nome tem a forma de
+  placeholder é diretório: o padrão nomeia um arquivo cujo conteúdo está em
+  outro lugar, e diretório não tem conteúdo próprio.
 
 ## Alternativas descartadas
 
