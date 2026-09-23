@@ -21,6 +21,7 @@ import { Compartment, EditorState, Prec, type Extension } from "@codemirror/stat
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
+import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
@@ -976,12 +977,15 @@ class NoteLeaf extends Leaf {
     return b;
   }
   private editorState(doc: string): EditorState {
+    // CommonMark plus the GFM parts the reader's parser has on (tables,
+    // task lists, strikethrough), so Live Preview finds what reading shows.
+    const md = markdown({ codeLanguages: languages, extensions: [Table, TaskList, Strikethrough] });
     return EditorState.create({
       doc,
       extensions: [
         basicSetup,
-        markdown().language.data.of({ autocomplete: completeWikilinks }),
-        markdown({ codeLanguages: languages }),
+        md.language.data.of({ autocomplete: completeWikilinks }),
+        md,
         syntaxHighlighting(classHighlighter),
         // The system's spell checker, in the languages it is set to.
         EditorView.contentAttributes.of({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off" }),
