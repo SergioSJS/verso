@@ -272,6 +272,46 @@ fn create_note(
     with(&state, |ws| ws.create_note(&name, &text)).map(note_out)
 }
 
+/// Create a file that is not a note (an image pasted into a note) from
+/// base64 bytes, at `path` relative to the folder; returns the confined
+/// path. `exists` when something stands there.
+#[tauri::command]
+#[specta::specta]
+fn create_file(
+    state: State<'_, App>,
+    path: String,
+    base64: String,
+) -> Result<String, ContractError> {
+    let bytes = decode_base64(&base64).ok_or_else(|| failed("the bytes are not base64"))?;
+    with(&state, |ws| ws.create_file(&path, &bytes))
+}
+
+/// Standard base64 (with or without padding) to bytes; `None` on a
+/// character outside the alphabet. Small enough to own, so no crate.
+fn decode_base64(s: &str) -> Option<Vec<u8>> {
+    let mut out = Vec::with_capacity(s.len() * 3 / 4);
+    let mut acc: u32 = 0;
+    let mut bits = 0;
+    for c in s.bytes() {
+        let v = match c {
+            b'A'..=b'Z' => c - b'A',
+            b'a'..=b'z' => c - b'a' + 26,
+            b'0'..=b'9' => c - b'0' + 52,
+            b'+' | b'-' => 62,
+            b'/' | b'_' => 63,
+            b'=' | b'\n' | b'\r' => continue,
+            _ => return None,
+        };
+        acc = (acc << 6) | u32::from(v);
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push(u8::try_from((acc >> bits) & 0xff).unwrap_or(0));
+        }
+    }
+    Some(out)
+}
+
 /// Move a note to `.trash/` at the root, Obsidian's bin; returns where.
 #[tauri::command]
 #[specta::specta]
@@ -318,6 +358,7 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         backlinks,
         write_note,
         create_note,
+        create_file,
         delete_note,
         rename_note,
         resolve_attachment,

@@ -30,6 +30,18 @@ const PATHS: Record<string, string> = {
   maximize: "M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10",
   collapse: "M4 6l4-3 4 3M4 10l4 3 4-3",
   expand: "M4 4l4 3 4-3M4 12l4-3 4 3",
+  heading: "M3.5 3v10M3.5 8h6M9.5 3v10M12.5 13V9.5l-1 1",
+  bold: "M4.5 3h4a2.25 2.25 0 0 1 0 4.5h-4zM4.5 7.5h4.5a2.5 2.5 0 0 1 0 5h-4.5z",
+  italic: "M6.5 3h5M4.5 13h5M9.5 3l-3 10",
+  strike: "M3 8h10M5 5a3 2 0 0 1 6 0M5 11a3 2 0 0 0 6 0",
+  highlight: "M3 12.5h10M5.5 10.5 10 3.5l2 1.2-4.5 7z",
+  wikilink: "M5.5 3H3.5v10h2M10.5 3h2v10h-2",
+  bullets: "M6 4h7M6 8h7M6 12h7M3 4h.01M3 8h.01M3 12h.01",
+  numbers: "M6 4h7M6 8h7M6 12h7M2.5 3l1-.5v3M2.5 9.5a1 1 0 1 1 1.5.8l-1.5 1.7h2",
+  task: "M2.5 3.5h9v9h-9zM4.5 8.5l2 2 3.5-4",
+  quote: "M4 4h3v4H4zM9 4h3v4H9zM4 8c0 2 1 3 3 3M9 8c0 2 1 3 3 3",
+  code: "M6 4 2.5 8 6 12M10 4l3.5 4L10 12",
+  rule: "M2.5 8h11",
   link: "M6.5 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1M9.5 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l1-1",
 };
 
