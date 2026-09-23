@@ -563,7 +563,6 @@ function slashSections(): SlashSection[] {
     ] },
   ];
 }
-let webSeq = 0;
 /** The ribbon, once built (the toggles repaint it; they run before it exists). */
 let ribbon: Ribbon | null = null;
 /** An overlay (switcher, palette, plan, menu, dialog) is on screen: native
@@ -865,6 +864,8 @@ class NoteLeaf extends Leaf {
   readonly webHost = h("div", "web-host");
   readonly webAddress = h("span", "web-address");
   private webLabel: string | null = null;
+  /** A view is being made; its label arrives with the answer. */
+  private webOpening = false;
   private webUrl = "";
   private webShown = false;
   private webRaf = 0;
@@ -1228,15 +1229,20 @@ class NoteLeaf extends Leaf {
     else this.syncWeb();
   }
   private async openWeb(): Promise<void> {
-    if (this.webLabel || !this.webUrl) return this.syncWeb();
-    const label = `web-${++webSeq}`;
-    this.webLabel = label;
+    if (this.webLabel || this.webOpening || !this.webUrl) return this.syncWeb();
+    this.webOpening = true;
+    const url = this.webUrl;
     const r = this.webHost.getBoundingClientRect();
-    const res = await commands.webOpen(label, this.webUrl, r.left, r.top, Math.max(1, r.width), Math.max(1, r.height));
-    if (res.status !== "ok") {
-      this.webLabel = null;
-      return fail(res.error);
+    const res = await commands.webOpen(url, r.left, r.top, Math.max(1, r.width), Math.max(1, r.height));
+    this.webOpening = false;
+    if (res.status !== "ok") return fail(res.error);
+    // The host names the view. The tab may have closed, or moved to
+    // another address, while the view was being made: then it goes.
+    if (!this.el.isConnected || url !== this.webUrl) {
+      void commands.webClose(res.data);
+      return;
     }
+    this.webLabel = res.data;
     this.webLast = "";
     if (!this.webRaf) this.tickWeb();
   }

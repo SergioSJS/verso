@@ -23,7 +23,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 verso-core = { path = "../../crates/verso-core" }
 verso-contract = { path = "../../crates/verso-contract" }
-# `unstable`: child webviews — a web page as a tab of the app (ADR 0038).
+# `unstable`: child web views — a web note shows its page inside its tab
+# (ADR 0049, asked for by the maintainer on 2026-09-23).
 tauri = { version = "2", features = ["unstable"] }
 tauri-plugin-dialog = "2"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }

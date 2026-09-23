@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-web-visible"
+description = "Enables the web_visible command without any pre-configured scope."
+commands.allow = ["web_visible"]
+
+[[permission]]
+identifier = "deny-web-visible"
+description = "Denies the web_visible command without any pre-configured scope."
+commands.deny = ["web_visible"]

@@ -34,6 +34,9 @@ use verso_core::{CoreError, ReadError, Workspace, WriteError};
 pub struct App {
     /// Notes popped out to windows of their own: window label → note.
     pub popouts: Mutex<std::collections::HashMap<String, String>>,
+    /// Web pages inside windows: web view label → the window that opened
+    /// it, which alone may move, hide, steer or close it.
+    pub web_views: Mutex<std::collections::HashMap<String, String>>,
     /// The folder named on the command line (`verso-app <folder>`), taken
     /// once by the UI at start-up: a path as a string at the entry edge.
     pub initial_folder: Mutex<Option<String>>,
@@ -61,6 +64,13 @@ fn convert(e: CoreError) -> ContractError {
 fn failed(message: impl Into<String>) -> ContractError {
     ContractError {
         kind: ErrorKind::Failed,
+        message: message.into(),
+    }
+}
+
+fn refused(message: impl Into<String>) -> ContractError {
+    ContractError {
+        kind: ErrorKind::Refused,
         message: message.into(),
     }
 }
@@ -266,7 +276,6 @@ fn list_tags(state: State<'_, App>) -> Result<Vec<Tag>, ContractError> {
     })
 }
 
-/// Every folder of the open folder, empty ones included, for the tree.
 /// The notes that are web pages, with their addresses (an icon, a tab).
 #[tauri::command]
 #[specta::specta]
@@ -293,6 +302,7 @@ fn graph(state: State<'_, App>) -> Result<Vec<Edge>, ContractError> {
     })
 }
 
+/// Every folder of the open folder, empty ones included, for the tree.
 #[tauri::command]
 #[specta::specta]
 fn list_folders(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
@@ -508,36 +518,62 @@ fn write_text(
     with(&state, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
 }
 
-static WEB_WINDOWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+/// Every web view and web window gets its label here, from one counter,
+/// so two windows never hand out the same label.
+static WEB_SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+fn next_web_label() -> String {
+    format!(
+        "web-{}",
+        WEB_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    )
+}
+
+/// What a web page may navigate to: the web, and nothing of the app's.
+/// A page that could load `verso://` or `tauri://` would become a local
+/// document in the eyes of Tauri's access control.
+fn web_only(url: &tauri::Url) -> bool {
+    matches!(url.scheme(), "http" | "https")
+}
 
 /// Open a web page in a window of its own inside the app: a note with a
-/// `url` property is the bookmark, this is the browser. Only `http(s)`.
+/// `url` property is the bookmark, this is the browser. Only `http(s)`;
+/// the page cannot navigate anywhere else, nor open windows.
 #[tauri::command]
 #[specta::specta]
 fn open_url<R: tauri::Runtime>(app: tauri::AppHandle<R>, url: String) -> Result<(), ContractError> {
-    let parsed: tauri::Url = url.parse().map_err(|e| failed(format!("{e}")))?;
-    if !matches!(parsed.scheme(), "http" | "https") {
-        return Err(failed("only http(s) pages open in a window"));
-    }
-    let n = WEB_WINDOWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let parsed = http_url(&url)?;
     let title = parsed.host_str().unwrap_or("web").to_owned();
-    tauri::WebviewWindowBuilder::new(
-        &app,
-        format!("web-{n}"),
-        tauri::WebviewUrl::External(parsed),
-    )
-    .title(title)
-    .inner_size(1100.0, 800.0)
-    .build()
-    .map_err(|e| failed(e.to_string()))?;
+    tauri::WebviewWindowBuilder::new(&app, next_web_label(), tauri::WebviewUrl::External(parsed))
+        .title(title)
+        .inner_size(1100.0, 800.0)
+        .on_navigation(web_only)
+        .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
+        .build()
+        .map_err(|e| failed(e.to_string()))?;
     Ok(())
 }
 
-fn webview_of<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
+/// A web view this process opened for the calling window, or `refused`:
+/// a window moves, hides, closes and steers only its own pages, and never
+/// an app view.
+fn own_web_view<R: tauri::Runtime>(
+    window: &tauri::Window<R>,
+    state: &State<'_, App>,
     label: &str,
 ) -> Result<tauri::Webview<R>, ContractError> {
-    app.get_webview(label)
+    let owner = state
+        .web_views
+        .lock()
+        .map_err(|e| failed(e.to_string()))?
+        .get(label)
+        .cloned();
+    if owner.as_deref() != Some(window.label()) {
+        return Err(refused(format!("{label} is not a web view of this window")));
+    }
+    window
+        .app_handle()
+        .get_webview(label)
         .ok_or_else(|| failed(format!("no web view {label}")))
 }
 
@@ -560,52 +596,63 @@ fn chrome_offset<R: tauri::Runtime>(window: &tauri::Window<R>) -> f64 {
 
 fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
     let parsed: tauri::Url = url.parse().map_err(|e| failed(format!("{e}")))?;
-    if !matches!(parsed.scheme(), "http" | "https") {
-        return Err(failed("only http(s) pages open here"));
+    if !web_only(&parsed) {
+        return Err(refused("only http(s) pages open here"));
     }
     Ok(parsed)
 }
 
 /// A web page inside the window, as a child web view over the area the
 /// UI names (logical pixels from the window's top-left): the browser
-/// behind a tab whose note holds the address. Only `http(s)`.
+/// behind a tab whose note holds the address. Only `http(s)`; the page
+/// cannot navigate anywhere else, nor open windows. Answers with the
+/// label the other `web_*` commands take.
 #[tauri::command]
 #[specta::specta]
 fn web_open<R: tauri::Runtime>(
     window: tauri::Window<R>,
-    label: String,
+    state: State<'_, App>,
     url: String,
     x: f64,
     y: f64,
     w: f64,
     h: f64,
-) -> Result<(), ContractError> {
+) -> Result<String, ContractError> {
     let url = http_url(&url)?;
+    let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
     let y = y + chrome_offset(&window);
     window
         .add_child(
-            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url)),
+            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
+                .on_navigation(web_only)
+                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
             tauri::LogicalPosition::new(x, y),
             tauri::LogicalSize::new(w.max(1.0), h.max(1.0)),
         )
         .map_err(|e| failed(e.to_string()))?;
-    Ok(())
+    state
+        .web_views
+        .lock()
+        .map_err(|e| failed(e.to_string()))?
+        .insert(label.clone(), window.label().to_owned());
+    Ok(label)
 }
 
 /// Move and size a web page's view to follow its tab.
 #[tauri::command]
 #[specta::specta]
 fn web_bounds<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    state: State<'_, App>,
     label: String,
     x: f64,
     y: f64,
     w: f64,
     h: f64,
 ) -> Result<(), ContractError> {
-    let wv = webview_of(&app, &label)?;
-    let y = y + chrome_offset(&wv.window());
+    let wv = own_web_view(&window, &state, &label)?;
+    let y = y + chrome_offset(&window);
     wv.set_position(tauri::LogicalPosition::new(x, y))
         .and_then(|()| wv.set_size(tauri::LogicalSize::new(w.max(1.0), h.max(1.0))))
         .map_err(|e| failed(e.to_string()))
@@ -615,11 +662,12 @@ fn web_bounds<R: tauri::Runtime>(
 #[tauri::command]
 #[specta::specta]
 fn web_visible<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    state: State<'_, App>,
     label: String,
     visible: bool,
 ) -> Result<(), ContractError> {
-    let wv = webview_of(&app, &label)?;
+    let wv = own_web_view(&window, &state, &label)?;
     (if visible { wv.show() } else { wv.hide() }).map_err(|e| failed(e.to_string()))
 }
 
@@ -627,24 +675,30 @@ fn web_visible<R: tauri::Runtime>(
 #[tauri::command]
 #[specta::specta]
 fn web_close<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    state: State<'_, App>,
     label: String,
 ) -> Result<(), ContractError> {
-    webview_of(&app, &label)?
-        .close()
-        .map_err(|e| failed(e.to_string()))
+    let wv = own_web_view(&window, &state, &label)?;
+    state
+        .web_views
+        .lock()
+        .map_err(|e| failed(e.to_string()))?
+        .remove(&label);
+    wv.close().map_err(|e| failed(e.to_string()))
 }
 
 /// Back, forward, reload, or go to another http(s) address.
 #[tauri::command]
 #[specta::specta]
 fn web_nav<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    state: State<'_, App>,
     label: String,
     action: String,
     url: Option<String>,
 ) -> Result<(), ContractError> {
-    let wv = webview_of(&app, &label)?;
+    let wv = own_web_view(&window, &state, &label)?;
     match action.as_str() {
         "back" => wv.eval("history.back()"),
         "forward" => wv.eval("history.forward()"),
@@ -659,10 +713,11 @@ fn web_nav<R: tauri::Runtime>(
 #[tauri::command]
 #[specta::specta]
 fn web_url<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    state: State<'_, App>,
     label: String,
 ) -> Result<String, ContractError> {
-    webview_of(&app, &label)?
+    own_web_view(&window, &state, &label)?
         .url()
         .map(|u| u.to_string())
         .map_err(|e| failed(e.to_string()))
@@ -885,43 +940,128 @@ fn mime_of(path: &str) -> &'static str {
     }
 }
 
-/// `verso://localhost/<relative path>`: a file of the folder for the
-/// preview — an image an embed names — read through the core, so the
-/// only door to the disk stays `verso-fs` (ADR 0026 rule 5) and every
-/// path is confined. Never a note's text: that is `read_note`'s.
-fn serve_file(
-    ctx: tauri::UriSchemeContext<'_, tauri::Wry>,
-    request: tauri::http::Request<Vec<u8>>,
-) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
-    let relative = percent_decode(request.uri().path().trim_start_matches('/'));
-    let answer = ctx
-        .app_handle()
-        .state::<App>()
-        .workspace
-        .lock()
-        .map_err(|e| failed(e.to_string()))
-        .and_then(|mut guard| {
-            let ws = guard.as_mut().ok_or_else(no_folder)?;
-            ws.read_file(&relative).map_err(convert)
-        });
-    let (status, mime, body): (u16, &str, Vec<u8>) = match answer {
-        Ok(bytes) => (200, mime_of(&relative), bytes),
+/// Whether a web view of this app is one of its own windows' — the main
+/// window or a note popped out — as opposed to a web page (`web-*`).
+fn is_app_view(label: &str) -> bool {
+    label == "main" || label.starts_with("note-")
+}
+
+/// What `verso://` answers to one request, apart from the transport: the
+/// status, the headers, the body. Kept free of Tauri's types so the
+/// rules are tested directly.
+struct Served {
+    status: u16,
+    headers: Vec<(&'static str, String)>,
+    body: Vec<u8>,
+}
+
+/// The policy every `verso://` response carries: whatever the file is,
+/// a document made of it runs no script, submits no form and reaches
+/// nothing but the folder's own files (SVG and HTML are active content;
+/// review `docs/review/phase-2.md`, B1).
+const FILE_CSP: &str = "sandbox; default-src 'none'; img-src verso: http://verso.localhost data:; media-src verso: http://verso.localhost; style-src 'unsafe-inline' verso: http://verso.localhost; font-src verso: http://verso.localhost data:";
+
+/// The origins of the app's own pages, the only ones allowed to read a
+/// response with `fetch` (the PDF reader): `tauri://localhost` on macOS
+/// and Linux, `http(s)://tauri.localhost` on Windows.
+fn is_app_origin(origin: &str) -> bool {
+    matches!(
+        origin,
+        "tauri://localhost" | "http://tauri.localhost" | "https://tauri.localhost"
+    )
+}
+
+fn serve(
+    ws: Option<&mut Workspace>,
+    requester: &str,
+    relative: &str,
+    origin: Option<&str>,
+) -> Served {
+    let mut headers = vec![
+        ("Content-Security-Policy", FILE_CSP.to_owned()),
+        ("X-Content-Type-Options", "nosniff".to_owned()),
+        ("Cache-Control", "no-store".to_owned()),
+    ];
+    if let Some(o) = origin.filter(|o| is_app_origin(o)) {
+        headers.push(("Access-Control-Allow-Origin", o.to_owned()));
+        headers.push(("Vary", "Origin".to_owned()));
+    }
+    let refuse = |status: u16, why: &str, mut headers: Vec<(&'static str, String)>| {
+        headers.push(("Content-Type", "text/plain; charset=utf-8".to_owned()));
+        Served {
+            status,
+            headers,
+            body: why.as_bytes().to_vec(),
+        }
+    };
+    // A web page's view never reads the folder, whatever it asks for.
+    if !is_app_view(requester) {
+        return refuse(403, "not a view of this app", headers);
+    }
+    // A note's text crosses through `read_note`, with its revision;
+    // never as a bare file.
+    if relative.to_lowercase().ends_with(".md") {
+        return refuse(403, "a note is read through read_note", headers);
+    }
+    let Some(ws) = ws else {
+        return refuse(404, "no folder is open", headers);
+    };
+    match ws.read_file(relative) {
+        Ok(bytes) => {
+            headers.push(("Content-Type", mime_of(relative).to_owned()));
+            Served {
+                status: 200,
+                headers,
+                body: bytes,
+            }
+        }
         Err(e) => {
+            let e = convert(e);
             let status = match e.kind {
                 ErrorKind::NotFound | ErrorKind::Refused | ErrorKind::NoFolder => 404,
                 _ => 500,
             };
-            (status, "text/plain; charset=utf-8", e.message.into_bytes())
+            refuse(status, &e.message, headers)
         }
+    }
+}
+
+/// `verso://localhost/<relative path>`: a file of the folder that is not
+/// a note — an image an embed names, a PDF, an HTML page shown without
+/// scripts — read through the core, so the only door to the disk stays
+/// `verso-fs` (ADR 0026 rule 5) and every path is confined. Only the
+/// app's own views are answered, and only their origin may read a
+/// response from script.
+fn serve_file<R: tauri::Runtime>(
+    ctx: tauri::UriSchemeContext<'_, R>,
+    request: tauri::http::Request<Vec<u8>>,
+) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
+    let relative = percent_decode(request.uri().path().trim_start_matches('/'));
+    let origin = request
+        .headers()
+        .get("Origin")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    let state = ctx.app_handle().state::<App>();
+    let served = match state.workspace.lock() {
+        Ok(mut guard) => serve(
+            guard.as_mut(),
+            ctx.webview_label(),
+            &relative,
+            origin.as_deref(),
+        ),
+        Err(e) => Served {
+            status: 500,
+            headers: vec![("Content-Type", "text/plain; charset=utf-8".to_owned())],
+            body: e.to_string().into_bytes(),
+        },
     };
-    let body: std::borrow::Cow<'static, [u8]> = std::borrow::Cow::Owned(body);
-    // The page's origin is the app's; the files are on another scheme, so
-    // `fetch` (the PDF reader) needs this header. `<img>` did not.
-    tauri::http::Response::builder()
-        .status(status)
-        .header("Content-Type", mime)
-        .header("Access-Control-Allow-Origin", "*")
-        .body(body)
+    let mut response = tauri::http::Response::builder().status(served.status);
+    for (name, value) in &served.headers {
+        response = response.header(*name, value);
+    }
+    response
+        .body(std::borrow::Cow::Owned(served.body))
         .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())))
 }
 
@@ -936,6 +1076,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         .register_uri_scheme_protocol("verso", serve_file)
         .manage(App {
             popouts: Mutex::new(std::collections::HashMap::new()),
+            web_views: Mutex::new(std::collections::HashMap::new()),
             initial_folder: Mutex::new(initial_folder),
             workspace: Mutex::new(None),
         })
@@ -964,6 +1105,7 @@ mod tests {
         let app = mock_builder()
             .manage(App {
                 popouts: std::sync::Mutex::new(std::collections::HashMap::new()),
+                web_views: std::sync::Mutex::new(std::collections::HashMap::new()),
                 initial_folder: std::sync::Mutex::new(None),
                 workspace: std::sync::Mutex::new(None),
             })
@@ -982,13 +1124,23 @@ mod tests {
         cmd: &str,
         body: Value,
     ) -> Result<Value, Value> {
+        call_from(webview, "tauri://localhost", cmd, body)
+    }
+
+    /// A call as a document at `origin` would make it.
+    fn call_from(
+        webview: &tauri::WebviewWindow<MockRuntime>,
+        origin: &str,
+        cmd: &str,
+        body: Value,
+    ) -> Result<Value, Value> {
         get_ipc_response(
             webview,
             InvokeRequest {
                 cmd: cmd.to_owned(),
                 callback: CallbackFn(0),
                 error: CallbackFn(1),
-                url: "tauri://localhost".parse().unwrap(),
+                url: origin.parse().unwrap(),
                 body: InvokeBody::Json(body),
                 headers: Default::default(),
                 invoke_key: INVOKE_KEY.to_owned(),
@@ -1077,5 +1229,87 @@ mod tests {
         assert_eq!(web[0]["url"], "https://example.org", "{web}");
         let graph = call(&webview, "graph", json!({})).unwrap();
         assert_eq!(graph.as_array().unwrap().len(), 0, "{graph}");
+    }
+
+    /// Only the app's own views reach the commands: not a web page loaded
+    /// from the internet, not a view labelled as a web page even when its
+    /// document is local (review `docs/review/phase-2.md`, B3).
+    #[test]
+    fn only_the_apps_own_views_reach_the_commands() {
+        let (app, main) = app();
+        assert!(call(&main, "initial_folder", json!({})).is_ok());
+        let remote = call_from(&main, "https://example.org", "initial_folder", json!({}));
+        assert!(remote.is_err(), "{remote:?}");
+        let page = tauri::WebviewWindowBuilder::new(&app, "web-7", Default::default())
+            .build()
+            .unwrap();
+        let local_in_page = call(&page, "initial_folder", json!({}));
+        assert!(local_in_page.is_err(), "{local_in_page:?}");
+        let popout = tauri::WebviewWindowBuilder::new(&app, "note-3", Default::default())
+            .build()
+            .unwrap();
+        assert!(call(&popout, "initial_folder", json!({})).is_ok());
+    }
+
+    fn header<'a>(served: &'a Served, name: &str) -> Option<&'a str> {
+        served
+            .headers
+            .iter()
+            .find(|(n, _)| n.eq_ignore_ascii_case(name))
+            .map(|(_, v)| v.as_str())
+    }
+
+    /// `verso://` answers the app's views only, never with a note, always
+    /// with a sandboxing policy, and lets only the app's origin read it
+    /// from script (review `docs/review/phase-2.md`, B1, B2, B4).
+    #[test]
+    fn the_file_protocol_serves_the_app_only_and_never_active_content() {
+        let vault = tempfile::tempdir().unwrap();
+        let config = tempfile::tempdir().unwrap();
+        let _img = note(
+            vault.path(),
+            "mapa.svg",
+            "<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>",
+        );
+        let _note = note(vault.path(), "Segredo.md", "# Segredo\n");
+        let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+        ws.index().unwrap();
+
+        let ok = serve(Some(&mut ws), "main", "mapa.svg", Some("tauri://localhost"));
+        assert_eq!(ok.status, 200);
+        assert!(header(&ok, "Content-Security-Policy").is_some_and(|v| v.starts_with("sandbox;")));
+        assert_eq!(
+            header(&ok, "Access-Control-Allow-Origin"),
+            Some("tauri://localhost")
+        );
+        assert_eq!(header(&ok, "X-Content-Type-Options"), Some("nosniff"));
+
+        let foreign = serve(
+            Some(&mut ws),
+            "main",
+            "mapa.svg",
+            Some("https://evil.example"),
+        );
+        assert_eq!(foreign.status, 200);
+        assert_eq!(header(&foreign, "Access-Control-Allow-Origin"), None);
+
+        let page = serve(
+            Some(&mut ws),
+            "web-2",
+            "mapa.svg",
+            Some("tauri://localhost"),
+        );
+        assert_eq!(page.status, 403);
+        assert!(page.body.len() < 64, "a refusal carries no file");
+
+        let a_note = serve(Some(&mut ws), "note-1", "Segredo.md", None);
+        assert_eq!(a_note.status, 403);
+        let a_note_upper = serve(Some(&mut ws), "main", "Segredo.MD", None);
+        assert_eq!(a_note_upper.status, 403);
+
+        let outside = serve(Some(&mut ws), "main", "../fora.png", None);
+        assert_eq!(outside.status, 404);
+        let nothing_open = serve(None, "main", "mapa.svg", None);
+        assert_eq!(nothing_open.status, 404);
     }
 }

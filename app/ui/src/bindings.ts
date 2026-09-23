@@ -55,6 +55,7 @@ export const commands = {
 	resolveAttachment: (target: string) => typedError<string | null, ContractError>(__TAURI_INVOKE("resolve_attachment", { target })),
 	/**  Every regular file of the folder that is not a note, for the tree. */
 	listFiles: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_files")),
+	/**  Every folder of the open folder, empty ones included, for the tree. */
 	listFolders: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_folders")),
 	/**  Every tag of the vault, by count, with the notes that carry it. */
 	listTags: () => typedError<Tag[], ContractError>(__TAURI_INVOKE("list_tags")),
@@ -68,10 +69,7 @@ export const commands = {
 	 *  and date: what a folder view lists and sorts.
 	 */
 	listEntries: () => typedError<FileEntry[], ContractError>(__TAURI_INVOKE("list_entries")),
-	/**
-	 *  Every folder of the open folder, empty ones included, for the tree.
-	 *  The notes that are web pages, with their addresses (an icon, a tab).
-	 */
+	/**  The notes that are web pages, with their addresses (an icon, a tab). */
 	listWebNotes: () => typedError<WebNote[], ContractError>(__TAURI_INVOKE("list_web_notes")),
 	/**  Every resolved link of the vault: the graph of the whole folder. */
 	graph: () => typedError<Edge[], ContractError>(__TAURI_INVOKE("graph")),
@@ -102,15 +100,18 @@ export const commands = {
 	returnToMain: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("return_to_main", { path })),
 	/**
 	 *  Open a web page in a window of its own inside the app: a note with a
-	 *  `url` property is the bookmark, this is the browser. Only `http(s)`.
+	 *  `url` property is the bookmark, this is the browser. Only `http(s)`;
+	 *  the page cannot navigate anywhere else, nor open windows.
 	 */
 	openUrl: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("open_url", { url })),
 	/**
 	 *  A web page inside the window, as a child web view over the area the
 	 *  UI names (logical pixels from the window's top-left): the browser
-	 *  behind a tab whose note holds the address. Only `http(s)`.
+	 *  behind a tab whose note holds the address. Only `http(s)`; the page
+	 *  cannot navigate anywhere else, nor open windows. Answers with the
+	 *  label the other `web_*` commands take.
 	 */
-	webOpen: (label: string, url: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_open", { label, url, x, y, w, h })),
+	webOpen: (url: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<string, ContractError>(__TAURI_INVOKE("web_open", { url, x, y, w, h })),
 	/**  Move and size a web page's view to follow its tab. */
 	webBounds: (label: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, x, y, w, h })),
 	/**  Show or hide a web page's view (its tab left the front, an overlay opened). */
