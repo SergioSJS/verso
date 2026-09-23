@@ -816,6 +816,59 @@ fn notes_are_created_renamed_with_a_link_plan_and_trashed() {
     assert_eq!(ws.index().unwrap().removed, 0);
 }
 
+/// A move can change what a link that never named the moved note
+/// reaches: a note renamed to `B` at the root comes before `x/B` for
+/// every bare `[[B]]` (a path from the root is tried first). Those links
+/// get a plan too, pointing them back at what they reached.
+#[test]
+fn a_note_moved_into_a_bare_links_way_gets_that_link_a_plan() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let x = subdir(vault.path(), "x");
+    let _b = note(x.path(), "B.md", "# x/B\n");
+    let _c = note(vault.path(), "C.md", "# C\n");
+    let _r = note(vault.path(), "R.md", "[[B]]\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(resolved(&mut ws, "R"), vec![Some("x/B.md".into())]);
+    let r = ws.rename_note("C", "B").unwrap();
+    assert_eq!(plan_of(&r), [("R.md", "[[x/B]]\n")]);
+    apply(&mut ws, &r);
+    assert_eq!(resolved(&mut ws, "R"), vec![Some("x/B.md".into())]);
+}
+
+/// A new name the parser would read as something else — a `|` starts an
+/// alias, a `#` a heading, `]]` ends the link — cannot be written into a
+/// link: the plan leaves such a link alone and says so, rather than point
+/// it at another note.
+#[test]
+fn a_new_name_a_link_cannot_hold_is_not_written_into_links() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _alvo = note(vault.path(), "Alvo.md", "# Alvo\n");
+    let _a = note(vault.path(), "A.md", "# A\n");
+    let _x = note(vault.path(), "X.md", "[[Alvo]]\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    for to in ["A|B", "A#B", "x]]y"] {
+        let r = ws.rename_note("Alvo", to).unwrap();
+        assert!(r.rewrites.is_empty(), "{to}: {:?}", r.rewrites);
+        assert!(
+            r.warnings
+                .iter()
+                .any(|w| w.contains("could not be pointed at")),
+            "{to}: {:?}",
+            r.warnings
+        );
+        // Nothing was written, so X still says `[[Alvo]]`, which now
+        // reaches nothing — and never `A.md` or X itself.
+        assert_eq!(resolved(&mut ws, "X"), vec![None], "{to}");
+        // Back, for the next name: the link reaches it again as written.
+        let back = ws.rename_note(to, "Alvo").unwrap();
+        assert!(back.rewrites.is_empty(), "{to}: {:?}", back.rewrites);
+    }
+}
+
 /// The plan follows what each link resolved to (spec Q12), not its text:
 /// a link whose text matches but that reached another note is left
 /// alone; a bare name that a move would send elsewhere becomes a path.

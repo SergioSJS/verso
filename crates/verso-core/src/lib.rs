@@ -1321,8 +1321,19 @@ impl Workspace {
     /// `.md` only when the writer wrote it. `None` when no form reaches
     /// it, which the caller reports.
     fn retarget(&self, source: &str, written: &str, wanted: &Reached) -> Option<String> {
-        let reaches =
-            |candidate: &str| self.reach(source, candidate).ok().flatten().as_ref() == Some(wanted);
+        // A candidate goes between `[[` and `]]`, so it has to come back
+        // from the parser as that very target: a name holding `|` (an
+        // alias), `#` (a heading) or `]]` (the end) would be read as
+        // another target, and the link would reach something else.
+        let holds = |candidate: &str| {
+            let doc = verso_dialect::parse(&format!("[[{candidate}]]"));
+            matches!(doc.links.as_slice(), [l] if l.target == candidate
+                && l.heading.is_none() && l.block.is_none() && l.alias.is_none())
+        };
+        let reaches = |candidate: &str| {
+            holds(candidate)
+                && self.reach(source, candidate).ok().flatten().as_ref() == Some(wanted)
+        };
         let (bare, path) = match wanted {
             Reached::Note(p) => {
                 // The extension as the writer spelled it, or none.
@@ -1525,6 +1536,14 @@ impl Workspace {
     #[must_use]
     pub fn entries(&self) -> &[FileEntry] {
         &self.entries
+    }
+
+    /// A path of the folder as confinement names it — relative,
+    /// normalized, no extension added — or the refusal. What a caller that
+    /// judges a path by its name must look at, instead of the string it
+    /// was sent: `Nota.md/` and `./Nota.md` are `Nota.md`.
+    pub fn confined(&self, path: &str) -> Result<String, CoreError> {
+        self.entry_key(path)
     }
 
     /// A path of the folder confined, as given: no `.md` added, so it
