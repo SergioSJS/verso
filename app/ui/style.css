@@ -50,7 +50,8 @@ body { display: grid; grid-template-columns: var(--side-w) 0 1fr 0 var(--right-w
 body.no-side { grid-template-columns: 0 0 1fr 0 var(--right-w, 260px); }
 body.no-right { grid-template-columns: var(--side-w) 0 1fr 0 0; }
 body.no-side.no-right { grid-template-columns: 0 0 1fr 0 0; }
-body.no-side .side, body.no-side #side-divider, body.no-right .right, body.no-right #right-divider { display: none; }
+.side { grid-column: 1; } #side-divider { grid-column: 2; } .page { grid-column: 3; } #right-divider { grid-column: 4; } .right { grid-column: 5; }
+body.no-side .side, body.no-side #side-divider, body.no-right .right, body.no-right #right-divider { visibility: hidden; overflow: hidden; min-width: 0; }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
@@ -499,7 +500,6 @@ body.dragging * { cursor: grabbing !important; }
 .panel-list li > button.level-3 { padding-left: 1.2rem; }
 .panel-list li > button.level-4, .panel-list li > button.level-5, .panel-list li > button.level-6 { padding-left: 1.9rem; color: var(--ink-3); }
 .panel-list .empty { padding: .4rem .5rem; font-size: .85rem; color: var(--ink-3); font-family: var(--book); font-style: italic; }
-.side-divider.right { grid-column: 4; }
 .star { display: inline-flex; padding: .3rem; border-radius: 5px; color: var(--ink-3); }
 .star:hover { color: var(--brass); background: var(--paper-3); }
 .star.on { color: var(--brass); }
