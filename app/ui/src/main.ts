@@ -37,7 +37,8 @@ type Strings = Record<
   | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
   | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
-  | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions",
+  | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions"
+  | "replaceTitle" | "find" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -50,6 +51,7 @@ type Strings = Record<
   counts: (notes: number, files: number, folders: number) => string;
   confirmDeleteFolder: (n: string) => string;
   words: (w: number, c: number) => string;
+  replaceCount: (n: number) => string;
 };
 
 const pt: Strings = {
@@ -88,6 +90,8 @@ const pt: Strings = {
   moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
   addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link",
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
+  replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
+  replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
 };
 
 const en: Strings = {
@@ -126,6 +130,8 @@ const en: Strings = {
   moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
   addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
+  replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
+  replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -2365,17 +2371,17 @@ class Plan {
     this.el.hidden = true;
     document.body.append(this.el);
   }
-  show(rewrites: Plan["rewrites"]): void {
+  show(rewrites: Plan["rewrites"], title = t.planTitle(rewrites.length), applyLabel = t.planApply): void {
     this.rewrites = rewrites;
     const box = h("div", "plan-box");
-    box.append(h("h2", "", t.planTitle(rewrites.length)));
+    box.append(h("h2", "", title));
     for (const w of rewrites) {
       const d = h("details");
       d.open = rewrites.length <= 3;
       d.append(h("summary", "", w.path), diffNode(w.before, w.after, true));
       box.append(d);
     }
-    const apply = button("save", t.planApply);
+    const apply = button("save", applyLabel);
     apply.addEventListener("click", () => void this.apply());
     const skip = button("ghost", t.planSkip);
     skip.addEventListener("click", () => this.hide());
@@ -2740,6 +2746,7 @@ function allCommands(): Command[] {
     { label: t.insertTemplate, run: () => insertTemplate() },
     { label: t.quick, keys: "⌘P", run: () => quick.show() },
     { label: t.search, keys: "⌘K", run: () => ui.search.focus() },
+    { label: `${t.replaceTitle}…`, keys: "⌘⇧H", run: () => replaceDialog.show() },
     { label: t.reindex, run: () => void reindex() },
     { label: t.split, keys: "⌘\\", run: () => pane && layout().split(pane, "row") },
     { label: t.splitDown, keys: "⌘⇧\\", run: () => pane && layout().split(pane, "col") },
@@ -2817,6 +2824,105 @@ class Palette {
 const paletteDialog = new Palette();
 
 /* ---------- ⌘, settings ---------- */
+/* ---------- Find and replace across the vault: a plan, then one atomic write per note ---------- */
+class ReplaceDialog {
+  readonly el = h("div", "quick settings-box");
+  constructor() {
+    this.el.hidden = true;
+    document.body.append(this.el);
+    this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
+  }
+  show(): void {
+    const box = h("div", "plan-box replace-box");
+    box.append(h("h2", "", t.replaceTitle));
+    const field = (label: string, input: HTMLElement) => {
+      const l = h("label", "field");
+      l.append(h("span", "", label), input);
+      box.append(l);
+      return l;
+    };
+    const find = h("input");
+    find.type = "text";
+    const selection = layout().activeLeaf instanceof NoteLeaf ? (layout().activeLeaf as NoteLeaf).editor.state.sliceDoc((layout().activeLeaf as NoteLeaf).editor.state.selection.main.from, (layout().activeLeaf as NoteLeaf).editor.state.selection.main.to) : "";
+    find.value = selection.includes("\n") ? "" : selection;
+    const repl = h("input");
+    repl.type = "text";
+    const matchCase = h("input");
+    matchCase.type = "checkbox";
+    const regex = h("input");
+    regex.type = "checkbox";
+    field(t.find, find);
+    field(t.replaceWith, repl);
+    const opts = h("div", "replace-opts");
+    const opt = (input: HTMLInputElement, label: string) => {
+      const l = h("label", "opt");
+      l.append(input, h("span", "", label));
+      opts.append(l);
+    };
+    opt(matchCase, t.matchCase);
+    opt(regex, t.regex);
+    box.append(opts);
+    const note = h("p", "replace-note");
+    const go = button("save", t.previewChanges);
+    const cancel = button("ghost", t.planSkip);
+    cancel.addEventListener("click", () => this.hide());
+    const actions = h("div", "conflict-actions");
+    actions.append(go, cancel);
+    box.append(note, actions);
+    const run = () => void this.preview(find.value, repl.value, matchCase.checked, regex.checked, note, go);
+    go.addEventListener("click", run);
+    for (const i of [find, repl]) i.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") run();
+      else if (e.key === "Escape") this.hide();
+    });
+    this.el.replaceChildren(box);
+    this.el.hidden = false;
+    find.focus();
+    find.select();
+  }
+  hide(): void {
+    this.el.hidden = true;
+  }
+  private async preview(find: string, repl: string, matchCase: boolean, regex: boolean, note: HTMLElement, go: HTMLButtonElement): Promise<void> {
+    if (!find) return;
+    let re: RegExp;
+    try {
+      re = new RegExp(regex ? find : find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), matchCase ? "g" : "gi");
+    } catch {
+      note.textContent = t.badRegex;
+      return;
+    }
+    go.disabled = true;
+    note.textContent = "…";
+    // Candidates through the search index when the needle has words; the
+    // whole vault otherwise. The exact match is decided on the text.
+    const words = regex ? [] : find.match(/[\p{L}\p{N}]{2,}/gu) ?? [];
+    let candidates = allNotes;
+    if (words.length > 0) {
+      const r = await commands.search(words.join(" "), 1000);
+      if (r.status === "ok") candidates = r.data.map((hit) => hit.path);
+    }
+    const rewrites: { path: string; revision: string; before: string; after: string }[] = [];
+    for (const path of candidates) {
+      const r = await commands.readNote(path);
+      if (r.status !== "ok") continue;
+      re.lastIndex = 0;
+      if (!re.test(r.data.text)) continue;
+      const after = regex ? r.data.text.replace(re, repl) : r.data.text.replace(re, () => repl);
+      if (after !== r.data.text) rewrites.push({ path, revision: r.data.revision, before: r.data.text, after });
+    }
+    go.disabled = false;
+    if (rewrites.length === 0) {
+      note.textContent = t.noMatches;
+      return;
+    }
+    this.hide();
+    plan.show(rewrites, t.replaceCount(rewrites.length), t.applyChanges);
+  }
+}
+const replaceDialog = new ReplaceDialog();
+
 class SettingsDialog {
   readonly el = h("div", "quick settings-box");
   constructor() {
@@ -3077,6 +3183,9 @@ document.addEventListener("keydown", (e) => {
   } else if (k === "d" && hasFolder && !e.shiftKey) {
     e.preventDefault();
     void dailyNote();
+  } else if (k === "h" && e.shiftKey && hasFolder) {
+    e.preventDefault();
+    replaceDialog.show();
   } else if (k === "l" && e.shiftKey) {
     e.preventDefault();
     toggleSide();

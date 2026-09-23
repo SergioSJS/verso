@@ -355,6 +355,16 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .plan-box { width: min(80ch, 92vw); max-height: 84vh; overflow: auto; padding: 1.2rem 1.4rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
 .plan-box h2 { font-family: var(--display); font-weight: 600; font-size: 1.2rem; margin: 0 0 .8rem; }
 .plan-box details { margin: .4rem 0; }
+.replace-box { width: min(56ch, 92vw); }
+.replace-opts { display: flex; gap: 1.2rem; margin: .4rem 0 .2rem; font-size: .85rem; color: var(--ink-2); }
+.replace-opts .opt { display: inline-flex; align-items: center; gap: .4rem; }
+.replace-box .field { display: grid; grid-template-columns: 9rem 1fr; align-items: center; gap: .6rem; padding: .35rem 0; }
+/* `.quick input` sizes the switcher's one input; these are ordinary fields. */
+.replace-box input { width: auto; box-shadow: none; font-size: .9rem; }
+.replace-box .field input[type="text"] { width: 100%; font: inherit; padding: .35rem .5rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); min-width: 0; }
+.replace-opts input[type="checkbox"] { width: 1rem; height: 1rem; padding: 0; border: 0; }
+.replace-opts input { accent-color: var(--seal); }
+.replace-note { min-height: 1.2em; margin: .4rem 0 0; font-size: .85rem; color: var(--ink-3); }
 .plan-box summary { cursor: pointer; font-size: .9rem; color: var(--ink-2); }
 .plan-box .diff { margin: .3rem 0 .6rem; max-height: 14rem; }
 .plan-box .conflict-actions { margin-top: .8rem; }
