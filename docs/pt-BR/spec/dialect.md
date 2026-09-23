@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.15
+# Spec do dialeto do Verso — v0.16
 
-- Versão: v0.15 · 2026-09-23
+- Versão: v0.16 · 2026-09-23
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -607,24 +607,29 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   `^id` mantém o id quando vem uma lista aninhada depois.
 - **Q4. Escopo de unicidade do `^id`.** `[ABERTO]`
   Único por arquivo ou por pasta; o que fazer com duplicata (seção 5.7).
-- **Q5. Cobertura de callout.** `[ABERTO]`
+- **Q5. Cobertura de callout.** `DECIDIDA` para os tipos, a dobra e o título na
+  visualização de leitura em 2026-09-23; `[ABERTO]` para o aninhamento.
   Tipos reconhecidos, `-`/`+`, aninhamento (seção 5.8).
 
-  **Fato provisório vindo da visualização de leitura, registrado em
-  2026-09-23, que não responde a esta questão.** A visualização de leitura
-  mostra como callout uma citação cuja primeira linha abre com `[!tipo]`,
+  **Decidido em 2026-09-23 pelo mantenedor, para a visualização de leitura**
+  (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*), como o código faz. A visualização de leitura mostra como
+  callout uma citação cuja primeira linha abre com `[!tipo]`,
   `[!tipo]+` ou `[!tipo]-`, para qualquer tipo, em minúsculas; `+` e `-` viram
   dobra; sem título, o nome do tipo, com inicial maiúscula, é o título; uma
   citação aninhada dentro de um callout continua citação
   (`crates/verso-dialect/src/callouts.rs`). O parser que alimenta o índice não
-  mudou. Quem decide é o mantenedor; esta linha só registra o que o código faz
-  enquanto isso.
+  mudou. **O aninhamento continua `[ABERTO]`**: a documentação pública do
+  Obsidian mostra callouts aninhados dentro de callouts, que a visualização de
+  leitura mantém como citações. A recomendação apresentada ao mantenedor dizia
+  que a visualização de leitura segue o Obsidian, o que não vale para o
+  aninhamento, então o aninhamento não é tomado como decidido.
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
-  `[ABERTO]` Bloco indentado por 4 espaços, HTML embutido, `%%comentário%%`,
+  `[ABERTO]` para o índice; `DECIDIDA` para a visualização de leitura em
+  2026-09-23. Bloco indentado por 4 espaços, HTML embutido, `%%comentário%%`,
   link dentro de URL (seção 5.9).
 
-  **Fato provisório vindo da visualização de leitura e da janela, registrado em
-  2026-09-23, que não responde a esta questão.** O parser que alimenta o índice
+  **Decidido em 2026-09-23 pelo mantenedor, para a visualização de leitura e a
+  janela** (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*), como o código faz. O parser que alimenta o índice
   não mudou, então se um `[[…]]` dentro de um comentário, de HTML embutido ou de
   um bloco indentado é link continua sendo o que a seção 5.9 diz. O que mudou é
   o que a visualização de leitura mostra: `%%…%%` sai dela, na linha ou
@@ -634,8 +639,8 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   embutido só chega à página por uma lista de permissões que a janela aplica
   (scripts, estilos, frames, formulários e atributos de evento saem), já que
   uma nota de uma pasta compartilhada é entrada não confiável
-  ([ADR 0045](../adr/0045-server-and-mcp-security.md)). Quem decide é o
-  mantenedor; esta linha só registra o que o código faz enquanto isso.
+  ([ADR 0045](../adr/0045-server-and-mcp-security.md)). O que o índice conta
+  como link nesses contextos continua `[ABERTO]`.
 - **Q7. Normalização Unicode na comparação de nomes.** `[ABERTO]`
   NFC × NFD. O APFS (macOS, plataforma inicial) preserva a forma recebida e faz
   busca insensível à normalização; HFS+ forçava NFD; Linux compara bytes. Um
@@ -670,8 +675,11 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
      (`[[#Cabeçalho]]`) é a própria nota, e ela passa a ser fonte dos próprios
      backlinks.
   2. O resto é tentado **como caminho**, extensão opcional, sem diferenciar
-     maiúsculas, comparado depois de NFC: relativo à **pasta da própria nota de
-     origem**, respeitando `..`, e a partir da **raiz da pasta aberta**.
+     maiúsculas, comparado depois de NFC: primeiro a partir da **raiz da pasta
+     aberta**, depois relativo à **pasta da própria nota de origem**,
+     respeitando `..`; um caminho que começa com `./` ou `../` é lido só
+     relativo a essa pasta. *(Ordem dita em 2026-09-23, abaixo: o ponto não
+     dizia qual vinha primeiro.)*
   3. Se nenhum caminho casa, casa-se o **nome puro** sem diferenciar
      maiúsculas: primeiro um candidato **sob a pasta da própria nota de
      origem**, em qualquer profundidade — nela ou numa pasta dentro dela;
@@ -707,21 +715,33 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 
   **Embeds de arquivos que não são nota, desde `3340a3f`, registrado em
   2026-09-23.** Resolvem pelos pontos 1 a 5 a partir da nota que tem o embed,
-  inclusive o "sob" desde a emenda. O índice e esta
-  resolução tentam um caminho a partir da raiz antes do mesmo caminho relativo
-  à pasta da origem; o ponto 2 não diz qual vem primeiro
-  (`docs/review/phase-2.md` §6, item 20).
+  inclusive o "sob" desde a emenda.
+
+  **A ordem do ponto 2 dita pelo mantenedor em 2026-09-23**
+  (`docs/review/phase-2.md` §6, item 20; a resposta: *"a e b ok"*). O ponto
+  não dizia se um caminho é tentado primeiro a partir da raiz ou relativo à
+  pasta da origem. O índice e a resolução dos embeds tentam a raiz primeiro, e
+  o Obsidian 1.13.7 também: a partir de `verso-probe/a/src.md`,
+  `[[probe-sub/vpx]]` alcançou o `probe-sub/vpx.md` da raiz, não o
+  `verso-probe/a/probe-sub/vpx.md`; a partir de `verso-probe2/a/src.md`,
+  `[[sub2/rx]]` alcançou o `sub2/rx.md` da raiz, enquanto `[[./sub2/rx]]` e
+  `[[../a/sub/rx]]` alcançaram as notas sob a pasta da origem
+  (`docs/reference/index-decision.md` §4.1, terceira e quarta observações).
+  Então `![[img.png]]` em `a/` alcança um `img.png` da raiz antes de
+  `a/img.png` — um caminho a partir da raiz responde antes de chegar ao ponto
+  3 — e `![[./img.png]]` alcança `a/img.png`. Testes fixam os dois no índice e
+  na resolução dos embeds.
 
   **Fato do `verso-fs`, inalterado por este fechamento.** O walk classifica um
   arquivo comum como nota quando a extensão é exatamente `md`; `.MD`, `.Md` e
   `.markdown` são arquivos comuns até a Q8 ser decidida.
-- **Q13. Tags inline (`#tag` no corpo).** `[ABERTO]`
+- **Q13. Tags inline (`#tag` no corpo).** `DECIDIDA` em 2026-09-23.
   O briefing só cita `tags` no frontmatter. Se `#tag` no corpo conta como tag,
   e como conviver com `#` de heading e com `#` de URL.
 
-  **Fato provisório vindo do `verso-index` e da visualização de leitura,
-  registrado em 2026-09-23, que não responde a esta questão.** A lista de tags
-  do índice conta um `#` no corpo como tag quando ele abre a linha ou vem depois
+  **Decidido em 2026-09-23 pelo mantenedor** (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*), como o índice e a
+  visualização de leitura fazem — registrado antes, no mesmo dia, como
+  provisório. A lista de tags do índice conta um `#` no corpo como tag quando ele abre a linha ou vem depois
   de um espaço ou de um `(`, e é seguido de letras, dígitos, `_`, `-` ou `/` que
   não sejam só dígitos, e a tag vai para minúsculas. Assim o `#` de um heading (`# Título`, com o espaço) e o `#` dentro
   de uma URL não são tags. Desde `95b39ee` o índice e a visualização de leitura
@@ -730,9 +750,7 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   (cercados ou indentados), HTML cru, destinos e rótulos de link, texto
   alternativo de imagem, matemática e comentários `%%`; antes dela, o índice varria linhas
   cruas e listava tags falsas. A visualização de leitura mostra essa tag como
-  um link que a busca. Quem
-  decide é o mantenedor; esta linha só registra o que o código faz enquanto
-  isso.
+  um link que a busca.
 - **Q14. Link para arquivo que não existe.** `[ABERTO]`
   Se entra no índice como alvo pendente, se aparece no grafo, se conta como
   backlink.
@@ -760,13 +778,14 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   nota como arquivo faltando e põe um alvo vazio no topo da lista de não
   resolvidos de qualquer pasta que os use. Quem decide é o mantenedor; esta
   linha só registra o que o código faz enquanto isso.
-- **Q15. Extensões de Markdown fora da base.** `[ABERTO]`
+- **Q15. Extensões de Markdown fora da base.** `DECIDIDA` para a visualização
+  de leitura em 2026-09-23; `[ABERTO]` para o parser que alimenta o índice.
   Tabelas, footnotes, task list, matemática, destaque `==texto==`, strikethrough.
   O briefing não lista nenhuma; a escolha do parser base
   ([ADR 0037](../adr/0037-base-parser.md)) mexe no que sai de graça.
 
-  **Fato provisório vindo da visualização de leitura, registrado em 2026-09-23,
-  que não responde a esta questão.** O HTML que o core renderiza para a janela
+  **Decidido em 2026-09-23 pelo mantenedor, para a visualização de leitura**
+  (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*), como o código faz. O HTML que o core renderiza para a janela
   (`verso_dialect::to_html`) mostra as seis, como o Obsidian mostra por padrão:
   tabelas, notas de rodapé — inclusive a forma inline do Obsidian, `^[texto]`,
   reescrita como nota de rodapé referenciada antes de renderizar —, task list
@@ -783,7 +802,8 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   e texto alternativo nunca são reescritos, e um `</blockquote>` cru não abre
   nem fecha mais um callout. Como o leitor habilita opções que o parser não
   habilita, `$[[x]]$` é link para o índice e matemática para o leitor — uma
-  discordância registrada, não resolvida.
+  discordância registrada, não resolvida. Se o parser que alimenta o índice
+  habilita essas extensões, o que a resolveria, continua `[ABERTO]`.
 - **Q16. Arquivos não-Markdown na pasta.** `[ABERTO]`
   Quais entram no índice como alvo de link (imagens, PDF, `.canvas`) e quais são
   ignorados.
@@ -888,22 +908,24 @@ ser escolhido.
   célula de tabela, callout inteiro, bloco de código, heading com seu
   conteúdo? A documentação pública do Obsidian descreve a noção dele; a spec
   precisa da sua antes de Q3 e Q4 fazerem sentido.
-- **Q22. Charset do `^id` e forma das tags.** `[ABERTO]`
+- **Q22. Charset do `^id` e forma das tags.** `DECIDIDA` para o charset e a
+  caixa das tags em 2026-09-23; `[ABERTO]` para o resto.
   A documentação pública do Obsidian restringe `^id` a letras, números e hífen;
   o que acontece com `^id` inválido. Para tags (Q13): charset, aninhamento
   `#a/b`, sensibilidade a maiúsculas, prefixo `#` em `tags` de frontmatter.
 
-  **Fato provisório, registrado em 2026-09-23, que não responde a esta
-  questão.** Para tags, o charset e a passagem para minúsculas que o código
-  aplica são os registrados na Q13. A parte do `^id` não mudou com o código da
-  Fase 2.
+  **Decidido em 2026-09-23 pelo mantenedor, para as tags** (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*): o
+  charset e a passagem para minúsculas são os registrados na Q13. A parte do
+  `^id`, o que `#a/b` significa como hierarquia e um prefixo `#` nas `tags` do
+  frontmatter continuam `[ABERTO]`.
 - **Q23. Formas combinadas e escapes de wikilink.** `[ABERTO]`
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` e `[[#^bloco]]`
   (mesmo arquivo — conta como backlink de si mesmo?), `[[pasta/nota]]`,
   `[[nota.md]]`, `[[nota\|alias]]` em tabela, `\[[não é link]]`, `[[ nota ]]`
   com espaços, `![[img.png|300]]` (tamanho, não alias), `[[nota|alias|extra]]`,
   wikilink dentro de link Markdown ou de imagem.
-- **Q24. Fronteira e dialeto do frontmatter.** `[ABERTO]` (seção 5.1)
+- **Q24. Fronteira e dialeto do frontmatter.** `[ABERTO]` (seção 5.1); a parte
+  da janela `DECIDIDA` em 2026-09-23.
   BOM antes do `---`; CRLF (a invariante 7 exige preservar a quebra de linha
   "do arquivo" — qual, quando há mistura?); `---` fechado por `...`; frontmatter
   vazio; YAML inválido (parte de Q17); versão do YAML — em 1.1 `yes`, `no`,
@@ -911,23 +933,27 @@ ser escolhido.
   ou tag?; wikilinks dentro de valores (`related: "[[nota]]"`), que as
   Properties do Obsidian tratam como links.
 
-  **Fato provisório vindo da janela, registrado em 2026-09-23, que não responde
-  a esta questão.** O frontmatter dobrado da janela e o painel de propriedades
+  **Decidido em 2026-09-23 pelo mantenedor, para a janela** (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*), como
+  o código faz. O frontmatter dobrado da janela e o painel de propriedades
   acham o frontmatter onde o core o acha, pela regra da seção 5.1 como o parser
   a aplica; usavam uma regra própria, mais frouxa, que aceitava `...` e aparava
   as cercas, até a leitura da Opus de 2026-09-23 achar os dois discordando. Um
   valor que o painel não consegue reescrever sem mudar o tipo — um mapa, uma
   lista com qualquer coisa além de texto simples — é mostrado e não editado. Um
   arquivo com quebras de linha misturadas abre só para leitura na janela, então
-  nunca é convertido ali. Quem decide é o mantenedor; esta linha só registra o
-  que o código faz enquanto isso.
-- **Q25. Codificação.** `[ABERTO]`
+  nunca é convertido ali. O resto da questão — um BOM, `...`, a versão do
+  YAML, `tags: 2024`, wikilinks dentro de valores — continua `[ABERTO]`, e
+  também uma conversão de quebras de linha misturadas por ação do usuário, com
+  o diff (invariante 8), que o mantenedor deixou para depois
+  (`docs/review/phase-2.md` §6, item 23).
+- **Q25. Codificação.** `DECIDIDA` em 2026-09-23.
   Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
   do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
   porque codificação não é sintaxe.
 
-  **Fato provisório vindo do `verso-core`, registrado em 2026-09-23, que não
-  responde a esta questão.** Um arquivo cujos bytes não são UTF-8 válido não é
+  **Decidido em 2026-09-23 pelo mantenedor** (`docs/review/phase-2.md` §6,
+  item 4, com a recomendação de continuar recusando; a resposta: *"a e b
+  ok"*), como o código faz. Um arquivo cujos bytes não são UTF-8 válido não é
   aberto para edição: lê-lo para um editor responde `not_text`, então nenhum
   editor guarda uma cópia com caracteres de substituição que salvar escreveria
   de volta; um plano de renomeação deixa essa nota de fora e a nomeia; o
@@ -935,8 +961,7 @@ ser escolhido.
   substituição, só para a busca, que não escreve nada. Antes disso, o texto era
   decodificado com substituição e salvar ou aplicar um plano escrevia os
   caracteres de substituição de volta — a leitura da Opus de 2026-09-23 achou
-  isso. Quem decide é o mantenedor; esta linha só registra o que o código faz
-  enquanto isso.
+  isso.
 - **Q26. Caminhos ignorados pela varredura e seu efeito em backlinks.**
   `DECIDIDA` em 2026-09-22 pelo mantenedor, sobre o memo
   `docs/reference/fs-decision.md`; a regra em si vive no
@@ -968,3 +993,4 @@ ser escolhido.
 | v0.13 | 2026-09-23 | Fatos provisórios registrados em Q12, Q13, Q15 e Q16, vindos do código da branch da Fase 2: onde o código se afasta do ponto 3 da Q12 ("sob" a pasta de origem onde o ponto 3 diz "na", o que o mantenedor ainda não resolveu), tags no corpo, as extensões de Markdown e quebras de linha que a visualização de leitura renderiza, e os arquivos que não são nota. A linha da Q14 sobre `[[#Heading]]` marcada como superada pelo ponto 1 da Q12. Nenhuma questão fechada |
 | v0.14 | 2026-09-23 | Fatos provisórios em Q6, Q12, Q13, Q15, Q16, Q24 e Q25 trazidos até o código depois da leitura da Opus do branch da Fase 2: comentários escondidos e HTML embutido sanitizado na visualização de leitura, uma regra de tag só para o índice e o leitor, embeds resolvidos pela Q12 a partir da nota, a fronteira do frontmatter da janela, arquivos que não são UTF-8 não abertos para edição. Nenhuma questão fechada |
 | v0.15 | 2026-09-23 | **Ponto 3 da Q12 emendado pelo mantenedor**: um nome solto prefere um candidato sob a pasta da nota de origem, em qualquer profundidade, como o Obsidian 1.13.7 faz (a terceira observação de `docs/reference/index-decision.md` §4.1); o índice já fazia, e embeds de arquivos agora fazem também. A Q12 continua fechada |
+| v0.16 | 2026-09-23 | As respostas do mantenedor sobre a revisão da Fase 2 (`docs/review/phase-2.md` §6, itens 4 e 20): **Q13 e Q25 fechadas** como o código faz; Q5 (tipos, dobra, título), Q6, Q15 e Q24 decididas para a visualização de leitura e a janela, com a parte do índice e o resto ainda abertos — o aninhamento da Q5 continua aberto porque a visualização de leitura não segue o Obsidian ali; Q22 decidida para o charset e a caixa das tags; **a ordem do ponto 2 da Q12 dita**: um caminho a partir da raiz primeiro, depois relativo à pasta da origem, e `./` ou `../` só relativo, como o Obsidian 1.13.7 faz. Duas questões fechadas, cinco em parte |
