@@ -514,7 +514,7 @@ static WEB_WINDOWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32:
 /// `url` property is the bookmark, this is the browser. Only `http(s)`.
 #[tauri::command]
 #[specta::specta]
-fn open_url(app: tauri::AppHandle, url: String) -> Result<(), ContractError> {
+fn open_url<R: tauri::Runtime>(app: tauri::AppHandle<R>, url: String) -> Result<(), ContractError> {
     let parsed: tauri::Url = url.parse().map_err(|e| failed(format!("{e}")))?;
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err(failed("only http(s) pages open in a window"));
@@ -533,7 +533,10 @@ fn open_url(app: tauri::AppHandle, url: String) -> Result<(), ContractError> {
     Ok(())
 }
 
-fn webview_of(app: &tauri::AppHandle, label: &str) -> Result<tauri::Webview, ContractError> {
+fn webview_of<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Result<tauri::Webview<R>, ContractError> {
     app.get_webview(label)
         .ok_or_else(|| failed(format!("no web view {label}")))
 }
@@ -541,7 +544,7 @@ fn webview_of(app: &tauri::AppHandle, label: &str) -> Result<tauri::Webview, Con
 /// A child web view is placed from the window's frame; the page's
 /// coordinates start under the title bar. The difference, in logical
 /// pixels.
-fn chrome_offset(window: &tauri::Window) -> f64 {
+fn chrome_offset<R: tauri::Runtime>(window: &tauri::Window<R>) -> f64 {
     let scale = window.scale_factor().unwrap_or(1.0);
     let measured = match (window.outer_position(), window.inner_position()) {
         (Ok(outer), Ok(inner)) => f64::from(inner.y.saturating_sub(outer.y).max(0)) / scale,
@@ -568,8 +571,8 @@ fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
 /// behind a tab whose note holds the address. Only `http(s)`.
 #[tauri::command]
 #[specta::specta]
-fn web_open(
-    window: tauri::Window,
+fn web_open<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     label: String,
     url: String,
     x: f64,
@@ -593,8 +596,8 @@ fn web_open(
 /// Move and size a web page's view to follow its tab.
 #[tauri::command]
 #[specta::specta]
-fn web_bounds(
-    app: tauri::AppHandle,
+fn web_bounds<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     label: String,
     x: f64,
     y: f64,
@@ -611,7 +614,11 @@ fn web_bounds(
 /// Show or hide a web page's view (its tab left the front, an overlay opened).
 #[tauri::command]
 #[specta::specta]
-fn web_visible(app: tauri::AppHandle, label: String, visible: bool) -> Result<(), ContractError> {
+fn web_visible<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    label: String,
+    visible: bool,
+) -> Result<(), ContractError> {
     let wv = webview_of(&app, &label)?;
     (if visible { wv.show() } else { wv.hide() }).map_err(|e| failed(e.to_string()))
 }
@@ -619,7 +626,10 @@ fn web_visible(app: tauri::AppHandle, label: String, visible: bool) -> Result<()
 /// Close a web page's view (its tab closed).
 #[tauri::command]
 #[specta::specta]
-fn web_close(app: tauri::AppHandle, label: String) -> Result<(), ContractError> {
+fn web_close<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    label: String,
+) -> Result<(), ContractError> {
     webview_of(&app, &label)?
         .close()
         .map_err(|e| failed(e.to_string()))
@@ -628,8 +638,8 @@ fn web_close(app: tauri::AppHandle, label: String) -> Result<(), ContractError> 
 /// Back, forward, reload, or go to another http(s) address.
 #[tauri::command]
 #[specta::specta]
-fn web_nav(
-    app: tauri::AppHandle,
+fn web_nav<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     label: String,
     action: String,
     url: Option<String>,
@@ -648,7 +658,10 @@ fn web_nav(
 /// The address a web page's view is at now.
 #[tauri::command]
 #[specta::specta]
-fn web_url(app: tauri::AppHandle, label: String) -> Result<String, ContractError> {
+fn web_url<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    label: String,
+) -> Result<String, ContractError> {
     webview_of(&app, &label)?
         .url()
         .map(|u| u.to_string())
@@ -674,8 +687,8 @@ fn current_folder(state: State<'_, App>) -> Result<Option<String>, ContractError
 /// by its window's label.
 #[tauri::command]
 #[specta::specta]
-fn open_window(
-    app: tauri::AppHandle,
+fn open_window<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     state: State<'_, App>,
     path: String,
 ) -> Result<(), ContractError> {
@@ -706,8 +719,8 @@ fn open_window(
 /// the main window.
 #[tauri::command]
 #[specta::specta]
-fn popout_target(
-    window: tauri::Window,
+fn popout_target<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
 ) -> Result<Option<String>, ContractError> {
     Ok(state
@@ -722,9 +735,9 @@ fn popout_target(
 /// then this one closes.
 #[tauri::command]
 #[specta::specta]
-fn return_to_main(
-    app: tauri::AppHandle,
-    window: tauri::Window,
+fn return_to_main<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
     state: State<'_, App>,
     path: String,
 ) -> Result<(), ContractError> {
@@ -758,48 +771,62 @@ fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
     with(&state, |ws| Ok(summary(&ws.index()?)))
 }
 
-/// The commands, once, for the handler and for the bindings.
+/// The commands, once, for the handler, the bindings and the tests. A
+/// macro because `collect_commands!` fixes the runtime at its call site:
+/// the app runs on Wry, the tests on Tauri's mock runtime.
+macro_rules! commands_for {
+    ($runtime:path) => {
+        tauri_specta::Builder::<$runtime>::new().commands(tauri_specta::collect_commands![
+            open_folder,
+            list_notes,
+            read_note,
+            search,
+            links,
+            backlinks,
+            write_note,
+            create_note,
+            create_file,
+            create_folder,
+            delete_note,
+            rename_note,
+            resolve_attachment,
+            list_files,
+            list_folders,
+            list_tags,
+            read_file_text,
+            list_entries,
+            list_web_notes,
+            graph,
+            initial_folder,
+            current_folder,
+            open_window::<$runtime>,
+            popout_target::<$runtime>,
+            return_to_main::<$runtime>,
+            open_url::<$runtime>,
+            web_open::<$runtime>,
+            web_bounds::<$runtime>,
+            web_visible::<$runtime>,
+            web_close::<$runtime>,
+            web_nav::<$runtime>,
+            web_url::<$runtime>,
+            read_text,
+            write_text,
+            rename_entry,
+            delete_entry,
+            reveal,
+            reindex
+        ])
+    };
+}
+
 fn commands() -> tauri_specta::Builder<tauri::Wry> {
-    tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
-        open_folder,
-        list_notes,
-        read_note,
-        search,
-        links,
-        backlinks,
-        write_note,
-        create_note,
-        create_file,
-        create_folder,
-        delete_note,
-        rename_note,
-        resolve_attachment,
-        list_files,
-        list_folders,
-        list_tags,
-        read_file_text,
-        list_entries,
-        list_web_notes,
-        graph,
-        initial_folder,
-        current_folder,
-        open_window,
-        popout_target,
-        return_to_main,
-        open_url,
-        web_open,
-        web_bounds,
-        web_visible,
-        web_close,
-        web_nav,
-        web_url,
-        read_text,
-        write_text,
-        rename_entry,
-        delete_entry,
-        reveal,
-        reindex
-    ])
+    commands_for!(tauri::Wry)
+}
+
+/// The app's context — configuration, capabilities, embedded UI — built
+/// once: the macro may appear once per crate, and the tests want it too.
+fn context<R: tauri::Runtime>() -> tauri::Context<R> {
+    tauri::generate_context!()
 }
 
 /// Write the TypeScript bindings (types and command signatures) to
@@ -913,6 +940,142 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             workspace: Mutex::new(None),
         })
         .invoke_handler(commands.invoke_handler())
-        .run(tauri::generate_context!())?;
+        .run(context())?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    //! The commands as the UI calls them: through Tauri's IPC, on the
+    //! mock runtime, with the JSON the bindings send. What crosses is
+    //! the contract; nothing here touches a window.
+
+    use std::io::Write;
+
+    use serde_json::{Value, json};
+    use tauri::ipc::{CallbackFn, InvokeBody};
+    use tauri::test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder};
+    use tauri::webview::InvokeRequest;
+
+    #[allow(unused_imports)]
+    use super::*;
+
+    fn app() -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
+        let app = mock_builder()
+            .manage(App {
+                popouts: std::sync::Mutex::new(std::collections::HashMap::new()),
+                initial_folder: std::sync::Mutex::new(None),
+                workspace: std::sync::Mutex::new(None),
+            })
+            .invoke_handler(commands_for!(MockRuntime).invoke_handler())
+            // The app's own context: its capabilities decide what a window may call.
+            .build(context())
+            .unwrap();
+        let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+            .build()
+            .unwrap();
+        (app, webview)
+    }
+
+    fn call(
+        webview: &tauri::WebviewWindow<MockRuntime>,
+        cmd: &str,
+        body: Value,
+    ) -> Result<Value, Value> {
+        get_ipc_response(
+            webview,
+            InvokeRequest {
+                cmd: cmd.to_owned(),
+                callback: CallbackFn(0),
+                error: CallbackFn(1),
+                url: "tauri://localhost".parse().unwrap(),
+                body: InvokeBody::Json(body),
+                headers: Default::default(),
+                invoke_key: INVOKE_KEY.to_owned(),
+            },
+        )
+        .map(|b| b.deserialize::<Value>().unwrap())
+    }
+
+    /// A note with exactly this name in `dir`, kept until dropped.
+    fn note(dir: &std::path::Path, name: &str, content: &str) -> tempfile::NamedTempFile {
+        let mut file = tempfile::Builder::new()
+            .prefix(name)
+            .rand_bytes(0)
+            .tempfile_in(dir)
+            .unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+        file.flush().unwrap();
+        file
+    }
+
+    #[test]
+    fn the_commands_answer_through_the_contract() {
+        let vault = tempfile::tempdir().unwrap();
+        let _taverna = note(
+            vault.path(),
+            "Taverna.md",
+            "# Taverna\n\nO [[Barão]] bebe aqui.\n",
+        );
+        let _barao = note(
+            vault.path(),
+            "Barão.md",
+            "---\ntags: [npc]\nurl: https://example.org\n---\n",
+        );
+        let (_app, webview) = app();
+
+        // Nothing open yet: every command says so, in the contract's words.
+        let err = call(&webview, "list_notes", json!({})).unwrap_err();
+        assert_eq!(err["kind"], "no_folder", "{err}");
+
+        let info = call(&webview, "open_folder", json!({ "path": vault.path() })).unwrap();
+        assert_eq!(info["index"]["indexed"], 2, "{info}");
+
+        let notes = call(&webview, "list_notes", json!({})).unwrap();
+        assert!(
+            notes.as_array().unwrap().iter().any(|n| n == "Taverna.md"),
+            "{notes}"
+        );
+
+        let read = call(&webview, "read_note", json!({ "path": "Taverna" })).unwrap();
+        assert_eq!(read["path"], "Taverna.md");
+        assert!(
+            read["html"].as_str().unwrap().contains("wikilink"),
+            "{read}"
+        );
+        let revision = read["revision"].as_str().unwrap().to_owned();
+        let links = call(&webview, "links", json!({ "path": "Taverna" })).unwrap();
+        assert_eq!(links[0]["resolved"], "Barão.md", "{links}");
+        let graph = call(&webview, "graph", json!({})).unwrap();
+        assert_eq!(graph[0]["to"], "Barão.md", "{graph}");
+
+        // A write over the revision that was read; the same revision again is refused (invariant 11).
+        let written = call(
+            &webview,
+            "write_note",
+            json!({ "path": "Taverna", "text": "# Taverna\n\nNovo.\n", "revision": revision }),
+        )
+        .unwrap();
+        assert_eq!(written["note"]["text"], "# Taverna\n\nNovo.\n");
+        let stale = call(
+            &webview,
+            "write_note",
+            json!({ "path": "Taverna", "text": "x", "revision": revision }),
+        )
+        .unwrap_err();
+        assert_eq!(stale["kind"], "changed", "{stale}");
+
+        // Identity is a path under the folder; anything else never crosses (rule 4).
+        let out = call(&webview, "read_note", json!({ "path": "../fora" })).unwrap_err();
+        assert_eq!(out["kind"], "refused", "{out}");
+
+        // The properties and the web notes come typed; the link is gone
+        // with the text that held it.
+        let barao = call(&webview, "read_note", json!({ "path": "Barão" })).unwrap();
+        assert_eq!(barao["properties"][0]["value"]["kind"], "list", "{barao}");
+        let web = call(&webview, "list_web_notes", json!({})).unwrap();
+        assert_eq!(web[0]["url"], "https://example.org", "{web}");
+        let graph = call(&webview, "graph", json!({})).unwrap();
+        assert_eq!(graph.as_array().unwrap().len(), 0, "{graph}");
+    }
 }
