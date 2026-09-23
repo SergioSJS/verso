@@ -239,8 +239,6 @@ O código se apoia em decisões que não tem. Elas estão listadas uma vez, com
 onde cada uma mora, em [`../review/phase-2.md`](../review/phase-2.md) §6; as
 que quem usa a janela encontra primeiro:
 
-- que nota um link com nome solto alcança quando duas têm o mesmo nome (Q12 da
-  spec, ponto 3: "na" ou "sob" a pasta da origem);
 - o que renomear, mover, excluir e criar fazem
   ([ADR 0048](../adr/0048-file-operations-in-ui.md));
 - o que a visão de leitura renderiza — tabelas, notas de rodapé, matemática,
