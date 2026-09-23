@@ -626,7 +626,11 @@ fn web_notes_and_the_whole_graph_come_from_the_index() {
     let config = tempfile::tempdir().unwrap();
     let _a = note(vault.path(), "A.md", "[[B]] e [[C]]\n");
     let _b = note(vault.path(), "B.md", "[[C]]\n");
-    let _c = note(vault.path(), "C.md", "---\nurl: https://example.org/x\n---\n");
+    let _c = note(
+        vault.path(),
+        "C.md",
+        "---\nurl: https://example.org/x\n---\n",
+    );
     let _d = note(vault.path(), "D.md", "---\nurl: not-a-url\n---\nsolta\n");
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     ws.index().unwrap();

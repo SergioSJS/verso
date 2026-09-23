@@ -405,8 +405,14 @@ mod math {
     #[test]
     fn math_is_kept_as_source_in_a_marked_element() {
         let html = super::to_html("Inline $a^2 + b^2$ e bloco:\n\n$$\n\\int_0^1 x\\,dx\n$$\n");
-        assert!(html.contains(r#"<span class="math">a^2 + b^2</span>"#), "{html}");
-        assert!(html.contains(r#"<div class="math math-display">"#), "{html}");
+        assert!(
+            html.contains(r#"<span class="math">a^2 + b^2</span>"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<div class="math math-display">"#),
+            "{html}"
+        );
         assert!(html.contains("\\int_0^1"), "{html}");
     }
 }

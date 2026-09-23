@@ -81,6 +81,26 @@ export const commands = {
 	 */
 	initialFolder: () => typedError<string | null, ContractError>(__TAURI_INVOKE("initial_folder")),
 	/**
+	 *  The folder that is open, for a window that joins the session (a
+	 *  note in a window of its own): it must not open the folder again.
+	 */
+	currentFolder: () => typedError<string | null, ContractError>(__TAURI_INVOKE("current_folder")),
+	/**
+	 *  A note in a window of its own: the same UI, which asks which note
+	 *  by its window's label.
+	 */
+	openWindow: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("open_window", { path })),
+	/**
+	 *  Which note this window shows, when it is one popped out; `None` for
+	 *  the main window.
+	 */
+	popoutTarget: () => typedError<string | null, ContractError>(__TAURI_INVOKE("popout_target")),
+	/**
+	 *  The note goes back into the main window: the main window is told,
+	 *  then this one closes.
+	 */
+	returnToMain: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("return_to_main", { path })),
+	/**
 	 *  Open a web page in a window of its own inside the app: a note with a
 	 *  `url` property is the bookmark, this is the browser. Only `http(s)`.
 	 */

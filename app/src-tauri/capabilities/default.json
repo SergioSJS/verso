@@ -1,6 +1,6 @@
 {
   "identifier": "default",
   "description": "The main window: the core's commands, and the native folder picker (the entry edge, ADR 0026 rule 4). No fs plugin: notes are reached only through verso-core.",
-  "windows": ["main"],
+  "windows": ["main", "note-*"],
   "permissions": ["core:default", "dialog:allow-open"]
 }

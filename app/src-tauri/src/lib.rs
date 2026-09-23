@@ -32,6 +32,8 @@ use verso_core::{CoreError, ReadError, Workspace, WriteError};
 /// The one open folder, or none yet. One mutex: two commands never
 /// interleave on the index.
 pub struct App {
+    /// Notes popped out to windows of their own: window label → note.
+    pub popouts: Mutex<std::collections::HashMap<String, String>>,
     /// The folder named on the command line (`verso-app <folder>`), taken
     /// once by the UI at start-up: a path as a string at the entry edge.
     pub initial_folder: Mutex<Option<String>>,
@@ -655,6 +657,90 @@ fn web_url(app: tauri::AppHandle, label: String) -> Result<String, ContractError
         .map_err(|e| failed(e.to_string()))
 }
 
+static POPOUTS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// The folder that is open, for a window that joins the session (a
+/// note in a window of its own): it must not open the folder again.
+#[tauri::command]
+#[specta::specta]
+fn current_folder(state: State<'_, App>) -> Result<Option<String>, ContractError> {
+    Ok(state
+        .workspace
+        .lock()
+        .map_err(|e| failed(e.to_string()))?
+        .as_ref()
+        .map(|ws| ws.folder().to_string_lossy().into_owned()))
+}
+
+/// A note in a window of its own: the same UI, which asks which note
+/// by its window's label.
+#[tauri::command]
+#[specta::specta]
+fn open_window(
+    app: tauri::AppHandle,
+    state: State<'_, App>,
+    path: String,
+) -> Result<(), ContractError> {
+    let n = POPOUTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let label = format!("note-{n}");
+    let title = path
+        .rsplit('/')
+        .next()
+        .unwrap_or(&path)
+        .trim_end_matches(".md")
+        .to_owned();
+    state
+        .popouts
+        .lock()
+        .map_err(|e| failed(e.to_string()))?
+        .insert(label.clone(), path);
+    tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App("index.html".into()))
+        .title(title)
+        .inner_size(920.0, 720.0)
+        .min_inner_size(360.0, 400.0)
+        .disable_drag_drop_handler()
+        .build()
+        .map_err(|e| failed(e.to_string()))?;
+    Ok(())
+}
+
+/// Which note this window shows, when it is one popped out; `None` for
+/// the main window.
+#[tauri::command]
+#[specta::specta]
+fn popout_target(
+    window: tauri::Window,
+    state: State<'_, App>,
+) -> Result<Option<String>, ContractError> {
+    Ok(state
+        .popouts
+        .lock()
+        .map_err(|e| failed(e.to_string()))?
+        .get(window.label())
+        .cloned())
+}
+
+/// The note goes back into the main window: the main window is told,
+/// then this one closes.
+#[tauri::command]
+#[specta::specta]
+fn return_to_main(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: State<'_, App>,
+    path: String,
+) -> Result<(), ContractError> {
+    use tauri::Emitter;
+    app.emit_to("main", "open-note", path)
+        .map_err(|e| failed(e.to_string()))?;
+    state
+        .popouts
+        .lock()
+        .map_err(|e| failed(e.to_string()))?
+        .remove(window.label());
+    window.close().map_err(|e| failed(e.to_string()))
+}
+
 /// The folder the command line asked for, once; `None` afterwards and
 /// when there was none. The UI opens it instead of the last folder.
 #[tauri::command]
@@ -698,6 +784,10 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         list_web_notes,
         graph,
         initial_folder,
+        current_folder,
+        open_window,
+        popout_target,
+        return_to_main,
         open_url,
         web_open,
         web_bounds,
@@ -820,6 +910,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         .plugin(tauri_plugin_dialog::init())
         .register_uri_scheme_protocol("verso", serve_file)
         .manage(App {
+            popouts: Mutex::new(std::collections::HashMap::new()),
             initial_folder: Mutex::new(initial_folder),
             workspace: Mutex::new(None),
         })
