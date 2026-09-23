@@ -42,7 +42,7 @@ import { cleanHtmlText, setHtml } from "./sanitize";
 type Strings = Record<
   | "open" | "reindex" | "search" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
-  | "cancel" | "discardYes" | "conflictPending" | "taskMoved"
+  | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
@@ -87,7 +87,7 @@ const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
-  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.",
+  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
@@ -145,7 +145,7 @@ const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
-  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.",
+  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
@@ -858,6 +858,10 @@ abstract class Leaf {
     this.tab.classList.toggle("dirty", d);
   }
   abstract load(path: string, force?: boolean): Promise<void>;
+  /** The file moved (renamed in the app): follow it to `path`. */
+  moved(path: string): void {
+    void this.load(path, true);
+  }
   headings(): NoteText["headings"] {
     return [];
   }
@@ -1490,6 +1494,17 @@ class NoteLeaf extends Leaf {
     if (this.pane.active === this) panel.show(this);
     persistSoon();
   }
+  /** Renamed: read at the new place, unless text was typed meanwhile —
+   *  then it stays, and its next save goes to the new place. */
+  override moved(path: string): void {
+    if (!this.dirty) return void this.load(path, true);
+    this.path = path;
+    this.setTitle(name(path));
+    this.title.textContent = name(path);
+    this.crumbs.replaceChildren(...crumbsFor(path));
+    markCurrent();
+    persistSoon();
+  }
   paintStar(): void {
     const on = bookmarks.includes(this.path);
     this.star.replaceChildren(icon("star", on ? t.unbookmark : t.bookmark));
@@ -1832,6 +1847,15 @@ class TextLeaf extends Leaf {
     this.conflict.hide();
     this.setDirty(false);
     this.flags.hidden = true;
+    markCurrent();
+    persistSoon();
+  }
+  /** Renamed: as a note's tab does (NoteLeaf.moved). */
+  override moved(path: string): void {
+    if (!this.dirty) return void this.load(path, true);
+    this.path = path;
+    this.setTitle(path.split("/").pop() ?? path);
+    this.crumbs.replaceChildren(...crumbsFor(path));
     markCurrent();
     persistSoon();
   }
@@ -2739,7 +2763,12 @@ class Pane {
       sep,
       [t.splitRight, () => leaf.moveTo(layout().split(this, "row"))],
       [t.splitDownTab, () => leaf.moveTo(layout().split(this, "col"))],
-      ...(leaf.kind === "note" && !popout ? [[t.openInWindow, () => void leaf.flush().then(() => commands.openWindow(leaf.path)).then(() => leaf.close(true))] as [string, () => void]] : []),
+      ...(leaf.kind === "note" && !popout ? [[t.openInWindow, () => void (async () => {
+        // The window reads the file: what is not saved would stay behind.
+        if (!(await leaf.flush())) return stopped([leaf]);
+        await commands.openWindow(leaf.path);
+        await leaf.close(true);
+      })()] as [string, () => void]] : []),
       ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
       ...(leaf.kind === "note" ? [sep, [t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
     ]);
@@ -3531,6 +3560,17 @@ async function afterFileChange(): Promise<void> {
 function leavesOf(path: string): Leaf[] {
   return spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves.filter((l) => l.path === path)));
 }
+/** Save what `leaves` hold; back come the ones that could not be saved
+ *  (a conflict waiting for a decision, a write refused). */
+async function flushed(leaves: Leaf[]): Promise<Leaf[]> {
+  const left: Leaf[] = [];
+  for (const l of leaves) if (!(await l.flush())) left.push(l);
+  return left;
+}
+/** An operation stopped rather than lose the text of these tabs. */
+function stopped(leaves: Leaf[]): void {
+  ui.status.textContent = `${t.notSaved} ${leaves.map((l) => l.tabName.textContent || l.path).join(", ")}.`;
+}
 let untitledN = 0;
 async function newUntitled(pane: Pane): Promise<void> {
   const folder = pane.active?.path ? dirOf(pane.active.path) : "";
@@ -3561,6 +3601,9 @@ async function deleteNote(path: string): Promise<void> {
 async function deleteEntry(path: string, kind: Kind): Promise<void> {
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
   if (!(await ask(kind === "folder" ? t.confirmDeleteFolder(label) : t.confirmDelete(label), { yes: t.deleteEntry, no: t.cancel }))) return;
+  // What goes to the bin goes with its last words: saved first, or not moved.
+  const unsaved = await flushed(leavesUnder(path));
+  if (unsaved.length > 0) return stopped(unsaved);
   const r = await commands.deleteEntry(path);
   if (r.status !== "ok") return fail(r.error);
   pathsRemoved(path);
@@ -3594,10 +3637,13 @@ async function moveFile(path: string, folder: string): Promise<void> {
   ui.status.textContent = t.moved;
 }
 async function renameTo(from: string, to: string): Promise<void> {
+  // What moves is saved first; a tab of it that cannot be saved stops the move.
+  const unsaved = await flushed(leavesUnder(from));
+  if (unsaved.length > 0) return stopped(unsaved);
   const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
   pathsMoved(from, r.data.path);
-  for (const l of leavesUnder(from)) void l.load(l.path === from ? r.data.path : r.data.path + l.path.slice(from.length), true);
+  for (const l of leavesUnder(from)) l.moved(l.path === from ? r.data.path : r.data.path + l.path.slice(from.length));
   if (openFolders.has(from)) {
     openFolders.delete(from);
     openFolders.add(r.data.path);
@@ -3679,6 +3725,9 @@ async function quoteIntoNotes(pdf: string, fragment: string, page: number, text:
   const stem = base.replace(/\.pdf$/i, "");
   const notePath = companionOf(pdf);
   const block = `\n> [!quote] [[${base}#${fragment}|${stem}, ${t.pdfPage.toLowerCase()} ${page}]]\n> ${text.split(/\n/).join("\n> ")}\n`;
+  // The companion open in a tab: its text saved first, or nothing is written.
+  const unsaved = await flushed(leavesOf(notePath));
+  if (unsaved.length > 0) return stopped(unsaved);
   const existing = await commands.readNote(notePath);
   let r;
   if (existing.status === "ok") r = await commands.writeNote(notePath, existing.data.text.replace(/\s*$/, "\n") + block, existing.data.revision);
@@ -3688,9 +3737,12 @@ async function quoteIntoNotes(pdf: string, fragment: string, page: number, text:
   }
   if (r.status !== "ok") return fail(r.error);
   await afterFileChange();
-  const open = leavesOf(notePath)[0];
-  if (open) void open.load(notePath, true);
-  else {
+  const open = leavesOf(notePath);
+  // Read again where nothing was typed meanwhile; elsewhere the next save
+  // meets the new text and shows the difference.
+  if (open.length > 0) for (const l of open) {
+    if (!l.dirty) void l.load(notePath, true);
+  } else {
     const pane = layout().focused ?? layout().panes()[0];
     if (pane) openIn(layout().split(pane, "row"), notePath);
   }
@@ -4984,7 +5036,11 @@ async function joinAsPopout(): Promise<void> {
   const leaf = openIn(s.layout.panes()[0] ?? s.layout.reset(), path);
   const bar = h("div", "popout-bar");
   const back = button("ghost", t.returnToMain);
-  back.addEventListener("click", () => void leaf.flush().then(() => commands.returnToMain(leaf.path)));
+  back.addEventListener("click", () => void (async () => {
+    // This window closes: unsaved text goes only on a yes.
+    if (!(await leaf.flush()) && !(await askDiscard())) return;
+    await commands.returnToMain(leaf.path);
+  })());
   bar.append(h("span", "popout-name", name(path)), back);
   document.querySelector(".work")?.prepend(bar);
   document.title = name(path);
@@ -5047,13 +5103,17 @@ async function openFolderDialog(): Promise<void> {
   if (typeof picked === "string") await openPath(picked);
 }
 async function reindex(): Promise<void> {
+  // The tab is read again afterwards: its text is saved first, and a tab
+  // that cannot be saved stops the whole thing rather than lose its text.
+  const leaf = layout().activeLeaf;
+  const unsaved = leaf ? await flushed([leaf]) : [];
+  if (unsaved.length > 0) return stopped(unsaved);
   const r = await commands.reindex();
   if (r.status !== "ok") return fail(r.error);
   forgetFiles();
   ui.status.textContent = t.indexed(r.data.indexed, r.data.unchanged, r.data.placeholders);
   await searchNotes(ui.search.value);
-  const leaf = layout().activeLeaf;
-  if (leaf?.path) await leaf.load(leaf.path, true);
+  if (leaf?.path && !leaf.dirty) await leaf.load(leaf.path, true);
 }
 
 /* ---------- The ribbon: one column of what the app does, reordered by drag ---------- */
@@ -5245,6 +5305,16 @@ function flushAll(): void {
 window.addEventListener("blur", flushAll);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) flushAll();
+});
+/* The window closing: every tab saves what it can first. Text that
+ * cannot be saved (a conflict waiting, a write refused) keeps the window
+ * open unless the user says to let it go. */
+void getCurrentWindow().onCloseRequested(async (e) => {
+  const all = spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves));
+  const unsaved = await flushed(all);
+  if (unsaved.length === 0) return;
+  const names = unsaved.map((l) => l.tabName.textContent || l.path).join("\n");
+  if (!(await ask(`${t.closeUnsaved}\n${names}`, { yes: t.closeAnyway, no: t.cancel }))) e.preventDefault();
 });
 
 lesson();
