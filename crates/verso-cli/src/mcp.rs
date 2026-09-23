@@ -21,7 +21,8 @@
 //! is hidden from the client — the only mitigation is which folder is
 //! opened (memo §3.5).
 
-use std::sync::{Arc, Mutex};
+use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::{Json, Parameters};
@@ -315,10 +316,41 @@ impl Server {
         }
     }
 
-    fn lock(&self) -> Result<std::sync::MutexGuard<'_, Workspace>, CallToolResult> {
+    /// The workspace, under the lock. A poisoned lock — a call panicked
+    /// while holding it — is taken all the same: the workspace is as the
+    /// panic left it (SQLite rolled its transaction back; `index` re-reads
+    /// what changed), and a server that answers "poisoned lock" to every
+    /// call from then on is worse than one that carries on.
+    fn lock(&self) -> MutexGuard<'_, Workspace> {
         self.workspace
             .lock()
-            .map_err(|e| refuse("failed", None, &e.to_string()))
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Run a tool's body on the workspace, under the lock. A panic inside
+    /// it — the parser on an input nobody foresaw — becomes a `failed`
+    /// error result the model reads, instead of a call that never answers
+    /// (the runtime swallows the panicking task) and a lock poisoned for
+    /// every call after it. `AssertUnwindSafe`: the body may leave the
+    /// workspace mid-operation, which `lock` accepts for the same reason;
+    /// the guard outlives the unwinding, so the lock is not even poisoned.
+    fn guarded<T>(
+        &self,
+        body: impl FnOnce(&mut Workspace) -> Result<T, CallToolResult>,
+    ) -> Result<T, CallToolResult> {
+        let mut ws = self.lock();
+        catch_unwind(AssertUnwindSafe(|| body(&mut ws))).unwrap_or_else(|payload| {
+            let message = payload
+                .downcast_ref::<&str>()
+                .map(|s| (*s).to_owned())
+                .or_else(|| payload.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "no message".to_owned());
+            Err(refuse(
+                "failed",
+                None,
+                &format!("the server panicked: {message}"),
+            ))
+        })
     }
 
     #[tool(
@@ -329,21 +361,22 @@ impl Server {
         Parameters(p): Parameters<SearchParams>,
     ) -> Result<Json<SearchResult>, CallToolResult> {
         let limit = p.limit.unwrap_or(SEARCH_DEFAULT).clamp(1, SEARCH_MAX);
-        let ws = self.lock()?;
-        // One more than asked, to know whether the cap was hit.
-        let mut hits = ws.search(&p.words, limit + 1).map_err(|e| fail(&e, None))?;
-        let truncated = hits.len() > limit;
-        hits.truncate(limit);
-        Ok(Json(SearchResult {
-            hits: hits
-                .into_iter()
-                .map(|h| Hit {
-                    path: h.path,
-                    snippet: h.snippet,
-                })
-                .collect(),
-            truncated,
-        }))
+        self.guarded(|ws| {
+            // One more than asked, to know whether the cap was hit.
+            let mut hits = ws.search(&p.words, limit + 1).map_err(|e| fail(&e, None))?;
+            let truncated = hits.len() > limit;
+            hits.truncate(limit);
+            Ok(Json(SearchResult {
+                hits: hits
+                    .into_iter()
+                    .map(|h| Hit {
+                        path: h.path,
+                        snippet: h.snippet,
+                    })
+                    .collect(),
+                truncated,
+            }))
+        })
     }
 
     #[tool(
@@ -353,78 +386,79 @@ impl Server {
         &self,
         Parameters(p): Parameters<ReadParams>,
     ) -> Result<Json<ReadResult>, CallToolResult> {
-        let mut ws = self.lock()?;
-        let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
-        let text = ws.read_note(&key).map_err(|e| fail(&e, Some(&key)))?;
-        let line_count = text.lines.len();
-        // The window as asked is checked before it is clamped, so an
-        // empty answer is never given for a window that made no sense: a
-        // line 0, a start past the end, an end before the start. A note
-        // with no lines has no last line to default `to_line` to: it
-        // answers the empty window, `from_line` 1 and `to_line` 0.
-        let from = p.from_line.unwrap_or(1);
-        let to_asked = p.to_line.unwrap_or(line_count.max(1));
-        if from == 0 || p.to_line == Some(0) {
-            return Err(refuse(
-                "bad_window",
-                Some(&key),
-                "lines are 1-based: from_line and to_line start at 1",
-            ));
-        }
-        if from > line_count.max(1) {
-            return Err(refuse(
-                "bad_window",
-                Some(&key),
-                &format!("from_line {from} is past the end: the note has {line_count} lines"),
-            ));
-        }
-        if to_asked < from {
-            return Err(refuse(
-                "bad_window",
-                Some(&key),
-                &format!("to_line {to_asked} is before from_line {from}"),
-            ));
-        }
-        // What was asked, cut at the end of the note; then the cap.
-        let wanted = to_asked.min(line_count);
-        let to = wanted.min(from.saturating_add(READ_MAX_LINES).saturating_sub(1));
-        let lines: Vec<Line> = text.lines[from - 1..to]
-            .iter()
-            .enumerate()
-            .map(|(i, t)| Line {
-                n: from + i,
-                text: t.clone(),
-            })
-            .collect();
-        Ok(Json(ReadResult {
-            path: text.path,
-            line_count,
-            lines,
-            from_line: from,
-            to_line: to,
-            truncated: to < wanted,
-            stale: text.stale,
-            unverified: text.unverified,
-            headings: text
-                .headings
-                .into_iter()
-                .map(|h| HeadingOut {
-                    level: h.level,
-                    text: h.text,
-                    line: h.line,
-                    col: h.col,
+        self.guarded(|ws| {
+            let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
+            let text = ws.read_note(&key).map_err(|e| fail(&e, Some(&key)))?;
+            let line_count = text.lines.len();
+            // The window as asked is checked before it is clamped, so an
+            // empty answer is never given for a window that made no sense:
+            // a line 0, a start past the end, an end before the start. A
+            // note with no lines has no last line to default `to_line` to:
+            // it answers the empty window, `from_line` 1 and `to_line` 0.
+            let from = p.from_line.unwrap_or(1);
+            let to_asked = p.to_line.unwrap_or(line_count.max(1));
+            if from == 0 || p.to_line == Some(0) {
+                return Err(refuse(
+                    "bad_window",
+                    Some(&key),
+                    "lines are 1-based: from_line and to_line start at 1",
+                ));
+            }
+            if from > line_count.max(1) {
+                return Err(refuse(
+                    "bad_window",
+                    Some(&key),
+                    &format!("from_line {from} is past the end: the note has {line_count} lines"),
+                ));
+            }
+            if to_asked < from {
+                return Err(refuse(
+                    "bad_window",
+                    Some(&key),
+                    &format!("to_line {to_asked} is before from_line {from}"),
+                ));
+            }
+            // What was asked, cut at the end of the note; then the cap.
+            let wanted = to_asked.min(line_count);
+            let to = wanted.min(from.saturating_add(READ_MAX_LINES).saturating_sub(1));
+            let lines: Vec<Line> = text.lines[from - 1..to]
+                .iter()
+                .enumerate()
+                .map(|(i, t)| Line {
+                    n: from + i,
+                    text: t.clone(),
                 })
-                .collect(),
-            blocks: text
-                .blocks
-                .into_iter()
-                .map(|b| BlockOut {
-                    id: b.id,
-                    line: b.line,
-                    col: b.col,
-                })
-                .collect(),
-        }))
+                .collect();
+            Ok(Json(ReadResult {
+                path: text.path,
+                line_count,
+                lines,
+                from_line: from,
+                to_line: to,
+                truncated: to < wanted,
+                stale: text.stale,
+                unverified: text.unverified,
+                headings: text
+                    .headings
+                    .into_iter()
+                    .map(|h| HeadingOut {
+                        level: h.level,
+                        text: h.text,
+                        line: h.line,
+                        col: h.col,
+                    })
+                    .collect(),
+                blocks: text
+                    .blocks
+                    .into_iter()
+                    .map(|b| BlockOut {
+                        id: b.id,
+                        line: b.line,
+                        col: b.col,
+                    })
+                    .collect(),
+            }))
+        })
     }
 
     #[tool(
@@ -434,28 +468,29 @@ impl Server {
         &self,
         Parameters(p): Parameters<NoteParams>,
     ) -> Result<Json<LinksResult>, CallToolResult> {
-        let mut ws = self.lock()?;
-        let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
-        let links = ws
-            .links(&key)
-            .map_err(|e| fail(&e, Some(&key)))?
-            .ok_or_else(|| unknown_note(&key))?;
-        Ok(Json(LinksResult {
-            path: key,
-            links: links
-                .into_iter()
-                .map(|l| LinkOut {
-                    target: l.target,
-                    resolved: l.resolved,
-                    embed: l.embed,
-                    heading: l.heading,
-                    block: l.block,
-                    alias: l.alias,
-                    line: l.line,
-                    col: l.col,
-                })
-                .collect(),
-        }))
+        self.guarded(|ws| {
+            let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
+            let links = ws
+                .links(&key)
+                .map_err(|e| fail(&e, Some(&key)))?
+                .ok_or_else(|| unknown_note(&key))?;
+            Ok(Json(LinksResult {
+                path: key,
+                links: links
+                    .into_iter()
+                    .map(|l| LinkOut {
+                        target: l.target,
+                        resolved: l.resolved,
+                        embed: l.embed,
+                        heading: l.heading,
+                        block: l.block,
+                        alias: l.alias,
+                        line: l.line,
+                        col: l.col,
+                    })
+                    .collect(),
+            }))
+        })
     }
 
     #[tool(
@@ -465,78 +500,82 @@ impl Server {
         &self,
         Parameters(p): Parameters<NoteParams>,
     ) -> Result<Json<BacklinksResult>, CallToolResult> {
-        let mut ws = self.lock()?;
-        let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
-        let back = ws
-            .backlinks(&key)
-            .map_err(|e| fail(&e, Some(&key)))?
-            .ok_or_else(|| unknown_note(&key))?;
-        Ok(Json(BacklinksResult {
-            path: key,
-            backlinks: back
-                .into_iter()
-                .map(|b| BacklinkOut {
-                    from: b.from,
-                    target: b.target,
-                    embed: b.embed,
-                    line: b.line,
-                    col: b.col,
-                })
-                .collect(),
-        }))
+        self.guarded(|ws| {
+            let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
+            let back = ws
+                .backlinks(&key)
+                .map_err(|e| fail(&e, Some(&key)))?
+                .ok_or_else(|| unknown_note(&key))?;
+            Ok(Json(BacklinksResult {
+                path: key,
+                backlinks: back
+                    .into_iter()
+                    .map(|b| BacklinkOut {
+                        from: b.from,
+                        target: b.target,
+                        embed: b.embed,
+                        line: b.line,
+                        col: b.col,
+                    })
+                    .collect(),
+            }))
+        })
     }
 
     #[tool(
         description = "Link targets that resolve to no note, with how many links name each, vault-wide. Answers from the index."
     )]
     fn unresolved(&self) -> Result<Json<UnresolvedResult>, CallToolResult> {
-        let ws = self.lock()?;
-        let un = ws.unresolved().map_err(|e| fail(&e, None))?;
-        Ok(Json(UnresolvedResult {
-            unresolved: un
-                .into_iter()
-                .map(|u| UnresolvedOut {
-                    target: u.target,
-                    count: u.count,
-                })
-                .collect(),
-        }))
+        self.guarded(|ws| {
+            let un = ws.unresolved().map_err(|e| fail(&e, None))?;
+            Ok(Json(UnresolvedResult {
+                unresolved: un
+                    .into_iter()
+                    .map(|u| UnresolvedOut {
+                        target: u.target,
+                        count: u.count,
+                    })
+                    .collect(),
+            }))
+        })
     }
 
     #[tool(
         description = "Every note the index knows, by path relative to the folder, in path order; at most 5000 per call."
     )]
     fn list_notes(&self) -> Result<Json<ListResult>, CallToolResult> {
-        let ws = self.lock()?;
-        let mut notes = ws.notes().map_err(|e| fail(&e, None))?;
-        let count = notes.len();
-        let truncated = count > LIST_MAX;
-        notes.truncate(LIST_MAX);
-        Ok(Json(ListResult {
-            notes,
-            count,
-            truncated,
-        }))
+        self.guarded(|ws| {
+            let mut notes = ws.notes().map_err(|e| fail(&e, None))?;
+            let count = notes.len();
+            let truncated = count > LIST_MAX;
+            notes.truncate(LIST_MAX);
+            Ok(Json(ListResult {
+                notes,
+                count,
+                truncated,
+            }))
+        })
     }
 
     #[tool(
         description = "Refresh the index from the folder (only what changed is re-read) and report what the run did. The only operation that writes, and it writes the index file outside the folder, never a note."
     )]
     fn index(&self) -> Result<Json<IndexResult>, CallToolResult> {
-        let mut ws = self.lock()?;
-        let r = ws.index().map_err(|e| fail(&e, None))?;
-        Ok(Json(IndexResult {
-            indexed: r.indexed,
-            unchanged: r.unchanged,
-            removed: r.removed,
-            placeholders: r.placeholders,
-            unreadable: r
-                .unreadable
-                .into_iter()
-                .map(|(path, error)| UnreadableOut { path, error })
-                .collect(),
-            problems: r.problems.iter().map(problem_out).collect(),
-        }))
+        self.guarded(|ws| {
+            let r = ws.index().map_err(|e| fail(&e, None))?;
+            Ok(Json(IndexResult {
+                indexed: r.indexed,
+                unchanged: r.unchanged,
+                removed: r.removed,
+                placeholders: r.placeholders,
+                unreadable: r
+                    .unreadable
+                    .into_iter()
+                    .map(|(path, error)| UnreadableOut { path, error })
+                    .collect(),
+                problems: r.problems.iter().map(problem_out).collect(),
+            }))
+        })
     }
 }
 
@@ -557,4 +596,58 @@ pub async fn serve(workspace: Workspace) -> Result<(), Box<dyn std::error::Error
         .await?;
     service.waiting().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A server over an empty temporary folder; the directories live as
+    /// long as the test holds them.
+    fn server() -> (Server, tempfile::TempDir, tempfile::TempDir) {
+        let vault = tempfile::tempdir().unwrap();
+        let config = tempfile::tempdir().unwrap();
+        let ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+        (Server::new(ws), vault, config)
+    }
+
+    #[test]
+    fn a_poisoned_lock_is_taken_and_the_next_call_answers() {
+        let (server, _vault, _config) = server();
+        let workspace = Arc::clone(&server.workspace);
+        // A thread panics with the lock held: the mutex is poisoned, as it
+        // is when a tool call panics inside the runtime.
+        let _ = std::thread::spawn(move || {
+            let _held = workspace.lock().unwrap();
+            panic!("a call panicked with the workspace locked");
+        })
+        .join();
+        assert!(server.workspace.is_poisoned());
+        let Ok(Json(listed)) = server.list_notes() else {
+            panic!("the call after the poisoning did not answer");
+        };
+        assert_eq!(listed.count, 0);
+    }
+
+    #[test]
+    fn a_panic_inside_a_call_is_a_failed_result_and_the_lock_survives() {
+        let (server, _vault, _config) = server();
+        let result: Result<(), CallToolResult> = server.guarded(|_| panic!("the parser choked"));
+        let Err(error) = result else {
+            panic!("a panic answered Ok");
+        };
+        assert_eq!(error.is_error, Some(true));
+        let content = error.structured_content.unwrap();
+        assert_eq!(content["kind"], "failed");
+        assert!(
+            content["message"]
+                .as_str()
+                .unwrap()
+                .contains("the parser choked"),
+            "{content}"
+        );
+        // Not poisoned: the guard outlived the panic, and the next call answers.
+        assert!(!server.workspace.is_poisoned());
+        assert!(server.list_notes().is_ok());
+    }
 }
