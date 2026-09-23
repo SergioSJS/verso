@@ -42,7 +42,7 @@ import { cleanHtmlText, setHtml } from "./sanitize";
 type Strings = Record<
   | "open" | "reindex" | "search" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
-  | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists"
+  | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists" | "planLeftOut"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
@@ -87,7 +87,7 @@ const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
-  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.", propChanged: "Essa propriedade mudou no texto desde que o painel foi desenhado; nada foi alterado — o painel se atualiza ao salvar, repita a edição.", propFixed: "Edite no modo Fonte: este valor tem comentário, várias linhas ou uma forma que o painel não reescreve sem perda.", propExists: "Essa propriedade já está no texto.",
+  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.", propChanged: "Essa propriedade mudou no texto desde que o painel foi desenhado; nada foi alterado — o painel se atualiza ao salvar, repita a edição.", propFixed: "Edite no modo Fonte: este valor tem comentário, várias linhas ou uma forma que o painel não reescreve sem perda.", propExists: "Essa propriedade já está no texto.", planLeftOut: "Deixadas de fora (mudanças que não puderam ser salvas):",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
@@ -145,7 +145,7 @@ const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
-  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.", propChanged: "That property changed in the text since the panel was drawn; nothing was changed — the panel updates on saving, make the edit again.", propFixed: "Edit it in Source mode: this value has a comment, several lines or a shape the panel cannot rewrite without loss.", propExists: "That property is already in the text.",
+  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.", propChanged: "That property changed in the text since the panel was drawn; nothing was changed — the panel updates on saving, make the edit again.", propFixed: "Edit it in Source mode: this value has a comment, several lines or a shape the panel cannot rewrite without loss.", propExists: "That property is already in the text.", planLeftOut: "Left out (changes that could not be saved):",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
@@ -461,33 +461,48 @@ function imageUrl(target: string, onKnown: () => void): string | null | undefine
 }
 
 /* ---------- A line diff for conflicts and plans ---------- */
+/** Cells of the alignment table past which the two middles are shown
+ *  whole: a conflict on a very long note must not take the page's memory
+ *  while it holds unsaved text. */
+const DIFF_CELLS = 4_000_000;
 function diffLines(a: string[], b: string[]): string[] {
-  const n = a.length;
-  const m = b.length;
-  const table: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      table[i]![j] = a[i] === b[j] ? table[i + 1]![j + 1]! + 1 : Math.max(table[i + 1]![j]!, table[i]![j + 1]!);
+  // The lines both ends share cost nothing, and are most of a conflict.
+  let head = 0;
+  while (head < a.length && head < b.length && a[head] === b[head]) head++;
+  let tail = 0;
+  while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) tail++;
+  const x = a.slice(head, a.length - tail);
+  const y = b.slice(head, b.length - tail);
+  const n = x.length;
+  const m = y.length;
+  const out = a.slice(0, head).map((l) => `  ${l}`);
+  if ((n + 1) * (m + 1) > DIFF_CELLS) {
+    for (const l of x) out.push(`- ${l}`);
+    for (const l of y) out.push(`+ ${l}`);
+  } else {
+    // Longest common subsequence, one flat table: no entry exceeds
+    // min(n, m), at most the square root of the cells, so 16 bits hold it.
+    const w = m + 1;
+    const table = new Uint16Array((n + 1) * w);
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        table[i * w + j] = x[i] === y[j] ? table[(i + 1) * w + j + 1]! + 1 : Math.max(table[(i + 1) * w + j]!, table[i * w + j + 1]!);
+      }
     }
-  }
-  const out: string[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < n && j < m) {
-    if (a[i] === b[j]) {
-      out.push(`  ${a[i]}`);
-      i++;
-      j++;
-    } else if (table[i + 1]![j]! >= table[i]![j + 1]!) {
-      out.push(`- ${a[i]}`);
-      i++;
-    } else {
-      out.push(`+ ${b[j]}`);
-      j++;
+    let i = 0;
+    let j = 0;
+    while (i < n && j < m) {
+      if (x[i] === y[j]) {
+        out.push(`  ${x[i]}`);
+        i++;
+        j++;
+      } else if (table[(i + 1) * w + j]! >= table[i * w + j + 1]!) out.push(`- ${x[i++]}`);
+      else out.push(`+ ${y[j++]}`);
     }
+    while (i < n) out.push(`- ${x[i++]}`);
+    while (j < m) out.push(`+ ${y[j++]}`);
   }
-  while (i < n) out.push(`- ${a[i++]}`);
-  while (j < m) out.push(`+ ${b[j++]}`);
+  for (let k = a.length - tail; k < a.length; k++) out.push(`  ${a[k]}`);
   return out;
 }
 function diffNode(before: string, after: string, context = false): HTMLPreElement {
@@ -3731,6 +3746,8 @@ async function renameTo(from: string, to: string): Promise<void> {
   // What moves is saved first; a tab of it that cannot be saved stops the move.
   const unsaved = await flushed(leavesUnder(from));
   if (unsaved.length > 0) return stopped(unsaved);
+  // The links to rewrite are read from disk: every tab saves first.
+  await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
   const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
   pathsMoved(from, r.data.path);
@@ -3815,13 +3832,21 @@ async function quoteIntoNotes(pdf: string, fragment: string, page: number, text:
   const base = pdf.split("/").pop() ?? pdf;
   const stem = base.replace(/\.pdf$/i, "");
   const notePath = companionOf(pdf);
-  const block = `\n> [!quote] [[${base}#${fragment}|${stem}, ${t.pdfPage.toLowerCase()} ${page}]]\n> ${text.split(/\n/).join("\n> ")}\n`;
+  const quote = [`> [!quote] [[${base}#${fragment}|${stem}, ${t.pdfPage.toLowerCase()} ${page}]]`, ...text.split(/\n/).map((l) => `> ${l}`)];
+  const block = `\n${quote.join("\n")}\n`;
   // The companion open in a tab: its text saved first, or nothing is written.
   const unsaved = await flushed(leavesOf(notePath));
   if (unsaved.length > 0) return stopped(unsaved);
   const existing = await commands.readNote(notePath);
   let r;
-  if (existing.status === "ok") r = await commands.writeNote(notePath, existing.data.text.replace(/\s*$/, "\n") + block, existing.data.revision);
+  if (existing.status === "ok") {
+    // Appended as the note ends its lines, after a blank line; nothing of
+    // it is trimmed or converted.
+    const was = existing.data.text;
+    const eol = /\r\n$/.test(was) ? "\r\n" : /\n$/.test(was) ? "\n" : lineSeparator(was) ?? "\n";
+    const ended = was === "" || /\n$/.test(was);
+    r = await commands.writeNote(notePath, `${was}${ended ? "" : eol}${eol}${quote.join(eol)}${eol}`, existing.data.revision);
+  }
   else {
     const made = await commands.createNote(notePath, `# ${t.pdfNotes} — ${stem}\n\n![[${base}]]\n${block}`);
     r = made.status === "ok" ? { status: "ok" as const, data: { note: made.data } } : made;
@@ -3980,7 +4005,13 @@ class Plan {
   private async apply(): Promise<void> {
     let ok = 0;
     let failed = 0;
+    const left: string[] = [];
     for (const w of this.rewrites) {
+      // A tab of this note saves first; one that cannot is left out, named.
+      if ((await flushed(leavesOf(w.path))).length > 0) {
+        left.push(name(w.path));
+        continue;
+      }
       const r = await commands.writeNote(w.path, w.after, w.revision);
       if (r.status === "ok") {
         ok++;
@@ -3988,7 +4019,7 @@ class Plan {
       } else failed++;
     }
     this.hide();
-    ui.status.textContent = t.planDone(ok, failed);
+    ui.status.textContent = t.planDone(ok, failed) + (left.length > 0 ? ` ${t.planLeftOut} ${left.join(", ")}.` : "");
   }
 }
 const plan = new Plan();
@@ -4714,6 +4745,8 @@ class ReplaceDialog {
       return;
     }
     go.disabled = true;
+    // The notes are read from disk: every tab saves first.
+    await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
     // Every note is read. The search index answers whole words, capped,
     // and the replacement matches any part of the text ("cat" is in
     // "concatenate"): candidates from the index would skip notes and the
@@ -5027,7 +5060,7 @@ async function saveAsTemplate(): Promise<void> {
   const leaf = layout().activeLeaf;
   if (!(leaf instanceof NoteLeaf) || !leaf.note) return;
   const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "") || t.templatesName;
-  const r = await commands.createNote(`${folder}/${name(leaf.path)}`, leaf.note.text);
+  const r = await commands.createNote(`${folder}/${name(leaf.path)}`, leaf.editorText());
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
   await afterFileChange();
   ui.status.textContent = t.templateSaved;
