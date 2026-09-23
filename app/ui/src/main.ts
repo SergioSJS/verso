@@ -13,7 +13,6 @@
 // tabs; a tab is a leaf — a note, an image, a text file or a folder.
 
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView, basicSetup } from "codemirror";
@@ -27,7 +26,7 @@ import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import katex from "katex";
 import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { commands, type ContractError, type FileEntry, type NoteText, type TextFile, type Written } from "./bindings";
+import { commands, type ContractError, type FileEntry, type FolderInfo, type NoteText, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView } from "./props";
@@ -64,6 +63,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
+  | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys",
   string
 > & {
@@ -127,6 +127,7 @@ const pt: Strings = {
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
+  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
@@ -185,6 +186,7 @@ const en: Strings = {
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
+  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
@@ -240,7 +242,7 @@ function name(path: string): string {
 function crumbsFor(path: string, includeSelf = false): HTMLElement[] {
   const parts = (includeSelf ? path : dirOf(path)).split("/").filter(Boolean);
   const out: HTMLElement[] = [];
-  const root = h("button", "crumb", currentFolder.split("/").filter(Boolean).pop() ?? "/");
+  const root = h("button", "crumb", folderName || "/");
   root.type = "button";
   root.addEventListener("click", () => openFolder(""));
   out.push(root);
@@ -294,7 +296,7 @@ function fail(e: ContractError | unknown): void {
   const message =
     typeof e === "object" && e !== null && "message" in e ? String((e as ContractError).message) : String(e);
   const kind = typeof e === "object" && e !== null && "kind" in e ? String((e as ContractError).kind) : "";
-  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
+  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
   const said = sentence[kind];
   ui.status.textContent = said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
 }
@@ -347,7 +349,11 @@ const LAST_FOLDER = "verso.lastFolder";
 /** This window shows one note popped out of the main window. */
 const popout = getCurrentWindow().label.startsWith("note-");
 if (popout) document.body.classList.add("popout");
+/** The open folder's key (FolderInfo.key): what the window keeps its own
+ *  state under, never a path (ADR 0026 rule 4); empty when none is open. */
 let currentFolder = "";
+/** The open folder's name, for display. */
+let folderName = "";
 let allNotes: string[] = [];
 let allFiles: string[] = [];
 const allEntries = new Map<string, FileEntry>();
@@ -449,12 +455,15 @@ el("keys-split").textContent = t.keysSplit;
 el("keys-space").textContent = t.keysSpace;
 
 /* ---------- Images for embeds, asked of the core once each ---------- */
+/** By note and target: one name can reach different files from different
+ *  folders (spec Q12). */
 const images = new Map<string, string | null>();
-function imageUrl(target: string, onKnown: () => void): string | null | undefined {
-  if (images.has(target)) return images.get(target) ?? null;
-  images.set(target, null);
-  void commands.resolveAttachment(target).then((r) => {
-    images.set(target, r.status === "ok" && r.data ? convertFileSrc(r.data, "verso") : null);
+function imageUrl(source: string, target: string, onKnown: () => void): string | null | undefined {
+  const key = `${source}\u0000${target}`;
+  if (images.has(key)) return images.get(key) ?? null;
+  images.set(key, null);
+  void commands.resolveAttachment(source, target).then((r) => {
+    images.set(key, r.status === "ok" && r.data ? convertFileSrc(r.data, "verso") : null);
     onKnown();
   });
   return undefined;
@@ -1083,7 +1092,7 @@ class NoteLeaf extends Leaf {
     this.webHost.hidden = true;
     this.el.append(head, this.toolbar, this.webBar, sheet, this.webHost);
     this.live = livePreview({
-      imageUrl: (target) => imageUrl(target, () => this.editor.dispatch({ effects: redraw.of(null) })),
+      imageUrl: (target) => imageUrl(this.path, target, () => this.editor.dispatch({ effects: redraw.of(null) })),
       navigate: (target) => this.follow(target),
       editFrontmatter: () => this.setMode("source"),
       frontmatterTitle: (n) => (n === 1 ? t.yamlLine : t.yamlLines).replace("{n}", String(n)),
@@ -1477,7 +1486,7 @@ class NoteLeaf extends Leaf {
     // Not a note: an attachment, maybe with `#page=N` for a PDF.
     const key = target.split("#")[0] ?? target;
     const page = Number(/page=(\d+)/.exec(target)?.[1] ?? "0");
-    void commands.resolveAttachment(key).then((r) => {
+    void commands.resolveAttachment(this.path, key).then((r) => {
       if (r.status !== "ok" || !r.data) return void (ui.status.textContent = t.unresolved(target));
       const leaf = openIn(this.pane, r.data);
       if (leaf instanceof PdfLeaf && page > 0) void leaf.loading.then(() => leaf.goTo(page));
@@ -1659,7 +1668,7 @@ class NoteLeaf extends Leaf {
         typeset(body);
         box.append(head, body);
         span.replaceWith(box);
-        void this.embedImages(forPath, body);
+        void this.embedImages(forPath, body, to);
       });
     }
   }
@@ -1727,13 +1736,15 @@ class NoteLeaf extends Leaf {
     }
     void this.save();
   }
-  private async embedImages(forPath: string, root: HTMLElement = this.preview): Promise<void> {
+  /** `source`: the note the embeds are written in — an embedded note's
+   *  own path for what it embeds in turn (spec Q12). */
+  private async embedImages(forPath: string, root: HTMLElement = this.preview, source = forPath): Promise<void> {
     const spans = Array.from(root.querySelectorAll<HTMLElement>("span.embed"));
     const targets = new Set(spans.map((e) => (e.dataset["target"] ?? "").split("#")[0] ?? ""));
     const found = new Map<string, string | null>();
     await Promise.all(
       Array.from(targets).map(async (target) => {
-        const r = await commands.resolveAttachment(target);
+        const r = await commands.resolveAttachment(source, target);
         found.set(target, r.status === "ok" ? r.data : null);
       }),
     );
@@ -2086,7 +2097,7 @@ class FolderLeaf extends Leaf {
   }
   async load(path: string): Promise<void> {
     this.path = path;
-    this.setTitle(path === "" ? currentFolder.split("/").filter(Boolean).pop() ?? "/" : name(path));
+    this.setTitle(path === "" ? folderName || "/" : name(path));
     this.title.textContent = this.tabName.textContent;
     this.crumbs.replaceChildren(...crumbsFor(path, true));
     const prefix = path === "" ? "" : `${path}/`;
@@ -3717,7 +3728,7 @@ async function deleteEntry(path: string, kind: Kind): Promise<void> {
     l.setDirty(false);
     void l.close();
   }
-  ui.status.textContent = t.deleted(r.data);
+  ui.status.textContent = [t.deleted(r.data.path), ...r.data.warnings].join(" ");
   await afterFileChange();
 }
 /** Leaves showing `path` or anything under it (a folder's contents). */
@@ -3757,7 +3768,13 @@ async function renameTo(from: string, to: string): Promise<void> {
     openFolders.add(r.data.path);
   }
   await afterFileChange();
-  if (r.data.rewrites.length > 0) plan.show(r.data.rewrites);
+  // Notes that link to what moved but could not be planned are named:
+  // their links may now point elsewhere, and only the user can look.
+  const why = { unavailable: t.skipUnavailable, not_text: t.skipNotText, failed: t.skipFailed };
+  const skipped = r.data.skipped.length === 0 ? "" : t.planSkipped.replace("{n}", String(r.data.skipped.length)).replace("{names}", r.data.skipped.map((k) => `${name(k.path)} (${why[k.reason]})`).join(", "));
+  const said = [skipped, ...r.data.warnings].filter(Boolean).join(" ");
+  if (r.data.rewrites.length > 0) plan.show(r.data.rewrites, undefined, undefined, said);
+  else if (said) ui.status.textContent = said;
 }
 /** The context menu of anything in the folder: the same everywhere it is listed. */
 function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
@@ -3876,9 +3893,21 @@ async function duplicateEntry(path: string, kind: Kind): Promise<void> {
   let n = 1;
   let candidate = `${dir}${stem} ${t.copySuffix}${suffix}`;
   while (taken.has(candidate.toLowerCase())) candidate = `${dir}${stem} ${t.copySuffix} ${++n}${suffix}`;
-  const res = await fetch(convertFileSrc(path, "verso"));
-  if (!res.ok) return fail({ message: `${res.status} ${res.statusText}` });
-  const bytes = new Uint8Array(await res.arrayBuffer());
+  // A note is read through the contract — the file protocol serves no
+  // note — after its open tab saves; its text re-encodes to the same
+  // bytes. Any other file comes byte for byte through the protocol.
+  let bytes: Uint8Array;
+  if (kind === "note") {
+    const unsaved = await flushed(leavesUnder(path));
+    if (unsaved.length > 0) return stopped(unsaved);
+    const read = await commands.readText(path);
+    if (read.status !== "ok") return fail(read.error);
+    bytes = new TextEncoder().encode(read.data.text);
+  } else {
+    const res = await fetch(convertFileSrc(path, "verso"));
+    if (!res.ok) return fail({ message: `${res.status} ${res.statusText}` });
+    bytes = new Uint8Array(await res.arrayBuffer());
+  }
   let bin = "";
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   const r = await commands.createFile(candidate, btoa(bin));
@@ -5146,8 +5175,9 @@ function lesson(): void {
 async function joinAsPopout(): Promise<void> {
   const [folder, target] = await Promise.all([commands.currentFolder(), commands.popoutTarget()]);
   if (folder.status !== "ok" || !folder.data || target.status !== "ok" || !target.data) return;
-  currentFolder = folder.data;
-  ui.folder.textContent = folder.data.split("/").filter(Boolean).pop() ?? folder.data;
+  currentFolder = folder.data.key;
+  folderName = folder.data.name;
+  ui.folder.textContent = folder.data.name;
   page?.classList.remove("empty");
   ui.search.disabled = false;
   loadBookmarks();
@@ -5169,22 +5199,41 @@ async function joinAsPopout(): Promise<void> {
   document.querySelector(".work")?.prepend(bar);
   document.title = name(path);
 }
-async function openPath(path: string): Promise<boolean> {
-  ui.status.textContent = "…";
-  const r = await commands.openFolder(path);
-  if (r.status !== "ok") {
-    fail(r.error);
+/** Open a folder through `run` — the picker, a key, the command line —
+ *  and make it the window's. Every tab is saved first, since all of them
+ *  close; one that cannot save stops the switch. Answers whether a folder
+ *  was opened. */
+async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo | null } | { status: "error"; error: ContractError }>): Promise<boolean> {
+  const unsaved = await flushed(spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves)));
+  if (unsaved.length > 0) {
+    stopped(unsaved);
     return false;
   }
-  currentFolder = r.data.folder;
+  ui.status.textContent = "…";
+  const r = await run();
+  if (r.status !== "ok") {
+    ui.status.textContent = "";
+    // Here a refusal means a note window is open: it names notes by path,
+    // and the host will not switch the folder under it.
+    if (r.error.kind === "refused") ui.status.textContent = t.closeNoteWindows;
+    else fail(r.error);
+    return false;
+  }
+  ui.status.textContent = "";
+  if (!r.data) return false;
+  showFolder(r.data);
+  return true;
+}
+function showFolder(info: FolderInfo): void {
+  currentFolder = info.key;
+  folderName = info.name;
   try {
-    localStorage.setItem(LAST_FOLDER, r.data.folder);
+    localStorage.setItem(LAST_FOLDER, info.key);
   } catch {
     // No storage: nothing remembered, nothing lost.
   }
-  ui.folder.textContent = r.data.folder.split("/").filter(Boolean).pop() ?? r.data.folder;
-  ui.open.title = `${r.data.folder} — ${t.open} (⌘O)`;
-  const i = r.data.index;
+  ui.folder.textContent = info.name;
+  const i = info.index;
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   page?.classList.remove("empty");
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
@@ -5198,33 +5247,32 @@ async function openPath(path: string): Promise<boolean> {
   panel.tagsCache = [];
   void panel.loadTags();
   showOutline(null);
-  await listAll();
-  let restored = false;
-  try {
-    const saved = localStorage.getItem(`verso.spaces:${r.data.folder}`);
-    if (saved) {
-      const o = JSON.parse(saved) as { current?: number; spaces?: { label?: string; layout?: unknown }[] };
-      for (const sp of o.spaces ?? []) {
-        const s = new Space(sp.label ?? `${t.space} ${spaces.length + 1}`);
-        spaces.push(s);
-        current = s;
-        if (!s.layout.restore(sp.layout)) s.layout.reset();
+  void listAll().then(() => {
+    let restored = false;
+    try {
+      const saved = localStorage.getItem(`verso.spaces:${info.key}`);
+      if (saved) {
+        const o = JSON.parse(saved) as { current?: number; spaces?: { label?: string; layout?: unknown }[] };
+        for (const sp of o.spaces ?? []) {
+          const s = new Space(sp.label ?? `${t.space} ${spaces.length + 1}`);
+          spaces.push(s);
+          current = s;
+          if (!s.layout.restore(sp.layout)) s.layout.reset();
+        }
+        if (spaces.length > 0) {
+          showSpace(spaces[Math.min(o.current ?? 0, spaces.length - 1)]!);
+          restored = true;
+        }
       }
-      if (spaces.length > 0) {
-        showSpace(spaces[Math.min(o.current ?? 0, spaces.length - 1)]!);
-        restored = true;
-      }
+    } catch {
+      // A layout that does not parse: start with one workspace.
     }
-  } catch {
-    // A layout that does not parse: start with one workspace.
-  }
-  if (!restored) newSpace();
-  ui.search.focus();
-  return true;
+    if (!restored) newSpace();
+    ui.search.focus();
+  });
 }
 async function openFolderDialog(): Promise<void> {
-  const picked = await open({ directory: true, multiple: false, title: t.open });
-  if (typeof picked === "string") await openPath(picked);
+  await openFolderBy(() => commands.pickFolder());
 }
 async function reindex(): Promise<void> {
   // The tab is read again afterwards: its text is saved first, and a tab
@@ -5446,15 +5494,14 @@ if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false
 void (async () => {
   if (popout) return void joinAsPopout();
   // `verso <folder>` on the command line wins over the last folder.
-  const initial = await commands.initialFolder();
-  if (initial.status === "ok" && initial.data) {
-    void openPath(initial.data);
-    return;
-  }
+  if (await openFolderBy(() => commands.openInitial())) return;
+  let last: string | null = null;
   try {
-    const last = localStorage.getItem(LAST_FOLDER);
-    if (last) void openPath(last);
+    last = localStorage.getItem(LAST_FOLDER);
   } catch {
     // No storage: start empty.
   }
+  // A key. Until 2026-09-23 this held the folder's path, which no longer
+  // crosses: such a folder is picked again, once.
+  if (last && !last.includes("/")) void openFolderBy(() => commands.reopenFolder(last));
 })();
