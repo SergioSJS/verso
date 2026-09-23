@@ -32,6 +32,12 @@ export const commands = {
 	 *  `text`; `exists` when something stands there (ADR 0048).
 	 */
 	createNote: (name: string, text: string) => typedError<NoteText, ContractError>(__TAURI_INVOKE("create_note", { name, text })),
+	/**
+	 *  Create a file that is not a note (an image pasted into a note) from
+	 *  base64 bytes, at `path` relative to the folder; returns the confined
+	 *  path. `exists` when something stands there.
+	 */
+	createFile: (path: string, base64: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_file", { path, base64 })),
 	/**  Move a note to `.trash/` at the root, Obsidian's bin; returns where. */
 	deleteNote: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("delete_note", { path })),
 	/**

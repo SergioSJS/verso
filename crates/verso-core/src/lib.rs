@@ -749,6 +749,23 @@ impl Workspace {
         self.read_note(&key)
     }
 
+    /// Create a file that is not a note — an image pasted into a note,
+    /// an attachment — with `bytes`, at a path relative to the folder;
+    /// refused when something stands there. Listed at once.
+    pub fn create_file(&mut self, relative: &str, bytes: &[u8]) -> Result<String, CoreError> {
+        let confined = self
+            .root
+            .confine(Path::new(relative))
+            .map_err(CoreError::Confined)?;
+        let key = confined.to_string_lossy().into_owned();
+        self.root
+            .create(Path::new(&key), bytes)
+            .map_err(CoreError::Write)?;
+        let name = key.rsplit('/').next().unwrap_or(&key).to_lowercase();
+        self.files.entry(name).or_default().push(key.clone());
+        Ok(key)
+    }
+
     /// Move a note to `.trash/` at the root (Obsidian's bin; nothing is
     /// unlinked) and forget it in the index. Returns where it went.
     pub fn delete_note(&mut self, note: &str) -> Result<String, CoreError> {

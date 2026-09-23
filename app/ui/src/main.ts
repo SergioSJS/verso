@@ -30,7 +30,8 @@ type Strings = Record<
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
-  | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved",
+  | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
+  | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -59,6 +60,8 @@ const pt: Strings = {
   exists: "Já existe um arquivo com esse nome.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área (⌘T)", space: "Área",
   closeSpace: "Fechar área", untitled: "Sem título", folderView: "Pasta", asList: "Lista", asGrid: "Miniaturas", readOnly: "Só leitura: não é uma nota Markdown.",
   keysNew: "nova nota", keysEdit: "editar", keysSplit: "dividir", keysSpace: "nova área", moveTo: "Mover para", moved: "Movido.",
+  bold: "Negrito (⌘B)", italic: "Itálico (⌘I)", strike: "Riscado", highlight: "Destaque (⌘⇧H)", heading: "Título (⌘⇧1)", link: "Link (⌘⇧K)", wikilink: "Link interno [[ ]]",
+  bullets: "Lista", numbers: "Lista numerada", task: "Tarefa", quote: "Citação", code: "Código", rule: "Separador", pasteHint: "Cole ou arraste uma imagem para anexar", pasted: "Imagem anexada.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
@@ -85,6 +88,8 @@ const en: Strings = {
   exists: "A file with that name already exists.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace (⌘T)", space: "Workspace",
   closeSpace: "Close workspace", untitled: "Untitled", folderView: "Folder", asList: "List", asGrid: "Thumbnails", readOnly: "Read-only: not a Markdown note.",
   keysNew: "new note", keysEdit: "edit", keysSplit: "split", keysSpace: "new workspace", moveTo: "Move to", moved: "Moved.",
+  bold: "Bold (⌘B)", italic: "Italic (⌘I)", strike: "Strikethrough", highlight: "Highlight (⌘⇧H)", heading: "Heading (⌘⇧1)", link: "Link (⌘⇧K)", wikilink: "Internal link [[ ]]",
+  bullets: "Bullet list", numbers: "Numbered list", task: "Task", quote: "Quote", code: "Code", rule: "Rule", pasteHint: "Paste or drop an image to attach it", pasted: "Image attached.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
@@ -121,6 +126,25 @@ function button(cls: string, label: string, ic?: string): HTMLButtonElement {
 function name(path: string): string {
   const base = path.split("/").pop() ?? path;
   return base.endsWith(".md") ? base.slice(0, -3) : base;
+}
+/** The folder path as links: the vault, then each folder, each opening
+ *  its folder view. */
+function crumbsFor(path: string, includeSelf = false): HTMLElement[] {
+  const parts = (includeSelf ? path : dirOf(path)).split("/").filter(Boolean);
+  const out: HTMLElement[] = [];
+  const root = h("button", "crumb", currentFolder.split("/").filter(Boolean).pop() ?? "/");
+  root.type = "button";
+  root.addEventListener("click", () => openFolder(""));
+  out.push(root);
+  parts.forEach((part, i) => {
+    out.push(h("span", "crumb-sep", "/"));
+    const b = h("button", "crumb", part);
+    b.type = "button";
+    const target = parts.slice(0, i + 1).join("/");
+    b.addEventListener("click", () => openFolder(target));
+    out.push(b);
+  });
+  return out;
 }
 function dirOf(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
@@ -389,6 +413,7 @@ function paneOf(node: HTMLElement): Pane | null {
 abstract class Leaf {
   readonly el = h("section", "leaf");
   readonly tab = h("button", "tab");
+  readonly tabIcon = h("span", "tab-icon");
   readonly tabName = h("span", "tab-name");
   abstract readonly kind: Kind;
   path = "";
@@ -399,7 +424,7 @@ abstract class Leaf {
     this.tab.type = "button";
     const close = h("span", "tab-close");
     close.append(icon("close", t.close));
-    this.tab.append(this.tabName, close);
+    this.tab.append(this.tabIcon, this.tabName, close);
     this.tab.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) void this.close();
       else this.pane.activate(this, true);
@@ -414,6 +439,7 @@ abstract class Leaf {
   setTitle(title: string): void {
     this.tabName.textContent = title;
     this.tab.title = this.path;
+    this.tabIcon.replaceChildren(icon(iconFor(this.kind)));
   }
   setDirty(d: boolean): void {
     this.dirty = d;
@@ -425,8 +451,12 @@ abstract class Leaf {
   }
   focusContent(): void {}
   destroy(): void {}
+  /** Save what can be saved; true when the leaf may go. */
+  async flush(): Promise<boolean> {
+    return !this.dirty;
+  }
   async close(): Promise<void> {
-    if (this.dirty && !window.confirm(t.discard)) return;
+    if (!(await this.flush()) && !window.confirm(t.discard)) return;
     this.destroy();
     this.pane.remove(this);
   }
@@ -455,7 +485,9 @@ class NoteLeaf extends Leaf {
   readonly conflict = h("div", "conflict");
   readonly conflictDiff = h("div");
   readonly preview = h("div", "preview");
+  readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
+  private saveTimer: number | undefined;
   readonly links = h("section", "links");
   readonly backlinks = h("ul", "link-list");
   readonly editor: EditorView;
@@ -493,8 +525,9 @@ class NoteLeaf extends Leaf {
     this.conflict.append(conflictText, this.conflictDiff, actions);
     this.conflict.hidden = true;
     this.links.append(h("h2", "section-title", t.backlinks), this.backlinks);
+    this.buildToolbar();
     const sheet = h("div", "sheet");
-    sheet.append(titleRow, this.flags, this.props, this.conflict, this.preview, this.editorHost, this.links);
+    sheet.append(titleRow, this.flags, this.props, this.conflict, this.preview, this.toolbar, this.editorHost, this.links);
     this.el.append(head, sheet);
     this.live = livePreview({
       imageUrl: (target) => imageUrl(target, () => this.editor.dispatch({ effects: redraw.of(null) })),
@@ -535,12 +568,135 @@ class NoteLeaf extends Leaf {
         markdown(),
         EditorView.lineWrapping,
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
-        keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
+        keymap.of([
+          { key: "Mod-s", run: () => (void this.save(), true) },
+          { key: "Mod-b", run: () => (this.wrap("**", "**"), true) },
+          { key: "Mod-i", run: () => (this.wrap("*", "*"), true) },
+          { key: "Mod-Shift-h", run: () => (this.wrap("==", "=="), true) },
+          { key: "Mod-Shift-k", run: () => (this.wrap("[", "](url)"), true) },
+          { key: "Mod-Shift-1", run: () => (this.cycleHeading(), true) },
+        ]),
+        EditorView.domEventHandlers({
+          paste: (e) => this.takeFiles(e.clipboardData?.files ?? null, e),
+          drop: (e) => this.takeFiles(e.dataTransfer?.files ?? null, e),
+        }),
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) this.setDirty(true);
+          if (u.docChanged) {
+            this.setDirty(true);
+            this.scheduleSave();
+          }
         }),
       ],
     });
+  }
+  /** Autosave: a moment after the last keystroke, unless a conflict is
+   *  on screen waiting for a decision. */
+  private scheduleSave(): void {
+    window.clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => {
+      if (this.dirty && this.conflict.hidden) void this.save();
+    }, 1500);
+  }
+  /** Save now if there is anything to save; true when clean afterwards. */
+  override async flush(): Promise<boolean> {
+    window.clearTimeout(this.saveTimer);
+    if (!this.dirty) return true;
+    if (!this.conflict.hidden) return false;
+    await this.save();
+    return !this.dirty;
+  }
+  private wrap(before: string, after: string): void {
+    const v = this.editor;
+    const { from, to } = v.state.selection.main;
+    const selected = v.state.sliceDoc(from, to);
+    v.dispatch({
+      changes: { from, to, insert: `${before}${selected}${after}` },
+      selection: selected ? { anchor: from + before.length, head: to + before.length } : { anchor: from + before.length },
+    });
+    v.focus();
+  }
+  private prefixLines(prefix: string | ((n: number) => string)): void {
+    const v = this.editor;
+    const { from, to } = v.state.selection.main;
+    const a = v.state.doc.lineAt(from).number;
+    const b = v.state.doc.lineAt(to).number;
+    const changes = [];
+    for (let n = a, i = 0; n <= b; n++, i++) {
+      const line = v.state.doc.line(n);
+      const p = typeof prefix === "string" ? prefix : prefix(i + 1);
+      changes.push(line.text.startsWith(p) ? { from: line.from, to: line.from + p.length, insert: "" } : { from: line.from, insert: p });
+    }
+    v.dispatch({ changes });
+    v.focus();
+  }
+  private cycleHeading(): void {
+    const v = this.editor;
+    const line = v.state.doc.lineAt(v.state.selection.main.from);
+    const m = /^(#{1,6})\s/.exec(line.text);
+    const level = m ? m[1]!.length : 0;
+    const next = level >= 3 ? 0 : level + 1;
+    const stripped = line.text.replace(/^#{1,6}\s/, "");
+    v.dispatch({ changes: { from: line.from, to: line.to, insert: next === 0 ? stripped : `${"#".repeat(next)} ${stripped}` } });
+    v.focus();
+  }
+  private buildToolbar(): void {
+    const add = (ic: string, label: string, run: () => void) => {
+      const b = button("tool", label, ic);
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", run);
+      this.toolbar.append(b);
+    };
+    const sep = () => this.toolbar.append(h("span", "tool-sep"));
+    add("heading", t.heading, () => this.cycleHeading());
+    add("bold", t.bold, () => this.wrap("**", "**"));
+    add("italic", t.italic, () => this.wrap("*", "*"));
+    add("strike", t.strike, () => this.wrap("~~", "~~"));
+    add("highlight", t.highlight, () => this.wrap("==", "=="));
+    sep();
+    add("link", t.link, () => this.wrap("[", "](url)"));
+    add("wikilink", t.wikilink, () => this.wrap("[[", "]]"));
+    sep();
+    add("bullets", t.bullets, () => this.prefixLines("- "));
+    add("numbers", t.numbers, () => this.prefixLines((n) => `${n}. `));
+    add("task", t.task, () => this.prefixLines("- [ ] "));
+    add("quote", t.quote, () => this.prefixLines("> "));
+    add("code", t.code, () => this.wrap("`", "`"));
+    add("rule", t.rule, () => this.wrap("\n---\n", ""));
+    sep();
+    add("image", t.pasteHint, () => (ui.status.textContent = t.pasteHint));
+  }
+  /** Images pasted or dropped become files beside the note and an embed
+   *  at the caret; the core writes them, confined (ADR 0026 rule 5). */
+  private takeFiles(files: FileList | null, e: Event): boolean {
+    if (!files || files.length === 0 || !this.note) return false;
+    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return false;
+    e.preventDefault();
+    void (async () => {
+      for (const f of images) {
+        const b64 = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+          r.onerror = () => reject(r.error);
+          r.readAsDataURL(f);
+        });
+        const extOf = f.type.split("/")[1]?.replace("jpeg", "jpg").replace("svg+xml", "svg") ?? "png";
+        const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+        const base = f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) && !/^blob/i.test(f.name) ? f.name : `Pasted image ${stamp}.${extOf}`;
+        const folder = dirOf(this.path);
+        const r = await commands.createFile(folder ? `${folder}/${base}` : base, b64);
+        if (r.status !== "ok") {
+          fail(r.error);
+          continue;
+        }
+        const target = r.data.split("/").pop() ?? r.data;
+        const pos = this.editor.state.selection.main.to;
+        this.editor.dispatch({ changes: { from: pos, insert: `![[${target}]]` }, selection: { anchor: pos + target.length + 5 } });
+        ui.status.textContent = t.pasted;
+        await afterFileChange();
+      }
+    })();
+    return true;
   }
   override setDirty(d: boolean): void {
     super.setDirty(d);
@@ -555,6 +711,7 @@ class NoteLeaf extends Leaf {
   applyMode(): void {
     const m = this.mode;
     this.preview.hidden = m !== "preview";
+    this.toolbar.hidden = m === "preview";
     this.editorHost.hidden = m === "preview";
     for (const [k, b] of Object.entries(this.modeButtons)) b.setAttribute("aria-pressed", String(k === m));
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? this.live : []) });
@@ -598,7 +755,7 @@ class NoteLeaf extends Leaf {
       if (e.key === "Enter") finish(true);
       else if (e.key === "Escape") finish(false);
     });
-    input.addEventListener("blur", () => finish(false));
+    input.addEventListener("blur", () => finish(input.value.trim() !== name(this.path)));
   }
   refresh(note: NoteText): void {
     this.note = note;
@@ -625,9 +782,7 @@ class NoteLeaf extends Leaf {
     this.path = note.data.path;
     this.setTitle(name(this.path));
     this.title.textContent = name(this.path);
-    this.crumbs.replaceChildren(
-      ...dirOf(this.path).split("/").filter(Boolean).flatMap((part, i) => (i === 0 ? [h("span", "", part)] : [document.createTextNode(" / "), h("span", "", part)])),
-    );
+    this.crumbs.replaceChildren(...crumbsFor(this.path));
     this.props.replaceChildren(...note.data.properties.flatMap((p) => [h("dt", "", p.key), h("dd", "", p.value)]));
     this.props.hidden = note.data.properties.length === 0;
     this.eol = note.data.text.includes("\r\n") ? "\r\n" : "\n";
@@ -827,6 +982,7 @@ class TextLeaf extends Leaf {
 class FolderLeaf extends Leaf {
   readonly kind: Kind = "folder";
   readonly head = h("header", "folder-head");
+  readonly crumbs = h("nav", "crumbs");
   readonly title = h("h1", "note-title");
   readonly meta = h("p", "folder-meta");
   readonly items = h("ul", "folder-items grid");
@@ -840,9 +996,11 @@ class FolderLeaf extends Leaf {
     const tools = h("div", "folder-tools");
     tools.append(asGrid, asList);
     this.head.append(this.title, tools);
+    const top = h("header", "leaf-head");
+    top.append(this.crumbs);
     const sheet = h("div", "sheet");
     sheet.append(this.head, this.meta, this.items);
-    this.el.append(sheet);
+    this.el.append(top, sheet);
   }
   view(grid: boolean): void {
     this.grid = grid;
@@ -853,6 +1011,7 @@ class FolderLeaf extends Leaf {
     this.path = path;
     this.setTitle(path === "" ? currentFolder.split("/").filter(Boolean).pop() ?? "/" : name(path));
     this.title.textContent = this.tabName.textContent;
+    this.crumbs.replaceChildren(...crumbsFor(path, true));
     const prefix = path === "" ? "" : `${path}/`;
     const inside = [...allNotes, ...allFiles].filter((p) => p.startsWith(prefix));
     const direct = inside.filter((p) => !p.slice(prefix.length).includes("/"));
@@ -946,6 +1105,8 @@ class Pane {
     persistSoon();
   }
   activate(leaf: Leaf, focus: boolean): void {
+    const leaving = this.active;
+    if (leaving && leaving !== leaf && leaving.dirty) void leaving.flush();
     this.active = leaf;
     for (const l of this.leaves) {
       l.el.hidden = l !== leaf;
@@ -978,7 +1139,7 @@ class Pane {
   }
   async closeAll(): Promise<void> {
     for (const l of this.leaves.slice()) {
-      if (l.dirty && !window.confirm(t.discard)) return;
+      if (!(await l.flush()) && !window.confirm(t.discard)) return;
       l.destroy();
       this.remove(l, true);
     }
@@ -1414,7 +1575,7 @@ function renameInline(li: HTMLLIElement, path: string): void {
     if (e.key === "Enter") finish(true);
     else if (e.key === "Escape") finish(false);
   });
-  input.addEventListener("blur", () => finish(false));
+  input.addEventListener("blur", () => finish(input.value.trim() !== name(path)));
 }
 
 class Plan {
@@ -1471,7 +1632,7 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   const kind = kindOf(path);
   const b = h("button", `row kind-${kind}`);
   b.type = "button";
-  b.append(icon(iconFor(kind)), h("span", "row-name", name(path)));
+  b.append(icon(iconFor(kind)), h("span", "row-name", path.split("/").pop() ?? path));
   b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey));
   b.addEventListener("mousedown", () => b.focus());
   armDrag(b, () => ({ kind: "file", path }), () => name(path));
@@ -1848,6 +2009,14 @@ document.addEventListener("keydown", (e) => {
       showSpace(s);
     }
   }
+});
+
+function flushAll(): void {
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.dirty) void l.flush();
+}
+window.addEventListener("blur", flushAll);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) flushAll();
 });
 
 lesson();
