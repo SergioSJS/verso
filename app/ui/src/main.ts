@@ -57,7 +57,7 @@ type Strings = Record<
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
-  | "openInWindow" | "returnToMain"
+  | "openInWindow" | "returnToMain" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels",
   string
 > & {
@@ -119,7 +119,7 @@ const pt: Strings = {
   pdfHits: (n, current) => `${current} de ${n}`,
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
-  openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal",
+  openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
   hotkeyChange: "Alterar", hotkeyPress: "Pressione as teclas…", hotkeyReset: "Restaurar", hotkeysHint: "Clique em Alterar e pressione a combinação. Um atalho já usado por outro comando é retirado dele.", hotkeyNone: "—",
@@ -174,7 +174,7 @@ const en: Strings = {
   pdfHits: (n, current) => `${current} of ${n}`,
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
-  openInWindow: "Open in a new window", returnToMain: "Return to the main window",
+  openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
   hotkeyChange: "Change", hotkeyPress: "Press the keys…", hotkeyReset: "Restore", hotkeysHint: "Click Change and press the combination. A shortcut another command used is taken from it.", hotkeyNone: "—",
@@ -187,7 +187,16 @@ const en: Strings = {
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
 };
 
-const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
+/** The interface language: the setting when it names one, else the system's. */
+const LANG: string = (() => {
+  try {
+    const raw = localStorage.getItem("verso.settings");
+    const lang = raw ? (JSON.parse(raw) as { lang?: string }).lang : undefined;
+    if (lang === "pt-BR" || lang === "en") return lang;
+  } catch { /* no storage */ }
+  return navigator.language;
+})();
+const t: Strings = LANG.toLowerCase().startsWith("pt") ? pt : en;
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
 
 /* ---------- Small helpers ---------- */
@@ -288,8 +297,8 @@ const ui = {
 };
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
-type Settings = { theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; hotkeys: Record<string, string> };
-const DEFAULTS: Settings = { theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates", spellcheck: true, defaultMode: "preview", measure: "normal", hotkeys: {} };
+type Settings = { lang: "auto" | "pt-BR" | "en"; theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; hotkeys: Record<string, string> };
+const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates", spellcheck: true, defaultMode: "preview", measure: "normal", hotkeys: {} };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
   try {
@@ -348,7 +357,7 @@ function iconOfPath(path: string, kind: Kind): HTMLElement | SVGSVGElement {
   const url = webNotes.get(path);
   return url ? favicon(url) : icon(iconFor(kind));
 }
-const LOCALE = navigator.language.toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+const LOCALE = LANG.toLowerCase().startsWith("pt") ? "pt-BR" : "en";
 const dateFmt = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
 function humanSize(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -1959,6 +1968,16 @@ class GraphLeaf extends Leaf {
     slider(t.graphRepel, "repel");
     slider(t.graphDistance, "distance");
     slider(t.graphSize, "size");
+    const zoomRow = h("div", "graph-zoom");
+    const zb = (ic: string, title: string, run: () => void) => {
+      const b = button("ghost iconic", title, ic);
+      b.addEventListener("click", run);
+      zoomRow.append(b);
+    };
+    zb("zoomOut", t.graphZoomOut, () => this.zoomTo(Math.max(0.15, this.zoom / 1.25)));
+    zb("zoomIn", t.graphZoomIn, () => this.zoomTo(Math.min(6, this.zoom * 1.25)));
+    zb("fitWidth", t.graphFit, () => this.fit());
+    c.append(zoomRow);
     const whole = button("ghost", t.graphWhole);
     whole.dataset["role"] = "whole";
     whole.addEventListener("click", () => void this.load(""));
@@ -1979,6 +1998,14 @@ class GraphLeaf extends Leaf {
       this.zoom = next;
       this.applyView();
     }, { passive: false });
+    // WebKit's pinch: a gesture, not a wheel.
+    let pinchStart = 1;
+    svg.addEventListener("gesturestart", (e) => { e.preventDefault(); pinchStart = this.zoom; });
+    svg.addEventListener("gesturechange", (e) => {
+      e.preventDefault();
+      const scale = (e as Event & { scale: number }).scale;
+      this.zoomTo(Math.max(0.15, Math.min(6, pinchStart * scale)));
+    });
     svg.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || (e.target as Element).closest(".node")) return;
       const start = { x: e.clientX, y: e.clientY, px: this.pan.x, py: this.pan.y };
@@ -1992,6 +2019,26 @@ class GraphLeaf extends Leaf {
       svg.addEventListener("pointermove", move);
       svg.addEventListener("pointerup", up);
     });
+  }
+  /** Zoom about the middle of the stage. */
+  private zoomTo(next: number): void {
+    const k = next / this.zoom;
+    this.pan.x *= k;
+    this.pan.y *= k;
+    this.zoom = next;
+    this.applyView();
+  }
+  /** Everything in view: zoom and pan so the nodes fit the stage. */
+  private fit(): void {
+    if (this.nodes.length === 0) return;
+    const r = this.svg.getBoundingClientRect();
+    const xs = this.nodes.map((n) => n.x);
+    const ys = this.nodes.map((n) => n.y);
+    const w = Math.max(...xs) - Math.min(...xs) + 120;
+    const hgt = Math.max(...ys) - Math.min(...ys) + 120;
+    this.zoom = Math.max(0.15, Math.min(3, Math.min(r.width / w, r.height / hgt)));
+    this.pan = { x: -((Math.max(...xs) + Math.min(...xs)) / 2) * this.zoom, y: -((Math.max(...ys) + Math.min(...ys)) / 2) * this.zoom };
+    this.applyView();
   }
   private applyView(): void {
     const r = this.svg.getBoundingClientRect();
@@ -3944,7 +3991,10 @@ class SettingsDialog {
     this.search.type = "search";
     this.search.placeholder = t.searchSettings;
     this.search.addEventListener("input", () => this.paint());
-    this.search.addEventListener("keydown", (e) => e.stopPropagation());
+    this.search.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Escape") this.hide();
+    });
     const side = h("div", "settings-side");
     side.append(this.search, this.nav);
     this.box.append(side, this.body);
@@ -3962,13 +4012,13 @@ class SettingsDialog {
     this.el.hidden = true;
     hotkeyRecorder = null;
   }
-  private sections(): { id: string; label: string }[] {
+  private sections(): { id: string; label: string; icon: string }[] {
     return [
-      { id: "general", label: t.sGeneral },
-      { id: "appearance", label: t.sAppearance },
-      { id: "editor", label: t.sEditor },
-      { id: "files", label: t.sFiles },
-      { id: "hotkeys", label: t.sHotkeys },
+      { id: "general", label: t.sGeneral, icon: "gear" },
+      { id: "appearance", label: t.sAppearance, icon: "palette" },
+      { id: "editor", label: t.sEditor, icon: "edit" },
+      { id: "files", label: t.sFiles, icon: "folder" },
+      { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
     ];
   }
   private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
@@ -4011,7 +4061,7 @@ class SettingsDialog {
   private items(): { section: string; title: string; desc: string; node: () => HTMLElement }[] {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement }[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null) => out.push({ section, title, desc, node: () => this.item(title, desc, control()) });
-    add("general", t.languageFollows, "", () => null);
+    add("general", t.language, t.languageDesc, () => this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); window.location.reload(); }));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
       i.type = "number"; i.min = "0.3"; i.step = "0.5"; i.value = String(settings.autosave);
@@ -4066,8 +4116,9 @@ class SettingsDialog {
   paint(): void {
     const q = this.search.value.trim().toLowerCase();
     this.nav.replaceChildren(...this.sections().map((sec) => {
-      const b = h("button", "settings-nav-item", sec.label);
+      const b = h("button", "settings-nav-item");
       b.type = "button";
+      b.append(icon(sec.icon), h("span", "", sec.label));
       b.setAttribute("aria-current", String(sec.id === this.section && !q));
       b.addEventListener("click", () => { this.section = sec.id; this.search.value = ""; this.paint(); });
       return b;
@@ -4082,6 +4133,7 @@ class SettingsDialog {
       }
       frag.append(it.node());
     }
+    if (q && items.length === 0) frag.append(h("p", "settings-hint", t.noMatches));
     if (!q) {
       const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
       this.body.replaceChildren(title, ...(this.section === "hotkeys" ? [h("p", "settings-hint", t.hotkeysHint)] : []), frag);

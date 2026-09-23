@@ -569,7 +569,7 @@ fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
 #[tauri::command]
 #[specta::specta]
 fn web_open(
-    app: tauri::AppHandle,
+    window: tauri::Window,
     label: String,
     url: String,
     x: f64,
@@ -578,9 +578,7 @@ fn web_open(
     h: f64,
 ) -> Result<(), ContractError> {
     let url = http_url(&url)?;
-    let window = app
-        .get_window("main")
-        .ok_or_else(|| failed("no main window"))?;
+    // The window that asks hosts the page: the main one, or a note's own.
     let y = y + chrome_offset(&window);
     window
         .add_child(
@@ -604,7 +602,7 @@ fn web_bounds(
     h: f64,
 ) -> Result<(), ContractError> {
     let wv = webview_of(&app, &label)?;
-    let y = y + app.get_window("main").map_or(0.0, |w| chrome_offset(&w));
+    let y = y + chrome_offset(&wv.window());
     wv.set_position(tauri::LogicalPosition::new(x, y))
         .and_then(|()| wv.set_size(tauri::LogicalSize::new(w.max(1.0), h.max(1.0))))
         .map_err(|e| failed(e.to_string()))
