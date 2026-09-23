@@ -2663,7 +2663,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     if (e.shiftKey) newNotePrompt(leaf?.path ? dirOf(leaf.path) : "");
     else void newUntitled(layout().focused ?? layout().panes()[0]!);
-  } else if (k === "p" && hasFolder) {
+  } else if (k === "p" && hasFolder && !e.shiftKey) {
     e.preventDefault();
     quick.show();
   } else if (k === "e" && leaf instanceof NoteLeaf && leaf.note) {
