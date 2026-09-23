@@ -454,6 +454,40 @@ first run could not: `verso-obs/nota.md`, `verso-obs/sub/nota.md`,
 Two of these contradict what section 4.5 recommends, and one contradicts what
 the code does. They are what section 4.6 decides.
 
+**Third observation, 2026-09-23, by Opus 5.5.** Same method
+([ADR 0009](../adr/0009-external-constraints.md), Obsidian 1.13.7, public API,
+throwaway folders deleted afterwards). Commit `d1a5272` (2026-09-22) changed
+point 3 of the index's rule after probes that were cited in a test comment
+(`crates/verso-index/tests/graph.rs`) and in the commit message, and never
+written here; these are the same probes, run again so that they are on record.
+Names were made unique to the vault; the folder `probe-sub/` sorts before
+`verso-probe/` in byte order, as `sub/` did in the original. Every link is in
+`verso-probe/a/src.md` unless the row says otherwise; segments are counted in
+brackets.
+
+| Probe | Candidates | Result | What it separates |
+|---|---|---|---|
+| `[[probe-sub/vpx]]` | `probe-sub/vpx.md`; `verso-probe/a/probe-sub/vpx.md` | `probe-sub/vpx.md` | a path from the root comes before the same path relative to the source |
+| `[[vpx]]` | `probe-sub/vpx.md` (2); `verso-probe/a/probe-sub/vpx.md` (4) | `verso-probe/a/probe-sub/vpx.md` | a candidate **under** the source's folder beats a shallower one elsewhere |
+| `[[vpu]]` | `verso-probe/vpu.md` (2, the parent folder); `verso-probe/a/probe-sub/vpu.md` (4) | `verso-probe/a/probe-sub/vpu.md` | the same, against the source folder's parent |
+| `[[vpt]]` | `probe-sub/vpt.md` (2); `verso-probe/a/probe-sub/deep/vpt.md` (5) | `verso-probe/a/probe-sub/deep/vpt.md` | at any depth under the folder |
+| `[[vpz]]` | `verso-probe/a/aa/deep/vpz.md` (5); `verso-probe/a/zz/vpz.md` (4) | `verso-probe/a/zz/vpz.md` | among candidates under the folder, fewest segments before byte order |
+| `[[vpw]]` | `probe-sub/vpw.md` (2); `verso-probe/vpw.md` (2, the parent folder) | `probe-sub/vpw.md` | an ancestor folder gains nothing: byte order decides |
+| `[[vpv]]` | `probe-sub/vpv.md` (2); `verso-probe/a/vpv.md` (3, the source's own folder) | `verso-probe/a/vpv.md` | control: the source's own folder still wins |
+| `[[vpr]]` from `verso-probe/a/src2.md` | `vpr.md` (1, the vault root); `verso-probe/a/probe-sub/vpr.md` (4) | `vpr.md` | control: a path from the root still comes before any bare name |
+
+`app.metadataCache.resolvedLinks` agreed with `getFirstLinkpathDest` on every
+row.
+
+What it changes: point 3 of section 4.6 says a candidate **in** the source
+note's own folder wins. Obsidian prefers a candidate anywhere **under** that
+folder, at any depth, before it counts segments — the second observation could
+not tell the two apart, because none of its candidates sat below the source's
+folder. The index has done "under" since `d1a5272`. Whether Verso's rule says
+"under" is the maintainer's to decide: spec Q12 carries the question ("sob a
+pasta, sim ou não?"); until it has an answer, the prose of section 4.6 is the
+rule and the code's difference is a finding (`docs/review/phase-2.md`).
+
 ### 4.2 What the observation settles, and one contradiction it raises
 
 It settles, as a description of Obsidian: extension optional and `.md`
