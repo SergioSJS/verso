@@ -3,14 +3,18 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // The `/` menu: blocks to insert, in sections, each with an icon, a name
-// and a line that says what it is. It opens when a `/` starts a line,
-// filters as the word after it is typed, and puts the block where the
-// `/` was. Ours, not CodeMirror's completion: that one shows a label
-// and a detail, no more.
+// and a line that says what it is. It opens when a `/` starts a line
+// outside code and the frontmatter, filters as the word after it is
+// typed, and puts the block where the `/` was; it closes when its editor
+// loses focus or goes away. Ours, not CodeMirror's completion: that one
+// shows a label and a detail, no more.
 
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { Prec, type EditorSelection } from "@codemirror/state";
-import { keymap, type EditorView, type ViewUpdate } from "@codemirror/view";
+import { ViewPlugin, keymap, type EditorView, type ViewUpdate } from "@codemirror/view";
+import type { SyntaxNode } from "@lezer/common";
 import { icon } from "./icons";
+import { frontmatterEnd } from "./live";
 
 export type SlashItem = {
   icon: string;
@@ -60,6 +64,13 @@ export class SlashMenu {
     if (!before.endsWith("/")) return;
     const upTo = before.slice(0, -1);
     if (!/^[\s>-]*$/.test(upTo)) return;
+    // A `/` in code is code, and the frontmatter is YAML.
+    const fm = frontmatterEnd(view.state.doc);
+    if (fm >= 0 && head <= fm) return;
+    const tree = ensureSyntaxTree(view.state, head, 50) ?? syntaxTree(view.state);
+    for (let n: SyntaxNode | null = tree.resolveInner(head - 1, 1); n; n = n.parent) {
+      if (/^(FencedCode|CodeBlock|InlineCode|CodeText|HTMLBlock|CommentBlock)$/.test(n.name)) return;
+    }
     this.view = view;
     this.from = head - 1;
     this.sel = 0;
@@ -69,10 +80,12 @@ export class SlashMenu {
   /** Called from the editor's update listener: opens, filters, closes. */
   onUpdate(u: ViewUpdate): void {
     if (!this.open) {
-      if (u.docChanged) this.tryOpen(u.view);
+      if (u.docChanged && u.view.hasFocus) this.tryOpen(u.view);
       return;
     }
-    if (u.view !== this.view) return this.close();
+    // Focus elsewhere (another tab, the tree, a dialog): the menu goes, and
+    // with it the reason web views hide.
+    if (u.view !== this.view || (u.focusChanged && !u.view.hasFocus)) return this.close();
     const head = u.state.selection.main.head;
     if (head <= this.from || u.state.doc.lineAt(head).number !== u.state.doc.lineAt(this.from).number) return this.close();
     const typed = u.state.sliceDoc(this.from, head);
@@ -158,6 +171,11 @@ export class SlashMenu {
     this.from = -1;
   }
 
+  /** Close if the menu belongs to `view`. */
+  closeFor(view: EditorView): void {
+    if (this.view === view) this.close();
+  }
+
   move(d: 1 | -1): boolean {
     if (!this.open || this.flat.length === 0) return false;
     this.sel = (this.sel + d + this.flat.length) % this.flat.length;
@@ -183,15 +201,20 @@ export class SlashMenu {
   }
 }
 
-/** Keys the menu takes while it is open; everything else passes. */
+/** Keys the menu takes while it is open; everything else passes. The
+ *  plugin closes the menu when its view goes: a new state (a note loaded
+ *  into the editor) or the editor destroyed. */
 export function slashKeymap(menu: SlashMenu) {
-  return Prec.highest(
-    keymap.of([
-      { key: "ArrowDown", run: () => menu.move(1) },
-      { key: "ArrowUp", run: () => menu.move(-1) },
-      { key: "Enter", run: () => (menu.open ? menu.apply() : false) },
-      { key: "Tab", run: () => (menu.open ? menu.apply() : false) },
-      { key: "Escape", run: () => (menu.open ? (menu.close(), true) : false) },
-    ]),
-  );
+  return [
+    Prec.highest(
+      keymap.of([
+        { key: "ArrowDown", run: () => menu.move(1) },
+        { key: "ArrowUp", run: () => menu.move(-1) },
+        { key: "Enter", run: () => (menu.open ? menu.apply() : false) },
+        { key: "Tab", run: () => (menu.open ? menu.apply() : false) },
+        { key: "Escape", run: () => (menu.open ? (menu.close(), true) : false) },
+      ]),
+    ),
+    ViewPlugin.define((view) => ({ destroy: () => menu.closeFor(view) })),
+  ];
 }
