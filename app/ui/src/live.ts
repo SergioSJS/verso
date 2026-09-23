@@ -169,6 +169,15 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
   // lines cannot come from a view plugin.)
   const fmEnd = frontmatterEnd(doc);
 
+  // Table rows in the mono face: the pipes line up while editing.
+  for (const { from, to } of view.visibleRanges) {
+    let n = doc.lineAt(from).number;
+    const last = doc.lineAt(to).number;
+    for (; n <= last; n++) {
+      const line = doc.line(n);
+      if (/^\s*\|.*\|\s*$/.test(line.text) && line.from >= (fmEnd < 0 ? 0 : fmEnd)) out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-table" }) });
+    }
+  }
   for (const { from, to } of view.visibleRanges) {
     tree.iterate({
       from,

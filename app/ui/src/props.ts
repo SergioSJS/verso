@@ -25,6 +25,8 @@ export type PropsOptions = {
   onChange: (key: string, value: PropertyValue | null) => void;
   /** A tag pill was clicked. */
   onTag: (tag: string) => void;
+  /** A value that is a web address was opened. */
+  onLink?: (url: string) => void;
 };
 
 const LIST_KEYS = new Set(["tags", "tag", "aliases", "alias", "cssclasses", "cssclass"]);
@@ -36,7 +38,7 @@ function iconOf(key: string, v: PropertyValue): string {
     case "list": return "bullets";
     case "checkbox": return "task";
     case "number": return "hash";
-    case "text": return /^\d{4}-\d{2}-\d{2}/.test(v.value) ? "calendar" : "text";
+    case "text": return /^\d{4}-\d{2}-\d{2}/.test(v.value) ? "calendar" : /^https?:\/\//i.test(v.value) ? "link" : "text";
     default: return LIST_KEYS.has(key.toLowerCase()) ? "bullets" : "text";
   }
 }
@@ -120,6 +122,15 @@ export class PropertiesView {
         }
       });
       value.append(input);
+      if (p.value.kind === "text" && /^https?:\/\//i.test(p.value.value)) {
+        const go = h("button", "prop-go");
+        go.type = "button";
+        go.title = p.value.value;
+        go.textContent = "↗";
+        const url = p.value.value;
+        go.addEventListener("click", () => this.opts.onLink?.(url));
+        value.append(go);
+      }
     }
     const remove = h("button", "prop-remove");
     remove.type = "button";

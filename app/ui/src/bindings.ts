@@ -75,6 +75,11 @@ export const commands = {
 	 */
 	initialFolder: () => typedError<string | null, ContractError>(__TAURI_INVOKE("initial_folder")),
 	/**
+	 *  Open a web page in a window of its own inside the app: a note with a
+	 *  `url` property is the bookmark, this is the browser. Only `http(s)`.
+	 */
+	openUrl: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("open_url", { url })),
+	/**
 	 *  Any file as text with its revision, for the editor of files that are
 	 *  not notes.
 	 */
