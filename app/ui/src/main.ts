@@ -46,7 +46,7 @@ type Strings = Record<
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied"
-  | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow",
+  | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -102,7 +102,7 @@ const pt: Strings = {
   replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
   pdfHits: (n, pages) => `${n} ocorrência${n === 1 ? "" : "s"} em ${pages} página${pages === 1 ? "" : "s"}`,
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
-  webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela",
+  webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
@@ -148,7 +148,7 @@ const en: Strings = {
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
   pdfHits: (n, pages) => `${n} hit${n === 1 ? "" : "s"} on ${pages} page${pages === 1 ? "" : "s"}`,
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
-  webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window",
+  webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
@@ -331,6 +331,20 @@ ui.searchLabel.textContent = t.search;
 ui.notesHeading.textContent = t.notes;
 ui.folder.dataset["empty"] = t.noFolder;
 el("keys-new").textContent = t.keysNew;
+el("keys-commands").textContent = t.commands;
+document.querySelector(".status-keys")?.addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cmd]");
+  if (!b || ui.search.disabled) return;
+  const pane = layout().focused ?? layout().panes()[0];
+  const leaf = layout().activeLeaf;
+  switch (b.dataset["cmd"]) {
+    case "new": void newUntitled(pane ?? layout().reset()); break;
+    case "edit": if (leaf instanceof NoteLeaf) leaf.toggleMode(); break;
+    case "split": if (pane) layout().split(pane, "row"); break;
+    case "space": newSpace(); break;
+    case "palette": paletteDialog.show(); break;
+  }
+});
 el("keys-edit").textContent = t.keysEdit;
 el("keys-split").textContent = t.keysSplit;
 el("keys-space").textContent = t.keysSpace;
@@ -3282,6 +3296,7 @@ function allCommands(): Command[] {
     { label: t.newFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { label: t.daily, keys: "⌘D", run: () => void dailyNote() },
     { label: t.insertTemplate, run: () => insertTemplate() },
+    { label: t.saveAsTemplate, run: () => void saveAsTemplate() },
     { label: t.quick, keys: "⌘P", run: () => quick.show() },
     { label: t.search, keys: "⌘K", run: () => ui.search.focus() },
     { label: `${t.replaceTitle}…`, keys: "⌘⇧H", run: () => replaceDialog.show() },
@@ -3550,6 +3565,18 @@ async function dailyNote(): Promise<void> {
   await afterFileChange();
   const leaf = openNote(r.data.path, false);
   if (leaf instanceof NoteLeaf) { await leaf.loading; leaf.editAtEnd(); }
+}
+/** A copy of the current note in the templates folder: that is all a
+ *  template is — any note there. `{{date}}` and `{{title}}` are filled
+ *  when it is inserted. */
+async function saveAsTemplate(): Promise<void> {
+  const leaf = layout().activeLeaf;
+  if (!(leaf instanceof NoteLeaf) || !leaf.note) return;
+  const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "") || "Templates";
+  const r = await commands.createNote(`${folder}/${name(leaf.path)}`, leaf.note.text);
+  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  await afterFileChange();
+  ui.status.textContent = t.templateSaved;
 }
 function insertTemplate(): void {
   const leaf = layout().activeLeaf;
