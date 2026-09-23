@@ -5665,6 +5665,10 @@ void listen("quit-requested", async () => {
 
 lesson();
 if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false); void getCurrentWindow().setFocus(); });
+/* A folder handed to the app while it runs (`verso <folder>` in a
+ * terminal reaches the installed app on macOS by an open event): the host
+ * keeps it; this window saves its tabs, as for any switch, and opens it. */
+if (!popout) void listen("folder-handed", () => void openFolderBy(() => commands.openInitial()));
 void (async () => {
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the

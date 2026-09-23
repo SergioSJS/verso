@@ -244,6 +244,16 @@ fn command_of(
 /// Start the app on `folder`, detached: `$VERSO_APP` when set, else the
 /// `verso-app` binary beside this one (a development tree), else the
 /// installed application by name. The error names what was tried.
+///
+/// The installed app gets the folder as a document to open, not as an
+/// argument: macOS delivers it by an open event whether it launches the
+/// app or the app is already running, where `open --args` reached only a
+/// new process and a running app never saw the folder
+/// (`docs/review/phase-2.md`, reading 3, finding 20). `open` refuses a
+/// document that is not there, and `verso open` asks the disk nothing
+/// (ADR 0042), so a refusal is tried again as an argument: the app starts
+/// and says the folder is not there. Only when both fail is the app
+/// reported missing; `open`'s own words are not shown.
 fn launch_app(folder: &Path) -> Result<(), String> {
     let mut tried = Vec::new();
     let mut candidates: Vec<PathBuf> = Vec::new();
@@ -269,14 +279,17 @@ fn launch_app(folder: &Path) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     {
-        match std::process::Command::new("open")
-            .args(["-a", "Verso", "--args"])
-            .arg(folder)
-            .status()
-        {
-            Ok(status) if status.success() => return Ok(()),
-            Ok(status) => tried.push(format!("open -a Verso: {status}")),
-            Err(e) => tried.push(format!("open -a Verso: {e}")),
+        for how in [&["-a", "Verso"][..], &["-a", "Verso", "--args"][..]] {
+            match std::process::Command::new("open")
+                .args(how)
+                .arg(folder)
+                .stderr(std::process::Stdio::null())
+                .status()
+            {
+                Ok(status) if status.success() => return Ok(()),
+                Ok(status) => tried.push(format!("open {}: {status}", how.join(" "))),
+                Err(e) => tried.push(format!("open {}: {e}", how.join(" "))),
+            }
         }
     }
     Err(tried.join("; "))
