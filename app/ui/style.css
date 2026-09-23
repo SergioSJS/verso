@@ -847,3 +847,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .confirm-box { width: min(48ch, 92vw); padding: 1.1rem 1.3rem 1rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
 .confirm-box p { margin: 0 0 1rem; font-size: .93rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+
+/* ---------- A property the panel shows but does not rewrite (props.ts): Source mode edits it ---------- */
+.prop.fixed .prop-input:disabled { color: var(--ink-2); background: none; cursor: default; }
+.prop.fixed .pill-label { cursor: default; }

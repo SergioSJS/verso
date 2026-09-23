@@ -30,7 +30,7 @@ import { startCompletion, type Completion, type CompletionContext, type Completi
 import { commands, type ContractError, type FileEntry, type NoteText, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
-import { PropertiesView, frontmatterChange } from "./props";
+import { PropertiesView } from "./props";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
 import { PdfView } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
@@ -42,7 +42,7 @@ import { cleanHtmlText, setHtml } from "./sanitize";
 type Strings = Record<
   | "open" | "reindex" | "search" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
-  | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol"
+  | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
@@ -87,7 +87,7 @@ const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
-  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.",
+  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.", propChanged: "Essa propriedade mudou no texto desde que o painel foi desenhado; nada foi alterado — o painel se atualiza ao salvar, repita a edição.", propFixed: "Edite no modo Fonte: este valor tem comentário, várias linhas ou uma forma que o painel não reescreve sem perda.", propExists: "Essa propriedade já está no texto.",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
@@ -145,7 +145,7 @@ const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
-  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.",
+  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.", propChanged: "That property changed in the text since the panel was drawn; nothing was changed — the panel updates on saving, make the edit again.", propFixed: "Edit it in Source mode: this value has a comment, several lines or a shape the panel cannot rewrite without loss.", propExists: "That property is already in the text.",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
@@ -959,8 +959,22 @@ class NoteLeaf extends Leaf {
   readonly saveButton = h("button", "save", t.save);
   readonly flags = h("p", "flags");
   readonly props = new PropertiesView({
-    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove },
-    onChange: (key, value) => this.setProperty(key, value),
+    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed },
+    // One property changed in the panel: the frontmatter lines of that
+    // key change in the editor's document, nothing else; the save follows
+    // as after any keystroke.
+    doc: () => this.editor.state.doc.toString(),
+    apply: (change) => {
+      this.editor.dispatch({ changes: change });
+      if (this.mode === "preview") void this.save();
+    },
+    // The key moved in the text since the panel was drawn: the save that
+    // follows draws it again from what it now says.
+    refused: (why) => {
+      const message = why === "exists" ? t.propExists : why === "fixed" ? t.propFixed : t.propChanged;
+      ui.status.textContent = message;
+      void this.save().then(() => (ui.status.textContent = message));
+    },
     onTag: (tag) => {
       ui.search.value = `tag:${tag}`;
       void searchNotes(ui.search.value);
@@ -1127,6 +1141,9 @@ class NoteLeaf extends Leaf {
         }),
         EditorView.updateListener.of((u) => {
           this.slash.onUpdate(u);
+          // Undone or redone: the panel's rows go back to what the file
+          // says; an edit of a key that differs from it is refused.
+          if (this.note && u.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) this.props.render(this.note.properties, this.note.text, this.readOnly);
           if (u.docChanged) {
             this.setDirty(true);
             this.scheduleSave();
@@ -1440,16 +1457,6 @@ class NoteLeaf extends Leaf {
     });
     input.addEventListener("blur", () => finish(input.value.trim() !== name(this.path)));
   }
-  /** One property changed in the panel: the frontmatter lines of that
-   *  key change in the editor's document, nothing else; the save follows
-   *  as after any keystroke. */
-  private setProperty(key: string, value: import("./bindings").PropertyValue | null): void {
-    if (this.readOnly) return;
-    const change = frontmatterChange(this.editor.state.doc.toString(), key, value);
-    if (!change) return;
-    this.editor.dispatch({ changes: change });
-    if (this.mode === "preview") void this.save();
-  }
   /** Words and characters of the body (frontmatter left out), in the status bar. */
   updateWords(): void {
     if (this.pane.active !== this || layout().focused !== this.pane) return;
@@ -1478,6 +1485,7 @@ class NoteLeaf extends Leaf {
     if (note.stale) flags.push(t.stale);
     if (note.unverified) flags.push(t.unverified);
     if (this.readOnly) flags.push(t.mixedEol);
+    this.props.render(note.properties, note.text, this.readOnly);
     this.flags.textContent = flags.join(" ");
     if (this.pane.active === this) panel.show(this);
     this.updateWords();
@@ -1500,7 +1508,6 @@ class NoteLeaf extends Leaf {
     this.setTitle(name(this.path));
     this.title.textContent = name(this.path);
     this.crumbs.replaceChildren(...crumbsFor(this.path));
-    this.props.render(note.data.properties);
     const sep = lineSeparator(note.data.text);
     this.eol = sep ?? "\n";
     this.readOnly = sep === null;
