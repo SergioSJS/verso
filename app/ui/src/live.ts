@@ -44,14 +44,18 @@ export function sizeOf(alias: string | null): { w: number; h: number | null } | 
   return m ? { w: Number(m[1]), h: m[2] ? Number(m[2]) : null } : null;
 }
 
+/** Where a widget's range starts now. CodeMirror keeps a widget's DOM while
+ *  `eq` holds, across edits elsewhere, so a position taken when it was
+ *  drawn goes stale: it is read from the DOM when the event comes. */
+function startOf(view: EditorView, dom: HTMLElement): number | null {
+  return dom.isConnected ? view.posAtDOM(dom) : null;
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
     readonly width: number | null,
-    readonly from: number,
-    readonly to: number,
-    readonly inner: string,
   ) {
     super();
   }
@@ -89,10 +93,13 @@ class ImageWidget extends WidgetType {
         grip.removeEventListener("pointermove", move);
         grip.removeEventListener("pointerup", up);
         badge.remove();
-        const target = this.inner.split("|")[0] ?? this.inner;
-        const text = view.state.sliceDoc(this.from, this.to);
-        const bang = text.startsWith("!") ? "!" : "";
-        view.dispatch({ changes: { from: this.from, to: this.to, insert: `${bang}[[${target}|${w}]]` } });
+        // The embed as the document has it now, at the widget's place.
+        const at = startOf(view, box);
+        if (at === null) return;
+        const m = /^!\[\[([^\]\n]+)\]\]/.exec(view.state.sliceDoc(at, view.state.doc.lineAt(at).to));
+        if (!m) return;
+        const target = (m[1] ?? "").split("|")[0] ?? "";
+        view.dispatch({ changes: { from: at, to: at + m[0].length, insert: `![[${target}|${w}]]` } });
       };
       grip.addEventListener("pointermove", move);
       grip.addEventListener("pointerup", up);
@@ -241,7 +248,9 @@ class BlockWidget extends WidgetType {
     el.addEventListener("mousedown", (e) => {
       if ((e.target as HTMLElement).closest("a")) return;
       e.preventDefault();
-      view.dispatch({ selection: { anchor: b.from } });
+      const at = startOf(view, el);
+      if (at === null) return;
+      view.dispatch({ selection: { anchor: Math.min(at, view.state.doc.length) } });
       view.focus();
     });
     return el;
@@ -430,7 +439,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         const url = opts.imageUrl(target);
         if (url) {
           const size = sizeOf(alias);
-          out.push({ from: start, to: end, deco: Decoration.replace({ widget: new ImageWidget(url, target, size?.w ?? null, start, end, inner) }) });
+          out.push({ from: start, to: end, deco: Decoration.replace({ widget: new ImageWidget(url, target, size?.w ?? null) }) });
           continue;
         }
       }
