@@ -39,11 +39,17 @@ env:
 
 jobs:
   docs-mirror:
-    name: docs mirror and fixtures (ADR 0008, ADR 0031)
+    name: docs mirror, fixtures, npm licenses (ADR 0008, ADR 0031, ADR 0029)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - run: bash scripts/check-docs-mirror.sh
+      # Phase 2 guardrail (ADR 0029): every package of the window's npm
+      # lockfile declares a license on the allowlist, as cargo-deny holds
+      # the Rust tree to deny.toml. It reads the lockfile only, with the
+      # runner's own Node, so it sits in this cheap job.
+      - name: npm licenses on the allowlist (ADR 0029)
+        run: node scripts/check-npm-licenses.mjs
       # The fixture lint compares each draft with main: an approval that
       # came undone fails. A shallow checkout has no main; fetch its tip.
       - run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
