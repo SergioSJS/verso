@@ -490,6 +490,16 @@ Perguntado "sob a pasta, sim ou não?", o mantenedor respondeu sim em 2026-09-23
 ("boa, gosto da sua ideia, pode seguir"), e o ponto 3 da seção 4.6 e da Q12 da
 spec agora diz "sob".
 
+**Quarta observação, 2026-09-23, pela Opus 5.5.** Mesmo método, para o ajuste
+"formato de novo link" que o mantenedor aprovou com essa resposta: a partir de
+`verso-probe2/a/src.md`, com `verso-probe2/a/sub/rx.md`,
+`verso-probe2/a/sub2/rx.md` e um `sub2/rx.md` na raiz, `[[./sub/rx]]` e
+`[[./sub2/rx]]` alcançaram as notas sob a pasta da origem — o `./` no começo
+torna o caminho relativo mesmo quando o mesmo caminho existe na raiz —,
+enquanto `[[sub2/rx]]` alcançou a nota da raiz, e `[[../a/sub/rx]]` a que fica
+sob a pasta da origem. Então um link relativo que o Verso escreve como `./…` ou
+`../…` quer dizer o mesmo para o Obsidian.
+
 ### 4.2 O que a observação resolve, e uma contradição que ela levanta
 
 Resolve, como descrição do Obsidian: extensão opcional e `.md` aceita,

@@ -218,7 +218,7 @@ folder:
 | `verso.lastFolder` | the key of the folder opened last, reopened at start |
 | `verso.spaces:<key>` | the workspaces, panes and tabs of that folder |
 | `verso.bookmarks:<key>` | the bookmarks of that folder |
-| `verso.settings` | language, theme, palette, font size, attachment, daily and template folders, autosave delay, spell check, default mode, text width, hotkeys |
+| `verso.settings` | language, theme, palette, font size, attachment, daily and template folders, autosave delay, spell check, default mode, text width, the format of new links (shortest, relative with `./` or `../`, from the root), hotkeys |
 | `verso.ribbon`, `verso.graph`, `verso.folderSort`, `verso.rightTab`, `verso.right`, `verso.sideWidth` | the ribbon's order, the graph's filters, the folder view's sort, the right panel's tab and visibility, the tree's width |
 
 A layout that names a note that no longer exists skips it when it is restored.

@@ -188,7 +188,7 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
    `docs/reference/index-decision.md` §4.6; o índice já fazia, e embeds de
    arquivos acompanham (`33ee838`). A mesma resposta aprovou um ajuste para o
    formato dos links novos — mais curto, relativo ou a partir da raiz —, que
-   vem numa mudança própria.
+   veio em `3461f8d`.
 2. **Operações de arquivo** — [ADR 0048](../adr/0048-file-operations-in-ui.md),
    `[ABERTO]`. O que o código faz está registrado lá como provisório: renomear
    e mover com um plano de reescrita de links aplicado nota a nota, sem
