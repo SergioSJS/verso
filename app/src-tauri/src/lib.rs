@@ -1222,6 +1222,14 @@ fn serve(
     let Some(ws) = ws else {
         return refuse(404, "no folder is open", headers);
     };
+    // And judged again on the path as confinement reads it: `Nota.md/`
+    // and `./Nota.md` name the note too.
+    if ws
+        .confined(relative)
+        .is_ok_and(|key| key.to_lowercase().ends_with(".md"))
+    {
+        return refuse(403, "a note is read through read_note", headers);
+    }
     match ws.read_file(relative) {
         Ok(bytes) => {
             headers.push(("Content-Type", mime_of(relative).to_owned()));
@@ -1316,14 +1324,24 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
     }
 }
 
-/// Ask every window to save its tabs and close itself; with none left,
-/// exit.
+/// Ask the app's own windows to save their tabs and close themselves;
+/// with none left, exit. A window that shows a web page holds nothing to
+/// save and never answers, so it is closed here: left open, it would keep
+/// the app alive after its windows had gone.
 fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     use tauri::Emitter;
-    if app.webview_windows().is_empty() {
-        app.exit(0);
-    } else {
+    let mut ours = false;
+    for (label, window) in app.webview_windows() {
+        if is_app_view(&label) {
+            ours = true;
+        } else {
+            let _ = window.destroy();
+        }
+    }
+    if ours {
         let _ = app.emit("quit-requested", ());
+    } else {
+        app.exit(0);
     }
 }
 
@@ -1636,6 +1654,24 @@ mod tests {
         assert!(lock(&app.state::<App>().initial_folder).is_some());
     }
 
+    /// A web page's view answers only the window that opened it: another
+    /// window cannot move, steer, read or close it, and an app view's own
+    /// label is not a web view at all.
+    #[test]
+    fn a_web_view_answers_only_the_window_that_opened_it() {
+        let (app, main) = app();
+        let popout = tauri::WebviewWindowBuilder::new(&app, "note-0", Default::default())
+            .build()
+            .unwrap();
+        lock(&app.state::<App>().web_views).insert("web-9".to_owned(), "main".to_owned());
+        for cmd in ["web_close", "web_url"] {
+            let e = call(&popout, cmd, json!({ "label": "web-9" })).unwrap_err();
+            assert_eq!(e["kind"], "refused", "{cmd}: {e}");
+        }
+        let e = call(&main, "web_url", json!({ "label": "main" })).unwrap_err();
+        assert_eq!(e["kind"], "refused", "{e}");
+    }
+
     /// A panic inside a core call is answered as `failed` and leaves the
     /// session usable; so does a lock poisoned by a panic elsewhere.
     #[test]
@@ -1781,6 +1817,11 @@ mod tests {
         assert_eq!(a_note.status, 403);
         let a_note_upper = serve(Some(&mut ws), "main", "Segredo.MD", None);
         assert_eq!(a_note_upper.status, 403);
+        // Spellings that confinement folds into the note's own path.
+        for spelled in ["Segredo.md/", "Segredo.md/.", "./Segredo.md/"] {
+            let served = serve(Some(&mut ws), "main", spelled, None);
+            assert_eq!(served.status, 403, "{spelled}");
+        }
 
         let outside = serve(Some(&mut ws), "main", "../fora.png", None);
         assert_eq!(outside.status, 404);
