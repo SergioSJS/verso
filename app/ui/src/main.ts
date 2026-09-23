@@ -15,10 +15,14 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { EditorView, basicSetup } from "codemirror";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
+import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
+import { languages } from "@codemirror/language-data";
+import { classHighlighter, highlightCode } from "@lezer/highlight";
+import katex from "katex";
 import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { commands, type ContractError, type FileEntry, type NoteText } from "./bindings";
 import { icon } from "./icons";
@@ -930,7 +934,10 @@ class NoteLeaf extends Leaf {
       extensions: [
         basicSetup,
         markdown().language.data.of({ autocomplete: completeWikilinks }),
-        markdown(),
+        markdown({ codeLanguages: languages }),
+        syntaxHighlighting(classHighlighter),
+        // The system's spell checker, in the languages it is set to.
+        EditorView.contentAttributes.of({ spellcheck: "true", autocorrect: "on", autocapitalize: "off" }),
         slashKeymap(this.slash),
         tableKeymap,
         keymap.of([indentWithTab]),
@@ -1268,6 +1275,7 @@ class NoteLeaf extends Leaf {
     this.revision = note.revision;
     this.preview.innerHTML = note.html;
     this.gatherFootnotes();
+    typeset(this.preview);
     void this.embedImages(note.path);
     this.wireTasks();
     void this.relink(note.path);
@@ -1355,6 +1363,7 @@ class NoteLeaf extends Leaf {
         const body = h("div", "embed-note-body");
         body.innerHTML = r.data.html;
         if (heading) sliceHeading(body, heading);
+        typeset(body);
         box.append(head, body);
         span.replaceWith(box);
         void this.embedImages(forPath, body);
@@ -1543,11 +1552,13 @@ class TextLeaf extends Leaf {
     this.el.append(head, sheet);
     this.editor = new EditorView({ parent: this.host, state: EditorState.create({ doc: "" }) });
   }
-  private state(doc: string): EditorState {
+  private state(doc: string, language: Extension[] = []): EditorState {
     return EditorState.create({
       doc,
       extensions: [
         basicSetup,
+        ...language,
+        syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
         EditorView.updateListener.of((u) => {
@@ -1568,7 +1579,11 @@ class TextLeaf extends Leaf {
     const r = await commands.readText(path);
     if (r.status !== "ok") return fail(r.error);
     this.revision = r.data.revision;
-    this.editor.setState(this.state(r.data.text));
+    // The language by the file's name: highlighted, and folded, as an editor does.
+    const desc = LanguageDescription.matchFilename(languages, path);
+    const support = desc ? await desc.load().catch(() => null) : null;
+    if (this.path !== path) return;
+    this.editor.setState(this.state(r.data.text, support ? [support] : []));
     this.setDirty(false);
     this.flags.hidden = true;
     markCurrent();
@@ -2711,6 +2726,43 @@ function openNote(path: string, aside: boolean): Leaf | null {
 function openFolder(path: string): void {
   const pane = layout().focused ?? layout().panes()[0] ?? layout().reset();
   pane.openFolder(path);
+}
+/** Code blocks colored by their language and math typeset, in rendered
+ *  HTML: the parser marks them, the window finishes them. */
+function typeset(root: HTMLElement): void {
+  for (const el of root.querySelectorAll<HTMLElement>(".math")) {
+    const tex = el.textContent ?? "";
+    try {
+      katex.render(tex, el, { displayMode: el.classList.contains("math-display"), throwOnError: false });
+    } catch {
+      el.textContent = tex;
+    }
+  }
+  for (const code of root.querySelectorAll<HTMLElement>("pre > code")) {
+    const lang = Array.from(code.classList).find((c) => c.startsWith("language-"))?.slice(9) ?? "";
+    if (!lang) continue;
+    const desc = LanguageDescription.matchLanguageName(languages, lang, true);
+    if (!desc) continue;
+    const source = code.textContent ?? "";
+    void desc.load().then((support) => {
+      if (code.textContent !== source) return;
+      const tree = support.language.parser.parse(source);
+      const frag = document.createDocumentFragment();
+      highlightCode(
+        source,
+        tree,
+        classHighlighter,
+        (text: string, classes: string) => {
+          if (classes) {
+            const span = h("span", classes, text);
+            frag.append(span);
+          } else frag.append(text);
+        },
+        () => frag.append("\n"),
+      );
+      code.replaceChildren(frag);
+    });
+  }
 }
 /** The note a link target names, by the resolution rule of the spec
  *  (§4.6, Q12) applied to the note list: a path from the root when the
