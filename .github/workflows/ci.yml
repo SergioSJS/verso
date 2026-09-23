@@ -56,13 +56,14 @@ jobs:
 
   rust:
     name: fmt, clippy, test (${{ matrix.os }})
-    # macOS only on main: a PR runs on Linux (cost note at the top).
-    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
+    # macOS only on main: a PR runs on Linux (cost note at the top). The
+    # matrix itself is chosen by the ref: a job-level `if` cannot see
+    # `matrix`, and GitHub rejects a workflow whose `if` names it.
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(github.ref == 'refs/heads/main' && '["ubuntu-latest","macos-latest"]' || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       # ADR 0029: verso-core's std::fs exception is the configuration
@@ -98,13 +99,14 @@ jobs:
   # failing before the PR that added it was merged; the PR records how.
   dialect-wasm:
     name: verso-dialect compiles to wasm32 (${{ matrix.os }}, ADR 0029)
-    # macOS only on main: a PR runs on Linux (cost note at the top).
-    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
+    # macOS only on main: a PR runs on Linux (cost note at the top). The
+    # matrix itself is chosen by the ref: a job-level `if` cannot see
+    # `matrix`, and GitHub rejects a workflow whose `if` names it.
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(github.ref == 'refs/heads/main' && '["ubuntu-latest","macos-latest"]' || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: toolchain from rust-toolchain.toml
@@ -116,8 +118,9 @@ jobs:
   dialect-fuzz:
     # cargo-fuzz needs nightly for its sanitizer; the pinned toolchain in
     # rust-toolchain.toml is bypassed with `+nightly` for this job only.
-    # macOS only on main: a PR runs on Linux (cost note at the top).
-    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
+    # macOS only on main: a PR runs on Linux (cost note at the top). The
+    # matrix itself is chosen by the ref: a job-level `if` cannot see
+    # `matrix`, and GitHub rejects a workflow whose `if` names it.
     # A short run on every PR, from the versioned seeds in `fuzz/seeds`
     # (one file per input that once broke something; see the fuzz target's
     # doc); the corpus grows in `fuzz/corpus` locally and is not versioned,
@@ -130,11 +133,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: aarch64-apple-darwin
+        include: ${{ fromJSON(github.ref == 'refs/heads/main' && '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"macos-latest","target":"aarch64-apple-darwin"}]' || '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"}]') }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - run: rustup toolchain install nightly --profile minimal
@@ -164,13 +163,14 @@ jobs:
     # On both operating systems: ADR 0029 and roadmap exit criterion 3 list
     # `cargo deny check` with the other three, on macOS and Linux.
     name: cargo deny (${{ matrix.os }})
-    # macOS only on main: a PR runs on Linux (cost note at the top).
-    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
+    # macOS only on main: a PR runs on Linux (cost note at the top). The
+    # matrix itself is chosen by the ref: a job-level `if` cannot see
+    # `matrix`, and GitHub rejects a workflow whose `if` names it.
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(github.ref == 'refs/heads/main' && '["ubuntu-latest","macos-latest"]' || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: toolchain from rust-toolchain.toml
