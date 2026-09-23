@@ -61,7 +61,7 @@ jobs:
           FIXTURES_STRICT: ${{ github.ref == 'refs/heads/main' && '1' || '0' }}
 
   rust:
-    name: fmt, clippy, test (${{ matrix.os }})
+    name: fmt, clippy, test; bindings and UI on Linux (${{ matrix.os }})
     # macOS only on main: a PR runs on Linux (cost note at the top). The
     # matrix itself is chosen by the ref: a job-level `if` cannot see
     # `matrix`, and GitHub rejects a workflow whose `if` names it.
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       # ADR 0029: verso-core's std::fs exception is the configuration
       # directory alone, written by src/sidecar.rs. Its clippy.toml has to
-      # allow the three calls crate-wide (clippy cannot scope a list to one
+      # allow the four calls crate-wide (clippy cannot scope a list to one
       # file), so this grep holds the scope to that file. Comment lines are
       # let through: the crate's docs name the lint. `std::fs`, a bare
       # `fs::` and `fs` imported in braces (`use std::{fs, io}`) all count;
@@ -102,6 +102,26 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: cargo test
         run: cargo test --workspace --all-features --locked
+      # Phase 2 guardrail (ADR 0029): the TypeScript bindings committed in
+      # app/ui/src/bindings.ts must be exactly what the Rust contract and
+      # commands generate; otherwise rule 3 (ADR 0026) is a convention.
+      # Here, after the tests, the exporter reuses the Tauri tree they
+      # built; a job of its own built that tree a second time on every pull
+      # request (docs/review/phase-2.md, reading 3, finding 21). Linux only:
+      # the check is the same on every OS, and macOS runs cost more.
+      - name: the committed bindings are the generated ones (ADR 0026 rule 3, ADR 0038)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cargo run -q --locked -p verso-app -- --export-bindings /tmp/bindings.ts
+          diff -u app/ui/src/bindings.ts /tmp/bindings.ts
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          node-version: 22
+      - name: UI type-checks and bundles
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: app/ui
+        run: npm ci && npm run check && npm run build
 
   # Feature guardrails of Phase 1, feature 1 (ADR 0029). Each one was seen
   # failing before the PR that added it was merged; the PR records how.
@@ -210,29 +230,3 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: the ladder against the ci-linux baseline
         run: cargo run --release -p verso-bench -- --machine ci-linux --json --require-baseline
-
-  app:
-    name: contract bindings up to date, UI checks (ADR 0026 rule 3, ADR 0038)
-    # Phase 2 guardrail (ADR 0029): the TypeScript bindings committed in
-    # app/ui/src/bindings.ts must be exactly what the Rust contract and
-    # commands generate; otherwise rule 3 is a convention. Linux only:
-    # the check is the same on every OS, and macOS runs cost more.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: toolchain from rust-toolchain.toml
-        run: rustup show
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-      - name: WebKitGTK for the Tauri shell
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-      - name: the committed bindings are the generated ones
-        run: |
-          cargo run -q -p verso-app -- --export-bindings /tmp/bindings.ts
-          diff -u app/ui/src/bindings.ts /tmp/bindings.ts
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-      - name: UI type-checks and bundles
-        working-directory: app/ui
-        run: npm ci && npm run check && npm run build
-
