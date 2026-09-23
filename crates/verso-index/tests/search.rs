@@ -177,3 +177,20 @@ fn tags_come_from_the_frontmatter_and_the_body_outside_code() {
     );
     assert_eq!(tags[0].1, ["a.md", "b.md"]);
 }
+
+/// Opus reading of Phase 2, finding 14: the index scanned raw lines, so a
+/// link destination, a code span, a YAML comment in the frontmatter and an
+/// indented code line produced tags the reader never showed. One rule now,
+/// `verso_dialect::body_tags`, for both.
+#[test]
+fn tags_ignore_links_code_and_frontmatter_comments() {
+    let mut index = Index::in_memory().unwrap();
+    put(
+        &mut index,
+        "a.md",
+        "---\n#naotag\ntags: [Real]\n---\n[a seção](#Minha-Secao) e ` #codigo` e #Corpo\n\n    #indentado\n",
+    );
+    let tags = index.tags().unwrap();
+    let names: Vec<&str> = tags.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(names, ["corpo", "real"], "{tags:?}");
+}

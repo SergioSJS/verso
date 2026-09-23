@@ -335,12 +335,6 @@ impl Index {
         Ok(known)
     }
 
-    /// Every tag of the vault with the notes that carry it: frontmatter
-    /// `tags` (as the index stored them) and `#tag` in the body — a `#`
-    /// after a space or at a line start, then letters, digits, `_`, `-`
-    /// or `/`, outside fenced code. Tags are folded to lower case; the
-    /// list is by count, then name. Spec Q10 is still open on what a tag
-    /// is exactly; this is the observable Obsidian rule.
     /// The notes that are web pages — a `url` property — with the address.
     pub fn web_notes(&self) -> Result<Vec<(String, String)>, IndexError> {
         let mut st = self
@@ -365,6 +359,13 @@ impl Index {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// Every tag of the vault with the notes that carry it: frontmatter
+    /// `tags` (as the index stored them) and `#tag` in the body, by the
+    /// one rule the reader marks them with (`verso_dialect::body_tags`:
+    /// prose only — not code, not a link, not the frontmatter's own text,
+    /// not a comment). Tags are folded to lower case; the list is by count,
+    /// then name. What a tag is stays open (spec Q13, charset Q22); this is
+    /// the provisional rule both sides apply.
     pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, IndexError> {
         let mut st = self
             .conn
@@ -384,7 +385,11 @@ impl Index {
                 .into_iter()
                 .map(|t| t.trim_start_matches('#').to_lowercase())
                 .collect();
-            found.extend(body_tags(&content));
+            found.extend(
+                verso_dialect::body_tags(&content)
+                    .into_iter()
+                    .map(|t| t.name.to_lowercase()),
+            );
             found.sort();
             found.dedup();
             for t in found {
@@ -510,8 +515,9 @@ impl Index {
     /// The notes that link to `relative` — by its path or, when it is the
     /// first of its name in path order, by its bare name — with the
     /// position of each link. Embeds count (observed, provisional). A
-    /// note's links to its own headings and blocks (`[[#x]]`) are not
-    /// backlinks (provisional).
+    /// note's links to its own headings and blocks (`[[#x]]`) resolve to
+    /// the note itself and are backlinks of it (Q12, as observed on
+    /// 2026-09-22; `tests/graph.rs`).
     pub fn backlinks(&self, relative: &str) -> Result<Vec<Backlink>, IndexError> {
         let sql = format!(
             "SELECT src.path, l.target, l.kind, l.line, l.col
@@ -632,43 +638,6 @@ fn json_strings(json: &str) -> Vec<String> {
             (Some(s), _) => s.push(c),
             (None, '"') => current = Some(String::new()),
             (None, _) => {}
-        }
-    }
-    out
-}
-
-/// `#tag` in a note's body, folded, outside fenced code.
-fn body_tags(content: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut in_fence = false;
-    for line in content.lines() {
-        let trimmed = line.trim_start();
-        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
-            in_fence = !in_fence;
-            continue;
-        }
-        if in_fence {
-            continue;
-        }
-        let bytes: Vec<char> = line.chars().collect();
-        let mut i = 0;
-        while i < bytes.len() {
-            if bytes[i] == '#' && (i == 0 || bytes[i - 1].is_whitespace() || bytes[i - 1] == '(') {
-                let start = i + 1;
-                let mut j = start;
-                while j < bytes.len()
-                    && (bytes[j].is_alphanumeric() || matches!(bytes[j], '_' | '-' | '/'))
-                {
-                    j += 1;
-                }
-                let tag: String = bytes[start..j].iter().collect();
-                if !tag.is_empty() && !tag.chars().all(|c| c.is_ascii_digit()) {
-                    out.push(tag.to_lowercase());
-                }
-                i = j.max(i + 1);
-            } else {
-                i += 1;
-            }
         }
     }
     out
