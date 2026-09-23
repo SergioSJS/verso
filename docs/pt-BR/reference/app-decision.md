@@ -6,11 +6,16 @@
   com as próprias palavras ([ADR 0033](../adr/0033-pr-workflow.md), condição
   de merge 3), e lista as decisões em que esse código se apoia sem tê-las. O
   escopo que ele cobre foi ampliado pelos pedidos do mantenedor, registrados na
-  [ADR 0049](../adr/0049-phase-2-scope-widened.md).
+  [ADR 0049](../adr/0049-phase-2-scope-widened.md). Em 2026-09-23 o mantenedor
+  respondeu a maior parte do que a seção 9 listava; as respostas moram nas ADRs
+  e na spec, e a seção 9 diz onde.
 - Código: branch `phase1-2/integration`. Autor do código: Fable 5.1, Rust e
   TypeScript, por escolha do mantenedor em 2026-09-22 (ADR 0049,
   Consequências); as correções que vieram depois da leitura da Opus de
-  2026-09-23 foram escritas pelo Fable 5.1 no Rust e pela Opus 5.5 na janela.
+  2026-09-23 foram escritas pelo Fable 5.1 no Rust e pela Opus 5.5 na janela;
+  as mudanças que vieram das respostas do mantenedor de 2026-09-23, Rust
+  inclusive, pela Opus 5.5, no lugar do Fable 5.1 por decisão do mantenedor
+  (`../review/phase-2.md` §7).
   Autora deste memo: Opus, no papel de autora de documentos
   ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)). A leitura, os achados
   e onde cada um foi corrigido estão em
@@ -137,14 +142,14 @@ entre isso e um byte perdido.
 | O usuário | A janela chama | O que protege a pasta |
 |---|---|---|
 | digita numa nota | `write_note` um instante depois da última tecla (1,5 s por padrão), e de novo quando a aba perde o foco ou fecha, a janela é escondida ou fechada, o app sai (inclusive por ⌘Q), ou outra pasta ou idioma é escolhido; uma escrita por vez por aba | a revisão: um arquivo mudado em outro lugar é recusado e a janela mostra a diferença, com "recarregar" ou "sobrescrever"; enquanto esse aviso está na tela nenhum outro salvamento passa, e um sobrescrever que encontra uma segunda mudança mostra a diferença nova antes. Texto digitado durante um salvamento continua marcado como não salvo |
-| digita num arquivo de texto (`.txt`, `.json`, código) | `write_text`, do mesmo jeito | a mesma revisão; as quebras de linha do próprio arquivo são mantidas; um arquivo com quebras misturadas abre só para leitura, e um cujos bytes não são UTF-8 nem abre para edição (a janela diz por quê) |
+| digita num arquivo de texto (`.txt`, `.json`, código, a fonte de um arquivo HTML) | `write_text`, do mesmo jeito | a mesma revisão; as quebras de linha do próprio arquivo são mantidas; um arquivo com quebras misturadas abre só para leitura, e um cujos bytes não são UTF-8 nem abre para edição (a janela diz por quê) |
 | marca uma tarefa na visão de leitura | uma mudança na linha daquela tarefa no texto do editor — a linha que o core marcou na caixa — salva como a digitação | a revisão e o aviso, como na digitação |
 | edita uma propriedade | uma mudança no texto do editor limitada às linhas daquela chave, calculada contra o frontmatter como o editor o tem agora, salva como a digitação | a revisão; um valor que o painel não consegue reescrever sem mudar o tipo é só leitura |
 | aperta Tab ou Enter numa tabela | realinha as linhas daquela tabela no editor — só numa tabela de verdade, fora de código e matemática — salvo como a digitação | a revisão |
-| renomeia ou move uma nota, um arquivo ou uma pasta | `rename_note` / `rename_entry`: o arquivo ou a pasta muda de lugar na hora; a resposta lista as notas cujos links não o alcançam mais, cada uma com o antes e o depois, e as que não puderam entrar no plano | só são reescritos os links que alcançavam o que mudou, nunca dentro de código; nada mais é escrito até o usuário ver os diffs e escolher "atualizar links" (ADR 0048, opção (b), provisória); cada reescrita passa então pelo `write_note` com a própria revisão, e uma aba aberta daquela nota salva antes |
+| renomeia ou move uma nota, um arquivo ou uma pasta | `rename_note` / `rename_entry`: o arquivo ou a pasta muda de lugar na hora; a resposta lista as notas cujos links não o alcançam mais, cada uma com o antes e o depois, e as que não puderam entrar no plano | um nome novo com `[`, `]`, `\|`, `#` ou `^` — que nenhum link alcança — é recusado antes de qualquer coisa mudar de lugar; só são reescritos os links que alcançavam o que mudou, nunca dentro de código; nada mais é escrito até o usuário ver os diffs e escolher "atualizar links" (ADR 0048, opção (b), decidida em 2026-09-23); cada reescrita passa então pelo `write_note` com a própria revisão, e uma aba aberta daquela nota salva antes |
 | localiza e substitui na pasta inteira | nada, até o plano aparecer: as abas abertas salvam, toda nota é lida, e o plano tem um diff por nota e diz o que procurou | cada nota é escrita sobre a revisão lida para o plano; uma nota mudada desde então é recusada e contada |
 | exclui | `delete_note` / `delete_entry` depois de uma confirmação na página | o arquivo ou a pasta vai para `.trash/`, nunca é apagado de vez |
-| cria uma nota, uma pasta, a nota do dia | `create_note`, `create_folder` | recusado com `exists` se algo ocupa o lugar; o arquivo novo é escrito de forma atômica |
+| cria uma nota, uma pasta, a nota do dia | `create_note`, `create_folder` | recusado com `exists` se algo ocupa o lugar, e antes disso quando o nome digitado tem um caractere que nenhum link alcança; o arquivo novo é escrito de forma atômica |
 | cola ou solta uma imagem numa nota | `create_file` em `assets/` ao lado da nota, com o nome da nota e a hora; o embed entra no texto | só um arquivo novo; a nota é salva como a digitação |
 | solta arquivos do sistema na árvore | `create_file`, um por arquivo, na pasta sob o ponteiro | recusado com `exists` quando o nome está ocupado |
 | duplica um arquivo | o lê — uma nota ou um arquivo de texto pelo contrato, qualquer outro arquivo pelo `verso://` — e `create_file` ao lado, "nome cópia" | só um arquivo novo |
@@ -168,15 +173,18 @@ configuração.
   seleção", que acrescenta uma citação à nota companheira ao lado do PDF. Os
   trechos já citados aparecem pintados nas páginas. `![[livro.pdf]]` numa nota
   mostra o leitor dentro da nota.
-- **Arquivos HTML** abrem como texto, no editor. Um visualizador que os mostra
-  como página, sem scripts, existe mas nunca é alcançado: um `.html` conta
-  primeiro como arquivo de texto (`../review/phase-2.md` §6, item 16).
+- **Arquivos HTML** abrem como a página, num frame isolado, sem scripts. O
+  cabeçalho da aba oferece a página e a fonte, como o cabeçalho de uma nota
+  oferece os modos dela; a fonte é editada como arquivo de texto, e a página
+  volta depois de as últimas teclas da fonte serem salvas. Até `4afec51` o
+  visualizador nunca era alcançado: um `.html` contava primeiro como arquivo
+  de texto (`../review/phase-2.md` §6, item 16).
 - **Arquivos de texto e de código** abrem no editor, coloridos pela extensão, e
   salvam como as notas.
 - **Notas web.** Uma nota cujo frontmatter tem um `url` `http(s)` mostra aquela
   página dentro da aba, numa web view que o host deita sobre a área da aba; uma
   barra dá voltar, avançar, recarregar e a própria nota. A árvore mostra o
-  ícone do site.
+  ícone do site, a não ser que o conteúdo remoto esteja desligado (seção 7).
 
 ## 7. O que alcança o quê
 
@@ -208,7 +216,11 @@ resto da máquina:
   abre a página numa janela própria; o ícone de uma nota web é pedido ao
   próprio site, uma vez por site e sessão; uma imagem que a nota traz da web
   carrega quando a nota é mostrada, como no Obsidian
-  ([ADR 0049](../adr/0049-phase-2-scope-widened.md)).
+  ([ADR 0050](../adr/0050-outbound-network-access.md), decidida em
+  2026-09-23). Os dois que não precisam de clique seguem o ajuste "carregar
+  conteúdo remoto", ligado por padrão: desligado, uma imagem remota vira um
+  link para ela, um estilo inline perde o que buscaria, e uma nota web usa um
+  globo.
 - **Caminhos.** A janela nunca guarda o caminho absoluto da pasta; um caminho
   que ela manda é confinado pelo `verso-fs` (caminhos absolutos, com `..`,
   ocultos e ignorados são recusados), seja qual for o comando.
@@ -225,7 +237,7 @@ na pasta:
 | `verso.lastFolder` | a chave da pasta aberta por último, reaberta na partida |
 | `verso.spaces:<chave>` | as áreas de trabalho, painéis e abas daquela pasta |
 | `verso.bookmarks:<chave>` | os favoritos daquela pasta |
-| `verso.settings` | idioma, tema, paleta, tamanho da fonte, pastas de anexos, do diário e de templates, atraso do salvamento automático, correção ortográfica, modo padrão, largura do texto, o formato dos links novos (mais curto, relativo com `./` ou `../`, a partir da raiz), atalhos |
+| `verso.settings` | idioma, tema, paleta, tamanho da fonte, pastas de anexos, do diário e de templates, atraso do salvamento automático, correção ortográfica, modo padrão, largura do texto, o formato dos links novos (mais curto, relativo com `./` ou `../`, a partir da raiz), se o conteúdo remoto carrega, atalhos |
 | `verso.ribbon`, `verso.graph`, `verso.folderSort`, `verso.rightTab`, `verso.right`, `verso.sideWidth` | a ordem da faixa, os filtros do grafo, a ordenação da visão de pasta, a aba e a visibilidade do painel direito, a largura da árvore |
 
 Um arranjo que cita uma nota que não existe mais a pula ao ser restaurado.
@@ -235,19 +247,30 @@ favoritos salvos de uma pasta começam vazios uma vez.
 
 ## 9. Escolhas esperando o mantenedor
 
-O código se apoia em decisões que não tem. Elas estão listadas uma vez, com
-onde cada uma mora, em [`../review/phase-2.md`](../review/phase-2.md) §6; as
-que quem usa a janela encontra primeiro:
+O código se apoiava em decisões que não tinha. Elas estão listadas uma vez,
+com onde cada uma mora, em [`../review/phase-2.md`](../review/phase-2.md) §6.
+O mantenedor as respondeu em 2026-09-23; as que quem usa a janela encontra
+primeiro, e onde cada uma mora agora:
 
-- o que renomear, mover, excluir e criar fazem
-  ([ADR 0048](../adr/0048-file-operations-in-ui.md));
+- o que renomear, mover, excluir e criar fazem: como construído
+  ([ADR 0048](../adr/0048-file-operations-in-ui.md), Aceita);
 - o que a visão de leitura renderiza — tabelas, notas de rodapé, matemática,
-  destaque, callouts, comentários, tags no corpo (Q5, Q6, Q13, Q15 da spec);
-- que um arquivo que não é UTF-8 não é aberto para edição (Q25 da spec);
-- os quatro jeitos que a janela tem de acessar a rede (ADR 0049);
-- quais teclas do CodeMirror os atalhos do app podem tomar dentro de um
-  editor: ⌘D, ⌘⇧L, ⌘⇧G e ⌘⇧\\, e no Linux Ctrl-Shift-[ e ] (nenhuma ADR cobre
-  os atalhos).
+  destaque, callouts, comentários, tags no corpo: como construído (spec v0.16,
+  Q5, Q6, Q13, Q15), menos callouts aninhados em callouts, ainda em aberto
+  porque o Obsidian os aninha e a visão de leitura não;
+- que um arquivo que não é UTF-8 não é aberto para edição (Q25 da spec,
+  fechada);
+- os quatro jeitos que a janela tem de acessar a rede, com um ajuste sobre os
+  dois que não precisam de clique
+  ([ADR 0050](../adr/0050-outbound-network-access.md));
+- quais teclas do CodeMirror os atalhos do app podem tomar dentro de um editor
+  — ⌘D, ⌘⇧L, ⌘⇧G e ⌘⇧\\, e no Linux Ctrl-Shift-[ e ] — aceitas como estão, já
+  que todo atalho pode ser ligado de novo nos ajustes.
+
+Ainda esperando: o padrão do ajuste (ligado, provisório), converter um arquivo
+com quebras de linha misturadas por ação do usuário (Q24 da spec), arquivos que
+não são Markdown (Q16), os handles do contrato (ADR 0044) e o baseline de CI do
+bench, que precisa do CI rodando.
 
 ## 10. O que não está construído
 
@@ -258,7 +281,9 @@ que quem usa a janela encontra primeiro:
 - **Handles opacos e identidade de sessão no contrato**
   ([ADR 0044](../adr/0044-verso-fs-semantics.md),
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): o contrato nomeia notas
-  por caminho relativo, e a revisão é o único token; ver a seção 9.
+  por caminho relativo, e a revisão é o único token. A identidade de sessão é
+  aceita como ausente na Fase 2 (ADR 0045, 2026-09-23); os handles estão em
+  aberto.
 - **Uma passada completa de acessibilidade.** Depois da leitura, os controles
   têm nome, os diálogos prendem e devolvem o foco, menus e divisores respondem
   ao teclado, e o texto secundário chega a 4,5:1; ainda não há jeito de teclado
@@ -286,8 +311,9 @@ que quem usa a janela encontra primeiro:
   32 000 palavras aberta.
 - Pastas com dezenas de milhares de notas não foram abertas na janela; o
   benchmark cobre o core, não a janela.
-- As licenças dos pacotes npm da janela foram conferidas à mão, não por um
-  portão.
+- As licenças dos pacotes npm da janela foram conferidas à mão até
+  2026-09-23; desde então um portão no CI as lê do lockfile
+  ([ADR 0029](../adr/0029-guardrails-in-ci.md)).
 
 ## 12. Como o mantenedor verifica, sem ler código
 
@@ -324,4 +350,16 @@ Depois, na janela:
 10. **Os guardrails.** `cargo fmt --check`, `cargo clippy --workspace
    --all-targets -- -D warnings`, `cargo test --workspace`,
    `cargo deny check`, `scripts/check-docs-mirror.sh`,
-   `scripts/check-fixtures.sh`, e em `app/ui` `npm run check`.
+   `scripts/check-fixtures.sh`, `node scripts/check-npm-licenses.mjs`, e em
+   `app/ui` `npm run check`.
+11. **Um arquivo HTML é uma página.** Abra um `.html`: ele aparece como
+    página, e um script dentro dele não roda; "Fonte" no cabeçalho da aba o
+    edita, "Página" o mostra de novo.
+12. **O conteúdo remoto pode ficar desligado.** Ajustes → Geral → "Carregar
+    conteúdo remoto" desligado: uma imagem `![](https://…)` de uma nota vira um
+    link para ela, e uma nota web usa um globo no lugar do ícone do site.
+13. **Um nome que nenhum link alcança é recusado.** Renomeie uma nota para
+    `a#b`: a janela diz por quê e nada muda de lugar.
+14. **`verso <pasta>` alcança o app que já está aberto** (macOS, o app
+    instalado): com o Verso aberto numa pasta, `verso` em outra, num terminal,
+    troca a janela para ela, depois de salvar as abas.
