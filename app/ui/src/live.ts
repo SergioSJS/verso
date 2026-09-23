@@ -14,7 +14,9 @@
 import { syntaxTree } from "@codemirror/language";
 import { StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
-import type { Text } from "@codemirror/state";
+import type { EditorState, Text } from "@codemirror/state";
+import katex from "katex";
+import { SEPARATOR, cells } from "./table";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -24,6 +26,9 @@ export type LiveOptions = {
   navigate: (target: string) => void;
   /** The folded frontmatter was clicked: the caller shows the YAML (source mode). */
   editFrontmatter?: () => void;
+  /** The rendered HTML of an embedded note, once known; `null` when the
+   *  target is not a note; `undefined` while being asked. */
+  noteHtml?: (target: string) => string | null | undefined;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -126,6 +131,161 @@ class FrontmatterWidget extends WidgetType {
   }
 }
 
+/** A block of the note shown rendered until the caret enters it: a table,
+ *  display math, or a note embedded on a line of its own. */
+type Block = { from: number; to: number; kind: "table" | "math" | "embed"; text: string };
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
+export function blocksOf(doc: Text): Block[] {
+  const out: Block[] = [];
+  let inFence = false;
+  let n = 1;
+  while (n <= doc.lines) {
+    const line = doc.line(n);
+    const text = line.text;
+    const trimmed = text.trim();
+    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+      inFence = !inFence;
+      n++;
+      continue;
+    }
+    if (inFence) {
+      n++;
+      continue;
+    }
+    if (/^\s*\|.*\|\s*$/.test(text)) {
+      let last = n;
+      while (last < doc.lines && /^\s*\|.*\|\s*$/.test(doc.line(last + 1).text)) last++;
+      if (last > n) out.push({ from: line.from, to: doc.line(last).to, kind: "table", text: doc.sliceString(line.from, doc.line(last).to) });
+      n = last + 1;
+      continue;
+    }
+    if (trimmed.startsWith("$$")) {
+      if (trimmed.length > 2 && trimmed.endsWith("$$")) {
+        out.push({ from: line.from, to: line.to, kind: "math", text: trimmed.slice(2, -2) });
+        n++;
+        continue;
+      }
+      let last = n + 1;
+      while (last <= doc.lines && !doc.line(last).text.trim().endsWith("$$")) last++;
+      if (last <= doc.lines) {
+        const inner = doc.sliceString(line.from, doc.line(last).to).trim().replace(/^\$\$/, "").replace(/\$\$$/, "");
+        out.push({ from: line.from, to: doc.line(last).to, kind: "math", text: inner });
+        n = last + 1;
+        continue;
+      }
+    }
+    const embed = /^!\[\[([^\]\n]+)\]\]$/.exec(trimmed);
+    if (embed && !IMAGE_EXT.test(embed[1] ?? "")) out.push({ from: line.from, to: line.to, kind: "embed", text: embed[1] ?? "" });
+    n++;
+  }
+  return out;
+}
+
+class BlockWidget extends WidgetType {
+  constructor(readonly block: Block, readonly opts: LiveOptions, readonly html: string | null | undefined) {
+    super();
+  }
+  override eq(other: BlockWidget): boolean {
+    return other.block.kind === this.block.kind && other.block.text === this.block.text && other.html === this.html;
+  }
+  toDOM(view: EditorView): HTMLElement {
+    const el = document.createElement("div");
+    el.className = `cm-lp-block cm-lp-${this.block.kind}`;
+    const b = this.block;
+    if (b.kind === "math") {
+      try {
+        el.innerHTML = katex.renderToString(b.text, { displayMode: true, throwOnError: false });
+      } catch {
+        el.textContent = b.text;
+      }
+    } else if (b.kind === "table") {
+      const lines = b.text.split("\n");
+      const table = document.createElement("table");
+      const rows = lines.map(cells);
+      const head = rows[0] ?? [];
+      const thead = document.createElement("thead");
+      const tr = document.createElement("tr");
+      for (const c of head) {
+        const th = document.createElement("th");
+        th.textContent = c;
+        tr.append(th);
+      }
+      thead.append(tr);
+      table.append(thead);
+      const tbody = document.createElement("tbody");
+      lines.forEach((line, i) => {
+        if (i === 0 || SEPARATOR.test(line)) return;
+        const r = document.createElement("tr");
+        for (const c of rows[i] ?? []) {
+          const td = document.createElement("td");
+          td.textContent = c;
+          r.append(td);
+        }
+        tbody.append(r);
+      });
+      table.append(tbody);
+      el.append(table);
+    } else {
+      const title = document.createElement("div");
+      title.className = "cm-lp-embed-title";
+      title.textContent = b.text;
+      el.append(title);
+      const body = document.createElement("div");
+      body.className = "cm-lp-embed-body";
+      if (this.html === undefined) body.textContent = "…";
+      else if (this.html === null) body.textContent = `![[${b.text}]]`;
+      else body.innerHTML = this.html;
+      el.append(body);
+    }
+    // A click puts the caret at the block, which opens it as text.
+    el.addEventListener("mousedown", (e) => {
+      if ((e.target as HTMLElement).closest("a")) return;
+      e.preventDefault();
+      view.dispatch({ selection: { anchor: b.from } });
+      view.focus();
+    });
+    return el;
+  }
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** Display math and tables not under the caret, replaced by their rendering. */
+function foldBlocks(state: EditorState, opts: LiveOptions): DecorationSet {
+  const sel = state.selection.ranges;
+  const touched = (from: number, to: number) => sel.some((r) => r.from <= to && r.to >= from);
+  const fm = frontmatterEnd(state.doc);
+  const ranges = [];
+  if (fm >= 0) ranges.push(Decoration.replace({ widget: new FrontmatterWidget(state.doc.lineAt(fm).number - 2, opts.editFrontmatter) }).range(0, fm));
+  for (const b of blocksOf(state.doc)) {
+    if (b.from <= fm || touched(b.from, b.to)) continue;
+    const html = b.kind === "embed" ? opts.noteHtml?.(b.text) : undefined;
+    ranges.push(Decoration.replace({ widget: new BlockWidget(b, opts, html), block: true }).range(b.from, b.to));
+  }
+  return Decoration.set(ranges, true);
+}
+
+/** `$x$` inline, shown typeset until the caret reaches it. */
+class InlineMathWidget extends WidgetType {
+  constructor(readonly tex: string) {
+    super();
+  }
+  override eq(other: InlineMathWidget): boolean {
+    return other.tex === this.tex;
+  }
+  toDOM(): HTMLElement {
+    const el = document.createElement("span");
+    el.className = "cm-lp-imath";
+    try {
+      el.innerHTML = katex.renderToString(this.tex, { throwOnError: false });
+    } catch {
+      el.textContent = this.tex;
+    }
+    return el;
+  }
+}
+
 type Range = { from: number; to: number; deco: Decoration };
 
 /** End of the closing `---` line of a frontmatter block, or -1. */
@@ -169,13 +329,24 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
   // lines cannot come from a view plugin.)
   const fmEnd = frontmatterEnd(doc);
 
-  // Table rows in the mono face: the pipes line up while editing.
+  // Table rows in the mono face while edited; `$x$` typeset when not touched.
   for (const { from, to } of view.visibleRanges) {
     let n = doc.lineAt(from).number;
     const last = doc.lineAt(to).number;
     for (; n <= last; n++) {
       const line = doc.line(n);
-      if (/^\s*\|.*\|\s*$/.test(line.text) && line.from >= (fmEnd < 0 ? 0 : fmEnd)) out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-table" }) });
+      if (line.from < (fmEnd < 0 ? 0 : fmEnd)) continue;
+      if (/^\s*\|.*\|\s*$/.test(line.text)) out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-table" }) });
+      if (line.text.includes("$") && !line.text.trim().startsWith("$$")) {
+        const re = /(?<![\\$])\$([^$\n]+?)\$(?!\$)/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(line.text))) {
+          const s = line.from + m.index;
+          const e = s + m[0].length;
+          if (touched(s, e)) continue;
+          out.push({ from: s, to: e, deco: Decoration.replace({ widget: new InlineMathWidget(m[1] ?? "") }) });
+        }
+      }
     }
   }
   for (const { from, to } of view.visibleRanges) {
@@ -313,14 +484,9 @@ export function livePreview(opts: LiveOptions) {
   });
   // The frontmatter folded to one quiet line, from state (a view plugin
   // may not replace line breaks), and atomic so the caret skips it.
-  const fold = (doc: Text): DecorationSet => {
-    const end = frontmatterEnd(doc);
-    if (end < 0) return Decoration.none;
-    return Decoration.set(Decoration.replace({ widget: new FrontmatterWidget(doc.lineAt(end).number - 2, opts.editFrontmatter) }).range(0, end));
-  };
   const frontmatter = StateField.define<DecorationSet>({
-    create: (state) => fold(state.doc),
-    update: (value, tr) => (tr.docChanged ? fold(tr.state.doc) : value),
+    create: (state) => foldBlocks(state, opts),
+    update: (value, tr) => (tr.docChanged || tr.selection !== undefined || tr.effects.some((e) => e.is(redraw)) ? foldBlocks(tr.state, opts) : value),
     provide: (f) => [EditorView.decorations.from(f), EditorView.atomicRanges.of((view) => view.state.field(f))],
   });
   return [plugin, clicks, frontmatter];

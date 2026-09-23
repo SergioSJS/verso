@@ -11,7 +11,7 @@ import { Prec, type EditorState, type Text } from "@codemirror/state";
 import { keymap, type EditorView } from "@codemirror/view";
 
 const ROW = /^\s*\|.*\|\s*$/;
-const SEPARATOR = /^\s*\|(\s*:?-+:?\s*\|)+\s*$/;
+export const SEPARATOR = /^\s*\|(\s*:?-+:?\s*\|)+\s*$/;
 
 function isRow(text: string): boolean {
   return ROW.test(text);
@@ -28,7 +28,7 @@ function block(doc: Text, n: number): { from: number; to: number } | null {
 }
 
 /** Cells of a row, without the outer pipes; `\|` inside a cell stays. */
-function cells(text: string): string[] {
+export function cells(text: string): string[] {
   const inner = text.trim().replace(/^\|/, "").replace(/\|$/, "");
   const out: string[] = [];
   let cur = "";

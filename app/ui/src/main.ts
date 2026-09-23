@@ -57,7 +57,7 @@ type Strings = Record<
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
-  | "openInWindow" | "returnToMain" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
+  | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels",
   string
 > & {
@@ -119,6 +119,7 @@ const pt: Strings = {
   pdfHits: (n, current) => `${current} de ${n}`,
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
+  editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
@@ -174,6 +175,7 @@ const en: Strings = {
   pdfHits: (n, current) => `${current} of ${n}`,
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
+  editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
@@ -880,6 +882,8 @@ class NoteLeaf extends Leaf {
   revision = "";
   eol = "\n";
   resolved = new Map<string, string | null>();
+  /** PDF readers embedded in the preview, closed when it is redrawn. */
+  embeds: PdfView[] = [];
 
   constructor(pane: Pane) {
     super(pane);
@@ -919,12 +923,19 @@ class NoteLeaf extends Leaf {
       imageUrl: (target) => imageUrl(target, () => this.editor.dispatch({ effects: redraw.of(null) })),
       navigate: (target) => this.follow(target),
       editFrontmatter: () => this.setMode("source"),
+      noteHtml: (target) => this.embedHtml(target),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
     this.preview.addEventListener("click", (ev) => {
       const a = (ev.target as HTMLElement).closest("a");
       if (!a) return;
       ev.preventDefault();
+      if (a.classList.contains("tag")) {
+        ui.search.value = `tag:${a.dataset["tag"] ?? ""}`;
+        void searchNotes(ui.search.value);
+        if (document.body.classList.contains("no-side") || narrow.matches) toggleSide();
+        return;
+      }
       if (a.classList.contains("wikilink")) this.follow(a.dataset["target"] ?? "");
       else if (a.getAttribute("href")?.startsWith("#")) {
         // A footnote, in either direction: to the note at the bottom, back to the mark.
@@ -1164,6 +1175,21 @@ class NoteLeaf extends Leaf {
       toggle,
     );
   }
+  /** An embedded note's HTML for the editor, cached; asked once, then a redraw. */
+  private embedCache = new Map<string, string | null>();
+  private embedHtml(target: string): string | null | undefined {
+    if (this.embedCache.has(target)) return this.embedCache.get(target);
+    const to = this.resolve(target);
+    if (!to || !to.endsWith(".md") || to === this.path) {
+      this.embedCache.set(target, null);
+      return null;
+    }
+    void commands.readNote(to).then((r) => {
+      this.embedCache.set(target, r.status === "ok" ? r.data.html : null);
+      this.editor.dispatch({ effects: redraw.of(null) });
+    });
+    return undefined;
+  }
   /** The note's `url`, if it has one that a page can open. */
   private noteUrl(): string {
     const p = this.note?.properties.find((x) => x.key.toLowerCase() === "url");
@@ -1301,6 +1327,9 @@ class NoteLeaf extends Leaf {
   refresh(note: NoteText): void {
     this.note = note;
     this.revision = note.revision;
+    for (const e of this.embeds) e.destroy();
+    this.embeds = [];
+    this.embedCache.clear();
     this.preview.innerHTML = note.html;
     this.gatherFootnotes();
     typeset(this.preview);
@@ -1388,6 +1417,12 @@ class NoteLeaf extends Leaf {
           e.preventDefault();
           openNote(to, false);
         });
+        const edit = button("ghost iconic embed-edit", t.editEmbed, "edit");
+        edit.addEventListener("click", () => {
+          const leaf = openIn(layout().split(this.pane, "row"), to);
+          if (leaf instanceof NoteLeaf) void leaf.loading.then(() => leaf.setMode("live"));
+        });
+        head.after(edit);
         const body = h("div", "embed-note-body");
         body.innerHTML = r.data.html;
         if (heading) sliceHeading(body, heading);
@@ -1488,6 +1523,21 @@ class NoteLeaf extends Leaf {
         const p = span.parentElement;
         span.replaceWith(img);
         if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
+      } else if (kindOf(rel) === "pdf") {
+        // The PDF itself, in a box of its own, at the page the target names.
+        const box = h("div", "embed-pdf");
+        const view = new PdfView({
+          strings: pdfStrings(),
+          onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${rel.split("/").pop() ?? rel}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
+          onQuote: (fragment, page, text) => void quoteIntoNotes(rel, fragment, page, text),
+          onStatus: (m) => (ui.status.textContent = m),
+          onPage: () => {},
+        });
+        box.append(view.el);
+        span.replaceWith(box);
+        this.embeds.push(view);
+        const page = Number(/page=(\d+)/.exec(span.dataset["target"] ?? "")?.[1] ?? "1");
+        void view.load(convertFileSrc(rel, "verso"), page);
       } else {
         span.classList.add("file");
         span.title = rel;
@@ -1656,6 +1706,7 @@ class FolderLeaf extends Leaf {
   readonly meta = h("p", "folder-meta");
   readonly cols = h("div", "folder-cols");
   readonly items = h("ul", "folder-items grid");
+  readonly note = h("article", "folder-note");
   grid = true;
   rows: FolderRow[] = [];
   constructor(pane: Pane) {
@@ -1670,7 +1721,7 @@ class FolderLeaf extends Leaf {
     const top = h("header", "leaf-head");
     top.append(this.crumbs);
     const sheet = h("div", "sheet");
-    sheet.append(this.head, this.meta, this.cols, this.items);
+    sheet.append(this.head, this.meta, this.note, this.cols, this.items);
     this.el.append(top, sheet);
     this.cols.hidden = true;
     const col = (key: SortKey, label: string, cls: string) => {
@@ -1720,7 +1771,9 @@ class FolderLeaf extends Leaf {
       return { size, modified };
     };
     const folders = allFolders.filter((f) => dirOf(f) === path && f !== "");
-    const direct = [...allNotes, ...allFiles].filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/"));
+    const folderNote = folderNoteOf(path);
+    void this.paintNote(folderNote, path);
+    const direct = [...allNotes, ...allFiles].filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && p !== folderNote);
     this.rows = [
       ...folders.map((f): FolderRow => ({ path: f, kind: "folder", label: f.split("/").pop() ?? f, ...under(f) })),
       ...direct.map((p): FolderRow => {
@@ -1733,6 +1786,35 @@ class FolderLeaf extends Leaf {
     this.render();
     markCurrent();
     persistSoon();
+  }
+  /** The folder's own note — `Folder/Folder.md` or `Folder.md` beside it —
+   *  rendered at the top, with a way to edit it; or the offer to make one. */
+  private async paintNote(notePath: string | null, folder: string): Promise<void> {
+    if (!notePath) {
+      this.note.replaceChildren();
+      if (folder !== "") {
+        const make = button("ghost", t.createFolderNote, "plus");
+        make.addEventListener("click", () => void (async () => {
+          const label = folder.split("/").pop() ?? folder;
+          const r = await commands.createNote(`${folder}/${label}`, `# ${label}\n\n`);
+          if (r.status !== "ok") return fail(r.error);
+          await afterFileChange();
+          openNote(r.data.path, false);
+        })());
+        this.note.append(make);
+      }
+      return;
+    }
+    const r = await commands.readNote(notePath);
+    if (r.status !== "ok" || this.path !== folder) return;
+    const body = h("div", "folder-note-body");
+    body.innerHTML = r.data.html;
+    typeset(body);
+    const edit = button("ghost iconic embed-edit", t.edit, "edit");
+    edit.addEventListener("click", () => openNote(notePath, false));
+    const head = h("div", "folder-note-head");
+    head.append(h("span", "folder-note-label", t.folderNote), edit);
+    this.note.replaceChildren(head, body);
   }
   render(): void {
     const { key, desc } = folderSort;
@@ -1809,7 +1891,7 @@ class PdfLeaf extends Leaf {
   constructor(pane: Pane) {
     super(pane);
     this.view = new PdfView({
-      strings: { page: t.pdfPage, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst },
+      strings: pdfStrings(),
       onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${this.path.split("/").pop() ?? this.path}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
       onQuote: (fragment, page, text) => void quoteIntoNotes(this.path, fragment, page, text).then(() => this.loadPassages()),
       onStatus: (m) => (ui.status.textContent = m),
@@ -2831,6 +2913,14 @@ function typeset(root: HTMLElement): void {
     });
   }
 }
+/** A folder's own note: `Folder/Folder.md`, or `Folder.md` beside the folder. */
+function folderNoteOf(folder: string): string | null {
+  if (folder === "") return null;
+  const label = (folder.split("/").pop() ?? folder).toLowerCase();
+  const inside = `${folder}/${label}.md`.toLowerCase();
+  const beside = `${folder}.md`.toLowerCase();
+  return allNotes.find((p) => p.toLowerCase() === inside) ?? allNotes.find((p) => p.toLowerCase() === beside) ?? null;
+}
 /** The note a link target names, by the resolution rule of the spec
  *  (§4.6, Q12) applied to the note list: a path from the root when the
  *  target has a `/`, else the bare name — under the source note's folder
@@ -3216,6 +3306,9 @@ function movePrompt(path: string): void {
 /** A passage of a PDF quoted into its companion note — `<name> — Notes.md`
  *  beside the file, created on first use — as a callout that links back
  *  to the page. Written over the revision that was read. */
+function pdfStrings() {
+  return { page: t.pdfPage, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst };
+}
 function companionOf(pdf: string): string {
   const base = pdf.split("/").pop() ?? pdf;
   const dir = dirOf(pdf);
@@ -3536,6 +3629,7 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
     const chev = h("span", "chev");
     const label = h("span", "folder-label", folder);
     s.append(chev, label);
+    if (folderNoteOf(full)) s.classList.add("has-note");
     label.addEventListener("click", (e) => {
       e.preventDefault();
       openFolder(full);

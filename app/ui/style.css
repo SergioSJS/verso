@@ -347,6 +347,17 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .editor .cm-lp-link { color: var(--seal); }
 .editor .cm-lp-hr { color: var(--brass); letter-spacing: .3em; }
 .editor .cm-line.cm-lp-table { font-family: var(--mono); font-size: .86em; line-height: 1.6; white-space: pre; }
+/* Blocks shown rendered in Live Preview until the caret enters them */
+.editor .cm-lp-block { cursor: text; margin: .3rem 0; }
+.editor .cm-lp-math { text-align: center; padding: .4rem 0; }
+.editor .cm-lp-table table { border-collapse: collapse; font-family: var(--book); font-size: .95em; }
+.editor .cm-lp-table th, .editor .cm-lp-table td { padding: .3rem .7rem; border-bottom: 1px solid var(--hair); text-align: left; }
+.editor .cm-lp-table th { font-family: var(--ui); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.editor .cm-lp-embed { border-left: 2px solid var(--brass); padding: .2rem 0 .2rem .9rem; background: var(--paper-2); border-radius: 0 6px 6px 0; }
+.editor .cm-lp-embed-title { font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--seal); margin-bottom: .2rem; }
+.editor .cm-lp-embed-body { font-family: var(--book); }
+.editor .cm-lp-embed-body > :first-child { margin-top: 0; }
+.editor .cm-lp-imath .katex { font-size: 1em; }
 .editor .cm-lp-wikilink { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); cursor: pointer; }
 .editor .cm-lp-embed { border-bottom-style: dashed; }
 .editor .cm-lp-image { max-width: 100%; max-height: 26rem; border-radius: 3px; display: block; margin: .4em 0; }
@@ -616,6 +627,20 @@ body.popout { grid-template-columns: 0 0 0 1fr 0 0 !important; }
 body.popout .ribbon, body.popout .side, body.popout #side-divider, body.popout .right, body.popout #right-divider, body.popout .spaces, body.popout .tabs, body.popout .status-bar { display: none; }
 .popout-bar { display: flex; align-items: center; gap: 1rem; padding: .35rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); background: var(--paper-2); font-size: .82rem; }
 .popout-name { flex: 1; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Tags in reading */
+.preview a.tag { color: var(--seal); background: var(--seal-wash); padding: .05em .45em; border-radius: 999px; font-size: .88em; text-decoration: none; }
+.preview a.tag:hover { background: var(--seal); color: var(--seal-ink); }
+/* Embedded PDF and the edit-beside button of an embedded note */
+.embed-pdf { height: 70vh; min-height: 24rem; margin: 1rem 0; border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; display: flex; }
+.embed-pdf .pdf { flex: 1; }
+.embed-note { position: relative; }
+.embed-edit { position: absolute; top: .35rem; right: .4rem; opacity: 0; }
+.embed-note:hover .embed-edit, .folder-note:hover .embed-edit { opacity: 1; }
+/* The folder's own note at the top of the folder view */
+.folder-note { position: relative; margin: .2rem 0 1.2rem; }
+.folder-note-head { display: flex; align-items: center; gap: .5rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.folder-note-body { font-family: var(--book); }
+.tree summary.has-note .folder-label::after { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--brass); margin-left: .4rem; vertical-align: middle; }
 /* PDF reader */
 .pdf { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .pdf-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: .35rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); font-size: .82rem; color: var(--ink-2); }
