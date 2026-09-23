@@ -236,9 +236,12 @@ export class PdfView {
       this.eventBus.dispatch("findbarclose", { source: this });
       return;
     }
+    // "again", as pdf.js's own find bar sends on Enter: the same query moves
+    // to the next (or previous) hit, a new one starts over. An empty type
+    // is "the query changed" to pdf.js, which then goes back to the first.
     this.eventBus.dispatch("find", {
       source: this,
-      type: previous ? "again" : "",
+      type: "again",
       query,
       caseSensitive: false,
       entireWord: false,
