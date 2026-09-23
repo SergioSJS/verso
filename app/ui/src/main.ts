@@ -42,7 +42,7 @@ import { cleanHtmlText, setHtml } from "./sanitize";
 type Strings = Record<
   | "open" | "reindex" | "search" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
-  | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway"
+  | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
@@ -87,7 +87,7 @@ const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
-  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim",
+  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
@@ -145,7 +145,7 @@ const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
-  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway",
+  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
@@ -930,6 +930,18 @@ class ConflictBanner {
   }
 }
 
+/** A text's one line separator, or null when it mixes them (CRLF and
+ *  LF, or a lone CR). The editor splits on any of them and the save joins
+ *  with one: a mixed file edited here would be converted whole, unseen. */
+function lineSeparator(text: string): string | null {
+  const crlf = text.includes("\r\n");
+  if (/\r(?!\n)/.test(text) || (crlf && /(^|[^\r])\n/.test(text))) return null;
+  return crlf ? "\r\n" : "\n";
+}
+/** Such a file is shown and never edited: no keystroke, no panel, no
+ *  task or paste changes it, so nothing converts it (invariant 8). */
+const readOnlyText: Extension = [EditorState.readOnly.of(true), EditorState.changeFilter.of(() => false)];
+
 /** A task's line up to its `[` — quote bars, indentation, the list
  *  marker (absent when the item's text starts on a later line) — and the
  *  mark inside the brackets. */
@@ -988,6 +1000,8 @@ class NoteLeaf extends Leaf {
   mode: Mode = settings.defaultMode;
   revision = "";
   eol = "\n";
+  /** The file mixes line endings: shown, never edited (lineSeparator). */
+  private readOnly = false;
   resolved = new Map<string, string | null>();
   /** PDF readers embedded in the preview, closed when it is redrawn. */
   embeds: PdfView[] = [];
@@ -1102,6 +1116,7 @@ class NoteLeaf extends Leaf {
         keymap.of([indentWithTab]),
         EditorView.lineWrapping,
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
+        this.readOnly ? readOnlyText : [],
         // Above basicSetup's defaults, which bind ⌘I (select the parent
         // node) and ⌘⇧K (delete the line) and come first in this list.
         Prec.high(keymap.of(noteKeys)),
@@ -1210,7 +1225,7 @@ class NoteLeaf extends Leaf {
   /** Images pasted or dropped become files beside the note and an embed
    *  at the caret; the core writes them, confined (ADR 0026 rule 5). */
   takeFiles(files: FileList | null, e: Event): boolean {
-    if (!files || files.length === 0 || !this.note) return false;
+    if (!files || files.length === 0 || !this.note || this.readOnly) return false;
     const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (images.length === 0) return false;
     e.preventDefault();
@@ -1387,8 +1402,9 @@ class NoteLeaf extends Leaf {
   override headings(): NoteText["headings"] {
     return this.note?.headings ?? [];
   }
+  /** The editor's text with the file's own line separator. */
   editorText(): string {
-    return this.editor.state.doc.toString().replaceAll("\n", this.eol);
+    return this.editor.state.doc.sliceString(0, undefined, this.eol);
   }
   follow(target: string): void {
     const to = this.resolve(target);
@@ -1428,6 +1444,7 @@ class NoteLeaf extends Leaf {
    *  key change in the editor's document, nothing else; the save follows
    *  as after any keystroke. */
   private setProperty(key: string, value: import("./bindings").PropertyValue | null): void {
+    if (this.readOnly) return;
     const change = frontmatterChange(this.editor.state.doc.toString(), key, value);
     if (!change) return;
     this.editor.dispatch({ changes: change });
@@ -1460,6 +1477,7 @@ class NoteLeaf extends Leaf {
     const flags: string[] = [];
     if (note.stale) flags.push(t.stale);
     if (note.unverified) flags.push(t.unverified);
+    if (this.readOnly) flags.push(t.mixedEol);
     this.flags.textContent = flags.join(" ");
     if (this.pane.active === this) panel.show(this);
     this.updateWords();
@@ -1483,7 +1501,9 @@ class NoteLeaf extends Leaf {
     this.title.textContent = name(this.path);
     this.crumbs.replaceChildren(...crumbsFor(this.path));
     this.props.render(note.data.properties);
-    this.eol = note.data.text.includes("\r\n") ? "\r\n" : "\n";
+    const sep = lineSeparator(note.data.text);
+    this.eol = sep ?? "\n";
+    this.readOnly = sep === null;
     this.editor.setState(this.editorState(note.data.text));
     this.conflict.hide();
     this.refresh(note.data);
@@ -1592,6 +1612,7 @@ class NoteLeaf extends Leaf {
   /** The task checkboxes the core numbered (`data-task-line`, the line of
    *  the `[ ]` in the file); any other checkbox stays inert. */
   private wireTasks(): void {
+    if (this.readOnly) return;
     for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
       const line = Number(box.dataset["taskLine"]);
       if (!Number.isInteger(line) || line < 1) continue;
@@ -1791,6 +1812,9 @@ class TextLeaf extends Leaf {
   readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
   readonly editor: EditorView;
   revision = "";
+  eol = "\n";
+  /** The file mixes line endings: shown, never edited (lineSeparator). */
+  private readOnly = false;
   private saveTimer: number | undefined;
   /** Writes run one at a time, each over the revision the last one left. */
   private saving: Promise<void> = Promise.resolve();
@@ -1812,6 +1836,7 @@ class TextLeaf extends Leaf {
         ...language,
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
+        this.readOnly ? readOnlyText : [],
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
         editorChrome(["Mod-s"]),
         EditorView.updateListener.of((u) => {
@@ -1843,10 +1868,14 @@ class TextLeaf extends Leaf {
     if (this.path !== path) return;
     window.clearTimeout(this.saveTimer);
     this.revision = r.data.revision;
+    const sep = lineSeparator(r.data.text);
+    this.eol = sep ?? "\n";
+    this.readOnly = sep === null;
     this.editor.setState(this.state(r.data.text, support ? [support] : []));
     this.conflict.hide();
     this.setDirty(false);
-    this.flags.hidden = true;
+    this.flags.textContent = this.readOnly ? t.mixedEol : "";
+    this.flags.hidden = !this.readOnly;
     markCurrent();
     persistSoon();
   }
@@ -1859,9 +1888,9 @@ class TextLeaf extends Leaf {
     markCurrent();
     persistSoon();
   }
-  /** The editor's text as the file holds it. */
+  /** The editor's text with the file's own line separator. */
   private text(): string {
-    return this.editor.state.doc.toString();
+    return this.editor.state.doc.sliceString(0, undefined, this.eol);
   }
   /** Write over the revision that was read, after any write in flight;
    *  nothing while the conflict banner waits for a decision. */
