@@ -19,12 +19,15 @@
   --paper-3: light-dark(oklch(91.5% 0.02 76), oklch(27% 0.015 62));
   --ink: light-dark(oklch(24% 0.025 60), oklch(90% 0.02 78));
   --ink-2: light-dark(oklch(45% 0.03 60), oklch(72% 0.02 76));
-  --ink-3: light-dark(oklch(63% 0.025 65), oklch(55% 0.02 70));
+  /* Secondary text: 4.5:1 or more on every paper, wash and palette it sits on. */
+  --ink-3: light-dark(oklch(49% 0.025 65), oklch(67% 0.02 70));
   --hair: light-dark(oklch(86% 0.02 75), oklch(31% 0.015 62));
   --seal: light-dark(oklch(46% 0.15 28), oklch(72% 0.13 32));
   --seal-ink: light-dark(oklch(98% 0.01 80), oklch(19% 0.012 62));
   --seal-wash: light-dark(oklch(93% 0.035 30), oklch(28% 0.045 30));
   --brass: light-dark(oklch(62% 0.11 78), oklch(76% 0.11 82));
+  /* Brass as text (flags, the recording key cap): darker in light, 4.5:1. */
+  --brass-ink: light-dark(oklch(49% 0.11 78), oklch(76% 0.11 82));
   --brass-wash: light-dark(oklch(94% 0.05 85), oklch(30% 0.05 82));
   --selection: light-dark(oklch(88% 0.07 85), oklch(38% 0.07 82));
 
@@ -89,9 +92,9 @@ body.no-side .side, body.no-side #side-divider, body.no-right .right, body.no-ri
   .col-modified { display: none; }
 }
 /* Palettes: the same tokens, another hue family. */
-:root[data-palette="sepia"] { --paper: light-dark(oklch(96% 0.02 70), oklch(20% 0.015 55)); --paper-2: light-dark(oklch(93% 0.025 68), oklch(23% 0.016 55)); --paper-3: light-dark(oklch(89% 0.03 66), oklch(28% 0.018 55)); --seal: light-dark(oklch(42% 0.09 50), oklch(74% 0.09 60)); --seal-wash: light-dark(oklch(91% 0.035 60), oklch(29% 0.04 55)); --brass: light-dark(oklch(58% 0.1 70), oklch(74% 0.1 75)); --brass-wash: light-dark(oklch(92% 0.05 75), oklch(30% 0.05 70)); }
-:root[data-palette="slate"] { --paper: light-dark(oklch(97.5% 0.006 250), oklch(19% 0.012 250)); --paper-2: light-dark(oklch(95% 0.008 250), oklch(22% 0.013 250)); --paper-3: light-dark(oklch(91.5% 0.012 250), oklch(27% 0.015 250)); --ink: light-dark(oklch(24% 0.02 260), oklch(90% 0.01 250)); --ink-2: light-dark(oklch(45% 0.02 260), oklch(72% 0.01 250)); --ink-3: light-dark(oklch(63% 0.02 260), oklch(55% 0.01 250)); --seal: light-dark(oklch(46% 0.14 270), oklch(74% 0.12 275)); --seal-wash: light-dark(oklch(93% 0.03 270), oklch(28% 0.045 270)); --brass: light-dark(oklch(60% 0.1 60), oklch(76% 0.1 70)); --brass-wash: light-dark(oklch(94% 0.04 70), oklch(30% 0.04 65)); }
-:root[data-palette="moss"] { --paper: light-dark(oklch(97% 0.012 110), oklch(19% 0.012 140)); --paper-2: light-dark(oklch(94.5% 0.016 110), oklch(22% 0.013 140)); --paper-3: light-dark(oklch(91% 0.02 110), oklch(27% 0.015 140)); --seal: light-dark(oklch(42% 0.1 150), oklch(74% 0.11 150)); --seal-wash: light-dark(oklch(92% 0.04 150), oklch(28% 0.045 150)); --brass: light-dark(oklch(60% 0.11 80), oklch(76% 0.11 85)); --brass-wash: light-dark(oklch(94% 0.05 85), oklch(30% 0.05 82)); }
+:root[data-palette="sepia"] { --paper: light-dark(oklch(96% 0.02 70), oklch(20% 0.015 55)); --paper-2: light-dark(oklch(93% 0.025 68), oklch(23% 0.016 55)); --paper-3: light-dark(oklch(89% 0.03 66), oklch(28% 0.018 55)); --seal: light-dark(oklch(42% 0.09 50), oklch(74% 0.09 60)); --seal-wash: light-dark(oklch(91% 0.035 60), oklch(29% 0.04 55)); --brass: light-dark(oklch(58% 0.1 70), oklch(74% 0.1 75)); --brass-ink: light-dark(oklch(49% 0.1 70), oklch(74% 0.1 75)); --brass-wash: light-dark(oklch(92% 0.05 75), oklch(30% 0.05 70)); }
+:root[data-palette="slate"] { --paper: light-dark(oklch(97.5% 0.006 250), oklch(19% 0.012 250)); --paper-2: light-dark(oklch(95% 0.008 250), oklch(22% 0.013 250)); --paper-3: light-dark(oklch(91.5% 0.012 250), oklch(27% 0.015 250)); --ink: light-dark(oklch(24% 0.02 260), oklch(90% 0.01 250)); --ink-2: light-dark(oklch(45% 0.02 260), oklch(72% 0.01 250)); --ink-3: light-dark(oklch(50.5% 0.02 260), oklch(66.5% 0.01 250)); --seal: light-dark(oklch(46% 0.14 270), oklch(74% 0.12 275)); --seal-wash: light-dark(oklch(93% 0.03 270), oklch(28% 0.045 270)); --brass: light-dark(oklch(60% 0.1 60), oklch(76% 0.1 70)); --brass-ink: light-dark(oklch(51.5% 0.1 60), oklch(76% 0.1 70)); --brass-wash: light-dark(oklch(94% 0.04 70), oklch(30% 0.04 65)); }
+:root[data-palette="moss"] { --paper: light-dark(oklch(97% 0.012 110), oklch(19% 0.012 140)); --paper-2: light-dark(oklch(94.5% 0.016 110), oklch(22% 0.013 140)); --paper-3: light-dark(oklch(91% 0.02 110), oklch(27% 0.015 140)); --seal: light-dark(oklch(42% 0.1 150), oklch(74% 0.11 150)); --seal-wash: light-dark(oklch(92% 0.04 150), oklch(28% 0.045 150)); --brass: light-dark(oklch(60% 0.11 80), oklch(76% 0.11 85)); --brass-ink: light-dark(oklch(49% 0.11 80), oklch(76% 0.11 85)); --brass-wash: light-dark(oklch(94% 0.05 85), oklch(30% 0.05 82)); }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
@@ -241,7 +244,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .dirty { color: var(--seal); font-size: 1.4rem; line-height: 1; }
 .save { font-size: .78rem; font-weight: 600; letter-spacing: .04em; color: var(--seal-ink); background: var(--seal); padding: .28rem .7rem; border-radius: 5px; }
 .save:hover { filter: brightness(1.08); }
-.flags { margin: .5rem 0 0; font-size: .82rem; color: var(--brass); }
+.flags { margin: .5rem 0 0; font-size: .82rem; color: var(--brass-ink); }
 .flags:empty { display: none; }
 
 /* Properties: a quiet table, key column fixed, edited in place. */
@@ -587,7 +590,7 @@ body.dragging * { cursor: grabbing !important; }
 .preview .footnote-definition-label { flex: none; min-width: 1.4em; font-size: .82em; color: var(--seal); font-variant-numeric: tabular-nums; }
 .preview .footnote-definition-label::after { content: "."; }
 .preview .footnote-definition p { display: inline; margin: 0; }
-.preview .footnote-back { color: var(--brass); text-decoration: none; margin-left: .35rem; font-size: .9em; }
+.preview .footnote-back { color: var(--brass-ink); text-decoration: none; margin-left: .35rem; font-size: .9em; }
 .preview .footnote-back:hover { color: var(--seal); }
 .preview .flash { animation: flash 1.2s var(--ease-out); }
 @keyframes flash { from { background: var(--brass-wash); } to { background: transparent; } }
@@ -821,7 +824,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .hotkey { display: inline-flex; align-items: center; gap: .4rem; }
 .hotkey kbd { min-width: 3.2rem; text-align: center; }
 .hotkey kbd.custom { color: var(--seal); border-color: var(--seal); }
-.hotkey kbd.recording { color: var(--brass); border-color: var(--brass); }
+.hotkey kbd.recording { color: var(--brass-ink); border-color: var(--brass); }
 :root[data-measure="wide"] .editor, :root[data-measure="wide"] .preview, :root[data-measure="wide"] .props, :root[data-measure="wide"] .toolbar { max-width: none; }
 
 /* Sidebar toggles in the status bar */
