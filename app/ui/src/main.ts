@@ -35,11 +35,13 @@ import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./tabl
 import { PdfView } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
+import { ask } from "./dialog";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
   | "open" | "reindex" | "search" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
+  | "cancel" | "discardYes"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
@@ -84,6 +86,7 @@ const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
+  cancel: "Cancelar", discardYes: "Descartar",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
@@ -141,6 +144,7 @@ const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
+  cancel: "Cancel", discardYes: "Discard",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
@@ -581,7 +585,7 @@ let ribbon: Ribbon | null = null;
 /** An overlay (switcher, palette, plan, menu, dialog) is on screen: native
  *  web views would paint over it, so they hide meanwhile. */
 function overlayOpen(): boolean {
-  return document.querySelector(".quick:not([hidden]), .plan:not([hidden]), .menu:not([hidden]), .slash:not([hidden])") !== null;
+  return document.querySelector(".quick:not([hidden]), .plan:not([hidden]), .menu:not([hidden]), .slash:not([hidden]), .confirm") !== null;
 }
 
 /* ---------- Pointer drag: tabs and tree rows, dropped where the pointer says ---------- */
@@ -768,6 +772,11 @@ document.addEventListener("drop", (e) => {
   else ui.status.textContent = t.pasteHint;
 });
 
+/** Unsaved text goes only on an explicit yes. */
+function askDiscard(): Promise<boolean> {
+  return ask(t.discard, { yes: t.discardYes, no: t.cancel });
+}
+
 /* ---------- Leaves ---------- */
 abstract class Leaf {
   readonly el = h("section", "leaf");
@@ -833,7 +842,7 @@ abstract class Leaf {
       ui.status.textContent = t.pinnedTab;
       return;
     }
-    if (!(await this.flush()) && !window.confirm(t.discard)) return;
+    if (!(await this.flush()) && !(await askDiscard())) return;
     this.destroy();
     this.pane.remove(this);
   }
@@ -1393,7 +1402,7 @@ class NoteLeaf extends Leaf {
     return this.loading;
   }
   private async doLoad(path: string, force: boolean): Promise<void> {
-    if (this.dirty && !force && path !== this.path && !window.confirm(t.discard)) return;
+    if (this.dirty && !force && path !== this.path && !(await askDiscard())) return;
     const note = await commands.readNote(path);
     if (note.status !== "ok") return fail(note.error);
     this.path = note.data.path;
@@ -1693,7 +1702,7 @@ class TextLeaf extends Leaf {
     });
   }
   async load(path: string, force = false): Promise<void> {
-    if (this.dirty && !force && path !== this.path && !window.confirm(t.discard)) return;
+    if (this.dirty && !force && path !== this.path && !(await askDiscard())) return;
     this.path = path;
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
@@ -1715,9 +1724,9 @@ class TextLeaf extends Leaf {
     const r = await commands.writeText(this.path, this.editor.state.doc.toString(), this.revision);
     if (r.status !== "ok") {
       if (r.error.kind === "changed") {
+        // Nothing was written, and the editor keeps its text.
         this.flags.textContent = t.conflict;
         this.flags.hidden = false;
-        if (window.confirm(`${t.conflict}\n\n${t.reload}?`)) void this.load(this.path, true);
         return;
       }
       return fail(r.error);
@@ -2590,7 +2599,7 @@ class Pane {
   async closeExcept(keep: (l: Leaf) => boolean): Promise<void> {
     for (const l of this.leaves.slice()) {
       if (keep(l)) continue;
-      if (!(await l.flush()) && !window.confirm(t.discard)) continue;
+      if (!(await l.flush()) && !(await askDiscard())) continue;
       l.destroy();
       this.remove(l, true);
     }
@@ -2642,7 +2651,7 @@ class Pane {
   }
   async closeAll(): Promise<void> {
     for (const l of this.leaves.slice()) {
-      if (!(await l.flush()) && !window.confirm(t.discard)) return;
+      if (!(await l.flush()) && !(await askDiscard())) return;
       l.destroy();
       this.remove(l, true);
     }
@@ -2893,7 +2902,7 @@ class Space {
     close.append(icon("close", t.closeSpace));
     this.tab.append(n, close);
     this.tab.addEventListener("click", (e) => {
-      if ((e.target as HTMLElement).closest(".tab-close")) closeSpace(this);
+      if ((e.target as HTMLElement).closest(".tab-close")) void closeSpace(this);
       else showSpace(this);
     });
     this.tab.addEventListener("dblclick", (e) => {
@@ -2977,10 +2986,14 @@ function showSpace(s: Space): void {
   showOutline(s.layout.activeLeaf);
   markCurrent();
 }
-function closeSpace(s: Space): void {
-  if (s.layout.panes().some((p) => p.leaves.some((l) => l.dirty)) && !window.confirm(t.discard)) return;
-  for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
+async function closeSpace(s: Space): Promise<void> {
+  // What can be saved is saved; what cannot goes only on a yes.
+  let unsaved = false;
+  for (const p of s.layout.panes()) for (const l of p.leaves) if (!(await l.flush())) unsaved = true;
+  if (unsaved && !(await askDiscard())) return;
   const i = spaces.indexOf(s);
+  if (i < 0) return;
+  for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
   spaces.splice(i, 1);
   if (spaces.length === 0) newSpace();
   else showSpace(spaces[Math.min(i, spaces.length - 1)]!);
@@ -3399,7 +3412,7 @@ async function deleteNote(path: string): Promise<void> {
 /** Anything to the bin: a note, another file, or a folder with what it holds. */
 async function deleteEntry(path: string, kind: Kind): Promise<void> {
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
-  if (!window.confirm(kind === "folder" ? t.confirmDeleteFolder(label) : t.confirmDelete(label))) return;
+  if (!(await ask(kind === "folder" ? t.confirmDeleteFolder(label) : t.confirmDelete(label), { yes: t.deleteEntry, no: t.cancel }))) return;
   const r = await commands.deleteEntry(path);
   if (r.status !== "ok") return fail(r.error);
   pathsRemoved(path);
