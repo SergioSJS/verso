@@ -456,6 +456,41 @@ primeira rodada não separava: `verso-obs/nota.md`, `verso-obs/sub/nota.md`,
 Duas dessas contradizem o que a seção 4.5 recomenda, e uma contradiz o que o
 código faz. São elas que a seção 4.6 decide.
 
+**Terceira observação, 2026-09-23, pela Opus 5.5.** Mesmo método
+([ADR 0009](../adr/0009-external-constraints.md), Obsidian 1.13.7, API pública,
+pastas descartáveis apagadas depois). O commit `d1a5272` (2026-09-22) mudou o
+ponto 3 da regra do índice depois de sondas citadas num comentário de teste
+(`crates/verso-index/tests/graph.rs`) e na mensagem do commit, e nunca escritas
+aqui; estas são as mesmas sondas, rodadas de novo para ficarem registradas. Os
+nomes foram tornados únicos no vault; a pasta `probe-sub/` vem antes de
+`verso-probe/` na ordem de bytes, como `sub/` vinha no original. Todo link está
+em `verso-probe/a/src.md`, a não ser que a linha diga outra coisa; os
+segmentos estão contados entre parênteses.
+
+| Sonda | Candidatos | Resultado | O que separa |
+|---|---|---|---|
+| `[[probe-sub/vpx]]` | `probe-sub/vpx.md`; `verso-probe/a/probe-sub/vpx.md` | `probe-sub/vpx.md` | caminho a partir da raiz vem antes do mesmo caminho relativo à origem |
+| `[[vpx]]` | `probe-sub/vpx.md` (2); `verso-probe/a/probe-sub/vpx.md` (4) | `verso-probe/a/probe-sub/vpx.md` | um candidato **sob** a pasta da origem ganha de um mais raso em outro lugar |
+| `[[vpu]]` | `verso-probe/vpu.md` (2, a pasta pai); `verso-probe/a/probe-sub/vpu.md` (4) | `verso-probe/a/probe-sub/vpu.md` | o mesmo, contra a pasta pai da pasta da origem |
+| `[[vpt]]` | `probe-sub/vpt.md` (2); `verso-probe/a/probe-sub/deep/vpt.md` (5) | `verso-probe/a/probe-sub/deep/vpt.md` | em qualquer profundidade sob a pasta |
+| `[[vpz]]` | `verso-probe/a/aa/deep/vpz.md` (5); `verso-probe/a/zz/vpz.md` (4) | `verso-probe/a/zz/vpz.md` | entre candidatos sob a pasta, menos segmentos antes da ordem de bytes |
+| `[[vpw]]` | `probe-sub/vpw.md` (2); `verso-probe/vpw.md` (2, a pasta pai) | `probe-sub/vpw.md` | pasta ancestral não ganha nada: decide a ordem de bytes |
+| `[[vpv]]` | `probe-sub/vpv.md` (2); `verso-probe/a/vpv.md` (3, a pasta da própria origem) | `verso-probe/a/vpv.md` | controle: a pasta da própria origem continua ganhando |
+| `[[vpr]]` de `verso-probe/a/src2.md` | `vpr.md` (1, a raiz do vault); `verso-probe/a/probe-sub/vpr.md` (4) | `vpr.md` | controle: caminho a partir da raiz continua vindo antes de qualquer nome |
+
+`app.metadataCache.resolvedLinks` concordou com `getFirstLinkpathDest` em todas
+as linhas.
+
+O que isso muda: o ponto 3 da seção 4.6 diz que ganha um candidato **na** pasta
+da própria nota de origem. O Obsidian prefere um candidato em qualquer lugar
+**sob** essa pasta, em qualquer profundidade, antes de contar segmentos — a
+segunda observação não separava as duas leituras, porque nenhum candidato dela
+ficava abaixo da pasta da origem. O índice faz "sob" desde `d1a5272`. Se a
+regra do Verso diz "sob" é o mantenedor quem decide: a Q12 da spec carrega a
+pergunta ("sob a pasta, sim ou não?"); enquanto não houver resposta, o texto da
+seção 4.6 é a regra e a diferença do código é um achado
+(`docs/review/phase-2.md`).
+
 ### 4.2 O que a observação resolve, e uma contradição que ela levanta
 
 Resolve, como descrição do Obsidian: extensão opcional e `.md` aceita,

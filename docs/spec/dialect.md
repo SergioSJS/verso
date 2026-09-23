@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.10
+# Verso dialect spec — v0.13
 
-- Version: v0.10 · 2026-09-22
+- Version: v0.13 · 2026-09-23
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -673,6 +673,19 @@ Raised while writing this spec. All of them need an answer before
   in full — the five differences are listed in
   `docs/reference/index-decision.md` §4.6 and are what the feature 3 code owes.
 
+  **What the code does since commit `d1a5272` (2026-09-22), recorded on
+  2026-09-23.** Points 1 to 5 are implemented, with one difference of wording
+  on point 3 that is the maintainer's to settle. The prose says "a candidate
+  **in** the source note's own folder"; the code prefers a candidate **under**
+  that folder, at any depth, before counting segments — so a note in a
+  subfolder of the source's folder wins over a shallower one elsewhere. The
+  code follows probes of Obsidian 1.13.7 that showed it doing that: run on
+  2026-09-22 without being written down, then run again and recorded on
+  2026-09-23 as the third observation of `docs/reference/index-decision.md`
+  §4.1. The question was put to the maintainer as "sob a pasta, sim ou não?"
+  and has no answer yet; until it has one, the prose above is the rule and the
+  difference is a finding, not a decision.
+
   **Fact from `verso-fs`, unchanged by this closure.** The walk classifies a
   regular file as a note when its extension is exactly `md`; `.MD`, `.Md` and
   `.markdown` are plain files until Q8 is decided.
@@ -680,6 +693,16 @@ Raised while writing this spec. All of them need an answer before
   The briefing only mentions `tags` in the frontmatter. Whether `#tag` in the
   body counts as a tag, and how it coexists with the `#` of a heading and with
   the `#` of a URL.
+
+  **Provisional fact from `verso-index` and the reading view, recorded on
+  2026-09-23, not an answer to this question.** The index's tag list counts a
+  `#` in the body as a tag when it opens the line or follows a space or a `(`,
+  and is followed by letters, digits, `_`, `-` or `/` that are not all digits;
+  a fenced code block is skipped and the tag is lower-cased. So the `#` of a
+  heading (`# Title`, with its space) and the `#` inside a URL are not tags.
+  The reading view applies the same rule and shows such a tag as a link that
+  searches it; inside code nothing changes. The maintainer decides; this line
+  only records what the code does in the meantime.
 - **Q14. Link to a file that does not exist.** `[OPEN]`
   Whether it enters the index as a pending target, whether it appears in the
   graph, whether it counts as a backlink.
@@ -700,7 +723,9 @@ Raised while writing this spec. All of them need an answer before
   resolves to the note that contains it. It is not a link to a file that does
   not exist: it never appears among the unresolved targets, and it is not a
   backlink of the note to itself, so a note that links to its own headings does
-  not show up in its own backlinks. Nothing was observed in Obsidian for this
+  not show up in its own backlinks. *(The last clause is superseded by Q12,
+  point 1, closed later the same day: the note is a source of its own
+  backlinks, and the code does that since commit `d1a5272`.)* Nothing was observed in Obsidian for this
   case; the code chose it because the alternative counts every same-note
   heading link as a missing file and puts an empty target at the head of the
   unresolved list of any folder that uses them. The maintainer decides; this
@@ -709,9 +734,37 @@ Raised while writing this spec. All of them need an answer before
   Tables, footnotes, task lists, math, highlight `==texto==`, strikethrough.
   The briefing lists none; the choice of base parser
   ([ADR 0037](../adr/0037-base-parser.md)) changes what comes for free.
+
+  **Provisional fact from the reading view, recorded on 2026-09-23, not an
+  answer to this question.** The HTML the core renders for the window
+  (`verso_dialect::to_html`) shows all six, as Obsidian shows them by default:
+  tables, footnotes — including Obsidian's inline form `^[text]`, rewritten
+  into a referenced footnote before rendering —, task lists with checkboxes,
+  math left as its source in a marked element that the window typesets,
+  highlight and strikethrough. It also shows a single newline inside a
+  paragraph as a line break, which is Obsidian's default ("strict line
+  breaks" off). None of this reaches the parser that feeds the index: it still
+  enables only wikilinks and the YAML block, so a link inside a table or a
+  footnote is found as in plain text, and no fixture covers the rendering. The
+  maintainer asked for footnotes, math and tables by name on 2026-09-23; that
+  settles what the window shows, not this question.
 - **Q16. Non-Markdown files in the folder.** `[OPEN]`
   Which ones enter the index as a link target (images, PDF, `.canvas`) and which
   ones are ignored.
+
+  **Provisional fact from `verso-core` and the window, recorded on 2026-09-23,
+  not an answer to this question.** The walk lists every regular file that is
+  not hidden or ignored; only notes enter the index as link targets and
+  backlink sources. An embed of another file (`![[mapa.png]]`, `![[livro.pdf]]`)
+  stays in the index as an unresolved target (Q14), never a backlink; the core
+  resolves it for display only — by path from the root when the target has a
+  `/`, otherwise by file name, with or without its extension,
+  case-insensitively, the fewest path segments first, then byte order. The
+  window shows images, PDFs, HTML files (without scripts) and text
+  files, and edits text files through the same atomic write as notes. A note
+  whose frontmatter has an `http(s)` `url` property is shown as that web page;
+  the index keeps the address for it. The maintainer decides; this line only
+  records what the code does in the meantime.
 - **Q17. Size limit and behavior with a malformed file.** `[OPEN]` — the
   frontmatter part is `DECIDED` below; the rest of the question stays open.
   Fuzzing guarantees that it does not hang
@@ -841,3 +894,4 @@ the parser was chosen.
 | v0.10 | 2026-09-22 | Provisional facts recorded under Q2, Q8, Q12, Q14 and Q7, from the `verso-index` code and from the observation of Obsidian 1.13.7 on the same day (`docs/reference/index-decision.md`): how a link resolves, case, embeds, unresolved targets and NFC. No question closed |
 | v0.11 | 2026-09-22 | Provisional facts recorded under Q12 and Q14, from the `verso-index` code as it stands after the Opus 5 reading: an empty target (`[[#Heading]]`) resolves to the note itself, a case collision of two paths resolves like one of bare names, and an unresolved target is shown under the smallest of its spellings in byte order. Nothing observed in Obsidian for these three; no question closed |
 | v0.12 | 2026-09-22 | **Q12 closed by the maintainer**, following Obsidian 1.13.7 as observed a second time on the same day (`docs/reference/index-decision.md` §4.1, §4.6): empty target is the note itself and a backlink of it; a path is resolved relative to the source note's folder as well as from the root; a bare name prefers the source's own folder, then the fewest segments, then byte order; aliases do not resolve; `[[nota/]]` and `[[.md]]` do not resolve. The parts of Q2, Q8 and Q14 that the rule needs are answered with it; the rest of those three stays open. Fourth question closed |
+| v0.13 | 2026-09-23 | Provisional facts recorded under Q12, Q13, Q15 and Q16, from the code of the Phase 2 branch: point 3 of Q12 as the code reads it ("under" the source's folder, a wording the maintainer has not settled), body tags, the Markdown extensions and line breaks the reading view renders, and the files that are not notes. The Q14 line on `[[#Heading]]` marked as superseded by Q12 point 1. No question closed |

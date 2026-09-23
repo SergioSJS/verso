@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.10
+# Spec do dialeto do Verso — v0.13
 
-- Versão: v0.10 · 2026-09-22
+- Versão: v0.13 · 2026-09-23
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -670,12 +670,36 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   `docs/reference/index-decision.md` §4.6 e são o que o código da feature 3
   deve.
 
+  **O que o código faz desde o commit `d1a5272` (2026-09-22), registrado em
+  2026-09-23.** Os pontos 1 a 5 estão implementados, com uma diferença de
+  redação no ponto 3 que cabe ao mantenedor resolver. O texto diz "um candidato
+  **na** própria pasta da nota de origem"; o código prefere um candidato **sob**
+  essa pasta, em qualquer profundidade, antes de contar segmentos — então uma
+  nota numa subpasta da pasta de origem ganha de uma mais rasa em outro lugar.
+  O código segue sondas do Obsidian 1.13.7 que o mostraram fazendo isso:
+  rodadas em 2026-09-22 sem serem escritas, depois rodadas de novo e
+  registradas em 2026-09-23 como a terceira observação de
+  `docs/reference/index-decision.md` §4.1. A pergunta foi feita ao mantenedor como "sob a pasta, sim ou
+  não?" e ainda não tem resposta; até ter, a regra é o texto acima e a diferença
+  é um achado, não uma decisão.
+
   **Fato do `verso-fs`, inalterado por este fechamento.** O walk classifica um
   arquivo comum como nota quando a extensão é exatamente `md`; `.MD`, `.Md` e
   `.markdown` são arquivos comuns até a Q8 ser decidida.
 - **Q13. Tags inline (`#tag` no corpo).** `[ABERTO]`
   O briefing só cita `tags` no frontmatter. Se `#tag` no corpo conta como tag,
   e como conviver com `#` de heading e com `#` de URL.
+
+  **Fato provisório vindo do `verso-index` e da visualização de leitura,
+  registrado em 2026-09-23, que não responde a esta questão.** A lista de tags
+  do índice conta um `#` no corpo como tag quando ele abre a linha ou vem depois
+  de um espaço ou de um `(`, e é seguido de letras, dígitos, `_`, `-` ou `/` que
+  não sejam só dígitos; um bloco de código cercado é pulado e a tag vai para
+  minúsculas. Assim o `#` de um heading (`# Título`, com o espaço) e o `#` dentro
+  de uma URL não são tags. A visualização de leitura aplica a mesma regra e
+  mostra essa tag como um link que a busca; dentro de código nada muda. Quem
+  decide é o mantenedor; esta linha só registra o que o código faz enquanto
+  isso.
 - **Q14. Link para arquivo que não existe.** `[ABERTO]`
   Se entra no índice como alvo pendente, se aparece no grafo, se conta como
   backlink.
@@ -696,7 +720,9 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   para a própria nota que o contém. Ele não é link para arquivo que não existe:
   nunca aparece entre os alvos não resolvidos, e não é backlink da nota para
   ela mesma, então uma nota que linka para os próprios headings não aparece nos
-  backlinks dela. Nada foi observado no Obsidian para esse caso; o código
+  backlinks dela. *(A última oração foi superada pela Q12, ponto 1, fechada
+  depois no mesmo dia: a nota é fonte dos próprios backlinks, e o código faz
+  isso desde o commit `d1a5272`.)* Nada foi observado no Obsidian para esse caso; o código
   escolheu assim porque a alternativa conta todo link para heading da própria
   nota como arquivo faltando e põe um alvo vazio no topo da lista de não
   resolvidos de qualquer pasta que os use. Quem decide é o mantenedor; esta
@@ -705,9 +731,38 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   Tabelas, footnotes, task list, matemática, destaque `==texto==`, strikethrough.
   O briefing não lista nenhuma; a escolha do parser base
   ([ADR 0037](../adr/0037-base-parser.md)) mexe no que sai de graça.
+
+  **Fato provisório vindo da visualização de leitura, registrado em 2026-09-23,
+  que não responde a esta questão.** O HTML que o core renderiza para a janela
+  (`verso_dialect::to_html`) mostra as seis, como o Obsidian mostra por padrão:
+  tabelas, notas de rodapé — inclusive a forma inline do Obsidian, `^[texto]`,
+  reescrita como nota de rodapé referenciada antes de renderizar —, task list
+  com caixas de marcar, matemática deixada como a fonte num elemento marcado que
+  a janela tipografa, destaque e strikethrough. Mostra também uma quebra de
+  linha simples dentro de um parágrafo como quebra de linha, que é o padrão do
+  Obsidian ("strict line breaks" desligado). Nada disso chega ao parser que
+  alimenta o índice: ele continua habilitando só wikilinks e o bloco YAML, então
+  um link dentro de uma tabela ou de uma nota de rodapé é achado como em texto
+  corrido, e nenhuma fixture cobre a renderização. O mantenedor pediu notas de
+  rodapé, matemática e tabelas pelo nome em 2026-09-23; isso resolve o que a
+  janela mostra, não esta questão.
 - **Q16. Arquivos não-Markdown na pasta.** `[ABERTO]`
   Quais entram no índice como alvo de link (imagens, PDF, `.canvas`) e quais são
   ignorados.
+
+  **Fato provisório vindo do `verso-core` e da janela, registrado em
+  2026-09-23, que não responde a esta questão.** O walk lista todo arquivo comum
+  que não esteja oculto nem ignorado; só notas entram no índice como alvo de
+  link e fonte de backlink. Um embed de outro arquivo (`![[mapa.png]]`,
+  `![[livro.pdf]]`) fica no índice como alvo não resolvido (Q14), nunca como
+  backlink; o core o resolve só para exibição — por caminho a partir da raiz
+  quando o alvo tem `/`, senão pelo nome do arquivo, com ou sem a extensão, sem
+  diferenciar maiúsculas, o de menos segmentos primeiro, depois ordem de bytes.
+  A janela mostra imagens, PDFs, arquivos HTML (sem scripts) e arquivos de texto,
+  e edita arquivos de texto pela mesma escrita atômica das notas. Uma nota cujo
+  frontmatter tem uma propriedade `url` com `http(s)` é mostrada como aquela
+  página web; o índice guarda o endereço para isso. Quem decide é o mantenedor;
+  esta linha só registra o que o código faz enquanto isso.
 - **Q17. Limite de tamanho e comportamento com arquivo malformado.**
   `[ABERTO]` — a parte do frontmatter está `DECIDIDA` abaixo; o resto da
   questão continua aberto.
@@ -839,3 +894,4 @@ ser escolhido.
 | v0.10 | 2026-09-22 | Fatos provisórios registrados sob Q2, Q8, Q12, Q14 e Q7, vindos do código do `verso-index` e da observação do Obsidian 1.13.7 no mesmo dia (`docs/reference/index-decision.md`): como um link resolve, caixa, embeds, alvos não resolvidos e NFC. Nenhuma questão fechada |
 | v0.11 | 2026-09-22 | Fatos provisórios registrados sob Q12 e Q14, vindos do código do `verso-index` como ele ficou depois da leitura do Opus 5: alvo vazio (`[[#Heading]]`) resolve para a própria nota, colisão de caixa entre dois caminhos resolve como colisão de nomes simples, e alvo não resolvido é mostrado pela menor das grafias dele na ordem de bytes. Nada observado no Obsidian para esses três; nenhuma questão fechada |
 | v0.12 | 2026-09-22 | **Q12 fechada pelo mantenedor**, seguindo o Obsidian 1.13.7 observado uma segunda vez no mesmo dia (`docs/reference/index-decision.md` §4.1, §4.6): alvo vazio é a própria nota e backlink dela; caminho é resolvido relativo à pasta da nota de origem além de a partir da raiz; nome puro prefere a pasta da própria origem, depois menos segmentos, depois ordem de bytes; alias não resolve; `[[nota/]]` e `[[.md]]` não resolvem. As partes de Q2, Q8 e Q14 de que a regra precisa são respondidas junto; o resto dessas três continua aberto. Quarta questão fechada |
+| v0.13 | 2026-09-23 | Fatos provisórios registrados em Q12, Q13, Q15 e Q16, vindos do código da branch da Fase 2: o ponto 3 da Q12 como o código o lê ("sob" a pasta de origem, redação que o mantenedor ainda não resolveu), tags no corpo, as extensões de Markdown e quebras de linha que a visualização de leitura renderiza, e os arquivos que não são nota. A linha da Q14 sobre `[[#Heading]]` marcada como superada pelo ponto 1 da Q12. Nenhuma questão fechada |
