@@ -18,7 +18,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView, basicSetup } from "codemirror";
 import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
+import { keymap, type KeyBinding } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
@@ -59,7 +59,8 @@ type Strings = Record<
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
-  | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels",
+  | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
+  | "hotkeyNeedsMod" | "hotkeyReserved",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -121,6 +122,7 @@ const pt: Strings = {
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
+  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
@@ -177,6 +179,7 @@ const en: Strings = {
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
+  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
@@ -980,6 +983,16 @@ class NoteLeaf extends Leaf {
     // CommonMark plus the GFM parts the reader's parser has on (tables,
     // task lists, strikethrough), so Live Preview finds what reading shows.
     const md = markdown({ codeLanguages: languages, extensions: [Table, TaskList, Strikethrough] });
+    // The note's own keys, written as comboOf writes them.
+    const noteKeys: KeyBinding[] = [
+      { key: "Mod-s", run: () => (void this.save(), true) },
+      { key: "Mod-b", run: () => (this.wrap("**", "**"), true) },
+      { key: "Mod-i", run: () => (this.wrap("*", "*"), true) },
+      { key: "Mod-Shift-h", run: () => (this.wrap("==", "=="), true) },
+      { key: "Mod-Shift-k", run: () => (this.wrap("[", "](url)"), true) },
+      { key: "Mod-Shift-1", run: () => (this.cycleHeading(), true) },
+      { key: "Mod-Alt-t", run: (v) => formatUnderCaret(v) || (this.insertTable(), true) },
+    ];
     return EditorState.create({
       doc,
       extensions: [
@@ -996,15 +1009,8 @@ class NoteLeaf extends Leaf {
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
         // Above basicSetup's defaults, which bind ⌘I (select the parent
         // node) and ⌘⇧K (delete the line) and come first in this list.
-        Prec.high(keymap.of([
-          { key: "Mod-s", run: () => (void this.save(), true) },
-          { key: "Mod-b", run: () => (this.wrap("**", "**"), true) },
-          { key: "Mod-i", run: () => (this.wrap("*", "*"), true) },
-          { key: "Mod-Shift-h", run: () => (this.wrap("==", "=="), true) },
-          { key: "Mod-Shift-k", run: () => (this.wrap("[", "](url)"), true) },
-          { key: "Mod-Shift-1", run: () => (this.cycleHeading(), true) },
-          { key: "Mod-Alt-t", run: (v) => formatUnderCaret(v) || (this.insertTable(), true) },
-        ])),
+        Prec.high(keymap.of(noteKeys)),
+        appHotkeys(noteKeys.map((k) => k.key ?? "")),
         EditorView.domEventHandlers({
           paste: (e) => this.takeFiles(e.clipboardData?.files ?? null, e),
           drop: (e) => this.takeFiles(e.dataTransfer?.files ?? null, e),
@@ -1658,6 +1664,7 @@ class TextLeaf extends Leaf {
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
+        appHotkeys(["Mod-s"]),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
             this.setDirty(true);
@@ -3870,24 +3877,60 @@ function keyOf(id: string): string {
   return settings.hotkeys[id] ?? DEFAULT_KEYS[id] ?? "";
 }
 const UNSHIFT: Record<string, string> = { "{": "[", "}": "]", "|": "\\", "<": ",", ">": ".", "?": "/", ":": ";", '"': "'", "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=" };
-/** The combination a key event is, as `Mod-Shift-x`; empty when it is only modifiers. */
+const MAC = /mac/i.test(navigator.platform);
+/** The combination a key event is, as `Mod-Shift-x`; empty when it is only
+ *  modifiers. Mod is ⌘ on macOS and Ctrl elsewhere; the other one is a
+ *  modifier of its own (on macOS ⌃N moves the caret, it is not ⌘N). */
 function comboOf(e: KeyboardEvent): string {
   let key = e.key;
+  // ⌥ changes the character on macOS (⌥T types †): the key's own letter.
+  if (e.altKey && e.keyCode >= 65 && e.keyCode <= 90) key = String.fromCharCode(e.keyCode + 32);
+  else if (e.altKey && e.keyCode >= 48 && e.keyCode <= 57) key = String.fromCharCode(e.keyCode);
   if (key === " ") key = "Space";
   else if (key.length === 1) key = (UNSHIFT[key] ?? key).toLowerCase();
   if (["Meta", "Control", "Shift", "Alt", "Dead"].includes(key)) return "";
   const parts: string[] = [];
-  if (e.metaKey || e.ctrlKey) parts.push("Mod");
+  if (MAC ? e.metaKey : e.ctrlKey) parts.push("Mod");
+  if (MAC ? e.ctrlKey : e.metaKey) parts.push(MAC ? "Ctrl" : "Meta");
   if (e.altKey) parts.push("Alt");
   if (e.shiftKey) parts.push("Shift");
   parts.push(key);
   return parts.join("-");
 }
-/** `Mod-Shift-p` shown as the keys on this machine: ⌘⇧P. */
+/** `Mod-Shift-p` shown as the keys on this machine: ⌘⇧P, Ctrl+Shift+P. */
 function prettyKeys(combo: string): string {
   if (!combo) return "";
-  const mac = navigator.platform.toLowerCase().includes("mac");
-  return combo.split("-").map((p) => (p === "Mod" ? (mac ? "⌘" : "Ctrl") : p === "Shift" ? "⇧" : p === "Alt" ? (mac ? "⌥" : "Alt") : p === "Space" ? "␣" : p.length === 1 ? p.toUpperCase() : p)).join(mac ? "" : "+");
+  return combo.split("-").map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
+}
+/** What the system and every text field need: bound to a command, they
+ *  would stop copying, pasting, undoing, quitting… (a command keeps its
+ *  own default: ⌘W closes the tab, as in a browser). */
+const RESERVED = new Set(["Mod-c", "Mod-v", "Mod-x", "Mod-z", "Mod-Shift-z", "Mod-y", "Mod-a", "Mod-q", "Mod-w", "Mod-f", ...(MAC ? ["Mod-h", "Mod-Alt-h", "Mod-m", "Mod-`", "Mod-Ctrl-f"] : [])]);
+/** Run the command a key event is the hotkey of; true when one ran. Every
+ *  hotkey holds Mod, so plain typing never reaches a command. */
+function runHotkey(e: KeyboardEvent): boolean {
+  const combo = comboOf(e);
+  if (!combo.startsWith("Mod-")) return false;
+  // ⌘1…⌘9: the workspaces.
+  const digit = /^Mod-([1-9])$/.exec(combo);
+  if (digit && spaces.length > 1) {
+    const sp = spaces[Number(digit[1]) - 1];
+    if (!sp) return false;
+    e.preventDefault();
+    showSpace(sp);
+    return true;
+  }
+  const cmd = allCommands().find((c) => keyOf(c.id) === combo);
+  if (!cmd) return false;
+  e.preventDefault();
+  cmd.run();
+  return true;
+}
+/** In an editor the app's hotkeys come after the editor's own keys (`own`)
+ *  and before CodeMirror's defaults: ⌘D is today's note, not "select the
+ *  next occurrence", as the ribbon and the settings say. */
+function appHotkeys(own: readonly string[]): Extension {
+  return Prec.high(EditorView.domEventHandlers({ keydown: (e) => !hotkeyRecorder && !own.includes(comboOf(e)) && runHotkey(e) }));
 }
 /** Every command, with what it needs to run; `all` lists the ones that
  *  need a note or a pane even when there is none (the settings page). */
@@ -4096,6 +4139,8 @@ const replaceDialog = new ReplaceDialog();
 
 /** A settings page is a list of items: a title, a line about it, a control. */
 let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
+/** Ends a recording in progress, leaving the keys as they were. */
+let disarmRecorder: (() => void) | null = null;
 class SettingsDialog {
   readonly el = h("div", "quick settings");
   readonly box = h("div", "settings-box");
@@ -4127,7 +4172,7 @@ class SettingsDialog {
   }
   hide(): void {
     this.el.hidden = true;
-    hotkeyRecorder = null;
+    disarmRecorder?.();
   }
   private sections(): { id: string; label: string; icon: string }[] {
     return [
@@ -4207,21 +4252,45 @@ class SettingsDialog {
     const shown = h("kbd", "", prettyKeys(keyOf(id)) || t.hotkeyNone);
     if (settings.hotkeys[id] !== undefined) shown.classList.add("custom");
     const change = button("ghost", t.hotkeyChange);
+    change.dataset["hotkey"] = id;
     change.addEventListener("click", () => {
+      disarmRecorder?.();
       shown.textContent = t.hotkeyPress;
       shown.classList.add("recording");
+      // A click elsewhere, leaving the window, Escape or Tab: nothing changes.
+      const away = (ev: MouseEvent) => {
+        if (ev.target !== change) stop();
+      };
+      const stop = () => {
+        hotkeyRecorder = null;
+        disarmRecorder = null;
+        document.removeEventListener("mousedown", away, true);
+        window.removeEventListener("blur", stop);
+        shown.classList.remove("recording");
+        shown.textContent = prettyKeys(keyOf(id)) || t.hotkeyNone;
+      };
+      document.addEventListener("mousedown", away, true);
+      window.addEventListener("blur", stop);
+      disarmRecorder = stop;
       hotkeyRecorder = (e: KeyboardEvent) => {
         const combo = comboOf(e);
         if (!combo) return;
+        // Tab leaves the control, as anywhere else: no key trap here.
+        if (combo === "Tab" || combo === "Shift-Tab") return stop();
         e.preventDefault();
         e.stopPropagation();
-        hotkeyRecorder = null;
-        if (combo === "Escape") return this.paint();
+        if (combo === "Escape") return stop();
+        // Without Mod a combination never fires; a reserved one would take
+        // copy, paste or undo away. Say so, and keep listening.
+        if (!combo.startsWith("Mod-")) return void (shown.textContent = t.hotkeyNeedsMod.replace("{mod}", prettyKeys("Mod")));
+        if (RESERVED.has(combo) && DEFAULT_KEYS[id] !== combo) return void (shown.textContent = `${prettyKeys(combo)}: ${t.hotkeyReserved}`);
+        stop();
         // The same keys cannot mean two things: the other command loses them.
         for (const other of allCommands(true)) if (other.id !== id && keyOf(other.id) === combo) settings.hotkeys[other.id] = "";
         settings.hotkeys[id] = combo;
         saveSettings();
         this.paint();
+        this.body.querySelector<HTMLElement>(`[data-hotkey="${id}"]`)?.focus();
       };
     });
     const reset = button("ghost", t.hotkeyReset);
@@ -4586,24 +4655,10 @@ ui.search.addEventListener("keydown", (e) => {
 document.addEventListener("keydown", (e) => { if (hotkeyRecorder) hotkeyRecorder(e); }, true);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") menu.hidden = true;
-  if (!(e.metaKey || e.ctrlKey)) return;
-  if (hotkeyRecorder) return;
-  const combo = comboOf(e);
-  if (!combo) return;
-  // ⌘1…⌘9: the workspaces.
-  const digit = /^Mod-([1-9])$/.exec(combo);
-  if (digit && spaces.length > 1) {
-    const sp = spaces[Number(digit[1]) - 1];
-    if (sp) {
-      e.preventDefault();
-      showSpace(sp);
-    }
-    return;
-  }
-  const cmd = allCommands().find((c) => keyOf(c.id) === combo);
-  if (!cmd) return;
-  e.preventDefault();
-  cmd.run();
+  // What had the focus handled it (an editor's key, a field, a dialog): it
+  // does not run a second time here.
+  if (hotkeyRecorder || e.defaultPrevented) return;
+  runHotkey(e);
 });
 
 const sideDivider = el<HTMLDivElement>("side-divider");
