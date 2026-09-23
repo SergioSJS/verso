@@ -61,7 +61,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
-  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle",
+  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -88,20 +88,20 @@ const pt: Strings = {
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
   lessonTitle: "Abra uma pasta de notas.", lessonBody: "Tudo fica nos seus arquivos Markdown, como no Obsidian. Nada é reescrito sem você pedir.",
-  lessonKeys: "⌘O abre uma pasta · ⌘N nova nota · ⌘P abre pelo nome · ⌘K busca · ⌘\\ divide · ⌘T nova área",
+  lessonKeys: "{open-folder} abre uma pasta · {new-note} nova nota · {quick} abre pelo nome · {search} busca · {split-right} divide · {new-space} nova área",
   split: "Dividir à direita", splitDown: "Dividir abaixo", emptyPane: "Escolha um arquivo na lista, ou arraste uma aba para cá.",
   quick: "Abrir…", close: "Fechar aba", closePane: "Fechar área", maximize: "Maximizar área", restore: "Restaurar áreas",
   newNote: "Nova nota", newNoteName: "Nome da nota (Enter cria, Esc cancela)", rename: "Renomear", deleteNote: "Apagar",
   openTab: "Abrir em aba nova", openPane: "Abrir ao lado", newHere: "Nova nota nesta pasta", planApply: "Atualizar links", planSkip: "Deixar como está",
-  exists: "Já existe um arquivo com esse nome.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área (⌘T)", space: "Área",
+  exists: "Já existe um arquivo com esse nome.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área", space: "Área",
   closeSpace: "Fechar área", untitled: "Sem título", folderView: "Pasta", asList: "Lista", asGrid: "Miniaturas", readOnly: "Só leitura: não é uma nota Markdown.",
   keysNew: "nova nota", keysEdit: "editar", keysSplit: "dividir", keysSpace: "nova área", moveTo: "Mover para", moved: "Movido.",
-  bold: "Negrito (⌘B)", italic: "Itálico (⌘I)", strike: "Riscado", highlight: "Destaque (⌘⇧H)", heading: "Título (⌘⇧1)", link: "Link (⌘⇧K)", wikilink: "Link interno [[ ]]",
+  bold: "Negrito", italic: "Itálico", strike: "Riscado", highlight: "Destaque", heading: "Título", link: "Link", wikilink: "Link interno [[ ]]",
   bullets: "Lista", numbers: "Lista numerada", task: "Tarefa", quote: "Citação", code: "Código", rule: "Separador", pasteHint: "Cole ou arraste uma imagem para anexar", pasted: "Imagem anexada em assets/.",
   closeOthers: "Fechar as outras", closeAll: "Fechar todas", closeRight: "Fechar as da direita", allTabs: "Todas as abas", verticalTabs: "Abas na vertical", horizontalTabs: "Abas na horizontal",
-  newFolder: "Nova pasta", newFolderName: "Nome da pasta (Enter cria, Esc cancela)", folderCreated: "Pasta criada.", graph: "Relações", graphOf: "Relações de", reopen: "Reabrir aba fechada (⌘⇧T)", recent: "Recentes", sidebarResize: "Arraste para redimensionar", openSplit: "Abrir em área nova",
-  outgoing: "Links de saída", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos (⌘⇧L)", toggleRight: "Mostrar/ocultar painel (⌘⇧R)", palette: "Paleta de comandos (⌘⇧P)", settings: "Ajustes (⌘,)",
-  theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje (⌘D)", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
+  newFolder: "Nova pasta", newFolderName: "Nome da pasta (Enter cria, Esc cancela)", folderCreated: "Pasta criada.", graph: "Relações", graphOf: "Relações de", reopen: "Reabrir aba fechada", recent: "Recentes", sidebarResize: "Arraste para redimensionar", openSplit: "Abrir em área nova",
+  outgoing: "Links de saída", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos", toggleRight: "Mostrar/ocultar painel", palette: "Paleta de comandos", settings: "Ajustes",
+  theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
@@ -123,12 +123,12 @@ const pt: Strings = {
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
-  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso",
+  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
   hotkeyChange: "Alterar", hotkeyPress: "Pressione as teclas…", hotkeyReset: "Restaurar", hotkeysHint: "Clique em Alterar e pressione a combinação. Um atalho já usado por outro comando é retirado dele.", hotkeyNone: "—",
-  themeDesc: "Claro, escuro ou como o sistema.", hueDesc: "A família de cores do papel e dos destaques.", fontSizeDesc: "Tamanho base da interface e das notas.", attachmentsDesc: "Subpasta, ao lado da nota, onde imagens coladas são salvas.", dailyDesc: "Onde a nota de hoje (⌘D) é criada.", templatesDesc: "Qualquer nota nessa pasta é um template.", autosaveDesc: "Segundos depois de parar de digitar.",
+  themeDesc: "Claro, escuro ou como o sistema.", hueDesc: "A família de cores do papel e dos destaques.", fontSizeDesc: "Tamanho base da interface e das notas.", attachmentsDesc: "Subpasta, ao lado da nota, onde imagens coladas são salvas.", dailyDesc: "Onde a nota de hoje é criada.", templatesDesc: "Qualquer nota nessa pasta é um template.", autosaveDesc: "Segundos depois de parar de digitar.",
   graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique abre · duplo clique centra · arraste move · roda amplia", graphLabels: "Nomes",
   ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
@@ -145,20 +145,20 @@ const en: Strings = {
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
   lessonTitle: "Open a folder of notes.", lessonBody: "Everything stays in your Markdown files, as in Obsidian. Nothing is rewritten unless you ask.",
-  lessonKeys: "⌘O opens a folder · ⌘N new note · ⌘P opens by name · ⌘K searches · ⌘\\ splits · ⌘T new workspace",
+  lessonKeys: "{open-folder} opens a folder · {new-note} new note · {quick} opens by name · {search} searches · {split-right} splits · {new-space} new workspace",
   split: "Split right", splitDown: "Split down", emptyPane: "Pick a file from the list, or drag a tab here.",
   quick: "Open…", close: "Close tab", closePane: "Close pane", maximize: "Maximize pane", restore: "Restore panes",
   newNote: "New note", newNoteName: "Note name (Enter creates, Esc cancels)", rename: "Rename", deleteNote: "Delete",
   openTab: "Open in new tab", openPane: "Open to the side", newHere: "New note in this folder", planApply: "Update links", planSkip: "Leave them",
-  exists: "A file with that name already exists.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace (⌘T)", space: "Workspace",
+  exists: "A file with that name already exists.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace", space: "Workspace",
   closeSpace: "Close workspace", untitled: "Untitled", folderView: "Folder", asList: "List", asGrid: "Thumbnails", readOnly: "Read-only: not a Markdown note.",
   keysNew: "new note", keysEdit: "edit", keysSplit: "split", keysSpace: "new workspace", moveTo: "Move to", moved: "Moved.",
-  bold: "Bold (⌘B)", italic: "Italic (⌘I)", strike: "Strikethrough", highlight: "Highlight (⌘⇧H)", heading: "Heading (⌘⇧1)", link: "Link (⌘⇧K)", wikilink: "Internal link [[ ]]",
+  bold: "Bold", italic: "Italic", strike: "Strikethrough", highlight: "Highlight", heading: "Heading", link: "Link", wikilink: "Internal link [[ ]]",
   bullets: "Bullet list", numbers: "Numbered list", task: "Task", quote: "Quote", code: "Code", rule: "Rule", pasteHint: "Paste or drop an image to attach it", pasted: "Image attached in assets/.",
   closeOthers: "Close others", closeAll: "Close all", closeRight: "Close to the right", allTabs: "All tabs", verticalTabs: "Vertical tabs", horizontalTabs: "Horizontal tabs",
-  newFolder: "New folder", newFolderName: "Folder name (Enter creates, Esc cancels)", folderCreated: "Folder created.", graph: "Relations", graphOf: "Relations of", reopen: "Reopen closed tab (⌘⇧T)", recent: "Recent", sidebarResize: "Drag to resize", openSplit: "Open in a new pane",
-  outgoing: "Outgoing links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files (⌘⇧L)", toggleRight: "Show/hide panel (⌘⇧R)", palette: "Command palette (⌘⇧P)", settings: "Settings (⌘,)",
-  theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note (⌘D)", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
+  newFolder: "New folder", newFolderName: "Folder name (Enter creates, Esc cancels)", folderCreated: "Folder created.", graph: "Relations", graphOf: "Relations of", reopen: "Reopen closed tab", recent: "Recent", sidebarResize: "Drag to resize", openSplit: "Open in a new pane",
+  outgoing: "Outgoing links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files", toggleRight: "Show/hide panel", palette: "Command palette", settings: "Settings",
+  theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
@@ -180,12 +180,12 @@ const en: Strings = {
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
-  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning",
+  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
   hotkeyChange: "Change", hotkeyPress: "Press the keys…", hotkeyReset: "Restore", hotkeysHint: "Click Change and press the combination. A shortcut another command used is taken from it.", hotkeyNone: "—",
-  themeDesc: "Light, dark, or as the system.", hueDesc: "The color family of the paper and the accents.", fontSizeDesc: "Base size of the interface and the notes.", attachmentsDesc: "Subfolder beside the note where pasted images go.", dailyDesc: "Where today's note (⌘D) is created.", templatesDesc: "Any note in that folder is a template.", autosaveDesc: "Seconds after typing stops.",
+  themeDesc: "Light, dark, or as the system.", hueDesc: "The color family of the paper and the accents.", fontSizeDesc: "Base size of the interface and the notes.", attachmentsDesc: "Subfolder beside the note where pasted images go.", dailyDesc: "Where today's note is created.", templatesDesc: "Any note in that folder is a template.", autosaveDesc: "Seconds after typing stops.",
   graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click opens · double-click centers · drag moves · wheel zooms", graphLabels: "Names",
   ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
@@ -402,7 +402,6 @@ try {
 
 for (const slot of document.querySelectorAll<HTMLElement>(".ic[data-icon]")) slot.replaceChildren(icon(slot.dataset["icon"] ?? ""));
 ui.open.setAttribute("aria-label", t.open);
-ui.open.title = `${t.open} (⌘O)`;
 ui.collapse.replaceChildren(icon("collapse", t.collapseAll));
 ui.collapse.title = t.collapseAll;
 ui.search.placeholder = t.search;
@@ -908,7 +907,7 @@ class NoteLeaf extends Leaf {
     const head = h("header", "leaf-head");
     head.append(this.crumbs, this.modes);
     this.saveButton.type = "button";
-    this.saveButton.title = "⌘S";
+    this.saveButton.title = prettyKeys("Mod-s");
     this.saveButton.addEventListener("click", () => void this.save());
     this.title.title = t.rename;
     this.title.addEventListener("click", () => this.renameHere());
@@ -1093,13 +1092,13 @@ class NoteLeaf extends Leaf {
       this.toolbar.append(b);
     };
     const sep = () => this.toolbar.append(h("span", "tool-sep"));
-    add("heading", t.heading, () => this.cycleHeading());
-    add("bold", t.bold, () => this.wrap("**", "**"));
-    add("italic", t.italic, () => this.wrap("*", "*"));
+    add("heading", withKeys(t.heading, "Mod-Shift-1"), () => this.cycleHeading());
+    add("bold", withKeys(t.bold, "Mod-b"), () => this.wrap("**", "**"));
+    add("italic", withKeys(t.italic, "Mod-i"), () => this.wrap("*", "*"));
     add("strike", t.strike, () => this.wrap("~~", "~~"));
-    add("highlight", t.highlight, () => this.wrap("==", "=="));
+    add("highlight", withKeys(t.highlight, "Mod-Shift-h"), () => this.wrap("==", "=="));
     sep();
-    add("link", t.link, () => this.wrap("[", "](url)"));
+    add("link", withKeys(t.link, "Mod-Shift-k"), () => this.wrap("[", "](url)"));
     add("wikilink", t.wikilink, () => this.wrap("[[", "]]"));
     sep();
     add("bullets", t.bullets, () => this.prefixLines("- "));
@@ -2471,7 +2470,8 @@ class Pane {
     });
     const orient = button("ghost iconic", t.verticalTabs, "vtabs");
     orient.addEventListener("click", () => this.setVertical(!this.vertical));
-    const plus = button("ghost iconic", `${t.newNote} (⌘N)`, "plus");
+    const plus = button("ghost iconic", t.newNote, "plus");
+    keyHint(plus, t.newNote, "new-note");
     plus.addEventListener("click", () => void newUntitled(this));
     const max = button("ghost iconic", t.maximize, "maximize");
     max.addEventListener("click", () => layout().toggleMaximize(this));
@@ -3911,6 +3911,31 @@ function prettyKeys(combo: string): string {
   if (!combo) return "";
   return combo.split("-").map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
 }
+/** `label (⌘B)`: a tooltip with the keys as this machine writes them. */
+function withKeys(label: string, combo: string): string {
+  return combo ? `${label} (${prettyKeys(combo)})` : label;
+}
+/** A control named after a command: its tooltip shows the command's keys
+ *  as bound now, and `paintKeyHints` keeps it so after a change. */
+function keyHint(el: HTMLElement, label: string, id: string): void {
+  el.dataset["label"] = label;
+  el.dataset["keys"] = id;
+  el.title = withKeys(label, keyOf(id));
+}
+/** Every place that shows a command's keys, from the bindings and the
+ *  platform: tooltips, the search field's and the status bar's key caps,
+ *  the ribbon. */
+function paintKeyHints(): void {
+  for (const e of document.querySelectorAll<HTMLElement>("[data-keys]")) e.title = withKeys(e.dataset["label"] ?? "", keyOf(e.dataset["keys"] ?? ""));
+  const cap = document.querySelector(".search kbd");
+  if (cap) cap.textContent = prettyKeys(keyOf("search"));
+  const ids: Record<string, string> = { new: "new-note", edit: "toggle-mode", split: "split-right", space: "new-space", palette: "palette" };
+  for (const b of document.querySelectorAll<HTMLElement>(".status-keys button[data-cmd]")) {
+    const kbd = b.querySelector("kbd");
+    if (kbd) kbd.textContent = prettyKeys(keyOf(ids[b.dataset["cmd"] ?? ""] ?? ""));
+  }
+  ribbon?.paint();
+}
 /** What the system and every text field need: bound to a command, they
  *  would stop copying, pasting, undoing, quitting… (a command keeps its
  *  own default: ⌘W closes the tab, as in a browser). */
@@ -3974,8 +3999,8 @@ function allCommands(all = false): Command[] {
     { id: "maximize", label: t.maximize, need: Boolean(pane), run: () => pane && layout().toggleMaximize(pane) },
     { id: "close-pane", label: t.closePane, need: Boolean(pane), run: () => pane && void pane.closeAll() },
     { id: "close-tab", label: t.close, need: Boolean(leaf), run: () => leaf && void leaf.close() },
-    { id: "next-tab", label: t.allTabs + " ›", need: Boolean(pane?.active), run: () => pane && cycleTab(pane, 1) },
-    { id: "prev-tab", label: "‹ " + t.allTabs, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
+    { id: "next-tab", label: t.nextTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, 1) },
+    { id: "prev-tab", label: t.prevTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
     { id: "reopen", label: t.reopen, need: hasFolder, run: () => { const b = closedTabs.pop(); if (b) openNote(b, false); } },
     { id: "toggle-side", label: t.toggleSide.split(" (")[0] ?? t.toggleSide, run: () => toggleSide() },
     { id: "toggle-right", label: t.toggleRight.split(" (")[0] ?? t.toggleRight, run: () => toggleRight() },
@@ -4303,12 +4328,13 @@ class SettingsDialog {
         for (const other of allCommands(true)) if (other.id !== id && keyOf(other.id) === combo) settings.hotkeys[other.id] = "";
         settings.hotkeys[id] = combo;
         saveSettings();
+        paintKeyHints();
         this.paint();
         this.body.querySelector<HTMLElement>(`[data-hotkey="${id}"]`)?.focus();
       };
     });
     const reset = button("ghost", t.hotkeyReset);
-    reset.addEventListener("click", () => { delete settings.hotkeys[id]; saveSettings(); this.paint(); });
+    reset.addEventListener("click", () => { delete settings.hotkeys[id]; saveSettings(); paintKeyHints(); this.paint(); });
     reset.hidden = settings.hotkeys[id] === undefined;
     wrap.append(shown, change, reset);
     return wrap;
@@ -4458,7 +4484,7 @@ rightDivider.addEventListener("pointerdown", (e) => {
 function lesson(): void {
   page?.classList.add("empty");
   const box = h("div", "lesson");
-  box.append(h("h1", "", t.lessonTitle), h("p", "", t.lessonBody), h("p", "keys", t.lessonKeys));
+  box.append(h("h1", "", t.lessonTitle), h("p", "", t.lessonBody), h("p", "keys", t.lessonKeys.replace(/\{([\w-]+)\}/g, (_, id: string) => prettyKeys(keyOf(id)))));
   ui.panes.replaceChildren(box);
 }
 /** A popped-out window joins the session: the folder is open already. */
@@ -4551,24 +4577,25 @@ async function reindex(): Promise<void> {
 }
 
 /* ---------- The ribbon: one column of what the app does, reordered by drag ---------- */
+/** `keys`: the command whose hotkey the tooltip shows. */
 type RibbonItem = { id: string; icon: string; label: () => string; keys?: string; bottom?: boolean; needsFolder?: boolean; run: (button: HTMLButtonElement) => void };
 const RIBBON: RibbonItem[] = [
-  { id: "files", icon: "sidebar", label: () => t.ribbonFiles, keys: "⌘⇧L", run: () => toggleSide() },
-  { id: "search", icon: "search", label: () => t.search, keys: "⌘K", needsFolder: true, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
-  { id: "quick", icon: "note", label: () => t.quick, keys: "⌘P", needsFolder: true, run: () => quick.show() },
-  { id: "commands", icon: "command", label: () => t.commands, keys: "⌘⇧P", needsFolder: true, run: () => paletteDialog.show() },
-  { id: "new", icon: "plus", label: () => t.newNote, keys: "⌘N", needsFolder: true, run: (b) => {
+  { id: "files", icon: "sidebar", label: () => t.ribbonFiles, keys: "toggle-side", run: () => toggleSide() },
+  { id: "search", icon: "search", label: () => t.search, keys: "search", needsFolder: true, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
+  { id: "quick", icon: "note", label: () => t.quick, keys: "quick", needsFolder: true, run: () => quick.show() },
+  { id: "commands", icon: "command", label: () => t.commands, keys: "palette", needsFolder: true, run: () => paletteDialog.show() },
+  { id: "new", icon: "plus", label: () => t.newNote, keys: "new-note", needsFolder: true, run: (b) => {
     const folder = layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "";
     const r = b.getBoundingClientRect();
     showMenu(r.right + 6, r.top, [[t.newNote, () => newNotePrompt(folder)], [t.newFolder, () => newFolderPrompt(folder)], [t.newWebPage, () => newWebPagePrompt()]]);
   } },
-  { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "⌘D", needsFolder: true, run: () => void dailyNote() },
+  { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "daily", needsFolder: true, run: () => void dailyNote() },
   { id: "graph", icon: "graph", label: () => t.graphWhole, needsFolder: true, run: () => { const pane = layout().focused ?? layout().panes()[0] ?? layout().reset(); pane.openGraph(""); } },
-  { id: "replace", icon: "replace", label: () => t.replaceTitle, keys: "⌘⇧H", needsFolder: true, run: () => replaceDialog.show() },
+  { id: "replace", icon: "replace", label: () => t.replaceTitle, keys: "replace", needsFolder: true, run: () => replaceDialog.show() },
   { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
-  { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "⌘⇧R", bottom: true, run: () => toggleRight() },
-  { id: "settings", icon: "gear", label: () => t.settings, keys: "⌘,", bottom: true, run: () => settingsDialog.show() },
+  { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "toggle-right", bottom: true, run: () => toggleRight() },
+  { id: "settings", icon: "gear", label: () => t.settings, keys: "settings", bottom: true, run: () => settingsDialog.show() },
 ];
 class Ribbon {
   private order: string[] = RIBBON.map((i) => i.id);
@@ -4598,7 +4625,7 @@ class Ribbon {
       const b = h("button", "ribbon-item");
       b.type = "button";
       b.dataset["id"] = id;
-      b.title = it.keys ? `${it.label()} (${it.keys})` : it.label();
+      b.title = withKeys(it.label(), it.keys ? keyOf(it.keys) : "");
       b.setAttribute("aria-label", it.label());
       b.append(icon(it.icon));
       b.disabled = Boolean(it.needsFolder) && !hasFolder;
@@ -4657,6 +4684,11 @@ class Ribbon {
   }
 }
 ribbon = new Ribbon(ui.ribbon);
+keyHint(ui.open, t.open, "open-folder");
+keyHint(newSpaceButton, t.newSpace, "new-space");
+keyHint(toggleSideButton, t.toggleSide, "toggle-side");
+keyHint(toggleRightButton, t.toggleRight, "toggle-right");
+paintKeyHints();
 
 ui.open.addEventListener("click", () => void openFolderDialog());
 ui.collapse.addEventListener("click", collapseAll);
