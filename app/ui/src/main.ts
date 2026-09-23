@@ -17,7 +17,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView, basicSetup } from "codemirror";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
@@ -990,7 +990,9 @@ class NoteLeaf extends Leaf {
         keymap.of([indentWithTab]),
         EditorView.lineWrapping,
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
-        keymap.of([
+        // Above basicSetup's defaults, which bind ⌘I (select the parent
+        // node) and ⌘⇧K (delete the line) and come first in this list.
+        Prec.high(keymap.of([
           { key: "Mod-s", run: () => (void this.save(), true) },
           { key: "Mod-b", run: () => (this.wrap("**", "**"), true) },
           { key: "Mod-i", run: () => (this.wrap("*", "*"), true) },
@@ -998,7 +1000,7 @@ class NoteLeaf extends Leaf {
           { key: "Mod-Shift-k", run: () => (this.wrap("[", "](url)"), true) },
           { key: "Mod-Shift-1", run: () => (this.cycleHeading(), true) },
           { key: "Mod-Alt-t", run: (v) => formatUnderCaret(v) || (this.insertTable(), true) },
-        ]),
+        ])),
         EditorView.domEventHandlers({
           paste: (e) => this.takeFiles(e.clipboardData?.files ?? null, e),
           drop: (e) => this.takeFiles(e.dataTransfer?.files ?? null, e),
