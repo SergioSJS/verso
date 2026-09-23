@@ -26,6 +26,7 @@ import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, frontmatterChange } from "./props";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
 import { PdfView } from "./pdf";
+import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -50,6 +51,7 @@ type Strings = Record<
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint",
   string
 > & {
+  slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
   indexed: (n: number, u: number, p: number) => string;
   hits: (n: number) => string;
   unresolved: (t: string) => string;
@@ -95,6 +97,7 @@ const pt: Strings = {
   planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
   counts: (notes, files, folders) => `${notes} nota${notes === 1 ? "" : "s"} · ${files} arquivo${files === 1 ? "" : "s"} · ${folders} pasta${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
+  slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", empty: "Nada com esse nome." },
   colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
   duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copied: "Caminho copiado.",
   moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
@@ -142,6 +145,7 @@ const en: Strings = {
   planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
   counts: (notes, files, folders) => `${notes} note${notes === 1 ? "" : "s"} · ${files} file${files === 1 ? "" : "s"} · ${folders} folder${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the bin (.trash)?`,
+  slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", empty: "Nothing by that name." },
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
   duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copied: "Path copied.",
   moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
@@ -257,7 +261,7 @@ const ui = {
   spaces: el<HTMLDivElement>("spaces"),
   panes: el<HTMLDivElement>("panes"),
 };
-const page = document.querySelector<HTMLElement>(".page");
+const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
 type Settings = { theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string };
 const DEFAULTS: Settings = { theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates" };
@@ -456,70 +460,51 @@ async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResu
   return { from: before.from + (embed ? 3 : 2), options, filter: false };
 }
 
-/* ---------- `/` at the start of a line: blocks to insert ---------- */
-type SlashItem = { label: string; detail?: string; type: string; insert: string | (() => string); cursor?: number; select?: [number, number]; run?: (view: EditorView) => void };
-function slashItems(): SlashItem[] {
+/** What the `/` menu offers, in sections, with a line of explanation each. */
+function slashSections(): SlashSection[] {
   const today = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const date = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
   const time = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
+  const s = t.slash;
   return [
-    { label: `${t.headingN} 1`, detail: "#", type: "heading", insert: "# " },
-    { label: `${t.headingN} 2`, detail: "##", type: "heading", insert: "## " },
-    { label: `${t.headingN} 3`, detail: "###", type: "heading", insert: "### " },
-    { label: t.bullets, detail: "-", type: "list", insert: "- " },
-    { label: t.numbers, detail: "1.", type: "list", insert: "1. " },
-    { label: t.task, detail: "- [ ]", type: "task", insert: "- [ ] " },
-    { label: t.quote, detail: ">", type: "quote", insert: "> " },
-    { label: t.callout, detail: "> [!note]", type: "quote", insert: "> [!note] ", cursor: 0 },
-    { label: `${t.callout} · tip`, detail: "> [!tip]", type: "quote", insert: "> [!tip] " },
-    { label: `${t.callout} · warning`, detail: "> [!warning]", type: "quote", insert: "> [!warning] " },
-    { label: t.codeBlock, detail: "```", type: "code", insert: "```\n\n```", cursor: 4 },
-    { label: t.table, detail: "| |", type: "table", insert: () => tableTemplate(3, 2), select: [2, 8] },
-    { label: t.divider, detail: "---", type: "rule", insert: "---\n" },
-    { label: t.wikilink, detail: "[[", type: "note", insert: "[[", run: (v) => startCompletion(v) },
-    { label: t.embedNote, detail: "![[", type: "note", insert: "![[", run: (v) => startCompletion(v) },
-    { label: t.link, detail: "[]()", type: "link", insert: "[](url)", cursor: 1 },
-    { label: t.image, detail: "![[", type: "image", insert: "![[", run: (v) => startCompletion(v) },
-    { label: t.today, detail: date, type: "date", insert: date },
-    { label: t.now, detail: time, type: "date", insert: time },
-    { label: t.insertTemplate, detail: "…", type: "file", insert: "", run: () => insertTemplate() },
+    { title: s.basic, items: [
+      { icon: "heading", title: `${t.headingN} 1`, description: s.h1, keywords: "# h1 titulo title", insert: "# " },
+      { icon: "heading", title: `${t.headingN} 2`, description: s.h2, keywords: "## h2", insert: "## " },
+      { icon: "heading", title: `${t.headingN} 3`, description: s.h3, keywords: "### h3", insert: "### " },
+      { icon: "quote", title: t.quote, description: s.quote, keywords: "> citação blockquote", insert: "> " },
+      { icon: "code", title: t.codeBlock, description: s.code, keywords: "``` code", insert: "```\n\n```", cursor: 4 },
+      { icon: "rule", title: t.divider, description: s.divider, keywords: "--- hr", insert: "---\n" },
+    ] },
+    { title: s.lists, items: [
+      { icon: "task", title: t.task, description: s.task, keywords: "- [ ] todo checkbox tarefa", insert: "- [ ] " },
+      { icon: "bullets", title: t.bullets, description: s.bullets, keywords: "- lista bullet", insert: "- " },
+      { icon: "numbers", title: t.numbers, description: s.numbers, keywords: "1. ordered", insert: "1. " },
+    ] },
+    { title: s.callouts, items: [
+      { icon: "quote", title: `${t.callout} · note`, description: s.calloutNote, keywords: "[!note] aviso", insert: "> [!note] " },
+      { icon: "quote", title: `${t.callout} · tip`, description: s.calloutTip, keywords: "[!tip] dica", insert: "> [!tip] " },
+      { icon: "warn", title: `${t.callout} · warning`, description: s.calloutWarning, keywords: "[!warning] atenção", insert: "> [!warning] " },
+    ] },
+    { title: s.insert, items: [
+      { icon: "table", title: t.table, description: s.table, keywords: "| tabela table", insert: () => tableTemplate(3, 2), select: [2, 8] },
+      { icon: "wikilink", title: t.wikilink, description: s.wikilink, keywords: "[[ link nota", insert: "[[", run: (v) => startCompletion(v) },
+      { icon: "note", title: t.embedNote, description: s.embed, keywords: "![[ embed transclusão", insert: "![[", run: (v) => startCompletion(v) },
+      { icon: "image", title: t.image, description: s.image, keywords: "![[ imagem png jpg", insert: "![[", run: (v) => startCompletion(v) },
+      { icon: "link", title: t.link, description: s.link, keywords: "[]() url http", insert: "[](url)", cursor: 1 },
+      { icon: "calendar", title: t.today, description: date, keywords: "data date hoje", insert: date },
+      { icon: "calendar", title: t.now, description: time, keywords: "hora time agora", insert: time },
+      { icon: "template", title: t.insertTemplate, description: s.template, keywords: "template modelo", insert: "", run: () => insertTemplate() },
+    ] },
   ];
 }
-function completeSlash(ctx: CompletionContext): CompletionResult | null {
-  const before = ctx.matchBefore(/(^|[\s>])\/([\w\u00C0-\u024F-]*)$/);
-  if (!before) return null;
-  const line = ctx.state.doc.lineAt(ctx.pos);
-  const upTo = ctx.state.sliceDoc(line.from, before.from);
-  if (upTo.trim() !== "" && !/^[\s>-]*$/.test(upTo)) return null;
-  const slash = before.text.indexOf("/");
-  const typed = before.text.slice(slash + 1).toLowerCase();
-  const options: Completion[] = slashItems()
-    .filter((it) => typed === "" || it.label.toLowerCase().includes(typed) || (it.detail ?? "").toLowerCase().includes(typed))
-    .map((it) => ({
-      label: it.label,
-      detail: it.detail,
-      type: it.type,
-      apply: (view: EditorView, _c: Completion, from: number, to: number) => {
-        const text = typeof it.insert === "function" ? it.insert() : it.insert;
-        const start = from;
-        const selection = it.select ? { anchor: start + it.select[0], head: start + it.select[1] } : { anchor: it.cursor === undefined ? start + text.length : start + it.cursor };
-        view.dispatch({ changes: { from: start, to, insert: text }, selection });
-        it.run?.(view);
-      },
-    }));
-  // Filtered above: CodeMirror's own filter would match labels against the "/".
-  // No `validFor`: with CodeMirror's filter off, the source runs again on every keystroke.
-  return { from: before.from + slash, options, filter: false };
-}
-
 let webSeq = 0;
 /** The ribbon, once built (the toggles repaint it; they run before it exists). */
 let ribbon: Ribbon | null = null;
 /** An overlay (switcher, palette, plan, menu, dialog) is on screen: native
  *  web views would paint over it, so they hide meanwhile. */
 function overlayOpen(): boolean {
-  return document.querySelector(".quick:not([hidden]), .plan:not([hidden]), .menu:not([hidden])") !== null;
+  return document.querySelector(".quick:not([hidden]), .plan:not([hidden]), .menu:not([hidden]), .slash:not([hidden])") !== null;
 }
 
 /* ---------- Pointer drag: tabs and tree rows, dropped where the pointer says ---------- */
@@ -825,6 +810,7 @@ class NoteLeaf extends Leaf {
   backlinksData: { from: string; line: number }[] = [];
   linksData: { target: string; resolved: string | null }[] = [];
   readonly liveCompartment = new Compartment();
+  readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty });
   readonly live: ReturnType<typeof livePreview>;
   note: NoteText | null = null;
   mode: Mode = "preview";
@@ -913,8 +899,8 @@ class NoteLeaf extends Leaf {
       extensions: [
         basicSetup,
         markdown().language.data.of({ autocomplete: completeWikilinks }),
-        markdown().language.data.of({ autocomplete: completeSlash }),
         markdown(),
+        slashKeymap(this.slash),
         tableKeymap,
         keymap.of([indentWithTab]),
         EditorView.lineWrapping,
@@ -933,6 +919,7 @@ class NoteLeaf extends Leaf {
           drop: (e) => this.takeFiles(e.dataTransfer?.files ?? null, e),
         }),
         EditorView.updateListener.of((u) => {
+          this.slash.onUpdate(u);
           if (u.docChanged) {
             this.setDirty(true);
             this.scheduleSave();
@@ -1476,6 +1463,7 @@ class NoteLeaf extends Leaf {
     this.editor.focus();
   }
   override destroy(): void {
+    this.slash.el.remove();
     this.closeWeb();
     this.editor.destroy();
   }
