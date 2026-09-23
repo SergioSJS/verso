@@ -27,6 +27,8 @@ export type LiveOptions = {
   navigate: (target: string) => void;
   /** The folded frontmatter was clicked: the caller shows the YAML (source mode). */
   editFrontmatter?: () => void;
+  /** The folded frontmatter's tooltip, in the interface's language. */
+  frontmatterTitle?: (lines: number) => string;
   /** The rendered HTML of an embedded note, once known; `null` when the
    *  target is not a note; `undefined` while being asked. */
   noteHtml?: (target: string) => string | null | undefined;
@@ -117,7 +119,7 @@ class ImageWidget extends WidgetType {
 
 /** The folded frontmatter: a hint that properties live above. */
 class FrontmatterWidget extends WidgetType {
-  constructor(readonly lines: number, readonly onClick: (() => void) | undefined) {
+  constructor(readonly lines: number, readonly onClick: (() => void) | undefined, readonly title: string) {
     super();
   }
   override eq(other: FrontmatterWidget): boolean {
@@ -127,7 +129,7 @@ class FrontmatterWidget extends WidgetType {
     const el = document.createElement("div");
     el.className = "cm-lp-frontmatter";
     el.textContent = "···";
-    el.title = `${this.lines} ${this.lines === 1 ? "line" : "lines"} of properties — click to edit the YAML`;
+    el.title = this.title;
     el.addEventListener("mousedown", (e) => {
       e.preventDefault();
       this.onClick?.();
@@ -407,7 +409,10 @@ function foldBlocks(state: EditorState, opts: LiveOptions, blocks: Block[]): Dec
   const touched = (from: number, to: number) => sel.some((r) => r.from <= to && r.to >= from);
   const fm = frontmatterEnd(state.doc);
   const ranges = [];
-  if (fm >= 0) ranges.push(Decoration.replace({ widget: new FrontmatterWidget(state.doc.lineAt(fm).number - 2, opts.editFrontmatter) }).range(0, fm));
+  if (fm >= 0) {
+    const lines = state.doc.lineAt(fm).number - 2;
+    ranges.push(Decoration.replace({ widget: new FrontmatterWidget(lines, opts.editFrontmatter, opts.frontmatterTitle?.(lines) ?? "") }).range(0, fm));
+  }
   for (const b of blocks) {
     if (b.from <= fm || touched(b.from, b.to)) continue;
     const html = b.kind === "embed" ? opts.noteHtml?.(b.text) : undefined;
