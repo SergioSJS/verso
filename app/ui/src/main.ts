@@ -14,6 +14,8 @@
 
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView, basicSetup } from "codemirror";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
@@ -53,6 +55,9 @@ type Strings = Record<
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
+  | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
+  | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
+  | "openInWindow" | "returnToMain"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels",
   string
 > & {
@@ -114,6 +119,11 @@ const pt: Strings = {
   pdfHits: (n, current) => `${current} de ${n}`,
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
+  openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal",
+  sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
+  spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
+  hotkeyChange: "Alterar", hotkeyPress: "Pressione as teclas…", hotkeyReset: "Restaurar", hotkeysHint: "Clique em Alterar e pressione a combinação. Um atalho já usado por outro comando é retirado dele.", hotkeyNone: "—",
+  themeDesc: "Claro, escuro ou como o sistema.", hueDesc: "A família de cores do papel e dos destaques.", fontSizeDesc: "Tamanho base da interface e das notas.", attachmentsDesc: "Subpasta, ao lado da nota, onde imagens coladas são salvas.", dailyDesc: "Onde a nota de hoje (⌘D) é criada.", templatesDesc: "Qualquer nota nessa pasta é um template.", autosaveDesc: "Segundos depois de parar de digitar.",
   graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique abre · duplo clique centra · arraste move · roda amplia", graphLabels: "Nomes",
   ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
@@ -164,6 +174,11 @@ const en: Strings = {
   pdfHits: (n, current) => `${current} of ${n}`,
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
+  openInWindow: "Open in a new window", returnToMain: "Return to the main window",
+  sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
+  spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
+  hotkeyChange: "Change", hotkeyPress: "Press the keys…", hotkeyReset: "Restore", hotkeysHint: "Click Change and press the combination. A shortcut another command used is taken from it.", hotkeyNone: "—",
+  themeDesc: "Light, dark, or as the system.", hueDesc: "The color family of the paper and the accents.", fontSizeDesc: "Base size of the interface and the notes.", attachmentsDesc: "Subfolder beside the note where pasted images go.", dailyDesc: "Where today's note (⌘D) is created.", templatesDesc: "Any note in that folder is a template.", autosaveDesc: "Seconds after typing stops.",
   graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click opens · double-click centers · drag moves · wheel zooms", graphLabels: "Names",
   ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
@@ -273,8 +288,8 @@ const ui = {
 };
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
-type Settings = { theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string };
-const DEFAULTS: Settings = { theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates" };
+type Settings = { theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; hotkeys: Record<string, string> };
+const DEFAULTS: Settings = { theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates", spellcheck: true, defaultMode: "preview", measure: "normal", hotkeys: {} };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
   try {
@@ -296,10 +311,14 @@ function saveSettings(): void {
 function applySettings(): void {
   document.documentElement.dataset["theme"] = settings.theme;
   document.documentElement.dataset["palette"] = settings.palette;
+  document.documentElement.dataset["measure"] = settings.measure;
   document.documentElement.style.fontSize = `${settings.fontSize}px`;
 }
 loadSettings();
 const LAST_FOLDER = "verso.lastFolder";
+/** This window shows one note popped out of the main window. */
+const popout = getCurrentWindow().label.startsWith("note-");
+if (popout) document.body.classList.add("popout");
 let currentFolder = "";
 let allNotes: string[] = [];
 let allFiles: string[] = [];
@@ -848,7 +867,7 @@ class NoteLeaf extends Leaf {
   readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty });
   readonly live: ReturnType<typeof livePreview>;
   note: NoteText | null = null;
-  mode: Mode = "preview";
+  mode: Mode = settings.defaultMode;
   revision = "";
   eol = "\n";
   resolved = new Map<string, string | null>();
@@ -937,7 +956,7 @@ class NoteLeaf extends Leaf {
         markdown({ codeLanguages: languages }),
         syntaxHighlighting(classHighlighter),
         // The system's spell checker, in the languages it is set to.
-        EditorView.contentAttributes.of({ spellcheck: "true", autocorrect: "on", autocapitalize: "off" }),
+        EditorView.contentAttributes.of({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off" }),
         slashKeymap(this.slash),
         tableKeymap,
         keymap.of([indentWithTab]),
@@ -2357,6 +2376,7 @@ class Pane {
       sep,
       [t.splitRight, () => leaf.moveTo(layout().split(this, "row"))],
       [t.splitDownTab, () => leaf.moveTo(layout().split(this, "col"))],
+      ...(leaf.kind === "note" && !popout ? [[t.openInWindow, () => void leaf.flush().then(() => commands.openWindow(leaf.path)).then(() => leaf.close(true))] as [string, () => void]] : []),
       ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
       ...(leaf.kind === "note" ? [sep, [t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
     ]);
@@ -2702,7 +2722,7 @@ function persistSoon(): void {
   window.clearTimeout(persistTimer);
   persistTimer = window.setTimeout(() => {
     try {
-      if (!currentFolder) return;
+      if (!currentFolder || popout) return;
       localStorage.setItem(
         `verso.spaces:${currentFolder}`,
         JSON.stringify({ current: current ? spaces.indexOf(current) : 0, spaces: spaces.map((s) => ({ label: s.label, layout: s.layout.serialize() })) }),
@@ -3674,50 +3694,91 @@ class QuickSwitcher {
 }
 const quick = new QuickSwitcher();
 
-/* ---------- ⌘⇧P: every command by name ---------- */
-type Command = { label: string; keys?: string; run: () => void };
-function allCommands(): Command[] {
+/* ---------- Commands: one registry for the palette, the keys and the settings ---------- */
+type Command = { id: string; label: string; keys?: string; run: () => void };
+/** Default keys, as `Mod-Shift-x`; the settings may override each. */
+const DEFAULT_KEYS: Record<string, string> = {
+  "open-folder": "Mod-o", search: "Mod-k", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
+  "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Shift-l", "toggle-right": "Mod-Shift-r",
+  reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[",
+};
+function keyOf(id: string): string {
+  return settings.hotkeys[id] ?? DEFAULT_KEYS[id] ?? "";
+}
+const UNSHIFT: Record<string, string> = { "{": "[", "}": "]", "|": "\\", "<": ",", ">": ".", "?": "/", ":": ";", '"': "'", "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=" };
+/** The combination a key event is, as `Mod-Shift-x`; empty when it is only modifiers. */
+function comboOf(e: KeyboardEvent): string {
+  let key = e.key;
+  if (key === " ") key = "Space";
+  else if (key.length === 1) key = (UNSHIFT[key] ?? key).toLowerCase();
+  if (["Meta", "Control", "Shift", "Alt", "Dead"].includes(key)) return "";
+  const parts: string[] = [];
+  if (e.metaKey || e.ctrlKey) parts.push("Mod");
+  if (e.altKey) parts.push("Alt");
+  if (e.shiftKey) parts.push("Shift");
+  parts.push(key);
+  return parts.join("-");
+}
+/** `Mod-Shift-p` shown as the keys on this machine: ⌘⇧P. */
+function prettyKeys(combo: string): string {
+  if (!combo) return "";
+  const mac = navigator.platform.toLowerCase().includes("mac");
+  return combo.split("-").map((p) => (p === "Mod" ? (mac ? "⌘" : "Ctrl") : p === "Shift" ? "⇧" : p === "Alt" ? (mac ? "⌥" : "Alt") : p === "Space" ? "␣" : p.length === 1 ? p.toUpperCase() : p)).join(mac ? "" : "+");
+}
+/** Every command, with what it needs to run; `all` lists the ones that
+ *  need a note or a pane even when there is none (the settings page). */
+function allCommands(all = false): Command[] {
   const leaf = layout().activeLeaf;
-  const pane = layout().focused;
+  const pane = layout().focused ?? layout().panes()[0];
   const note = leaf instanceof NoteLeaf ? leaf : null;
-  const cmds: Command[] = [
-    { label: t.open, keys: "⌘O", run: () => void openFolderDialog() },
-    { label: t.newNote, keys: "⌘N", run: () => void newUntitled(pane ?? layout().panes()[0]!) },
-    { label: t.newFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
-    { label: t.daily, keys: "⌘D", run: () => void dailyNote() },
-    { label: t.insertTemplate, run: () => insertTemplate() },
-    { label: t.saveAsTemplate, run: () => void saveAsTemplate() },
-    { label: t.quick, keys: "⌘P", run: () => quick.show() },
-    { label: t.search, keys: "⌘K", run: () => ui.search.focus() },
-    { label: `${t.replaceTitle}…`, keys: "⌘⇧H", run: () => replaceDialog.show() },
-    { label: t.newWebPage, run: () => newWebPagePrompt() },
-    { label: t.reindex, run: () => void reindex() },
-    { label: t.split, keys: "⌘\\", run: () => pane && layout().split(pane, "row") },
-    { label: t.splitDown, keys: "⌘⇧\\", run: () => pane && layout().split(pane, "col") },
-    { label: t.newSpace, keys: "⌘T", run: () => newSpace() },
-    { label: t.maximize, keys: "⌘⇧M", run: () => pane && layout().toggleMaximize(pane) },
-    { label: t.closePane, keys: "⌘⇧W", run: () => pane && void pane.closeAll() },
-    { label: t.close, keys: "⌘W", run: () => leaf && void leaf.close() },
-    { label: t.reopen, keys: "⌘⇧T", run: () => { const b = closedTabs.pop(); if (b) openNote(b, false); } },
-    { label: t.toggleSide, keys: "⌘⇧L", run: () => toggleSide() },
-    { label: t.toggleRight, keys: "⌘⇧R", run: () => toggleRight() },
-    { label: pane?.tabsHidden ? t.showTabs : t.hideTabs, run: () => pane?.setTabsHidden(!pane.tabsHidden) },
-    { label: pane?.vertical ? t.horizontalTabs : t.verticalTabs, run: () => pane?.setVertical(!pane.vertical) },
-    { label: t.collapseAll, run: () => collapseAll() },
-    { label: t.settings, keys: "⌘,", run: () => settingsDialog.show() },
+  const hasFolder = currentFolder !== "";
+  const cmds: (Command & { need?: boolean })[] = [
+    { id: "open-folder", label: t.open, run: () => void openFolderDialog() },
+    { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? layout().reset()) },
+    { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
+    { id: "insert-template", label: t.insertTemplate, need: hasFolder, run: () => insertTemplate() },
+    { id: "save-template", label: t.saveAsTemplate, need: hasFolder, run: () => void saveAsTemplate() },
+    { id: "quick", label: t.quick, need: hasFolder, run: () => quick.show() },
+    { id: "palette", label: t.commands, need: hasFolder, run: () => paletteDialog.show() },
+    { id: "search", label: t.search, need: hasFolder, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
+    { id: "replace", label: `${t.replaceTitle}…`, need: hasFolder, run: () => replaceDialog.show() },
+    { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },
+    { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
+    { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? layout().reset()).openGraph("") },
+    { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
+    { id: "split-down", label: t.splitDown, need: Boolean(pane), run: () => pane && layout().split(pane, "col") },
+    { id: "new-space", label: t.newSpace.split(" (")[0] ?? t.newSpace, need: hasFolder, run: () => newSpace() },
+    { id: "maximize", label: t.maximize, need: Boolean(pane), run: () => pane && layout().toggleMaximize(pane) },
+    { id: "close-pane", label: t.closePane, need: Boolean(pane), run: () => pane && void pane.closeAll() },
+    { id: "close-tab", label: t.close, need: Boolean(leaf), run: () => leaf && void leaf.close() },
+    { id: "next-tab", label: t.allTabs + " ›", need: Boolean(pane?.active), run: () => pane && cycleTab(pane, 1) },
+    { id: "prev-tab", label: "‹ " + t.allTabs, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
+    { id: "reopen", label: t.reopen, need: hasFolder, run: () => { const b = closedTabs.pop(); if (b) openNote(b, false); } },
+    { id: "toggle-side", label: t.toggleSide.split(" (")[0] ?? t.toggleSide, run: () => toggleSide() },
+    { id: "toggle-right", label: t.toggleRight.split(" (")[0] ?? t.toggleRight, run: () => toggleRight() },
+    { id: "hide-tabs", label: pane?.tabsHidden ? t.showTabs : t.hideTabs, need: Boolean(pane), run: () => pane?.setTabsHidden(!pane.tabsHidden) },
+    { id: "vertical-tabs", label: pane?.vertical ? t.horizontalTabs : t.verticalTabs, need: Boolean(pane), run: () => pane?.setVertical(!pane.vertical) },
+    { id: "collapse-all", label: t.collapseAll, need: hasFolder, run: () => collapseAll() },
+    { id: "settings", label: t.settings.split(" (")[0] ?? t.settings, run: () => settingsDialog.show() },
+    { id: "toggle-mode", label: `${t.reading} / ${t.edit}`, need: Boolean(note), run: () => note?.toggleMode() },
+    { id: "source", label: t.source, need: Boolean(note), run: () => note?.setMode("source") },
+    { id: "save", label: t.save, need: Boolean(note), run: () => void note?.save() },
+    { id: "bookmark", label: note && bookmarks.includes(note.path) ? t.unbookmark : t.bookmark, need: Boolean(note), run: () => note && toggleBookmark(note.path) },
+    { id: "graph-note", label: t.graph, need: Boolean(note), run: () => note && pane?.openGraph(note.path) },
+    { id: "rename", label: t.rename, need: Boolean(note), run: () => note?.renameHere() },
+    { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
   ];
-  if (note) {
-    cmds.push(
-      { label: `${t.reading} / ${t.edit}`, keys: "⌘E", run: () => note.toggleMode() },
-      { label: t.source, run: () => note.setMode("source") },
-      { label: t.save, keys: "⌘S", run: () => void note.save() },
-      { label: bookmarks.includes(note.path) ? t.unbookmark : t.bookmark, run: () => toggleBookmark(note.path) },
-      { label: t.graph, keys: "⌘⇧G", run: () => pane?.openGraph(note.path) },
-      { label: t.rename, run: () => note.renameHere() },
-      { label: t.deleteNote, run: () => void deleteNote(note.path) },
-    );
-  }
-  return cmds;
+  return cmds.filter((c) => all || c.need !== false).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run }));
+}
+function cycleTab(pane: Pane, dir: 1 | -1): void {
+  const active = pane.active;
+  if (!active) return;
+  const i = pane.leaves.indexOf(active);
+  const n = pane.leaves.length;
+  const next = pane.leaves[(i + (dir === 1 ? 1 : n - 1)) % n];
+  if (next) pane.activate(next, false);
 }
 class Palette {
   readonly el = h("div", "quick palette");
@@ -3869,65 +3930,163 @@ class ReplaceDialog {
 }
 const replaceDialog = new ReplaceDialog();
 
+/** A settings page is a list of items: a title, a line about it, a control. */
+let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
 class SettingsDialog {
-  readonly el = h("div", "quick settings-box");
+  readonly el = h("div", "quick settings");
+  readonly box = h("div", "settings-box");
+  readonly nav = h("nav", "settings-nav");
+  readonly body = h("div", "settings-body");
+  readonly search = h("input", "settings-search");
+  private section = "general";
   constructor() {
     this.el.hidden = true;
+    this.search.type = "search";
+    this.search.placeholder = t.searchSettings;
+    this.search.addEventListener("input", () => this.paint());
+    this.search.addEventListener("keydown", (e) => e.stopPropagation());
+    const side = h("div", "settings-side");
+    side.append(this.search, this.nav);
+    this.box.append(side, this.body);
+    this.el.append(this.box);
     document.body.append(this.el);
     this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.el.hidden && !hotkeyRecorder) this.hide(); });
   }
   show(): void {
-    const box = h("div", "plan-box");
-    box.append(h("h2", "", t.settings));
-    const field = (label: string, input: HTMLElement) => {
-      const l = h("label", "field");
-      l.append(h("span", "", label), input);
-      box.append(l);
-    };
-    const theme = h("select");
-    for (const [v, l] of [["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]] as const) {
-      const o = h("option", "", l);
-      o.value = v;
-      o.selected = settings.theme === v;
-      theme.append(o);
-    }
-    theme.addEventListener("change", () => { settings.theme = theme.value as Settings["theme"]; saveSettings(); });
-    field(t.theme, theme);
-    const palette = h("select");
-    for (const [v, l] of [["paper", t.huePaper], ["sepia", t.hueSepia], ["slate", t.hueSlate], ["moss", t.hueMoss]] as const) {
-      const o = h("option", "", l);
-      o.value = v;
-      o.selected = settings.palette === v;
-      palette.append(o);
-    }
-    palette.addEventListener("change", () => { settings.palette = palette.value as Hue; saveSettings(); });
-    field(t.hue, palette);
-    const size = h("input");
-    size.type = "range"; size.min = "12"; size.max = "22"; size.step = "1"; size.value = String(settings.fontSize);
-    size.addEventListener("input", () => { settings.fontSize = Number(size.value); saveSettings(); });
-    field(t.fontSize, size);
-    const text = (key: "attachments" | "daily" | "templates", label: string) => {
-      const i = h("input");
-      i.type = "text"; i.value = settings[key];
-      i.addEventListener("change", () => { settings[key] = i.value.trim(); saveSettings(); });
-      field(label, i);
-    };
-    text("attachments", t.attachments);
-    text("daily", t.dailyFolder);
-    text("templates", t.templates);
-    const delay = h("input");
-    delay.type = "number"; delay.min = "0.3"; delay.step = "0.5"; delay.value = String(settings.autosave);
-    delay.addEventListener("change", () => { settings.autosave = Math.max(0.3, Number(delay.value) || 1.5); saveSettings(); });
-    field(t.autosaveDelay, delay);
-    const done = button("save", t.done);
-    done.addEventListener("click", () => this.hide());
-    const actions = h("div", "conflict-actions");
-    actions.append(done);
-    box.append(actions);
-    this.el.replaceChildren(box);
     this.el.hidden = false;
+    this.paint();
+    this.search.focus();
   }
-  hide(): void { this.el.hidden = true; }
+  hide(): void {
+    this.el.hidden = true;
+    hotkeyRecorder = null;
+  }
+  private sections(): { id: string; label: string }[] {
+    return [
+      { id: "general", label: t.sGeneral },
+      { id: "appearance", label: t.sAppearance },
+      { id: "editor", label: t.sEditor },
+      { id: "files", label: t.sFiles },
+      { id: "hotkeys", label: t.sHotkeys },
+    ];
+  }
+  private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
+    const row = h("div", "setting");
+    const text = h("div", "setting-text");
+    text.append(h("div", "setting-title", title), h("div", "setting-desc", desc));
+    row.append(text);
+    if (control) row.append(control);
+    return row;
+  }
+  private select<T extends string>(options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement {
+    const sel = h("select");
+    for (const [v, l] of options) {
+      const o = h("option", "", l);
+      o.value = v;
+      o.selected = value === v;
+      sel.append(o);
+    }
+    sel.addEventListener("change", () => onChange(sel.value as T));
+    return sel;
+  }
+  private toggle(value: boolean, onChange: (v: boolean) => void): HTMLLabelElement {
+    const l = h("label", "switch");
+    const box = h("input");
+    box.type = "checkbox";
+    box.checked = value;
+    box.addEventListener("change", () => onChange(box.checked));
+    l.append(box, h("span", "switch-track"));
+    return l;
+  }
+  private text(value: string, onChange: (v: string) => void): HTMLInputElement {
+    const i = h("input");
+    i.type = "text";
+    i.value = value;
+    i.addEventListener("change", () => onChange(i.value.trim()));
+    i.addEventListener("keydown", (e) => e.stopPropagation());
+    return i;
+  }
+  /** Every item of every section, for the search; the section otherwise. */
+  private items(): { section: string; title: string; desc: string; node: () => HTMLElement }[] {
+    const out: { section: string; title: string; desc: string; node: () => HTMLElement }[] = [];
+    const add = (section: string, title: string, desc: string, control: () => HTMLElement | null) => out.push({ section, title, desc, node: () => this.item(title, desc, control()) });
+    add("general", t.languageFollows, "", () => null);
+    add("general", t.autosaveDelay, t.autosaveDesc, () => {
+      const i = h("input");
+      i.type = "number"; i.min = "0.3"; i.step = "0.5"; i.value = String(settings.autosave);
+      i.addEventListener("change", () => { settings.autosave = Math.max(0.3, Number(i.value) || 1.5); saveSettings(); });
+      return i;
+    });
+    add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }));
+    add("appearance", t.hue, t.hueDesc, () => this.select([["paper", t.huePaper], ["sepia", t.hueSepia], ["slate", t.hueSlate], ["moss", t.hueMoss]], settings.palette, (v) => { settings.palette = v; saveSettings(); }));
+    add("appearance", t.fontSize, t.fontSizeDesc, () => {
+      const r = h("input");
+      r.type = "range"; r.min = "12"; r.max = "22"; r.step = "1"; r.value = String(settings.fontSize);
+      r.addEventListener("input", () => { settings.fontSize = Number(r.value); saveSettings(); });
+      return r;
+    });
+    add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
+    add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
+    add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
+    add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
+    add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
+    add("files", t.templates, t.templatesDesc, () => this.text(settings.templates, (v) => { settings.templates = v; saveSettings(); }));
+    for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id));
+    return out;
+  }
+  private hotkeyControl(id: string): HTMLElement {
+    const wrap = h("span", "hotkey");
+    const shown = h("kbd", "", prettyKeys(keyOf(id)) || t.hotkeyNone);
+    if (settings.hotkeys[id] !== undefined) shown.classList.add("custom");
+    const change = button("ghost", t.hotkeyChange);
+    change.addEventListener("click", () => {
+      shown.textContent = t.hotkeyPress;
+      shown.classList.add("recording");
+      hotkeyRecorder = (e: KeyboardEvent) => {
+        const combo = comboOf(e);
+        if (!combo) return;
+        e.preventDefault();
+        e.stopPropagation();
+        hotkeyRecorder = null;
+        if (combo === "Escape") return this.paint();
+        // The same keys cannot mean two things: the other command loses them.
+        for (const other of allCommands(true)) if (other.id !== id && keyOf(other.id) === combo) settings.hotkeys[other.id] = "";
+        settings.hotkeys[id] = combo;
+        saveSettings();
+        this.paint();
+      };
+    });
+    const reset = button("ghost", t.hotkeyReset);
+    reset.addEventListener("click", () => { delete settings.hotkeys[id]; saveSettings(); this.paint(); });
+    reset.hidden = settings.hotkeys[id] === undefined;
+    wrap.append(shown, change, reset);
+    return wrap;
+  }
+  paint(): void {
+    const q = this.search.value.trim().toLowerCase();
+    this.nav.replaceChildren(...this.sections().map((sec) => {
+      const b = h("button", "settings-nav-item", sec.label);
+      b.type = "button";
+      b.setAttribute("aria-current", String(sec.id === this.section && !q));
+      b.addEventListener("click", () => { this.section = sec.id; this.search.value = ""; this.paint(); });
+      return b;
+    }));
+    const items = this.items().filter((it) => (q ? `${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
+    const frag = document.createDocumentFragment();
+    let lastSection = "";
+    for (const it of items) {
+      if (q && it.section !== lastSection) {
+        lastSection = it.section;
+        frag.append(h("h3", "settings-heading", this.sections().find((sec) => sec.id === it.section)?.label ?? ""));
+      }
+      frag.append(it.node());
+    }
+    if (!q) {
+      const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
+      this.body.replaceChildren(title, ...(this.section === "hotkeys" ? [h("p", "settings-hint", t.hotkeysHint)] : []), frag);
+    } else this.body.replaceChildren(frag);
+  }
 }
 const settingsDialog = new SettingsDialog();
 
@@ -4046,6 +4205,29 @@ function lesson(): void {
   const box = h("div", "lesson");
   box.append(h("h1", "", t.lessonTitle), h("p", "", t.lessonBody), h("p", "keys", t.lessonKeys));
   ui.panes.replaceChildren(box);
+}
+/** A popped-out window joins the session: the folder is open already. */
+async function joinAsPopout(): Promise<void> {
+  const [folder, target] = await Promise.all([commands.currentFolder(), commands.popoutTarget()]);
+  if (folder.status !== "ok" || !folder.data || target.status !== "ok" || !target.data) return;
+  currentFolder = folder.data;
+  ui.folder.textContent = folder.data.split("/").filter(Boolean).pop() ?? folder.data;
+  page?.classList.remove("empty");
+  ui.search.disabled = false;
+  loadBookmarks();
+  await listAll();
+  const s = new Space(name(target.data));
+  spaces.push(s);
+  current = s;
+  s.layout.reset();
+  const path = target.data;
+  const leaf = openIn(s.layout.panes()[0] ?? s.layout.reset(), path);
+  const bar = h("div", "popout-bar");
+  const back = button("ghost", t.returnToMain);
+  back.addEventListener("click", () => void leaf.flush().then(() => commands.returnToMain(leaf.path)));
+  bar.append(h("span", "popout-name", name(path)), back);
+  document.querySelector(".work")?.prepend(bar);
+  document.title = name(path);
 }
 async function openPath(path: string): Promise<boolean> {
   ui.status.textContent = "…";
@@ -4232,83 +4414,27 @@ ui.search.addEventListener("keydown", (e) => {
   if (e.key === "Enter") ui.notes.querySelector<HTMLButtonElement>("li[data-path] button")?.click();
 });
 
+document.addEventListener("keydown", (e) => { if (hotkeyRecorder) hotkeyRecorder(e); }, true);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") menu.hidden = true;
   if (!(e.metaKey || e.ctrlKey)) return;
-  const k = e.key.toLowerCase();
-  const leaf = layout().activeLeaf;
-  const hasFolder = !ui.search.disabled;
-  if (k === "o") {
-    e.preventDefault();
-    void openFolderDialog();
-  } else if (k === "k" && hasFolder) {
-    e.preventDefault();
-    ui.search.focus();
-    ui.search.select();
-  } else if (k === "n" && hasFolder) {
-    e.preventDefault();
-    if (e.shiftKey) newNotePrompt(leaf?.path ? dirOf(leaf.path) : "");
-    else void newUntitled(layout().focused ?? layout().panes()[0]!);
-  } else if (k === "p" && hasFolder && !e.shiftKey) {
-    e.preventDefault();
-    quick.show();
-  } else if (k === "e" && leaf instanceof NoteLeaf && leaf.note) {
-    e.preventDefault();
-    leaf.toggleMode();
-  } else if (k === "\\" && layout().focused) {
-    e.preventDefault();
-    layout().split(layout().focused!, e.shiftKey ? "col" : "row");
-  } else if (k === "p" && e.shiftKey && hasFolder) {
-    e.preventDefault();
-    paletteDialog.show();
-  } else if (k === ",") {
-    e.preventDefault();
-    settingsDialog.show();
-  } else if (k === "d" && hasFolder && !e.shiftKey) {
-    e.preventDefault();
-    void dailyNote();
-  } else if (k === "h" && e.shiftKey && hasFolder) {
-    e.preventDefault();
-    replaceDialog.show();
-  } else if (k === "l" && e.shiftKey) {
-    e.preventDefault();
-    toggleSide();
-  } else if (k === "r" && e.shiftKey) {
-    e.preventDefault();
-    toggleRight();
-  } else if (k === "t" && e.shiftKey && hasFolder) {
-    e.preventDefault();
-    const back = closedTabs.pop();
-    if (back) openNote(back, false);
-  } else if (k === "g" && e.shiftKey && leaf?.kind === "note") {
-    e.preventDefault();
-    (layout().focused ?? layout().panes()[0])?.openGraph(leaf.path);
-  } else if (k === "t" && hasFolder) {
-    e.preventDefault();
-    newSpace();
-  } else if (k === "m" && e.shiftKey && layout().focused) {
-    e.preventDefault();
-    layout().toggleMaximize(layout().focused!);
-  } else if (k === "w" && e.shiftKey && layout().focused) {
-    e.preventDefault();
-    void layout().focused!.closeAll();
-  } else if (k === "w" && leaf) {
-    e.preventDefault();
-    void leaf.close();
-  } else if ((k === "[" || k === "]") && e.shiftKey && layout().focused?.active) {
-    e.preventDefault();
-    const pane = layout().focused!;
-    const i = pane.leaves.indexOf(pane.active!);
-    const n = pane.leaves.length;
-    const next = pane.leaves[(i + (k === "]" ? 1 : n - 1)) % n];
-    if (next) pane.activate(next, false);
-  } else if (/^[1-9]$/.test(k) && spaces.length > 1) {
-    const s = spaces[Number(k) - 1];
-    if (s) {
+  if (hotkeyRecorder) return;
+  const combo = comboOf(e);
+  if (!combo) return;
+  // ⌘1…⌘9: the workspaces.
+  const digit = /^Mod-([1-9])$/.exec(combo);
+  if (digit && spaces.length > 1) {
+    const sp = spaces[Number(digit[1]) - 1];
+    if (sp) {
       e.preventDefault();
-      showSpace(s);
+      showSpace(sp);
     }
+    return;
   }
+  const cmd = allCommands().find((c) => keyOf(c.id) === combo);
+  if (!cmd) return;
+  e.preventDefault();
+  cmd.run();
 });
 
 const sideDivider = el<HTMLDivElement>("side-divider");
@@ -4347,7 +4473,9 @@ document.addEventListener("visibilitychange", () => {
 });
 
 lesson();
+if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false); void getCurrentWindow().setFocus(); });
 void (async () => {
+  if (popout) return void joinAsPopout();
   // `verso <folder>` on the command line wins over the last folder.
   const initial = await commands.initialFolder();
   if (initial.status === "ok" && initial.data) {
