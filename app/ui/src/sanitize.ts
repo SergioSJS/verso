@@ -59,7 +59,11 @@ const LANGUAGE = /^language-[\w#+.-]+$/;
  *  `tree-root` would land in the tree). A note's other ids stay: its
  *  footnotes and anchors point at them. */
 const RESERVED = new Set(Array.from(document.querySelectorAll("[id]"), (e) => e.id));
-const reserved = (id: string): boolean => RESERVED.has(id) || id.startsWith("verso-");
+/** Ids the window makes later, for its lists and dialogs (their
+ *  `aria-*` point at them): a note's element with one would come first in
+ *  the document and take the reference. */
+const LATER = /^(verso-|quick-|palette-|plan-|setting-|slash-|folders-)/;
+const reserved = (id: string): boolean => RESERVED.has(id) || LATER.test(id);
 
 /** A link's or an image's address, if it may stay: the web, mail (links),
  *  a place in the same page (links), an image in data (images). A
