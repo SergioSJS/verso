@@ -947,6 +947,20 @@ const readOnlyText: Extension = [EditorState.readOnly.of(true), EditorState.chan
  *  mark inside the brackets. */
 const TASK = /^((?:[ \t]*>)*[ \t]*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?\[)[ xX](?=\])/;
 
+/* The web views of open web notes follow their hosts only while
+ * something can move them: a window resized, a tab shown or hidden, a
+ * pane split or resized, an overlay opened (they would paint over it). */
+const webLeaves = new Set<NoteLeaf>();
+function syncWebViews(): void {
+  for (const l of webLeaves) l.syncWeb();
+}
+window.addEventListener("resize", syncWebViews);
+new MutationObserver((records) => {
+  if (webLeaves.size === 0) return;
+  // An editor, a PDF or the graph redraws itself: nothing moves outside.
+  if (records.some((r) => !(r.target instanceof Element && r.target.closest(".cm-editor, .pdf, svg.graph")))) syncWebViews();
+}).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "class", "style"] });
+
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 type Mode = "preview" | "live" | "source";
 class NoteLeaf extends Leaf {
@@ -998,6 +1012,9 @@ class NoteLeaf extends Leaf {
   private webShown = false;
   private webRaf = 0;
   private webLast = "";
+  /** Frames the view has not moved: after a few it sleeps. */
+  private webStill = 0;
+  private webResize: ResizeObserver | null = null;
   private saveTimer: number | undefined;
   /** Writes run one at a time, each over the revision the last one left. */
   private saving: Promise<void> = Promise.resolve();
@@ -1011,6 +1028,11 @@ class NoteLeaf extends Leaf {
   note: NoteText | null = null;
   /** The text the reading view was drawn from: a task's line is checked against it. */
   private shownText = "";
+  /** The note and HTML the reading view shows, and whether newer ones wait
+   *  to be drawn: the view (and every PDF in it) is built again only when
+   *  its HTML changed, and only once it is seen. */
+  private drawn = "";
+  private previewStale = false;
   mode: Mode = settings.defaultMode;
   revision = "";
   eol = "\n";
@@ -1290,6 +1312,7 @@ class NoteLeaf extends Leaf {
     this.toolbar.hidden = m === "preview";
     this.editorHost.hidden = m === "preview";
     for (const [k, b] of Object.entries(this.modeButtons)) b.setAttribute("aria-pressed", String(k === m));
+    if (m === "preview") this.paintPreview();
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? this.live : []) });
     if (m === "live") {
       // The caret never lands inside the folded frontmatter.
@@ -1383,11 +1406,15 @@ class NoteLeaf extends Leaf {
     }
     this.webLabel = res.data;
     this.webLast = "";
-    if (!this.webRaf) this.tickWeb();
+    webLeaves.add(this);
+    this.webResize = new ResizeObserver(() => this.syncWeb());
+    this.webResize.observe(this.webHost);
+    this.syncWeb();
   }
-  /** Every frame the page's view follows its host: moved, sized, hidden
-   *  when the tab is not in front or an overlay is open. Only changes
-   *  cross the bridge. */
+  /** The page's view follows its host — moved, sized, hidden when the tab
+   *  is not in front or an overlay is open — frame by frame while it
+   *  moves, then sleeps until something wakes it (syncWebViews). Only
+   *  changes cross the bridge. */
   private tickWeb(): void {
     this.webRaf = 0;
     const label = this.webLabel;
@@ -1397,18 +1424,24 @@ class NoteLeaf extends Leaf {
     const key = visible ? `1|${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}` : "0";
     if (key !== this.webLast) {
       this.webLast = key;
+      this.webStill = 0;
       if (visible) void commands.webBounds(label, r.left, r.top, r.width, r.height).then(() => commands.webVisible(label, true));
       else void commands.webVisible(label, false);
-    }
-    this.webRaf = window.requestAnimationFrame(() => this.tickWeb());
+    } else this.webStill++;
+    // Still for a few frames: a transition or a drag has ended.
+    if (this.webStill < 10) this.webRaf = window.requestAnimationFrame(() => this.tickWeb());
   }
-  private syncWeb(): void {
-    this.webLast = "";
-    if (this.webLabel && !this.webRaf) this.tickWeb();
+  /** Something may have moved the host: look again. */
+  syncWeb(): void {
+    this.webStill = 0;
+    if (this.webLabel && !this.webRaf) this.webRaf = window.requestAnimationFrame(() => this.tickWeb());
   }
   private closeWeb(): void {
     const label = this.webLabel;
     this.webLabel = null;
+    webLeaves.delete(this);
+    this.webResize?.disconnect();
+    this.webResize = null;
     if (this.webRaf) window.cancelAnimationFrame(this.webRaf);
     this.webRaf = 0;
     if (label) void commands.webClose(label);
@@ -1471,15 +1504,13 @@ class NoteLeaf extends Leaf {
   private refresh(note: NoteText): void {
     this.note = note;
     this.revision = note.revision;
-    for (const e of this.embeds) e.destroy();
-    this.embeds = [];
     this.embedCache.clear();
-    setHtml(this.preview, note.html);
-    this.shownText = note.text;
-    this.gatherFootnotes();
-    typeset(this.preview);
-    void this.embedImages(note.path);
-    this.wireTasks();
+    const drawn = `${note.path}\n${note.html}`;
+    if (drawn !== this.drawn) {
+      this.drawn = drawn;
+      this.previewStale = true;
+    } else if (!this.previewStale) this.shownText = note.text;
+    if (this.mode === "preview") this.paintPreview();
     void this.relink(note.path);
     const flags: string[] = [];
     if (note.stale) flags.push(t.stale);
@@ -1542,6 +1573,21 @@ class NoteLeaf extends Leaf {
    *  save: what the preview resolves against and the panel lists. Then
    *  the preview is dressed: unresolved links marked, embedded notes
    *  filled in. */
+  /** Draw the reading view from the note, if it changed since it was drawn. */
+  private paintPreview(): void {
+    const note = this.note;
+    if (!this.previewStale || !note) return;
+    this.previewStale = false;
+    for (const e of this.embeds) e.destroy();
+    this.embeds = [];
+    setHtml(this.preview, note.html);
+    this.shownText = note.text;
+    this.gatherFootnotes();
+    typeset(this.preview);
+    void this.embedImages(note.path);
+    this.wireTasks();
+    this.dressLinks(note.path);
+  }
   private async relink(path: string): Promise<void> {
     const [back, links] = await Promise.all([commands.backlinks(path), commands.links(path)]);
     if (this.path !== path) return;
@@ -1549,6 +1595,12 @@ class NoteLeaf extends Leaf {
     if (links.status === "ok") for (const l of links.data) this.resolved.set(l.target.toLowerCase(), l.resolved);
     this.backlinksData = back.status === "ok" ? back.data.map((b) => ({ from: b.from, line: b.line })) : [];
     this.linksData = links.status === "ok" ? links.data.map((l) => ({ target: l.target, resolved: l.resolved })) : [];
+    this.dressLinks(path);
+    if (this.pane.active === this) panel.show(this);
+  }
+  /** The reading view's links marked when nothing answers them, embedded
+   *  notes filled in. */
+  private dressLinks(path: string): void {
     for (const a of this.preview.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
       const target = a.dataset["target"] ?? "";
       a.classList.toggle("unresolved", this.resolve(target) === null);
@@ -1556,7 +1608,6 @@ class NoteLeaf extends Leaf {
       if (a.textContent === target && /[#^]/.test(target)) a.textContent = target.replace(/#\^?/g, " › ");
     }
     this.dress(path);
-    if (this.pane.active === this) panel.show(this);
   }
   /** Where a link target goes: the index's answer, else the same rule
    *  applied to the note list (a link typed a moment ago is not indexed
@@ -1780,6 +1831,9 @@ class NoteLeaf extends Leaf {
     this.editor.focus();
   }
   override destroy(): void {
+    window.clearTimeout(this.saveTimer);
+    for (const e of this.embeds) e.destroy();
+    this.embeds = [];
     this.slash.el.remove();
     this.closeWeb();
     this.editor.destroy();
@@ -1953,6 +2007,7 @@ class TextLeaf extends Leaf {
     this.editor.focus();
   }
   override destroy(): void {
+    window.clearTimeout(this.saveTimer);
     this.editor.destroy();
   }
 }
