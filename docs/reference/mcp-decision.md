@@ -36,6 +36,17 @@
   Opus 5 reading of `verso mcp` — the confined path as the index key and as the
   echoed `path`, refusals as tool results rather than JSON-RPC errors, typed
   `problems`, and the window bounds of `read_note`.
+
+  **Revision, 2026-09-23.** Those four are in the code since `3c24d96`. The
+  Opus reading of the Phase 2 branch (`docs/review/phase-2.md`, reading 3,
+  findings 8 and 19, and finding 1's poisoned lock) found three more, fixed:
+  `read_note` of an empty note answers an empty window instead of
+  `bad_window`; each tool's declared output schema admits the error shape too
+  — an `anyOf` of the answer and `{kind, path, message}` — so a client that
+  validates `structuredContent` accepts a refusal; and a panic inside a tool
+  answers `failed` instead of leaving the call without an answer, with a
+  poisoned lock taken over, so one bad note no longer stops the server for the
+  rest of the session.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. The recommendations in sections 2 to 6 are **Fable
   5.1's**, recorded here as the author's input; they are not decisions. No Rust

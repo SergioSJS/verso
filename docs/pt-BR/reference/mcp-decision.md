@@ -37,6 +37,17 @@
   leitura da Opus 5 do `verso mcp` — o caminho confinado como chave do índice e
   como `path` ecoado, recusas como resultado de ferramenta em vez de erro
   JSON-RPC, `problems` tipado, e os limites da janela do `read_note`.
+
+  **Revisão, 2026-09-23.** Esses quatro estão no código desde `3c24d96`. A
+  leitura da Opus do branch da Fase 2 (`docs/review/phase-2.md`, leitura 3,
+  achados 8 e 19, e o lock envenenado do achado 1) achou mais três, corrigidos:
+  o `read_note` de uma nota vazia responde uma janela vazia em vez de
+  `bad_window`; o esquema de saída declarado de cada ferramenta admite também o
+  formato do erro — um `anyOf` da resposta e de `{kind, path, message}` —,
+  então um cliente que valida `structuredContent` aceita uma recusa; e um
+  pânico dentro de uma ferramenta responde `failed` em vez de deixar a chamada
+  sem resposta, com o lock envenenado retomado, então uma nota ruim não para
+  mais o servidor pelo resto da sessão.
 - Autor: Opus 5 (documentos, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Revisor: Fable 5.1. As recomendações das seções 2 a 6 são da **Fable 5.1**,
   registradas aqui como insumo do autor; não são decisões. Nenhum Rust neste
