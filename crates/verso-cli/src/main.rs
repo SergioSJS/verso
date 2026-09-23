@@ -17,7 +17,7 @@ mod messages;
 
 use std::ffi::OsString;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use messages::{Lang, Msg, text};
@@ -44,6 +44,10 @@ enum Command {
     },
     /// Serve the folder over MCP on stdin/stdout until stdin closes.
     Mcp {
+        folder: PathBuf,
+    },
+    /// Open the folder in the app (`verso .`, like an editor's `code .`).
+    Open {
         folder: PathBuf,
     },
 }
@@ -110,6 +114,17 @@ fn command_of(positional: Vec<OsString>, limit: usize, unresolved: bool) -> Resu
     let Some(sub) = positional.next() else {
         return Err(Msg::Usage);
     };
+    // `verso .`, `verso ../notas`, `verso ~/vault`: a path where the
+    // command would be opens that folder in the app.
+    let sub_text = sub.to_string_lossy().into_owned();
+    if sub_text == "." || sub_text == ".." || sub_text.contains('/') || sub_text.starts_with('~') {
+        if let Some(extra) = positional.next() {
+            return Err(Msg::ExtraArgument(extra.to_string_lossy().into_owned()));
+        }
+        return Ok(Command::Open {
+            folder: PathBuf::from(sub),
+        });
+    }
     let folder = positional.next().map(PathBuf::from);
     let mut rest: Vec<String> = positional
         .map(|s| s.to_string_lossy().into_owned())
@@ -165,10 +180,60 @@ fn command_of(positional: Vec<OsString>, limit: usize, unresolved: bool) -> Resu
                 folder: folder.ok_or(Msg::MissingFolder)?,
             }
         }
+        "open" => {
+            if unresolved {
+                return Err(Msg::ExtraArgument("--unresolved".to_owned()));
+            }
+            extra(&mut rest)?;
+            Command::Open {
+                folder: folder.unwrap_or_else(|| PathBuf::from(".")),
+            }
+        }
         "help" | "--help" | "-h" => Command::Help,
         other => return Err(Msg::UnknownSubcommand(other.to_owned())),
     };
     Ok(command)
+}
+
+/// Start the app on `folder`, detached: `$VERSO_APP` when set, else the
+/// `verso-app` binary beside this one (a development tree), else the
+/// installed application by name. The error names what was tried.
+fn launch_app(folder: &Path) -> Result<(), String> {
+    let mut tried = Vec::new();
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(env) = std::env::var_os("VERSO_APP") {
+        candidates.push(PathBuf::from(env));
+    }
+    if let Ok(me) = std::env::current_exe()
+        && let Some(dir) = me.parent()
+    {
+        candidates.push(dir.join("verso-app"));
+    }
+    for app in candidates {
+        match std::process::Command::new(&app)
+            .arg(folder)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => tried.push(format!("{}: {e}", app.display())),
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        match std::process::Command::new("open")
+            .args(["-a", "Verso", "--args"])
+            .arg(folder)
+            .status()
+        {
+            Ok(status) if status.success() => return Ok(()),
+            Ok(status) => tried.push(format!("open -a Verso: {status}")),
+            Err(e) => tried.push(format!("open -a Verso: {e}")),
+        }
+    }
+    Err(tried.join("; "))
 }
 
 fn with_code(mut out: Output, code: u8) -> Output {
@@ -238,6 +303,20 @@ fn run(args: &[OsString]) -> Output {
         | Command::Unresolved { folder }
         | Command::Mcp { folder } => folder.clone(),
         Command::Help => return out,
+        Command::Open { folder } => {
+            let folder = std::path::absolute(folder).unwrap_or_else(|_| folder.clone());
+            match launch_app(&folder) {
+                Ok(()) => out.stderr.push(text(
+                    &Msg::Opening(folder.to_string_lossy().into_owned()),
+                    lang,
+                )),
+                Err(e) => {
+                    out.stderr.push(text(&Msg::AppNotFound(e), lang));
+                    out.code = 3;
+                }
+            }
+            return out;
+        }
     };
     let mut ws = match Workspace::open(&folder, None) {
         Ok(ws) => ws,
@@ -248,7 +327,7 @@ fn run(args: &[OsString]) -> Output {
         }
     };
     out.code = match command {
-        Command::Help => 0,
+        Command::Help | Command::Open { .. } => 0,
         Command::Mcp { .. } => {
             // One incremental pass before the first answer (memo §6.3);
             // its report goes to stderr, stdout is the protocol.

@@ -45,12 +45,37 @@
 }
 
 * { box-sizing: border-box; }
+/* Scrollbars: thin, paper-toned, the thumb only where the pointer is. */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--ink-3) 55%, transparent) transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: transparent; border: 2px solid transparent; border-radius: 9px; background-clip: padding-box; }
+:hover::-webkit-scrollbar-thumb { background-color: color-mix(in oklch, var(--ink-3) 45%, transparent); }
+::-webkit-scrollbar-thumb:hover { background-color: var(--ink-3); }
 html, body { height: 100%; margin: 0; background: var(--paper); color: var(--ink); }
 body { display: grid; grid-template-columns: var(--side-w) 0 1fr 0 var(--right-w, 260px); overflow: hidden; }
 body.no-side { grid-template-columns: 0 0 1fr 0 var(--right-w, 260px); }
 body.no-right { grid-template-columns: var(--side-w) 0 1fr 0 0; }
 body.no-side.no-right { grid-template-columns: 0 0 1fr 0 0; }
 .side { grid-column: 1; } #side-divider { grid-column: 2; } .page { grid-column: 3; } #right-divider { grid-column: 4; } .right { grid-column: 5; }
+/* Narrow window (a phone, a half screen): the side bars become drawers
+ * over the page, opened by the same toggles, closed by a tap outside. */
+@media (max-width: 760px) {
+  body, body.no-side, body.no-right, body.no-side.no-right { grid-template-columns: 0 0 1fr 0 0; }
+  body .side, body .right, body.no-side .side, body.no-right .right { position: fixed; top: 0; bottom: 0; width: min(85vw, 320px); z-index: 8; visibility: visible; overflow: visible; box-shadow: 0 0 48px oklch(0% 0 0 / .28); transition: transform .22s var(--ease-out); }
+  body .side { left: 0; transform: translateX(-100%); }
+  body .right { right: 0; transform: translateX(100%); }
+  body.side-open .side, body.right-open .right { transform: none; }
+  #side-divider, #right-divider { display: none; }
+  .status-keys { display: none; }
+  .leaf-head { flex-wrap: wrap; gap: .4rem .8rem; }
+  .sheet, .leaf-head, .toolbar { padding-left: 1rem; padding-right: 1rem; }
+  .toolbar { margin-left: 1rem; margin-right: 1rem; }
+  .tabs { padding-left: .4rem; }
+  .prop { grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr) auto; }
+  .folder-cols, .folder-items.list .item { grid-template-columns: minmax(0, 1fr) 5rem 5rem; }
+  .col-modified { display: none; }
+}
 body.no-side .side, body.no-side #side-divider, body.no-right .right, body.no-right #right-divider { visibility: hidden; overflow: hidden; min-width: 0; }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
@@ -132,6 +157,9 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 
 /* Drop targets while a tab is dragged */
 .tab.dragging { opacity: .4; }
+.tab .tab-pin { display: none; width: 12px; height: 12px; color: var(--brass); }
+.tab.pinned .tab-pin { display: inline-flex; }
+.tab.pinned .tab-close { display: none; }
 .tabs.drop { box-shadow: inset 0 -2px 0 var(--brass); }
 .pane-body { position: relative; }
 .pane-body.drop-hint::after { content: ""; position: absolute; inset: 0; background: var(--brass-wash); border: 2px solid var(--brass); pointer-events: none; z-index: 2; opacity: .85; }
@@ -173,7 +201,9 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 /* Tight: the leading crumbs slide out to the left under a fade; the
  * current folder stays readable at the right. */
 .crumbs { flex: 1 1 0; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
-.crumbs > :first-child { margin-right: auto; }
+/* A spacer that takes the free room, so the crumbs sit left when they fit
+ * and spill left, under the fade, when they do not. */
+.crumbs::after { content: ""; flex: 1 1 0; min-width: 0; }
 .modes { flex: none; }
 .crumbs span { color: var(--ink-2); }
 .crumbs span:last-child { color: var(--ink); }

@@ -41,6 +41,10 @@ impl Lang {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Msg {
     Usage,
+    /// `verso <folder>`: the app is starting on the folder.
+    Opening(String),
+    /// `verso <folder>`: no app to start; what was tried.
+    AppNotFound(String),
     UnknownSubcommand(String),
     UnknownOption(String),
     /// An option whose value is missing or not what it takes.
@@ -114,6 +118,7 @@ uso: verso <comando> <pasta> [...]
   verso backlinks <pasta> <nota>       quem linka para a nota
   verso backlinks <pasta> --unresolved alvos que nenhuma nota responde
   verso mcp <pasta>                    servidor MCP (stdio) só de leitura para um agente
+  verso <pasta>  |  verso open <pasta> abre a pasta no aplicativo (verso . = esta pasta)
   verso help                           esta ajuda
 
 opções: --json (saída em JSON), --limit N (busca), --lang pt-BR|en
@@ -134,6 +139,10 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                     .to_owned()
             }
             Msg::CannotOpen(e) => format!("não abriu: {e}"),
+            Msg::Opening(folder) => format!("abrindo {folder} no Verso"),
+            Msg::AppNotFound(tried) => format!(
+                "não achei o aplicativo Verso ({tried}). Defina VERSO_APP com o caminho do executável ou instale o app."
+            ),
             Msg::IndexSummary {
                 indexed,
                 unchanged,
@@ -188,6 +197,7 @@ usage: verso <command> <folder> [...]
   verso backlinks <folder> <note>      who links to the note
   verso backlinks <folder> --unresolved targets no note answers to
   verso mcp <folder>                   read-only MCP server (stdio) for an agent
+  verso <folder>  |  verso open <folder> open the folder in the app (verso . = this one)
   verso help                           this help
 
 options: --json (JSON output), --limit N (search), --lang pt-BR|en
@@ -208,6 +218,10 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
                     .to_owned()
             }
             Msg::CannotOpen(e) => format!("could not open: {e}"),
+            Msg::Opening(folder) => format!("opening {folder} in Verso"),
+            Msg::AppNotFound(tried) => format!(
+                "could not find the Verso application ({tried}). Set VERSO_APP to the executable or install the app."
+            ),
             Msg::IndexSummary {
                 indexed,
                 unchanged,
@@ -323,6 +337,8 @@ mod tests {
                 unchanged: 2,
             },
             Msg::McpFailed("e".into()),
+            Msg::Opening("/v".into()),
+            Msg::AppNotFound("e".into()),
         ]
     }
 
@@ -356,6 +372,8 @@ mod tests {
             Msg::IndexFailed(_) => 23,
             Msg::McpServing { .. } => 24,
             Msg::McpFailed(_) => 25,
+            Msg::Opening(_) => 26,
+            Msg::AppNotFound(_) => 27,
         }
     }
 
@@ -365,7 +383,7 @@ mod tests {
         seen.sort_unstable();
         // `ordinal` is exhaustive, so its highest arm is the variant count
         // minus one; the samples must reach it without a gap.
-        let expected: Vec<usize> = (0..=25).collect();
+        let expected: Vec<usize> = (0..=27).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
     }
 

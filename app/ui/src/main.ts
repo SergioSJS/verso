@@ -38,7 +38,8 @@ type Strings = Record<
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
   | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
   | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions"
-  | "replaceTitle" | "find" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges",
+  | "replaceTitle" | "find" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
+  | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -92,6 +93,7 @@ const pt: Strings = {
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
+  pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
 };
 
 const en: Strings = {
@@ -132,6 +134,7 @@ const en: Strings = {
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
+  pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -528,13 +531,16 @@ abstract class Leaf {
   abstract readonly kind: Kind;
   path = "";
   dirty = false;
+  pinned = false;
   loading: Promise<void> = Promise.resolve();
 
   constructor(public pane: Pane) {
     this.tab.type = "button";
     const close = h("span", "tab-close");
     close.append(icon("close", t.close));
-    this.tab.append(this.tabIcon, this.tabName, close);
+    const pin = h("span", "tab-pin");
+    pin.append(icon("pin", t.pinTab));
+    this.tab.append(this.tabIcon, this.tabName, pin, close);
     this.tab.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) void this.close();
       else this.pane.activate(this, true);
@@ -569,10 +575,19 @@ abstract class Leaf {
   async flush(): Promise<boolean> {
     return !this.dirty;
   }
-  async close(): Promise<void> {
+  async close(force = false): Promise<void> {
+    if (this.pinned && !force) {
+      ui.status.textContent = t.pinnedTab;
+      return;
+    }
     if (!(await this.flush()) && !window.confirm(t.discard)) return;
     this.destroy();
     this.pane.remove(this);
+  }
+  setPinned(p: boolean): void {
+    this.pinned = p;
+    this.tab.classList.toggle("pinned", p);
+    persistSoon();
   }
   moveTo(pane: Pane, index?: number): void {
     if (pane === this.pane && index === undefined) return;
@@ -1552,8 +1567,8 @@ class Pane {
     this.el.classList.toggle("tabs-hidden", hidden);
     persistSoon();
   }
-  open(path: string, focus = false): Leaf {
-    let leaf = this.leaves.find((l) => l.path === path);
+  open(path: string, focus = false, fresh = false): Leaf {
+    let leaf = fresh ? undefined : this.leaves.find((l) => l.path === path);
     if (!leaf) {
       const kind = kindOf(path);
       leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "frame" ? new FrameLeaf(this) : new TextLeaf(this);
@@ -1591,13 +1606,21 @@ class Pane {
   }
   tabMenu(leaf: Leaf, x: number, y: number): void {
     const i = this.leaves.indexOf(leaf);
+    const sep: [string, () => void] = ["—", () => {}];
+    const file = leaf.kind !== "graph" && leaf.path !== "";
     showMenu(x, y, [
       [t.close, () => void leaf.close()],
-      [t.closeOthers, () => void this.closeExcept((l) => l === leaf)],
-      [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i)],
-      [t.closeAll, () => void this.closeAll()],
-      [t.openSplit, () => leaf.moveTo(layout().split(this, "row"))],
-      ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
+      [t.closeOthers, () => void this.closeExcept((l) => l === leaf || l.pinned)],
+      [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i || l.pinned)],
+      [t.closeAll, () => void this.closeExcept((l) => l.pinned)],
+      sep,
+      [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned)],
+      [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }],
+      sep,
+      [t.splitRight, () => leaf.moveTo(layout().split(this, "row"))],
+      [t.splitDownTab, () => leaf.moveTo(layout().split(this, "col"))],
+      ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
+      ...(leaf.kind === "note" ? [sep, [t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
     ]);
   }
   async closeExcept(keep: (l: Leaf) => boolean): Promise<void> {
@@ -1811,7 +1834,7 @@ class Layout {
   serialize(node: LNode = this.root): unknown {
     if (node.kind === "pane") {
       return {
-        tabs: node.pane.leaves.filter((l) => l.path || l.kind === "folder").map((l) => ({ path: l.path, kind: l.kind })),
+        tabs: node.pane.leaves.filter((l) => l.path || l.kind === "folder").map((l) => ({ path: l.path, kind: l.kind, pinned: l.pinned })),
         active: node.pane.active ? node.pane.leaves.indexOf(node.pane.active) : 0,
         grow: node.pane.el.style.flexGrow || "1",
         vertical: node.pane.vertical,
@@ -1832,11 +1855,13 @@ class Layout {
         if (o.tabsHidden === true) pane.setTabsHidden(true);
         if (typeof o.tabsWidth === "string" && o.tabsWidth) pane.el.style.setProperty("--tabs-w", o.tabsWidth);
         for (const tab of o.tabs) {
-          const tt = tab as { path?: unknown; kind?: unknown };
+          const tt = tab as { path?: unknown; kind?: unknown; pinned?: unknown };
           if (typeof tt.path !== "string") continue;
-          if (tt.kind === "folder") pane.openFolder(tt.path);
-          else if (tt.kind === "graph") pane.openGraph(tt.path);
-          else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) pane.open(tt.path, false);
+          let made: Leaf | null = null;
+          if (tt.kind === "folder") made = pane.openFolder(tt.path);
+          else if (tt.kind === "graph") made = pane.openGraph(tt.path);
+          else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) made = pane.open(tt.path, false);
+          if (made && tt.pinned === true) made.setPinned(true);
         }
         const active = pane.leaves[typeof o.active === "number" ? o.active : 0];
         if (active) pane.activate(active, false);
@@ -1955,6 +1980,7 @@ function openIn(pane: Pane, path: string): Leaf {
   return pane.open(path, false);
 }
 function openNote(path: string, aside: boolean): Leaf | null {
+  document.body.classList.remove("side-open");
   let pane = layout().focused ?? layout().panes()[0] ?? layout().reset();
   if (aside) pane = layout().split(pane, "row");
   return pane.open(path, false);
@@ -1962,6 +1988,26 @@ function openNote(path: string, aside: boolean): Leaf | null {
 function openFolder(path: string): void {
   const pane = layout().focused ?? layout().panes()[0] ?? layout().reset();
   pane.openFolder(path);
+}
+/** Open the tree down to `path`, scroll its row into view and focus it. */
+async function revealInTree(path: string): Promise<void> {
+  if (ui.search.value.trim() !== "") {
+    ui.search.value = "";
+    await listAll();
+  }
+  if (narrow.matches) document.body.classList.add("side-open");
+  else document.body.classList.remove("no-side");
+  paintToggles();
+  const parts = path.split("/").slice(0, -1);
+  for (let i = 1; i <= parts.length; i++) {
+    const folder = parts.slice(0, i).join("/");
+    openFolders.add(folder);
+    const d = ui.notes.querySelector<HTMLElement>(`summary[data-folder="${CSS.escape(folder)}"]`)?.parentElement;
+    if (d instanceof HTMLDetailsElement) d.open = true;
+  }
+  const row = ui.notes.querySelector<HTMLButtonElement>(`li[data-path="${CSS.escape(path)}"] > button`);
+  row?.scrollIntoView({ block: "center" });
+  row?.focus();
 }
 function markCurrent(): void {
   const leaf = current?.layout.activeLeaf ?? null;
@@ -3032,11 +3078,29 @@ function paintToggles(): void {
   toggleSideButton.classList.toggle("off", document.body.classList.contains("no-side"));
   toggleRightButton.classList.toggle("off", document.body.classList.contains("no-right"));
 }
+const narrow = window.matchMedia("(max-width: 760px)");
+narrow.addEventListener("change", () => document.body.classList.remove("side-open", "right-open"));
+document.addEventListener("mousedown", (e) => {
+  if (!narrow.matches) return;
+  const at = e.target as HTMLElement;
+  if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side")) document.body.classList.remove("side-open");
+  if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right")) document.body.classList.remove("right-open");
+});
 function toggleSide(): void {
+  if (narrow.matches) {
+    document.body.classList.toggle("side-open");
+    document.body.classList.remove("right-open");
+    return;
+  }
   document.body.classList.toggle("no-side");
   paintToggles();
 }
 function toggleRight(): void {
+  if (narrow.matches) {
+    document.body.classList.toggle("right-open");
+    document.body.classList.remove("side-open");
+    return;
+  }
   document.body.classList.toggle("no-right");
   try { localStorage.setItem("verso.right", String(!document.body.classList.contains("no-right"))); } catch { /* no storage */ }
   paintToggles();
@@ -3263,9 +3327,17 @@ document.addEventListener("visibilitychange", () => {
 });
 
 lesson();
-try {
-  const last = localStorage.getItem(LAST_FOLDER);
-  if (last) void openPath(last);
-} catch {
-  // No storage: start empty.
-}
+void (async () => {
+  // `verso <folder>` on the command line wins over the last folder.
+  const initial = await commands.initialFolder();
+  if (initial.status === "ok" && initial.data) {
+    void openPath(initial.data);
+    return;
+  }
+  try {
+    const last = localStorage.getItem(LAST_FOLDER);
+    if (last) void openPath(last);
+  } catch {
+    // No storage: start empty.
+  }
+})();
