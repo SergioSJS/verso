@@ -21,7 +21,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { commands, type ContractError, type NoteText } from "./bindings";
 import { icon } from "./icons";
-import { livePreview, redraw } from "./live";
+import { livePreview, redraw, sizeOf } from "./live";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -31,7 +31,8 @@ type Strings = Record<
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
   | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
-  | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted",
+  | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted"
+  | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -61,7 +62,9 @@ const pt: Strings = {
   closeSpace: "Fechar área", untitled: "Sem título", folderView: "Pasta", asList: "Lista", asGrid: "Miniaturas", readOnly: "Só leitura: não é uma nota Markdown.",
   keysNew: "nova nota", keysEdit: "editar", keysSplit: "dividir", keysSpace: "nova área", moveTo: "Mover para", moved: "Movido.",
   bold: "Negrito (⌘B)", italic: "Itálico (⌘I)", strike: "Riscado", highlight: "Destaque (⌘⇧H)", heading: "Título (⌘⇧1)", link: "Link (⌘⇧K)", wikilink: "Link interno [[ ]]",
-  bullets: "Lista", numbers: "Lista numerada", task: "Tarefa", quote: "Citação", code: "Código", rule: "Separador", pasteHint: "Cole ou arraste uma imagem para anexar", pasted: "Imagem anexada.",
+  bullets: "Lista", numbers: "Lista numerada", task: "Tarefa", quote: "Citação", code: "Código", rule: "Separador", pasteHint: "Cole ou arraste uma imagem para anexar", pasted: "Imagem anexada em assets/.",
+  closeOthers: "Fechar as outras", closeAll: "Fechar todas", closeRight: "Fechar as da direita", allTabs: "Todas as abas", verticalTabs: "Abas na vertical", horizontalTabs: "Abas na horizontal",
+  newFolder: "Nova pasta", newFolderName: "Nome da pasta (Enter cria, Esc cancela)", folderCreated: "Pasta criada.", graph: "Relações", graphOf: "Relações de", reopen: "Reabrir aba fechada (⌘⇧T)", recent: "Recentes", sidebarResize: "Arraste para redimensionar", openSplit: "Abrir em área nova",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
@@ -89,7 +92,9 @@ const en: Strings = {
   closeSpace: "Close workspace", untitled: "Untitled", folderView: "Folder", asList: "List", asGrid: "Thumbnails", readOnly: "Read-only: not a Markdown note.",
   keysNew: "new note", keysEdit: "edit", keysSplit: "split", keysSpace: "new workspace", moveTo: "Move to", moved: "Moved.",
   bold: "Bold (⌘B)", italic: "Italic (⌘I)", strike: "Strikethrough", highlight: "Highlight (⌘⇧H)", heading: "Heading (⌘⇧1)", link: "Link (⌘⇧K)", wikilink: "Internal link [[ ]]",
-  bullets: "Bullet list", numbers: "Numbered list", task: "Task", quote: "Quote", code: "Code", rule: "Rule", pasteHint: "Paste or drop an image to attach it", pasted: "Image attached.",
+  bullets: "Bullet list", numbers: "Numbered list", task: "Task", quote: "Quote", code: "Code", rule: "Rule", pasteHint: "Paste or drop an image to attach it", pasted: "Image attached in assets/.",
+  closeOthers: "Close others", closeAll: "Close all", closeRight: "Close to the right", allTabs: "All tabs", verticalTabs: "Vertical tabs", horizontalTabs: "Horizontal tabs",
+  newFolder: "New folder", newFolderName: "Folder name (Enter creates, Esc cancels)", folderCreated: "Folder created.", graph: "Relations", graphOf: "Relations of", reopen: "Reopen closed tab (⌘⇧T)", recent: "Recent", sidebarResize: "Drag to resize", openSplit: "Open in a new pane",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
@@ -156,17 +161,26 @@ function ext(path: string): string {
 }
 const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
 const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|html?|css|js|ts|py|rs|sh|log|ini|cfg|canvas|base)$/;
-type Kind = "note" | "image" | "text" | "pdf" | "other" | "folder";
+type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph";
 function kindOf(path: string): Kind {
   const e = ext(path);
   if (e === "md") return "note";
   if (IMAGE.test(e)) return "image";
   if (TEXT.test(e)) return "text";
-  if (e === "pdf") return "pdf";
+  if (e === "pdf" || e === "html" || e === "htm") return "frame";
   return "other";
 }
 function iconFor(kind: Kind): string {
-  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "folder" ? "folder" : "text";
+  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : "text";
+}
+let allFolders: string[] = [];
+const recents: string[] = [];
+const closedTabs: string[] = [];
+function remember(path: string): void {
+  const i = recents.indexOf(path);
+  if (i >= 0) recents.splice(i, 1);
+  recents.unshift(path);
+  if (recents.length > 30) recents.length = 30;
 }
 function fail(e: ContractError | unknown): void {
   const message =
@@ -409,6 +423,22 @@ function paneOf(node: HTMLElement): Pane | null {
   return layout().panes().find((p) => p.el === paneEl) ?? null;
 }
 
+/* Files dropped from outside land in the note under the pointer, never
+ * in the webview's navigation. */
+document.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+});
+document.addEventListener("drop", (e) => {
+  e.preventDefault();
+  const files = e.dataTransfer?.files ?? null;
+  if (!files || files.length === 0) return;
+  const leafEl = (e.target as HTMLElement).closest<HTMLElement>(".leaf");
+  const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
+  if (leaf instanceof NoteLeaf) leaf.takeFiles(files, e);
+  else ui.status.textContent = t.pasteHint;
+});
+
 /* ---------- Leaves ---------- */
 abstract class Leaf {
   readonly el = h("section", "leaf");
@@ -431,6 +461,10 @@ abstract class Leaf {
     });
     this.tab.addEventListener("auxclick", (e) => {
       if (e.button === 1) void this.close();
+    });
+    this.tab.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.pane.tabMenu(this, e.clientX, e.clientY);
     });
     armDrag(this.tab, () => ({ kind: "tab", leaf: this }), () => this.tabName.textContent ?? "");
     this.el.addEventListener("focusin", () => this.pane.activate(this, false));
@@ -667,7 +701,7 @@ class NoteLeaf extends Leaf {
   }
   /** Images pasted or dropped become files beside the note and an embed
    *  at the caret; the core writes them, confined (ADR 0026 rule 5). */
-  private takeFiles(files: FileList | null, e: Event): boolean {
+  takeFiles(files: FileList | null, e: Event): boolean {
     if (!files || files.length === 0 || !this.note) return false;
     const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (images.length === 0) return false;
@@ -683,8 +717,9 @@ class NoteLeaf extends Leaf {
         const extOf = f.type.split("/")[1]?.replace("jpeg", "jpg").replace("svg+xml", "svg") ?? "png";
         const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
         const base = f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) && !/^blob/i.test(f.name) ? f.name : `Pasted image ${stamp}.${extOf}`;
+        // Beside the note, in its own assets/ folder — not loose among the notes.
         const folder = dirOf(this.path);
-        const r = await commands.createFile(folder ? `${folder}/${base}` : base, b64);
+        const r = await commands.createFile(`${folder ? folder + "/" : ""}assets/${base}`, b64);
         if (r.status !== "ok") {
           fail(r.error);
           continue;
@@ -880,6 +915,11 @@ class NoteLeaf extends Leaf {
         img.src = convertFileSrc(rel, "verso");
         img.alt = target;
         img.loading = "lazy";
+        const size = sizeOf(span.textContent === target ? null : span.textContent);
+        if (size) {
+          img.style.width = `${size.w}px`;
+          if (size.h) img.style.height = `${size.h}px`;
+        }
         const p = span.parentElement;
         span.replaceWith(img);
         if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
@@ -1044,6 +1084,152 @@ class FolderLeaf extends Leaf {
   }
 }
 
+/* An HTML page or a PDF, shown by the webview itself, scripts off. */
+class FrameLeaf extends Leaf {
+  readonly kind: Kind = "frame";
+  readonly frame = h("iframe", "frame-view");
+  constructor(pane: Pane) {
+    super(pane);
+    this.frame.setAttribute("sandbox", "");
+    this.frame.setAttribute("referrerpolicy", "no-referrer");
+    this.el.append(this.frame);
+  }
+  async load(path: string): Promise<void> {
+    this.path = path;
+    this.setTitle(path.split("/").pop() ?? path);
+    if (ext(path) === "pdf") this.frame.removeAttribute("sandbox");
+    this.frame.src = convertFileSrc(path, "verso");
+    this.frame.title = this.tabName.textContent ?? "";
+    markCurrent();
+    persistSoon();
+  }
+}
+
+/* The relations of a note: what it links to, what links to it, and one
+ * hop beyond — a small force-laid graph you can open notes from. */
+class GraphLeaf extends Leaf {
+  readonly kind: Kind = "graph";
+  readonly svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  readonly title = h("h1", "note-title");
+  private stop: (() => void) | null = null;
+  constructor(pane: Pane) {
+    super(pane);
+    const top = h("header", "leaf-head");
+    top.append(h("span", "crumbs", t.graph));
+    const sheet = h("div", "sheet graph-sheet");
+    this.svg.setAttribute("class", "graph");
+    sheet.append(this.title, this.svg);
+    this.el.append(top, sheet);
+  }
+  override headings(): NoteText["headings"] {
+    return [];
+  }
+  async load(path: string): Promise<void> {
+    this.path = path;
+    this.setTitle(`${t.graph}: ${name(path)}`);
+    this.title.textContent = `${t.graphOf} ${name(path)}`;
+    type Node = { id: string; x: number; y: number; vx: number; vy: number; depth: number };
+    const nodes = new Map<string, Node>();
+    const edges = new Set<string>();
+    const add = (id: string, depth: number) => {
+      if (!nodes.has(id)) nodes.set(id, { id, x: Math.random() * 200 - 100, y: Math.random() * 200 - 100, vx: 0, vy: 0, depth });
+    };
+    add(path, 0);
+    const expand = async (id: string, depth: number) => {
+      const [links, back] = await Promise.all([commands.links(id), commands.backlinks(id)]);
+      if (links.status === "ok") for (const l of links.data) if (l.resolved && nodes.size < 60) {
+        add(l.resolved, depth);
+        edges.add(`${id}\u0000${l.resolved}`);
+      }
+      if (back.status === "ok") for (const b of back.data) if (nodes.size < 60) {
+        add(b.from, depth);
+        edges.add(`${b.from}\u0000${id}`);
+      }
+    };
+    await expand(path, 1);
+    for (const n of Array.from(nodes.values()).filter((n) => n.depth === 1)) await expand(n.id, 2);
+    if (this.path !== path) return;
+    this.draw(Array.from(nodes.values()), Array.from(edges).map((e) => e.split("\u0000") as [string, string]));
+    markCurrent();
+    persistSoon();
+  }
+  private draw(nodes: { id: string; x: number; y: number; vx: number; vy: number; depth: number }[], edges: [string, string][]): void {
+    this.stop?.();
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = this.svg;
+    svg.replaceChildren();
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const lines = edges.map(([a, b]) => {
+      const l = document.createElementNS(NS, "line");
+      l.setAttribute("class", "edge");
+      svg.append(l);
+      return { l, a: byId.get(a)!, b: byId.get(b)! };
+    });
+    const dots = nodes.map((n) => {
+      const g = document.createElementNS(NS, "g");
+      g.setAttribute("class", `node depth-${n.depth}${n.id === this.path ? " center" : ""}`);
+      const c = document.createElementNS(NS, "circle");
+      c.setAttribute("r", n.id === this.path ? "9" : n.depth === 1 ? "6" : "4");
+      const label = document.createElementNS(NS, "text");
+      label.textContent = name(n.id);
+      label.setAttribute("dy", "-12");
+      g.append(c, label);
+      g.addEventListener("click", () => openNote(n.id, false));
+      g.addEventListener("dblclick", () => void this.load(n.id));
+      svg.append(g);
+      return { g, n };
+    });
+    let frames = 0;
+    let raf = 0;
+    const tick = () => {
+      // Springs along edges, repulsion between nodes, a pull to the middle.
+      for (const a of nodes) for (const b of nodes) {
+        if (a === b) continue;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const d2 = Math.max(dx * dx + dy * dy, 1);
+        const f = 1800 / d2;
+        a.vx += (dx / Math.sqrt(d2)) * f;
+        a.vy += (dy / Math.sqrt(d2)) * f;
+      }
+      for (const { a, b } of lines) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+        const f = (d - 90) * 0.02;
+        a.vx += (dx / d) * f;
+        a.vy += (dy / d) * f;
+        b.vx -= (dx / d) * f;
+        b.vy -= (dy / d) * f;
+      }
+      for (const n of nodes) {
+        n.vx -= n.x * 0.004;
+        n.vy -= n.y * 0.004;
+        n.vx *= 0.82;
+        n.vy *= 0.82;
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+      const r = svg.getBoundingClientRect();
+      const cx = r.width / 2;
+      const cy = r.height / 2;
+      for (const { l, a, b } of lines) {
+        l.setAttribute("x1", String(cx + a.x));
+        l.setAttribute("y1", String(cy + a.y));
+        l.setAttribute("x2", String(cx + b.x));
+        l.setAttribute("y2", String(cy + b.y));
+      }
+      for (const { g, n } of dots) g.setAttribute("transform", `translate(${cx + n.x} ${cy + n.y})`);
+      if (++frames < 240) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    this.stop = () => cancelAnimationFrame(raf);
+  }
+  override destroy(): void {
+    this.stop?.();
+  }
+}
+
 /* ---------- Pane: tabs and one visible leaf ---------- */
 class Pane {
   readonly el = h("div", "pane");
@@ -1054,16 +1240,25 @@ class Pane {
   readonly empty = h("div", "pane-empty");
   readonly leaves: Leaf[] = [];
   active: Leaf | null = null;
+  vertical = false;
 
   constructor() {
     this.tabs.setAttribute("role", "tablist");
+    const all = button("ghost iconic", t.allTabs, "more");
+    all.addEventListener("click", (e) => {
+      const r = all.getBoundingClientRect();
+      showMenu(r.left, r.bottom + 4, this.leaves.map((l) => [`${l.dirty ? "• " : ""}${l.tabName.textContent ?? ""}`, () => this.activate(l, true)] as [string, () => void]));
+      e.stopPropagation();
+    });
+    const orient = button("ghost iconic", t.verticalTabs, "vtabs");
+    orient.addEventListener("click", () => this.setVertical(!this.vertical));
     const plus = button("ghost iconic", `${t.newNote} (⌘N)`, "plus");
     plus.addEventListener("click", () => void newUntitled(this));
     const max = button("ghost iconic", t.maximize, "maximize");
     max.addEventListener("click", () => layout().toggleMaximize(this));
     const close = button("ghost iconic", t.closePane, "close");
     close.addEventListener("click", () => void this.closeAll());
-    this.tools.append(plus, max, close);
+    this.tools.append(all, orient, plus, max, close);
     this.tabs.append(this.tabList, this.tools);
     this.tabs.addEventListener("dblclick", (e) => {
       if (e.target === this.tabs || e.target === this.tabList) void newUntitled(this);
@@ -1077,11 +1272,22 @@ class Pane {
     let leaf = this.leaves.find((l) => l.path === path);
     if (!leaf) {
       const kind = kindOf(path);
-      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "text" || kind === "other" ? new TextLeaf(this) : new TextLeaf(this);
+      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "frame" ? new FrameLeaf(this) : new TextLeaf(this);
+      remember(path);
       this.insert(leaf);
       void leaf.load(path);
     }
     this.activate(leaf, focus);
+    return leaf;
+  }
+  openGraph(path: string): Leaf {
+    let leaf = this.leaves.find((l) => l.kind === "graph" && l.path === path);
+    if (!leaf) {
+      leaf = new GraphLeaf(this);
+      this.insert(leaf);
+      void leaf.load(path);
+    }
+    this.activate(leaf, false);
     return leaf;
   }
   openFolder(path: string): Leaf {
@@ -1093,6 +1299,30 @@ class Pane {
     }
     this.activate(leaf, false);
     return leaf;
+  }
+  setVertical(v: boolean): void {
+    this.vertical = v;
+    this.el.classList.toggle("vertical", v);
+    persistSoon();
+  }
+  tabMenu(leaf: Leaf, x: number, y: number): void {
+    const i = this.leaves.indexOf(leaf);
+    showMenu(x, y, [
+      [t.close, () => void leaf.close()],
+      [t.closeOthers, () => void this.closeExcept((l) => l === leaf)],
+      [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i)],
+      [t.closeAll, () => void this.closeAll()],
+      [t.openSplit, () => leaf.moveTo(layout().split(this, "row"))],
+      ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
+    ]);
+  }
+  async closeExcept(keep: (l: Leaf) => boolean): Promise<void> {
+    for (const l of this.leaves.slice()) {
+      if (keep(l)) continue;
+      if (!(await l.flush()) && !window.confirm(t.discard)) continue;
+      l.destroy();
+      this.remove(l, true);
+    }
   }
   insert(leaf: Leaf, index?: number): void {
     const i = index === undefined ? this.leaves.length : Math.min(index, this.leaves.length);
@@ -1121,6 +1351,7 @@ class Pane {
   remove(leaf: Leaf, moving = false): void {
     const i = this.leaves.indexOf(leaf);
     if (i < 0) return;
+    if (!moving && leaf.path && leaf.kind !== "folder" && leaf.kind !== "graph") closedTabs.push(leaf.path);
     this.leaves.splice(i, 1);
     leaf.tab.remove();
     leaf.el.remove();
@@ -1298,6 +1529,7 @@ class Layout {
         tabs: node.pane.leaves.filter((l) => l.path || l.kind === "folder").map((l) => ({ path: l.path, kind: l.kind })),
         active: node.pane.active ? node.pane.leaves.indexOf(node.pane.active) : 0,
         grow: node.pane.el.style.flexGrow || "1",
+        vertical: node.pane.vertical,
       };
     }
     return { dir: node.dir, children: node.children.map((c) => this.serialize(c)), grow: node.el.style.flexGrow || "1" };
@@ -1305,14 +1537,16 @@ class Layout {
   restore(saved: unknown): boolean {
     const build = (v: unknown): LNode | null => {
       if (typeof v !== "object" || v === null) return null;
-      const o = v as { tabs?: unknown; active?: unknown; dir?: unknown; children?: unknown; grow?: unknown };
+      const o = v as { tabs?: unknown; active?: unknown; dir?: unknown; children?: unknown; grow?: unknown; vertical?: unknown };
       if (Array.isArray(o.tabs)) {
         const pane = new Pane();
         pane.el.style.flexGrow = String(o.grow ?? "1");
+        if (o.vertical === true) pane.setVertical(true);
         for (const tab of o.tabs) {
           const tt = tab as { path?: unknown; kind?: unknown };
           if (typeof tt.path !== "string") continue;
           if (tt.kind === "folder") pane.openFolder(tt.path);
+          else if (tt.kind === "graph") pane.openGraph(tt.path);
           else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) pane.open(tt.path, false);
         }
         const active = pane.leaves[typeof o.active === "number" ? o.active : 0];
@@ -1642,7 +1876,9 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
       [t.openTab, () => openNote(path, false)],
       [t.openPane, () => openNote(path, true)],
       [t.rename, () => renameInline(li, path)],
+      ...(kind === "note" ? [[t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path)] as [string, () => void]] : []),
       [t.newHere, () => newNotePrompt(dirOf(path))],
+      [t.newFolder, () => newFolderPrompt(dirOf(path))],
       [t.deleteNote, () => void deleteNote(path)],
     ]);
   });
@@ -1662,6 +1898,32 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   extra?.(b);
   li.append(b);
   return li;
+}
+function newFolderPrompt(folder: string): void {
+  const input = h("input", "new-note");
+  input.placeholder = t.newFolderName;
+  input.setAttribute("aria-label", t.newFolder);
+  const where = h("span", "new-note-where", folder ? `${folder}/` : "");
+  const row = h("div", "new-note-row");
+  row.append(icon("folderPlus"), where, input);
+  ui.notesHeading.after(row);
+  input.focus();
+  const finish = (commit: boolean) => {
+    const v = input.value.trim().replace(/^\/+|\/+$/g, "");
+    row.remove();
+    if (!commit || !v) return;
+    void commands.createFolder(folder ? `${folder}/${v}` : v).then(async (r) => {
+      if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+      openFolders.add(r.data);
+      ui.status.textContent = t.folderCreated;
+      await afterFileChange();
+    });
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") finish(true);
+    else if (e.key === "Escape") finish(false);
+  });
+  input.addEventListener("blur", () => finish(false));
 }
 function newNotePrompt(folder: string): void {
   const input = h("input", "new-note");
@@ -1685,8 +1947,19 @@ function newNotePrompt(folder: string): void {
 }
 
 type Folder = { folders: Map<string, Folder>; files: string[] };
-function tree(paths: string[]): Folder {
+function tree(paths: string[], folders: string[]): Folder {
   const root: Folder = { folders: new Map(), files: [] };
+  for (const f of folders) {
+    let node = root;
+    for (const part of f.split("/").filter(Boolean)) {
+      let next = node.folders.get(part);
+      if (!next) {
+        next = { folders: new Map(), files: [] };
+        node.folders.set(part, next);
+      }
+      node = next;
+    }
+  }
   for (const p of paths) {
     let node = root;
     for (const part of p.split("/").slice(0, -1)) {
@@ -1724,7 +1997,11 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
     });
     s.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      showMenu(e.clientX, e.clientY, [[t.newHere, () => newNotePrompt(full)]]);
+      showMenu(e.clientX, e.clientY, [
+        [t.newHere, () => newNotePrompt(full)],
+        [t.newFolder, () => newFolderPrompt(full)],
+        [t.folderView, () => openFolder(full)],
+      ]);
     });
     d.append(s, renderTree(child, depth + 1, full));
     li.append(d);
@@ -1734,12 +2011,13 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
   return ul;
 }
 async function listAll(): Promise<void> {
-  const [notes, files] = await Promise.all([commands.listNotes(), commands.listFiles()]);
+  const [notes, files, folders] = await Promise.all([commands.listNotes(), commands.listFiles(), commands.listFolders()]);
   if (notes.status !== "ok") return fail(notes.error);
   allNotes = notes.data;
   allFiles = files.status === "ok" ? files.data : [];
+  allFolders = folders.status === "ok" ? folders.data : [];
   ui.notes.className = "tree";
-  ui.notes.replaceChildren(...Array.from(renderTree(tree([...allNotes, ...allFiles]), 0).children));
+  ui.notes.replaceChildren(...Array.from(renderTree(tree([...allNotes, ...allFiles], allFolders), 0).children));
   Array.from(ui.notes.children).forEach((li, i) => (li as HTMLElement).style.setProperty("--i", String(i)));
   if (allNotes.length + allFiles.length === 0) ui.notes.append(h("li", "empty", t.noNotes));
   markCurrent();
@@ -1828,7 +2106,7 @@ class QuickSwitcher {
     const score = (path: string): number => {
       const base = name(path).toLowerCase();
       const full = path.toLowerCase();
-      if (q === "") return 1;
+      if (q === "") return recents.includes(path) ? 100 - recents.indexOf(path) : 1;
       const sub = (s: string): number => {
         let i = 0;
         let run = 0;
@@ -1946,7 +2224,14 @@ async function reindex(): Promise<void> {
 
 ui.open.addEventListener("click", () => void openFolderDialog());
 ui.reindex.addEventListener("click", () => void reindex());
-ui.newNote.addEventListener("click", () => newNotePrompt(layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : ""));
+ui.newNote.addEventListener("click", () => {
+  const folder = layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "";
+  const r = ui.newNote.getBoundingClientRect();
+  showMenu(r.left, r.bottom + 4, [
+    [t.newNote, () => newNotePrompt(folder)],
+    [t.newFolder, () => newFolderPrompt(folder)],
+  ]);
+});
 ui.collapse.addEventListener("click", collapseAll);
 let pending: number | undefined;
 ui.search.addEventListener("input", () => {
@@ -1983,6 +2268,13 @@ document.addEventListener("keydown", (e) => {
   } else if (k === "\\" && layout().focused) {
     e.preventDefault();
     layout().split(layout().focused!, e.shiftKey ? "col" : "row");
+  } else if (k === "t" && e.shiftKey && hasFolder) {
+    e.preventDefault();
+    const back = closedTabs.pop();
+    if (back) openNote(back, false);
+  } else if (k === "g" && e.shiftKey && leaf?.kind === "note") {
+    e.preventDefault();
+    (layout().focused ?? layout().panes()[0])?.openGraph(leaf.path);
   } else if (k === "t" && hasFolder) {
     e.preventDefault();
     newSpace();
@@ -2009,6 +2301,33 @@ document.addEventListener("keydown", (e) => {
       showSpace(s);
     }
   }
+});
+
+const sideDivider = el<HTMLDivElement>("side-divider");
+sideDivider.title = t.sidebarResize;
+try {
+  const w = localStorage.getItem("verso.sideWidth");
+  if (w) document.body.style.setProperty("--side-w", `${Number(w)}px`);
+} catch {
+  // No storage.
+}
+sideDivider.addEventListener("pointerdown", (e) => {
+  sideDivider.setPointerCapture(e.pointerId);
+  const move = (ev: PointerEvent) => {
+    const w = Math.min(Math.max(ev.clientX, 180), window.innerWidth * 0.5);
+    document.body.style.setProperty("--side-w", `${w}px`);
+  };
+  const up = (ev: PointerEvent) => {
+    sideDivider.removeEventListener("pointermove", move);
+    sideDivider.removeEventListener("pointerup", up);
+    try {
+      localStorage.setItem("verso.sideWidth", String(Math.min(Math.max(ev.clientX, 180), window.innerWidth * 0.5)));
+    } catch {
+      // No storage.
+    }
+  };
+  sideDivider.addEventListener("pointermove", move);
+  sideDivider.addEventListener("pointerup", up);
 });
 
 function flushAll(): void {

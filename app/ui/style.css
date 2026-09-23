@@ -46,7 +46,7 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; background: var(--paper); color: var(--ink); }
-body { display: grid; grid-template-columns: var(--side-w) 1fr; overflow: hidden; }
+body { display: grid; grid-template-columns: var(--side-w) 0 1fr; overflow: hidden; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; border-radius: 3px; }
 ::selection { background: var(--selection); }
@@ -443,3 +443,34 @@ body.dragging * { cursor: grabbing !important; }
 .tool .icon { width: 15px; height: 15px; }
 .tool-sep { width: 1px; height: 1.1rem; margin: 0 .3rem; background: var(--hair); }
 .editor { margin-top: .4rem; }
+
+/* Sidebar divider */
+.side-divider { width: 7px; margin: 0 -3px; cursor: col-resize; z-index: 3; position: relative; }
+.side-divider::after { content: ""; position: absolute; inset: 0 3px; }
+.side-divider:hover::after, .side-divider:active::after { background: var(--brass); inset: 0 2px; }
+
+/* Vertical tabs, as Safari has them */
+.pane.vertical { flex-direction: row; }
+.pane.vertical .tabs { flex-direction: column; align-items: stretch; width: 200px; border-bottom: 0; border-right: 1px solid var(--hair); padding: .5rem .3rem; overflow-y: auto; }
+.pane.vertical .tab-list { flex-direction: column; align-items: stretch; overflow: visible; }
+.pane.vertical .tab { max-width: none; border-bottom: 0; border-left: 2px solid transparent; border-radius: 0 5px 5px 0; margin: 0; padding: .35rem .4rem .35rem .6rem; }
+.pane.vertical .tab[aria-selected="true"] { border-left-color: var(--seal); background: var(--seal-wash); }
+.pane.vertical .pane-tools { flex-direction: row; flex-wrap: wrap; padding: .4rem 0 0; justify-content: flex-start; }
+.pane.vertical .pane-body { flex: 1; min-width: 0; }
+
+/* Frames, graph */
+.frame-view { flex: 1; border: 0; width: 100%; height: 100%; background: white; }
+.graph-sheet { display: flex; flex-direction: column; }
+.graph { flex: 1; min-height: 60vh; width: 100%; }
+.graph .edge { stroke: var(--hair); stroke-width: 1.2; }
+.graph .node circle { fill: var(--brass); stroke: var(--paper); stroke-width: 2; cursor: pointer; }
+.graph .node.center circle { fill: var(--seal); }
+.graph .node.depth-2 circle { fill: var(--ink-3); }
+.graph .node text { font-family: var(--ui); font-size: 11px; fill: var(--ink-2); text-anchor: middle; pointer-events: none; }
+.graph .node.center text { fill: var(--ink); font-weight: 600; }
+.graph .node:hover circle { stroke: var(--brass); }
+
+/* Image grip in Live Preview */
+.cm-lp-image-box { position: relative; display: inline-block; max-width: 100%; }
+.cm-lp-grip { position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; border-right: 2px solid var(--brass); border-bottom: 2px solid var(--brass); cursor: nwse-resize; opacity: 0; }
+.cm-lp-image-box:hover .cm-lp-grip { opacity: 1; }

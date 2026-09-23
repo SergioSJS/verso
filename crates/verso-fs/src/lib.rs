@@ -284,6 +284,18 @@ impl Root {
         Ok((self.intern(relative), stamp))
     }
 
+    /// Create a folder (and its parents) inside the root, confined.
+    pub fn create_dir(&self, relative: &Path) -> Result<PathBuf, WriteError> {
+        let relative = self.confine(relative).map_err(|e| {
+            WriteError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                e.to_string(),
+            ))
+        })?;
+        std::fs::create_dir_all(self.path.join(&relative)).map_err(WriteError::Io)?;
+        Ok(relative)
+    }
+
     /// Move a file to another path of the folder, both confined; refuses
     /// an occupied destination; creates the destination's folders.
     pub fn rename(&mut self, from: &Path, to: &Path) -> Result<Handle, WriteError> {

@@ -29,22 +29,63 @@ export const redraw = StateEffect.define<null>();
 const WIKILINK = /(!?)\[\[([^\]\n]+)\]\]/g;
 const IMAGE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
 
+/** `![[img.png|300]]` or `|300x200`: Obsidian's size after the pipe. */
+export function sizeOf(alias: string | null): { w: number; h: number | null } | null {
+  if (!alias) return null;
+  const m = /^\s*(\d+)(?:x(\d+))?\s*$/.exec(alias);
+  return m ? { w: Number(m[1]), h: m[2] ? Number(m[2]) : null } : null;
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
+    readonly width: number | null,
+    readonly from: number,
+    readonly to: number,
+    readonly inner: string,
   ) {
     super();
   }
   override eq(other: ImageWidget): boolean {
-    return other.src === this.src;
+    return other.src === this.src && other.width === this.width;
   }
-  override toDOM(): HTMLElement {
+  override toDOM(view: EditorView): HTMLElement {
+    const box = document.createElement("span");
+    box.className = "cm-lp-image-box";
     const img = document.createElement("img");
     img.className = "cm-lp-image";
     img.src = this.src;
     img.alt = this.alt;
-    return img;
+    if (this.width) img.style.width = `${this.width}px`;
+    const grip = document.createElement("span");
+    grip.className = "cm-lp-grip";
+    grip.title = "↔";
+    // Dragging the corner rewrites the size after the pipe in the source.
+    grip.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      grip.setPointerCapture(e.pointerId);
+      const x0 = e.clientX;
+      const w0 = img.getBoundingClientRect().width;
+      let w = Math.round(w0);
+      const move = (ev: PointerEvent) => {
+        w = Math.max(40, Math.round(w0 + ev.clientX - x0));
+        img.style.width = `${w}px`;
+      };
+      const up = () => {
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", up);
+        const target = this.inner.split("|")[0] ?? this.inner;
+        const text = view.state.sliceDoc(this.from, this.to);
+        const bang = text.startsWith("!") ? "!" : "";
+        view.dispatch({ changes: { from: this.from, to: this.to, insert: `${bang}[[${target}|${w}]]` } });
+      };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", up);
+    });
+    box.append(img, grip);
+    return box;
   }
   override ignoreEvent(): boolean {
     return false;
@@ -157,7 +198,8 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       if (embed && IMAGE.test(target) && !shown) {
         const url = opts.imageUrl(target);
         if (url) {
-          out.push({ from: start, to: end, deco: Decoration.replace({ widget: new ImageWidget(url, target) }) });
+          const size = sizeOf(alias);
+          out.push({ from: start, to: end, deco: Decoration.replace({ widget: new ImageWidget(url, target, size?.w ?? null, start, end, inner) }) });
           continue;
         }
       }
