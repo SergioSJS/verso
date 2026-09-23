@@ -511,6 +511,7 @@ body.dragging * { cursor: grabbing !important; }
 .folder-items.list .item { display: grid; grid-template-columns: minmax(0, 1fr) 6rem 6rem 11rem; gap: .6rem; align-items: center; }
 .folder-items.list .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-items .item.drop { outline: 2px solid var(--brass); outline-offset: -2px; background: var(--brass-wash); }
+.leaf.drop { box-shadow: inset 0 0 0 2px var(--brass); }
 .folder-items .rename { font: inherit; width: 100%; padding: .3rem .5rem; border: 1px solid var(--brass); border-radius: 5px; background: var(--paper); color: var(--ink); }
 .folder-items .item { display: flex; flex-direction: column; align-items: stretch; gap: .35rem; width: 100%; text-align: left; padding: .5rem; border-radius: 8px; color: var(--ink); }
 .folder-items .item:hover { background: var(--paper-2); }
