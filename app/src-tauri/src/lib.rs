@@ -1281,14 +1281,113 @@ fn serve_file<R: tauri::Runtime>(
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let commands = commands();
     let initial_folder = initial_folder.map(|p| std::path::absolute(&p).unwrap_or(p));
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(app_menu).on_menu_event(|app, event| {
+        if event.id() == QUIT {
+            ask_windows_to_quit(app);
+        }
+    });
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(navigation_guard())
         .register_uri_scheme_protocol("verso", serve_file)
         .manage(App::new(initial_folder))
         .invoke_handler(commands.invoke_handler())
-        .run(context())?;
+        .build(context())?
+        .run(on_event);
     Ok(())
+}
+
+/// A quit — ⌘Q, or the last window going — asks every window to save
+/// its tabs first: each one saves, then closes itself, and the app exits
+/// when none is left (the next request finds no window and goes through).
+/// A page's own close handler never hears a quit, so without this a quit
+/// lost what was typed since the last autosave. A window whose text could
+/// not be saved stays open if the user keeps it.
+fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
+    if let tauri::RunEvent::ExitRequested {
+        api, code: None, ..
+    } = event
+        && !app.webview_windows().is_empty()
+    {
+        api.prevent_exit();
+        ask_windows_to_quit(app);
+    }
+}
+
+/// Ask every window to save its tabs and close itself; with none left,
+/// exit.
+fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    use tauri::Emitter;
+    if app.webview_windows().is_empty() {
+        app.exit(0);
+    } else {
+        let _ = app.emit("quit-requested", ());
+    }
+}
+
+/// The id of the app menu's own Quit item.
+#[cfg(target_os = "macos")]
+const QUIT: &str = "verso-quit";
+
+/// The macOS menu bar: the system's own items, except Quit. The system's
+/// Quit terminates the process without an event the app can answer (the
+/// run loop goes from ready to exit), so what was typed since the last
+/// autosave was lost; this Quit, on the same ⌘Q, asks the windows to save
+/// first (`on_event`).
+#[cfg(target_os = "macos")]
+fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+    let quit = MenuItem::with_id(app, QUIT, "Quit Verso", true, Some("CmdOrCtrl+Q"))?;
+    let verso = Submenu::with_items(
+        app,
+        "Verso",
+        true,
+        &[
+            &PredefinedMenuItem::about(app, None, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::services(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::hide(app, None)?,
+            &PredefinedMenuItem::hide_others(app, None)?,
+            &PredefinedMenuItem::show_all(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &quit,
+        ],
+    )?;
+    let edit = Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(app, None)?,
+            &PredefinedMenuItem::redo(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, None)?,
+            &PredefinedMenuItem::copy(app, None)?,
+            &PredefinedMenuItem::paste(app, None)?,
+            &PredefinedMenuItem::select_all(app, None)?,
+        ],
+    )?;
+    let view = Submenu::with_items(
+        app,
+        "View",
+        true,
+        &[&PredefinedMenuItem::fullscreen(app, None)?],
+    )?;
+    let window = Submenu::with_items(
+        app,
+        "Window",
+        true,
+        &[
+            &PredefinedMenuItem::minimize(app, None)?,
+            &PredefinedMenuItem::maximize(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+        ],
+    )?;
+    Menu::with_items(app, &[&verso, &edit, &view, &window])
 }
 
 #[cfg(test)]

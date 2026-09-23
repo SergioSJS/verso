@@ -5490,6 +5490,18 @@ void getCurrentWindow().onCloseRequested(async (e) => {
   if (!(await ask(`${t.closeUnsaved}\n${names}`, { yes: t.closeAnyway, no: t.cancel }))) e.preventDefault();
 });
 
+/* Quitting the app (⌘Q, or the last window going): the host asks every
+ * window to save first. This one saves its tabs and closes itself — or
+ * stays, when text could not be saved and the user keeps it. */
+void listen("quit-requested", async () => {
+  const unsaved = await flushed(spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves)));
+  if (unsaved.length > 0) {
+    const names = unsaved.map((l) => l.tabName.textContent || l.path).join("\n");
+    if (!(await ask(`${t.closeUnsaved}\n${names}`, { yes: t.closeAnyway, no: t.cancel }))) return;
+  }
+  await getCurrentWindow().destroy();
+});
+
 lesson();
 if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false); void getCurrentWindow().setFocus(); });
 void (async () => {
