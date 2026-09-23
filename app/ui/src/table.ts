@@ -183,9 +183,10 @@ export function formatUnderCaret(view: EditorView): boolean {
   return relay(view, t, t.rows, t.prefixes, at, cellIndex(t.rows[at] ?? "", head - line.from - (t.prefixes[at]?.length ?? 0)), true);
 }
 
-/** A fresh table, `cols` × `rows` body rows, as text. */
-export function template(cols: number, rows: number): string {
-  const head = `|${" Coluna |".repeat(cols)}`;
+/** A fresh table, `cols` × `rows` body rows, as text; `header` names every
+ *  column (the interface's word for one). */
+export function template(cols: number, rows: number, header: string): string {
+  const head = `|${` ${header} |`.repeat(cols)}`;
   const sep = `|${" --- |".repeat(cols)}`;
   const body = Array.from({ length: rows }, () => `|${"  |".repeat(cols)}`);
   return format([head, sep, ...body]).join("\n");

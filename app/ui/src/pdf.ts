@@ -37,6 +37,8 @@ if (!proto[Symbol.asyncIterator]) {
 
 export type PdfStrings = {
   page: string;
+  prevPage: string;
+  nextPage: string;
   of: string;
   zoomIn: string;
   zoomOut: string;
@@ -48,6 +50,9 @@ export type PdfStrings = {
   copyPageLink: string;
   quoteSelection: string;
   selectFirst: string;
+  /** The PDF could not be read; pdf.js's or the HTTP status's own text
+   *  follows as the detail. */
+  loadFailed: string;
 };
 
 /** A passage: page, then start span/offset and end span/offset in the
@@ -114,7 +119,7 @@ export class PdfView {
       if (e.key === "Enter") this.goTo(Number(this.pageInput.value));
     });
     const pages = h("span", "pdf-pages");
-    pages.append(btn("chevronUp", s.page, () => this.goTo(this.page - 1)), this.pageInput, this.total, btn("chevron", s.page, () => this.goTo(this.page + 1)));
+    pages.append(btn("chevronUp", s.prevPage, () => this.goTo(this.page - 1)), this.pageInput, this.total, btn("chevron", s.nextPage, () => this.goTo(this.page + 1)));
     const zoom = h("span", "pdf-zoom");
     zoom.append(
       btn("zoomOut", s.zoomOut, () => this.zoom(1 / 1.2)),
@@ -193,7 +198,7 @@ export class PdfView {
       this.viewer.setDocument(doc);
       this.linkService.setDocument(doc, null);
     } catch (e) {
-      this.opts.onStatus(`PDF: ${e instanceof Error ? e.message : String(e)}`);
+      this.opts.onStatus(`${this.opts.strings.loadFailed} (${e instanceof Error ? e.message : String(e)})`);
     }
   }
 

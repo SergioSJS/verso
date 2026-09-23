@@ -34,6 +34,7 @@ import { PropertiesView, frontmatterChange } from "./props";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
 import { PdfView } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
+import { ptPhrases } from "./phrases";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -60,7 +61,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
-  | "hotkeyNeedsMod" | "hotkeyReserved",
+  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -122,7 +123,7 @@ const pt: Strings = {
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
-  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)",
+  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
@@ -179,7 +180,7 @@ const en: Strings = {
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
-  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)",
+  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
@@ -280,10 +281,17 @@ function remember(path: string): void {
   recents.unshift(path);
   if (recents.length > 30) recents.length = 30;
 }
+/** A failure in the status bar: from the core, a sentence by its kind in
+ *  the interface's language, with the core's own text after it as the
+ *  detail (English: its language is `[OPEN]` under ADR 0035); a message of
+ *  ours, as it is. */
 function fail(e: ContractError | unknown): void {
   const message =
     typeof e === "object" && e !== null && "message" in e ? String((e as ContractError).message) : String(e);
-  ui.status.textContent = `${t.error}: ${message}`;
+  const kind = typeof e === "object" && e !== null && "kind" in e ? String((e as ContractError).kind) : "";
+  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
+  const said = sentence[kind];
+  ui.status.textContent = said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
 }
 
 const ui = {
@@ -304,7 +312,7 @@ const ui = {
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
 type Settings = { lang: "auto" | "pt-BR" | "en"; theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; hotkeys: Record<string, string> };
-const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates", spellcheck: true, defaultMode: "preview", measure: "normal", hotkeys: {} };
+const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: t.dailyName, templates: t.templatesName, spellcheck: true, defaultMode: "preview", measure: "normal", hotkeys: {} };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
   try {
@@ -551,12 +559,12 @@ function slashSections(): SlashSection[] {
       { icon: "numbers", title: t.numbers, description: s.numbers, keywords: "1. ordered", insert: "1. " },
     ] },
     { title: s.callouts, items: [
-      { icon: "quote", title: `${t.callout} · note`, description: s.calloutNote, keywords: "[!note] aviso", insert: "> [!note] " },
-      { icon: "quote", title: `${t.callout} · tip`, description: s.calloutTip, keywords: "[!tip] dica", insert: "> [!tip] " },
-      { icon: "warn", title: `${t.callout} · warning`, description: s.calloutWarning, keywords: "[!warning] atenção", insert: "> [!warning] " },
+      { icon: "quote", title: t.calloutNoteTitle, description: s.calloutNote, keywords: "[!note] note nota aviso", insert: "> [!note] " },
+      { icon: "quote", title: t.calloutTipTitle, description: s.calloutTip, keywords: "[!tip] tip dica", insert: "> [!tip] " },
+      { icon: "warn", title: t.calloutWarningTitle, description: s.calloutWarning, keywords: "[!warning] warning atenção", insert: "> [!warning] " },
     ] },
     { title: s.insert, items: [
-      { icon: "table", title: t.table, description: s.table, keywords: "| tabela table", insert: () => tableTemplate(3, 2), select: [2, 8] },
+      { icon: "table", title: t.table, description: s.table, keywords: "| tabela table", insert: () => tableTemplate(3, 2, t.tableColumn), select: [2, 2 + t.tableColumn.length] },
       { icon: "wikilink", title: t.wikilink, description: s.wikilink, keywords: "[[ link nota", insert: "[[", run: (v) => startCompletion(v) },
       { icon: "note", title: t.embedNote, description: s.embed, keywords: "![[ embed transclusão", insert: "![[", run: (v) => startCompletion(v) },
       { icon: "image", title: t.image, description: s.image, keywords: "![[ imagem png jpg", insert: "![[", run: (v) => startCompletion(v) },
@@ -928,6 +936,7 @@ class NoteLeaf extends Leaf {
       imageUrl: (target) => imageUrl(target, () => this.editor.dispatch({ effects: redraw.of(null) })),
       navigate: (target) => this.follow(target),
       editFrontmatter: () => this.setMode("source"),
+      frontmatterTitle: (n) => (n === 1 ? t.yamlLine : t.yamlLines).replace("{n}", String(n)),
       noteHtml: (target) => this.embedHtml(target),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
@@ -1010,7 +1019,7 @@ class NoteLeaf extends Leaf {
         // Above basicSetup's defaults, which bind ⌘I (select the parent
         // node) and ⌘⇧K (delete the line) and come first in this list.
         Prec.high(keymap.of(noteKeys)),
-        appHotkeys(noteKeys.map((k) => k.key ?? "")),
+        editorChrome(noteKeys.map((k) => k.key ?? "")),
         EditorView.domEventHandlers({
           paste: (e) => this.takeFiles(e.clipboardData?.files ?? null, e),
           drop: (e) => this.takeFiles(e.dataTransfer?.files ?? null, e),
@@ -1109,8 +1118,8 @@ class NoteLeaf extends Leaf {
     const pos = v.state.selection.main.to;
     const line = v.state.doc.lineAt(pos);
     const before = line.text.trim() === "" ? "" : "\n\n";
-    const text = tableTemplate(3, 2);
-    v.dispatch({ changes: { from: line.to, insert: before + text + "\n" }, selection: { anchor: line.to + before.length + 2, head: line.to + before.length + 8 } });
+    const text = tableTemplate(3, 2, t.tableColumn);
+    v.dispatch({ changes: { from: line.to, insert: before + text + "\n" }, selection: { anchor: line.to + before.length + 2, head: line.to + before.length + 2 + t.tableColumn.length } });
     v.focus();
   }
   /** Images pasted or dropped become files beside the note and an embed
@@ -1664,7 +1673,7 @@ class TextLeaf extends Leaf {
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
-        appHotkeys(["Mod-s"]),
+        editorChrome(["Mod-s"]),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
             this.setDirty(true);
@@ -3337,7 +3346,7 @@ function movePrompt(path: string): void {
  *  beside the file, created on first use — as a callout that links back
  *  to the page. Written over the revision that was read. */
 function pdfStrings() {
-  return { page: t.pdfPage, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst };
+  return { page: t.pdfPage, prevPage: t.pdfPrev, nextPage: t.pdfNext, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst, loadFailed: t.pdfLoadFailed };
 }
 function companionOf(pdf: string): string {
   const base = pdf.split("/").pop() ?? pdf;
@@ -3932,6 +3941,11 @@ function runHotkey(e: KeyboardEvent): boolean {
 function appHotkeys(own: readonly string[]): Extension {
   return Prec.high(EditorView.domEventHandlers({ keydown: (e) => !hotkeyRecorder && !own.includes(comboOf(e)) && runHotkey(e) }));
 }
+/** What every editor of the window has: CodeMirror's own words in the
+ *  interface's language, and the app's hotkeys after the editor's keys. */
+function editorChrome(own: readonly string[]): Extension {
+  return [t === pt ? EditorState.phrases.of(ptPhrases) : [], appHotkeys(own)];
+}
 /** Every command, with what it needs to run; `all` lists the ones that
  *  need a note or a pane even when there is none (the settings page). */
 function allCommands(all = false): Command[] {
@@ -4347,7 +4361,10 @@ async function dailyNote(): Promise<void> {
     openNote(path, false);
     return;
   }
-  const tpl = (await templateText(folder || "Diário")) ?? (await templateText("Daily"));
+  // A template named like the daily folder, else by the folder's default
+  // name in either language.
+  let tpl: string | null = null;
+  for (const n of new Set([folder || t.dailyName, pt.dailyName, en.dailyName])) tpl ??= await templateText(n);
   const body = (tpl ?? `# ${today()}\n\n`).replaceAll("{{date}}", today()).replaceAll("{{title}}", today());
   const r = await commands.createNote(path, body);
   if (r.status !== "ok") return fail(r.error);
@@ -4361,7 +4378,7 @@ async function dailyNote(): Promise<void> {
 async function saveAsTemplate(): Promise<void> {
   const leaf = layout().activeLeaf;
   if (!(leaf instanceof NoteLeaf) || !leaf.note) return;
-  const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "") || "Templates";
+  const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "") || t.templatesName;
   const r = await commands.createNote(`${folder}/${name(leaf.path)}`, leaf.note.text);
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
   await afterFileChange();
