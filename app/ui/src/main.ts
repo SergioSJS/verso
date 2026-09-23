@@ -48,7 +48,8 @@ type Strings = Record<
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
-  | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint",
+  | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
+  | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -63,6 +64,7 @@ type Strings = Record<
   confirmDeleteFolder: (n: string) => string;
   words: (w: number, c: number) => string;
   replaceCount: (n: number) => string;
+  graphNodes: (n: number, m: number) => string;
   pdfHits: (n: number, current: number) => string;
 };
 
@@ -104,9 +106,11 @@ const pt: Strings = {
   addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link",
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
+  graphNodes: (n, m) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} de ${n}`,
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
+  graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique abre · duplo clique centra · arraste move · roda amplia", graphLabels: "Nomes",
   ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
@@ -152,9 +156,11 @@ const en: Strings = {
   addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
+  graphNodes: (n, m) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} of ${n}`,
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
+  graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click opens · double-click centers · drag moves · wheel zooms", graphLabels: "Names",
   ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
@@ -294,6 +300,31 @@ let currentFolder = "";
 let allNotes: string[] = [];
 let allFiles: string[] = [];
 const allEntries = new Map<string, FileEntry>();
+/** Notes that are web pages: path → address (the tree and tabs show the site's icon). */
+const webNotes = new Map<string, string>();
+/** The site's icon for a web note, the globe when the site has none. */
+function favicon(url: string): HTMLElement {
+  const box = h("span", "favicon");
+  let host = "";
+  try { host = new URL(url).hostname; } catch { /* not a URL: the globe */ }
+  if (!host) {
+    box.append(icon("globe"));
+    return box;
+  }
+  const img = h("img");
+  img.alt = "";
+  img.width = 16;
+  img.height = 16;
+  img.src = `https://icons.duckduckgo.com/ip3/${host}.ico`;
+  img.addEventListener("error", () => box.replaceChildren(icon("globe")));
+  box.append(img);
+  return box;
+}
+/** The icon of a path in lists and tabs: kind, or the site's for a web note. */
+function iconOfPath(path: string, kind: Kind): HTMLElement | SVGSVGElement {
+  const url = webNotes.get(path);
+  return url ? favicon(url) : icon(iconFor(kind));
+}
 const LOCALE = navigator.language.toLowerCase().startsWith("pt") ? "pt-BR" : "en";
 const dateFmt = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
 function humanSize(n: number): string {
@@ -728,7 +759,7 @@ abstract class Leaf {
   setTitle(title: string): void {
     this.tabName.textContent = title;
     this.tab.title = this.path;
-    this.tabIcon.replaceChildren(icon(iconFor(this.kind)));
+    this.tabIcon.replaceChildren(this.kind === "graph" ? icon("graph") : iconOfPath(this.path, this.kind));
   }
   setDirty(d: boolean): void {
     this.dirty = d;
@@ -1689,7 +1720,7 @@ class FolderLeaf extends Leaf {
       img.loading = "lazy";
       img.alt = "";
       thumb.append(img);
-    } else thumb.append(icon(iconFor(r.kind)));
+    } else thumb.append(iconOfPath(r.path, r.kind));
     const main = h("span", "main");
     main.append(thumb, h("span", "label", r.label));
     b.append(main, h("span", "col col-kind", kindLabel(r.path, r.kind)), h("span", "col col-size", r.kind === "folder" && r.size === 0 ? "—" : humanSize(r.size)), h("span", "col col-modified", humanDate(r.modified)));
@@ -1795,125 +1826,398 @@ class FrameLeaf extends Leaf {
   }
 }
 
-/* The relations of a note: what it links to, what links to it, and one
- * hop beyond — a small force-laid graph you can open notes from. */
+/* The graph: every note of the vault and every resolved link, or the
+ * neighbourhood of one note to a chosen depth. Force-laid in SVG,
+ * zoomed and panned, filtered by name or tag, colored by folder. */
+type GraphOpts = { filter: string; tag: string; depth: number; orphans: boolean; repel: number; distance: number; size: number; colors: boolean; labels: boolean };
+const GRAPH_DEFAULTS: GraphOpts = { filter: "", tag: "", depth: 2, orphans: true, repel: 1, distance: 1, size: 1, colors: true, labels: true };
+type GNode = { id: string; x: number; y: number; vx: number; vy: number; degree: number; depth: number; folder: string };
 class GraphLeaf extends Leaf {
   readonly kind: Kind = "graph";
   readonly svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  readonly world = document.createElementNS("http://www.w3.org/2000/svg", "g");
   readonly title = h("h1", "note-title");
+  readonly count = h("span", "graph-count");
+  readonly controls = h("aside", "graph-controls");
+  readonly legend = h("div", "graph-legend");
+  private opts: GraphOpts = { ...GRAPH_DEFAULTS };
+  private edges: [string, string][] = [];
+  private tags: { name: string; notes: string[] }[] = [];
+  private nodes: GNode[] = [];
   private stop: (() => void) | null = null;
+  private zoom = 1;
+  private pan = { x: 0, y: 0 };
+  private held: GNode | null = null;
   constructor(pane: Pane) {
     super(pane);
+    try {
+      const raw = localStorage.getItem("verso.graph");
+      if (raw) this.opts = { ...GRAPH_DEFAULTS, ...(JSON.parse(raw) as Partial<GraphOpts>) };
+    } catch { /* no storage */ }
     const top = h("header", "leaf-head");
     top.append(h("span", "crumbs", t.graph));
-    const sheet = h("div", "sheet graph-sheet");
+    const stage = h("div", "graph-stage");
     this.svg.setAttribute("class", "graph");
-    sheet.append(this.title, this.svg);
-    this.el.append(top, sheet);
+    this.svg.append(this.world);
+    const head = h("div", "graph-head");
+    head.append(this.title, this.count);
+    stage.append(head, this.svg, h("p", "graph-hint", t.graphHint));
+    const body = h("div", "graph-body");
+    body.append(stage, this.controls);
+    this.el.append(top, body);
+    this.buildControls();
+    this.wireStage();
   }
   override headings(): NoteText["headings"] {
     return [];
   }
+  private save(): void {
+    try { localStorage.setItem("verso.graph", JSON.stringify(this.opts)); } catch { /* no storage */ }
+  }
+  private buildControls(): void {
+    const c = this.controls;
+    const field = (label: string, input: HTMLElement) => {
+      const l = h("label", "graph-field");
+      l.append(h("span", "", label), input);
+      c.append(l);
+      return l;
+    };
+    const filter = h("input", "graph-filter");
+    filter.type = "search";
+    filter.placeholder = t.graphFilter;
+    filter.value = this.opts.filter;
+    filter.addEventListener("input", () => { this.opts.filter = filter.value; this.save(); this.rebuild(); });
+    filter.addEventListener("keydown", (e) => e.stopPropagation());
+    c.append(filter);
+    const tag = h("select");
+    tag.addEventListener("change", () => { this.opts.tag = tag.value; this.save(); this.rebuild(); });
+    tag.dataset["role"] = "tag";
+    field(t.tags, tag);
+    const depth = h("select");
+    for (const d of [1, 2, 3]) {
+      const o = h("option", "", String(d));
+      o.value = String(d);
+      o.selected = this.opts.depth === d;
+      depth.append(o);
+    }
+    depth.addEventListener("change", () => { this.opts.depth = Number(depth.value); this.save(); void this.load(this.path); });
+    field(t.graphDepth, depth).dataset["role"] = "depth";
+    const check = (label: string, key: "orphans" | "colors" | "labels") => {
+      const box = h("input");
+      box.type = "checkbox";
+      box.checked = this.opts[key];
+      box.addEventListener("change", () => { this.opts[key] = box.checked; this.save(); this.rebuild(); });
+      const l = h("label", "graph-check");
+      l.append(box, h("span", "", label));
+      c.append(l);
+    };
+    check(t.graphOrphans, "orphans");
+    check(t.graphLabels, "labels");
+    check(t.graphColors, "colors");
+    const slider = (label: string, key: "repel" | "distance" | "size") => {
+      const r = h("input");
+      r.type = "range";
+      r.min = "0.3"; r.max = "2.5"; r.step = "0.05";
+      r.value = String(this.opts[key]);
+      r.addEventListener("input", () => { this.opts[key] = Number(r.value); this.save(); this.restyle(); this.resume(); });
+      field(label, r);
+    };
+    slider(t.graphRepel, "repel");
+    slider(t.graphDistance, "distance");
+    slider(t.graphSize, "size");
+    const whole = button("ghost", t.graphWhole);
+    whole.dataset["role"] = "whole";
+    whole.addEventListener("click", () => void this.load(""));
+    c.append(whole, this.legend);
+  }
+  private wireStage(): void {
+    const svg = this.svg;
+    svg.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const r = svg.getBoundingClientRect();
+      const mx = e.clientX - r.left - r.width / 2;
+      const my = e.clientY - r.top - r.height / 2;
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      const next = Math.max(0.15, Math.min(6, this.zoom * factor));
+      const k = next / this.zoom;
+      this.pan.x = mx - (mx - this.pan.x) * k;
+      this.pan.y = my - (my - this.pan.y) * k;
+      this.zoom = next;
+      this.applyView();
+    }, { passive: false });
+    svg.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || (e.target as Element).closest(".node")) return;
+      const start = { x: e.clientX, y: e.clientY, px: this.pan.x, py: this.pan.y };
+      svg.setPointerCapture(e.pointerId);
+      const move = (ev: PointerEvent) => {
+        this.pan.x = start.px + (ev.clientX - start.x);
+        this.pan.y = start.py + (ev.clientY - start.y);
+        this.applyView();
+      };
+      const up = () => { svg.removeEventListener("pointermove", move); svg.removeEventListener("pointerup", up); };
+      svg.addEventListener("pointermove", move);
+      svg.addEventListener("pointerup", up);
+    });
+  }
+  private applyView(): void {
+    const r = this.svg.getBoundingClientRect();
+    this.world.setAttribute("transform", `translate(${r.width / 2 + this.pan.x} ${r.height / 2 + this.pan.y}) scale(${this.zoom})`);
+  }
   async load(path: string): Promise<void> {
     this.path = path;
-    this.setTitle(`${t.graph}: ${name(path)}`);
-    this.title.textContent = `${t.graphOf} ${name(path)}`;
-    type Node = { id: string; x: number; y: number; vx: number; vy: number; depth: number };
-    const nodes = new Map<string, Node>();
-    const edges = new Set<string>();
-    const add = (id: string, depth: number) => {
-      if (!nodes.has(id)) nodes.set(id, { id, x: Math.random() * 200 - 100, y: Math.random() * 200 - 100, vx: 0, vy: 0, depth });
-    };
-    add(path, 0);
-    const expand = async (id: string, depth: number) => {
-      const [links, back] = await Promise.all([commands.links(id), commands.backlinks(id)]);
-      if (links.status === "ok") for (const l of links.data) if (l.resolved && nodes.size < 60) {
-        add(l.resolved, depth);
-        edges.add(`${id}\u0000${l.resolved}`);
-      }
-      if (back.status === "ok") for (const b of back.data) if (nodes.size < 60) {
-        add(b.from, depth);
-        edges.add(`${b.from}\u0000${id}`);
-      }
-    };
-    await expand(path, 1);
-    for (const n of Array.from(nodes.values()).filter((n) => n.depth === 1)) await expand(n.id, 2);
+    const local = path !== "";
+    this.setTitle(local ? `${t.graph}: ${name(path)}` : t.graphWhole);
+    this.title.textContent = local ? `${t.graphOf} ${name(path)}` : t.graphWhole;
+    const [edges, tags] = await Promise.all([commands.graph(), commands.listTags()]);
     if (this.path !== path) return;
-    this.draw(Array.from(nodes.values()), Array.from(edges).map((e) => e.split("\u0000") as [string, string]));
+    this.edges = edges.status === "ok" ? edges.data.map((e) => [e.from, e.to] as [string, string]) : [];
+    this.tags = tags.status === "ok" ? tags.data : [];
+    const tagSel = this.controls.querySelector<HTMLSelectElement>('select[data-role="tag"]');
+    if (tagSel) {
+      tagSel.replaceChildren(h("option", "", t.graphAllTags));
+      (tagSel.firstElementChild as HTMLOptionElement).value = "";
+      for (const tg of this.tags) {
+        const o = h("option", "", `#${tg.name} (${tg.notes.length})`);
+        o.value = tg.name;
+        o.selected = this.opts.tag === tg.name;
+        tagSel.append(o);
+      }
+    }
+    const depthField = this.controls.querySelector<HTMLElement>('[data-role="depth"]');
+    if (depthField) depthField.hidden = !local;
+    const whole = this.controls.querySelector<HTMLElement>('[data-role="whole"]');
+    if (whole) whole.hidden = !local;
+    this.zoom = 1;
+    this.pan = { x: 0, y: 0 };
+    this.rebuild();
     markCurrent();
     persistSoon();
   }
-  private draw(nodes: { id: string; x: number; y: number; vx: number; vy: number; depth: number }[], edges: [string, string][]): void {
+  /** Nodes and edges after the filters, laid out from scratch. */
+  private rebuild(): void {
+    const local = this.path !== "";
+    const all = new Set(allNotes);
+    let keep: Set<string>;
+    let depthOf = new Map<string, number>();
+    if (local) {
+      // Breadth-first from the note, both directions, to the depth chosen.
+      keep = new Set([this.path]);
+      depthOf.set(this.path, 0);
+      let frontier = [this.path];
+      for (let d = 1; d <= this.opts.depth && frontier.length > 0; d++) {
+        const next: string[] = [];
+        for (const [a, b] of this.edges) {
+          for (const [from, to] of [[a, b], [b, a]]) {
+            if (frontier.includes(from!) && !keep.has(to!) && all.has(to!)) {
+              keep.add(to!);
+              depthOf.set(to!, d);
+              next.push(to!);
+            }
+          }
+        }
+        frontier = next;
+      }
+    } else keep = new Set(all);
+    const q = this.opts.filter.trim().toLowerCase();
+    if (q) {
+      const tagQ = q.startsWith("tag:") ? q.slice(4).replace(/^#/, "") : "";
+      if (tagQ) {
+        const inTag = new Set(this.tags.filter((tg) => tg.name.toLowerCase() === tagQ || tg.name.toLowerCase().startsWith(`${tagQ}/`)).flatMap((tg) => tg.notes));
+        keep = new Set(Array.from(keep).filter((p) => inTag.has(p) || p === this.path));
+      } else keep = new Set(Array.from(keep).filter((p) => p.toLowerCase().includes(q) || p === this.path));
+    }
+    if (this.opts.tag) {
+      const inTag = new Set(this.tags.filter((tg) => tg.name === this.opts.tag).flatMap((tg) => tg.notes));
+      keep = new Set(Array.from(keep).filter((p) => inTag.has(p) || p === this.path));
+    }
+    const edges = this.edges.filter(([a, b]) => keep.has(a) && keep.has(b) && a !== b);
+    const degree = new Map<string, number>();
+    for (const [a, b] of edges) {
+      degree.set(a, (degree.get(a) ?? 0) + 1);
+      degree.set(b, (degree.get(b) ?? 0) + 1);
+    }
+    if (!this.opts.orphans) keep = new Set(Array.from(keep).filter((p) => (degree.get(p) ?? 0) > 0 || p === this.path));
+    const spread = Math.sqrt(keep.size) * 40;
+    const old = new Map(this.nodes.map((n) => [n.id, n]));
+    this.nodes = Array.from(keep).map((id) => {
+      const prev = old.get(id);
+      return {
+        id,
+        x: prev?.x ?? (Math.random() - 0.5) * spread,
+        y: prev?.y ?? (Math.random() - 0.5) * spread,
+        vx: 0,
+        vy: 0,
+        degree: degree.get(id) ?? 0,
+        depth: depthOf.get(id) ?? 1,
+        folder: id.includes("/") ? id.split("/")[0] ?? "" : "",
+      };
+    });
+    this.count.textContent = t.graphNodes(this.nodes.length, edges.filter(([a, b]) => keep.has(a) && keep.has(b)).length);
+    this.draw(edges.filter(([a, b]) => keep.has(a) && keep.has(b)));
+  }
+  private hue(folder: string): number {
+    let x = 0;
+    for (const ch of folder) x = (x * 31 + ch.charCodeAt(0)) % 360;
+    return x;
+  }
+  private color(n: GNode): string {
+    if (n.id === this.path) return "var(--seal)";
+    if (!this.opts.colors) return "var(--brass)";
+    return n.folder === "" ? "var(--brass)" : `oklch(62% 0.12 ${this.hue(n.folder)})`;
+  }
+  private restyle(): void {
+    for (const el of this.svg.querySelectorAll<SVGCircleElement>(".node circle")) {
+      const id = el.parentElement?.getAttribute("data-id") ?? "";
+      const n = this.nodes.find((x) => x.id === id);
+      if (n) el.setAttribute("r", String(this.radius(n)));
+    }
+  }
+  private radius(n: GNode): number {
+    return (n.id === this.path ? 9 : 3.5 + Math.min(6, Math.sqrt(n.degree) * 1.4)) * this.opts.size;
+  }
+  private frames = 0;
+  private raf = 0;
+  private lines: { l: SVGLineElement; a: GNode; b: GNode }[] = [];
+  private dots: { g: SVGGElement; n: GNode }[] = [];
+  private draw(edges: [string, string][]): void {
     this.stop?.();
     const NS = "http://www.w3.org/2000/svg";
-    const svg = this.svg;
-    svg.replaceChildren();
-    const byId = new Map(nodes.map((n) => [n.id, n]));
-    const lines = edges.map(([a, b]) => {
+    const world = this.world;
+    world.replaceChildren();
+    const byId = new Map(this.nodes.map((n) => [n.id, n]));
+    this.lines = edges.flatMap(([a, b]) => {
+      const na = byId.get(a);
+      const nb = byId.get(b);
+      if (!na || !nb) return [];
       const l = document.createElementNS(NS, "line");
       l.setAttribute("class", "edge");
-      svg.append(l);
-      return { l, a: byId.get(a)!, b: byId.get(b)! };
+      world.append(l);
+      return [{ l, a: na, b: nb }];
     });
-    const dots = nodes.map((n) => {
+    const neighbours = new Map<string, Set<string>>();
+    for (const { a, b } of this.lines) {
+      (neighbours.get(a.id) ?? neighbours.set(a.id, new Set()).get(a.id)!).add(b.id);
+      (neighbours.get(b.id) ?? neighbours.set(b.id, new Set()).get(b.id)!).add(a.id);
+    }
+    this.dots = this.nodes.map((n) => {
       const g = document.createElementNS(NS, "g");
-      g.setAttribute("class", `node depth-${n.depth}${n.id === this.path ? " center" : ""}`);
+      g.setAttribute("class", `node${n.id === this.path ? " center" : ""}`);
+      g.setAttribute("data-id", n.id);
       const c = document.createElementNS(NS, "circle");
-      c.setAttribute("r", n.id === this.path ? "9" : n.depth === 1 ? "6" : "4");
+      c.setAttribute("r", String(this.radius(n)));
+      c.style.fill = this.color(n);
       const label = document.createElementNS(NS, "text");
       label.textContent = name(n.id);
-      label.setAttribute("dy", "-12");
+      label.setAttribute("dy", String(-this.radius(n) - 4));
+      if (!this.opts.labels && n.id !== this.path) label.classList.add("quiet");
       g.append(c, label);
-      g.addEventListener("click", () => openNote(n.id, false));
+      let moved = false;
+      g.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        moved = false;
+        this.held = n;
+        const start = { x: e.clientX, y: e.clientY, nx: n.x, ny: n.y };
+        g.setPointerCapture(e.pointerId);
+        const move = (ev: PointerEvent) => {
+          const dx = (ev.clientX - start.x) / this.zoom;
+          const dy = (ev.clientY - start.y) / this.zoom;
+          if (Math.hypot(dx, dy) > 3) moved = true;
+          n.x = start.nx + dx;
+          n.y = start.ny + dy;
+          n.vx = 0;
+          n.vy = 0;
+          this.resume();
+        };
+        const up = () => {
+          g.removeEventListener("pointermove", move);
+          g.removeEventListener("pointerup", up);
+          this.held = null;
+        };
+        g.addEventListener("pointermove", move);
+        g.addEventListener("pointerup", up);
+      });
+      g.addEventListener("click", () => { if (!moved) openNote(n.id, false); });
       g.addEventListener("dblclick", () => void this.load(n.id));
-      svg.append(g);
+      g.addEventListener("mouseenter", () => {
+        const near = neighbours.get(n.id) ?? new Set();
+        for (const d of this.dots) d.g.classList.toggle("dim", d.n !== n && !near.has(d.n.id));
+        for (const ln of this.lines) ln.l.classList.toggle("lit", ln.a === n || ln.b === n);
+        for (const ln of this.lines) ln.l.classList.toggle("dim", !(ln.a === n || ln.b === n));
+      });
+      g.addEventListener("mouseleave", () => {
+        for (const d of this.dots) d.g.classList.remove("dim");
+        for (const ln of this.lines) ln.l.classList.remove("lit", "dim");
+      });
+      world.append(g);
       return { g, n };
     });
-    let frames = 0;
-    let raf = 0;
-    const tick = () => {
-      // Springs along edges, repulsion between nodes, a pull to the middle.
-      for (const a of nodes) for (const b of nodes) {
-        if (a === b) continue;
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const d2 = Math.max(dx * dx + dy * dy, 1);
-        const f = 1800 / d2;
-        a.vx += (dx / Math.sqrt(d2)) * f;
-        a.vy += (dy / Math.sqrt(d2)) * f;
+    this.legend.replaceChildren();
+    if (this.opts.colors) {
+      const folders = Array.from(new Set(this.nodes.map((n) => n.folder).filter(Boolean))).sort().slice(0, 12);
+      for (const f of folders) {
+        const row = h("span", "graph-legend-item");
+        const dot = h("span", "graph-legend-dot");
+        dot.style.background = `oklch(62% 0.12 ${this.hue(f)})`;
+        row.append(dot, h("span", "", f));
+        this.legend.append(row);
       }
-      for (const { a, b } of lines) {
+    }
+    this.applyView();
+    this.frames = 0;
+    this.resume();
+  }
+  /** The simulation runs until it settles; any change wakes it. */
+  private resume(): void {
+    this.frames = 0;
+    if (this.raf) return;
+    const tick = () => {
+      this.raf = 0;
+      const nodes = this.nodes;
+      const repel = 1400 * this.opts.repel;
+      const rest = 80 * this.opts.distance;
+      const many = nodes.length > 400;
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i]!;
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j]!;
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const d2 = dx * dx + dy * dy;
+          if (many && d2 > 90000) continue;
+          const d = Math.sqrt(Math.max(d2, 1));
+          const f = repel / Math.max(d2, 1);
+          const fx = (dx / d) * f;
+          const fy = (dy / d) * f;
+          a.vx += fx; a.vy += fy;
+          b.vx -= fx; b.vy -= fy;
+        }
+      }
+      for (const { a, b } of this.lines) {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-        const f = (d - 90) * 0.02;
-        a.vx += (dx / d) * f;
-        a.vy += (dy / d) * f;
-        b.vx -= (dx / d) * f;
-        b.vy -= (dy / d) * f;
+        const f = (d - rest) * 0.02;
+        a.vx += (dx / d) * f; a.vy += (dy / d) * f;
+        b.vx -= (dx / d) * f; b.vy -= (dy / d) * f;
       }
+      let energy = 0;
       for (const n of nodes) {
-        n.vx -= n.x * 0.004;
-        n.vy -= n.y * 0.004;
-        n.vx *= 0.82;
-        n.vy *= 0.82;
-        n.x += n.vx;
-        n.y += n.vy;
+        if (n === this.held) { n.vx = 0; n.vy = 0; continue; }
+        n.vx -= n.x * 0.002; n.vy -= n.y * 0.002;
+        n.vx *= 0.8; n.vy *= 0.8;
+        n.x += n.vx; n.y += n.vy;
+        energy += n.vx * n.vx + n.vy * n.vy;
       }
-      const r = svg.getBoundingClientRect();
-      const cx = r.width / 2;
-      const cy = r.height / 2;
-      for (const { l, a, b } of lines) {
-        l.setAttribute("x1", String(cx + a.x));
-        l.setAttribute("y1", String(cy + a.y));
-        l.setAttribute("x2", String(cx + b.x));
-        l.setAttribute("y2", String(cy + b.y));
+      for (const { l, a, b } of this.lines) {
+        l.setAttribute("x1", String(a.x)); l.setAttribute("y1", String(a.y));
+        l.setAttribute("x2", String(b.x)); l.setAttribute("y2", String(b.y));
       }
-      for (const { g, n } of dots) g.setAttribute("transform", `translate(${cx + n.x} ${cy + n.y})`);
-      if (++frames < 240) raf = requestAnimationFrame(tick);
+      for (const { g, n } of this.dots) g.setAttribute("transform", `translate(${n.x} ${n.y})`);
+      if (++this.frames < 600 && (energy > 0.05 * nodes.length || this.frames < 30 || this.held)) this.raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    this.stop = () => cancelAnimationFrame(raf);
+    this.raf = requestAnimationFrame(tick);
+    this.stop = () => { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; };
   }
   override destroy(): void {
     this.stop?.();
@@ -2956,7 +3260,7 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   const kind = kindOf(path);
   const b = h("button", `row kind-${kind}`);
   b.type = "button";
-  b.append(icon(iconFor(kind)), h("span", "row-name", path.split("/").pop() ?? path));
+  b.append(iconOfPath(path, kind), h("span", "row-name", path.split("/").pop() ?? path));
   b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey));
   b.addEventListener("mousedown", () => b.focus());
   armDrag(b, () => ({ kind: "file", path }), () => name(path));
@@ -3142,8 +3446,10 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
   return ul;
 }
 async function listAll(): Promise<void> {
-  const [notes, files, folders, entries] = await Promise.all([commands.listNotes(), commands.listFiles(), commands.listFolders(), commands.listEntries()]);
+  const [notes, files, folders, entries, web] = await Promise.all([commands.listNotes(), commands.listFiles(), commands.listFolders(), commands.listEntries(), commands.listWebNotes()]);
   if (notes.status !== "ok") return fail(notes.error);
+  webNotes.clear();
+  if (web.status === "ok") for (const w of web.data) webNotes.set(w.path, w.url);
   allNotes = notes.data;
   allFiles = files.status === "ok" ? files.data : [];
   allFolders = folders.status === "ok" ? folders.data : [];
@@ -3711,8 +4017,8 @@ async function openPath(path: string): Promise<boolean> {
   spaces.length = 0;
   current = null;
   ui.collapse.disabled = false;
-  ribbon?.paint();
   ui.search.disabled = false;
+  ribbon?.paint();
   ui.search.value = "";
   loadBookmarks();
   panel.tagsCache = [];
@@ -3768,7 +4074,7 @@ const RIBBON: RibbonItem[] = [
     showMenu(r.right + 6, r.top, [[t.newNote, () => newNotePrompt(folder)], [t.newFolder, () => newFolderPrompt(folder)], [t.newWebPage, () => newWebPagePrompt()]]);
   } },
   { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "⌘D", needsFolder: true, run: () => void dailyNote() },
-  { id: "graph", icon: "graph", label: () => t.graph, keys: "⌘⇧G", needsFolder: true, run: () => { const leaf = layout().activeLeaf; const pane = layout().focused ?? layout().panes()[0]; if (leaf?.kind === "note" && pane) pane.openGraph(leaf.path); } },
+  { id: "graph", icon: "graph", label: () => t.graphWhole, needsFolder: true, run: () => { const pane = layout().focused ?? layout().panes()[0] ?? layout().reset(); pane.openGraph(""); } },
   { id: "replace", icon: "replace", label: () => t.replaceTitle, keys: "⌘⇧H", needsFolder: true, run: () => replaceDialog.show() },
   { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
@@ -3794,7 +4100,7 @@ class Ribbon {
     try { localStorage.setItem("verso.ribbon", JSON.stringify({ order: this.order, hidden: Array.from(this.hidden) })); } catch { /* no storage */ }
   }
   paint(): void {
-    const hasFolder = !ui.search.disabled;
+    const hasFolder = currentFolder !== "";
     const top = h("div", "ribbon-group");
     const bottom = h("div", "ribbon-group ribbon-bottom");
     for (const id of this.order) {

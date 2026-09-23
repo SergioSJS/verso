@@ -150,6 +150,20 @@ pub struct Renamed {
     pub rewrites: Vec<LinkRewrite>,
 }
 
+/// A note that is a web page: its path and the address in its `url`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct WebNote {
+    pub path: String,
+    pub url: String,
+}
+
+/// One resolved link of the vault, for the graph.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Edge {
+    pub from: String,
+    pub to: String,
+}
+
 /// A tag and the notes that carry it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Tag {

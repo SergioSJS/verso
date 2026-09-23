@@ -619,3 +619,29 @@ fn any_text_file_is_read_and_written_over_its_revision() {
         .unwrap();
     assert_eq!(ws.links("Nota").unwrap().unwrap().len(), 1);
 }
+
+#[test]
+fn web_notes_and_the_whole_graph_come_from_the_index() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _a = note(vault.path(), "A.md", "[[B]] e [[C]]\n");
+    let _b = note(vault.path(), "B.md", "[[C]]\n");
+    let _c = note(vault.path(), "C.md", "---\nurl: https://example.org/x\n---\n");
+    let _d = note(vault.path(), "D.md", "---\nurl: not-a-url\n---\nsolta\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(
+        ws.web_notes().unwrap(),
+        vec![("C.md".to_owned(), "https://example.org/x".to_owned())]
+    );
+    let mut edges = ws.graph().unwrap();
+    edges.sort();
+    assert_eq!(
+        edges,
+        vec![
+            ("A.md".to_owned(), "B.md".to_owned()),
+            ("A.md".to_owned(), "C.md".to_owned()),
+            ("B.md".to_owned(), "C.md".to_owned()),
+        ]
+    );
+}

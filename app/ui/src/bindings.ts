@@ -55,7 +55,6 @@ export const commands = {
 	resolveAttachment: (target: string) => typedError<string | null, ContractError>(__TAURI_INVOKE("resolve_attachment", { target })),
 	/**  Every regular file of the folder that is not a note, for the tree. */
 	listFiles: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_files")),
-	/**  Every folder of the open folder, empty ones included, for the tree. */
 	listFolders: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_folders")),
 	/**  Every tag of the vault, by count, with the notes that carry it. */
 	listTags: () => typedError<Tag[], ContractError>(__TAURI_INVOKE("list_tags")),
@@ -69,6 +68,13 @@ export const commands = {
 	 *  and date: what a folder view lists and sorts.
 	 */
 	listEntries: () => typedError<FileEntry[], ContractError>(__TAURI_INVOKE("list_entries")),
+	/**
+	 *  Every folder of the open folder, empty ones included, for the tree.
+	 *  The notes that are web pages, with their addresses (an icon, a tab).
+	 */
+	listWebNotes: () => typedError<WebNote[], ContractError>(__TAURI_INVOKE("list_web_notes")),
+	/**  Every resolved link of the vault: the graph of the whole folder. */
+	graph: () => typedError<Edge[], ContractError>(__TAURI_INVOKE("graph")),
 	/**
 	 *  The folder the command line asked for, once; `None` afterwards and
 	 *  when there was none. The UI opens it instead of the last folder.
@@ -151,6 +157,12 @@ export type Block = {
 export type ContractError = {
 	kind: ErrorKind,
 	message: string,
+};
+
+/**  One resolved link of the vault, for the graph. */
+export type Edge = {
+	from: string,
+	to: string,
 };
 
 /**  Why a command could not answer, by what the UI can do about it. */
@@ -334,6 +346,12 @@ export type TextFile = {
 	revision: string,
 	/**  What the write could not preserve, one line each; empty after a read. */
 	warnings: string[],
+};
+
+/**  A note that is a web page: its path and the address in its `url`. */
+export type WebNote = {
+	path: string,
+	url: string,
 };
 
 /**

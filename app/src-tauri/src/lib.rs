@@ -23,9 +23,9 @@ use std::sync::Mutex;
 
 use tauri::{Manager, State};
 use verso_contract::{
-    Backlink, Block, ContractError, ErrorKind, FileEntry, FileKind, FolderInfo, Heading, Hit,
+    Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderInfo, Heading, Hit,
     IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed, Tag, TextFile,
-    Written,
+    WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -265,6 +265,32 @@ fn list_tags(state: State<'_, App>) -> Result<Vec<Tag>, ContractError> {
 }
 
 /// Every folder of the open folder, empty ones included, for the tree.
+/// The notes that are web pages, with their addresses (an icon, a tab).
+#[tauri::command]
+#[specta::specta]
+fn list_web_notes(state: State<'_, App>) -> Result<Vec<WebNote>, ContractError> {
+    with(&state, |ws| {
+        Ok(ws
+            .web_notes()?
+            .into_iter()
+            .map(|(path, url)| WebNote { path, url })
+            .collect())
+    })
+}
+
+/// Every resolved link of the vault: the graph of the whole folder.
+#[tauri::command]
+#[specta::specta]
+fn graph(state: State<'_, App>) -> Result<Vec<Edge>, ContractError> {
+    with(&state, |ws| {
+        Ok(ws
+            .graph()?
+            .into_iter()
+            .map(|(from, to)| Edge { from, to })
+            .collect())
+    })
+}
+
 #[tauri::command]
 #[specta::specta]
 fn list_folders(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
@@ -669,6 +695,8 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         list_tags,
         read_file_text,
         list_entries,
+        list_web_notes,
+        graph,
         initial_folder,
         open_url,
         web_open,
