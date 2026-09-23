@@ -36,6 +36,8 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text?: strin
   return e;
 }
 
+let menus = 0;
+
 export class SlashMenu {
   readonly el = h("div", "slash");
   private view: EditorView | null = null;
@@ -44,10 +46,12 @@ export class SlashMenu {
   private flat: SlashItem[] = [];
   private empty: string;
 
-  constructor(private readonly sections: () => SlashSection[], strings: { empty: string }) {
+  constructor(private readonly sections: () => SlashSection[], strings: { empty: string; label: string }) {
     this.empty = strings.empty;
     this.el.hidden = true;
+    this.el.id = `slash-${++menus}`;
     this.el.setAttribute("role", "listbox");
+    this.el.setAttribute("aria-label", strings.label);
     document.body.append(this.el);
     this.el.addEventListener("mousedown", (e) => e.preventDefault());
   }
@@ -117,6 +121,8 @@ export class SlashMenu {
         this.flat.push(it);
         const row = h("button", "slash-item");
         row.type = "button";
+        row.tabIndex = -1;
+        row.id = `${this.el.id}-${index}`;
         row.setAttribute("role", "option");
         row.dataset["index"] = String(index);
         const box = h("span", "slash-icon");
@@ -142,11 +148,17 @@ export class SlashMenu {
   }
 
   private paintSelection(): void {
+    // The editor keeps the focus and points at the highlighted option, so
+    // a screen reader says it as the arrows move.
+    this.view?.contentDOM.removeAttribute("aria-activedescendant");
     for (const b of this.el.querySelectorAll<HTMLButtonElement>(".slash-item")) {
       const on = Number(b.dataset["index"]) === this.sel;
       b.classList.toggle("selected", on);
       b.setAttribute("aria-selected", String(on));
-      if (on) b.scrollIntoView({ block: "nearest" });
+      if (on) {
+        b.scrollIntoView({ block: "nearest" });
+        this.view?.contentDOM.setAttribute("aria-activedescendant", b.id);
+      }
     }
   }
 
@@ -166,6 +178,7 @@ export class SlashMenu {
   }
 
   close(): void {
+    this.view?.contentDOM.removeAttribute("aria-activedescendant");
     this.el.hidden = true;
     this.view = null;
     this.from = -1;

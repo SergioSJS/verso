@@ -61,7 +61,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
-  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded",
+  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -123,7 +123,7 @@ const pt: Strings = {
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
-  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
+  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
@@ -180,7 +180,7 @@ const en: Strings = {
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
-  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
+  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
@@ -798,6 +798,13 @@ abstract class Leaf {
       e.preventDefault();
       this.pane.tabMenu(this, e.clientX, e.clientY);
     });
+    // The tab's menu (close, pin, split, open in a window…) from the keyboard.
+    this.tab.addEventListener("keydown", (e) => {
+      if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
+      e.preventDefault();
+      const r = this.tab.getBoundingClientRect();
+      this.pane.tabMenu(this, r.left + 12, r.bottom);
+    });
     armDrag(this.tab, () => ({ kind: "tab", leaf: this }), () => this.tabName.textContent ?? "");
     this.el.addEventListener("focusin", () => this.pane.activate(this, false));
   }
@@ -889,7 +896,7 @@ class NoteLeaf extends Leaf {
   backlinksData: { from: string; line: number }[] = [];
   linksData: { target: string; resolved: string | null }[] = [];
   readonly liveCompartment = new Compartment();
-  readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty });
+  readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty, label: t.slash.insert });
   readonly live: ReturnType<typeof livePreview>;
   note: NoteText | null = null;
   mode: Mode = settings.defaultMode;
@@ -2342,6 +2349,16 @@ class GraphLeaf extends Leaf {
       });
       g.addEventListener("click", () => { if (!moved) openNote(n.id, false); });
       g.addEventListener("dblclick", () => void this.load(n.id));
+      // From the keyboard: Tab reaches a note, Enter opens it, Shift-Enter centers the graph on it.
+      g.setAttribute("tabindex", "0");
+      g.setAttribute("role", "button");
+      g.setAttribute("aria-label", name(n.id));
+      g.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        if (e.shiftKey) void this.load(n.id);
+        else openNote(n.id, false);
+      });
       g.addEventListener("mouseenter", () => {
         const near = neighbours.get(n.id) ?? new Set();
         for (const d of this.dots) d.g.classList.toggle("dim", d.n !== n && !near.has(d.n.id));
@@ -2461,6 +2478,17 @@ class Pane {
         [t.hideTabs, () => this.setTabsHidden(true)],
       ]);
       e.stopPropagation();
+    });
+    this.tabsDivider.setAttribute("role", "separator");
+    this.tabsDivider.setAttribute("aria-orientation", "vertical");
+    this.tabsDivider.setAttribute("aria-label", t.resizeKeys);
+    this.tabsDivider.tabIndex = 0;
+    this.tabsDivider.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const w = this.tabs.getBoundingClientRect().width + (e.key === "ArrowRight" ? 16 : -16);
+      this.el.style.setProperty("--tabs-w", `${Math.min(Math.max(w, 120), 420)}px`);
+      persistSoon();
     });
     this.tabsDivider.addEventListener("pointerdown", (e) => {
       this.tabsDivider.setPointerCapture(e.pointerId);
@@ -2738,6 +2766,31 @@ class Layout {
   private divider(split: Split, i: number): HTMLElement {
     const d = h("div", `divider ${split.dir}`);
     d.setAttribute("role", "separator");
+    // From the keyboard: focusable, the arrow keys move it 24 px.
+    d.tabIndex = 0;
+    d.setAttribute("aria-orientation", split.dir === "row" ? "vertical" : "horizontal");
+    d.setAttribute("aria-label", t.resizeKeys);
+    d.setAttribute("aria-valuemin", "0");
+    d.setAttribute("aria-valuemax", "100");
+    d.addEventListener("keydown", (e) => {
+      const back = split.dir === "row" ? "ArrowLeft" : "ArrowUp";
+      const on = split.dir === "row" ? "ArrowRight" : "ArrowDown";
+      if (e.key !== back && e.key !== on) return;
+      e.preventDefault();
+      const a = split.children[i - 1];
+      const b = split.children[i];
+      if (!a || !b) return;
+      const ea = this.elOf(a);
+      const eb = this.elOf(b);
+      const size = (x: HTMLElement) => (split.dir === "row" ? x.getBoundingClientRect().width : x.getBoundingClientRect().height);
+      const total = size(ea) + size(eb);
+      const sum = Number(ea.style.flexGrow || 1) + Number(eb.style.flexGrow || 1);
+      const na = Math.min(Math.max(size(ea) + (e.key === on ? 24 : -24), 140), total - 140);
+      ea.style.flexGrow = String((sum * na) / total);
+      eb.style.flexGrow = String((sum * (total - na)) / total);
+      d.setAttribute("aria-valuenow", String(Math.round((na / total) * 100)));
+      persistSoon();
+    });
     d.addEventListener("pointerdown", (e) => {
       const a = split.children[i - 1];
       const b = split.children[i];
@@ -2845,22 +2898,45 @@ class Space {
     });
     this.tab.addEventListener("dblclick", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) return;
-      const input = h("input", "space-input");
-      input.value = this.label;
-      n.replaceWith(input);
-      input.focus();
-      input.select();
-      const finish = () => {
-        this.label = input.value.trim() || this.label;
-        n.textContent = this.label;
-        input.replaceWith(n);
-        persistSoon();
-      };
-      input.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === "Escape") finish();
-      });
-      input.addEventListener("blur", finish);
+      this.rename(n);
     });
+    // Rename and close from the keyboard (F2, the menu key) and by right-click.
+    this.tab.addEventListener("keydown", (e) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        this.rename(n);
+      } else if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+        e.preventDefault();
+        const r = this.tab.getBoundingClientRect();
+        this.tab.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.left + 12, clientY: r.bottom, bubbles: true, cancelable: true }));
+      }
+    });
+    this.tab.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY, [[t.rename, () => this.rename(n)], [t.closeSpace, () => closeSpace(this)]]);
+    });
+  }
+  /** The name in place becomes a field; Enter, Escape or leaving it ends. */
+  private rename(n: HTMLElement): void {
+    if (!n.isConnected) return;
+    const input = h("input", "space-input");
+    input.setAttribute("aria-label", t.rename);
+    input.value = this.label;
+    n.replaceWith(input);
+    input.focus();
+    input.select();
+    const finish = () => {
+      if (!input.isConnected) return;
+      this.label = input.value.trim() || this.label;
+      n.textContent = this.label;
+      input.replaceWith(n);
+      persistSoon();
+    };
+    input.addEventListener("keydown", (ev) => {
+      ev.stopPropagation();
+      if (ev.key === "Enter" || ev.key === "Escape") finish();
+    });
+    input.addEventListener("blur", finish);
   }
 }
 const spaces: Space[] = [];
@@ -3486,7 +3562,25 @@ const menu = h("ul", "menu");
 menu.hidden = true;
 menu.setAttribute("role", "menu");
 document.body.append(menu);
+/** Where the focus was when the menu opened, to give it back on Escape. */
+let menuOpener: Element | null = null;
+menu.addEventListener("keydown", (e) => {
+  const items = Array.from(menu.querySelectorAll<HTMLButtonElement>("button"));
+  const i = items.indexOf(document.activeElement as HTMLButtonElement);
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
+  } else if (e.key === "Home" || e.key === "End") {
+    e.preventDefault();
+    (e.key === "Home" ? items[0] : items[items.length - 1])?.focus();
+  } else if (e.key === "Escape" || e.key === "Tab") {
+    if (e.key === "Escape") e.preventDefault();
+    menu.hidden = true;
+    if (e.key === "Escape" && menuOpener instanceof HTMLElement && menuOpener.isConnected) menuOpener.focus();
+  }
+});
 function showMenu(x: number, y: number, items: [string, () => void][]): void {
+  menuOpener = document.activeElement;
   menu.replaceChildren(
     ...items.map(([label, run]) => {
       const li = h("li");
@@ -3546,13 +3640,16 @@ class Plan {
   private rewrites: { path: string; revision: string; before: string; after: string }[] = [];
   constructor() {
     this.el.hidden = true;
+    asDialog(this.el, "", () => this.hide(), "plan-title");
     document.body.append(this.el);
   }
   /** `detail`: what the plan was drawn from, said under the title. */
   show(rewrites: Plan["rewrites"], title = t.planTitle(rewrites.length), applyLabel = t.planApply, detail = ""): void {
     this.rewrites = rewrites;
     const box = h("div", "plan-box");
-    box.append(h("h2", "", title));
+    const heading = h("h2", "", title);
+    heading.id = "plan-title";
+    box.append(heading);
     if (detail) box.append(h("p", "replace-note", detail));
     for (const w of rewrites) {
       const d = h("details");
@@ -3567,12 +3664,14 @@ class Plan {
     const actions = h("div", "conflict-actions");
     actions.append(apply, skip);
     box.append(actions);
+    opened(this.el);
     this.el.replaceChildren(box);
     this.el.hidden = false;
     apply.focus();
   }
   hide(): void {
     this.el.hidden = true;
+    closed(this.el);
   }
   private async apply(): Promise<void> {
     let ok = 0;
@@ -3860,6 +3959,65 @@ function collapseAll(): void {
   ui.collapse.title = collapsed ? t.expandAll : t.collapseAll;
 }
 
+/* ---------- Dialogs: named, modal, Tab kept inside, focus given back ---------- */
+const focusBefore = new WeakMap<HTMLElement, Element | null>();
+/** `el` as a modal dialog named `label` (or by the element `labelledBy`):
+ *  Tab and Shift-Tab cycle inside it, Escape closes it. */
+function asDialog(el: HTMLElement, label: string, close: () => void, labelledBy?: string): void {
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-modal", "true");
+  if (labelledBy) el.setAttribute("aria-labelledby", labelledBy);
+  else el.setAttribute("aria-label", label);
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !e.defaultPrevented && !hotkeyRecorder) {
+      e.preventDefault();
+      close();
+    } else if (e.key === "Tab") {
+      const all = Array.from(el.querySelectorAll<HTMLElement>("button, input, select, textarea, summary, a[href], [tabindex]")).filter((x) => !x.hasAttribute("disabled") && x.tabIndex >= 0 && x.getClientRects().length > 0);
+      const first = all[0];
+      const last = all[all.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  });
+}
+/** A dialog opens: where the focus was, to give it back. */
+function opened(el: HTMLElement): void {
+  if (!focusBefore.has(el)) focusBefore.set(el, document.activeElement);
+}
+/** A dialog closes: the focus goes back where it was, when that is still
+ *  there (`restore` false when the dialog opened something else). */
+function closed(el: HTMLElement, restore = true): void {
+  const back = focusBefore.get(el);
+  focusBefore.delete(el);
+  if (restore && back instanceof HTMLElement && back.isConnected) back.focus();
+}
+/** A list whose highlighted option is announced: the field keeps the
+ *  focus and points at the option (`aria-activedescendant`). */
+function asCombobox(input: HTMLInputElement, list: HTMLElement, id: string): void {
+  list.id = id;
+  list.setAttribute("role", "listbox");
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-controls", id);
+  input.setAttribute("aria-expanded", "true");
+  input.setAttribute("aria-autocomplete", "list");
+}
+/** One option of such a list: `on` when highlighted. */
+function option(li: HTMLElement, b: HTMLButtonElement, id: string, on: boolean, input: HTMLInputElement): void {
+  li.setAttribute("role", "none");
+  b.setAttribute("role", "option");
+  b.id = id;
+  b.tabIndex = -1;
+  b.setAttribute("aria-selected", String(on));
+  if (on) input.setAttribute("aria-activedescendant", id);
+}
+
 /* ---------- ⌘P ---------- */
 class QuickSwitcher {
   readonly el = h("div", "quick");
@@ -3873,6 +4031,8 @@ class QuickSwitcher {
     this.input.type = "text";
     this.input.placeholder = t.quick;
     this.input.setAttribute("aria-label", t.quick);
+    asCombobox(this.input, this.list, "quick-list");
+    asDialog(this.el, t.quick, () => this.hide());
     this.box.append(this.input, this.list);
     this.el.append(this.box);
     document.body.append(this.el);
@@ -3897,17 +4057,19 @@ class QuickSwitcher {
     });
   }
   show(): void {
+    opened(this.el);
     this.el.hidden = false;
     this.input.value = "";
     this.update();
     this.input.focus();
   }
-  hide(): void {
+  hide(restore = true): void {
     this.el.hidden = true;
+    closed(this.el, restore);
   }
   private choose(path: string | undefined, aside: boolean): void {
     if (!path) return;
-    this.hide();
+    this.hide(false);
     openNote(path, aside);
   }
   private update(): void {
@@ -3944,11 +4106,13 @@ class QuickSwitcher {
     this.paint();
   }
   private paint(): void {
+    this.input.removeAttribute("aria-activedescendant");
     this.list.replaceChildren(
       ...this.items.map((p, i) => {
         const li = h("li", i === this.sel ? "selected" : "");
         const b = h("button");
         b.type = "button";
+        option(li, b, `quick-option-${i}`, i === this.sel, this.input);
         b.append(icon(iconFor(kindOf(p))), h("span", "", name(p)), h("span", "path", dirOf(p)));
         b.addEventListener("click", (e) => this.choose(p, e.metaKey || e.ctrlKey));
         li.append(b);
@@ -4123,6 +4287,9 @@ class Palette {
     this.el.hidden = true;
     this.input.type = "text";
     this.input.placeholder = t.commands;
+    this.input.setAttribute("aria-label", t.commands);
+    asCombobox(this.input, this.list, "palette-list");
+    asDialog(this.el, t.commands, () => this.hide());
     this.box.append(this.input, this.list);
     this.el.append(this.box);
     document.body.append(this.el);
@@ -4135,8 +4302,8 @@ class Palette {
     });
     this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
   }
-  show(): void { this.el.hidden = false; this.input.value = ""; this.update(); this.input.focus(); }
-  hide(): void { this.el.hidden = true; }
+  show(): void { opened(this.el); this.el.hidden = false; this.input.value = ""; this.update(); this.input.focus(); }
+  hide(): void { this.el.hidden = true; closed(this.el); }
   private choose(c: Command | undefined): void { if (!c) return; this.hide(); c.run(); }
   private update(): void {
     const q = this.input.value.trim().toLowerCase();
@@ -4145,11 +4312,13 @@ class Palette {
     this.paint();
   }
   private paint(): void {
+    this.input.removeAttribute("aria-activedescendant");
     this.list.replaceChildren(
       ...this.items.map((c, i) => {
         const li = h("li", i === this.sel ? "selected" : "");
         const b = h("button");
         b.type = "button";
+        option(li, b, `palette-option-${i}`, i === this.sel, this.input);
         b.append(h("span", "", c.label));
         if (c.keys) b.append(h("kbd", "", c.keys));
         b.addEventListener("click", () => this.choose(c));
@@ -4168,10 +4337,12 @@ class ReplaceDialog {
   readonly el = h("div", "quick settings-box");
   constructor() {
     this.el.hidden = true;
+    asDialog(this.el, t.replaceTitle, () => this.hide());
     document.body.append(this.el);
     this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
   }
   show(): void {
+    opened(this.el);
     const box = h("div", "plan-box replace-box");
     box.append(h("h2", "", t.replaceTitle));
     const field = (label: string, input: HTMLElement) => {
@@ -4224,6 +4395,7 @@ class ReplaceDialog {
   hide(): void {
     this.el.hidden = true;
     this.scan++;
+    closed(this.el);
   }
   /** Bumped by every preview and by closing: a scan whose number is no
    *  longer current stops. */
@@ -4301,6 +4473,7 @@ class SettingsDialog {
     this.el.hidden = true;
     this.notice.setAttribute("role", "status");
     this.notice.hidden = true;
+    asDialog(this.el, t.settings, () => this.hide());
     this.search.type = "search";
     this.search.placeholder = t.searchSettings;
     this.search.addEventListener("input", () => this.paint());
@@ -4317,6 +4490,7 @@ class SettingsDialog {
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.el.hidden && !hotkeyRecorder) this.hide(); });
   }
   show(): void {
+    opened(this.el);
     this.el.hidden = false;
     this.notice.hidden = this.notice.textContent === "";
     this.paint();
@@ -4325,6 +4499,7 @@ class SettingsDialog {
   hide(): void {
     this.el.hidden = true;
     disarmRecorder?.();
+    closed(this.el);
   }
   /** Why the window did not do what was asked, said in the page. */
   private readonly notice = h("p", "settings-hint");
@@ -4352,11 +4527,24 @@ class SettingsDialog {
   private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
     const row = h("div", "setting");
     const text = h("div", "setting-text");
-    text.append(h("div", "setting-title", title), h("div", "setting-desc", desc));
+    const id = `setting-${++this.ids}`;
+    const titleEl = h("div", "setting-title", title);
+    titleEl.id = `${id}-title`;
+    const descEl = h("div", "setting-desc", desc);
+    descEl.id = `${id}-desc`;
+    text.append(titleEl, descEl);
     row.append(text);
-    if (control) row.append(control);
+    if (control) {
+      // The control is named by the item's title and described by its line
+      // (a hotkey row names its own buttons).
+      const field = control.matches("input, select") ? control : control.querySelector<HTMLElement>("input, select");
+      field?.setAttribute("aria-labelledby", titleEl.id);
+      if (field && desc) field.setAttribute("aria-describedby", descEl.id);
+      row.append(control);
+    }
     return row;
   }
+  private ids = 0;
   private select<T extends string>(options: [T, string][], value: T, onChange: (v: T) => void): HTMLSelectElement {
     const sel = h("select");
     for (const [v, l] of options) {
@@ -4410,14 +4598,16 @@ class SettingsDialog {
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
     add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
     add("files", t.templates, t.templatesDesc, () => this.text(settings.templates, (v) => { settings.templates = v; saveSettings(); }));
-    for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id));
+    for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     return out;
   }
-  private hotkeyControl(id: string): HTMLElement {
+  private hotkeyControl(id: string, label: string): HTMLElement {
     const wrap = h("span", "hotkey");
     const shown = h("kbd", "", prettyKeys(keyOf(id)) || t.hotkeyNone);
+    shown.setAttribute("aria-live", "polite");
     if (settings.hotkeys[id] !== undefined) shown.classList.add("custom");
     const change = button("ghost", t.hotkeyChange);
+    change.setAttribute("aria-label", `${t.hotkeyChange}: ${label}`);
     change.dataset["hotkey"] = id;
     change.addEventListener("click", () => {
       disarmRecorder?.();
@@ -4461,6 +4651,7 @@ class SettingsDialog {
       };
     });
     const reset = button("ghost", t.hotkeyReset);
+    reset.setAttribute("aria-label", `${t.hotkeyReset}: ${label}`);
     reset.addEventListener("click", () => { delete settings.hotkeys[id]; saveSettings(); paintKeyHints(); this.paint(); });
     reset.hidden = settings.hotkeys[id] === undefined;
     wrap.append(shown, change, reset);
@@ -4840,6 +5031,28 @@ document.addEventListener("keydown", (e) => {
 
 const sideDivider = el<HTMLDivElement>("side-divider");
 sideDivider.title = t.sidebarResize;
+/** A divider moved from the keyboard: focusable, the arrow keys change the
+ *  width `prop` by 16 px within its bounds. */
+function arrowResize(d: HTMLElement, prop: string, current: () => number, sign: 1 | -1, done?: (w: number) => void): void {
+  d.tabIndex = 0;
+  d.setAttribute("aria-label", t.resizeKeys);
+  d.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const w = Math.min(Math.max(current() + (e.key === "ArrowRight" ? 16 : -16) * sign, 180), window.innerWidth * 0.5);
+    document.body.style.setProperty(prop, `${w}px`);
+    d.setAttribute("aria-valuenow", String(Math.round(w)));
+    done?.(w);
+  });
+}
+arrowResize(sideDivider, "--side-w", () => document.querySelector(".side")?.getBoundingClientRect().width ?? 240, 1, (w) => {
+  try {
+    localStorage.setItem("verso.sideWidth", String(w));
+  } catch {
+    // No storage.
+  }
+});
+arrowResize(rightDivider, "--right-w", () => document.querySelector(".right")?.getBoundingClientRect().width ?? 260, -1);
 try {
   const w = localStorage.getItem("verso.sideWidth");
   if (w) document.body.style.setProperty("--side-w", `${Number(w)}px`);
