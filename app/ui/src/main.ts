@@ -926,6 +926,13 @@ class NoteLeaf extends Leaf {
       noteHtml: (target) => this.embedHtml(target),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
+    // A double click on the text opens it for editing, as a note app does.
+    this.preview.addEventListener("dblclick", (ev) => {
+      if ((ev.target as HTMLElement).closest("a, input, button, .embed-pdf, .embed-note, .math")) return;
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      this.setMode("live");
+    });
     this.preview.addEventListener("click", (ev) => {
       const a = (ev.target as HTMLElement).closest("a");
       if (!a) return;
@@ -1812,6 +1819,10 @@ class FolderLeaf extends Leaf {
     typeset(body);
     const edit = button("ghost iconic embed-edit", t.edit, "edit");
     edit.addEventListener("click", () => openNote(notePath, false));
+    body.addEventListener("dblclick", () => {
+      const leaf = openNote(notePath, false);
+      if (leaf instanceof NoteLeaf) void leaf.loading.then(() => leaf.setMode("live"));
+    });
     const head = h("div", "folder-note-head");
     head.append(h("span", "folder-note-label", t.folderNote), edit);
     this.note.replaceChildren(head, body);
