@@ -36,7 +36,8 @@ pub fn to_html(source: &str) -> String {
         | Options::ENABLE_TABLES
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
-        | Options::ENABLE_FOOTNOTES;
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_MATH;
     let source = inline_footnotes(source);
     let source = source.as_ref();
     let mut in_metadata = false;
@@ -66,6 +67,14 @@ pub fn to_html(source: &str) -> String {
             format!("<span class=\"embed\" data-target=\"{}\">", attr(&dest_url)).into(),
         )),
         Event::End(TagEnd::Image) => Some(Event::Html("</span>".into())),
+        // Math stays as its source in a marked element; the window
+        // typesets it (KaTeX), the parser only finds it.
+        Event::InlineMath(tex) => Some(Event::Html(
+            format!("<span class=\"math\">{}</span>", attr(&tex)).into(),
+        )),
+        Event::DisplayMath(tex) => Some(Event::Html(
+            format!("<div class=\"math math-display\">{}</div>", attr(&tex)).into(),
+        )),
         other => Some(other),
     });
     let events = events.flat_map(|event| match event {
@@ -388,5 +397,16 @@ mod footnotes {
         assert!(html.contains("<p>A nota.</p>"), "{html}");
         assert!(html.contains("<p>direto na linha</p>"), "{html}");
         assert!(html.contains("<code>^[num código]</code>"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod math {
+    #[test]
+    fn math_is_kept_as_source_in_a_marked_element() {
+        let html = super::to_html("Inline $a^2 + b^2$ e bloco:\n\n$$\n\\int_0^1 x\\,dx\n$$\n");
+        assert!(html.contains(r#"<span class="math">a^2 + b^2</span>"#), "{html}");
+        assert!(html.contains(r#"<div class="math math-display">"#), "{html}");
+        assert!(html.contains("\\int_0^1"), "{html}");
     }
 }
