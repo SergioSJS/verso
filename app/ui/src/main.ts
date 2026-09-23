@@ -36,6 +36,7 @@ import { PdfView } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
 import { ask } from "./dialog";
+import { cleanHtmlText, setHtml } from "./sanitize";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -1231,7 +1232,7 @@ class NoteLeaf extends Leaf {
       return null;
     }
     void commands.readNote(to).then((r) => {
-      this.embedCache.set(target, r.status === "ok" ? r.data.html : null);
+      this.embedCache.set(target, r.status === "ok" ? cleanHtmlText(r.data.html) : null);
       this.editor.dispatch({ effects: redraw.of(null) });
     });
     return undefined;
@@ -1381,7 +1382,7 @@ class NoteLeaf extends Leaf {
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
     this.embedCache.clear();
-    this.preview.innerHTML = note.html;
+    setHtml(this.preview, note.html);
     this.gatherFootnotes();
     typeset(this.preview);
     void this.embedImages(note.path);
@@ -1475,7 +1476,7 @@ class NoteLeaf extends Leaf {
         });
         head.after(edit);
         const body = h("div", "embed-note-body");
-        body.innerHTML = r.data.html;
+        setHtml(body, r.data.html);
         if (heading) sliceHeading(body, heading);
         typeset(body);
         box.append(head, body);
@@ -1860,7 +1861,7 @@ class FolderLeaf extends Leaf {
     const r = await commands.readNote(notePath);
     if (r.status !== "ok" || this.path !== folder) return;
     const body = h("div", "folder-note-body");
-    body.innerHTML = r.data.html;
+    setHtml(body, r.data.html);
     typeset(body);
     const edit = button("ghost iconic embed-edit", t.edit, "edit");
     edit.addEventListener("click", () => openNote(notePath, false));
