@@ -49,6 +49,7 @@ const PATHS: Record<string, string> = {
   hash: "M6.5 2.5 5 13.5M11 2.5 9.5 13.5M2.5 6h11M2.5 10h11",
   calendar: "M2.5 4h11v9.5h-11zM2.5 7.5h11M5 2.5v3M11 2.5v3",
   props: "M2.5 4h11M2.5 8h7M2.5 12h9M12 10.5v3M10.5 12h3",
+  table: "M2.5 3.5h11v9h-11zM2.5 7h11M2.5 10h11M6.5 3.5v9M10 3.5v9",
   pin: "M9.5 2.5 13.5 6.5l-1.5.5-2 3-1-1L5.5 12.5l-1-1L8 8 7 7l3-2z",
   copy: "M6 6h7v7H6zM3 10V3h7",
   frame: "M2.5 3.5h11v9h-11zM2.5 6h11",

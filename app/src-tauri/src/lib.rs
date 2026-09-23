@@ -480,6 +480,27 @@ fn write_text(
     with(&state, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
 }
 
+static WEB_WINDOWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Open a web page in a window of its own inside the app: a note with a
+/// `url` property is the bookmark, this is the browser. Only `http(s)`.
+#[tauri::command]
+#[specta::specta]
+fn open_url(app: tauri::AppHandle, url: String) -> Result<(), ContractError> {
+    let parsed: tauri::Url = url.parse().map_err(|e| failed(format!("{e}")))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(failed("only http(s) pages open in a window"));
+    }
+    let n = WEB_WINDOWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let title = parsed.host_str().unwrap_or("web").to_owned();
+    tauri::WebviewWindowBuilder::new(&app, format!("web-{n}"), tauri::WebviewUrl::External(parsed))
+        .title(title)
+        .inner_size(1100.0, 800.0)
+        .build()
+        .map_err(|e| failed(e.to_string()))?;
+    Ok(())
+}
+
 /// The folder the command line asked for, once; `None` afterwards and
 /// when there was none. The UI opens it instead of the last folder.
 #[tauri::command]
@@ -521,6 +542,7 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         read_file_text,
         list_entries,
         initial_folder,
+        open_url,
         read_text,
         write_text,
         rename_entry,

@@ -17,12 +17,14 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { EditorView, basicSetup } from "codemirror";
 import { Compartment, EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
+import { indentWithTab } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
-import { type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { commands, type ContractError, type FileEntry, type NoteText } from "./bindings";
 import { icon } from "./icons";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, frontmatterChange } from "./props";
+import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -39,7 +41,9 @@ type Strings = Record<
   | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
   | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions"
   | "replaceTitle" | "find" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
-  | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree",
+  | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
+  | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
+  | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -94,6 +98,8 @@ const pt: Strings = {
   replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
+  hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
+  table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
 };
 
 const en: Strings = {
@@ -135,6 +141,8 @@ const en: Strings = {
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
+  hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
+  table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -237,8 +245,9 @@ const ui = {
   panes: el<HTMLDivElement>("panes"),
 };
 const page = document.querySelector<HTMLElement>(".page");
-type Settings = { theme: "auto" | "light" | "dark"; fontSize: number; attachments: string; autosave: number; daily: string; templates: string };
-const DEFAULTS: Settings = { theme: "auto", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates" };
+type Hue = "paper" | "sepia" | "slate" | "moss";
+type Settings = { theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string };
+const DEFAULTS: Settings = { theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates" };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
   try {
@@ -259,6 +268,7 @@ function saveSettings(): void {
 }
 function applySettings(): void {
   document.documentElement.dataset["theme"] = settings.theme;
+  document.documentElement.dataset["palette"] = settings.palette;
   document.documentElement.style.fontSize = `${settings.fontSize}px`;
 }
 loadSettings();
@@ -364,20 +374,120 @@ function diffNode(before: string, after: string, context = false): HTMLPreElemen
   return pre;
 }
 
-/* ---------- `[[` completes to a note of the vault ---------- */
-function completeWikilinks(ctx: CompletionContext): CompletionResult | null {
-  const before = ctx.matchBefore(/\[\[([^\]\n]*)$/);
+/* ---------- `[[` completes to a note or a file; `[[Note#` to its headings ---------- */
+function score(label: string, path: string, typed: string): number {
+  const l = label.toLowerCase();
+  if (typed === "") return 1;
+  if (l === typed) return 100;
+  if (l.startsWith(typed)) return 80;
+  if (l.split(/[\s\-_.]/).some((w) => w.startsWith(typed))) return 60;
+  if (l.includes(typed)) return 40;
+  if (path.toLowerCase().includes(typed)) return 30;
+  // Subsequence: every typed character in order.
+  let i = 0;
+  for (const ch of l) if (ch === typed[i]) i++;
+  return i === typed.length ? 10 : 0;
+}
+const headingsCache = new Map<string, { level: number; text: string }[]>();
+async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResult | null> {
+  const before = ctx.matchBefore(/(!?)\[\[([^\]\n]*)$/);
   if (!before) return null;
-  const typed = before.text.slice(2).toLowerCase();
+  const embed = before.text.startsWith("!");
+  const inner = before.text.slice(embed ? 3 : 2);
   const after = ctx.state.sliceDoc(ctx.pos, ctx.pos + 2);
   const closing = after === "]]" ? "" : "]]";
-  const options = allNotes
-    .map((p) => ({ path: p, label: name(p) }))
-    .filter((o) => typed === "" || o.label.toLowerCase().includes(typed) || o.path.toLowerCase().includes(typed))
-    .sort((a, b) => Number(b.label.toLowerCase().startsWith(typed)) - Number(a.label.toLowerCase().startsWith(typed)) || a.label.localeCompare(b.label))
-    .slice(0, 40)
-    .map((o) => ({ label: o.label, detail: dirOf(o.path), type: "text", apply: o.label + closing }));
-  return { from: before.from + 2, options, validFor: /^[^\]\n]*$/ };
+  const hash = inner.indexOf("#");
+  if (hash >= 0) {
+    // Headings of the note named before the `#`.
+    const noteName = inner.slice(0, hash);
+    const typed = inner.slice(hash + 1).toLowerCase();
+    const leaf = layout().activeLeaf;
+    const path = noteName === "" ? leaf?.path ?? "" : resolveNoteByName(noteName, leaf?.path ?? "") ?? "";
+    if (!path) return null;
+    let heads = headingsCache.get(path);
+    if (!heads) {
+      const r = await commands.readNote(path);
+      heads = r.status === "ok" ? r.data.headings.map((hd) => ({ level: hd.level, text: hd.text })) : [];
+      headingsCache.set(path, heads);
+      setTimeout(() => headingsCache.delete(path), 5000);
+    }
+    const options: Completion[] = heads
+      .filter((hd) => typed === "" || hd.text.toLowerCase().includes(typed))
+      .map((hd) => ({ label: hd.text, detail: "#".repeat(hd.level), type: "heading", apply: `${noteName}#${hd.text}${closing}` }));
+    return { from: before.from + (embed ? 3 : 2), options, validFor: /^[^\]\n]*$/ };
+  }
+  const typed = inner.toLowerCase();
+  const notes = allNotes.map((p) => ({ path: p, label: name(p), kind: "note" as Kind }));
+  const files = allFiles.map((p) => ({ path: p, label: p.split("/").pop() ?? p, kind: kindOf(p) }));
+  const pool = embed ? [...files, ...notes] : [...notes, ...files];
+  const options: Completion[] = pool
+    .map((o) => ({ o, s: score(o.label, o.path, typed) }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s || Number(a.o.kind !== "note") - Number(b.o.kind !== "note") || a.o.label.localeCompare(b.o.label, LOCALE))
+    .slice(0, 60)
+    .map(({ o }) => {
+      const unique = pool.filter((x) => x.label.toLowerCase() === o.label.toLowerCase()).length === 1;
+      const target = unique ? o.label : o.kind === "note" ? o.path.replace(/\.md$/, "") : o.path;
+      return { label: o.label, detail: dirOf(o.path) || "/", type: o.kind === "note" ? "note" : o.kind === "image" ? "image" : "file", apply: target + closing, boost: o.kind === "note" ? 1 : 0 };
+    });
+  return { from: before.from + (embed ? 3 : 2), options, filter: false };
+}
+
+/* ---------- `/` at the start of a line: blocks to insert ---------- */
+type SlashItem = { label: string; detail?: string; type: string; insert: string | (() => string); cursor?: number; select?: [number, number]; run?: (view: EditorView) => void };
+function slashItems(): SlashItem[] {
+  const today = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const date = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const time = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
+  return [
+    { label: `${t.headingN} 1`, detail: "#", type: "heading", insert: "# " },
+    { label: `${t.headingN} 2`, detail: "##", type: "heading", insert: "## " },
+    { label: `${t.headingN} 3`, detail: "###", type: "heading", insert: "### " },
+    { label: t.bullets, detail: "-", type: "list", insert: "- " },
+    { label: t.numbers, detail: "1.", type: "list", insert: "1. " },
+    { label: t.task, detail: "- [ ]", type: "task", insert: "- [ ] " },
+    { label: t.quote, detail: ">", type: "quote", insert: "> " },
+    { label: t.callout, detail: "> [!note]", type: "quote", insert: "> [!note] ", cursor: 0 },
+    { label: `${t.callout} · tip`, detail: "> [!tip]", type: "quote", insert: "> [!tip] " },
+    { label: `${t.callout} · warning`, detail: "> [!warning]", type: "quote", insert: "> [!warning] " },
+    { label: t.codeBlock, detail: "```", type: "code", insert: "```\n\n```", cursor: 4 },
+    { label: t.table, detail: "| |", type: "table", insert: () => tableTemplate(3, 2), select: [2, 8] },
+    { label: t.divider, detail: "---", type: "rule", insert: "---\n" },
+    { label: t.wikilink, detail: "[[", type: "note", insert: "[[", run: (v) => startCompletion(v) },
+    { label: t.embedNote, detail: "![[", type: "note", insert: "![[", run: (v) => startCompletion(v) },
+    { label: t.link, detail: "[]()", type: "link", insert: "[](url)", cursor: 1 },
+    { label: t.image, detail: "![[", type: "image", insert: "![[", run: (v) => startCompletion(v) },
+    { label: t.today, detail: date, type: "date", insert: date },
+    { label: t.now, detail: time, type: "date", insert: time },
+    { label: t.insertTemplate, detail: "…", type: "file", insert: "", run: () => insertTemplate() },
+  ];
+}
+function completeSlash(ctx: CompletionContext): CompletionResult | null {
+  const before = ctx.matchBefore(/(^|[\s>])\/([\w\u00C0-\u024F-]*)$/);
+  if (!before) return null;
+  const line = ctx.state.doc.lineAt(ctx.pos);
+  const upTo = ctx.state.sliceDoc(line.from, before.from);
+  if (upTo.trim() !== "" && !/^[\s>-]*$/.test(upTo)) return null;
+  const slash = before.text.indexOf("/");
+  const typed = before.text.slice(slash + 1).toLowerCase();
+  const options: Completion[] = slashItems()
+    .filter((it) => typed === "" || it.label.toLowerCase().includes(typed) || (it.detail ?? "").toLowerCase().includes(typed))
+    .map((it) => ({
+      label: it.label,
+      detail: it.detail,
+      type: it.type,
+      apply: (view: EditorView, _c: Completion, from: number, to: number) => {
+        const text = typeof it.insert === "function" ? it.insert() : it.insert;
+        const start = from;
+        const selection = it.select ? { anchor: start + it.select[0], head: start + it.select[1] } : { anchor: it.cursor === undefined ? start + text.length : start + it.cursor };
+        view.dispatch({ changes: { from: start, to, insert: text }, selection });
+        it.run?.(view);
+      },
+    }));
+  // Filtered above: CodeMirror's own filter would match labels against the "/".
+  // No `validFor`: with CodeMirror's filter off, the source runs again on every keystroke.
+  return { from: before.from + slash, options, filter: false };
 }
 
 /* ---------- Pointer drag: tabs and tree rows, dropped where the pointer says ---------- */
@@ -520,12 +630,45 @@ function paneOf(node: HTMLElement): Pane | null {
 document.addEventListener("dragover", (e) => {
   e.preventDefault();
   if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  if (!e.dataTransfer?.types.includes("Files")) return;
+  clearDropHints();
+  const folder = (e.target as HTMLElement).closest<HTMLElement>(".side [data-folder], #tree-root");
+  folder?.classList.add("drop");
 });
+document.addEventListener("dragleave", () => clearDropHints());
+/** A file's bytes as base64, for `create_file`. */
+function fileBase64(f: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(f);
+  });
+}
+/** Files dropped on the tree: copied into the folder under the pointer. */
+async function copyFilesInto(folder: string, files: FileList): Promise<void> {
+  let copied = 0;
+  for (const f of Array.from(files)) {
+    const r = await commands.createFile(`${folder ? folder + "/" : ""}${f.name}`, await fileBase64(f));
+    if (r.status === "ok") copied++;
+    else fail(r.error.kind === "exists" ? { message: `${f.name}: ${t.exists}` } : r.error);
+  }
+  if (copied > 0) {
+    openFolders.add(folder);
+    await afterFileChange();
+    ui.status.textContent = t.copiedFiles;
+  }
+}
 document.addEventListener("drop", (e) => {
   e.preventDefault();
   const files = e.dataTransfer?.files ?? null;
   if (!files || files.length === 0) return;
-  const leafEl = (e.target as HTMLElement).closest<HTMLElement>(".leaf");
+  const at = e.target as HTMLElement;
+  if (at.closest(".side")) {
+    void copyFilesInto(at.closest<HTMLElement>("[data-folder]")?.dataset["folder"] ?? "", files);
+    return;
+  }
+  const leafEl = at.closest<HTMLElement>(".leaf");
   const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
   if (leaf instanceof NoteLeaf) leaf.takeFiles(files, e);
   else ui.status.textContent = t.pasteHint;
@@ -626,6 +769,7 @@ class NoteLeaf extends Leaf {
       ui.search.value = `tag:${tag}`;
       void searchNotes(ui.search.value);
     },
+    onLink: (url) => void commands.openUrl(url),
   });
   readonly conflict = h("div", "conflict");
   readonly conflictDiff = h("div");
@@ -687,6 +831,7 @@ class NoteLeaf extends Leaf {
       if (!a) return;
       ev.preventDefault();
       if (a.classList.contains("wikilink")) this.follow(a.dataset["target"] ?? "");
+      else if (/^https?:/i.test(a.href)) void commands.openUrl(a.href);
     });
     sheet.addEventListener("mousedown", (ev) => {
       if (this.mode === "preview") return;
@@ -713,7 +858,10 @@ class NoteLeaf extends Leaf {
       extensions: [
         basicSetup,
         markdown().language.data.of({ autocomplete: completeWikilinks }),
+        markdown().language.data.of({ autocomplete: completeSlash }),
         markdown(),
+        tableKeymap,
+        keymap.of([indentWithTab]),
         EditorView.lineWrapping,
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
         keymap.of([
@@ -723,6 +871,7 @@ class NoteLeaf extends Leaf {
           { key: "Mod-Shift-h", run: () => (this.wrap("==", "=="), true) },
           { key: "Mod-Shift-k", run: () => (this.wrap("[", "](url)"), true) },
           { key: "Mod-Shift-1", run: () => (this.cycleHeading(), true) },
+          { key: "Mod-Alt-t", run: (v) => formatUnderCaret(v) || (this.insertTable(), true) },
         ]),
         EditorView.domEventHandlers({
           paste: (e) => this.takeFiles(e.clipboardData?.files ?? null, e),
@@ -811,8 +960,19 @@ class NoteLeaf extends Leaf {
     add("quote", t.quote, () => this.prefixLines("> "));
     add("code", t.code, () => this.wrap("`", "`"));
     add("rule", t.rule, () => this.wrap("\n---\n", ""));
+    add("table", t.table, () => (formatUnderCaret(this.editor) ? void 0 : this.insertTable()));
     sep();
     add("image", t.pasteHint, () => (ui.status.textContent = t.pasteHint));
+  }
+  /** A 3×2 table at the caret, on its own lines; the caret in the first cell. */
+  insertTable(): void {
+    const v = this.editor;
+    const pos = v.state.selection.main.to;
+    const line = v.state.doc.lineAt(pos);
+    const before = line.text.trim() === "" ? "" : "\n\n";
+    const text = tableTemplate(3, 2);
+    v.dispatch({ changes: { from: line.to, insert: before + text + "\n" }, selection: { anchor: line.to + before.length + 2, head: line.to + before.length + 8 } });
+    v.focus();
   }
   /** Images pasted or dropped become files beside the note and an embed
    *  at the caret; the core writes them, confined (ADR 0026 rule 5). */
@@ -2607,6 +2767,50 @@ function newFolderPrompt(folder: string): void {
   });
   input.addEventListener("blur", () => finish(false));
 }
+/** A web page kept as a note: its address in the `url` property, the
+ *  note's name from the host and path. Opening the property opens the
+ *  page in a window of its own; the star bookmarks it. */
+function newWebPagePrompt(): void {
+  const input = h("input", "new-note");
+  input.type = "url";
+  input.placeholder = t.webUrl;
+  input.setAttribute("aria-label", t.newWebPage);
+  const row = h("div", "new-note-row");
+  row.append(icon("link"), input);
+  ui.notesHeading.after(row);
+  input.focus();
+  let done = false;
+  const finish = (commit: boolean) => {
+    if (done) return;
+    done = true;
+    const v = input.value.trim();
+    row.remove();
+    if (!commit || !v) return;
+    let url: URL;
+    try {
+      url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+    } catch {
+      ui.status.textContent = t.unresolved(v);
+      return;
+    }
+    const last = decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() ?? "").replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " ");
+    const base = `${url.hostname.replace(/^www\./, "")}${last ? " – " + last : ""}`.replace(/[\\/:*?"<>|#^[\]]/g, " ").trim();
+    const leaf = layout().activeLeaf;
+    const folder = leaf?.path ? dirOf(leaf.path) : "";
+    void (async () => {
+      const r = await commands.createNote(folder ? `${folder}/${base}` : base, `---\nurl: ${url.href}\n---\n`);
+      if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+      await afterFileChange();
+      openNote(r.data.path, false);
+      ui.status.textContent = t.webNoteCreated;
+    })();
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") finish(true);
+    else if (e.key === "Escape") finish(false);
+  });
+  input.addEventListener("blur", () => finish(false));
+}
 function newNotePrompt(folder: string): void {
   const input = h("input", "new-note");
   input.placeholder = t.newNoteName;
@@ -2885,6 +3089,7 @@ function allCommands(): Command[] {
     { label: t.quick, keys: "⌘P", run: () => quick.show() },
     { label: t.search, keys: "⌘K", run: () => ui.search.focus() },
     { label: `${t.replaceTitle}…`, keys: "⌘⇧H", run: () => replaceDialog.show() },
+    { label: t.newWebPage, run: () => newWebPagePrompt() },
     { label: t.reindex, run: () => void reindex() },
     { label: t.split, keys: "⌘\\", run: () => pane && layout().split(pane, "row") },
     { label: t.splitDown, keys: "⌘⇧\\", run: () => pane && layout().split(pane, "col") },
@@ -3085,6 +3290,15 @@ class SettingsDialog {
     }
     theme.addEventListener("change", () => { settings.theme = theme.value as Settings["theme"]; saveSettings(); });
     field(t.theme, theme);
+    const palette = h("select");
+    for (const [v, l] of [["paper", t.huePaper], ["sepia", t.hueSepia], ["slate", t.hueSlate], ["moss", t.hueMoss]] as const) {
+      const o = h("option", "", l);
+      o.value = v;
+      o.selected = settings.palette === v;
+      palette.append(o);
+    }
+    palette.addEventListener("change", () => { settings.palette = palette.value as Hue; saveSettings(); });
+    field(t.hue, palette);
     const size = h("input");
     size.type = "range"; size.min = "12"; size.max = "22"; size.step = "1"; size.value = String(settings.fontSize);
     size.addEventListener("input", () => { settings.fontSize = Number(size.value); saveSettings(); });
