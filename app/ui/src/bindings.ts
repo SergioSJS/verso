@@ -38,6 +38,8 @@ export const commands = {
 	 *  path. `exists` when something stands there.
 	 */
 	createFile: (path: string, base64: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_file", { path, base64 })),
+	/**  Create a folder inside the open folder; returns its confined path. */
+	createFolder: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_folder", { path })),
 	/**  Move a note to `.trash/` at the root, Obsidian's bin; returns where. */
 	deleteNote: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("delete_note", { path })),
 	/**
@@ -53,6 +55,8 @@ export const commands = {
 	resolveAttachment: (target: string) => typedError<string | null, ContractError>(__TAURI_INVOKE("resolve_attachment", { target })),
 	/**  Every regular file of the folder that is not a note, for the tree. */
 	listFiles: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_files")),
+	/**  Every folder of the open folder, empty ones included, for the tree. */
+	listFolders: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_folders")),
 	/**
 	 *  The bytes of a text file that is not a note (UTF-8, lossily), for
 	 *  viewing; confined like every path.

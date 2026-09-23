@@ -238,6 +238,13 @@ fn list_files(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
     with(&state, |ws| Ok(ws.files()))
 }
 
+/// Every folder of the open folder, empty ones included, for the tree.
+#[tauri::command]
+#[specta::specta]
+fn list_folders(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
+    with(&state, |ws| Ok(ws.folders()))
+}
+
 /// The bytes of a text file that is not a note (UTF-8, lossily), for
 /// viewing; confined like every path.
 #[tauri::command]
@@ -312,6 +319,13 @@ fn decode_base64(s: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// Create a folder inside the open folder; returns its confined path.
+#[tauri::command]
+#[specta::specta]
+fn create_folder(state: State<'_, App>, path: String) -> Result<String, ContractError> {
+    with(&state, |ws| ws.create_folder(&path))
+}
+
 /// Move a note to `.trash/` at the root, Obsidian's bin; returns where.
 #[tauri::command]
 #[specta::specta]
@@ -359,10 +373,12 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         write_note,
         create_note,
         create_file,
+        create_folder,
         delete_note,
         rename_note,
         resolve_attachment,
         list_files,
+        list_folders,
         read_file_text,
         reindex
     ])

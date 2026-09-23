@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: verso: http://verso.localhost; media-src verso: http://verso.localhost"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: verso: http://verso.localhost; media-src verso: http://verso.localhost; frame-src verso: http://verso.localhost; object-src verso: http://verso.localhost"
     }
   },
   "bundle": {

@@ -407,6 +407,9 @@ pub struct Workspace {
     /// resolves against (spec Q2, the same folder-blind name match as a
     /// link, until the resolution rule of Q12 covers attachments).
     files: HashMap<String, Vec<String>>,
+    /// Every folder the last walk listed, plus the ones created since:
+    /// an empty folder has no file to be seen by, and a tree shows it.
+    dirs: HashSet<String>,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -460,6 +463,7 @@ impl Workspace {
             root,
             index,
             files: HashMap::new(),
+            dirs: HashSet::new(),
         })
     }
 
@@ -484,6 +488,7 @@ impl Workspace {
         let mut report = IndexReport::default();
         let mut present: HashSet<String> = HashSet::new();
         let mut files: HashMap<String, Vec<String>> = HashMap::new();
+        let mut dirs: HashSet<String> = HashSet::new();
         for entry in &walk.entries {
             let relative = entry.relative.to_string_lossy().into_owned();
             match &entry.kind {
@@ -544,10 +549,13 @@ impl Workspace {
                         .to_lowercase();
                     files.entry(name).or_default().push(relative.clone());
                 }
-                EntryKind::Directory => {}
+                EntryKind::Directory => {
+                    dirs.insert(relative.clone());
+                }
             }
         }
         self.files = files;
+        self.dirs = dirs;
         report.problems = walk.problems.iter().map(WalkProblem::from).collect();
         // Not walked because of a problem: nothing under it is gone. The
         // root itself (an empty path) protects every note.
@@ -766,6 +774,18 @@ impl Workspace {
         Ok(key)
     }
 
+    /// Create a folder inside the open folder. The walk does not list an
+    /// empty folder, so the caller shows it until something lands in it.
+    pub fn create_folder(&mut self, relative: &str) -> Result<String, CoreError> {
+        let made = self
+            .root
+            .create_dir(Path::new(relative))
+            .map_err(CoreError::Write)?;
+        let made = made.to_string_lossy().into_owned();
+        self.dirs.insert(made.clone());
+        Ok(made)
+    }
+
     /// Move a note to `.trash/` at the root (Obsidian's bin; nothing is
     /// unlinked) and forget it in the index. Returns where it went.
     pub fn delete_note(&mut self, note: &str) -> Result<String, CoreError> {
@@ -829,6 +849,14 @@ impl Workspace {
             path: new,
             rewrites,
         })
+    }
+
+    /// Every folder, relative path, in byte order.
+    #[must_use]
+    pub fn folders(&self) -> Vec<String> {
+        let mut v: Vec<String> = self.dirs.iter().cloned().collect();
+        v.sort();
+        v
     }
 
     /// Every regular file that is not a note, relative path, in byte
