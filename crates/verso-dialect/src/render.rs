@@ -67,6 +67,10 @@ pub fn to_html(source: &str) -> String {
             format!("<span class=\"embed\" data-target=\"{}\">", attr(&dest_url)).into(),
         )),
         Event::End(TagEnd::Image) => Some(Event::Html("</span>".into())),
+        // A single newline inside a paragraph is a line break, as Obsidian
+        // shows it by default ("strict line breaks" off): what is typed on
+        // two lines reads on two lines.
+        Event::SoftBreak => Some(Event::HardBreak),
         // Math stays as its source in a marked element; the window
         // typesets it (KaTeX), the parser only finds it.
         Event::InlineMath(tex) => Some(Event::Html(
@@ -485,5 +489,18 @@ mod tags {
         assert!(html.contains("#2026 e"), "{html}");
         assert!(html.contains("<code>#nao</code>"), "{html}");
         assert!(html.contains("a#b"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod line_breaks {
+    #[test]
+    fn a_single_newline_inside_a_paragraph_breaks_the_line() {
+        let html = super::to_html("Primeira linha.\nSegunda linha.\n\nOutro parágrafo.\n");
+        assert!(
+            html.contains("Primeira linha.<br />\nSegunda linha."),
+            "{html}"
+        );
+        assert!(html.contains("<p>Outro parágrafo.</p>"), "{html}");
     }
 }
