@@ -27,7 +27,7 @@ import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import katex from "katex";
 import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { commands, type ContractError, type FileEntry, type NoteText } from "./bindings";
+import { commands, type ContractError, type FileEntry, type NoteText, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, frontmatterChange } from "./props";
@@ -42,7 +42,7 @@ import { cleanHtmlText, setHtml } from "./sanitize";
 type Strings = Record<
   | "open" | "reindex" | "search" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
-  | "cancel" | "discardYes"
+  | "cancel" | "discardYes" | "conflictPending" | "taskMoved"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
@@ -87,7 +87,7 @@ const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
-  cancel: "Cancelar", discardYes: "Descartar",
+  cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
@@ -145,7 +145,7 @@ const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
-  cancel: "Cancel", discardYes: "Discard",
+  cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
@@ -891,6 +891,46 @@ abstract class Leaf {
   jumpTo(_line: number): void {}
 }
 
+/* What a refused write leaves above the text (invariant 11): the disk's
+ * version against the editor's, and the two ways out. Until one is
+ * chosen nothing else writes this file — not the autosave, not ⌘S. */
+type Disk = { text: string; revision: string };
+class ConflictBanner {
+  readonly el = h("div", "conflict");
+  private readonly diff = h("div");
+  /** The version on screen, the one "write mine over it" may replace. */
+  disk: Disk | null = null;
+  constructor(onReload: () => void, onOverwrite: () => void) {
+    const reload = button("ghost", t.reload);
+    reload.addEventListener("click", onReload);
+    const overwrite = button("ghost danger", t.overwrite);
+    overwrite.addEventListener("click", onOverwrite);
+    const actions = h("div", "conflict-actions");
+    actions.append(reload, overwrite);
+    this.el.append(h("p", "", t.conflict), this.diff, actions);
+    this.el.hidden = true;
+  }
+  get up(): boolean {
+    return this.disk !== null;
+  }
+  show(disk: Disk, mine: string): void {
+    this.disk = disk;
+    this.diff.replaceChildren(diffNode(disk.text, mine));
+    this.el.hidden = false;
+    this.el.scrollIntoView({ block: "start" });
+  }
+  hide(): void {
+    this.disk = null;
+    this.diff.replaceChildren();
+    this.el.hidden = true;
+  }
+}
+
+/** A task's line up to its `[` — quote bars, indentation, the list
+ *  marker (absent when the item's text starts on a later line) — and the
+ *  mark inside the brackets. */
+const TASK = /^((?:[ \t]*>)*[ \t]*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?\[)[ xX](?=\])/;
+
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 type Mode = "preview" | "live" | "source";
 class NoteLeaf extends Leaf {
@@ -911,8 +951,7 @@ class NoteLeaf extends Leaf {
     },
     onLink: (url) => void commands.openUrl(url),
   });
-  readonly conflict = h("div", "conflict");
-  readonly conflictDiff = h("div");
+  readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
   readonly preview = h("div", "preview");
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
@@ -930,6 +969,8 @@ class NoteLeaf extends Leaf {
   private webRaf = 0;
   private webLast = "";
   private saveTimer: number | undefined;
+  /** Writes run one at a time, each over the revision the last one left. */
+  private saving: Promise<void> = Promise.resolve();
   readonly star = h("button", "star");
   readonly editor: EditorView;
   backlinksData: { from: string; line: number }[] = [];
@@ -938,6 +979,8 @@ class NoteLeaf extends Leaf {
   readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty, label: t.slash.insert });
   readonly live: ReturnType<typeof livePreview>;
   note: NoteText | null = null;
+  /** The text the reading view was drawn from: a task's line is checked against it. */
+  private shownText = "";
   mode: Mode = settings.defaultMode;
   revision = "";
   eol = "\n";
@@ -963,18 +1006,9 @@ class NoteLeaf extends Leaf {
     this.star.addEventListener("click", () => toggleBookmark(this.path));
     const titleRow = h("div", "title-row");
     titleRow.append(this.title, this.dirtyMark, this.saveButton, this.star);
-    const conflictText = h("p", "", t.conflict);
-    const reload = button("ghost", t.reload);
-    reload.addEventListener("click", () => void this.load(this.path, true));
-    const overwrite = button("ghost danger", t.overwrite);
-    overwrite.addEventListener("click", () => void this.save(true));
-    const actions = h("div", "conflict-actions");
-    actions.append(reload, overwrite);
-    this.conflict.append(conflictText, this.conflictDiff, actions);
-    this.conflict.hidden = true;
     this.buildToolbar();
     const sheet = this.sheet;
-    sheet.append(titleRow, this.flags, this.props.el, this.conflict, this.preview, this.editorHost);
+    sheet.append(titleRow, this.flags, this.props.el, this.conflict.el, this.preview, this.editorHost);
     this.buildWebBar();
     this.webBar.hidden = true;
     this.webHost.hidden = true;
@@ -1088,16 +1122,15 @@ class NoteLeaf extends Leaf {
   private scheduleSave(): void {
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
-      if (this.dirty && this.conflict.hidden) void this.save();
+      if (this.dirty && !this.conflict.up) void this.save();
     }, Math.max(0.3, settings.autosave) * 1000);
   }
   /** Save now if there is anything to save; true when clean afterwards. */
   override async flush(): Promise<boolean> {
     window.clearTimeout(this.saveTimer);
-    if (!this.dirty) return true;
-    if (!this.conflict.hidden) return false;
-    await this.save();
-    return !this.dirty;
+    if (this.conflict.up) return false;
+    if (this.dirty) await this.save();
+    return !this.dirty && !this.conflict.up;
   }
   private wrap(before: string, after: string): void {
     const v = this.editor;
@@ -1404,13 +1437,17 @@ class NoteLeaf extends Leaf {
     const words = text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
     ui.words.textContent = t.words(words, text.replace(/\s/g, "").length);
   }
-  refresh(note: NoteText): void {
+  /** What the file is now (read, or just written): the revision the next
+   *  write goes over, the reading view, the flags. The editor's text and
+   *  whether it is saved are the caller's. */
+  private refresh(note: NoteText): void {
     this.note = note;
     this.revision = note.revision;
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
     this.embedCache.clear();
     setHtml(this.preview, note.html);
+    this.shownText = note.text;
     this.gatherFootnotes();
     typeset(this.preview);
     void this.embedImages(note.path);
@@ -1420,8 +1457,6 @@ class NoteLeaf extends Leaf {
     if (note.stale) flags.push(t.stale);
     if (note.unverified) flags.push(t.unverified);
     this.flags.textContent = flags.join(" ");
-    this.setDirty(false);
-    this.conflict.hidden = true;
     if (this.pane.active === this) panel.show(this);
     this.updateWords();
     this.applyWeb();
@@ -1430,10 +1465,15 @@ class NoteLeaf extends Leaf {
     this.loading = this.doLoad(path, force);
     return this.loading;
   }
+  /** Read `path` into the editor. Over unsaved text only when forced (the
+   *  user chose to discard it) or on a yes. */
   private async doLoad(path: string, force: boolean): Promise<void> {
-    if (this.dirty && !force && path !== this.path && !(await askDiscard())) return;
+    if (this.dirty && !force && !(await askDiscard())) return;
+    // A write in flight lands first: the read comes after it.
+    await this.saving;
     const note = await commands.readNote(path);
     if (note.status !== "ok") return fail(note.error);
+    window.clearTimeout(this.saveTimer);
     this.path = note.data.path;
     this.setTitle(name(this.path));
     this.title.textContent = name(this.path);
@@ -1441,7 +1481,9 @@ class NoteLeaf extends Leaf {
     this.props.render(note.data.properties);
     this.eol = note.data.text.includes("\r\n") ? "\r\n" : "\n";
     this.editor.setState(this.editorState(note.data.text));
+    this.conflict.hide();
     this.refresh(note.data);
+    this.setDirty(false);
     this.paintStar();
     this.applyMode();
     markCurrent();
@@ -1532,11 +1574,15 @@ class NoteLeaf extends Leaf {
     }
     this.preview.append(section);
   }
+  /** The task checkboxes the core numbered (`data-task-line`, the line of
+   *  the `[ ]` in the file); any other checkbox stays inert. */
   private wireTasks(): void {
-    Array.from(this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox]")).forEach((box, n) => {
+    for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
+      const line = Number(box.dataset["taskLine"]);
+      if (!Number.isInteger(line) || line < 1) continue;
       box.disabled = false;
-      box.addEventListener("change", () => void this.toggleTask(n, box.checked));
-    });
+      box.addEventListener("change", () => this.toggleTask(line, box));
+    }
   }
   /** A file from the tree dropped on the text: a link to a note, an
    *  embed of anything else, at the drop point (the editor opens if the
@@ -1553,27 +1599,24 @@ class NoteLeaf extends Leaf {
     this.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length } });
     this.editor.focus();
   }
-  private async toggleTask(n: number, checked: boolean, retry = true): Promise<void> {
-    if (!this.note) return;
-    const lines = this.note.text.split(/(?<=\n)/);
-    let seen = 0;
-    for (let i = 0; i < lines.length; i++) {
-      const re = /^(\s*(?:[-*+]|\d+[.)])\s+\[)( |x|X)(\])/;
-      if (!re.test(lines[i] ?? "")) continue;
-      if (seen++ !== n) continue;
-      lines[i] = (lines[i] ?? "").replace(re, `$1${checked ? "x" : " "}$3`);
-      const r = await commands.writeNote(this.path, lines.join(""), this.revision);
-      if (r.status === "ok") {
-        this.refresh(r.data.note);
-        this.editor.setState(this.editorState(r.data.note.text));
-      } else if (r.error.kind === "changed" && retry) {
-        // The file moved on since it was read (invariant 11): read it
-        // again and apply the same click to the fresh text, once.
-        await this.load(this.path, true);
-        await this.toggleTask(n, checked, false);
-      } else fail(r.error);
-      return;
+  /** A task checked in the reading view: the mark between its brackets
+   *  changes in the editor's text, on the line the core named, and the
+   *  ordinary save writes it (a conflict shows its banner). Nothing
+   *  changes if that line is no longer the one the view was drawn from:
+   *  the save that follows draws it again. */
+  private toggleTask(line: number, box: HTMLInputElement): void {
+    const doc = this.editor.state.doc;
+    const now = line <= doc.lines ? doc.line(line) : null;
+    const drawn = this.shownText.split(/\r\n|\r|\n/)[line - 1];
+    const m = now && now.text === drawn ? TASK.exec(now.text) : null;
+    if (!now || !m) {
+      box.checked = !box.checked;
+      ui.status.textContent = t.taskMoved;
+    } else {
+      const at = now.from + m[1]!.length;
+      this.editor.dispatch({ changes: { from: at, to: at + 1, insert: box.checked ? "x" : " " } });
     }
+    void this.save();
   }
   private async embedImages(forPath: string, root: HTMLElement = this.preview): Promise<void> {
     const spans = Array.from(root.querySelectorAll<HTMLElement>("span.embed"));
@@ -1625,24 +1668,57 @@ class NoteLeaf extends Leaf {
       }
     }
   }
-  async save(overwrite = false): Promise<void> {
-    if (!this.note) return;
-    const mine = this.editorText();
-    const r = await commands.writeNote(this.path, mine, this.revision);
-    if (r.status === "ok") {
-      this.refresh(r.data.note);
-      ui.status.textContent = r.data.warnings.length === 0 ? t.saved : `${t.saved} ${r.data.warnings.join("; ")}`;
-      return;
-    }
-    if (r.error.kind !== "changed") return fail(r.error);
+  /** Write the editor's text over the revision it stands on, after any
+   *  write in flight — every save goes through here (the autosave, ⌘S,
+   *  the button, the palette, a property or a task). While the conflict
+   *  banner waits for a decision, nothing is written. */
+  save(): Promise<void> {
+    const run = this.saving.then(async () => {
+      if (!this.note || !this.dirty) return;
+      if (this.conflict.up) {
+        ui.status.textContent = t.conflictPending;
+        return;
+      }
+      const mine = this.editorText();
+      const r = await commands.writeNote(this.path, mine, this.revision);
+      if (r.status === "ok") this.written(r.data, mine);
+      else await this.refused(r.error);
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  /** "Write mine over it": over the version the banner shows and no
+   *  other. If the file moved again meanwhile, the banner shows the new
+   *  difference instead, and nothing is written. */
+  private overwrite(): Promise<void> {
+    const run = this.saving.then(async () => {
+      const disk = this.conflict.disk;
+      if (!this.note || !disk) return;
+      const mine = this.editorText();
+      const r = await commands.writeNote(this.path, mine, disk.revision);
+      if (r.status !== "ok") return this.refused(r.error);
+      this.conflict.hide();
+      this.written(r.data, mine);
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  /** `mine` is on disk. The leaf is clean only if the editor still holds
+   *  exactly that; what was typed meanwhile is saved next. */
+  private written(w: Written, mine: string): void {
+    this.refresh(w.note);
+    if (this.editorText() === mine) this.setDirty(false);
+    ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
+  }
+  /** A write refused. `changed`: the file moved on since it was read
+   *  (invariant 11) — nothing was written, and both versions go on screen
+   *  until the user decides. */
+  private async refused(e: ContractError): Promise<void> {
+    if (e.kind !== "changed") return fail(e);
     ui.status.textContent = "";
     const fresh = await commands.readNote(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
-    this.revision = fresh.data.revision;
-    if (overwrite) return this.save(false);
-    this.conflictDiff.replaceChildren(diffNode(fresh.data.text, mine));
-    this.conflict.hidden = false;
-    this.conflict.scrollIntoView({ block: "start" });
+    this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.editorText());
   }
   editAtEnd(): void {
     this.setMode("live");
@@ -1697,16 +1773,19 @@ class TextLeaf extends Leaf {
   readonly host = h("div", "editor source");
   readonly flags = h("p", "flags");
   readonly crumbs = h("nav", "crumbs");
+  readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
   readonly editor: EditorView;
   revision = "";
   private saveTimer: number | undefined;
+  /** Writes run one at a time, each over the revision the last one left. */
+  private saving: Promise<void> = Promise.resolve();
   constructor(pane: Pane) {
     super(pane);
     const head = h("header", "leaf-head");
     head.append(this.crumbs);
     const sheet = h("div", "sheet");
     this.flags.hidden = true;
-    sheet.append(this.flags, this.host);
+    sheet.append(this.flags, this.conflict.el, this.host);
     this.el.append(head, sheet);
     this.editor = new EditorView({ parent: this.host, state: EditorState.create({ doc: "" }) });
   }
@@ -1724,51 +1803,91 @@ class TextLeaf extends Leaf {
           if (u.docChanged) {
             this.setDirty(true);
             window.clearTimeout(this.saveTimer);
-            this.saveTimer = window.setTimeout(() => void this.save(), Math.max(0.3, settings.autosave) * 1000);
+            this.saveTimer = window.setTimeout(() => {
+              if (!this.conflict.up) void this.save();
+            }, Math.max(0.3, settings.autosave) * 1000);
           }
         }),
       ],
     });
   }
+  /** Read `path` into the editor. Over unsaved text only when forced (the
+   *  user chose to discard it) or on a yes. */
   async load(path: string, force = false): Promise<void> {
-    if (this.dirty && !force && path !== this.path && !(await askDiscard())) return;
+    if (this.dirty && !force && !(await askDiscard())) return;
+    // A write in flight lands first: the read comes after it.
+    await this.saving;
     this.path = path;
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     const r = await commands.readText(path);
     if (r.status !== "ok") return fail(r.error);
-    this.revision = r.data.revision;
     // The language by the file's name: highlighted, and folded, as an editor does.
     const desc = LanguageDescription.matchFilename(languages, path);
     const support = desc ? await desc.load().catch(() => null) : null;
     if (this.path !== path) return;
+    window.clearTimeout(this.saveTimer);
+    this.revision = r.data.revision;
     this.editor.setState(this.state(r.data.text, support ? [support] : []));
+    this.conflict.hide();
     this.setDirty(false);
     this.flags.hidden = true;
     markCurrent();
     persistSoon();
   }
-  async save(): Promise<void> {
-    if (!this.dirty) return;
-    const r = await commands.writeText(this.path, this.editor.state.doc.toString(), this.revision);
-    if (r.status !== "ok") {
-      if (r.error.kind === "changed") {
-        // Nothing was written, and the editor keeps its text.
-        this.flags.textContent = t.conflict;
-        this.flags.hidden = false;
+  /** The editor's text as the file holds it. */
+  private text(): string {
+    return this.editor.state.doc.toString();
+  }
+  /** Write over the revision that was read, after any write in flight;
+   *  nothing while the conflict banner waits for a decision. */
+  save(): Promise<void> {
+    const run = this.saving.then(async () => {
+      if (!this.dirty) return;
+      if (this.conflict.up) {
+        ui.status.textContent = t.conflictPending;
         return;
       }
-      return fail(r.error);
-    }
-    this.revision = r.data.revision;
-    this.setDirty(false);
-    ui.status.textContent = r.data.warnings.length > 0 ? r.data.warnings.join(" · ") : t.saved;
+      const mine = this.text();
+      const r = await commands.writeText(this.path, mine, this.revision);
+      if (r.status === "ok") this.written(r.data, mine);
+      else await this.refused(r.error);
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  /** Over the version the banner shows and no other (see NoteLeaf). */
+  private overwrite(): Promise<void> {
+    const run = this.saving.then(async () => {
+      const disk = this.conflict.disk;
+      if (!disk) return;
+      const mine = this.text();
+      const r = await commands.writeText(this.path, mine, disk.revision);
+      if (r.status !== "ok") return this.refused(r.error);
+      this.conflict.hide();
+      this.written(r.data, mine);
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  private written(f: TextFile, mine: string): void {
+    this.revision = f.revision;
+    if (this.text() === mine) this.setDirty(false);
+    ui.status.textContent = f.warnings.length > 0 ? f.warnings.join(" · ") : t.saved;
+  }
+  /** `changed`: nothing was written; the disk's version and the editor's
+   *  go on screen until the user decides (invariant 11). */
+  private async refused(e: ContractError): Promise<void> {
+    if (e.kind !== "changed") return fail(e);
+    const fresh = await commands.readText(this.path);
+    if (fresh.status !== "ok") return fail(fresh.error);
+    this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.text());
   }
   override async flush(): Promise<boolean> {
     window.clearTimeout(this.saveTimer);
-    if (!this.dirty) return true;
-    await this.save();
-    return !this.dirty;
+    if (this.conflict.up) return false;
+    if (this.dirty) await this.save();
+    return !this.dirty && !this.conflict.up;
   }
   override focusContent(): void {
     this.editor.focus();
