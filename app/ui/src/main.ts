@@ -425,7 +425,7 @@ function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string):
     document.addEventListener("pointerup", up);
   });
 }
-type DropTarget = { tabs: HTMLElement } | { body: HTMLElement } | { folder: string; el: HTMLElement } | { space: Space; el: HTMLElement };
+type DropTarget = { tabs: HTMLElement } | { body: HTMLElement } | { folder: string; el: HTMLElement } | { space: Space; el: HTMLElement } | { insert: NoteLeaf };
 function dropTargetAt(x: number, y: number): DropTarget | null {
   ghost.hidden = true;
   const at = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -445,6 +445,12 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     const folderEl = at.closest<HTMLElement>("[data-folder]");
     if (folderEl && folderEl.dataset["folder"] !== drag.path) return { folder: folderEl.dataset["folder"] ?? "", el: folderEl };
     if (at.closest("#tree-root")) return { folder: "", el: ui.treeRoot };
+    // On a note's text: the file becomes a link or an embed there.
+    if (at.closest(".cm-content, .preview, .editor")) {
+      const leafEl = at.closest<HTMLElement>(".leaf");
+      const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
+      if (leaf instanceof NoteLeaf && leaf.path !== drag.path) return { insert: leaf };
+    }
     const body = at.closest<HTMLElement>(".pane-body") ?? at.closest<HTMLElement>(".pane")?.querySelector<HTMLElement>(".pane-body") ?? null;
     if (body) return { body };
     const tabs = at.closest<HTMLElement>(".tabs");
@@ -465,6 +471,7 @@ function zoneOf(body: HTMLElement, x: number, y: number): "left" | "right" | "to
 function hint(target: DropTarget, x: number, y: number): void {
   if ("tabs" in target) target.tabs.classList.add("drop");
   else if ("body" in target) target.body.classList.add("drop-hint", zoneOf(target.body, x, y));
+  else if ("insert" in target) target.insert.el.classList.add("drop");
   else target.el.classList.add("drop");
 }
 function drop(d: Drag, target: DropTarget, x: number, y: number): void {
@@ -496,6 +503,8 @@ function drop(d: Drag, target: DropTarget, x: number, y: number): void {
   // A file from the tree.
   if ("folder" in target) {
     void moveFile(d.path, target.folder);
+  } else if ("insert" in target) {
+    target.insert.insertReference(d.path, x, y);
   } else if ("body" in target || "tabs" in target) {
     const pane = paneOf("body" in target ? target.body : target.tabs);
     if (pane) openIn(pane, d.path);
@@ -677,7 +686,7 @@ class NoteLeaf extends Leaf {
       const a = (ev.target as HTMLElement).closest("a");
       if (!a) return;
       ev.preventDefault();
-      if (a.classList.contains("wikilink")) this.follow((a.dataset["target"] ?? "").split("#")[0] ?? "");
+      if (a.classList.contains("wikilink")) this.follow(a.dataset["target"] ?? "");
     });
     sheet.addEventListener("mousedown", (ev) => {
       if (this.mode === "preview") return;
@@ -822,7 +831,7 @@ class NoteLeaf extends Leaf {
         });
         const extOf = f.type.split("/")[1]?.replace("jpeg", "jpg").replace("svg+xml", "svg") ?? "png";
         const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
-        const base = f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) && !/^blob/i.test(f.name) ? f.name : `Pasted image ${stamp}.${extOf}`;
+        const base = f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) && !/^blob/i.test(f.name) ? f.name : `${name(this.path)} ${stamp}.${extOf}`;
         // Beside the note, in its own assets/ folder — not loose among the notes.
         const folder = dirOf(this.path);
         const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
@@ -878,7 +887,7 @@ class NoteLeaf extends Leaf {
     return this.editor.state.doc.toString().replaceAll("\n", this.eol);
   }
   follow(target: string): void {
-    const to = this.resolved.get(target.toLowerCase());
+    const to = this.resolve(target);
     if (to) openIn(this.pane, to);
     else ui.status.textContent = t.unresolved(target);
   }
@@ -929,7 +938,8 @@ class NoteLeaf extends Leaf {
     this.revision = note.revision;
     this.preview.innerHTML = note.html;
     void this.embedImages(note.path);
-    this.dress(note.path);
+    this.wireTasks();
+    void this.relink(note.path);
     const flags: string[] = [];
     if (note.stale) flags.push(t.stale);
     if (note.unverified) flags.push(t.unverified);
@@ -945,7 +955,7 @@ class NoteLeaf extends Leaf {
   }
   private async doLoad(path: string, force: boolean): Promise<void> {
     if (this.dirty && !force && path !== this.path && !window.confirm(t.discard)) return;
-    const [note, back, links] = await Promise.all([commands.readNote(path), commands.backlinks(path), commands.links(path)]);
+    const note = await commands.readNote(path);
     if (note.status !== "ok") return fail(note.error);
     this.path = note.data.path;
     this.setTitle(name(this.path));
@@ -954,15 +964,7 @@ class NoteLeaf extends Leaf {
     this.props.render(note.data.properties);
     this.eol = note.data.text.includes("\r\n") ? "\r\n" : "\n";
     this.editor.setState(this.editorState(note.data.text));
-    this.resolved = new Map();
-    if (links.status === "ok") for (const l of links.data) this.resolved.set(l.target.toLowerCase(), l.resolved);
     this.refresh(note.data);
-    for (const a of this.preview.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
-      const target = (a.dataset["target"] ?? "").split("#")[0] ?? "";
-      if (this.resolved.get(target.toLowerCase()) == null) a.classList.add("unresolved");
-    }
-    this.backlinksData = back.status === "ok" ? back.data.map((b) => ({ from: b.from, line: b.line })) : [];
-    this.linksData = links.status === "ok" ? links.data.map((l) => ({ target: l.target, resolved: l.resolved })) : [];
     this.paintStar();
     this.applyMode();
     markCurrent();
@@ -975,15 +977,44 @@ class NoteLeaf extends Leaf {
     this.star.title = on ? t.unbookmark : t.bookmark;
     this.star.classList.toggle("on", on);
   }
+  /** The note's links and backlinks from the index, fresh after every
+   *  save: what the preview resolves against and the panel lists. Then
+   *  the preview is dressed: unresolved links marked, embedded notes
+   *  filled in. */
+  private async relink(path: string): Promise<void> {
+    const [back, links] = await Promise.all([commands.backlinks(path), commands.links(path)]);
+    if (this.path !== path) return;
+    this.resolved = new Map();
+    if (links.status === "ok") for (const l of links.data) this.resolved.set(l.target.toLowerCase(), l.resolved);
+    this.backlinksData = back.status === "ok" ? back.data.map((b) => ({ from: b.from, line: b.line })) : [];
+    this.linksData = links.status === "ok" ? links.data.map((l) => ({ target: l.target, resolved: l.resolved })) : [];
+    for (const a of this.preview.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
+      const target = a.dataset["target"] ?? "";
+      a.classList.toggle("unresolved", this.resolve(target) === null);
+      // `[[Note#Heading]]` reads as "Note › Heading" when it has no alias.
+      if (a.textContent === target && /[#^]/.test(target)) a.textContent = target.replace(/#\^?/g, " › ");
+    }
+    this.dress(path);
+    if (this.pane.active === this) panel.show(this);
+  }
+  /** Where a link target goes: the index's answer, else the same rule
+   *  applied to the note list (a link typed a moment ago is not indexed
+   *  yet). `null` when nothing answers. */
+  resolve(target: string): string | null {
+    const key = (target.split(/[#^]/)[0] ?? "").trim();
+    if (key === "") return this.path;
+    return this.resolved.get(key.toLowerCase()) ?? this.resolved.get(target.toLowerCase()) ?? resolveNoteByName(key, this.path);
+  }
   private dress(forPath: string): void {
     for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed:not(.file)")) {
-      const target = (span.dataset["target"] ?? "").split("#")[0] ?? "";
-      const to = this.resolved.get(target.toLowerCase());
-      if (!to || !to.endsWith(".md")) continue;
+      const raw = span.dataset["target"] ?? "";
+      const to = this.resolve(raw);
+      if (!to || !to.endsWith(".md") || to === this.path) continue;
+      const heading = raw.includes("#") && !raw.includes("#^") ? raw.slice(raw.indexOf("#") + 1) : "";
       void commands.readNote(to).then((r) => {
         if (r.status !== "ok" || this.path !== forPath) return;
         const box = h("section", "embed-note");
-        const head = h("a", "embed-note-title", name(to));
+        const head = h("a", "embed-note-title", heading ? `${name(to)} › ${heading}` : name(to));
         head.href = "#";
         head.addEventListener("click", (e) => {
           e.preventDefault();
@@ -991,15 +1022,33 @@ class NoteLeaf extends Leaf {
         });
         const body = h("div", "embed-note-body");
         body.innerHTML = r.data.html;
-        for (const inner of body.querySelectorAll("span.embed")) inner.classList.add("file");
+        if (heading) sliceHeading(body, heading);
         box.append(head, body);
         span.replaceWith(box);
+        void this.embedImages(forPath, body);
       });
     }
+  }
+  private wireTasks(): void {
     Array.from(this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox]")).forEach((box, n) => {
       box.disabled = false;
       box.addEventListener("change", () => void this.toggleTask(n, box.checked));
     });
+  }
+  /** A file from the tree dropped on the text: a link to a note, an
+   *  embed of anything else, at the drop point (the editor opens if the
+   *  note was being read). */
+  insertReference(path: string, x: number, y: number): void {
+    const note = kindOf(path) === "note";
+    const base = path.split("/").pop() ?? path;
+    const unique = (list: string[], label: (p: string) => string, want: string) => list.filter((p) => label(p).toLowerCase() === want.toLowerCase()).length === 1;
+    const text = note
+      ? `[[${unique(allNotes, name, name(path)) ? name(path) : path.replace(/\.md$/, "")}]]`
+      : `![[${unique(allFiles, (p) => p.split("/").pop() ?? p, base) ? base : path}]]`;
+    if (this.mode === "preview") this.setMode("live");
+    const pos = this.editor.posAtCoords({ x, y }) ?? this.editor.state.doc.length;
+    this.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length } });
+    this.editor.focus();
   }
   private async toggleTask(n: number, checked: boolean, retry = true): Promise<void> {
     if (!this.note) return;
@@ -1023,8 +1072,8 @@ class NoteLeaf extends Leaf {
       return;
     }
   }
-  private async embedImages(forPath: string): Promise<void> {
-    const spans = Array.from(this.preview.querySelectorAll<HTMLElement>("span.embed"));
+  private async embedImages(forPath: string, root: HTMLElement = this.preview): Promise<void> {
+    const spans = Array.from(root.querySelectorAll<HTMLElement>("span.embed"));
     const targets = new Set(spans.map((e) => (e.dataset["target"] ?? "").split("#")[0] ?? ""));
     const found = new Map<string, string | null>();
     await Promise.all(
@@ -1988,6 +2037,49 @@ function openNote(path: string, aside: boolean): Leaf | null {
 function openFolder(path: string): void {
   const pane = layout().focused ?? layout().panes()[0] ?? layout().reset();
   pane.openFolder(path);
+}
+/** The note a link target names, by the resolution rule of the spec
+ *  (§4.6, Q12) applied to the note list: a path from the root when the
+ *  target has a `/`, else the bare name — under the source note's folder
+ *  first, then the fewest segments, then byte order. `.md` optional. */
+function resolveNoteByName(target: string, from: string): string | null {
+  const want = target.replace(/\.md$/i, "").toLowerCase();
+  if (!want) return null;
+  if (want.includes("/")) {
+    const rel = want.startsWith("./") || want.startsWith("../") ? null : want;
+    const hit = rel ? allNotes.find((p) => p.toLowerCase() === `${rel}.md`) : undefined;
+    if (hit) return hit;
+    // Relative to the source note's folder, `..` walked.
+    const parts = dirOf(from).split("/").filter(Boolean);
+    for (const seg of want.split("/")) {
+      if (seg === "..") parts.pop();
+      else if (seg !== ".") parts.push(seg);
+    }
+    const joined = `${parts.join("/")}.md`.toLowerCase();
+    return allNotes.find((p) => p.toLowerCase() === joined) ?? null;
+  }
+  const candidates = allNotes.filter((p) => name(p).toLowerCase() === want);
+  if (candidates.length === 0) return null;
+  const home = dirOf(from);
+  const under = (p: string) => home === "" || p.startsWith(`${home}/`);
+  const segments = (p: string) => p.split("/").length;
+  candidates.sort((a, b) => Number(under(b)) - Number(under(a)) || segments(a) - segments(b) || (a < b ? -1 : a > b ? 1 : 0));
+  return candidates[0] ?? null;
+}
+/** Keep only the section under `heading`: the heading and what follows
+ *  it until the next heading of the same or a higher level. */
+function sliceHeading(body: HTMLElement, heading: string): void {
+  const want = heading.trim().toLowerCase();
+  const start = Array.from(body.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6")).find((el) => (el.textContent ?? "").trim().toLowerCase() === want);
+  if (!start) return;
+  const level = Number(start.tagName.slice(1));
+  const keep: Element[] = [start];
+  let el = start.nextElementSibling;
+  while (el && !(/^H[1-6]$/.test(el.tagName) && Number(el.tagName.slice(1)) <= level)) {
+    keep.push(el);
+    el = el.nextElementSibling;
+  }
+  body.replaceChildren(...keep);
 }
 /** Open the tree down to `path`, scroll its row into view and focus it. */
 async function revealInTree(path: string): Promise<void> {
