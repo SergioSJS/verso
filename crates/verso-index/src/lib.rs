@@ -23,6 +23,7 @@
 //!   Time Machine.
 
 mod keys;
+mod moves;
 mod schema;
 mod search;
 mod store;
@@ -31,7 +32,7 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 
-pub use keys::{note_keys, target_key};
+pub use keys::{file_key, note_keys, target_key};
 pub use search::Hit;
 pub use store::{Backlink, Block, Heading, Link, NoteStamp, Unresolved};
 

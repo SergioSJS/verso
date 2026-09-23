@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::Path;
 
 use tempfile::{Builder, NamedTempFile, TempDir};
-use verso_core::{CoreError, Sidecar, Workspace};
+use verso_core::{CoreError, PropertyValue, Sidecar, SkipReason, Workspace};
 
 #[cfg(test)]
 mod support {
@@ -19,12 +19,17 @@ mod support {
 
     /// A note with exactly this name (no random part), kept until dropped.
     pub fn note(dir: &Path, name: &str, content: &str) -> NamedTempFile {
+        bytes(dir, name, content.as_bytes())
+    }
+
+    /// A file with exactly this name and these bytes, kept until dropped.
+    pub fn bytes(dir: &Path, name: &str, content: &[u8]) -> NamedTempFile {
         let mut file = Builder::new()
             .prefix(name)
             .rand_bytes(0)
             .tempfile_in(dir)
             .unwrap();
-        file.write_all(content.as_bytes()).unwrap();
+        file.write_all(content).unwrap();
         file.flush().unwrap();
         file
     }
@@ -35,6 +40,46 @@ mod support {
             .rand_bytes(0)
             .tempdir_in(dir)
             .unwrap()
+    }
+
+    /// The bytes of a file of the folder, read through `verso-fs`, as the
+    /// guardrail asks of this crate's tests.
+    pub fn on_disk(vault: &Path, relative: &str) -> Vec<u8> {
+        let mut root = verso_fs::Root::open(vault, vec![]).unwrap();
+        let h = root.handle(Path::new(relative)).unwrap();
+        root.read(h).unwrap().0
+    }
+
+    /// Whether a file of the folder exists, through `verso-fs`.
+    pub fn exists(vault: &Path, relative: &str) -> bool {
+        let mut root = verso_fs::Root::open(vault, vec![]).unwrap();
+        let h = root.handle(Path::new(relative)).unwrap();
+        !matches!(root.read(h), Err(verso_fs::ReadError::Io(_)))
+    }
+
+    /// `path` and `after` of each rewrite of a plan.
+    pub fn plan_of(r: &verso_core::Renamed) -> Vec<(&str, &str)> {
+        r.rewrites
+            .iter()
+            .map(|w| (w.path.as_str(), w.after.as_str()))
+            .collect()
+    }
+
+    /// Apply a plan the way the UI does: one write per note, with the
+    /// revision the plan carries.
+    pub fn apply(ws: &mut Workspace, r: &verso_core::Renamed) {
+        for w in &r.rewrites {
+            ws.write_note(&w.path, &w.after, &w.revision).unwrap();
+        }
+    }
+
+    pub fn resolved(ws: &mut Workspace, note: &str) -> Vec<Option<String>> {
+        ws.links(note)
+            .unwrap()
+            .unwrap()
+            .into_iter()
+            .map(|l| l.resolved)
+            .collect()
     }
 }
 use support::*;
@@ -68,6 +113,9 @@ fn index_search_backlinks_and_incremental_runs() {
     // The evicted note is known, unverified, and a link target (ADR 0043).
     assert!(ws.notes().unwrap().contains(&"Segredo.md".to_owned()));
     assert!(r.problems.is_empty() && r.unreadable.is_empty(), "{r:?}");
+    assert!(r.warnings.is_empty(), "{r:?}");
+    // The evicted attachment is present too: listed under its real name.
+    assert_eq!(ws.files(), vec!["Mapa.png"]);
 
     let back = ws.backlinks("Barão Vermelho").unwrap().unwrap();
     assert_eq!(back.len(), 1);
@@ -144,6 +192,64 @@ fn a_trailing_slash_or_a_dot_names_the_same_index() {
     assert_eq!(plain.index_path(), slashed.index_path());
     assert_eq!(plain.index_path(), dotted.index_path());
     assert_eq!(plain.folder(), slashed.folder());
+    assert_eq!(plain.key(), dotted.key());
+}
+
+/// The folder crosses the contract as a name and a key, never as a path
+/// (ADR 0026 rule 4): the key reopens it, and nothing else does.
+#[test]
+fn a_folder_is_named_by_its_key_and_reopened_by_it() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _n = note(vault.path(), "Uma.md", "# Uma\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let key = ws.key();
+    let name = ws.name();
+    assert_eq!(name, vault.path().file_name().unwrap().to_string_lossy());
+    // A key is one file name: letters, digits and `-`, nothing a path is
+    // made of; it is the index file's stem, so it is stable.
+    assert!(
+        !key.is_empty() && key.chars().all(|c| c.is_alphanumeric() || c == '-'),
+        "{key}"
+    );
+    assert_eq!(
+        ws.index_path().file_name().unwrap().to_string_lossy(),
+        format!("{key}.sqlite")
+    );
+    let again = Workspace::reopen(&key, Some(config.path())).unwrap();
+    assert_eq!(again.folder(), ws.folder());
+    assert_eq!(again.index_path(), ws.index_path());
+    // A key that is not one this core issued names nothing, and is refused
+    // before anything is looked up; an unknown one is not found.
+    for bad in [
+        "",
+        "../x",
+        "/etc/passwd",
+        "a/b-0123456789abcdef",
+        "x-ABCDEF0123456789",
+        "só-hash",
+    ] {
+        assert!(
+            matches!(
+                Workspace::reopen(bad, Some(config.path())),
+                Err(CoreError::InvalidKey)
+            ),
+            "{bad:?}"
+        );
+    }
+    assert!(matches!(
+        Workspace::reopen("nada-0123456789abcdef", Some(config.path())),
+        Err(CoreError::UnknownFolder)
+    ));
+    // The folder is gone: not found, whatever the sidecar still says.
+    let name_of_gone = key.clone();
+    drop(ws);
+    drop(vault);
+    assert!(matches!(
+        Workspace::reopen(&name_of_gone, Some(config.path())),
+        Err(CoreError::UnknownFolder)
+    ));
 }
 
 #[test]
@@ -178,6 +284,12 @@ fn a_note_under_an_unreadable_directory_is_not_removed() {
     assert_eq!(r.problems.len(), 1, "{r:?}");
     assert_eq!(r.problems[0].path(), "sub");
     assert!(matches!(r.problems[0], verso_core::WalkProblem::Io { .. }));
+    // Shown as one line with the relative path, not a debug dump.
+    let line = r.problems[0].to_string();
+    assert!(
+        line.starts_with("sub: ") && !line.contains("Io {"),
+        "{line}"
+    );
     assert_eq!(ws.backlinks("sub/a").unwrap().unwrap().len(), 1);
     assert!(ws.unresolved().unwrap().is_empty());
 
@@ -274,21 +386,76 @@ fn read_note_gives_lines_positions_and_staleness_and_every_path_is_confined() {
     assert_eq!(t.lines, vec!["# Novo"]);
     assert!(t.stale);
 
-    // Confinement on every path, disk or index (ADR 0044).
+    // Confinement on every path, disk or index (ADR 0044), at every door
+    // — the ones that read, the ones that write, the ones that move.
+    let revision = t.revision.clone();
     for bad in ["../fora", "/etc/passwd", ".obsidian/app", "a\u{0}b", ""] {
+        let confined = |r: Result<(), CoreError>| matches!(r, Err(CoreError::Confined(_)));
+        assert!(confined(ws.read_note(bad).map(drop)), "read_note {bad:?}");
+        assert!(confined(ws.backlinks(bad).map(drop)), "backlinks {bad:?}");
+        assert!(confined(ws.links(bad).map(drop)), "links {bad:?}");
         assert!(
-            matches!(ws.read_note(bad), Err(verso_core::CoreError::Confined(_))),
-            "{bad:?}"
+            confined(ws.is_unverified(bad).map(drop)),
+            "is_unverified {bad:?}"
+        );
+        assert!(confined(ws.read_text(bad).map(drop)), "read_text {bad:?}");
+        assert!(confined(ws.read_file(bad).map(drop)), "read_file {bad:?}");
+        assert!(confined(ws.absolute(bad).map(drop)), "absolute {bad:?}");
+        assert!(
+            confined(ws.write_note(bad, "x", &revision).map(drop)),
+            "write_note {bad:?}"
         );
         assert!(
-            matches!(ws.backlinks(bad), Err(verso_core::CoreError::Confined(_))),
-            "{bad:?}"
+            confined(ws.write_text(bad, "x", &revision).map(drop)),
+            "write_text {bad:?}"
         );
         assert!(
-            matches!(ws.links(bad), Err(verso_core::CoreError::Confined(_))),
-            "{bad:?}"
+            confined(ws.create_note(bad, "x").map(drop)),
+            "create_note {bad:?}"
+        );
+        assert!(
+            confined(ws.create_file(bad, b"x").map(drop)),
+            "create_file {bad:?}"
+        );
+        assert!(
+            confined(ws.create_folder(bad).map(drop)),
+            "create_folder {bad:?}"
+        );
+        assert!(
+            confined(ws.rename_note(bad, "Nova").map(drop)),
+            "rename_note from {bad:?}"
+        );
+        assert!(
+            confined(ws.rename_note("Nota", bad).map(drop)),
+            "rename_note to {bad:?}"
+        );
+        assert!(
+            confined(ws.rename_entry(bad, "Nova.md").map(drop)),
+            "rename_entry from {bad:?}"
+        );
+        assert!(
+            confined(ws.rename_entry("Nota.md", bad).map(drop)),
+            "rename_entry to {bad:?}"
+        );
+        assert!(
+            confined(ws.delete_note(bad).map(drop)),
+            "delete_note {bad:?}"
+        );
+        assert!(
+            confined(ws.delete_entry(bad).map(drop)),
+            "delete_entry {bad:?}"
+        );
+        assert_eq!(
+            ws.resolve_file("Nota.md", bad),
+            None,
+            "resolve_file {bad:?}"
         );
     }
+    // Nothing moved, nothing was made: the note is still the only entry.
+    assert_eq!(ws.read_note("Nota").unwrap().lines, vec!["# Novo"]);
+    ws.index().unwrap();
+    assert_eq!(ws.notes().unwrap(), vec!["Nota.md"]);
+    assert!(ws.files().is_empty() && ws.folders().is_empty());
     // A note that is not there is a read error, not a confinement one.
     assert!(matches!(
         ws.read_note("Inexistente"),
@@ -349,6 +516,8 @@ fn writing_a_note_goes_through_the_atomic_write_and_refuses_a_changed_file() {
     assert_ne!(after.revision, before.revision);
     assert!(!after.stale);
     assert_eq!(ws.search("palavra", 10).unwrap().len(), 1);
+    // The revision handed back is the one the file now carries.
+    assert_eq!(ws.read_note("Nota").unwrap().revision, after.revision);
 
     // The old revision no longer names the file on disk: refused, nothing
     // written (invariant 11).
@@ -384,6 +553,89 @@ fn writing_a_note_goes_through_the_atomic_write_and_refuses_a_changed_file() {
     ));
 }
 
+/// Invariant 11 across a race: what `write_note` hands back describes the
+/// bytes it wrote, never a re-read that someone else may have replaced
+/// in the meantime. An external save lands shortly after each write; the
+/// answer must still be the caller's text, and its revision must never
+/// let the next save pass over the external one.
+#[test]
+fn write_note_answers_the_text_and_revision_of_the_bytes_it_wrote() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _n = note(vault.path(), "N.md", "start\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let file = vault.path().join("N.md");
+    for attempt in 0..150u64 {
+        let Ok(before) = ws.read_note("N") else {
+            continue;
+        };
+        let target = file.clone();
+        // The other app: it saves through the shell, as the tests above do,
+        // a moment after this write starts.
+        let other = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_micros(100 + (attempt % 30) * 120));
+            let _ = std::process::Command::new("sh")
+                .arg("-c")
+                .arg("printf 'EXTERNAL\\n' > \"$0\"")
+                .arg(&target)
+                .status();
+        });
+        let mine = format!("mine {attempt}\n");
+        let written = ws.write_note("N", &mine, &before.revision);
+        other.join().unwrap();
+        let Ok(written) = written else { continue };
+        assert_eq!(
+            written.note.text, mine,
+            "attempt {attempt}: not the bytes written"
+        );
+        // If the external save came after ours, the disk holds it, and the
+        // revision we hold must not open the door to overwriting it.
+        let disk = on_disk(vault.path(), "N.md");
+        if disk != mine.as_bytes() {
+            let next = ws.write_note("N", "mine again\n", &written.note.revision);
+            assert!(
+                matches!(
+                    next,
+                    Err(CoreError::Write(verso_core::WriteError::Changed { .. }))
+                ),
+                "attempt {attempt}: a save over someone else's text was accepted"
+            );
+        }
+    }
+}
+
+/// Bytes that are not UTF-8 are not text (spec Q25, `[OPEN]`): no editor
+/// receives a lossy copy, and no plan rewrites the file — the file is
+/// left alone and said so (invariant 8).
+#[test]
+fn a_file_that_is_not_utf8_has_no_text_and_is_left_out_of_a_plan() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _alvo = note(vault.path(), "Alvo.md", "# Alvo\n");
+    let latin1 = b"caf\xe9 [[Alvo]]\n";
+    let _x = bytes(vault.path(), "X.md", latin1);
+    let _y = note(vault.path(), "Y.md", "[[Alvo]]\n");
+    let _data = bytes(vault.path(), "dados.txt", b"\xff\xfe");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert!(matches!(ws.read_note("X"), Err(CoreError::NotText)));
+    assert!(matches!(ws.read_text("X.md"), Err(CoreError::NotText)));
+    assert!(matches!(ws.read_text("dados.txt"), Err(CoreError::NotText)));
+    // Search still sees it (decoded lossily, written back never).
+    assert_eq!(ws.search("caf", 10).unwrap().len(), 1);
+    // The rename happens; X is reported, not rewritten.
+    let r = ws.rename_note("Alvo", "Meta").unwrap();
+    assert_eq!(plan_of(&r), vec![("Y.md", "[[Meta]]\n")]);
+    assert_eq!(r.skipped.len(), 1, "{:?}", r.skipped);
+    assert_eq!(
+        (r.skipped[0].path.as_str(), r.skipped[0].reason),
+        ("X.md", SkipReason::NotText)
+    );
+    apply(&mut ws, &r);
+    assert_eq!(on_disk(vault.path(), "X.md"), latin1);
+}
+
 #[test]
 fn an_attachment_resolves_by_name_or_stem_and_reads_through_the_core() {
     let vault = tempfile::tempdir().unwrap();
@@ -395,37 +647,103 @@ fn an_attachment_resolves_by_name_or_stem_and_reads_through_the_core() {
     let _md = note(
         vault.path(),
         "Nota.md",
-        "---\ntags: [a, b]\nnivel: 3\n---\n![[Mapa]] ![[mapa.png]]\n",
+        "---\ntags: [a, b]\nnivel: 3\nmeta: {x: 1}\nnums: [1, 2]\n---\n![[Mapa]] ![[mapa.png]]\n",
     );
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     ws.index().unwrap();
     // Fewest segments wins; the stem and the case are accepted.
-    assert_eq!(ws.resolve_file("Mapa").as_deref(), Some("assets/Mapa.png"));
     assert_eq!(
-        ws.resolve_file("MAPA.PNG").as_deref(),
+        ws.resolve_file("Nota.md", "Mapa").as_deref(),
         Some("assets/Mapa.png")
     );
     assert_eq!(
-        ws.resolve_file("assets/deep/mapa.png").as_deref(),
+        ws.resolve_file("Nota.md", "MAPA.PNG").as_deref(),
+        Some("assets/Mapa.png")
+    );
+    assert_eq!(
+        ws.resolve_file("Nota.md", "assets/deep/mapa.png")
+            .as_deref(),
         Some("assets/deep/mapa.png")
     );
-    assert_eq!(ws.resolve_file("nada"), None);
+    assert_eq!(ws.resolve_file("Nota.md", "nada"), None);
     assert_eq!(ws.read_file("assets/Mapa.png").unwrap(), b"PNG?");
     assert!(ws.read_file("../fora").is_err());
-    // Frontmatter as properties.
+    // Frontmatter as properties: a mapping or a list that is not all
+    // strings is one line the panel never edits.
     let n = ws.read_note("Nota").unwrap();
     assert_eq!(
         n.properties,
         vec![
             (
                 "tags".to_owned(),
-                verso_core::PropertyValue::List(vec!["a".to_owned(), "b".to_owned()])
+                PropertyValue::List(vec!["a".to_owned(), "b".to_owned()])
             ),
-            (
-                "nivel".to_owned(),
-                verso_core::PropertyValue::Number("3".to_owned())
-            )
+            ("nivel".to_owned(), PropertyValue::Number("3".to_owned())),
+            ("meta".to_owned(), PropertyValue::Nested("x: 1".to_owned())),
+            ("nums".to_owned(), PropertyValue::Nested("1, 2".to_owned())),
         ]
+    );
+}
+
+/// Spec Q12 applies to embeds: from the note's own folder first, `..`
+/// honoured, a path from the root before a bare name.
+#[test]
+fn an_embed_resolves_from_its_note_by_the_rule_of_q12() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let a = subdir(vault.path(), "a");
+    let b = subdir(vault.path(), "b");
+    let c = subdir(vault.path(), "c");
+    let _fa = note(a.path(), "foto.png", "a");
+    let _fb = note(b.path(), "foto.png", "b");
+    let _fc = note(c.path(), "outra.png", "c");
+    let _nb = note(b.path(), "Nota.md", "![[foto.png]]\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let from = |ws: &Workspace, s: &str, t: &str| ws.resolve_file(s, t);
+    // The note's own folder first; elsewhere the fewest segments, then
+    // byte order (`a/` before `b/`).
+    assert_eq!(
+        from(&ws, "b/Nota.md", "foto.png").as_deref(),
+        Some("b/foto.png")
+    );
+    assert_eq!(
+        from(&ws, "b/Nota.md", "foto").as_deref(),
+        Some("b/foto.png")
+    );
+    assert_eq!(
+        from(&ws, "c/Outra.md", "foto.png").as_deref(),
+        Some("a/foto.png")
+    );
+    assert_eq!(
+        from(&ws, "Raiz.md", "FOTO.PNG").as_deref(),
+        Some("a/foto.png")
+    );
+    // A path from the root, and one read from the note's folder.
+    assert_eq!(
+        from(&ws, "b/Nota.md", "a/foto.png").as_deref(),
+        Some("a/foto.png")
+    );
+    assert_eq!(
+        from(&ws, "b/Nota.md", "../a/foto.png").as_deref(),
+        Some("a/foto.png")
+    );
+    assert_eq!(
+        from(&ws, "c/x/Deep.md", "../outra.png").as_deref(),
+        Some("c/outra.png")
+    );
+    assert_eq!(
+        from(&ws, "b/Nota.md", "foto.png|300").as_deref(),
+        Some("b/foto.png")
+    );
+    assert_eq!(from(&ws, "b/Nota.md", "nada.png"), None);
+    // A file at the root is a path from the root, and comes before any
+    // bare-name preference — the same order the index applies to notes.
+    let _root = note(vault.path(), "foto.png", "r");
+    ws.index().unwrap();
+    assert_eq!(
+        from(&ws, "b/Nota.md", "foto.png").as_deref(),
+        Some("foto.png")
     );
 }
 
@@ -450,6 +768,7 @@ fn notes_are_created_renamed_with_a_link_plan_and_trashed() {
     // Create, in a folder that does not exist yet; twice is refused.
     let created = ws.create_note("nova/Alvo", "# Alvo\n").unwrap();
     assert_eq!(created.path, "nova/Alvo.md");
+    assert!(!created.stale);
     assert!(matches!(
         ws.create_note("nova/Alvo.md", "x"),
         Err(CoreError::Write(verso_core::WriteError::Exists))
@@ -458,27 +777,26 @@ fn notes_are_created_renamed_with_a_link_plan_and_trashed() {
 
     // Rename: the file moves, the index follows, the plan names the two
     // linking notes with their links pointed at the new name — bare names
-    // stay bare, the code span is rewritten too (the diff shows it), the
-    // alias and the fragment are kept; the unrelated link is untouched.
+    // stay bare, the extension stays when it was written, the alias and
+    // the fragment are kept; the code span is text, not a link, and the
+    // unrelated link is untouched.
     let renamed = ws.rename_note("nova/Alvo", "nova/Meta.md").unwrap();
     assert_eq!(renamed.path, "nova/Meta.md");
+    assert!(
+        renamed.skipped.is_empty() && renamed.warnings.is_empty(),
+        "{renamed:?}"
+    );
     assert!(ws.read_note("nova/Meta").is_ok());
     assert!(ws.read_note("nova/Alvo").is_err());
-    let plan: Vec<(&str, &str)> = renamed
-        .rewrites
-        .iter()
-        .map(|r| (r.path.as_str(), r.after.as_str()))
-        .collect();
     assert_eq!(
-        plan,
+        plan_of(&renamed),
         [
             (
                 "Origem.md",
-                "Ver [[Meta]], [[Meta|apelido]], [[Meta#Sec]] e `[[Meta]]` e [[Outra]].\n"
+                "Ver [[Meta]], [[Meta.md|apelido]], [[Meta#Sec]] e `[[Alvo]]` e [[Outra]].\n"
             ),
             ("pasta/Longe.md", "[[../Alvo]] [[Meta]]\n"),
-        ],
-        "{plan:?}"
+        ]
     );
     // Nothing but the renamed file was written: the plan is applied by
     // the caller, one atomic write per note, with the revision it carries.
@@ -486,17 +804,184 @@ fn notes_are_created_renamed_with_a_link_plan_and_trashed() {
         ws.read_note("Origem").unwrap().text,
         "Ver [[Alvo]], [[alvo.md|apelido]], [[Alvo#Sec]] e `[[Alvo]]` e [[Outra]].\n"
     );
-    for w in &renamed.rewrites {
-        ws.write_note(&w.path, &w.after, &w.revision).unwrap();
-    }
+    apply(&mut ws, &renamed);
     assert_eq!(ws.backlinks("nova/Meta").unwrap().unwrap().len(), 4);
 
     // Delete: into .trash/, keeping the relative path; gone from the index.
     let gone = ws.delete_note("nova/Meta").unwrap();
-    assert_eq!(gone, ".trash/nova/Meta.md");
+    assert_eq!(gone.path, ".trash/nova/Meta.md");
+    assert!(gone.warnings.is_empty(), "{gone:?}");
     assert!(ws.read_note("nova/Meta").is_err());
     assert!(ws.notes().unwrap().iter().all(|p| p != "nova/Meta.md"));
     assert_eq!(ws.index().unwrap().removed, 0);
+}
+
+/// The plan follows what each link resolved to (spec Q12), not its text:
+/// a link whose text matches but that reached another note is left
+/// alone; a bare name that a move would send elsewhere becomes a path.
+#[test]
+fn the_plan_rewrites_only_the_links_that_reached_the_moved_note() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let a = subdir(vault.path(), "a");
+    let b = subdir(vault.path(), "b");
+    let z = subdir(vault.path(), "z");
+    let _alvo_a = note(a.path(), "Alvo.md", "# A\n");
+    let _alvo_b = note(b.path(), "Alvo.md", "# B\n");
+    let _x = note(b.path(), "X.md", "[[a/Alvo]] [[Alvo]]\n");
+    let _y = note(a.path(), "Y.md", "[[Alvo]] [[Alvo.MD|x]]\n");
+    let _q = note(z.path(), "Q.md", "[[Alvo]]\n");
+    let _doc = note(
+        vault.path(),
+        "Doc.md",
+        "[[a/Alvo]]\n\n```markdown\n[[a/Alvo]]\n```\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(
+        resolved(&mut ws, "b/X"),
+        vec![Some("a/Alvo.md".into()), Some("b/Alvo.md".into())]
+    );
+    assert_eq!(resolved(&mut ws, "z/Q"), vec![Some("a/Alvo.md".into())]);
+
+    // A rename in place: the bare link of `b/X` reached `b/Alvo` and stays;
+    // the fenced block is text; `z/Q`'s bare name still reaches by name.
+    let r = ws.rename_note("a/Alvo", "a/Meta").unwrap();
+    assert_eq!(
+        plan_of(&r),
+        [
+            ("Doc.md", "[[a/Meta]]\n\n```markdown\n[[a/Alvo]]\n```\n"),
+            ("a/Y.md", "[[Meta]] [[Meta.MD|x]]\n"),
+            ("b/X.md", "[[a/Meta]] [[Alvo]]\n"),
+            ("z/Q.md", "[[Meta]]\n"),
+        ]
+    );
+    apply(&mut ws, &r);
+    assert_eq!(
+        resolved(&mut ws, "b/X"),
+        vec![Some("a/Meta.md".into()), Some("b/Alvo.md".into())]
+    );
+
+    // A new name taken at the root: a bare `[[Meta]]` would reach the root
+    // note (a path from the root comes first), so the plan writes a path.
+    let _root_meta = note(vault.path(), "Alvo.md", "# root\n");
+    ws.index().unwrap();
+    let r = ws.rename_note("a/Meta", "a/Alvo").unwrap();
+    assert_eq!(
+        plan_of(&r),
+        [
+            ("Doc.md", "[[a/Alvo]]\n\n```markdown\n[[a/Alvo]]\n```\n"),
+            ("a/Y.md", "[[a/Alvo]] [[a/Alvo.MD|x]]\n"),
+            ("b/X.md", "[[a/Alvo]] [[Alvo]]\n"),
+            ("z/Q.md", "[[a/Alvo]]\n"),
+        ]
+    );
+    apply(&mut ws, &r);
+    assert_eq!(resolved(&mut ws, "z/Q"), vec![Some("a/Alvo.md".into())]);
+    assert_eq!(resolved(&mut ws, "a/Y"), vec![Some("a/Alvo.md".into()); 2]);
+}
+
+/// Moving a note out of its folder can send a bare link of a sibling to
+/// another note of the same name (ADR 0048, requirement of 2026-09-22):
+/// the plan says so with a path instead of letting it happen in silence.
+#[test]
+fn a_move_that_would_retarget_a_bare_link_gets_a_plan_not_silence() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let a = subdir(vault.path(), "a");
+    let b = subdir(vault.path(), "b");
+    let _alvo_a = note(a.path(), "Alvo.md", "# A\n\n[[../b/Alvo|irmão]]\n");
+    let _alvo_b = note(b.path(), "Alvo.md", "# B\n");
+    let _x = note(a.path(), "X.md", "[[Alvo]]\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(resolved(&mut ws, "a/X"), vec![Some("a/Alvo.md".into())]);
+    let r = ws.rename_note("a/Alvo", "c/d/Alvo").unwrap();
+    // The sibling's bare name would now reach `b/Alvo`; the moved note's
+    // own relative link would reach nothing from `c/d/`. Both get a path.
+    assert_eq!(
+        plan_of(&r),
+        [
+            ("a/X.md", "[[c/d/Alvo]]\n"),
+            ("c/d/Alvo.md", "# A\n\n[[b/Alvo|irmão]]\n"),
+        ]
+    );
+    apply(&mut ws, &r);
+    assert_eq!(resolved(&mut ws, "a/X"), vec![Some("c/d/Alvo.md".into())]);
+    assert_eq!(
+        resolved(&mut ws, "c/d/Alvo"),
+        vec![Some("b/Alvo.md".into())]
+    );
+}
+
+/// A rename that happened is reported as such: a linker that cannot be
+/// read is skipped and named, and a sidecar that cannot be written is a
+/// warning — never a failure that hides the move (ADR 0048).
+#[test]
+fn a_rename_that_happened_reports_what_it_could_not_plan_or_confirm() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _alvo = note(vault.path(), "Alvo.md", "# Alvo\n");
+    let x = note(vault.path(), "X.md", "[[Alvo]]\n");
+    let _y = note(vault.path(), "Y.md", "[[Alvo]]\n");
+    let _mapa = note(vault.path(), "mapa.png", "png");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    // X is evicted by iCloud (older form) after it was indexed.
+    drop(x);
+    let _evicted = note(vault.path(), ".X.md.icloud", "<plist/>");
+    ws.index().unwrap();
+    let r = ws.rename_note("Alvo", "Meta").unwrap();
+    assert_eq!(r.path, "Meta.md");
+    assert_eq!(plan_of(&r), vec![("Y.md", "[[Meta]]\n")]);
+    assert_eq!(
+        r.skipped
+            .iter()
+            .map(|s| (s.path.as_str(), s.reason))
+            .collect::<Vec<_>>(),
+        vec![("X.md", SkipReason::Unavailable)]
+    );
+    assert!(exists(vault.path(), "Meta.md") && !exists(vault.path(), "Alvo.md"));
+    // The evicted note kept its last known version, whose link now points
+    // at the old name like the one the plan could not touch.
+    apply(&mut ws, &r);
+    assert_eq!(ws.backlinks("Meta").unwrap().unwrap().len(), 1);
+    assert_eq!(ws.is_unverified("X").unwrap(), Some(true));
+    let unresolved = ws.unresolved().unwrap();
+    assert_eq!(
+        (unresolved[0].target.as_str(), unresolved[0].count),
+        ("Alvo", 1)
+    );
+    // A retry is what it is: the source is gone.
+    assert!(matches!(
+        ws.rename_note("Alvo", "Meta"),
+        Err(CoreError::Write(_))
+    ));
+
+    // The index directory cannot take the sidecar: the move is answered,
+    // with the sidecar failure as a warning.
+    let index_dir = ws.index_path().parent().unwrap().to_path_buf();
+    let chmod = |mode: &str| {
+        assert!(
+            std::process::Command::new("chmod")
+                .arg(mode)
+                .arg(&index_dir)
+                .status()
+                .unwrap()
+                .success()
+        );
+    };
+    chmod("500");
+    let r = ws.rename_entry("mapa.png", "mapa2.png");
+    chmod("700");
+    let r = r.unwrap();
+    assert_eq!(r.path, "mapa2.png");
+    assert!(
+        r.warnings.iter().any(|w| w.contains("sidecar")),
+        "{:?}",
+        r.warnings
+    );
+    assert!(exists(vault.path(), "mapa2.png"));
 }
 
 #[test]
@@ -507,15 +992,16 @@ fn any_entry_is_listed_with_size_and_date_renamed_with_a_plan_and_trashed() {
     let _origem = note(
         vault.path(),
         "Origem.md",
-        "[[pasta/Alvo]] [[Alvo]] ![[mapa.png]]\n",
+        "[[pasta/Alvo]] [[Alvo]] ![[mapa.png]] ![[pasta/planta.png]]\n",
     );
     let _mapa = note(vault.path(), "mapa.png", "png");
     let _pasta = subdir(vault.path(), "pasta");
+    let _planta = note(&vault.path().join("pasta"), "planta.png", "png");
     let _alvo = note(&vault.path().join("pasta"), "Alvo.md", "# Alvo\n");
     let _irmao = note(
         &vault.path().join("pasta"),
         "Irmão.md",
-        "[[Alvo]] [[pasta/Alvo]]\n",
+        "[[Alvo]] [[pasta/Alvo]] ![[planta.png]]\n",
     );
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     ws.index().unwrap();
@@ -532,63 +1018,138 @@ fn any_entry_is_listed_with_size_and_date_renamed_with_a_plan_and_trashed() {
     assert!(of("Origem.md").len > 0 && of("Origem.md").modified > 0);
 
     // A folder moves with everything under it; the notes that linked by
-    // path to a note inside get a plan, read at their new paths; a bare
-    // name is left alone.
+    // path to a note or an attachment inside get a plan, read at their
+    // new paths; a bare name that still reaches its target is left alone.
     let renamed = ws.rename_entry("pasta", "nova").unwrap();
     assert_eq!(renamed.path, "nova");
+    assert!(
+        renamed.skipped.is_empty() && renamed.warnings.is_empty(),
+        "{renamed:?}"
+    );
     assert!(ws.read_note("nova/Alvo").is_ok());
     assert!(ws.read_note("pasta/Alvo").is_err());
-    let plan: Vec<(&str, &str)> = renamed
-        .rewrites
-        .iter()
-        .map(|r| (r.path.as_str(), r.after.as_str()))
-        .collect();
     assert_eq!(
-        plan,
+        plan_of(&renamed),
         [
-            ("Origem.md", "[[nova/Alvo]] [[Alvo]] ![[mapa.png]]\n"),
-            ("nova/Irmão.md", "[[Alvo]] [[nova/Alvo]]\n"),
-        ],
-        "{plan:?}"
+            (
+                "Origem.md",
+                "[[nova/Alvo]] [[Alvo]] ![[mapa.png]] ![[nova/planta.png]]\n"
+            ),
+            ("nova/Irmão.md", "[[Alvo]] [[nova/Alvo]] ![[planta.png]]\n"),
+        ]
     );
     assert!(ws.folders().contains(&"nova".to_owned()));
     assert!(!ws.folders().contains(&"pasta".to_owned()));
-    for w in &renamed.rewrites {
-        ws.write_note(&w.path, &w.after, &w.revision).unwrap();
-    }
+    apply(&mut ws, &renamed);
 
-    // An attachment: the embeds that name it are found and rewritten; a
-    // bare name stays bare (the file still resolves by name).
+    // An attachment: the embeds that reached it are rewritten; a bare
+    // name stays bare when the file still resolves by name.
     let renamed = ws.rename_entry("mapa.png", "img/mapa2.png").unwrap();
     assert_eq!(renamed.path, "img/mapa2.png");
     assert_eq!(
-        renamed
-            .rewrites
-            .iter()
-            .map(|r| (r.path.as_str(), r.after.as_str()))
-            .collect::<Vec<_>>(),
-        [("Origem.md", "[[nova/Alvo]] [[Alvo]] ![[mapa2.png]]\n")]
+        plan_of(&renamed),
+        [(
+            "Origem.md",
+            "[[nova/Alvo]] [[Alvo]] ![[mapa2.png]] ![[nova/planta.png]]\n"
+        )]
     );
     assert_eq!(
-        ws.resolve_file("mapa2.png").as_deref(),
+        ws.resolve_file("Origem.md", "mapa2.png").as_deref(),
         Some("img/mapa2.png")
     );
-    assert!(ws.resolve_file("mapa.png").is_none());
+    assert!(ws.resolve_file("Origem.md", "mapa.png").is_none());
 
-    // A note by the same door, `.md` optional, goes through `rename_note`.
-    let renamed = ws.rename_entry("nova/Irmão", "nova/Irmã").unwrap();
+    // A note by the same door goes through `rename_note`.
+    let renamed = ws.rename_entry("nova/Irmão.md", "nova/Irmã.md").unwrap();
     assert_eq!(renamed.path, "nova/Irmã.md");
 
     // The bin takes a folder whole, and a file; the index forgets them.
-    assert_eq!(ws.delete_entry("nova").unwrap(), ".trash/nova");
+    let gone = ws.delete_entry("nova").unwrap();
+    assert_eq!(gone.path, ".trash/nova");
+    assert!(gone.warnings.is_empty(), "{gone:?}");
     assert!(ws.notes().unwrap().iter().all(|p| !p.starts_with("nova/")));
     assert!(!ws.folders().contains(&"nova".to_owned()));
     assert_eq!(
-        ws.delete_entry("img/mapa2.png").unwrap(),
+        ws.delete_entry("img/mapa2.png").unwrap().path,
         ".trash/img/mapa2.png"
     );
     assert!(ws.files().is_empty());
     assert_eq!(ws.index().unwrap().removed, 0);
+}
+
+/// A file beside a note of the same stem is its own entry: a file
+/// operation on `README` never reaches `README.md`.
+#[test]
+fn a_file_beside_a_note_of_the_same_stem_is_its_own_entry() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _readme = note(vault.path(), "README", "plain file\n");
+    let _readme_md = note(vault.path(), "README.md", "# the note\n");
+    let _todo = note(vault.path(), "TODO", "plain\n");
+    let _todo_md = note(vault.path(), "TODO.md", "# todo note\n");
+    let _dados = note(vault.path(), "dados", "d\n");
+    let _dados_md = note(vault.path(), "dados.md", "# dados\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(ws.delete_entry("README").unwrap().path, ".trash/README");
+    assert!(exists(vault.path(), "README.md") && !exists(vault.path(), "README"));
+    assert_eq!(ws.rename_entry("TODO", "FEITO").unwrap().path, "FEITO");
+    assert!(exists(vault.path(), "TODO.md") && exists(vault.path(), "FEITO"));
+    let plain = ws.read_text("dados").unwrap();
+    assert_eq!(plain.text, "d\n");
+    let written = ws.write_text("dados", "e\n", &plain.revision).unwrap();
+    assert_eq!(written.path, "dados");
+    assert_eq!(on_disk(vault.path(), "dados.md"), b"# dados\n");
+    assert_eq!(
+        ws.notes().unwrap(),
+        vec!["README.md", "TODO.md", "dados.md"]
+    );
+}
+
+/// A folder move keeps what the index knew of an evicted note (ADR 0043
+/// decision 2), and an evicted attachment is present, not absent.
+#[test]
+fn a_folder_move_keeps_the_last_known_version_of_an_evicted_note() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let pasta = subdir(vault.path(), "pasta");
+    let img = subdir(vault.path(), "img");
+    let x = note(pasta.path(), "X.md", "palavraunica [[Alvo]]\n");
+    let _alvo = note(vault.path(), "Alvo.md", "# Alvo\n");
+    let _n = note(vault.path(), "N.md", "![[mapa.png]]\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    drop(x);
+    let _evicted = note(pasta.path(), ".X.md.icloud", "<plist/>");
+    let _evicted_png = note(img.path(), ".mapa.png.icloud", "<plist/>");
+    let r = ws.index().unwrap();
+    assert_eq!((r.placeholders, r.removed), (2, 0), "{r:?}");
+    assert_eq!(ws.search("palavraunica", 10).unwrap().len(), 1);
+
+    let r = ws.rename_entry("pasta", "nova").unwrap();
+    assert_eq!(r.path, "nova");
+    assert_eq!(ws.notes().unwrap(), vec!["Alvo.md", "N.md", "nova/X.md"]);
+    assert_eq!(ws.search("palavraunica", 10).unwrap()[0].path, "nova/X.md");
+    assert_eq!(ws.is_unverified("nova/X").unwrap(), Some(true));
+    assert_eq!(ws.backlinks("Alvo").unwrap().unwrap()[0].from, "nova/X.md");
+    // The moved placeholder could not be read for the plan, and says so.
+    assert_eq!(
+        r.skipped
+            .iter()
+            .map(|s| (s.path.as_str(), s.reason))
+            .collect::<Vec<_>>(),
+        vec![("nova/X.md", SkipReason::Unavailable)]
+    );
+
+    // The evicted attachment resolves, and reading it says unavailable.
+    assert_eq!(
+        ws.resolve_file("N.md", "mapa.png").as_deref(),
+        Some("img/mapa.png")
+    );
+    assert!(matches!(
+        ws.read_file("img/mapa.png"),
+        Err(CoreError::Read(verso_fs::ReadError::Unavailable))
+    ));
 }
 
 #[test]
@@ -607,6 +1168,10 @@ fn any_text_file_is_read_and_written_over_its_revision() {
         .unwrap();
     assert_eq!(written.text, "{\"a\": 2}\n");
     assert_ne!(written.revision, read.revision);
+    assert_eq!(
+        ws.read_text("dados.json").unwrap().revision,
+        written.revision
+    );
     // The old revision no longer describes the file: refused, unchanged.
     assert!(matches!(
         ws.write_text("dados.json", "{}", &read.revision),
@@ -615,9 +1180,68 @@ fn any_text_file_is_read_and_written_over_its_revision() {
     assert_eq!(ws.read_text("dados.json").unwrap().text, "{\"a\": 2}\n");
     // A note by this door is indexed like any note.
     let nota = ws.read_text("Nota.md").unwrap();
-    ws.write_text("Nota", "# Nota\n\n[[Alvo]]\n", &nota.revision)
+    ws.write_text("Nota.md", "# Nota\n\n[[Alvo]]\n", &nota.revision)
         .unwrap();
     assert_eq!(ws.links("Nota").unwrap().unwrap().len(), 1);
+}
+
+/// A symlink's target is named relative to the folder, or only as
+/// outside it: no absolute path crosses (ADR 0026 rule 4).
+#[cfg(unix)]
+#[test]
+fn a_write_through_a_symlink_names_the_target_without_a_path_outside() {
+    // The links are made by `ln`: this crate's lint keeps disk access in
+    // verso-fs (ADR 0026 rule 5), and a fixture is no reason for an
+    // `#[allow]`.
+    let symlink = |target: &Path, at: &Path| {
+        let made = std::process::Command::new("ln")
+            .arg("-s")
+            .arg(target)
+            .arg(at)
+            .status()
+            .unwrap()
+            .success();
+        assert!(made, "ln -s {} {}", target.display(), at.display());
+    };
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let _real = note(outside.path(), "Real.md", "# real\n");
+    let _inside = note(vault.path(), "Dentro.md", "# dentro\n");
+    symlink(
+        &outside.path().join("Real.md"),
+        &vault.path().join("Fora.md"),
+    );
+    symlink(
+        &vault.path().join("Dentro.md"),
+        &vault.path().join("Atalho.md"),
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let n = ws.read_note("Fora").unwrap();
+    let w = ws.write_note("Fora", "# changed\n", &n.revision).unwrap();
+    let outside_str = outside.path().to_string_lossy().into_owned();
+    assert!(
+        w.warnings.iter().any(|l| l.contains("outside the folder")),
+        "{:?}",
+        w.warnings
+    );
+    assert!(
+        w.warnings
+            .iter()
+            .all(|l| !l.contains(&outside_str) && !l.contains("/")),
+        "{:?}",
+        w.warnings
+    );
+    let n = ws.read_note("Atalho").unwrap();
+    let w = ws.write_note("Atalho", "# changed\n", &n.revision).unwrap();
+    assert!(
+        w.warnings
+            .iter()
+            .any(|l| l == "written through a symlink to Dentro.md"),
+        "{:?}",
+        w.warnings
+    );
 }
 
 #[test]

@@ -82,6 +82,15 @@ pub fn relative_key(source: &str, target: &str) -> Option<String> {
     Some(key)
 }
 
+/// The key of a file's name or path, for a file that is not a note (an
+/// attachment an embed names): NFC and lower case, the extension kept —
+/// `img/Mapa.PNG` and `img/mapa.png` are one file to a link (spec Q12
+/// applies the same rule to embeds).
+#[must_use]
+pub fn file_key(s: &str) -> String {
+    fold(s)
+}
+
 /// `s` without a final `.md`, in any case. The cut is at a byte offset,
 /// so it is only taken when that offset is a character boundary: a name
 /// that ends in a multi-byte character (`Bar 🍻`) is not `.md` and must

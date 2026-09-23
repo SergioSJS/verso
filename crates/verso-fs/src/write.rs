@@ -24,6 +24,9 @@ use crate::{Handle, Stamp, fnv1a, placeholder};
 #[derive(Debug)]
 pub enum WriteError {
     UnknownHandle(Handle),
+    /// The path cannot name a file of the folder (`create`, `create_dir`,
+    /// `rename`, `trash` take a path, not a handle).
+    Confined(crate::ConfinementError),
     /// The file on disk is not the one that was read: modified time,
     /// length or content hash differ from `expected`. The caller shows the
     /// diff (invariant 11); nothing was written.
@@ -42,6 +45,7 @@ impl std::fmt::Display for WriteError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UnknownHandle(h) => write!(f, "unknown handle {h:?}"),
+            Self::Confined(e) => write!(f, "{e}"),
             Self::Changed { .. } => write!(f, "the file on disk changed since it was read"),
             Self::Exists => write!(f, "something already stands at the destination"),
             Self::Placeholder => write!(f, "placeholder: content not available, not written"),
@@ -270,13 +274,13 @@ fn same_owner(original: &std::fs::Metadata, new: &std::fs::Metadata) -> bool {
 /// says so itself with `MNT_LOCAL` absent from the mount flags, whatever
 /// the file system is called. Elsewhere `None`, recorded as not detected.
 #[cfg(target_os = "macos")]
-fn network_fs(dir: &Path) -> Option<String> {
+pub(crate) fn network_fs(dir: &Path) -> Option<String> {
     let stat = nix::sys::statfs::statfs(dir).ok()?;
     let local = stat.flags().contains(nix::mount::MntFlags::MNT_LOCAL);
     (!local).then(|| stat.filesystem_type_name().to_owned())
 }
 
 #[cfg(not(target_os = "macos"))]
-fn network_fs(_dir: &Path) -> Option<String> {
+pub(crate) fn network_fs(_dir: &Path) -> Option<String> {
     None
 }

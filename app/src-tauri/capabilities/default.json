@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "The app's own views — the main window and the notes popped out of it — and nothing else: the core's commands, the native folder picker (the entry edge, ADR 0026 rule 4) and window focus. Listed by web view, not by window, so a web page shown inside a window (a child view labelled web-*) gets none of it. No fs plugin: notes are reached only through verso-core.",
+  "description": "The app's own views — the main window and the notes popped out of it — and nothing else: the core's commands and window focus. Listed by web view, not by window, so a web page shown inside a window (a child view labelled web-*) gets none of it. No fs plugin and no dialog permission: notes are reached only through verso-core, and the native folder picker runs on the host's side (pick_folder), so no path ever reaches the UI (ADR 0026 rule 4).",
   "webviews": [
     "main",
     "note-*"
@@ -8,8 +8,9 @@
   "permissions": [
     "core:default",
     "core:window:allow-set-focus",
-    "dialog:allow-open",
-    "allow-open-folder",
+    "allow-pick-folder",
+    "allow-reopen-folder",
+    "allow-open-initial",
     "allow-list-notes",
     "allow-read-note",
     "allow-search",
@@ -29,7 +30,6 @@
     "allow-list-entries",
     "allow-list-web-notes",
     "allow-graph",
-    "allow-initial-folder",
     "allow-current-folder",
     "allow-open-window",
     "allow-popout-target",

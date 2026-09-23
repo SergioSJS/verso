@@ -7,13 +7,52 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 /** Commands */
 export const commands = {
 	/**
-	 *  Open a folder and bring its index up to date. The one command that
-	 *  takes a path to a folder: the entry edge.
+	 *  Run the native folder picker and open what the user chose: the entry
+	 *  edge, on this side of the contract (rule 4). `None` when the picker
+	 *  was cancelled. The picker and the indexing run off the event loop.
 	 */
-	openFolder: (path: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("open_folder", { path })),
+	pickFolder: () => typedError<{
+	/**  The folder's own name (its last path component), for display. */
+	name: string,
+	/**
+	 *  An opaque, stable name for the folder that carries no path — the
+	 *  stem of its index file's name under the configuration directory:
+	 *  letters, digits and `-`. What a UI keeps its per-folder state
+	 *  under, and what `reopen_folder` takes to open the folder again.
+	 */
+	key: string,
+	index: IndexSummary,
+} | null, ContractError>(__TAURI_INVOKE("pick_folder")),
+	/**
+	 *  Open again a folder opened before, by the key `FolderInfo` carried:
+	 *  `refused` when the key is not one this app issues (so it can never
+	 *  name a path), `not_found` when no folder opened before has it or the
+	 *  folder is gone.
+	 */
+	reopenFolder: (key: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("reopen_folder", { key })),
+	/**
+	 *  Open, once, the folder named on the command line (`verso-app
+	 *  <folder>`); `None` afterwards and when there was none. The UI calls it
+	 *  at start-up, before falling back to the last folder it remembers.
+	 */
+	openInitial: () => typedError<{
+	/**  The folder's own name (its last path component), for display. */
+	name: string,
+	/**
+	 *  An opaque, stable name for the folder that carries no path — the
+	 *  stem of its index file's name under the configuration directory:
+	 *  letters, digits and `-`. What a UI keeps its per-folder state
+	 *  under, and what `reopen_folder` takes to open the folder again.
+	 */
+	key: string,
+	index: IndexSummary,
+} | null, ContractError>(__TAURI_INVOKE("open_initial")),
 	/**  Every note the index knows, by path relative to the folder. */
 	listNotes: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_notes")),
-	/**  A note's text as it is on disk, with what the index knows of it. */
+	/**
+	 *  A note's text as it is on disk, with what the index knows of it;
+	 *  `not_text` when its bytes are not UTF-8.
+	 */
 	readNote: (path: string) => typedError<NoteText, ContractError>(__TAURI_INVOKE("read_note", { path })),
 	/**  Full-text search: every word must occur, accents and case ignored. */
 	search: (words: string, limit: number) => typedError<Hit[], ContractError>(__TAURI_INVOKE("search", { words, limit })),
@@ -25,6 +64,7 @@ export const commands = {
 	 *  Write a note's text over the revision that was read — atomically, no
 	 *  normalization — and index it. `changed` when the file moved on
 	 *  meanwhile: nothing written, read again and show the diff (invariant 11).
+	 *  The answer is the text that was sent, with the revision of those bytes.
 	 */
 	writeNote: (path: string, text: string, revision: string) => typedError<Written, ContractError>(__TAURI_INVOKE("write_note", { path, text, revision })),
 	/**
@@ -40,19 +80,25 @@ export const commands = {
 	createFile: (path: string, base64: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_file", { path, base64 })),
 	/**  Create a folder inside the open folder; returns its confined path. */
 	createFolder: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("create_folder", { path })),
-	/**  Move a note to `.trash/` at the root, Obsidian's bin; returns where. */
-	deleteNote: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("delete_note", { path })),
 	/**
-	 *  Rename or move a note. The file moves; the notes that link to it come
-	 *  back as rewrites — before, after, revision — for the UI to show and
-	 *  apply through `write_note` (ADR 0048, option (b)).
+	 *  Move a note to `.trash/` at the root, Obsidian's bin; answers where it
+	 *  went, with what could not be confirmed once it was there.
+	 */
+	deleteNote: (path: string) => typedError<Trashed, ContractError>(__TAURI_INVOKE("delete_note", { path })),
+	/**
+	 *  Rename or move a note. The file moves; the notes whose links reached
+	 *  it come back as rewrites — before, after, revision — for the UI to
+	 *  show and apply through `write_note` (ADR 0048, option (b)); the ones
+	 *  that could not be planned are listed as skipped.
 	 */
 	renameNote: (from: string, to: string) => typedError<Renamed, ContractError>(__TAURI_INVOKE("rename_note", { from, to })),
 	/**
-	 *  The file an embed names (`![[mapa.png]]`), relative to the folder, or
-	 *  none. The UI then loads it through the `verso://` protocol below.
+	 *  The file an embed written in the note at `source` names
+	 *  (`![[mapa.png]]`), relative to the folder, or none — by the rule of
+	 *  spec Q12 applied to files: from the note's own folder first. The UI
+	 *  then loads it through the `verso://` protocol below.
 	 */
-	resolveAttachment: (target: string) => typedError<string | null, ContractError>(__TAURI_INVOKE("resolve_attachment", { target })),
+	resolveAttachment: (source: string, target: string) => typedError<string | null, ContractError>(__TAURI_INVOKE("resolve_attachment", { source, target })),
 	/**  Every regular file of the folder that is not a note, for the tree. */
 	listFiles: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_files")),
 	/**  Every folder of the open folder, empty ones included, for the tree. */
@@ -61,7 +107,8 @@ export const commands = {
 	listTags: () => typedError<Tag[], ContractError>(__TAURI_INVOKE("list_tags")),
 	/**
 	 *  The bytes of a text file that is not a note (UTF-8, lossily), for
-	 *  viewing; confined like every path.
+	 *  viewing only — never for an editor, which reads through `read_text`;
+	 *  confined like every path.
 	 */
 	readFileText: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("read_file_text", { path })),
 	/**
@@ -74,15 +121,21 @@ export const commands = {
 	/**  Every resolved link of the vault: the graph of the whole folder. */
 	graph: () => typedError<Edge[], ContractError>(__TAURI_INVOKE("graph")),
 	/**
-	 *  The folder the command line asked for, once; `None` afterwards and
-	 *  when there was none. The UI opens it instead of the last folder.
+	 *  The folder that is open, for a window that joins the session (a note
+	 *  in a window of its own) and for a reload: `None` when none is.
 	 */
-	initialFolder: () => typedError<string | null, ContractError>(__TAURI_INVOKE("initial_folder")),
+	currentFolder: () => typedError<{
+	/**  The folder's own name (its last path component), for display. */
+	name: string,
 	/**
-	 *  The folder that is open, for a window that joins the session (a
-	 *  note in a window of its own): it must not open the folder again.
+	 *  An opaque, stable name for the folder that carries no path — the
+	 *  stem of its index file's name under the configuration directory:
+	 *  letters, digits and `-`. What a UI keeps its per-folder state
+	 *  under, and what `reopen_folder` takes to open the folder again.
 	 */
-	currentFolder: () => typedError<string | null, ContractError>(__TAURI_INVOKE("current_folder")),
+	key: string,
+	index: IndexSummary,
+} | null, ContractError>(__TAURI_INVOKE("current_folder")),
 	/**
 	 *  A note in a window of its own: the same UI, which asks which note
 	 *  by its window's label.
@@ -124,12 +177,13 @@ export const commands = {
 	webUrl: (label: string) => typedError<string, ContractError>(__TAURI_INVOKE("web_url", { label })),
 	/**
 	 *  Any file as text with its revision, for the editor of files that are
-	 *  not notes.
+	 *  not notes; `not_text` when its bytes are not UTF-8.
 	 */
 	readText: (path: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("read_text", { path })),
 	/**
 	 *  Write any file's text over the revision that was read; a changed file
-	 *  is refused (invariant 11) and the UI shows the difference.
+	 *  is refused (invariant 11) and the UI shows the difference. The answer
+	 *  is the text that was sent, with the revision of those bytes.
 	 */
 	writeText: (path: string, text: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_text", { path, text, revision })),
 	/**
@@ -140,9 +194,9 @@ export const commands = {
 	renameEntry: (from: string, to: string) => typedError<Renamed, ContractError>(__TAURI_INVOKE("rename_entry", { from, to })),
 	/**
 	 *  Move anything of the folder — a file or a whole folder — to `.trash/`
-	 *  at the root; returns where.
+	 *  at the root; answers where it went.
 	 */
-	deleteEntry: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("delete_entry", { path })),
+	deleteEntry: (path: string) => typedError<Trashed, ContractError>(__TAURI_INVOKE("delete_entry", { path })),
 	/**
 	 *  Show an entry in the system's file manager. The absolute path is
 	 *  formed here, at the edge, and goes to the operating system only; it
@@ -192,13 +246,19 @@ export type ErrorKind =
 "no_folder" | 
 /**
  *  The path cannot name a note of the folder (absolute, `..`, hidden,
- *  ignored, empty).
+ *  ignored, empty); a folder key that is not one; a folder switch
+ *  from a window that may not, or while a note window is open.
  */
 "refused" | 
-/**  No such file. */
+/**  No such file; no folder opened before has this key. */
 "not_found" | 
 /**  A placeholder: present, content not downloaded (ADR 0043). */
 "unavailable" | 
+/**
+ *  The file's bytes are not UTF-8: no text to edit (spec Q25 is
+ *  `[OPEN]`; this is the least that keeps the file safe).
+ */
+"not_text" | 
 /**
  *  The file on disk is not the one that was read: nothing was
  *  written; read again and show both versions (invariant 11).
@@ -231,8 +291,15 @@ export type FileKind = "note" | "file" | "folder" |
 
 /**  The folder that is open, and what indexing it did. */
 export type FolderInfo = {
-	/**  Absolute, normalized: the one path string that crosses (rule 4). */
-	folder: string,
+	/**  The folder's own name (its last path component), for display. */
+	name: string,
+	/**
+	 *  An opaque, stable name for the folder that carries no path — the
+	 *  stem of its index file's name under the configuration directory:
+	 *  letters, digits and `-`. What a UI keeps its per-folder state
+	 *  under, and what `reopen_folder` takes to open the folder again.
+	 */
+	key: string,
 	index: IndexSummary,
 };
 
@@ -259,7 +326,11 @@ export type IndexSummary = {
 	unchanged: number,
 	removed: number,
 	placeholders: number,
-	/**  Problems the walk met, one line each, for the UI to show. */
+	/**
+	 *  Problems the walk met and what the run could not do besides
+	 *  indexing, one readable line each with paths relative to the
+	 *  folder, for the UI to show.
+	 */
 	problems: string[],
 };
 
@@ -278,9 +349,9 @@ export type Link = {
 };
 
 /**
- *  A note that links to a renamed note: its text before and after the
- *  links are pointed at the new name, with the revision `write_note`
- *  takes back. Shown, then applied, one note at a time (ADR 0048).
+ *  A note that links to what moved: its text before and after the links
+ *  are pointed at the new place, with the revision `write_note` takes
+ *  back. Shown, then applied, one note at a time (ADR 0048).
  */
 export type LinkRewrite = {
 	path: string,
@@ -308,7 +379,8 @@ export type NoteText = {
 	properties: Property[],
 	/**
 	 *  The whole text as read, line endings included: what the editor
-	 *  gives back is written as is, no normalization (ADR 0012).
+	 *  gives back is written as is, no normalization (ADR 0012). A file
+	 *  whose bytes are not UTF-8 gives no text at all (`not_text`).
 	 */
 	text: string,
 	/**
@@ -341,14 +413,48 @@ export type Property = {
  *  panel that shows a list as pills and a boolean as a checkbox. A number
  *  crosses as its text, so the panel shows what was written.
  */
-export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; value: string } | { kind: "checkbox"; value: boolean } | { kind: "list"; value: string[] } | 
+export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; value: string } | { kind: "checkbox"; value: boolean } | 
+/**  A list of plain strings; any other list is `Nested`. */
+{ kind: "list"; value: string[] } | 
+/**
+ *  A mapping, or a list with an item that is not a plain string,
+ *  flattened to one line: shown, never edited by the panel — written
+ *  back as text it would change type.
+ */
+{ kind: "nested"; value: string } | 
 /**  `key:` with nothing after it (YAML null). */
 { kind: "empty" };
 
-/**  What a rename left: the new path, and the rewrites it calls for. */
+/**
+ *  What a rename or a move left: the new path, the rewrites it calls for,
+ *  the notes it could not plan, and what could not be confirmed once the
+ *  entry had moved (a durability step, the index following, the
+ *  sidecar), one line each. The move happened whenever this is answered.
+ */
 export type Renamed = {
 	path: string,
 	rewrites: LinkRewrite[],
+	skipped: Skipped[],
+	warnings: string[],
+};
+
+/**  Why a note that links to what moved got no rewrite. */
+export type SkipReason = 
+/**  A placeholder: present, content not downloaded (ADR 0043). */
+"unavailable" | 
+/**  Not UTF-8: no text can be rewritten without loss. */
+"not_text" | 
+/**  Could not be read; the error is among the warnings. */
+"failed";
+
+/**
+ *  A note the plan could not cover: it links to what moved, and its links
+ *  may now point elsewhere or nowhere, but no rewrite could be made. The
+ *  UI lists them.
+ */
+export type Skipped = {
+	path: string,
+	reason: SkipReason,
 };
 
 /**  A tag and the notes that carry it. */
@@ -369,6 +475,15 @@ export type TextFile = {
 	warnings: string[],
 };
 
+/**
+ *  What a deletion left: where the entry went in `.trash/`, and what
+ *  could not be confirmed once it was there, one line each.
+ */
+export type Trashed = {
+	path: string,
+	warnings: string[],
+};
+
 /**  A note that is a web page: its path and the address in its `url`. */
 export type WebNote = {
 	path: string,
@@ -376,10 +491,12 @@ export type WebNote = {
 };
 
 /**
- *  What a write left behind: the note as it now is, and what the atomic
- *  write could not guarantee, one line each (permissions, owner, extended
- *  attributes, hard links, network file system, durability). None means
- *  the content was lost; all are for the user to see.
+ *  What a write left behind: the note as written — the text that was
+ *  sent, with the revision of those very bytes, never a re-read — and
+ *  what the atomic write could not guarantee, one line each (permissions,
+ *  owner, extended attributes, hard links, network file system,
+ *  durability). None means the content was lost; all are for the user
+ *  to see.
  */
 export type Written = {
 	note: NoteText,
