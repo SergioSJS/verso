@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.15
+# Verso dialect spec — v0.16
 
-- Version: v0.15 · 2026-09-23
+- Version: v0.16 · 2026-09-23
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -609,23 +609,28 @@ Raised while writing this spec. All of them need an answer before
   keeps it when a nested list follows.
 - **Q4. Uniqueness scope of the `^id`.** `[OPEN]`
   Unique per file or per folder; what to do with a duplicate (section 5.7).
-- **Q5. Callout coverage.** `[OPEN]`
+- **Q5. Callout coverage.** `DECIDED` for the reading view's kinds, fold and
+  title on 2026-09-23; `[OPEN]` for nesting.
   Recognized kinds, `-`/`+`, nesting (section 5.8).
 
-  **Provisional fact from the reading view, recorded on 2026-09-23, not an
-  answer to this question.** The reading view shows as a callout a blockquote
+  **Decided on 2026-09-23 by the maintainer, for the reading view**
+  (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as the code does it. The reading view shows as a callout a blockquote
   whose first line opens with `[!kind]`, `[!kind]+` or `[!kind]-`, for any
   kind, lower-cased; `+` and `-` are carried as a fold; with no title the
   kind's name, capitalized, is the title; a blockquote nested inside a
   callout stays a blockquote (`crates/verso-dialect/src/callouts.rs`). The
-  parser that feeds the index is unchanged. The maintainer decides; this line
-  only records what the code does in the meantime.
+  parser that feeds the index is unchanged. **Nesting stays `[OPEN]`**:
+  Obsidian's public documentation shows callouts nested inside callouts,
+  which the reading view keeps as blockquotes. The recommendation put to the
+  maintainer said the reading view follows Obsidian, which is not so for
+  nesting, so nesting is not taken as decided.
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
-  `[OPEN]` Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
+  `[OPEN]` for the index; `DECIDED` for the reading view on 2026-09-23.
+  Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
   inside a URL (section 5.9).
 
-  **Provisional fact from the reading view and the window, recorded on
-  2026-09-23, not an answer to this question.** The parser that feeds the index
+  **Decided on 2026-09-23 by the maintainer, for the reading view and the
+  window** (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as the code does it. The parser that feeds the index
   is unchanged, so whether a `[[…]]` inside a comment, embedded HTML or an
   indented block is a link is still what section 5.9 says of it. What changed
   is what the reading view shows: `%%…%%` is dropped from it, inline or across
@@ -634,8 +639,8 @@ Raised while writing this spec. All of them need an answer before
   index nor the reader. Embedded HTML reaches the page only through an
   allowlist the window applies (scripts, styles, frames, forms and event
   attributes are dropped), since a note from a shared folder is untrusted input
-  ([ADR 0045](../adr/0045-server-and-mcp-security.md)). The maintainer decides;
-  this line only records what the code does in the meantime.
+  ([ADR 0045](../adr/0045-server-and-mcp-security.md)). What the index counts
+  as a link in those contexts stays `[OPEN]`.
 - **Q7. Unicode normalization in name comparison.** `[OPEN]`
   NFC × NFD. APFS (macOS, the initial platform) preserves the form it receives
   and does a normalization-insensitive lookup; HFS+ forced NFD; Linux compares
@@ -671,8 +676,11 @@ Raised while writing this spec. All of them need an answer before
      target** (`[[#Heading]]`) is the note itself, and the note is then a
      source of its own backlinks.
   2. The rest is tried **as a path**, extension optional, case-insensitive,
-     compared after NFC: relative to the **source note's own folder**,
-     honouring `..`, and from the **root of the open folder**.
+     compared after NFC: first from the **root of the open folder**, then
+     relative to the **source note's own folder**, honouring `..`; a path
+     that begins with `./` or `../` is read relative to that folder only.
+     *(Order stated on 2026-09-23, below: the point did not say which came
+     first.)*
   3. If no path matches, the **bare name** is matched case-insensitively:
      first a candidate **under the source note's own folder**, at any depth —
      in it or in a folder inside it; otherwise the one with the **fewest path
@@ -707,21 +715,34 @@ Raised while writing this spec. All of them need an answer before
 
   **Embeds of files that are not notes, since `3340a3f`, recorded on
   2026-09-23.** They resolve by points 1 to 5 from the note that holds the
-  embed, "under" included since the amendment. The index and this resolution
-  try a path from the root before the same path relative to the source's
-  folder; point 2 does not say which comes first (`docs/review/phase-2.md` §6,
-  item 20).
+  embed, "under" included since the amendment.
+
+  **Point 2's order stated by the maintainer on 2026-09-23**
+  (`docs/review/phase-2.md` §6, item 20; the answer: *"a e b ok"*). The point
+  did not say whether a path is tried from the root or relative to the
+  source's folder first. The index and the embeds' resolution try the root
+  first, and so does Obsidian 1.13.7: from `verso-probe/a/src.md`,
+  `[[probe-sub/vpx]]` reached the root's `probe-sub/vpx.md`, not
+  `verso-probe/a/probe-sub/vpx.md`; from `verso-probe2/a/src.md`,
+  `[[sub2/rx]]` reached the root's `sub2/rx.md`, while `[[./sub2/rx]]` and
+  `[[../a/sub/rx]]` reached the notes under the source's folder
+  (`docs/reference/index-decision.md` §4.1, third and fourth observations). So
+  `![[img.png]]` in `a/` reaches a root `img.png` before `a/img.png` — a path
+  from the root answers before point 3 is reached — and `![[./img.png]]`
+  reaches `a/img.png`. Tests pin both in the index and in the embeds'
+  resolution.
 
   **Fact from `verso-fs`, unchanged by this closure.** The walk classifies a
   regular file as a note when its extension is exactly `md`; `.MD`, `.Md` and
   `.markdown` are plain files until Q8 is decided.
-- **Q13. Inline tags (`#tag` in the body).** `[OPEN]`
+- **Q13. Inline tags (`#tag` in the body).** `DECIDED` on 2026-09-23.
   The briefing only mentions `tags` in the frontmatter. Whether `#tag` in the
   body counts as a tag, and how it coexists with the `#` of a heading and with
   the `#` of a URL.
 
-  **Provisional fact from `verso-index` and the reading view, recorded on
-  2026-09-23, not an answer to this question.** The index's tag list counts a
+  **Decided on 2026-09-23 by the maintainer** (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as the index and
+  the reading view do it — recorded first, the same day, as provisional. The
+  index's tag list counts a
   `#` in the body as a tag when it opens the line or follows a space or a `(`,
   and is followed by letters, digits, `_`, `-` or `/` that are not all digits,
   and the tag is lower-cased. So the `#` of a
@@ -731,8 +752,7 @@ Raised while writing this spec. All of them need an answer before
   events and skips the frontmatter, code spans and code blocks (fenced or
   indented), raw HTML, link destinations and labels, image alt text, math and
   `%%` comments; before it, the index scanned raw lines and listed false tags. The
-  reading view shows such a tag as a link that searches it. The maintainer decides; this line
-  only records what the code does in the meantime.
+  reading view shows such a tag as a link that searches it.
 - **Q14. Link to a file that does not exist.** `[OPEN]`
   Whether it enters the index as a pending target, whether it appears in the
   graph, whether it counts as a backlink.
@@ -760,13 +780,14 @@ Raised while writing this spec. All of them need an answer before
   heading link as a missing file and puts an empty target at the head of the
   unresolved list of any folder that uses them. The maintainer decides; this
   line only records what the code does in the meantime.
-- **Q15. Markdown extensions outside the base.** `[OPEN]`
+- **Q15. Markdown extensions outside the base.** `DECIDED` for the reading view
+  on 2026-09-23; `[OPEN]` for the parser that feeds the index.
   Tables, footnotes, task lists, math, highlight `==texto==`, strikethrough.
   The briefing lists none; the choice of base parser
   ([ADR 0037](../adr/0037-base-parser.md)) changes what comes for free.
 
-  **Provisional fact from the reading view, recorded on 2026-09-23, not an
-  answer to this question.** The HTML the core renders for the window
+  **Decided on 2026-09-23 by the maintainer, for the reading view**
+  (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as the code does it. The HTML the core renders for the window
   (`verso_dialect::to_html`) shows all six, as Obsidian shows them by default:
   tables, footnotes — including Obsidian's inline form `^[text]`, rewritten
   into a referenced footnote before rendering —, task lists with checkboxes,
@@ -782,7 +803,8 @@ Raised while writing this spec. All of them need an answer before
   link labels and alt text are never rewritten, and a raw `</blockquote>` can no
   longer open or close a callout. Because the reader enables options the parser
   does not, `$[[x]]$` is a link to the index and math to the reader — a
-  disagreement recorded, not resolved.
+  disagreement recorded, not resolved. Whether the parser that feeds the index
+  enables these extensions, which would settle it, stays `[OPEN]`.
 - **Q16. Non-Markdown files in the folder.** `[OPEN]`
   Which ones enter the index as a link target (images, PDF, `.canvas`) and which
   ones are ignored.
@@ -886,22 +908,24 @@ the parser was chosen.
   a table cell, a whole callout, a code block, a heading with its content?
   Obsidian's public documentation describes its notion of it; the spec needs its
   own before Q3 and Q4 make sense.
-- **Q22. Charset of the `^id` and form of the tags.** `[OPEN]`
+- **Q22. Charset of the `^id` and form of the tags.** `DECIDED` for the tags'
+  charset and case on 2026-09-23; `[OPEN]` for the rest.
   Obsidian's public documentation restricts `^id` to letters, numbers and
   hyphen; what happens with an invalid `^id`. For tags (Q13): charset, nesting
   `#a/b`, case sensitivity, `#` prefix in frontmatter `tags`.
 
-  **Provisional fact, recorded on 2026-09-23, not an answer to this
-  question.** For tags, the charset and the case folding the code applies are
-  the ones recorded under Q13. The `^id` part is unchanged by the Phase 2
-  code.
+  **Decided on 2026-09-23 by the maintainer, for the tags** (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*): their
+  charset and case folding are the ones recorded under Q13. The `^id` part,
+  what `#a/b` means as a hierarchy, and a `#` prefix in the frontmatter's
+  `tags` stay `[OPEN]`.
 - **Q23. Combined forms and wikilink escapes.** `[OPEN]`
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` and `[[#^bloco]]`
   (same file — does it count as a backlink to itself?), `[[pasta/nota]]`,
   `[[nota.md]]`, `[[nota\|alias]]` in a table, `\[[não é link]]`, `[[ nota ]]`
   with spaces, `![[img.png|300]]` (size, not alias), `[[nota|alias|extra]]`,
   wikilink inside a Markdown link or an image.
-- **Q24. Frontmatter boundary and dialect.** `[OPEN]` (section 5.1)
+- **Q24. Frontmatter boundary and dialect.** `[OPEN]` (section 5.1); the
+  window's part `DECIDED` on 2026-09-23.
   BOM before the `---`; CRLF (invariant 7 requires preserving the line break
   "of the file" — which one, when there is a mix?); `---` closed by `...`; empty
   frontmatter; invalid YAML (part of Q17); YAML version — in 1.1 `yes`, `no`,
@@ -909,31 +933,34 @@ the parser was chosen.
   is `tags: 2024` a number or a tag?; wikilinks inside values
   (`related: "[[nota]]"`), which Obsidian Properties treat as links.
 
-  **Provisional fact from the window, recorded on 2026-09-23, not an answer to
-  this question.** The window's folded frontmatter and its properties panel
+  **Decided on 2026-09-23 by the maintainer, for the window** (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as
+  the code does it. The window's folded frontmatter and its properties panel
   find the frontmatter where the core finds it, by the rule of section 5.1 as
   the parser applies it; they used a looser rule of their own, which accepted
   `...` and trimmed the fences, until the Opus reading of 2026-09-23 found the
   two disagreeing. A value the panel cannot rewrite without changing its type —
   a mapping, a list with anything but plain text — is shown and not edited. A
   file whose line endings are mixed opens read-only in the window, so it is
-  never converted there. The maintainer decides; this line only records what
-  the code does in the meantime.
-- **Q25. Encoding.** `[OPEN]`
+  never converted there. The rest of the question — a BOM, `...`, the YAML
+  version, `tags: 2024`, wikilinks inside values — stays `[OPEN]`, and so does a
+  conversion of mixed line endings by the user's action, with the diff
+  (invariant 8), which the maintainer left for later
+  (`docs/review/phase-2.md` §6, item 23).
+- **Q25. Encoding.** `DECIDED` on 2026-09-23.
   A `.md` file that is not valid UTF-8 (Latin-1 from an old vault, UTF-16 with a
   BOM from Windows): error, text with replacement, or ignored. Separate from
   Q17 because encoding is not syntax.
 
-  **Provisional fact from `verso-core`, recorded on 2026-09-23, not an answer
-  to this question.** A file whose bytes are not valid UTF-8 is not opened for
+  **Decided on 2026-09-23 by the maintainer** (`docs/review/phase-2.md` §6,
+  item 4, with the recommendation to keep refusing; the answer: *"a e b ok"*),
+  as the code does it. A file whose bytes are not valid UTF-8 is not opened for
   editing: reading it for an editor answers `not_text`, so no editor holds a
   copy with replacement characters that a save would write back; a rename plan
   leaves such a note out and names it; `verso mcp` answers `not_text`. The
   index still decodes it with replacement, for search only, which writes
   nothing. Before this, the text was decoded with replacement and a save or a
   plan wrote the replacement characters back — the Opus reading of 2026-09-23
-  found it. The maintainer decides; this line only records what the code does
-  in the meantime.
+  found it.
 - **Q26. Paths ignored by the scan and their effect on backlinks.**
   `DECIDED` on 2026-09-22 by the maintainer, on the memo
   `docs/reference/fs-decision.md`; the rule itself lives in
@@ -965,3 +992,4 @@ the parser was chosen.
 | v0.13 | 2026-09-23 | Provisional facts recorded under Q12, Q13, Q15 and Q16, from the code of the Phase 2 branch: where the code departs from point 3 of Q12 ("under" the source's folder where point 3 says "in", which the maintainer has not settled), body tags, the Markdown extensions and line breaks the reading view renders, and the files that are not notes. The Q14 line on `[[#Heading]]` marked as superseded by Q12 point 1. No question closed |
 | v0.14 | 2026-09-23 | Provisional facts under Q6, Q12, Q13, Q15, Q16, Q24 and Q25 brought up to the code after the Opus reading of the Phase 2 branch: comments hidden and embedded HTML sanitized in the reading view, one tag rule for the index and the reader, embeds resolved by Q12 from their note, the window's frontmatter boundary, files that are not UTF-8 not opened for editing. No question closed |
 | v0.15 | 2026-09-23 | **Q12 point 3 amended by the maintainer**: a bare name prefers a candidate under the source note's folder, at any depth, as Obsidian 1.13.7 does (the third observation of `docs/reference/index-decision.md` §4.1); the index already did, and embeds of files now do too. Q12 stays closed |
+| v0.16 | 2026-09-23 | The maintainer's answers on the Phase 2 review (`docs/review/phase-2.md` §6, items 4 and 20): **Q13 and Q25 closed** as the code does them; Q5 (kinds, fold, title), Q6, Q15 and Q24 decided for the reading view and the window, with the index's part and the rest still open — Q5's nesting stays open because the reading view does not follow Obsidian there; Q22 decided for the tags' charset and case; **Q12 point 2's order stated**: a path from the root first, then relative to the source's folder, and `./` or `../` relative only, as Obsidian 1.13.7 does. Two questions closed, five in part |
