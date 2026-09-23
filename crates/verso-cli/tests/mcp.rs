@@ -401,3 +401,32 @@ fn a_placeholder_is_unavailable_and_an_edit_makes_read_note_stale() {
     assert_eq!(structured(&r)["stale"], false);
     session.close();
 }
+
+#[test]
+fn an_empty_note_answers_an_empty_window() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _vazia = note(vault.path(), "Vazia.md", "");
+    let mut session = Session::start(vault.path(), config.path());
+    session.requests(&initialize("2025-06-18"));
+    // No window asked: a note with no lines has no last line for `to_line`
+    // to default to, and that was refused as a window that made no sense.
+    let r = session.request(&call(2, "read_note", json!({"path":"Vazia"})));
+    assert_eq!(r["result"]["isError"], false, "{r:?}");
+    let n = structured(&r);
+    assert_eq!(n["line_count"], 0);
+    assert_eq!(n["lines"], json!([]));
+    assert_eq!(n["from_line"], 1);
+    assert_eq!(n["to_line"], 0);
+    assert_eq!(n["truncated"], false);
+    // A window that starts past the end is still refused, with the length.
+    let r = session.request(&call(3, "read_note", json!({"path":"Vazia","from_line":2})));
+    assert_eq!(structured(&r)["kind"], "bad_window", "{r:?}");
+    assert!(
+        structured(&r)["message"]
+            .as_str()
+            .unwrap()
+            .contains("0 lines")
+    );
+    session.close();
+}

@@ -359,9 +359,11 @@ impl Server {
         let line_count = text.lines.len();
         // The window as asked is checked before it is clamped, so an
         // empty answer is never given for a window that made no sense: a
-        // line 0, a start past the end, an end before the start.
+        // line 0, a start past the end, an end before the start. A note
+        // with no lines has no last line to default `to_line` to: it
+        // answers the empty window, `from_line` 1 and `to_line` 0.
         let from = p.from_line.unwrap_or(1);
-        let to_asked = p.to_line.unwrap_or(line_count);
+        let to_asked = p.to_line.unwrap_or(line_count.max(1));
         if from == 0 || p.to_line == Some(0) {
             return Err(refuse(
                 "bad_window",
