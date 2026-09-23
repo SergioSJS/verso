@@ -42,7 +42,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0042](0042-open-from-command-line.md) | Abrir pela linha de comando: `verso <pasta>` | Aceito |
 | [0012](0012-files-are-source-of-truth.md) | Arquivos são a fonte de verdade; abrir nunca reescreve | Aceito |
 | [0013](0013-degrades-to-markdown.md) | Todo dado estruturado degrada para Markdown legível | Proposto |
-| [0014](0014-primitives-catalog.md) | Catálogo de primitivas do Verso | Proposto |
+| [0014](0014-primitives-catalog.md) | Catálogo de primitivas do Verso | Proposto (a nota do dia e os templates: Aceito) |
 | [0015](0015-schema-packs.md) | Packs de schema distribuíveis como conteúdo | Proposto |
 
 ### Plugins e LLM
@@ -73,6 +73,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0026](0026-core-ui-contract-inviolable-rules.md) | Contrato core↔UI e regras invioláveis de arquitetura | Aceito |
 | [0027](0027-runtime-capabilities.md) | Capabilities consultáveis em runtime | Proposto |
 | [0028](0028-crate-structure.md) | Estrutura de crates | Aceito |
+| [0050](0050-outbound-network-access.md) | Acesso de saída à rede a partir da janela | Aceito (o padrão do ajuste: provisório) |
 
 ### Dialeto, engenharia e roadmap
 
@@ -86,7 +87,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0034](0034-roadmap-in-phases.md) | Roadmap em três fases com portões de saída verificáveis | Aceito |
 | [0035](0035-cross-cutting-requirements.md) | Requisitos transversais: pt-BR e EN, acessibilidade, benchmark | Aceito |
 | [0036](0036-tabletop-rpg-support.md) | Suporte especial a RPG de mesa | Aceito (intenção) |
-| [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito (seção 2: Proposto) |
+| [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito |
 
 ### Decisões técnicas em aberto
 
@@ -105,10 +106,10 @@ uma registra o que precisa ser respondido e quando.
 | # | Título | Quando decidir |
 |---|---|---|
 | [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Feature 2 da Fase 1 (symlinks, caminhos); feature 6 e item 2.1 (handles) |
-| [0045](0045-server-and-mcp-security.md) | Segurança do servidor, do MCP e do contrato | Feature 6 da Fase 1 (MCP); item 2.1 da Fase 2 (contrato) |
+| [0045](0045-server-and-mcp-security.md) | Segurança do servidor, do MCP e do contrato | MCP: Aceito; contrato: aceito como foi construído para a Fase 2, `[ABERTO]` até um servidor entrar em escopo; servidor: antes de entrar em escopo |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Índice: localização, ciclo de vida e tokenizador | Features 3 e 5 da Fase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Questões abertas da API de plugin | Antes de desenhar a API (depois da Fase 2) |
-| [0048](0048-file-operations-in-ui.md) | Operações de arquivo na UI: renomear, criar, excluir, mover | Item 2.3 da Fase 2 |
+| [0048](0048-file-operations-in-ui.md) | Operações de arquivo na UI: renomear, criar, excluir, mover | Aceito (2026-09-23) |
 
 ## Itens em aberto que não viraram ADR
 

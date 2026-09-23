@@ -12,7 +12,11 @@
   answers the atomic write requirements, recorded as provisional, from two
   readings of that code; 2026-09-22 — how the feature 3 code meets the FTS5
   guardrail, recorded as provisional, and extended after the reading of that
-  code with the control characters and the breadth of the test.
+  code with the control characters and the breadth of the test;
+  2026-09-23 — an npm license gate added at the maintainer's request, and the
+  generated-types check moved into the Linux Rust job so that a pull request
+  builds the Tauri tree once; the advisory and license exceptions of the Tauri
+  tree ratified (`docs/review/phase-2.md` §6, items 7 and 13).
 
 ## Context
 
@@ -51,6 +55,7 @@ it. The two groups are separated below.
 | Parameterized queries + escaping of the FTS5 syntax | search breaking with quotes and operators | Phase 1, feature 3 |
 | Benchmark with a synthetic vault | performance regression | Phase 1, feature 5 |
 | Check that the generated TS types are up to date | rule 3 of the contract turning into a convention ([0038](0038-ts-type-generation.md)) | Phase 2, item 2.1 |
+| npm license allowlist over the window's lockfile (`scripts/check-npm-licenses.mjs`): `deny.toml`'s list plus OFL-1.1, the fonts' license | a package the window bundles under a license the project cannot ship | Phase 2, at the maintainer's request of 2026-09-23 |
 
 CI on macOS and Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, plus the commands of the feature guardrails as they come in.
@@ -179,10 +184,17 @@ unchanged; this is what `verso-index` does.
 - The `cargo-deny` license allowlist follows [0005](0005-license.md)
   (MPL-2.0): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, MPL-2.0,
   Unicode-3.0 and CC0-1.0 go in; GPL, LGPL and AGPL stay out; any other one
-  only with justification in the PR. Closes in the PR of item 0.10.
+  only with justification in the PR. Closes in the PR of item 0.10. The
+  Tauri tree added `Apache-2.0 WITH LLVM-exception`, ratified by the
+  maintainer on 2026-09-23. Since that day the window's npm packages are held
+  to the same list plus OFL-1.1, read from the lockfile; the gate was seen
+  failing on a lockfile edited to carry GPL-3.0, no license, a file reference
+  and an `AND` inside an `OR`.
 - A new advisory turns CI red with no PR to blame. Policy: an exception in
   `deny.toml` only with justification, a link to the advisory and an expiry
-  date; an expired exception is red CI again. `Cargo.lock` is versioned.
+  date; an expired exception is red CI again. `Cargo.lock` is versioned. The
+  seven "unmaintained" notices of the Tauri tree, each with its link and an
+  expiry of 2026-12-31, were ratified by the maintainer on 2026-09-23.
 - `unwrap_used` denied outside tests changes how the code is written from the
   first PR on, not as a later refactor.
 - The benchmark is a guardrail with no target: the baseline exists, but

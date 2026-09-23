@@ -42,7 +42,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0042](0042-open-from-command-line.md) | Open from the command line: `verso <folder>` | Accepted |
 | [0012](0012-files-are-source-of-truth.md) | Files are the source of truth; opening never rewrites | Accepted |
 | [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Proposed |
-| [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed |
+| [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted) |
 | [0015](0015-schema-packs.md) | Schema packs distributable as content | Proposed |
 
 ### Plugins and LLM
@@ -73,6 +73,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0026](0026-core-ui-contract-inviolable-rules.md) | Core↔UI contract and inviolable architecture rules | Accepted |
 | [0027](0027-runtime-capabilities.md) | Capabilities queryable at runtime | Proposed |
 | [0028](0028-crate-structure.md) | Crate structure | Accepted |
+| [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted (the setting's default: provisional) |
 
 ### Dialect, engineering and roadmap
 
@@ -86,7 +87,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0034](0034-roadmap-in-phases.md) | Roadmap in three phases with verifiable exit gates | Accepted |
 | [0035](0035-cross-cutting-requirements.md) | Cross-cutting requirements: pt-BR and EN, accessibility, benchmark | Accepted |
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted (intent) |
-| [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted (section 2: Proposed) |
+| [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted |
 
 ### Open technical decisions
 
@@ -105,10 +106,10 @@ each one records what needs to be answered and when.
 | # | Title | When to decide |
 |---|---|---|
 | [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Feature 2 of Phase 1 (symlinks, paths); feature 6 and item 2.1 (handles) |
-| [0045](0045-server-and-mcp-security.md) | Security of the server, the MCP and the contract | Feature 6 of Phase 1 (MCP); item 2.1 of Phase 2 (contract) |
+| [0045](0045-server-and-mcp-security.md) | Security of the server, the MCP and the contract | MCP: Accepted; contract: accepted as built for Phase 2, `[OPEN]` until a server enters scope; server: before it enters scope |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Index: location, lifecycle and tokenizer | Features 3 and 5 of Phase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Open questions on the plugin API | Before designing the API (after Phase 2) |
-| [0048](0048-file-operations-in-ui.md) | File operations in the UI: rename, create, delete, move | Item 2.3 of Phase 2 |
+| [0048](0048-file-operations-in-ui.md) | File operations in the UI: rename, create, delete, move | Accepted (2026-09-23) |
 
 ## Open items that did not become ADRs
 

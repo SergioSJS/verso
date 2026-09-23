@@ -10,6 +10,8 @@
   2026-09-22 — the same record brought up to the code as it stands after the
   Opus 5 reading: two of those items rewritten where the code changed, five
   more added, all still **provisional**.
+  2026-09-23 — the sidecar's file mode: `0600`, by the maintainer's answer
+  (`docs/review/phase-2.md` §6, item 15).
 
 ## Context
 
@@ -180,6 +182,8 @@ are the sidecar and nothing else.
 `<key>.json` beside `<key>.sqlite`, with the folder, the time of the last run
 and the schema, and since the Opus reading of the Phase 2 branch a sidecar
 that cannot be written is a warning, not a failed run; the window reopens a
-folder by that key. Its file mode is whatever the umask gives (0644 observed),
-inside the 0700 directory; whether "file `0600`" above covers it is the
-maintainer's to say (`docs/review/phase-2.md` §6).
+folder by that key. Its file mode was whatever the umask gave (0644 observed),
+inside the 0700 directory. Asked whether "file `0600`" above covers it, the
+maintainer answered yes on 2026-09-23 (`docs/review/phase-2.md` §6, item 15):
+since `3a9764e` the sidecar is `0600`, set on its temporary before the
+rename.

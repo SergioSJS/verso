@@ -7,6 +7,9 @@
 - Revisões: 2026-09-22 — como o código da feature 4 cumpre "nenhuma string
   literal solta" registrado em Consequências, como **provisório**; a Decisão não
   muda (memo `docs/reference/cli-decision.md`).
+- Revisões: 2026-09-23 — como a janela da Fase 2 cumpre a decisão 1 registrado
+  em Consequências, a pedido do mantenedor (`docs/review/phase-2.md` §6, item
+  12); a Decisão não muda.
 
 ## Contexto
 
@@ -106,6 +109,22 @@ código faz, não uma decisão.
   `writeln!` num handle travado e a escrita para no primeiro erro, então
   `verso search … | head -1` termina com o código de saída do próprio comando
   em vez de um pânico por pipe quebrado.
+
+**O mecanismo da janela, registrado em 2026-09-23 a pedido do mantenedor**
+(`docs/review/phase-2.md` §6, item 12; a resposta: *"a e b ok"*):
+
+- **Um catálogo tipado.** Todo texto que a janela mostra vem de um catálogo só
+  em `app/ui/src/main.ts`: um objeto por idioma, cada um tipado como um registro
+  sobre uma união de chaves, então uma chave que falte em qualquer idioma
+  reprova a checagem de tipos em vez de chegar à tela como string crua.
+- **Um ajuste de idioma** — automático, pt-BR ou inglês — que recarrega a
+  janela para valer; a janela volta à pasta aberta em vez de abri-la de novo.
+- **As palavras do core.** A janela diz o tipo de todo erro que o core responde
+  (`not_found`, `changed`, …) no idioma do usuário, e acrescenta depois o
+  detalhe do próprio core, em inglês. Os avisos de escrita do core também
+  chegam à linha de status em inglês; o contrato registra o idioma deles como
+  `[ABERTO]`. O plano, aceito com este registro: cada aviso ganha um código no
+  contrato, para a janela poder dizê-lo no idioma do usuário. Ainda não feito.
 
 ## Alternativas descartadas
 

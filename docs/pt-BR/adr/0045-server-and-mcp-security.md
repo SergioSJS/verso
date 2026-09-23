@@ -4,6 +4,9 @@
 - Fonte: `docs/review/phase-0.md` R4, R5, I5
 - Status no briefing: não consta; [0025](0025-own-server-and-mobile-pwa.md)
   registra "autenticação e exposição" como questão a abrir
+- Revisões: 2026-09-23 — o grupo do contrato: mantido `[ABERTO]` pelo
+  mantenedor até um servidor entrar em escopo, com o contrato da Fase 2 aceito
+  como foi construído (`docs/review/phase-2.md` §6, item 6).
 
 ## Contexto
 
@@ -68,6 +71,19 @@ Nenhuma. Questões registradas, com o momento de decidir.
 - O contrato precisa ter, desde o primeiro desenho, identidade de sessão,
   autorização por operação e noção de "quem está do outro lado", mesmo que no
   IPC local tudo seja concedido. Adicionar depois é refazer.
+
+**A resposta do mantenedor de 2026-09-23** (`docs/review/phase-2.md` §6, item
+6; *"a e b ok"*): a questão continua `[ABERTO]` até o `verso serve`, ou
+qualquer outro lado que não seja a própria janela do app, entrar em escopo;
+para a Fase 2 o contrato é aceito como foi construído. Ele não tem identidade
+de sessão nem autorização por operação. O host concede os comandos só às
+views do próprio app — a janela principal e as janelas de nota — por um
+manifesto do app; uma web view que mostra um site não recebe nenhum, nem uma
+origem remota. O `verso://`, o protocolo de arquivos ao lado do contrato,
+responde só às views do app e nunca serve uma nota. Os comandos só do host
+(`web_*`, `open_url`, `open_window`, `reveal`) ficam nos mesmos bindings
+gerados que os do core. O risco que este grupo nomeia — identidade
+acrescentada depois é contrato refeito — é aceito junto.
 
 ### `verso serve` — decidir antes de entrar em escopo
 
@@ -149,5 +165,6 @@ Nenhuma registrada.
 
 ## Status
 
-`[ABERTO]` para o contrato e o servidor; **MCP decidido em 2026-09-22** (acima). MCP: fechado. Contrato: antes do item 2.1 da
-Fase 2. Servidor: antes de entrar em escopo.
+`[ABERTO]` para o contrato e o servidor; **MCP decidido em 2026-09-22** (acima). MCP: fechado. Contrato: aceito como foi
+construído para a Fase 2 em 2026-09-23, `[ABERTO]` até um servidor entrar em
+escopo. Servidor: antes de entrar em escopo.
