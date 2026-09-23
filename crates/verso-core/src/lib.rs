@@ -1677,8 +1677,8 @@ impl Workspace {
     /// `source` names, by the rule of spec Q12 applied to files: the
     /// target is tried as a path from the root, then as a path from the
     /// source's folder (honouring `..`), extension optional, case and
-    /// normalization ignored; then as a bare name — a file in the
-    /// source's own folder first, else the one with the fewest path
+    /// normalization ignored; then as a bare name — a file anywhere under
+    /// the source's own folder first, else the one with the fewest path
     /// segments, then the first in byte order. `#…` and `|…` are dropped
     /// first. Notes are not files here: `links` answers for them. A
     /// placeholder is a file that is present (ADR 0043): reading it says
@@ -1724,8 +1724,11 @@ impl Workspace {
             })
             .flat_map(|(_, paths)| paths)
             .collect();
-        let in_source_dir = |p: &str| p.rsplit_once('/').map_or("", |(d, _)| d) == dir;
-        candidates.sort_by_key(|p| (!in_source_dir(p), p.matches('/').count(), (*p).clone()));
+        // Q12 point 3, amended by the maintainer on 2026-09-23: a candidate
+        // anywhere under the note's own folder comes first, as the index
+        // ranks notes (a note at the root has every file under it).
+        let under_source_dir = |p: &str| dir.is_empty() || p.starts_with(&format!("{dir}/"));
+        candidates.sort_by_key(|p| (!under_source_dir(p), p.matches('/').count(), (*p).clone()));
         candidates.first().map(|p| (*p).clone())
     }
 
