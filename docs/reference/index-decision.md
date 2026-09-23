@@ -483,10 +483,9 @@ What it changes: point 3 of section 4.6 says a candidate **in** the source
 note's own folder wins. Obsidian prefers a candidate anywhere **under** that
 folder, at any depth, before it counts segments — the second observation could
 not tell the two apart, because none of its candidates sat below the source's
-folder. The index has done "under" since `d1a5272`. Whether Verso's rule says
-"under" is the maintainer's to decide: spec Q12 carries the question ("sob a
-pasta, sim ou não?"); until it has an answer, the prose of section 4.6 is the
-rule and the code's difference is a finding (`docs/review/phase-2.md`).
+folder. The index has done "under" since `d1a5272`. Asked "sob a pasta, sim
+ou não?", the maintainer answered yes on 2026-09-23 ("boa, gosto da sua ideia,
+pode seguir"), and point 3 of section 4.6 and of spec Q12 now says "under".
 
 ### 4.2 What the observation settles, and one contradiction it raises
 
@@ -629,9 +628,10 @@ second observation.
    compared after NFC: relative to the **source note's own folder**, honouring
    `..`, and from the **root of the open folder**.
 3. No path matches: match the **bare name**, case-insensitively — first a
-   candidate **in the source note's own folder**; otherwise the candidate with
-   the **fewest path segments**; among equals, the **first in byte order**
-   (`B/dup.md` before `a/dup.md`).
+   candidate **under the source note's own folder**, at any depth; otherwise
+   the candidate with the **fewest path segments**; among equals, the **first
+   in byte order** (`B/dup.md` before `a/dup.md`). *(Amended by the maintainer
+   on 2026-09-23 after the third observation of section 4.1; it said "in".)*
 4. Nothing answers: **unresolved**, stored with the target text as written. An
    unresolved link is never a backlink (Q14).
 5. **A frontmatter alias does not resolve a link. An embed resolves by the

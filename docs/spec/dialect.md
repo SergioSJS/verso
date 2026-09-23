@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.14
+# Verso dialect spec — v0.15
 
-- Version: v0.14 · 2026-09-23
+- Version: v0.15 · 2026-09-23
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -674,9 +674,10 @@ Raised while writing this spec. All of them need an answer before
      compared after NFC: relative to the **source note's own folder**,
      honouring `..`, and from the **root of the open folder**.
   3. If no path matches, the **bare name** is matched case-insensitively:
-     first a candidate **in the source note's own folder**; otherwise the one
-     with the **fewest path segments**; among equals, the **first in byte
-     order** (`B/dup.md` before `a/dup.md`).
+     first a candidate **under the source note's own folder**, at any depth —
+     in it or in a folder inside it; otherwise the one with the **fewest path
+     segments**; among equals, the **first in byte order** (`B/dup.md` before
+     `a/dup.md`). *(Amended on 2026-09-23, below: the point said "in".)*
   4. Nothing answers: the target is **unresolved**, stored with its text as
      written, and is never a backlink (Q14).
   5. A frontmatter **alias does not resolve** a link; an **embed** resolves by
@@ -695,24 +696,18 @@ Raised while writing this spec. All of them need an answer before
   in full — the five differences are listed in
   `docs/reference/index-decision.md` §4.6 and are what the feature 3 code owes.
 
-  **What the code does since commit `d1a5272` (2026-09-22), recorded on
-  2026-09-23.** Points 1 to 5 are implemented, with one difference between
-  the code and point 3, which is the maintainer's to settle. The prose says "a candidate
-  **in** the source note's own folder"; the code prefers a candidate **under**
-  that folder, at any depth, before counting segments — so a note in a
-  subfolder of the source's folder wins over a shallower one elsewhere. The
-  code follows probes of Obsidian 1.13.7 that showed it doing that: run on
-  2026-09-22 without being written down, then run again and recorded on
-  2026-09-23 as the third observation of `docs/reference/index-decision.md`
-  §4.1. The question was put to the maintainer as "sob a pasta, sim ou não?"
-  and has no answer yet; until it has one, the prose above is the rule and the
-  difference is a finding, not a decision.
+  **Point 3 amended by the maintainer on 2026-09-23.** It said a candidate
+  **in** the source note's own folder; the index had preferred one **under**
+  it, at any depth, since commit `d1a5272`, following probes of Obsidian
+  1.13.7 that were recorded, run again, as the third observation of
+  `docs/reference/index-decision.md` §4.1. Asked "sob a pasta, sim ou não?",
+  with an example and the recommendation to follow Obsidian, the maintainer
+  answered: *"boa, gosto da sua ideia, pode seguir"*. Point 3 now says
+  "under", and nothing in the code departs from points 1 to 5.
 
   **Embeds of files that are not notes, since `3340a3f`, recorded on
   2026-09-23.** They resolve by points 1 to 5 from the note that holds the
-  embed; for a bare name the file **in** the source note's own folder comes
-  first — the prose above — while notes follow the index's "under". The answer
-  to "sob a pasta, sim ou não?" settles both. The index and this resolution
+  embed, "under" included since the amendment. The index and this resolution
   try a path from the root before the same path relative to the source's
   folder; point 2 does not say which comes first (`docs/review/phase-2.md` §6,
   item 20).
@@ -969,3 +964,4 @@ the parser was chosen.
 | v0.12 | 2026-09-22 | **Q12 closed by the maintainer**, following Obsidian 1.13.7 as observed a second time on the same day (`docs/reference/index-decision.md` §4.1, §4.6): empty target is the note itself and a backlink of it; a path is resolved relative to the source note's folder as well as from the root; a bare name prefers the source's own folder, then the fewest segments, then byte order; aliases do not resolve; `[[nota/]]` and `[[.md]]` do not resolve. The parts of Q2, Q8 and Q14 that the rule needs are answered with it; the rest of those three stays open. Fourth question closed |
 | v0.13 | 2026-09-23 | Provisional facts recorded under Q12, Q13, Q15 and Q16, from the code of the Phase 2 branch: where the code departs from point 3 of Q12 ("under" the source's folder where point 3 says "in", which the maintainer has not settled), body tags, the Markdown extensions and line breaks the reading view renders, and the files that are not notes. The Q14 line on `[[#Heading]]` marked as superseded by Q12 point 1. No question closed |
 | v0.14 | 2026-09-23 | Provisional facts under Q6, Q12, Q13, Q15, Q16, Q24 and Q25 brought up to the code after the Opus reading of the Phase 2 branch: comments hidden and embedded HTML sanitized in the reading view, one tag rule for the index and the reader, embeds resolved by Q12 from their note, the window's frontmatter boundary, files that are not UTF-8 not opened for editing. No question closed |
+| v0.15 | 2026-09-23 | **Q12 point 3 amended by the maintainer**: a bare name prefers a candidate under the source note's folder, at any depth, as Obsidian 1.13.7 does (the third observation of `docs/reference/index-decision.md` §4.1); the index already did, and embeds of files now do too. Q12 stays closed |

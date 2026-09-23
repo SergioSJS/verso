@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.14
+# Spec do dialeto do Verso — v0.15
 
-- Versão: v0.14 · 2026-09-23
+- Versão: v0.15 · 2026-09-23
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -673,9 +673,11 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
      maiúsculas, comparado depois de NFC: relativo à **pasta da própria nota de
      origem**, respeitando `..`, e a partir da **raiz da pasta aberta**.
   3. Se nenhum caminho casa, casa-se o **nome puro** sem diferenciar
-     maiúsculas: primeiro um candidato **na pasta da própria nota de origem**;
+     maiúsculas: primeiro um candidato **sob a pasta da própria nota de
+     origem**, em qualquer profundidade — nela ou numa pasta dentro dela;
      senão o de **menos segmentos de caminho**; entre iguais, o **primeiro em
-     ordem de bytes** (`B/dup.md` antes de `a/dup.md`).
+     ordem de bytes** (`B/dup.md` antes de `a/dup.md`). *(Emendado em
+     2026-09-23, abaixo: o ponto dizia "na".)*
   4. Nada responde: o alvo fica **não resolvido**, guardado com o texto como
      escrito, e nunca é backlink (Q14).
   5. **Alias** de frontmatter **não resolve** link; **embed** resolve pela
@@ -694,24 +696,18 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   `docs/reference/index-decision.md` §4.6 e são o que o código da feature 3
   deve.
 
-  **O que o código faz desde o commit `d1a5272` (2026-09-22), registrado em
-  2026-09-23.** Os pontos 1 a 5 estão implementados, com uma diferença entre
-  o código e o ponto 3, que cabe ao mantenedor resolver. O texto diz "um candidato
-  **na** própria pasta da nota de origem"; o código prefere um candidato **sob**
-  essa pasta, em qualquer profundidade, antes de contar segmentos — então uma
-  nota numa subpasta da pasta de origem ganha de uma mais rasa em outro lugar.
-  O código segue sondas do Obsidian 1.13.7 que o mostraram fazendo isso:
-  rodadas em 2026-09-22 sem serem escritas, depois rodadas de novo e
-  registradas em 2026-09-23 como a terceira observação de
-  `docs/reference/index-decision.md` §4.1. A pergunta foi feita ao mantenedor como "sob a pasta, sim ou
-  não?" e ainda não tem resposta; até ter, a regra é o texto acima e a diferença
-  é um achado, não uma decisão.
+  **Ponto 3 emendado pelo mantenedor em 2026-09-23.** Ele dizia um candidato
+  **na** própria pasta da nota de origem; o índice preferia um **sob** ela, em
+  qualquer profundidade, desde o commit `d1a5272`, seguindo sondas do
+  Obsidian 1.13.7 que foram registradas, rodadas de novo, como a terceira
+  observação de `docs/reference/index-decision.md` §4.1. Perguntado "sob a
+  pasta, sim ou não?", com um exemplo e a recomendação de seguir o Obsidian, o
+  mantenedor respondeu: *"boa, gosto da sua ideia, pode seguir"*. O ponto 3
+  agora diz "sob", e nada no código se afasta dos pontos 1 a 5.
 
   **Embeds de arquivos que não são nota, desde `3340a3f`, registrado em
-  2026-09-23.** Resolvem pelos pontos 1 a 5 a partir da nota que tem o embed;
-  para um nome solto vem primeiro o arquivo **na** pasta da própria nota de
-  origem — o texto acima —, enquanto as notas seguem o "sob" do índice. A
-  resposta a "sob a pasta, sim ou não?" resolve os dois. O índice e esta
+  2026-09-23.** Resolvem pelos pontos 1 a 5 a partir da nota que tem o embed,
+  inclusive o "sob" desde a emenda. O índice e esta
   resolução tentam um caminho a partir da raiz antes do mesmo caminho relativo
   à pasta da origem; o ponto 2 não diz qual vem primeiro
   (`docs/review/phase-2.md` §6, item 20).
@@ -971,3 +967,4 @@ ser escolhido.
 | v0.12 | 2026-09-22 | **Q12 fechada pelo mantenedor**, seguindo o Obsidian 1.13.7 observado uma segunda vez no mesmo dia (`docs/reference/index-decision.md` §4.1, §4.6): alvo vazio é a própria nota e backlink dela; caminho é resolvido relativo à pasta da nota de origem além de a partir da raiz; nome puro prefere a pasta da própria origem, depois menos segmentos, depois ordem de bytes; alias não resolve; `[[nota/]]` e `[[.md]]` não resolvem. As partes de Q2, Q8 e Q14 de que a regra precisa são respondidas junto; o resto dessas três continua aberto. Quarta questão fechada |
 | v0.13 | 2026-09-23 | Fatos provisórios registrados em Q12, Q13, Q15 e Q16, vindos do código da branch da Fase 2: onde o código se afasta do ponto 3 da Q12 ("sob" a pasta de origem onde o ponto 3 diz "na", o que o mantenedor ainda não resolveu), tags no corpo, as extensões de Markdown e quebras de linha que a visualização de leitura renderiza, e os arquivos que não são nota. A linha da Q14 sobre `[[#Heading]]` marcada como superada pelo ponto 1 da Q12. Nenhuma questão fechada |
 | v0.14 | 2026-09-23 | Fatos provisórios em Q6, Q12, Q13, Q15, Q16, Q24 e Q25 trazidos até o código depois da leitura da Opus do branch da Fase 2: comentários escondidos e HTML embutido sanitizado na visualização de leitura, uma regra de tag só para o índice e o leitor, embeds resolvidos pela Q12 a partir da nota, a fronteira do frontmatter da janela, arquivos que não são UTF-8 não abertos para edição. Nenhuma questão fechada |
+| v0.15 | 2026-09-23 | **Ponto 3 da Q12 emendado pelo mantenedor**: um nome solto prefere um candidato sob a pasta da nota de origem, em qualquer profundidade, como o Obsidian 1.13.7 faz (a terceira observação de `docs/reference/index-decision.md` §4.1); o índice já fazia, e embeds de arquivos agora fazem também. A Q12 continua fechada |

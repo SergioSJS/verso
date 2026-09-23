@@ -16,9 +16,9 @@
 - Roadmap item: Phase 2, items 2.1 to 2.7, and what
   [ADR 0049](../adr/0049-phase-2-scope-widened.md) adds to them
   ([`../roadmap.md`](../roadmap.md)).
-- State: every BLOCKING finding of the five readings is resolved in code
-  except reading 3, finding 4 (spec Q12 point 3), which waits for the
-  maintainer's answer; a second round of readings of the fixes found no new
+- State: every BLOCKING finding of the five readings is resolved — in code,
+  or, for reading 3, finding 4, by the maintainer's amendment of spec Q12
+  point 3 on 2026-09-23; a second round of readings of the fixes found no new
   BLOCKING, and its IMPORTANT findings are fixed (section 7). What waits for
   the maintainer is in section 6. Nothing in this document decides an
   `[OPEN]` question.
@@ -58,9 +58,9 @@ bypassed, forced reloads, a task click on stale text); content of the folder
 acting on the window (raw HTML, a framed SVG, the file protocol, navigation);
 bytes rewritten that nobody touched (lossy UTF-8, line endings); absolute
 paths crossing the contract; a panic that stopped every later command; and a
-red test. All but one are fixed; the one left (reading 3, finding 4) is the
-index departing from the closed Q12, point 3, recorded and waiting for the
-maintainer.
+red test. Twenty-four were fixed in code; the last (reading 3, finding 4),
+the index departing from the closed Q12 point 3, was resolved by the
+maintainer, who amended point 3 on 2026-09-23.
 
 ---
 
@@ -106,7 +106,7 @@ maintainer.
 | 1 | BLOCKING | `to_html` panicked on a 28-byte note (`> [!note] x </blockquote> y`), and the panic poisoned the workspace mutex of `verso mcp` and of the app: every later call failed | **Fixed** in `7475c03`: callouts are found on the parser's events, never by slicing the HTML. The fuzz target now runs `to_html` and `body_tags`, with this input as a seed (217 233 runs, no crash). The poisoned lock: `612c708` for `verso mcp`, `3340a3f` for the app |
 | 2 | BLOCKING | `cargo test` was red: a callout's title took the `<br />` of the soft-break change | **Fixed** in `7475c03`: the title is read on the callout's first line only |
 | 3 | BLOCKING | The reader's tag and highlight passes ran inside code blocks and link labels: `a == b` lost its `==`, `#include` became a tag, `[[#Heading]]` became a tag inside a link. Invariant 12 | **Fixed** in `7475c03`: tags and highlights only in prose, never in code, link labels or alt text |
-| 4 | BLOCKING | Link resolution prefers a candidate anywhere under the source's folder, while the closed Q12 says "in" it; the observation behind it was recorded only in a test comment | **Recorded, not resolved** (`CLAUDE.md` §1 rule 3). The probes were run again and written down as the third observation of `docs/reference/index-decision.md` §4.1: Obsidian 1.13.7 does prefer "under". The spec carries the question under Q12. Stays open until the maintainer answers (section 6, item 1) |
+| 4 | BLOCKING | Link resolution prefers a candidate anywhere under the source's folder, while the closed Q12 says "in" it; the observation behind it was recorded only in a test comment | **Recorded, not resolved** (`CLAUDE.md` §1 rule 3). The probes were run again and written down as the third observation of `docs/reference/index-decision.md` §4.1: Obsidian 1.13.7 does prefer "under". **Resolved by the maintainer's decision** of 2026-09-23 ("boa, gosto da sua ideia, pode seguir", answering "sob a pasta, sim ou não?"): Q12 point 3 now says "under" (spec v0.15), which the index already did; embeds of files follow (`33ee838`) |
 | 5 | IMPORTANT | Every image's end was written as `</span>`, so a Markdown image swallowed the rest of its paragraph | **Fixed** in `7475c03` |
 | 6 | IMPORTANT | The inline-footnote rewrite detected code wrongly, both ways | **Fixed** in `7475c03`: inline footnotes are found on the parser's events, skipping code and math |
 | 7 | IMPORTANT | The render and the parser disagree on what a link is (`$[[x]]$`), against the render's own comment | **Fixed** in `7475c03`: the comment says exactly what differs; the parser's options are unchanged (spec Q15, section 6) |
@@ -180,14 +180,14 @@ maintainer.
 
 None of these is decided by this review. Each says where it lives.
 
-1. **Q12, point 3: "in" or "under" the source's folder.** Spec Q12 says a
-   bare name prefers a candidate *in* the source note's own folder; Obsidian
-   1.13.7 prefers one anywhere *under* it, and the index does too
-   (`docs/reference/index-decision.md` §4.1, third observation). Reading 3,
-   finding 4 stays BLOCKING until the question "sob a pasta, sim ou não?" has
-   an answer: yes amends Q12 point 3 and the memo's §4.6, and the embed
-   resolution, which does "in", follows; no changes one condition of the
-   index's resolution query (`crates/verso-index/src/store.rs`).
+1. **Q12, point 3: "in" or "under" the source's folder — decided on
+   2026-09-23.** Asked "sob a pasta, sim ou não?", the maintainer answered
+   yes ("boa, gosto da sua ideia, pode seguir"): a bare name prefers a
+   candidate anywhere under the source's folder, as Obsidian 1.13.7 does.
+   Recorded in spec Q12 (v0.15) and `docs/reference/index-decision.md` §4.6;
+   the index already did it, and embeds of files follow (`33ee838`). The same
+   answer approved a setting for the form new links take — shortest, relative
+   or from the root — which comes in its own change.
 2. **File operations** — [ADR 0048](../adr/0048-file-operations-in-ui.md),
    `[OPEN]`. What the code does is recorded there as provisional: rename and
    move with a plan of link rewrites applied note by note, with no logical

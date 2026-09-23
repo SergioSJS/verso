@@ -86,9 +86,8 @@ folder.
   quotes into notes, templates, dropped and duplicated files, text files.
 - Several items lean on questions that are still open, and do what they do
   provisionally: the command-line rule ([0042](0042-open-from-command-line.md)),
-  file operations ([0048](0048-file-operations-in-ui.md)), where the index
-  departs from the closed spec Q12, point 3 ("in" or "under" the source's
-  folder), body tags (Q13), the Markdown extensions (Q15),
+  file operations ([0048](0048-file-operations-in-ui.md)), body tags (Q13),
+  the Markdown extensions (Q15),
   non-Markdown files (Q16), handles and session identity in the contract
   ([0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md)).
   Each is recorded where it lives; none is decided here.

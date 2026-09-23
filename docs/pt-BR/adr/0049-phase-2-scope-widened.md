@@ -84,8 +84,7 @@ janela própria pelo menu da aba), e uma segunda janela sobre a mesma pasta.
 - Vários itens se apoiam em questões ainda abertas, e fazem o que fazem de forma
   provisória: a regra da linha de comando
   ([0042](0042-open-from-command-line.md)), operações de arquivo
-  ([0048](0048-file-operations-in-ui.md)), onde o índice se afasta do ponto 3
-  da Q12 fechada do spec ("na" ou "sob" a pasta da origem), tags no corpo (Q13), as extensões de Markdown (Q15), arquivos que
+  ([0048](0048-file-operations-in-ui.md)), tags no corpo (Q13), as extensões de Markdown (Q15), arquivos que
   não são Markdown (Q16), handles e identidade de sessão no contrato
   ([0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md)).
   Cada um está registrado onde mora; nenhum é decidido aqui.

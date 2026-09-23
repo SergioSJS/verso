@@ -15,9 +15,9 @@
 - Item do roadmap: Fase 2, itens 2.1 a 2.7, e o que a
   [ADR 0049](../adr/0049-phase-2-scope-widened.md) acrescenta a eles
   ([`../roadmap.md`](../roadmap.md)).
-- Estado: todo achado BLOQUEANTE das cinco leituras está resolvido no código,
-  menos a leitura 3, achado 4 (ponto 3 da Q12 da spec), que espera a resposta
-  do mantenedor; uma segunda rodada de leituras das correções não achou
+- Estado: todo achado BLOQUEANTE das cinco leituras está resolvido — no
+  código, ou, para a leitura 3, achado 4, pela emenda do mantenedor ao ponto 3
+  da Q12 da spec em 2026-09-23; uma segunda rodada de leituras das correções não achou
   BLOQUEANTE novo, e os IMPORTANTES dela estão corrigidos (seção 7). O que
   espera o mantenedor está na seção 6. Nada neste documento decide uma
   questão `[ABERTO]`.
@@ -58,9 +58,9 @@ clique em tarefa sobre texto velho); conteúdo da pasta agindo sobre a janela
 (HTML cru, um SVG num frame, o protocolo de arquivos, navegação); bytes
 reescritos que ninguém tocou (UTF-8 com perda, quebras de linha); caminhos
 absolutos cruzando o contrato; um pânico que parava todo comando seguinte; e
-um teste vermelho. Todos menos um estão corrigidos; o que resta (leitura 3,
-achado 4) é o índice se afastando do ponto 3 da Q12 fechada, registrado e à
-espera do mantenedor.
+um teste vermelho. Vinte e quatro foram corrigidos no código; o último
+(leitura 3, achado 4), o índice se afastando do ponto 3 da Q12 fechada, foi
+resolvido pelo mantenedor, que emendou o ponto 3 em 2026-09-23.
 
 ---
 
@@ -106,7 +106,7 @@ espera do mantenedor.
 | 1 | BLOQUEANTE | `to_html` entrava em pânico numa nota de 28 bytes (`> [!note] x </blockquote> y`), e o pânico envenenava o mutex do workspace do `verso mcp` e do app: toda chamada seguinte falhava | **Corrigido** em `7475c03`: os callouts são achados nos eventos do parser, nunca cortando o HTML. O alvo de fuzz agora roda `to_html` e `body_tags`, com esta entrada como semente (217 233 rodadas, nenhuma queda). O lock envenenado: `612c708` no `verso mcp`, `3340a3f` no app |
 | 2 | BLOQUEANTE | `cargo test` estava vermelho: o título de um callout pegava o `<br />` da mudança de quebra de linha | **Corrigido** em `7475c03`: o título é lido só na primeira linha do callout |
 | 3 | BLOQUEANTE | As passagens de tag e de destaque do leitor rodavam dentro de blocos de código e de rótulos de link: `a == b` perdia o `==`, `#include` virava tag, `[[#Título]]` virava tag dentro de um link. Invariante 12 | **Corrigido** em `7475c03`: tags e destaques só em prosa, nunca em código, rótulos de link ou texto alternativo |
-| 4 | BLOQUEANTE | A resolução de links prefere um candidato em qualquer lugar sob a pasta da origem, enquanto a Q12 fechada diz "na" pasta; a observação por trás disso estava registrada só num comentário de teste | **Registrado, não resolvido** (`CLAUDE.md` §1 regra 3). As sondas foram rodadas de novo e escritas como a terceira observação de `docs/reference/index-decision.md` §4.1: o Obsidian 1.13.7 prefere, sim, "sob". A spec carrega a pergunta na Q12. Fica aberto até o mantenedor responder (seção 6, item 1) |
+| 4 | BLOQUEANTE | A resolução de links prefere um candidato em qualquer lugar sob a pasta da origem, enquanto a Q12 fechada diz "na" pasta; a observação por trás disso estava registrada só num comentário de teste | **Registrado, não resolvido** (`CLAUDE.md` §1 regra 3). As sondas foram rodadas de novo e escritas como a terceira observação de `docs/reference/index-decision.md` §4.1: o Obsidian 1.13.7 prefere, sim, "sob". **Resolvido por decisão do mantenedor** em 2026-09-23 ("boa, gosto da sua ideia, pode seguir", respondendo "sob a pasta, sim ou não?"): o ponto 3 da Q12 agora diz "sob" (spec v0.15), o que o índice já fazia; embeds de arquivos acompanham (`33ee838`) |
 | 5 | IMPORTANTE | O fim de toda imagem era escrito como `</span>`, então uma imagem Markdown engolia o resto do parágrafo | **Corrigido** em `7475c03` |
 | 6 | IMPORTANTE | A reescrita de nota de rodapé inline detectava código errado, nos dois sentidos | **Corrigido** em `7475c03`: notas de rodapé inline são achadas nos eventos do parser, pulando código e matemática |
 | 7 | IMPORTANTE | O render e o parser discordam sobre o que é link (`$[[x]]$`), contra o próprio comentário do render | **Corrigido** em `7475c03`: o comentário diz exatamente o que difere; as opções do parser não mudam (Q15 da spec, seção 6) |
@@ -180,14 +180,15 @@ espera do mantenedor.
 
 Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
 
-1. **Q12, ponto 3: "na" ou "sob" a pasta da origem.** A Q12 da spec diz que
-   um nome solto prefere um candidato *na* pasta da própria nota de origem; o
-   Obsidian 1.13.7 prefere um em qualquer lugar *sob* ela, e o índice também
-   (`docs/reference/index-decision.md` §4.1, terceira observação). A leitura
-   3, achado 4, fica BLOQUEANTE até a pergunta "sob a pasta, sim ou não?" ter
-   resposta: sim emenda o ponto 3 da Q12 e a §4.6 do memo, e a resolução de
-   embeds, que faz "na", acompanha; não muda uma condição da consulta de
-   resolução do índice (`crates/verso-index/src/store.rs`).
+1. **Q12, ponto 3: "na" ou "sob" a pasta da origem — decidido em
+   2026-09-23.** Perguntado "sob a pasta, sim ou não?", o mantenedor respondeu
+   sim ("boa, gosto da sua ideia, pode seguir"): um nome solto prefere um
+   candidato em qualquer lugar sob a pasta da origem, como o Obsidian 1.13.7
+   faz. Registrado na Q12 da spec (v0.15) e em
+   `docs/reference/index-decision.md` §4.6; o índice já fazia, e embeds de
+   arquivos acompanham (`33ee838`). A mesma resposta aprovou um ajuste para o
+   formato dos links novos — mais curto, relativo ou a partir da raiz —, que
+   vem numa mudança própria.
 2. **Operações de arquivo** — [ADR 0048](../adr/0048-file-operations-in-ui.md),
    `[ABERTO]`. O que o código faz está registrado lá como provisório: renomear
    e mover com um plano de reescrita de links aplicado nota a nota, sem

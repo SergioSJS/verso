@@ -232,8 +232,6 @@ The code leans on decisions it does not have. They are listed once, with
 where each lives, in [`../review/phase-2.md`](../review/phase-2.md) §6; the ones
 a user of the window meets first:
 
-- which note a bare link reaches when two share a name (spec Q12, point 3:
-  "in" or "under" the source's folder);
 - what rename, move, delete and create do ([ADR 0048](../adr/0048-file-operations-in-ui.md));
 - what the reading view renders — tables, footnotes, math, highlight,
   callouts, comments, body tags (spec Q5, Q6, Q13, Q15);

@@ -485,11 +485,10 @@ O que isso muda: o ponto 3 da seção 4.6 diz que ganha um candidato **na** past
 da própria nota de origem. O Obsidian prefere um candidato em qualquer lugar
 **sob** essa pasta, em qualquer profundidade, antes de contar segmentos — a
 segunda observação não separava as duas leituras, porque nenhum candidato dela
-ficava abaixo da pasta da origem. O índice faz "sob" desde `d1a5272`. Se a
-regra do Verso diz "sob" é o mantenedor quem decide: a Q12 da spec carrega a
-pergunta ("sob a pasta, sim ou não?"); enquanto não houver resposta, o texto da
-seção 4.6 é a regra e a diferença do código é um achado
-(`docs/review/phase-2.md`).
+ficava abaixo da pasta da origem. O índice faz "sob" desde `d1a5272`.
+Perguntado "sob a pasta, sim ou não?", o mantenedor respondeu sim em 2026-09-23
+("boa, gosto da sua ideia, pode seguir"), e o ponto 3 da seção 4.6 e da Q12 da
+spec agora diz "sob".
 
 ### 4.2 O que a observação resolve, e uma contradição que ela levanta
 
@@ -638,9 +637,11 @@ antecedeu a segunda observação.
    maiúsculas, comparado depois de NFC: relativo à **pasta da própria nota de
    origem**, respeitando `..`, e a partir da **raiz da pasta aberta**.
 3. Nenhum caminho casa: casar pelo **nome puro**, sem diferenciar maiúsculas —
-   primeiro um candidato **na pasta da própria nota de origem**; senão o
-   candidato com **menos segmentos de caminho**; entre iguais, o **primeiro em
-   ordem de bytes** (`B/dup.md` antes de `a/dup.md`).
+   primeiro um candidato **sob a pasta da própria nota de origem**, em qualquer
+   profundidade; senão o candidato com **menos segmentos de caminho**; entre
+   iguais, o **primeiro em ordem de bytes** (`B/dup.md` antes de `a/dup.md`).
+   *(Emendado pelo mantenedor em 2026-09-23 depois da terceira observação da
+   seção 4.1; dizia "na".)*
 4. Nada responde: **não resolvido**, guardado com o texto do alvo como
    escrito. Link não resolvido nunca é backlink (Q14).
 5. **Alias de frontmatter não resolve link. Embed resolve pela mesma regra e
