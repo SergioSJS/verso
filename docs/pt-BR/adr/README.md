@@ -86,13 +86,14 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0034](0034-roadmap-in-phases.md) | Roadmap em três fases com portões de saída verificáveis | Aceito |
 | [0035](0035-cross-cutting-requirements.md) | Requisitos transversais: pt-BR e EN, acessibilidade, benchmark | Aceito |
 | [0036](0036-tabletop-rpg-support.md) | Suporte especial a RPG de mesa | Aceito (intenção) |
+| [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito (seção 2: Proposto) |
 
 ### Decisões técnicas em aberto
 
 | # | Título | Quando decidir |
 |---|---|---|
-| [0037](0037-base-parser.md) | Parser base do `verso-dialect`: `pulldown-cmark`, `comrak` como fallback | Accepted |
-| [0038](0038-ts-type-generation.md) | Geração de tipos TypeScript a partir do Rust | Início da Fase 2 |
+| [0037](0037-base-parser.md) | Parser base do `verso-dialect`: `pulldown-cmark`, `comrak` como fallback | Aceito |
+| [0038](0038-ts-type-generation.md) | Geração de tipos TypeScript a partir do Rust: `specta` com `tauri-specta` | Aceito |
 | [0039](0039-performance-targets.md) | Metas de performance | Após a primeira linha de base |
 | [0040](0040-board-persistence.md) | Persistência do board | Antes do board |
 

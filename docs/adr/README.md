@@ -86,13 +86,14 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0034](0034-roadmap-in-phases.md) | Roadmap in three phases with verifiable exit gates | Accepted |
 | [0035](0035-cross-cutting-requirements.md) | Cross-cutting requirements: pt-BR and EN, accessibility, benchmark | Accepted |
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted (intent) |
+| [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted (section 2: Proposed) |
 
 ### Open technical decisions
 
 | # | Title | When to decide |
 |---|---|---|
 | [0037](0037-base-parser.md) | Base parser for `verso-dialect`: `pulldown-cmark`, `comrak` as the fallback | Accepted |
-| [0038](0038-ts-type-generation.md) | TypeScript type generation from Rust | Start of Phase 2 |
+| [0038](0038-ts-type-generation.md) | TypeScript type generation from Rust: `specta` with `tauri-specta` | Accepted |
 | [0039](0039-performance-targets.md) | Performance targets | After the first baseline |
 | [0040](0040-board-persistence.md) | Board persistence | Before the board |
 
