@@ -5202,8 +5202,9 @@ async function joinAsPopout(): Promise<void> {
 /** Open a folder through `run` — the picker, a key, the command line —
  *  and make it the window's. Every tab is saved first, since all of them
  *  close; one that cannot save stops the switch. Answers whether a folder
- *  was opened. */
-async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo | null } | { status: "error"; error: ContractError }>): Promise<boolean> {
+ *  was opened. `quiet`: a folder that is gone says nothing (the last one,
+ *  reopened at start, may have moved). */
+async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo | null } | { status: "error"; error: ContractError }>, quiet = false): Promise<boolean> {
   const unsaved = await flushed(spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves)));
   if (unsaved.length > 0) {
     stopped(unsaved);
@@ -5216,7 +5217,7 @@ async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo 
     // Here a refusal means a note window is open: it names notes by path,
     // and the host will not switch the folder under it.
     if (r.error.kind === "refused") ui.status.textContent = t.closeNoteWindows;
-    else fail(r.error);
+    else if (!(quiet && r.error.kind === "not_found")) fail(r.error);
     return false;
   }
   ui.status.textContent = "";
@@ -5503,5 +5504,5 @@ void (async () => {
   }
   // A key. Until 2026-09-23 this held the folder's path, which no longer
   // crosses: such a folder is picked again, once.
-  if (last && !last.includes("/")) void openFolderBy(() => commands.reopenFolder(last));
+  if (last && !last.includes("/")) void openFolderBy(() => commands.reopenFolder(last), true);
 })();
