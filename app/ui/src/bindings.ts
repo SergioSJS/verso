@@ -64,6 +64,28 @@ export const commands = {
 	 *  viewing; confined like every path.
 	 */
 	readFileText: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("read_file_text", { path })),
+	/**
+	 *  Every entry of the folder as the last walk saw it, with kind, size
+	 *  and date: what a folder view lists and sorts.
+	 */
+	listEntries: () => typedError<FileEntry[], ContractError>(__TAURI_INVOKE("list_entries")),
+	/**
+	 *  Rename or move anything of the folder: a note, another file or a
+	 *  folder with everything under it. Links to what moved come back as
+	 *  rewrites, like `rename_note` (ADR 0048, option (b)).
+	 */
+	renameEntry: (from: string, to: string) => typedError<Renamed, ContractError>(__TAURI_INVOKE("rename_entry", { from, to })),
+	/**
+	 *  Move anything of the folder — a file or a whole folder — to `.trash/`
+	 *  at the root; returns where.
+	 */
+	deleteEntry: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("delete_entry", { path })),
+	/**
+	 *  Show an entry in the system's file manager. The absolute path is
+	 *  formed here, at the edge, and goes to the operating system only; it
+	 *  never crosses back to the UI (ADR 0026 rule 4).
+	 */
+	reveal: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("reveal", { path })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 };
@@ -117,6 +139,26 @@ export type ErrorKind =
 "exists" | 
 /**  The core could not answer. */
 "failed";
+
+/**
+ *  One entry of the open folder as the last walk saw it: what a folder
+ *  listing shows and sorts by. `size` and `modified` are `f64` because
+ *  the TypeScript side has no 64-bit integer without `bigint`: bytes are
+ *  exact up to 2^53, seconds since the epoch far beyond any date.
+ */
+export type FileEntry = {
+	path: string,
+	kind: FileKind,
+	/**  Bytes; 0 for a folder or an unread placeholder. */
+	size: number | null,
+	/**  Seconds since the Unix epoch; 0 when the file system gave none. */
+	modified: number | null,
+};
+
+/**  What one entry of the open folder is. */
+export type FileKind = "note" | "file" | "folder" | 
+/**  Present, content in the cloud (ADR 0043). */
+"placeholder";
 
 /**  The folder that is open, and what indexing it did. */
 export type FolderInfo = {

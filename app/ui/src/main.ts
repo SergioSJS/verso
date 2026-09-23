@@ -19,7 +19,7 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { commands, type ContractError, type NoteText } from "./bindings";
+import { commands, type ContractError, type FileEntry, type NoteText } from "./bindings";
 import { icon } from "./icons";
 import { livePreview, redraw, sizeOf } from "./live";
 
@@ -34,7 +34,8 @@ type Strings = Record<
   | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted"
   | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
   | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
-  | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks",
+  | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
+  | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -45,6 +46,7 @@ type Strings = Record<
   planTitle: (n: number) => string;
   planDone: (ok: number, failed: number) => string;
   counts: (notes: number, files: number, folders: number) => string;
+  confirmDeleteFolder: (n: string) => string;
 };
 
 const pt: Strings = {
@@ -77,6 +79,10 @@ const pt: Strings = {
   planTitle: (n) => `${n} nota${n === 1 ? "" : "s"} aponta${n === 1 ? "" : "m"} para o nome antigo. Atualizar os links?`,
   planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
   counts: (notes, files, folders) => `${notes} nota${notes === 1 ? "" : "s"} · ${files} arquivo${files === 1 ? "" : "s"} · ${folders} pasta${folders === 1 ? "" : "s"}`,
+  confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
+  colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
+  duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copied: "Caminho copiado.",
+  moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
 };
 
 const en: Strings = {
@@ -109,6 +115,10 @@ const en: Strings = {
   planTitle: (n) => `${n} note${n === 1 ? "" : "s"} link${n === 1 ? "s" : ""} to the old name. Update the links?`,
   planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
   counts: (notes, files, folders) => `${notes} note${notes === 1 ? "" : "s"} · ${files} file${files === 1 ? "" : "s"} · ${folders} folder${folders === 1 ? "" : "s"}`,
+  confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the bin (.trash)?`,
+  colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
+  duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copied: "Path copied.",
+  moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -239,6 +249,35 @@ const LAST_FOLDER = "verso.lastFolder";
 let currentFolder = "";
 let allNotes: string[] = [];
 let allFiles: string[] = [];
+const allEntries = new Map<string, FileEntry>();
+const LOCALE = navigator.language.toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+const dateFmt = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
+function humanSize(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toLocaleString(LOCALE, { maximumFractionDigits: v < 10 ? 1 : 0 })} ${units[i]}`;
+}
+function humanDate(secs: number): string {
+  return secs > 0 ? dateFmt.format(new Date(secs * 1000)) : "";
+}
+function kindLabel(path: string, kind: Kind): string {
+  if (kind === "folder") return t.kindFolder;
+  if (allEntries.get(path)?.kind === "placeholder") return t.kindPlaceholder;
+  if (kind === "note") return t.kindNote;
+  return ext(path).toUpperCase() || "—";
+}
+type SortKey = "name" | "kind" | "size" | "modified";
+let folderSort: { key: SortKey; desc: boolean } = { key: "name", desc: false };
+try {
+  const raw = localStorage.getItem("verso.folderSort");
+  if (raw) folderSort = { ...folderSort, ...(JSON.parse(raw) as Partial<typeof folderSort>) };
+} catch { /* no storage */ }
 
 for (const slot of document.querySelectorAll<HTMLElement>(".ic[data-icon]")) slot.replaceChildren(icon(slot.dataset["icon"] ?? ""));
 ui.open.setAttribute("aria-label", t.open);
@@ -378,7 +417,7 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
   if (drag?.kind === "tab") {
     const tabs = at.closest<HTMLElement>(".tabs");
     if (tabs) return { tabs };
-    const body = at.closest<HTMLElement>(".pane-body");
+    const body = at.closest<HTMLElement>(".pane-body") ?? at.closest<HTMLElement>(".pane")?.querySelector<HTMLElement>(".pane-body") ?? null;
     if (body) return { body };
     const spaceTab = at.closest<HTMLElement>(".space-tab");
     const space = spaceTab ? spaces.find((s) => s.tab === spaceTab) : undefined;
@@ -386,10 +425,10 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     return null;
   }
   if (drag?.kind === "file") {
-    const summary = at.closest<HTMLElement>("summary[data-folder]");
-    if (summary) return { folder: summary.dataset["folder"] ?? "", el: summary };
+    const folderEl = at.closest<HTMLElement>("[data-folder]");
+    if (folderEl && folderEl.dataset["folder"] !== drag.path) return { folder: folderEl.dataset["folder"] ?? "", el: folderEl };
     if (at.closest("#tree-root")) return { folder: "", el: ui.treeRoot };
-    const body = at.closest<HTMLElement>(".pane-body");
+    const body = at.closest<HTMLElement>(".pane-body") ?? at.closest<HTMLElement>(".pane")?.querySelector<HTMLElement>(".pane-body") ?? null;
     if (body) return { body };
     const tabs = at.closest<HTMLElement>(".tabs");
     if (tabs) return { tabs };
@@ -590,8 +629,8 @@ class NoteLeaf extends Leaf {
     this.conflict.hidden = true;
     this.buildToolbar();
     const sheet = h("div", "sheet");
-    sheet.append(titleRow, this.flags, this.props, this.conflict, this.preview, this.toolbar, this.editorHost);
-    this.el.append(head, sheet);
+    sheet.append(titleRow, this.flags, this.props, this.conflict, this.preview, this.editorHost);
+    this.el.append(head, this.toolbar, sheet);
     this.live = livePreview({
       imageUrl: (target) => imageUrl(target, () => this.editor.dispatch({ effects: redraw.of(null) })),
       navigate: (target) => this.follow(target),
@@ -1045,14 +1084,17 @@ class TextLeaf extends Leaf {
 }
 
 /* A folder: what it holds, as a list or as thumbnails, like a file system. */
+type FolderRow = { path: string; kind: Kind; label: string; size: number; modified: number };
 class FolderLeaf extends Leaf {
   readonly kind: Kind = "folder";
   readonly head = h("header", "folder-head");
   readonly crumbs = h("nav", "crumbs");
   readonly title = h("h1", "note-title");
   readonly meta = h("p", "folder-meta");
+  readonly cols = h("div", "folder-cols");
   readonly items = h("ul", "folder-items grid");
   grid = true;
+  rows: FolderRow[] = [];
   constructor(pane: Pane) {
     super(pane);
     const asGrid = button("ghost iconic", t.asGrid, "grid");
@@ -1065,13 +1107,38 @@ class FolderLeaf extends Leaf {
     const top = h("header", "leaf-head");
     top.append(this.crumbs);
     const sheet = h("div", "sheet");
-    sheet.append(this.head, this.meta, this.items);
+    sheet.append(this.head, this.meta, this.cols, this.items);
     this.el.append(top, sheet);
+    this.cols.hidden = true;
+    const col = (key: SortKey, label: string, cls: string) => {
+      const b = h("button", `col ${cls}`, label);
+      b.type = "button";
+      b.title = `${t.sortBy}: ${label}`;
+      b.dataset["key"] = key;
+      b.addEventListener("click", () => {
+        folderSort = { key, desc: folderSort.key === key ? !folderSort.desc : key === "modified" || key === "size" };
+        try { localStorage.setItem("verso.folderSort", JSON.stringify(folderSort)); } catch { /* no storage */ }
+        for (const p of layout().panes()) for (const l of p.leaves) if (l instanceof FolderLeaf) l.render();
+      });
+      return b;
+    };
+    this.cols.append(col("name", t.colName, "col-name"), col("kind", t.colKind, "col-kind"), col("size", t.colSize, "col-size"), col("modified", t.colModified, "col-modified"));
+    this.el.addEventListener("contextmenu", (e) => {
+      if ((e.target as HTMLElement).closest(".item")) return;
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY, [
+        [t.newHere, () => newNotePrompt(this.path)],
+        [t.newFolder, () => newFolderPrompt(this.path)],
+        ...(this.path ? [["—", () => {}] as [string, () => void], [t.reveal, () => void commands.reveal(this.path)] as [string, () => void]] : []),
+      ]);
+    });
   }
   view(grid: boolean): void {
     this.grid = grid;
     this.items.classList.toggle("grid", grid);
     this.items.classList.toggle("list", !grid);
+    this.cols.hidden = grid;
+    persistSoon();
   }
   async load(path: string): Promise<void> {
     this.path = path;
@@ -1079,32 +1146,92 @@ class FolderLeaf extends Leaf {
     this.title.textContent = this.tabName.textContent;
     this.crumbs.replaceChildren(...crumbsFor(path, true));
     const prefix = path === "" ? "" : `${path}/`;
-    const inside = [...allNotes, ...allFiles].filter((p) => p.startsWith(prefix));
-    const direct = inside.filter((p) => !p.slice(prefix.length).includes("/"));
-    const folders = Array.from(new Set(inside.filter((p) => p.slice(prefix.length).includes("/")).map((p) => p.slice(prefix.length).split("/")[0] ?? ""))).sort();
+    const under = (folder: string) => {
+      const fp = `${folder}/`;
+      let size = 0;
+      let modified = 0;
+      for (const e of allEntries.values()) if (e.path.startsWith(fp) && e.kind !== "folder") {
+        size += e.size ?? 0;
+        modified = Math.max(modified, e.modified ?? 0);
+      }
+      return { size, modified };
+    };
+    const folders = allFolders.filter((f) => dirOf(f) === path && f !== "");
+    const direct = [...allNotes, ...allFiles].filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/"));
+    this.rows = [
+      ...folders.map((f): FolderRow => ({ path: f, kind: "folder", label: f.split("/").pop() ?? f, ...under(f) })),
+      ...direct.map((p): FolderRow => {
+        const e = allEntries.get(p);
+        return { path: p, kind: kindOf(p), label: name(p), size: e?.size ?? 0, modified: e?.modified ?? 0 };
+      }),
+    ];
     const notes = direct.filter((p) => kindOf(p) === "note").length;
     this.meta.textContent = t.counts(notes, direct.length - notes, folders.length);
-    this.items.replaceChildren(
-      ...folders.map((f) => this.item(`${prefix}${f}`, "folder", f)),
-      ...direct.sort().map((p) => this.item(p, kindOf(p), name(p))),
-    );
+    this.render();
     markCurrent();
     persistSoon();
   }
-  private item(path: string, kind: Kind, label: string): HTMLLIElement {
+  render(): void {
+    const { key, desc } = folderSort;
+    const dir = desc ? -1 : 1;
+    const cmp = (a: FolderRow, b: FolderRow): number => {
+      if ((a.kind === "folder") !== (b.kind === "folder")) return a.kind === "folder" ? -1 : 1;
+      let d = 0;
+      if (key === "size") d = a.size - b.size;
+      else if (key === "modified") d = a.modified - b.modified;
+      else if (key === "kind") d = kindLabel(a.path, a.kind).localeCompare(kindLabel(b.path, b.kind), LOCALE);
+      return (d || a.label.localeCompare(b.label, LOCALE, { numeric: true })) * (key === "name" || d === 0 ? dir : dir);
+    };
+    for (const b of this.cols.querySelectorAll<HTMLButtonElement>("button")) {
+      const mine = b.dataset["key"] === key;
+      if (mine) b.setAttribute("aria-sort", desc ? "descending" : "ascending");
+      else b.removeAttribute("aria-sort");
+    }
+    this.items.replaceChildren(...this.rows.slice().sort(cmp).map((r) => this.item(r)));
+  }
+  private item(r: FolderRow): HTMLLIElement {
     const li = h("li");
-    const b = h("button", `item kind-${kind}`);
+    const b = h("button", `item kind-${r.kind}`);
     b.type = "button";
     const thumb = h("span", "thumb");
-    if (kind === "image") {
+    if (r.kind === "image") {
       const img = h("img");
-      img.src = convertFileSrc(path, "verso");
+      img.src = convertFileSrc(r.path, "verso");
       img.loading = "lazy";
       img.alt = "";
       thumb.append(img);
-    } else thumb.append(icon(iconFor(kind)));
-    b.append(thumb, h("span", "label", label));
-    b.addEventListener("click", () => (kind === "folder" ? openFolder(path) : openNote(path, false)));
+    } else thumb.append(icon(iconFor(r.kind)));
+    const main = h("span", "main");
+    main.append(thumb, h("span", "label", r.label));
+    b.append(main, h("span", "col col-kind", kindLabel(r.path, r.kind)), h("span", "col col-size", r.kind === "folder" && r.size === 0 ? "—" : humanSize(r.size)), h("span", "col col-modified", humanDate(r.modified)));
+    b.title = r.path;
+    const open = (pane: boolean) => (r.kind === "folder" ? openFolder(r.path) : openNote(r.path, pane));
+    b.addEventListener("click", (e) => open(e.metaKey || e.ctrlKey));
+    b.addEventListener("mousedown", () => b.focus());
+    if (r.kind === "folder") b.dataset["folder"] = r.path;
+    armDrag(b, () => ({ kind: "file", path: r.path }), () => r.label);
+    b.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      entryMenu(e.clientX, e.clientY, r.path, r.kind, () => renameInline(li, r.path, r.kind === "folder"));
+    });
+    b.addEventListener("keydown", (e) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        renameInline(li, r.path, r.kind === "folder");
+      } else if (e.key === "Delete" || (e.key === "Backspace" && e.metaKey)) {
+        e.preventDefault();
+        void deleteEntry(r.path, r.kind);
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const all = Array.from(this.items.querySelectorAll<HTMLButtonElement>("button.item"));
+        const i = all.indexOf(b) + (e.key === "ArrowDown" ? 1 : -1);
+        all[Math.max(0, Math.min(all.length - 1, i))]?.focus();
+      } else if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+        e.preventDefault();
+        const rect = b.getBoundingClientRect();
+        b.dispatchEvent(new MouseEvent("contextmenu", { clientX: rect.left + 24, clientY: rect.bottom, bubbles: true, cancelable: true }));
+      }
+    });
     li.append(b);
     return li;
   }
@@ -1923,15 +2050,24 @@ async function createNote(folder: string, nameTyped: string, pane?: Pane, rename
   }
 }
 async function deleteNote(path: string): Promise<void> {
-  if (!window.confirm(t.confirmDelete(name(path)))) return;
-  const r = await commands.deleteNote(path);
+  await deleteEntry(path, kindOf(path));
+}
+/** Anything to the bin: a note, another file, or a folder with what it holds. */
+async function deleteEntry(path: string, kind: Kind): Promise<void> {
+  const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
+  if (!window.confirm(kind === "folder" ? t.confirmDeleteFolder(label) : t.confirmDelete(label))) return;
+  const r = await commands.deleteEntry(path);
   if (r.status !== "ok") return fail(r.error);
-  for (const l of leavesOf(path)) {
+  for (const l of leavesUnder(path)) {
     l.setDirty(false);
     void l.close();
   }
   ui.status.textContent = t.deleted(r.data);
   await afterFileChange();
+}
+/** Leaves showing `path` or anything under it (a folder's contents). */
+function leavesUnder(path: string): Leaf[] {
+  return spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves.filter((l) => l.path === path || l.path.startsWith(`${path}/`))));
 }
 async function renameNote(from: string, toName: string): Promise<void> {
   const clean = toName.trim().replace(/\.md$/i, "");
@@ -1939,18 +2075,108 @@ async function renameNote(from: string, toName: string): Promise<void> {
   const to = clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean;
   await renameTo(from, kindOf(from) === "note" ? to : `${to}${ext(from) ? "." + ext(from) : ""}`);
 }
+async function renameFolder(from: string, toName: string): Promise<void> {
+  const clean = toName.trim().replace(/^\/+|\/+$/g, "");
+  const base = from.split("/").pop() ?? from;
+  if (!clean || clean === base) return;
+  await renameTo(from, clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean);
+}
 async function moveFile(path: string, folder: string): Promise<void> {
-  if (dirOf(path) === folder) return;
+  if (dirOf(path) === folder || folder === path || folder.startsWith(`${path}/`)) return;
   const base = path.split("/").pop() ?? path;
   await renameTo(path, folder ? `${folder}/${base}` : base);
   ui.status.textContent = t.moved;
 }
 async function renameTo(from: string, to: string): Promise<void> {
-  const r = await commands.renameNote(from, to);
+  const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
-  for (const l of leavesOf(from)) void l.load(r.data.path, true);
+  for (const l of leavesUnder(from)) void l.load(l.path === from ? r.data.path : r.data.path + l.path.slice(from.length), true);
+  if (openFolders.has(from)) {
+    openFolders.delete(from);
+    openFolders.add(r.data.path);
+  }
   await afterFileChange();
   if (r.data.rewrites.length > 0) plan.show(r.data.rewrites);
+}
+/** The context menu of anything in the folder: the same everywhere it is listed. */
+function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
+  const folder = kind === "folder";
+  const here = folder ? path : dirOf(path);
+  const sep: [string, () => void] = ["—", () => {}];
+  const items: [string, () => void][] = folder
+    ? [[t.openFolder, () => openFolder(path)]]
+    : [[t.openTab, () => openNote(path, false)], [t.openPane, () => openNote(path, true)]];
+  if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path)]);
+  items.push(
+    sep,
+    [t.rename, rename],
+    [`${t.moveTo}…`, () => movePrompt(path)],
+    ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind)] as [string, () => void]]),
+    sep,
+    [t.reveal, () => void commands.reveal(path)],
+    [t.copyPath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied))],
+    sep,
+    [t.newHere, () => newNotePrompt(here)],
+    [t.newFolder, () => newFolderPrompt(here)],
+    sep,
+    [t.deleteEntry, () => void deleteEntry(path, kind)],
+  );
+  showMenu(x, y, items);
+}
+/** A destination folder, typed with completion over the vault's folders. */
+function movePrompt(path: string): void {
+  const input = h("input", "new-note");
+  input.placeholder = t.moveWhere;
+  input.setAttribute("aria-label", t.moveTo);
+  const list = h("datalist");
+  list.id = "folders-list";
+  list.append(...["", ...allFolders].filter((f) => f !== path && !f.startsWith(`${path}/`)).map((f) => {
+    const o = h("option");
+    o.value = f || "/";
+    o.label = f || t.moveToRoot;
+    return o;
+  }));
+  input.setAttribute("list", list.id);
+  const where = h("span", "new-note-where", `${t.moveTo}: ${path.split("/").pop() ?? path} →`);
+  const row = h("div", "new-note-row");
+  row.append(where, input, list);
+  ui.notesHeading.after(row);
+  input.focus();
+  let done = false;
+  const finish = (commit: boolean) => {
+    if (done) return;
+    done = true;
+    const v = input.value.trim().replace(/^\/+|\/+$/g, "");
+    row.remove();
+    if (commit) void moveFile(path, v);
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") finish(true);
+    else if (e.key === "Escape") finish(false);
+  });
+  input.addEventListener("blur", () => finish(false));
+}
+/** A copy beside the original: "Name copy.ext", then "Name copy 2.ext"… */
+async function duplicateEntry(path: string, kind: Kind): Promise<void> {
+  if (kind === "folder") return;
+  const base = path.split("/").pop() ?? path;
+  const dot = base.lastIndexOf(".");
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  const suffix = dot > 0 ? base.slice(dot) : "";
+  const taken = new Set([...allNotes, ...allFiles].map((p) => p.toLowerCase()));
+  const dir = dirOf(path) ? `${dirOf(path)}/` : "";
+  let n = 1;
+  let candidate = `${dir}${stem} ${t.copySuffix}${suffix}`;
+  while (taken.has(candidate.toLowerCase())) candidate = `${dir}${stem} ${t.copySuffix} ${++n}${suffix}`;
+  const res = await fetch(convertFileSrc(path, "verso"));
+  if (!res.ok) return fail({ message: `${res.status} ${res.statusText}` });
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  const r = await commands.createFile(candidate, btoa(bin));
+  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  ui.status.textContent = t.duplicated;
+  await afterFileChange();
 }
 
 const menu = h("ul", "menu");
@@ -1985,11 +2211,12 @@ document.addEventListener("mousedown", (e) => {
   if (!menu.contains(e.target as globalThis.Node)) menu.hidden = true;
 });
 
-function renameInline(li: HTMLLIElement, path: string): void {
-  const row = li.querySelector("button");
+function renameInline(li: HTMLElement, path: string, folder = false): void {
+  const row = li.querySelector<HTMLElement>(folder ? ".folder-label, button" : "button");
   if (!row) return;
   const input = h("input", "rename");
-  input.value = name(path);
+  const current = folder ? path.split("/").pop() ?? path : name(path);
+  input.value = current;
   input.setAttribute("aria-label", t.rename);
   row.replaceWith(input);
   input.focus();
@@ -2000,13 +2227,15 @@ function renameInline(li: HTMLLIElement, path: string): void {
     done = true;
     const value = input.value;
     input.replaceWith(row);
-    if (commit) void renameNote(path, value);
+    if (commit) void (folder ? renameFolder(path, value) : renameNote(path, value));
   };
   input.addEventListener("keydown", (e) => {
+    e.stopPropagation();
     if (e.key === "Enter") finish(true);
     else if (e.key === "Escape") finish(false);
   });
-  input.addEventListener("blur", () => finish(input.value.trim() !== name(path)));
+  input.addEventListener("click", (e) => e.stopPropagation());
+  input.addEventListener("blur", () => finish(input.value.trim() !== current));
 }
 
 class Plan {
@@ -2069,15 +2298,7 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   armDrag(b, () => ({ kind: "file", path }), () => name(path));
   b.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    showMenu(e.clientX, e.clientY, [
-      [t.openTab, () => openNote(path, false)],
-      [t.openPane, () => openNote(path, true)],
-      [t.rename, () => renameInline(li, path)],
-      ...(kind === "note" ? [[t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path)] as [string, () => void]] : []),
-      [t.newHere, () => newNotePrompt(dirOf(path))],
-      [t.newFolder, () => newFolderPrompt(dirOf(path))],
-      [t.deleteNote, () => void deleteNote(path)],
-    ]);
+    entryMenu(e.clientX, e.clientY, path, kind, () => renameInline(li, path));
   });
   b.addEventListener("keydown", (e) => {
     if (e.key === "F2") {
@@ -2194,11 +2415,16 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
     });
     s.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      showMenu(e.clientX, e.clientY, [
-        [t.newHere, () => newNotePrompt(full)],
-        [t.newFolder, () => newFolderPrompt(full)],
-        [t.folderView, () => openFolder(full)],
-      ]);
+      entryMenu(e.clientX, e.clientY, full, "folder", () => renameInline(s, full, true));
+    });
+    s.addEventListener("keydown", (e) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        renameInline(s, full, true);
+      } else if (e.key === "Delete" || (e.key === "Backspace" && e.metaKey)) {
+        e.preventDefault();
+        void deleteEntry(full, "folder");
+      }
     });
     d.append(s, renderTree(child, depth + 1, full));
     li.append(d);
@@ -2208,11 +2434,13 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
   return ul;
 }
 async function listAll(): Promise<void> {
-  const [notes, files, folders] = await Promise.all([commands.listNotes(), commands.listFiles(), commands.listFolders()]);
+  const [notes, files, folders, entries] = await Promise.all([commands.listNotes(), commands.listFiles(), commands.listFolders(), commands.listEntries()]);
   if (notes.status !== "ok") return fail(notes.error);
   allNotes = notes.data;
   allFiles = files.status === "ok" ? files.data : [];
   allFolders = folders.status === "ok" ? folders.data : [];
+  allEntries.clear();
+  if (entries.status === "ok") for (const e of entries.data) allEntries.set(e.path, e);
   ui.notes.className = "tree";
   ui.notes.replaceChildren(...Array.from(renderTree(tree([...allNotes, ...allFiles], allFolders), 0).children));
   Array.from(ui.notes.children).forEach((li, i) => (li as HTMLElement).style.setProperty("--i", String(i)));
