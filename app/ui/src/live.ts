@@ -327,8 +327,12 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
     for (let n = a; n <= b; n++) if (active.has(n)) return true;
     return false;
   };
+  // A view plugin may not replace a line break: a hidden run stops at the
+  // end of the line it starts on (a bare `>`, a link whose destination is
+  // on the next line).
   const hide = (from: number, to: number): void => {
-    if (to > from) out.push({ from, to, deco: Decoration.replace({}) });
+    const end = Math.min(to, doc.lineAt(from).to);
+    if (end > from) out.push({ from, to: end, deco: Decoration.replace({}) });
   };
   const tree = syntaxTree(view.state);
 
@@ -397,7 +401,12 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const l = doc.line(n);
             out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-quote" }) });
           }
-          if (!shown) for (const m of node.node.getChildren("QuoteMark")) hide(m.from, Math.min(m.to + 1, node.to));
+        } else if (name === "QuoteMark") {
+          // Every `>` of a quote, those inside its paragraphs too, with the
+          // space after it when there is one.
+          let quote = node.node.parent;
+          while (quote && quote.name !== "Blockquote") quote = quote.parent;
+          if (quote && !touched(quote.from, quote.to)) hide(node.from, /[ \t]/.test(doc.sliceString(node.to, node.to + 1)) ? node.to + 1 : node.to);
         } else if (name === "ListItem") {
           const line = doc.lineAt(node.from);
           const mark = node.node.getChild("ListMark");
@@ -408,8 +417,9 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-link" }) });
           const url = node.node.getChild("URL");
           const marks = node.node.getChildren("LinkMark");
-          if (url && marks.length >= 3) {
-            // [text](url): keep the text, hide "[", "](url)".
+          if (url && marks.length >= 3 && doc.lineAt(node.from).number === doc.lineAt(node.to).number) {
+            // [text](url): keep the text, hide "[", "](url)" — when the
+            // link is on one line; one that spans lines shows its source.
             const first = marks[0];
             if (first) hide(first.from, first.to);
             const close = marks[1];
@@ -456,10 +466,24 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       }
     }
   }
+  // Nothing the view would refuse: a mark is never empty, and a widget or
+  // a hidden run never crosses a line break.
+  const valid = out.filter((r) => r.from >= 0 && r.to <= doc.length && (r.deco.point ? r.from <= r.to && r.to <= doc.lineAt(r.from).to : r.from < r.to));
   return Decoration.set(
-    out.map((r) => r.deco.range(r.from, r.to)),
+    valid.map((r) => r.deco.range(r.from, r.to)),
     true,
   );
+}
+
+/** Decorations that cannot take the editor down: a note the builder does
+ *  not expect is shown as its source, and the error goes to the console. */
+function safely(make: () => DecorationSet): DecorationSet {
+  try {
+    return make();
+  } catch (e) {
+    console.error("Live Preview:", e);
+    return Decoration.none;
+  }
 }
 
 export function livePreview(opts: LiveOptions) {
@@ -467,11 +491,11 @@ export function livePreview(opts: LiveOptions) {
     class {
       decorations: DecorationSet;
       constructor(view: EditorView) {
-        this.decorations = build(view, opts);
+        this.decorations = safely(() => build(view, opts));
       }
       update(u: ViewUpdate): void {
         if (u.docChanged || u.selectionSet || u.viewportChanged || u.transactions.some((t) => t.effects.some((e) => e.is(redraw)))) {
-          this.decorations = build(u.view, opts);
+          this.decorations = safely(() => build(u.view, opts));
         }
       }
     },
@@ -494,8 +518,8 @@ export function livePreview(opts: LiveOptions) {
   // The frontmatter folded to one quiet line, from state (a view plugin
   // may not replace line breaks), and atomic so the caret skips it.
   const frontmatter = StateField.define<DecorationSet>({
-    create: (state) => foldBlocks(state, opts),
-    update: (value, tr) => (tr.docChanged || tr.selection !== undefined || tr.effects.some((e) => e.is(redraw)) ? foldBlocks(tr.state, opts) : value),
+    create: (state) => safely(() => foldBlocks(state, opts)),
+    update: (value, tr) => (tr.docChanged || tr.selection !== undefined || tr.effects.some((e) => e.is(redraw)) ? safely(() => foldBlocks(tr.state, opts)) : value),
     provide: (f) => [EditorView.decorations.from(f), EditorView.atomicRanges.of((view) => view.state.field(f))],
   });
   return [plugin, clicks, frontmatter];
