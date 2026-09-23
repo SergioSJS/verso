@@ -45,6 +45,7 @@ pub enum Msg {
     Opening(String),
     /// `verso <folder>`: no app to start; what was tried.
     AppNotFound(String),
+    /// A first argument that is neither a subcommand nor an existing folder.
     UnknownSubcommand(String),
     UnknownOption(String),
     /// An option whose value is missing or not what it takes.
@@ -118,7 +119,8 @@ uso: verso <comando> <pasta> [...]
   verso backlinks <pasta> <nota>       quem linka para a nota
   verso backlinks <pasta> --unresolved alvos que nenhuma nota responde
   verso mcp <pasta>                    servidor MCP (stdio) só de leitura para um agente
-  verso <pasta>  |  verso open <pasta> abre a pasta no aplicativo (verso . = esta pasta)
+  verso <pasta>                        abre a pasta no aplicativo (verso . = esta pasta)
+  verso open <pasta>                   o mesmo, para uma pasta chamada como um comando
   verso help                           esta ajuda
 
 opções: --json (saída em JSON), --limit N (busca), --lang pt-BR|en
@@ -127,7 +129,9 @@ códigos de saída: 0 ok, 1 problemas na pasta reportados, 2 uso, 3 não abriu
 mcp: o cliente que se conectar lê a pasta inteira (toda nota que o índice
 lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                 .to_owned(),
-            Msg::UnknownSubcommand(s) => format!("comando desconhecido: {s}"),
+            Msg::UnknownSubcommand(s) => {
+                format!("comando desconhecido, e nenhuma pasta com esse nome: {s}")
+            }
             Msg::UnknownOption(s) => format!("opção desconhecida: {s}"),
             Msg::BadOptionValue(s) => format!("valor inválido ou ausente para {s}"),
             Msg::ExtraArgument(s) => format!("argumento a mais: {s}"),
@@ -197,7 +201,8 @@ usage: verso <command> <folder> [...]
   verso backlinks <folder> <note>      who links to the note
   verso backlinks <folder> --unresolved targets no note answers to
   verso mcp <folder>                   read-only MCP server (stdio) for an agent
-  verso <folder>  |  verso open <folder> open the folder in the app (verso . = this one)
+  verso <folder>                       open the folder in the app (verso . = this one)
+  verso open <folder>                  the same, for a folder named like a command
   verso help                           this help
 
 options: --json (JSON output), --limit N (search), --lang pt-BR|en
@@ -206,7 +211,9 @@ exit codes: 0 ok, 1 problems in the folder reported, 2 usage, 3 could not open
 mcp: the client that connects reads the whole folder (every note the index
 lists); there is no way to hide a block or a note yet. Choose the folder."
                 .to_owned(),
-            Msg::UnknownSubcommand(s) => format!("unknown command: {s}"),
+            Msg::UnknownSubcommand(s) => {
+                format!("unknown command, and no folder by that name: {s}")
+            }
             Msg::UnknownOption(s) => format!("unknown option: {s}"),
             Msg::BadOptionValue(s) => format!("missing or invalid value for {s}"),
             Msg::ExtraArgument(s) => format!("unexpected argument: {s}"),
