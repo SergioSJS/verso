@@ -3,6 +3,8 @@
 - Data: 2026-09-21
 - Fonte: `docs/review/phase-0.md` R8
 - Status no briefing: não consta
+- Revisões: 2026-09-23 — o que o código da Fase 2 faz registrado em
+  Consequências, como **provisório**; toda questão continua `[ABERTO]`.
 
 ## Contexto
 
@@ -50,6 +52,58 @@ escrito como caminho deixar de resolver. Tudo o que esta ADR deixa em aberto —
 o que acontece com modificação externa, o que é atômico, o que é mostrado como
 diff — vale para essa reescrita, que é escrita em notas que o usuário não
 editou. Fase 2: a Fase 1 não tem UI e não move arquivo.
+
+**O que o código da Fase 2 faz. Registrado em 2026-09-23 — provisório; toda
+questão acima continua `[ABERTO]`, quem decide é o mantenedor.** É o código
+como ficou depois da leitura da Opus do branch da Fase 2
+(`docs/review/phase-2.md`), cujos achados mudaram vários destes pontos.
+
+- **Renomear e mover: opção (b).** Antes de qualquer coisa mudar de lugar, o
+  core lê toda nota cujos links podem nomear a entrada, com o que cada link
+  alcança pela regra do índice (Q12 da spec). Depois muda a entrada de lugar
+  com um rename só — recusado quando algo ocupa o destino, um placeholder da
+  nuvem inclusive, ou quando a própria entrada é um placeholder —, faz o índice
+  acompanhar (uma nota movida guarda o que o índice sabia dela, inclusive a
+  última versão conhecida de um placeholder) e responde com um plano: para cada
+  nota cujos links não alcançam mais o que alcançavam, o texto antes e depois,
+  com a revisão em que foi lida. Só esses links são reescritos, numa forma que
+  alcança de novo a mesma entrada — um nome solto que agora alcançaria outra
+  nota vira caminho — e nunca dentro de código. Uma mudança que mandaria em
+  silêncio um nome solto para outro lugar também ganha plano, que era o
+  requisito acima.
+- **Nada é escrito até o usuário aplicar o plano**, mostrado como um diff por
+  nota. Cada nota é então escrita sozinha, de forma atômica, sobre a própria
+  revisão: uma nota editada depois do plano é recusada e contada, nunca
+  sobrescrita, e uma aba aberta que não consegue salvar antes fica de fora e é
+  nomeada. Uma nota que linka para o que mudou mas não pode entrar no plano
+  — um placeholder, um arquivo que não é UTF-8, um erro de leitura — aparece
+  como pulada.
+- **Sem transação lógica.** As Consequências acima pedem uma; não há. A mudança
+  é um rename só e as reescritas são escritas separadas: uma falha na sétima de
+  doze deixa seis escritas e o resto não, a janela diz quantas, e nada as
+  desfaz.
+  Depois que a entrada mudou de lugar, nada é reportado como falha; o que não
+  pôde ser confirmado vira aviso.
+- **Pastas** mudam de lugar com tudo o que têm dentro; as notas e anexos de
+  dentro mantêm os links, e as notas de fora que linkavam para dentro ganham
+  plano. **Anexos** planejam as notas cujos embeds os alcançavam.
+- **Excluir** manda para `.trash/` na raiz da pasta aberta, a lixeira do
+  Obsidian, mantendo o caminho relativo e acrescentando ` (n)` numa colisão;
+  nada é apagado de vez. A janela pergunta antes, na página — a confirmação de
+  uma primeira versão nunca perguntava (a leitura da Opus achou isso).
+- **Criar** escreve o texto que a janela dá: `# Nome` para uma nota nova, o
+  `url` para uma nota web, o template para a nota do dia. Um nome ocupado é
+  recusado com `exists`, seja o que for que esteja lá; a janela também confere
+  nomes sem diferenciar maiúsculas antes de pedir. Os nomes guardam acentos e
+  espaços como digitados; nenhuma normalização Unicode (Q7) é aplicada.
+- **Caixa.** Um rename que só muda a caixa é permitido num volume insensível a
+  caixa, onde os dois nomes são o mesmo arquivo.
+- **Placeholders.** Um placeholder sozinho não pode ser renomeado nem excluído,
+  porque o conteúdo está na nuvem; uma pasta com placeholders muda de lugar e
+  vai para a lixeira inteira.
+- **Modificação externa concorrente** segue a [0012](0012-files-are-source-of-truth.md):
+  toda escrita confere a revisão que recebeu, e a revisão que uma escrita
+  devolve é a dos bytes que ela escreveu.
 
 ## Alternativas descartadas
 
