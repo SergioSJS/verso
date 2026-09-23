@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.13
+# Spec do dialeto do Verso — v0.14
 
-- Versão: v0.13 · 2026-09-23
+- Versão: v0.14 · 2026-09-23
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -612,6 +612,20 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
   `[ABERTO]` Bloco indentado por 4 espaços, HTML embutido, `%%comentário%%`,
   link dentro de URL (seção 5.9).
+
+  **Fato provisório vindo da visualização de leitura e da janela, registrado em
+  2026-09-23, que não responde a esta questão.** O parser que alimenta o índice
+  não mudou, então se um `[[…]]` dentro de um comentário, de HTML embutido ou de
+  um bloco indentado é link continua sendo o que a seção 5.9 diz. O que mudou é
+  o que a visualização de leitura mostra: `%%…%%` sai dela, na linha ou
+  atravessando linhas, nunca dentro de código — a documentação pública do
+  Obsidian mostra comentários só na visualização de edição —, e uma `#tag`
+  dentro de um comentário não é tag nem para o índice nem para o leitor. HTML
+  embutido só chega à página por uma lista de permissões que a janela aplica
+  (scripts, estilos, frames, formulários e atributos de evento saem), já que
+  uma nota de uma pasta compartilhada é entrada não confiável
+  ([ADR 0045](../adr/0045-server-and-mcp-security.md)). Quem decide é o
+  mantenedor; esta linha só registra o que o código faz enquanto isso.
 - **Q7. Normalização Unicode na comparação de nomes.** `[ABERTO]`
   NFC × NFD. O APFS (macOS, plataforma inicial) preserva a forma recebida e faz
   busca insensível à normalização; HFS+ forçava NFD; Linux compara bytes. Um
@@ -683,6 +697,12 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   não?" e ainda não tem resposta; até ter, a regra é o texto acima e a diferença
   é um achado, não uma decisão.
 
+  **Embeds de arquivos que não são nota, desde `3340a3f`, registrado em
+  2026-09-23.** Resolvem pelos pontos 1 a 5 a partir da nota que tem o embed;
+  para um nome solto vem primeiro o arquivo **na** pasta da própria nota de
+  origem — o texto acima —, enquanto as notas seguem o "sob" do índice. A
+  resposta a "sob a pasta, sim ou não?" resolve os dois.
+
   **Fato do `verso-fs`, inalterado por este fechamento.** O walk classifica um
   arquivo comum como nota quando a extensão é exatamente `md`; `.MD`, `.Md` e
   `.markdown` são arquivos comuns até a Q8 ser decidida.
@@ -696,8 +716,13 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   de um espaço ou de um `(`, e é seguido de letras, dígitos, `_`, `-` ou `/` que
   não sejam só dígitos; um bloco de código cercado é pulado e a tag vai para
   minúsculas. Assim o `#` de um heading (`# Título`, com o espaço) e o `#` dentro
-  de uma URL não são tags. A visualização de leitura aplica a mesma regra e
-  mostra essa tag como um link que a busca; dentro de código nada muda. Quem
+  de uma URL não são tags. Desde `95b39ee` o índice e a visualização de leitura
+  tiram a regra de uma função só do dialeto, `verso_dialect::body_tags`, que lê
+  os eventos do parser e pula o frontmatter, trechos e blocos de código
+  (cercados ou indentados), destinos e rótulos de link, texto alternativo de
+  imagem, matemática e comentários `%%`; antes dela, o índice varria linhas
+  cruas e listava tags falsas. A visualização de leitura mostra essa tag como
+  um link que a busca. Quem
   decide é o mantenedor; esta linha só registra o que o código faz enquanto
   isso.
 - **Q14. Link para arquivo que não existe.** `[ABERTO]`
@@ -745,7 +770,12 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   um link dentro de uma tabela ou de uma nota de rodapé é achado como em texto
   corrido, e nenhuma fixture cobre a renderização. O mantenedor pediu notas de
   rodapé, matemática e tabelas pelo nome em 2026-09-23; isso resolve o que a
-  janela mostra, não esta questão.
+  janela mostra, não esta questão. Desde `7475c03` a visualização de leitura acha
+  tudo isso nos eventos do parser, não no próprio HTML: código, rótulos de link
+  e texto alternativo nunca são reescritos, e um `</blockquote>` cru não abre
+  nem fecha mais um callout. Como o leitor habilita opções que o parser não
+  habilita, `$[[x]]$` é link para o índice e matemática para o leitor — uma
+  discordância registrada, não resolvida.
 - **Q16. Arquivos não-Markdown na pasta.** `[ABERTO]`
   Quais entram no índice como alvo de link (imagens, PDF, `.canvas`) e quais são
   ignorados.
@@ -755,11 +785,12 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   que não esteja oculto nem ignorado; só notas entram no índice como alvo de
   link e fonte de backlink. Um embed de outro arquivo (`![[mapa.png]]`,
   `![[livro.pdf]]`) fica no índice como alvo não resolvido (Q14), nunca como
-  backlink; o core o resolve só para exibição — por caminho a partir da raiz
-  quando o alvo tem `/`, senão pelo nome do arquivo, com ou sem a extensão, sem
-  diferenciar maiúsculas, o de menos segmentos primeiro, depois ordem de bytes.
-  A janela mostra imagens, PDFs, arquivos HTML (sem scripts) e arquivos de texto,
-  e edita arquivos de texto pela mesma escrita atômica das notas. Uma nota cujo
+  backlink; o core o resolve só para exibição, pela regra da Q12 a partir da nota
+  que tem o embed (desde `3340a3f`; antes, só pelo nome do arquivo, fosse qual
+  fosse a nota). Um arquivo cujo conteúdo está na nuvem é listado e resolve como
+  presente. A janela mostra imagens, PDFs, arquivos HTML (sem scripts) e
+  arquivos de texto, e edita arquivos de texto pela mesma escrita atômica das
+  notas. Uma nota cujo
   frontmatter tem uma propriedade `url` com `http(s)` é mostrada como aquela
   página web; o índice guarda o endereço para isso. Quem decide é o mantenedor;
   esta linha só registra o que o código faz enquanto isso.
@@ -862,10 +893,32 @@ ser escolhido.
   `on` e datas viram booleanos e timestamps, em 1.2 não; `tags: 2024` é número
   ou tag?; wikilinks dentro de valores (`related: "[[nota]]"`), que as
   Properties do Obsidian tratam como links.
+
+  **Fato provisório vindo da janela, registrado em 2026-09-23, que não responde
+  a esta questão.** O frontmatter dobrado da janela e o painel de propriedades
+  acham o frontmatter onde o core o acha, pela regra da seção 5.1 como o parser
+  a aplica; usavam uma regra própria, mais frouxa, que aceitava `...` e aparava
+  as cercas, até a leitura da Opus de 2026-09-23 achar os dois discordando. Um
+  valor que o painel não consegue reescrever sem mudar o tipo — um mapa, uma
+  lista com qualquer coisa além de texto simples — é mostrado e não editado.
+  Quem decide é o mantenedor; esta linha só registra o que o código faz
+  enquanto isso.
 - **Q25. Codificação.** `[ABERTO]`
   Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
   do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
   porque codificação não é sintaxe.
+
+  **Fato provisório vindo do `verso-core`, registrado em 2026-09-23, que não
+  responde a esta questão.** Um arquivo cujos bytes não são UTF-8 válido não é
+  aberto para edição: lê-lo para um editor responde `not_text`, então nenhum
+  editor guarda uma cópia com caracteres de substituição que salvar escreveria
+  de volta; um plano de renomeação deixa essa nota de fora e a nomeia; o
+  `verso mcp` responde `not_text`. O índice continua decodificando com
+  substituição, só para a busca, que não escreve nada. Antes disso, o texto era
+  decodificado com substituição e salvar ou aplicar um plano escrevia os
+  caracteres de substituição de volta — a leitura da Opus de 2026-09-23 achou
+  isso. Quem decide é o mantenedor; esta linha só registra o que o código faz
+  enquanto isso.
 - **Q26. Caminhos ignorados pela varredura e seu efeito em backlinks.**
   `DECIDIDA` em 2026-09-22 pelo mantenedor, sobre o memo
   `docs/reference/fs-decision.md`; a regra em si vive no
@@ -895,3 +948,4 @@ ser escolhido.
 | v0.11 | 2026-09-22 | Fatos provisórios registrados sob Q12 e Q14, vindos do código do `verso-index` como ele ficou depois da leitura do Opus 5: alvo vazio (`[[#Heading]]`) resolve para a própria nota, colisão de caixa entre dois caminhos resolve como colisão de nomes simples, e alvo não resolvido é mostrado pela menor das grafias dele na ordem de bytes. Nada observado no Obsidian para esses três; nenhuma questão fechada |
 | v0.12 | 2026-09-22 | **Q12 fechada pelo mantenedor**, seguindo o Obsidian 1.13.7 observado uma segunda vez no mesmo dia (`docs/reference/index-decision.md` §4.1, §4.6): alvo vazio é a própria nota e backlink dela; caminho é resolvido relativo à pasta da nota de origem além de a partir da raiz; nome puro prefere a pasta da própria origem, depois menos segmentos, depois ordem de bytes; alias não resolve; `[[nota/]]` e `[[.md]]` não resolvem. As partes de Q2, Q8 e Q14 de que a regra precisa são respondidas junto; o resto dessas três continua aberto. Quarta questão fechada |
 | v0.13 | 2026-09-23 | Fatos provisórios registrados em Q12, Q13, Q15 e Q16, vindos do código da branch da Fase 2: o ponto 3 da Q12 como o código o lê ("sob" a pasta de origem, redação que o mantenedor ainda não resolveu), tags no corpo, as extensões de Markdown e quebras de linha que a visualização de leitura renderiza, e os arquivos que não são nota. A linha da Q14 sobre `[[#Heading]]` marcada como superada pelo ponto 1 da Q12. Nenhuma questão fechada |
+| v0.14 | 2026-09-23 | Fatos provisórios em Q6, Q12, Q13, Q15, Q16, Q24 e Q25 trazidos até o código depois da leitura da Opus do branch da Fase 2: comentários escondidos e HTML embutido sanitizado na visualização de leitura, uma regra de tag só para o índice e o leitor, embeds resolvidos pela Q12 a partir da nota, a fronteira do frontmatter da janela, arquivos que não são UTF-8 não abertos para edição. Nenhuma questão fechada |

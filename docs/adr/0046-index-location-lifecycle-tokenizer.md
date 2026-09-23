@@ -175,3 +175,11 @@ tokenizer are decided above. The `verso-index` code implements them except for
 the sidecar, which is feature 4's to write; what the code does today is
 recorded under Consequences, and the two items that differ from this Decision
 are the sidecar and nothing else.
+
+**2026-09-23.** The sidecar exists since `0f8e189`: `verso-core` writes
+`<key>.json` beside `<key>.sqlite`, with the folder, the time of the last run
+and the schema, and since the Opus reading of the Phase 2 branch a sidecar
+that cannot be written is a warning, not a failed run; the window reopens a
+folder by that key. Its file mode is whatever the umask gives (0644 observed),
+inside the 0700 directory; whether "file `0600`" above covers it is the
+maintainer's to say (`docs/review/phase-2.md` §6).
