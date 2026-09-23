@@ -9,6 +9,7 @@
 // user asked for exactly this change, the rest of the file is untouched).
 
 import type { Property, PropertyValue } from "./bindings";
+import { frontmatterClose, opensWithFence } from "./frontmatter";
 import { icon } from "./icons";
 
 export type PropsStrings = {
@@ -235,16 +236,13 @@ function serialize(key: string, v: PropertyValue): string[] {
 export function frontmatterChange(doc: string, key: string, value: PropertyValue | null): { from: number; to: number; insert: string } | null {
   const eol = doc.includes("\r\n") ? "\r\n" : "\n";
   const lines = doc.split(/\r?\n/);
-  if (lines[0]?.trim() !== "---") {
-    if (value === null) return null;
+  // Where the core finds the block (./frontmatter). A file that opens
+  // with a fence the core does not close gets no second block on top.
+  const end = frontmatterClose((i) => lines[i]);
+  if (end < 0) {
+    if (value === null || opensWithFence(lines[0])) return null;
     return { from: 0, to: 0, insert: ["---", ...serialize(key, value), "---", ""].join(eol) };
   }
-  let end = -1;
-  for (let i = 1; i < lines.length; i++) if (lines[i]?.trim() === "---" || lines[i]?.trim() === "...") {
-    end = i;
-    break;
-  }
-  if (end < 0) return null;
   const offset = (line: number): number => {
     let n = 0;
     for (let i = 0; i < line; i++) n += (lines[i]?.length ?? 0) + eol.length;

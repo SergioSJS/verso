@@ -1284,7 +1284,8 @@ class NoteLeaf extends Leaf {
     if (url !== this.webUrl && this.webLabel) this.closeWeb();
     this.webUrl = url;
     // A note that is only its address shows the page first.
-    const body = this.editor.state.doc.toString().replace(/^---[\s\S]*?\n---\n?/, "").trim();
+    const doc = this.editor.state.doc;
+    const body = doc.sliceString(Math.min(frontmatterEnd(doc) + 1, doc.length)).trim();
     this.setWebShown(body === "" || this.webShown);
   }
   private setWebShown(on: boolean): void {
@@ -1398,11 +1399,8 @@ class NoteLeaf extends Leaf {
   /** Words and characters of the body (frontmatter left out), in the status bar. */
   updateWords(): void {
     if (this.pane.active !== this || layout().focused !== this.pane) return;
-    let text = this.editor.state.doc.toString();
-    if (text.startsWith("---")) {
-      const end = text.indexOf("\n---", 3);
-      if (end >= 0) text = text.slice(end + 4);
-    }
+    const doc = this.editor.state.doc;
+    const text = doc.sliceString(Math.min(frontmatterEnd(doc) + 1, doc.length));
     const words = text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
     ui.words.textContent = t.words(words, text.replace(/\s/g, "").length);
   }
