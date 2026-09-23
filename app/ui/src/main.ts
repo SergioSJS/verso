@@ -1723,10 +1723,21 @@ class NoteLeaf extends Leaf {
    *  changes if that line is no longer the one the view was drawn from:
    *  the save that follows draws it again. */
   private toggleTask(line: number, box: HTMLInputElement): void {
+    // While the conflict banner waits, its diff was drawn before this
+    // click: nothing changes until the user has chosen.
+    if (this.conflict.up) {
+      box.checked = !box.checked;
+      ui.status.textContent = t.conflictPending;
+      return;
+    }
     const doc = this.editor.state.doc;
     const now = line <= doc.lines ? doc.line(line) : null;
-    const drawn = this.shownText.split(/\r\n|\r|\n/)[line - 1];
-    const m = now && now.text === drawn ? TASK.exec(now.text) : null;
+    // The editor must still hold the drawn text up to that line: with an
+    // unsaved edit above it, line N is another line — perhaps an
+    // identical task, which a comparison of that line alone would take.
+    const drawn = this.shownText.split(/\r\n|\r|\n/);
+    const unchanged = now !== null && doc.sliceString(0, now.to).split("\n").every((l, i) => l === drawn[i]);
+    const m = now && unchanged ? TASK.exec(now.text) : null;
     if (!now || !m) {
       box.checked = !box.checked;
       ui.status.textContent = t.taskMoved;
@@ -2883,7 +2894,8 @@ class Pane {
       ...(leaf.kind === "note" && !popout ? [[t.openInWindow, () => void (async () => {
         // The window reads the file: what is not saved would stay behind.
         if (!(await leaf.flush())) return stopped([leaf]);
-        await commands.openWindow(leaf.path);
+        const opened = await commands.openWindow(leaf.path);
+        if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
       })()] as [string, () => void]] : []),
       ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
@@ -3750,17 +3762,25 @@ async function renameFolder(from: string, toName: string): Promise<void> {
 async function moveFile(path: string, folder: string): Promise<void> {
   if (dirOf(path) === folder || folder === path || folder.startsWith(`${path}/`)) return;
   const base = path.split("/").pop() ?? path;
-  await renameTo(path, folder ? `${folder}/${base}` : base);
-  ui.status.textContent = t.moved;
+  await renameTo(path, folder ? `${folder}/${base}` : base, t.moved);
 }
-async function renameTo(from: string, to: string): Promise<void> {
+/** Rename or move an entry. `done` is said once it has moved, before what
+ *  the move could not plan or confirm; a refusal says its own reason.
+ *  Answers whether the entry moved. */
+async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
   // What moves is saved first; a tab of it that cannot be saved stops the move.
   const unsaved = await flushed(leavesUnder(from));
-  if (unsaved.length > 0) return stopped(unsaved);
+  if (unsaved.length > 0) {
+    stopped(unsaved);
+    return false;
+  }
   // The links to rewrite are read from disk: every tab saves first.
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
   const r = await commands.renameEntry(from, to);
-  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  if (r.status !== "ok") {
+    fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+    return false;
+  }
   pathsMoved(from, r.data.path);
   for (const l of leavesUnder(from)) l.moved(l.path === from ? r.data.path : r.data.path + l.path.slice(from.length));
   if (openFolders.has(from)) {
@@ -3772,9 +3792,10 @@ async function renameTo(from: string, to: string): Promise<void> {
   // their links may now point elsewhere, and only the user can look.
   const why = { unavailable: t.skipUnavailable, not_text: t.skipNotText, failed: t.skipFailed };
   const skipped = r.data.skipped.length === 0 ? "" : t.planSkipped.replace("{n}", String(r.data.skipped.length)).replace("{names}", r.data.skipped.map((k) => `${name(k.path)} (${why[k.reason]})`).join(", "));
-  const said = [skipped, ...r.data.warnings].filter(Boolean).join(" ");
+  const said = [done, skipped, ...r.data.warnings].filter(Boolean).join(" ");
   if (r.data.rewrites.length > 0) plan.show(r.data.rewrites, undefined, undefined, said);
   else if (said) ui.status.textContent = said;
+  return true;
 }
 /** The context menu of anything in the folder: the same everywhere it is listed. */
 function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
@@ -5214,9 +5235,9 @@ async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo 
   const r = await run();
   if (r.status !== "ok") {
     ui.status.textContent = "";
-    // Here a refusal means a note window is open: it names notes by path,
-    // and the host will not switch the folder under it.
-    if (r.error.kind === "refused") ui.status.textContent = t.closeNoteWindows;
+    // A note window names notes by path: the host will not switch the
+    // folder under it, and says so.
+    if (r.error.kind === "refused" && r.error.message.includes("note windows")) ui.status.textContent = t.closeNoteWindows;
     else if (!(quiet && r.error.kind === "not_found")) fail(r.error);
     return false;
   }
@@ -5506,6 +5527,10 @@ lesson();
 if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false); void getCurrentWindow().setFocus(); });
 void (async () => {
   if (popout) return void joinAsPopout();
+  // A reload (a language change) finds the host's folder still open: the
+  // window joins it rather than open another.
+  const open = await commands.currentFolder();
+  if (open.status === "ok" && open.data) return showFolder(open.data);
   // `verso <folder>` on the command line wins over the last folder.
   if (await openFolderBy(() => commands.openInitial())) return;
   let last: string | null = null;
