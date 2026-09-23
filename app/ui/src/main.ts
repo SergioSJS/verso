@@ -61,7 +61,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
-  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab",
+  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -123,7 +123,7 @@ const pt: Strings = {
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
-  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior",
+  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
@@ -180,7 +180,7 @@ const en: Strings = {
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
-  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab",
+  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
@@ -3474,10 +3474,12 @@ class Plan {
     this.el.hidden = true;
     document.body.append(this.el);
   }
-  show(rewrites: Plan["rewrites"], title = t.planTitle(rewrites.length), applyLabel = t.planApply): void {
+  /** `detail`: what the plan was drawn from, said under the title. */
+  show(rewrites: Plan["rewrites"], title = t.planTitle(rewrites.length), applyLabel = t.planApply, detail = ""): void {
     this.rewrites = rewrites;
     const box = h("div", "plan-box");
     box.append(h("h2", "", title));
+    if (detail) box.append(h("p", "replace-note", detail));
     for (const w of rewrites) {
       const d = h("details");
       d.open = rewrites.length <= 3;
@@ -4126,6 +4128,7 @@ class ReplaceDialog {
     opt(regex, t.regex);
     box.append(opts);
     const note = h("p", "replace-note");
+    note.setAttribute("role", "status");
     const go = button("save", t.previewChanges);
     const cancel = button("ghost", t.planSkip);
     cancel.addEventListener("click", () => this.hide());
@@ -4146,7 +4149,11 @@ class ReplaceDialog {
   }
   hide(): void {
     this.el.hidden = true;
+    this.scan++;
   }
+  /** Bumped by every preview and by closing: a scan whose number is no
+   *  longer current stops. */
+  private scan = 0;
   private async preview(find: string, repl: string, matchCase: boolean, regex: boolean, note: HTMLElement, go: HTMLButtonElement): Promise<void> {
     if (!find) return;
     let re: RegExp;
@@ -4157,31 +4164,50 @@ class ReplaceDialog {
       return;
     }
     go.disabled = true;
-    note.textContent = "…";
-    // Candidates through the search index when the needle has words; the
-    // whole vault otherwise. The exact match is decided on the text.
-    const words = regex ? [] : find.match(/[\p{L}\p{N}]{2,}/gu) ?? [];
-    let candidates = allNotes;
-    if (words.length > 0) {
-      const r = await commands.search(words.join(" "), 1000);
-      if (r.status === "ok") candidates = r.data.map((hit) => hit.path);
-    }
+    // Every note is read. The search index answers whole words, capped,
+    // and the replacement matches any part of the text ("cat" is in
+    // "concatenate"): candidates from the index would skip notes and the
+    // plan would still look complete.
+    const scan = ++this.scan;
+    const notes = allNotes.slice();
     const rewrites: { path: string; revision: string; before: string; after: string }[] = [];
-    for (const path of candidates) {
-      const r = await commands.readNote(path);
-      if (r.status !== "ok") continue;
-      re.lastIndex = 0;
-      if (!re.test(r.data.text)) continue;
-      const after = regex ? r.data.text.replace(re, repl) : r.data.text.replace(re, () => repl);
-      if (after !== r.data.text) rewrites.push({ path, revision: r.data.revision, before: r.data.text, after });
-    }
+    const unread: string[] = [];
+    let read = 0;
+    let next = 0;
+    const worker = async () => {
+      while (next < notes.length && scan === this.scan) {
+        const path = notes[next++]!;
+        const r = await commands.readText(path);
+        read++;
+        if (read % 20 === 0 || read === notes.length) note.textContent = t.replaceScanning.replace("{done}", String(read)).replace("{n}", String(notes.length));
+        if (r.status !== "ok") {
+          unread.push(path);
+          continue;
+        }
+        re.lastIndex = 0;
+        if (!re.test(r.data.text)) continue;
+        const after = regex ? r.data.text.replace(re, repl) : r.data.text.replace(re, () => repl);
+        if (after !== r.data.text) rewrites.push({ path, revision: r.data.revision, before: r.data.text, after });
+      }
+    };
+    note.textContent = t.replaceScanning.replace("{done}", "0").replace("{n}", String(notes.length));
+    // A few reads in flight at a time.
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    if (scan !== this.scan) return;
     go.disabled = false;
+    // What was searched, said with the result: all notes, and the ones that
+    // could not be read (a placeholder in the cloud, a file gone).
+    const searched = [
+      t.replaceSearched.replace("{n}", String(notes.length)),
+      ...(unread.length > 0 ? [t.replaceUnread.replace("{n}", String(unread.length)).replace("{names}", unread.slice(0, 5).map(name).join(", ") + (unread.length > 5 ? "…" : ""))] : []),
+    ].join(" ");
     if (rewrites.length === 0) {
-      note.textContent = t.noMatches;
+      note.textContent = `${t.noMatches} ${searched}`;
       return;
     }
+    rewrites.sort((a, b) => a.path.localeCompare(b.path, LOCALE));
     this.hide();
-    plan.show(rewrites, t.replaceCount(rewrites.length), t.applyChanges);
+    plan.show(rewrites, t.replaceCount(rewrites.length), t.applyChanges, searched);
   }
 }
 const replaceDialog = new ReplaceDialog();
