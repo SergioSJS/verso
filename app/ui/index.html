@@ -27,10 +27,6 @@
       <h2 id="notes-heading" class="side-title"></h2>
       <ul id="notes" class="tree"></ul>
     </nav>
-    <section class="side-outline" aria-labelledby="outline-heading" hidden>
-      <h2 id="outline-heading" class="side-title"></h2>
-      <ul id="outline" class="outline"></ul>
-    </section>
   </aside>
 
   <div id="side-divider" class="side-divider" role="separator" aria-orientation="vertical"></div>
@@ -42,6 +38,11 @@
       <span class="status-keys"><kbd>⌘N</kbd> <span id="keys-new"></span> · <kbd>⌘E</kbd> <span id="keys-edit"></span> · <kbd>⌘\</kbd> <span id="keys-split"></span> · <kbd>⌘T</kbd> <span id="keys-space"></span></span>
     </footer>
   </main>
+  <div id="right-divider" class="side-divider right" role="separator" aria-orientation="vertical"></div>
+  <aside id="right" class="right">
+    <div id="right-tabs" class="right-tabs" role="tablist"></div>
+    <div id="right-body" class="right-body"></div>
+  </aside>
   <script type="module" src="main.js"></script>
 </body>
 </html>

@@ -24,7 +24,7 @@ use std::sync::Mutex;
 use tauri::{Manager, State};
 use verso_contract::{
     Backlink, Block, ContractError, ErrorKind, FolderInfo, Heading, Hit, IndexSummary, Link,
-    LinkRewrite, NoteText, Property, Renamed, Written,
+    LinkRewrite, NoteText, Property, Renamed, Tag, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -238,6 +238,19 @@ fn list_files(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
     with(&state, |ws| Ok(ws.files()))
 }
 
+/// Every tag of the vault, by count, with the notes that carry it.
+#[tauri::command]
+#[specta::specta]
+fn list_tags(state: State<'_, App>) -> Result<Vec<Tag>, ContractError> {
+    with(&state, |ws| {
+        Ok(ws
+            .tags()?
+            .into_iter()
+            .map(|(name, notes)| Tag { name, notes })
+            .collect())
+    })
+}
+
 /// Every folder of the open folder, empty ones included, for the tree.
 #[tauri::command]
 #[specta::specta]
@@ -379,6 +392,7 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         resolve_attachment,
         list_files,
         list_folders,
+        list_tags,
         read_file_text,
         reindex
     ])

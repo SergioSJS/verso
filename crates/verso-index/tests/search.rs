@@ -158,3 +158,22 @@ fn a_note_is_found_by_its_name_even_when_the_body_never_says_it() {
     assert!(index.remove("RPG/A Coroa Afogada.md").unwrap());
     index.check().unwrap();
 }
+
+#[test]
+fn tags_come_from_the_frontmatter_and_the_body_outside_code() {
+    let mut index = Index::in_memory().unwrap();
+    put(
+        &mut index,
+        "a.md",
+        "---\ntags: [Campanha, npc]\n---\nTexto #sessão e #npc, não #123 nem x#y.\n```\n#codigo\n```\n",
+    );
+    put(&mut index, "b.md", "#campanha (#npc)\n");
+    let tags = index.tags().unwrap();
+    let names: Vec<(&str, usize)> = tags.iter().map(|(n, ps)| (n.as_str(), ps.len())).collect();
+    assert_eq!(
+        names,
+        [("campanha", 2), ("npc", 2), ("sessão", 1)],
+        "{tags:?}"
+    );
+    assert_eq!(tags[0].1, ["a.md", "b.md"]);
+}
