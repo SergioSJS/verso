@@ -101,6 +101,8 @@ export class PdfView {
       b.type = "button";
       b.title = title;
       b.append(icon(ic, title));
+      // The click must not steal the selection the action is about.
+      b.addEventListener("mousedown", (e) => e.preventDefault());
       b.addEventListener("click", run);
       return b;
     };
