@@ -502,3 +502,23 @@ fn an_empty_note_answers_an_empty_window() {
     );
     session.close();
 }
+
+#[test]
+fn a_note_that_is_not_utf8_answers_not_text() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    // Latin-1 "café": the core hands no lossy text to anyone (spec Q25).
+    let mut latin = Builder::new()
+        .prefix("Latin.md")
+        .rand_bytes(0)
+        .tempfile_in(vault.path())
+        .unwrap();
+    latin.write_all(b"caf\xE9\n").unwrap();
+    latin.flush().unwrap();
+    let mut session = Session::start(vault.path(), config.path());
+    session.requests(&initialize("2025-06-18"));
+    let r = session.request(&call(2, "read_note", json!({"path":"Latin"})));
+    assert_eq!(r["result"]["isError"], true, "{r:?}");
+    assert_eq!(structured(&r)["kind"], "not_text", "{r:?}");
+    session.close();
+}

@@ -272,8 +272,9 @@ pub struct Server {
 /// branch on `kind` without parsing prose: `refused` (the path cannot
 /// name a note of the folder — absolute, `..`, hidden, ignored, empty),
 /// `unknown_note` (the index does not know it), `not_found` (no such
-/// file), `unavailable` (a placeholder, ADR 0043), `bad_window`
-/// (`read_note` lines), `failed` (the server could not answer). `path` is
+/// file), `unavailable` (a placeholder, ADR 0043), `not_text` (the
+/// file's bytes are not UTF-8; spec Q25), `bad_window` (`read_note`
+/// lines), `failed` (the server could not answer). `path` is
 /// the one the client sent when it is what was wrong, the confined one
 /// otherwise, null when none was involved.
 #[derive(Debug, Serialize, JsonSchema)]
@@ -339,6 +340,7 @@ fn fail(e: &CoreError, path: Option<&str>) -> CallToolResult {
         CoreError::Read(ReadError::Io(io)) if io.kind() == std::io::ErrorKind::NotFound => {
             "not_found"
         }
+        CoreError::NotText => "not_text",
         _ => "failed",
     };
     refuse(kind, path, &e.to_string())
