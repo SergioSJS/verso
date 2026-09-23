@@ -11,7 +11,9 @@
 
 fn main() {
     let manifest = tauri_build::AppManifest::new().commands(&[
-        "open_folder",
+        "pick_folder",
+        "reopen_folder",
+        "open_initial",
         "list_notes",
         "read_note",
         "search",
@@ -31,7 +33,6 @@ fn main() {
         "list_entries",
         "list_web_notes",
         "graph",
-        "initial_folder",
         "current_folder",
         "open_window",
         "popout_target",

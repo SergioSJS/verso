@@ -2,15 +2,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! The desktop shell (Phase 2, item 2.2, walking skeleton): a Tauri v2
-//! window whose only way to the notes is `verso-core`, through the
-//! contract (`verso-contract`, ADR 0026). Nothing here reads a file and
-//! no Tauri fs plugin is enabled (rule 5). Read-only for now: it opens a
-//! folder, indexes it, lists the notes, shows one with its headings and
-//! `^id` blocks, searches, and lists links and backlinks (items 2.3 and
-//! 2.5; 2.4, the editor, comes after). The folder's path is the one
-//! string that crosses, at the entry edge (rule 4); every note is named
-//! by its path relative to the folder, and every path the UI sends is
+//! The desktop shell (Phase 2, item 2.2): a Tauri v2 window whose only
+//! way to the notes is `verso-core`, through the contract
+//! (`verso-contract`, ADR 0026). Nothing here reads a file and no Tauri
+//! fs plugin is enabled (rule 5). It opens a folder, indexes it, lists
+//! the notes, shows one, searches, lists links and backlinks, edits,
+//! creates, renames and trashes (items 2.3 to 2.5; ADR 0048 is `[OPEN]`,
+//! so the file operations are provisional).
+//!
+//! The folder's path is a string on this side only, at the entry edge
+//! (rule 4): the command line (`verso-app <folder>`, taken once by
+//! `open_initial`) and the native folder picker, which `pick_folder` runs
+//! here and never shows the UI. What crosses is the folder's name and an
+//! opaque key; `reopen_folder` takes the key back. Every note is named by
+//! its path relative to the folder, and every path the UI sends is
 //! confined by the core.
 //!
 //! The TypeScript bindings — types and command signatures — are
@@ -18,16 +23,24 @@
 //! `app/ui/src/bindings.ts` (`verso-app --export-bindings`; ADR 0038,
 //! decided 2026-09-22) and checked in CI, so rule 3 stays a rule.
 
+use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use tauri::{Manager, State};
+use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderInfo, Heading, Hit,
-    IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed, Tag, TextFile,
-    WebNote, Written,
+    IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed, SkipReason,
+    Skipped, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
+
+/// The open folder: its workspace and what the UI was told about it.
+struct Session {
+    workspace: Workspace,
+    info: FolderInfo,
+}
 
 /// The one open folder, or none yet. One mutex: two commands never
 /// interleave on the index.
@@ -37,19 +50,45 @@ pub struct App {
     /// Web pages inside windows: web view label → the window that opened
     /// it, which alone may move, hide, steer or close it.
     pub web_views: Mutex<std::collections::HashMap<String, String>>,
-    /// The folder named on the command line (`verso-app <folder>`), taken
-    /// once by the UI at start-up: a path as a string at the entry edge.
-    pub initial_folder: Mutex<Option<String>>,
-    workspace: Mutex<Option<Workspace>>,
+    /// The folder named on the command line (`verso-app <folder>`), opened
+    /// once by `open_initial`: a path at the entry edge, on this side.
+    initial_folder: Mutex<Option<PathBuf>>,
+    session: Mutex<Option<Session>>,
+}
+
+impl App {
+    /// The state before any folder is open; `initial` is what the command
+    /// line named, if anything.
+    #[must_use]
+    pub fn new(initial: Option<PathBuf>) -> Self {
+        Self {
+            popouts: Mutex::new(std::collections::HashMap::new()),
+            web_views: Mutex::new(std::collections::HashMap::new()),
+            initial_folder: Mutex::new(initial),
+            session: Mutex::new(None),
+        }
+    }
+}
+
+/// Lock a mutex, poisoned or not: a panic in an earlier command must not
+/// make every later one fail until restart. What the panicking command
+/// left half done is the same either way; refusing to look at it helps
+/// nobody.
+fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn convert(e: CoreError) -> ContractError {
     let kind = match &e {
-        CoreError::Confined(_) => ErrorKind::Refused,
+        CoreError::Confined(_) | CoreError::InvalidKey => ErrorKind::Refused,
+        CoreError::Write(WriteError::Confined(_)) => ErrorKind::Refused,
         CoreError::Read(ReadError::Unavailable) => ErrorKind::Unavailable,
         CoreError::Read(ReadError::Io(io)) if io.kind() == std::io::ErrorKind::NotFound => {
             ErrorKind::NotFound
         }
+        CoreError::Folder(io) if io.kind() == std::io::ErrorKind::NotFound => ErrorKind::NotFound,
+        CoreError::UnknownFolder => ErrorKind::NotFound,
+        CoreError::NotText => ErrorKind::NotText,
         CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
         CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
         CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
@@ -86,39 +125,174 @@ fn count(n: usize) -> u32 {
     u32::try_from(n).unwrap_or(u32::MAX)
 }
 
+/// The run's numbers, and one readable line per problem the walk met or
+/// per thing the run could not do besides indexing (the sidecar).
 fn summary(r: &verso_core::IndexReport) -> IndexSummary {
     IndexSummary {
         indexed: count(r.indexed),
         unchanged: count(r.unchanged),
         removed: count(r.removed),
         placeholders: count(r.placeholders),
-        problems: r.problems.iter().map(|p| format!("{p:?}")).collect(),
+        problems: r
+            .problems
+            .iter()
+            .map(ToString::to_string)
+            .chain(r.warnings.iter().cloned())
+            .collect(),
     }
 }
 
-/// Run `f` on the open workspace.
+fn folder_info(ws: &Workspace, report: &verso_core::IndexReport) -> FolderInfo {
+    FolderInfo {
+        name: ws.name(),
+        key: ws.key(),
+        index: summary(report),
+    }
+}
+
+/// What a panic inside the core said, for the message the UI shows.
+fn panic_text(payload: &(dyn std::any::Any + Send)) -> String {
+    payload
+        .downcast_ref::<String>()
+        .cloned()
+        .or_else(|| payload.downcast_ref::<&str>().map(|s| (*s).to_owned()))
+        .unwrap_or_else(|| "unknown panic".to_owned())
+}
+
+/// Run `f` on the open workspace. A panic inside the core is answered as
+/// `failed`, not propagated: propagated, it would poison the mutex and
+/// every later command would fail until restart, with the user's notes
+/// open (the reading of the Phase 2 host reproduced it with a render
+/// panic).
 fn with<T>(
     state: &State<'_, App>,
     f: impl FnOnce(&mut Workspace) -> Result<T, CoreError>,
 ) -> Result<T, ContractError> {
-    let mut guard = state.workspace.lock().map_err(|e| failed(e.to_string()))?;
-    let ws = guard.as_mut().ok_or_else(no_folder)?;
-    f(ws).map_err(convert)
+    let mut guard = lock(&state.session);
+    let session = guard.as_mut().ok_or_else(no_folder)?;
+    match std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace))) {
+        Ok(result) => result.map_err(convert),
+        Err(payload) => Err(failed(format!(
+            "the core failed: {}",
+            panic_text(payload.as_ref())
+        ))),
+    }
 }
 
-/// Open a folder and bring its index up to date. The one command that
-/// takes a path to a folder: the entry edge.
+/// Whether this window may open or switch the folder: only the main
+/// window, and only while no note is popped out — a note window names
+/// notes by their path relative to the folder, and would write into the
+/// new folder under the old names.
+fn may_switch<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    window: &tauri::Window<R>,
+) -> Result<(), ContractError> {
+    if window.label() != "main" {
+        return Err(refused("only the main window opens a folder"));
+    }
+    if app
+        .webview_windows()
+        .keys()
+        .any(|label| label.starts_with("note-"))
+    {
+        return Err(refused("close the note windows first"));
+    }
+    Ok(())
+}
+
+/// Open a folder off the event loop — opening indexes it, which can take
+/// seconds on a large vault — and make it the session. The switch is
+/// checked again once the folder is open: a note window may have opened
+/// while the picker was up.
+async fn install<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    window: &tauri::Window<R>,
+    open: impl FnOnce() -> Result<Workspace, CoreError> + Send + 'static,
+) -> Result<FolderInfo, ContractError> {
+    let opened = tauri::async_runtime::spawn_blocking(move || -> Result<Session, CoreError> {
+        let mut workspace = open()?;
+        let report = workspace.index()?;
+        let info = folder_info(&workspace, &report);
+        Ok(Session { workspace, info })
+    })
+    .await
+    .map_err(|e| failed(e.to_string()))?
+    .map_err(convert)?;
+    may_switch(app, window)?;
+    let info = opened.info.clone();
+    *lock(&app.state::<App>().session) = Some(opened);
+    Ok(info)
+}
+
+/// Run the native folder picker and open what the user chose: the entry
+/// edge, on this side of the contract (rule 4). `None` when the picker
+/// was cancelled. The picker and the indexing run off the event loop.
 #[tauri::command]
 #[specta::specta]
-fn open_folder(state: State<'_, App>, path: String) -> Result<FolderInfo, ContractError> {
-    let mut ws = Workspace::open(Path::new(&path), None).map_err(convert)?;
-    let report = ws.index().map_err(convert)?;
-    let info = FolderInfo {
-        folder: ws.folder().to_string_lossy().into_owned(),
-        index: summary(&report),
+async fn pick_folder<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<Option<FolderInfo>, ContractError> {
+    may_switch(&app, &window)?;
+    let picker = app.clone();
+    let parent = window.clone();
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        picker
+            .dialog()
+            .file()
+            .set_parent(&parent)
+            .blocking_pick_folder()
+    })
+    .await
+    .map_err(|e| failed(e.to_string()))?;
+    let Some(picked) = picked else {
+        return Ok(None);
     };
-    *state.workspace.lock().map_err(|e| failed(e.to_string()))? = Some(ws);
-    Ok(info)
+    let path = picked.into_path().map_err(|e| failed(e.to_string()))?;
+    install(&app, &window, move || Workspace::open(&path, None))
+        .await
+        .map(Some)
+}
+
+/// Open again a folder opened before, by the key `FolderInfo` carried:
+/// `refused` when the key is not one this app issues (so it can never
+/// name a path), `not_found` when no folder opened before has it or the
+/// folder is gone.
+#[tauri::command]
+#[specta::specta]
+async fn reopen_folder<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    key: String,
+) -> Result<FolderInfo, ContractError> {
+    may_switch(&app, &window)?;
+    install(&app, &window, move || Workspace::reopen(&key, None)).await
+}
+
+/// Open, once, the folder named on the command line (`verso-app
+/// <folder>`); `None` afterwards and when there was none. The UI calls it
+/// at start-up, before falling back to the last folder it remembers.
+#[tauri::command]
+#[specta::specta]
+async fn open_initial<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<Option<FolderInfo>, ContractError> {
+    may_switch(&app, &window)?;
+    let Some(path) = lock(&app.state::<App>().initial_folder).take() else {
+        return Ok(None);
+    };
+    install(&app, &window, move || Workspace::open(&path, None))
+        .await
+        .map(Some)
+}
+
+/// The folder that is open, for a window that joins the session (a note
+/// in a window of its own) and for a reload: `None` when none is.
+#[tauri::command]
+#[specta::specta]
+fn current_folder(state: State<'_, App>) -> Result<Option<FolderInfo>, ContractError> {
+    Ok(lock(&state.session).as_ref().map(|s| s.info.clone()))
 }
 
 /// Every note the index knows, by path relative to the folder.
@@ -128,7 +302,8 @@ fn list_notes(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
     with(&state, |ws| ws.notes())
 }
 
-/// A note's text as it is on disk, with what the index knows of it.
+/// A note's text as it is on disk, with what the index knows of it;
+/// `not_text` when its bytes are not UTF-8.
 #[tauri::command]
 #[specta::specta]
 fn read_note(state: State<'_, App>, path: String) -> Result<NoteText, ContractError> {
@@ -150,6 +325,7 @@ fn note_out(t: verso_core::NoteText) -> NoteText {
                     verso_core::PropertyValue::Number(s) => PropertyValue::Number(s),
                     verso_core::PropertyValue::Checkbox(b) => PropertyValue::Checkbox(b),
                     verso_core::PropertyValue::List(v) => PropertyValue::List(v),
+                    verso_core::PropertyValue::Nested(s) => PropertyValue::Nested(s),
                     verso_core::PropertyValue::Empty => PropertyValue::Empty,
                 },
             })
@@ -242,6 +418,7 @@ fn backlinks(state: State<'_, App>, path: String) -> Result<Vec<Backlink>, Contr
 /// Write a note's text over the revision that was read — atomically, no
 /// normalization — and index it. `changed` when the file moved on
 /// meanwhile: nothing written, read again and show the diff (invariant 11).
+/// The answer is the text that was sent, with the revision of those bytes.
 #[tauri::command]
 #[specta::specta]
 fn write_note(
@@ -310,7 +487,8 @@ fn list_folders(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
 }
 
 /// The bytes of a text file that is not a note (UTF-8, lossily), for
-/// viewing; confined like every path.
+/// viewing only — never for an editor, which reads through `read_text`;
+/// confined like every path.
 #[tauri::command]
 #[specta::specta]
 fn read_file_text(state: State<'_, App>, path: String) -> Result<String, ContractError> {
@@ -320,15 +498,18 @@ fn read_file_text(state: State<'_, App>, path: String) -> Result<String, Contrac
     })
 }
 
-/// The file an embed names (`![[mapa.png]]`), relative to the folder, or
-/// none. The UI then loads it through the `verso://` protocol below.
+/// The file an embed written in the note at `source` names
+/// (`![[mapa.png]]`), relative to the folder, or none — by the rule of
+/// spec Q12 applied to files: from the note's own folder first. The UI
+/// then loads it through the `verso://` protocol below.
 #[tauri::command]
 #[specta::specta]
 fn resolve_attachment(
     state: State<'_, App>,
+    source: String,
     target: String,
 ) -> Result<Option<String>, ContractError> {
-    with(&state, |ws| Ok(ws.resolve_file(&target)))
+    with(&state, |ws| Ok(ws.resolve_file(&source, &target)))
 }
 
 /// Create a note (`name`, with or without `.md`, folders created) with
@@ -390,16 +571,25 @@ fn create_folder(state: State<'_, App>, path: String) -> Result<String, Contract
     with(&state, |ws| ws.create_folder(&path))
 }
 
-/// Move a note to `.trash/` at the root, Obsidian's bin; returns where.
-#[tauri::command]
-#[specta::specta]
-fn delete_note(state: State<'_, App>, path: String) -> Result<String, ContractError> {
-    with(&state, |ws| ws.delete_note(&path))
+fn trashed_out(t: verso_core::Trashed) -> Trashed {
+    Trashed {
+        path: t.path,
+        warnings: t.warnings,
+    }
 }
 
-/// Rename or move a note. The file moves; the notes that link to it come
-/// back as rewrites — before, after, revision — for the UI to show and
-/// apply through `write_note` (ADR 0048, option (b)).
+/// Move a note to `.trash/` at the root, Obsidian's bin; answers where it
+/// went, with what could not be confirmed once it was there.
+#[tauri::command]
+#[specta::specta]
+fn delete_note(state: State<'_, App>, path: String) -> Result<Trashed, ContractError> {
+    with(&state, |ws| ws.delete_note(&path)).map(trashed_out)
+}
+
+/// Rename or move a note. The file moves; the notes whose links reached
+/// it come back as rewrites — before, after, revision — for the UI to
+/// show and apply through `write_note` (ADR 0048, option (b)); the ones
+/// that could not be planned are listed as skipped.
 #[tauri::command]
 #[specta::specta]
 fn rename_note(state: State<'_, App>, from: String, to: String) -> Result<Renamed, ContractError> {
@@ -419,6 +609,19 @@ fn renamed_out(r: verso_core::Renamed) -> Renamed {
                 after: w.after,
             })
             .collect(),
+        skipped: r
+            .skipped
+            .into_iter()
+            .map(|s| Skipped {
+                path: s.path,
+                reason: match s.reason {
+                    verso_core::SkipReason::Unavailable => SkipReason::Unavailable,
+                    verso_core::SkipReason::NotText => SkipReason::NotText,
+                    verso_core::SkipReason::Failed => SkipReason::Failed,
+                },
+            })
+            .collect(),
+        warnings: r.warnings,
     }
 }
 
@@ -456,11 +659,11 @@ fn rename_entry(state: State<'_, App>, from: String, to: String) -> Result<Renam
 }
 
 /// Move anything of the folder — a file or a whole folder — to `.trash/`
-/// at the root; returns where.
+/// at the root; answers where it went.
 #[tauri::command]
 #[specta::specta]
-fn delete_entry(state: State<'_, App>, path: String) -> Result<String, ContractError> {
-    with(&state, |ws| ws.delete_entry(&path))
+fn delete_entry(state: State<'_, App>, path: String) -> Result<Trashed, ContractError> {
+    with(&state, |ws| ws.delete_entry(&path)).map(trashed_out)
 }
 
 /// Show an entry in the system's file manager. The absolute path is
@@ -498,7 +701,7 @@ fn text_out(t: verso_core::TextFile) -> TextFile {
 }
 
 /// Any file as text with its revision, for the editor of files that are
-/// not notes.
+/// not notes; `not_text` when its bytes are not UTF-8.
 #[tauri::command]
 #[specta::specta]
 fn read_text(state: State<'_, App>, path: String) -> Result<TextFile, ContractError> {
@@ -506,7 +709,8 @@ fn read_text(state: State<'_, App>, path: String) -> Result<TextFile, ContractEr
 }
 
 /// Write any file's text over the revision that was read; a changed file
-/// is refused (invariant 11) and the UI shows the difference.
+/// is refused (invariant 11) and the UI shows the difference. The answer
+/// is the text that was sent, with the revision of those bytes.
 #[tauri::command]
 #[specta::specta]
 fn write_text(
@@ -536,6 +740,64 @@ fn web_only(url: &tauri::Url) -> bool {
     matches!(url.scheme(), "http" | "https")
 }
 
+/// Whether `url` is one of the app's own pages: `tauri://localhost` on
+/// macOS and Linux, `http(s)://tauri.localhost` on Windows.
+fn is_app_url(url: &tauri::Url) -> bool {
+    matches!(
+        (url.scheme(), url.host_str()),
+        ("tauri", Some("localhost")) | ("http" | "https", Some("tauri.localhost"))
+    )
+}
+
+/// Whether `url` is the folder's file protocol (`verso://localhost`, or
+/// `http(s)://verso.localhost` on Windows).
+fn is_file_url(url: &tauri::Url) -> bool {
+    matches!(
+        (url.scheme(), url.host_str()),
+        ("verso", Some("localhost")) | ("http" | "https", Some("verso.localhost"))
+    )
+}
+
+/// Where each web view of this app may navigate (the reading of the
+/// Phase 2 host): an app view — the main window or a note popped out —
+/// stays on the app's own pages (plus the dev server's, in a debug
+/// build) and the folder's file protocol, so a `<form>`, an `<area>`, a
+/// meta refresh or a link annotation in a PDF cannot take it to a remote
+/// page; a web view (`web-*`) keeps to the web; anything else goes
+/// nowhere. `about:blank` is an empty page and is allowed everywhere.
+///
+/// The file protocol is allowed because the handler is asked for every
+/// frame, not only the window's own (wry passes no frame to it): the
+/// HTML-file viewer is a frame that loads through the protocol, and a
+/// guard that refused it would refuse the viewer. What the protocol
+/// serves runs no script (`CSP: sandbox`) and is never a note.
+fn may_navigate(label: &str, url: &tauri::Url, dev_url: Option<&tauri::Url>) -> bool {
+    if url.as_str() == "about:blank" {
+        return true;
+    }
+    if is_app_view(label) {
+        is_app_url(url)
+            || is_file_url(url)
+            || (cfg!(debug_assertions) && dev_url.is_some_and(|dev| dev.origin() == url.origin()))
+    } else if label.starts_with("web-") {
+        web_only(url)
+    } else {
+        false
+    }
+}
+
+/// The navigation guard as a plugin: a plugin's `on_navigation` is asked
+/// for every web view, the main window included, which a builder's own
+/// handler cannot reach.
+fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::new("verso-navigation")
+        .on_navigation(|webview, url| {
+            let dev_url = webview.app_handle().config().build.dev_url.clone();
+            may_navigate(webview.label(), url, dev_url.as_ref())
+        })
+        .build()
+}
+
 /// Open a web page in a window of its own inside the app: a note with a
 /// `url` property is the bookmark, this is the browser. Only `http(s)`;
 /// the page cannot navigate anywhere else, nor open windows.
@@ -562,12 +824,7 @@ fn own_web_view<R: tauri::Runtime>(
     state: &State<'_, App>,
     label: &str,
 ) -> Result<tauri::Webview<R>, ContractError> {
-    let owner = state
-        .web_views
-        .lock()
-        .map_err(|e| failed(e.to_string()))?
-        .get(label)
-        .cloned();
+    let owner = lock(&state.web_views).get(label).cloned();
     if owner.as_deref() != Some(window.label()) {
         return Err(refused(format!("{label} is not a web view of this window")));
     }
@@ -631,11 +888,7 @@ fn web_open<R: tauri::Runtime>(
             tauri::LogicalSize::new(w.max(1.0), h.max(1.0)),
         )
         .map_err(|e| failed(e.to_string()))?;
-    state
-        .web_views
-        .lock()
-        .map_err(|e| failed(e.to_string()))?
-        .insert(label.clone(), window.label().to_owned());
+    lock(&state.web_views).insert(label.clone(), window.label().to_owned());
     Ok(label)
 }
 
@@ -680,11 +933,7 @@ fn web_close<R: tauri::Runtime>(
     label: String,
 ) -> Result<(), ContractError> {
     let wv = own_web_view(&window, &state, &label)?;
-    state
-        .web_views
-        .lock()
-        .map_err(|e| failed(e.to_string()))?
-        .remove(&label);
+    lock(&state.web_views).remove(&label);
     wv.close().map_err(|e| failed(e.to_string()))
 }
 
@@ -725,19 +974,6 @@ fn web_url<R: tauri::Runtime>(
 
 static POPOUTS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-/// The folder that is open, for a window that joins the session (a
-/// note in a window of its own): it must not open the folder again.
-#[tauri::command]
-#[specta::specta]
-fn current_folder(state: State<'_, App>) -> Result<Option<String>, ContractError> {
-    Ok(state
-        .workspace
-        .lock()
-        .map_err(|e| failed(e.to_string()))?
-        .as_ref()
-        .map(|ws| ws.folder().to_string_lossy().into_owned()))
-}
-
 /// A note in a window of its own: the same UI, which asks which note
 /// by its window's label.
 #[tauri::command]
@@ -755,11 +991,7 @@ fn open_window<R: tauri::Runtime>(
         .unwrap_or(&path)
         .trim_end_matches(".md")
         .to_owned();
-    state
-        .popouts
-        .lock()
-        .map_err(|e| failed(e.to_string()))?
-        .insert(label.clone(), path);
+    lock(&state.popouts).insert(label.clone(), path);
     tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App("index.html".into()))
         .title(title)
         .inner_size(920.0, 720.0)
@@ -778,12 +1010,7 @@ fn popout_target<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
 ) -> Result<Option<String>, ContractError> {
-    Ok(state
-        .popouts
-        .lock()
-        .map_err(|e| failed(e.to_string()))?
-        .get(window.label())
-        .cloned())
+    Ok(lock(&state.popouts).get(window.label()).cloned())
 }
 
 /// The note goes back into the main window: the main window is told,
@@ -799,31 +1026,19 @@ fn return_to_main<R: tauri::Runtime>(
     use tauri::Emitter;
     app.emit_to("main", "open-note", path)
         .map_err(|e| failed(e.to_string()))?;
-    state
-        .popouts
-        .lock()
-        .map_err(|e| failed(e.to_string()))?
-        .remove(window.label());
+    lock(&state.popouts).remove(window.label());
     window.close().map_err(|e| failed(e.to_string()))
-}
-
-/// The folder the command line asked for, once; `None` afterwards and
-/// when there was none. The UI opens it instead of the last folder.
-#[tauri::command]
-#[specta::specta]
-fn initial_folder(state: State<'_, App>) -> Result<Option<String>, ContractError> {
-    Ok(state
-        .initial_folder
-        .lock()
-        .map_err(|e| failed(e.to_string()))?
-        .take())
 }
 
 /// Refresh the index from the folder: only what changed is re-read.
 #[tauri::command]
 #[specta::specta]
 fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
-    with(&state, |ws| Ok(summary(&ws.index()?)))
+    let summary = with(&state, |ws| Ok(summary(&ws.index()?)))?;
+    if let Some(session) = lock(&state.session).as_mut() {
+        session.info.index = summary.clone();
+    }
+    Ok(summary)
 }
 
 /// The commands, once, for the handler, the bindings and the tests. A
@@ -832,7 +1047,9 @@ fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
 macro_rules! commands_for {
     ($runtime:path) => {
         tauri_specta::Builder::<$runtime>::new().commands(tauri_specta::collect_commands![
-            open_folder,
+            pick_folder::<$runtime>,
+            reopen_folder::<$runtime>,
+            open_initial::<$runtime>,
             list_notes,
             read_note,
             search,
@@ -852,7 +1069,6 @@ macro_rules! commands_for {
             list_entries,
             list_web_notes,
             graph,
-            initial_folder,
             current_folder,
             open_window::<$runtime>,
             popout_target::<$runtime>,
@@ -1043,18 +1259,14 @@ fn serve_file<R: tauri::Runtime>(
         .and_then(|v| v.to_str().ok())
         .map(str::to_owned);
     let state = ctx.app_handle().state::<App>();
-    let served = match state.workspace.lock() {
-        Ok(mut guard) => serve(
-            guard.as_mut(),
+    let served = {
+        let mut guard = lock(&state.session);
+        serve(
+            guard.as_mut().map(|s| &mut s.workspace),
             ctx.webview_label(),
             &relative,
             origin.as_deref(),
-        ),
-        Err(e) => Served {
-            status: 500,
-            headers: vec![("Content-Type", "text/plain; charset=utf-8".to_owned())],
-            body: e.to_string().into_bytes(),
-        },
+        )
     };
     let mut response = tauri::http::Response::builder().status(served.status);
     for (name, value) in &served.headers {
@@ -1068,18 +1280,12 @@ fn serve_file<R: tauri::Runtime>(
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let commands = commands();
-    let initial_folder = initial_folder
-        .map(|p| std::path::absolute(&p).unwrap_or(p))
-        .map(|p| p.to_string_lossy().into_owned());
+    let initial_folder = initial_folder.map(|p| std::path::absolute(&p).unwrap_or(p));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(navigation_guard())
         .register_uri_scheme_protocol("verso", serve_file)
-        .manage(App {
-            popouts: Mutex::new(std::collections::HashMap::new()),
-            web_views: Mutex::new(std::collections::HashMap::new()),
-            initial_folder: Mutex::new(initial_folder),
-            workspace: Mutex::new(None),
-        })
+        .manage(App::new(initial_folder))
         .invoke_handler(commands.invoke_handler())
         .run(context())?;
     Ok(())
@@ -1101,14 +1307,13 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
 
-    fn app() -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
+    /// The app with the folder the command line would have named.
+    fn app_with(
+        initial: Option<PathBuf>,
+    ) -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
         let app = mock_builder()
-            .manage(App {
-                popouts: std::sync::Mutex::new(std::collections::HashMap::new()),
-                web_views: std::sync::Mutex::new(std::collections::HashMap::new()),
-                initial_folder: std::sync::Mutex::new(None),
-                workspace: std::sync::Mutex::new(None),
-            })
+            .plugin(navigation_guard())
+            .manage(App::new(initial))
             .invoke_handler(commands_for!(MockRuntime).invoke_handler())
             // The app's own context: its capabilities decide what a window may call.
             .build(context())
@@ -1117,6 +1322,10 @@ mod tests {
             .build()
             .unwrap();
         (app, webview)
+    }
+
+    fn app() -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
+        app_with(None)
     }
 
     fn call(
@@ -1172,16 +1381,37 @@ mod tests {
         let _barao = note(
             vault.path(),
             "Barão.md",
-            "---\ntags: [npc]\nurl: https://example.org\n---\n",
+            "---\ntags: [npc]\nurl: https://example.org\nmeta: {a: 1}\n---\n",
         );
-        let (_app, webview) = app();
+        let (_app, webview) = app_with(Some(vault.path().to_path_buf()));
 
         // Nothing open yet: every command says so, in the contract's words.
         let err = call(&webview, "list_notes", json!({})).unwrap_err();
         assert_eq!(err["kind"], "no_folder", "{err}");
+        assert!(
+            call(&webview, "current_folder", json!({}))
+                .unwrap()
+                .is_null()
+        );
 
-        let info = call(&webview, "open_folder", json!({ "path": vault.path() })).unwrap();
+        // The command line's folder opens once; what crosses is a name
+        // and a key, never the path (rule 4).
+        let info = call(&webview, "open_initial", json!({})).unwrap();
         assert_eq!(info["index"]["indexed"], 2, "{info}");
+        assert_eq!(
+            info["name"],
+            vault.path().file_name().unwrap().to_str().unwrap()
+        );
+        let key = info["key"].as_str().unwrap().to_owned();
+        assert!(
+            !key.contains('/') && !info.to_string().contains(vault.path().to_str().unwrap()),
+            "{info}"
+        );
+        assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
+        assert_eq!(
+            call(&webview, "current_folder", json!({})).unwrap()["key"],
+            key
+        );
 
         let notes = call(&webview, "list_notes", json!({})).unwrap();
         assert!(
@@ -1225,10 +1455,30 @@ mod tests {
         // with the text that held it.
         let barao = call(&webview, "read_note", json!({ "path": "Barão" })).unwrap();
         assert_eq!(barao["properties"][0]["value"]["kind"], "list", "{barao}");
+        assert_eq!(barao["properties"][2]["value"]["kind"], "nested", "{barao}");
         let web = call(&webview, "list_web_notes", json!({})).unwrap();
         assert_eq!(web[0]["url"], "https://example.org", "{web}");
         let graph = call(&webview, "graph", json!({})).unwrap();
         assert_eq!(graph.as_array().unwrap().len(), 0, "{graph}");
+
+        // A deletion answers where the note went, and any warning.
+        let gone = call(&webview, "delete_note", json!({ "path": "Taverna" })).unwrap();
+        assert_eq!(gone["path"], ".trash/Taverna.md", "{gone}");
+        assert_eq!(gone["warnings"], json!([]), "{gone}");
+
+        // The same folder again, by its key; a key that is not one is
+        // refused before anything is looked up, an unknown one not found.
+        let again = call(&webview, "reopen_folder", json!({ "key": key })).unwrap();
+        assert_eq!(again["key"], key, "{again}");
+        let bad = call(&webview, "reopen_folder", json!({ "key": "../x" })).unwrap_err();
+        assert_eq!(bad["kind"], "refused", "{bad}");
+        let none = call(
+            &webview,
+            "reopen_folder",
+            json!({ "key": "nada-0123456789abcdef" }),
+        )
+        .unwrap_err();
+        assert_eq!(none["kind"], "not_found", "{none}");
     }
 
     /// Only the app's own views reach the commands: not a web page loaded
@@ -1237,18 +1487,144 @@ mod tests {
     #[test]
     fn only_the_apps_own_views_reach_the_commands() {
         let (app, main) = app();
-        assert!(call(&main, "initial_folder", json!({})).is_ok());
-        let remote = call_from(&main, "https://example.org", "initial_folder", json!({}));
+        assert!(call(&main, "current_folder", json!({})).is_ok());
+        let remote = call_from(&main, "https://example.org", "current_folder", json!({}));
         assert!(remote.is_err(), "{remote:?}");
         let page = tauri::WebviewWindowBuilder::new(&app, "web-7", Default::default())
             .build()
             .unwrap();
-        let local_in_page = call(&page, "initial_folder", json!({}));
+        let local_in_page = call(&page, "current_folder", json!({}));
         assert!(local_in_page.is_err(), "{local_in_page:?}");
         let popout = tauri::WebviewWindowBuilder::new(&app, "note-3", Default::default())
             .build()
             .unwrap();
-        assert!(call(&popout, "initial_folder", json!({})).is_ok());
+        assert!(call(&popout, "current_folder", json!({})).is_ok());
+    }
+
+    /// Only the main window switches folders, and not while a note is
+    /// popped out: a note window names notes by relative path and would
+    /// write into the new folder under the old names.
+    #[test]
+    fn switching_folders_is_refused_from_a_note_window_and_while_one_is_open() {
+        let vault = tempfile::tempdir().unwrap();
+        let _n = note(vault.path(), "Uma.md", "# Uma\n");
+        let (app, main) = app_with(Some(vault.path().to_path_buf()));
+        let popout = tauri::WebviewWindowBuilder::new(&app, "note-0", Default::default())
+            .build()
+            .unwrap();
+        for cmd in ["open_initial", "pick_folder"] {
+            let from_popout = call(&popout, cmd, json!({})).unwrap_err();
+            assert_eq!(from_popout["kind"], "refused", "{cmd}: {from_popout}");
+            let while_open = call(&main, cmd, json!({})).unwrap_err();
+            assert_eq!(while_open["kind"], "refused", "{cmd}: {while_open}");
+            assert!(
+                while_open["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("note windows")
+            );
+        }
+        let from_popout = call(
+            &popout,
+            "reopen_folder",
+            json!({ "key": "x-0123456789abcdef" }),
+        )
+        .unwrap_err();
+        assert_eq!(from_popout["kind"], "refused", "{from_popout}");
+        // The command line's folder is still there for when the windows
+        // close (the mock runtime never destroys a window, so the opening
+        // itself is exercised by `the_commands_answer_through_the_contract`).
+        assert!(lock(&app.state::<App>().initial_folder).is_some());
+    }
+
+    /// A panic inside a core call is answered as `failed` and leaves the
+    /// session usable; so does a lock poisoned by a panic elsewhere.
+    #[test]
+    fn a_panic_in_the_core_does_not_take_the_session_down() {
+        let vault = tempfile::tempdir().unwrap();
+        let _n = note(vault.path(), "Uma.md", "# Uma\n");
+        let (app, main) = app_with(Some(vault.path().to_path_buf()));
+        call(&main, "open_initial", json!({})).unwrap();
+        let state = app.state::<App>();
+        let boom = with(&state, |_| -> Result<(), CoreError> {
+            panic!("boom in the core")
+        });
+        let err = boom.unwrap_err();
+        assert_eq!(err.kind, ErrorKind::Failed);
+        assert!(err.message.contains("boom in the core"), "{}", err.message);
+        assert!(call(&main, "list_notes", json!({})).is_ok());
+        // A panic while holding the lock, elsewhere: the lock is poisoned
+        // and still answers.
+        let app_ref = &state;
+        let poisoned = std::thread::scope(|s| {
+            s.spawn(|| {
+                let _guard = app_ref.session.lock().unwrap();
+                panic!("poison");
+            })
+            .join()
+        });
+        assert!(poisoned.is_err());
+        assert!(state.session.is_poisoned());
+        let notes = call(&main, "list_notes", json!({})).unwrap();
+        assert_eq!(notes, json!(["Uma.md"]));
+    }
+
+    /// The app's own views stay on the app's pages; a web view keeps to
+    /// the web; nothing else goes anywhere. The mock runtime does not run
+    /// navigation handlers, so the rule is tested as the plugin calls it.
+    #[test]
+    fn navigation_stays_within_each_views_own_world() {
+        let url = |s: &str| tauri::Url::parse(s).unwrap();
+        let dev = url("http://localhost:5173/");
+        for label in ["main", "note-3"] {
+            assert!(may_navigate(
+                label,
+                &url("tauri://localhost/index.html"),
+                None
+            ));
+            assert!(may_navigate(
+                label,
+                &url("http://tauri.localhost/index.html"),
+                None
+            ));
+            assert!(may_navigate(label, &url("https://tauri.localhost/"), None));
+            assert!(may_navigate(label, &url("about:blank"), None));
+            assert!(!may_navigate(label, &url("https://example.org/"), None));
+            // The HTML-file viewer's frame: the handler cannot tell it
+            // from the window, and the protocol runs no script.
+            assert!(may_navigate(
+                label,
+                &url("verso://localhost/pagina.html"),
+                None
+            ));
+            assert!(may_navigate(
+                label,
+                &url("http://verso.localhost/pagina.html"),
+                None
+            ));
+            assert!(!may_navigate(label, &url("verso://evil/x.html"), None));
+            assert!(!may_navigate(label, &url("file:///etc/passwd"), None));
+            assert!(!may_navigate(label, &url("tauri://evil/"), None));
+            assert!(!may_navigate(label, &url("http://localhost:5173/"), None));
+            assert_eq!(
+                may_navigate(label, &url("http://localhost:5173/x"), Some(&dev)),
+                cfg!(debug_assertions)
+            );
+        }
+        assert!(may_navigate("web-1", &url("https://example.org/"), None));
+        assert!(may_navigate("web-1", &url("http://example.org/"), None));
+        assert!(!may_navigate(
+            "web-1",
+            &url("tauri://localhost/index.html"),
+            None
+        ));
+        assert!(!may_navigate(
+            "web-1",
+            &url("verso://localhost/mapa.svg"),
+            None
+        ));
+        assert!(!may_navigate("other", &url("https://example.org/"), None));
+        assert!(!may_navigate("other", &url("tauri://localhost/"), None));
     }
 
     fn header<'a>(served: &'a Served, name: &str) -> Option<&'a str> {

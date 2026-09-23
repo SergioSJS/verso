@@ -43,6 +43,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::SystemTime;
 
 pub use confine::ConfinementError;
+pub use ops::OpReport;
 pub use walk::{Entry, EntryKind, Problem, Walk};
 pub use write::{WriteError, WriteReport};
 
@@ -267,61 +268,46 @@ impl Root {
     }
 
     /// Create a file that does not exist yet, confined like every path,
-    /// with `content`, atomically (ADR 0048). `WriteError::Exists` when
-    /// something already stands there.
+    /// with `content`, atomically (ADR 0048): written under a temporary
+    /// name, synced, then linked to its name, which fails rather than
+    /// replacing what appeared there meanwhile. `WriteError::Exists` when
+    /// something already stands there. The report carries the new file's
+    /// stamp and what could not be confirmed once the file was in place.
     pub fn create(
         &mut self,
         relative: &Path,
         content: &[u8],
-    ) -> Result<(Handle, Stamp), WriteError> {
-        let relative = self.confine(relative).map_err(|e| {
-            WriteError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                e.to_string(),
-            ))
-        })?;
-        let stamp = ops::create_atomically(&self.path.join(&relative), content)?;
-        Ok((self.intern(relative), stamp))
+    ) -> Result<(Handle, OpReport), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        let report = ops::create_atomically(&self.path.join(&relative), content)?;
+        Ok((self.intern(relative), report))
     }
 
-    /// Create a folder (and its parents) inside the root, confined.
-    pub fn create_dir(&self, relative: &Path) -> Result<PathBuf, WriteError> {
-        let relative = self.confine(relative).map_err(|e| {
-            WriteError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                e.to_string(),
-            ))
-        })?;
-        std::fs::create_dir_all(self.path.join(&relative)).map_err(WriteError::Io)?;
-        Ok(relative)
+    /// Create a folder (and its parents) inside the root, confined, each
+    /// new directory synced into the one it hangs from.
+    pub fn create_dir(&self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        let report = ops::create_directory(&self.path.join(&relative))?;
+        Ok((relative, report))
     }
 
-    /// Move a file to another path of the folder, both confined; refuses
-    /// an occupied destination; creates the destination's folders.
-    pub fn rename(&mut self, from: &Path, to: &Path) -> Result<Handle, WriteError> {
-        let confined = |p: &Path| {
-            self.confine(p).map_err(|e| {
-                WriteError::Io(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    e.to_string(),
-                ))
-            })
-        };
-        let from = confined(from)?;
-        let to = confined(to)?;
-        ops::rename_path(&self.path.join(&from), &self.path.join(&to))?;
-        Ok(self.intern(to))
+    /// Move an entry to another path of the folder, both confined; refuses
+    /// an occupied destination, unless it is the entry itself under another
+    /// spelling of its name (a case-only rename on APFS); creates the
+    /// destination's folders. A regular file is moved by `link` and
+    /// `unlink`, so nothing that appears at the destination meanwhile is
+    /// replaced; a directory or a symlink is renamed.
+    pub fn rename(&mut self, from: &Path, to: &Path) -> Result<(Handle, OpReport), WriteError> {
+        let from = self.confine(from).map_err(WriteError::Confined)?;
+        let to = self.confine(to).map_err(WriteError::Confined)?;
+        let report = ops::rename_path(&self.path.join(&from), &self.path.join(&to))?;
+        Ok((self.intern(to), report))
     }
 
-    /// Move a file into `.trash/` at the root (Obsidian's bin), keeping
+    /// Move an entry into `.trash/` at the root (Obsidian's bin), keeping
     /// its relative path. Returns where it went, relative to the root.
-    pub fn trash(&mut self, relative: &Path) -> Result<PathBuf, WriteError> {
-        let relative = self.confine(relative).map_err(|e| {
-            WriteError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                e.to_string(),
-            ))
-        })?;
+    pub fn trash(&mut self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
         ops::trash(&self.path, &relative)
     }
 

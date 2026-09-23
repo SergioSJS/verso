@@ -5,14 +5,14 @@
 //! The contract between the core and the UI (ADR 0026): what crosses the
 //! wire, as Rust types, from which the TypeScript side is generated and
 //! never written by hand (rule 3; ADR 0038, decided 2026-09-22: specta,
-//! with tauri-specta for the commands). Phase 2, item 2.1, first cut:
-//! read-only, enough for a window that opens a folder, lists its notes,
-//! shows one, searches and lists backlinks.
+//! with tauri-specta for the commands). Phase 2, item 2.1.
 //!
 //! Nothing here touches disk, the index or a window: this crate names
 //! things. A note is named by its path relative to the open folder (rule
-//! 4); the folder's own path is a string only at the entry edge, the
-//! `open_folder` command. Counts and positions are `u32` because the
+//! 4); the folder itself by its name and an opaque key — its path is a
+//! string only at the entry edge, the command line and the native folder
+//! picker, both on the host's side. No absolute path, and none with `..`,
+//! crosses in either direction. Counts and positions are `u32` because the
 //! TypeScript side has no 64-bit integer without `bigint`, and no note
 //! has four billion lines.
 
@@ -22,8 +22,13 @@ use specta::Type;
 /// The folder that is open, and what indexing it did.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct FolderInfo {
-    /// Absolute, normalized: the one path string that crosses (rule 4).
-    pub folder: String,
+    /// The folder's own name (its last path component), for display.
+    pub name: String,
+    /// An opaque, stable name for the folder that carries no path — the
+    /// stem of its index file's name under the configuration directory:
+    /// letters, digits and `-`. What a UI keeps its per-folder state
+    /// under, and what `reopen_folder` takes to open the folder again.
+    pub key: String,
     pub index: IndexSummary,
 }
 
@@ -35,7 +40,9 @@ pub struct IndexSummary {
     pub unchanged: u32,
     pub removed: u32,
     pub placeholders: u32,
-    /// Problems the walk met, one line each, for the UI to show.
+    /// Problems the walk met and what the run could not do besides
+    /// indexing, one readable line each with paths relative to the
+    /// folder, for the UI to show.
     pub problems: Vec<String>,
 }
 
@@ -107,7 +114,8 @@ pub struct NoteText {
     /// of text per value, in the order written.
     pub properties: Vec<Property>,
     /// The whole text as read, line endings included: what the editor
-    /// gives back is written as is, no normalization (ADR 0012).
+    /// gives back is written as is, no normalization (ADR 0012). A file
+    /// whose bytes are not UTF-8 gives no text at all (`not_text`).
     pub text: String,
     /// Opaque: what was read. `write_note` takes it back and refuses a
     /// file that changed meanwhile (invariant 11, `changed`).
@@ -122,19 +130,21 @@ pub struct NoteText {
     pub unverified: bool,
 }
 
-/// What a write left behind: the note as it now is, and what the atomic
-/// write could not guarantee, one line each (permissions, owner, extended
-/// attributes, hard links, network file system, durability). None means
-/// the content was lost; all are for the user to see.
+/// What a write left behind: the note as written — the text that was
+/// sent, with the revision of those very bytes, never a re-read — and
+/// what the atomic write could not guarantee, one line each (permissions,
+/// owner, extended attributes, hard links, network file system,
+/// durability). None means the content was lost; all are for the user
+/// to see.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Written {
     pub note: NoteText,
     pub warnings: Vec<String>,
 }
 
-/// A note that links to a renamed note: its text before and after the
-/// links are pointed at the new name, with the revision `write_note`
-/// takes back. Shown, then applied, one note at a time (ADR 0048).
+/// A note that links to what moved: its text before and after the links
+/// are pointed at the new place, with the revision `write_note` takes
+/// back. Shown, then applied, one note at a time (ADR 0048).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct LinkRewrite {
     pub path: String,
@@ -143,11 +153,45 @@ pub struct LinkRewrite {
     pub after: String,
 }
 
-/// What a rename left: the new path, and the rewrites it calls for.
+/// Why a note that links to what moved got no rewrite.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum SkipReason {
+    /// A placeholder: present, content not downloaded (ADR 0043).
+    Unavailable,
+    /// Not UTF-8: no text can be rewritten without loss.
+    NotText,
+    /// Could not be read; the error is among the warnings.
+    Failed,
+}
+
+/// A note the plan could not cover: it links to what moved, and its links
+/// may now point elsewhere or nowhere, but no rewrite could be made. The
+/// UI lists them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Skipped {
+    pub path: String,
+    pub reason: SkipReason,
+}
+
+/// What a rename or a move left: the new path, the rewrites it calls for,
+/// the notes it could not plan, and what could not be confirmed once the
+/// entry had moved (a durability step, the index following, the
+/// sidecar), one line each. The move happened whenever this is answered.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Renamed {
     pub path: String,
     pub rewrites: Vec<LinkRewrite>,
+    pub skipped: Vec<Skipped>,
+    pub warnings: Vec<String>,
+}
+
+/// What a deletion left: where the entry went in `.trash/`, and what
+/// could not be confirmed once it was there, one line each.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Trashed {
+    pub path: String,
+    pub warnings: Vec<String>,
 }
 
 /// A note that is a web page: its path and the address in its `url`.
@@ -180,7 +224,12 @@ pub enum PropertyValue {
     Text(String),
     Number(String),
     Checkbox(bool),
+    /// A list of plain strings; any other list is `Nested`.
     List(Vec<String>),
+    /// A mapping, or a list with an item that is not a plain string,
+    /// flattened to one line: shown, never edited by the panel — written
+    /// back as text it would change type.
+    Nested(String),
     /// `key:` with nothing after it (YAML null).
     Empty,
 }
@@ -231,12 +280,16 @@ pub enum ErrorKind {
     /// No folder is open yet.
     NoFolder,
     /// The path cannot name a note of the folder (absolute, `..`, hidden,
-    /// ignored, empty).
+    /// ignored, empty); a folder key that is not one; a folder switch
+    /// from a window that may not, or while a note window is open.
     Refused,
-    /// No such file.
+    /// No such file; no folder opened before has this key.
     NotFound,
     /// A placeholder: present, content not downloaded (ADR 0043).
     Unavailable,
+    /// The file's bytes are not UTF-8: no text to edit (spec Q25 is
+    /// `[OPEN]`; this is the least that keeps the file safe).
+    NotText,
     /// The file on disk is not the one that was read: nothing was
     /// written; read again and show both versions (invariant 11).
     Changed,
