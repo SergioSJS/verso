@@ -65,6 +65,15 @@ const RESERVED = new Set(Array.from(document.querySelectorAll("[id]"), (e) => e.
 const LATER = /^(verso-|quick-|palette-|plan-|setting-|slash-|folders-)/;
 const reserved = (id: string): boolean => RESERVED.has(id) || LATER.test(id);
 
+/** Whether a note may ask the web for an image: the "load remote
+ *  content" setting (ADR 0050). Off, a remote image becomes a link to
+ *  itself, and an inline style loses what it would fetch; nothing reaches
+ *  the network until a click. */
+let remote = true;
+export function allowRemoteContent(on: boolean): void {
+  remote = on;
+}
+
 /** A link's or an image's address, if it may stay: the web, mail (links),
  *  a place in the same page (links), an image in data (images). A
  *  relative address names nothing here (the UI resolves embeds itself). */
@@ -109,6 +118,7 @@ function keepAttributes(el: Element, tag: string): void {
   if (style && el.hasAttribute("style")) {
     const position = style.getPropertyValue("position").trim().toLowerCase();
     if (position !== "" && position !== "static" && position !== "relative" && position !== "sticky" && position !== "-webkit-sticky") style.removeProperty("position");
+    if (!remote) for (const property of Array.from(style)) if (/url\s*\(/i.test(style.getPropertyValue(property))) style.removeProperty(property);
     if (style.length === 0) el.removeAttribute("style");
   }
 }
@@ -141,6 +151,14 @@ function clean(body: HTMLElement): void {
       continue;
     }
     keepAttributes(el, tag);
+    const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";
+    if (!remote && /^https?:/i.test(src)) {
+      const link = doc.createElement("a");
+      link.setAttribute("href", src);
+      link.className = "remote-image";
+      link.textContent = el.getAttribute("alt") || src;
+      el.replaceWith(link);
+    }
   }
 }
 
