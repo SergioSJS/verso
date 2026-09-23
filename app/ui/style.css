@@ -690,7 +690,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .frame-view { flex: 1; border: 0; width: 100%; height: 100%; background: white; }
 .graph-body { flex: 1; min-height: 0; display: flex; }
 .graph-stage { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: .6rem clamp(1rem, 3vw, 2.4rem) .4rem; }
-.graph-head { display: flex; align-items: baseline; gap: 1rem; }
+.graph-head { flex: none; display: flex; align-items: baseline; gap: 1rem; padding-bottom: .6rem; }
 .graph-head .note-title { flex: 1; cursor: default; }
 .graph-count { font-size: .8rem; color: var(--ink-3); white-space: nowrap; }
 .graph { flex: 1; min-height: 0; width: 100%; background: var(--paper-2); border-radius: 10px; border: 1px solid var(--hair); cursor: grab; touch-action: none; }
@@ -714,6 +714,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .graph-field select { padding: .25rem .4rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); }
 .graph-check { display: flex; align-items: center; gap: .45rem; }
 .graph-check input { accent-color: var(--seal); }
+.graph-zoom { display: flex; gap: .2rem; }
 .graph-legend { display: flex; flex-direction: column; gap: .2rem; margin-top: .4rem; font-size: .76rem; }
 .graph-legend-item { display: inline-flex; align-items: center; gap: .4rem; }
 .graph-legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -771,7 +772,9 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
 .settings-search:focus { outline: none; border-color: var(--brass); }
 .settings-nav { display: flex; flex-direction: column; gap: .1rem; }
-.settings-nav-item { text-align: left; padding: .4rem .7rem; border-radius: 6px; font-size: .9rem; color: var(--ink-2); }
+.settings-nav-item { display: flex; align-items: center; gap: .55rem; text-align: left; padding: .4rem .7rem; border-radius: 6px; font-size: .9rem; color: var(--ink-2); }
+.settings-nav-item .icon { width: 15px; height: 15px; color: var(--ink-3); }
+.settings-nav-item[aria-current="true"] .icon { color: var(--seal); }
 .settings-nav-item:hover { background: var(--paper-3); color: var(--ink); }
 .settings-nav-item[aria-current="true"] { background: var(--seal-wash); color: var(--seal); }
 .settings-body { flex: 1; min-width: 0; overflow: auto; padding: 1.2rem 2rem 2rem; }
