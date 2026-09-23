@@ -187,9 +187,12 @@ jobs:
     name: benchmark on main (ADR 0029, feature 5)
     # One job per merge on main, Linux only, never on a pull request
     # (docs/reference/bench-decision.md §4.2; the cost incident of
-    # 2026-09-22). Without a recorded baseline for ci-linux it measures and
-    # exits 0; the maintainer copies the numbers into
-    # crates/verso-bench/baselines.json to take the baseline (§6.3).
+    # 2026-09-22). `--require-baseline`: a run that finds no baseline for
+    # ci-linux fails and prints, on stderr, the entries to record, so the
+    # job cannot be green by construction (§6.3 puts the CI baseline
+    # first). Until the maintainer adds those entries to
+    # crates/verso-bench/baselines.json the job is red on main, on purpose.
+    # A pull request never runs it, and could not record a baseline if it did.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -198,7 +201,7 @@ jobs:
         run: rustup show
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: the ladder against the ci-linux baseline
-        run: cargo run --release -p verso-bench -- --machine ci-linux --json
+        run: cargo run --release -p verso-bench -- --machine ci-linux --json --require-baseline
 
   app:
     name: contract bindings up to date, UI checks (ADR 0026 rule 3, ADR 0038)
