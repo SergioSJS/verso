@@ -57,7 +57,7 @@ type Strings = Record<
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage"
-  | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
+  | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "htmlPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
@@ -126,7 +126,7 @@ const pt: Strings = {
   graphNodes: (n, m) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} de ${n}`,
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
-  webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
+  webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
   errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida",
@@ -186,7 +186,7 @@ const en: Strings = {
   graphNodes: (n, m) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} of ${n}`,
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
-  webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
+  webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
   errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read",
@@ -268,15 +268,16 @@ function ext(path: string): string {
   return i > 0 ? base.slice(i + 1).toLowerCase() : "";
 }
 const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
-const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|html?|css|js|ts|py|rs|sh|log|ini|cfg|canvas|base)$/;
+const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|css|js|ts|py|rs|sh|log|ini|cfg|canvas|base)$/;
 type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph";
 function kindOf(path: string): Kind {
   const e = ext(path);
   if (e === "md") return "note";
   if (IMAGE.test(e)) return "image";
+  // A page first; its source is a mode of the same tab (htmlModes).
+  if (e === "html" || e === "htm") return "frame";
   if (TEXT.test(e)) return "text";
   if (e === "pdf") return "pdf";
-  if (e === "html" || e === "htm") return "frame";
   return "other";
 }
 function iconFor(kind: Kind): string {
@@ -1906,6 +1907,8 @@ class TextLeaf extends Leaf {
   readonly host = h("div", "editor source");
   readonly flags = h("p", "flags");
   readonly crumbs = h("nav", "crumbs");
+  /** For an HTML file, the way back to its page. */
+  readonly modes = htmlModes(this, "source");
   readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
   readonly editor: EditorView;
   revision = "";
@@ -1918,7 +1921,7 @@ class TextLeaf extends Leaf {
   constructor(pane: Pane) {
     super(pane);
     const head = h("header", "leaf-head");
-    head.append(this.crumbs);
+    head.append(this.crumbs, this.modes);
     const sheet = h("div", "sheet");
     this.flags.hidden = true;
     sheet.append(this.flags, this.conflict.el, this.host);
@@ -1957,6 +1960,7 @@ class TextLeaf extends Leaf {
     this.path = path;
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
+    this.modes.hidden = kindOf(path) !== "frame";
     const r = await commands.readText(path);
     if (r.status !== "ok") return fail(r.error);
     // The language by the file's name: highlighted, and folded, as an editor does.
@@ -2288,19 +2292,44 @@ class PdfLeaf extends Leaf {
   }
 }
 
-/* An HTML page, shown by the webview itself, scripts off. */
+/** The two modes of an HTML file, as a note has its own: the page and its
+ *  source. A tab holds one of them; choosing the other puts it in its
+ *  place, after the source's last keystrokes are saved. */
+function htmlModes(leaf: Leaf, on: "page" | "source"): HTMLElement {
+  const modes = h("div", "modes");
+  modes.setAttribute("role", "group");
+  const mode = (face: "page" | "source", ic: string, label: string): HTMLButtonElement => {
+    const b = h("button");
+    b.type = "button";
+    b.append(icon(ic), h("span", "", label));
+    b.setAttribute("aria-pressed", String(face === on));
+    b.addEventListener("click", () => {
+      if (face !== on) void leaf.pane.swap(leaf, face === "page" ? new FrameLeaf(leaf.pane) : new TextLeaf(leaf.pane));
+    });
+    return b;
+  };
+  modes.append(mode("page", "reading", t.htmlPage), mode("source", "source", t.source));
+  return modes;
+}
+
+/* An HTML page, shown by the webview itself, scripts off; its source is
+ * the other mode of the same tab. */
 class FrameLeaf extends Leaf {
   readonly kind: Kind = "frame";
   readonly frame = h("iframe", "frame-view");
+  readonly crumbs = h("nav", "crumbs");
   constructor(pane: Pane) {
     super(pane);
     this.frame.setAttribute("sandbox", "");
     this.frame.setAttribute("referrerpolicy", "no-referrer");
-    this.el.append(this.frame);
+    const head = h("header", "leaf-head");
+    head.append(this.crumbs, htmlModes(this, "page"));
+    this.el.append(head, this.frame);
   }
   async load(path: string): Promise<void> {
     this.path = path;
     this.setTitle(path.split("/").pop() ?? path);
+    this.crumbs.replaceChildren(...crumbsFor(path));
     this.frame.src = convertFileSrc(path, "verso");
     this.frame.title = this.tabName.textContent ?? "";
     markCurrent();
@@ -2910,6 +2939,17 @@ class Pane {
       l.destroy();
       this.remove(l, true);
     }
+  }
+  /** `next` takes `leaf`'s place — the same tab position, path and pin —
+   *  once `leaf` has saved what it holds; a refused save keeps `leaf`. */
+  async swap(leaf: Leaf, next: Leaf): Promise<void> {
+    if (!(await leaf.flush())) return;
+    this.insert(next, this.leaves.indexOf(leaf));
+    void next.load(leaf.path);
+    this.activate(next, true);
+    if (leaf.pinned) next.setPinned(true);
+    leaf.destroy();
+    this.remove(leaf, true);
   }
   insert(leaf: Leaf, index?: number): void {
     const i = index === undefined ? this.leaves.length : Math.min(index, this.leaves.length);
