@@ -131,18 +131,24 @@ impl Index {
                 let name = relative.rsplit('/').next().unwrap_or(relative);
                 name.strip_suffix(".md").unwrap_or(name).to_owned()
             });
-        let (tags, aliases, frontmatter_ok) = match report.frontmatter.as_ref().map(|f| &f.values) {
-            Some(Ok(Value::Mapping(map))) => {
-                (strings_of(map, "tags"), strings_of(map, "aliases"), true)
-            }
-            Some(Ok(_)) | None => (Vec::new(), Vec::new(), true),
-            Some(Err(_)) => (Vec::new(), Vec::new(), false),
-        };
+        let (tags, aliases, frontmatter_ok, url) =
+            match report.frontmatter.as_ref().map(|f| &f.values) {
+                Some(Ok(Value::Mapping(map))) => (
+                    strings_of(map, "tags"),
+                    strings_of(map, "aliases"),
+                    true,
+                    strings_of(map, "url")
+                        .into_iter()
+                        .find(|u| u.starts_with("http://") || u.starts_with("https://")),
+                ),
+                Some(Ok(_)) | None => (Vec::new(), Vec::new(), true, None),
+                Some(Err(_)) => (Vec::new(), Vec::new(), false, None),
+            };
         let tx = self.conn.transaction()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13)",
             params![
                 relative,
                 path_key,
@@ -158,6 +164,7 @@ impl Index {
                 frontmatter_ok,
                 content,
                 dir_of(relative),
+                url,
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -334,6 +341,30 @@ impl Index {
     /// or `/`, outside fenced code. Tags are folded to lower case; the
     /// list is by count, then name. Spec Q10 is still open on what a tag
     /// is exactly; this is the observable Obsidian rule.
+    /// The notes that are web pages — a `url` property — with the address.
+    pub fn web_notes(&self) -> Result<Vec<(String, String)>, IndexError> {
+        let mut st = self
+            .conn
+            .prepare("SELECT path, url FROM notes WHERE url IS NOT NULL ORDER BY path")?;
+        let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Every resolved link of the vault as a pair of paths, source then
+    /// target, once each: the whole graph.
+    pub fn graph(&self) -> Result<Vec<(String, String)>, IndexError> {
+        let sql = format!(
+            "SELECT DISTINCT n.path, t.path
+             FROM links l JOIN notes n ON n.id = l.note
+             JOIN notes t ON t.id = {RESOLVE}
+             WHERE l.target_key IS NOT NULL
+             ORDER BY n.path, t.path"
+        );
+        let mut st = self.conn.prepare(&sql)?;
+        let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, IndexError> {
         let mut st = self
             .conn

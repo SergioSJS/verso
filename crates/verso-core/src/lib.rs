@@ -1130,6 +1130,16 @@ impl Workspace {
         Ok(gone.to_string_lossy().into_owned())
     }
 
+    /// The notes that are web pages (a `url` property), with the address.
+    pub fn web_notes(&self) -> Result<Vec<(String, String)>, CoreError> {
+        self.index.web_notes().map_err(CoreError::Index)
+    }
+
+    /// Every resolved link of the vault, source then target: the graph.
+    pub fn graph(&self) -> Result<Vec<(String, String)>, CoreError> {
+        self.index.graph().map_err(CoreError::Index)
+    }
+
     /// Every tag of the vault with its notes (frontmatter and `#tag`).
     pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, CoreError> {
         self.index.tags().map_err(CoreError::Index)

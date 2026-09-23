@@ -11,7 +11,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 5;
+pub(crate) const VERSION: i64 = 6;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -33,6 +33,7 @@ CREATE TABLE notes (
     tags      TEXT NOT NULL DEFAULT '[]',
     aliases   TEXT NOT NULL DEFAULT '[]',
     frontmatter_ok INTEGER NOT NULL DEFAULT 1,
+    url       TEXT,                       -- the `url` property, when the note is a web page
     content   TEXT NOT NULL DEFAULT '',
     -- ADR 0043: a placeholder keeps the last known version, marked as
     -- unverified (1); a note read from disk is verified (0).
