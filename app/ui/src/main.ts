@@ -44,7 +44,7 @@ type Strings = Record<
   | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists" | "planLeftOut"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
-  | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
+  | "planApply" | "planSkip" | "exists" | "unlinkableName" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
   | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
   | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted"
   | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
@@ -98,7 +98,7 @@ const pt: Strings = {
   quick: "Abrir…", close: "Fechar aba", closePane: "Fechar área", maximize: "Maximizar área", restore: "Restaurar áreas",
   newNote: "Nova nota", newNoteName: "Nome da nota (Enter cria, Esc cancela)", rename: "Renomear", deleteNote: "Apagar",
   openTab: "Abrir em aba nova", openPane: "Abrir ao lado", newHere: "Nova nota nesta pasta", planApply: "Atualizar links", planSkip: "Deixar como está",
-  exists: "Já existe um arquivo com esse nome.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área", space: "Área",
+  exists: "Já existe um arquivo com esse nome.", unlinkableName: "Um link não alcança um nome com [ ] | # ^ — escolha outro.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área", space: "Área",
   closeSpace: "Fechar área", untitled: "Sem título", folderView: "Pasta", asList: "Lista", asGrid: "Miniaturas", readOnly: "Só leitura: não é uma nota Markdown.",
   keysNew: "nova nota", keysEdit: "editar", keysSplit: "dividir", keysSpace: "nova área", moveTo: "Mover para", moved: "Movido.",
   bold: "Negrito", italic: "Itálico", strike: "Riscado", highlight: "Destaque", heading: "Título", link: "Link", wikilink: "Link interno [[ ]]",
@@ -158,7 +158,7 @@ const en: Strings = {
   quick: "Open…", close: "Close tab", closePane: "Close pane", maximize: "Maximize pane", restore: "Restore panes",
   newNote: "New note", newNoteName: "Note name (Enter creates, Esc cancels)", rename: "Rename", deleteNote: "Delete",
   openTab: "Open in new tab", openPane: "Open to the side", newHere: "New note in this folder", planApply: "Update links", planSkip: "Leave them",
-  exists: "A file with that name already exists.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace", space: "Workspace",
+  exists: "A file with that name already exists.", unlinkableName: "A link cannot reach a name with [ ] | # ^ — choose another.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace", space: "Workspace",
   closeSpace: "Close workspace", untitled: "Untitled", folderView: "Folder", asList: "List", asGrid: "Thumbnails", readOnly: "Read-only: not a Markdown note.",
   keysNew: "new note", keysEdit: "edit", keysSplit: "split", keysSpace: "new workspace", moveTo: "Move to", moved: "Moved.",
   bold: "Bold", italic: "Italic", strike: "Strikethrough", highlight: "Highlight", heading: "Heading", link: "Link", wikilink: "Internal link [[ ]]",
@@ -3818,9 +3818,19 @@ async function newUntitled(pane: Pane): Promise<void> {
   while (taken.has(`${folder ? folder + "/" : ""}${candidate}.md`.toLowerCase())) candidate = `${t.untitled} ${++untitledN + 1}`;
   await createNote(folder, candidate, pane, true);
 }
+/** `#` and `^` open a heading or a block, `|` an alias, `[` and `]` end the
+ *  link: no `[[…]]` can name a file whose name holds one. The window does
+ *  not give such a name to what it creates or renames; a file already so
+ *  named opens as any other (the maintainer's choice of 2026-09-23,
+ *  docs/review/phase-2.md §6 item 19). True, and said, when it is one. */
+function unlinkable(typed: string): boolean {
+  if (!/[[\]|#^]/.test(typed)) return false;
+  fail({ message: t.unlinkableName });
+  return true;
+}
 async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false): Promise<void> {
   const clean = nameTyped.trim().replace(/\.md$/i, "");
-  if (!clean) return;
+  if (!clean || unlinkable(clean)) return;
   const path = folder ? `${folder}/${clean}` : clean;
   const r = await commands.createNote(path, `# ${clean.split("/").pop() ?? clean}\n\n`);
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
@@ -3859,14 +3869,14 @@ function leavesUnder(path: string): Leaf[] {
 }
 async function renameNote(from: string, toName: string): Promise<void> {
   const clean = toName.trim().replace(/\.md$/i, "");
-  if (!clean || clean === name(from)) return;
+  if (!clean || clean === name(from) || unlinkable(clean)) return;
   const to = clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean;
   await renameTo(from, kindOf(from) === "note" ? to : `${to}${ext(from) ? "." + ext(from) : ""}`);
 }
 async function renameFolder(from: string, toName: string): Promise<void> {
   const clean = toName.trim().replace(/^\/+|\/+$/g, "");
   const base = from.split("/").pop() ?? from;
-  if (!clean || clean === base) return;
+  if (!clean || clean === base || unlinkable(clean)) return;
   await renameTo(from, clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean);
 }
 async function moveFile(path: string, folder: string): Promise<void> {
@@ -4229,7 +4239,7 @@ function newFolderPrompt(folder: string): void {
   const finish = (commit: boolean) => {
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
-    if (!commit || !v) return;
+    if (!commit || !v || unlinkable(v)) return;
     void commands.createFolder(folder ? `${folder}/${v}` : v).then(async (r) => {
       if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
       openFolders.add(r.data);
