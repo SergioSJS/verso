@@ -63,6 +63,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
+  | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys",
   string
@@ -127,6 +128,7 @@ const pt: Strings = {
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
+  linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
   errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
@@ -186,6 +188,7 @@ const en: Strings = {
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
+  linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
   errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
@@ -318,8 +321,8 @@ const ui = {
 };
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
-type Settings = { lang: "auto" | "pt-BR" | "en"; theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; hotkeys: Record<string, string> };
-const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: t.dailyName, templates: t.templatesName, spellcheck: true, defaultMode: "preview", measure: "normal", hotkeys: {} };
+type Settings = { lang: "auto" | "pt-BR" | "en"; theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; linkFormat: "shortest" | "relative" | "root"; hotkeys: Record<string, string> };
+const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: t.dailyName, templates: t.templatesName, spellcheck: true, defaultMode: "preview", measure: "normal", linkFormat: "shortest", hotkeys: {} };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
   try {
@@ -574,8 +577,7 @@ async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResu
     .sort((a, b) => b.s - a.s || Number(a.o.kind !== "note") - Number(b.o.kind !== "note") || a.o.label.localeCompare(b.o.label, LOCALE))
     .slice(0, 60)
     .map(({ o }) => {
-      const unique = pool.filter((x) => x.label.toLowerCase() === o.label.toLowerCase()).length === 1;
-      const target = unique ? o.label : o.kind === "note" ? o.path.replace(/\.md$/, "") : o.path;
+      const target = linkText(layout().activeLeaf?.path ?? "", o.path);
       return { label: o.label, detail: dirOf(o.path) || "/", type: o.kind === "note" ? "note" : o.kind === "image" ? "image" : "file", apply: target + closing, boost: o.kind === "note" ? 1 : 0 };
     });
   return { from: before.from + (embed ? 3 : 2), options, filter: false };
@@ -1311,7 +1313,8 @@ class NoteLeaf extends Leaf {
           fail(r.error);
           continue;
         }
-        const target = r.data.split("/").pop() ?? r.data;
+        allFiles.push(r.data);
+        const target = linkText(this.path, r.data);
         const pos = this.editor.state.selection.main.to;
         this.editor.dispatch({ changes: { from: pos, insert: `![[${target}]]` }, selection: { anchor: pos + target.length + 5 } });
         ui.status.textContent = t.pasted;
@@ -1707,11 +1710,7 @@ class NoteLeaf extends Leaf {
    *  note was being read). */
   insertReference(path: string, x: number, y: number): void {
     const note = kindOf(path) === "note";
-    const base = path.split("/").pop() ?? path;
-    const unique = (list: string[], label: (p: string) => string, want: string) => list.filter((p) => label(p).toLowerCase() === want.toLowerCase()).length === 1;
-    const text = note
-      ? `[[${unique(allNotes, name, name(path)) ? name(path) : path.replace(/\.md$/, "")}]]`
-      : `![[${unique(allFiles, (p) => p.split("/").pop() ?? p, base) ? base : path}]]`;
+    const text = note ? `[[${linkText(this.path, path)}]]` : `![[${linkText(this.path, path)}]]`;
     if (this.mode === "preview") this.setMode("live");
     const pos = this.editor.posAtCoords({ x, y }) ?? this.editor.state.doc.length;
     this.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length } });
@@ -2271,7 +2270,9 @@ class PdfLeaf extends Leaf {
     const r = await commands.readNote(companionOf(this.path));
     if (r.status !== "ok") return this.view.setPassages([]);
     const base = this.path.split("/").pop() ?? this.path;
-    const re = new RegExp(`\\[\\[${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}#page=(\\d+)&selection=(\\d+),(\\d+),(\\d+),(\\d+)`, "g");
+    // The link may carry a path before the name (`./`, `../`, from the
+    // root), as the "new link format" setting writes it.
+    const re = new RegExp(`\\[\\[(?:[^\\]|#\\n]*/)?${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}#page=(\\d+)&selection=(\\d+),(\\d+),(\\d+),(\\d+)`, "g");
     const list: { page: number; s: [number, number, number, number] }[] = [];
     for (const m of r.data.text.matchAll(re)) list.push({ page: Number(m[1]), s: [Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])] });
     this.view.setPassages(list);
@@ -3428,6 +3429,75 @@ function resolveNoteByName(target: string, from: string): string | null {
   named.sort((a, b) => Number(under(b)) - Number(under(a)) || segments(a) - segments(b) || bytes(a, b));
   return named[0] ?? null;
 }
+/** The file (not a note) an embed names, by the rule `resolveNoteByName`
+ *  applies to notes — the core's `resolve_file`: a path from the root,
+ *  then from the note's folder, then a bare file name, extension or not,
+ *  under the note's folder first, then the fewest segments, then byte
+ *  order. */
+function resolveFileByName(target: string, from: string): string | null {
+  const written = target.trim();
+  if (written === "" || written.endsWith("/")) return null;
+  const fold = (s: string) => s.normalize("NFC").toLowerCase();
+  const matches = (p: string, key: string) => {
+    const f = fold(p);
+    const dot = f.lastIndexOf(".");
+    return f === key || (dot > 0 && f.slice(0, dot) === key);
+  };
+  const first = (list: string[]) => list.slice().sort(byteOrder)[0] ?? null;
+  const key = fold(written);
+  const fromRoot = first(allFiles.filter((p) => matches(p, key)));
+  if (fromRoot) return fromRoot;
+  const parts = dirOf(from).split("/").filter(Boolean);
+  for (const seg of written.split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg !== "..") parts.push(seg);
+    else if (parts.pop() === undefined) return null;
+  }
+  const rel = fold(parts.join("/"));
+  if (rel !== key) {
+    const fromHere = first(allFiles.filter((p) => matches(p, rel)));
+    if (fromHere) return fromHere;
+  }
+  if (written.includes("/")) return null;
+  const home = dirOf(from);
+  const under = (p: string) => home === "" || p.startsWith(`${home}/`);
+  const segments = (p: string) => p.split("/").length;
+  const named = allFiles.filter((p) => matches(p.split("/").pop() ?? p, key));
+  named.sort((a, b) => Number(under(b)) - Number(under(a)) || segments(a) - segments(b) || byteOrder(a, b));
+  return named[0] ?? null;
+}
+/** UTF-8 byte order, which is code point order. */
+function byteOrder(a: string, b: string): number {
+  const x = Array.from(a);
+  const y = Array.from(b);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const d = (x[i]?.codePointAt(0) ?? 0) - (y[i]?.codePointAt(0) ?? 0);
+    if (d !== 0) return d;
+  }
+  return x.length - y.length;
+}
+/** The text a link the window writes gives for `target`, written in the
+ *  note at `source`, by the "new link format" setting: the bare name when
+ *  that reaches `target` (else the path from the root); the path relative
+ *  to the note's folder, as `./…` or `../…` so that no path from the root
+ *  can take it (Obsidian reads both the same way); or the path from the
+ *  root. A note loses `.md`; any other file keeps its extension. */
+function linkText(source: string, target: string): string {
+  const note = kindOf(target) === "note";
+  const full = note ? target.replace(/\.md$/i, "") : target;
+  if (settings.linkFormat === "root") return full;
+  if (settings.linkFormat === "relative") {
+    const from = dirOf(source).split("/").filter(Boolean);
+    const to = full.split("/");
+    let same = 0;
+    while (same < from.length && same < to.length - 1 && from[same] === to[same]) same++;
+    const up = from.length - same;
+    return [...(up === 0 ? ["."] : Array<string>(up).fill("..")), ...to.slice(same)].join("/");
+  }
+  const bare = note ? name(target) : target.split("/").pop() ?? target;
+  const reaches = note ? resolveNoteByName(bare, source) : resolveFileByName(bare, source);
+  return reaches === target ? bare : full;
+}
 /** Keep only the section under `heading`: the heading and what follows
  *  it until the next heading of the same or a higher level. */
 function sliceHeading(body: HTMLElement, heading: string): void {
@@ -3870,7 +3940,8 @@ async function quoteIntoNotes(pdf: string, fragment: string, page: number, text:
   const base = pdf.split("/").pop() ?? pdf;
   const stem = base.replace(/\.pdf$/i, "");
   const notePath = companionOf(pdf);
-  const quote = [`> [!quote] [[${base}#${fragment}|${stem}, ${t.pdfPage.toLowerCase()} ${page}]]`, ...text.split(/\n/).map((l) => `> ${l}`)];
+  const link = linkText(notePath, pdf);
+  const quote = [`> [!quote] [[${link}#${fragment}|${stem}, ${t.pdfPage.toLowerCase()} ${page}]]`, ...text.split(/\n/).map((l) => `> ${l}`)];
   const block = `\n${quote.join("\n")}\n`;
   // The companion open in a tab: its text saved first, or nothing is written.
   const unsaved = await flushed(leavesOf(notePath));
@@ -3886,7 +3957,7 @@ async function quoteIntoNotes(pdf: string, fragment: string, page: number, text:
     r = await commands.writeNote(notePath, `${was}${ended ? "" : eol}${eol}${quote.join(eol)}${eol}`, existing.data.revision);
   }
   else {
-    const made = await commands.createNote(notePath, `# ${t.pdfNotes} — ${stem}\n\n![[${base}]]\n${block}`);
+    const made = await commands.createNote(notePath, `# ${t.pdfNotes} — ${stem}\n\n![[${link}]]\n${block}`);
     r = made.status === "ok" ? { status: "ok" as const, data: { note: made.data } } : made;
   }
   if (r.status !== "ok") return fail(r.error);
@@ -4982,6 +5053,7 @@ class SettingsDialog {
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
+    add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
     add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
     add("files", t.templates, t.templatesDesc, () => this.text(settings.templates, (v) => { settings.templates = v; saveSettings(); }));
