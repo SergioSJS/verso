@@ -78,7 +78,14 @@ pub fn to_html(source: &str) -> String {
         other => Some(other),
     });
     let events = events.flat_map(|event| match event {
-        Event::Text(text) if text.contains("==") => highlights(&text),
+        Event::Text(text) if text.contains("==") => highlights(&text)
+            .into_iter()
+            .flat_map(|e| match e {
+                Event::Text(t) if t.contains('#') => tags(&t),
+                other => vec![other],
+            })
+            .collect(),
+        Event::Text(text) if text.contains('#') => tags(&text),
         other => vec![other],
     });
     let mut out = String::with_capacity(source.len() * 2);
@@ -108,6 +115,55 @@ fn highlights(text: &str) -> Vec<Event<'static>> {
     }
     if !rest.is_empty() {
         out.push(Event::Text(rest.to_owned().into()));
+    }
+    out
+}
+
+/// `#tag` in running text becomes `<a class="tag" data-tag="tag">`: at the
+/// start or after a space or `(`, letters, digits, `_`, `-`, `/`, and not
+/// digits only — the rule the index uses to list tags. Inside code the
+/// parser never hands text here, so `#` in code stays code.
+fn tags(text: &str) -> Vec<Event<'static>> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = Vec::new();
+    let mut last = 0;
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '#' && (i == 0 || chars[i - 1].is_whitespace() || chars[i - 1] == '(') {
+            let start = i + 1;
+            let mut j = start;
+            while j < chars.len()
+                && (chars[j].is_alphanumeric() || matches!(chars[j], '_' | '-' | '/'))
+            {
+                j += 1;
+            }
+            let tag: String = chars[start..j].iter().collect();
+            if !tag.is_empty() && !tag.chars().all(|c| c.is_ascii_digit()) {
+                let before: String = chars[last..i].iter().collect();
+                if !before.is_empty() {
+                    out.push(Event::Text(before.into()));
+                }
+                out.push(Event::Html(
+                    format!(
+                        "<a class=\"tag\" data-tag=\"{}\">#{}</a>",
+                        attr(&tag.to_lowercase()),
+                        attr(&tag)
+                    )
+                    .into(),
+                ));
+                last = j;
+                i = j;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    let rest: String = chars[last..].iter().collect();
+    if out.is_empty() {
+        return vec![Event::Text(text.to_owned().into())];
+    }
+    if !rest.is_empty() {
+        out.push(Event::Text(rest.into()));
     }
     out
 }
@@ -414,5 +470,20 @@ mod math {
             "{html}"
         );
         assert!(html.contains("\\int_0^1"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod tags {
+    #[test]
+    fn hash_tags_become_anchors_outside_code() {
+        let html = super::to_html("Ver #rpg/solo e #2026 e `#nao` e a#b.\n");
+        assert!(
+            html.contains(r##"<a class="tag" data-tag="rpg/solo">#rpg/solo</a>"##),
+            "{html}"
+        );
+        assert!(html.contains("#2026 e"), "{html}");
+        assert!(html.contains("<code>#nao</code>"), "{html}");
+        assert!(html.contains("a#b"), "{html}");
     }
 }
