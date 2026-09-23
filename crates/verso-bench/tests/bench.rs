@@ -209,10 +209,31 @@ fn a_tiny_run_reports_the_seven_operations_and_a_regression_is_red() {
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("no baseline for machine other"));
 
+    // Asked to require one, a missing baseline is red: exit 1, the reason
+    // on stderr with the entries to record, so that a CI run without a
+    // baseline cannot pass by construction (bench-decision §6.3).
+    let out = bench(&[&other[..], &["--require-baseline"]].concat(), &baseline);
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("no baseline for machine other"), "{stderr}");
+    assert!(stderr.contains("--require-baseline"), "{stderr}");
+    assert!(stderr.contains("\"entries\""), "{stderr}");
+    assert!(
+        stderr.contains("\"operation\": \"fresh_index\""),
+        "{stderr}"
+    );
+
     // Usage errors.
     let out = bench(&["--record"], &baseline);
     assert_eq!(out.status.code(), Some(2));
     let out = bench(&["--sizes", "0"], &baseline);
+    assert_eq!(out.status.code(), Some(2));
+    let out = bench(&["--require-baseline"], &baseline);
+    assert_eq!(out.status.code(), Some(2));
+    let out = bench(
+        &[&other[..], &["--record", "--require-baseline"]].concat(),
+        &baseline,
+    );
     assert_eq!(out.status.code(), Some(2));
 }
 

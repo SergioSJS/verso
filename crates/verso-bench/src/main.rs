@@ -14,7 +14,8 @@
 //! discarded; the median is what is compared (§4.3).
 //!
 //! Exit 0: no regression, or nothing to compare with; 1: a regression
-//! beyond the tolerances; 2: usage; 3: the run itself failed.
+//! beyond the tolerances, or no baseline where `--require-baseline` asked
+//! for one; 2: usage; 3: the run itself failed.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
@@ -26,7 +27,7 @@ use verso_bench::generate::{self, COMMON_WORD, DEFAULT_SEED, GENERATOR_VERSION, 
 use verso_core::Workspace;
 
 const USAGE: &str = "usage: verso-bench [--sizes N,N,...] [--reps N] [--seed N] [--machine NAME]
-                   [--baseline FILE] [--record] [--json]
+                   [--baseline FILE] [--record | --require-baseline] [--json]
 
   --sizes     notes per step of the ladder; default 1000,10000,50000
   --reps      measured repetitions per size, after one warm-up; default 3
@@ -34,6 +35,9 @@ const USAGE: &str = "usage: verso-bench [--sizes N,N,...] [--reps N] [--seed N] 
   --machine   the baseline to compare with (and to record); no comparison without it
   --baseline  the baseline file; default crates/verso-bench/baselines.json
   --record    write this run's medians into the baseline for --machine
+  --require-baseline
+              exit 1 when --machine has no baseline to compare with, printing
+              the entries to record: for CI, where --record has no file to keep
   --json      one JSON object per (size, operation) instead of the table
 
 Run it in release: cargo run --release -p verso-bench -- ...";
@@ -88,6 +92,8 @@ struct Options {
     machine: Option<String>,
     baseline: PathBuf,
     record: bool,
+    /// A missing baseline for `machine` is a failure, not a note.
+    require_baseline: bool,
     json: bool,
 }
 
@@ -116,6 +122,7 @@ fn parse(args: &[String]) -> Result<Options, Failure> {
         machine: None,
         baseline: Path::new(env!("CARGO_MANIFEST_DIR")).join("baselines.json"),
         record: false,
+        require_baseline: false,
         json: false,
     };
     let mut it = args.iter();
@@ -145,6 +152,7 @@ fn parse(args: &[String]) -> Result<Options, Failure> {
             "--machine" => o.machine = Some(value(a, it.next())?),
             "--baseline" => o.baseline = PathBuf::from(value(a, it.next())?),
             "--record" => o.record = true,
+            "--require-baseline" => o.require_baseline = true,
             "--json" => o.json = true,
             other => return Err(Failure::Usage(format!("unknown argument {other}"))),
         }
@@ -159,6 +167,15 @@ fn parse(args: &[String]) -> Result<Options, Failure> {
     }
     if o.record && o.machine.is_none() {
         return Err(Failure::Usage("--record needs --machine".into()));
+    }
+    if o.require_baseline && o.machine.is_none() {
+        return Err(Failure::Usage("--require-baseline needs --machine".into()));
+    }
+    // A run that records has its baseline by the end: nothing to require.
+    if o.require_baseline && o.record {
+        return Err(Failure::Usage(
+            "--require-baseline and --record exclude each other".into(),
+        ));
     }
     Ok(o)
 }
@@ -382,6 +399,9 @@ fn run(args: &[String]) -> Result<ExitCode, Failure> {
     let os = std::env::consts::OS;
     let mut baselines = Baselines::read(&o.baseline)?;
     let mut regressions = 0usize;
+    // What this run measured where the baseline had nothing: the entries
+    // `--require-baseline` prints for the maintainer to record.
+    let mut unrecorded: Vec<Entry> = Vec::new();
     for &size in &o.sizes {
         let measured = run_size(size, &o, time)?;
         let mut missing = false;
@@ -406,7 +426,10 @@ fn run(args: &[String]) -> Result<ExitCode, Failure> {
                 .as_deref()
                 .and_then(|machine| baselines.find(machine, GENERATOR_VERSION, size, m.operation));
             let regs = found.map_or_else(Vec::new, |base| baseline::compare(&entry, base));
-            missing |= o.machine.is_some() && found.is_none();
+            if o.machine.is_some() && found.is_none() {
+                missing = true;
+                unrecorded.push(entry.clone());
+            }
             if o.json {
                 let regs: Vec<serde_json::Value> = regs
                     .iter()
@@ -466,6 +489,21 @@ fn run(args: &[String]) -> Result<ExitCode, Failure> {
     if o.record {
         baselines.write(&o.baseline)?;
         eprintln!("verso-bench: baseline recorded in {}", o.baseline.display());
+    }
+    // Required and absent: red, with the entries in the baseline's own
+    // shape, so that a CI log is all the maintainer needs to record it
+    // (bench-decision §6.3; --record would write a file the runner throws
+    // away). The numbers were printed above either way.
+    if o.require_baseline && !unrecorded.is_empty() {
+        eprintln!(
+            "verso-bench: --require-baseline: machine {} has no baseline to compare with in {}. To record one, add these entries to the file (or run with --record on that machine):\n{}",
+            o.machine.as_deref().unwrap_or(""),
+            o.baseline.display(),
+            serde_json::to_string_pretty(&Baselines {
+                entries: unrecorded
+            })?
+        );
+        return Ok(ExitCode::from(1));
     }
     Ok(if regressions > 0 {
         ExitCode::from(1)
