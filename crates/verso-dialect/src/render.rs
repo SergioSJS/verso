@@ -26,11 +26,15 @@
 //! ([`crate::body_tags`]). Each acts on prose only: not in code, not in a
 //! link's label or an image's alt text, not in math, not in the
 //! frontmatter — what is code to the base stays code here (invariant 12).
+//! A task-list checkbox carries `data-task-line`, the 1-based line of its
+//! `[ ]` in the text given, frontmatter included, so the window toggles the
+//! right line.
 
 use std::ops::Range;
 
 use pulldown_cmark::{CowStr, Event, LinkType, Tag, TagEnd, html};
 
+use crate::position::LineIndex;
 use crate::tags::BodyTag;
 use crate::{callouts, comments, events, footnotes, tags};
 use events::{Context, Offset};
@@ -59,6 +63,7 @@ pub fn to_html(source: &str) -> String {
     let tags = tags::scan(source, &events);
     let events = footnotes::inline(source, events);
     let events = callouts::callouts(source, events);
+    let lines = LineIndex::new(source);
     let mut context = Context::default();
     // Whether each open link or image is a wikilink: only those get the
     // anchor or the span, and only their ends close it.
@@ -121,6 +126,15 @@ pub fn to_html(source: &str) -> String {
             )],
             Event::DisplayMath(tex) => vec![Event::Html(
                 format!("<div class=\"math math-display\">{}</div>", attr(&tex)).into(),
+            )],
+            // The base's own checkbox, plus the line of the marker.
+            Event::TaskListMarker(checked) => vec![Event::Html(
+                format!(
+                    "<input disabled=\"\" type=\"checkbox\"{} data-task-line=\"{}\"/>\n",
+                    if checked { " checked=\"\"" } else { "" },
+                    lines.pos(source, range.start).line
+                )
+                .into(),
             )],
             Event::Text(text) if context.prose() && events::literal(source, &text, &range) => {
                 prose(&text, &range, &tags)
@@ -511,5 +525,42 @@ mod hidden_comments {
         assert!(html.contains("<p>Só %% aberto</p>"), "{html}");
         let html = to_html("linha\n%%oculto%%\nfim\n");
         assert!(html.contains("<p>linha<br />\nfim</p>"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod tasks {
+    use super::to_html;
+
+    fn task_lines(html: &str) -> Vec<u32> {
+        html.match_indices("data-task-line=\"")
+            .map(|(i, m)| {
+                let rest = &html[i + m.len()..];
+                let end = rest.find('"').unwrap();
+                rest[..end].parse().unwrap()
+            })
+            .collect()
+    }
+
+    /// Each checkbox carries the 1-based line of its `[ ]` in the text
+    /// given to `to_html`, frontmatter included, so the window can toggle
+    /// the right line: the n-th checkbox is not the n-th `- [ ]` line once
+    /// quotes, callouts and code enter.
+    #[test]
+    fn task_checkboxes_carry_their_source_line() {
+        let source = "---\ntitle: x\n---\n- [ ] um\n\n> - [x] dois\n\n> [!note]\n> - [ ] três\n\n```\n- [ ] não\n```\n\n- [ ] quatro\n  - [x] cinco\n";
+        let html = to_html(source);
+        assert_eq!(task_lines(&html), [4, 6, 9, 15, 16], "{html}");
+        assert_eq!(html.matches("type=\"checkbox\"").count(), 5, "{html}");
+        assert!(
+            html.contains(r#"<input disabled="" type="checkbox" data-task-line="4"/>"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<input disabled="" type="checkbox" checked="" data-task-line="6"/>"#),
+            "{html}"
+        );
+        assert!(html.contains(r#"data-callout="note""#), "{html}");
+        assert_eq!(task_lines(&to_html("a\r\n- [ ] b\r\n")), [2]);
     }
 }
