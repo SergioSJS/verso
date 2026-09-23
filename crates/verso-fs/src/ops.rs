@@ -45,6 +45,11 @@ pub struct OpReport {
     /// file of a create, or the old name of a move — with the error that
     /// left it. The new name holds the content either way.
     pub leftover: Option<String>,
+    /// The volume has no hard links (exFAT, FAT, some network and cloud
+    /// file systems): the file got its name by a `rename` after a
+    /// last-moment check instead of by `link`, so a file created at the
+    /// destination in that instant would have been replaced.
+    pub no_hard_links: bool,
 }
 
 impl OpReport {
@@ -65,7 +70,63 @@ impl OpReport {
         if let Some(what) = &self.leftover {
             out.push(what.clone());
         }
+        if self.no_hard_links {
+            out.push(
+                "this volume has no hard links: the name was checked just before the move, not claimed by it"
+                    .to_owned(),
+            );
+        }
         out
+    }
+}
+
+/// How [`place`] gave a file its new name.
+enum Placed {
+    /// By `link`, then removing the old name; `removal` is the error that
+    /// left the old name behind, if any.
+    Linked { removal: Option<std::io::Error> },
+    /// By a last-moment check and `rename`: the volume has no hard links.
+    Renamed,
+}
+
+/// Whether `link` failed because the volume or the pair of paths cannot
+/// have hard links at all, rather than because of the destination.
+fn no_hard_links(e: &std::io::Error) -> bool {
+    use std::io::ErrorKind;
+    matches!(
+        e.kind(),
+        ErrorKind::Unsupported
+            | ErrorKind::PermissionDenied
+            | ErrorKind::CrossesDevices
+            | ErrorKind::TooManyLinks
+    )
+}
+
+/// Give the regular file `from` the name `to` without replacing whatever
+/// stands there: `link`, which fails on an existing name, then removing
+/// `from`. On a volume without hard links — exFAT and FAT on removable
+/// drives, some network and cloud file systems — `link` cannot work at
+/// all, so the name is checked once more and `from` renamed, and the
+/// caller reports that the guard was weaker. `link` is a parameter so
+/// that a test can stand in a volume without hard links.
+fn place(
+    from: &Path,
+    to: &Path,
+    link: impl Fn(&Path, &Path) -> std::io::Result<()>,
+) -> Result<Placed, WriteError> {
+    match link(from, to) {
+        Ok(()) => Ok(Placed::Linked {
+            removal: std::fs::remove_file(from).err(),
+        }),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Err(WriteError::Exists),
+        Err(e) if no_hard_links(&e) => {
+            if occupied(to).map_err(WriteError::Io)? {
+                return Err(WriteError::Exists);
+            }
+            std::fs::rename(from, to).map_err(WriteError::Io)?;
+            Ok(Placed::Renamed)
+        }
+        Err(e) => Err(WriteError::Io(e)),
     }
 }
 
@@ -141,38 +202,43 @@ pub(crate) fn create_atomically(path: &Path, content: &[u8]) -> Result<OpReport,
     let dir = parent_of(path)?;
     let created = create_dirs(dir).map_err(WriteError::Io)?;
     let temp = temporary_name(dir);
-    // Everything up to and including the link: a failure here leaves
-    // nothing at `path` and removes the temporary file.
-    let placed = (|| {
+    // Everything up to and including the final name: a failure here
+    // leaves nothing at `path` and removes the temporary file.
+    let written = (|| {
         let mut out = File::create_new(&temp)?;
         out.write_all(content)?;
-        out.sync_all()?;
-        drop(out);
-        // `link` gives the content its final name and fails if anything
-        // appeared there since the check above: no window in which a file
-        // created by someone else is replaced (a `rename` would replace it).
-        std::fs::hard_link(&temp, path)
+        out.sync_all()
     })();
-    if let Err(e) = placed {
+    if let Err(e) = written {
         let _ = std::fs::remove_file(&temp);
-        return Err(if e.kind() == std::io::ErrorKind::AlreadyExists {
-            WriteError::Exists
-        } else {
-            WriteError::Io(e)
-        });
+        return Err(WriteError::Io(e));
     }
+    // `link` gives the content its final name and fails if anything
+    // appeared there since the check above: no window in which a file
+    // created by someone else is replaced (a `rename` would replace it).
+    let placed = match place(&temp, path, |a, b| std::fs::hard_link(a, b)) {
+        Ok(placed) => placed,
+        Err(e) => {
+            let _ = std::fs::remove_file(&temp);
+            return Err(e);
+        }
+    };
     // The file is in place: from here on, report rather than fail.
     let mut report = OpReport {
         network_fs: network_fs(dir),
         ..OpReport::default()
     };
-    if let Err(e) = std::fs::remove_file(&temp) {
-        report.leftover = Some(format!(
-            "a temporary file was left behind ({}): {e}",
-            temp.file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default()
-        ));
+    match placed {
+        Placed::Linked { removal: Some(e) } => {
+            report.leftover = Some(format!(
+                "a temporary file was left behind ({}): {e}",
+                temp.file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            ));
+        }
+        Placed::Linked { removal: None } => {}
+        Placed::Renamed => report.no_hard_links = true,
     }
     let after = (|| {
         sync_created(dir, &created)?;
@@ -256,22 +322,20 @@ pub(crate) fn rename_path(from: &Path, to: &Path) -> Result<OpReport, WriteError
     }
     let created = create_dirs(to_dir).map_err(WriteError::Io)?;
     let mut leftover = None;
+    let mut unguarded = false;
     if from_meta.is_file() {
         // A regular file is given its new name by `link`, which fails
         // rather than replacing a file that appeared at `to` after the
         // check above; then the old name is removed. Same inode: mode,
         // owner, attributes and modification time travel with it.
-        match std::fs::hard_link(from, to) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                return Err(WriteError::Exists);
+        match place(from, to, |a, b| std::fs::hard_link(a, b))? {
+            Placed::Linked { removal: Some(e) } => {
+                leftover = Some(format!(
+                    "moved, but the old name could not be removed and still points at the same content: {e}"
+                ));
             }
-            Err(e) => return Err(WriteError::Io(e)),
-        }
-        if let Err(e) = std::fs::remove_file(from) {
-            leftover = Some(format!(
-                "moved, but the old name could not be removed and still points at the same content: {e}"
-            ));
+            Placed::Linked { removal: None } => {}
+            Placed::Renamed => unguarded = true,
         }
     } else {
         // A directory or a symlink cannot be hard-linked: checked once more
@@ -282,7 +346,9 @@ pub(crate) fn rename_path(from: &Path, to: &Path) -> Result<OpReport, WriteError
         }
         std::fs::rename(from, to).map_err(WriteError::Io)?;
     }
-    Ok(finish_move(to_dir, from_dir, &created, leftover))
+    let mut report = finish_move(to_dir, from_dir, &created, leftover);
+    report.no_hard_links = unguarded;
+    Ok(report)
 }
 
 /// The entry is at its new name: sync the directories and report what
@@ -336,4 +402,42 @@ pub(crate) fn trash(root: &Path, relative: &Path) -> Result<(PathBuf, OpReport),
     }
     let report = rename_path(&from, &root.join(&target))?;
     Ok((target, report))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn no_links(_: &Path, _: &Path) -> std::io::Result<()> {
+        Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
+    }
+
+    /// exFAT answers `link` with "operation not supported": a create or a
+    /// move must still happen there, by a checked rename, and say so.
+    #[test]
+    fn without_hard_links_a_name_is_placed_by_a_checked_rename() {
+        let dir = tempfile::tempdir().unwrap();
+        let from = dir.path().join("a");
+        let to = dir.path().join("b");
+        std::fs::write(&from, b"x").unwrap();
+        assert!(matches!(place(&from, &to, no_links), Ok(Placed::Renamed)));
+        assert!(!from.exists());
+        assert_eq!(std::fs::read(&to).unwrap(), b"x");
+        // An occupied destination is still refused, and left alone.
+        std::fs::write(&from, b"y").unwrap();
+        assert!(matches!(
+            place(&from, &to, no_links),
+            Err(WriteError::Exists)
+        ));
+        assert_eq!(std::fs::read(&to).unwrap(), b"x");
+        assert_eq!(std::fs::read(&from).unwrap(), b"y");
+        // Any other failure of `link` is still an error.
+        let denied = |_: &Path, _: &Path| -> std::io::Result<()> {
+            Err(std::io::Error::other("disk on fire"))
+        };
+        assert!(matches!(
+            place(&from, &dir.path().join("c"), denied),
+            Err(WriteError::Io(_))
+        ));
+    }
 }
