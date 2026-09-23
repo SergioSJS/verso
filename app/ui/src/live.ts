@@ -18,6 +18,7 @@ import type { EditorState, Text } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import katex from "katex";
 import { cells } from "./table";
+import { frontmatterClose } from "./frontmatter";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -444,14 +445,11 @@ class InlineMathWidget extends WidgetType {
 
 type Range = { from: number; to: number; deco: Decoration };
 
-/** End of the closing `---` line of a frontmatter block, or -1. */
+/** End of the closing `---` line of the frontmatter, or -1: where the
+ *  core finds it (./frontmatter), as the properties panel does. */
 export function frontmatterEnd(doc: Text): number {
-  if (doc.lines < 2 || doc.line(1).text.trim() !== "---") return -1;
-  for (let n = 2; n <= doc.lines; n++) {
-    const l = doc.line(n);
-    if (l.text.trim() === "---" || l.text.trim() === "...") return l.to;
-  }
-  return -1;
+  const close = frontmatterClose((i) => (i < doc.lines ? doc.line(i + 1).text : undefined));
+  return close < 0 ? -1 : doc.line(close + 1).to;
 }
 
 function linesOfSelection(view: EditorView): Set<number> {
