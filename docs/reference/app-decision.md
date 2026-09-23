@@ -6,11 +6,16 @@
   their own words ([ADR 0033](../adr/0033-pr-workflow.md), merge condition 3),
   and it lists the decisions that code leans on without having them. The
   scope it covers was widened by the maintainer's requests, recorded in
-  [ADR 0049](../adr/0049-phase-2-scope-widened.md).
+  [ADR 0049](../adr/0049-phase-2-scope-widened.md). On 2026-09-23 the
+  maintainer answered most of what section 9 listed; the answers live in the
+  ADRs and the spec, and section 9 says where.
 - Code: branch `phase1-2/integration`. Author of the code: Fable 5.1, Rust and
   TypeScript alike, by the maintainer's choice of 2026-09-22 (ADR 0049,
   Consequences); the fixes that followed the Opus reading of 2026-09-23 were
-  written by Fable 5.1 for the Rust and by Opus 5.5 for the window. Author of
+  written by Fable 5.1 for the Rust and by Opus 5.5 for the window; the
+  changes that followed the maintainer's answers of 2026-09-23, Rust
+  included, by Opus 5.5, standing in for Fable 5.1 by the maintainer's
+  decision (`../review/phase-2.md` §7). Author of
   this memo: Opus, in the role of author of documents
   ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)). The reading, its
   findings and where each was fixed are in
@@ -134,14 +139,14 @@ between that and a lost byte.
 | The user | The window calls | What protects the folder |
 |---|---|---|
 | types in a note | `write_note` a moment after the last keystroke (1.5 s by default), and again when the tab loses focus or closes, the window is hidden or closed, the app quits (⌘Q included), or another folder or language is chosen; one write at a time per tab | the revision: a file changed elsewhere is refused and the window shows the difference, with "reload" or "overwrite"; while that banner is up no other save goes through, and an overwrite that meets a second change shows the new difference first. Text typed during a save stays marked unsaved |
-| types in a text file (`.txt`, `.json`, code) | `write_text`, the same way | the same revision; the file's own line endings are kept; a file with mixed line endings opens read-only, and one whose bytes are not UTF-8 is not opened for editing at all (the window says why) |
+| types in a text file (`.txt`, `.json`, code, an HTML file's source) | `write_text`, the same way | the same revision; the file's own line endings are kept; a file with mixed line endings opens read-only, and one whose bytes are not UTF-8 is not opened for editing at all (the window says why) |
 | ticks a task in the reading view | a change to that task's line in the editor's text — the line the core marked on the checkbox — saved as typing is | the revision and the banner, as for typing |
 | edits a property | a change to the editor's text limited to that key's lines, computed against the frontmatter as the editor holds it now, saved as typing is | the revision; a value the panel cannot rewrite without changing its type is read-only |
 | presses Tab or Enter in a table | re-aligns that table's lines in the editor — a real table only, outside code and math — saved as typing is | the revision |
-| renames or moves a note, a file or a folder | `rename_note` / `rename_entry`: the file or folder moves at once; the answer lists the notes whose links no longer reach it, each with its before and after, and the ones that could not be planned | only links that reached what moved are rewritten, never inside code; nothing else is written until the user sees the diffs and chooses "update links" (ADR 0048, option (b), provisional); each rewrite then goes through `write_note` with its own revision, and an open tab of that note is saved first |
+| renames or moves a note, a file or a folder | `rename_note` / `rename_entry`: the file or folder moves at once; the answer lists the notes whose links no longer reach it, each with its before and after, and the ones that could not be planned | a new name that holds `[`, `]`, `\|`, `#` or `^` — which no link can reach — is refused before anything moves; only links that reached what moved are rewritten, never inside code; nothing else is written until the user sees the diffs and chooses "update links" (ADR 0048, option (b), decided 2026-09-23); each rewrite then goes through `write_note` with its own revision, and an open tab of that note is saved first |
 | finds and replaces across the folder | nothing, until the plan is shown: the open tabs save, every note is read, and the plan has one diff per note and says what it searched | each note is written over the revision read for the plan; a note changed since is refused and counted |
 | deletes | `delete_note` / `delete_entry` after a confirmation in the page | the file or folder goes to `.trash/`, never unlinked |
-| creates a note, a folder, the daily note | `create_note`, `create_folder` | refused with `exists` if something stands there; the new file is written atomically |
+| creates a note, a folder, the daily note | `create_note`, `create_folder` | refused with `exists` if something stands there, and before that when the typed name holds a character no link can reach; the new file is written atomically |
 | pastes or drops an image into a note | `create_file` into `assets/` beside the note, named after the note and the time; the embed is inserted into the text | a new file only; the note is saved as typing is |
 | drops files from the system onto the tree | `create_file`, one per file, into the folder under the pointer | refused with `exists` when the name is taken |
 | duplicates a file | reads it — a note or a text file through the contract, any other file through `verso://` — and `create_file` beside it, "name copy" | a new file only |
@@ -164,15 +169,18 @@ configuration.
   Obsidian's form), and "quote the selection", which appends a quote to the
   companion note beside the PDF. The passages already quoted are painted on the
   pages. `![[book.pdf]]` in a note shows the reader inside the note.
-- **HTML files** open as text, in the editor. A viewer that shows them as a
-  page, with scripts off, exists but is never reached: an `.html` file counts
-  as a text file first (`../review/phase-2.md` §6, item 16).
+- **HTML files** open as their page, in a sandboxed frame with scripts off.
+  The tab's head offers the page and its source, as a note's head offers its
+  modes; the source is edited as a text file, and the page comes back after
+  the source's last keystrokes are saved. Until `4afec51` the viewer was never
+  reached: an `.html` file counted as a text file first
+  (`../review/phase-2.md` §6, item 16).
 - **Text and code files** open in the editor, colored by their extension, and
   save like notes.
 - **Web notes.** A note whose frontmatter has an `http(s)` `url` shows that
   page inside its tab, in a web view the host lays over the tab's area; a bar
   gives back, forward, reload and the note itself. The tree shows the site's
-  icon.
+  icon, unless remote content is off (section 7).
 
 ## 7. What can reach what
 
@@ -201,7 +209,11 @@ What stands between it and the rest of the machine:
   ways: a web note loads its page in a web view; an http(s) link clicked in the
   window opens its page in a window of its own; a web note's icon is asked of
   the site itself, once per site and session; an image a note takes from the
-  web loads when the note is shown, as in Obsidian ([ADR 0049](../adr/0049-phase-2-scope-widened.md)).
+  web loads when the note is shown, as in Obsidian
+  ([ADR 0050](../adr/0050-outbound-network-access.md), decided 2026-09-23).
+  The two that need no click follow the "load remote content" setting, on by
+  default: off, a remote image becomes a link to itself, an inline style
+  loses what it would fetch, and a web note wears a globe.
 - **Paths.** The window never holds the folder's absolute path; a path it
   sends is confined by `verso-fs` (absolute, `..`, hidden and ignored paths are
   refused) whatever the command.
@@ -218,7 +230,7 @@ folder:
 | `verso.lastFolder` | the key of the folder opened last, reopened at start |
 | `verso.spaces:<key>` | the workspaces, panes and tabs of that folder |
 | `verso.bookmarks:<key>` | the bookmarks of that folder |
-| `verso.settings` | language, theme, palette, font size, attachment, daily and template folders, autosave delay, spell check, default mode, text width, the format of new links (shortest, relative with `./` or `../`, from the root), hotkeys |
+| `verso.settings` | language, theme, palette, font size, attachment, daily and template folders, autosave delay, spell check, default mode, text width, the format of new links (shortest, relative with `./` or `../`, from the root), whether remote content loads, hotkeys |
 | `verso.ribbon`, `verso.graph`, `verso.folderSort`, `verso.rightTab`, `verso.right`, `verso.sideWidth` | the ribbon's order, the graph's filters, the folder view's sort, the right panel's tab and visibility, the tree's width |
 
 A layout that names a note that no longer exists skips it when it is restored.
@@ -228,18 +240,29 @@ layout and bookmarks start empty once.
 
 ## 9. Choices waiting for the maintainer
 
-The code leans on decisions it does not have. They are listed once, with
-where each lives, in [`../review/phase-2.md`](../review/phase-2.md) §6; the ones
-a user of the window meets first:
+The code leaned on decisions it did not have. They are listed once, with
+where each lives, in [`../review/phase-2.md`](../review/phase-2.md) §6. The
+maintainer answered them on 2026-09-23; the ones a user of the window meets
+first, and where each now lives:
 
-- what rename, move, delete and create do ([ADR 0048](../adr/0048-file-operations-in-ui.md));
+- what rename, move, delete and create do: as built
+  ([ADR 0048](../adr/0048-file-operations-in-ui.md), Accepted);
 - what the reading view renders — tables, footnotes, math, highlight,
-  callouts, comments, body tags (spec Q5, Q6, Q13, Q15);
-- that a file which is not UTF-8 is not opened for editing (spec Q25);
-- the four ways the window reaches the network (ADR 0049);
-- which of CodeMirror's keys the app's hotkeys may take inside an editor: ⌘D,
-  ⌘⇧L, ⌘⇧G and ⌘⇧\\, and on Linux Ctrl-Shift-[ and ] (no ADR covers the
-  hotkeys).
+  callouts, comments, body tags: as built (spec v0.16, Q5, Q6, Q13, Q15),
+  except callouts nested in callouts, still open because Obsidian nests them
+  and the reading view does not;
+- that a file which is not UTF-8 is not opened for editing (spec Q25,
+  closed);
+- the four ways the window reaches the network, with a setting over the two
+  that need no click ([ADR 0050](../adr/0050-outbound-network-access.md));
+- which of CodeMirror's keys the app's hotkeys may take inside an editor —
+  ⌘D, ⌘⇧L, ⌘⇧G and ⌘⇧\\, and on Linux Ctrl-Shift-[ and ] — accepted as they
+  are, since every hotkey can be bound again in the settings.
+
+Still waiting: the setting's default (on, provisional), converting a file
+with mixed line endings by the user's action (spec Q24), non-Markdown files
+(Q16), the handles of the contract (ADR 0044), and the bench's CI baseline,
+which needs CI to run.
 
 ## 10. What is not built
 
@@ -250,7 +273,8 @@ a user of the window meets first:
 - **Opaque handles and session identity in the contract**
   ([ADR 0044](../adr/0044-verso-fs-semantics.md),
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): the contract names notes
-  by relative path, and the revision is the only token; see section 9.
+  by relative path, and the revision is the only token. Session identity is
+  accepted as absent for Phase 2 (ADR 0045, 2026-09-23); handles are open.
 - **A full accessibility pass.** After the reading, controls carry names,
   dialogs hold and return focus, menus and dividers answer the keyboard, and
   secondary text reaches 4.5:1; there is still no keyboard way to drag a tab or
@@ -277,8 +301,9 @@ a user of the window meets first:
   170 MB for the app and its web content with a 32 000-word note open.
 - Folders with tens of thousands of notes were not opened in the window; the
   benchmark covers the core, not the window.
-- The licenses of the window's npm packages were checked by hand, not by a
-  gate.
+- The licenses of the window's npm packages were checked by hand until
+  2026-09-23; since then a CI gate reads them from the lockfile
+  ([ADR 0029](../adr/0029-guardrails-in-ci.md)).
 
 ## 12. How the maintainer verifies, without reading code
 
@@ -315,4 +340,16 @@ Then, in the window:
 10. **The guardrails.** `cargo fmt --check`, `cargo clippy --workspace
    --all-targets -- -D warnings`, `cargo test --workspace`,
    `cargo deny check`, `scripts/check-docs-mirror.sh`,
-   `scripts/check-fixtures.sh`, and in `app/ui` `npm run check`.
+   `scripts/check-fixtures.sh`, `node scripts/check-npm-licenses.mjs`, and in
+   `app/ui` `npm run check`.
+11. **An HTML file is a page.** Open an `.html` file: it shows as a page, and
+    a script in it does not run; "Source" in the tab's head edits it, "Page"
+    shows it again.
+12. **Remote content can be kept off.** Settings → General → "Load remote
+    content" off: a note's `![](https://…)` image becomes a link to it, and a
+    web note wears a globe instead of its site's icon.
+13. **A name no link can reach is refused.** Rename a note to `a#b`: the
+    window says why and nothing moves.
+14. **`verso <folder>` reaches the app that is already open** (macOS, the
+    installed app): with Verso open on one folder, `verso` on another from a
+    terminal switches the window to it, after saving its tabs.

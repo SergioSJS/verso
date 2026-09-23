@@ -19,8 +19,9 @@
   código, ou, para a leitura 3, achado 4, pela emenda do mantenedor ao ponto 3
   da Q12 da spec em 2026-09-23; uma segunda rodada de leituras das correções não achou
   BLOQUEANTE novo, e os IMPORTANTES dela estão corrigidos (seção 7). O que
-  espera o mantenedor está na seção 6. Nada neste documento decide uma
-  questão `[ABERTO]`.
+  esperava o mantenedor está na seção 6, com a resposta do mantenedor de
+  2026-09-23 embaixo de cada item; o que as respostas mudaram fecha a seção 7.
+  Nada neste documento decide uma questão `[ABERTO]`.
 
 ## Como ler
 
@@ -74,7 +75,7 @@ resolvido pelo mantenedor, que emendou o ponto 3 em 2026-09-23.
 | 4 | IMPORTANTE | O protocolo servia notas, embora o comentário dele dissesse que não | **Corrigido** em `af5a84b`: `.md`, em qualquer caixa, é recusado; notas cruzam só pelo `read_note`. O "duplicar" da UI lia notas pelo protocolo e agora as lê pelo contrato (`369e738`) |
 | 5 | IMPORTANTE | Os comandos de web view confiavam em rótulos escolhidos pela UI e os procuravam no app inteiro: duas janelas colidiam em `web-1`, uma janela podia mover, esconder, dirigir ou fechar a página de outra, e o `web_nav` podia apontar a `main` para um site | **Corrigido** em `af5a84b`: o host emite o rótulo, registra a janela que abriu a view, e só essa janela age sobre ela |
 | 6 | IMPORTANTE | Nenhuma política de navegação ou de janela nova: uma página numa web view podia navegar para `verso://` ou `tauri://`, ambas origens locais | **Corrigido** em `af5a84b` para web views (só http e https, nenhuma janela nova); para `main` e `note-*` em `3340a3f`: uma guarda para toda web view; as views do app ficam nas páginas do app e no protocolo de arquivos (o tratador é chamado também para frames, e o visualizador de HTML é um) |
-| 7 | MENOR | `img-src https:` deixa o HTML de uma nota carregar recursos remotos quando a nota é mostrada; com `style-src 'unsafe-inline'`, HTML cru pode reestilizar o app | `<style>` não chega mais à página (leitura 4, achado 1). Imagens remotas ficam, como no Obsidian; registrado na [ADR 0049](../adr/0049-phase-2-scope-widened.md) e em `docs/reference/app-decision.md` §7. É do mantenedor (seção 6) |
+| 7 | MENOR | `img-src https:` deixa o HTML de uma nota carregar recursos remotos quando a nota é mostrada; com `style-src 'unsafe-inline'`, HTML cru pode reestilizar o app | `<style>` não chega mais à página (leitura 4, achado 1). Imagens remotas ficam, como no Obsidian; registrado na [ADR 0049](../adr/0049-phase-2-scope-widened.md) e em `docs/reference/app-decision.md` §7. Aceito pelo mantenedor em 2026-09-23, com um ajuste "carregar conteúdo remoto" ([ADR 0050](../adr/0050-outbound-network-access.md), `c8109b8`; seção 6, item 5) |
 | 8 | MENOR | Um caminho recusado em `create_folder` respondia `failed`, não `refused` | **Corrigido** em `3340a3f`: o caminho é confinado primeiro, então um recusado responde `refused` |
 | 9 | MENOR | `IndexSummary.problems` cruzava como texto de debug do Rust, impossível de traduzir | **Corrigido** em `3340a3f`: uma linha legível por problema, com caminhos relativos à pasta |
 | 10 | MENOR | `core:default` não concede `set-focus`, então o foco que a UI pede ao abrir uma nota era negado | **Corrigido** em `af5a84b` |
@@ -85,13 +86,13 @@ resolvido pelo mantenedor, que emendou o ponto 3 em 2026-09-23.
 | # | Nível | Achado | Resolução |
 |---|---|---|---|
 | 1 | BLOQUEANTE | `write_note` e `write_text` devolviam a revisão de uma releitura, não a dos bytes que escreveram. Outro app salvando entre o rename e a releitura fazia o próximo salvamento do Verso passar na verificação e sobrescrever aquela edição, sem diff (reproduzido na 23ª tentativa de um loop). Invariante 11 | **Corrigido** em `3340a3f`: a resposta é o texto de quem chamou com a revisão desses bytes; um carimbo que a escrita não conseguiu confirmar só vale enquanto o arquivo ainda guarda esses bytes. Teste `write_note_answers_the_text_and_revision_of_the_bytes_it_wrote` |
-| 2 | BLOQUEANTE | Texto que não é UTF-8 era decodificado com perda e escrito de volta: um `é` Latin-1 virou `EF BF BD` no disco quando um plano de renomeação foi aplicado, e o diff do plano mostrava só o link. Invariante 8 | **Corrigido** em `3340a3f`: UTF-8 estrito; um arquivo assim dá `not_text` a todo editor (e ao `verso mcp`, `ca264f0`) e fica fora dos planos como pulado. A Q25 da spec continua `[ABERTO]` (seção 6, item 4) |
+| 2 | BLOQUEANTE | Texto que não é UTF-8 era decodificado com perda e escrito de volta: um `é` Latin-1 virou `EF BF BD` no disco quando um plano de renomeação foi aplicado, e o diff do plano mostrava só o link. Invariante 8 | **Corrigido** em `3340a3f`: UTF-8 estrito; um arquivo assim dá `not_text` a todo editor (e ao `verso mcp`, `ca264f0`) e fica fora dos planos como pulado. A Q25 da spec foi fechada em 2026-09-23 como o código faz (seção 6, item 4) |
 | 3 | BLOQUEANTE | Caminhos absolutos cruzavam o contrato: `FolderInfo.folder`, o caminho que `open_folder` recebia, e o alvo de uma escrita por symlink nos avisos. Regra 4 da [ADR 0026](../adr/0026-core-ui-contract-inviolable-rules.md) | **Corrigido** em `3340a3f`: a pasta cruza como nome e chave opaca; o host roda o seletor de pasta e guarda o caminho; o alvo de um symlink é nomeado relativo à pasta, ou só como fora dela |
 | 4 | IMPORTANTE | O plano de reescrita de links casava texto e ignorava para onde cada link resolvia: redirecionava links quando duas notas têm o mesmo nome, quando o nome novo já existe em outro lugar, e para anexos de mesmo nome; mover podia mudar em silêncio a nota que um nome solto alcança sem planejar nada; reescrevia dentro de código | **Corrigido** em `3340a3f`: as notas são lidas antes da mudança com o que cada link alcançava; depois dela, só os links cujo alvo mudou são reescritos, numa forma que o alcança de novo; código nunca é tocado; um nome solto que a mudança redirecionaria ganha um plano. Testes `the_plan_rewrites_only_the_links_that_reached_the_moved_note` e `a_move_that_would_retarget_a_bare_link_gets_a_plan_not_silence` |
 | 5 | IMPORTANTE | `delete_entry("README")` mandava `README.md` para a lixeira quando os dois existiam, e `rename_entry` renomeava a nota em vez do arquivo, do mesmo jeito | **Corrigido** em `3340a3f`: nota é um caminho que termina em `.md`, e nada mais |
 | 6 | IMPORTANTE | Um rename ou uma ida para a lixeira que já tinha acontecido era reportado como falha, sem plano, quando uma nota que linka era placeholder ou o passo do índice falhava depois; tentar de novo respondia "já existe" | **Corrigido** em `3340a3f`: nada falha depois que a entrada mudou de lugar; notas que linkam e não puderam ser lidas aparecem como puladas, o resto vira aviso (`Renamed`, `Trashed`) |
 | 7 | IMPORTANTE | Mover uma pasta derrubava do índice a última versão conhecida de uma nota evicta, e anexos evictos resolviam como ausentes ([ADR 0043](../adr/0043-placeholder-guard.md)) | **Corrigido** em `3340a3f`: as notas movidas trocam de chave no índice com a última versão conhecida; anexos placeholder são listados e resolvem como presentes |
-| 8 | IMPORTANTE | `resolve_file` ignorava a nota de origem, então embeds não seguiam a Q12 fechada, que os cobre | **Corrigido** em `3340a3f`: `resolve_attachment(source, target)` segue a Q12 a partir da nota. Para um nome solto, prefere a pasta da própria nota — o texto do ponto 3 da Q12 —, enquanto as notas seguem o "sob" do índice (seção 6, item 1) |
+| 8 | IMPORTANTE | `resolve_file` ignorava a nota de origem, então embeds não seguiam a Q12 fechada, que os cobre | **Corrigido** em `3340a3f`: `resolve_attachment(source, target)` segue a Q12 a partir da nota. Para um nome solto, prefere a pasta da própria nota — o texto do ponto 3 da Q12 —, enquanto as notas seguem o "sob" do índice (seção 6, item 1). Desde `33ee838`, depois da emenda do mantenedor, os embeds seguem o "sob" também |
 | 9 | IMPORTANTE | As funções novas de escrita do `verso-fs` não tinham testes de guardrail: nenhuma recusa de placeholder, de `..`, de caminho absoluto ou oculto era testada em criar, renomear, lixeira, ler ou escrever texto | **Corrigido** em `3340a3f`: 12 testes em `verso-fs/tests/ops.rs` (toda porta de escrita recusa um caminho que sai ou se esconde; placeholders recusados ao criar, renomear e mandar para a lixeira) e o laço de confinamento do core ampliado. Os dois testes de guardrail do fs foram vistos falhando contra uma verificação quebrada de propósito |
 | 10 | MENOR | Verificar-e-renomear podia substituir um arquivo criado no intervalo | **Corrigido** em `3340a3f`: um arquivo chega por hard link e o nome temporário sai, então nada que apareceu no intervalo é substituído |
 | 11 | MENOR | Diretórios criados no caminho não recebiam fsync no pai; um fsync de diretório que falhava depois do rename virava escrita falha | **Corrigido** em `3340a3f`: pastas criadas recebem fsync no pai; um passo de durabilidade depois da mudança é aviso, não falha |
@@ -112,18 +113,18 @@ resolvido pelo mantenedor, que emendou o ponto 3 em 2026-09-23.
 | 7 | IMPORTANTE | O render e o parser discordam sobre o que é link (`$[[x]]$`), contra o próprio comentário do render | **Corrigido** em `7475c03`: o comentário diz exatamente o que difere; as opções do parser não mudam (Q15 da spec, seção 6) |
 | 8 | IMPORTANTE | O `read_note` do `verso mcp` numa nota vazia respondia `bad_window` | **Corrigido** em `9158f8b`: uma nota vazia, sem janela pedida, responde uma janela vazia. Teste visto falhando |
 | 9 | IMPORTANTE | `verso <pasta>` usava uma regra léxica: um diretório existente nomeado sem `/` era "comando desconhecido", um inexistente era "abrindo", e `verso open` assumia `.`, contra a [ADR 0042](../adr/0042-open-from-command-line.md) | **Corrigido** em `896996a`, de forma provisória: um primeiro argumento que nomeia um diretório existente o abre, qualquer outra coisa é erro de uso, e `verso open` exige a pasta. Registrado na ADR 0042, cuja regra continua `[ABERTO]`. Testes vistos falhando |
-| 10 | IMPORTANTE | `FIXTURES_STRICT=1` na `main` falha enquanto `fixtures/block/list-item` ainda é rascunho, embora a spec a chame de aprovada | **Registrado, não resolvido**: uma contradição entre a fixture e a spec, do mantenedor (seção 6) |
+| 10 | IMPORTANTE | `FIXTURES_STRICT=1` na `main` falha enquanto `fixtures/block/list-item` ainda é rascunho, embora a spec a chame de aprovada | **Resolvido** em 2026-09-23: o mantenedor aprovou a fixture ("faça 8"); `66a64fe` troca a linha de rascunho pela aprovação, e a checagem estrita passa (seção 6, item 8) |
 | 11 | IMPORTANTE | O job de bench do CI não conseguia ficar vermelho: sem baseline para `ci-linux`, a comparação saía 0 por construção | **Corrigido** em `5e3d32a`: `--require-baseline` falha quando a máquina não tem linha de base, e o job na `main` passa essa opção, então a `main` fica vermelha até a linha de base de `ci-linux` ser registrada (seção 6, item 9; `docs/reference/bench-decision.md`, revisão de 2026-09-23) |
 | 12 | IMPORTANTE | Um teste do bench comparava amostras únicas de tempo a 1,5× e falhava cerca de uma rodada em vinte | **Corrigido** em `d73c09f`: aquele passo compara só o tamanho do índice. Duas falhas em 25 rodadas antes, nenhuma em 25 depois |
 | 13 | IMPORTANTE | Varreduras sem limite no render: 80 KB de `^[` levavam um segundo, quadrático | **Corrigido** em `7475c03`: uma passagem linear por construção; testado |
 | 14 | IMPORTANTE | As tags do corpo no índice vinham de linhas cruas: links, código e comentários YAML davam tags falsas, e o leitor usava outra regra | **Corrigido** em `95b39ee`: o índice chama `verso_dialect::body_tags`, a regra única que o leitor usa |
-| 15 | IMPORTANTE | HTML cru passa pelo render, contando só com a CSP | A UI sanitiza o HTML do render (leitura 4, achado 1). Se o próprio render deve descartar HTML cru é a Q6, do mantenedor (seção 6) |
+| 15 | IMPORTANTE | HTML cru passa pelo render, contando só com a CSP | A UI sanitiza o HTML do render (leitura 4, achado 1). Se o próprio render deve descartar HTML cru é a Q6, do mantenedor (seção 6). Aceito em 2026-09-23 como construído: a lista de permissões da janela, o render sem mudança (Q6 da spec, seção 6, item 4) |
 | 16 | IMPORTANTE | `%%comentário%%` aparecia na visão de leitura, que a documentação do Obsidian diz esconder | **Corrigido** em `7475c03`: `%%…%%` sai da visão de leitura, nunca dentro de código (Q6 da spec, seção 6) |
 | 17 | MENOR | O tamanho do índice no bench excluía o arquivo `-wal` | **Corrigido** em `c1ddf0f`: medido depois de a conexão fechar. Os tamanhos de índice da linha de base do Mac foram registrados do jeito antigo, 1 a 2 % abaixo, dentro da tolerância |
 | 18 | MENOR | Comentários desatualizados em `store.rs` e `render.rs` | **Corrigido** em `7475c03` e `95b39ee` |
 | 19 | MENOR | Os resultados de erro do `verso mcp` não batiam com o esquema de saída declarado | **Corrigido** em `81d66b4`: o esquema declarado de cada ferramenta é um `anyOf` da resposta e do formato de erro. Teste visto falhando |
-| 20 | MENOR | `open -a Verso --args` não passa a pasta para um app já aberto, mas a CLI sai com 0 | **Registrado**: um limite do `open(1)` no macOS; do mantenedor (seção 6) |
-| 21 | MENOR | Todo pull request compila a árvore do Tauri duas vezes (dois jobs, dois caches), contra a política de custo do CI | **Registrado**: do mantenedor (seção 6) |
+| 20 | MENOR | `open -a Verso --args` não passa a pasta para um app já aberto, mas a CLI sai com 0 | **Corrigido** em `b43e914`, a pedido do mantenedor em 2026-09-23: o app instalado recebe a pasta como documento a abrir, que um app aberto recebe (seção 6, item 14) |
+| 21 | MENOR | Todo pull request compila a árvore do Tauri duas vezes (dois jobs, dois caches), contra a política de custo do CI | **Corrigido** em `bce6030`, a pedido do mantenedor em 2026-09-23: as checagens dos bindings e da UI rodam no job Rust de Linux (seção 6, item 13) |
 
 ## 4. Quarta leitura — a UI: escritas e segurança
 
@@ -159,8 +160,8 @@ resolvido pelo mantenedor, que emendou o ponto 3 em 2026-09-23.
 | 5 | BLOQUEANTE | Recargas forçadas jogavam fora texto não salvo | O mesmo da leitura 4, achado 5 |
 | 6 | IMPORTANTE | O Live Preview lançava erro num callout com uma linha `>` vazia | **Corrigido** em `7e8a69b`: todo trecho escondido fica preso à própria linha, e um construtor que ainda lance erro deixa a nota como fonte |
 | 7 | IMPORTANTE | ⌘I e ⌘⇧K rodavam os padrões do CodeMirror; ⌘⇧K apagava a linha | **Corrigido** em `25cb1f4`: o mapa de teclas da nota ganha dos padrões do CodeMirror |
-| 8 | IMPORTANTE | Atalhos globais disparavam por cima das teclas do editor, Ctrl contava como ⌘, e o gravador aceitava teclas que quebram o app | **Corrigido** em `06f4b8d`: ⌘ no macOS e Ctrl nos outros, cada evento tratado uma vez; o gravador exige um modificador, recusa uma lista reservada e se desarma com um clique fora. Dentro de um editor os atalhos do app agora vêm antes dos padrões do CodeMirror, então ⌘D não seleciona mais a próxima ocorrência (seção 6) |
-| 9 | IMPORTANTE | Textos fora dos catálogos pt-BR/EN ([ADR 0035](../adr/0035-cross-cutting-requirements.md)) | **Corrigido** em `e451123`: as frases do CodeMirror em pt-BR, erros por tipo com a mensagem do core como detalhe, o cabeçalho da tabela, os nomes de pasta e os títulos de callout pelos catálogos. Os textos do próprio core ficam em inglês (seção 6, item 12) |
+| 8 | IMPORTANTE | Atalhos globais disparavam por cima das teclas do editor, Ctrl contava como ⌘, e o gravador aceitava teclas que quebram o app | **Corrigido** em `06f4b8d`: ⌘ no macOS e Ctrl nos outros, cada evento tratado uma vez; o gravador exige um modificador, recusa uma lista reservada e se desarma com um clique fora. Dentro de um editor os atalhos do app agora vêm antes dos padrões do CodeMirror, então ⌘D não seleciona mais a próxima ocorrência (seção 6; aceito em 2026-09-23, item 22) |
+| 9 | IMPORTANTE | Textos fora dos catálogos pt-BR/EN ([ADR 0035](../adr/0035-cross-cutting-requirements.md)) | **Corrigido** em `e451123`: as frases do CodeMirror em pt-BR, erros por tipo com a mensagem do core como detalhe, o cabeçalho da tabela, os nomes de pasta e os títulos de callout pelos catálogos. Os textos do próprio core ficam em inglês (seção 6, item 12; registrado na ADR 0035 em 2026-09-23, um código por aviso planejado) |
 | 10 | IMPORTANTE | Controles sem nome, diálogos sem tratamento de foco (ADR 0035) | **Corrigido** em `73e215e`: nomes e descrições nos controles, diálogos modais com foco preso, devolvido e Escape, a opção destacada anunciada, os menus de aba e de área de trabalho e os divisores alcançáveis pelo teclado. Ainda não há equivalente de teclado para arrastar abas ou arquivos |
 | 11 | IMPORTANTE | Texto secundário abaixo de contraste 4,5:1 (ADR 0035) | **Corrigido** em `83d4a0a`: só a luminosidade muda; o pior caso é 4,51:1 |
 | 12 | IMPORTANTE | A UI e o core discordavam sobre onde o frontmatter termina | **Corrigido** em `5bba5e6`: uma regra só, a do core (`frontmatter.ts`), para o painel e o Live Preview; conferida contra o parser em 18 030 documentos |
@@ -178,7 +179,13 @@ resolvido pelo mantenedor, que emendou o ponto 3 em 2026-09-23.
 
 ## 6. Pendente do mantenedor
 
-Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
+Nenhum destes é decidido por esta revisão. Cada um diz onde mora. Em
+2026-09-23 eles foram apresentados ao mantenedor com uma recomendação para
+cada um, em quatro grupos: A, aceitar como está (itens 2, 3, 4, 6, 11, 18, 20,
+21, 22); B, aceitar com um ajuste pequeno (5, 7, 10, 12, 15, 16, 19); só do
+mantenedor (8, 17); D, depois e sem travar (9, 13, 14, 23). A resposta: *"a e
+b ok, faça 8, 17 troque para Opus, o que for importante ja puxa de D"* — de D
+o autor puxou o 13 e o 14. Cada item traz a sua resposta.
 
 1. **Q12, ponto 3: "na" ou "sob" a pasta da origem — decidido em
    2026-09-23.** Perguntado "sob a pasta, sim ou não?", o mantenedor respondeu
@@ -195,9 +202,12 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
    transação lógica; apagar para `.trash/` com confirmação; criar; colisão de
    nomes do jeito que o volume compara nomes; um placeholder sozinho não pode
    ser renomeado nem apagado, enquanto uma pasta com placeholders pode.
+   **Resposta:** aceito como construído; a ADR 0048 é Aceita (`45d6b6c`).
 3. **A linha de comando** — regra `[ABERTO]` da
    [ADR 0042](../adr/0042-open-from-command-line.md); o que `verso <pasta>` e
    `verso open` fazem agora está registrado lá como provisório.
+   **Resposta:** aceito como construído; a regra da Fase 2 da ADR 0042 está
+   decidida.
 4. **O que a visão de leitura renderiza** — Q5 da spec (tipos de callout), Q6
    (HTML cru, agora sanitizado pela janela; comentários `%%`, agora
    escondidos), Q13 e Q22 (tags no corpo, indexadas e renderizadas por uma
@@ -205,14 +215,22 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
    tarefas, matemática, destaque, tachado, uma quebra de linha simples como
    quebra), Q24 (a janela agora segue o limite de frontmatter do core), Q25 (um
    arquivo que não é UTF-8 não é aberto para edição). Cada uma tem sua linha
-   provisória na spec.
+   provisória na spec. **Resposta:** aceito como seguindo o Obsidian — Q13 e
+   Q25 fechadas; Q5, Q6, Q15 e Q24 decididas para a visualização de leitura e
+   a janela; Q22 para as tags (spec v0.16, `80ad6b5`). Uma premissa não valeu:
+   o Obsidian aninha callouts e a visualização de leitura não, então o
+   aninhamento da Q5 continua aberto.
 5. **A rede** — [ADR 0049](../adr/0049-phase-2-scope-widened.md),
    Consequências: notas web, links clicados na janela (abertos numa janela
    própria), os ícones das notas web pedidos ao próprio site, e imagens remotas
    acessam a rede; nenhuma ADR cobre acesso de saída
    (a [ADR 0027](../adr/0027-runtime-capabilities.md) é Proposta). A
    propriedade `url:` que faz de uma nota uma nota web é um significado do
-   Verso sem ADR.
+   Verso sem ADR. **Resposta:** os quatro jeitos e o significado de `url:`
+   aceitos, com um ajuste "carregar conteúdo remoto" sobre os dois que não
+   precisam de clique (`c8109b8`);
+   [ADR 0050](../adr/0050-outbound-network-access.md), com o padrão do ajuste
+   (ligado) provisório.
 6. **A segurança do contrato** — [ADR 0045](../adr/0045-server-and-mcp-security.md),
    `[ABERTO]`: sem identidade de sessão e sem autorização por operação; o host
    agora concede os comandos só às views do próprio app. O `verso://` é um
@@ -220,69 +238,96 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
    [ADR 0026](../adr/0026-core-ui-contract-inviolable-rules.md)); ele responde
    só às views do app e nunca serve uma nota. Os comandos só do host (`web_*`,
    `open_url`, `open_window`, `reveal`) ficam nos mesmos bindings que os do
-   core (regra 2; ADR 0027).
+   core (regra 2; ADR 0027). **Resposta:** aceito como construído para a Fase
+   2; `[ABERTO]` até um servidor entrar em escopo (ADR 0045).
 7. **Dependências e exceções** — as sete advisories ignoradas no `deny.toml` e
    `Apache-2.0 WITH LLVM-exception`; a feature `unstable` do Tauri; os pacotes
    npm da UI — entre os novos, `pdfjs-dist`, `katex`,
    `@codemirror/language-data` e três fontes `@fontsource` —, nenhum com portão
-   de licença no CI.
+   de licença no CI. **Resposta:** as advisories ignoradas, a exceção de
+   licença e o `unstable` ratificados; um portão de licenças npm acrescentado
+   (`65e44f9`, ADR 0029); o `@tauri-apps/plugin-dialog`, que ninguém chamava,
+   removido (`aedb1b2`).
 8. **Uma fixture e a spec discordam** — `fixtures/block/list-item` ainda é
    rascunho da IA enquanto a §5.7 e a Q3 da spec a chamam de aprovada; o
    `FIXTURES_STRICT=1` do CI na `main` falha até um dos lados mudar
-   ([ADR 0031](../adr/0031-fixtures-as-contract.md)).
+   ([ADR 0031](../adr/0031-fixtures-as-contract.md)). **Resposta:** aprovada
+   ("faça 8"); `66a64fe` troca a linha de rascunho pela aprovação, e a
+   checagem estrita passa.
 9. **O baseline de CI do bench** — nenhum registrado para `ci-linux` ainda
    (`docs/reference/bench-decision.md` §6.3;
    [ADR 0039](../adr/0039-performance-targets.md) `[ABERTO]`).
+   **Resposta:** depois — o baseline só pode vir do CI, ainda bloqueado pela
+   cobrança.
 10. **A lista de crates** — `verso-contract`, `verso-bench` e `app/src-tauri`
     são membros do workspace, enquanto a [ADR 0028](../adr/0028-crate-structure.md) e o
-    `CLAUDE.md` §3 listam cinco crates.
+    `CLAUDE.md` §3 listam cinco crates. **Resposta:** a ADR 0028 e o
+    `CLAUDE.md` §3 e §7 agora os registram (`45d6b6c`).
 11. **Nota do dia e templates** — construídos sob a
     [ADR 0014](../adr/0014-primitives-catalog.md), que é Proposta.
+    **Resposta:** os dois aceitos na ADR 0014; o resto do catálogo continua
+    Proposto.
 12. **O idioma dos textos do core** — [ADR 0035](../adr/0035-cross-cutting-requirements.md):
     a janela traduz os tipos de erro, enquanto os detalhes e os avisos de
     escrita do core ficam em inglês (o contrato registra isso como
     `[ABERTO]`); o mecanismo da própria janela (um catálogo tipado de textos,
     um ajuste de idioma que recarrega a janela) não está registrado em lugar
-    nenhum.
+    nenhum. **Resposta:** registrado na ADR 0035; um código por aviso do core,
+    para a janela poder traduzi-lo, está planejado, não feito.
 13. **Custo do CI** — todo pull request compila a árvore do Tauri duas vezes
-    (leitura 3, achado 21).
+    (leitura 3, achado 21). **Resposta:** corrigido em `bce6030` — as
+    checagens dos bindings e da UI rodam no job Rust de Linux.
 14. **`open -a` com o app já aberto** (leitura 3, achado 20).
+    **Resposta:** corrigido em `b43e914` — a pasta vai ao app instalado como
+    documento a abrir, que um app aberto recebe; visto funcionando com um
+    bundle descartável do build de debug.
 15. **O modo do arquivo sidecar do índice** — a [ADR 0046](../adr/0046-index-location-lifecycle-tokenizer.md)
     diz "arquivo `0600`"; o sidecar sai 0644 dentro do diretório 0700.
+    **Resposta:** `0600`, como a ADR diz (`3a9764e`).
 16. **O visualizador de arquivos HTML está inalcançável** — achado no teste de
     fumaça de 2026-09-23, anterior a esta revisão (`ab9fb3a`): um `.html` conta
     como arquivo de texto antes de poder ser página, então abre como fonte, e o
     visualizador que o mantenedor pediu em 2026-09-22 nunca aparece. Como os
     dois devem conviver (um botão, ou HTML abrindo como página) é do
-    mantenedor.
+    mantenedor. **Resposta:** um arquivo HTML abre como a página, com a fonte
+    como o outro modo da mesma aba (`4afec51`).
 17. **As leituras cruzadas das correções** foram feitas pela Opus 5.5, não
     pelo Fable 5.1 como a [ADR 0032](../adr/0032-author-and-reviewer-roles.md)
     atribui para a janela e os documentos: decisão do mantenedor de 2026-09-23,
     quando o Fable chegou ao limite de uso. Se uma leitura do Fable vem depois
-    é do mantenedor.
+    é do mantenedor. **Resposta:** "17 troque para Opus" — as leituras ficam
+    com a Opus 5.5 no lugar do Fable 5.1; as mudanças destas respostas foram
+    lidas por uma sessão nova da Opus 5.5 (seção 7).
 18. **O que o autor acrescentou à Fase 2** — ADR 0049 seção 2, Proposta: o
-    mantenedor confirma ou risca cada item.
+    mantenedor confirma ou risca cada item. **Resposta:** todos os itens
+    confirmados; a ADR 0049 é Aceita.
 
 19. **Nomes que um link não comporta** — o core aceita nomes de nota e de pasta
     com `[`, `]`, `|`, `#` ou `^`, que nenhum `[[…]]` consegue nomear; renomear
     para um nome assim agora deixa os links como estão e diz isso (registrado
     no registro provisório da [ADR 0048](../adr/0048-file-operations-in-ui.md)).
+    **Resposta:** a janela recusa um nome assim quando cria ou renomeia, e diz
+    por quê (`7d516f5`); o core continua aceitando.
 20. **A ordem do ponto 2 da Q12** — a spec não diz se um caminho é tentado "a
     partir da raiz" antes de "relativo à pasta da origem"; o índice e a
     resolução de embeds tentam a raiz primeiro, então `![[img.png]]` escrito
     em `a/` alcança um `img.png` da raiz antes de `a/img.png`. Registrado na
-    Q12 da spec.
+    Q12 da spec. **Resposta:** a raiz primeiro, e `./` ou `../` só relativo,
+    como o Obsidian os lê; o ponto 2 da Q12 da spec diz isso (`80ad6b5`), e
+    testes o fixam (`c3af6bf`).
 21. **Volumes sem hard links** — em exFAT e FAT, criar, renomear ou mandar
     para a lixeira recorre a um rename conferido e diz que a proteção foi mais
     fraca; se isso deve ser permitido ou recusado é do mantenedor. Registrado
-    no registro provisório da ADR 0048.
+    no registro provisório da ADR 0048. **Resposta:** permitido, com o aviso.
 22. **Teclas tomadas do editor** — dentro de um editor os atalhos do app vêm
     antes dos padrões do CodeMirror, então ⌘D, ⌘⇧L, ⌘⇧G e ⌘⇧\ (e, no Linux,
     Ctrl-Shift-[ e ]) não fazem mais o que o CodeMirror liga a eles.
-    Registrado em `docs/reference/app-decision.md` §9.
+    Registrado em `docs/reference/app-decision.md` §9. **Resposta:** aceito;
+    todo atalho pode ser ligado de novo nos ajustes.
 23. **Arquivos com quebras de linha misturadas** ficam só para leitura na
     janela; se deve existir uma conversão por ação do usuário, com o diff
     (invariante 8), é do mantenedor. Registrado na Q24 da spec.
+    **Resposta:** depois; um arquivo assim continua só para leitura.
 
 ## 7. A resolução
 
@@ -355,3 +400,26 @@ Os commits da resolução, em ordem: `af5a84b` (host); `9158f8b` a `5e3d32a`
 acessibilidade); `919e8cc` a `d4a5580` (janela: escritas e segurança);
 `369e738` e `b2c5cb4` (janela e contrato); `9ca850a` (sair); depois das
 segundas leituras, `fffaf29`, `98f2c58`, `72017af`, `44186f1` e `96535d7`.
+
+### As respostas do mantenedor de 2026-09-23
+
+Pedido de uma sugestão para cada item da seção 6, o autor deu uma, nos quatro
+grupos nomeados ali; o mantenedor respondeu *"a e b ok, faça 8, 17 troque para
+Opus, o que for importante ja puxa de D"*, e a seção 6 traz a resposta embaixo
+de cada item. O que ela mudou, em ordem: `3a9764e` (o modo do sidecar),
+`4afec51` (um arquivo HTML como a página), `7d516f5` (nomes que nenhum link
+alcança), `c8109b8` (conteúdo remoto), `aedb1b2` e `65e44f9` (o pacote npm
+removido, o portão de licenças), `bce6030` (um build do Tauri por pull
+request), `b43e914` (uma pasta entregue ao app aberto), `66a64fe` (a fixture),
+`45d6b6c` (as ADRs, a ADR 0050 nova), `c3af6bf` e `80ad6b5` (a ordem do ponto
+2 da Q12 fixada por testes, spec v0.16), e depois este registro.
+
+Uma resposta se apoiou numa premissa que não valeu. O item 4 foi apresentado
+como "a visualização de leitura segue o Obsidian", e ela não segue para
+callouts aninhados dentro de callouts, que o Obsidian mostra e a visualização
+de leitura mantém como citações; essa parte da Q5 da spec fica registrada como
+ainda aberta, em vez de tomada como decidida.
+
+Tudo isso — o código da janela, o Rust e os documentos — foi escrito pela Opus
+5.5, no lugar do Fable 5.1 por decisão do mantenedor, e lido por uma sessão
+nova da Opus 5.5 com o diff e o repositório, como a resposta ao item 17 pede.

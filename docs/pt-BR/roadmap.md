@@ -177,7 +177,7 @@ A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-target-platforms-m
 |---|---|---|
 | 2.1 | Contrato core↔UI definido primeiro, com tipos TS gerados a partir do Rust | construído: `crates/verso-contract`, bindings gerados pelo `specta`, verificados no CI |
 | 2.2 | Shell Tauri v2 abrindo uma pasta arbitrária | construído: pelo diálogo, por `verso <pasta>` ou pela última pasta ao iniciar |
-| 2.3 | Árvore de arquivos | construída, com criar, renomear, mover, lixeira e cópia; operações de arquivo provisórias ([0048](adr/0048-file-operations-in-ui.md)) |
+| 2.3 | Árvore de arquivos | construída, com criar, renomear, mover, lixeira e cópia; operações de arquivo decididas em 2026-09-23 como construídas ([0048](adr/0048-file-operations-in-ui.md)) |
 | 2.4 | Editor CodeMirror 6 com Live Preview | construído: leitura, Live Preview e fonte |
 | 2.5 | Backlinks e busca vindos do core, pelo contrato | construídos, com links, tags, menções sem link e o grafo |
 | 2.6 | Um tipo de nota ponta a ponta | não começado: espera as decisões abaixo |
@@ -192,9 +192,9 @@ que a janela faz com cada arquivo está em `docs/reference/app-decision.md`.
 | Decisão | Quando | ADR |
 |---|---|---|
 | ~~Geração de tipos TS: `ts-rs` ou `specta`~~ | decidido em 2026-09-22: `specta` com `tauri-specta`, tipos e assinaturas dos comandos gerados | [0038](adr/0038-ts-type-generation.md) |
-| Identidade de sessão e autorização por operação no contrato | antes do item 2.1; ainda aberto — o item 2.1 foi construído com o host confiando nas próprias janelas e em nada mais (`docs/reference/app-decision.md` §7) | [0045](adr/0045-server-and-mcp-security.md) |
+| Identidade de sessão e autorização por operação no contrato | antes do item 2.1; o contrato, construído com o host confiando nas próprias janelas e em nada mais (`docs/reference/app-decision.md` §7), aceito como foi construído para a Fase 2 em 2026-09-23; ainda aberto até um servidor entrar em escopo | [0045](adr/0045-server-and-mcp-security.md) |
 | Semântica dos handles opacos no contrato | antes do item 2.1; ainda aberto — o contrato nomeia notas pelo caminho relativo e a revisão é o único token | [0044](adr/0044-verso-fs-semantics.md) |
-| Renomear, criar, excluir, mover; atualização de links; modificação externa concorrente | antes do item 2.3; ainda aberto — o código faz a opção (b) provisoriamente, registrado na ADR | [0048](adr/0048-file-operations-in-ui.md), [0012](adr/0012-files-are-source-of-truth.md) |
+| ~~Renomear, criar, excluir, mover; atualização de links; modificação externa concorrente~~ | decidido em 2026-09-23: opção (b), como o código faz — planos mostrados como diffs, sem transação lógica, a lixeira | [0048](adr/0048-file-operations-in-ui.md), [0012](adr/0012-files-are-source-of-truth.md) |
 | Promoção de nota tipada ([0014](adr/0014-primitives-catalog.md)) e de degradação para Markdown ([0013](adr/0013-degrades-to-markdown.md)) a ADR próprio, Aceito | antes da nota tipada (2.6) | ADR novo |
 | Formato e localização dos schemas | antes da nota tipada (2.6) | `docs/spec/dialect.md` Q11 |
 
