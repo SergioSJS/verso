@@ -194,10 +194,8 @@ fn a_tiny_run_reports_the_seven_operations_and_a_regression_is_red() {
     );
 
     // Another machine: nothing to compare with, green, and it says so.
-    let out = bench(
-        &["--sizes", "100", "--reps", "1", "--machine", "other"],
-        &baseline,
-    );
+    let other = ["--sizes", "100", "--reps", "1", "--machine", "other"];
+    let out = bench(&other, &baseline);
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("no baseline for machine other"));
 
@@ -206,4 +204,53 @@ fn a_tiny_run_reports_the_seven_operations_and_a_regression_is_red() {
     assert_eq!(out.status.code(), Some(2));
     let out = bench(&["--sizes", "0"], &baseline);
     assert_eq!(out.status.code(), Some(2));
+}
+
+#[test]
+fn the_child_reports_the_index_size_as_it_is_once_the_connection_closes() {
+    let dir = tempfile::tempdir().unwrap();
+    let vault = dir.path().join("vault");
+    let config = dir.path().join("config");
+    std::fs::create_dir_all(&vault).unwrap();
+    std::fs::create_dir_all(&config).unwrap();
+    generate::generate(
+        &vault,
+        &Shape {
+            notes: 100,
+            seed: 7,
+        },
+    )
+    .unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_verso-bench"))
+        .args(["--child", "fresh_index"])
+        .arg(&vault)
+        .arg(&config)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let report: Value = serde_json::from_str(stdout.lines().last().unwrap()).unwrap();
+    // What the process left behind: the index file, its write-ahead log
+    // folded into it on close and gone. That size is the one reported —
+    // measured with the connection open, the `-wal` beside it was left out.
+    let left: Vec<std::path::PathBuf> = std::fs::read_dir(config.join("index"))
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
+    let index = left
+        .iter()
+        .find(|p| p.extension().is_some_and(|e| e == "sqlite"))
+        .unwrap();
+    assert!(
+        !left.iter().any(|p| p.to_string_lossy().ends_with("-wal")),
+        "{left:?}"
+    );
+    assert_eq!(
+        report["index_bytes"].as_u64().unwrap(),
+        std::fs::metadata(index).unwrap().len()
+    );
 }
