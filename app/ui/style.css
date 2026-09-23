@@ -526,3 +526,10 @@ body.dragging * { cursor: grabbing !important; }
 .field { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .45rem 0; border-bottom: 1px solid var(--hair); font-size: .9rem; }
 .field input, .field select { font: inherit; padding: .25rem .5rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 5px; max-width: 14rem; }
 .field input[type="range"] { max-width: 10rem; }
+
+/* Sidebar toggles in the status bar */
+.bar-toggle { color: var(--ink-3); padding: .15rem; }
+.bar-toggle:hover { color: var(--ink); }
+.bar-toggle.off { opacity: .45; }
+.bar-toggle.flip .icon { transform: scaleX(-1); }
+.bar-toggle .icon { width: 14px; height: 14px; }

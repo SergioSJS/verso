@@ -2537,12 +2537,30 @@ function insertTemplate(): void {
 }
 
 /* ---------- Toggles ---------- */
-function toggleSide(): void { document.body.classList.toggle("no-side"); }
+const toggleSideButton = el<HTMLButtonElement>("toggle-side");
+const toggleRightButton = el<HTMLButtonElement>("toggle-right");
+toggleSideButton.replaceChildren(icon("sidebar", t.toggleSide));
+toggleSideButton.title = t.toggleSide;
+toggleRightButton.replaceChildren(icon("sidebar", t.toggleRight));
+toggleRightButton.title = t.toggleRight;
+toggleRightButton.classList.add("flip");
+function paintToggles(): void {
+  toggleSideButton.classList.toggle("off", document.body.classList.contains("no-side"));
+  toggleRightButton.classList.toggle("off", document.body.classList.contains("no-right"));
+}
+function toggleSide(): void {
+  document.body.classList.toggle("no-side");
+  paintToggles();
+}
 function toggleRight(): void {
   document.body.classList.toggle("no-right");
   try { localStorage.setItem("verso.right", String(!document.body.classList.contains("no-right"))); } catch { /* no storage */ }
+  paintToggles();
 }
+toggleSideButton.addEventListener("click", toggleSide);
+toggleRightButton.addEventListener("click", toggleRight);
 try { if (localStorage.getItem("verso.right") === "false") document.body.classList.add("no-right"); } catch { /* no storage */ }
+paintToggles();
 const rightDivider = el<HTMLDivElement>("right-divider");
 rightDivider.addEventListener("pointerdown", (e) => {
   rightDivider.setPointerCapture(e.pointerId);
