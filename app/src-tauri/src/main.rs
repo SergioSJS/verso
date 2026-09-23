@@ -2,8 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! `verso-app`: the window; `verso-app --export-bindings [FILE]` writes
-//! the TypeScript bindings and exits.
+//! `verso-app [FOLDER]`: the window, on `FOLDER` when given;
+//! `verso-app --export-bindings [FILE]` writes the TypeScript bindings and
+//! exits.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -26,7 +27,12 @@ fn main() -> ExitCode {
             }
         };
     }
-    match verso_app::run() {
+    // `verso-app <folder>`: open that folder (the CLI's `verso <folder>`).
+    let folder = args
+        .first()
+        .filter(|a| !a.starts_with("--"))
+        .map(PathBuf::from);
+    match verso_app::run(folder) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("verso-app: {e}");

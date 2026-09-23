@@ -18,7 +18,7 @@
 //! `app/ui/src/bindings.ts` (`verso-app --export-bindings`; ADR 0038,
 //! decided 2026-09-22) and checked in CI, so rule 3 stays a rule.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use tauri::{Manager, State};
@@ -32,6 +32,9 @@ use verso_core::{CoreError, ReadError, Workspace, WriteError};
 /// The one open folder, or none yet. One mutex: two commands never
 /// interleave on the index.
 pub struct App {
+    /// The folder named on the command line (`verso-app <folder>`), taken
+    /// once by the UI at start-up: a path as a string at the entry edge.
+    pub initial_folder: Mutex<Option<String>>,
     workspace: Mutex<Option<Workspace>>,
 }
 
@@ -477,6 +480,18 @@ fn write_text(
     with(&state, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
 }
 
+/// The folder the command line asked for, once; `None` afterwards and
+/// when there was none. The UI opens it instead of the last folder.
+#[tauri::command]
+#[specta::specta]
+fn initial_folder(state: State<'_, App>) -> Result<Option<String>, ContractError> {
+    Ok(state
+        .initial_folder
+        .lock()
+        .map_err(|e| failed(e.to_string()))?
+        .take())
+}
+
 /// Refresh the index from the folder: only what changed is re-read.
 #[tauri::command]
 #[specta::specta]
@@ -505,6 +520,7 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         list_tags,
         read_file_text,
         list_entries,
+        initial_folder,
         read_text,
         write_text,
         rename_entry,
@@ -608,12 +624,16 @@ fn serve_file(
 }
 
 /// Open the window and serve it until it closes.
-pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let commands = commands();
+    let initial_folder = initial_folder
+        .map(|p| std::path::absolute(&p).unwrap_or(p))
+        .map(|p| p.to_string_lossy().into_owned());
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .register_uri_scheme_protocol("verso", serve_file)
         .manage(App {
+            initial_folder: Mutex::new(initial_folder),
             workspace: Mutex::new(None),
         })
         .invoke_handler(commands.invoke_handler())

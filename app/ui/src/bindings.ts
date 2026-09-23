@@ -70,6 +70,11 @@ export const commands = {
 	 */
 	listEntries: () => typedError<FileEntry[], ContractError>(__TAURI_INVOKE("list_entries")),
 	/**
+	 *  The folder the command line asked for, once; `None` afterwards and
+	 *  when there was none. The UI opens it instead of the last folder.
+	 */
+	initialFolder: () => typedError<string | null, ContractError>(__TAURI_INVOKE("initial_folder")),
+	/**
 	 *  Any file as text with its revision, for the editor of files that are
 	 *  not notes.
 	 */
