@@ -685,8 +685,8 @@ fn an_attachment_resolves_by_name_or_stem_and_reads_through_the_core() {
     );
 }
 
-/// Spec Q12 applies to embeds: from the note's own folder first, `..`
-/// honoured, a path from the root before a bare name.
+/// Spec Q12 applies to embeds: from under the note's own folder first,
+/// `..` honoured, a path from the root before a bare name.
 #[test]
 fn an_embed_resolves_from_its_note_by_the_rule_of_q12() {
     let vault = tempfile::tempdir().unwrap();
@@ -723,6 +723,15 @@ fn an_embed_resolves_from_its_note_by_the_rule_of_q12() {
     assert_eq!(
         from(&ws, "b/Nota.md", "a/foto.png").as_deref(),
         Some("a/foto.png")
+    );
+    // Q12 point 3, as the maintainer amended it on 2026-09-23: a file
+    // anywhere under the note's folder beats a shallower one elsewhere.
+    let deep = subdir(c.path(), "mapas");
+    let _fd = note(deep.path(), "foto.png", "c/mapas");
+    ws.index().unwrap();
+    assert_eq!(
+        from(&ws, "c/Outra.md", "foto.png").as_deref(),
+        Some("c/mapas/foto.png")
     );
     assert_eq!(
         from(&ws, "b/Nota.md", "../a/foto.png").as_deref(),
