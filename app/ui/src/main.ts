@@ -418,7 +418,7 @@ document.querySelector(".status-keys")?.addEventListener("click", (e) => {
   const pane = layout().focused ?? layout().panes()[0];
   const leaf = layout().activeLeaf;
   switch (b.dataset["cmd"]) {
-    case "new": void newUntitled(pane ?? layout().reset()); break;
+    case "new": void newUntitled(pane ?? paneToOpenIn()); break;
     case "edit": if (leaf instanceof NoteLeaf) leaf.toggleMode(); break;
     case "split": if (pane) layout().split(pane, "row"); break;
     case "space": newSpace(); break;
@@ -2861,9 +2861,19 @@ const spaces: Space[] = [];
 let current: Space | null = null;
 const newSpaceButton = button("ghost iconic", t.newSpace, "plus");
 newSpaceButton.addEventListener("click", () => newSpace());
+/** The current workspace's layout. Before a folder is open there is no
+ *  workspace, and an empty layout answers (no pane, nothing focused)
+ *  without drawing: asking — as every ⌘-key and the settings page do —
+ *  must not replace the first-run lesson with an empty pane. */
+const noLayout = new Layout();
 function layout(): Layout {
-  if (!current) newSpace();
-  return current!.layout;
+  return current?.layout ?? noLayout;
+}
+/** The pane something opens in: the focused one, else the first; the
+ *  workspace is made here when there is none yet. */
+function paneToOpenIn(): Pane {
+  const l = current?.layout ?? newSpace().layout;
+  return l.focused ?? l.panes()[0] ?? l.reset();
 }
 function renderSpaces(): void {
   ui.spaces.replaceChildren(...spaces.map((s) => s.tab), newSpaceButton);
@@ -2917,12 +2927,12 @@ function openIn(pane: Pane, path: string): Leaf {
 }
 function openNote(path: string, aside: boolean): Leaf | null {
   document.body.classList.remove("side-open");
-  let pane = layout().focused ?? layout().panes()[0] ?? layout().reset();
+  let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
   return pane.open(path, false);
 }
 function openFolder(path: string): void {
-  const pane = layout().focused ?? layout().panes()[0] ?? layout().reset();
+  const pane = paneToOpenIn();
   pane.openFolder(path);
 }
 /** Code blocks colored by their language and math typeset, in rendered
@@ -3256,7 +3266,7 @@ async function createNote(folder: string, nameTyped: string, pane?: Pane, rename
   const r = await commands.createNote(path, `# ${clean.split("/").pop() ?? clean}\n\n`);
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
   await afterFileChange();
-  const target = pane ?? layout().focused ?? layout().panes()[0] ?? layout().reset();
+  const target = pane ?? paneToOpenIn();
   const leaf = target.open(r.data.path, false);
   if (leaf instanceof NoteLeaf) {
     await leaf.loading;
@@ -4011,7 +4021,7 @@ function allCommands(all = false): Command[] {
   const hasFolder = currentFolder !== "";
   const cmds: (Command & { need?: boolean })[] = [
     { id: "open-folder", label: t.open, run: () => void openFolderDialog() },
-    { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? layout().reset()) },
+    { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
@@ -4023,7 +4033,7 @@ function allCommands(all = false): Command[] {
     { id: "replace", label: `${t.replaceTitle}…`, need: hasFolder, run: () => replaceDialog.show() },
     { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
-    { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? layout().reset()).openGraph("") },
+    { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
     { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
     { id: "split-down", label: t.splitDown, need: Boolean(pane), run: () => pane && layout().split(pane, "col") },
     { id: "new-space", label: t.newSpace.split(" (")[0] ?? t.newSpace, need: hasFolder, run: () => newSpace() },
@@ -4645,7 +4655,7 @@ const RIBBON: RibbonItem[] = [
     showMenu(r.right + 6, r.top, [[t.newNote, () => newNotePrompt(folder)], [t.newFolder, () => newFolderPrompt(folder)], [t.newWebPage, () => newWebPagePrompt()]]);
   } },
   { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "daily", needsFolder: true, run: () => void dailyNote() },
-  { id: "graph", icon: "graph", label: () => t.graphWhole, needsFolder: true, run: () => { const pane = layout().focused ?? layout().panes()[0] ?? layout().reset(); pane.openGraph(""); } },
+  { id: "graph", icon: "graph", label: () => t.graphWhole, needsFolder: true, run: () => paneToOpenIn().openGraph("") },
   { id: "replace", icon: "replace", label: () => t.replaceTitle, keys: "replace", needsFolder: true, run: () => replaceDialog.show() },
   { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
