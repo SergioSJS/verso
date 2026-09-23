@@ -4,8 +4,10 @@
 
 //! Fuzz target: `parse` must return for any input (Q18, property 1), every
 //! span it reports must slice the input, and every `pos` must be what
-//! counting lines and characters gives (property 3). A malformed file must
-//! never hang or crash the app (ADR 0029).
+//! counting lines and characters gives (property 3). `to_html` and
+//! `body_tags` run on the same input and must return too: the reading view
+//! renders every note under a mutex, and a panic there would poison it. A
+//! malformed file must never hang or crash the app (ADR 0029).
 //!
 //! `../seeds/` holds one input per case that once broke something, run
 //! first on every job: `deep-yaml.txt`, 4 000 nested block sequences in the
@@ -13,9 +15,12 @@
 //! (review of PR #7, finding 1); `list-refdef-tabs.txt` and
 //! `pulldown-exponential.txt`, the two inputs on which `pulldown-cmark`
 //! 0.13.4 panicked or took exponential time, fixed in the upstream revision
-//! the base is built from (ADR 0037). Seeds run smallest first, so a seed
-//! that fails ends the job before any mutation: a seed is only added once it
-//! passes. Run: `cargo +nightly fuzz run parse fuzz/corpus/parse fuzz/seeds`.
+//! the base is built from (ADR 0037); `callout-raw-html.txt`, a raw
+//! `</blockquote>` on a callout's title line, on which `to_html` sliced the
+//! HTML backwards and panicked (Opus reading of Phase 2, finding 1). Seeds
+//! run smallest first, so a seed that fails ends the job before any
+//! mutation: a seed is only added once it passes. Run:
+//! `cargo +nightly fuzz run parse fuzz/corpus/parse fuzz/seeds`.
 
 #![no_main]
 
@@ -67,5 +72,11 @@ fuzz_target!(|data: &[u8]| {
     if let Some(frontmatter) = &document.frontmatter {
         assert!(frontmatter.span.slice(source).is_some());
         assert_eq!(frontmatter.span.start, 0);
+    }
+    // The reader: no panic is the whole claim. The tag rule: each span is
+    // its own `#name`.
+    let _ = verso_dialect::to_html(source);
+    for tag in verso_dialect::body_tags(source) {
+        assert_eq!(tag.span.slice(source), Some(format!("#{}", tag.name).as_str()));
     }
 });

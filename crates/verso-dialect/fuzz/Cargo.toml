@@ -17,6 +17,12 @@ edition = "2024"
 [package.metadata]
 cargo-fuzz = true
 
+# A workspace of its own, so that cargo never looks above this manifest for
+# one: a checkout nested inside another (a git worktree under the
+# repository's directory) would otherwise be claimed by the outer workspace,
+# whose `exclude` does not name this path, and the harness would not build.
+[workspace]
+
 [dependencies]
 libfuzzer-sys = "0.4"
 
