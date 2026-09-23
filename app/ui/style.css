@@ -149,7 +149,9 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .tree > li, .list > li { animation: rise .32s var(--ease-out) both; }
 .tree > li:nth-child(n+2) { animation-delay: calc(var(--i, 0) * 18ms); }
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
-@media (prefers-reduced-motion: reduce) { .tree > li, .list > li { animation: none; } .tree summary::before { transition: none; } }
+/* Reduced motion: nothing slides, fades or grows — every animation and
+   transition of the window, not only the tree's, ends at once. */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; } }
 
 /* ---------- Page: a row of panes ---------- */
 /* One column that may shrink: an `auto` column would grow to the status bar's min-content and push the whole page past its track. */

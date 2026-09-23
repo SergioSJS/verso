@@ -372,6 +372,8 @@ function iconOfPath(path: string, kind: Kind): HTMLElement | SVGSVGElement {
   return url ? favicon(url) : icon(iconFor(kind));
 }
 const LOCALE = LANG.toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+/** The system asks for reduced motion: no smooth scrolling, no animation. */
+const calm = window.matchMedia("(prefers-reduced-motion: reduce)");
 const dateFmt = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
 function humanSize(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -1606,7 +1608,7 @@ class NoteLeaf extends Leaf {
     if (this.mode === "preview") {
       const heads = Array.from(this.preview.querySelectorAll("h1, h2, h3, h4, h5, h6"));
       const n = this.headings().findIndex((hd) => hd.line === line);
-      heads[n]?.scrollIntoView({ block: "start", behavior: "smooth" });
+      heads[n]?.scrollIntoView({ block: "start", behavior: calm.matches ? "auto" : "smooth" });
       return;
     }
     const l = this.editor.state.doc.line(Math.min(line, this.editor.state.doc.lines));
@@ -2368,12 +2370,13 @@ class GraphLeaf extends Leaf {
     this.frames = 0;
     this.resume();
   }
-  /** The simulation runs until it settles; any change wakes it. */
+  /** The simulation runs until it settles; any change wakes it. With
+   *  reduced motion it settles out of sight and is painted once; only a
+   *  node being dragged moves on screen. */
   private resume(): void {
     this.frames = 0;
     if (this.raf) return;
-    const tick = () => {
-      this.raf = 0;
+    const step = (): number => {
       const nodes = this.nodes;
       const repel = 1400 * this.opts.repel;
       const rest = 80 * this.opts.distance;
@@ -2410,12 +2413,19 @@ class GraphLeaf extends Leaf {
         n.x += n.vx; n.y += n.vy;
         energy += n.vx * n.vx + n.vy * n.vy;
       }
+      return energy;
+    };
+    const tick = () => {
+      this.raf = 0;
+      const settled = (energy: number) => energy <= 0.05 * this.nodes.length && this.frames >= 30;
+      let energy = step();
+      if (calm.matches && !this.held) while (++this.frames < 600 && !settled(energy)) energy = step();
       for (const { l, a, b } of this.lines) {
         l.setAttribute("x1", String(a.x)); l.setAttribute("y1", String(a.y));
         l.setAttribute("x2", String(b.x)); l.setAttribute("y2", String(b.y));
       }
       for (const { g, n } of this.dots) g.setAttribute("transform", `translate(${n.x} ${n.y})`);
-      if (++this.frames < 600 && (energy > 0.05 * nodes.length || this.frames < 30 || this.held)) this.raf = requestAnimationFrame(tick);
+      if (++this.frames < 600 && (!settled(energy) || this.held)) this.raf = requestAnimationFrame(tick);
     };
     this.raf = requestAnimationFrame(tick);
     this.stop = () => { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; };
