@@ -138,7 +138,8 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 @media (prefers-reduced-motion: reduce) { .tree > li, .list > li { animation: none; } .tree summary::before { transition: none; } }
 
 /* ---------- Page: a row of panes ---------- */
-.page { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "spaces" "panes" "status"; min-height: 0; min-width: 0; }
+/* One column that may shrink: an `auto` column would grow to the status bar's min-content and push the whole page past its track. */
+.page { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "spaces" "panes" "status"; min-height: 0; min-width: 0; container-type: inline-size; }
 .spaces { grid-area: spaces; }
 .panes { grid-area: panes; }
 .status-bar { grid-area: status; }
@@ -177,12 +178,14 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 
 /* ⌘P */
 .quick { position: fixed; inset: 0; z-index: 10; background: color-mix(in oklch, var(--paper) 55%, transparent); display: flex; flex-direction: column; align-items: center; padding-top: 12vh; }
-.quick input { width: min(60ch, 90vw); flex: none; font: inherit; font-size: 1.05rem; padding: .7rem 1rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-bottom: 1px solid var(--hair); border-radius: 8px 8px 0 0; }
-.quick input:focus { outline: none; border-color: var(--brass); }
-.quick-list { list-style: none; margin: 0; padding: .3rem; width: min(60ch, 90vw); max-height: 50vh; overflow: auto; background: var(--paper); border: 1px solid var(--hair); border-top: 0; border-radius: 0 0 8px 8px; box-shadow: 0 24px 60px -20px oklch(0% 0 0 / .4); }
+/* One box: the field on top, the list under a hairline, nothing else drawn. */
+.quick-box { display: flex; flex-direction: column; width: min(44rem, 92vw); max-height: 70vh; background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 24px 60px -20px oklch(0% 0 0 / .4); overflow: hidden; }
+.quick-box > input { flex: none; font: inherit; font-size: 1.05rem; padding: .75rem 1rem; background: none; color: var(--ink); border: 0; border-bottom: 1px solid var(--hair); border-radius: 0; }
+.quick-box > input:focus { outline: none; }
+.quick-list { list-style: none; margin: 0; padding: .35rem; flex: 1; min-height: 0; overflow: auto; }
 .quick-list:empty { display: none; }
-.quick input:only-child, .quick-list:empty + input { border-radius: 8px; }
-.quick-list li > button { display: flex; justify-content: space-between; gap: 1rem; width: 100%; text-align: left; padding: .4rem .7rem; border-radius: 5px; }
+.quick-list:empty ~ *, .quick-box:has(.quick-list:empty) > input { border-bottom: 0; }
+.quick-list li > button { display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%; text-align: left; padding: .45rem .8rem; border-radius: 6px; }
 .quick-list li.selected > button, .quick-list li > button:hover { background: var(--seal-wash); color: var(--seal); }
 .quick-list .path { color: var(--ink-3); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -364,7 +367,11 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .outline li > button.level-4, .outline li > button.level-5, .outline li > button.level-6 { padding-left: 1.9rem; color: var(--ink-3); }
 
 /* Status bar */
-.status-bar { display: flex; align-items: center; gap: 1rem; padding: .3rem clamp(1rem, 3vw, 2.4rem); border-top: 1px solid var(--hair); font-size: .76rem; color: var(--ink-3); min-height: 1.9rem; }
+.status-bar { display: flex; align-items: center; gap: 1rem; padding: .3rem clamp(1rem, 3vw, 2.4rem); border-top: 1px solid var(--hair); font-size: .76rem; color: var(--ink-3); min-height: 1.9rem; min-width: 0; overflow: hidden; }
+.status-bar .status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-keys { margin-left: auto; flex: none; }
+@container (max-width: 820px) { .status-keys button:not([data-cmd="palette"]) { display: none; } }
+@container (max-width: 520px) { .status-words { display: none; } }
 .status { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-keys { white-space: nowrap; display: inline-flex; gap: .2rem; align-items: center; }
 .status-keys button { font: inherit; color: inherit; padding: .1rem .3rem; border-radius: 4px; display: inline-flex; align-items: center; gap: .3rem; }
@@ -550,14 +557,29 @@ body.dragging * { cursor: grabbing !important; }
 .web-address:hover { color: var(--seal); }
 .web-toggle { font-size: .8rem; }
 .web-host { flex: 1; min-height: 0; background: var(--paper-2); }
+/* Footnotes: small marks in the text; the notes gathered at the end. */
+.preview sup.footnote-reference { font-size: .72em; line-height: 0; }
+.preview sup.footnote-reference a { color: var(--seal); text-decoration: none; padding: 0 .1em; }
+.preview .footnotes { margin-top: 2.4rem; padding-top: .9rem; border-top: 1px solid var(--hair); font-size: .86em; color: var(--ink-2); }
+.preview .footnote-definition { display: flex; align-items: baseline; gap: .55rem; margin: .4rem 0; }
+.preview .footnote-definition-label { flex: none; min-width: 1.4em; font-size: .82em; color: var(--seal); font-variant-numeric: tabular-nums; }
+.preview .footnote-definition-label::after { content: "."; }
+.preview .footnote-definition p { display: inline; margin: 0; }
+.preview .footnote-back { color: var(--brass); text-decoration: none; margin-left: .35rem; font-size: .9em; }
+.preview .footnote-back:hover { color: var(--seal); }
+.preview .flash { animation: flash 1.2s var(--ease-out); }
+@keyframes flash { from { background: var(--brass-wash); } to { background: transparent; } }
 /* PDF reader */
 .pdf { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .pdf-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: .35rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); font-size: .82rem; color: var(--ink-2); }
 .pdf-bar > span { display: inline-flex; align-items: center; gap: .15rem; }
 .pdf-page { margin: 12px auto; position: relative; background: white; box-shadow: 0 1px 2px oklch(0% 0 0 / .12), 0 6px 20px -8px oklch(0% 0 0 / .3); }
 .pdf-page canvas { display: block; }
-.pdf-scroll { flex: 1; min-height: 0; overflow: auto; background: var(--paper-2); padding: .5rem 0 3rem; outline: none; }
-.pdf-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--brass); }
+.pdf-body { flex: 1; min-height: 0; position: relative; background: var(--paper-2); }
+.pdf-scroll { position: absolute; inset: 0; overflow: auto; outline: none; }
+.pdf-scroll .pdfViewer { padding: .6rem 0 3rem; }
+.pdf-scroll .pdfViewer .page { margin: 10px auto; box-shadow: 0 1px 2px oklch(0% 0 0 / .12), 0 6px 20px -8px oklch(0% 0 0 / .3); }
+::highlight(verso-quote-1), ::highlight(verso-quote-2), ::highlight(verso-quote-3), ::highlight(verso-quote-4), ::highlight(verso-quote-5), ::highlight(verso-quote-6), ::highlight(verso-quote-7), ::highlight(verso-quote-8), ::highlight(verso-quote-9), ::highlight(verso-quote-10) { background-color: oklch(85% 0.17 90 / .5); }
 input.pdf-page { width: 3.2rem; font: inherit; text-align: center; padding: .15rem .2rem; border: 1px solid var(--hair); border-radius: 5px; background: var(--paper); color: var(--ink); -moz-appearance: textfield; }
 input.pdf-page::-webkit-inner-spin-button { display: none; }
 input.pdf-search { font: inherit; padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); width: 14rem; }
@@ -565,12 +587,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .pdf-find .icon { color: var(--ink-3); margin-right: .2rem; }
 .pdf-search-info { color: var(--ink-3); margin-left: .4rem; white-space: nowrap; }
 .pdf-acts { margin-left: auto; }
-.textLayer { position: absolute; inset: 0; overflow: clip; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; z-index: 1; }
-.textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
-.textLayer span.hit { background: oklch(85% 0.17 90 / .55); color: transparent; border-radius: 2px; }
-.textLayer ::selection { background: oklch(65% 0.12 250 / .35); }
-.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; user-select: none; }
-.textLayer.selecting .endOfContent { top: 0; }
+
 .folder-items .rename { font: inherit; width: 100%; padding: .3rem .5rem; border: 1px solid var(--brass); border-radius: 5px; background: var(--paper); color: var(--ink); }
 .folder-items .item { display: flex; flex-direction: column; align-items: stretch; gap: .35rem; width: 100%; text-align: left; padding: .5rem; border-radius: 8px; color: var(--ink); }
 .folder-items .item:hover { background: var(--paper-2); }

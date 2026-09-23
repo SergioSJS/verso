@@ -45,7 +45,7 @@ type Strings = Record<
   | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
-  | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied"
+  | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved",
   string
 > & {
@@ -60,7 +60,7 @@ type Strings = Record<
   confirmDeleteFolder: (n: string) => string;
   words: (w: number, c: number) => string;
   replaceCount: (n: number) => string;
-  pdfHits: (n: number, pages: number) => string;
+  pdfHits: (n: number, current: number) => string;
 };
 
 const pt: Strings = {
@@ -100,8 +100,8 @@ const pt: Strings = {
   addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link",
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
-  pdfHits: (n, pages) => `${n} ocorrência${n === 1 ? "" : "s"} em ${pages} página${pages === 1 ? "" : "s"}`,
-  pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
+  pdfHits: (n, current) => `${current} de ${n}`,
+  pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
@@ -146,8 +146,8 @@ const en: Strings = {
   addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
-  pdfHits: (n, pages) => `${n} hit${n === 1 ? "" : "s"} on ${pages} page${pages === 1 ? "" : "s"}`,
-  pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
+  pdfHits: (n, current) => `${current} of ${n}`,
+  pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
@@ -245,6 +245,7 @@ const ui = {
   newNote: el<HTMLButtonElement>("new"),
   collapse: el<HTMLButtonElement>("collapse"),
   reindex: el<HTMLButtonElement>("reindex"),
+  settings: el<HTMLButtonElement>("settings-button"),
   search: el<HTMLInputElement>("search"),
   searchLabel: el<HTMLSpanElement>("search-label"),
   status: el<HTMLSpanElement>("status"),
@@ -332,6 +333,9 @@ ui.notesHeading.textContent = t.notes;
 ui.folder.dataset["empty"] = t.noFolder;
 el("keys-new").textContent = t.keysNew;
 el("keys-commands").textContent = t.commands;
+ui.settings.replaceChildren(icon("gear", t.settings));
+ui.settings.title = t.settings;
+ui.settings.addEventListener("click", () => settingsDialog.show());
 document.querySelector(".status-keys")?.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cmd]");
   if (!b || ui.search.disabled) return;
@@ -877,7 +881,16 @@ class NoteLeaf extends Leaf {
       if (!a) return;
       ev.preventDefault();
       if (a.classList.contains("wikilink")) this.follow(a.dataset["target"] ?? "");
-      else if (/^https?:/i.test(a.href)) void commands.openUrl(a.href);
+      else if (a.getAttribute("href")?.startsWith("#")) {
+        // A footnote, in either direction: to the note at the bottom, back to the mark.
+        const id = decodeURIComponent(a.getAttribute("href")?.slice(1) ?? "");
+        const target = Array.from(this.preview.querySelectorAll<HTMLElement>("[id]")).find((e) => e.id === id);
+        target?.scrollIntoView({ block: "center", behavior: "smooth" });
+        if (target) {
+          target.classList.add("flash");
+          setTimeout(() => target.classList.remove("flash"), 1200);
+        }
+      } else if (/^https?:/i.test(a.href)) void commands.openUrl(a.href);
     });
     sheet.addEventListener("mousedown", (ev) => {
       if (this.mode === "preview") return;
@@ -1240,6 +1253,7 @@ class NoteLeaf extends Leaf {
     this.note = note;
     this.revision = note.revision;
     this.preview.innerHTML = note.html;
+    this.gatherFootnotes();
     void this.embedImages(note.path);
     this.wireTasks();
     void this.relink(note.path);
@@ -1332,6 +1346,25 @@ class NoteLeaf extends Leaf {
         void this.embedImages(forPath, body);
       });
     }
+  }
+  /** Footnote definitions gathered at the end under a hairline, each with
+   *  a way back to its mark; the marks get ids for that. */
+  private gatherFootnotes(): void {
+    const defs = Array.from(this.preview.querySelectorAll<HTMLElement>(".footnote-definition"));
+    if (defs.length === 0) return;
+    for (const sup of this.preview.querySelectorAll<HTMLElement>("sup.footnote-reference")) {
+      const id = sup.querySelector("a")?.getAttribute("href")?.slice(1);
+      if (id && !sup.id) sup.id = `fnref-${id}`;
+    }
+    const section = h("section", "footnotes");
+    for (const d of defs) {
+      const back = h("a", "footnote-back", "↩");
+      back.href = `#fnref-${d.id}`;
+      back.title = d.id;
+      d.append(back);
+      section.append(d);
+    }
+    this.preview.append(section);
   }
   private wireTasks(): void {
     Array.from(this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox]")).forEach((box, n) => {
@@ -1715,13 +1748,12 @@ class PdfLeaf extends Leaf {
   readonly kind: Kind = "pdf";
   readonly crumbs = h("nav", "crumbs");
   readonly view: PdfView;
-  private pending = 1;
   constructor(pane: Pane) {
     super(pane);
     this.view = new PdfView({
-      strings: { page: t.pdfPage, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst, outline: t.outline },
-      onCopyLink: (page) => void navigator.clipboard.writeText(`[[${this.path.split("/").pop() ?? this.path}#page=${page}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
-      onQuote: (page, text) => void quoteIntoNotes(this.path, page, text),
+      strings: { page: t.pdfPage, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst },
+      onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${this.path.split("/").pop() ?? this.path}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
+      onQuote: (fragment, page, text) => void quoteIntoNotes(this.path, fragment, page, text).then(() => this.loadPassages()),
       onStatus: (m) => (ui.status.textContent = m),
       onPage: (page, total) => (ui.words.textContent = total ? `${t.pdfPage} ${page} ${t.pdfOf} ${total}` : ""),
     });
@@ -1731,18 +1763,28 @@ class PdfLeaf extends Leaf {
   }
   async load(path: string, _force?: boolean, page = 1): Promise<void> {
     this.path = path;
-    this.pending = page;
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
+    void this.loadPassages();
     await this.view.load(convertFileSrc(path, "verso"), page);
     markCurrent();
     persistSoon();
+  }
+  /** The passages the companion note quotes, painted on the pages. */
+  async loadPassages(): Promise<void> {
+    const r = await commands.readNote(companionOf(this.path));
+    if (r.status !== "ok") return this.view.setPassages([]);
+    const base = this.path.split("/").pop() ?? this.path;
+    const re = new RegExp(`\\[\\[${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}#page=(\\d+)&selection=(\\d+),(\\d+),(\\d+),(\\d+)`, "g");
+    const list: { page: number; s: [number, number, number, number] }[] = [];
+    for (const m of r.data.text.matchAll(re)) list.push({ page: Number(m[1]), s: [Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])] });
+    this.view.setPassages(list);
   }
   goTo(page: number): void {
     this.view.goTo(page);
   }
   override focusContent(): void {
-    this.view.scroller.focus();
+    this.view.container.focus();
   }
   override destroy(): void {
     this.view.destroy();
@@ -2767,12 +2809,16 @@ function movePrompt(path: string): void {
 /** A passage of a PDF quoted into its companion note — `<name> — Notes.md`
  *  beside the file, created on first use — as a callout that links back
  *  to the page. Written over the revision that was read. */
-async function quoteIntoNotes(pdf: string, page: number, text: string): Promise<void> {
+function companionOf(pdf: string): string {
+  const base = pdf.split("/").pop() ?? pdf;
+  const dir = dirOf(pdf);
+  return `${dir ? dir + "/" : ""}${base.replace(/\.pdf$/i, "")} — ${t.pdfNotes}.md`;
+}
+async function quoteIntoNotes(pdf: string, fragment: string, page: number, text: string): Promise<void> {
   const base = pdf.split("/").pop() ?? pdf;
   const stem = base.replace(/\.pdf$/i, "");
-  const dir = dirOf(pdf);
-  const notePath = `${dir ? dir + "/" : ""}${stem} — ${t.pdfNotes}.md`;
-  const block = `\n> [!quote] [[${base}#page=${page}]]\n> ${text.split(/\n/).join("\n> ")}\n`;
+  const notePath = companionOf(pdf);
+  const block = `\n> [!quote] [[${base}#${fragment}|${stem}, ${t.pdfPage.toLowerCase()} ${page}]]\n> ${text.split(/\n/).join("\n> ")}\n`;
   const existing = await commands.readNote(notePath);
   let r;
   if (existing.status === "ok") r = await commands.writeNote(notePath, existing.data.text.replace(/\s*$/, "\n") + block, existing.data.revision);
@@ -3189,6 +3235,7 @@ function collapseAll(): void {
 /* ---------- ⌘P ---------- */
 class QuickSwitcher {
   readonly el = h("div", "quick");
+  readonly box = h("div", "quick-box");
   readonly input = h("input");
   readonly list = h("ul", "quick-list");
   private items: string[] = [];
@@ -3198,7 +3245,8 @@ class QuickSwitcher {
     this.input.type = "text";
     this.input.placeholder = t.quick;
     this.input.setAttribute("aria-label", t.quick);
-    this.el.append(this.input, this.list);
+    this.box.append(this.input, this.list);
+    this.el.append(this.box);
     document.body.append(this.el);
     this.input.addEventListener("input", () => this.update());
     this.input.addEventListener("keydown", (e) => {
@@ -3331,6 +3379,7 @@ function allCommands(): Command[] {
 }
 class Palette {
   readonly el = h("div", "quick palette");
+  readonly box = h("div", "quick-box");
   readonly input = h("input");
   readonly list = h("ul", "quick-list");
   private items: Command[] = [];
@@ -3339,7 +3388,8 @@ class Palette {
     this.el.hidden = true;
     this.input.type = "text";
     this.input.placeholder = t.commands;
-    this.el.append(this.input, this.list);
+    this.box.append(this.input, this.list);
+    this.el.append(this.box);
     document.body.append(this.el);
     this.input.addEventListener("input", () => this.update());
     this.input.addEventListener("keydown", (e) => {
