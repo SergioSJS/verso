@@ -14,6 +14,10 @@
 - Revisions: 2026-09-23 — what the Phase 2 code does with `verso <folder>`
   and `verso open` recorded under Consequences, as **provisional**; the rule
   stays `[OPEN]`.
+- Revisions: 2026-09-23 — **decided by the maintainer for Phase 2**: the rule
+  as the code applies it (Decision); how the window starts changed, so that
+  an app already running receives the folder (`docs/review/phase-2.md` §6,
+  items 3 and 14).
 
 ## Context
 
@@ -33,11 +37,17 @@ folder is an argument of the subcommand and there is no default folder. An
 argument that starts with `--` and is not a known option is a usage error, not
 a folder.
 
-**Recorded, not decided, for Phase 2**: a first argument that names an existing
-directory opens it, anything else is read as a subcommand, with
-`verso open <folder>` and `verso -- <folder>` as the escape hatches. `--` as a
-separator is not supported in Phase 1, so a folder whose name begins with `--`
-cannot be passed yet.
+**Decided on 2026-09-23 by the maintainer, for Phase 2**, as the code does it
+(recorded under Consequences; `docs/review/phase-2.md` §6, item 3; the
+answer: *"a e b ok"*). A subcommand in first position is always the
+subcommand, even when a directory of that name exists; any other first
+argument that names an existing directory opens it; anything else is a usage
+error. `verso open <folder>` opens a folder whatever its name. `--` is still
+not a separator, so a folder whose name begins with `--` opens only through a
+path that does not, such as `./--name`. This replaces what was recorded, not
+decided, for Phase 2 before: the same rule read the other way round — a
+directory first, a subcommand otherwise — with `verso -- <folder>` as a
+second escape hatch.
 
 ## Consequences
 
@@ -49,11 +59,13 @@ cannot be passed yet.
   ([0025](0025-own-server-and-mobile-pwa.md), Proposed). `verso <folder>` means
   the first argument is a path when it does not match a known subcommand. A
   folder named `index` or `search` is the ambiguous case, and the
-  disambiguation rule is `[OPEN]`.
+  disambiguation rule is `[OPEN]`. *(Decided on 2026-09-23: the subcommand
+  wins, and `verso open index` opens the folder — the Decision.)*
 - Opening the UI from the CLI is only possible when there is a UI, that is, from
   Phase 2 on ([0034](0034-roadmap-in-phases.md)). In Phase 1 the binary is CLI
   only. In which phase the open command lands, the briefing does not say:
-  `[OPEN]`.
+  `[OPEN]`. *(Phase 2: the maintainer asked for it there on 2026-09-22 and
+  accepted it on 2026-09-23.)*
 - `verso-cli` already appears in Phase 1, so the subcommands are born before the
   open command; the disambiguation rule has to be decided before the set of
   subcommands grows.
@@ -111,12 +123,12 @@ decision; the disambiguation rule above stays `[OPEN]`.
   it becomes a `PathBuf` for `verso-fs`. Only the subcommand, the search words
   and the note are read as text.
 
-**What the Phase 2 code does. Recorded on 2026-09-23 — provisional; the
-disambiguation rule above stays `[OPEN]`.** The maintainer's request of
-2026-09-22 ("ser possível fazer um verso . no terminal e fazer com que ele abra
-naquele diretório", [0049](0049-phase-2-scope-widened.md) §1) put the open
-command in Phase 2, with the window; whether that closes the question of its
-phase, left open above, is the maintainer's.
+**What the Phase 2 code does — decided on 2026-09-23.** Recorded that day as
+provisional, then accepted by the maintainer as it stands (the Decision). The
+maintainer's request of 2026-09-22 ("ser possível fazer um verso . no terminal
+e fazer com que ele abra naquele diretório",
+[0049](0049-phase-2-scope-widened.md) §1) put the open command in Phase 2,
+with the window.
 
 - **A subcommand in first position is always the subcommand** — `index`,
   `search`, `backlinks`, `mcp`, `open`, `help`, `--help`, `-h` — even when a
@@ -139,9 +151,16 @@ phase, left open above, is the maintainer's.
   opens only through a path that does not, such as `./--nome`.
 - **How the window starts**: the CLI runs `$VERSO_APP` when it is set, else the
   `verso-app` binary beside it, else, on macOS, the installed app through
-  `open -a Verso --args <folder>`. Each run starts a new process; an app that
-  is already running does not receive the folder through `open -a`
-  (`docs/review/phase-2.md`, reading 3, finding 20).
+  `open -a Verso <folder>`. The folder goes as a document to open, which macOS
+  delivers by an open event whether it launches the app or the app is already
+  running; a running app's main window saves its tabs and opens it, as for any
+  switch. Until 2026-09-23 it went through `open -a Verso --args`, which an
+  app already running never received (`docs/review/phase-2.md`, reading 3,
+  finding 20; fixed in `b43e914` at the maintainer's request). `open` refuses a
+  document that is not there, so a refusal is tried again with `--args`: the
+  app starts and says the folder is missing, as `verso open` promises. A
+  binary run directly — `$VERSO_APP`, a development tree, Linux — still
+  starts a new process each time.
 - **The first version of this code** used a lexical rule — `.`, `..`, a `/` or
   a leading `~` made an argument a folder — so `verso notas` was an unknown
   command and `verso ./nao-existe` said it was opening; and `verso open` alone
@@ -155,4 +174,5 @@ None recorded in the briefing.
 
 ## Status
 
-Accepted.
+Accepted. The Phase 2 rule: decided on 2026-09-23 by the maintainer (the
+Decision).

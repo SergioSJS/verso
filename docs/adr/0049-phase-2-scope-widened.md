@@ -6,6 +6,10 @@
   not listed here does not enter the phase without becoming a recorded
   decision")
 - Status in the briefing: not present
+- Revisions: 2026-09-23 — section 2 confirmed by the maintainer, item by item;
+  the Consequences on the open questions, the network and the npm licenses
+  brought up to date with the maintainer's answers of that day
+  (`docs/review/phase-2.md` §6).
 
 ## Context
 
@@ -29,9 +33,10 @@ against the chat.
 
 Each line is a request the maintainer made, with the day (local time,
 UTC−3) and their words (abridged). The code built on the branch
-`phase1-2/integration` answers them, with one exception found after the
-fact: an HTML file opens as text, not as a page (`docs/review/phase-2.md`
-§6, item 16).
+`phase1-2/integration` answers them. One exception was found after the fact —
+an HTML file opened as text, not as a page (`docs/review/phase-2.md` §6, item
+16) — and fixed in `4afec51`: it opens as its page, with its source as the
+other mode.
 
 | Area | What was asked | When | In the maintainer's words |
 |---|---|---|---|
@@ -85,13 +90,17 @@ folder.
   `docs/reference/app-decision.md` §5 — the properties panel, table
   re-alignment, find and replace, the rename plans, folder moves, the bin,
   quotes into notes, templates, dropped and duplicated files, text files.
-- Several items lean on questions that are still open, and do what they do
-  provisionally: the command-line rule ([0042](0042-open-from-command-line.md)),
-  file operations ([0048](0048-file-operations-in-ui.md)), body tags (Q13),
-  the Markdown extensions (Q15),
-  non-Markdown files (Q16), handles and session identity in the contract
-  ([0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md)).
-  Each is recorded where it lives; none is decided here.
+- Several items leaned on questions that were still open, and did what they
+  do provisionally: the command-line rule
+  ([0042](0042-open-from-command-line.md)), file operations
+  ([0048](0048-file-operations-in-ui.md)), body tags (Q13), the Markdown
+  extensions (Q15), non-Markdown files (Q16), handles and session identity in
+  the contract ([0044](0044-verso-fs-semantics.md),
+  [0045](0045-server-and-mcp-security.md)). Each is recorded where it lives;
+  none is decided here. On 2026-09-23 the maintainer decided the command-line
+  rule, file operations, body tags and, for the reading view, the Markdown
+  extensions, and accepted the contract as built for Phase 2; non-Markdown
+  files and handles are still open.
 - The UI was written by Fable 5.1, not by Opus 5 as the table of
   [0032](0032-author-and-reviewer-roles.md) assigns. The maintainer chose that
   on 2026-09-22 by picking the option that said "Eu escrevo Rust + HTML/TS;
@@ -100,8 +109,10 @@ folder.
   (Apache-2.0) for the PDF reader, `katex` (MIT) for math,
   `@codemirror/language-data` (MIT) for code colors, three `@fontsource` font
   packages (OFL-1.1), and Tauri's `unstable` feature for web pages inside the
-  window. `cargo-deny` checks only the Rust side; no npm package of the UI has
-  a license gate in CI.
+  window. `cargo-deny` checks only the Rust side; no npm package of the UI had
+  a license gate in CI. On 2026-09-23 the maintainer ratified the `unstable`
+  feature and asked for a gate: `scripts/check-npm-licenses.mjs`, in CI since
+  `65e44f9` ([0029](0029-guardrails-in-ci.md)).
 - The window reaches the network, which nothing in Phase 1 did, in four ways:
   a web note loads its page when it is opened; an http(s) link clicked
   anywhere in the window opens that page in a window of its own; a web note's icon is asked of
@@ -109,10 +120,11 @@ folder.
   and an image a note takes from the web (`![](https://…)`) loads when the note
   is shown, as in Obsidian. The first version asked a third party
   (`icons.duckduckgo.com`) for every icon; the Opus reading of 2026-09-23 found
-  it and it was removed (`docs/review/phase-2.md`). No ADR covers outbound
-  access yet — [0027](0027-runtime-capabilities.md), Proposed, only names a
-  `net:fetch` permission — so whether these four stay, and whether each needs
-  a setting, is the maintainer's.
+  it and it was removed (`docs/review/phase-2.md`). No ADR covered outbound
+  access — [0027](0027-runtime-capabilities.md), Proposed, only names a
+  `net:fetch` permission. On 2026-09-23 the maintainer accepted the four and
+  asked for a setting over the two that need no click: both are
+  [0050](0050-outbound-network-access.md).
 
 ## Discarded alternatives
 
@@ -120,6 +132,8 @@ None recorded.
 
 ## Status
 
-Accepted for section 1: the maintainer asked for each item, on the day given.
-Proposed for section 2: the maintainer approved the list as a whole and
-confirms or strikes each item. The Consequences are records, not decisions.
+Accepted. Section 1: the maintainer asked for each item, on the day given.
+Section 2: the maintainer approved the list as a whole on 2026-09-22 and
+confirmed every item on 2026-09-23, when asked to confirm or strike each
+(`docs/review/phase-2.md` §6, item 18; the answer: *"a e b ok"*). The
+Consequences are records, not decisions.

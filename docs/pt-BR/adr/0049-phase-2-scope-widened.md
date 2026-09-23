@@ -5,6 +5,9 @@
   2026-09-23, citadas abaixo; `docs/roadmap.md` (Fase 2, "um item de escopo
   que não está listado aqui não entra na fase sem virar decisão registrada")
 - Status no briefing: não consta
+- Revisões: 2026-09-23 — seção 2 confirmada pelo mantenedor, item a item; as
+  Consequências sobre as questões abertas, a rede e as licenças npm atualizadas
+  com as respostas do mantenedor desse dia (`docs/review/phase-2.md` §6).
 
 ## Contexto
 
@@ -26,9 +29,10 @@ pull request da Fase 2 seja lido contra uma lista, e não contra o chat.
 
 Cada linha é um pedido do mantenedor, com o dia (hora local, UTC−3) e as
 palavras dele (resumidas). O código construído na branch
-`phase1-2/integration` responde a eles, com uma exceção achada depois: um
-arquivo HTML abre como texto, não como página (`docs/review/phase-2.md` §6,
-item 16).
+`phase1-2/integration` responde a eles. Uma exceção foi achada depois — um
+arquivo HTML abria como texto, não como página (`docs/review/phase-2.md` §6,
+item 16) — e corrigida em `4afec51`: ele abre como a página, com a fonte como
+o outro modo.
 
 | Área | O que foi pedido | Quando | Nas palavras do mantenedor |
 |---|---|---|---|
@@ -82,13 +86,17 @@ janela própria pelo menu da aba), e uma segunda janela sobre a mesma pasta.
   realinhamento de tabelas, localizar e substituir, os planos de renomeação,
   mover pastas, a lixeira, citações em notas, templates, arquivos soltos e
   duplicados, arquivos de texto.
-- Vários itens se apoiam em questões ainda abertas, e fazem o que fazem de forma
-  provisória: a regra da linha de comando
+- Vários itens se apoiavam em questões ainda abertas, e fazem o que fazem de
+  forma provisória: a regra da linha de comando
   ([0042](0042-open-from-command-line.md)), operações de arquivo
-  ([0048](0048-file-operations-in-ui.md)), tags no corpo (Q13), as extensões de Markdown (Q15), arquivos que
-  não são Markdown (Q16), handles e identidade de sessão no contrato
-  ([0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md)).
-  Cada um está registrado onde mora; nenhum é decidido aqui.
+  ([0048](0048-file-operations-in-ui.md)), tags no corpo (Q13), as extensões de
+  Markdown (Q15), arquivos que não são Markdown (Q16), handles e identidade de
+  sessão no contrato ([0044](0044-verso-fs-semantics.md),
+  [0045](0045-server-and-mcp-security.md)). Cada um está registrado onde mora;
+  nenhum é decidido aqui. Em 2026-09-23 o mantenedor decidiu a regra da linha
+  de comando, as operações de arquivo, as tags no corpo e, para a visão de
+  leitura, as extensões de Markdown, e aceitou o contrato como foi construído
+  para a Fase 2; arquivos que não são Markdown e handles continuam abertos.
 - A UI foi escrita pelo Fable 5.1, não pelo Opus 5 como a tabela da
   [0032](0032-author-and-reviewer-roles.md) atribui. O mantenedor escolheu isso
   em 2026-09-22 ao escolher a opção que dizia "Eu escrevo Rust + HTML/TS; Opus
@@ -98,7 +106,9 @@ janela própria pelo menu da aba), e uma segunda janela sobre a mesma pasta.
   `@codemirror/language-data` (MIT) para as cores do código, três pacotes de
   fonte `@fontsource` (OFL-1.1), e a feature `unstable` do Tauri para páginas
   web dentro da janela. O `cargo-deny` só verifica o lado Rust; nenhum pacote
-  npm da UI tem portão de licença no CI.
+  npm da UI tinha portão de licença no CI. Em 2026-09-23 o mantenedor ratificou
+  a feature `unstable` e pediu um portão: `scripts/check-npm-licenses.mjs`, no
+  CI desde `65e44f9` ([0029](0029-guardrails-in-ci.md)).
 - A janela acessa a rede, o que nada da Fase 1 fazia, de quatro jeitos: uma
   nota web carrega a página quando é aberta; um link http(s) clicado em
   qualquer lugar da janela abre aquela página numa janela própria; o ícone de uma nota web é pedido ao
@@ -106,10 +116,11 @@ janela própria pelo menu da aba), e uma segunda janela sobre a mesma pasta.
   imagem que a nota traz da web (`![](https://…)`) carrega quando a nota é
   mostrada, como no Obsidian. A primeira versão pedia cada ícone a um terceiro
   (`icons.duckduckgo.com`); a leitura do Opus de 2026-09-23 achou isso e foi
-  removido (`docs/review/phase-2.md`). Nenhuma ADR cobre acesso de saída ainda
-  — a [0027](0027-runtime-capabilities.md), Proposta, só nomeia uma permissão
-  `net:fetch` —, então se esses quatro ficam, e se cada um precisa de um ajuste,
-  é do mantenedor.
+  removido (`docs/review/phase-2.md`). Nenhuma ADR cobria acesso de saída — a
+  [0027](0027-runtime-capabilities.md), Proposta, só nomeia uma permissão
+  `net:fetch`. Em 2026-09-23 o mantenedor aceitou os quatro e pediu um ajuste
+  sobre os dois que não precisam de clique: os dois estão na
+  [0050](0050-outbound-network-access.md).
 
 ## Alternativas descartadas
 
@@ -117,6 +128,8 @@ Nenhuma registrada.
 
 ## Status
 
-Aceito para a seção 1: o mantenedor pediu cada item, no dia indicado. Proposto
-para a seção 2: o mantenedor aprovou a lista como um todo e confirma ou risca
-cada item. As Consequências são registros, não decisões.
+Aceito. Seção 1: o mantenedor pediu cada item, no dia indicado. Seção 2: o
+mantenedor aprovou a lista como um todo em 2026-09-22 e confirmou cada item em
+2026-09-23, quando lhe pediram para confirmar ou riscar cada um
+(`docs/review/phase-2.md` §6, item 18; a resposta: *"a e b ok"*). As
+Consequências são registros, não decisões.

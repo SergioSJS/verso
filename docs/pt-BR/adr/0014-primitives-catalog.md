@@ -3,6 +3,10 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §5.3
 - Status no briefing: `PROPOSTO`
+- Revisões: 2026-09-23 — duas primitivas aceitas pelo mantenedor como a janela
+  da Fase 2 as constrói, a nota do dia e os templates
+  (`docs/review/phase-2.md` §6, item 11); o resto do catálogo continua
+  Proposto.
 
 ## Contexto
 
@@ -47,6 +51,18 @@ parte.
 - Nada deste catálogo está na Fase 1, exceto o que o parser e o índice precisam
   expor ([0034](0034-roadmap-in-phases.md)).
 
+**Duas primitivas aceitas em 2026-09-23 pelo mantenedor**
+(`docs/review/phase-2.md` §6, item 11; a resposta: *"a e b ok"*), como a janela
+da Fase 2 as constrói ([0049](0049-phase-2-scope-widened.md),
+`docs/reference/app-decision.md`). A **nota do dia** — a parte diária da linha
+do tempo: uma nota por dia, com a data como nome, na pasta que os ajustes
+nomeiam, aberta se existe e senão criada, a partir de um template com o nome
+dessa pasta quando existe um. Os **templates** — qualquer nota na pasta que
+os ajustes nomeiam é um; ele é inserido numa nota com `{{date}}` e `{{title}}`
+preenchidos, e uma nota pode ser salva nessa pasta como template. Esta
+aceitação vale pela ADR própria que a primeira Consequência pede de cada
+primitiva. Notas periódicas e todas as outras linhas continuam Propostas.
+
 ## Alternativas descartadas
 
 - Reproduzir Dataview, Templater, Periodic Notes e statblocks como plugins de
@@ -54,4 +70,4 @@ parte.
 
 ## Status
 
-Proposto.
+Proposto. A nota do dia e os templates: aceitos em 2026-09-23 (Consequências).

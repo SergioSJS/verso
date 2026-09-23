@@ -5,6 +5,9 @@
 - Status in the briefing: not present
 - Revisions: 2026-09-23 — what the Phase 2 code does recorded under
   Consequences, as **provisional**; every question stays `[OPEN]`.
+  2026-09-23 — **decided by the maintainer**: that record becomes the
+  Decision, with names no link can reach now refused by the window
+  (`docs/review/phase-2.md` §6, items 2, 19 and 21).
 
 ## Context
 
@@ -18,7 +21,18 @@ covers these operations, and all of them have the potential for data loss.
 
 ## Decision
 
-None. Questions recorded, to be decided before item 2.3 of Phase 2.
+**Decided on 2026-09-23 by the maintainer**, who accepted what the Phase 2
+code does — recorded under Consequences below — when the review's pending
+items were put to them with a recommendation for each
+(`docs/review/phase-2.md` §6, items 2, 19 and 21; the answer: *"a e b ok"*).
+In short: rename and move by option (b), a plan of link rewrites shown as one
+diff per note and applied note by note, with **no logical transaction**;
+delete into `.trash/` after a confirmation; create refused when the name is
+taken; a rename that only changes case allowed where the volume ignores case;
+a name no link can reach refused by the window; volumes without hard links
+allowed, with a warning; a lone placeholder neither renamed nor deleted.
+
+The questions as they were first recorded, before item 2.3 of Phase 2:
 
 - **Rename a note:** update links in other files (a) automatically, (b) with a
   consolidated diff of the N files before applying, (c) never. Option (b) is the
@@ -39,25 +53,29 @@ None. Questions recorded, to be decided before item 2.3 of Phase 2.
 ## Consequences
 
 - Mass operations (rename with N links) need a logical transaction: if it fails
-  on file 7 of 12, the state has to be reported and reversible.
+  on file 7 of 12, the state has to be reported and reversible. *(Decided
+  otherwise on 2026-09-23: there is none; what was written is reported, not
+  undone — the Decision above.)*
 - Phase 2 exit criterion 2 ("no data loss in the period") is the test of these
   decisions.
 
 **Requirement recorded on 2026-09-22, from the maintainer, when Q12 was
 closed.** When the app itself moves or renames a note, it should **update the
 links that point at it**, as Obsidian does. The requirement is not decorative:
-Q12's rule resolves a bare name by preferring a candidate in the source note's
-own folder, and resolves a path relative to that folder, so moving a note can
+Q12's rule resolves a bare name by preferring a candidate under the source
+note's own folder (point 3, as amended on 2026-09-23), and resolves a path
+relative to that folder, so moving a note can
 change which note a link reaches and can make a link written as a path stop
 resolving. Everything this ADR leaves open — what happens to an external
 modification, what is atomic, what is shown as a diff — applies to that
 rewrite, which is a write to notes the user did not edit. Phase 2: Phase 1 has
 no UI and moves no file.
 
-**What the Phase 2 code does. Recorded on 2026-09-23 — provisional; every
-question above stays `[OPEN]`, the maintainer decides.** It is the code as it
-stands after the Opus reading of the Phase 2 branch
-(`docs/review/phase-2.md`), whose findings changed several of these points.
+**What the Phase 2 code does — decided on 2026-09-23.** Recorded that day as
+provisional, then accepted by the maintainer as it stands (the Decision
+above). It is the code as it stands after the Opus reading of the Phase 2
+branch (`docs/review/phase-2.md`), whose findings changed several of these
+points.
 
 - **Rename and move: option (b).** Before anything moves, the core reads every
   note whose links may name the entry, with what each link reaches by the
@@ -99,10 +117,15 @@ stands after the Opus reading of the Phase 2 branch
 - **Names a link cannot hold.** The core accepts note and folder names that
   hold `[`, `]`, `|`, `#` or `^`, which no `[[…]]` can name; a rename to such
   a name writes no link that would be read as another target, and says so.
+  The window gives no such name to what it creates or renames: it refuses
+  and says why (`7d516f5`, the maintainer's choice of 2026-09-23). A file
+  already so named opens as any other, and the core still accepts the names
+  for its other clients.
 - **Volumes without hard links** (exFAT and FAT on removable drives, some
   network and cloud file systems): a create or a move gives the file its name
   by a rename after a last-moment check instead of a link, and says that the
-  guard was weaker.
+  guard was weaker. Allowed, with that warning: refusing would leave Verso
+  unusable on a removable drive (the maintainer, 2026-09-23).
 - **Placeholders.** A single placeholder cannot be renamed or deleted, its
   content being in the cloud; a folder that holds placeholders moves and goes
   to the bin as a whole.
@@ -116,4 +139,5 @@ None recorded.
 
 ## Status
 
-`[OPEN]`. Decide before item 2.3 of Phase 2.
+Accepted on 2026-09-23 by the maintainer, as the Phase 2 code does it (the
+Decision and the record under Consequences).

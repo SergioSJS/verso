@@ -13,7 +13,12 @@
   responde aos requisitos da escrita atômica, registrado como provisório, vindo
   de duas leituras desse código; 2026-09-22 — como o código da feature 3
   atende ao guardrail do FTS5, registrado como provisório, e ampliado depois da
-  leitura desse código com os caracteres de controle e a abrangência do teste.
+  leitura desse código com os caracteres de controle e a abrangência do teste;
+  2026-09-23 — um portão de licenças npm acrescentado a pedido do mantenedor, e
+  a verificação dos tipos gerados levada para o job Rust de Linux, para que um
+  pull request compile a árvore do Tauri uma vez só; as exceções de advisory e
+  de licença da árvore do Tauri ratificadas (`docs/review/phase-2.md` §6,
+  itens 7 e 13).
 
 ## Contexto
 
@@ -52,6 +57,7 @@ com ela. Os dois grupos estão separados abaixo.
 | Queries parametrizadas + escape da sintaxe FTS5 | busca quebrando com aspas e operadores | Fase 1, feature 3 |
 | Benchmark com vault sintético | regressão de performance | Fase 1, feature 5 |
 | Verificação de que os tipos TS gerados estão atualizados | regra 3 do contrato virar convenção ([0038](0038-ts-type-generation.md)) | Fase 2, item 2.1 |
+| Allowlist de licenças npm sobre o lockfile da janela (`scripts/check-npm-licenses.mjs`): a lista do `deny.toml` mais OFL-1.1, a licença das fontes | um pacote que a janela empacota sob uma licença que o projeto não pode distribuir | Fase 2, a pedido do mantenedor em 2026-09-23 |
 
 CI em macOS e Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, mais os comandos dos guardrails de feature conforme entram.
@@ -181,10 +187,17 @@ como está; isto é o que o `verso-index` faz.
 - A allowlist de licenças do `cargo-deny` segue [0005](0005-license.md)
   (MPL-2.0): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, MPL-2.0,
   Unicode-3.0 e CC0-1.0 entram; GPL, LGPL e AGPL ficam fora; qualquer outra só
-  com justificativa no PR. Fecha no PR do item 0.10.
+  com justificativa no PR. Fecha no PR do item 0.10. A árvore do Tauri
+  acrescentou `Apache-2.0 WITH LLVM-exception`, ratificada pelo mantenedor em
+  2026-09-23. Desde esse dia os pacotes npm da janela seguem a mesma lista mais
+  OFL-1.1, lida do lockfile; o portão foi visto falhando num lockfile editado
+  para ter GPL-3.0, nenhuma licença, uma referência a arquivo e um `AND`
+  dentro de um `OR`.
 - Advisory nova deixa o CI vermelho sem PR culpado. Política: exceção no
   `deny.toml` só com justificativa, link para a advisory e data de expiração;
-  exceção expirada é CI vermelho de novo. `Cargo.lock` é versionado.
+  exceção expirada é CI vermelho de novo. `Cargo.lock` é versionado. Os sete
+  avisos de "sem manutenção" da árvore do Tauri, cada um com link e expiração
+  em 2026-12-31, foram ratificados pelo mantenedor em 2026-09-23.
 - `unwrap_used` negado fora de teste muda como o código é escrito desde o
   primeiro PR, não como refatoração posterior.
 - Benchmark é guardrail sem meta: a linha de base existe, mas metas de

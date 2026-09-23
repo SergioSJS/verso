@@ -5,6 +5,9 @@
 - Status no briefing: não consta
 - Revisões: 2026-09-23 — o que o código da Fase 2 faz registrado em
   Consequências, como **provisório**; toda questão continua `[ABERTO]`.
+  2026-09-23 — **decidido pelo mantenedor**: aquele registro vira a Decisão,
+  com os nomes que nenhum link alcança agora recusados pela janela
+  (`docs/review/phase-2.md` §6, itens 2, 19 e 21).
 
 ## Contexto
 
@@ -18,7 +21,19 @@ dessas operações, e todas têm potencial de perda de dado.
 
 ## Decisão
 
-Nenhuma. Questões registradas, a decidir antes do item 2.3 da Fase 2.
+**Decidido em 2026-09-23 pelo mantenedor**, que aceitou o que o código da Fase
+2 faz — registrado em Consequências, abaixo — quando os itens pendentes da
+revisão lhe foram apresentados com uma recomendação para cada um
+(`docs/review/phase-2.md` §6, itens 2, 19 e 21; a resposta: *"a e b ok"*). Em
+resumo: renomear e mover pela opção (b), um plano de reescrita de links
+mostrado como um diff por nota e aplicado nota a nota, **sem transação
+lógica**; excluir para `.trash/` depois de uma confirmação; criar recusado
+quando o nome está ocupado; um rename que só muda a caixa permitido onde o
+volume ignora a caixa; um nome que nenhum link alcança recusado pela janela;
+volumes sem hard links permitidos, com aviso; um placeholder sozinho nem
+renomeado nem excluído.
+
+As questões como foram registradas de início, antes do item 2.3 da Fase 2:
 
 - **Renomear nota:** atualizar links em outros arquivos (a) automaticamente,
   (b) com diff consolidado dos N arquivos antes de aplicar, (c) nunca. A opção
@@ -39,23 +54,26 @@ Nenhuma. Questões registradas, a decidir antes do item 2.3 da Fase 2.
 
 - Operações em massa (rename com N links) precisam de transação lógica: se
   falhar no arquivo 7 de 12, o estado precisa ser reportado e reversível.
+  *(Decidido de outro jeito em 2026-09-23: não há; o que foi escrito é
+  reportado, não desfeito — a Decisão acima.)*
 - O critério de saída 2 da Fase 2 ("nenhuma perda de dado no período") é o
   teste dessas decisões.
 
 **Requisito registrado em 2026-09-22, do mantenedor, quando a Q12 foi
 fechada.** Quando o próprio app mover ou renomear uma nota, ele deve
 **atualizar os links que apontam para ela**, como o Obsidian faz. O requisito
-não é enfeite: a regra da Q12 resolve nome puro preferindo um candidato na
-pasta da própria nota de origem, e resolve caminho relativo a essa pasta, então
+não é enfeite: a regra da Q12 resolve nome puro preferindo um candidato sob a
+pasta da própria nota de origem (ponto 3, como emendado em 2026-09-23), e
+resolve caminho relativo a essa pasta, então
 mover uma nota pode mudar qual nota um link alcança e pode fazer um link
 escrito como caminho deixar de resolver. Tudo o que esta ADR deixa em aberto —
 o que acontece com modificação externa, o que é atômico, o que é mostrado como
 diff — vale para essa reescrita, que é escrita em notas que o usuário não
 editou. Fase 2: a Fase 1 não tem UI e não move arquivo.
 
-**O que o código da Fase 2 faz. Registrado em 2026-09-23 — provisório; toda
-questão acima continua `[ABERTO]`, quem decide é o mantenedor.** É o código
-como ficou depois da leitura da Opus do branch da Fase 2
+**O que o código da Fase 2 faz — decidido em 2026-09-23.** Registrado nesse
+dia como provisório, depois aceito pelo mantenedor como está (a Decisão
+acima). É o código como ficou depois da leitura da Opus do branch da Fase 2
 (`docs/review/phase-2.md`), cujos achados mudaram vários destes pontos.
 
 - **Renomear e mover: opção (b).** Antes de qualquer coisa mudar de lugar, o
@@ -101,11 +119,16 @@ como ficou depois da leitura da Opus do branch da Fase 2
 - **Nomes que um link não comporta.** O core aceita nomes de nota e de pasta
   com `[`, `]`, `|`, `#` ou `^`, que nenhum `[[…]]` consegue nomear; renomear
   para um nome assim não escreve link nenhum que seria lido como outro alvo, e
-  diz isso.
+  diz isso. A janela não dá um nome assim ao que cria ou renomeia: recusa e
+  diz por quê (`7d516f5`, escolha do mantenedor de 2026-09-23). Um arquivo que
+  já tem um nome assim abre como qualquer outro, e o core continua aceitando
+  esses nomes para os outros clientes.
 - **Volumes sem hard links** (exFAT e FAT em unidades removíveis, alguns
   sistemas de arquivos de rede e de nuvem): criar ou mover dá o nome ao
   arquivo por um rename depois de uma conferência de última hora, em vez de um
-  link, e diz que a proteção foi mais fraca.
+  link, e diz que a proteção foi mais fraca. Permitido, com esse aviso:
+  recusar deixaria o Verso inútil numa unidade removível (o mantenedor,
+  2026-09-23).
 - **Placeholders.** Um placeholder sozinho não pode ser renomeado nem excluído,
   porque o conteúdo está na nuvem; uma pasta com placeholders muda de lugar e
   vai para a lixeira inteira.
@@ -119,4 +142,5 @@ Nenhuma registrada.
 
 ## Status
 
-`[ABERTO]`. Decidir antes do item 2.3 da Fase 2.
+Aceito em 2026-09-23 pelo mantenedor, como o código da Fase 2 faz (a Decisão e
+o registro em Consequências).
