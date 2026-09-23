@@ -37,6 +37,8 @@ pub fn to_html(source: &str) -> String {
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
         | Options::ENABLE_FOOTNOTES;
+    let source = inline_footnotes(source);
+    let source = source.as_ref();
     let mut in_metadata = false;
     let events = Parser::new_ext(source, options).filter_map(|event| match event {
         Event::Start(Tag::MetadataBlock(_)) => {
@@ -105,6 +107,84 @@ fn highlights(text: &str) -> Vec<Event<'static>> {
 /// with an optional title becomes an Obsidian callout:
 /// `<div class="callout" data-callout="type" data-fold="+|-">` with a
 /// `<p class="callout-title">`. Nested blockquotes inside it are kept.
+/// Obsidian's inline footnote, `^[text]`, which the parser does not
+/// know: each becomes a reference `[^inline-N]` with its definition
+/// appended at the end, so both forms render the same way. Code spans
+/// and fenced blocks are left alone; nothing changes when there is none.
+fn inline_footnotes(source: &str) -> std::borrow::Cow<'_, str> {
+    if !source.contains("^[") {
+        return std::borrow::Cow::Borrowed(source);
+    }
+    let mut out = String::with_capacity(source.len() + 64);
+    let mut notes: Vec<String> = Vec::new();
+    let rest = source;
+    let mut in_fence = false;
+    let mut in_code = false;
+    let mut chars = rest.char_indices().peekable();
+    let mut last = 0;
+    while let Some((i, c)) = chars.next() {
+        let at_line_start = i == 0 || rest.as_bytes()[i - 1] == b'\n';
+        if at_line_start && rest[i..].starts_with("```") {
+            in_fence = !in_fence;
+        }
+        if in_fence {
+            continue;
+        }
+        if c == '`' {
+            in_code = !in_code;
+            continue;
+        }
+        if in_code || c != '^' || !rest[i..].starts_with("^[") {
+            continue;
+        }
+        // The matching `]`, brackets nested, on this paragraph.
+        let body_start = i + 2;
+        let mut depth = 1;
+        let mut end = None;
+        for (j, d) in rest[body_start..].char_indices() {
+            match d {
+                '[' => depth += 1,
+                ']' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(body_start + j);
+                        break;
+                    }
+                }
+                '\n' if rest[body_start + j..].starts_with("\n\n") => break,
+                _ => {}
+            }
+        }
+        let Some(end) = end else { continue };
+        let text = rest[body_start..end].trim();
+        if text.is_empty() {
+            continue;
+        }
+        notes.push(text.to_owned());
+        out.push_str(&rest[last..i]);
+        out.push_str(&format!("[^inline-{}]", notes.len()));
+        last = end + 1;
+        // Skip the characters of the note in the outer scan.
+        while let Some(&(k, _)) = chars.peek() {
+            if k > end {
+                break;
+            }
+            chars.next();
+        }
+    }
+    if notes.is_empty() {
+        return std::borrow::Cow::Borrowed(source);
+    }
+    out.push_str(&rest[last..]);
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    for (n, text) in notes.iter().enumerate() {
+        out.push_str(&format!("\n[^inline-{}]: {text}\n", n + 1));
+    }
+    std::borrow::Cow::Owned(out)
+}
+
 fn callouts(html: &str) -> String {
     const OPEN: &str = "<blockquote>\n<p>[!";
     let mut out = String::with_capacity(html.len());
@@ -287,5 +367,26 @@ mod tests {
         assert!(html.contains("a <mark>b</mark> c ==d"), "{html}");
         let html = to_html("`==x==`\n");
         assert!(html.contains("<code>==x==</code>"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod footnotes {
+    #[test]
+    fn referenced_and_inline_footnotes_render_alike() {
+        let html = super::to_html(
+            "Texto[^1] e outro^[direto na linha].\n\n`^[num código]`\n\n[^1]: A nota.\n",
+        );
+        assert!(
+            html.contains(r##"<sup class="footnote-reference"><a href="#1">1</a></sup>"##),
+            "{html}"
+        );
+        assert!(
+            html.contains(r##"<sup class="footnote-reference"><a href="#inline-1">"##),
+            "{html}"
+        );
+        assert!(html.contains("<p>A nota.</p>"), "{html}");
+        assert!(html.contains("<p>direto na linha</p>"), "{html}");
+        assert!(html.contains("<code>^[num código]</code>"), "{html}");
     }
 }
