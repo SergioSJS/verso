@@ -39,6 +39,17 @@ pub struct IndexSummary {
     pub problems: Vec<String>,
 }
 
+/// Any file of the folder as text, with the revision `write_text` takes
+/// back (invariant 11): the editor of files that are not notes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct TextFile {
+    pub path: String,
+    pub text: String,
+    pub revision: String,
+    /// What the write could not preserve, one line each; empty after a read.
+    pub warnings: Vec<String>,
+}
+
 /// What one entry of the open folder is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "lowercase")]
@@ -146,11 +157,25 @@ pub struct Tag {
     pub notes: Vec<String>,
 }
 
-/// One frontmatter key and its value as text.
+/// A frontmatter value, typed as the YAML gave it, for a properties
+/// panel that shows a list as pills and a boolean as a checkbox. A number
+/// crosses as its text, so the panel shows what was written.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", content = "value", rename_all = "lowercase")]
+pub enum PropertyValue {
+    Text(String),
+    Number(String),
+    Checkbox(bool),
+    List(Vec<String>),
+    /// `key:` with nothing after it (YAML null).
+    Empty,
+}
+
+/// One frontmatter key and its value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Property {
     pub key: String,
-    pub value: String,
+    pub value: PropertyValue,
 }
 
 /// One search hit.

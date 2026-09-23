@@ -70,6 +70,16 @@ export const commands = {
 	 */
 	listEntries: () => typedError<FileEntry[], ContractError>(__TAURI_INVOKE("list_entries")),
 	/**
+	 *  Any file as text with its revision, for the editor of files that are
+	 *  not notes.
+	 */
+	readText: (path: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("read_text", { path })),
+	/**
+	 *  Write any file's text over the revision that was read; a changed file
+	 *  is refused (invariant 11) and the UI shows the difference.
+	 */
+	writeText: (path: string, text: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_text", { path, text, revision })),
+	/**
 	 *  Rename or move anything of the folder: a note, another file or a
 	 *  folder with everything under it. Links to what moved come back as
 	 *  rewrites, like `rename_note` (ADR 0048, option (b)).
@@ -261,11 +271,20 @@ export type NoteText = {
 	unverified: boolean,
 };
 
-/**  One frontmatter key and its value as text. */
+/**  One frontmatter key and its value. */
 export type Property = {
 	key: string,
-	value: string,
+	value: PropertyValue,
 };
+
+/**
+ *  A frontmatter value, typed as the YAML gave it, for a properties
+ *  panel that shows a list as pills and a boolean as a checkbox. A number
+ *  crosses as its text, so the panel shows what was written.
+ */
+export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; value: string } | { kind: "checkbox"; value: boolean } | { kind: "list"; value: string[] } | 
+/**  `key:` with nothing after it (YAML null). */
+{ kind: "empty" };
 
 /**  What a rename left: the new path, and the rewrites it calls for. */
 export type Renamed = {
@@ -277,6 +296,18 @@ export type Renamed = {
 export type Tag = {
 	name: string,
 	notes: string[],
+};
+
+/**
+ *  Any file of the folder as text, with the revision `write_text` takes
+ *  back (invariant 11): the editor of files that are not notes.
+ */
+export type TextFile = {
+	path: string,
+	text: string,
+	revision: string,
+	/**  What the write could not preserve, one line each; empty after a read. */
+	warnings: string[],
 };
 
 /**

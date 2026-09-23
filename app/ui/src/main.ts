@@ -21,7 +21,8 @@ import { markdown } from "@codemirror/lang-markdown";
 import { type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { commands, type ContractError, type FileEntry, type NoteText } from "./bindings";
 import { icon } from "./icons";
-import { livePreview, redraw, sizeOf } from "./live";
+import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
+import { PropertiesView, frontmatterChange } from "./props";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -35,7 +36,8 @@ type Strings = Record<
   | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
   | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
-  | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder",
+  | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
+  | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -47,6 +49,7 @@ type Strings = Record<
   planDone: (ok: number, failed: number) => string;
   counts: (notes: number, files: number, folders: number) => string;
   confirmDeleteFolder: (n: string) => string;
+  words: (w: number, c: number) => string;
 };
 
 const pt: Strings = {
@@ -83,6 +86,8 @@ const pt: Strings = {
   colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
   duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copied: "Caminho copiado.",
   moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
+  addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link",
+  words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
 };
 
 const en: Strings = {
@@ -119,6 +124,8 @@ const en: Strings = {
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
   duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copied: "Path copied.",
   moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
+  addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions",
+  words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
 };
 
 const t: Strings = navigator.language.toLowerCase().startsWith("pt") ? pt : en;
@@ -213,6 +220,7 @@ const ui = {
   search: el<HTMLInputElement>("search"),
   searchLabel: el<HTMLSpanElement>("search-label"),
   status: el<HTMLSpanElement>("status"),
+  words: el<HTMLSpanElement>("words"),
   notesHeading: el<HTMLHeadingElement>("notes-heading"),
   notes: el<HTMLUListElement>("notes"),
   treeRoot: el<HTMLElement>("tree-root"),
@@ -581,7 +589,14 @@ class NoteLeaf extends Leaf {
   readonly dirtyMark = h("span", "dirty", "•");
   readonly saveButton = h("button", "save", t.save);
   readonly flags = h("p", "flags");
-  readonly props = h("dl", "props");
+  readonly props = new PropertiesView({
+    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove },
+    onChange: (key, value) => this.setProperty(key, value),
+    onTag: (tag) => {
+      ui.search.value = `tag:${tag}`;
+      void searchNotes(ui.search.value);
+    },
+  });
   readonly conflict = h("div", "conflict");
   readonly conflictDiff = h("div");
   readonly preview = h("div", "preview");
@@ -629,11 +644,12 @@ class NoteLeaf extends Leaf {
     this.conflict.hidden = true;
     this.buildToolbar();
     const sheet = h("div", "sheet");
-    sheet.append(titleRow, this.flags, this.props, this.conflict, this.preview, this.editorHost);
+    sheet.append(titleRow, this.flags, this.props.el, this.conflict, this.preview, this.editorHost);
     this.el.append(head, this.toolbar, sheet);
     this.live = livePreview({
       imageUrl: (target) => imageUrl(target, () => this.editor.dispatch({ effects: redraw.of(null) })),
       navigate: (target) => this.follow(target),
+      editFrontmatter: () => this.setMode("source"),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
     this.preview.addEventListener("click", (ev) => {
@@ -686,6 +702,7 @@ class NoteLeaf extends Leaf {
           if (u.docChanged) {
             this.setDirty(true);
             this.scheduleSave();
+            this.updateWords();
           }
         }),
       ],
@@ -819,6 +836,11 @@ class NoteLeaf extends Leaf {
     this.editorHost.hidden = m === "preview";
     for (const [k, b] of Object.entries(this.modeButtons)) b.setAttribute("aria-pressed", String(k === m));
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? this.live : []) });
+    if (m === "live") {
+      // The caret never lands inside the folded frontmatter.
+      const end = frontmatterEnd(this.editor.state.doc);
+      if (end >= 0 && this.editor.state.selection.main.head <= end) this.editor.dispatch({ selection: { anchor: Math.min(end + 1, this.editor.state.doc.length) } });
+    }
     this.editorHost.classList.toggle("live", m === "live");
     this.editorHost.classList.toggle("source", m === "source");
   }
@@ -861,6 +883,26 @@ class NoteLeaf extends Leaf {
     });
     input.addEventListener("blur", () => finish(input.value.trim() !== name(this.path)));
   }
+  /** One property changed in the panel: the frontmatter lines of that
+   *  key change in the editor's document, nothing else; the save follows
+   *  as after any keystroke. */
+  private setProperty(key: string, value: import("./bindings").PropertyValue | null): void {
+    const change = frontmatterChange(this.editor.state.doc.toString(), key, value);
+    if (!change) return;
+    this.editor.dispatch({ changes: change });
+    if (this.mode === "preview") void this.save();
+  }
+  /** Words and characters of the body (frontmatter left out), in the status bar. */
+  updateWords(): void {
+    if (this.pane.active !== this || layout().focused !== this.pane) return;
+    let text = this.editor.state.doc.toString();
+    if (text.startsWith("---")) {
+      const end = text.indexOf("\n---", 3);
+      if (end >= 0) text = text.slice(end + 4);
+    }
+    const words = text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
+    ui.words.textContent = t.words(words, text.replace(/\s/g, "").length);
+  }
   refresh(note: NoteText): void {
     this.note = note;
     this.revision = note.revision;
@@ -874,6 +916,7 @@ class NoteLeaf extends Leaf {
     this.setDirty(false);
     this.conflict.hidden = true;
     if (this.pane.active === this) panel.show(this);
+    this.updateWords();
   }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
@@ -887,8 +930,7 @@ class NoteLeaf extends Leaf {
     this.setTitle(name(this.path));
     this.title.textContent = name(this.path);
     this.crumbs.replaceChildren(...crumbsFor(this.path));
-    this.props.replaceChildren(...note.data.properties.flatMap((p) => [h("dt", "", p.key), h("dd", "", p.value)]));
-    this.props.hidden = note.data.properties.length === 0;
+    this.props.render(note.data.properties);
     this.eol = note.data.text.includes("\r\n") ? "\r\n" : "\n";
     this.editor.setState(this.editorState(note.data.text));
     this.resolved = new Map();
@@ -1057,33 +1099,88 @@ class ImageLeaf extends Leaf {
 }
 
 /* A text file that is not a note: shown in the source editor, read-only. */
+/* Any text file that is not a note — .txt, .json, .csv, .canvas… —
+ * edited in the source editor and saved the same way a note is: over
+ * the revision that was read, atomically. */
 class TextLeaf extends Leaf {
   readonly kind: Kind = "text";
   readonly host = h("div", "editor source");
+  readonly flags = h("p", "flags");
+  readonly crumbs = h("nav", "crumbs");
   readonly editor: EditorView;
+  revision = "";
+  private saveTimer: number | undefined;
   constructor(pane: Pane) {
     super(pane);
-    const notice = h("p", "flags", t.readOnly);
+    const head = h("header", "leaf-head");
+    head.append(this.crumbs);
     const sheet = h("div", "sheet");
-    sheet.append(notice, this.host);
-    this.el.append(sheet);
+    this.flags.hidden = true;
+    sheet.append(this.flags, this.host);
+    this.el.append(head, sheet);
     this.editor = new EditorView({ parent: this.host, state: EditorState.create({ doc: "" }) });
   }
-  async load(path: string): Promise<void> {
+  private state(doc: string): EditorState {
+    return EditorState.create({
+      doc,
+      extensions: [
+        basicSetup,
+        EditorView.lineWrapping,
+        keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
+        EditorView.updateListener.of((u) => {
+          if (u.docChanged) {
+            this.setDirty(true);
+            window.clearTimeout(this.saveTimer);
+            this.saveTimer = window.setTimeout(() => void this.save(), Math.max(0.3, settings.autosave) * 1000);
+          }
+        }),
+      ],
+    });
+  }
+  async load(path: string, force = false): Promise<void> {
+    if (this.dirty && !force && path !== this.path && !window.confirm(t.discard)) return;
     this.path = path;
-    this.setTitle(name(path));
-    const r = await commands.readFileText(path);
+    this.setTitle(path.split("/").pop() ?? path);
+    this.crumbs.replaceChildren(...crumbsFor(path));
+    const r = await commands.readText(path);
     if (r.status !== "ok") return fail(r.error);
-    this.editor.setState(EditorState.create({ doc: r.data, extensions: [basicSetup, EditorView.lineWrapping, EditorState.readOnly.of(true)] }));
+    this.revision = r.data.revision;
+    this.editor.setState(this.state(r.data.text));
+    this.setDirty(false);
+    this.flags.hidden = true;
     markCurrent();
     persistSoon();
+  }
+  async save(): Promise<void> {
+    if (!this.dirty) return;
+    const r = await commands.writeText(this.path, this.editor.state.doc.toString(), this.revision);
+    if (r.status !== "ok") {
+      if (r.error.kind === "changed") {
+        this.flags.textContent = t.conflict;
+        this.flags.hidden = false;
+        if (window.confirm(`${t.conflict}\n\n${t.reload}?`)) void this.load(this.path, true);
+        return;
+      }
+      return fail(r.error);
+    }
+    this.revision = r.data.revision;
+    this.setDirty(false);
+    ui.status.textContent = r.data.warnings.length > 0 ? r.data.warnings.join(" · ") : t.saved;
+  }
+  override async flush(): Promise<boolean> {
+    window.clearTimeout(this.saveTimer);
+    if (!this.dirty) return true;
+    await this.save();
+    return !this.dirty;
+  }
+  override focusContent(): void {
+    this.editor.focus();
   }
   override destroy(): void {
     this.editor.destroy();
   }
 }
 
-/* A folder: what it holds, as a list or as thumbnails, like a file system. */
 type FolderRow = { path: string; kind: Kind; label: string; size: number; modified: number };
 class FolderLeaf extends Leaf {
   readonly kind: Kind = "folder";
@@ -1929,6 +2026,8 @@ class Panel {
   show(leaf: Leaf | null): void {
     this.leaf = leaf;
     this.refresh();
+    if (leaf instanceof NoteLeaf) leaf.updateWords();
+    else ui.words.textContent = "";
   }
   async loadTags(): Promise<void> {
     const r = await commands.listTags();
@@ -1943,6 +2042,26 @@ class Panel {
     }
     for (const b of this.tabs.querySelectorAll("button")) b.setAttribute("aria-selected", String(b.dataset["tab"] === this.current));
     this.paint();
+  }
+  /** Notes whose text has this note's name without linking to it: the
+   *  search finds the candidates by the name's words. */
+  private async mentions(leaf: NoteLeaf): Promise<void> {
+    const path = leaf.path;
+    const words = name(path);
+    if (!words.trim()) return;
+    const r = await commands.search(words, 40);
+    if (r.status !== "ok" || this.leaf !== leaf || this.current !== "backlinks") return;
+    const linked = new Set(leaf.backlinksData.map((b) => b.from));
+    const hits = r.data.filter((hit) => hit.path !== path && !linked.has(hit.path));
+    if (hits.length === 0) return;
+    const head = h("h3", "panel-sub", `${t.mentions} · ${hits.length}`);
+    const ul = h("ul", "panel-list");
+    ul.append(...hits.map((hit) => {
+      const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false), "search");
+      li.querySelector("button")?.append(snippetNode(hit.snippet));
+      return li;
+    }));
+    this.body.append(head, ul);
   }
   private list(items: HTMLElement[], empty: string): void {
     const ul = h("ul", "panel-list");
@@ -1979,6 +2098,7 @@ class Panel {
       case "backlinks": {
         const back = leaf instanceof NoteLeaf ? leaf.backlinksData : [];
         this.list(back.map((b) => this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note")), t.noLinks);
+        if (leaf instanceof NoteLeaf) void this.mentions(leaf);
         break;
       }
       case "outgoing": {
@@ -2455,20 +2575,50 @@ function snippetNode(snippet: string): HTMLSpanElement {
   }
   return s;
 }
+/** Search: every word must occur; `tag:x`, `path:p` and `file:f` narrow
+ *  the result (a tag matches itself and its nested tags). */
 async function searchNotes(words: string): Promise<void> {
   if (words.trim() === "") return listAll();
-  const r = await commands.search(words, 50);
-  if (r.status !== "ok") return fail(r.error);
+  const tags: string[] = [];
+  const paths: string[] = [];
+  const files: string[] = [];
+  const rest: string[] = [];
+  for (const tok of words.trim().split(/\s+/)) {
+    const m = /^(tag|path|file):(.+)$/i.exec(tok);
+    if (!m) rest.push(tok);
+    else if (m[1]!.toLowerCase() === "tag") tags.push(m[2]!.replace(/^#/, "").toLowerCase());
+    else if (m[1]!.toLowerCase() === "path") paths.push(m[2]!.toLowerCase());
+    else files.push(m[2]!.toLowerCase());
+  }
+  let hits: { path: string; snippet: string }[];
+  if (rest.length > 0) {
+    const r = await commands.search(rest.join(" "), 200);
+    if (r.status !== "ok") return fail(r.error);
+    hits = r.data;
+  } else hits = allNotes.map((p) => ({ path: p, snippet: "" }));
+  if (tags.length > 0) {
+    const r = await commands.listTags();
+    if (r.status !== "ok") return fail(r.error);
+    const allowed = new Set<string>();
+    for (const tg of r.data) {
+      const n = tg.name.toLowerCase();
+      if (tags.some((want) => n === want || n.startsWith(`${want}/`))) for (const p of tg.notes) allowed.add(p);
+    }
+    hits = hits.filter((hit) => allowed.has(hit.path));
+  }
+  if (paths.length > 0) hits = hits.filter((hit) => paths.every((p) => hit.path.toLowerCase().includes(p)));
+  if (files.length > 0) hits = hits.filter((hit) => files.every((f) => name(hit.path).toLowerCase().includes(f)));
+  hits = hits.slice(0, 200);
   ui.notes.className = "list";
   ui.notes.replaceChildren(
-    ...r.data.map((hit) =>
+    ...hits.map((hit) =>
       fileRow(hit.path, (b) => {
         if (dirOf(hit.path)) b.append(h("span", "path", dirOf(hit.path)));
-        b.append(snippetNode(hit.snippet));
+        if (hit.snippet) b.append(snippetNode(hit.snippet));
       }),
     ),
   );
-  ui.status.textContent = t.hits(r.data.length);
+  ui.status.textContent = t.hits(hits.length);
 }
 let collapsed = false;
 function collapseAll(): void {

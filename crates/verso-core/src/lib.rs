@@ -244,6 +244,18 @@ pub struct Renamed {
     pub rewrites: Vec<LinkRewrite>,
 }
 
+/// Any file of the folder as text, with the revision a later
+/// [`Workspace::write_text`] hands back (invariant 11), for an editor of
+/// files that are not notes: a `.txt`, a `.json`, a `.canvas`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextFile {
+    pub path: String,
+    pub text: String,
+    pub revision: String,
+    /// What the write could not preserve; empty after a read.
+    pub warnings: Vec<String>,
+}
+
 /// What one entry of the open folder is, as the last walk saw it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileKind {
@@ -324,6 +336,31 @@ pub struct Written {
     pub warnings: Vec<String>,
 }
 
+/// A frontmatter value as a properties panel shows it: a list as pills,
+/// a boolean as a checkbox, a number as the text that was written, a
+/// nested mapping flattened to one line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PropertyValue {
+    Text(String),
+    Number(String),
+    Checkbox(bool),
+    List(Vec<String>),
+    Empty,
+}
+
+fn property_value(v: &verso_dialect::Value) -> PropertyValue {
+    use verso_dialect::Value;
+    match v {
+        Value::Null => PropertyValue::Empty,
+        Value::Bool(b) => PropertyValue::Checkbox(*b),
+        Value::Integer(n) => PropertyValue::Number(n.to_string()),
+        Value::Float(x) => PropertyValue::Number(x.to_string()),
+        Value::String(s) => PropertyValue::Text(s.clone()),
+        Value::Sequence(items) => PropertyValue::List(items.iter().map(property_text).collect()),
+        Value::Mapping(_) => PropertyValue::Text(property_text(v)),
+    }
+}
+
 /// One line per frontmatter value, for a properties panel.
 fn property_text(v: &verso_dialect::Value) -> String {
     use verso_dialect::Value;
@@ -346,7 +383,7 @@ fn property_text(v: &verso_dialect::Value) -> String {
     }
 }
 
-fn properties(content: &str) -> Vec<(String, String)> {
+fn properties(content: &str) -> Vec<(String, PropertyValue)> {
     match verso_dialect::parse(content)
         .frontmatter
         .as_ref()
@@ -354,7 +391,7 @@ fn properties(content: &str) -> Vec<(String, String)> {
     {
         Some(Ok(verso_dialect::Value::Mapping(pairs))) => pairs
             .iter()
-            .map(|(k, v)| (k.clone(), property_text(v)))
+            .map(|(k, v)| (k.clone(), property_value(v)))
             .collect(),
         _ => Vec::new(),
     }
@@ -409,9 +446,9 @@ pub struct NoteText {
     pub blocks: Vec<Block>,
     /// The note rendered for a preview (`verso_dialect::to_html`).
     pub html: String,
-    /// The frontmatter's keys and values, each value as one line of text,
+    /// The frontmatter's keys and values, typed for a properties panel,
     /// in the order written; empty when there is none or it is not YAML.
-    pub properties: Vec<(String, String)>,
+    pub properties: Vec<(String, PropertyValue)>,
     /// The whole text as read (UTF-8, lossily), line endings included,
     /// for an editor: what it gives back is written as is.
     pub text: String,
@@ -888,6 +925,65 @@ impl Workspace {
         Ok(Renamed {
             path: new,
             rewrites,
+        })
+    }
+
+    /// Any file's content as text (UTF-8, lossily) with its revision, for
+    /// an editor. A note has [`Self::read_note`], which knows more.
+    pub fn read_text(&mut self, relative: &str) -> Result<TextFile, CoreError> {
+        let key = self.entry_key(relative)?;
+        let handle = self
+            .root
+            .handle(Path::new(&key))
+            .map_err(CoreError::Confined)?;
+        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        Ok(TextFile {
+            path: key,
+            text: String::from_utf8_lossy(&bytes).into_owned(),
+            revision: revision::encode(&stamp),
+            warnings: Vec::new(),
+        })
+    }
+
+    /// Write any file's text over the file that `revision` describes,
+    /// atomically (ADR 0029; invariant 11 refuses a changed file). A note
+    /// goes through [`Self::write_note`], so the index follows it.
+    pub fn write_text(
+        &mut self,
+        relative: &str,
+        text: &str,
+        revision: &str,
+    ) -> Result<TextFile, CoreError> {
+        let key = self.entry_key(relative)?;
+        if self.is_note(&key)? {
+            let w = self.write_note(&key, text, revision)?;
+            return Ok(TextFile {
+                path: w.note.path,
+                text: w.note.text,
+                revision: w.note.revision,
+                warnings: w.warnings,
+            });
+        }
+        let handle = self
+            .root
+            .handle(Path::new(&key))
+            .map_err(CoreError::Confined)?;
+        let expected = revision::decode(revision).ok_or_else(|| {
+            CoreError::Write(WriteError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "the revision token is not one this core issued",
+            )))
+        })?;
+        let report = self
+            .root
+            .write(handle, text.as_bytes(), &expected)
+            .map_err(CoreError::Write)?;
+        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        Ok(TextFile {
+            path: key,
+            text: String::from_utf8_lossy(&bytes).into_owned(),
+            revision: revision::encode(&stamp),
+            warnings: write_warnings(&report),
         })
     }
 
