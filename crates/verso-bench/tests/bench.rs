@@ -169,7 +169,17 @@ fn a_tiny_run_reports_the_seven_operations_and_a_regression_is_red() {
     assert_eq!(recorded["entries"].as_array().unwrap().len(), 7);
     assert_eq!(recorded["entries"][0]["machine"], "test");
 
-    // The same code against its own baseline: green.
+    // The same bytes against the baseline: green. Time and memory of a
+    // 100-note run are milliseconds and noise — one sample against one
+    // sample at 1.5× was red one run in twenty — so the baseline's two
+    // noisy metrics are put out of reach, and what this asserts is the
+    // deterministic one: the index size, byte for byte.
+    let mut quiet = recorded.clone();
+    for e in quiet["entries"].as_array_mut().unwrap() {
+        e["median_ms"] = json!(1e9);
+        e["peak_rss_bytes"] = Value::Null;
+    }
+    std::fs::write(&baseline, quiet.to_string()).unwrap();
     let out = bench(&common, &baseline);
     assert!(
         out.status.success(),
