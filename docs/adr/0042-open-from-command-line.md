@@ -11,6 +11,9 @@
 - Revisions: 2026-09-22 — what the feature 4 code does recorded under
   Consequences, as **provisional**; the disambiguation rule stays `[OPEN]`, the
   Decision is unchanged (memo `docs/reference/cli-decision.md`).
+- Revisions: 2026-09-23 — what the Phase 2 code does with `verso <folder>`
+  and `verso open` recorded under Consequences, as **provisional**; the rule
+  stays `[OPEN]`.
 
 ## Context
 
@@ -107,6 +110,44 @@ decision; the disambiguation rule above stays `[OPEN]`.
 - **A folder name that is not UTF-8 stays an `OsString`**, from `args_os` until
   it becomes a `PathBuf` for `verso-fs`. Only the subcommand, the search words
   and the note are read as text.
+
+**What the Phase 2 code does. Recorded on 2026-09-23 — provisional; the
+disambiguation rule above stays `[OPEN]`.** The open command landed in Phase 2
+with the window, at the maintainer's request of 2026-09-22 ("ser possível
+fazer um verso . no terminal e fazer com que ele abra naquele diretório"); in
+which phase it lands was left open above, and this is the phase the code
+chose.
+
+- **A subcommand in first position is always the subcommand** — `index`,
+  `search`, `backlinks`, `mcp`, `open`, `help`, `--help`, `-h` — even when a
+  directory of that name exists: `verso index` inside a folder that holds
+  `index/` answers "missing the folder".
+- **Any other first argument that names an existing directory opens it** in
+  the window: `verso notas`, `verso .`, `verso ../outra`, an absolute path.
+  This is the rule the memo recommends. Whether the argument names a directory
+  is asked of `verso-fs` (`Root::open`, which reads nothing). A second argument
+  after the folder is a usage error.
+- **Anything else in first position is a usage error**, exit code 2, that says
+  there is neither a command nor a folder by that name ("comando desconhecido,
+  e nenhuma pasta com esse nome"), followed by the usage.
+- **`verso open <folder>` opens a folder whatever its name** — the escape hatch
+  for a folder named like a subcommand (`verso open index`). It does not ask
+  the disk first; a folder that is not there is reported by the window. **`verso
+  open` alone is a usage error**: there is no default folder, as this ADR
+  decided for the subcommands.
+- **`--` is still not a separator**, so a folder whose name begins with `--`
+  opens only through a path that does not, such as `./--nome`.
+- **How the window starts**: the CLI runs `$VERSO_APP` when it is set, else the
+  `verso-app` binary beside it, else, on macOS, the installed app through
+  `open -a Verso --args <folder>`. Each run starts a new process; an app that
+  is already running does not receive the folder through `open -a`
+  (`docs/review/phase-2.md`, reading 3, finding 20).
+- **The first version of this code** used a lexical rule — `.`, `..`, a `/` or
+  a leading `~` made an argument a folder — so `verso notas` was an unknown
+  command and `verso ./nao-existe` said it was opening; and `verso open` alone
+  opened `.`. The Opus reading of 2026-09-23 found both
+  (`docs/review/phase-2.md`, reading 3, finding 9), and they were replaced by
+  the behaviour above.
 
 ## Discarded alternatives
 
