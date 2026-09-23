@@ -2769,9 +2769,11 @@ class Layout {
   }
   serialize(node: LNode = this.root): unknown {
     if (node.kind === "pane") {
+      // The active tab by its place among the tabs saved, not among all.
+      const saved = node.pane.leaves.filter((l) => l.path || l.kind === "folder" || l.kind === "graph");
       return {
-        tabs: node.pane.leaves.filter((l) => l.path || l.kind === "folder").map((l) => ({ path: l.path, kind: l.kind, pinned: l.pinned })),
-        active: node.pane.active ? node.pane.leaves.indexOf(node.pane.active) : 0,
+        tabs: saved.map((l) => ({ path: l.path, kind: l.kind, pinned: l.pinned })),
+        active: node.pane.active ? Math.max(0, saved.indexOf(node.pane.active)) : 0,
         grow: node.pane.el.style.flexGrow || "1",
         vertical: node.pane.vertical,
         tabsHidden: node.pane.tabsHidden,
@@ -2790,16 +2792,20 @@ class Layout {
         if (o.vertical === true) pane.setVertical(true);
         if (o.tabsHidden === true) pane.setTabsHidden(true);
         if (typeof o.tabsWidth === "string" && o.tabsWidth) pane.el.style.setProperty("--tabs-w", o.tabsWidth);
-        for (const tab of o.tabs) {
-          const tt = tab as { path?: unknown; kind?: unknown; pinned?: unknown };
+        // What no longer exists is skipped; the saved active tab is found by
+        // its place in the saved list, or the one before it when it is gone.
+        const wanted = typeof o.active === "number" ? o.active : 0;
+        let active: Leaf | null = null;
+        for (let i = 0; i < o.tabs.length; i++) {
+          const tt = o.tabs[i] as { path?: unknown; kind?: unknown; pinned?: unknown };
           if (typeof tt.path !== "string") continue;
           let made: Leaf | null = null;
-          if (tt.kind === "folder") made = pane.openFolder(tt.path);
-          else if (tt.kind === "graph") made = pane.openGraph(tt.path);
+          if (tt.kind === "folder") made = tt.path === "" || allFolders.includes(tt.path) ? pane.openFolder(tt.path) : null;
+          else if (tt.kind === "graph") made = tt.path === "" || allNotes.includes(tt.path) ? pane.openGraph(tt.path) : null;
           else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) made = pane.open(tt.path, false);
           if (made && tt.pinned === true) made.setPinned(true);
+          if (made && (i <= wanted || !active)) active = made;
         }
-        const active = pane.leaves[typeof o.active === "number" ? o.active : 0];
         if (active) pane.activate(active, false);
         return pane.leaves.length > 0 ? { kind: "pane", pane } : null;
       }
@@ -3081,17 +3087,44 @@ function loadBookmarks(): void {
     bookmarks = [];
   }
 }
-function toggleBookmark(path: string): void {
-  const i = bookmarks.indexOf(path);
-  if (i >= 0) bookmarks.splice(i, 1);
-  else bookmarks.push(path);
+function saveBookmarks(): void {
   try {
     localStorage.setItem(`verso.bookmarks:${currentFolder}`, JSON.stringify(bookmarks));
   } catch {
     // No storage.
   }
+}
+function toggleBookmark(path: string): void {
+  const i = bookmarks.indexOf(path);
+  if (i >= 0) bookmarks.splice(i, 1);
+  else bookmarks.push(path);
+  saveBookmarks();
   for (const l of leavesOf(path)) if (l instanceof NoteLeaf) l.paintStar();
   panel.refresh();
+}
+/** A rename or a move: what remembers paths — bookmarks, closed tabs,
+ *  recents — follows the file, or a folder's contents. */
+function pathsMoved(from: string, to: string): void {
+  const follow = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? to + p.slice(from.length) : p);
+  bookmarks = bookmarks.map(follow);
+  saveBookmarks();
+  for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.map(follow));
+  panel.refresh();
+}
+/** A deletion: those lists forget the file, or a folder's contents. */
+function pathsRemoved(path: string): void {
+  const gone = (p: string) => p === path || p.startsWith(`${path}/`);
+  bookmarks = bookmarks.filter((p) => !gone(p));
+  saveBookmarks();
+  for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.filter((p) => !gone(p)));
+  panel.refresh();
+}
+/** The folder's files changed: images asked for before — found or not —
+ *  are asked again, and Live Preview redraws (an image embedded before its
+ *  file existed appears once it does). */
+function forgetFiles(): void {
+  images.clear();
+  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf) l.editor.dispatch({ effects: redraw.of(null) });
 }
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks ---------- */
@@ -3232,7 +3265,16 @@ class Panel {
         break;
       }
       case "bookmarks": {
-        this.list(bookmarks.map((p) => this.row(name(p), dirOf(p), () => openNote(p, false), iconFor(kindOf(p)))), t.noBookmarks);
+        this.list(
+          bookmarks.map((p) => {
+            // A file gone outside the app: marked, and not opened as an empty tab.
+            const here = allNotes.includes(p) || allFiles.includes(p);
+            const li = this.row(name(p), dirOf(p), () => (here ? void openNote(p, false) : void (ui.status.textContent = t.unresolved(name(p)))), iconFor(kindOf(p)));
+            if (!here) li.classList.add("unresolved");
+            return li;
+          }),
+          t.noBookmarks,
+        );
         break;
       }
     }
@@ -3244,6 +3286,7 @@ const panel = new Panel();
 async function afterFileChange(): Promise<void> {
   const r = await commands.reindex();
   if (r.status !== "ok") fail(r.error);
+  forgetFiles();
   await searchNotes(ui.search.value);
   void panel.loadTags();
   for (const p of layout().panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
@@ -3283,6 +3326,7 @@ async function deleteEntry(path: string, kind: Kind): Promise<void> {
   if (!window.confirm(kind === "folder" ? t.confirmDeleteFolder(label) : t.confirmDelete(label))) return;
   const r = await commands.deleteEntry(path);
   if (r.status !== "ok") return fail(r.error);
+  pathsRemoved(path);
   for (const l of leavesUnder(path)) {
     l.setDirty(false);
     void l.close();
@@ -3315,6 +3359,7 @@ async function moveFile(path: string, folder: string): Promise<void> {
 async function renameTo(from: string, to: string): Promise<void> {
   const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  pathsMoved(from, r.data.path);
   for (const l of leavesUnder(from)) void l.load(l.path === from ? r.data.path : r.data.path + l.path.slice(from.length), true);
   if (openFolders.has(from)) {
     openFolders.delete(from);
@@ -4042,7 +4087,7 @@ function allCommands(all = false): Command[] {
     { id: "close-tab", label: t.close, need: Boolean(leaf), run: () => leaf && void leaf.close() },
     { id: "next-tab", label: t.nextTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, 1) },
     { id: "prev-tab", label: t.prevTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
-    { id: "reopen", label: t.reopen, need: hasFolder, run: () => { const b = closedTabs.pop(); if (b) openNote(b, false); } },
+    { id: "reopen", label: t.reopen, need: hasFolder, run: () => { let b = closedTabs.pop(); while (b !== undefined && !allNotes.includes(b) && !allFiles.includes(b)) b = closedTabs.pop(); if (b) openNote(b, false); } },
     { id: "toggle-side", label: t.toggleSide.split(" (")[0] ?? t.toggleSide, run: () => toggleSide() },
     { id: "toggle-right", label: t.toggleRight.split(" (")[0] ?? t.toggleRight, run: () => toggleRight() },
     { id: "hide-tabs", label: pane?.tabsHidden ? t.showTabs : t.hideTabs, need: Boolean(pane), run: () => pane?.setTabsHidden(!pane.tabsHidden) },
@@ -4635,6 +4680,7 @@ async function openFolderDialog(): Promise<void> {
 async function reindex(): Promise<void> {
   const r = await commands.reindex();
   if (r.status !== "ok") return fail(r.error);
+  forgetFiles();
   ui.status.textContent = t.indexed(r.data.indexed, r.data.unchanged, r.data.placeholders);
   await searchNotes(ui.search.value);
   const leaf = layout().activeLeaf;
