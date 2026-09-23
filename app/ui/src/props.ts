@@ -327,6 +327,8 @@ function valueText(v: PropertyValue): string {
     case "number": return v.value;
     case "checkbox": return v.value ? "true" : "false";
     case "list": return v.value.length === 0 ? "[]" : "";
+    // A kind the panel does not know is shown read-only (KINDS): never set.
+    default: return "";
   }
 }
 
