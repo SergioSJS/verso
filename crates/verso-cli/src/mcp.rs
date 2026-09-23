@@ -25,11 +25,13 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use rmcp::handler::server::router::tool::ToolRouter;
+use rmcp::handler::server::tool::schema_for_type;
 use rmcp::handler::server::wrapper::{Json, Parameters};
-use rmcp::model::{CallToolResult, Implementation, ServerCapabilities, ServerConfig};
+use rmcp::model::{CallToolResult, Implementation, JsonObject, ServerCapabilities, ServerConfig};
 use rmcp::schemars::JsonSchema;
 use rmcp::{ServerHandler, tool, tool_handler, tool_router};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use verso_core::{CoreError, ReadError, WalkProblem, Workspace};
 
 /// `search` without a `limit`.
@@ -266,23 +268,67 @@ pub struct Server {
     tool_router: ToolRouter<Self>,
 }
 
+/// The structured content of an error result. Typed, so a client can
+/// branch on `kind` without parsing prose: `refused` (the path cannot
+/// name a note of the folder — absolute, `..`, hidden, ignored, empty),
+/// `unknown_note` (the index does not know it), `not_found` (no such
+/// file), `unavailable` (a placeholder, ADR 0043), `bad_window`
+/// (`read_note` lines), `failed` (the server could not answer). `path` is
+/// the one the client sent when it is what was wrong, the confined one
+/// otherwise, null when none was involved.
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct ToolError {
+    pub kind: String,
+    pub path: Option<String>,
+    pub message: String,
+}
+
+/// The output schema a tool declares: its result or a [`ToolError`], so
+/// that an `isError` result's structured content conforms to the declared
+/// schema as a success does — a client that validates structured content
+/// would otherwise reject the error. MCP wants `type: object` at the root,
+/// so the two shapes are an `anyOf` under it; their `$defs` move up to the
+/// root, where the `$ref`s point.
+fn answer_schema<T: JsonSchema + 'static>() -> Arc<JsonObject> {
+    let mut root = JsonObject::new();
+    let mut defs = JsonObject::new();
+    let mut branches = Vec::new();
+    for schema in [schema_for_type::<T>(), schema_for_type::<ToolError>()] {
+        let mut branch = schema.as_ref().clone();
+        if let Some(dialect) = branch.remove("$schema") {
+            root.entry("$schema").or_insert(dialect);
+        }
+        // The type's name is noise to a model; rmcp drops it too.
+        branch.remove("title");
+        if let Some(Value::Object(d)) = branch.remove("$defs") {
+            defs.extend(d);
+        }
+        branches.push(Value::Object(branch));
+    }
+    root.insert("type".to_owned(), Value::String("object".to_owned()));
+    root.insert("anyOf".to_owned(), Value::Array(branches));
+    if !defs.is_empty() {
+        root.insert("$defs".to_owned(), Value::Object(defs));
+    }
+    Arc::new(root)
+}
+
 /// What the model should see and act on travels in the result with
 /// `isError`, never as a JSON-RPC error: MCP keeps protocol errors for
 /// requests the server cannot parse (the SDK emits those), and puts a
 /// tool's failure to answer in the result, where the model reads it and
-/// corrects the call. Typed, so a client can branch on `kind` without
-/// parsing prose: `refused` (the path cannot name a note of the folder —
-/// absolute, `..`, hidden, ignored, empty), `unknown_note` (the index does
-/// not know it), `not_found` (no such file), `unavailable` (a placeholder,
-/// ADR 0043), `bad_window` (`read_note` lines), `failed` (the server
-/// could not answer). `path` is the one the client sent when it is what
-/// was wrong, the confined one otherwise.
+/// corrects the call. The shape is [`ToolError`].
 fn refuse(kind: &str, path: Option<&str>, message: &str) -> CallToolResult {
-    CallToolResult::structured_error(serde_json::json!({
-        "kind": kind,
-        "path": path,
-        "message": message,
-    }))
+    let error = ToolError {
+        kind: kind.to_owned(),
+        path: path.map(str::to_owned),
+        message: message.to_owned(),
+    };
+    // Three strings serialize without fail; the branch is for the type.
+    CallToolResult::structured_error(serde_json::to_value(&error).unwrap_or_else(
+        |e| serde_json::json!({"kind": "failed", "path": null, "message": e.to_string()}),
+    ))
 }
 
 /// A core error, by what the model can do about it.
@@ -354,7 +400,8 @@ impl Server {
     }
 
     #[tool(
-        description = "Full-text search over the notes: every word must occur (accents and case ignored). Returns note paths with a snippet; `limit` defaults to 20 and is capped at 100. Answers from the index."
+        description = "Full-text search over the notes: every word must occur (accents and case ignored). Returns note paths with a snippet; `limit` defaults to 20 and is capped at 100. Answers from the index.",
+        output_schema = answer_schema::<SearchResult>()
     )]
     fn search(
         &self,
@@ -380,7 +427,8 @@ impl Server {
     }
 
     #[tool(
-        description = "Read a note's text as numbered lines (cite `line` as given, 1-based), with its headings and `^id` blocks and their positions. At most 400 lines per call: use `from_line`/`to_line` for the rest. `stale: true` means the index is behind this file. A placeholder (content not downloaded) is an error, not an empty note."
+        description = "Read a note's text as numbered lines (cite `line` as given, 1-based), with its headings and `^id` blocks and their positions. At most 400 lines per call: use `from_line`/`to_line` for the rest. `stale: true` means the index is behind this file. A placeholder (content not downloaded) is an error, not an empty note.",
+        output_schema = answer_schema::<ReadResult>()
     )]
     fn read_note(
         &self,
@@ -462,7 +510,8 @@ impl Server {
     }
 
     #[tool(
-        description = "The links a note makes, in document order, each with the note it resolves to (or null when no note answers to it) and its position. Answers from the index."
+        description = "The links a note makes, in document order, each with the note it resolves to (or null when no note answers to it) and its position. Answers from the index.",
+        output_schema = answer_schema::<LinksResult>()
     )]
     fn links(
         &self,
@@ -494,7 +543,8 @@ impl Server {
     }
 
     #[tool(
-        description = "The notes that link to this note (embeds count), each with the position of the link. Answers from the index."
+        description = "The notes that link to this note (embeds count), each with the position of the link. Answers from the index.",
+        output_schema = answer_schema::<BacklinksResult>()
     )]
     fn backlinks(
         &self,
@@ -523,7 +573,8 @@ impl Server {
     }
 
     #[tool(
-        description = "Link targets that resolve to no note, with how many links name each, vault-wide. Answers from the index."
+        description = "Link targets that resolve to no note, with how many links name each, vault-wide. Answers from the index.",
+        output_schema = answer_schema::<UnresolvedResult>()
     )]
     fn unresolved(&self) -> Result<Json<UnresolvedResult>, CallToolResult> {
         self.guarded(|ws| {
@@ -541,7 +592,8 @@ impl Server {
     }
 
     #[tool(
-        description = "Every note the index knows, by path relative to the folder, in path order; at most 5000 per call."
+        description = "Every note the index knows, by path relative to the folder, in path order; at most 5000 per call.",
+        output_schema = answer_schema::<ListResult>()
     )]
     fn list_notes(&self) -> Result<Json<ListResult>, CallToolResult> {
         self.guarded(|ws| {
@@ -558,7 +610,8 @@ impl Server {
     }
 
     #[tool(
-        description = "Refresh the index from the folder (only what changed is re-read) and report what the run did. The only operation that writes, and it writes the index file outside the folder, never a note."
+        description = "Refresh the index from the folder (only what changed is re-read) and report what the run did. The only operation that writes, and it writes the index file outside the folder, never a note.",
+        output_schema = answer_schema::<IndexResult>()
     )]
     fn index(&self) -> Result<Json<IndexResult>, CallToolResult> {
         self.guarded(|ws| {

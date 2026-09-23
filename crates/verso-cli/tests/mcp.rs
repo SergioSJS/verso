@@ -116,6 +116,54 @@ mod support {
     pub fn structured(v: &Value) -> &Value {
         &v["result"]["structuredContent"]
     }
+
+    /// Does `schema` describe `value`? The part of JSON Schema these tools
+    /// declare: `anyOf`, `type` (one name or a list), `properties` with
+    /// `required`, `items`, and `$ref` into the root's `$defs`. Stricter
+    /// than a validator in one respect: every key of an object must be a
+    /// declared property, so a shape the schema does not know is caught.
+    pub fn describes(root: &Value, schema: &Value, value: &Value) -> bool {
+        if let Some(reference) = schema["$ref"].as_str() {
+            let name = reference.trim_start_matches("#/$defs/");
+            return describes(root, &root["$defs"][name], value);
+        }
+        if let Some(branches) = schema["anyOf"].as_array() {
+            return branches.iter().any(|b| describes(root, b, value));
+        }
+        let of_type = |t: &str| match t {
+            "object" => value.is_object(),
+            "array" => value.is_array(),
+            "string" => value.is_string(),
+            "boolean" => value.is_boolean(),
+            "integer" => value.is_i64() || value.is_u64(),
+            "number" => value.is_number(),
+            "null" => value.is_null(),
+            _ => true,
+        };
+        let typed = match &schema["type"] {
+            Value::String(t) => of_type(t),
+            Value::Array(ts) => ts.iter().any(|t| t.as_str().is_some_and(of_type)),
+            _ => true,
+        };
+        if !typed {
+            return false;
+        }
+        if let (Some(properties), Some(object)) =
+            (schema["properties"].as_object(), value.as_object())
+        {
+            let required: Vec<&str> = schema["required"]
+                .as_array()
+                .map_or_else(Vec::new, |r| r.iter().filter_map(Value::as_str).collect());
+            return required.iter().all(|k| object.contains_key(*k))
+                && object
+                    .iter()
+                    .all(|(k, v)| properties.get(k).is_some_and(|s| describes(root, s, v)));
+        }
+        if let (Some(items), Some(array)) = (schema.get("items"), value.as_array()) {
+            return array.iter().all(|v| describes(root, items, v));
+        }
+        true
+    }
 }
 use support::*;
 
@@ -204,6 +252,30 @@ fn a_client_initializes_lists_the_tools_and_walks_the_graph() {
             "unresolved"
         ]
     );
+
+    // Every tool declares an object schema (MCP asks for `type: object` at
+    // the root) that describes what it answers — its errors included, so
+    // a client that validates structured content accepts an `isError`
+    // result as it accepts a success (finding 19).
+    let tools = r[1]["result"]["tools"].as_array().unwrap();
+    for t in tools {
+        assert_eq!(t["outputSchema"]["type"], "object", "{}", t["name"]);
+    }
+    let schema_of = |name: &str| &tools.iter().find(|t| t["name"] == name).unwrap()["outputSchema"];
+    for (i, tool) in [
+        (2, "search"),
+        (3, "read_note"),
+        (8, "read_note"),
+        (10, "backlinks"),
+        (11, "index"),
+    ] {
+        let schema = schema_of(tool);
+        assert!(
+            describes(schema, schema, structured(&r[i])),
+            "{tool}: {} is not described by {schema}",
+            structured(&r[i])
+        );
+    }
 
     // search: accents and case folded, path relative with .md.
     let s = structured(&r[2]);
