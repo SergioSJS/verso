@@ -735,7 +735,10 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .graph .node text.quiet { opacity: 0; }
 .graph .node:hover text.quiet { opacity: 1; }
 .graph .node.center text { fill: var(--ink); font-weight: 600; }
-.graph .node:hover circle { stroke: var(--seal); }
+.graph .node:hover circle, .graph .node:focus-visible circle { stroke: var(--seal); }
+.graph .node:focus-visible { outline: none; }
+.graph .node:focus-visible circle { stroke-width: 3; }
+.graph .node:focus-visible text.quiet { opacity: 1; }
 .graph-controls { flex: none; width: 15rem; padding: .8rem .9rem 1rem; border-left: 1px solid var(--hair); overflow: auto; display: flex; flex-direction: column; gap: .55rem; font-size: .82rem; color: var(--ink-2); }
 .graph-controls .graph-filter { font: inherit; padding: .35rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
 .graph-controls .graph-filter:focus { outline: none; border-color: var(--brass); }
@@ -818,7 +821,10 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .setting input[type="text"], .setting input[type="number"], .setting select { font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; width: 14rem; max-width: 40vw; }
 .setting input[type="range"] { width: 11rem; accent-color: var(--seal); }
 .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }
-.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+/* The checkbox covers the switch (clickable, focusable, at its size); its
+   focus shows on the track, as the global ring would on a control. */
+.switch input { position: absolute; inset: 0; z-index: 1; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--brass); outline-offset: 2px; }
 .switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--hair); transition: background .15s; }
 .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 2px oklch(0% 0 0 / .3); transition: transform .15s var(--ease-out); }
 .switch input:checked + .switch-track { background: var(--seal); border-color: var(--seal); }

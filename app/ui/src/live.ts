@@ -656,12 +656,18 @@ function safely<T>(make: () => T, fallback: T): T {
   }
 }
 
-/** The blocks of the note (kept while only the selection moves) and their
- *  decorations. */
-type Folds = { blocks: Block[]; decorations: DecorationSet };
+/** The blocks of the note (kept while only the selection moves), their
+ *  decorations, and what the caret skips: the frontmatter only — a folded
+ *  table, math or embed is reached with the arrow keys too, and opens. */
+type Folds = { blocks: Block[]; decorations: DecorationSet; atomic: DecorationSet };
 function folds(state: EditorState, opts: LiveOptions, blocks?: Block[]): Folds {
   const found = blocks ?? safely(() => blocksOf(state), []);
-  return { blocks: found, decorations: safely(() => foldBlocks(state, opts, found), Decoration.none) };
+  const fm = frontmatterEnd(state.doc);
+  return {
+    blocks: found,
+    decorations: safely(() => foldBlocks(state, opts, found), Decoration.none),
+    atomic: fm > 0 ? Decoration.set([Decoration.replace({}).range(0, fm)]) : Decoration.none,
+  };
 }
 
 export function livePreview(opts: LiveOptions) {
@@ -704,7 +710,7 @@ export function livePreview(opts: LiveOptions) {
       if (tr.selection !== undefined || tr.effects.some((e) => e.is(redraw))) return folds(tr.state, opts, value.blocks);
       return value;
     },
-    provide: (f) => [EditorView.decorations.from(f, (v) => v.decorations), EditorView.atomicRanges.of((view) => view.state.field(f).decorations)],
+    provide: (f) => [EditorView.decorations.from(f, (v) => v.decorations), EditorView.atomicRanges.of((view) => view.state.field(f).atomic)],
   });
   return [plugin, clicks, frontmatter];
 }
