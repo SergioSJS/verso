@@ -773,6 +773,21 @@ document.addEventListener("drop", (e) => {
   else ui.status.textContent = t.pasteHint;
 });
 
+/* A link never takes the app's own page anywhere — the page holds every
+ * open tab. A web address opens in the app's browser window; anything
+ * else stays where it is. A link within the page (a footnote, pdf.js's
+ * own) is left to its handler, as are the app's links that have no
+ * address (wikilinks, tags). Before any other handler: an embed, a
+ * folder note or a PDF has none of its own. */
+function guardLink(e: MouseEvent): void {
+  const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement | HTMLAreaElement>("a[href], area[href]") : null;
+  if (!a || (a.getAttribute("href") ?? "").startsWith("#")) return;
+  e.preventDefault();
+  if ((e.type === "click" || e.button === 1) && /^https?:$/.test(a.protocol)) void commands.openUrl(a.href);
+}
+document.addEventListener("click", guardLink, true);
+document.addEventListener("auxclick", guardLink, true);
+
 /** Unsaved text goes only on an explicit yes. */
 function askDiscard(): Promise<boolean> {
   return ask(t.discard, { yes: t.discardYes, no: t.cancel });
@@ -985,7 +1000,8 @@ class NoteLeaf extends Leaf {
           target.classList.add("flash");
           setTimeout(() => target.classList.remove("flash"), 1200);
         }
-      } else if (/^https?:/i.test(a.href)) void commands.openUrl(a.href);
+      }
+      // A web address was already sent to the browser window (guardLink).
     });
     sheet.addEventListener("mousedown", (ev) => {
       if (this.mode === "preview") return;
