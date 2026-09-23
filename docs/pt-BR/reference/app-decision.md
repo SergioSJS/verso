@@ -225,7 +225,7 @@ na pasta:
 | `verso.lastFolder` | a chave da pasta aberta por último, reaberta na partida |
 | `verso.spaces:<chave>` | as áreas de trabalho, painéis e abas daquela pasta |
 | `verso.bookmarks:<chave>` | os favoritos daquela pasta |
-| `verso.settings` | idioma, tema, paleta, tamanho da fonte, pastas de anexos, do diário e de templates, atraso do salvamento automático, correção ortográfica, modo padrão, largura do texto, atalhos |
+| `verso.settings` | idioma, tema, paleta, tamanho da fonte, pastas de anexos, do diário e de templates, atraso do salvamento automático, correção ortográfica, modo padrão, largura do texto, o formato dos links novos (mais curto, relativo com `./` ou `../`, a partir da raiz), atalhos |
 | `verso.ribbon`, `verso.graph`, `verso.folderSort`, `verso.rightTab`, `verso.right`, `verso.sideWidth` | a ordem da faixa, os filtros do grafo, a ordenação da visão de pasta, a aba e a visibilidade do painel direito, a largura da árvore |
 
 Um arranjo que cita uma nota que não existe mais a pula ao ser restaurado.

@@ -487,6 +487,16 @@ folder. The index has done "under" since `d1a5272`. Asked "sob a pasta, sim
 ou não?", the maintainer answered yes on 2026-09-23 ("boa, gosto da sua ideia,
 pode seguir"), and point 3 of section 4.6 and of spec Q12 now says "under".
 
+**Fourth observation, 2026-09-23, by Opus 5.5.** Same method, for the "new
+link format" setting the maintainer approved with that answer: from
+`verso-probe2/a/src.md`, with `verso-probe2/a/sub/rx.md`,
+`verso-probe2/a/sub2/rx.md` and a root-level `sub2/rx.md`, `[[./sub/rx]]` and
+`[[./sub2/rx]]` reached the notes under the source's folder — the leading `./`
+makes a path relative even when the same path exists at the root — while
+`[[sub2/rx]]` reached the root-level note, and `[[../a/sub/rx]]` the one under
+the source's folder. So a relative link that Verso writes as `./…` or `../…`
+means the same to Obsidian.
+
 ### 4.2 What the observation settles, and one contradiction it raises
 
 It settles, as a description of Obsidian: extension optional and `.md`

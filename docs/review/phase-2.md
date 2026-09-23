@@ -187,7 +187,7 @@ None of these is decided by this review. Each says where it lives.
    Recorded in spec Q12 (v0.15) and `docs/reference/index-decision.md` §4.6;
    the index already did it, and embeds of files follow (`33ee838`). The same
    answer approved a setting for the form new links take — shortest, relative
-   or from the root — which comes in its own change.
+   or from the root — which came in `3461f8d`.
 2. **File operations** — [ADR 0048](../adr/0048-file-operations-in-ui.md),
    `[OPEN]`. What the code does is recorded there as provisional: rename and
    move with a plan of link rewrites applied note by note, with no logical
