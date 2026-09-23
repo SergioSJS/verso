@@ -309,9 +309,12 @@ fn resolution_follows_the_source_folder_as_obsidian_does() {
         ("src6.md", "[[dup]]\n"),
         // The third observation (verso-probe): a candidate under the
         // source's folder wins at any depth; an ancestor gains nothing.
+        // The fourth: `./` and `../` read a path from the source's folder
+        // only, even where the same path exists from the root (spec Q12
+        // point 2, its order stated on 2026-09-23).
         (
             "verso-probe/a/src.md",
-            "[[sub/x]] [[x]] [[z]] [[w]] [[u]] [[t]]\n",
+            "[[sub/x]] [[x]] [[z]] [[w]] [[u]] [[t]] [[./sub/x]] [[../a/sub/x]]\n",
         ),
         ("sub/x.md", "root-relative\n"),
         ("verso-probe/a/sub/x.md", "child\n"),
@@ -364,6 +367,8 @@ fn resolution_follows_the_source_folder_as_obsidian_does() {
             Some("sub/w.md".into()),
             Some("verso-probe/a/sub/u.md".into()),
             Some("verso-probe/a/sub/deep/t.md".into()),
+            Some("verso-probe/a/sub/x.md".into()),
+            Some("verso-probe/a/sub/x.md".into()),
         ]
     );
     // [[#Cabecalho]] is a backlink of the note itself.

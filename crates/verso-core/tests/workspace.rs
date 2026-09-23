@@ -766,6 +766,12 @@ fn an_embed_resolves_from_its_note_by_the_rule_of_q12() {
         from(&ws, "b/Nota.md", "foto.png").as_deref(),
         Some("foto.png")
     );
+    // `./` reads the path from the note's folder only (Q12 point 2, its
+    // order stated on 2026-09-23, as Obsidian 1.13.7 reads it).
+    assert_eq!(
+        from(&ws, "b/Nota.md", "./foto.png").as_deref(),
+        Some("b/foto.png")
+    );
 }
 
 #[test]
