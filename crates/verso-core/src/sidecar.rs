@@ -14,11 +14,12 @@
 //! crate's (ADR 0028: `verso-fs` owns the open folder, `verso-index` the
 //! index file), and this module is the crate's one exception to the
 //! `std::fs` lint (ADR 0029, `crates/verso-core/clippy.toml`): a write to
-//! a temporary name, a rename over the sidecar, a read. The rename means a
-//! reader never sees half a file. There is no fsync: losing a sidecar
-//! costs an entry in a listing, not a note — the requirements of ADR 0029
-//! are for notes and live in `verso-fs`. The directory is the index's,
-//! created at 0700, so the sidecar is as private as the index.
+//! a temporary name, a chmod of it, a rename over the sidecar, a read. The
+//! rename means a reader never sees half a file. There is no fsync: losing
+//! a sidecar costs an entry in a listing, not a note — the requirements of
+//! ADR 0029 are for notes and live in `verso-fs`. The directory is the
+//! index's, created at 0700, and the sidecar is `0600` like the index file
+//! (ADR 0046) — set on the temporary, so the name it takes is never wider.
 
 use std::path::{Path, PathBuf};
 
@@ -48,6 +49,7 @@ impl Sidecar {
     pub(crate) fn write(&self, index: &Path) -> std::io::Result<()> {
         let temporary = index.with_extension("json.tmp");
         std::fs::write(&temporary, serde_json::to_vec_pretty(self)?)?;
+        private(&temporary)?;
         std::fs::rename(&temporary, Self::path_for(index))
     }
 
@@ -56,4 +58,17 @@ impl Sidecar {
         let text = std::fs::read_to_string(Self::path_for(index))?;
         Ok(serde_json::from_str(&text)?)
     }
+}
+
+/// `0600`, as the index file (ADR 0046). On a platform that is not Unix,
+/// nothing is set — the same as the index.
+#[cfg(unix)]
+fn private(path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+}
+
+#[cfg(not(unix))]
+fn private(_path: &Path) -> std::io::Result<()> {
+    Ok(())
 }

@@ -493,6 +493,18 @@ fn indexing_writes_a_sidecar_naming_the_folder_beside_the_index() {
     let second = Sidecar::read(ws.index_path()).unwrap();
     assert!(second.indexed_at >= first.indexed_at);
     assert_eq!(second.folder, first.folder);
+    // `0600`, as the index file (ADR 0046), whatever the umask. Asked of
+    // `ls`, since this crate's lint keeps `std::fs::metadata` from it.
+    #[cfg(unix)]
+    {
+        let listing = std::process::Command::new("ls")
+            .arg("-ln")
+            .arg(Sidecar::path_for(ws.index_path()))
+            .output()
+            .unwrap();
+        let listing = String::from_utf8(listing.stdout).unwrap();
+        assert!(listing.starts_with("-rw------- "), "{listing}");
+    }
 }
 
 #[test]
