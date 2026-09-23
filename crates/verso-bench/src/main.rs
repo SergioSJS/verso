@@ -189,7 +189,14 @@ fn child(args: &[String]) -> Result<ChildReport, Failure> {
         other => return Err(Failure::run(format!("unknown operation {other}"))),
     };
     let wall_ns = start.elapsed().as_nanos();
-    let index_bytes = std::fs::metadata(ws.index_path())?.len();
+    // The size once the connection is closed: dropping the workspace folds
+    // SQLite's write-ahead log into the file and removes it, which is what
+    // the disk holds between runs. Measured with the connection open, the
+    // `-wal` beside the file was left out and the size under-reported
+    // (fresh_index 7 446 528 against 7 602 176 bytes at 1 000 notes).
+    let index_path = ws.index_path().to_path_buf();
+    drop(ws);
+    let index_bytes = std::fs::metadata(&index_path)?.len();
     Ok(ChildReport {
         wall_ns,
         index_bytes,
