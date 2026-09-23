@@ -12,8 +12,9 @@
 //!
 //! The folder's path is a string on this side only, at the entry edge
 //! (rule 4): the command line (`verso-app <folder>`, taken once by
-//! `open_initial`) and the native folder picker, which `pick_folder` runs
-//! here and never shows the UI. What crosses is the folder's name and an
+//! `open_initial`), on macOS the open event (`open -a Verso <folder>`,
+//! `folder_handed`), and the native folder picker, which `pick_folder`
+//! runs here and never shows the UI. What crosses is the folder's name and an
 //! opaque key; `reopen_folder` takes the key back. Every note is named by
 //! its path relative to the folder, and every path the UI sends is
 //! confined by the core.
@@ -50,8 +51,10 @@ pub struct App {
     /// Web pages inside windows: web view label → the window that opened
     /// it, which alone may move, hide, steer or close it.
     pub web_views: Mutex<std::collections::HashMap<String, String>>,
-    /// The folder named on the command line (`verso-app <folder>`), opened
-    /// once by `open_initial`: a path at the entry edge, on this side.
+    /// The folder handed to the app from outside — named on the command
+    /// line (`verso-app <folder>`) or, on macOS, sent by an open event
+    /// (`folder_handed`) — opened once by `open_initial`: a path at the
+    /// entry edge, on this side.
     initial_folder: Mutex<Option<PathBuf>>,
     session: Mutex<Option<Session>>,
 }
@@ -269,9 +272,12 @@ async fn reopen_folder<R: tauri::Runtime>(
     install(&app, &window, move || Workspace::reopen(&key, None)).await
 }
 
-/// Open, once, the folder named on the command line (`verso-app
-/// <folder>`); `None` afterwards and when there was none. The UI calls it
-/// at start-up, before falling back to the last folder it remembers.
+/// Open, once, the folder handed to the app — named on the command line
+/// (`verso-app <folder>`) or, on macOS, sent by an open event
+/// (`folder_handed`); `None` afterwards and when there was none. The UI
+/// calls it at start-up, before falling back to the last folder it
+/// remembers, and again when the host says a folder was handed to the app
+/// while it ran.
 #[tauri::command]
 #[specta::specta]
 async fn open_initial<R: tauri::Runtime>(
@@ -1314,14 +1320,40 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
 /// lost what was typed since the last autosave. A window whose text could
 /// not be saved stays open if the user keeps it.
 fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
-    if let tauri::RunEvent::ExitRequested {
-        api, code: None, ..
-    } = event
-        && !app.webview_windows().is_empty()
-    {
-        api.prevent_exit();
-        ask_windows_to_quit(app);
+    match event {
+        tauri::RunEvent::ExitRequested {
+            api, code: None, ..
+        } if !app.webview_windows().is_empty() => {
+            api.prevent_exit();
+            ask_windows_to_quit(app);
+        }
+        #[cfg(target_os = "macos")]
+        tauri::RunEvent::Opened { urls } => {
+            if let Some(folder) = urls.iter().find_map(|u| u.to_file_path().ok()) {
+                folder_handed(app, folder);
+            }
+        }
+        _ => {}
     }
+}
+
+/// macOS hands the app a folder by an open event — `open -a Verso
+/// <folder>`, which is how `verso <folder>` starts the installed app —
+/// both when it launches the app and when the app is already running; the
+/// folder never reaches the command line, and before this it was lost on
+/// a running app (`docs/review/phase-2.md`, reading 3, finding 20). It
+/// takes the command line's place: the main window, if it is up, is told
+/// to open it (`open_initial`, after saving its tabs), and one that starts
+/// later opens it at start-up. What is not a folder fails there, as a
+/// command-line argument would.
+#[cfg(target_os = "macos")]
+fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
+    use tauri::Emitter;
+    *lock(&app.state::<App>().initial_folder) = Some(folder);
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.set_focus();
+    }
+    let _ = app.emit_to("main", "folder-handed", ());
 }
 
 /// Ask the app's own windows to save their tabs and close themselves;
@@ -1443,6 +1475,35 @@ mod tests {
 
     fn app() -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
         app_with(None)
+    }
+
+    /// A folder macOS hands the running app (`open -a Verso <folder>`) is
+    /// the main window's to open, once, as the command line's would be;
+    /// the window is told, and what crosses is still a name and a key.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_folder_handed_to_the_running_app_is_opened_once_by_the_main_window() {
+        use tauri::Listener;
+        let vault = tempfile::tempdir().unwrap();
+        let _nota = note(vault.path(), "Nota.md", "# Nota\n");
+        let (app, webview) = app();
+        assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
+
+        let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = told.clone();
+        app.listen_any("folder-handed", move |_| {
+            seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        });
+        folder_handed(app.handle(), vault.path().to_path_buf());
+        assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        let info = call(&webview, "open_initial", json!({})).unwrap();
+        assert_eq!(
+            info["name"],
+            vault.path().file_name().unwrap().to_str().unwrap()
+        );
+        assert!(!info.to_string().contains(vault.path().to_str().unwrap()));
+        assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
     }
 
     fn call(
