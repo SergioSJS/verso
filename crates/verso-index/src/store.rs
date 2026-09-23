@@ -328,6 +328,45 @@ impl Index {
         Ok(known)
     }
 
+    /// Every tag of the vault with the notes that carry it: frontmatter
+    /// `tags` (as the index stored them) and `#tag` in the body — a `#`
+    /// after a space or at a line start, then letters, digits, `_`, `-`
+    /// or `/`, outside fenced code. Tags are folded to lower case; the
+    /// list is by count, then name. Spec Q10 is still open on what a tag
+    /// is exactly; this is the observable Obsidian rule.
+    pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, IndexError> {
+        let mut st = self
+            .conn
+            .prepare("SELECT path, tags, content FROM notes ORDER BY path")?;
+        let rows = st.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
+        })?;
+        let mut by_tag: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
+        for row in rows {
+            let (path, tags_json, content) = row?;
+            let mut found: Vec<String> = json_strings(&tags_json)
+                .into_iter()
+                .map(|t| t.trim_start_matches('#').to_lowercase())
+                .collect();
+            found.extend(body_tags(&content));
+            found.sort();
+            found.dedup();
+            for t in found {
+                if !t.is_empty() {
+                    by_tag.entry(t).or_default().push(path.clone());
+                }
+            }
+        }
+        let mut out: Vec<(String, Vec<String>)> = by_tag.into_iter().collect();
+        out.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then_with(|| a.0.cmp(&b.0)));
+        Ok(out)
+    }
+
     /// Is the index whole? Two checks on `notes_fts`, whose content lives
     /// in `notes` (external content). FTS5's own `integrity-check` proves
     /// the full-text index agrees with what it was given; it cannot see a
@@ -530,5 +569,76 @@ fn json_list(items: &[String]) -> String {
         out.push('"');
     }
     out.push(']');
+    out
+}
+
+/// The strings of a JSON array as `json_list` writes it; anything else
+/// is an empty list.
+fn json_strings(json: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut chars = json.trim().chars().peekable();
+    if chars.next() != Some('[') {
+        return out;
+    }
+    let mut current: Option<String> = None;
+    let mut escaped = false;
+    for c in chars {
+        match (&mut current, c) {
+            (Some(s), _) if escaped => {
+                s.push(match c {
+                    'n' => '\n',
+                    't' => '\t',
+                    other => other,
+                });
+                escaped = false;
+            }
+            (Some(_), '\\') => escaped = true,
+            (Some(_), '"') => {
+                if let Some(s) = current.take() {
+                    out.push(s);
+                }
+            }
+            (Some(s), _) => s.push(c),
+            (None, '"') => current = Some(String::new()),
+            (None, _) => {}
+        }
+    }
+    out
+}
+
+/// `#tag` in a note's body, folded, outside fenced code.
+fn body_tags(content: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut in_fence = false;
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        let bytes: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == '#' && (i == 0 || bytes[i - 1].is_whitespace() || bytes[i - 1] == '(') {
+                let start = i + 1;
+                let mut j = start;
+                while j < bytes.len()
+                    && (bytes[j].is_alphanumeric() || matches!(bytes[j], '_' | '-' | '/'))
+                {
+                    j += 1;
+                }
+                let tag: String = bytes[start..j].iter().collect();
+                if !tag.is_empty() && !tag.chars().all(|c| c.is_ascii_digit()) {
+                    out.push(tag.to_lowercase());
+                }
+                i = j.max(i + 1);
+            } else {
+                i += 1;
+            }
+        }
+    }
     out
 }

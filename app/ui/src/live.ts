@@ -69,13 +69,18 @@ class ImageWidget extends WidgetType {
       const x0 = e.clientX;
       const w0 = img.getBoundingClientRect().width;
       let w = Math.round(w0);
+      const badge = document.createElement("span");
+      badge.className = "cm-lp-size";
+      box.append(badge);
       const move = (ev: PointerEvent) => {
         w = Math.max(40, Math.round(w0 + ev.clientX - x0));
         img.style.width = `${w}px`;
+        badge.textContent = `${w} px`;
       };
       const up = () => {
         grip.removeEventListener("pointermove", move);
         grip.removeEventListener("pointerup", up);
+        badge.remove();
         const target = this.inner.split("|")[0] ?? this.inner;
         const text = view.state.sliceDoc(this.from, this.to);
         const bang = text.startsWith("!") ? "!" : "";
@@ -87,8 +92,10 @@ class ImageWidget extends WidgetType {
     box.append(img, grip);
     return box;
   }
+  /** Clicks on the image stay on the image: the source is not revealed
+   *  and the caret does not move; the grip handles its own pointer. */
   override ignoreEvent(): boolean {
-    return false;
+    return true;
   }
 }
 
@@ -194,7 +201,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       if (kind === "InlineCode" || kind === "FencedCode" || kind === "CodeText") continue;
       const target = (inner.split("|")[0] ?? "").split("#")[0] ?? "";
       const alias = inner.includes("|") ? (inner.split("|")[1] ?? "") : null;
-      const shown = touched(start, end);
+      const shown = embed && IMAGE.test(target) ? view.state.selection.ranges.some((r) => r.from <= end && r.to >= start && !(r.from === r.to && (r.from === start || r.from === end))) : touched(start, end);
       if (embed && IMAGE.test(target) && !shown) {
         const url = opts.imageUrl(target);
         if (url) {

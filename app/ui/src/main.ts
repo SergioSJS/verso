@@ -32,7 +32,9 @@ type Strings = Record<
   | "planApply" | "planSkip" | "exists" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
   | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
   | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted"
-  | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit",
+  | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
+  | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
+  | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -65,6 +67,8 @@ const pt: Strings = {
   bullets: "Lista", numbers: "Lista numerada", task: "Tarefa", quote: "Citação", code: "Código", rule: "Separador", pasteHint: "Cole ou arraste uma imagem para anexar", pasted: "Imagem anexada em assets/.",
   closeOthers: "Fechar as outras", closeAll: "Fechar todas", closeRight: "Fechar as da direita", allTabs: "Todas as abas", verticalTabs: "Abas na vertical", horizontalTabs: "Abas na horizontal",
   newFolder: "Nova pasta", newFolderName: "Nome da pasta (Enter cria, Esc cancela)", folderCreated: "Pasta criada.", graph: "Relações", graphOf: "Relações de", reopen: "Reabrir aba fechada (⌘⇧T)", recent: "Recentes", sidebarResize: "Arraste para redimensionar", openSplit: "Abrir em área nova",
+  outgoing: "Links de saída", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos (⌘⇧L)", toggleRight: "Mostrar/ocultar painel (⌘⇧R)", palette: "Paleta de comandos (⌘⇧P)", settings: "Ajustes (⌘,)",
+  theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje (⌘D)", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
@@ -95,6 +99,8 @@ const en: Strings = {
   bullets: "Bullet list", numbers: "Numbered list", task: "Task", quote: "Quote", code: "Code", rule: "Rule", pasteHint: "Paste or drop an image to attach it", pasted: "Image attached in assets/.",
   closeOthers: "Close others", closeAll: "Close all", closeRight: "Close to the right", allTabs: "All tabs", verticalTabs: "Vertical tabs", horizontalTabs: "Horizontal tabs",
   newFolder: "New folder", newFolderName: "Folder name (Enter creates, Esc cancels)", folderCreated: "Folder created.", graph: "Relations", graphOf: "Relations of", reopen: "Reopen closed tab (⌘⇧T)", recent: "Recent", sidebarResize: "Drag to resize", openSplit: "Open in a new pane",
+  outgoing: "Outgoing links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files (⌘⇧L)", toggleRight: "Show/hide panel (⌘⇧R)", palette: "Command palette (⌘⇧P)", settings: "Settings (⌘,)",
+  theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note (⌘D)", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
@@ -200,13 +206,35 @@ const ui = {
   notesHeading: el<HTMLHeadingElement>("notes-heading"),
   notes: el<HTMLUListElement>("notes"),
   treeRoot: el<HTMLElement>("tree-root"),
-  outlineBox: document.querySelector<HTMLElement>(".side-outline")!,
-  outlineHeading: el<HTMLHeadingElement>("outline-heading"),
-  outline: el<HTMLUListElement>("outline"),
   spaces: el<HTMLDivElement>("spaces"),
   panes: el<HTMLDivElement>("panes"),
 };
 const page = document.querySelector<HTMLElement>(".page");
+type Settings = { theme: "auto" | "light" | "dark"; fontSize: number; attachments: string; autosave: number; daily: string; templates: string };
+const DEFAULTS: Settings = { theme: "auto", fontSize: 15, attachments: "assets", autosave: 1.5, daily: "Diário", templates: "Templates" };
+let settings: Settings = { ...DEFAULTS };
+function loadSettings(): void {
+  try {
+    const raw = localStorage.getItem("verso.settings");
+    if (raw) settings = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
+  } catch {
+    settings = { ...DEFAULTS };
+  }
+  applySettings();
+}
+function saveSettings(): void {
+  try {
+    localStorage.setItem("verso.settings", JSON.stringify(settings));
+  } catch {
+    // No storage.
+  }
+  applySettings();
+}
+function applySettings(): void {
+  document.documentElement.dataset["theme"] = settings.theme;
+  document.documentElement.style.fontSize = `${settings.fontSize}px`;
+}
+loadSettings();
 const LAST_FOLDER = "verso.lastFolder";
 let currentFolder = "";
 let allNotes: string[] = [];
@@ -224,7 +252,6 @@ ui.reindex.title = t.reindex;
 ui.search.placeholder = t.search;
 ui.searchLabel.textContent = t.search;
 ui.notesHeading.textContent = t.notes;
-ui.outlineHeading.textContent = t.outline;
 ui.folder.dataset["empty"] = t.noFolder;
 el("keys-new").textContent = t.keysNew;
 el("keys-edit").textContent = t.keysEdit;
@@ -522,9 +549,10 @@ class NoteLeaf extends Leaf {
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
   private saveTimer: number | undefined;
-  readonly links = h("section", "links");
-  readonly backlinks = h("ul", "link-list");
+  readonly star = h("button", "star");
   readonly editor: EditorView;
+  backlinksData: { from: string; line: number }[] = [];
+  linksData: { target: string; resolved: string | null }[] = [];
   readonly liveCompartment = new Compartment();
   readonly live: ReturnType<typeof livePreview>;
   note: NoteText | null = null;
@@ -547,8 +575,10 @@ class NoteLeaf extends Leaf {
     this.saveButton.addEventListener("click", () => void this.save());
     this.title.title = t.rename;
     this.title.addEventListener("click", () => this.renameHere());
+    this.star.type = "button";
+    this.star.addEventListener("click", () => toggleBookmark(this.path));
     const titleRow = h("div", "title-row");
-    titleRow.append(this.title, this.dirtyMark, this.saveButton);
+    titleRow.append(this.title, this.dirtyMark, this.saveButton, this.star);
     const conflictText = h("p", "", t.conflict);
     const reload = button("ghost", t.reload);
     reload.addEventListener("click", () => void this.load(this.path, true));
@@ -558,10 +588,9 @@ class NoteLeaf extends Leaf {
     actions.append(reload, overwrite);
     this.conflict.append(conflictText, this.conflictDiff, actions);
     this.conflict.hidden = true;
-    this.links.append(h("h2", "section-title", t.backlinks), this.backlinks);
     this.buildToolbar();
     const sheet = h("div", "sheet");
-    sheet.append(titleRow, this.flags, this.props, this.conflict, this.preview, this.toolbar, this.editorHost, this.links);
+    sheet.append(titleRow, this.flags, this.props, this.conflict, this.preview, this.toolbar, this.editorHost);
     this.el.append(head, sheet);
     this.live = livePreview({
       imageUrl: (target) => imageUrl(target, () => this.editor.dispatch({ effects: redraw.of(null) })),
@@ -629,7 +658,7 @@ class NoteLeaf extends Leaf {
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
       if (this.dirty && this.conflict.hidden) void this.save();
-    }, 1500);
+    }, Math.max(0.3, settings.autosave) * 1000);
   }
   /** Save now if there is anything to save; true when clean afterwards. */
   override async flush(): Promise<boolean> {
@@ -719,7 +748,8 @@ class NoteLeaf extends Leaf {
         const base = f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) && !/^blob/i.test(f.name) ? f.name : `Pasted image ${stamp}.${extOf}`;
         // Beside the note, in its own assets/ folder — not loose among the notes.
         const folder = dirOf(this.path);
-        const r = await commands.createFile(`${folder ? folder + "/" : ""}assets/${base}`, b64);
+        const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
+        const r = await commands.createFile(`${folder ? folder + "/" : ""}${sub ? sub + "/" : ""}${base}`, b64);
         if (r.status !== "ok") {
           fail(r.error);
           continue;
@@ -804,7 +834,7 @@ class NoteLeaf extends Leaf {
     this.flags.textContent = flags.join(" ");
     this.setDirty(false);
     this.conflict.hidden = true;
-    if (this.pane.active === this) showOutline(this);
+    if (this.pane.active === this) panel.show(this);
   }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
@@ -829,23 +859,19 @@ class NoteLeaf extends Leaf {
       const target = (a.dataset["target"] ?? "").split("#")[0] ?? "";
       if (this.resolved.get(target.toLowerCase()) == null) a.classList.add("unresolved");
     }
-    if (back.status === "ok") {
-      this.backlinks.replaceChildren(
-        ...back.data.map((b) => {
-          const li = h("li");
-          const btn = h("button");
-          btn.type = "button";
-          btn.append(h("span", "", name(b.from)), h("span", "path", `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`));
-          btn.addEventListener("click", (e) => openNote(b.from, e.metaKey || e.ctrlKey));
-          li.append(btn);
-          return li;
-        }),
-      );
-      this.links.hidden = back.data.length === 0;
-    }
+    this.backlinksData = back.status === "ok" ? back.data.map((b) => ({ from: b.from, line: b.line })) : [];
+    this.linksData = links.status === "ok" ? links.data.map((l) => ({ target: l.target, resolved: l.resolved })) : [];
+    this.paintStar();
     this.applyMode();
     markCurrent();
+    if (this.pane.active === this) panel.show(this);
     persistSoon();
+  }
+  paintStar(): void {
+    const on = bookmarks.includes(this.path);
+    this.star.replaceChildren(icon("star", on ? t.unbookmark : t.bookmark));
+    this.star.title = on ? t.unbookmark : t.bookmark;
+    this.star.classList.toggle("on", on);
   }
   private dress(forPath: string): void {
     for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed:not(.file)")) {
@@ -1239,16 +1265,39 @@ class Pane {
   readonly body = h("div", "pane-body");
   readonly empty = h("div", "pane-empty");
   readonly leaves: Leaf[] = [];
+  readonly tabsDivider = h("div", "tabs-divider");
   active: Leaf | null = null;
   vertical = false;
+  tabsHidden = false;
 
   constructor() {
     this.tabs.setAttribute("role", "tablist");
     const all = button("ghost iconic", t.allTabs, "more");
     all.addEventListener("click", (e) => {
       const r = all.getBoundingClientRect();
-      showMenu(r.left, r.bottom + 4, this.leaves.map((l) => [`${l.dirty ? "• " : ""}${l.tabName.textContent ?? ""}`, () => this.activate(l, true)] as [string, () => void]));
+      showMenu(r.left, r.bottom + 4, [
+        ...this.leaves.map((l) => [`${l.dirty ? "• " : ""}${l.tabName.textContent ?? ""}`, () => this.activate(l, true)] as [string, () => void]),
+        ["—", () => {}],
+        [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical)],
+        [t.hideTabs, () => this.setTabsHidden(true)],
+      ]);
       e.stopPropagation();
+    });
+    this.tabsDivider.addEventListener("pointerdown", (e) => {
+      this.tabsDivider.setPointerCapture(e.pointerId);
+      const x0 = e.clientX;
+      const w0 = this.tabs.getBoundingClientRect().width;
+      const move = (ev: PointerEvent) => this.el.style.setProperty("--tabs-w", `${Math.min(Math.max(w0 + ev.clientX - x0, 120), 420)}px`);
+      const up = () => {
+        this.tabsDivider.removeEventListener("pointermove", move);
+        this.tabsDivider.removeEventListener("pointerup", up);
+        persistSoon();
+      };
+      this.tabsDivider.addEventListener("pointermove", move);
+      this.tabsDivider.addEventListener("pointerup", up);
+    });
+    this.body.addEventListener("dblclick", (e) => {
+      if (this.tabsHidden && e.target === this.body) this.setTabsHidden(false);
     });
     const orient = button("ghost iconic", t.verticalTabs, "vtabs");
     orient.addEventListener("click", () => this.setVertical(!this.vertical));
@@ -1265,8 +1314,13 @@ class Pane {
     });
     this.empty.append(icon("outline"), h("p", "", t.emptyPane));
     this.body.append(this.empty);
-    this.el.append(this.tabs, this.body);
+    this.el.append(this.tabs, this.tabsDivider, this.body);
     this.el.addEventListener("mousedown", () => layout().focus(this));
+  }
+  setTabsHidden(hidden: boolean): void {
+    this.tabsHidden = hidden;
+    this.el.classList.toggle("tabs-hidden", hidden);
+    persistSoon();
   }
   open(path: string, focus = false): Leaf {
     let leaf = this.leaves.find((l) => l.path === path);
@@ -1345,6 +1399,7 @@ class Pane {
     layout().focus(this);
     showOutline(leaf);
     markCurrent();
+    leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (focus) leaf.focusContent();
     persistSoon();
   }
@@ -1530,6 +1585,8 @@ class Layout {
         active: node.pane.active ? node.pane.leaves.indexOf(node.pane.active) : 0,
         grow: node.pane.el.style.flexGrow || "1",
         vertical: node.pane.vertical,
+        tabsHidden: node.pane.tabsHidden,
+        tabsWidth: node.pane.el.style.getPropertyValue("--tabs-w") || null,
       };
     }
     return { dir: node.dir, children: node.children.map((c) => this.serialize(c)), grow: node.el.style.flexGrow || "1" };
@@ -1537,11 +1594,13 @@ class Layout {
   restore(saved: unknown): boolean {
     const build = (v: unknown): LNode | null => {
       if (typeof v !== "object" || v === null) return null;
-      const o = v as { tabs?: unknown; active?: unknown; dir?: unknown; children?: unknown; grow?: unknown; vertical?: unknown };
+      const o = v as { tabs?: unknown; active?: unknown; dir?: unknown; children?: unknown; grow?: unknown; vertical?: unknown; tabsHidden?: unknown; tabsWidth?: unknown };
       if (Array.isArray(o.tabs)) {
         const pane = new Pane();
         pane.el.style.flexGrow = String(o.grow ?? "1");
         if (o.vertical === true) pane.setVertical(true);
+        if (o.tabsHidden === true) pane.setTabsHidden(true);
+        if (typeof o.tabsWidth === "string" && o.tabsWidth) pane.el.style.setProperty("--tabs-w", o.tabsWidth);
         for (const tab of o.tabs) {
           const tt = tab as { path?: unknown; kind?: unknown };
           if (typeof tt.path !== "string") continue;
@@ -1681,26 +1740,160 @@ function markCurrent(): void {
   }
 }
 function showOutline(leaf: Leaf | null): void {
-  if (!leaf) openFolders.size;
-  const heads = leaf?.headings() ?? [];
-  ui.outlineBox.hidden = heads.length === 0;
-  ui.outline.replaceChildren(
-    ...heads.map((hd) => {
-      const li = h("li");
-      const b = h("button", `level-${hd.level}`, hd.text);
-      b.type = "button";
-      b.addEventListener("click", () => leaf?.jumpTo(hd.line));
-      li.append(b);
-      return li;
-    }),
-  );
+  panel.show(leaf);
 }
+
+/* ---------- Bookmarks ---------- */
+let bookmarks: string[] = [];
+function loadBookmarks(): void {
+  try {
+    bookmarks = JSON.parse(localStorage.getItem(`verso.bookmarks:${currentFolder}`) ?? "[]") as string[];
+  } catch {
+    bookmarks = [];
+  }
+}
+function toggleBookmark(path: string): void {
+  const i = bookmarks.indexOf(path);
+  if (i >= 0) bookmarks.splice(i, 1);
+  else bookmarks.push(path);
+  try {
+    localStorage.setItem(`verso.bookmarks:${currentFolder}`, JSON.stringify(bookmarks));
+  } catch {
+    // No storage.
+  }
+  for (const l of leavesOf(path)) if (l instanceof NoteLeaf) l.paintStar();
+  panel.refresh();
+}
+
+/* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks ---------- */
+type PanelTab = "outline" | "backlinks" | "outgoing" | "tags" | "bookmarks";
+class Panel {
+  readonly el = el<HTMLElement>("right");
+  readonly tabs = el<HTMLDivElement>("right-tabs");
+  readonly body = el<HTMLDivElement>("right-body");
+  current: PanelTab = "outline";
+  leaf: Leaf | null = null;
+  tagsCache: { name: string; notes: string[] }[] = [];
+  constructor() {
+    const defs: [PanelTab, string, string][] = [
+      ["outline", "outline", t.outline],
+      ["backlinks", "link", t.backlinks],
+      ["outgoing", "wikilink", t.outgoing],
+      ["tags", "tag", t.tags],
+      ["bookmarks", "star", t.bookmarks],
+    ];
+    for (const [id, ic, label] of defs) {
+      const b = button("right-tab", label, ic);
+      b.setAttribute("role", "tab");
+      b.dataset["tab"] = id;
+      b.addEventListener("click", () => {
+        this.current = id;
+        this.refresh();
+      });
+      this.tabs.append(b);
+    }
+    try {
+      const saved = localStorage.getItem("verso.rightTab") as PanelTab | null;
+      if (saved) this.current = saved;
+    } catch {
+      // No storage.
+    }
+  }
+  show(leaf: Leaf | null): void {
+    this.leaf = leaf;
+    this.refresh();
+  }
+  async loadTags(): Promise<void> {
+    const r = await commands.listTags();
+    if (r.status === "ok") this.tagsCache = r.data;
+    if (this.current === "tags") this.paint();
+  }
+  refresh(): void {
+    try {
+      localStorage.setItem("verso.rightTab", this.current);
+    } catch {
+      // No storage.
+    }
+    for (const b of this.tabs.querySelectorAll("button")) b.setAttribute("aria-selected", String(b.dataset["tab"] === this.current));
+    this.paint();
+  }
+  private list(items: HTMLElement[], empty: string): void {
+    const ul = h("ul", "panel-list");
+    if (items.length === 0) ul.append(h("li", "empty", empty));
+    else ul.append(...items);
+    this.body.replaceChildren(ul);
+  }
+  private row(label: string, sub: string | undefined, run: () => void, ic?: string): HTMLLIElement {
+    const li = h("li");
+    const b = h("button", "row");
+    b.type = "button";
+    if (ic) b.append(icon(ic));
+    b.append(h("span", "row-name", label));
+    if (sub) b.append(h("span", "path", sub));
+    b.addEventListener("click", run);
+    li.append(b);
+    return li;
+  }
+  paint(): void {
+    const leaf = this.leaf;
+    switch (this.current) {
+      case "outline": {
+        const heads = leaf?.headings() ?? [];
+        this.list(
+          heads.map((hd) => {
+            const li = this.row(hd.text, undefined, () => leaf?.jumpTo(hd.line));
+            li.querySelector("button")?.classList.add(`level-${hd.level}`);
+            return li;
+          }),
+          t.noOutline,
+        );
+        break;
+      }
+      case "backlinks": {
+        const back = leaf instanceof NoteLeaf ? leaf.backlinksData : [];
+        this.list(back.map((b) => this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note")), t.noLinks);
+        break;
+      }
+      case "outgoing": {
+        const out = leaf instanceof NoteLeaf ? leaf.linksData : [];
+        this.list(
+          out.map((l) => {
+            const li = this.row(l.target, l.resolved ? dirOf(l.resolved) : "?", () => (l.resolved ? openNote(l.resolved, false) : undefined), l.resolved ? "note" : "link");
+            if (!l.resolved) li.classList.add("unresolved");
+            return li;
+          }),
+          t.noLinks,
+        );
+        break;
+      }
+      case "tags": {
+        this.list(
+          this.tagsCache.map((tg) =>
+            this.row(`#${tg.name}`, String(tg.notes.length), () => {
+              ui.search.value = tg.name;
+              void searchNotes(tg.name);
+            }, "tag"),
+          ),
+          t.noTags,
+        );
+        if (this.tagsCache.length === 0) void this.loadTags();
+        break;
+      }
+      case "bookmarks": {
+        this.list(bookmarks.map((p) => this.row(name(p), dirOf(p), () => openNote(p, false), iconFor(kindOf(p)))), t.noBookmarks);
+        break;
+      }
+    }
+  }
+}
+const panel = new Panel();
 
 /* ---------- File operations ---------- */
 async function afterFileChange(): Promise<void> {
   const r = await commands.reindex();
   if (r.status !== "ok") fail(r.error);
   await searchNotes(ui.search.value);
+  void panel.loadTags();
   for (const p of layout().panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
 }
 function leavesOf(path: string): Leaf[] {
@@ -1768,6 +1961,10 @@ function showMenu(x: number, y: number, items: [string, () => void][]): void {
   menu.replaceChildren(
     ...items.map(([label, run]) => {
       const li = h("li");
+      if (label === "—") {
+        li.className = "menu-sep";
+        return li;
+      }
       const b = h("button", "", label);
       b.type = "button";
       b.setAttribute("role", "menuitem");
@@ -2151,6 +2348,210 @@ class QuickSwitcher {
 }
 const quick = new QuickSwitcher();
 
+/* ---------- ⌘⇧P: every command by name ---------- */
+type Command = { label: string; keys?: string; run: () => void };
+function allCommands(): Command[] {
+  const leaf = layout().activeLeaf;
+  const pane = layout().focused;
+  const note = leaf instanceof NoteLeaf ? leaf : null;
+  const cmds: Command[] = [
+    { label: t.open, keys: "⌘O", run: () => void openFolderDialog() },
+    { label: t.newNote, keys: "⌘N", run: () => void newUntitled(pane ?? layout().panes()[0]!) },
+    { label: t.newFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { label: t.daily, keys: "⌘D", run: () => void dailyNote() },
+    { label: t.insertTemplate, run: () => insertTemplate() },
+    { label: t.quick, keys: "⌘P", run: () => quick.show() },
+    { label: t.search, keys: "⌘K", run: () => ui.search.focus() },
+    { label: t.reindex, run: () => void reindex() },
+    { label: t.split, keys: "⌘\\", run: () => pane && layout().split(pane, "row") },
+    { label: t.splitDown, keys: "⌘⇧\\", run: () => pane && layout().split(pane, "col") },
+    { label: t.newSpace, keys: "⌘T", run: () => newSpace() },
+    { label: t.maximize, keys: "⌘⇧M", run: () => pane && layout().toggleMaximize(pane) },
+    { label: t.closePane, keys: "⌘⇧W", run: () => pane && void pane.closeAll() },
+    { label: t.close, keys: "⌘W", run: () => leaf && void leaf.close() },
+    { label: t.reopen, keys: "⌘⇧T", run: () => { const b = closedTabs.pop(); if (b) openNote(b, false); } },
+    { label: t.toggleSide, keys: "⌘⇧L", run: () => toggleSide() },
+    { label: t.toggleRight, keys: "⌘⇧R", run: () => toggleRight() },
+    { label: pane?.tabsHidden ? t.showTabs : t.hideTabs, run: () => pane?.setTabsHidden(!pane.tabsHidden) },
+    { label: pane?.vertical ? t.horizontalTabs : t.verticalTabs, run: () => pane?.setVertical(!pane.vertical) },
+    { label: t.collapseAll, run: () => collapseAll() },
+    { label: t.settings, keys: "⌘,", run: () => settingsDialog.show() },
+  ];
+  if (note) {
+    cmds.push(
+      { label: `${t.reading} / ${t.edit}`, keys: "⌘E", run: () => note.toggleMode() },
+      { label: t.source, run: () => note.setMode("source") },
+      { label: t.save, keys: "⌘S", run: () => void note.save() },
+      { label: bookmarks.includes(note.path) ? t.unbookmark : t.bookmark, run: () => toggleBookmark(note.path) },
+      { label: t.graph, keys: "⌘⇧G", run: () => pane?.openGraph(note.path) },
+      { label: t.rename, run: () => note.renameHere() },
+      { label: t.deleteNote, run: () => void deleteNote(note.path) },
+    );
+  }
+  return cmds;
+}
+class Palette {
+  readonly el = h("div", "quick palette");
+  readonly input = h("input");
+  readonly list = h("ul", "quick-list");
+  private items: Command[] = [];
+  private sel = 0;
+  constructor() {
+    this.el.hidden = true;
+    this.input.type = "text";
+    this.input.placeholder = t.commands;
+    this.el.append(this.input, this.list);
+    document.body.append(this.el);
+    this.input.addEventListener("input", () => this.update());
+    this.input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") this.hide();
+      else if (e.key === "ArrowDown") { e.preventDefault(); this.sel = Math.min(this.sel + 1, this.items.length - 1); this.paint(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); this.sel = Math.max(this.sel - 1, 0); this.paint(); }
+      else if (e.key === "Enter") { e.preventDefault(); this.choose(this.items[this.sel]); }
+    });
+    this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
+  }
+  show(): void { this.el.hidden = false; this.input.value = ""; this.update(); this.input.focus(); }
+  hide(): void { this.el.hidden = true; }
+  private choose(c: Command | undefined): void { if (!c) return; this.hide(); c.run(); }
+  private update(): void {
+    const q = this.input.value.trim().toLowerCase();
+    this.items = allCommands().filter((c) => q === "" || c.label.toLowerCase().includes(q)).slice(0, 20);
+    this.sel = 0;
+    this.paint();
+  }
+  private paint(): void {
+    this.list.replaceChildren(
+      ...this.items.map((c, i) => {
+        const li = h("li", i === this.sel ? "selected" : "");
+        const b = h("button");
+        b.type = "button";
+        b.append(h("span", "", c.label));
+        if (c.keys) b.append(h("kbd", "", c.keys));
+        b.addEventListener("click", () => this.choose(c));
+        li.append(b);
+        return li;
+      }),
+    );
+    this.list.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
+  }
+}
+const paletteDialog = new Palette();
+
+/* ---------- ⌘, settings ---------- */
+class SettingsDialog {
+  readonly el = h("div", "quick settings-box");
+  constructor() {
+    this.el.hidden = true;
+    document.body.append(this.el);
+    this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
+  }
+  show(): void {
+    const box = h("div", "plan-box");
+    box.append(h("h2", "", t.settings));
+    const field = (label: string, input: HTMLElement) => {
+      const l = h("label", "field");
+      l.append(h("span", "", label), input);
+      box.append(l);
+    };
+    const theme = h("select");
+    for (const [v, l] of [["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]] as const) {
+      const o = h("option", "", l);
+      o.value = v;
+      o.selected = settings.theme === v;
+      theme.append(o);
+    }
+    theme.addEventListener("change", () => { settings.theme = theme.value as Settings["theme"]; saveSettings(); });
+    field(t.theme, theme);
+    const size = h("input");
+    size.type = "range"; size.min = "12"; size.max = "22"; size.step = "1"; size.value = String(settings.fontSize);
+    size.addEventListener("input", () => { settings.fontSize = Number(size.value); saveSettings(); });
+    field(t.fontSize, size);
+    const text = (key: "attachments" | "daily" | "templates", label: string) => {
+      const i = h("input");
+      i.type = "text"; i.value = settings[key];
+      i.addEventListener("change", () => { settings[key] = i.value.trim(); saveSettings(); });
+      field(label, i);
+    };
+    text("attachments", t.attachments);
+    text("daily", t.dailyFolder);
+    text("templates", t.templates);
+    const delay = h("input");
+    delay.type = "number"; delay.min = "0.3"; delay.step = "0.5"; delay.value = String(settings.autosave);
+    delay.addEventListener("change", () => { settings.autosave = Math.max(0.3, Number(delay.value) || 1.5); saveSettings(); });
+    field(t.autosaveDelay, delay);
+    const done = button("save", t.done);
+    done.addEventListener("click", () => this.hide());
+    const actions = h("div", "conflict-actions");
+    actions.append(done);
+    box.append(actions);
+    this.el.replaceChildren(box);
+    this.el.hidden = false;
+  }
+  hide(): void { this.el.hidden = true; }
+}
+const settingsDialog = new SettingsDialog();
+
+/* ---------- Daily note and templates ---------- */
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+async function templateText(nameWanted: string): Promise<string | null> {
+  const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "");
+  const path = allNotes.find((p) => p.toLowerCase() === `${folder}/${nameWanted}.md`.toLowerCase());
+  if (!path) return null;
+  const r = await commands.readNote(path);
+  return r.status === "ok" ? r.data.text : null;
+}
+async function dailyNote(): Promise<void> {
+  const folder = settings.daily.trim().replace(/^\/+|\/+$/g, "");
+  const path = `${folder ? folder + "/" : ""}${today()}.md`;
+  if (allNotes.includes(path)) {
+    openNote(path, false);
+    return;
+  }
+  const tpl = (await templateText(folder || "Diário")) ?? (await templateText("Daily"));
+  const body = (tpl ?? `# ${today()}\n\n`).replaceAll("{{date}}", today()).replaceAll("{{title}}", today());
+  const r = await commands.createNote(path, body);
+  if (r.status !== "ok") return fail(r.error);
+  await afterFileChange();
+  const leaf = openNote(r.data.path, false);
+  if (leaf instanceof NoteLeaf) { await leaf.loading; leaf.editAtEnd(); }
+}
+function insertTemplate(): void {
+  const leaf = layout().activeLeaf;
+  if (!(leaf instanceof NoteLeaf)) return;
+  const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+  const tpls = allNotes.filter((p) => p.toLowerCase().startsWith(`${folder}/`));
+  if (tpls.length === 0) { ui.status.textContent = t.noTemplates; return; }
+  const r = leaf.el.getBoundingClientRect();
+  showMenu(r.left + 40, r.top + 60, tpls.map((p) => [name(p), () => void (async () => {
+    const rr = await commands.readNote(p);
+    if (rr.status !== "ok") return fail(rr.error);
+    const text = rr.data.text.replaceAll("{{date}}", today()).replaceAll("{{title}}", name(leaf.path));
+    const pos = leaf.editor.state.selection.main.to;
+    leaf.setMode("live");
+    leaf.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length } });
+  })()] as [string, () => void]));
+}
+
+/* ---------- Toggles ---------- */
+function toggleSide(): void { document.body.classList.toggle("no-side"); }
+function toggleRight(): void {
+  document.body.classList.toggle("no-right");
+  try { localStorage.setItem("verso.right", String(!document.body.classList.contains("no-right"))); } catch { /* no storage */ }
+}
+try { if (localStorage.getItem("verso.right") === "false") document.body.classList.add("no-right"); } catch { /* no storage */ }
+const rightDivider = el<HTMLDivElement>("right-divider");
+rightDivider.addEventListener("pointerdown", (e) => {
+  rightDivider.setPointerCapture(e.pointerId);
+  const move = (ev: PointerEvent) => document.body.style.setProperty("--right-w", `${Math.min(Math.max(window.innerWidth - ev.clientX, 180), window.innerWidth * 0.5)}px`);
+  const up = () => { rightDivider.removeEventListener("pointermove", move); rightDivider.removeEventListener("pointerup", up); };
+  rightDivider.addEventListener("pointermove", move);
+  rightDivider.addEventListener("pointerup", up);
+});
+
 /* ---------- Folder ---------- */
 function lesson(): void {
   page?.classList.add("empty");
@@ -2184,6 +2585,9 @@ async function openPath(path: string): Promise<boolean> {
   ui.collapse.disabled = false;
   ui.search.disabled = false;
   ui.search.value = "";
+  loadBookmarks();
+  panel.tagsCache = [];
+  void panel.loadTags();
   showOutline(null);
   await listAll();
   let restored = false;
@@ -2268,6 +2672,21 @@ document.addEventListener("keydown", (e) => {
   } else if (k === "\\" && layout().focused) {
     e.preventDefault();
     layout().split(layout().focused!, e.shiftKey ? "col" : "row");
+  } else if (k === "p" && e.shiftKey && hasFolder) {
+    e.preventDefault();
+    paletteDialog.show();
+  } else if (k === ",") {
+    e.preventDefault();
+    settingsDialog.show();
+  } else if (k === "d" && hasFolder && !e.shiftKey) {
+    e.preventDefault();
+    void dailyNote();
+  } else if (k === "l" && e.shiftKey) {
+    e.preventDefault();
+    toggleSide();
+  } else if (k === "r" && e.shiftKey) {
+    e.preventDefault();
+    toggleRight();
   } else if (k === "t" && e.shiftKey && hasFolder) {
     e.preventDefault();
     const back = closedTabs.pop();

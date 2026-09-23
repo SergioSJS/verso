@@ -851,6 +851,11 @@ impl Workspace {
         })
     }
 
+    /// Every tag of the vault with its notes (frontmatter and `#tag`).
+    pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, CoreError> {
+        self.index.tags().map_err(CoreError::Index)
+    }
+
     /// Every folder, relative path, in byte order.
     #[must_use]
     pub fn folders(&self) -> Vec<String> {

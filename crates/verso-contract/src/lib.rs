@@ -114,6 +114,13 @@ pub struct Renamed {
     pub rewrites: Vec<LinkRewrite>,
 }
 
+/// A tag and the notes that carry it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Tag {
+    pub name: String,
+    pub notes: Vec<String>,
+}
+
 /// One frontmatter key and its value as text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Property {

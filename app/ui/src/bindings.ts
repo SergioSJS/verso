@@ -57,6 +57,8 @@ export const commands = {
 	listFiles: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_files")),
 	/**  Every folder of the open folder, empty ones included, for the tree. */
 	listFolders: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_folders")),
+	/**  Every tag of the vault, by count, with the notes that carry it. */
+	listTags: () => typedError<Tag[], ContractError>(__TAURI_INVOKE("list_tags")),
 	/**
 	 *  The bytes of a text file that is not a note (UTF-8, lossily), for
 	 *  viewing; confined like every path.
@@ -227,6 +229,12 @@ export type Property = {
 export type Renamed = {
 	path: string,
 	rewrites: LinkRewrite[],
+};
+
+/**  A tag and the notes that carry it. */
+export type Tag = {
+	name: string,
+	notes: string[],
 };
 
 /**
