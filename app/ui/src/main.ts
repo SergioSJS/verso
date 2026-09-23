@@ -2970,33 +2970,52 @@ function folderNoteOf(folder: string): string | null {
   const beside = `${folder}.md`.toLowerCase();
   return allNotes.find((p) => p.toLowerCase() === inside) ?? allNotes.find((p) => p.toLowerCase() === beside) ?? null;
 }
-/** The note a link target names, by the resolution rule of the spec
- *  (§4.6, Q12) applied to the note list: a path from the root when the
- *  target has a `/`, else the bare name — under the source note's folder
- *  first, then the fewest segments, then byte order. `.md` optional. */
+/** The note a link target names, for a link typed a moment ago and not
+ *  indexed yet: the index's own order (verso-index, `RESOLVE` in store.rs
+ *  and keys.rs; spec Q12, provisional) applied to the note list — the
+ *  target as a path from the root, then from the source note's folder
+ *  (`..` walked, never past the root), then as a bare name: under the
+ *  source's folder first, then the fewest segments, then byte order. Case
+ *  and a final `.md` do not matter; both sides compare in NFC. */
 function resolveNoteByName(target: string, from: string): string | null {
-  const want = target.replace(/\.md$/i, "").toLowerCase();
-  if (!want) return null;
-  if (want.includes("/")) {
-    const rel = want.startsWith("./") || want.startsWith("../") ? null : want;
-    const hit = rel ? allNotes.find((p) => p.toLowerCase() === `${rel}.md`) : undefined;
-    if (hit) return hit;
-    // Relative to the source note's folder, `..` walked.
-    const parts = dirOf(from).split("/").filter(Boolean);
-    for (const seg of want.split("/")) {
-      if (seg === "..") parts.pop();
-      else if (seg !== ".") parts.push(seg);
+  const written = target.trim();
+  if (written === "" || written.endsWith("/")) return null;
+  const strip = (s: string) => (s.toLowerCase().endsWith(".md") ? s.slice(0, -3) : s);
+  const fold = (s: string) => s.normalize("NFC").toLowerCase();
+  const bytes = (a: string, b: string) => {
+    // UTF-8 byte order is code point order.
+    const x = Array.from(a);
+    const y = Array.from(b);
+    for (let i = 0; i < Math.min(x.length, y.length); i++) {
+      const d = (x[i]?.codePointAt(0) ?? 0) - (y[i]?.codePointAt(0) ?? 0);
+      if (d !== 0) return d;
     }
-    const joined = `${parts.join("/")}.md`.toLowerCase();
-    return allNotes.find((p) => p.toLowerCase() === joined) ?? null;
+    return x.length - y.length;
+  };
+  const stripped = strip(written);
+  if (stripped === "") return null;
+  const key = fold(stripped);
+  const byPath = (k: string) => allNotes.filter((p) => fold(strip(p)) === k).sort(bytes)[0] ?? null;
+  const fromRoot = byPath(key);
+  if (fromRoot) return fromRoot;
+  const parts = dirOf(from).split("/").filter(Boolean);
+  let outside = false;
+  for (const seg of stripped.split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg !== "..") parts.push(seg);
+    else if (parts.pop() === undefined) outside = true;
   }
-  const candidates = allNotes.filter((p) => name(p).toLowerCase() === want);
-  if (candidates.length === 0) return null;
+  const rel = fold(parts.join("/"));
+  if (!outside && rel !== "" && rel !== key) {
+    const fromHere = byPath(rel);
+    if (fromHere) return fromHere;
+  }
   const home = dirOf(from);
   const under = (p: string) => home === "" || p.startsWith(`${home}/`);
   const segments = (p: string) => p.split("/").length;
-  candidates.sort((a, b) => Number(under(b)) - Number(under(a)) || segments(a) - segments(b) || (a < b ? -1 : a > b ? 1 : 0));
-  return candidates[0] ?? null;
+  const named = allNotes.filter((p) => fold(strip(p.split("/").pop() ?? p)) === key);
+  named.sort((a, b) => Number(under(b)) - Number(under(a)) || segments(a) - segments(b) || bytes(a, b));
+  return named[0] ?? null;
 }
 /** Keep only the section under `heading`: the heading and what follows
  *  it until the next heading of the same or a higher level. */
