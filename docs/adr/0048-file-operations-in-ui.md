@@ -71,7 +71,7 @@ stands after the Opus reading of the Phase 2 branch
   again — a bare name that would now reach another note becomes a path — and
   never inside code. A move that would silently send a bare link elsewhere
   gets a plan too, which was the requirement above.
-- **Nothing is written until the user applies the plan**, shown as one diff
+- **No link is rewritten until the user applies the plan**, shown as one diff
   per note. Each note is then written by itself, atomically, over its own
   revision: a note edited since the plan is refused and counted, never
   overwritten, and an open tab that cannot be saved first is left out and
@@ -96,6 +96,13 @@ stands after the Opus reading of the Phase 2 branch
   typed; no Unicode normalization (Q7) is applied.
 - **Case.** A rename that only changes case is allowed on a case-insensitive
   volume, where both names are the same file.
+- **Names a link cannot hold.** The core accepts note and folder names that
+  hold `[`, `]`, `|`, `#` or `^`, which no `[[…]]` can name; a rename to such
+  a name writes no link that would be read as another target, and says so.
+- **Volumes without hard links** (exFAT and FAT on removable drives, some
+  network and cloud file systems): a create or a move gives the file its name
+  by a rename after a last-moment check instead of a link, and says that the
+  guard was weaker.
 - **Placeholders.** A single placeholder cannot be renamed or deleted, its
   content being in the cloud; a folder that holds placeholders moves and goes
   to the bin as a whole.

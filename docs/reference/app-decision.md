@@ -194,11 +194,12 @@ What stands between it and the rest of the machine:
   the folder runs no script. It answers CORS for the app's origin alone.
 - **Note HTML** is rendered by the core and reaches the page through an
   allowlist: no script, style, frame, object, form or event attribute; links
-  and sources only http(s), mail, same-page anchors and what the window itself
-  resolves. The window's own policy adds no inline script, `object-src
+  and sources only http(s), mail, same-page anchors, `data:` images and what
+  the window itself resolves. The window's own policy adds no inline script, `object-src
   'none'`, `base-uri 'none'` and `form-action 'none'`.
-- **The network.** Nothing in the core reaches it. The window does in three
-  ways: a web note loads its page in a web view; a web note's icon is asked of
+- **The network.** Nothing in the core reaches it. The window does in four
+  ways: a web note loads its page in a web view; an http(s) link clicked in the
+  window opens its page in a window of its own; a web note's icon is asked of
   the site itself, once per site and session; an image a note takes from the
   web loads when the note is shown, as in Obsidian ([ADR 0049](../adr/0049-phase-2-scope-widened.md)).
 - **Paths.** The window never holds the folder's absolute path; a path it
@@ -237,7 +238,10 @@ a user of the window meets first:
 - what the reading view renders — tables, footnotes, math, highlight,
   callouts, comments, body tags (spec Q5, Q6, Q13, Q15);
 - that a file which is not UTF-8 is not opened for editing (spec Q25);
-- the three ways the window reaches the network (ADR 0049).
+- the four ways the window reaches the network (ADR 0049);
+- which of CodeMirror's keys the app's hotkeys may take inside an editor: ⌘D,
+  ⌘⇧L, ⌘⇧G and ⌘⇧\\, and on Linux Ctrl-Shift-[ and ] (no ADR covers the
+  hotkeys).
 
 ## 10. What is not built
 

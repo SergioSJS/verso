@@ -18,19 +18,22 @@ Tomada pelo mantenedor em 2026-09-22, no início da Fase 2, na sessão que a
 abriu. Perguntado sobre como começar a janela, e avisado de que "a decisão do
 ADR 0038 é tua", o mantenedor escolheu a opção "Tauri agora, specta".
 
-**`specta`, com `tauri-specta` exportando os comandos do Tauri.** Os tipos do
-contrato ficam em `crates/verso-contract` e derivam `specta::Type`; cada comando
-em `app/src-tauri` leva `#[specta::specta]`; `verso-app --export-bindings`
-escreve `app/ui/src/bindings.ts` com os tipos e uma função tipada por comando. A
-UI fala com o core só por esse arquivo.
+**`specta`, com `tauri-specta` exportando os comandos do Tauri.**
 
 ## Consequências
 
+- O que o código faz com isso, que não faz parte da escolha: os tipos do
+  contrato ficam num crate próprio, `crates/verso-contract` — um sexto crate
+  ao lado dos cinco da [0028](0028-crate-structure.md), registrado para o
+  mantenedor (`docs/review/phase-2.md` §6, item 10) — e derivam
+  `specta::Type`; cada comando em `app/src-tauri` leva `#[specta::specta]`;
+  `verso-app --export-bindings` escreve `app/ui/src/bindings.ts` com os tipos
+  e uma função tipada por comando. A UI fala com o core só por esse arquivo.
 - O contrato tipado existe no lado JS a partir da Fase 2; a Fase 1 não precisou
   dele, por ser só CLI ([0034](0034-roadmap-in-phases.md)).
 - O contrato inteiro é gerado, não só os tipos: as assinaturas dos comandos saem
-  da mesma exportação, então nenhuma chamada da UI ao core é escrita à mão. É o
-  motivo de a opção ter sido preferida ao `ts-rs`.
+  da mesma exportação, então nenhuma chamada da UI ao core é escrita à mão. Foi
+  o motivo dado para ela quando as duas opções foram oferecidas.
 - Os tipos do contrato são anotados no Rust (`#[derive(Type)]`), o que mexe no
   código do core mesmo a ferramenta servindo o lado TS.
 - O CI regenera o arquivo e falha quando o versionado difere: o job `app` de
@@ -48,8 +51,9 @@ UI fala com o core só por esse arquivo.
 
 - Tipos TS escritos à mão — descartados pela regra 3 do contrato (§10.1).
 - `ts-rs` — oferecido ao mantenedor em 2026-09-22 como a opção mais estável, com
-  menos mudança; descartado porque a cola que chama os comandos teria sido
-  escrita à mão, fazendo da regra 3 uma convenção nessa parte.
+  menos mudança, e não escolhido. A desvantagem dada com as opções: a cola que
+  chama os comandos teria sido escrita à mão, fazendo da regra 3 uma convenção
+  nessa parte.
 
 ## Status
 

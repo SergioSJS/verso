@@ -200,11 +200,12 @@ resto da máquina:
   SVG da pasta não roda script. Ele responde CORS só para a origem do app.
 - **O HTML da nota** é renderizado pelo core e chega à página por uma lista de
   permissões: nenhum script, estilo, frame, objeto, formulário ou atributo de
-  evento; links e fontes só http(s), e-mail, âncoras da própria página e o que
-  a janela mesma resolve. A política da própria janela acrescenta nenhum script
+  evento; links e fontes só http(s), e-mail, âncoras da própria página, imagens
+  `data:` e o que a janela mesma resolve. A política da própria janela acrescenta nenhum script
   inline, `object-src 'none'`, `base-uri 'none'` e `form-action 'none'`.
-- **A rede.** Nada no core a acessa. A janela acessa de três jeitos: uma nota
-  web carrega a página numa web view; o ícone de uma nota web é pedido ao
+- **A rede.** Nada no core a acessa. A janela acessa de quatro jeitos: uma
+  nota web carrega a página numa web view; um link http(s) clicado na janela
+  abre a página numa janela própria; o ícone de uma nota web é pedido ao
   próprio site, uma vez por site e sessão; uma imagem que a nota traz da web
   carrega quando a nota é mostrada, como no Obsidian
   ([ADR 0049](../adr/0049-phase-2-scope-widened.md)).
@@ -245,7 +246,10 @@ que quem usa a janela encontra primeiro:
 - o que a visão de leitura renderiza — tabelas, notas de rodapé, matemática,
   destaque, callouts, comentários, tags no corpo (Q5, Q6, Q13, Q15 da spec);
 - que um arquivo que não é UTF-8 não é aberto para edição (Q25 da spec);
-- os três jeitos que a janela tem de acessar a rede (ADR 0049).
+- os quatro jeitos que a janela tem de acessar a rede (ADR 0049);
+- quais teclas do CodeMirror os atalhos do app podem tomar dentro de um
+  editor: ⌘D, ⌘⇧L, ⌘⇧G e ⌘⇧\\, e no Linux Ctrl-Shift-[ e ] (nenhuma ADR cobre
+  os atalhos).
 
 ## 10. O que não está construído
 

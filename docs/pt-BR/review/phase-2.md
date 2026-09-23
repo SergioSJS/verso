@@ -1,8 +1,9 @@
 # Revisão crítica — Fase 2 (a janela, e o que a Fase 1 ganhou por baixo dela)
 
 - Data: 2026-09-23
-- Revisor: Opus 5.5, no papel de revisor do Rust do core
-  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)); para a UI, a
+- Revisor: Opus 5.5, no papel de revisor do Rust do core que a
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá à "Opus 5" (a Opus
+  5.5 ocupa essa linha; nada mais registra isso); para a UI, a
   leitura que o mantenedor escolheu quando pôs o Fable 5.1 para escrevê-la
   ([ADR 0049](../adr/0049-phase-2-scope-widened.md))
 - Autor do código revisado: Fable 5.1
@@ -57,8 +58,9 @@ clique em tarefa sobre texto velho); conteúdo da pasta agindo sobre a janela
 (HTML cru, um SVG num frame, o protocolo de arquivos, navegação); bytes
 reescritos que ninguém tocou (UTF-8 com perda, quebras de linha); caminhos
 absolutos cruzando o contrato; um pânico que parava todo comando seguinte; e
-um teste vermelho. Todos menos um estão corrigidos; esse um é uma questão da
-spec, não um defeito.
+um teste vermelho. Todos menos um estão corrigidos; o que resta (leitura 3,
+achado 4) é o índice se afastando do ponto 3 da Q12 fechada, registrado e à
+espera do mantenedor.
 
 ---
 
@@ -134,7 +136,7 @@ spec, não um defeito.
 | 5 | BLOQUEANTE | Reindexar, renomear, citar, "devolver à janela principal" e fechar a janela recarregavam ou destruíam abas com alteração sem salvar | **Corrigido** em `9747be8`: reindexar, renomear, citar, excluir e abrir numa janela nova salvam antes e param, nomeando as abas, quando uma não consegue; um tratador de fechamento salva toda aba e mantém a janela aberta a não ser que o usuário diga sim. Trocar de pasta também salva antes (`369e738`), e o ⌘Q também, que antes encerrava o processo sem evento nenhum (`9ca850a`) |
 | 6 | BLOQUEANTE | Texto digitado com um salvamento em curso era marcado como salvo; salvamentos sobrepostos levantavam um conflito vazio | **Corrigido** em `f68b8e4`: as escritas são encadeadas por aba, e uma aba só fica limpa se o editor ainda guarda o que foi escrito |
 | 7 | BLOQUEANTE | Um link clicado fora da visão de leitura (um PDF, um embed, uma nota de pasta) trocava a janela do app pelo site | **Corrigido** em `dbc8572`: uma guarda na fase de captura impede qualquer link de navegar a janela e manda links http(s) para uma janela própria; a guarda do host a reforça (leitura 1, achado 6) |
-| 8 | BLOQUEANTE | Salvar reescrevia bytes que o usuário não tocou: UTF-8 com perda, CRLF virando LF, quebras de linha misturadas unificadas | **Corrigido** em `b450036`: os dois editores escrevem com o separador de linha do próprio arquivo; um arquivo com quebras misturadas ou um CR solto abre só para leitura, com o motivo Não-UTF-8: leitura 2, achado 2 |
+| 8 | BLOQUEANTE | Salvar reescrevia bytes que o usuário não tocou: UTF-8 com perda, CRLF virando LF, quebras de linha misturadas unificadas | **Corrigido** em `b450036`: os dois editores escrevem com o separador de linha do próprio arquivo; um arquivo com quebras misturadas ou um CR solto abre só para leitura, com o motivo. Não-UTF-8: leitura 2, achado 2 |
 | 9 | BLOQUEANTE | Abrir outra pasta reapontava em silêncio os caminhos de toda janela destacada para ela | **Corrigido** em `3340a3f`: só a janela principal troca de pasta, e nunca com uma janela de nota aberta |
 | 10 | BLOQUEANTE | O painel de propriedades reescrevia chaves a partir de valores velhos | **Corrigido** em `01883d1`: o painel é redesenhado depois de toda carga, salvamento, desfazer e refazer, e toda edição se aplica ao frontmatter como o editor o tem agora, ou recusa e diz |
 | 11 | BLOQUEANTE | O host de toda nota web ia para um terceiro (`icons.duckduckgo.com`) buscar o ícone, hosts de intranet inclusive | **Corrigido** em `4fa646e`: o `/favicon.ico` do próprio site, sem referrer, uma vez por site e sessão; registrado na ADR 0049 |
@@ -183,8 +185,9 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
    Obsidian 1.13.7 prefere um em qualquer lugar *sob* ela, e o índice também
    (`docs/reference/index-decision.md` §4.1, terceira observação). A leitura
    3, achado 4, fica BLOQUEANTE até a pergunta "sob a pasta, sim ou não?" ter
-   resposta: sim emenda o ponto 3 da Q12 e a §4.6 do memo; não tira uma linha
-   da consulta de resolução do índice.
+   resposta: sim emenda o ponto 3 da Q12 e a §4.6 do memo, e a resolução de
+   embeds, que faz "na", acompanha; não muda uma condição da consulta de
+   resolução do índice (`crates/verso-index/src/store.rs`).
 2. **Operações de arquivo** — [ADR 0048](../adr/0048-file-operations-in-ui.md),
    `[ABERTO]`. O que o código faz está registrado lá como provisório: renomear
    e mover com um plano de reescrita de links aplicado nota a nota, sem
@@ -203,8 +206,9 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
    arquivo que não é UTF-8 não é aberto para edição). Cada uma tem sua linha
    provisória na spec.
 5. **A rede** — [ADR 0049](../adr/0049-phase-2-scope-widened.md),
-   Consequências: notas web, os ícones delas pedidos ao próprio site, e imagens
-   remotas acessam a rede; nenhuma ADR cobre acesso de saída
+   Consequências: notas web, links clicados na janela (abertos numa janela
+   própria), os ícones das notas web pedidos ao próprio site, e imagens remotas
+   acessam a rede; nenhuma ADR cobre acesso de saída
    (a [ADR 0027](../adr/0027-runtime-capabilities.md) é Proposta). A
    propriedade `url:` que faz de uma nota uma nota web é um significado do
    Verso sem ADR.
@@ -218,8 +222,9 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
    core (regra 2; ADR 0027).
 7. **Dependências e exceções** — as sete advisories ignoradas no `deny.toml` e
    `Apache-2.0 WITH LLVM-exception`; a feature `unstable` do Tauri; os pacotes
-   npm da UI (`pdfjs-dist`, `katex`, `@codemirror/language-data`) sem portão de
-   licença no CI.
+   npm da UI — entre os novos, `pdfjs-dist`, `katex`,
+   `@codemirror/language-data` e três fontes `@fontsource` —, nenhum com portão
+   de licença no CI.
 8. **Uma fixture e a spec discordam** — `fixtures/block/list-item` ainda é
    rascunho da IA enquanto a §5.7 e a Q3 da spec a chamam de aprovada; o
    `FIXTURES_STRICT=1` do CI na `main` falha até um dos lados mudar
@@ -227,8 +232,8 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
 9. **O baseline de CI do bench** — nenhum registrado para `ci-linux` ainda
    (`docs/reference/bench-decision.md` §6.3;
    [ADR 0039](../adr/0039-performance-targets.md) `[ABERTO]`).
-10. **A lista de crates** — `verso-bench` e `app/src-tauri` são membros do
-    workspace, enquanto a [ADR 0028](../adr/0028-crate-structure.md) e o
+10. **A lista de crates** — `verso-contract`, `verso-bench` e `app/src-tauri`
+    são membros do workspace, enquanto a [ADR 0028](../adr/0028-crate-structure.md) e o
     `CLAUDE.md` §3 listam cinco crates.
 11. **Nota do dia e templates** — construídos sob a
     [ADR 0014](../adr/0014-primitives-catalog.md), que é Proposta.
@@ -259,21 +264,24 @@ Nenhum destes é decidido por esta revisão. Cada um diz onde mora.
 
 19. **Nomes que um link não comporta** — o core aceita nomes de nota e de pasta
     com `[`, `]`, `|`, `#` ou `^`, que nenhum `[[…]]` consegue nomear; renomear
-    para um nome assim agora deixa os links como estão e diz isso
-    ([ADR 0048](../adr/0048-file-operations-in-ui.md)).
+    para um nome assim agora deixa os links como estão e diz isso (registrado
+    no registro provisório da [ADR 0048](../adr/0048-file-operations-in-ui.md)).
 20. **A ordem do ponto 2 da Q12** — a spec não diz se um caminho é tentado "a
     partir da raiz" antes de "relativo à pasta da origem"; o índice e a
     resolução de embeds tentam a raiz primeiro, então `![[img.png]]` escrito
-    em `a/` alcança um `img.png` da raiz antes de `a/img.png`.
+    em `a/` alcança um `img.png` da raiz antes de `a/img.png`. Registrado na
+    Q12 da spec.
 21. **Volumes sem hard links** — em exFAT e FAT, criar, renomear ou mandar
     para a lixeira recorre a um rename conferido e diz que a proteção foi mais
-    fraca; se isso deve ser permitido ou recusado é do mantenedor.
+    fraca; se isso deve ser permitido ou recusado é do mantenedor. Registrado
+    no registro provisório da ADR 0048.
 22. **Teclas tomadas do editor** — dentro de um editor os atalhos do app vêm
     antes dos padrões do CodeMirror, então ⌘D, ⌘⇧L, ⌘⇧G e ⌘⇧\ (e, no Linux,
     Ctrl-Shift-[ e ]) não fazem mais o que o CodeMirror liga a eles.
+    Registrado em `docs/reference/app-decision.md` §9.
 23. **Arquivos com quebras de linha misturadas** ficam só para leitura na
     janela; se deve existir uma conversão por ação do usuário, com o diff
-    (invariante 8), é do mantenedor.
+    (invariante 8), é do mantenedor. Registrado na Q24 da spec.
 
 ## 7. A resolução
 
@@ -303,6 +311,17 @@ em inglês; uma tarefa aninhada `- - [ ]` recusada com uma mensagem enganosa.
 Essas segundas leituras foram a Opus 5.5 lendo, para a janela e os documentos,
 trabalho que a Opus 5.5 escreveu — por decisão do mantenedor (seção 6, item
 17).
+
+Os documentos do branch foram lidos do mesmo jeito. Essa leitura achou um
+BLOQUEANTE — o próprio resumo desta revisão chamava o achado aberto da Q12 de
+"não é um defeito", o que toma o lado do código —, oito IMPORTANTES (uma
+diferença na Q12 descrita como redação, arquivos HTML e os caminhos de rede
+descritos errado, um crate nomeado dentro de uma decisão Aceita, itens desta
+seção sem lugar, uma fase que o código teria escolhido, duas questões da spec
+sem linha provisória, uma contradição sobre embeds de arquivo não registrada)
+e doze MENORES. Todos foram corrigidos antes do push, menos um MENOR: a coluna
+"quando decidir" do índice de ADRs ainda mostra os prazos da Fase 1 das ADRs
+0044 a 0046.
 
 Achado ao integrar, além das leituras:
 
