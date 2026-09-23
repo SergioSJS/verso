@@ -113,7 +113,7 @@ Execution order from briefing §15:
 |---|---|---|
 | ~~Definition of round-trip (Q18)~~ | decided 2026-09-21: reading (b), read-only parser (`docs/reference/parser-decision.md`) | `docs/spec/dialect.md` Q18, [0037](adr/0037-base-parser.md) |
 | ~~Base parser: `pulldown-cmark`, `comrak` or our own~~ | decided 2026-09-21: `pulldown-cmark`, `comrak` as the fallback (`docs/reference/parser-decision.md`) | [0037](adr/0037-base-parser.md) |
-| Parsing questions Q2–Q8, Q12–Q17 and Q19–Q25 of the spec | before feature 1 closes; Q12 closed on 2026-09-22, Q3 and Q17 in part, the others still open | `docs/spec/dialect.md` §9 |
+| Parsing questions Q2–Q8, Q12–Q17 and Q19–Q25 of the spec | before feature 1 closes; Q12 closed on 2026-09-22 with the parts of Q2, Q8 and Q14 it needed, Q3 and Q17 in part, the others still open | `docs/spec/dialect.md` §9 |
 | ~~Symlinks, loops and ignored paths (Q26)~~ | decided 2026-09-22: every symlink is followed, maximum depth 64 with an error at the cap; hidden entries are not walked; an ignored note is an unresolved target and never a backlink source (`docs/reference/fs-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 | ~~Placeholder detection mechanism per provider, starting with iCloud Drive~~ | decided 2026-09-22: both iCloud forms (`SF_DATALESS` and `.Name.ext.icloud`), checked before the file is opened; the other providers deferred (`docs/reference/fs-decision.md`) | [0043](adr/0043-placeholder-guard.md) |
 | ~~Location, permissions and cleanup of the index~~ | decided 2026-09-22: one file per folder under the configuration directory, a sidecar naming the folder, `0700`/`0600`, excluded from backup, cleanup on demand (`docs/reference/index-decision.md`) | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |

@@ -611,6 +611,15 @@ Raised while writing this spec. All of them need an answer before
   Unique per file or per folder; what to do with a duplicate (section 5.7).
 - **Q5. Callout coverage.** `[OPEN]`
   Recognized kinds, `-`/`+`, nesting (section 5.8).
+
+  **Provisional fact from the reading view, recorded on 2026-09-23, not an
+  answer to this question.** The reading view shows as a callout a blockquote
+  whose first line opens with `[!kind]`, `[!kind]+` or `[!kind]-`, for any
+  kind, lower-cased; `+` and `-` are carried as a fold; with no title the
+  kind's name, capitalized, is the title; a blockquote nested inside a
+  callout stays a blockquote (`crates/verso-dialect/src/callouts.rs`). The
+  parser that feeds the index is unchanged. The maintainer decides; this line
+  only records what the code does in the meantime.
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
   `[OPEN]` Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
   inside a URL (section 5.9).
@@ -687,8 +696,8 @@ Raised while writing this spec. All of them need an answer before
   `docs/reference/index-decision.md` §4.6 and are what the feature 3 code owes.
 
   **What the code does since commit `d1a5272` (2026-09-22), recorded on
-  2026-09-23.** Points 1 to 5 are implemented, with one difference of wording
-  on point 3 that is the maintainer's to settle. The prose says "a candidate
+  2026-09-23.** Points 1 to 5 are implemented, with one difference between
+  the code and point 3, which is the maintainer's to settle. The prose says "a candidate
   **in** the source note's own folder"; the code prefers a candidate **under**
   that folder, at any depth, before counting segments — so a note in a
   subfolder of the source's folder wins over a shallower one elsewhere. The
@@ -703,7 +712,10 @@ Raised while writing this spec. All of them need an answer before
   2026-09-23.** They resolve by points 1 to 5 from the note that holds the
   embed; for a bare name the file **in** the source note's own folder comes
   first — the prose above — while notes follow the index's "under". The answer
-  to "sob a pasta, sim ou não?" settles both.
+  to "sob a pasta, sim ou não?" settles both. The index and this resolution
+  try a path from the root before the same path relative to the source's
+  folder; point 2 does not say which comes first (`docs/review/phase-2.md` §6,
+  item 20).
 
   **Fact from `verso-fs`, unchanged by this closure.** The walk classifies a
   regular file as a note when its extension is exactly `md`; `.MD`, `.Md` and
@@ -716,14 +728,14 @@ Raised while writing this spec. All of them need an answer before
   **Provisional fact from `verso-index` and the reading view, recorded on
   2026-09-23, not an answer to this question.** The index's tag list counts a
   `#` in the body as a tag when it opens the line or follows a space or a `(`,
-  and is followed by letters, digits, `_`, `-` or `/` that are not all digits;
-  a fenced code block is skipped and the tag is lower-cased. So the `#` of a
+  and is followed by letters, digits, `_`, `-` or `/` that are not all digits,
+  and the tag is lower-cased. So the `#` of a
   heading (`# Title`, with its space) and the `#` inside a URL are not tags.
   Since `95b39ee` the index and the reading view take the rule from one
   function of the dialect, `verso_dialect::body_tags`, which reads the parser's
   events and skips the frontmatter, code spans and code blocks (fenced or
-  indented), link destinations and labels, image alt text, math and `%%`
-  comments; before it, the index scanned raw lines and listed false tags. The
+  indented), raw HTML, link destinations and labels, image alt text, math and
+  `%%` comments; before it, the index scanned raw lines and listed false tags. The
   reading view shows such a tag as a link that searches it. The maintainer decides; this line
   only records what the code does in the meantime.
 - **Q14. Link to a file that does not exist.** `[OPEN]`
@@ -786,10 +798,16 @@ Raised while writing this spec. All of them need an answer before
   backlink sources. An embed of another file (`![[mapa.png]]`, `![[livro.pdf]]`)
   stays in the index as an unresolved target (Q14), never a backlink; the core
   resolves it for display only, by the rule of Q12 from the note that holds the
-  embed (since `3340a3f`; before, by file name alone, whatever note held it). A
-  file whose content is in the cloud is listed and resolves as present. The
-  window shows images, PDFs, HTML files (without scripts) and text files, and
-  edits text files through the same atomic write as notes. A note
+  embed (since `3340a3f`; before, by file name alone, whatever note held it).
+  On its face this departs from point 5 of the closed Q12 ("an embed resolves
+  by the same rule"): the index resolves embeds among notes only, so an embed
+  of an image stays unresolved in it while the window resolves it for display.
+  Recorded, not resolved. A file whose content is in the cloud is listed and
+  resolves as present. The
+  window shows images, PDFs and text files, and edits text files through the
+  same atomic write as notes; an HTML file opens as text, since the viewer
+  that shows it as a page is never reached (`docs/review/phase-2.md` §6, item
+  16). A note
   whose frontmatter has an `http(s)` `url` property is shown as that web page;
   the index keeps the address for it. The maintainer decides; this line only
   records what the code does in the meantime.
@@ -877,6 +895,11 @@ the parser was chosen.
   Obsidian's public documentation restricts `^id` to letters, numbers and
   hyphen; what happens with an invalid `^id`. For tags (Q13): charset, nesting
   `#a/b`, case sensitivity, `#` prefix in frontmatter `tags`.
+
+  **Provisional fact, recorded on 2026-09-23, not an answer to this
+  question.** For tags, the charset and the case folding the code applies are
+  the ones recorded under Q13. The `^id` part is unchanged by the Phase 2
+  code.
 - **Q23. Combined forms and wikilink escapes.** `[OPEN]`
   `[[nota#seção|alias]]`, `[[nota#^bloco|alias]]`, `[[#seção]]` and `[[#^bloco]]`
   (same file — does it count as a backlink to itself?), `[[pasta/nota]]`,
@@ -897,9 +920,10 @@ the parser was chosen.
   the parser applies it; they used a looser rule of their own, which accepted
   `...` and trimmed the fences, until the Opus reading of 2026-09-23 found the
   two disagreeing. A value the panel cannot rewrite without changing its type —
-  a mapping, a list with anything but plain text — is shown and not edited. The
-  maintainer decides; this line only records what the code does in the
-  meantime.
+  a mapping, a list with anything but plain text — is shown and not edited. A
+  file whose line endings are mixed opens read-only in the window, so it is
+  never converted there. The maintainer decides; this line only records what
+  the code does in the meantime.
 - **Q25. Encoding.** `[OPEN]`
   A `.md` file that is not valid UTF-8 (Latin-1 from an old vault, UTF-16 with a
   BOM from Windows): error, text with replacement, or ignored. Separate from
@@ -943,5 +967,5 @@ the parser was chosen.
 | v0.10 | 2026-09-22 | Provisional facts recorded under Q2, Q8, Q12, Q14 and Q7, from the `verso-index` code and from the observation of Obsidian 1.13.7 on the same day (`docs/reference/index-decision.md`): how a link resolves, case, embeds, unresolved targets and NFC. No question closed |
 | v0.11 | 2026-09-22 | Provisional facts recorded under Q12 and Q14, from the `verso-index` code as it stands after the Opus 5 reading: an empty target (`[[#Heading]]`) resolves to the note itself, a case collision of two paths resolves like one of bare names, and an unresolved target is shown under the smallest of its spellings in byte order. Nothing observed in Obsidian for these three; no question closed |
 | v0.12 | 2026-09-22 | **Q12 closed by the maintainer**, following Obsidian 1.13.7 as observed a second time on the same day (`docs/reference/index-decision.md` §4.1, §4.6): empty target is the note itself and a backlink of it; a path is resolved relative to the source note's folder as well as from the root; a bare name prefers the source's own folder, then the fewest segments, then byte order; aliases do not resolve; `[[nota/]]` and `[[.md]]` do not resolve. The parts of Q2, Q8 and Q14 that the rule needs are answered with it; the rest of those three stays open. Fourth question closed |
-| v0.13 | 2026-09-23 | Provisional facts recorded under Q12, Q13, Q15 and Q16, from the code of the Phase 2 branch: point 3 of Q12 as the code reads it ("under" the source's folder, a wording the maintainer has not settled), body tags, the Markdown extensions and line breaks the reading view renders, and the files that are not notes. The Q14 line on `[[#Heading]]` marked as superseded by Q12 point 1. No question closed |
+| v0.13 | 2026-09-23 | Provisional facts recorded under Q12, Q13, Q15 and Q16, from the code of the Phase 2 branch: where the code departs from point 3 of Q12 ("under" the source's folder where point 3 says "in", which the maintainer has not settled), body tags, the Markdown extensions and line breaks the reading view renders, and the files that are not notes. The Q14 line on `[[#Heading]]` marked as superseded by Q12 point 1. No question closed |
 | v0.14 | 2026-09-23 | Provisional facts under Q6, Q12, Q13, Q15, Q16, Q24 and Q25 brought up to the code after the Opus reading of the Phase 2 branch: comments hidden and embedded HTML sanitized in the reading view, one tag rule for the index and the reader, embeds resolved by Q12 from their note, the window's frontmatter boundary, files that are not UTF-8 not opened for editing. No question closed |

@@ -71,7 +71,7 @@ como ficou depois da leitura da Opus do branch da Fase 2
   nota vira caminho — e nunca dentro de código. Uma mudança que mandaria em
   silêncio um nome solto para outro lugar também ganha plano, que era o
   requisito acima.
-- **Nada é escrito até o usuário aplicar o plano**, mostrado como um diff por
+- **Nenhum link é reescrito até o usuário aplicar o plano**, mostrado como um diff por
   nota. Cada nota é então escrita sozinha, de forma atômica, sobre a própria
   revisão: uma nota editada depois do plano é recusada e contada, nunca
   sobrescrita, e uma aba aberta que não consegue salvar antes fica de fora e é
@@ -98,6 +98,14 @@ como ficou depois da leitura da Opus do branch da Fase 2
   espaços como digitados; nenhuma normalização Unicode (Q7) é aplicada.
 - **Caixa.** Um rename que só muda a caixa é permitido num volume insensível a
   caixa, onde os dois nomes são o mesmo arquivo.
+- **Nomes que um link não comporta.** O core aceita nomes de nota e de pasta
+  com `[`, `]`, `|`, `#` ou `^`, que nenhum `[[…]]` consegue nomear; renomear
+  para um nome assim não escreve link nenhum que seria lido como outro alvo, e
+  diz isso.
+- **Volumes sem hard links** (exFAT e FAT em unidades removíveis, alguns
+  sistemas de arquivos de rede e de nuvem): criar ou mover dá o nome ao
+  arquivo por um rename depois de uma conferência de última hora, em vez de um
+  link, e diz que a proteção foi mais fraca.
 - **Placeholders.** Um placeholder sozinho não pode ser renomeado nem excluído,
   porque o conteúdo está na nuvem; uma pasta com placeholders muda de lugar e
   vai para a lixeira inteira.

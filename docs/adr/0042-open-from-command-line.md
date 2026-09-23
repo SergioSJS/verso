@@ -112,11 +112,11 @@ decision; the disambiguation rule above stays `[OPEN]`.
   and the note are read as text.
 
 **What the Phase 2 code does. Recorded on 2026-09-23 — provisional; the
-disambiguation rule above stays `[OPEN]`.** The open command landed in Phase 2
-with the window, at the maintainer's request of 2026-09-22 ("ser possível
-fazer um verso . no terminal e fazer com que ele abra naquele diretório"); in
-which phase it lands was left open above, and this is the phase the code
-chose.
+disambiguation rule above stays `[OPEN]`.** The maintainer's request of
+2026-09-22 ("ser possível fazer um verso . no terminal e fazer com que ele abra
+naquele diretório", [0049](0049-phase-2-scope-widened.md) §1) put the open
+command in Phase 2, with the window; whether that closes the question of its
+phase, left open above, is the maintainer's.
 
 - **A subcommand in first position is always the subcommand** — `index`,
   `search`, `backlinks`, `mcp`, `open`, `help`, `--help`, `-h` — even when a
@@ -133,8 +133,8 @@ chose.
 - **`verso open <folder>` opens a folder whatever its name** — the escape hatch
   for a folder named like a subcommand (`verso open index`). It does not ask
   the disk first; a folder that is not there is reported by the window. **`verso
-  open` alone is a usage error**: there is no default folder, as this ADR
-  decided for the subcommands.
+  open` alone is a usage error**: there is no default folder, following,
+  provisionally, what this ADR decided for the Phase 1 subcommands.
 - **`--` is still not a separator**, so a folder whose name begins with `--`
   opens only through a path that does not, such as `./--nome`.
 - **How the window starts**: the CLI runs `$VERSO_APP` when it is set, else the

@@ -29,7 +29,9 @@ against the chat.
 
 Each line is a request the maintainer made, with the day (local time,
 UTC−3) and their words (abridged). The code built on the branch
-`phase1-2/integration` answers them.
+`phase1-2/integration` answers them, with one exception found after the
+fact: an HTML file opens as text, not as a page (`docs/review/phase-2.md`
+§6, item 16).
 
 | Area | What was asked | When | In the maintainer's words |
 |---|---|---|---|
@@ -84,8 +86,9 @@ folder.
   quotes into notes, templates, dropped and duplicated files, text files.
 - Several items lean on questions that are still open, and do what they do
   provisionally: the command-line rule ([0042](0042-open-from-command-line.md)),
-  file operations ([0048](0048-file-operations-in-ui.md)), link resolution
-  wording (spec Q12), body tags (Q13), the Markdown extensions (Q15),
+  file operations ([0048](0048-file-operations-in-ui.md)), where the index
+  departs from the closed spec Q12, point 3 ("in" or "under" the source's
+  folder), body tags (Q13), the Markdown extensions (Q15),
   non-Markdown files (Q16), handles and session identity in the contract
   ([0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md)).
   Each is recorded where it lives; none is decided here.
@@ -95,18 +98,20 @@ folder.
   Opus lê depois"; the Opus reading is `docs/review/phase-2.md`.
 - New dependencies, each justified in the pull request: `pdfjs-dist`
   (Apache-2.0) for the PDF reader, `katex` (MIT) for math,
-  `@codemirror/language-data` (MIT) for code colors, and Tauri's `unstable`
-  feature for web pages inside the window. `cargo-deny` checks only the Rust
-  side; the UI's packages have no license gate in CI.
-- The window reaches the network, which nothing in Phase 1 did, in three ways:
-  a web note loads its page when it is opened; a web note's icon is asked of
+  `@codemirror/language-data` (MIT) for code colors, three `@fontsource` font
+  packages (OFL-1.1), and Tauri's `unstable` feature for web pages inside the
+  window. `cargo-deny` checks only the Rust side; no npm package of the UI has
+  a license gate in CI.
+- The window reaches the network, which nothing in Phase 1 did, in four ways:
+  a web note loads its page when it is opened; an http(s) link clicked
+  anywhere in the window opens that page in a window of its own; a web note's icon is asked of
   the site itself (`https://<host>/favicon.ico`, once per site and session);
   and an image a note takes from the web (`![](https://…)`) loads when the note
   is shown, as in Obsidian. The first version asked a third party
   (`icons.duckduckgo.com`) for every icon; the Opus reading of 2026-09-23 found
   it and it was removed (`docs/review/phase-2.md`). No ADR covers outbound
   access yet — [0027](0027-runtime-capabilities.md), Proposed, only names a
-  `net:fetch` permission — so whether these three stay, and whether each needs
+  `net:fetch` permission — so whether these four stay, and whether each needs
   a setting, is the maintainer's.
 
 ## Discarded alternatives
@@ -117,4 +122,4 @@ None recorded.
 
 Accepted for section 1: the maintainer asked for each item, on the day given.
 Proposed for section 2: the maintainer approved the list as a whole and
-confirms or strikes each item.
+confirms or strikes each item. The Consequences are records, not decisions.

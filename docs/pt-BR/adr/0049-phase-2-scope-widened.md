@@ -26,7 +26,9 @@ pull request da Fase 2 seja lido contra uma lista, e não contra o chat.
 
 Cada linha é um pedido do mantenedor, com o dia (hora local, UTC−3) e as
 palavras dele (resumidas). O código construído na branch
-`phase1-2/integration` responde a eles.
+`phase1-2/integration` responde a eles, com uma exceção achada depois: um
+arquivo HTML abre como texto, não como página (`docs/review/phase-2.md` §6,
+item 16).
 
 | Área | O que foi pedido | Quando | Nas palavras do mantenedor |
 |---|---|---|---|
@@ -82,8 +84,8 @@ janela própria pelo menu da aba), e uma segunda janela sobre a mesma pasta.
 - Vários itens se apoiam em questões ainda abertas, e fazem o que fazem de forma
   provisória: a regra da linha de comando
   ([0042](0042-open-from-command-line.md)), operações de arquivo
-  ([0048](0048-file-operations-in-ui.md)), a redação da resolução de links (Q12
-  do spec), tags no corpo (Q13), as extensões de Markdown (Q15), arquivos que
+  ([0048](0048-file-operations-in-ui.md)), onde o índice se afasta do ponto 3
+  da Q12 fechada do spec ("na" ou "sob" a pasta da origem), tags no corpo (Q13), as extensões de Markdown (Q15), arquivos que
   não são Markdown (Q16), handles e identidade de sessão no contrato
   ([0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md)).
   Cada um está registrado onde mora; nenhum é decidido aqui.
@@ -93,18 +95,20 @@ janela própria pelo menu da aba), e uma segunda janela sobre a mesma pasta.
   lê depois"; a leitura do Opus é `docs/review/phase-2.md`.
 - Dependências novas, cada uma justificada no pull request: `pdfjs-dist`
   (Apache-2.0) para o leitor de PDF, `katex` (MIT) para matemática,
-  `@codemirror/language-data` (MIT) para as cores do código, e a feature
-  `unstable` do Tauri para páginas web dentro da janela. O `cargo-deny` só
-  verifica o lado Rust; os pacotes da UI não têm portão de licença no CI.
-- A janela acessa a rede, o que nada da Fase 1 fazia, de três jeitos: uma nota
-  web carrega a página quando é aberta; o ícone de uma nota web é pedido ao
+  `@codemirror/language-data` (MIT) para as cores do código, três pacotes de
+  fonte `@fontsource` (OFL-1.1), e a feature `unstable` do Tauri para páginas
+  web dentro da janela. O `cargo-deny` só verifica o lado Rust; nenhum pacote
+  npm da UI tem portão de licença no CI.
+- A janela acessa a rede, o que nada da Fase 1 fazia, de quatro jeitos: uma
+  nota web carrega a página quando é aberta; um link http(s) clicado em
+  qualquer lugar da janela abre aquela página numa janela própria; o ícone de uma nota web é pedido ao
   próprio site (`https://<host>/favicon.ico`, uma vez por site e sessão); e uma
   imagem que a nota traz da web (`![](https://…)`) carrega quando a nota é
   mostrada, como no Obsidian. A primeira versão pedia cada ícone a um terceiro
   (`icons.duckduckgo.com`); a leitura do Opus de 2026-09-23 achou isso e foi
   removido (`docs/review/phase-2.md`). Nenhuma ADR cobre acesso de saída ainda
   — a [0027](0027-runtime-capabilities.md), Proposta, só nomeia uma permissão
-  `net:fetch` —, então se esses três ficam, e se cada um precisa de um ajuste,
+  `net:fetch` —, então se esses quatro ficam, e se cada um precisa de um ajuste,
   é do mantenedor.
 
 ## Alternativas descartadas
@@ -115,4 +119,4 @@ Nenhuma registrada.
 
 Aceito para a seção 1: o mantenedor pediu cada item, no dia indicado. Proposto
 para a seção 2: o mantenedor aprovou a lista como um todo e confirma ou risca
-cada item.
+cada item. As Consequências são registros, não decisões.

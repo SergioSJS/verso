@@ -1,8 +1,9 @@
 # Critical review — Phase 2 (the window, and what Phase 1 grew under it)
 
 - Date: 2026-09-23
-- Reviewer: Opus 5.5, in the role of core Rust reviewer
-  ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)); for the UI, the
+- Reviewer: Opus 5.5, in the role of core Rust reviewer that
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md) gives "Opus 5" (Opus
+  5.5 fills that row; nothing else records it); for the UI, the
   reading the maintainer chose when they had Fable 5.1 write it
   ([ADR 0049](../adr/0049-phase-2-scope-widened.md))
 - Author of the code under review: Fable 5.1
@@ -57,8 +58,9 @@ bypassed, forced reloads, a task click on stale text); content of the folder
 acting on the window (raw HTML, a framed SVG, the file protocol, navigation);
 bytes rewritten that nobody touched (lossy UTF-8, line endings); absolute
 paths crossing the contract; a panic that stopped every later command; and a
-red test. All but one are fixed; that one is a question of the spec, not a
-defect.
+red test. All but one are fixed; the one left (reading 3, finding 4) is the
+index departing from the closed Q12, point 3, recorded and waiting for the
+maintainer.
 
 ---
 
@@ -134,7 +136,7 @@ defect.
 | 5 | BLOCKING | Reindex, rename, quote, "return to main window" and closing the window reloaded or destroyed dirty tabs without saving | **Fixed** in `9747be8`: reindex, rename, quote, delete and a new window save first and stop, naming the tabs, when one cannot; a close handler saves every tab and keeps the window open unless the user says yes. A folder switch saves first too (`369e738`), and so does ⌘Q, which used to end the process with no event at all (`9ca850a`) |
 | 6 | BLOCKING | Text typed while a save was in flight was marked saved; overlapping saves raised an empty conflict | **Fixed** in `f68b8e4`: writes are chained per tab, and a tab is clean only if the editor still holds what was written |
 | 7 | BLOCKING | A link clicked outside the reading view (a PDF, an embed, a folder note) replaced the app window with the site | **Fixed** in `dbc8572`: a capture-phase guard stops any link from navigating the window and sends http(s) links to a window of their own; the host guard backs it (reading 1, finding 6) |
-| 8 | BLOCKING | A save rewrote bytes the user never touched: lossy UTF-8, CRLF turned into LF, mixed line endings unified | **Fixed** in `b450036`: both editors write with the file's own line separator; a file with mixed endings or a lone CR opens read-only, with the reason Non-UTF-8: reading 2, finding 2 |
+| 8 | BLOCKING | A save rewrote bytes the user never touched: lossy UTF-8, CRLF turned into LF, mixed line endings unified | **Fixed** in `b450036`: both editors write with the file's own line separator; a file with mixed endings or a lone CR opens read-only, with the reason. Non-UTF-8: reading 2, finding 2 |
 | 9 | BLOCKING | Opening another folder silently re-pointed every popout's paths at it | **Fixed** in `3340a3f`: only the main window switches folders, and never while a note window is open |
 | 10 | BLOCKING | The properties panel rewrote keys from stale values | **Fixed** in `01883d1`: the panel is redrawn after every load, save, undo and redo, and every edit applies to the frontmatter as the editor holds it now, or refuses and says so |
 | 11 | BLOCKING | Every web note's host went to a third party (`icons.duckduckgo.com`) for its icon, intranet hosts included | **Fixed** in `4fa646e`: the site's own `/favicon.ico`, without referrer, once per site and session; recorded in ADR 0049 |
@@ -183,8 +185,9 @@ None of these is decided by this review. Each says where it lives.
    1.13.7 prefers one anywhere *under* it, and the index does too
    (`docs/reference/index-decision.md` §4.1, third observation). Reading 3,
    finding 4 stays BLOCKING until the question "sob a pasta, sim ou não?" has
-   an answer: yes amends Q12 point 3 and the memo's §4.6; no removes one line
-   of the index's resolution query.
+   an answer: yes amends Q12 point 3 and the memo's §4.6, and the embed
+   resolution, which does "in", follows; no changes one condition of the
+   index's resolution query (`crates/verso-index/src/store.rs`).
 2. **File operations** — [ADR 0048](../adr/0048-file-operations-in-ui.md),
    `[OPEN]`. What the code does is recorded there as provisional: rename and
    move with a plan of link rewrites applied note by note, with no logical
@@ -202,8 +205,9 @@ None of these is decided by this review. Each says where it lives.
    frontmatter boundary), Q25 (a file that is not UTF-8 is not opened for
    editing). Each has its provisional line in the spec.
 5. **The network** — [ADR 0049](../adr/0049-phase-2-scope-widened.md),
-   Consequences: web notes, their icons asked of the site itself, and remote
-   images reach the network; no ADR covers outbound access
+   Consequences: web notes, links clicked in the window (opened in a window of
+   their own), web notes' icons asked of the site itself, and remote images
+   reach the network; no ADR covers outbound access
    ([ADR 0027](../adr/0027-runtime-capabilities.md) is Proposed). The `url:`
    property that makes a note a web note is a Verso meaning with no ADR.
 6. **The contract's security** — [ADR 0045](../adr/0045-server-and-mcp-security.md),
@@ -216,7 +220,8 @@ None of these is decided by this review. Each says where it lives.
    the core's (rule 2; ADR 0027).
 7. **Dependencies and exceptions** — `deny.toml`'s seven advisory ignores and
    `Apache-2.0 WITH LLVM-exception`; Tauri's `unstable` feature; the UI's npm
-   packages (`pdfjs-dist`, `katex`, `@codemirror/language-data`) with no
+   packages — among the new ones `pdfjs-dist`, `katex`,
+   `@codemirror/language-data` and three `@fontsource` fonts — none with a
    license gate in CI.
 8. **A fixture and the spec disagree** — `fixtures/block/list-item` is still an
    AI draft while spec §5.7 and Q3 call it approved; CI's
@@ -225,8 +230,8 @@ None of these is decided by this review. Each says where it lives.
 9. **The bench's CI baseline** — none recorded for `ci-linux` yet
    (`docs/reference/bench-decision.md` §6.3;
    [ADR 0039](../adr/0039-performance-targets.md) `[OPEN]`).
-10. **The crate list** — `verso-bench` and `app/src-tauri` are workspace
-    members, while [ADR 0028](../adr/0028-crate-structure.md) and `CLAUDE.md`
+10. **The crate list** — `verso-contract`, `verso-bench` and `app/src-tauri`
+    are workspace members, while [ADR 0028](../adr/0028-crate-structure.md) and `CLAUDE.md`
     §3 list five crates.
 11. **Daily notes and templates** — built under
     [ADR 0014](../adr/0014-primitives-catalog.md), which is Proposed.
@@ -255,21 +260,23 @@ None of these is decided by this review. Each says where it lives.
 
 19. **Names a link cannot hold** — the core accepts note and folder names with
     `[`, `]`, `|`, `#` or `^`, which no `[[…]]` can name; a rename to such a
-    name now leaves the links alone and says so
-    ([ADR 0048](../adr/0048-file-operations-in-ui.md)).
+    name now leaves the links alone and says so (recorded in
+    [ADR 0048](../adr/0048-file-operations-in-ui.md)'s provisional record).
 20. **Q12 point 2's order** — the spec does not say whether a path is tried
     "from the root" before "relative to the source's folder"; the index and
     the embed resolution try the root first, so `![[img.png]]` written in `a/`
-    reaches a root-level `img.png` over `a/img.png`.
+    reaches a root-level `img.png` over `a/img.png`. Recorded under spec Q12.
 21. **Volumes without hard links** — on exFAT and FAT a create, rename or
     trash falls back to a checked rename and says the guard was weaker;
-    whether to allow that or refuse is the maintainer's.
+    whether to allow that or refuse is the maintainer's. Recorded in ADR
+    0048's provisional record.
 22. **Keys taken from the editor** — inside an editor the app's hotkeys come
     before CodeMirror's defaults, so ⌘D, ⌘⇧L, ⌘⇧G and ⌘⇧\ (and, on Linux,
-    Ctrl-Shift-[ and ]) no longer do what CodeMirror binds them to.
+    Ctrl-Shift-[ and ]) no longer do what CodeMirror binds them to. Recorded
+    in `docs/reference/app-decision.md` §9.
 23. **Files with mixed line endings** are read-only in the window; whether a
     conversion by user action, with its diff (invariant 8), should exist is
-    the maintainer's.
+    the maintainer's. Recorded under spec Q24.
 
 ## 7. The resolution
 
@@ -298,6 +305,16 @@ macOS menu in English only; a nested task `- - [ ]` refused with a misleading
 message. These second readings were Opus 5.5 reading, for the window and the
 documents, work Opus 5.5 wrote — by the maintainer's decision (section 6,
 item 17).
+
+The documents of the branch were read the same way. That reading found one
+BLOCKING — this review's own summary called the open Q12 finding "not a
+defect", which takes the code's side — eight IMPORTANT (a Q12 gap described
+as wording, HTML files and the network paths described wrongly, a crate named
+inside an Accepted decision, items of this section with no home, a phase the
+code was said to choose, two spec questions with no provisional line, a
+contradiction on file embeds left unrecorded) and twelve MINOR. All were
+corrected before the push except one MINOR: the "when to decide" column of
+the ADR index still shows the Phase 1 deadlines of ADRs 0044 to 0046.
 
 Found while integrating, beyond the readings:
 

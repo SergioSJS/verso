@@ -109,11 +109,11 @@ a regra de desambiguação acima continua `[ABERTO]`.
   nota são lidos como texto.
 
 **O que o código da Fase 2 faz. Registrado em 2026-09-23 — provisório; a
-regra de desambiguação acima continua `[ABERTO]`.** O comando de abrir entrou
-na Fase 2 junto com a janela, a pedido do mantenedor em 2026-09-22 ("ser
-possível fazer um verso . no terminal e fazer com que ele abra naquele
-diretório"); em que fase ele entra ficou aberto acima, e esta é a fase que o
-código escolheu.
+regra de desambiguação acima continua `[ABERTO]`.** O pedido do mantenedor de
+2026-09-22 ("ser possível fazer um verso . no terminal e fazer com que ele abra
+naquele diretório", [0049](0049-phase-2-scope-widened.md) §1) pôs o comando de
+abrir na Fase 2, junto com a janela; se isso fecha a questão da fase dele,
+deixada aberta acima, é do mantenedor.
 
 - **Um subcomando na primeira posição é sempre o subcomando** — `index`,
   `search`, `backlinks`, `mcp`, `open`, `help`, `--help`, `-h` — mesmo quando
@@ -130,8 +130,8 @@ código escolheu.
 - **`verso open <pasta>` abre uma pasta seja qual for o nome** — a saída para
   uma pasta com nome de subcomando (`verso open index`). Ele não pergunta ao
   disco antes; uma pasta que não existe é reportada pela janela. **`verso open`
-  sozinho é erro de uso**: não há pasta padrão, como esta ADR decidiu para os
-  subcomandos.
+  sozinho é erro de uso**: não há pasta padrão, seguindo, de forma provisória,
+  o que esta ADR decidiu para os subcomandos da Fase 1.
 - **O `--` continua não sendo separador**, então uma pasta cujo nome começa com
   `--` só abre por um caminho que não comece assim, como `./--nome`.
 - **Como a janela começa**: a CLI roda `$VERSO_APP` quando existe, senão o
