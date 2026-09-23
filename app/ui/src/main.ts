@@ -46,7 +46,8 @@ type Strings = Record<
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage"
-  | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved",
+  | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
+  | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -103,6 +104,7 @@ const pt: Strings = {
   pdfHits: (n, current) => `${current} de ${n}`,
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
+  ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
@@ -149,6 +151,7 @@ const en: Strings = {
   pdfHits: (n, current) => `${current} of ${n}`,
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
+  ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
@@ -242,10 +245,8 @@ function fail(e: ContractError | unknown): void {
 const ui = {
   open: el<HTMLButtonElement>("open"),
   folder: el<HTMLSpanElement>("folder"),
-  newNote: el<HTMLButtonElement>("new"),
   collapse: el<HTMLButtonElement>("collapse"),
-  reindex: el<HTMLButtonElement>("reindex"),
-  settings: el<HTMLButtonElement>("settings-button"),
+  ribbon: el<HTMLElement>("ribbon"),
   search: el<HTMLInputElement>("search"),
   searchLabel: el<HTMLSpanElement>("search-label"),
   status: el<HTMLSpanElement>("status"),
@@ -321,21 +322,14 @@ try {
 for (const slot of document.querySelectorAll<HTMLElement>(".ic[data-icon]")) slot.replaceChildren(icon(slot.dataset["icon"] ?? ""));
 ui.open.setAttribute("aria-label", t.open);
 ui.open.title = `${t.open} (⌘O)`;
-ui.newNote.replaceChildren(icon("plus", t.newNote));
-ui.newNote.title = `${t.newNote} (⌘N)`;
 ui.collapse.replaceChildren(icon("collapse", t.collapseAll));
 ui.collapse.title = t.collapseAll;
-ui.reindex.replaceChildren(icon("refresh", t.reindex));
-ui.reindex.title = t.reindex;
 ui.search.placeholder = t.search;
 ui.searchLabel.textContent = t.search;
 ui.notesHeading.textContent = t.notes;
 ui.folder.dataset["empty"] = t.noFolder;
 el("keys-new").textContent = t.keysNew;
 el("keys-commands").textContent = t.commands;
-ui.settings.replaceChildren(icon("gear", t.settings));
-ui.settings.title = t.settings;
-ui.settings.addEventListener("click", () => settingsDialog.show());
 document.querySelector(".status-keys")?.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cmd]");
   if (!b || ui.search.disabled) return;
@@ -520,6 +514,8 @@ function completeSlash(ctx: CompletionContext): CompletionResult | null {
 }
 
 let webSeq = 0;
+/** The ribbon, once built (the toggles repaint it; they run before it exists). */
+let ribbon: Ribbon | null = null;
 /** An overlay (switcher, palette, plan, menu, dialog) is on screen: native
  *  web views would paint over it, so they hide meanwhile. */
 function overlayOpen(): boolean {
@@ -3654,6 +3650,7 @@ toggleRightButton.replaceChildren(icon("sidebar", t.toggleRight));
 toggleRightButton.title = t.toggleRight;
 toggleRightButton.classList.add("flip");
 function paintToggles(): void {
+  ribbon?.paint();
   toggleSideButton.classList.toggle("off", document.body.classList.contains("no-side"));
   toggleRightButton.classList.toggle("off", document.body.classList.contains("no-right"));
 }
@@ -3725,9 +3722,8 @@ async function openPath(path: string): Promise<boolean> {
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
   spaces.length = 0;
   current = null;
-  ui.reindex.disabled = false;
-  ui.newNote.disabled = false;
   ui.collapse.disabled = false;
+  ribbon?.paint();
   ui.search.disabled = false;
   ui.search.value = "";
   loadBookmarks();
@@ -3771,16 +3767,115 @@ async function reindex(): Promise<void> {
   if (leaf?.path) await leaf.load(leaf.path, true);
 }
 
+/* ---------- The ribbon: one column of what the app does, reordered by drag ---------- */
+type RibbonItem = { id: string; icon: string; label: () => string; keys?: string; bottom?: boolean; needsFolder?: boolean; run: (button: HTMLButtonElement) => void };
+const RIBBON: RibbonItem[] = [
+  { id: "files", icon: "sidebar", label: () => t.ribbonFiles, keys: "⌘⇧L", run: () => toggleSide() },
+  { id: "search", icon: "search", label: () => t.search, keys: "⌘K", needsFolder: true, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
+  { id: "quick", icon: "note", label: () => t.quick, keys: "⌘P", needsFolder: true, run: () => quick.show() },
+  { id: "commands", icon: "command", label: () => t.commands, keys: "⌘⇧P", needsFolder: true, run: () => paletteDialog.show() },
+  { id: "new", icon: "plus", label: () => t.newNote, keys: "⌘N", needsFolder: true, run: (b) => {
+    const folder = layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "";
+    const r = b.getBoundingClientRect();
+    showMenu(r.right + 6, r.top, [[t.newNote, () => newNotePrompt(folder)], [t.newFolder, () => newFolderPrompt(folder)], [t.newWebPage, () => newWebPagePrompt()]]);
+  } },
+  { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "⌘D", needsFolder: true, run: () => void dailyNote() },
+  { id: "graph", icon: "graph", label: () => t.graph, keys: "⌘⇧G", needsFolder: true, run: () => { const leaf = layout().activeLeaf; const pane = layout().focused ?? layout().panes()[0]; if (leaf?.kind === "note" && pane) pane.openGraph(leaf.path); } },
+  { id: "replace", icon: "replace", label: () => t.replaceTitle, keys: "⌘⇧H", needsFolder: true, run: () => replaceDialog.show() },
+  { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
+  { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
+  { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "⌘⇧R", bottom: true, run: () => toggleRight() },
+  { id: "settings", icon: "gear", label: () => t.settings, keys: "⌘,", bottom: true, run: () => settingsDialog.show() },
+];
+class Ribbon {
+  private order: string[] = RIBBON.map((i) => i.id);
+  private hidden = new Set<string>();
+  constructor(readonly el: HTMLElement) {
+    try {
+      const raw = localStorage.getItem("verso.ribbon");
+      if (raw) {
+        const saved = JSON.parse(raw) as { order?: unknown; hidden?: unknown };
+        if (Array.isArray(saved.order)) this.order = [...saved.order.filter((x): x is string => typeof x === "string" && RIBBON.some((i) => i.id === x)), ...RIBBON.map((i) => i.id).filter((id) => !(saved.order as unknown[]).includes(id))];
+        if (Array.isArray(saved.hidden)) this.hidden = new Set(saved.hidden.filter((x): x is string => typeof x === "string"));
+      }
+    } catch { /* no storage */ }
+    this.el.title = t.ribbonDragHint;
+    this.paint();
+  }
+  private save(): void {
+    try { localStorage.setItem("verso.ribbon", JSON.stringify({ order: this.order, hidden: Array.from(this.hidden) })); } catch { /* no storage */ }
+  }
+  paint(): void {
+    const hasFolder = !ui.search.disabled;
+    const top = h("div", "ribbon-group");
+    const bottom = h("div", "ribbon-group ribbon-bottom");
+    for (const id of this.order) {
+      const it = RIBBON.find((i) => i.id === id);
+      if (!it || this.hidden.has(id)) continue;
+      const b = h("button", "ribbon-item");
+      b.type = "button";
+      b.dataset["id"] = id;
+      b.title = it.keys ? `${it.label()} (${it.keys})` : it.label();
+      b.setAttribute("aria-label", it.label());
+      b.append(icon(it.icon));
+      b.disabled = Boolean(it.needsFolder) && !hasFolder;
+      if (id === "files") b.classList.toggle("on", !document.body.classList.contains("no-side"));
+      if (id === "right") b.classList.toggle("on", !document.body.classList.contains("no-right"));
+      b.addEventListener("click", () => { if (!this.dragged) it.run(b); this.dragged = false; });
+      b.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        const hiddenCount = this.hidden.size;
+        showMenu(e.clientX, e.clientY, [
+          [t.ribbonHide, () => { this.hidden.add(id); this.save(); this.paint(); }],
+          ...(hiddenCount > 0 ? [[`${t.ribbonShowAll} (${hiddenCount})`, () => { this.hidden.clear(); this.save(); this.paint(); }] as [string, () => void]] : []),
+          [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden.clear(); this.save(); this.paint(); }],
+        ]);
+      });
+      this.armDrag(b);
+      (it.bottom ? bottom : top).append(b);
+    }
+    this.el.replaceChildren(top, bottom);
+  }
+  private dragged = false;
+  /** Pointer drag within the column: the button follows the pointer's
+   *  row, the order is kept when it lands. */
+  private armDrag(b: HTMLButtonElement): void {
+    b.addEventListener("pointerdown", (down) => {
+      if (down.button !== 0) return;
+      const y0 = down.clientY;
+      let started = false;
+      const move = (e: PointerEvent) => {
+        if (!started) {
+          if (Math.abs(e.clientY - y0) < 6) return;
+          started = true;
+          this.dragged = true;
+          b.classList.add("dragging");
+          b.setPointerCapture(e.pointerId);
+        }
+        const group = b.parentElement;
+        if (!group) return;
+        const siblings = Array.from(group.querySelectorAll<HTMLButtonElement>(".ribbon-item")).filter((x) => x !== b);
+        const after = siblings.find((x) => { const r = x.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
+        if (after) group.insertBefore(b, after);
+        else group.append(b);
+      };
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        b.classList.remove("dragging");
+        if (!started) return;
+        this.order = Array.from(this.el.querySelectorAll<HTMLButtonElement>(".ribbon-item")).map((x) => x.dataset["id"] ?? "").filter(Boolean);
+        for (const id of RIBBON.map((i) => i.id)) if (!this.order.includes(id)) this.order.push(id);
+        this.save();
+      };
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+  }
+}
+ribbon = new Ribbon(ui.ribbon);
+
 ui.open.addEventListener("click", () => void openFolderDialog());
-ui.reindex.addEventListener("click", () => void reindex());
-ui.newNote.addEventListener("click", () => {
-  const folder = layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "";
-  const r = ui.newNote.getBoundingClientRect();
-  showMenu(r.left, r.bottom + 4, [
-    [t.newNote, () => newNotePrompt(folder)],
-    [t.newFolder, () => newFolderPrompt(folder)],
-  ]);
-});
 ui.collapse.addEventListener("click", collapseAll);
 let pending: number | undefined;
 ui.search.addEventListener("input", () => {
