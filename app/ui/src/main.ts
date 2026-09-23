@@ -353,12 +353,21 @@ let allFiles: string[] = [];
 const allEntries = new Map<string, FileEntry>();
 /** Notes that are web pages: path → address (the tree and tabs show the site's icon). */
 const webNotes = new Map<string, string>();
-/** The site's icon for a web note, the globe when the site has none. */
+/** Each site's icon this session: loaded, or failed (then the globe, and
+ *  the site is not asked again). */
+const favicons = new Map<string, boolean>();
+/** The site's icon for a web note, the globe when the site has none. The
+ *  site's own `/favicon.ico`, asked without a referrer: no third party
+ *  learns which sites the notes keep. */
 function favicon(url: string): HTMLElement {
   const box = h("span", "favicon");
-  let host = "";
-  try { host = new URL(url).hostname; } catch { /* not a URL: the globe */ }
-  if (!host) {
+  let src = "";
+  try {
+    const u = new URL(url);
+    if (u.protocol === "https:") src = `https://${u.host}/favicon.ico`;
+    else if (u.protocol === "http:") src = `https://${u.hostname}/favicon.ico`;
+  } catch { /* not a URL: the globe */ }
+  if (!src || favicons.get(src) === false) {
     box.append(icon("globe"));
     return box;
   }
@@ -366,8 +375,13 @@ function favicon(url: string): HTMLElement {
   img.alt = "";
   img.width = 16;
   img.height = 16;
-  img.src = `https://icons.duckduckgo.com/ip3/${host}.ico`;
-  img.addEventListener("error", () => box.replaceChildren(icon("globe")));
+  img.setAttribute("referrerpolicy", "no-referrer");
+  img.addEventListener("load", () => favicons.set(src, true));
+  img.addEventListener("error", () => {
+    favicons.set(src, false);
+    box.replaceChildren(icon("globe"));
+  });
+  img.src = src;
   box.append(img);
   return box;
 }
