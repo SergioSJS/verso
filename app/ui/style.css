@@ -540,6 +540,33 @@ body.dragging * { cursor: grabbing !important; }
 .folder-items.list .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-items .item.drop { outline: 2px solid var(--brass); outline-offset: -2px; background: var(--brass-wash); }
 .leaf.drop { box-shadow: inset 0 0 0 2px var(--brass); }
+/* A web page as a tab: the bar is ours, the page is a native view laid over the host. */
+.web-bar { flex: none; display: flex; align-items: center; gap: .2rem; padding: .3rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); font-size: .82rem; }
+.web-address { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); padding: .25rem .6rem; background: var(--paper-2); border-radius: 999px; cursor: pointer; }
+.web-address:hover { color: var(--seal); }
+.web-toggle { font-size: .8rem; }
+.web-host { flex: 1; min-height: 0; background: var(--paper-2); }
+/* PDF reader */
+.pdf { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pdf-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: .35rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); font-size: .82rem; color: var(--ink-2); }
+.pdf-bar > span { display: inline-flex; align-items: center; gap: .15rem; }
+.pdf-page { margin: 12px auto; position: relative; background: white; box-shadow: 0 1px 2px oklch(0% 0 0 / .12), 0 6px 20px -8px oklch(0% 0 0 / .3); }
+.pdf-page canvas { display: block; }
+.pdf-scroll { flex: 1; min-height: 0; overflow: auto; background: var(--paper-2); padding: .5rem 0 3rem; outline: none; }
+.pdf-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--brass); }
+input.pdf-page { width: 3.2rem; font: inherit; text-align: center; padding: .15rem .2rem; border: 1px solid var(--hair); border-radius: 5px; background: var(--paper); color: var(--ink); -moz-appearance: textfield; }
+input.pdf-page::-webkit-inner-spin-button { display: none; }
+input.pdf-search { font: inherit; padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); width: 14rem; }
+input.pdf-search:focus { outline: none; border-color: var(--brass); }
+.pdf-find .icon { color: var(--ink-3); margin-right: .2rem; }
+.pdf-search-info { color: var(--ink-3); margin-left: .4rem; white-space: nowrap; }
+.pdf-acts { margin-left: auto; }
+.textLayer { position: absolute; inset: 0; overflow: clip; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; z-index: 1; }
+.textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+.textLayer span.hit { background: oklch(85% 0.17 90 / .55); color: transparent; border-radius: 2px; }
+.textLayer ::selection { background: oklch(65% 0.12 250 / .35); }
+.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; user-select: none; }
+.textLayer.selecting .endOfContent { top: 0; }
 .folder-items .rename { font: inherit; width: 100%; padding: .3rem .5rem; border: 1px solid var(--brass); border-radius: 5px; background: var(--paper); color: var(--ink); }
 .folder-items .item { display: flex; flex-direction: column; align-items: stretch; gap: .35rem; width: 100%; text-align: left; padding: .5rem; border-radius: 8px; color: var(--ink); }
 .folder-items .item:hover { background: var(--paper-2); }

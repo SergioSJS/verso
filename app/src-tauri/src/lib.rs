@@ -493,12 +493,140 @@ fn open_url(app: tauri::AppHandle, url: String) -> Result<(), ContractError> {
     }
     let n = WEB_WINDOWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let title = parsed.host_str().unwrap_or("web").to_owned();
-    tauri::WebviewWindowBuilder::new(&app, format!("web-{n}"), tauri::WebviewUrl::External(parsed))
-        .title(title)
-        .inner_size(1100.0, 800.0)
-        .build()
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        format!("web-{n}"),
+        tauri::WebviewUrl::External(parsed),
+    )
+    .title(title)
+    .inner_size(1100.0, 800.0)
+    .build()
+    .map_err(|e| failed(e.to_string()))?;
+    Ok(())
+}
+
+fn webview_of(app: &tauri::AppHandle, label: &str) -> Result<tauri::Webview, ContractError> {
+    app.get_webview(label)
+        .ok_or_else(|| failed(format!("no web view {label}")))
+}
+
+/// A child web view is placed from the window's frame; the page's
+/// coordinates start under the title bar. The difference, in logical
+/// pixels.
+fn chrome_offset(window: &tauri::Window) -> f64 {
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let measured = match (window.outer_position(), window.inner_position()) {
+        (Ok(outer), Ok(inner)) => f64::from(inner.y.saturating_sub(outer.y).max(0)) / scale,
+        _ => 0.0,
+    };
+    // macOS reports the same point for both; the standard title bar is 28 pt.
+    if measured == 0.0 && cfg!(target_os = "macos") {
+        28.0
+    } else {
+        measured
+    }
+}
+
+fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
+    let parsed: tauri::Url = url.parse().map_err(|e| failed(format!("{e}")))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(failed("only http(s) pages open here"));
+    }
+    Ok(parsed)
+}
+
+/// A web page inside the window, as a child web view over the area the
+/// UI names (logical pixels from the window's top-left): the browser
+/// behind a tab whose note holds the address. Only `http(s)`.
+#[tauri::command]
+#[specta::specta]
+fn web_open(
+    app: tauri::AppHandle,
+    label: String,
+    url: String,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+) -> Result<(), ContractError> {
+    let url = http_url(&url)?;
+    let window = app
+        .get_window("main")
+        .ok_or_else(|| failed("no main window"))?;
+    let y = y + chrome_offset(&window);
+    window
+        .add_child(
+            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url)),
+            tauri::LogicalPosition::new(x, y),
+            tauri::LogicalSize::new(w.max(1.0), h.max(1.0)),
+        )
         .map_err(|e| failed(e.to_string()))?;
     Ok(())
+}
+
+/// Move and size a web page's view to follow its tab.
+#[tauri::command]
+#[specta::specta]
+fn web_bounds(
+    app: tauri::AppHandle,
+    label: String,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+) -> Result<(), ContractError> {
+    let wv = webview_of(&app, &label)?;
+    let y = y + app.get_window("main").map_or(0.0, |w| chrome_offset(&w));
+    wv.set_position(tauri::LogicalPosition::new(x, y))
+        .and_then(|()| wv.set_size(tauri::LogicalSize::new(w.max(1.0), h.max(1.0))))
+        .map_err(|e| failed(e.to_string()))
+}
+
+/// Show or hide a web page's view (its tab left the front, an overlay opened).
+#[tauri::command]
+#[specta::specta]
+fn web_visible(app: tauri::AppHandle, label: String, visible: bool) -> Result<(), ContractError> {
+    let wv = webview_of(&app, &label)?;
+    (if visible { wv.show() } else { wv.hide() }).map_err(|e| failed(e.to_string()))
+}
+
+/// Close a web page's view (its tab closed).
+#[tauri::command]
+#[specta::specta]
+fn web_close(app: tauri::AppHandle, label: String) -> Result<(), ContractError> {
+    webview_of(&app, &label)?
+        .close()
+        .map_err(|e| failed(e.to_string()))
+}
+
+/// Back, forward, reload, or go to another http(s) address.
+#[tauri::command]
+#[specta::specta]
+fn web_nav(
+    app: tauri::AppHandle,
+    label: String,
+    action: String,
+    url: Option<String>,
+) -> Result<(), ContractError> {
+    let wv = webview_of(&app, &label)?;
+    match action.as_str() {
+        "back" => wv.eval("history.back()"),
+        "forward" => wv.eval("history.forward()"),
+        "reload" => wv.eval("location.reload()"),
+        "go" => wv.navigate(http_url(url.as_deref().unwrap_or(""))?),
+        other => return Err(failed(format!("unknown action {other}"))),
+    }
+    .map_err(|e| failed(e.to_string()))
+}
+
+/// The address a web page's view is at now.
+#[tauri::command]
+#[specta::specta]
+fn web_url(app: tauri::AppHandle, label: String) -> Result<String, ContractError> {
+    webview_of(&app, &label)?
+        .url()
+        .map(|u| u.to_string())
+        .map_err(|e| failed(e.to_string()))
 }
 
 /// The folder the command line asked for, once; `None` afterwards and
@@ -543,6 +671,12 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         list_entries,
         initial_folder,
         open_url,
+        web_open,
+        web_bounds,
+        web_visible,
+        web_close,
+        web_nav,
+        web_url,
         read_text,
         write_text,
         rename_entry,
@@ -638,9 +772,12 @@ fn serve_file(
         }
     };
     let body: std::borrow::Cow<'static, [u8]> = std::borrow::Cow::Owned(body);
+    // The page's origin is the app's; the files are on another scheme, so
+    // `fetch` (the PDF reader) needs this header. `<img>` did not.
     tauri::http::Response::builder()
         .status(status)
         .header("Content-Type", mime)
+        .header("Access-Control-Allow-Origin", "*")
         .body(body)
         .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())))
 }

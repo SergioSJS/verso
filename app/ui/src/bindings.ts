@@ -80,6 +80,22 @@ export const commands = {
 	 */
 	openUrl: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("open_url", { url })),
 	/**
+	 *  A web page inside the window, as a child web view over the area the
+	 *  UI names (logical pixels from the window's top-left): the browser
+	 *  behind a tab whose note holds the address. Only `http(s)`.
+	 */
+	webOpen: (label: string, url: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_open", { label, url, x, y, w, h })),
+	/**  Move and size a web page's view to follow its tab. */
+	webBounds: (label: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, x, y, w, h })),
+	/**  Show or hide a web page's view (its tab left the front, an overlay opened). */
+	webVisible: (label: string, visible: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("web_visible", { label, visible })),
+	/**  Close a web page's view (its tab closed). */
+	webClose: (label: string) => typedError<null, ContractError>(__TAURI_INVOKE("web_close", { label })),
+	/**  Back, forward, reload, or go to another http(s) address. */
+	webNav: (label: string, action: string, url: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_nav", { label, action, url })),
+	/**  The address a web page's view is at now. */
+	webUrl: (label: string) => typedError<string, ContractError>(__TAURI_INVOKE("web_url", { label })),
+	/**
 	 *  Any file as text with its revision, for the editor of files that are
 	 *  not notes.
 	 */

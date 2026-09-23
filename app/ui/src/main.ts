@@ -25,6 +25,7 @@ import { icon } from "./icons";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, frontmatterChange } from "./props";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
+import { PdfView } from "./pdf";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -43,7 +44,9 @@ type Strings = Record<
   | "replaceTitle" | "find" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
   | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
-  | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN",
+  | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
+  | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied"
+  | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "webOpenWindow",
   string
 > & {
   indexed: (n: number, u: number, p: number) => string;
@@ -57,6 +60,7 @@ type Strings = Record<
   confirmDeleteFolder: (n: string) => string;
   words: (w: number, c: number) => string;
   replaceCount: (n: number) => string;
+  pdfHits: (n: number, pages: number) => string;
 };
 
 const pt: Strings = {
@@ -96,6 +100,9 @@ const pt: Strings = {
   addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link",
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
+  pdfHits: (n, pages) => `${n} ocorrência${n === 1 ? "" : "s"} em ${pages} página${pages === 1 ? "" : "s"}`,
+  pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
+  webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", webOpenWindow: "Abrir em janela",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
@@ -139,6 +146,9 @@ const en: Strings = {
   addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
+  pdfHits: (n, pages) => `${n} hit${n === 1 ? "" : "s"} on ${pages} page${pages === 1 ? "" : "s"}`,
+  pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
+  webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", webOpenWindow: "Open in a window",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
@@ -207,7 +217,8 @@ function kindOf(path: string): Kind {
   if (e === "md") return "note";
   if (IMAGE.test(e)) return "image";
   if (TEXT.test(e)) return "text";
-  if (e === "pdf" || e === "html" || e === "htm") return "frame";
+  if (e === "pdf") return "pdf";
+  if (e === "html" || e === "htm") return "frame";
   return "other";
 }
 function iconFor(kind: Kind): string {
@@ -488,6 +499,13 @@ function completeSlash(ctx: CompletionContext): CompletionResult | null {
   // Filtered above: CodeMirror's own filter would match labels against the "/".
   // No `validFor`: with CodeMirror's filter off, the source runs again on every keystroke.
   return { from: before.from + slash, options, filter: false };
+}
+
+let webSeq = 0;
+/** An overlay (switcher, palette, plan, menu, dialog) is on screen: native
+ *  web views would paint over it, so they hide meanwhile. */
+function overlayOpen(): boolean {
+  return document.querySelector(".quick:not([hidden]), .plan:not([hidden]), .menu:not([hidden])") !== null;
 }
 
 /* ---------- Pointer drag: tabs and tree rows, dropped where the pointer says ---------- */
@@ -776,6 +794,17 @@ class NoteLeaf extends Leaf {
   readonly preview = h("div", "preview");
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
+  readonly sheet = h("div", "sheet");
+  /* A note with a `url` property is a web page: the page lives in a child
+   * web view of the window, laid over this host and kept in step with it. */
+  readonly webBar = h("div", "web-bar");
+  readonly webHost = h("div", "web-host");
+  readonly webAddress = h("span", "web-address");
+  private webLabel: string | null = null;
+  private webUrl = "";
+  private webShown = false;
+  private webRaf = 0;
+  private webLast = "";
   private saveTimer: number | undefined;
   readonly star = h("button", "star");
   readonly editor: EditorView;
@@ -817,9 +846,12 @@ class NoteLeaf extends Leaf {
     this.conflict.append(conflictText, this.conflictDiff, actions);
     this.conflict.hidden = true;
     this.buildToolbar();
-    const sheet = h("div", "sheet");
+    const sheet = this.sheet;
     sheet.append(titleRow, this.flags, this.props.el, this.conflict, this.preview, this.editorHost);
-    this.el.append(head, this.toolbar, sheet);
+    this.buildWebBar();
+    this.webBar.hidden = true;
+    this.webHost.hidden = true;
+    this.el.append(head, this.toolbar, this.webBar, sheet, this.webHost);
     this.live = livePreview({
       imageUrl: (target) => imageUrl(target, () => this.editor.dispatch({ effects: redraw.of(null) })),
       navigate: (target) => this.follow(target),
@@ -1037,6 +1069,96 @@ class NoteLeaf extends Leaf {
   toggleMode(): void {
     this.setMode(this.mode === "preview" ? "live" : "preview");
   }
+  private buildWebBar(): void {
+    const b = (ic: string, title: string, run: () => void) => {
+      const x = button("ghost iconic", title, ic);
+      x.addEventListener("click", run);
+      return x;
+    };
+    const toggle = button("ghost", t.webShowNote);
+    toggle.classList.add("web-toggle");
+    toggle.addEventListener("click", () => this.setWebShown(!this.webShown));
+    this.webAddress.addEventListener("click", () => void commands.openUrl(this.webUrl));
+    this.webAddress.title = t.webOpenWindow;
+    this.webBar.append(
+      b("chevronLeft", t.webBack, () => this.webLabel && void commands.webNav(this.webLabel, "back", null)),
+      b("chevron", t.webForward, () => this.webLabel && void commands.webNav(this.webLabel, "forward", null)),
+      b("refresh", t.webReload, () => this.webLabel && void commands.webNav(this.webLabel, "reload", null)),
+      this.webAddress,
+      toggle,
+    );
+  }
+  /** The note's `url`, if it has one that a page can open. */
+  private noteUrl(): string {
+    const p = this.note?.properties.find((x) => x.key.toLowerCase() === "url");
+    return p && p.value.kind === "text" && /^https?:\/\//i.test(p.value.value) ? p.value.value : "";
+  }
+  private applyWeb(): void {
+    const url = this.noteUrl();
+    this.webBar.hidden = url === "";
+    if (url === "") {
+      if (this.webLabel) this.closeWeb();
+      this.setWebShown(false);
+      return;
+    }
+    this.webAddress.textContent = url.replace(/^https?:\/\//, "");
+    if (url !== this.webUrl && this.webLabel) this.closeWeb();
+    this.webUrl = url;
+    // A note that is only its address shows the page first.
+    const body = this.editor.state.doc.toString().replace(/^---[\s\S]*?\n---\n?/, "").trim();
+    this.setWebShown(body === "" || this.webShown);
+  }
+  private setWebShown(on: boolean): void {
+    this.webShown = on;
+    this.sheet.hidden = on;
+    this.toolbar.hidden = on || this.mode === "preview";
+    this.webHost.hidden = !on;
+    const toggle = this.webBar.querySelector<HTMLButtonElement>(".web-toggle");
+    if (toggle) toggle.textContent = on ? t.webShowNote : t.webShowPage;
+    if (on) void this.openWeb();
+    else this.syncWeb();
+  }
+  private async openWeb(): Promise<void> {
+    if (this.webLabel || !this.webUrl) return this.syncWeb();
+    const label = `web-${++webSeq}`;
+    this.webLabel = label;
+    const r = this.webHost.getBoundingClientRect();
+    const res = await commands.webOpen(label, this.webUrl, r.left, r.top, Math.max(1, r.width), Math.max(1, r.height));
+    if (res.status !== "ok") {
+      this.webLabel = null;
+      return fail(res.error);
+    }
+    this.webLast = "";
+    if (!this.webRaf) this.tickWeb();
+  }
+  /** Every frame the page's view follows its host: moved, sized, hidden
+   *  when the tab is not in front or an overlay is open. Only changes
+   *  cross the bridge. */
+  private tickWeb(): void {
+    this.webRaf = 0;
+    const label = this.webLabel;
+    if (!label) return;
+    const r = this.webHost.getBoundingClientRect();
+    const visible = this.webShown && this.el.isConnected && this.webHost.offsetParent !== null && r.width > 1 && r.height > 1 && !overlayOpen();
+    const key = visible ? `1|${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}` : "0";
+    if (key !== this.webLast) {
+      this.webLast = key;
+      if (visible) void commands.webBounds(label, r.left, r.top, r.width, r.height).then(() => commands.webVisible(label, true));
+      else void commands.webVisible(label, false);
+    }
+    this.webRaf = window.requestAnimationFrame(() => this.tickWeb());
+  }
+  private syncWeb(): void {
+    this.webLast = "";
+    if (this.webLabel && !this.webRaf) this.tickWeb();
+  }
+  private closeWeb(): void {
+    const label = this.webLabel;
+    this.webLabel = null;
+    if (this.webRaf) window.cancelAnimationFrame(this.webRaf);
+    this.webRaf = 0;
+    if (label) void commands.webClose(label);
+  }
   override focusContent(): void {
     if (this.mode !== "preview") this.editor.focus();
   }
@@ -1048,8 +1170,15 @@ class NoteLeaf extends Leaf {
   }
   follow(target: string): void {
     const to = this.resolve(target);
-    if (to) openIn(this.pane, to);
-    else ui.status.textContent = t.unresolved(target);
+    if (to) return void openIn(this.pane, to);
+    // Not a note: an attachment, maybe with `#page=N` for a PDF.
+    const key = target.split("#")[0] ?? target;
+    const page = Number(/page=(\d+)/.exec(target)?.[1] ?? "0");
+    void commands.resolveAttachment(key).then((r) => {
+      if (r.status !== "ok" || !r.data) return void (ui.status.textContent = t.unresolved(target));
+      const leaf = openIn(this.pane, r.data);
+      if (leaf instanceof PdfLeaf && page > 0) void leaf.loading.then(() => leaf.goTo(page));
+    });
   }
   renameHere(): void {
     if (!this.note) return;
@@ -1108,6 +1237,7 @@ class NoteLeaf extends Leaf {
     this.conflict.hidden = true;
     if (this.pane.active === this) panel.show(this);
     this.updateWords();
+    this.applyWeb();
   }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
@@ -1303,6 +1433,7 @@ class NoteLeaf extends Leaf {
     this.editor.focus();
   }
   override destroy(): void {
+    this.closeWeb();
     this.editor.destroy();
   }
 }
@@ -1564,7 +1695,47 @@ class FolderLeaf extends Leaf {
   }
 }
 
-/* An HTML page or a PDF, shown by the webview itself, scripts off. */
+/* A PDF, read in the app: pages, text, search, a link to a page and a
+ * quote of the selection into a companion note beside the file. */
+class PdfLeaf extends Leaf {
+  readonly kind: Kind = "pdf";
+  readonly crumbs = h("nav", "crumbs");
+  readonly view: PdfView;
+  private pending = 1;
+  constructor(pane: Pane) {
+    super(pane);
+    this.view = new PdfView({
+      strings: { page: t.pdfPage, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst, outline: t.outline },
+      onCopyLink: (page) => void navigator.clipboard.writeText(`[[${this.path.split("/").pop() ?? this.path}#page=${page}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
+      onQuote: (page, text) => void quoteIntoNotes(this.path, page, text),
+      onStatus: (m) => (ui.status.textContent = m),
+      onPage: (page, total) => (ui.words.textContent = total ? `${t.pdfPage} ${page} ${t.pdfOf} ${total}` : ""),
+    });
+    const head = h("header", "leaf-head");
+    head.append(this.crumbs);
+    this.el.append(head, this.view.el);
+  }
+  async load(path: string, _force?: boolean, page = 1): Promise<void> {
+    this.path = path;
+    this.pending = page;
+    this.setTitle(path.split("/").pop() ?? path);
+    this.crumbs.replaceChildren(...crumbsFor(path));
+    await this.view.load(convertFileSrc(path, "verso"), page);
+    markCurrent();
+    persistSoon();
+  }
+  goTo(page: number): void {
+    this.view.goTo(page);
+  }
+  override focusContent(): void {
+    this.view.scroller.focus();
+  }
+  override destroy(): void {
+    this.view.destroy();
+  }
+}
+
+/* An HTML page, shown by the webview itself, scripts off. */
 class FrameLeaf extends Leaf {
   readonly kind: Kind = "frame";
   readonly frame = h("iframe", "frame-view");
@@ -1577,7 +1748,6 @@ class FrameLeaf extends Leaf {
   async load(path: string): Promise<void> {
     this.path = path;
     this.setTitle(path.split("/").pop() ?? path);
-    if (ext(path) === "pdf") this.frame.removeAttribute("sandbox");
     this.frame.src = convertFileSrc(path, "verso");
     this.frame.title = this.tabName.textContent ?? "";
     markCurrent();
@@ -1780,7 +1950,7 @@ class Pane {
     let leaf = fresh ? undefined : this.leaves.find((l) => l.path === path);
     if (!leaf) {
       const kind = kindOf(path);
-      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "frame" ? new FrameLeaf(this) : new TextLeaf(this);
+      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : new TextLeaf(this);
       remember(path);
       this.insert(leaf);
       void leaf.load(path);
@@ -2579,6 +2749,32 @@ function movePrompt(path: string): void {
     else if (e.key === "Escape") finish(false);
   });
   input.addEventListener("blur", () => finish(false));
+}
+/** A passage of a PDF quoted into its companion note — `<name> — Notes.md`
+ *  beside the file, created on first use — as a callout that links back
+ *  to the page. Written over the revision that was read. */
+async function quoteIntoNotes(pdf: string, page: number, text: string): Promise<void> {
+  const base = pdf.split("/").pop() ?? pdf;
+  const stem = base.replace(/\.pdf$/i, "");
+  const dir = dirOf(pdf);
+  const notePath = `${dir ? dir + "/" : ""}${stem} — ${t.pdfNotes}.md`;
+  const block = `\n> [!quote] [[${base}#page=${page}]]\n> ${text.split(/\n/).join("\n> ")}\n`;
+  const existing = await commands.readNote(notePath);
+  let r;
+  if (existing.status === "ok") r = await commands.writeNote(notePath, existing.data.text.replace(/\s*$/, "\n") + block, existing.data.revision);
+  else {
+    const made = await commands.createNote(notePath, `# ${t.pdfNotes} — ${stem}\n\n![[${base}]]\n${block}`);
+    r = made.status === "ok" ? { status: "ok" as const, data: { note: made.data } } : made;
+  }
+  if (r.status !== "ok") return fail(r.error);
+  await afterFileChange();
+  const open = leavesOf(notePath)[0];
+  if (open) void open.load(notePath, true);
+  else {
+    const pane = layout().focused ?? layout().panes()[0];
+    if (pane) openIn(layout().split(pane, "row"), notePath);
+  }
+  ui.status.textContent = t.quoted;
 }
 /** A copy beside the original: "Name copy.ext", then "Name copy 2.ext"… */
 async function duplicateEntry(path: string, kind: Kind): Promise<void> {
