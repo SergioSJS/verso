@@ -417,8 +417,14 @@ fn an_attachment_resolves_by_name_or_stem_and_reads_through_the_core() {
     assert_eq!(
         n.properties,
         vec![
-            ("tags".to_owned(), "a, b".to_owned()),
-            ("nivel".to_owned(), "3".to_owned())
+            (
+                "tags".to_owned(),
+                verso_core::PropertyValue::List(vec!["a".to_owned(), "b".to_owned()])
+            ),
+            (
+                "nivel".to_owned(),
+                verso_core::PropertyValue::Number("3".to_owned())
+            )
         ]
     );
 }
@@ -583,4 +589,33 @@ fn any_entry_is_listed_with_size_and_date_renamed_with_a_plan_and_trashed() {
     );
     assert!(ws.files().is_empty());
     assert_eq!(ws.index().unwrap().removed, 0);
+}
+
+#[test]
+fn any_text_file_is_read_and_written_over_its_revision() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _data = note(vault.path(), "dados.json", "{\"a\": 1}\n");
+    let _nota = note(vault.path(), "Nota.md", "# Nota\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let read = ws.read_text("dados.json").unwrap();
+    assert_eq!(read.text, "{\"a\": 1}\n");
+    let written = ws
+        .write_text("dados.json", "{\"a\": 2}\n", &read.revision)
+        .unwrap();
+    assert_eq!(written.text, "{\"a\": 2}\n");
+    assert_ne!(written.revision, read.revision);
+    // The old revision no longer describes the file: refused, unchanged.
+    assert!(matches!(
+        ws.write_text("dados.json", "{}", &read.revision),
+        Err(CoreError::Write(verso_core::WriteError::Changed { .. }))
+    ));
+    assert_eq!(ws.read_text("dados.json").unwrap().text, "{\"a\": 2}\n");
+    // A note by this door is indexed like any note.
+    let nota = ws.read_text("Nota.md").unwrap();
+    ws.write_text("Nota", "# Nota\n\n[[Alvo]]\n", &nota.revision)
+        .unwrap();
+    assert_eq!(ws.links("Nota").unwrap().unwrap().len(), 1);
 }

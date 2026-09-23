@@ -194,10 +194,46 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .flags { margin: .5rem 0 0; font-size: .82rem; color: var(--brass); }
 .flags:empty { display: none; }
 
-.props { display: flex; flex-wrap: wrap; gap: .3rem .45rem; margin: .9rem 0 0; padding: 0; font-size: .78rem; }
-.props dt, .props dd { margin: 0; }
-.props dt { color: var(--ink-3); padding: .12rem .45rem .12rem .55rem; background: var(--paper-2); border: 1px solid var(--hair); border-right: 0; border-radius: 999px 0 0 999px; }
-.props dd { padding: .12rem .6rem .12rem .45rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--hair); border-left: 0; border-radius: 0 999px 999px 0; margin-right: .3rem; }
+/* Properties: a quiet table, key column fixed, edited in place. */
+.props { margin: .9rem 0 0; padding: .1rem 0; font-size: .84rem; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); max-width: 100ch; }
+.prop { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; border-radius: 5px; }
+.prop:hover { background: var(--paper-2); }
+.prop-key { display: inline-flex; align-items: center; gap: .45rem; color: var(--ink-3); min-width: 0; }
+.prop-key .icon { width: 14px; height: 14px; flex: none; }
+.prop-key-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prop-value { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; min-width: 0; }
+.prop-input { font: inherit; color: var(--ink); background: none; border: 0; padding: .25rem .3rem; width: 100%; min-width: 4rem; border-radius: 4px; }
+.prop-input:hover { background: var(--paper-3); }
+.prop-input:focus { outline: none; background: var(--paper); box-shadow: 0 0 0 1px var(--brass); }
+.prop-input::placeholder { color: var(--ink-3); font-style: italic; }
+.prop-value input[type="checkbox"] { accent-color: var(--seal); width: 1rem; height: 1rem; margin: 0 .3rem; }
+.pill { display: inline-flex; align-items: center; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--hair); overflow: hidden; }
+.pill-label { font: inherit; font-size: .8rem; padding: .1rem .55rem; color: var(--ink); }
+.pill-label:disabled { color: var(--ink); cursor: default; }
+.tag-pill { background: var(--seal-wash); border-color: transparent; }
+.tag-pill .pill-label { color: var(--seal); }
+.tag-pill .pill-label:hover { text-decoration: underline; }
+.pill-x { display: inline-flex; padding: .1rem .3rem .1rem 0; color: var(--ink-3); }
+.pill-x .icon { width: 11px; height: 11px; }
+.pill-x:hover { color: var(--seal); }
+.prop-add { font: inherit; font-size: .8rem; background: none; border: 0; color: var(--ink); padding: .15rem .3rem; min-width: 5rem; flex: 1; }
+.prop-add::placeholder { color: var(--ink-3); }
+.prop-add:focus { outline: none; }
+.prop-remove { display: inline-flex; padding: .3rem; color: var(--ink-3); opacity: 0; border-radius: 4px; }
+.prop:hover .prop-remove, .prop:focus-within .prop-remove { opacity: 1; }
+.prop-remove:hover { color: var(--seal); background: var(--paper-3); }
+.prop-remove .icon { width: 12px; height: 12px; }
+/* No properties: only the ghost of the add button, shown when the sheet is hovered. */
+.props.empty { border-color: transparent; margin-top: .2rem; padding: 0; }
+.props.empty .prop-new { opacity: 0; transition: opacity .15s; }
+.sheet:hover .props.empty .prop-new, .props.empty .prop-new:focus-visible { opacity: 1; }
+.prop-new { display: inline-flex; align-items: center; gap: .35rem; margin: .15rem 0; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--ink-3); border-radius: 5px; }
+.prop-new:hover { color: var(--ink); background: var(--paper-2); }
+.prop-new .icon { width: 13px; height: 13px; }
+.prop-key-input { grid-column: 1 / -1; }
+.editor .cm-lp-frontmatter { color: var(--ink-3); letter-spacing: .3em; padding: .1rem 0 .4rem; cursor: text; font-family: var(--ui); }
+.status-words { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.panel-sub { margin: 1rem .6rem .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
 
 /* Reading */
 .preview { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; margin-top: 1.2rem; max-width: 100ch; }

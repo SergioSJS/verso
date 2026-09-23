@@ -12,8 +12,9 @@
 // dialect's and is found by hand, outside code.
 
 import { syntaxTree } from "@codemirror/language";
-import { StateEffect } from "@codemirror/state";
+import { StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import type { Text } from "@codemirror/state";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -21,6 +22,8 @@ export type LiveOptions = {
   imageUrl: (target: string) => string | null | undefined;
   /** ⌘/Ctrl-click on a wikilink. */
   navigate: (target: string) => void;
+  /** The folded frontmatter was clicked: the caller shows the YAML (source mode). */
+  editFrontmatter?: () => void;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -99,7 +102,41 @@ class ImageWidget extends WidgetType {
   }
 }
 
+/** The folded frontmatter: a hint that properties live above. */
+class FrontmatterWidget extends WidgetType {
+  constructor(readonly lines: number, readonly onClick: (() => void) | undefined) {
+    super();
+  }
+  override eq(other: FrontmatterWidget): boolean {
+    return other.lines === this.lines;
+  }
+  toDOM(): HTMLElement {
+    const el = document.createElement("div");
+    el.className = "cm-lp-frontmatter";
+    el.textContent = "···";
+    el.title = `${this.lines} ${this.lines === 1 ? "line" : "lines"} of properties — click to edit the YAML`;
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      this.onClick?.();
+    });
+    return el;
+  }
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
 type Range = { from: number; to: number; deco: Decoration };
+
+/** End of the closing `---` line of a frontmatter block, or -1. */
+export function frontmatterEnd(doc: Text): number {
+  if (doc.lines < 2 || doc.line(1).text.trim() !== "---") return -1;
+  for (let n = 2; n <= doc.lines; n++) {
+    const l = doc.line(n);
+    if (l.text.trim() === "---" || l.text.trim() === "...") return l.to;
+  }
+  return -1;
+}
 
 function linesOfSelection(view: EditorView): Set<number> {
   const lines = new Set<number>();
@@ -126,11 +163,18 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
   };
   const tree = syntaxTree(view.state);
 
+  // The frontmatter is shown by the properties panel above the editor;
+  // here it folds to one quiet line (the YAML itself is for source mode).
+  // (The fold itself is a state field below: a replacement that spans
+  // lines cannot come from a view plugin.)
+  const fmEnd = frontmatterEnd(doc);
+
   for (const { from, to } of view.visibleRanges) {
     tree.iterate({
       from,
       to,
       enter: (node) => {
+        if (fmEnd >= 0 && node.to <= fmEnd && node.from < fmEnd) return false;
         const name = node.name;
         const shown = touched(node.from, node.to);
         if (/^ATXHeading[1-6]$/.test(name)) {
@@ -258,5 +302,17 @@ export function livePreview(opts: LiveOptions) {
       return false;
     },
   });
-  return [plugin, clicks];
+  // The frontmatter folded to one quiet line, from state (a view plugin
+  // may not replace line breaks), and atomic so the caret skips it.
+  const fold = (doc: Text): DecorationSet => {
+    const end = frontmatterEnd(doc);
+    if (end < 0) return Decoration.none;
+    return Decoration.set(Decoration.replace({ widget: new FrontmatterWidget(doc.lineAt(end).number - 2, opts.editFrontmatter) }).range(0, end));
+  };
+  const frontmatter = StateField.define<DecorationSet>({
+    create: (state) => fold(state.doc),
+    update: (value, tr) => (tr.docChanged ? fold(tr.state.doc) : value),
+    provide: (f) => [EditorView.decorations.from(f), EditorView.atomicRanges.of((view) => view.state.field(f))],
+  });
+  return [plugin, clicks, frontmatter];
 }

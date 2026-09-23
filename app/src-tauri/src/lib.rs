@@ -24,7 +24,8 @@ use std::sync::Mutex;
 use tauri::{Manager, State};
 use verso_contract::{
     Backlink, Block, ContractError, ErrorKind, FileEntry, FileKind, FolderInfo, Heading, Hit,
-    IndexSummary, Link, LinkRewrite, NoteText, Property, Renamed, Tag, Written,
+    IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed, Tag, TextFile,
+    Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -127,7 +128,16 @@ fn note_out(t: verso_core::NoteText) -> NoteText {
         properties: t
             .properties
             .into_iter()
-            .map(|(key, value)| Property { key, value })
+            .map(|(key, value)| Property {
+                key,
+                value: match value {
+                    verso_core::PropertyValue::Text(s) => PropertyValue::Text(s),
+                    verso_core::PropertyValue::Number(s) => PropertyValue::Number(s),
+                    verso_core::PropertyValue::Checkbox(b) => PropertyValue::Checkbox(b),
+                    verso_core::PropertyValue::List(v) => PropertyValue::List(v),
+                    verso_core::PropertyValue::Empty => PropertyValue::Empty,
+                },
+            })
             .collect(),
         text: t.text,
         revision: t.revision,
@@ -437,6 +447,36 @@ fn reveal(state: State<'_, App>, path: String) -> Result<(), ContractError> {
         .map_err(|e| failed(e.to_string()))
 }
 
+fn text_out(t: verso_core::TextFile) -> TextFile {
+    TextFile {
+        path: t.path,
+        text: t.text,
+        revision: t.revision,
+        warnings: t.warnings,
+    }
+}
+
+/// Any file as text with its revision, for the editor of files that are
+/// not notes.
+#[tauri::command]
+#[specta::specta]
+fn read_text(state: State<'_, App>, path: String) -> Result<TextFile, ContractError> {
+    with(&state, |ws| ws.read_text(&path)).map(text_out)
+}
+
+/// Write any file's text over the revision that was read; a changed file
+/// is refused (invariant 11) and the UI shows the difference.
+#[tauri::command]
+#[specta::specta]
+fn write_text(
+    state: State<'_, App>,
+    path: String,
+    text: String,
+    revision: String,
+) -> Result<TextFile, ContractError> {
+    with(&state, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
+}
+
 /// Refresh the index from the folder: only what changed is re-read.
 #[tauri::command]
 #[specta::specta]
@@ -465,6 +505,8 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         list_tags,
         read_file_text,
         list_entries,
+        read_text,
+        write_text,
         rename_entry,
         delete_entry,
         reveal,
