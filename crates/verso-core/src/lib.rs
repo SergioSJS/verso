@@ -244,6 +244,28 @@ pub struct Renamed {
     pub rewrites: Vec<LinkRewrite>,
 }
 
+/// What one entry of the open folder is, as the last walk saw it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileKind {
+    Note,
+    File,
+    Folder,
+    /// Present, content in the cloud (ADR 0043).
+    Placeholder,
+}
+
+/// One entry of the open folder with what a listing shows of it: kind,
+/// length and modification time as the walk read them. Never what a
+/// write trusts: that is the `Stamp` read with the content.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileEntry {
+    pub path: String,
+    pub kind: FileKind,
+    pub len: u64,
+    /// Seconds since the Unix epoch; 0 when the file system gave none.
+    pub modified: i64,
+}
+
 /// Every `[[target…]]` and `![[target…]]` in `text` whose target names the
 /// note at `old` (by bare name or by path, `.md` optional, case-
 /// insensitively) rewritten to name `new` — in the form the writer used:
@@ -269,10 +291,12 @@ fn rewrite_links(text: &str, old: &str, new: &str) -> String {
         };
         let t = fold(target);
         let t = t.strip_suffix(".md").unwrap_or(&t).to_owned();
-        let replacement = if t == fold(&old_path) {
-            Some(new_path.clone())
-        } else if !t.contains('/') && t == fold(&old_name) {
+        // A bare name first: at the root, name and path are the same
+        // string, and the writer's bare name must stay bare.
+        let replacement = if !t.contains('/') && t == fold(&old_name) {
             Some(new_name.clone())
+        } else if t == fold(&old_path) {
+            Some(new_path.clone())
         } else {
             None
         };
@@ -410,6 +434,8 @@ pub struct Workspace {
     /// Every folder the last walk listed, plus the ones created since:
     /// an empty folder has no file to be seen by, and a tree shows it.
     dirs: HashSet<String>,
+    /// Every entry of the last walk, in walk order, with size and date.
+    entries: Vec<FileEntry>,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -464,6 +490,7 @@ impl Workspace {
             index,
             files: HashMap::new(),
             dirs: HashSet::new(),
+            entries: Vec::new(),
         })
     }
 
@@ -489,8 +516,20 @@ impl Workspace {
         let mut present: HashSet<String> = HashSet::new();
         let mut files: HashMap<String, Vec<String>> = HashMap::new();
         let mut dirs: HashSet<String> = HashSet::new();
+        let mut entries: Vec<FileEntry> = Vec::with_capacity(walk.entries.len());
         for entry in &walk.entries {
             let relative = entry.relative.to_string_lossy().into_owned();
+            entries.push(FileEntry {
+                path: relative.clone(),
+                kind: match &entry.kind {
+                    EntryKind::Note => FileKind::Note,
+                    EntryKind::File => FileKind::File,
+                    EntryKind::Directory => FileKind::Folder,
+                    EntryKind::Placeholder { .. } => FileKind::Placeholder,
+                },
+                len: entry.len,
+                modified: entry.modified.map_or(0, seconds_since_epoch),
+            });
             match &entry.kind {
                 EntryKind::Note => {
                     present.insert(relative.clone());
@@ -556,6 +595,7 @@ impl Workspace {
         }
         self.files = files;
         self.dirs = dirs;
+        self.entries = entries;
         report.problems = walk.problems.iter().map(WalkProblem::from).collect();
         // Not walked because of a problem: nothing under it is gone. The
         // root itself (an empty path) protects every note.
@@ -849,6 +889,149 @@ impl Workspace {
             path: new,
             rewrites,
         })
+    }
+
+    /// Every entry of the folder as the last walk saw it — notes, other
+    /// files, folders and placeholders — with size and date: what a
+    /// folder listing shows and sorts by.
+    #[must_use]
+    pub fn entries(&self) -> &[FileEntry] {
+        &self.entries
+    }
+
+    /// A path of the folder confined, as given: no `.md` added, so it
+    /// names a file of any kind or a folder.
+    fn entry_key(&self, path: &str) -> Result<String, CoreError> {
+        Ok(self
+            .root
+            .confine(Path::new(path))
+            .map_err(CoreError::Confined)?
+            .to_string_lossy()
+            .into_owned())
+    }
+
+    /// Whether a confined path names a note: by its `.md`, or, `.md`
+    /// omitted as [`Self::note_key`] allows, by the index knowing it.
+    fn is_note(&self, key: &str) -> Result<bool, CoreError> {
+        Ok(key.ends_with(".md") || self.known(&format!("{key}.md"))?)
+    }
+
+    /// Where an entry is on disk, for the host to hand to the system's
+    /// file manager. The one absolute path that leaves this crate besides
+    /// [`Self::folder`]; it goes to the operating system, never across
+    /// the contract (ADR 0026 rule 4).
+    pub fn absolute(&self, path: &str) -> Result<PathBuf, CoreError> {
+        Ok(self.folder.join(self.entry_key(path)?))
+    }
+
+    /// Rename or move anything of the folder — a note, another file or a
+    /// folder — and say which notes link to what moved (ADR 0048, option
+    /// (b)): the entry moves, the index follows, and the rewrites come
+    /// back as a plan for the caller to show and apply through
+    /// `write_note`. A note goes through [`Self::rename_note`]. A folder
+    /// moves with everything under it: the notes that linked to a note
+    /// inside are read again at their new paths. An attachment's
+    /// linkers are found through the search index by the file's name;
+    /// the rewrite itself matches the whole name, so a note that merely
+    /// mentions the word is left alone.
+    pub fn rename_entry(&mut self, from: &str, to: &str) -> Result<Renamed, CoreError> {
+        let old = self.entry_key(from)?;
+        let new = self.entry_key(to)?;
+        if self.dirs.contains(&old) {
+            return self.rename_folder(&old, &new);
+        }
+        if self.is_note(&old)? {
+            return self.rename_note(&old, &new);
+        }
+        self.root
+            .rename(Path::new(&old), Path::new(&new))
+            .map_err(CoreError::Write)?;
+        self.index()?;
+        let name = old.rsplit('/').next().unwrap_or(&old);
+        let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+        let mut rewrites = Vec::new();
+        if !stem.trim().is_empty() {
+            for hit in self.search(stem, 10_000)? {
+                let note = self.read_note(&hit.path)?;
+                let after = rewrite_links(&note.text, &old, &new);
+                if after != note.text {
+                    rewrites.push(LinkRewrite {
+                        path: hit.path,
+                        revision: note.revision,
+                        before: note.text,
+                        after,
+                    });
+                }
+            }
+        }
+        Ok(Renamed {
+            path: new,
+            rewrites,
+        })
+    }
+
+    fn rename_folder(&mut self, old: &str, new: &str) -> Result<Renamed, CoreError> {
+        let prefix = format!("{old}/");
+        let moved: Vec<(String, String)> = self
+            .index
+            .notes()
+            .map_err(CoreError::Index)?
+            .into_iter()
+            .filter(|n| n.starts_with(&prefix))
+            .map(|n| {
+                let to = format!("{new}/{}", &n[prefix.len()..]);
+                (n, to)
+            })
+            .collect();
+        let mut linkers: Vec<String> = Vec::new();
+        for (n, _) in &moved {
+            for b in self.index.backlinks(n).map_err(CoreError::Index)? {
+                linkers.push(b.from);
+            }
+        }
+        linkers.sort();
+        linkers.dedup();
+        self.root
+            .rename(Path::new(old), Path::new(new))
+            .map_err(CoreError::Write)?;
+        self.index()?;
+        let mut rewrites = Vec::new();
+        for linker in linkers {
+            let path = match linker.strip_prefix(&prefix) {
+                Some(rest) => format!("{new}/{rest}"),
+                None => linker,
+            };
+            let note = self.read_note(&path)?;
+            let mut after = note.text.clone();
+            for (o, n) in &moved {
+                after = rewrite_links(&after, o, n);
+            }
+            if after != note.text {
+                rewrites.push(LinkRewrite {
+                    path,
+                    revision: note.revision,
+                    before: note.text,
+                    after,
+                });
+            }
+        }
+        Ok(Renamed {
+            path: new.to_owned(),
+            rewrites,
+        })
+    }
+
+    /// Move anything of the folder — a note, another file or a whole
+    /// folder — to `.trash/` at the root (Obsidian's bin; nothing is
+    /// unlinked) and forget it in the index. Returns where it went.
+    pub fn delete_entry(&mut self, path: &str) -> Result<String, CoreError> {
+        let key = self.entry_key(path)?;
+        if !self.dirs.contains(&key) && self.is_note(&key)? {
+            return self.delete_note(&key);
+        }
+        let gone = self.root.trash(Path::new(&key)).map_err(CoreError::Write)?;
+        self.index()?;
+        Ok(gone.to_string_lossy().into_owned())
     }
 
     /// Every tag of the vault with its notes (frontmatter and `#tag`).

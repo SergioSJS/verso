@@ -23,8 +23,8 @@ use std::sync::Mutex;
 
 use tauri::{Manager, State};
 use verso_contract::{
-    Backlink, Block, ContractError, ErrorKind, FolderInfo, Heading, Hit, IndexSummary, Link,
-    LinkRewrite, NoteText, Property, Renamed, Tag, Written,
+    Backlink, Block, ContractError, ErrorKind, FileEntry, FileKind, FolderInfo, Heading, Hit,
+    IndexSummary, Link, LinkRewrite, NoteText, Property, Renamed, Tag, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -352,7 +352,11 @@ fn delete_note(state: State<'_, App>, path: String) -> Result<String, ContractEr
 #[tauri::command]
 #[specta::specta]
 fn rename_note(state: State<'_, App>, from: String, to: String) -> Result<Renamed, ContractError> {
-    with(&state, |ws| ws.rename_note(&from, &to)).map(|r| Renamed {
+    with(&state, |ws| ws.rename_note(&from, &to)).map(renamed_out)
+}
+
+fn renamed_out(r: verso_core::Renamed) -> Renamed {
+    Renamed {
         path: r.path,
         rewrites: r
             .rewrites
@@ -364,7 +368,73 @@ fn rename_note(state: State<'_, App>, from: String, to: String) -> Result<Rename
                 after: w.after,
             })
             .collect(),
+    }
+}
+
+/// Every entry of the folder as the last walk saw it, with kind, size
+/// and date: what a folder view lists and sorts.
+#[tauri::command]
+#[specta::specta]
+fn list_entries(state: State<'_, App>) -> Result<Vec<FileEntry>, ContractError> {
+    with(&state, |ws| {
+        Ok(ws
+            .entries()
+            .iter()
+            .map(|e| FileEntry {
+                path: e.path.clone(),
+                kind: match e.kind {
+                    verso_core::FileKind::Note => FileKind::Note,
+                    verso_core::FileKind::File => FileKind::File,
+                    verso_core::FileKind::Folder => FileKind::Folder,
+                    verso_core::FileKind::Placeholder => FileKind::Placeholder,
+                },
+                size: e.len as f64,
+                modified: e.modified as f64,
+            })
+            .collect())
     })
+}
+
+/// Rename or move anything of the folder: a note, another file or a
+/// folder with everything under it. Links to what moved come back as
+/// rewrites, like `rename_note` (ADR 0048, option (b)).
+#[tauri::command]
+#[specta::specta]
+fn rename_entry(state: State<'_, App>, from: String, to: String) -> Result<Renamed, ContractError> {
+    with(&state, |ws| ws.rename_entry(&from, &to)).map(renamed_out)
+}
+
+/// Move anything of the folder — a file or a whole folder — to `.trash/`
+/// at the root; returns where.
+#[tauri::command]
+#[specta::specta]
+fn delete_entry(state: State<'_, App>, path: String) -> Result<String, ContractError> {
+    with(&state, |ws| ws.delete_entry(&path))
+}
+
+/// Show an entry in the system's file manager. The absolute path is
+/// formed here, at the edge, and goes to the operating system only; it
+/// never crosses back to the UI (ADR 0026 rule 4).
+#[tauri::command]
+#[specta::specta]
+fn reveal(state: State<'_, App>, path: String) -> Result<(), ContractError> {
+    let absolute = with(&state, |ws| ws.absolute(&path))?;
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut c = std::process::Command::new("open");
+        c.arg("-R").arg(&absolute);
+        c
+    };
+    #[cfg(not(target_os = "macos"))]
+    let mut command = {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(absolute.parent().unwrap_or(&absolute));
+        c
+    };
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| failed(e.to_string()))
 }
 
 /// Refresh the index from the folder: only what changed is re-read.
@@ -394,6 +464,10 @@ fn commands() -> tauri_specta::Builder<tauri::Wry> {
         list_folders,
         list_tags,
         read_file_text,
+        list_entries,
+        rename_entry,
+        delete_entry,
+        reveal,
         reindex
     ])
 }

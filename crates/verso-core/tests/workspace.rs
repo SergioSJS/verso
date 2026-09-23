@@ -492,3 +492,95 @@ fn notes_are_created_renamed_with_a_link_plan_and_trashed() {
     assert!(ws.notes().unwrap().iter().all(|p| p != "nova/Meta.md"));
     assert_eq!(ws.index().unwrap().removed, 0);
 }
+
+#[test]
+fn any_entry_is_listed_with_size_and_date_renamed_with_a_plan_and_trashed() {
+    use verso_core::FileKind;
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _origem = note(
+        vault.path(),
+        "Origem.md",
+        "[[pasta/Alvo]] [[Alvo]] ![[mapa.png]]\n",
+    );
+    let _mapa = note(vault.path(), "mapa.png", "png");
+    let _pasta = subdir(vault.path(), "pasta");
+    let _alvo = note(&vault.path().join("pasta"), "Alvo.md", "# Alvo\n");
+    let _irmao = note(
+        &vault.path().join("pasta"),
+        "Irmão.md",
+        "[[Alvo]] [[pasta/Alvo]]\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    // The listing: every kind, with the length and a date the walk read.
+    let entries = ws.entries();
+    let of = |p: &str| entries.iter().find(|e| e.path == p).unwrap();
+    assert_eq!(of("pasta").kind, FileKind::Folder);
+    assert_eq!(
+        (of("mapa.png").kind, of("mapa.png").len),
+        (FileKind::File, 3)
+    );
+    assert_eq!(of("Origem.md").kind, FileKind::Note);
+    assert!(of("Origem.md").len > 0 && of("Origem.md").modified > 0);
+
+    // A folder moves with everything under it; the notes that linked by
+    // path to a note inside get a plan, read at their new paths; a bare
+    // name is left alone.
+    let renamed = ws.rename_entry("pasta", "nova").unwrap();
+    assert_eq!(renamed.path, "nova");
+    assert!(ws.read_note("nova/Alvo").is_ok());
+    assert!(ws.read_note("pasta/Alvo").is_err());
+    let plan: Vec<(&str, &str)> = renamed
+        .rewrites
+        .iter()
+        .map(|r| (r.path.as_str(), r.after.as_str()))
+        .collect();
+    assert_eq!(
+        plan,
+        [
+            ("Origem.md", "[[nova/Alvo]] [[Alvo]] ![[mapa.png]]\n"),
+            ("nova/Irmão.md", "[[Alvo]] [[nova/Alvo]]\n"),
+        ],
+        "{plan:?}"
+    );
+    assert!(ws.folders().contains(&"nova".to_owned()));
+    assert!(!ws.folders().contains(&"pasta".to_owned()));
+    for w in &renamed.rewrites {
+        ws.write_note(&w.path, &w.after, &w.revision).unwrap();
+    }
+
+    // An attachment: the embeds that name it are found and rewritten; a
+    // bare name stays bare (the file still resolves by name).
+    let renamed = ws.rename_entry("mapa.png", "img/mapa2.png").unwrap();
+    assert_eq!(renamed.path, "img/mapa2.png");
+    assert_eq!(
+        renamed
+            .rewrites
+            .iter()
+            .map(|r| (r.path.as_str(), r.after.as_str()))
+            .collect::<Vec<_>>(),
+        [("Origem.md", "[[nova/Alvo]] [[Alvo]] ![[mapa2.png]]\n")]
+    );
+    assert_eq!(
+        ws.resolve_file("mapa2.png").as_deref(),
+        Some("img/mapa2.png")
+    );
+    assert!(ws.resolve_file("mapa.png").is_none());
+
+    // A note by the same door, `.md` optional, goes through `rename_note`.
+    let renamed = ws.rename_entry("nova/Irmão", "nova/Irmã").unwrap();
+    assert_eq!(renamed.path, "nova/Irmã.md");
+
+    // The bin takes a folder whole, and a file; the index forgets them.
+    assert_eq!(ws.delete_entry("nova").unwrap(), ".trash/nova");
+    assert!(ws.notes().unwrap().iter().all(|p| !p.starts_with("nova/")));
+    assert!(!ws.folders().contains(&"nova".to_owned()));
+    assert_eq!(
+        ws.delete_entry("img/mapa2.png").unwrap(),
+        ".trash/img/mapa2.png"
+    );
+    assert!(ws.files().is_empty());
+    assert_eq!(ws.index().unwrap().removed, 0);
+}

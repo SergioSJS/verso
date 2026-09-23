@@ -39,6 +39,31 @@ pub struct IndexSummary {
     pub problems: Vec<String>,
 }
 
+/// What one entry of the open folder is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum FileKind {
+    Note,
+    File,
+    Folder,
+    /// Present, content in the cloud (ADR 0043).
+    Placeholder,
+}
+
+/// One entry of the open folder as the last walk saw it: what a folder
+/// listing shows and sorts by. `size` and `modified` are `f64` because
+/// the TypeScript side has no 64-bit integer without `bigint`: bytes are
+/// exact up to 2^53, seconds since the epoch far beyond any date.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct FileEntry {
+    pub path: String,
+    pub kind: FileKind,
+    /// Bytes; 0 for a folder or an unread placeholder.
+    pub size: f64,
+    /// Seconds since the Unix epoch; 0 when the file system gave none.
+    pub modified: f64,
+}
+
 /// A heading of a note, for citing and for the outline.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Heading {
