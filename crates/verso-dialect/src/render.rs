@@ -2,17 +2,38 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! A note as HTML, for a preview (Phase 2). The same base parser and the
-//! same options as [`crate::parse`], so what is a link there is a link
-//! here: a wikilink becomes `<a class="wikilink" data-target="…">` with
-//! the target as written (fragment included) and the alias or the target
-//! as its text; an embed becomes `<span class="embed" data-target="…">`.
-//! Resolving the target is the index's job, not the renderer's; the UI
-//! asks. The frontmatter is not rendered. Raw HTML in the note passes
-//! through, as in the base parser: the preview shows the user their own
-//! file, inside a webview whose policy runs no script.
+//! A note as HTML, for a preview (Phase 2). The same base parser as
+//! [`crate::parse`], with more of its extensions turned on: tables,
+//! strikethrough, task lists, footnotes and math — the reader's provisional
+//! choice while spec Q15 is open — where `parse` enables wikilinks and the
+//! frontmatter only. So a `[[x]]` is a link in both, except where an
+//! extension claims the text first: `$[[x]]$` is a link to `parse` and so
+//! to the index, and math here. A wikilink becomes
+//! `<a class="wikilink" data-target="…">` with the target as written
+//! (fragment included) and the alias or the target as its text; an embed
+//! becomes `<span class="embed" data-target="…">`. Resolving the target is
+//! the index's job, not the renderer's; the UI asks. The frontmatter is not
+//! rendered. Raw HTML in the note passes through, as in the base parser:
+//! the preview shows the user their own file, inside a webview whose policy
+//! runs no script.
+//!
+//! Obsidian's constructs the base does not know are found on its events,
+//! never by scanning the HTML, so raw HTML in the note cannot confuse them:
+//! `%%comments%%` go ([`crate::comments`]), `^[inline footnotes]` become
+//! footnotes ([`crate::footnotes`]), callouts become `<div class="callout">`
+//! ([`crate::callouts`]), `==highlight==` becomes `<mark>`, and `#tag`
+//! becomes `<a class="tag">` by the rule the index lists tags with
+//! ([`crate::body_tags`]). Each acts on prose only: not in code, not in a
+//! link's label or an image's alt text, not in math, not in the
+//! frontmatter — what is code to the base stays code here (invariant 12).
 
-use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html};
+use std::ops::Range;
+
+use pulldown_cmark::{CowStr, Event, LinkType, Tag, TagEnd, html};
+
+use crate::tags::BodyTag;
+use crate::{callouts, comments, events, footnotes, tags};
+use events::{Context, Offset};
 
 fn attr(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -28,333 +49,176 @@ fn attr(s: &str) -> String {
     out
 }
 
-/// `source` as HTML. No IO, no panic: the parser has none.
+/// `source` as HTML. No IO, and no panic: every cut of the text is made
+/// with `get`, and a construct that does not fit is left as written (the
+/// fuzz target of ADR 0029 runs this too). Linear in the size of the note:
+/// each pass reads the events once.
 #[must_use]
 pub fn to_html(source: &str) -> String {
-    let options = Options::ENABLE_WIKILINKS
-        | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
-        | Options::ENABLE_TABLES
-        | Options::ENABLE_STRIKETHROUGH
-        | Options::ENABLE_TASKLISTS
-        | Options::ENABLE_FOOTNOTES
-        | Options::ENABLE_MATH;
-    let source = inline_footnotes(source);
-    let source = source.as_ref();
-    let mut in_metadata = false;
-    let events = Parser::new_ext(source, options).filter_map(|event| match event {
-        Event::Start(Tag::MetadataBlock(_)) => {
-            in_metadata = true;
-            None
+    let events = comments::strip(source, events::events(source));
+    let tags = tags::scan(source, &events);
+    let events = footnotes::inline(source, events);
+    let events = callouts::callouts(source, events);
+    let mut context = Context::default();
+    // Whether each open link or image is a wikilink: only those get the
+    // anchor or the span, and only their ends close it.
+    let mut wiki: Vec<bool> = Vec::new();
+    let rendered = events.into_iter().flat_map(|(event, range)| {
+        context.enter(&event);
+        match event {
+            Event::Start(Tag::MetadataBlock(_)) | Event::End(TagEnd::MetadataBlock(_)) => vec![],
+            _ if context.metadata() => vec![],
+            Event::Start(Tag::Link {
+                link_type: LinkType::WikiLink { .. },
+                dest_url,
+                ..
+            }) => {
+                wiki.push(true);
+                vec![Event::Html(
+                    format!("<a class=\"wikilink\" data-target=\"{}\">", attr(&dest_url)).into(),
+                )]
+            }
+            link @ Event::Start(Tag::Link { .. }) => {
+                wiki.push(false);
+                vec![link]
+            }
+            Event::End(TagEnd::Link) => {
+                if wiki.pop().unwrap_or(false) {
+                    vec![Event::Html("</a>".into())]
+                } else {
+                    vec![Event::End(TagEnd::Link)]
+                }
+            }
+            Event::Start(Tag::Image {
+                link_type: LinkType::WikiLink { .. },
+                dest_url,
+                ..
+            }) => {
+                wiki.push(true);
+                vec![Event::Html(
+                    format!("<span class=\"embed\" data-target=\"{}\">", attr(&dest_url)).into(),
+                )]
+            }
+            image @ Event::Start(Tag::Image { .. }) => {
+                wiki.push(false);
+                vec![image]
+            }
+            Event::End(TagEnd::Image) => {
+                if wiki.pop().unwrap_or(false) {
+                    vec![Event::Html("</span>".into())]
+                } else {
+                    vec![Event::End(TagEnd::Image)]
+                }
+            }
+            // A single newline inside a paragraph is a line break, as
+            // Obsidian shows it by default ("strict line breaks" off): what
+            // is typed on two lines reads on two lines.
+            Event::SoftBreak => vec![Event::HardBreak],
+            // Math stays as its source in a marked element; the window
+            // typesets it (KaTeX), the parser only finds it.
+            Event::InlineMath(tex) => vec![Event::Html(
+                format!("<span class=\"math\">{}</span>", attr(&tex)).into(),
+            )],
+            Event::DisplayMath(tex) => vec![Event::Html(
+                format!("<div class=\"math math-display\">{}</div>", attr(&tex)).into(),
+            )],
+            Event::Text(text) if context.prose() && events::literal(source, &text, &range) => {
+                prose(&text, &range, &tags)
+            }
+            other => vec![other],
         }
-        Event::End(TagEnd::MetadataBlock(_)) => {
-            in_metadata = false;
-            None
-        }
-        _ if in_metadata => None,
-        Event::Start(Tag::Link {
-            link_type: LinkType::WikiLink { .. },
-            dest_url,
-            ..
-        }) => Some(Event::Html(
-            format!("<a class=\"wikilink\" data-target=\"{}\">", attr(&dest_url)).into(),
-        )),
-        Event::End(TagEnd::Link) => Some(Event::Html("</a>".into())),
-        Event::Start(Tag::Image {
-            link_type: LinkType::WikiLink { .. },
-            dest_url,
-            ..
-        }) => Some(Event::Html(
-            format!("<span class=\"embed\" data-target=\"{}\">", attr(&dest_url)).into(),
-        )),
-        Event::End(TagEnd::Image) => Some(Event::Html("</span>".into())),
-        // A single newline inside a paragraph is a line break, as Obsidian
-        // shows it by default ("strict line breaks" off): what is typed on
-        // two lines reads on two lines.
-        Event::SoftBreak => Some(Event::HardBreak),
-        // Math stays as its source in a marked element; the window
-        // typesets it (KaTeX), the parser only finds it.
-        Event::InlineMath(tex) => Some(Event::Html(
-            format!("<span class=\"math\">{}</span>", attr(&tex)).into(),
-        )),
-        Event::DisplayMath(tex) => Some(Event::Html(
-            format!("<div class=\"math math-display\">{}</div>", attr(&tex)).into(),
-        )),
-        other => Some(other),
-    });
-    let events = events.flat_map(|event| match event {
-        Event::Text(text) if text.contains("==") => highlights(&text)
-            .into_iter()
-            .flat_map(|e| match e {
-                Event::Text(t) if t.contains('#') => tags(&t),
-                other => vec![other],
-            })
-            .collect(),
-        Event::Text(text) if text.contains('#') => tags(&text),
-        other => vec![other],
     });
     let mut out = String::with_capacity(source.len() * 2);
-    html::push_html(&mut out, events);
-    callouts(&out)
+    html::push_html(&mut out, rendered);
+    out
+}
+
+/// A run of prose: highlights first, then the tags inside each piece of
+/// text that is left, as before.
+fn prose<'a>(text: &CowStr<'a>, range: &Range<usize>, tags: &[BodyTag]) -> Vec<Event<'a>> {
+    let mut out = Vec::new();
+    for (event, range) in highlights(text, range) {
+        match event {
+            Event::Text(text) => out.extend(mark_tags(&text, &range, tags)),
+            other => out.push(other),
+        }
+    }
+    out
 }
 
 /// `==marked==` inside one text run becomes `<mark>`; an odd `==` is
 /// text. Obsidian's highlight, which the base parser does not know.
-fn highlights(text: &str) -> Vec<Event<'static>> {
+fn highlights<'a>(text: &CowStr<'a>, range: &Range<usize>) -> Vec<Offset<'a>> {
+    let whole = || vec![(Event::Text(text.clone()), range.clone())];
+    if !text.contains("==") {
+        return whole();
+    }
     let mut out = Vec::new();
-    let mut rest = text;
-    while let Some(a) = rest.find("==") {
-        let after = &rest[a + 2..];
-        let Some(b) = after.find("==") else { break };
-        if b == 0 {
+    let mut kept = 0;
+    let mut search = 0;
+    while let Some(a) = text
+        .get(search..)
+        .and_then(|t| t.find("=="))
+        .map(|a| a + search)
+    {
+        let after = a + 2;
+        let Some(b) = text
+            .get(after..)
+            .and_then(|t| t.find("=="))
+            .map(|b| b + after)
+        else {
+            break;
+        };
+        if b == after {
             // `====`: not a highlight; keep going after it.
-            out.push(Event::Text(rest[..a + 2].to_owned().into()));
-            rest = after;
+            search = b;
             continue;
         }
-        out.push(Event::Text(rest[..a].to_owned().into()));
-        out.push(Event::Html("<mark>".into()));
-        out.push(Event::Text(after[..b].to_owned().into()));
-        out.push(Event::Html("</mark>".into()));
-        rest = &after[b + 2..];
+        out.extend(events::piece(text, range, kept, a));
+        out.push((Event::Html("<mark>".into()), a..after));
+        out.extend(events::piece(text, range, after, b));
+        out.push((Event::Html("</mark>".into()), b..b + 2));
+        kept = b + 2;
+        search = kept;
     }
-    if !rest.is_empty() {
-        out.push(Event::Text(rest.to_owned().into()));
-    }
-    out
-}
-
-/// `#tag` in running text becomes `<a class="tag" data-tag="tag">`: at the
-/// start or after a space or `(`, letters, digits, `_`, `-`, `/`, and not
-/// digits only — the rule the index uses to list tags. Inside code the
-/// parser never hands text here, so `#` in code stays code.
-fn tags(text: &str) -> Vec<Event<'static>> {
-    let chars: Vec<char> = text.chars().collect();
-    let mut out = Vec::new();
-    let mut last = 0;
-    let mut i = 0;
-    while i < chars.len() {
-        if chars[i] == '#' && (i == 0 || chars[i - 1].is_whitespace() || chars[i - 1] == '(') {
-            let start = i + 1;
-            let mut j = start;
-            while j < chars.len()
-                && (chars[j].is_alphanumeric() || matches!(chars[j], '_' | '-' | '/'))
-            {
-                j += 1;
-            }
-            let tag: String = chars[start..j].iter().collect();
-            if !tag.is_empty() && !tag.chars().all(|c| c.is_ascii_digit()) {
-                let before: String = chars[last..i].iter().collect();
-                if !before.is_empty() {
-                    out.push(Event::Text(before.into()));
-                }
-                out.push(Event::Html(
-                    format!(
-                        "<a class=\"tag\" data-tag=\"{}\">#{}</a>",
-                        attr(&tag.to_lowercase()),
-                        attr(&tag)
-                    )
-                    .into(),
-                ));
-                last = j;
-                i = j;
-                continue;
-            }
-        }
-        i += 1;
-    }
-    let rest: String = chars[last..].iter().collect();
     if out.is_empty() {
-        return vec![Event::Text(text.to_owned().into())];
+        return whole();
     }
-    if !rest.is_empty() {
-        out.push(Event::Text(rest.into()));
-    }
+    out.extend(events::piece(text, range, kept, text.len()));
     out
 }
 
-/// A blockquote whose first line is `[!type]`, `[!type]+` or `[!type]-`
-/// with an optional title becomes an Obsidian callout:
-/// `<div class="callout" data-callout="type" data-fold="+|-">` with a
-/// `<p class="callout-title">`. Nested blockquotes inside it are kept.
-/// Obsidian's inline footnote, `^[text]`, which the parser does not
-/// know: each becomes a reference `[^inline-N]` with its definition
-/// appended at the end, so both forms render the same way. Code spans
-/// and fenced blocks are left alone; nothing changes when there is none.
-fn inline_footnotes(source: &str) -> std::borrow::Cow<'_, str> {
-    if !source.contains("^[") {
-        return std::borrow::Cow::Borrowed(source);
+/// The tags of `tags` that fall inside this text become
+/// `<a class="tag" data-tag="tag">#tag</a>`, the rest stays text. The tags
+/// were found on the same events before anything was cut, so a tag is
+/// either whole inside a piece or not in it.
+fn mark_tags<'a>(text: &CowStr<'a>, range: &Range<usize>, tags: &[BodyTag]) -> Vec<Event<'a>> {
+    let first = tags.partition_point(|t| t.span.start < range.start);
+    let mut out = Vec::new();
+    let mut kept = 0;
+    for tag in tags.get(first..).unwrap_or_default() {
+        if tag.span.start >= range.end {
+            break;
+        }
+        if tag.span.end > range.end {
+            continue;
+        }
+        let (lo, hi) = (tag.span.start - range.start, tag.span.end - range.start);
+        out.extend(events::piece(text, range, kept, lo).map(|(event, _)| event));
+        out.push(Event::Html(
+            format!(
+                "<a class=\"tag\" data-tag=\"{}\">#{}</a>",
+                attr(&tag.name.to_lowercase()),
+                attr(&tag.name)
+            )
+            .into(),
+        ));
+        kept = hi;
     }
-    let mut out = String::with_capacity(source.len() + 64);
-    let mut notes: Vec<String> = Vec::new();
-    let rest = source;
-    let mut in_fence = false;
-    let mut in_code = false;
-    let mut chars = rest.char_indices().peekable();
-    let mut last = 0;
-    while let Some((i, c)) = chars.next() {
-        let at_line_start = i == 0 || rest.as_bytes()[i - 1] == b'\n';
-        if at_line_start && rest[i..].starts_with("```") {
-            in_fence = !in_fence;
-        }
-        if in_fence {
-            continue;
-        }
-        if c == '`' {
-            in_code = !in_code;
-            continue;
-        }
-        if in_code || c != '^' || !rest[i..].starts_with("^[") {
-            continue;
-        }
-        // The matching `]`, brackets nested, on this paragraph.
-        let body_start = i + 2;
-        let mut depth = 1;
-        let mut end = None;
-        for (j, d) in rest[body_start..].char_indices() {
-            match d {
-                '[' => depth += 1,
-                ']' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        end = Some(body_start + j);
-                        break;
-                    }
-                }
-                '\n' if rest[body_start + j..].starts_with("\n\n") => break,
-                _ => {}
-            }
-        }
-        let Some(end) = end else { continue };
-        let text = rest[body_start..end].trim();
-        if text.is_empty() {
-            continue;
-        }
-        notes.push(text.to_owned());
-        out.push_str(&rest[last..i]);
-        out.push_str(&format!("[^inline-{}]", notes.len()));
-        last = end + 1;
-        // Skip the characters of the note in the outer scan.
-        while let Some(&(k, _)) = chars.peek() {
-            if k > end {
-                break;
-            }
-            chars.next();
-        }
+    if out.is_empty() {
+        return vec![Event::Text(text.clone())];
     }
-    if notes.is_empty() {
-        return std::borrow::Cow::Borrowed(source);
-    }
-    out.push_str(&rest[last..]);
-    if !out.ends_with('\n') {
-        out.push('\n');
-    }
-    for (n, text) in notes.iter().enumerate() {
-        out.push_str(&format!("\n[^inline-{}]: {text}\n", n + 1));
-    }
-    std::borrow::Cow::Owned(out)
-}
-
-fn callouts(html: &str) -> String {
-    const OPEN: &str = "<blockquote>\n<p>[!";
-    let mut out = String::with_capacity(html.len());
-    let mut rest = html;
-    while let Some(i) = rest.find(OPEN) {
-        out.push_str(&rest[..i]);
-        let body = &rest[i + OPEN.len()..];
-        // `type]` then fold then the title up to the end of the line.
-        let Some(close) = body.find(']') else {
-            out.push_str(OPEN);
-            rest = body;
-            continue;
-        };
-        let kind: String = body[..close].trim().to_lowercase();
-        if kind.is_empty()
-            || !kind
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-        {
-            out.push_str(OPEN);
-            rest = body;
-            continue;
-        }
-        let mut after = &body[close + 1..];
-        let fold = match after.chars().next() {
-            Some(c @ ('+' | '-')) => {
-                after = &after[1..];
-                Some(c)
-            }
-            _ => None,
-        };
-        let line_end = after.find('\n').unwrap_or(after.len());
-        let first_line = &after[..line_end];
-        let (title, inline_rest) = match first_line.find("</p>") {
-            Some(k) => (&first_line[..k], &first_line[k..]),
-            None => (first_line, ""),
-        };
-        let title = title.trim();
-        // The end of this blockquote, nesting counted.
-        let mut depth = 1;
-        let mut scan = &rest[i + "<blockquote>".len()..];
-        let mut consumed = "<blockquote>".len();
-        let end = loop {
-            let open = scan.find("<blockquote>");
-            let close_tag = scan.find("</blockquote>");
-            match (open, close_tag) {
-                (Some(o), Some(c)) if o < c => {
-                    depth += 1;
-                    consumed += o + "<blockquote>".len();
-                    scan = &scan[o + "<blockquote>".len()..];
-                }
-                (_, Some(c)) => {
-                    depth -= 1;
-                    consumed += c;
-                    if depth == 0 {
-                        break Some(consumed);
-                    }
-                    consumed += "</blockquote>".len();
-                    scan = &scan[c + "</blockquote>".len()..];
-                }
-                _ => break None,
-            }
-        };
-        let Some(end) = end else {
-            out.push_str(OPEN);
-            rest = body;
-            continue;
-        };
-        let inner_start = OPEN.len() + close + 1 + usize::from(fold.is_some()) + line_end;
-        let inner = &rest[i + inner_start..i + end];
-        out.push_str(&format!("<div class=\"callout\" data-callout=\"{kind}\""));
-        if let Some(f) = fold {
-            out.push_str(&format!(" data-fold=\"{f}\""));
-        }
-        out.push_str(">\n<p class=\"callout-title\">");
-        if title.is_empty() {
-            let mut chars = kind.chars();
-            if let Some(c) = chars.next() {
-                out.push_str(&c.to_uppercase().collect::<String>());
-                out.push_str(chars.as_str());
-            }
-        } else {
-            out.push_str(title);
-        }
-        out.push_str("</p>\n");
-        // The paragraph that held the title: closed on that line, closed
-        // later (its remaining lines are the body's first paragraph), or
-        // only the title.
-        let inner = inner.trim_start_matches('\n');
-        if !inline_rest.is_empty() {
-            out.push_str(inner);
-        } else if let Some(after_p) = inner.strip_prefix("</p>") {
-            out.push_str(after_p.trim_start_matches('\n'));
-        } else {
-            out.push_str("<p>");
-            out.push_str(inner);
-        }
-        out.push_str("</div>");
-        rest = &rest[i + end + "</blockquote>".len()..];
-    }
-    out.push_str(rest);
+    out.extend(events::piece(text, range, kept, text.len()).map(|(event, _)| event));
     out
 }
 
@@ -440,7 +304,7 @@ mod tests {
 }
 
 #[cfg(test)]
-mod footnotes {
+mod footnote_forms {
     #[test]
     fn referenced_and_inline_footnotes_render_alike() {
         let html = super::to_html(
@@ -478,7 +342,7 @@ mod math {
 }
 
 #[cfg(test)]
-mod tags {
+mod tag_anchors {
     #[test]
     fn hash_tags_become_anchors_outside_code() {
         let html = super::to_html("Ver #rpg/solo e #2026 e `#nao` e a#b.\n");
@@ -502,5 +366,150 @@ mod line_breaks {
             "{html}"
         );
         assert!(html.contains("<p>Outro parágrafo.</p>"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod callouts_and_raw_html {
+    use super::to_html;
+
+    /// Opus reading, finding 1: a raw `</blockquote>` on the title line made
+    /// the nesting scan of the HTML stop early and slice backwards.
+    #[test]
+    fn raw_html_on_the_title_line_never_panics() {
+        let html = to_html("> [!note] x </blockquote> y\n");
+        assert!(
+            html.contains(r#"<div class="callout" data-callout="note">"#),
+            "{html}"
+        );
+        assert!(html.contains("</blockquote> y"), "{html}");
+        let html = to_html("> [!note] a <blockquote> b\n\n> [!tip] c\n");
+        assert!(html.contains(r#"data-callout="tip""#), "{html}");
+    }
+
+    /// Finding 13: a `> [!` without `]` and a `^[` without `]` each rescanned
+    /// the rest of the document, so many of them took quadratic time.
+    #[test]
+    fn pathological_inputs_stay_linear() {
+        let started = std::time::Instant::now();
+        let _ = to_html(&"^[".repeat(60_000));
+        let _ = to_html(&"> [!\n\n".repeat(40_000));
+        let _ = to_html(&"%%".repeat(60_000));
+        let _ = to_html(&"a %%\n\n".repeat(40_000));
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(5),
+            "{:?}",
+            started.elapsed()
+        );
+    }
+}
+
+#[cfg(test)]
+mod contexts {
+    use super::to_html;
+
+    /// Finding 3: `==` and `#` inside a code block, a link label or an image
+    /// are code, label and alt text, not highlight and tag (invariant 12).
+    #[test]
+    fn code_links_and_images_are_not_scanned_for_tags_or_highlights() {
+        let html = to_html(
+            "```c\nif (a == b || c == d) #include\n```\n\nx `color: #fff` y\n\n[[#Porão]] e [#x](u) e ![#alt](a.png)\n",
+        );
+        assert!(html.contains("if (a == b || c == d) #include"), "{html}");
+        assert!(!html.contains("<mark>"), "{html}");
+        assert!(html.contains("<code>color: #fff</code>"), "{html}");
+        assert!(!html.contains(r#"class="tag""#), "{html}");
+        assert!(
+            html.contains(r##"<a class="wikilink" data-target="#Porão">#Porão</a>"##),
+            "{html}"
+        );
+        assert!(html.contains(r##"<a href="u">#x</a>"##), "{html}");
+        assert!(
+            html.contains(r##"<img src="a.png" alt="#alt" />"##),
+            "{html}"
+        );
+    }
+
+    /// Finding 5: every image's end was mapped to `</span>`, so a Markdown
+    /// image swallowed the rest of its paragraph into its alt text.
+    #[test]
+    fn only_an_embed_ends_in_a_span() {
+        let html = to_html("Veja ![foto](a.png) e mais [[Alvo]] texto.\n");
+        assert!(html.contains(r#"<img src="a.png" alt="foto" />"#), "{html}");
+        assert!(
+            html.contains(r#"<a class="wikilink" data-target="Alvo">Alvo</a> texto.</p>"#),
+            "{html}"
+        );
+        assert!(!html.contains("</span>"), "{html}");
+    }
+
+    /// Finding 6: the inline-footnote rewrite tracked code by counting
+    /// backticks, so a closing fence left it "inside code" and a `~~~`
+    /// fence, an indented block or math were not code to it.
+    #[test]
+    fn inline_footnotes_after_a_fence_and_never_inside_code_or_math() {
+        let html = to_html(
+            "```\nx\n```\n\nTexto^[a nota] fim\n\n~~~\n^[não]\n~~~\n\n    ^[nem]\n\n`^[código]` e $^[mat]$\n",
+        );
+        assert!(
+            html.contains(
+                r##"Texto<sup class="footnote-reference"><a href="#inline-1">1</a></sup> fim"##
+            ),
+            "{html}"
+        );
+        assert!(html.contains("<p>a nota</p>"), "{html}");
+        assert!(html.contains("^[não]"), "{html}");
+        assert!(html.contains("^[nem]"), "{html}");
+        assert!(html.contains("<code>^[código]</code>"), "{html}");
+        assert!(
+            html.contains(r#"<span class="math">^[mat]</span>"#),
+            "{html}"
+        );
+        assert_eq!(html.matches("footnote-definition\"").count(), 1, "{html}");
+    }
+
+    /// Finding 7: the reader enables extensions `parse` does not, and the
+    /// doc has to say so. `$[[x]]$` is a link to the index and math here.
+    #[test]
+    fn the_reader_enables_what_parse_does_not() {
+        assert_eq!(crate::parse("$[[x]]$\n").links.len(), 1);
+        let html = to_html("$[[x]]$\n");
+        assert!(
+            html.contains(r#"<span class="math">[[x]]</span>"#),
+            "{html}"
+        );
+        assert!(!html.contains("wikilink"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod hidden_comments {
+    use super::to_html;
+
+    /// Finding 16: `%%…%%` is visible only in editing view (Obsidian's
+    /// documentation), so the reader drops it — inline, across lines, and
+    /// a block on lines of its own — and leaves code alone.
+    #[test]
+    fn comments_are_hidden_outside_code() {
+        let html = to_html(
+            "Texto %%oculto%% visível.\n\n%%\nbloco\n%%\n\nDepois %%início\nfim%% aqui.\n\n`%%não%%` e\n\n```\n%%nem%%\n```\n",
+        );
+        assert!(!html.contains("oculto"), "{html}");
+        assert!(html.contains("<p>Texto  visível.</p>"), "{html}");
+        assert!(!html.contains("bloco"), "{html}");
+        assert!(!html.contains("<p></p>"), "{html}");
+        assert!(html.contains("<p>Depois  aqui.</p>"), "{html}");
+        assert!(html.contains("<code>%%não%%</code>"), "{html}");
+        assert!(html.contains("%%nem%%"), "{html}");
+    }
+
+    #[test]
+    fn a_comment_across_paragraphs_and_an_unclosed_one() {
+        let html = to_html("Antes %%\n\nmeio\n\n%% depois\n\nSó %% aberto\n");
+        assert!(!html.contains("meio"), "{html}");
+        assert!(html.contains("<p>Antes  depois</p>"), "{html}");
+        assert!(html.contains("<p>Só %% aberto</p>"), "{html}");
+        let html = to_html("linha\n%%oculto%%\nfim\n");
+        assert!(html.contains("<p>linha<br />\nfim</p>"), "{html}");
     }
 }

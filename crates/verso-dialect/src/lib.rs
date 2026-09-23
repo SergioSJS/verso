@@ -22,17 +22,27 @@
 //! Markdown links `[text](nota.md)` (Q20, `PROPOSED`), or decode bytes into
 //! text (Q25). The caller hands over a `&str`; where it came from is
 //! `verso-fs`'s concern.
+//!
+//! Two more things come out of the same base parser and are not part of the
+//! fixture contract: the reading view's HTML ([`to_html`], Phase 2) and the
+//! `#tag`s of a body ([`body_tags`]), one rule for the reader and the index.
 
+mod callouts;
+mod comments;
+mod events;
+mod footnotes;
 mod frontmatter;
 mod parse;
 mod position;
 mod render;
+mod tags;
 mod wikilink;
 
 pub use frontmatter::{Frontmatter, Value};
 pub use parse::parse;
 pub use position::{Pos, Span};
 pub use render::to_html;
+pub use tags::{BodyTag, body_tags};
 
 /// Everything the parser found in one note, in document order per list.
 ///
