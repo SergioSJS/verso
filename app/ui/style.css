@@ -177,9 +177,11 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 
 /* ⌘P */
 .quick { position: fixed; inset: 0; z-index: 10; background: color-mix(in oklch, var(--paper) 55%, transparent); display: flex; flex-direction: column; align-items: center; padding-top: 12vh; }
-.quick input { width: min(60ch, 90vw); flex: none; font: inherit; font-size: 1.05rem; padding: .7rem 1rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-bottom: 0; border-radius: 8px 8px 0 0; box-shadow: 0 12px 40px -12px oklch(0% 0 0 / .35); }
+.quick input { width: min(60ch, 90vw); flex: none; font: inherit; font-size: 1.05rem; padding: .7rem 1rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-bottom: 1px solid var(--hair); border-radius: 8px 8px 0 0; }
 .quick input:focus { outline: none; border-color: var(--brass); }
-.quick-list { list-style: none; margin: 0; padding: .3rem; width: min(60ch, 90vw); max-height: 50vh; overflow: auto; background: var(--paper); border: 1px solid var(--hair); border-top: 1px solid var(--hair); border-radius: 0 0 8px 8px; box-shadow: 0 12px 40px -12px oklch(0% 0 0 / .35); }
+.quick-list { list-style: none; margin: 0; padding: .3rem; width: min(60ch, 90vw); max-height: 50vh; overflow: auto; background: var(--paper); border: 1px solid var(--hair); border-top: 0; border-radius: 0 0 8px 8px; box-shadow: 0 24px 60px -20px oklch(0% 0 0 / .4); }
+.quick-list:empty { display: none; }
+.quick input:only-child, .quick-list:empty + input { border-radius: 8px; }
 .quick-list li > button { display: flex; justify-content: space-between; gap: 1rem; width: 100%; text-align: left; padding: .4rem .7rem; border-radius: 5px; }
 .quick-list li.selected > button, .quick-list li > button:hover { background: var(--seal-wash); color: var(--seal); }
 .quick-list .path { color: var(--ink-3); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -364,7 +366,9 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 /* Status bar */
 .status-bar { display: flex; align-items: center; gap: 1rem; padding: .3rem clamp(1rem, 3vw, 2.4rem); border-top: 1px solid var(--hair); font-size: .76rem; color: var(--ink-3); min-height: 1.9rem; }
 .status { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.status-keys { white-space: nowrap; }
+.status-keys { white-space: nowrap; display: inline-flex; gap: .2rem; align-items: center; }
+.status-keys button { font: inherit; color: inherit; padding: .1rem .3rem; border-radius: 4px; display: inline-flex; align-items: center; gap: .3rem; }
+.status-keys button:hover { color: var(--ink); background: var(--paper-3); }
 .status-keys kbd { margin-right: .15em; }
 
 /* Empty state: a short lesson, not a shrug. */

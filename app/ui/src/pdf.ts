@@ -12,6 +12,27 @@ import { icon } from "./icons";
 
 GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", document.baseURI).href;
 
+// WebKit has no async iteration over ReadableStream, which pdf.js uses to
+// read a page's text. The same loop, spelled out.
+type AsyncIterableStream = ReadableStream & { [Symbol.asyncIterator]?: unknown; values?: unknown };
+const proto = ReadableStream.prototype as AsyncIterableStream;
+if (!proto[Symbol.asyncIterator]) {
+  const iterate = async function* (this: ReadableStream) {
+    const reader = this.getReader();
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        yield value;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+  Object.defineProperty(proto, Symbol.asyncIterator, { value: iterate, writable: true, configurable: true });
+  if (!proto.values) Object.defineProperty(proto, "values", { value: iterate, writable: true, configurable: true });
+}
+
 export type PdfStrings = {
   page: string;
   of: string;
@@ -64,6 +85,7 @@ export class PdfView {
   private hitAt = -1;
   private texts = new Map<number, string>();
   private token = 0;
+  private visible = new Set<number>();
 
   constructor(private readonly opts: PdfOptions) {
     const s = opts.strings;
@@ -156,6 +178,8 @@ export class PdfView {
       (entries) => {
         for (const e of entries) {
           const n = Number((e.target as HTMLElement).dataset["page"]);
+          if (e.isIntersecting) this.visible.add(n);
+          else this.visible.delete(n);
           if (e.isIntersecting) void this.render(n);
           if (e.isIntersecting && e.intersectionRatio > 0.4) this.setCurrent(n);
         }
@@ -194,16 +218,24 @@ export class PdfView {
     const ratio = this.scroller.scrollTop / Math.max(1, this.scroller.scrollHeight);
     this.scale = Math.max(0.3, Math.min(5, scale));
     this.fit = fit;
+    // Every page takes its new size at once; the drawn ones are cleared
+    // so a stale bitmap never sits in a box of another size.
+    const base = this.slots[0]?.page?.getViewport({ scale: 1 });
     for (const s of this.slots) {
-      const page = s.page ?? (await this.doc.getPage(Number(s.el.dataset["page"])));
-      s.page = page;
-      const v = page.getViewport({ scale: this.scale });
-      s.el.style.width = `${Math.floor(v.width)}px`;
-      s.el.style.height = `${Math.floor(v.height)}px`;
+      const v = s.page?.getViewport({ scale: this.scale });
+      const w = v ? v.width : (base?.width ?? 600) * this.scale;
+      const h = v ? v.height : (base?.height ?? 800) * this.scale;
+      s.el.style.width = `${Math.floor(w)}px`;
+      s.el.style.height = `${Math.floor(h)}px`;
+      s.canvas.width = 0;
+      s.canvas.height = 0;
+      s.canvas.style.width = "";
+      s.canvas.style.height = "";
+      s.text.replaceChildren();
       s.rendered = 0;
     }
     this.scroller.scrollTop = ratio * this.scroller.scrollHeight;
-    void this.render(this.current);
+    for (const n of [this.current, ...this.visible]) void this.render(n);
   }
 
   private async render(n: number): Promise<void> {
@@ -212,6 +244,7 @@ export class PdfView {
     if (!doc || !slot || slot.rendering || slot.rendered === this.scale) return;
     slot.rendering = true;
     const token = this.token;
+    const wanted = this.scale;
     try {
       const page = slot.page ?? (await doc.getPage(n));
       slot.page = page;
@@ -229,17 +262,25 @@ export class PdfView {
       slot.el.style.setProperty("--scale-factor", String(viewport.scale));
       slot.el.style.setProperty("--total-scale-factor", String(viewport.scale));
       await new TextLayer({ textContentSource: page.streamTextContent(), container: slot.text, viewport }).render();
-      slot.rendered = this.scale;
+      slot.rendered = wanted;
       if (this.needle) this.highlight(slot);
+    } catch (e) {
+      this.opts.onStatus(`PDF: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       slot.rendering = false;
     }
+    // The scale moved while this page was drawing: draw it again.
+    if (token === this.token && this.scale !== wanted && this.visible.has(n)) void this.render(n);
   }
 
   private async pageText(n: number): Promise<string> {
     const cached = this.texts.get(n);
     if (cached !== undefined) return cached;
-    const page = this.slots[n - 1]?.page ?? (await this.doc!.getPage(n));
+    const doc = this.doc;
+    if (!doc) return "";
+    const slot = this.slots[n - 1];
+    const page = slot?.page ?? (await doc.getPage(n));
+    if (slot) slot.page = page;
     const content = await page.getTextContent();
     const text = content.items.map((it) => ("str" in it ? it.str : "")).join(" ");
     this.texts.set(n, text);
@@ -247,8 +288,17 @@ export class PdfView {
   }
 
   async search(needle: string, dir: 1 | -1): Promise<void> {
+    try {
+      await this.doSearch(needle, dir);
+    } catch (e) {
+      this.searchInfo.textContent = "";
+      this.opts.onStatus(`PDF: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  private async doSearch(needle: string, dir: 1 | -1): Promise<void> {
     const s = this.opts.strings;
     if (!this.doc) return;
+    this.searchInfo.textContent = "…";
     const q = needle.trim().toLowerCase();
     if (q !== this.needle) {
       this.needle = q;
