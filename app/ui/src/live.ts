@@ -15,8 +15,9 @@ import { syntaxTree } from "@codemirror/language";
 import { StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import type { EditorState, Text } from "@codemirror/state";
+import type { SyntaxNode } from "@lezer/common";
 import katex from "katex";
-import { SEPARATOR, cells } from "./table";
+import { cells } from "./table";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -138,54 +139,194 @@ class FrontmatterWidget extends WidgetType {
   }
 }
 
-/** A block of the note shown rendered until the caret enters it: a table,
- *  display math, or a note embedded on a line of its own. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed"; text: string };
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
-export function blocksOf(doc: Text): Block[] {
-  const out: Block[] = [];
-  let inFence = false;
-  let n = 1;
-  while (n <= doc.lines) {
-    const line = doc.line(n);
-    const text = line.text;
-    const trimmed = text.trim();
-    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
-      inFence = !inFence;
-      n++;
+/** A `$…$` or `$$…$$` span of a block's inline text: offsets into that
+ *  text, and the TeX between the delimiters. */
+export type MathSpan = { from: number; to: number; display: boolean; tex: string };
+
+/** The math of one block's inline text by pulldown-cmark's rules — the
+ *  reader's parser, with math on — ported from its two passes. A `$` opens
+ *  when no whitespace follows it and closes when none precedes it and no
+ *  digit follows it (`$5 and $10` is not math); `$$` pairs with `$$`, can
+ *  be empty and can start with a space; the first `$` of the same brace
+ *  level after an opener decides, so `$` inside `{…}` belongs to the
+ *  braces; `\$` is text; a code span that starts first wins. Line breaks
+ *  are whitespace. */
+export function mathSpans(text: string): MathSpan[] {
+  type Item = { at: number; code: number; escaped: boolean; open: boolean; close: boolean; ctx: number };
+  const items: Item[] = [];
+  const ws = (c: string | undefined) => c !== undefined && /[\t\n\v\f\r ]/.test(c);
+  // Brace levels as pulldown counts them, in a byte (255 is the root):
+  // tracked once a `$` was seen; an unbalanced `}` at the root starts a
+  // separate root; past 25 levels, counted rather than matched.
+  const MAX = 25;
+  const stack: number[] = [];
+  let next = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "\\" && /[!-/:-@[-`{-~]/.test(text[i + 1] ?? "")) {
+      if (text[i + 1] === "`") {
+        let n = 1;
+        while (text[i + 1 + n] === "`") n++;
+        items.push({ at: i + 1, code: n, escaped: true, open: false, close: false, ctx: 0 });
+        i += n;
+      } else i++;
+    } else if (c === "`") {
+      let n = 1;
+      while (text[i + n] === "`") n++;
+      items.push({ at: i, code: n, escaped: false, open: false, close: false, ctx: 0 });
+      i += n - 1;
+    } else if (c === "$") {
+      if (stack.length === 0) stack.push(255);
+      const ctx = stack.length > MAX ? next & 255 : stack[stack.length - 1]!;
+      const open = i + 1 < text.length && !ws(text[i + 1]);
+      const close = i > 0 && !ws(text[i - 1]) && !/[0-9]/.test(text[i + 1] ?? "");
+      items.push({ at: i, code: 0, escaped: false, open, close, ctx });
+    } else if (c === "{") {
+      if (stack.length === MAX) {
+        stack.push(next & 255);
+        next = MAX;
+      } else if (stack.length > MAX) next++;
+      else if (stack.length > 0) stack.push(next++ & 255);
+    } else if (c === "}") {
+      if (stack.length === 1) stack[0] = (stack[0]! - 1) & 255;
+      else if (stack.length > MAX) {
+        if (next <= MAX) stack.pop();
+        else next--;
+      } else stack.pop();
+    }
+  }
+  const isMath = (k: number) => items[k] !== undefined && items[k]!.code === 0;
+  const pairs = (k: number) => isMath(k) && isMath(k + 1) && items[k + 1]!.at === items[k]!.at + 1;
+  const out: MathSpan[] = [];
+  let k = 0;
+  while (k < items.length) {
+    const it = items[k]!;
+    if (it.code > 0) {
+      // A code span: the next run of as many backticks closes it.
+      const n = it.escaped ? it.code - 1 : it.code;
+      let j = k + 1;
+      while (n > 0 && j < items.length && items[j]!.code !== n) j++;
+      k = n > 0 && j < items.length ? j + 1 : k + 1;
       continue;
     }
-    if (inFence) {
-      n++;
+    if (!it.open) {
+      k++;
       continue;
     }
-    if (/^\s*\|.*\|\s*$/.test(text)) {
-      let last = n;
-      while (last < doc.lines && /^\s*\|.*\|\s*$/.test(doc.line(last + 1).text)) last++;
-      if (last > n) out.push({ from: line.from, to: doc.line(last).to, kind: "table", text: doc.sliceString(line.from, doc.line(last).to) });
-      n = last + 1;
+    const display = pairs(k);
+    let found = -1;
+    for (let j = display ? k + 2 : k + 1; j < items.length; j++) {
+      const d = items[j]!;
+      if (d.code > 0 || d.ctx !== it.ctx) continue;
+      if (display ? pairs(j) : d.close) found = j;
+      break;
+    }
+    if (found < 0) {
+      k++;
       continue;
     }
-    if (trimmed.startsWith("$$")) {
-      if (trimmed.length > 2 && trimmed.endsWith("$$")) {
-        out.push({ from: line.from, to: line.to, kind: "math", text: trimmed.slice(2, -2) });
-        n++;
-        continue;
-      }
-      let last = n + 1;
-      while (last <= doc.lines && !doc.line(last).text.trim().endsWith("$$")) last++;
-      if (last <= doc.lines) {
-        const inner = doc.sliceString(line.from, doc.line(last).to).trim().replace(/^\$\$/, "").replace(/\$\$$/, "");
-        out.push({ from: line.from, to: doc.line(last).to, kind: "math", text: inner });
-        n = last + 1;
-        continue;
-      }
+    const at = items[found]!.at;
+    if (display && found !== k + 1 && pairs(found)) {
+      out.push({ from: it.at, to: at + 2, display: true, tex: text.slice(it.at + 2, at) });
+      k = found + 2;
+    } else if (at === it.at + 1) k++; // `$$` read as an empty inline span: text
+    else {
+      out.push({ from: it.at, to: at + 1, display: false, tex: text.slice(it.at + 1, at) });
+      k = found + 1;
     }
-    const embed = /^!\[\[([^\]\n]+)\]\]$/.exec(trimmed);
-    if (embed && !IMAGE_EXT.test(embed[1] ?? "")) out.push({ from: line.from, to: line.to, kind: "embed", text: embed[1] ?? "" });
-    n++;
   }
   return out;
+}
+
+/** A block's inline text as the reader's parser reads it: its lines
+ *  joined by line breaks, each continuation line without the indentation
+ *  and the `>` marks of its containers; `pos` maps an offset back to the
+ *  document. */
+function inlineText(doc: Text, node: SyntaxNode): { text: string; pos: (offset: number) => number } {
+  let quoted = false;
+  for (let p = node.parent; p; p = p.parent) if (p.name === "Blockquote") quoted = true;
+  const segments: { at: number; from: number }[] = [];
+  let text = "";
+  const first = doc.lineAt(node.from).number;
+  const last = doc.lineAt(node.to).number;
+  for (let n = first; n <= last; n++) {
+    const line = doc.line(n);
+    const to = n === last ? node.to : line.to;
+    let from = node.from;
+    if (n > first) {
+      const lead = (quoted ? /^[ \t]*(?:>[ \t]?)*[ \t]*/ : /^[ \t]*/).exec(line.text)?.[0].length ?? 0;
+      from = Math.min(line.from + lead, to);
+      text += "\n";
+    }
+    segments.push({ at: text.length, from });
+    text += doc.sliceString(from, to);
+  }
+  const pos = (offset: number): number => {
+    let s = segments[0] ?? { at: 0, from: node.from };
+    for (const x of segments) if (x.at <= offset) s = x;
+    return s.from + (offset - s.at);
+  };
+  return { text, pos };
+}
+
+/** The TeX of a paragraph that is display math and nothing else. */
+function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
+  const only = spans.length === 1 ? spans[0] : undefined;
+  return only && only.display && text.slice(0, only.from).trim() === "" && text.slice(only.to).trim() === "" ? only.tex : null;
+}
+
+/** A block of the note shown rendered until the caret enters it: a table,
+ *  display math alone in its paragraph, or a note embedded on a line of
+ *  its own. Found in the syntax tree, so a block begins and ends where the
+ *  reader's parser has it: a table needs its delimiter row, a fence closes
+ *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
+type Block = { from: number; to: number; kind: "table" | "math" | "embed"; text: string; rows?: string[] };
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
+export function blocksOf(state: EditorState): Block[] {
+  const doc = state.doc;
+  const tree = syntaxTree(state);
+  const out: Block[] = [];
+  // The block's whole lines, when only indentation or `>` marks precede it
+  // on its first line (after a list marker it stays source).
+  const lines = (from: number, to: number) => {
+    const line = doc.lineAt(from);
+    return /^[\s>]*$/.test(doc.sliceString(line.from, from)) ? { from: line.from, to: doc.lineAt(to).to } : null;
+  };
+  tree.iterate({
+    enter: (n) => {
+      if (n.name === "Table") {
+        const rows: string[] = [];
+        for (let c = n.node.firstChild; c; c = c.nextSibling) {
+          if (c.name === "TableHeader" || c.name === "TableDelimiter" || c.name === "TableRow") rows.push(doc.sliceString(c.from, c.to));
+        }
+        const at = lines(n.from, n.to);
+        if (at) out.push({ ...at, kind: "table", text: rows.join("\n"), rows });
+        return false;
+      }
+      if (n.name === "Paragraph") {
+        if (!doc.sliceString(n.from, n.to).includes("$$")) return false;
+        const { text } = inlineText(doc, n.node);
+        const tex = aloneInParagraph(text, mathSpans(text));
+        const at = tex === null ? null : lines(n.from, n.to);
+        if (at && tex !== null) out.push({ ...at, kind: "math", text: tex });
+        return false;
+      }
+      return undefined;
+    },
+  });
+  // A line that is an embed and nothing else, outside code and outside
+  // the blocks above.
+  const taken = out.slice();
+  for (let n = 1; n <= doc.lines; n++) {
+    const line = doc.line(n);
+    const embed = /^!\[\[([^\]\n]+)\]\]$/.exec(line.text.trim());
+    if (!embed || IMAGE_EXT.test(embed[1] ?? "")) continue;
+    if (taken.some((b) => line.from <= b.to && line.to >= b.from)) continue;
+    let code = false;
+    for (let p: SyntaxNode | null = tree.resolveInner(line.from + line.text.search(/\S/), 1); p; p = p.parent) if (p.name === "FencedCode" || p.name === "CodeBlock") code = true;
+    if (!code) out.push({ from: line.from, to: line.to, kind: "embed", text: embed[1] ?? "" });
+  }
+  return out.sort((a, b) => a.from - b.from);
 }
 
 class BlockWidget extends WidgetType {
@@ -206,9 +347,10 @@ class BlockWidget extends WidgetType {
         el.textContent = b.text;
       }
     } else if (b.kind === "table") {
-      const lines = b.text.split("\n");
+      // Rows by place: the header, the delimiter row, then the body — a
+      // body row of dashes is a row like any other.
       const table = document.createElement("table");
-      const rows = lines.map(cells);
+      const rows = (b.rows ?? []).map(cells);
       const head = rows[0] ?? [];
       const thead = document.createElement("thead");
       const tr = document.createElement("tr");
@@ -220,16 +362,15 @@ class BlockWidget extends WidgetType {
       thead.append(tr);
       table.append(thead);
       const tbody = document.createElement("tbody");
-      lines.forEach((line, i) => {
-        if (i === 0 || SEPARATOR.test(line)) return;
+      for (const row of rows.slice(2)) {
         const r = document.createElement("tr");
-        for (const c of rows[i] ?? []) {
+        for (const c of row) {
           const td = document.createElement("td");
           td.textContent = c;
           r.append(td);
         }
         tbody.append(r);
-      });
+      }
       table.append(tbody);
       el.append(table);
     } else {
@@ -261,13 +402,13 @@ class BlockWidget extends WidgetType {
 }
 
 /** Display math and tables not under the caret, replaced by their rendering. */
-function foldBlocks(state: EditorState, opts: LiveOptions): DecorationSet {
+function foldBlocks(state: EditorState, opts: LiveOptions, blocks: Block[]): DecorationSet {
   const sel = state.selection.ranges;
   const touched = (from: number, to: number) => sel.some((r) => r.from <= to && r.to >= from);
   const fm = frontmatterEnd(state.doc);
   const ranges = [];
   if (fm >= 0) ranges.push(Decoration.replace({ widget: new FrontmatterWidget(state.doc.lineAt(fm).number - 2, opts.editFrontmatter) }).range(0, fm));
-  for (const b of blocksOf(state.doc)) {
+  for (const b of blocks) {
     if (b.from <= fm || touched(b.from, b.to)) continue;
     const html = b.kind === "embed" ? opts.noteHtml?.(b.text) : undefined;
     ranges.push(Decoration.replace({ widget: new BlockWidget(b, opts, html), block: true }).range(b.from, b.to));
@@ -275,19 +416,20 @@ function foldBlocks(state: EditorState, opts: LiveOptions): DecorationSet {
   return Decoration.set(ranges, true);
 }
 
-/** `$x$` inline, shown typeset until the caret reaches it. */
+/** `$x$` inline, shown typeset until the caret reaches it; `$$x$$` among
+ *  other text too, in display style, as the reader has it. */
 class InlineMathWidget extends WidgetType {
-  constructor(readonly tex: string) {
+  constructor(readonly tex: string, readonly display: boolean) {
     super();
   }
   override eq(other: InlineMathWidget): boolean {
-    return other.tex === this.tex;
+    return other.tex === this.tex && other.display === this.display;
   }
   toDOM(): HTMLElement {
     const el = document.createElement("span");
     el.className = "cm-lp-imath";
     try {
-      el.innerHTML = katex.renderToString(this.tex, { throwOnError: false });
+      el.innerHTML = katex.renderToString(this.tex, { displayMode: this.display, throwOnError: false });
     } catch {
       el.textContent = this.tex;
     }
@@ -342,35 +484,57 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
   // lines cannot come from a view plugin.)
   const fmEnd = frontmatterEnd(doc);
 
-  // Table rows in the mono face while edited; `$x$` typeset when not touched.
+  // Math the reader typesets, by its parser's rules, in the blocks that
+  // hold inline text — never in code, which is not such a block, nor over
+  // a code span or a link's destination. A span on the caret's lines, or
+  // across lines, stays source; a paragraph that is display math alone is
+  // the fold field's.
+  const math: { from: number; to: number }[] = [];
+  const seen = new Set<number>();
   for (const { from, to } of view.visibleRanges) {
-    let n = doc.lineAt(from).number;
-    const last = doc.lineAt(to).number;
-    for (; n <= last; n++) {
-      const line = doc.line(n);
-      if (line.from < (fmEnd < 0 ? 0 : fmEnd)) continue;
-      if (/^\s*\|.*\|\s*$/.test(line.text)) out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-table" }) });
-      if (line.text.includes("$") && !line.text.trim().startsWith("$$")) {
-        const re = /(?<![\\$])\$([^$\n]+?)\$(?!\$)/g;
-        let m: RegExpExecArray | null;
-        while ((m = re.exec(line.text))) {
-          const s = line.from + m.index;
-          const e = s + m[0].length;
-          if (touched(s, e)) continue;
-          out.push({ from: s, to: e, deco: Decoration.replace({ widget: new InlineMathWidget(m[1] ?? "") }) });
+    tree.iterate({
+      from,
+      to,
+      enter: (node) => {
+        if (!/^(Paragraph|ATXHeading[1-6]|SetextHeading[12])$/.test(node.name)) return undefined;
+        if (seen.has(node.from) || (fmEnd >= 0 && node.from < fmEnd) || !doc.sliceString(node.from, node.to).includes("$")) return false;
+        seen.add(node.from);
+        const block = inlineText(doc, node.node);
+        const spans = mathSpans(block.text);
+        if (node.name === "Paragraph" && aloneInParagraph(block.text, spans) !== null) return false;
+        for (const s of spans) {
+          const a = block.pos(s.from);
+          const b = block.pos(s.to);
+          if (doc.lineAt(a).number !== doc.lineAt(b).number || touched(a, b)) continue;
+          let raw = false;
+          tree.iterate({ from: a, to: b, enter: (n) => void (/^(InlineCode|URL|Autolink|HTMLTag|Comment|LinkTitle|LinkLabel)$/.test(n.name) && n.from < b && n.to > a && (raw = true)) });
+          if (raw) continue;
+          math.push({ from: a, to: b });
+          out.push({ from: a, to: b, deco: Decoration.replace({ widget: new InlineMathWidget(s.tex, s.display) }) });
         }
-      }
-    }
+        return false;
+      },
+    });
   }
+  // A node that cuts through a typeset span is inside the math: its marks
+  // are TeX, not Markdown.
+  const inMath = (from: number, to: number) => math.some((m) => from < m.to && to > m.from && !(from <= m.from && to >= m.to));
   for (const { from, to } of view.visibleRanges) {
     tree.iterate({
       from,
       to,
       enter: (node) => {
         if (fmEnd >= 0 && node.to <= fmEnd && node.from < fmEnd) return false;
+        if (inMath(node.from, node.to)) return false;
         const name = node.name;
         const shown = touched(node.from, node.to);
-        if (/^ATXHeading[1-6]$/.test(name)) {
+        if (name === "Table") {
+          // Table rows in the mono face while edited.
+          for (let n = doc.lineAt(node.from).number; n <= doc.lineAt(node.to).number; n++) {
+            const l = doc.line(n);
+            out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-table" }) });
+          }
+        } else if (/^ATXHeading[1-6]$/.test(name)) {
           const level = name.slice(-1);
           const line = doc.lineAt(node.from);
           out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: `cm-lp-h cm-lp-h${level}` }) });
@@ -442,6 +606,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       const embed = m[1] === "!";
       const kind = tree.resolveInner(start + 2, 1).name;
       if (kind === "InlineCode" || kind === "FencedCode" || kind === "CodeText") continue;
+      if (math.some((r) => start < r.to && end > r.from)) continue;
       const target = (inner.split("|")[0] ?? "").split("#")[0] ?? "";
       const alias = inner.includes("|") ? (inner.split("|")[1] ?? "") : null;
       const shown = embed && IMAGE.test(target) ? view.state.selection.ranges.some((r) => r.from <= end && r.to >= start && !(r.from === r.to && (r.from === start || r.from === end))) : touched(start, end);
@@ -477,13 +642,21 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
 
 /** Decorations that cannot take the editor down: a note the builder does
  *  not expect is shown as its source, and the error goes to the console. */
-function safely(make: () => DecorationSet): DecorationSet {
+function safely<T>(make: () => T, fallback: T): T {
   try {
     return make();
   } catch (e) {
     console.error("Live Preview:", e);
-    return Decoration.none;
+    return fallback;
   }
+}
+
+/** The blocks of the note (kept while only the selection moves) and their
+ *  decorations. */
+type Folds = { blocks: Block[]; decorations: DecorationSet };
+function folds(state: EditorState, opts: LiveOptions, blocks?: Block[]): Folds {
+  const found = blocks ?? safely(() => blocksOf(state), []);
+  return { blocks: found, decorations: safely(() => foldBlocks(state, opts, found), Decoration.none) };
 }
 
 export function livePreview(opts: LiveOptions) {
@@ -491,11 +664,13 @@ export function livePreview(opts: LiveOptions) {
     class {
       decorations: DecorationSet;
       constructor(view: EditorView) {
-        this.decorations = safely(() => build(view, opts));
+        this.decorations = safely(() => build(view, opts), Decoration.none);
       }
       update(u: ViewUpdate): void {
-        if (u.docChanged || u.selectionSet || u.viewportChanged || u.transactions.some((t) => t.effects.some((e) => e.is(redraw)))) {
-          this.decorations = safely(() => build(u.view, opts));
+        // The syntax tree grows in the background on a long note: a new
+        // tree is a reason to redraw as much as an edit is.
+        if (u.docChanged || u.selectionSet || u.viewportChanged || syntaxTree(u.state) !== syntaxTree(u.startState) || u.transactions.some((t) => t.effects.some((e) => e.is(redraw)))) {
+          this.decorations = safely(() => build(u.view, opts), Decoration.none);
         }
       }
     },
@@ -517,10 +692,14 @@ export function livePreview(opts: LiveOptions) {
   });
   // The frontmatter folded to one quiet line, from state (a view plugin
   // may not replace line breaks), and atomic so the caret skips it.
-  const frontmatter = StateField.define<DecorationSet>({
-    create: (state) => safely(() => foldBlocks(state, opts)),
-    update: (value, tr) => (tr.docChanged || tr.selection !== undefined || tr.effects.some((e) => e.is(redraw)) ? safely(() => foldBlocks(tr.state, opts)) : value),
-    provide: (f) => [EditorView.decorations.from(f), EditorView.atomicRanges.of((view) => view.state.field(f))],
+  const frontmatter = StateField.define<Folds>({
+    create: (state) => folds(state, opts),
+    update: (value, tr) => {
+      if (tr.docChanged || syntaxTree(tr.state) !== syntaxTree(tr.startState)) return folds(tr.state, opts);
+      if (tr.selection !== undefined || tr.effects.some((e) => e.is(redraw))) return folds(tr.state, opts, value.blocks);
+      return value;
+    },
+    provide: (f) => [EditorView.decorations.from(f, (v) => v.decorations), EditorView.atomicRanges.of((view) => view.state.field(f).decorations)],
   });
   return [plugin, clicks, frontmatter];
 }
