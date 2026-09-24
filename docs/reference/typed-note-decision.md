@@ -754,12 +754,15 @@ Recorded, not resolved (`CLAUDE.md` §1, rule 3).
 **Check that this change is what it says it is.** The branch is local; it was
 not pushed.
 
+The memo and the draft ADR came in two commits of the local stack — the
+memo's (`4a9ae09`) and the reading's (`d2c88d4`) — among others that are not
+this subject; each touches the same six files, all under `docs/`:
+
 ```
-git checkout docs/typed-note-decision
-git diff --stat origin/main..HEAD          # six files, all under docs/
+git show --stat 4a9ae09 d2c88d4            # six files each, all under docs/
 bash scripts/check-docs-mirror.sh          # "docs mirror: ok"
 bash scripts/check-fixtures.sh             # fixtures untouched; the lint still passes
-git log --format='%an <%ae>%n%b' origin/main..HEAD   # author and Signed-off-by are yours
+git log -1 --format='%an <%ae>%n%b' d2c88d4   # author and Signed-off-by are yours
 ```
 
 **Decide, in seven lines:**
@@ -818,4 +821,8 @@ done with each:
 | M9 — the closing plan cited no commit or pull request, and gave ADR 0013 no `Revisions:` line | MINOR | Section 12: both, as the ADR index requires |
 | M10 — a note among ADR 0052's discarded alternatives | MINOR | Moved to its Status |
 
-These changes have not been read yet.
+The labels are the reading's own, and it read three other memos in the same
+pass: the numbers this table skips, and the reading's one BLOCKING finding,
+are those memos' — `beta-config-decision.md`, `handles-decision.md` and
+`embedded-media-decision.md`, corrected in `4e8646b`. These changes have not
+been read yet.
