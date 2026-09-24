@@ -26,11 +26,14 @@ import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import katex from "katex";
 import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { commands, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type NoteText, type TextFile, type Written } from "./bindings";
+import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type NoteText, type PropertyValue, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
 import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
-import { PropertiesView } from "./props";
+import { PropertiesView, propertyChange, type Edit } from "./props";
+import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
+import { stringsFor } from "./bases/strings";
+import { DailyCalendar } from "./bases/daily";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
 import { PdfView } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
@@ -67,6 +70,10 @@ type Strings = Record<
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
+  | "newBase" | "insertBase" | "calendarTab" | "newWindow"
+  | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
+  | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
+  | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
   | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc",
   string
 > & {
@@ -145,7 +152,7 @@ const pt: Strings = {
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
-  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
+  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
@@ -160,6 +167,14 @@ const pt: Strings = {
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
+  newBase: "Nova base", insertBase: "Inserir base", calendarTab: "Calendário", newWindow: "Nova janela",
+  sCli: "Terminal e agentes", cliTitle: "Comando verso no terminal", cliDesc: "Instala o comando verso em /usr/local/bin: verso . abre a pasta no app, verso search <pasta> <palavras> busca, verso mcp atende um agente. O macOS pede a sua senha uma vez.",
+  cliOurs: "Instalado.", cliMissing: "Não instalado.", cliElsewhere: "Outro verso está em /usr/local/bin.", cliUnbundled: "Esta versão do app não traz o comando.",
+  cliInstall: "Instalar", cliReplace: "Substituir", cliRemove: "Remover", cliReplaceAsk: "Já existe outro verso em /usr/local/bin. Substituir pelo deste app?", cliCancelled: "Nada instalado.", cliDone: "Comando instalado: abra um terminal novo e digite verso.", cliRemoved: "Comando removido.",
+  mcpTitle: "Agentes (MCP)", mcpDesc: "Um agente como o Claude lê esta pasta pelo Verso: busca, lê notas, segue links. Só leitura — o Verso não escreve nada que um agente peça.",
+  mcpClaude: "Adicionar ao Claude Desktop", mcpClaudeSame: "Já está no Claude Desktop.", mcpClaudeDifferent: "O Claude Desktop tem um servidor com esse nome que inicia outra coisa.", mcpNoClaude: "Claude Desktop não encontrado.", mcpNeedCli: "Instale o comando acima primeiro: o Claude Desktop o inicia.", mcpNoFolder: "Abra uma pasta para ligar um agente a ela.",
+  mcpAddAsk: "Isto entra no arquivo de configuração do Claude Desktop; uma cópia do arquivo como está fica ao lado dele:\n\n{entry}\n\nDepois, reinicie o Claude Desktop.", mcpAddYes: "Adicionar", mcpAdded: "Adicionado. Reinicie o Claude Desktop.", mcpBackup: "Cópia do anterior: {name}.",
+  mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
 };
 
@@ -215,7 +230,7 @@ const en: Strings = {
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
-  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
+  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
@@ -230,6 +245,14 @@ const en: Strings = {
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
+  sCli: "Terminal and agents", cliTitle: "The verso command in the terminal", cliDesc: "Installs the verso command in /usr/local/bin: verso . opens the folder in the app, verso search <folder> <words> searches, verso mcp serves an agent. macOS asks for your password once.",
+  cliOurs: "Installed.", cliMissing: "Not installed.", cliElsewhere: "Another verso is in /usr/local/bin.", cliUnbundled: "This build of the app carries no command.",
+  cliInstall: "Install", cliReplace: "Replace", cliRemove: "Remove", cliReplaceAsk: "Another verso is already in /usr/local/bin. Replace it with this app's?", cliCancelled: "Nothing installed.", cliDone: "Command installed: open a new terminal and type verso.", cliRemoved: "Command removed.",
+  mcpTitle: "Agents (MCP)", mcpDesc: "An agent such as Claude reads this folder through Verso: search, read notes, follow links. Read-only — Verso writes nothing an agent asks for.",
+  mcpClaude: "Add to Claude Desktop", mcpClaudeSame: "Already in Claude Desktop.", mcpClaudeDifferent: "Claude Desktop has a server by this name that starts something else.", mcpNoClaude: "Claude Desktop not found.", mcpNeedCli: "Install the command above first: Claude Desktop starts it.", mcpNoFolder: "Open a folder to connect an agent to it.",
+  mcpAddAsk: "This goes into Claude Desktop's configuration file; a copy of the file as it is stays beside it:\n\n{entry}\n\nThen restart Claude Desktop.", mcpAddYes: "Add", mcpAdded: "Added. Restart Claude Desktop.", mcpBackup: "Copy of the previous one: {name}.",
+  mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
+  newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
 };
 
@@ -243,6 +266,11 @@ const LANG: string = (() => {
   return navigator.language;
 })();
 const t: Strings = LANG.toLowerCase().startsWith("pt") ? pt : en;
+/** What the views of a base say (ADR 0053), in the same language. */
+const baseStrings = stringsFor(LANG);
+/** Every base on screen — a tab, a block, an embed — drawn again when the
+ *  folder changes. */
+const liveBases = new Set<BaseView>();
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
 
 /* ---------- Small helpers ---------- */
@@ -304,11 +332,13 @@ function ext(path: string): string {
   return i > 0 ? base.slice(i + 1).toLowerCase() : "";
 }
 const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
-const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|css|js|ts|py|rs|sh|log|ini|cfg|canvas|base)$/;
-type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph";
+const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|css|js|ts|py|rs|sh|log|ini|cfg|canvas)$/;
+type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph" | "base";
 function kindOf(path: string): Kind {
   const e = ext(path);
   if (e === "md") return "note";
+  // A view over the folder (ADR 0053); its YAML is the other mode of the tab.
+  if (e === "base") return "base";
   if (IMAGE.test(e)) return "image";
   // A page first; its source is a mode of the same tab (htmlModes).
   if (e === "html" || e === "htm") return "frame";
@@ -317,7 +347,7 @@ function kindOf(path: string): Kind {
   return "other";
 }
 function iconFor(kind: Kind): string {
-  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : "text";
+  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : kind === "base" ? "base" : "text";
 }
 let allFolders: string[] = [];
 const recents: string[] = [];
@@ -390,6 +420,10 @@ const LAST_FOLDER = "verso.lastFolder";
 /** This window shows one note popped out of the main window. */
 const popout = getCurrentWindow().label.startsWith("note-");
 if (popout) document.body.classList.add("popout");
+/** Another window of the same folder (`window-N`, ADR 0049): it joins the
+ *  open folder, starts with one empty workspace, and keeps no layout — the
+ *  main window's is the one remembered. */
+const secondary = getCurrentWindow().label.startsWith("window-");
 /** The open folder's key (FolderInfo.key): what the window keeps its own
  *  state under, never a path (ADR 0026 rule 4); empty when none is open. */
 let currentFolder = "";
@@ -1240,8 +1274,9 @@ class NoteLeaf extends Leaf {
   /** The file mixes line endings: shown, never edited (lineSeparator). */
   private readOnly = false;
   resolved = new Map<string, string | null>();
-  /** PDF readers embedded in the preview, closed when it is redrawn. */
-  embeds: PdfView[] = [];
+  /** PDF readers and bases embedded in the preview, closed when it is
+   *  redrawn. */
+  embeds: (PdfView | BaseView)[] = [];
 
   constructor(pane: Pane) {
     super(pane);
@@ -1276,6 +1311,7 @@ class NoteLeaf extends Leaf {
       editFrontmatter: () => this.setMode("source"),
       frontmatterTitle: (n) => (n === 1 ? t.yamlLine : t.yamlLines).replace("{n}", String(n)),
       noteHtml: (target) => this.embedHtml(target),
+      base: (text, embed, mount, edit) => this.liveBase(text, embed, mount, edit),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
     // Focusable from code, not by Tab: a link followed from the keyboard
@@ -1283,12 +1319,14 @@ class NoteLeaf extends Leaf {
     this.preview.tabIndex = -1;
     // A double click on the text opens it for editing, as a note app does.
     this.preview.addEventListener("dblclick", (ev) => {
-      if ((ev.target as HTMLElement).closest("a, input, button, .embed-pdf, .embed-note, .math")) return;
+      if ((ev.target as HTMLElement).closest("a, input, button, select, .embed-pdf, .embed-note, .embed-base, .math")) return;
       const sel = window.getSelection();
       sel?.removeAllRanges();
       this.setMode("live");
     });
     this.preview.addEventListener("click", (ev) => {
+      // A base's own links and buttons are its own (bases/cells.ts).
+      if ((ev.target as HTMLElement).closest(".embed-base")) return;
       const a = (ev.target as HTMLElement).closest("a");
       if (!a) return;
       ev.preventDefault();
@@ -1937,7 +1975,10 @@ class NoteLeaf extends Leaf {
     // The same note drawn again keeps its callouts as the user left them.
     const open = this.shownPath === note.path ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
     this.shownPath = note.path;
-    for (const e of this.embeds) e.destroy();
+    for (const e of this.embeds) {
+      e.destroy();
+      if (e instanceof BaseView) liveBases.delete(e);
+    }
     this.embeds = [];
     setHtml(this.preview, note.html);
     wireCallouts(this.preview, open);
@@ -1945,6 +1986,7 @@ class NoteLeaf extends Leaf {
     this.shownText = note.text;
     this.gatherFootnotes();
     typeset(this.preview);
+    this.mountBases(note.path);
     void this.embedImages(note.path);
     this.wireTasks();
     this.dressLinks(note.path);
@@ -2011,6 +2053,64 @@ class NoteLeaf extends Leaf {
         void this.embedImages(forPath, body, to);
       });
     }
+  }
+  /** `base` blocks drawn as their views (ADR 0053). Their menus change
+   *  the block from the editor (Live Preview); here the views switch. */
+  private mountBases(path: string): void {
+    let n = 0;
+    for (const code of this.preview.querySelectorAll<HTMLElement>("pre > code.language-base")) {
+      const pre = code.parentElement;
+      if (!pre) continue;
+      const text = code.textContent ?? "";
+      const view = new BaseView(baseHost(), { path: null, thisPath: path, folder: dirOf(path), text: () => text, edit: null, viewName: null, key: `${path}#base${n++}` });
+      const box = h("div", "embed-base");
+      box.append(view.el);
+      pre.replaceWith(box);
+      this.embeds.push(view);
+      liveBases.add(view);
+      void view.refresh();
+    }
+  }
+  /** A base of Live Preview, a block of this note (`embed` null: its text
+   *  is the block's, and `edit` changes the block) or a `.base` file
+   *  embedded on a line of its own. The way to take it down comes back. */
+  private liveBase(text: string, embed: string | null, mount: HTMLElement, edit: ((next: string) => void) | null): () => void {
+    let view: BaseView | null = null;
+    let gone = false;
+    const start = (src: BaseSource) => {
+      if (gone) return;
+      view = new BaseView(baseHost(), src);
+      mount.append(view.el);
+      liveBases.add(view);
+      void view.refresh();
+    };
+    if (embed === null) {
+      start({ path: null, thisPath: this.path, folder: dirOf(this.path), text: () => text, edit, viewName: null, key: `${this.path}#live` });
+    } else {
+      const target = embed.split("#")[0] ?? embed;
+      const viewName = embed.includes("#") ? embed.slice(embed.indexOf("#") + 1) : null;
+      void commands.resolveAttachment(this.path, target).then(async (r) => {
+        if (r.status !== "ok" || !r.data) {
+          mount.textContent = `![[${embed}]]`;
+          return;
+        }
+        const rel = r.data;
+        const f = await commands.readText(rel);
+        if (f.status !== "ok") {
+          mount.textContent = baseStrings.baseEmbedFailed;
+          return;
+        }
+        const body = f.data.text;
+        start({ path: rel, thisPath: this.path, folder: dirOf(rel), text: () => body, edit: null, viewName, key: rel });
+      });
+    }
+    return () => {
+      gone = true;
+      if (view) {
+        liveBases.delete(view);
+        view.destroy();
+      }
+    };
   }
   /** Footnote definitions gathered at the end under a hairline, each with
    *  a way back to its mark; the marks get ids for that. */
@@ -2122,6 +2222,21 @@ class NoteLeaf extends Leaf {
         const p = span.parentElement;
         span.replaceWith(img);
         if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
+      } else if (kindOf(rel) === "base") {
+        // A base's view (ADR 0053), the one `#Name` names if any.
+        const box = h("div", "embed-base");
+        const raw = span.dataset["target"] ?? "";
+        const viewName = raw.includes("#") ? raw.slice(raw.indexOf("#") + 1) : null;
+        span.replaceWith(box);
+        void commands.readText(rel).then((f) => {
+          if (f.status !== "ok" || this.path !== forPath) return;
+          const text = f.data.text;
+          const view = new BaseView(baseHost(), { path: rel, thisPath: source, folder: dirOf(rel), text: () => text, edit: null, viewName, key: rel });
+          box.append(view.el);
+          this.embeds.push(view);
+          liveBases.add(view);
+          void view.refresh();
+        });
       } else if (kindOf(rel) === "pdf") {
         // The PDF itself, in a box of its own, at the page the target names.
         const box = h("div", "embed-pdf");
@@ -2295,6 +2410,10 @@ class TextLeaf extends Leaf {
     this.el.append(head, sheet);
     this.editor = new EditorView({ parent: this.host, state: EditorState.create({ doc: "" }) });
   }
+  /** What a kind of text tab adds to its editor (a base redraws its view). */
+  protected extras(): Extension {
+    return [];
+  }
   private state(doc: string, language: Extension[] = []): EditorState {
     return EditorState.create({
       doc,
@@ -2308,6 +2427,7 @@ class TextLeaf extends Leaf {
         EditorView.contentAttributes.of(() => ({ "aria-label": this.path.split("/").pop() ?? this.path })),
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
         editorChrome(["Mod-s"]),
+        this.extras(),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
             this.setDirty(true);
@@ -2418,6 +2538,87 @@ class TextLeaf extends Leaf {
   override destroy(): void {
     window.clearTimeout(this.saveTimer);
     this.editor.destroy();
+  }
+}
+
+/* A base (ADR 0053): its views drawn from the core's evaluation, over the
+ * YAML this tab edits as text in its other mode. The menus of the view
+ * change the text in the editor, and the ordinary save writes it, over
+ * the revision it read (invariant 11). */
+class BaseLeaf extends TextLeaf {
+  override readonly kind: Kind = "base";
+  readonly viewHost = h("div", "base-host");
+  readonly baseModes = h("div", "modes");
+  private view: BaseView | null = null;
+  private showing: "view" | "source" = "view";
+  private redrawTimer: number | undefined;
+  constructor(pane: Pane) {
+    super(pane);
+    this.baseModes.setAttribute("role", "group");
+    const mode = (face: "view" | "source", ic: string, label: string): HTMLButtonElement => {
+      const b = h("button");
+      b.type = "button";
+      b.dataset["face"] = face;
+      b.append(icon(ic), h("span", "", label));
+      b.addEventListener("click", () => this.setFace(face));
+      return b;
+    };
+    this.baseModes.append(mode("view", "base", baseStrings.viewMode), mode("source", "source", baseStrings.sourceMode));
+    this.el.querySelector(".leaf-head")?.append(this.baseModes);
+    this.host.before(this.viewHost);
+    this.paintFace();
+  }
+  protected override extras(): Extension {
+    return EditorView.updateListener.of((u) => {
+      if (!u.docChanged) return;
+      window.clearTimeout(this.redrawTimer);
+      this.redrawTimer = window.setTimeout(() => void this.view?.refresh(), 250);
+    });
+  }
+  override async load(path: string, force = false): Promise<void> {
+    await super.load(path, force);
+    if (this.path !== path) return;
+    this.view?.destroy();
+    if (this.view) liveBases.delete(this.view);
+    this.view = new BaseView(baseHost(), {
+      path,
+      thisPath: path,
+      folder: dirOf(path),
+      text: () => this.editor.state.doc.toString(),
+      edit: (next) => {
+        const now = this.editor.state.doc.toString();
+        const change = minimalEdit(now, next);
+        if (change) this.editor.dispatch({ changes: change });
+      },
+      viewName: null,
+      key: path,
+    });
+    liveBases.add(this.view);
+    this.viewHost.replaceChildren(this.view.el);
+    await this.view.refresh();
+  }
+  private setFace(face: "view" | "source"): void {
+    this.showing = face;
+    this.paintFace();
+    if (face === "view") void this.view?.refresh();
+    else this.editor.focus();
+  }
+  private paintFace(): void {
+    for (const b of this.baseModes.querySelectorAll<HTMLButtonElement>("button")) b.setAttribute("aria-pressed", String(b.dataset["face"] === this.showing));
+    this.viewHost.hidden = this.showing !== "view";
+    this.host.hidden = this.showing !== "source";
+  }
+  override focusContent(): void {
+    if (this.showing === "source") this.editor.focus();
+    else this.viewHost.querySelector<HTMLElement>("button, a, input")?.focus();
+  }
+  override destroy(): void {
+    window.clearTimeout(this.redrawTimer);
+    if (this.view) {
+      liveBases.delete(this.view);
+      this.view.destroy();
+    }
+    super.destroy();
   }
 }
 
@@ -3309,7 +3510,7 @@ class Pane {
     if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
     if (!leaf) {
       const kind = kindOf(path);
-      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : new TextLeaf(this);
+      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : new TextLeaf(this);
       remember(path);
       this.insert(leaf);
       void leaf.load(path);
@@ -3875,7 +4076,7 @@ function persistSoon(): void {
   window.clearTimeout(persistTimer);
   persistTimer = window.setTimeout(() => {
     try {
-      if (!currentFolder || popout) return;
+      if (!currentFolder || popout || secondary) return;
       localStorage.setItem(
         `verso.spaces:${currentFolder}`,
         JSON.stringify({ current: current ? spaces.indexOf(current) : 0, spaces: spaces.map((s) => ({ label: s.label, layout: s.layout.serialize() })) }),
@@ -4156,7 +4357,7 @@ function forgetFiles(): void {
 }
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks ---------- */
-type PanelTab = "outline" | "backlinks" | "outgoing" | "tags" | "bookmarks";
+type PanelTab = "outline" | "backlinks" | "outgoing" | "tags" | "bookmarks" | "calendar";
 class Panel {
   readonly el = el<HTMLElement>("right");
   readonly tabs = el<HTMLDivElement>("right-tabs");
@@ -4171,6 +4372,7 @@ class Panel {
       ["outgoing", "wikilink", t.outgoing],
       ["tags", "tag", t.tags],
       ["bookmarks", "star", t.bookmarks],
+      ["calendar", "calendar", t.calendarTab],
     ];
     // A tablist and its one panel: the arrows, Home and End choose a tab,
     // and only the chosen one is in the Tab order.
@@ -4276,9 +4478,21 @@ class Panel {
     li.append(b);
     return li;
   }
+  /** The month of the daily notes (ADR 0053). */
+  readonly daily = new DailyCalendar({
+    locale: LOCALE,
+    s: baseStrings,
+    has: (day) => allNotes.includes(dailyPath(day)),
+    open: (day) => void dailyNote(day),
+  });
   paint(): void {
     const leaf = this.leaf;
     switch (this.current) {
+      case "calendar": {
+        this.daily.render();
+        this.body.replaceChildren(this.daily.el);
+        break;
+      }
       case "outline": {
         const heads = leaf?.headings() ?? [];
         this.list(
@@ -4369,6 +4583,7 @@ async function afterFileChange(): Promise<void> {
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
   // A change made outside that this run found before the watcher did.
   tellOutcomes(await recheckAll("all"));
+  refreshBases();
 }
 /* The folder changed on disk — another editor, a sync client, git
  * (the watcher, provisional: docs/reference/watcher-decision.md). The
@@ -4387,6 +4602,9 @@ async function changedOutside(change: FolderChanged): Promise<void> {
   if (change.key !== currentFolder) return;
   tellOutcomes(outcomes);
   showProblems(change.index);
+  // A note this app wrote (another window's view, a card moved) is current
+  // in the index already, and not named: the views ask again all the same.
+  refreshBases();
 }
 /** `run` once no name is being typed in `container`: redrawing it would
  *  take the field away, or commit half a name. Looked at again until then,
@@ -4553,6 +4771,140 @@ async function createNote(folder: string, nameTyped: string, pane?: Pane, rename
     else leaf.editAtEnd();
   }
 }
+/* ---------- Bases (ADR 0053) ---------- */
+let basesTimer: number | undefined;
+/** Every base on screen asks the core again, once the changes settle. */
+function refreshBases(): void {
+  window.clearTimeout(basesTimer);
+  basesTimer = window.setTimeout(() => {
+    for (const v of liveBases) void v.refresh();
+    // A daily note made or gone shows on the month too.
+    if (panel.current === "calendar") panel.paint();
+  }, 200);
+}
+function baseHost(): BaseHost {
+  return {
+    locale: LOCALE,
+    s: baseStrings,
+    open: (path, aside) => void openNote(path, aside),
+    image: (source, target, redraw) => imageUrl(source, target, redraw),
+    remote: () => settings.remoteContent,
+    setProperty: setNoteProperty,
+    newNote: newNoteWith,
+    menu: showMenu,
+    status: (m) => void (ui.status.textContent = m),
+    ask: (m, yes, no) => ask(m, { yes, no }),
+    copy: (text) => navigator.clipboard.writeText(text),
+    saveNote: saveMarkdownNote,
+  };
+}
+/** `text` with `key` holding `value`: the key's lines only (props.ts),
+ *  the key made when absent; the reason when the key cannot be written. */
+function withProperty(text: string, key: string, value: PropertyValue): { text: string } | { refused: string } {
+  let out = text;
+  const apply = (edit: Edit): string | null => {
+    const c = propertyChange(out, key, edit);
+    if ("refused" in c) return c.refused;
+    out = out.slice(0, c.change.from) + c.change.insert + out.slice(c.change.to);
+    return null;
+  };
+  let refused = apply({ op: "set", value });
+  if (refused === "changed") refused = apply({ op: "create" }) ?? apply({ op: "set", value });
+  return refused === null ? { text: out } : { refused };
+}
+/** One property of a note written from a view — a card moved to a
+ *  column, a day, a cell — over the revision read (invariant 11). The
+ *  note's tabs are saved first, so the write starts from their text, and
+ *  read what was written after. */
+async function setNoteProperty(path: string, key: string, value: PropertyValue | null): Promise<boolean> {
+  const left = await flushed(leavesOf(path));
+  if (left.length > 0) {
+    stopped(left);
+    return false;
+  }
+  const r = await commands.readNote(path);
+  if (r.status !== "ok") {
+    fail(r.error);
+    return false;
+  }
+  const next = withProperty(r.data.text, key, value ?? { kind: "empty" });
+  if ("refused" in next) {
+    ui.status.textContent = next.refused === "fixed" ? baseStrings.refusedShape : baseStrings.cellWriteFailed;
+    return false;
+  }
+  const w = await commands.writeNote(path, next.text, r.data.revision);
+  if (w.status !== "ok") {
+    fail(w.error);
+    return false;
+  }
+  await recheckAll(new Set([path]));
+  refreshBases();
+  return true;
+}
+/** A free name for a new file in `folder`: `base`, then `base 2`… */
+function freeName(folder: string, base: string, ext: string): string {
+  const taken = new Set([...allNotes, ...allFiles].map((p) => p.toLowerCase()));
+  const at = (c: string) => `${folder ? folder + "/" : ""}${c}${ext}`;
+  let candidate = base;
+  for (let n = 2; taken.has(at(candidate).toLowerCase()); n++) candidate = `${base} ${n}`;
+  return at(candidate);
+}
+/** A new note in `folder` holding `props` (a column's value, a day), made
+ *  from a view; its path, or null. */
+async function newNoteWith(folder: string, props: [string, PropertyValue][]): Promise<string | null> {
+  const path = freeName(folder, t.untitled, ".md");
+  let text = `# ${name(path)}\n\n`;
+  for (const [key, value] of props) {
+    const next = withProperty(text, key, value);
+    if ("text" in next) text = next.text;
+  }
+  const r = await commands.createNote(path.replace(/\.md$/i, ""), text);
+  if (r.status !== "ok") {
+    fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+    return null;
+  }
+  await afterFileChange();
+  return r.data.path;
+}
+/** A view's rows written into a new note, as a Markdown table (ADR 0013). */
+async function saveMarkdownNote(title: string, text: string): Promise<void> {
+  const leaf = layout().activeLeaf;
+  const folder = leaf?.path ? dirOf(leaf.path) : "";
+  const path = freeName(folder, title.replace(/[\\/:*?"<>|#^[\]]/g, " ").trim() || t.untitled, ".md");
+  const r = await commands.createNote(path.replace(/\.md$/i, ""), `# ${name(path)}\n\n${text}`);
+  if (r.status !== "ok") return fail(r.error);
+  await afterFileChange();
+  openNote(r.data.path, false);
+}
+function textBase64(text: string): string {
+  let bin = "";
+  for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+/** What a new base holds: every file of the folder, in one table. */
+function baseTemplate(): string {
+  return `views:\n  - type: table\n    name: ${baseStrings.table}\n    order:\n      - file.name\n`;
+}
+/** A new `.base` file in `folder`, opened. */
+async function newBase(folder: string): Promise<void> {
+  const path = freeName(folder, t.untitled, ".base");
+  const r = await commands.createFile(path, textBase64(baseTemplate()));
+  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  await afterFileChange();
+  openNote(r.data, false);
+}
+/** A `base` block at the caret of the note being edited. */
+function insertBase(): void {
+  const leaf = layout().activeLeaf;
+  if (!(leaf instanceof NoteLeaf)) return;
+  if (leaf.mode === "preview") leaf.setMode("live");
+  const pos = leaf.editor.state.selection.main.to;
+  const line = leaf.editor.state.doc.lineAt(pos);
+  const lead = line.text.trim() === "" ? "" : "\n\n";
+  const block = `${lead}\`\`\`base\n${baseTemplate()}\`\`\`\n`;
+  leaf.editor.dispatch({ changes: { from: line.to, insert: block }, selection: { anchor: line.to + block.length } });
+  leaf.editor.focus();
+}
 async function deleteNote(path: string): Promise<void> {
   await deleteEntry(path, kindOf(path));
 }
@@ -4655,6 +5007,7 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
     sep,
     [t.newHere, () => newNotePrompt(here)],
     [t.newFolder, () => newFolderPrompt(here)],
+    [t.newBase, () => void newBase(here)],
     sep,
     [t.deleteEntry, () => void deleteEntry(path, kind)],
   );
@@ -5590,6 +5943,8 @@ function allCommands(all = false): Command[] {
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "new-base", label: t.newBase, need: hasFolder, run: () => void newBase(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "insert-base", label: t.insertBase, need: Boolean(note), run: () => insertBase() },
     { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
     { id: "insert-template", label: t.insertTemplate, need: hasFolder, run: () => insertTemplate() },
     { id: "save-template", label: t.saveAsTemplate, need: hasFolder, run: () => void saveAsTemplate() },
@@ -5603,6 +5958,7 @@ function allCommands(all = false): Command[] {
     { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
     { id: "split-down", label: t.splitDown, need: Boolean(pane), run: () => pane && layout().split(pane, "col") },
     { id: "new-space", label: t.newSpace.split(" (")[0] ?? t.newSpace, need: hasFolder, run: () => newSpace() },
+    { id: "new-window", label: t.newWindow, need: hasFolder && !popout, run: () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)) },
     { id: "maximize", label: t.maximize, need: Boolean(pane), run: () => pane && layout().toggleMaximize(pane) },
     { id: "close-pane", label: t.closePane, need: Boolean(pane), run: () => pane && void pane.closeAll() },
     { id: "close-tab", label: t.close, need: Boolean(leaf), run: () => leaf && void leaf.close() },
@@ -5889,6 +6245,7 @@ class SettingsDialog {
       { id: "editor", label: t.sEditor, icon: "edit" },
       { id: "files", label: t.sFiles, icon: "folder" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
+      { id: "cli", label: t.sCli, icon: "terminal" },
     ];
   }
   private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
@@ -5987,7 +6344,116 @@ class SettingsDialog {
     // tab-focus toggle, Ctrl-M, ⇧⌥M on macOS).
     add("hotkeys", t.editorTab, t.editorTabDesc.replace("{keys}", prettyKeys(MAC ? "Shift-Alt-m" : "Mod-m")), () => null);
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
+    // The command line and MCP (ADR 0054). The folder is named by its key
+    // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
+    add("cli", t.cliTitle, t.cliDesc, () => this.cliControl());
+    add("cli", t.mcpTitle, t.mcpDesc, () => this.mcpControl());
+    if (currentFolder) {
+      const server = `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
+      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(`claude mcp add ${server} -- verso mcp --key ${currentFolder}`));
+      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () =>
+        this.snippet(JSON.stringify({ mcpServers: { [server]: { command: "/usr/local/bin/verso", args: ["mcp", "--key", currentFolder] } } }, null, 2)),
+      );
+    }
     return out;
+  }
+  /** Where the command line stands, and the button that changes it. */
+  private cliControl(): HTMLElement {
+    const wrap = h("span", "setting-actions");
+    const said = h("span", "setting-value", "…");
+    said.setAttribute("aria-live", "polite");
+    const install = button("ghost", t.cliInstall);
+    const remove = button("ghost", t.cliRemove);
+    install.hidden = true;
+    remove.hidden = true;
+    const show = (state: CliState) => {
+      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? t.cliElsewhere : t.cliUnbundled;
+      install.hidden = state === "ours" || state === "unbundled";
+      install.textContent = state === "elsewhere" ? t.cliReplace : t.cliInstall;
+      remove.hidden = state !== "ours";
+    };
+    void commands.cliStatus().then(show);
+    install.addEventListener("click", () => void (async () => {
+      let replace = false;
+      if ((await commands.cliStatus()) === "elsewhere") {
+        if (!(await ask(t.cliReplaceAsk, { yes: t.cliReplace, no: t.cancel }))) return;
+        replace = true;
+      }
+      const r = await commands.installCli(replace);
+      if (r.status !== "ok") {
+        said.textContent = r.error.message === "cancelled" ? t.cliCancelled : r.error.message;
+        return;
+      }
+      if (r.data === "ours") ui.status.textContent = t.cliDone;
+      // The agents' item depends on it.
+      this.paint();
+    })());
+    remove.addEventListener("click", () => void (async () => {
+      const r = await commands.uninstallCli();
+      if (r.status !== "ok") {
+        said.textContent = r.error.message === "cancelled" ? t.cliCancelled : r.error.message;
+        return;
+      }
+      ui.status.textContent = t.cliRemoved;
+      this.paint();
+    })());
+    wrap.append(said, install, remove);
+    return wrap;
+  }
+  /** Whether Claude Desktop starts this folder's server, and the button
+   *  that adds it — after showing what goes in. */
+  private mcpControl(): HTMLElement {
+    const wrap = h("span", "setting-actions");
+    const said = h("span", "setting-value", "…");
+    said.setAttribute("aria-live", "polite");
+    wrap.append(said);
+    if (!currentFolder) {
+      said.textContent = t.mcpNoFolder;
+      return wrap;
+    }
+    const add = button("ghost", t.mcpClaude);
+    add.hidden = true;
+    wrap.append(add);
+    let server = "";
+    void Promise.all([commands.cliStatus(), commands.mcpStatus()]).then(([cli, st]) => {
+      if (st.status !== "ok") {
+        said.textContent = st.error.message;
+        return;
+      }
+      server = st.data.server;
+      const claude = st.data.claude;
+      if (claude === "noClient") said.textContent = t.mcpNoClaude;
+      else if (claude === "same") said.textContent = t.mcpClaudeSame;
+      else if (cli !== "ours") said.textContent = t.mcpNeedCli;
+      else {
+        said.textContent = claude === "different" ? t.mcpClaudeDifferent : "";
+        add.hidden = false;
+      }
+    });
+    add.addEventListener("click", () => void (async () => {
+      const entry = JSON.stringify({ [server]: { command: "/usr/local/bin/verso", args: ["mcp", "--key", currentFolder] } }, null, 2);
+      if (!(await ask(t.mcpAddAsk.replace("{entry}", entry), { yes: t.mcpAddYes, no: t.cancel }))) return;
+      const r = await commands.mcpAddClaude();
+      if (r.status !== "ok") {
+        said.textContent = r.error.message;
+        return;
+      }
+      said.textContent = `${t.mcpAdded}${r.data.backup ? ` ${t.mcpBackup.replace("{name}", r.data.backup)}` : ""}`;
+      add.hidden = true;
+    })());
+    return wrap;
+  }
+  /** A text to copy: shown as code, with its button. */
+  private snippet(text: string): HTMLElement {
+    const wrap = h("div", "setting-snippet");
+    const code = h("pre", "setting-code", text);
+    const copy = button("ghost", t.copyText);
+    copy.addEventListener("click", () => void navigator.clipboard.writeText(text).then(() => {
+      copy.textContent = t.copiedText;
+      window.setTimeout(() => (copy.textContent = t.copyText), 1500);
+    }));
+    wrap.append(code, copy);
+    return wrap;
   }
   private hotkeyControl(id: string, label: string): HTMLElement {
     const wrap = h("span", "hotkey");
@@ -6086,9 +6552,14 @@ async function templateText(nameWanted: string): Promise<string | null> {
   const r = await commands.readNote(path);
   return r.status === "ok" ? r.data.text : null;
 }
-async function dailyNote(): Promise<void> {
+/** Where the daily note of `day` (`YYYY-MM-DD`) is, or would be. */
+function dailyPath(day: string): string {
   const folder = settings.daily.trim().replace(/^\/+|\/+$/g, "");
-  const path = `${folder ? folder + "/" : ""}${today()}.md`;
+  return `${folder ? folder + "/" : ""}${day}.md`;
+}
+async function dailyNote(day = today()): Promise<void> {
+  const folder = settings.daily.trim().replace(/^\/+|\/+$/g, "");
+  const path = dailyPath(day);
   if (allNotes.includes(path)) {
     openNote(path, false);
     return;
@@ -6097,7 +6568,7 @@ async function dailyNote(): Promise<void> {
   // name in either language.
   let tpl: string | null = null;
   for (const n of new Set([folder || t.dailyName, pt.dailyName, en.dailyName])) tpl ??= await templateText(n);
-  const body = (tpl ?? `# ${today()}\n\n`).replaceAll("{{date}}", today()).replaceAll("{{title}}", today());
+  const body = (tpl ?? `# ${day}\n\n`).replaceAll("{{date}}", day).replaceAll("{{title}}", day);
   const r = await commands.createNote(path, body);
   if (r.status !== "ok") return fail(r.error);
   await afterFileChange();
@@ -6301,7 +6772,7 @@ function showFolder(info: FolderInfo): void {
   void listAll().then(() => {
     let restored = false;
     try {
-      const saved = localStorage.getItem(`verso.spaces:${info.key}`);
+      const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);
       if (saved) {
         const o = JSON.parse(saved) as { current?: number; spaces?: { label?: string; layout?: unknown }[] };
         for (const sp of o.spaces ?? []) {

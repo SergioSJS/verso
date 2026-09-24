@@ -72,6 +72,11 @@ const PATHS: Record<string, string> = {
   star: "M8 2.5l1.7 3.6 3.9.5-2.9 2.7.8 3.9L8 11.3l-3.5 1.9.8-3.9L2.4 6.6l3.9-.5z",
   tag: "M2.5 2.5h5l6 6-5 5-6-6zM5.5 5.5h.01",
   link: "M6.5 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1M9.5 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l1-1",
+  sort: "M4.5 3v10M2.5 11l2 2 2-2M11.5 13V3M9.5 5l2-2 2 2",
+  filter: "M2.5 3.5h11L9 9v4l-2-1V9z",
+  kanban: "M2.5 3h3v10h-3zM6.5 3h3v6h-3zM10.5 3h3v8h-3z",
+  base: "M2.5 3.5h11v9h-11zM2.5 6.5h11M6 6.5v6",
+  terminal: "M2.5 3.5h11v9h-11zM4.5 6.5l2 1.5-2 1.5M8 10h3",
 };
 
 export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGElement {
