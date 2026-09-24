@@ -1223,7 +1223,7 @@ class NoteLeaf extends Leaf {
         // A footnote, in either direction: to the note at the bottom, back to the mark.
         const id = decodeURIComponent(a.getAttribute("href")?.slice(1) ?? "");
         const target = Array.from(this.preview.querySelectorAll<HTMLElement>("[id]")).find((e) => e.id === id);
-        target?.scrollIntoView({ block: "center", behavior: "smooth" });
+        target?.scrollIntoView({ block: "center", behavior: calm.matches ? "auto" : "smooth" });
         if (target) {
           target.classList.add("flash");
           setTimeout(() => target.classList.remove("flash"), 1200);
@@ -5656,9 +5656,12 @@ class SettingsDialog {
     add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }));
     add("appearance", t.hue, t.hueDesc, () => this.select([["paper", t.huePaper], ["sepia", t.hueSepia], ["slate", t.hueSlate], ["moss", t.hueMoss]], settings.palette, (v) => { settings.palette = v; saveSettings(); }));
     add("appearance", t.fontSize, t.fontSizeDesc, () => {
+      // Up to twice the default (15 px): the window has no page zoom, so
+      // this is how text reaches 200% (WCAG 1.4.4). Said in pixels.
       const r = h("input");
-      r.type = "range"; r.min = "12"; r.max = "22"; r.step = "1"; r.value = String(settings.fontSize);
-      r.addEventListener("input", () => { settings.fontSize = Number(r.value); saveSettings(); });
+      r.type = "range"; r.min = "12"; r.max = "30"; r.step = "1"; r.value = String(settings.fontSize);
+      r.setAttribute("aria-valuetext", `${r.value} px`);
+      r.addEventListener("input", () => { settings.fontSize = Number(r.value); r.setAttribute("aria-valuetext", `${r.value} px`); saveSettings(); });
       return r;
     });
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
