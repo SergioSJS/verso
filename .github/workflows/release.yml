@@ -95,6 +95,16 @@ jobs:
         env:
           VERSO_APP_NAME: ${{ steps.version.outputs.name }}
         run: cargo build --release --locked -p verso-cli
+      # The command line travels inside the app too, beside its binary, where
+      # the settings' "Install" links it from (ADR 0054); the bundle is
+      # signed again, ad hoc as before, so that its seal covers it.
+      - name: the command line inside the app
+        env:
+          NAME: ${{ steps.version.outputs.name }}
+        run: |
+          cp target/release/verso "target/release/bundle/macos/$NAME.app/Contents/MacOS/verso"
+          codesign --force --deep --sign - "target/release/bundle/macos/$NAME.app"
+          codesign --verify --deep --strict "target/release/bundle/macos/$NAME.app"
       # ditto keeps the app's signature and extended attributes in the zip.
       - name: the release's files
         env:

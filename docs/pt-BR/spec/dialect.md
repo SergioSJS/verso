@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.18
+# Spec do dialeto do Verso — v0.19
 
-- Versão: v0.18 · 2026-09-24
+- Versão: v0.19 · 2026-09-24
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -605,9 +605,11 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
      aparecem sem tipo, com o conflito nomeando os dois. Um schema que não se
      lê não tipa nada, e diz isso.
 
-  Não decidido: se um bloco aninhado numa lista ou num callout conta, ou só um
-  no nível de cima de uma nota (o memo pende para o nível de cima, que deixa de
-  fora um exemplo citado). Nenhuma fixture vem com este fechamento — não
+  Um bloco aninhado numa lista ou num callout não conta: só um no nível de
+  cima de uma nota conta, e um aninhado é mostrado como não lido — decidido
+  pelo mantenedor em 2026-09-24 (`docs/reference/views-decision.md` §2,
+  v0.19), o que deixa de fora um exemplo citado. Nenhuma fixture vem com este
+  fechamento — não
   existia nenhuma para a Q11, e ela fechou pela resposta do mantenedor como a
   Q12 e a Q26 fecharam. As fixtures de schema vêm com a implementação, cada
   uma rascunhada pela IA e aprovada pelo mantenedor no pull request que a
@@ -1084,3 +1086,4 @@ ser escolhido.
 | v0.16 | 2026-09-23 | As respostas do mantenedor sobre a revisão da Fase 2 (`docs/review/phase-2.md` §6, itens 4 e 20): **Q13 e Q25 fechadas** como o código faz; Q5 (tipos, dobra — sobre a qual a visualização de leitura agora age, `5b7fc69` — e título), Q6 (comentários), Q15 e Q24 decididas para a visualização de leitura e a janela, com a parte do índice e o resto ainda abertos — o aninhamento da Q5 e os `<iframe>`, `<video>` e `<audio>` da Q6 continuam abertos porque a visualização de leitura não segue o Obsidian ali; Q22 decidida para o charset e a caixa das tags; **a ordem do ponto 2 da Q12 dita**: um caminho a partir da raiz primeiro, depois relativo à pasta da origem, e `./` ou `../` só relativo, como o Obsidian 1.13.7 faz. Duas questões fechadas, cinco em parte |
 | v0.17 | 2026-09-24 | Q5: um fato provisório, não uma resposta — a visualização de leitura desenha um callout dentro de um callout, até 32 níveis (branch `feat/nested-callouts`); o aninhamento continua `[ABERTO]` |
 | v0.18 | 2026-09-24 | **Q11 fechada pelo mantenedor** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): um schema é um bloco cercado `verso-schema`, com YAML dentro, numa nota em qualquer lugar da pasta aberta menos caminhos ocultos e ignorados, nomeado pelo `type` que traz dentro; dois schemas com o mesmo nome não tipam nada, e o conflito aparece; se um bloco aninhado conta não está decidido. Seção 6: a nota tipada, os schemas e o i18n de schema `DECIDIDOS`, a restrição 1 (ADR 0013) aceita. Q24: a parte dos links é a próxima decisão. Nenhuma fixture ainda: a implementação as traz. Q6: um ponteiro para `docs/reference/embedded-media-decision.md`, que corrige a afirmação de que a documentação do Obsidian mostra `<video>` e `<audio>`; a Q6 continua aberta |
+| v0.19 | 2026-09-24 | Q11: **um bloco `verso-schema` aninhado não conta**, decidido pelo mantenedor (`docs/reference/views-decision.md` §2, [ADR 0052](../adr/0052-typed-note.md) ponto 3): só um bloco no nível de cima de uma nota é schema, e um aninhado é mostrado como não lido. As bases (arquivos `.base` e blocos `base`) são do [ADR 0053](../adr/0053-views-bases.md), não desta spec, que é o dialeto das notas |

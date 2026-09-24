@@ -8,7 +8,10 @@
   (`docs/review/phase-2.md` §6, item 11); o resto do catálogo continua
   Proposto. 2026-09-24 — a nota tipada aceita pelo mantenedor num ADR
   próprio, o [0052](0052-typed-note.md), como a primeira Consequência pede; a
-  linha dela aqui aponta para lá.
+  linha dela aqui aponta para lá. 2026-09-24 — as visões estruturadas aceitas
+  pelo mantenedor num ADR próprio, o [0053](0053-views-bases.md): bases, no
+  formato do Obsidian; e o mês das notas diárias no painel lateral, parte da
+  linha da nota do dia.
 
 ## Contexto
 
@@ -46,6 +49,13 @@ da Fase 2 as constrói ([0049](0049-phase-2-scope-widened.md),
 Se cada uma ainda precisa de um ADR próprio, como a primeira Consequência pede
 de toda primitiva, a resposta não disse; isso continua com o mantenedor. Notas
 periódicas e todas as outras linhas continuam Propostas.
+
+**As visões estruturadas, aceitas em 2026-09-24 pelo mantenedor** num ADR
+próprio, o [0053](0053-views-bases.md): uma visão é uma base — um arquivo
+`.base` ou um bloco `base` — no formato que o Obsidian documenta, disposta
+como tabela, cards, lista, kanban ou calendário; as linhas dela se
+materializam como tabela Markdown, como o [0013](0013-degrades-to-markdown.md)
+pede. A linha acima mantém as palavras do briefing; o 0053 é a decisão.
 
 **A nota tipada, aceita em 2026-09-24 pelo mantenedor** num ADR próprio, o
 [0052](0052-typed-note.md), sobre o memo

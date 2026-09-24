@@ -62,10 +62,14 @@ que se instala ao lado do app de produção com os próprios ajustes da janela
 - **Para instalar uma**: pela página de Releases do repositório, descompacte
   o app em `/Applications`. Ele é assinado ad hoc, não por um desenvolvedor
   registrado: na primeira vez o macOS se recusa a abri-lo — libere uma vez em
-  Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim". O
-  arquivo `verso-cli` traz a linha de comando; ponha o `verso` no seu `PATH`.
-  Extraído pelo Finder, ele também é barrado na primeira execução: libere ali
-  também, ou rode `xattr -d com.apple.quarantine verso` uma vez.
+  Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim". A linha
+  de comando vem dentro do app: Ajustes → Terminal e agentes → Instalar a
+  liga como `/usr/local/bin/verso` (o macOS pede a sua senha se essa pasta
+  não for sua), e a mesma página liga o Claude Desktop e mostra a entrada
+  para outros clientes MCP ([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)).
+  O arquivo `verso-cli` traz a mesma linha de comando para uma máquina sem o
+  app; extraído pelo Finder, ele é barrado na primeira execução: libere no
+  mesmo lugar, ou rode `xattr -d com.apple.quarantine verso` uma vez.
 - **Qual está rodando**: Ajustes → Geral → Versão, o painel Sobre, ou
   `verso --version`.
 - **Gerar uma** só acontece quando o mantenedor pede:

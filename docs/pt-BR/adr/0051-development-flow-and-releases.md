@@ -10,7 +10,10 @@
   mantenedor até o fluxo inteiro existir — sync, a web, mobile: até lá uma
   branch pode levar vários assuntos e chega à `main` num pull request grande,
   ainda com um merge commit ([0033](0033-pr-workflow.md), no mesmo dia, com as
-  palavras do mantenedor).
+  palavras do mantenedor). 2026-09-24 — Decisão 6: a linha de comando vai
+  também dentro do app, que os ajustes ligam no `PATH`
+  ([0054](0054-terminal-and-agents-from-the-app.md)); o arquivo separado
+  continua.
 
 ## Contexto
 
