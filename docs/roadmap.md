@@ -180,7 +180,7 @@ The first version that gets used. macOS only ([ADR 0022](adr/0022-target-platfor
 | 2.4 | CodeMirror 6 editor with Live Preview | built: reading, Live Preview and source |
 | 2.5 | Backlinks and search coming from the core, through the contract | built, with links, tags, unlinked mentions and the graph |
 | 2.6 | One note type end to end | not started: waits for the decisions below |
-| 2.7 | pt-BR and EN in the UI; accessibility ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | languages built, chosen in the settings; accessibility not audited |
+| 2.7 | pt-BR and EN in the UI; accessibility ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | languages built, chosen in the settings; accessibility audited statically against WCAG 2.2 AA on 2026-09-24 and its findings fixed but two ([review](review/accessibility.md)), on a local branch; not yet gone through with a screen reader |
 
 Beyond the seven items, the maintainer asked during the phase for what a
 person leaving Obsidian would miss; the list is

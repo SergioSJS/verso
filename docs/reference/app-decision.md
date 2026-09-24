@@ -279,10 +279,10 @@ which needs CI to run.
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): the contract names notes
   by relative path, and the revision is the only token. Session identity is
   accepted as absent for Phase 2 (ADR 0045, 2026-09-23); handles are open.
-- **A full accessibility pass.** After the reading, controls carry names,
-  dialogs hold and return focus, menus and dividers answer the keyboard, and
-  secondary text reaches 4.5:1; there is still no keyboard way to drag a tab or
-  a file, and nobody has gone through the app with a screen reader
+- **A full accessibility pass** — done statically on 2026-09-24, on a local
+  branch: [accessibility review](../review/accessibility.md). Tabs and files
+  now move from the keyboard too; what it leaves to the maintainer is in its
+  section 8, and nobody has gone through the app with a screen reader yet
   ([ADR 0035](../adr/0035-cross-cutting-requirements.md)).
 - **A file watcher** — built on 2026-09-24, provisional, on branch
   `feat/watcher`: [watcher memo](watcher-decision.md). Before it, a change made
