@@ -32,8 +32,10 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderChanged,
-    FolderInfo, Heading, Hit, IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue,
+    AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
+    BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
+    Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexSummary,
+    Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property, PropertyValue,
     Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
@@ -205,22 +207,24 @@ fn with<T>(
     }
 }
 
-/// Whether this window may open or switch the folder: only the main
-/// window, and only while no note is popped out — a note window names
-/// notes by their path relative to the folder, and would write into the
-/// new folder under the old names.
+/// Whether this window may open or switch the folder: a window of the
+/// whole folder (the main one, or another opened on the same folder), and
+/// only while it is the app's one window — a note window names notes by
+/// their path relative to the folder, and another window of the folder
+/// would go on showing the old one; both would write into the new folder
+/// under the old names.
 fn may_switch<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     window: &tauri::Window<R>,
 ) -> Result<(), ContractError> {
-    if window.label() != "main" {
-        return Err(refused("only the main window opens a folder"));
+    let me = window.label();
+    if me != "main" && !me.starts_with("window-") {
+        return Err(refused("only a window of the folder opens a folder"));
     }
-    if app
-        .webview_windows()
-        .keys()
-        .any(|label| label.starts_with("note-"))
-    {
+    if app.webview_windows().keys().any(|label| {
+        label != me
+            && (label.starts_with("note-") || label.starts_with("window-") || label == "main")
+    }) {
         return Err(refused("close the note windows first"));
     }
     Ok(())
@@ -1141,6 +1145,40 @@ fn open_window<R: tauri::Runtime>(
     Ok(())
 }
 
+static WINDOWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+
+/// Another window on the open folder (ADR 0049, asked for by the
+/// maintainer on 2026-09-24): its own tabs over the same session. What one
+/// window writes, the other reads as it reads any change made outside —
+/// the watcher's `folder-changed` reaches every window — and a write over
+/// a note the other changed is refused (invariant 11).
+#[tauri::command]
+#[specta::specta]
+fn new_window<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+) -> Result<(), ContractError> {
+    if lock(&state.session).is_none() {
+        return Err(no_folder());
+    }
+    open_folder_window(&app).map_err(|e| failed(e.to_string()))
+}
+
+fn open_folder_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+    let n = WINDOWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    tauri::WebviewWindowBuilder::new(
+        app,
+        format!("window-{n}"),
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("Verso")
+    .inner_size(1180.0, 760.0)
+    .min_inner_size(360.0, 480.0)
+    .disable_drag_drop_handler()
+    .build()?;
+    Ok(())
+}
+
 /// Which note this window shows, when it is one popped out; `None` for
 /// the main window.
 #[tauri::command]
@@ -1189,6 +1227,356 @@ fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
     Ok(session.info.index.clone())
 }
 
+/// A base evaluated over the folder (ADR 0053): the rows of the view the
+/// window draws, as a table, cards, a list, a kanban or a calendar.
+#[tauri::command]
+#[specta::specta]
+fn query_base(state: State<'_, App>, query: BaseQuery) -> Result<BaseResult, ContractError> {
+    let core = verso_core::bases::BaseQuery {
+        path: query.path,
+        text: query.text,
+        this: query.this,
+        view: query.view,
+        extra: query.extra,
+        // The window's clock: whole milliseconds are all a base reads.
+        now_ms: query.now as i64,
+        offset_minutes: query.offset,
+        lang: query.lang,
+    };
+    let r = with(&state, |ws| ws.query_base(&core))?;
+    Ok(BaseResult {
+        views: r
+            .views
+            .into_iter()
+            .map(|v| BaseView {
+                name: v.name,
+                kind: v.kind,
+            })
+            .collect(),
+        view: r.view.map(count),
+        columns: r
+            .columns
+            .into_iter()
+            .map(|c| BaseColumn {
+                id: c.id,
+                name: c.name,
+            })
+            .collect(),
+        groups: r
+            .groups
+            .into_iter()
+            .map(|g| BaseGroup {
+                key: g.key.map(base_cell),
+                rows: g
+                    .rows
+                    .into_iter()
+                    .map(|row| BaseRow {
+                        path: row.path,
+                        note: row.note,
+                        cells: row.cells.into_iter().map(base_cell).collect(),
+                    })
+                    .collect(),
+                summaries: g.summaries.into_iter().map(|s| s.map(base_cell)).collect(),
+            })
+            .collect(),
+        total: count(r.total),
+        properties: r.properties,
+        problems: r
+            .problems
+            .into_iter()
+            .map(|p| {
+                use verso_core::bases::ProblemKind as K;
+                BaseProblem {
+                    kind: match p.kind {
+                        K::NotABase => BaseProblemKind::NotABase,
+                        K::TooLong => BaseProblemKind::TooLong,
+                        K::Shape => BaseProblemKind::Shape,
+                        K::Expression => BaseProblemKind::Expression,
+                        K::Evaluation => BaseProblemKind::Evaluation,
+                        K::UnknownView => BaseProblemKind::UnknownView,
+                        K::Budget => BaseProblemKind::Budget,
+                    },
+                    detail: p.detail,
+                }
+            })
+            .collect(),
+    })
+}
+
+fn base_cell(c: verso_core::bases::Cell) -> BaseCell {
+    use verso_core::bases::{Cell as C, EvalErrorKind as E};
+    match c {
+        C::Empty => BaseCell::Empty,
+        C::Text(s) => BaseCell::Text(s),
+        C::Number(n) => BaseCell::Number(n),
+        C::Bool(b) => BaseCell::Bool(b),
+        C::Date { ms, time } => BaseCell::Date {
+            ms: ms as f64,
+            time,
+        },
+        C::Duration(ms) => BaseCell::Duration(ms),
+        C::List(items) => BaseCell::List(items.into_iter().map(base_cell).collect()),
+        C::Object(entries) => BaseCell::Object(
+            entries
+                .into_iter()
+                .map(|(k, v)| (k, base_cell(v)))
+                .collect(),
+        ),
+        C::Link {
+            target,
+            display,
+            path,
+        } => BaseCell::Link {
+            target,
+            display,
+            path,
+        },
+        C::File(p) => BaseCell::File(p),
+        C::Image(s) => BaseCell::Image(s),
+        C::Icon(s) => BaseCell::Icon(s),
+        C::Html(s) => BaseCell::Html(s),
+        C::Error(e) => BaseCell::Error {
+            kind: match e.kind {
+                E::Syntax => BaseErrorKind::Syntax,
+                E::UnknownFunction => BaseErrorKind::UnknownFunction,
+                E::UnknownMethod => BaseErrorKind::UnknownMethod,
+                E::Arguments => BaseErrorKind::Arguments,
+                E::Type => BaseErrorKind::Type,
+                E::Regex => BaseErrorKind::Regex,
+                E::Cycle => BaseErrorKind::Cycle,
+                E::Budget => BaseErrorKind::Budget,
+                E::TooLarge => BaseErrorKind::TooLarge,
+            },
+            name: e.name,
+        },
+    }
+}
+
+/* ---------- The command line and MCP, from the settings (ADR 0054) ---------- */
+
+/// Where the command line is linked: the one directory on the PATH of
+/// every shell on macOS (`/etc/paths`), as editors install theirs.
+const CLI_LINK: &str = "/usr/local/bin/verso";
+
+/// The command line this app carries: beside its own binary — the
+/// bundle's `Contents/MacOS`, or `target/<profile>` in a development tree.
+/// A path at the edge, for the operating system's tools only: it never
+/// crosses to the window (ADR 0026 rule 4).
+fn bundled_cli() -> Option<PathBuf> {
+    let cli = std::env::current_exe().ok()?.with_file_name("verso");
+    // Asked of the system's `test`, as `reveal` asks `open`: none of these
+    // files is the folder's, and this crate reads none itself.
+    std::process::Command::new("test")
+        .arg("-x")
+        .arg(&cli)
+        .status()
+        .ok()
+        .filter(std::process::ExitStatus::success)
+        .map(|_| cli)
+}
+
+fn cli_state_now() -> CliState {
+    let Some(ours) = bundled_cli() else {
+        return CliState::Unbundled;
+    };
+    let link = std::process::Command::new("readlink")
+        .arg(CLI_LINK)
+        .output();
+    if let Ok(out) = link
+        && out.status.success()
+    {
+        let target = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+        return if Path::new(&target) == ours {
+            CliState::Ours
+        } else {
+            CliState::Elsewhere
+        };
+    }
+    let there = std::process::Command::new("test")
+        .arg("-e")
+        .arg(CLI_LINK)
+        .status()
+        .is_ok_and(|s| s.success());
+    if there {
+        CliState::Elsewhere
+    } else {
+        CliState::Missing
+    }
+}
+
+/// A text as an AppleScript string literal.
+#[cfg(target_os = "macos")]
+fn applescript_string(s: &str) -> String {
+    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Run `shell` as an administrator: macOS asks for the password, as an
+/// installer does. `Ok(false)` when the person said no.
+#[cfg(target_os = "macos")]
+fn as_administrator(shell: &str) -> Result<bool, ContractError> {
+    let script = format!(
+        "do shell script {} with administrator privileges",
+        applescript_string(shell)
+    );
+    let out = std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .map_err(|e| failed(e.to_string()))?;
+    if out.status.success() {
+        return Ok(true);
+    }
+    let said = String::from_utf8_lossy(&out.stderr);
+    // -128: "User canceled."
+    if said.contains("-128") {
+        return Ok(false);
+    }
+    Err(failed(said.trim().to_owned()))
+}
+
+/// A path as one shell word, single-quoted.
+#[cfg(target_os = "macos")]
+fn shell_word(path: &Path) -> String {
+    format!("'{}'", path.to_string_lossy().replace('\'', "'\\''"))
+}
+
+#[tauri::command]
+#[specta::specta]
+fn cli_status() -> CliState {
+    cli_state_now()
+}
+
+/// Link the command line into `/usr/local/bin`. Something else there is
+/// replaced only when the window says so (`replace`), after asking. The
+/// download's quarantine is taken off the command line first: a shell
+/// asks no Gatekeeper question, it refuses to run it.
+#[tauri::command]
+#[specta::specta]
+fn install_cli(replace: bool) -> Result<CliState, ContractError> {
+    let Some(ours) = bundled_cli() else {
+        return Err(refused("this build carries no command line"));
+    };
+    if cli_state_now() == CliState::Elsewhere && !replace {
+        return Err(ContractError {
+            kind: ErrorKind::Exists,
+            message: "another verso is on the PATH".to_owned(),
+        });
+    }
+    let _ = std::process::Command::new("xattr")
+        .args(["-d", "com.apple.quarantine"])
+        .arg(&ours)
+        .output();
+    // Without privileges first: the directory may be the person's own.
+    let plain = std::process::Command::new("ln")
+        .arg("-sfn")
+        .arg(&ours)
+        .arg(CLI_LINK)
+        .output()
+        .map_err(|e| failed(e.to_string()))?;
+    if !plain.status.success() {
+        #[cfg(target_os = "macos")]
+        {
+            let shell = format!(
+                "mkdir -p /usr/local/bin && ln -sfn {} {CLI_LINK}",
+                shell_word(&ours)
+            );
+            if !as_administrator(&shell)? {
+                return Err(refused("cancelled"));
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        return Err(failed(
+            String::from_utf8_lossy(&plain.stderr).trim().to_owned(),
+        ));
+    }
+    Ok(cli_state_now())
+}
+
+/// Take the link away — only this app's own.
+#[tauri::command]
+#[specta::specta]
+fn uninstall_cli() -> Result<CliState, ContractError> {
+    if cli_state_now() != CliState::Ours {
+        return Ok(cli_state_now());
+    }
+    let plain = std::process::Command::new("rm")
+        .arg(CLI_LINK)
+        .output()
+        .map_err(|e| failed(e.to_string()))?;
+    if !plain.status.success() {
+        #[cfg(target_os = "macos")]
+        {
+            if !as_administrator(&format!("rm {CLI_LINK}"))? {
+                return Err(refused("cancelled"));
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        return Err(failed(
+            String::from_utf8_lossy(&plain.stderr).trim().to_owned(),
+        ));
+    }
+    Ok(cli_state_now())
+}
+
+/// Claude Desktop's configuration folder.
+fn claude_dir() -> Option<PathBuf> {
+    let home = PathBuf::from(std::env::var_os("HOME").filter(|h| !h.is_empty())?);
+    #[cfg(target_os = "macos")]
+    return Some(home.join("Library/Application Support/Claude"));
+    #[cfg(not(target_os = "macos"))]
+    return Some(home.join(".config/Claude"));
+}
+
+fn client_state(e: verso_core::clients::Entry) -> McpClientState {
+    use verso_core::clients::Entry as E;
+    match e {
+        E::NoClient => McpClientState::NoClient,
+        E::Absent => McpClientState::Absent,
+        E::Same => McpClientState::Same,
+        E::Different => McpClientState::Different,
+    }
+}
+
+/// The open folder's server as clients name it, and whether Claude
+/// Desktop starts it. The entry the app writes starts the linked command
+/// line with the folder's key: the folder's path goes nowhere
+/// (ADR 0026 rule 4).
+#[tauri::command]
+#[specta::specta]
+fn mcp_status(state: State<'_, App>) -> Result<McpStatus, ContractError> {
+    let key = with(&state, |ws| Ok(ws.key()))?;
+    let server = verso_core::clients::server_name(&key);
+    let entry = verso_core::clients::verso_entry(CLI_LINK, &key);
+    let claude = match claude_dir() {
+        None => McpClientState::NoClient,
+        Some(dir) => {
+            client_state(verso_core::clients::claude_entry(&dir, &server, &entry).map_err(convert)?)
+        }
+    };
+    Ok(McpStatus { server, claude })
+}
+
+/// Add the open folder's server to Claude Desktop — after the window has
+/// shown what goes in and the person agreed. Needs the command line
+/// linked: the entry starts it.
+#[tauri::command]
+#[specta::specta]
+fn mcp_add_claude(state: State<'_, App>) -> Result<McpAdded, ContractError> {
+    if cli_state_now() != CliState::Ours {
+        return Err(refused("install the command line first"));
+    }
+    let key = with(&state, |ws| Ok(ws.key()))?;
+    let server = verso_core::clients::server_name(&key);
+    let entry = verso_core::clients::verso_entry(CLI_LINK, &key);
+    let dir = claude_dir().ok_or_else(|| refused("Claude Desktop is not installed"))?;
+    let added = verso_core::clients::add_to_claude(&dir, &server, entry).map_err(convert)?;
+    Ok(McpAdded {
+        server,
+        replaced: added.replaced,
+        backup: added.backup,
+        warnings: added.warnings,
+    })
+}
+
 /// The commands, once, for the handler, the bindings and the tests. A
 /// macro because `collect_commands!` fixes the runtime at its call site:
 /// the app runs on Wry, the tests on Tauri's mock runtime.
@@ -1235,7 +1623,14 @@ macro_rules! commands_for {
                 rename_entry,
                 delete_entry,
                 reveal,
-                reindex
+                reindex,
+                query_base,
+                new_window::<$runtime>,
+                cli_status,
+                install_cli,
+                uninstall_cli,
+                mcp_status,
+                mcp_add_claude
             ])
             // Not in any command: the payload of the `folder-changed` event.
             .typ::<FolderChanged>()
@@ -1309,9 +1704,10 @@ fn mime_of(path: &str) -> &'static str {
 }
 
 /// Whether a web view of this app is one of its own windows' — the main
-/// window or a note popped out — as opposed to a web page (`web-*`).
+/// window, another window of the folder, or a note popped out — as opposed
+/// to a web page (`web-*`).
 fn is_app_view(label: &str) -> bool {
-    label == "main" || label.starts_with("note-")
+    label == "main" || label.starts_with("window-") || label.starts_with("note-")
 }
 
 /// What `verso://` answers to one request, apart from the transport: the
@@ -1446,6 +1842,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     let builder = builder.menu(app_menu).on_menu_event(|app, event| {
         if event.id() == QUIT {
             ask_windows_to_quit(app);
+        } else if event.id() == NEW_WINDOW && lock(&app.state::<App>().session).is_some() {
+            let _ = open_folder_window(app);
         }
     });
     builder
@@ -1526,6 +1924,12 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 #[cfg(target_os = "macos")]
 const QUIT: &str = "verso-quit";
 
+/// The id of the Window menu's "New Window" item: another window on the
+/// open folder (`new_window`). No shortcut of its own — ⌘⇧N is the
+/// window's "new note…" — one can be bound in the settings.
+#[cfg(target_os = "macos")]
+const NEW_WINDOW: &str = "verso-new-window";
+
 /// The macOS menu bar: the system's own items, except Quit. The system's
 /// Quit terminates the process without an event the app can answer (the
 /// run loop goes from ready to exit), so what was typed since the last
@@ -1581,11 +1985,14 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
         true,
         &[&PredefinedMenuItem::fullscreen(app, None)?],
     )?;
+    let new_window = MenuItem::with_id(app, NEW_WINDOW, "New Window", true, None::<&str>)?;
     let window = Submenu::with_items(
         app,
         "Window",
         true,
         &[
+            &new_window,
+            &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::minimize(app, None)?,
             &PredefinedMenuItem::maximize(app, None)?,
             &PredefinedMenuItem::separator(app)?,
@@ -1610,6 +2017,30 @@ mod tests {
 
     #[allow(unused_imports)]
     use super::*;
+
+    /// What the install hands the shell and AppleScript stays one word and
+    /// one string, whatever the app's path holds — a space in "Verso Beta",
+    /// a quote someone put in a folder's name.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn install_quotes_the_path_once() {
+        assert_eq!(
+            shell_word(Path::new(
+                "/Applications/Verso Beta.app/Contents/MacOS/verso"
+            )),
+            "'/Applications/Verso Beta.app/Contents/MacOS/verso'"
+        );
+        assert_eq!(
+            shell_word(Path::new("/tmp/it's/verso")),
+            r"'/tmp/it'\''s/verso'"
+        );
+        assert_eq!(applescript_string(r#"a "b" \ c"#), r#""a \"b\" \\ c""#);
+        let shell = format!("ln -sfn {} {CLI_LINK}", shell_word(Path::new("/x/it's")));
+        assert_eq!(
+            applescript_string(&shell),
+            r#""ln -sfn '/x/it'\\''s' /usr/local/bin/verso""#
+        );
+    }
 
     /// The temporary directory a test's indexes go to, managed beside the
     /// state. The tests' app is never torn down — a folder's watch holds a

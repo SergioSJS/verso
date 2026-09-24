@@ -51,6 +51,13 @@ fn main() {
         "reveal",
         "reindex",
         "app_info",
+        "query_base",
+        "new_window",
+        "cli_status",
+        "install_cli",
+        "uninstall_cli",
+        "mcp_status",
+        "mcp_add_claude",
     ]);
     commit();
     if let Err(e) = tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest)) {
