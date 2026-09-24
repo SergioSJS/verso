@@ -36,6 +36,8 @@ use verso_fs::{EntryKind, Problem, Root, Stamp};
 pub use verso_fs::{Changes, ConfinementError, ReadError, Watch, WriteError};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
+pub mod bases;
+pub mod clients;
 mod sidecar;
 pub use sidecar::Sidecar;
 
@@ -125,6 +127,9 @@ pub enum CoreError {
     /// inotify limit): changes made outside show up on the next index run,
     /// not by themselves.
     Watch(std::io::Error),
+    /// An MCP client's configuration could not be read or changed
+    /// (`clients`): what, in the message.
+    Client(String),
 }
 
 impl std::fmt::Display for CoreError {
@@ -144,6 +149,7 @@ impl std::fmt::Display for CoreError {
             Self::InvalidKey => write!(f, "the folder key is not one this core issued"),
             Self::UnknownFolder => write!(f, "no folder opened before has this key"),
             Self::Watch(e) => write!(f, "the folder cannot be watched for changes: {e}"),
+            Self::Client(m) => write!(f, "MCP client: {m}"),
         }
     }
 }
@@ -399,6 +405,9 @@ pub struct FileEntry {
     pub len: u64,
     /// Seconds since the Unix epoch; 0 when the file system gave none.
     pub modified: i64,
+    /// Creation, in seconds since the Unix epoch; 0 when the file system
+    /// gave none.
+    pub created: i64,
 }
 
 /// What a write left behind: the note as it now is, and what the atomic
@@ -623,6 +632,10 @@ pub struct Workspace {
     dirs: HashSet<String>,
     /// Every entry of the last walk, in walk order, with size and date.
     entries: Vec<FileEntry>,
+    /// What each note says to a base (`bases::NoteFacts`), with the hash
+    /// of the content it was read from: read again only when the index
+    /// has another hash for the note.
+    base_facts: HashMap<String, (u64, bases::NoteFacts)>,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -736,6 +749,7 @@ impl Workspace {
             files: HashMap::new(),
             dirs: HashSet::new(),
             entries: Vec::new(),
+            base_facts: HashMap::new(),
         })
     }
 
@@ -822,6 +836,7 @@ impl Workspace {
                 },
                 len: entry.len,
                 modified: entry.modified.map_or(0, seconds_since_epoch),
+                created: entry.created.map_or(0, seconds_since_epoch),
             });
             match &entry.kind {
                 EntryKind::Note => {
@@ -1544,6 +1559,88 @@ impl Workspace {
             revision: revision::encode(&stamp),
             warnings: Vec::new(),
         })
+    }
+
+    /// Evaluate a base — a `.base` file, or the text of a `base` block —
+    /// over the folder as the index and the last walk know it (ADR 0053).
+    /// Reads the base's file, if the query names one, and nothing else of
+    /// the folder: what the notes say comes from the index.
+    pub fn query_base(&mut self, query: &bases::BaseQuery) -> Result<bases::BaseResult, CoreError> {
+        let text = match (&query.text, &query.path) {
+            (Some(text), _) => text.clone(),
+            (None, Some(path)) => self.read_text(path)?.text,
+            (None, None) => String::new(),
+        };
+        let base = verso_dialect::bases::parse_base(&text);
+        self.refresh_base_facts()?;
+        let offset = i64::from(query.offset_minutes) * 60_000;
+        let local = |secs: i64| (secs > 0).then(|| secs * 1_000 + offset);
+        let files: Vec<bases::FileFacts> = self
+            .entries
+            .iter()
+            .filter(|e| e.kind != FileKind::Folder)
+            .map(|e| bases::FileFacts {
+                path: e.path.clone(),
+                size: e.len,
+                ctime: local(e.created).or_else(|| local(e.modified)),
+                mtime: local(e.modified),
+                note: e.path.to_lowercase().ends_with(".md"),
+            })
+            .collect();
+        let notes = self
+            .base_facts
+            .iter()
+            .map(|(path, (_, facts))| (path.clone(), facts))
+            .collect();
+        let links = self
+            .index
+            .all_links()
+            .map_err(CoreError::Index)?
+            .into_iter()
+            .map(|l| {
+                (
+                    l.from,
+                    bases::LinkFact {
+                        target: l.target,
+                        alias: l.alias,
+                        embed: l.embed,
+                        resolved: l.resolved,
+                    },
+                )
+            })
+            .collect();
+        let index = &self.index;
+        let resolver = |from: &str, target: &str| -> Option<String> {
+            index
+                .resolve_from(from, target)
+                .ok()
+                .flatten()
+                .or_else(|| self.resolve_file(from, target))
+        };
+        let facts = bases::Facts::new(files, notes, links, &resolver);
+        Ok(bases::run(&base, query, &facts))
+    }
+
+    /// Bring [`Self::base_facts`] level with the index: notes gone are
+    /// dropped, notes whose hash changed are read again from the index's
+    /// copy of their text.
+    fn refresh_base_facts(&mut self) -> Result<(), CoreError> {
+        let hashes = self.index.note_hashes().map_err(CoreError::Index)?;
+        let present: HashSet<&str> = hashes.iter().map(|(p, _)| p.as_str()).collect();
+        self.base_facts.retain(|p, _| present.contains(p.as_str()));
+        for (path, hash) in &hashes {
+            if self.base_facts.get(path).is_some_and(|(h, _)| h == hash) {
+                continue;
+            }
+            let content = self
+                .index
+                .content_of(path)
+                .map_err(CoreError::Index)?
+                .unwrap_or_default();
+            self.base_facts
+                .insert(path.clone(), (*hash, bases::NoteFacts::of(&content)));
+        }
+        Ok(())
     }
 
     /// Write any file's text over the file that `revision` describes,

@@ -49,6 +49,9 @@ pub struct Entry {
     /// Last modification as the file system reports it; `None` where it
     /// gave none.
     pub modified: Option<std::time::SystemTime>,
+    /// Creation as the file system reports it; `None` where it keeps none
+    /// (some Linux file systems) or gave none.
+    pub created: Option<std::time::SystemTime>,
 }
 
 /// Something the walk met and did not silently pass over.
@@ -194,6 +197,7 @@ impl Walker<'_> {
                             depth,
                             len: 0,
                             modified: None,
+                            created: None,
                         });
                         continue;
                     }
@@ -227,6 +231,7 @@ impl Walker<'_> {
                     depth,
                     len: meta.len(),
                     modified: meta.modified().ok(),
+                    created: meta.created().ok(),
                 });
             }
         }
@@ -243,6 +248,7 @@ impl Walker<'_> {
             depth,
             len: 0,
             modified: meta.modified().ok(),
+            created: meta.created().ok(),
         });
         let id = dir_id(meta);
         if let Some((_, first)) = self.ancestors.iter().find(|(a, _)| *a == id) {
