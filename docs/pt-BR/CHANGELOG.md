@@ -37,6 +37,10 @@ versão de teste.
 
 ### Corrigido
 
+- **Backspace no começo de uma nota** no modo Edição não junta mais a
+  primeira linha à linha de fechamento das propriedades escondidas, o que
+  perdia todas as propriedades sem aparecer; nenhuma tecla muda as
+  propriedades dobradas agora — o painel de propriedades muda.
 - **A linha de comando da beta** diz qual app abre: `verso <pasta>`
   responde "abrindo … no Verso Beta", e nomeia o Verso Beta quando o app
   não está instalado.
