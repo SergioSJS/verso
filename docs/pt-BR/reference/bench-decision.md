@@ -35,6 +35,14 @@
   2 % abaixo, dentro da tolerância de 1,05×. O teste que comparava amostras
   únicas de tempo, e falhava cerca de uma rodada em vinte, verifica só o
   tamanho do índice.
+- **Revisão, 2026-09-24.** A linha de base `ci-linux` está registrada: as 21
+  entradas que o job imprimiu na primeira execução na `main`, no merge do PR
+  #18 (`95f78dd`), coladas em `crates/verso-bench/baselines.json` com a
+  aprovação do mantenedor. Com 50 000 notas: índice do zero em 50,2 s, passada
+  incremental com 1 % mudado em 2,6 s, busca comum em 65 ms, backlinks da nota
+  mais linkada em 0,9 s, pico de memória abaixo de 37 MB, índice de 376 MB. O
+  job na `main` fica vermelho de agora em diante só por uma regressão além das
+  tolerâncias da seção 6.
 - Autor: Opus 5 (documentos,
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md)). Revisor: Fable 5.1.
   Nos memorandos anteriores as recomendações eram da Fable 5.1, registradas

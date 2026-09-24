@@ -33,6 +33,14 @@
   baseline's three index sizes were taken the old way, 1 to 2 % low, inside
   the 1.05× tolerance. The test that compared single timing samples, and failed
   about one run in twenty, asserts only the index size.
+- **Revision, 2026-09-24.** The `ci-linux` baseline is recorded: the 21
+  entries the job printed on its first run on `main`, at the merge of PR #18
+  (`95f78dd`), pasted into `crates/verso-bench/baselines.json` with the
+  maintainer's approval. From 50 000 notes: a fresh index in 50.2 s, an
+  incremental pass with 1 % changed in 2.6 s, a common search in 65 ms,
+  backlinks of the most-linked note in 0.9 s, peak memory under 37 MB, an
+  index of 376 MB. The job on `main` is red from now on only for a regression
+  past the tolerances of section 6.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. In the earlier memos the recommendations were Fable
   5.1's, recorded by the author, because Fable was writing the feature's code in

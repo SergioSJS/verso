@@ -207,9 +207,10 @@ jobs:
     # 2026-09-22). `--require-baseline`: a run that finds no baseline for
     # ci-linux fails and prints, on stderr, the entries to record, so the
     # job cannot be green by construction (§6.3 puts the CI baseline
-    # first). Until the maintainer adds those entries to
-    # crates/verso-bench/baselines.json the job is red on main, on purpose.
-    # A pull request never runs it, and could not record a baseline if it did.
+    # first). The ci-linux entries were recorded from the first run on main,
+    # at 95f78dd, with the maintainer's approval (2026-09-24); from then on
+    # the job is red only for a regression past the tolerances. A pull
+    # request never runs it, and could not record a baseline if it did.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
