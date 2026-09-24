@@ -313,15 +313,19 @@ impl Root {
     /// each batch of paths relative to the root — only what the walk lists,
     /// no hidden entry and no ignored path — on a thread of the watch's own,
     /// once the folder has been quiet for `quiet` (or after [`MAX_WAIT`] of
-    /// changes that do not stop). Reading a file is not a change. Dropping
-    /// the [`Watch`] stops it. Fails when the operating system will not
-    /// watch the folder (on Linux, when the inotify limit is reached).
+    /// changes that do not stop). Reading a file is not a change. Events
+    /// under the absolute directories in `excluded` are dropped: the
+    /// caller's own files, when they lie inside the folder. Dropping the
+    /// [`Watch`] stops it. Fails, with the error's kind and no path, when
+    /// the operating system will not watch the folder (on Linux: the
+    /// inotify limit, or a directory it cannot read).
     pub fn watch(
         &self,
         quiet: std::time::Duration,
+        excluded: &[PathBuf],
         on_change: impl FnMut(Changes) + Send + 'static,
     ) -> Result<Watch, std::io::Error> {
-        watch::start(&self.path, self.ignored.clone(), quiet, on_change)
+        watch::start(&self.path, self.ignored.clone(), excluded, quiet, on_change)
     }
 
     /// Move an entry into `.trash/` at the root (Obsidian's bin), keeping
