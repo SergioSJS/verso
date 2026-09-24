@@ -2,7 +2,7 @@
 
 - Data: 2026-09-24
 - Revisor: Opus 5.5, numa sessão que auditou a janela e depois escreveu as
-  correções. A [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá a
+  correções. O [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá a
   janela à Opus como autora e ao Fable 5.1 como revisor, e diz que o
   modelo que escreveu um artefato não o revisa. Daí saem dois desvios,
   registrados e não resolvidos (seção 8, itens 1 e 2): parte do código
@@ -17,7 +17,7 @@
   convertido para sRGB, e a razão da WCAG 2.x tomada entre cada cor de
   texto ou de controle e cada fundo sobre o qual ela é desenhada.
 - Régua: WCAG 2.2, nível AA, o nível pedido quando esta passada começou.
-  A [ADR 0035](../adr/0035-cross-cutting-requirements.md) decide
+  O [ADR 0035](../adr/0035-cross-cutting-requirements.md) decide
   "acessibilidade desde o início" e não nomeia nível; qual nível é a meta é
   do mantenedor (seção 8, item 3).
 - Item do roadmap: Fase 2, item 2.7, "acessibilidade não auditada"
@@ -154,10 +154,10 @@ respondiam ao teclado.
 
 Calculado de `app/ui/style.css`, toda paleta (papel, sépia, ardósia, musgo),
 clara e escura, cada cor contra cada fundo sobre o qual é desenhada. Os
-pares abaixo falharam; todo outro par conferido passou — texto do corpo,
-secundário e terciário, links, linhas selecionadas, o botão Salvar, os
-avisos, as cores de código sobre o fundo de código, e todo par no modo
-escuro.
+pares abaixo falharam — a última linha de callout achada pela leitura (seção
+11); todo outro par conferido passou — texto do corpo, secundário e terciário,
+links, linhas selecionadas, o botão Salvar, os avisos, as cores de código
+sobre o fundo de código, e todo par no modo escuro.
 
 | Par | Onde | Antes (pior) | Depois (pior) |
 |---|---|---|---|
@@ -166,13 +166,14 @@ escuro.
 | Título de callout de aviso | clara, toda paleta | 3,29:1 | 4,79:1 (`12f1043`) |
 | Título de callout de nota | clara, sépia | 4,41:1 | 4,80:1 (`12f1043`) |
 | Título de callout de dica | clara, sépia e musgo | 4,23:1 | 4,80:1 (`12f1043`) |
+| Título de um tipo de callout sem cor própria (`todo`, `important`, qualquer outro) | clara, toda paleta | 3,19:1 | 5,01:1 (`f80fe96`) |
 | O item de um menu, a opção de uma lista | o realce contra a página | 1,15:1 | um anel interno, 4,51:1 ou mais (`78983ef`) |
 | Bordas de campos | fio sobre a página, todo modo | 1,36:1 | do mantenedor (item 4 da seção 8) |
 | Um interruptor desligado | preenchimento e borda do trilho sobre a página | 1,20:1 e 1,36:1 | do mantenedor (item 4 da seção 8) |
 
 | # | Nível | Achado | Resolução |
 |---|---|---|---|
-| 1 | IMPORTANTE | Títulos de callout abaixo de 4,5:1 no modo claro (tabela acima) (1.4.3) | **Corrigido** em `12f1043`: só a luminosidade muda, como em `83d4a0a` |
+| 1 | IMPORTANTE | Títulos de callout abaixo de 4,5:1 no modo claro (tabela acima) (1.4.3) | **Corrigido** em `12f1043`: só a luminosidade muda, como em `83d4a0a`; os tipos sem cor própria em `f80fe96`, que lhes dá `--brass-ink` (seção 11) |
 | 2 | IMPORTANTE | Bordas de controles abaixo de 3:1: as bordas de fio dos campos, e um interruptor desligado, cujo trilho e borda mal diferem da página (1.4.11) | **Do mantenedor**: o fio é a linguagem do desenho; seção 8, item 4, com uma proposta |
 | 3 | MENOR | O grafo colore as notas por pasta, e só a cor diz qual (1.4.1); a legenda nomeia as cores, o leitor de tela ouve só o nome da nota | **Do mantenedor**: seção 8, item 12 |
 
@@ -228,7 +229,7 @@ acrescentado) e `scripts/check-docs-mirror.sh`. Não rodados aqui:
 Nada disto é decidido por esta revisão.
 
 1. **A leitura destas correções.** Foram escritas pela Opus 5.5, que também
-   as auditou; a [ADR 0032](../adr/0032-author-and-reviewer-roles.md) pede
+   as auditou; o [ADR 0032](../adr/0032-author-and-reviewer-roles.md) pede
    uma leitura pelo outro modelo, numa sessão separada, antes do merge. Em
    2026-09-23 o mantenedor deixou uma sessão nova da Opus 5.5 fazer as
    vezes do Fable 5.1 (`phase-2.md` §6, item 17); se essa resposta cobre
@@ -237,9 +238,9 @@ Nada disto é decidido por esta revisão.
    correções de 2026-09-23, entre elas correções anteriores de
    acessibilidade (`73e215e`, `83d4a0a`) — foi escrita pela Opus 5.5.
    Registrado; se outro modelo lê a janela de novo é do mantenedor.
-3. **A meta.** A ADR 0035 diz "acessibilidade desde o início" e não nomeia
+3. **A meta.** O ADR 0035 diz "acessibilidade desde o início" e não nomeia
    nível. Esta auditoria mediu contra a WCAG 2.2 nível AA, o nível pedido
-   quando a passada começou. Se isso vira a meta — uma revisão da ADR
+   quando a passada começou. Se isso vira a meta — uma revisão do ADR
    0035 — é do mantenedor.
 4. **Bordas dos controles** (seção 5, achado 2). Os campos são desenhados
    com um fio de 1,36:1 a 1,43:1 contra a página, e um interruptor
@@ -272,7 +273,7 @@ Nada disto é decidido por esta revisão.
 11. **Seguir um link a partir do editor** (seção 1, achado 14): um comando
     que abre o link sob o cursor, com ou sem tecla padrão.
 12. **As cores do grafo e um equivalente em texto** (seção 5, achado 3). A
-    vista equivalente acessível do board na ADR 0035 ainda é `PROPOSTO`;
+    vista equivalente acessível do board no ADR 0035 ainda é `PROPOSTO`;
     se o grafo precisa de uma — ou se os links do painel direito bastam —
     é do mantenedor.
 13. **Tamanhos de alvo** (seção 6, achado 3): marcas de fechar e de remover
@@ -343,12 +344,18 @@ o mouse:
 8. **Tamanho do texto.** Ajustes → Aparência → Tamanho da fonte vai até 30.
 9. **A saída do editor.** Ajustes → Atalhos abre com "Tab no editor"; numa
    nota, Escape e, em até dois segundos, Tab saem do editor.
-10. **Com o VoiceOver** (⌘F5): digite numa nota no Verso e, antes de o
-    autosave rodar, mude a mesma nota em outro app — o VoiceOver diz "Nada
-    gravado: o arquivo mudou em disco…" e a linha de status nomeia a nota
-    (sem nada digitado, o watcher lê a nota de novo, e nada é recusado); uma
-    aba é dita como uma aba da sua barra, com "alterações não salvas" depois
-    do nome enquanto as tiver.
+10. **Com o VoiceOver** (⌘F5). A janela salva toda aba com texto não salvo
+    quando perde o foco, e o autosave roda 1,5 s depois de parar de digitar,
+    então a mudança do outro app precisa vir sem tirar o foco do Verso: num
+    terminal, na pasta aberta, comece
+    `sleep 5; printf '\nde fora\n' >> nota.md`, volte ao Verso e digite em
+    `nota.md` sem parar até a linha chegar — ou suba antes o ajuste de
+    Autosave para 10 segundos. O salvar é recusado: "Nada gravado: o arquivo
+    mudou em disco…" é seguido na hora por "Mudou fora do Verso, com texto
+    não salvo aqui: …", e o segundo pode ser o que o VoiceOver fala; a linha
+    de status nomeia a nota. (Sem nada digitado, o watcher lê a nota de novo, e
+    nada é recusado.) Uma aba é dita como uma aba da sua barra, com
+    "alterações não salvas" depois do nome enquanto as tiver.
 
 ## 11. A leitura
 
@@ -376,3 +383,11 @@ Não achou BLOQUEANTE, achou 5 IMPORTANTES e 17 MENORES:
   da árvore, a contagem do grafo e o aperto perto da borda dele (seção 8,
   itens 15 a 17), e a linha do roadmap, que agora aponta para cá em vez de
   contar.
+
+Uma segunda leitura, por uma sessão nova do Opus 5.5 em 2026-09-24, achou o
+passo 10 da seção 10 ainda impossível como estava escrito — a janela salva
+toda aba com texto não salvo quando perde o foco, então ir para o outro app
+gravava antes o texto digitado (IMPORTANTE) — e a seção 5 ainda dizendo que
+todo outro par passou ao lado do par que falhou, registrado acima, e este
+gêmeo escrevendo "a ADR" onde os memos escrevem "o ADR" (MENORES). Os três
+estão corrigidos neste registro.

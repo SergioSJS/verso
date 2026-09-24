@@ -716,7 +716,11 @@ Raised while writing this spec. All of them need an answer before
   allowlist drops and Obsidian's public documentation shows in a note —
   `<iframe>`, `<video>`, `<audio>`: the premise put to the maintainer, that
   the reading view follows Obsidian, does not hold there (the Opus reading of
-  the answers); the allowlist stays as it is meanwhile.
+  the answers); the allowlist stays as it is meanwhile. *(Corrected on
+  2026-09-24 by `docs/reference/embedded-media-decision.md`: Obsidian's public
+  help shows `<iframe>` in a note; no public page shows `<video>` or `<audio>`
+  in a note's raw HTML — audio and video are documented as `![[…]]` embeds.
+  The question stays `[OPEN]`, and that memo lays out the options.)*
 - **Q7. Unicode normalization in name comparison.** `[OPEN]`
   NFC × NFD. APFS (macOS, the initial platform) preserves the form it receives
   and does a normalization-insensitive lookup; HFS+ forced NFD; Linux compares
@@ -1075,4 +1079,4 @@ the parser was chosen.
 | v0.15 | 2026-09-23 | **Q12 point 3 amended by the maintainer**: a bare name prefers a candidate under the source note's folder, at any depth, as Obsidian 1.13.7 does (the third observation of `docs/reference/index-decision.md` §4.1); the index already did, and embeds of files now do too. Q12 stays closed |
 | v0.16 | 2026-09-23 | The maintainer's answers on the Phase 2 review (`docs/review/phase-2.md` §6, items 4 and 20): **Q13 and Q25 closed** as the code does them; Q5 (kinds, fold — which the reading view now acts on, `5b7fc69` — and title), Q6 (comments), Q15 and Q24 decided for the reading view and the window, with the index's part and the rest still open — Q5's nesting and Q6's `<iframe>`, `<video>` and `<audio>` stay open because the reading view does not follow Obsidian there; Q22 decided for the tags' charset and case; **Q12 point 2's order stated**: a path from the root first, then relative to the source's folder, and `./` or `../` relative only, as Obsidian 1.13.7 does. Two questions closed, five in part |
 | v0.17 | 2026-09-24 | Q5: a provisional fact, not an answer — the reading view draws a callout inside a callout, up to 32 deep (branch `feat/nested-callouts`); nesting stays `[OPEN]` |
-| v0.18 | 2026-09-24 | **Q11 closed by the maintainer** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): a schema is a fenced `verso-schema` block, YAML inside, in a note anywhere in the open folder but hidden and ignored paths, named by the `type` inside it; two schemas with one name type nothing, and the conflict is shown; whether a nested block counts is not decided. Section 6: the typed note, schemas and schema i18n `DECIDED`, constraint 1 (ADR 0013) accepted. Q24: its link part is the next decision. No fixture yet: the implementation brings them |
+| v0.18 | 2026-09-24 | **Q11 closed by the maintainer** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): a schema is a fenced `verso-schema` block, YAML inside, in a note anywhere in the open folder but hidden and ignored paths, named by the `type` inside it; two schemas with one name type nothing, and the conflict is shown; whether a nested block counts is not decided. Section 6: the typed note, schemas and schema i18n `DECIDED`, constraint 1 (ADR 0013) accepted. Q24: its link part is the next decision. No fixture yet: the implementation brings them. Q6: a pointer to `docs/reference/embedded-media-decision.md`, which corrects the claim that Obsidian's documentation shows `<video>` and `<audio>`; Q6 stays open |

@@ -18,10 +18,10 @@ test release.
   another app, a sync or `git pull` reaches the open tabs, the search and the
   backlinks a moment later, and the tree when files come, go or move. A tab
   with nothing typed in it takes in the new text as one edit, the cursor
-  keeping its place in the text — ⌘Z brings back what the tab had; one with
-  text not saved yet shows both versions, as when a save meets a changed
-  file; a note deleted or moved outside keeps its text in its tab, marked as
-  gone. Problems met while indexing show on the status line.
+  keeping its place in the text; one with text not saved yet shows both
+  versions, as when a save meets a changed file; a note deleted or moved
+  outside keeps its text in its tab, marked as gone. Problems met while
+  indexing show on the status line.
 - **Moving without dragging**: a tab moves back and forward along its bar
   and to the next or previous pane from its menu (Shift-F10), the command
   palette or a hotkey of your choice, and to another workspace from its

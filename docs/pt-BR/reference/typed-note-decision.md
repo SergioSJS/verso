@@ -807,15 +807,19 @@ Registradas, não resolvidas (`CLAUDE.md` §1, regra 3).
 **Conferir que esta mudança é o que diz ser.** A branch é local; não foi
 enviada.
 
-O memo e o rascunho do ADR entraram em dois commits da pilha local — o do
-memo (`4a9ae09`) e o da leitura (`d2c88d4`) — entre outros que não são deste
-assunto; cada um toca os mesmos seis arquivos, todos sob `docs/`:
+O memo e o rascunho do ADR entraram em três commits da pilha local, entre
+outros que não são deste assunto: o do memo (`4a9ae09`) e o da leitura
+(`d2c88d4`), que tocam os mesmos seis arquivos, e o `f06cb2d`, que corrigiu
+esta seção e a seção 13 no memo e no gêmeo dele. A decisão do mantenedor foi
+registrada depois deles, e as correções de uma segunda leitura depois disso.
+Tudo sob `docs/`:
 
 ```
-git show --stat 4a9ae09 d2c88d4            # seis arquivos cada, todos sob docs/
-bash scripts/check-docs-mirror.sh          # "docs mirror: ok"
-bash scripts/check-fixtures.sh             # fixtures intocadas; o lint continua passando
-git log -1 --format='%an <%ae>%n%b' d2c88d4   # autor e Signed-off-by são seus
+git show --stat 4a9ae09 d2c88d4 f06cb2d                      # seis, seis e dois arquivos, todos sob docs/
+git log --oneline -- docs/reference/typed-note-decision.md   # todo commit que tocou o memo
+bash scripts/check-docs-mirror.sh                            # "docs mirror: ok"
+bash scripts/check-fixtures.sh                               # fixtures intocadas; o lint continua passando
+git log -1 --format='%an <%ae>%n%b' d2c88d4                  # autor e Signed-off-by são seus
 ```
 
 **Decidir, em sete linhas:**
@@ -881,3 +885,13 @@ passada: os números que esta tabela pula, e o único achado BLOQUEANTE da
 leitura, são desses memos — `beta-config-decision.md`, `handles-decision.md` e
 `embedded-media-decision.md`, corrigidos em `4e8646b`. Estas mudanças ainda
 não foram lidas.
+
+Uma segunda leitura, por uma sessão nova do Opus 5.5 em 2026-09-24, achou três
+MENORES, resolvidos depois da decisão do mantenedor: o ADR 0052 dizia que
+entrava `[ABERTO]` "como os ADRs 0044 a 0048", que entraram só com perguntas,
+sobre assuntos que o briefing não tem — o Contexto dele agora diz isso, e a
+linha I6 acima exagera o precedente do mesmo jeito; a seção 12 dizia que o
+memo veio em dois commits, onde o `f06cb2d` é um terceiro — agora três, com a
+decisão depois deles; e a Consequência do ADR 0052 de que um schema é lido
+"dentro do parser que passa pelo fuzzing" só vale para um schema dentro de uma
+nota, os formatos (b) e (c), que o formato decidido (c) é — agora dito lá.

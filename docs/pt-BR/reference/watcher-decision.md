@@ -50,7 +50,7 @@ próximo salvar encontrar a diferença.
 | `verso-fs` | `Root::watch(quiet, excluded, on_change)`: um watcher `notify` na raiz, recursivo (FSEvents no macOS, inotify no Linux). Uma thread própria agrupa os eventos: um lote sai quando a pasta fica quieta por `quiet`, ou depois de 2 s de mudanças que não param. Só é informado o que a varredura lista — nenhuma entrada oculta (`.obsidian/`, os `.verso-tmp-*` da escrita atômica), nenhum caminho ignorado — e só eventos que mudam algo: abrir ou ler não é mudança. Eventos sob os diretórios `excluded` são descartados. Um erro do watcher do sistema volta como o tipo dele, nunca com os caminhos que o `notify` põe na mensagem. Soltar o `Watch` o encerra sem esperar a thread. |
 | `verso-core` | `Workspace::watch` com intervalo de quietude de 300 ms (`WATCH_QUIET`), com o diretório do próprio índice excluído (para um diretório de configuração dentro da pasta). O `IndexReport` nomeia as notas que contou: `changed` (novas ou diferentes no disco), `gone` (removidas) e `listing_changed` (entradas acrescentadas, removidas ou de outro tipo — não tamanhos nem datas). |
 | Host | Cada pasta aberta tem um watcher, iniciado antes da primeira indexação e guardado pela sessão. Um lote roda o `index()` na thread do watcher, sob o lock da sessão, e então manda `folder-changed` uma vez — toda janela o escuta: a chave da pasta, o que esta execução achou mudado e removido por caminho relativo, se a listagem mudou, o resumo do índice. Um lote que chega antes de a sessão existir roda assim que a sessão está no lugar. Uma pasta que o sistema não vigia abre assim mesmo, e o motivo vai com todo resumo da sessão. |
-| Janela | Toda nota aberta é conferida com o disco a cada `folder-changed`, depois das operações de arquivo da própria janela e depois do Reindexar — qualquer que seja a execução do índice que achou a mudança. A mesma revisão: nada. Mudou, sem nada digitado: o texto do disco entra como uma edição sobre o que difere, então o cursor, a seleção e a rolagem acompanham o texto, o histórico de desfazer fica (⌘Z traz de volta o texto da aba), e o cursor nunca fica dentro do frontmatter dobrado. Mudou, com texto ainda não salvo: salva na hora, o que encontra a diferença e mostra a faixa de conflito (invariante 11) — nada é gravado por cima da mudança do outro app. Sumiu: a aba mantém o texto; na janela principal o nome dela fica riscado e diz isso a um leitor de tela, e uma linha acima do texto diz isso em toda janela. Uma edição em andamento no painel de propriedades é esperada. A árvore e as vistas de pasta só são redesenhadas quando a listagem mudou, e não enquanto um nome está sendo digitado na árvore. A linha de status nomeia as notas de que fala, e mostra os problemas do índice. |
+| Janela | Toda nota aberta é conferida com o disco a cada `folder-changed`, depois das operações de arquivo da própria janela e depois do Reindexar — qualquer que seja a execução do índice que achou a mudança. A mesma revisão: nada. Mudou, sem nada digitado: o texto do disco entra como uma edição sobre o que difere, então o cursor, a seleção e a rolagem acompanham o texto, o histórico de desfazer fica (⌘Z traz de volta o texto da aba — menos quando o separador de linha mudou ou a aba mostra o arquivo só para leitura: ali o editor recomeça, com um histórico novo), e o cursor nunca fica dentro do frontmatter dobrado. Mudou, com texto ainda não salvo: salva na hora, o que encontra a diferença e mostra a faixa de conflito (invariante 11) — nada é gravado por cima da mudança do outro app. Sumiu: a aba mantém o texto; na janela principal o nome dela fica riscado e diz isso a um leitor de tela, e uma linha acima do texto diz isso em toda janela. Uma edição em andamento no painel de propriedades é esperada. A árvore e as vistas de pasta só são redesenhadas quando a listagem mudou, e não enquanto um nome está sendo digitado na árvore. A linha de status nomeia as notas de que fala, e mostra os problemas do índice. |
 | Contrato | `FolderChanged`, o conteúdo do evento, gerado nos bindings junto com os comandos (regra 3). |
 
 As escritas do próprio Verso não são informadas como mudanças feitas fora: um
@@ -64,7 +64,7 @@ revisão que ela já tem.
 
 | | (a) `notify` 8.2 | (b) Varredura com timer | (c) A API de cada sistema direto |
 |---|---|---|---|
-| Dependência | `notify` (CC0-1.0) com `notify-types`, `walkdir`, `same-file` e `log`; no macOS `fsevent-sys`; no Linux `inotify`, `inotify-sys` e `mio` — todas passam no `deny.toml` | nenhuma | `fsevent-sys` ou FFI, por plataforma |
+| Dependência | `notify` (CC0-1.0) com `notify-types`, `walkdir`, `same-file` e `log`; no macOS `fsevent-sys`; no Linux `inotify`, `inotify-sys` e `mio`; e, no `Cargo.lock`, `kqueue` e `kqueue-sys` (MIT), que o `notify` usa nos BSDs e no iOS e oferece no macOS como um backend não ligado aqui — todas passam no `deny.toml`, que confere todo alvo | nenhuma | `fsevent-sys` ou FFI, por plataforma |
 | Latência | dezenas de milissegundos mais o intervalo de quietude | o período do timer | como (a) |
 | Custo parado | nenhum | uma varredura por período, mudando ou não | nenhum |
 | Windows e Linux | a mesma API ([ADR 0022](../adr/0022-target-platforms-macos-first.md): os dois saem) | o mesmo código | mais um backend cada |
@@ -84,8 +84,9 @@ registrado para quando o sistema recusa vigiar (seção 3.8).
 milhares de notas, medido com o benchmark quando houver uma em uso. Pular a
 leitura das notas cujo tempo e tamanho não mudaram deixaria (a) barato, mas
 tiraria o hash do conteúdo da detecção de mudança, que o
-[ADR 0029](../adr/0029-guardrails-in-ci.md) e o memo da feature 2 mantêm de
-propósito (uma reescrita que mantém tempo e tamanho, como `cp -p` ou um
+[ADR 0012](../adr/0012-files-are-source-of-truth.md) — o parágrafo provisório
+dele sobre o que a checagem de escrita compara — e o memo da feature 2 mantêm
+de propósito (uma reescrita que mantém tempo e tamanho, como `cp -p` ou um
 cliente de sync podem fazer); este memo não propõe isso.
 
 ### 3.3 O intervalo de quietude
@@ -101,11 +102,22 @@ não medidos com usuários.
 | | (a) Trazer o texto do disco, como uma edição | (b) Marcar, ler quando pedido |
 |---|---|---|
 | O usuário vê | o texto novo, o cursor onde estava no texto | o texto antigo e um aviso |
-| O que a aba tinha | a um ⌘Z de distância: se um cliente de sync grava de volta uma versão mais velha, ou o outro editor salva por cima da nota a partir do próprio buffer, o texto da aba não se perde até a aba ser fechada | mantido na tela até o usuário agir |
+| O que a aba tinha | a um ⌘Z de distância: se um cliente de sync grava de volta uma versão mais velha, ou o outro editor salva por cima da nota a partir do próprio buffer, o texto da aba não se perde até a aba ser fechada — menos quando o separador de linha mudou ou a aba mostra o arquivo só para leitura, onde o editor recomeça com um histórico novo | mantido na tela até o usuário agir |
 | Risco | o texto do outro app vence na tela até o usuário notar (a linha de status diz que a nota foi lida de novo) | uma vista desatualizada até o usuário agir |
 
 **Recomendação: (a).** O comportamento do próprio Obsidian para uma nota
 aberta nele e mudada fora não foi observado para este memo.
+
+**⌘Z depois de o texto do disco entrar é uma edição do usuário** (as segundas
+leituras, seção 7). Desfazer põe de volta o texto mais velho da aba como uma
+mudança comum, então o autosave o grava 1,5 s depois, o padrão — por cima da
+versão do outro app, e a checagem de escrita deixa passar, já que a aba tem a
+revisão que leu por último. Isso é ato do usuário, e fica registrado como tal:
+nada o recusa, e a linha de status, que dizia que a nota foi lida de novo e
+apontava o ⌘Z, não o convida mais (`<commit>`). Quando o separador de linha
+mudou, ou a aba mostra o arquivo só para leitura, o texto do disco não entra
+como uma edição: o editor recomeça, com um histórico novo (`fromDisk` em
+`app/ui/src/main.ts`), e o ⌘Z não tem nada da aba para trazer de volta.
 
 ### 3.5 Uma nota aberta mudada fora, com texto ainda não salvo
 
@@ -243,3 +255,33 @@ marcado:
   janelas de nota — `7190830` e este memo; o comentário do contrato —
   `1cea893`; as frases velhas dos callouts aninhados — a spec e o memo do app;
   a precisão deste memo — aqui.
+
+As segundas leituras, de novo sessões novas do Opus 5.5, das correções acima e
+deste memo. Os achados delas no código estão resolvidos nos commits que vêm
+depois deste branch (`<commit>` onde o hash ainda não é conhecido); os achados
+sobre este memo estão resolvidos aqui:
+
+- Janela, BLOQUEANTE: ⌘Z e depois ⌘⇧Z — ou ⌘U sozinho — depois de uma leitura
+  do disco punham o cursor de volta dentro do frontmatter dobrado, onde um
+  Backspace apagava a cerca e uma propriedade; agora toda transação no Live
+  Preview mantém todo cursor fora dele — `<commit>`.
+- Janela, IMPORTANTE: o foco restaurado pela posição depois de um redesenho
+  caía em outro controle quando embeds entravam acima dele (agora achado pela
+  identidade); toda visão de leitura era redesenhada a cada lote (agora só uma
+  nota que embute uma das mudadas); a guarda contra redesenhar sob um
+  renomear cobria só a árvore (agora os resultados da busca e as vistas de
+  pasta também) — `<commit>`.
+- Janela, IMPORTANTE: ⌘Z depois de uma leitura do disco é uma edição comum,
+  salva por cima da versão do outro app — registrado na seção 3.4; a linha de
+  status não o convida mais — `<commit>`.
+- MENOR: a edição do disco isolada no histórico, então ⌘Z depois de digitar
+  desfaz só a digitação; os nomes da linha de status; a atualização adiada da
+  lista; a checagem adiada do painel de propriedades; Enter na visão de
+  leitura — `<commit>`. O reindexar do host sob uma só tomada do lock, e as
+  mensagens do watcher ditas em pt-BR ou inglês pela janela em vez da frase
+  em inglês do host — `<commit>`. `gh auth status --active` — `<commit>`.
+- Este memo, MENOR: a seção 3.2 citava o ADR 0029 para manter o hash do
+  conteúdo, onde o raciocínio do `cp -p` é o parágrafo provisório do ADR 0012
+  sobre a checagem de escrita; a lista de dependências da seção 3.1 deixava de
+  fora `kqueue` e `kqueue-sys`; a seção 2 e a seção 3.4 diziam que desfazer
+  sempre traz de volta o texto da aba — aqui.

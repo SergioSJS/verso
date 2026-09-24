@@ -20,9 +20,11 @@
   sobre handles e na linha do 0044 no [índice dos ADRs](../adr/README.md).
   Nenhum código segue este memo: ele perguntava se registrava o que o código
   já faz, ou não.
-- Escrito pelo Opus 5.5 durante a noite, no lugar do Fable 5.1 por decisão do
-  mantenedor de 2026-09-23; lido por uma sessão nova do Opus 5.5 sob a mesma
-  decisão, e corrigido depois dessa leitura.
+- Escrito pelo Opus 5.5 durante a noite, o autor que o
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá aos documentos
+  ("Opus 5"); lido por uma sessão nova do Opus 5.5 no lugar do Fable 5.1, o
+  leitor que o ADR 0032 dá a eles, por decisão do mantenedor de 2026-09-23
+  (`../review/phase-2.md` §6, item 17), e corrigido depois dessa leitura.
 - A questão: o [ADR 0044](../adr/0044-verso-fs-semantics.md) mantém o terceiro
   grupo, "handles opacos", `[ABERTO]`, a decidir antes da feature 6 e antes do
   item 2.1 da Fase 2. Os dois estão construídos. O
@@ -47,15 +49,16 @@
   2026-09-22: uma capacidade de acesso cruza só como handle opaco; a identidade
   de uma nota cruza como o caminho relativo à pasta; um caminho absoluto ou com
   `..` nunca cruza.
-- **O ponto 3 está decidido para o MCP, e os documentos discordam sobre
-  isso.** O [ADR 0045](../adr/0045-server-and-mcp-security.md) lista
+- **O ponto 3: os documentos discordam sobre ele.** O
+  [ADR 0045](../adr/0045-server-and-mcp-security.md) lista
   "Identificador de nota: o caminho relativo à raiz…" entre as respostas que o
   mantenedor decidiu em 2026-09-22. O ADR 0044 ainda chama essa metade de
   provisória e o grupo de `[ABERTO]`; o ADR 0026 mantém um parágrafo dizendo que
   a regra 4 "**não** é reescrita aqui" e cabe ao PR que fecha o grupo do 0044,
   embora a emenda acima tenha acontecido; e o ADR 0045 mantém um parágrafo mais
   antigo que a chama de provisória. Este memo registra a contradição e não
-  escolhe um lado (`CLAUDE.md` §1.3).
+  escolhe um lado (`CLAUDE.md` §1.3). *(O mantenedor escolheu em 2026-09-24:
+  vale o texto do ADR 0045 — o cabeçalho.)*
 - **Nenhuma capacidade cruza o contrato hoje.** A janela nomeia notas por
   caminho relativo em todo comando; o que a deixa ler e escrever é ser uma das
   views do próprio app, o que as capabilities do host conferem

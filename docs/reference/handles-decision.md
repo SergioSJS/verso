@@ -20,9 +20,11 @@
   revision line), the [roadmap](../roadmap.md)'s two rows on handles and the
   [ADR index](../adr/README.md)'s row for 0044. No code follows this memo:
   it asked to record what the code already does, or not.
-- Written by Opus 5.5 overnight, standing in for Fable 5.1 by the
-  maintainer's decision of 2026-09-23; read by a fresh Opus 5.5 session under
-  the same decision, and corrected after that reading.
+- Written by Opus 5.5 overnight, the author
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md) gives documents ("Opus
+  5"); read by a fresh Opus 5.5 session standing in for Fable 5.1, the reader
+  ADR 0032 gives them, by the maintainer's decision of 2026-09-23
+  (`../review/phase-2.md` §6, item 17), and corrected after that reading.
 - The question: [ADR 0044](../adr/0044-verso-fs-semantics.md) keeps its third
   group, "opaque handles", `[OPEN]`, to be decided before feature 6 and before
   item 2.1 of Phase 2. Both are built. The [app memo](app-decision.md),
@@ -45,7 +47,7 @@
   2026-09-22: a capability of access crosses only as an opaque handle; a
   note's identity crosses as its path relative to the folder; an absolute path
   or one with `..` never crosses.
-- **Point 3 is decided for MCP, and the documents disagree about it.**
+- **Point 3: the documents disagree about it.**
   [ADR 0045](../adr/0045-server-and-mcp-security.md) lists "Note identifier:
   the path relative to the root…" among the answers the maintainer decided on
   2026-09-22. ADR 0044 still calls that half provisional and the group
@@ -53,7 +55,8 @@
   here" and belongs to the PR that closes the 0044 group, though the
   amendment above happened; and ADR 0045 keeps an older paragraph calling it
   provisional. This memo records the contradiction and does not pick a side
-  (`CLAUDE.md` §1.3).
+  (`CLAUDE.md` §1.3). *(The maintainer chose on 2026-09-24: ADR 0045's text
+  stands — the header.)*
 - **No capability crosses the contract today.** The window names notes by
   relative path in every command; what lets it read and write is being one of
   the app's own views, which the host's capabilities check
