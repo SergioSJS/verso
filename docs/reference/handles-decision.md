@@ -4,6 +4,9 @@
 - Status: **not decided.** Options and a recommendation, labelled as such; the
   maintainer decides (`CLAUDE.md` §1). No code follows this memo: it asks to
   record what the code already does, or not.
+- Written by Opus 5.5 overnight, standing in for Fable 5.1 by the
+  maintainer's decision of 2026-09-23; read by a fresh Opus 5.5 session under
+  the same decision, and corrected after that reading.
 - The question: [ADR 0044](../adr/0044-verso-fs-semantics.md) keeps its third
   group, "opaque handles", `[OPEN]`, to be decided before feature 6 and before
   item 2.1 of Phase 2. Both are built. The [app memo](app-decision.md),
@@ -19,21 +22,28 @@
 4. If the stable identifier ends up being the relative path, rule 4 has to say
    so.
 
-## 2. What the code does, and what already changed
+## 2. What the code does, and what the documents say
 
 - **Point 4 is done.** Rule 4 of
   [ADR 0026](../adr/0026-core-ui-contract-inviolable-rules.md) was amended on
   2026-09-22: a capability of access crosses only as an opaque handle; a
   note's identity crosses as its path relative to the folder; an absolute path
   or one with `..` never crosses.
-- **Point 3 is what feature 6 does**, recorded as provisional in ADR 0044: the
-  agent names notes by the same relative path the contract uses; the handle
-  never leaves the process.
+- **Point 3 is decided for MCP, and the documents disagree about it.**
+  [ADR 0045](../adr/0045-server-and-mcp-security.md) lists "Note identifier:
+  the path relative to the root…" among the answers the maintainer decided on
+  2026-09-22. ADR 0044 still calls that half provisional and the group
+  `[OPEN]`; ADR 0026 keeps a paragraph saying rule 4 "is **not** rewritten
+  here" and belongs to the PR that closes the 0044 group, though the
+  amendment above happened; and ADR 0045 keeps an older paragraph calling it
+  provisional. This memo records the contradiction and does not pick a side
+  (`CLAUDE.md` §1.3).
 - **No capability crosses the contract today.** The window names notes by
   relative path in every command; what lets it read and write is being one of
-  the app's own views, which the host's capabilities check (review phase 2,
-  B3). The `revision` a write carries is not a capability: it is the stamp of
-  what was read, so that invariant 11 can refuse a write over a changed file.
+  the app's own views, which the host's capabilities check
+  (`docs/review/phase-2.md`, reading 1, finding 3). The `revision` a write
+  carries is not a capability: it is the stamp of what was read, so that
+  invariant 11 can refuse a write over a changed file.
 - **Points 1 and 2, as built.** Inside `verso-fs`, a `Handle` is an index into
   the root's table of relative paths, valid for that `Root` only, in this
   process only; every use goes by path again. It does not survive a restart,
@@ -46,8 +56,8 @@
 
 | | (a) Record the code as the decision for Phase 2 | (b) Design capability handles now |
 |---|---|---|
-| What changes | ADR 0044's third group: decided as built, re-opened when a capability has to cross | a handle type in the contract, a lifetime rule, a table in the host |
-| Who needs it | nobody before mobile (an iOS bookmark, an Android SAF URI — [ADR 0025](../adr/0025-own-server-and-mobile-pwa.md)) or plugins with file access ([ADR 0016](../adr/0016-plugins-execution-and-capabilities.md)) | the same people, later |
+| What changes | ADR 0044's third group decided as built, re-opened when a capability has to cross; the stale paragraphs of ADR 0026 and ADR 0045, the roadmap's two rows on handles and the ADR index's row for 0044 brought in line | a handle type in the contract, a lifetime rule, a table in the host |
+| Who needs it | nobody before a mobile client ([ADR 0025](../adr/0025-own-server-and-mobile-pwa.md)) that holds an iOS security-scoped bookmark or an Android SAF URI ([ADR 0009](../adr/0009-external-constraints.md), ADR 0026 rule 4), or plugins with file access ([ADR 0016](../adr/0016-plugins-execution-and-capabilities.md)) | the same, later |
 | Risk | the design waits for its first consumer | a design made with no consumer to test it against |
 
 **Recommendation: (a)**, with the re-opening written into the ADR: "before
@@ -61,3 +71,4 @@ Nothing new was run: it describes the code and the documents as they stand.
 ## 5. For the maintainer
 
 1. (a) or (b).
+2. Whichever: which of the disagreeing texts of section 2 stands.
