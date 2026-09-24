@@ -129,7 +129,7 @@ function needGh() {
   try {
     // github.com only: `gh auth status` alone fails when any account on any
     // host has a problem, though this repository needs none of them.
-    execFileSync("gh", ["auth", "status", "--hostname", "github.com"], { cwd: root, stdio: "ignore" });
+    execFileSync("gh", ["auth", "status", "--active", "--hostname", "github.com"], { cwd: root, stdio: "ignore" });
   } catch {
     fail("gh is not on PATH, or not logged in (gh auth login); nothing was changed");
   }
