@@ -139,7 +139,7 @@ const pt: Strings = {
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
   hotkeyChange: "Alterar", hotkeyPress: "Pressione as teclas…", hotkeyReset: "Restaurar", hotkeysHint: "Clique em Alterar e pressione a combinação. Um atalho já usado por outro comando é retirado dele.", hotkeyNone: "—",
   themeDesc: "Claro, escuro ou como o sistema.", hueDesc: "A família de cores do papel e dos destaques.", fontSizeDesc: "Tamanho base da interface e das notas.", attachmentsDesc: "Subpasta, ao lado da nota, onde imagens coladas são salvas.", dailyDesc: "Onde a nota de hoje é criada.", templatesDesc: "Qualquer nota nessa pasta é um template.", autosaveDesc: "Segundos depois de parar de digitar.",
-  graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique abre · duplo clique centra · arraste move · roda amplia", graphLabels: "Nomes",
+  graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique ou Enter abre · duplo clique ou ⇧Enter centra · as setas percorrem as notas · arraste move · roda amplia", graphLabels: "Nomes",
   ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
@@ -202,7 +202,7 @@ const en: Strings = {
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
   hotkeyChange: "Change", hotkeyPress: "Press the keys…", hotkeyReset: "Restore", hotkeysHint: "Click Change and press the combination. A shortcut another command used is taken from it.", hotkeyNone: "—",
   themeDesc: "Light, dark, or as the system.", hueDesc: "The color family of the paper and the accents.", fontSizeDesc: "Base size of the interface and the notes.", attachmentsDesc: "Subfolder beside the note where pasted images go.", dailyDesc: "Where today's note is created.", templatesDesc: "Any note in that folder is a template.", autosaveDesc: "Seconds after typing stops.",
-  graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click opens · double-click centers · drag moves · wheel zooms", graphLabels: "Names",
+  graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click or Enter opens · double-click or ⇧Enter centers · the arrows walk the notes · drag moves · wheel zooms", graphLabels: "Names",
   ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
@@ -2573,6 +2573,10 @@ class GraphLeaf extends Leaf {
     top.append(h("span", "crumbs", t.graph));
     const stage = h("div", "graph-stage");
     this.svg.setAttribute("class", "graph");
+    // The drawing is a group of notes, named by the graph's title.
+    this.title.id = `verso-graph-${this.tab.id}`;
+    this.svg.setAttribute("role", "group");
+    this.svg.setAttribute("aria-labelledby", this.title.id);
     this.svg.append(this.world);
     const head = h("div", "graph-head");
     head.append(this.title, this.count);
@@ -2718,6 +2722,17 @@ class GraphLeaf extends Leaf {
   private applyView(): void {
     const r = this.svg.getBoundingClientRect();
     this.world.setAttribute("transform", `translate(${r.width / 2 + this.pan.x} ${r.height / 2 + this.pan.y}) scale(${this.zoom})`);
+  }
+  /** A note the keyboard reached, panned to the middle when it is outside
+   *  the stage: a focused note must not be out of sight (WCAG 2.4.11). */
+  private reveal(n: GNode): void {
+    const r = this.svg.getBoundingClientRect();
+    const x = r.width / 2 + this.pan.x + n.x * this.zoom;
+    const y = r.height / 2 + this.pan.y + n.y * this.zoom;
+    const edge = 24;
+    if (x >= edge && x <= r.width - edge && y >= edge && y <= r.height - edge) return;
+    this.pan = { x: -n.x * this.zoom, y: -n.y * this.zoom };
+    this.applyView();
   }
   async load(path: string): Promise<void> {
     this.path = path;
@@ -2895,29 +2910,53 @@ class GraphLeaf extends Leaf {
       });
       g.addEventListener("click", () => { if (!moved) openNote(n.id, false); });
       g.addEventListener("dblclick", () => void this.load(n.id));
-      // From the keyboard: Tab reaches a note, Enter opens it, Shift-Enter centers the graph on it.
-      g.setAttribute("tabindex", "0");
+      // From the keyboard: the graph is one Tab stop (the note in its
+      // middle, else the first); the arrows walk the notes, Home and End
+      // reach the ends, Enter opens one and Shift-Enter centers the graph
+      // on it. Every node used to be a Tab stop of its own, hundreds of
+      // them between the note and the graph's controls.
+      g.setAttribute("tabindex", "-1");
       g.setAttribute("role", "button");
       g.setAttribute("aria-label", name(n.id));
       g.addEventListener("keydown", (e) => {
+        const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+        if (step !== 0 || e.key === "Home" || e.key === "End") {
+          e.preventDefault();
+          const all = this.dots.length;
+          const i = this.dots.findIndex((d) => d.g === g);
+          const j = e.key === "Home" ? 0 : e.key === "End" ? all - 1 : (i + step + all) % all;
+          this.dots[j]?.g.focus();
+          return;
+        }
         if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
         if (e.shiftKey) void this.load(n.id);
         else openNote(n.id, false);
       });
-      g.addEventListener("mouseenter", () => {
+      // Its neighbours lit, by the pointer or the keyboard alike.
+      const light = () => {
         const near = neighbours.get(n.id) ?? new Set();
         for (const d of this.dots) d.g.classList.toggle("dim", d.n !== n && !near.has(d.n.id));
         for (const ln of this.lines) ln.l.classList.toggle("lit", ln.a === n || ln.b === n);
         for (const ln of this.lines) ln.l.classList.toggle("dim", !(ln.a === n || ln.b === n));
-      });
-      g.addEventListener("mouseleave", () => {
+      };
+      const unlight = () => {
         for (const d of this.dots) d.g.classList.remove("dim");
         for (const ln of this.lines) ln.l.classList.remove("lit", "dim");
+      };
+      g.addEventListener("mouseenter", light);
+      g.addEventListener("mouseleave", unlight);
+      g.addEventListener("focus", () => {
+        // The Tab stop follows the keyboard, and the note is brought into view.
+        for (const d of this.dots) d.g.setAttribute("tabindex", d.g === g ? "0" : "-1");
+        this.reveal(n);
+        light();
       });
+      g.addEventListener("blur", unlight);
       world.append(g);
       return { g, n };
     });
+    (this.dots.find((d) => d.n.id === this.path) ?? this.dots[0])?.g.setAttribute("tabindex", "0");
     this.legend.replaceChildren();
     if (this.opts.colors) {
       const folders = Array.from(new Set(this.nodes.map((n) => n.folder).filter(Boolean))).sort().slice(0, 12);
