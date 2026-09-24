@@ -617,7 +617,7 @@ fn write_note_answers_the_text_and_revision_of_the_bytes_it_wrote() {
     }
 }
 
-/// Bytes that are not UTF-8 are not text (spec Q25, `[OPEN]`): no editor
+/// Bytes that are not UTF-8 are not text (spec Q25): no editor
 /// receives a lossy copy, and no plan rewrites the file — the file is
 /// left alone and said so (invariant 8).
 #[test]

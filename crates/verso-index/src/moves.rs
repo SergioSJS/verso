@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! What the index does when the core moves a note, and what a plan to
-//! follow the move asks of it (ADR 0048, provisional): the row follows the
+//! follow the move asks of it (ADR 0048): the row follows the
 //! file with everything it knows, instead of being dropped and re-read —
 //! a placeholder's last known version would otherwise be lost on a folder
 //! move (ADR 0043, decision 2) — and a link target can be resolved from a

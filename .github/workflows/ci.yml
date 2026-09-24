@@ -105,8 +105,9 @@ jobs:
       # Phase 2 guardrail (ADR 0029): the TypeScript bindings committed in
       # app/ui/src/bindings.ts must be exactly what the Rust contract and
       # commands generate; otherwise rule 3 (ADR 0026) is a convention.
-      # Here, after the tests, the exporter reuses the Tauri tree they
-      # built; a job of its own built that tree a second time on every pull
+      # Here, after the tests, the exporter reuses the dependencies they
+      # built (`tauri` itself is built again, without its test feature); a
+      # job of its own built the whole tree a second time on every pull
       # request (docs/review/phase-2.md, reading 3, finding 21). Linux only:
       # the check is the same on every OS, and macOS runs cost more.
       - name: the committed bindings are the generated ones (ADR 0026 rule 3, ADR 0038)

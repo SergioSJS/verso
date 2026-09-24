@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Creating, renaming and trashing (ADR 0048, provisional): one test per
+//! Creating, renaming and trashing (ADR 0048): one test per
 //! refusal and per promise a test can observe. The directory `fsync`
 //! calls are not observable without a power loss; they are in `ops.rs`
 //! for the reviewer, as the atomic write's are.
