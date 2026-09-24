@@ -139,7 +139,7 @@ const pt: Strings = {
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
-  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada fora do Verso",
+  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
@@ -154,7 +154,7 @@ const pt: Strings = {
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
-  editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e em seguida Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
+  editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
 };
 
 const en: Strings = {
@@ -206,7 +206,7 @@ const en: Strings = {
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
-  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted outside Verso",
+  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
@@ -221,7 +221,7 @@ const en: Strings = {
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
-  editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc then Tab, or {keys} so that Tab moves the focus until you press it again.",
+  editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -841,7 +841,9 @@ function moveTabToSpace(leaf: Leaf, s: Space): void {
   layout().focus(here.includes(from) ? from : here[0] ?? null);
   showOutline(layout().activeLeaf);
   markCurrent();
-  if (had) layout().activeLeaf?.tab.focus();
+  // The keyboard stays in the pane it was in, on its tools if the pane is
+  // empty now.
+  if (had) landIn(from);
 }
 
 /* Files dropped from outside land in the note under the pointer, never
@@ -1087,6 +1089,8 @@ function lineSeparator(text: string): string | null {
 /** Such a file is shown and never edited: no keystroke, no panel, no
  *  task or paste changes it, so nothing converts it (invariant 8). */
 const readOnlyText: Extension = [EditorState.readOnly.of(true), EditorState.changeFilter.of(() => false)];
+/** What takes the focus in the reading view, in document order. */
+const PREVIEW_FOCUSABLE = "a[href], a[tabindex], button, input, summary, [role=button][tabindex]";
 /** Marks the edit that brings in the disk's text after a change made
  *  outside the app (`NoteLeaf.recheck`): it leaves the tab saved, and ⌘Z
  *  undoes it like any edit. */
@@ -1273,6 +1277,9 @@ class NoteLeaf extends Leaf {
       if (!a || !this.preview.contains(a)) return;
       ev.preventDefault();
       a.click();
+      // Followed from the keyboard: the keyboard goes along to what opened.
+      const now = this.pane.active;
+      if (now && now !== this) void now.loading.then(() => now.focusContent());
     });
     sheet.addEventListener("mousedown", (ev) => {
       if (this.mode === "preview") return;
@@ -1650,6 +1657,7 @@ class NoteLeaf extends Leaf {
   }
   renameHere(): void {
     if (!this.note) return;
+    const back = document.activeElement;
     const input = h("input", "title-input");
     input.value = name(this.path);
     input.setAttribute("aria-label", t.rename);
@@ -1657,16 +1665,18 @@ class NoteLeaf extends Leaf {
     input.focus();
     input.select();
     let done = false;
-    const finish = (commit: boolean) => {
+    const finish = (commit: boolean, restore = false) => {
       if (done) return;
       done = true;
       const v = input.value;
       input.replaceWith(this.title);
+      // From the keyboard, the focus goes back where it came from.
+      if (restore) giveBack(back instanceof HTMLElement && back.isConnected && back !== document.body ? back : this.tab);
       if (commit) void renameNote(this.path, v);
     };
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") finish(true);
-      else if (e.key === "Escape") finish(false);
+      if (e.key === "Enter") finish(true, true);
+      else if (e.key === "Escape") finish(false, true);
     });
     input.addEventListener("blur", () => finish(input.value.trim() !== name(this.path)));
   }
@@ -1745,7 +1755,9 @@ class NoteLeaf extends Leaf {
     if (this.gone) this.setGone(false);
     if (note.data.revision === this.revision) return "same";
     if (this.dirty) {
-      void this.flush();
+      // Waited for, so that what the refused write puts on the status line
+      // comes before what the watcher says of it.
+      await this.flush();
       return "conflict";
     }
     this.fromDisk(note.data);
@@ -1856,6 +1868,11 @@ class NoteLeaf extends Leaf {
     const note = this.note;
     if (!this.previewStale || !note) return;
     this.previewStale = false;
+    // The keyboard keeps its place through a redraw — a task checked, the
+    // note read again: the focus goes back to what stands at the same place
+    // among the reading view's focusable elements.
+    const active = document.activeElement;
+    const at = active && this.preview.contains(active) ? [...this.preview.querySelectorAll(PREVIEW_FOCUSABLE)].indexOf(active) : -1;
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
     setHtml(this.preview, note.html);
@@ -1867,6 +1884,7 @@ class NoteLeaf extends Leaf {
     void this.embedImages(note.path);
     this.wireTasks();
     this.dressLinks(note.path);
+    if (at >= 0) this.preview.querySelectorAll<HTMLElement>(PREVIEW_FOCUSABLE)[at]?.focus({ preventScroll: true });
   }
   private async relink(path: string): Promise<void> {
     const [back, links] = await Promise.all([commands.backlinks(path), commands.links(path)]);
@@ -3162,7 +3180,7 @@ class Pane {
     all.addEventListener("click", (e) => {
       const r = all.getBoundingClientRect();
       showMenu(r.left, r.bottom + 4, [
-        ...this.leaves.map((l) => [`${l.dirty ? "• " : ""}${l.tabName.textContent ?? ""}`, () => this.activate(l, true)] as [string, () => void]),
+        ...this.leaves.map((l) => [`${l.tabName.textContent ?? ""}${l.dirty ? ` (${t.unsaved})` : ""}`, () => this.activate(l, true)] as [string, () => void]),
         ["—", () => {}],
         [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical)],
         [t.hideTabs, () => this.setTabsHidden(true)],
@@ -3687,18 +3705,21 @@ class Space {
     n.replaceWith(input);
     input.focus();
     input.select();
-    const finish = () => {
+    const finish = (commit: boolean, restore = false) => {
       if (!input.isConnected) return;
-      this.label = input.value.trim() || this.label;
+      if (commit) this.label = input.value.trim() || this.label;
       n.textContent = this.label;
       input.replaceWith(n);
       persistSoon();
+      // From the keyboard, back on the workspace's tab.
+      if (restore) this.tab.focus();
     };
     input.addEventListener("keydown", (ev) => {
       ev.stopPropagation();
-      if (ev.key === "Enter" || ev.key === "Escape") finish();
+      if (ev.key === "Enter") finish(true, true);
+      else if (ev.key === "Escape") finish(false, true);
     });
-    input.addEventListener("blur", finish);
+    input.addEventListener("blur", () => finish(true));
   }
 }
 const spaces: Space[] = [];
@@ -4381,20 +4402,33 @@ function wireCallouts(root: ParentNode): void {
   for (const box of root.querySelectorAll<HTMLElement>(".callout[data-fold]")) {
     const title = box.querySelector<HTMLElement>(":scope > .callout-title");
     if (!title) continue;
+    // A title with a link in it cannot be the button too — a link inside a
+    // button is not a link to a screen reader, and Enter would fold and
+    // follow at once: it gets a fold button of its own before its text.
+    const linked = title.querySelector("a") !== null;
+    const control = linked ? h("button", "callout-fold") : title;
+    if (control instanceof HTMLButtonElement) {
+      control.type = "button";
+      control.setAttribute("aria-label", title.textContent?.trim() || (box.dataset["callout"] ?? ""));
+      control.append(icon("chevron"));
+      title.classList.add("has-fold");
+      title.prepend(control);
+    } else {
+      title.tabIndex = 0;
+      title.setAttribute("role", "button");
+      title.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        show(box.classList.contains("folded"));
+      });
+    }
     const show = (open: boolean) => {
       box.classList.toggle("folded", !open);
-      title.setAttribute("aria-expanded", String(open));
+      control.setAttribute("aria-expanded", String(open));
     };
-    title.tabIndex = 0;
-    title.setAttribute("role", "button");
     show(box.dataset["fold"] !== "-");
     title.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest("a")) return;
-      show(box.classList.contains("folded"));
-    });
-    title.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      e.preventDefault();
       show(box.classList.contains("folded"));
     });
   }
@@ -4576,7 +4610,7 @@ function movePrompt(path: string): void {
     done = true;
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
-    if (restore) giveBack(back);
+    if (restore) returnFromSide(back);
     if (commit) void moveFile(path, v);
   };
   input.addEventListener("keydown", (e) => {
@@ -4749,7 +4783,7 @@ function renameInline(li: HTMLElement, path: string, folder = false): void {
     done = true;
     const value = input.value;
     input.replaceWith(row);
-    if (restore) giveBack(back);
+    if (restore) returnFromSide(back);
     if (commit) void (folder ? renameFolder(path, value) : renameNote(path, value));
   };
   input.addEventListener("keydown", (e) => {
@@ -4869,7 +4903,7 @@ function newFolderPrompt(folder: string): void {
   const finish = (commit: boolean, restore = false) => {
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
-    if (restore) giveBack(back);
+    if (restore) returnFromSide(back);
     if (!commit || !v || unlinkable(v)) return;
     void commands.createFolder(folder ? `${folder}/${v}` : v).then(async (r) => {
       if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
@@ -4906,7 +4940,7 @@ function newWebPagePrompt(): void {
     done = true;
     const v = input.value.trim();
     row.remove();
-    if (restore) giveBack(back);
+    if (restore) returnFromSide(back);
     if (!commit || !v) return;
     let url: URL;
     try {
@@ -4949,7 +4983,7 @@ function newNotePrompt(folder: string): void {
   const finish = (commit: boolean, restore = false) => {
     const v = input.value;
     row.remove();
-    if (restore) giveBack(back);
+    if (restore) returnFromSide(back);
     if (commit) void createNote(folder, v);
   };
   input.addEventListener("keydown", (e) => {
@@ -4970,7 +5004,19 @@ function showSide(): void {
 }
 /** The focus back on `el`, when it is still on the page. */
 function giveBack(el: Element | null): void {
+  // A ribbon button drawn again meanwhile (showing the side panel paints
+  // the ribbon anew): its successor, by the item it stands for.
+  if (el instanceof HTMLElement && !el.isConnected && el.classList.contains("ribbon-item") && el.dataset["id"]) {
+    el = document.querySelector(`.ribbon-item[data-id="${CSS.escape(el.dataset["id"])}"]`);
+  }
   if (el instanceof HTMLElement && el !== document.body && el.isConnected) el.focus();
+}
+/** A field in the side panel closed from the keyboard: on a narrow window
+ *  the drawer goes too when the focus returns outside it, so as not to
+ *  cover where it lands; a row of the tree keeps it open. */
+function returnFromSide(back: Element | null): void {
+  if (narrow.matches && !(back instanceof Element && back.closest(".side"))) document.body.classList.remove("side-open");
+  giveBack(back);
 }
 /** The focus is in `container` and came there from the keyboard (its
  *  ring shows): what the keyboard asked for may move it on. */
@@ -5485,8 +5531,8 @@ function allCommands(all = false): Command[] {
     { id: "prev-tab", label: t.prevTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
     // Dragging a tab or a file, without the pointer; no default keys,
     // any can be bound in the settings.
-    { id: "move-tab-back", label: t.moveTabBack, need: Boolean(leaf), run: () => leaf && moveTab(leaf, -1) },
-    { id: "move-tab-forward", label: t.moveTabForward, need: Boolean(leaf), run: () => leaf && moveTab(leaf, 1) },
+    { id: "move-tab-back", label: t.moveTabBack, need: Boolean(leaf) && leaf!.pane.leaves.indexOf(leaf!) > 0, run: () => leaf && moveTab(leaf, -1) },
+    { id: "move-tab-forward", label: t.moveTabForward, need: Boolean(leaf) && leaf!.pane.leaves.indexOf(leaf!) < leaf!.pane.leaves.length - 1, run: () => leaf && moveTab(leaf, 1) },
     { id: "move-tab-next-pane", label: t.moveTabNextPane, need: Boolean(leaf) && layout().paneCount() > 1, run: () => leaf && moveTabToPane(leaf, 1) },
     { id: "move-tab-prev-pane", label: t.moveTabPrevPane, need: Boolean(leaf) && layout().paneCount() > 1, run: () => leaf && moveTabToPane(leaf, -1) },
     { id: "move-file", label: `${t.moveTo}…`, need: Boolean(leaf?.path) && leaf?.kind !== "graph", run: () => leaf?.path && movePrompt(leaf.path) },
