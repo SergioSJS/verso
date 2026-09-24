@@ -1,10 +1,12 @@
-# ADR 0052 — Typed note: `type:` in the frontmatter and a schema in the folder
+# ADR 0052 — Typed note: `type:` in the frontmatter and a schema
 
 - Date: 2026-09-24
-- Source: `docs/BRIEFING.md` §5.3 (the typed-note row), §11.3, §16.1, §17
-  item 7; [0014](0014-primitives-catalog.md), Consequences; the memo
+- Source: `docs/BRIEFING.md` §5.3 (the typed-note row), §8, §11.3, §16.1,
+  §17 item 7; [0014](0014-primitives-catalog.md), Consequences; the memo
   [`docs/reference/typed-note-decision.md`](../reference/typed-note-decision.md)
-- Status in the briefing: `PROPOSED`
+- Status in the briefing: `PROPOSED` for the typed-note row (§5.3) and for
+  schema i18n (§11.3); `OPEN` for the format and location of the schemas
+  (§11.3, §17 item 7)
 
 ## Context
 
@@ -23,12 +25,23 @@ Templater and statblocks (briefing §5.3, §16.1). In Verso today a property's
 type is whatever its YAML value is, and nothing says what an NPC has.
 
 This ADR was drafted with the memo, which lays out the options and the author's
-recommendations. Nothing in it is decided.
+recommendations. Like ADRs 0044 to 0048, it enters `[OPEN]`: a draft for the
+maintainer, with nothing in it decided.
 
-## Decision (proposed, not confirmed)
+## Decision
 
-Points 1 and 2 restate the briefing's sentence; how the name is compared, and
-points 3 to 7, are the memo's recommendation, waiting for the maintainer.
+None: `[OPEN]`. The seven points below are a draft for the maintainer to
+accept, change or refuse.
+
+What they restate from the briefing, where it is `PROPOSED`: `type:` in the
+frontmatter types a note, and with no schema the note is plain Markdown (§5.3;
+points 1 and 2); the value is a language-neutral key, shown under a label
+translated per language (§11.3; points 1 and 4). Where a schema lives, the
+briefing gives two answers (§5.3, §8) and marks the question `OPEN` (§11.3,
+§17 item 7): that is point 3. Everything else is the memo's recommendation,
+waiting for the maintainer — in points 1 and 2 as well: that the value is one
+text, how the name is compared, and that nothing is reported for a `type` that
+types nothing (memo, section 4.2 (a) and (c)).
 
 1. **A note is typed when its frontmatter has a `type` holding one text that
    names a schema of the open folder.** The name is compared as spec Q12
@@ -36,11 +49,19 @@ points 3 to 7, are the memo's recommendation, waiting for the maintainer.
 2. **Without such a schema the note is plain Markdown**, exactly as today, and
    `type` is an ordinary property — no `type`, a `type` naming no schema, or a
    `type` that is not one text. Nothing is reported for it: a vault may use
-   `type:` for its own purposes (briefing §5.3; spec §6).
-3. **A schema is text in the open folder. Its format and location are spec Q11,
-   `[OPEN]`.** The memo recommends a fenced block whose language is
+   `type:` for its own purposes (memo, section 4.2 (a); spec §6).
+3. **Where a schema lives, and in what format, is spec Q11, `[OPEN]`, and the
+   documents answer the location twice.** Briefing §5.3 — and ADR 0014 and
+   spec §6 after it — puts a schema in "a text file in the folder"; briefing
+   §8 — and [0021](0021-sync-automerge-layered-config.md) after it, both
+   `PROPOSED` — puts schemas in the shared layer of the configuration, which
+   [0011](0011-config-outside-tree-index-as-cache.md) keeps outside the tree.
+   The contradiction is recorded, not resolved (memo, section 10, item 1), and
+   this draft takes no side: the answer to Q11 does. The memo lays out four
+   formats and four locations, the configuration directory among them
+   (sections 5.2 and 5.3), and recommends a fenced block whose language is
    `verso-schema`, YAML inside, in any note of the folder outside hidden and
-   ignored paths, named by the `type` inside it (memo, section 5.6).
+   ignored paths, named by the `type` inside it (section 5.6).
 4. **A schema declares, in its first version**, the type's name, its label per
    interface language, and an ordered list of properties, each with a key, a
    label and a kind: `text`, `list`, `number`, `checkbox`, `date` or `datetime`
@@ -63,10 +84,10 @@ points 3 to 7, are the memo's recommendation, waiting for the maintainer.
 
 ## Consequences
 
-- **Degradation holds by construction.** The typed note is a Markdown note, its
-  schema is text in the folder, and the index derives both and holds nothing the
-  files lack ([0013](0013-degrades-to-markdown.md), whose acceptance the memo
-  puts to the maintainer in the same sitting;
+- **Degradation holds by construction.** The typed note is a Markdown note,
+  its schema is text wherever Q11 puts it (point 3), and the index derives both
+  and holds nothing the files lack ([0013](0013-degrades-to-markdown.md), whose
+  acceptance the memo puts to the maintainer in the same sitting;
   [0011](0011-config-outside-tree-index-as-cache.md)).
 - **Opening never rewrites** ([0012](0012-files-are-source-of-truth.md),
   invariants 7, 8 and 11). Bringing the notes of a type up to a changed schema,
@@ -102,10 +123,13 @@ points 3 to 7, are the memo's recommendation, waiting for the maintainer.
 
 - Reproducing Dataview, Templater and statblocks as third-party plugins —
   recorded in [0014](0014-primitives-catalog.md), where the catalog discards it.
-- None of the memo's options is discarded before the maintainer chooses; the
-  closing PR records here the ones set aside.
 
 ## Status
 
-Proposed. Drafted on 2026-09-24 with the memo
-`docs/reference/typed-note-decision.md`; only the maintainer accepts it.
+`[OPEN]`: a draft for the maintainer, to be decided before item 2.6 of
+Phase 2. Drafted on 2026-09-24 with the memo
+`docs/reference/typed-note-decision.md`, and read with it by a fresh Opus 5.5
+session (the memo, section 13). Only the maintainer closes it: accepted as it
+stands or changed, it is edited in place, citing the commit or pull request in
+which they decided. The memo's options are not discarded before the maintainer
+chooses; that pull request moves the ones set aside to Discarded alternatives.
