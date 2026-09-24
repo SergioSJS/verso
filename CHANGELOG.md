@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.2.0-beta.1 — 2026-09-24
+
 ### Added
 
 - **The command line**: `verso index`, `verso search`, `verso backlinks` and
