@@ -170,7 +170,12 @@ through `verso-core`) — ADR 0028, Consequences.
 
 ### The PR
 
-- **Small, one subject.** If the summary needs an "and", it is probably two PRs.
+- **Large until the whole flow exists; small after.** Until sync, the web and
+  mobile exist, work goes in large pull requests — do not ask for one to be
+  split into small ones. After that: small, one subject; if the summary needs
+  an "and", it is probably two PRs ([ADR 0033](docs/adr/0033-pr-workflow.md)
+  and [ADR 0051](docs/adr/0051-development-flow-and-releases.md), revised on
+  2026-09-24).
 - Uses `.github/pull_request_template.md`, with the five sections filled in:
   What / Why / Discarded alternatives / How to verify / Rust concept used.
 - "Rust concept used" is explained for someone who is learning Rust. It is not a
@@ -180,9 +185,10 @@ through `verso-core`) — ADR 0028, Consequences.
   that the license passes `cargo-deny`.
 - A parser feature comes with a fixture. A new fixture comes marked as an AI
   draft, for approval.
-- One short branch per subject (`feat/…`, `fix/…`, `docs/…`, `chore/…`) from
-  `main`; `main` is protected and takes pull requests only — never push to it
-  ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
+- A branch from `main`, named `feat/…`, `fix/…`, `docs/…` or `chore/…`; until
+  the whole flow exists it may carry several subjects, then one short branch
+  per subject. `main` is protected and takes pull requests only — never push
+  to it ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
 - A change a user can see adds its line under "Unreleased" in `CHANGELOG.md`
   and in `docs/pt-BR/CHANGELOG.md`.
 
