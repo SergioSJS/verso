@@ -217,8 +217,8 @@ Uma versão só é gerada **quando o mantenedor pede**, e então um agente pode
 gerá-la: `node scripts/release.mjs prepare X.Y.Z[-beta.N]` abre o pull request
 da release; depois do merge dele, `node scripts/release.mjs tag
 X.Y.Z[-beta.N]` marca o commit que trouxe a versão, e a tag compila e publica a
-release. `-beta.N` é uma release de teste. Nunca enviar, mover ou apagar uma
-tag de versão à mão.
+release. `-beta.N` é uma release de teste. Nunca enviar uma tag de versão à
+mão; tags de versão são permanentes — ninguém consegue mover ou apagar uma.
 
 ---
 

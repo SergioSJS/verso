@@ -37,7 +37,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
 4. **As versões seguem o SemVer, `0.y.z` antes do 1.0.** `vX.Y.Z` é uma
    release de produção; `vX.Y.Z-beta.N` é uma release de teste. A versão mora
    num lugar só, o `Cargo.toml` do workspace, que todo crate e o app leem; o
-   `app/ui/package.json` é mantido igual.
+   `app/ui/package.json` é mantido igual. **As tags de versão são
+   permanentes**: um ruleset recusa apagar ou mover uma tag `v*`, sem ninguém
+   isento — perguntado depois de a leitura do pull request que trouxe esta
+   ADR achar isso registrado sem a palavra dele, o mantenedor respondeu
+   *"Manter"* (2026-09-24).
 5. **Uma versão só é gerada quando o mantenedor pede** — pelo mantenedor, ou
    por um agente a pedido dele — com o `scripts/release.mjs`:
    `prepare X.Y.Z[-beta.N]` define a versão e move as entradas não lançadas do
@@ -61,11 +65,6 @@ modificações até gerar versão, considerando changelog inclusive"*.
 
 ## Consequências
 
-- **Provisório, do autor — o mantenedor decide:** um ruleset definido em
-  2026-09-24 recusa apagar ou mover uma tag `v*`, sem ninguém isento. As
-  palavras do mantenedor pedem uma `main` protegida e versões a partir de
-  tags, não tags permanentes; a leitura deste pull request achou a lacuna.
-  Enquanto o ruleset existir, uma versão nunca é desfeita.
 - **Um ensaio antes da primeira tag**: o workflow de release rodado à mão
   (Actions → release → Run workflow) compila os mesmos arquivos a partir da
   `main` como uma release de teste e os guarda como artefatos da execução,
@@ -111,5 +110,4 @@ modificações até gerar versão, considerando changelog inclusive"*.
 
 ## Status
 
-Aceito, menos a permanência das tags de versão: provisória
-(Consequências).
+Aceito.

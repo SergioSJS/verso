@@ -36,7 +36,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
 4. **Versions follow SemVer, `0.y.z` before 1.0.** `vX.Y.Z` is a production
    release; `vX.Y.Z-beta.N` is a test release. The version lives in one place,
    the workspace's `Cargo.toml`, which every crate and the app read;
-   `app/ui/package.json` is kept equal.
+   `app/ui/package.json` is kept equal. **Version tags are permanent**: a
+   ruleset refuses deleting or moving a `v*` tag, with no one exempt —
+   asked after the reading of the pull request that brought this ADR found
+   it recorded without the maintainer's word, the maintainer answered
+   *"Manter"* (2026-09-24).
 5. **A version is cut only when the maintainer asks** — by the maintainer, or
    by an agent on the maintainer's request — with `scripts/release.mjs`:
    `prepare X.Y.Z[-beta.N]` sets the version and moves the changelog's
@@ -60,11 +64,6 @@ modificações até gerar versão, considerando changelog inclusive"*.
 
 ## Consequences
 
-- **Provisional, the author's — the maintainer decides:** a ruleset set on
-  2026-09-24 refuses deleting or moving a `v*` tag, with no one exempt. The
-  maintainer's words ask for a protected `main` and versions from tags, not
-  for permanent tags; the reading of this pull request found the gap. While
-  the ruleset stands, a version is never taken back.
 - **A rehearsal before the first tag**: the release workflow run by hand
   (Actions → release → Run workflow) builds the same files from `main` as a
   test release and keeps them as run artifacts, publishing nothing.
@@ -107,5 +106,4 @@ modificações até gerar versão, considerando changelog inclusive"*.
 
 ## Status
 
-Accepted, but for the permanence of version tags: provisional
-(Consequences).
+Accepted.
