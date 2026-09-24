@@ -27,6 +27,8 @@ export type PropsStrings = {
   remove: string;
   /** Why a row is read-only. */
   fixed: string;
+  /** The button that opens a value's web address. */
+  open: string;
 };
 
 export type Change = { from: number; to: number; insert: string };
@@ -164,6 +166,7 @@ export class PropertiesView {
       box.type = "checkbox";
       box.checked = p.value.value;
       box.disabled = fixed;
+      box.setAttribute("aria-label", p.key);
       box.addEventListener("change", () => this.edit(p.key, { op: "set", value: { kind: "checkbox", value: box.checked } }));
       value.append(box);
     } else {
@@ -174,6 +177,9 @@ export class PropertiesView {
       input.value = typeof shown.value === "string" ? shown.value : "";
       input.placeholder = this.opts.strings.emptyValue;
       input.disabled = fixed;
+      // Named by its key: the key beside it is not its label, and the
+      // placeholder said only "Empty".
+      input.setAttribute("aria-label", p.key);
       const initial = input.value;
       const done = () => {
         const v = input.value.trim();
@@ -198,6 +204,7 @@ export class PropertiesView {
         go.type = "button";
         go.title = p.value.value;
         go.textContent = "↗";
+        go.setAttribute("aria-label", this.opts.strings.open);
         const url = p.value.value;
         go.addEventListener("click", () => this.opts.onLink?.(url));
         value.append(go);
@@ -206,6 +213,7 @@ export class PropertiesView {
     const remove = h("button", "prop-remove");
     remove.type = "button";
     remove.title = this.opts.strings.remove;
+    remove.setAttribute("aria-label", `${this.opts.strings.remove}: ${p.key}`);
     remove.append(icon("close"));
     remove.hidden = fixed;
     remove.addEventListener("click", () => this.edit(p.key, { op: "remove" }));
@@ -225,6 +233,7 @@ export class PropertiesView {
         const x = h("button", "pill-x");
         x.type = "button";
         x.title = this.opts.strings.remove;
+        x.setAttribute("aria-label", `${this.opts.strings.remove}: ${item}`);
         x.append(icon("close"));
         x.addEventListener("click", () => this.edit(key, { op: "drop", index: i }));
         pill.append(x);
@@ -235,6 +244,7 @@ export class PropertiesView {
     const add = h("input", "prop-add");
     add.type = "text";
     add.placeholder = this.opts.strings.addItem;
+    add.setAttribute("aria-label", `${key}: ${this.opts.strings.addItem}`);
     const push = () => {
       const v = add.value.trim().replace(/,+$/, "").trim();
       if (!v) return;
@@ -260,6 +270,7 @@ export class PropertiesView {
     const input = h("input", "prop-input prop-key-input");
     input.type = "text";
     input.placeholder = this.opts.strings.keyPlaceholder;
+    input.setAttribute("aria-label", this.opts.strings.keyPlaceholder);
     let done = false;
     const finish = (commit: boolean) => {
       if (done) return;

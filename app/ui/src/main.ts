@@ -66,7 +66,7 @@ type Strings = Record<
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
-  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack",
+  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -146,7 +146,7 @@ const pt: Strings = {
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
-  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto",
+  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho",
 };
 
 const en: Strings = {
@@ -209,7 +209,7 @@ const en: Strings = {
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
-  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text",
+  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -247,6 +247,13 @@ function button(cls: string, label: string, ic?: string): HTMLButtonElement {
 function name(path: string): string {
   const base = path.split("/").pop() ?? path;
   return base.endsWith(".md") ? base.slice(0, -3) : base;
+}
+/** A leaf's folder path, a navigation named as such: every open tab has
+ *  one, and a screen reader lists them by name. */
+function crumbsNav(): HTMLElement {
+  const nav = h("nav", "crumbs");
+  nav.setAttribute("aria-label", t.crumbs);
+  return nav;
 }
 /** The folder path as links: the vault, then each folder, each opening
  *  its folder view. */
@@ -440,8 +447,17 @@ try {
   if (raw) folderSort = { ...folderSort, ...(JSON.parse(raw) as Partial<typeof folderSort>) };
 } catch { /* no storage */ }
 
+/** The folder button's name begins with what it shows — the folder's
+ *  name, or "No folder" — then says what it does: a voice command names
+ *  what is on screen (WCAG 2.5.3), and it used to say only "Open folder". */
+function nameFolderButton(): void {
+  ui.open.setAttribute("aria-label", `${folderName || t.noFolder} — ${t.open}`);
+}
 for (const slot of document.querySelectorAll<HTMLElement>(".ic[data-icon]")) slot.replaceChildren(icon(slot.dataset["icon"] ?? ""));
-ui.open.setAttribute("aria-label", t.open);
+nameFolderButton();
+// The page's regions, named: the app's commands, the folder's side, the panel.
+ui.ribbon.setAttribute("aria-label", t.commands);
+document.querySelector(".side")?.setAttribute("aria-label", t.folderView);
 ui.collapse.replaceChildren(icon("collapse", t.collapseAll));
 ui.collapse.title = t.collapseAll;
 ui.search.placeholder = t.search;
@@ -1064,7 +1080,7 @@ new MutationObserver((records) => {
 type Mode = "preview" | "live" | "source";
 class NoteLeaf extends Leaf {
   readonly kind: Kind = "note";
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   readonly modes = h("div", "modes");
   readonly modeButtons: Record<Mode, HTMLButtonElement>;
   readonly title = h("h1", "note-title");
@@ -1072,7 +1088,7 @@ class NoteLeaf extends Leaf {
   readonly saveButton = h("button", "save", t.save);
   readonly flags = h("p", "flags");
   readonly props = new PropertiesView({
-    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed },
+    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed, open: t.openPage },
     // One property changed in the panel: the frontmatter lines of that
     // key change in the editor's document, nothing else; the save follows
     // as after any keystroke.
@@ -1257,6 +1273,9 @@ class NoteLeaf extends Leaf {
         syntaxHighlighting(classHighlighter),
         // The system's spell checker, in the languages it is set to.
         EditorView.contentAttributes.of({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off" }),
+        // The text box is named after the note, as it is now (a rename
+        // with unsaved text keeps this state).
+        EditorView.contentAttributes.of(() => ({ "aria-label": name(this.path) })),
         slashKeymap(this.slash),
         tableKeymap,
         keymap.of([indentWithTab]),
@@ -2044,7 +2063,7 @@ class TextLeaf extends Leaf {
   readonly kind: Kind = "text";
   readonly host = h("div", "editor source");
   readonly flags = h("p", "flags");
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   /** For an HTML file, the way back to its page. */
   readonly modes = htmlModes(this, "source");
   readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
@@ -2075,6 +2094,8 @@ class TextLeaf extends Leaf {
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
         this.readOnly ? readOnlyText : [],
+        // The text box is named after the file.
+        EditorView.contentAttributes.of(() => ({ "aria-label": this.path.split("/").pop() ?? this.path })),
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
         editorChrome(["Mod-s"]),
         EditorView.updateListener.of((u) => {
@@ -2194,7 +2215,7 @@ type FolderRow = { path: string; kind: Kind; label: string; size: number; modifi
 class FolderLeaf extends Leaf {
   readonly kind: Kind = "folder";
   readonly head = h("header", "folder-head");
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   readonly title = h("h1", "note-title");
   readonly meta = h("p", "folder-meta");
   readonly cols = h("div", "folder-cols");
@@ -2394,7 +2415,7 @@ class FolderLeaf extends Leaf {
  * quote of the selection into a companion note beside the file. */
 class PdfLeaf extends Leaf {
   readonly kind: Kind = "pdf";
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   readonly view: PdfView;
   constructor(pane: Pane) {
     super(pane);
@@ -2466,7 +2487,7 @@ function htmlModes(leaf: Leaf, on: "page" | "source"): HTMLElement {
 class FrameLeaf extends Leaf {
   readonly kind: Kind = "frame";
   readonly frame = h("iframe", "frame-view");
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   constructor(pane: Pane) {
     super(pane);
     this.frame.setAttribute("sandbox", "");
@@ -2545,6 +2566,7 @@ class GraphLeaf extends Leaf {
     const filter = h("input", "graph-filter");
     filter.type = "search";
     filter.placeholder = t.graphFilter;
+    filter.setAttribute("aria-label", t.graphFilter);
     filter.value = this.opts.filter;
     filter.addEventListener("input", () => { this.opts.filter = filter.value; this.save(); this.rebuild(); });
     filter.addEventListener("keydown", (e) => e.stopPropagation());
@@ -3872,6 +3894,7 @@ class Panel {
     ];
     // A tablist and its one panel: the arrows, Home and End choose a tab,
     // and only the chosen one is in the Tab order.
+    this.el.setAttribute("aria-label", t.rightPanel);
     this.tabs.setAttribute("aria-label", t.rightPanel);
     this.body.setAttribute("role", "tabpanel");
     for (const [id, ic, label] of defs) {
@@ -5455,6 +5478,7 @@ class SettingsDialog {
     asDialog(this.el, t.settings, () => this.hide());
     this.search.type = "search";
     this.search.placeholder = t.searchSettings;
+    this.search.setAttribute("aria-label", t.searchSettings);
     this.search.addEventListener("input", () => this.paint());
     this.search.addEventListener("keydown", (e) => {
       e.stopPropagation();
@@ -5563,7 +5587,12 @@ class SettingsDialog {
       });
       return v;
     });
-    add("general", t.language, t.languageDesc, () => this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); void this.reloadForLanguage(); }));
+    add("general", t.language, t.languageDesc, () => {
+      const sel = this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); void this.reloadForLanguage(); });
+      // Each language's name in its own language, said so.
+      for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
+      return sel;
+    });
     add("general", t.remoteContent, t.remoteContentDesc, () => this.toggle(settings.remoteContent, (v) => { settings.remoteContent = v; saveSettings(); remoteContentChanged(); }));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
@@ -5800,6 +5829,7 @@ async function joinAsPopout(): Promise<void> {
   currentFolder = folder.data.key;
   folderName = folder.data.name;
   ui.folder.textContent = folder.data.name;
+  nameFolderButton();
   page?.classList.remove("empty");
   ui.search.disabled = false;
   loadBookmarks();
@@ -5856,6 +5886,7 @@ function showFolder(info: FolderInfo): void {
     // No storage: nothing remembered, nothing lost.
   }
   ui.folder.textContent = info.name;
+  nameFolderButton();
   const i = info.index;
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   page?.classList.remove("empty");
