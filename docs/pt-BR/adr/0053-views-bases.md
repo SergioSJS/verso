@@ -50,9 +50,7 @@ opções que o autor apresentou com a sua recomendação (o memo, seção 2):
    nunca uma fórmula nem um campo do arquivo; "+" numa coluna cria uma nota
    com o valor dela. Como a página "Kanban view" do Obsidian 1.14 o descreve.
 3. **O calendário são os dois** — a recomendação: um layout `calendar` de
-   bases, uma extensão do Verso, sobre uma propriedade de data das notas (uma
-   nota arrastada para outro dia tem a data gravada; "+" num dia cria uma nota
-   nele); e o mês das notas diárias no painel lateral, onde um clique abre a
+   bases, uma extensão do Verso, sobre uma propriedade de data das notas; e o mês das notas diárias no painel lateral, onde um clique abre a
    nota do dia ou a cria ([0014](0014-primitives-catalog.md), a nota diária).
 4. **Um bloco `verso-schema` conta só no nível de cima de uma nota** — a
    recomendação, na pergunta que o [0052](0052-typed-note.md) deixou aberta
@@ -63,6 +61,8 @@ opções que o autor apresentou com a sua recomendação (o memo, seção 2):
 O que segue é como o autor construiu os pontos 1 a 3, marcado como do autor
 onde as respostas não o disseram (o memo, seção 3):
 
+- **Os movimentos do calendário.** Uma nota arrastada para outro dia tem a
+  data gravada; "+" num dia cria uma nota nele.
 - **O core avalia, a janela desenha.** O `verso-dialect` lê uma base e a
   linguagem de expressões dos filtros e fórmulas dela, com limites de tamanho
   e profundidade, sob o fuzzing com o parser; o `verso-core` a avalia sobre os

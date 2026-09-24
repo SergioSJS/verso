@@ -48,8 +48,7 @@ options the author put with its recommendation (the memo, section 2):
    never a formula or a file field; "+" on a column makes a note holding its
    value. As Obsidian 1.14's "Kanban view" page describes it.
 3. **The calendar is both** — the recommendation: a `calendar` layout of bases,
-   a Verso extension, over a date property of the notes (a note dragged to
-   another day has its date written; "+" on a day makes a note on it); and the
+   a Verso extension, over a date property of the notes; and the
    month of the daily notes in the side panel, where a click opens the day's
    note or makes it ([0014](0014-primitives-catalog.md), the daily note).
 4. **A `verso-schema` block counts only at the top level of a note** — the
@@ -60,6 +59,8 @@ options the author put with its recommendation (the memo, section 2):
 What follows is how the author built points 1 to 3, labelled as the author's
 where the answers did not say it (the memo, section 3):
 
+- **The calendar's moves.** A note dragged to another day has its date
+  written; "+" on a day makes a note on it.
 - **The core evaluates, the window draws.** `verso-dialect` reads a base and
   the expression language of its filters and formulas, with bounds on length
   and depth, fuzzed with the parser; `verso-core` evaluates it over the files

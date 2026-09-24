@@ -95,6 +95,12 @@ máximo 50 milhões de passos por consulta e textos de no máximo 1 MiB.
   como o `==` do JavaScript; um método numa propriedade ausente é `null`, não
   um erro; `file.backlinks` conta links, embeds e links em propriedades.
 
+[ABERTO] A leitura do autor onde "Functions" e "Bases syntax" nada
+dizem, para o mantenedor manter ou mudar: o resumo `Unique` pula valores
+vazios; `null < 3` é falso, nulo não se comparando com nada; `true == 1` é
+falso, o `==` não fazendo número de um booleano; um link e um texto se
+comparam pelo arquivo que nomeiam, depois pelo texto como escrito.
+
 ### 3.3 Os layouts
 
 - **Tabela**: larguras pela borda da coluna; o menu da coluna a ordena, a
@@ -195,5 +201,56 @@ com abas próprias sobre a mesma sessão.
 
 ## 8. A leitura
 
-Pendente: uma sessão nova de Opus 5.5 lê a mudança e este memo; os achados
-dela, e o que foi feito com cada um, entram aqui.
+Duas sessões novas de Opus 5.5 leram a mudança em 2026-09-24: uma o Rust (o
+core, o host, a linha de comando), outra a UI, os documentos e o workflow da
+versão (ADR 0032, como o item 17 do mantenedor em `docs/review/phase-2.md` §6
+o diz). Os achados, e o que foi feito com cada um:
+
+**BLOQUEANTE — todos corrigidos**
+
+| # | Achado | Feito |
+|---|---|---|
+| R1 | Avaliação sem limite de memória nem de pilha: uma base podia dobrar uma lista, trocar uma letra por um texto longo, aninhar uma lista mil vezes, encadear fórmulas além da pilha — e derrubar o app, com o texto não salvo | Todo valor feito ou copiado é cobrado do orçamento (um passo por elemento e a cada 16 bytes); listas param em 2^20 itens, aninhamento em 100, recursão em 160 níveis; `replace` e `join` medem antes de fazer; comparações contadas. Testes `a_base_cannot_make_the_evaluation_outgrow_its_bounds`, `a_chain_of_formulas_stops_at_the_depth_bound` |
+| R2 | Links para arquivo nenhum comparados ignorando caixa e título, onde "Bases syntax" diz que o texto deles tem de ser idêntico | Texto idêntico; um link e um texto pelo arquivo, depois pelo texto. Teste `links_to_no_file_are_equal_only_as_written` |
+| R3 | O `Count` padrão escondia um resumo da própria base chamado `Count` | O da base primeiro. Teste `a_summary_of_the_base_may_take_a_default_name` |
+| U1 | Um bloco `base` dentro de callout, citação ou lista: os menus o reescreviam sem as marcas, perdendo filtros e visões | Mostrado inteiro, não editado pelos menus |
+| U2 | O menu de filtro apagava grupos aninhados a qualquer gravação | Um filtro com grupo aninhado fica com a fonte |
+| U3 | Um drop resolvido contra outra visão da página, ou um quadro redesenhado, gravava valores errados (datas de 1970, a coluna de outro quadro) | Só as zonas da própria visão do arraste; um arraste cuja visão foi redesenhada não solta nada |
+| U4 | Uma edição de menu reescrevia a base inteira no estilo do pacote (recuo, texto dobrado, linhas em branco) | Os menus editam uma base só quando o pacote a devolve byte a byte; senão ela é editada como texto — 83 das 84 amostras públicas continuam editáveis |
+
+**IMPORTANTE**
+
+| # | Achado | Feito |
+|---|---|---|
+| R4 | `query_base` roda na thread principal | Adiado: os limites acima limitam o tempo (o orçamento) e a pilha; tirá-la da thread, com um retrato da pasta, é mudança própria |
+| R5 | A comparação da ordenação não era uma ordem (NaN, durações em meses, `""` contra vazio) e podia entrar em pânico | Corrigido: uma ordem sem exceção, vazios por último nas duas direções. Teste `a_sort_over_mixed_values_is_an_order` |
+| R6 | A aritmética de datas podia estourar | Corrigido: datas param no alcance do JavaScript. Teste `a_date_moved_past_the_calendar_stops_at_its_edge` |
+| R7 | O host liga a linha de comando com as ferramentas do sistema (`ln`, `readlink`, `rm`, `xattr`, `osascript`), que a leitura vê como um contorno do guardrail de `std::fs` | [ABERTO] para o mantenedor — uma exceção declarada no `clippy.toml` do host, ou as ferramentas como agora; registrado no ADR 0054 |
+| R8 | A semântica do autor onde os documentos nada dizem, sem rótulo | Rotulada [ABERTO] na seção 3.2 |
+| R9 | Faltam testes: limites, `Workspace::query_base`, os caminhos de janela e de linha de comando do host | Limites testados (acima); o resto adiado |
+| U5 | As colunas lembradas do kanban ficavam velhas e eram gravadas na base | Lembradas por propriedade, nunca gravadas |
+| U6 | O kanban gravava números e caixas de seleção como texto | Uma coluna mantém o seu tipo |
+| U7 | Uma visão lia uma propriedade ignorando a caixa e gravava uma segunda chave ao lado | Gravada sob a chave que a nota tem |
+| U8 | As bases de notas fechadas continuavam consultando o core | Desregistradas; uma visão desmontada não pergunta nada |
+| U9 | Um redesenho derrubava um campo sendo digitado | Nenhum redesenho enquanto um campo da visão tem o foco. Foco mantido depois das gravações da própria visão: adiado |
+| U10 | Os menus de ordenar, agrupar e filtrar usavam valores de quando foram desenhados: uma segunda mudança desfazia a primeira | Lidos quando a mudança é feita |
+| U11 | Acessibilidade: ordem das colunas só arrastando; o botão `</>`; a contagem de resultados não anunciada | Adiado para a passada de VoiceOver |
+| U12 | Detalhes do autor dentro de pontos marcados como do mantenedor (ADR 0053 ponto 3, ADR 0054 ponto 1) | Movidos para o que o autor construiu |
+| U13 | Contradições: a linha de visões estruturadas do briefing ainda PROPOSTO enquanto o ADR 0053 a chama de decidida; o "materializar no arquivo" do ADR 0013 contra copiar e "salvar como nota" | Registradas, sem escolher lado: do mantenedor |
+
+**MENOR** — deixados, listados para depois: um grupo `not` admitindo linhas em
+erros; agrupar por link e por texto em colunas vizinhas; resumos próprios
+avaliados na primeira linha; números de resumo não finitos; duas pastas de
+mesmo nome dando ao Claude Desktop um mesmo nome de servidor; as permissões da
+cópia de segurança; a linha de comando ligada a partir de um app transladado;
+falhas do `xattr` ignoradas; mensagens de janela enviadas só à "main"; o
+`.base` lido antes da conferência de tamanho; células de CSV começando com
+`= + - @`; nem Escape nem rolagem automática ao arrastar; o fuso de data e hora
+perdido ao mover; duas visões chamadas "Table" ao acrescentar a uma base
+vazia; prefixos `note.` no menu de ordenar; embeds mantendo o texto da base
+lido ao desenhar; uma cerca não fechada duplicando a última linha; "Inserir
+base" dentro do frontmatter no modo Fonte; uma visão de embed com nome errado
+mostrada como a primeira; favoritos gravados pela cópia de cada janela; o `cp`
+da versão sem guarda; o arquivo do Claude Desktop reescrito com as chaves
+ordenadas (o sentido e uma cópia mantidos, onde o ADR 0054 diz "como uma
+nota").

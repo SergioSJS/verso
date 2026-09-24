@@ -31,10 +31,7 @@ options the author put with its recommendation:
    the command line travels inside the app, beside its binary, and Settings →
    Terminal and agents links it as `/usr/local/bin/verso`, on the `PATH` of
    every shell (`/etc/paths`), as editors install theirs. Where that directory
-   is not the person's, macOS asks for an administrator's password, once. The
-   download's quarantine is taken off the command line when it is linked.
-   Something else already there is replaced only after asking; "Remove" takes
-   away this app's link only.
+   is not the person's, macOS asks for an administrator's password, once.
 2. **An agent is connected in one click, with what goes in shown first** —
    the recommendation: "Add to Claude Desktop" shows the entry it will write,
    and on a yes writes it into Claude Desktop's configuration file, leaving a
@@ -54,7 +51,13 @@ How the author built them (the memo, section 5):
 - **The link is made with the system's own tools** (`ln`, `readlink`, and
   `osascript` for the password), as the window's "Reveal in Finder" uses
   `open`: none of these paths is the folder's (rule 5), and the app reads no
-  file of its own there.
+  file of its own there. The download's quarantine is taken off the command
+  line when it is linked; something else already at that path is replaced
+  only after asking; "Remove" takes away this app's link only. [OPEN]
+  Whether the host should do this through `std::fs`, with an exception
+  declared in its own `clippy.toml`, rather than through the system's
+  tools — the reading saw the tools as a way around the guardrail (the
+  memo, section 8): the maintainer's to rule.
 - **The release puts the command line inside the app** and signs the bundle
   again, ad hoc as before; the separate archive stays.
 
