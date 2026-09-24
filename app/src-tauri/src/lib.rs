@@ -7,8 +7,8 @@
 //! (`verso-contract`, ADR 0026). Nothing here reads a file and no Tauri
 //! fs plugin is enabled (rule 5). It opens a folder, indexes it, lists
 //! the notes, shows one, searches, lists links and backlinks, edits,
-//! creates, renames and trashes (items 2.3 to 2.5; ADR 0048 is `[OPEN]`,
-//! so the file operations are provisional).
+//! creates, renames and trashes (items 2.3 to 2.5; the file operations
+//! as ADR 0048 decides them).
 //!
 //! The folder's path is a string on this side only, at the entry edge
 //! (rule 4): the command line (`verso-app <folder>`, taken once by
@@ -1345,8 +1345,9 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 /// takes the command line's place: the main window, if it is up, is told
 /// to open it (`open_initial`, after saving its tabs), and one that starts
 /// later opens it at start-up. What is not a folder fails there, as a
-/// command-line argument would.
-#[cfg(target_os = "macos")]
+/// command-line argument would. Built for tests on every platform, so
+/// the Linux runs check it too; only macOS sends the event.
+#[cfg(any(target_os = "macos", test))]
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
     use tauri::Emitter;
     *lock(&app.state::<App>().initial_folder) = Some(folder);
@@ -1480,7 +1481,6 @@ mod tests {
     /// A folder macOS hands the running app (`open -a Verso <folder>`) is
     /// the main window's to open, once, as the command line's would be;
     /// the window is told, and what crosses is still a name and a key.
-    #[cfg(target_os = "macos")]
     #[test]
     fn a_folder_handed_to_the_running_app_is_opened_once_by_the_main_window() {
         use tauri::Listener;
