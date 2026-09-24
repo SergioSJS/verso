@@ -509,6 +509,9 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .callout-fold { display: inline-flex; align-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; transform: rotate(90deg); transition: transform .18s var(--ease-out); }
 .callout.folded .callout-fold { transform: none; }
 .callout-fold:focus-visible { outline: 2px solid var(--kind, var(--brass-ink)); outline-offset: 2px; border-radius: 3px; }
+/* The reading view takes the focus when a link is followed from the
+   keyboard (Tab goes on from there); it draws no ring of its own. */
+.preview:focus { outline: none; }
 .callout[data-callout="note"], .callout[data-callout="info"], .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240)); }
 .callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150)); }
 .callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"], .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75)); }
