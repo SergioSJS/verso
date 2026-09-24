@@ -306,6 +306,33 @@ export type FileKind = "note" | "file" | "folder" |
 /**  Present, content in the cloud (ADR 0043). */
 "placeholder";
 
+/**
+ *  What changed in the open folder, as the watcher saw it and the index
+ *  then found it: the payload of the `folder-changed` event the host sends
+ *  the app's windows after every batch of changes (provisional:
+ *  `docs/reference/watcher-decision.md`). Notes are named by their path
+ *  relative to the folder (rule 4). The lists are what this batch's index
+ *  run found; another run may have found a change first, so a window
+ *  checks every note it shows against the disk whatever they say — read
+ *  again when nothing was typed in it, saved at once otherwise, which meets
+ *  the difference (invariant 11), marked when it is gone.
+ */
+export type FolderChanged = {
+	/**  The folder's key: a window showing another folder has nothing to do. */
+	key: string,
+	/**  Notes this run found new or different on disk. */
+	changed: string[],
+	/**  Notes this run found gone from disk. */
+	removed: string[],
+	/**
+	 *  Whether which entries there are, or of which kind, changed: a tree
+	 *  or a folder view is drawn again only then.
+	 */
+	listing: boolean,
+	/**  The index run's counts and problems, as `reindex` answers them. */
+	index: IndexSummary,
+};
+
 /**  The folder that is open, and what indexing it did. */
 export type FolderInfo = {
 	/**  The folder's own name (its last path component), for display. */
@@ -349,6 +376,17 @@ export type IndexSummary = {
 	 *  folder, for the UI to show.
 	 */
 	problems: string[],
+	/**
+	 *  The folder is not watched for changes made outside the app: the
+	 *  operating system's reason, as it gives it (no path). The UI says
+	 *  what that means, in the user's language (ADR 0035).
+	 */
+	unwatched: string | null,
+	/**
+	 *  The folder changed and this index run could not bring the index up
+	 *  to date: the core's reason. The UI says it in the user's language.
+	 */
+	unindexed: string | null,
 };
 
 /**  A link a note makes. */

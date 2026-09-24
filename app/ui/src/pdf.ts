@@ -129,6 +129,7 @@ export class PdfView {
     );
     this.searchInput.type = "search";
     this.searchInput.placeholder = s.search;
+    this.searchInput.setAttribute("aria-label", s.search);
     this.searchInput.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Enter") this.find(this.searchInput.value, e.shiftKey);
@@ -137,11 +138,17 @@ export class PdfView {
     this.searchInput.addEventListener("input", () => {
       if (this.searchInput.value === "") this.find("", false);
     });
+    // "3 of 10", "Nothing found": announced as they change.
+    this.searchInfo.setAttribute("role", "status");
     const find = h("span", "pdf-find");
     find.append(icon("search"), this.searchInput, this.searchInfo);
     const acts = h("span", "pdf-acts");
     acts.append(btn("link", s.copyPageLink, () => opts.onCopyLink(this.fragment())), btn("quote", s.quoteSelection, () => this.quote()));
     this.bar.append(pages, zoom, find, acts);
+    // The pages: a region named after the file (by the caller), in the
+    // Tab order, so that the arrows and Page Down scroll them.
+    this.container.tabIndex = 0;
+    this.container.setAttribute("role", "region");
     this.container.append(h("div", "pdfViewer"));
     this.body.append(this.container);
     this.el.append(this.bar, this.body);

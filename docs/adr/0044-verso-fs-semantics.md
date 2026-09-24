@@ -11,7 +11,16 @@
   groups: the write path of a symlink (decided, it follows from the choice) and
   three items marked **provisional**, for the maintainer to confirm or change;
   two more provisional items from the second reading of that code — an absolute
-  root, and a handle for a placeholder name.
+  root, and a handle for a placeholder name. 2026-09-24 — the watcher built,
+  provisionally, on the memo
+  [`docs/reference/watcher-decision.md`](../reference/watcher-decision.md),
+  which lists what the maintainer decides; this ADR's groups are untouched.
+  2026-09-24 — **decided by the maintainer**, in session: the watcher, on its
+  memo, every recommendation accepted; and the opaque handles group, on the
+  memo [`docs/reference/handles-decision.md`](../reference/handles-decision.md),
+  decided as built for Phase 2 and re-opened before anything outside the
+  app's own views gets access to files. Both recorded in the Decision; the
+  lines that called the group open are kept, each with a note.
 
 ## Context
 
@@ -23,8 +32,10 @@ answer before `verso-fs` exists.
 
 ## Decision
 
-Two of the three groups are decided. The third is still recorded with the
-moment to decide it.
+The three groups are decided: symlinks and ignored paths on 2026-09-22, the
+opaque handles on 2026-09-24, as built for Phase 2 and with the moment to
+re-open them. The watcher, which came after feature 2, was decided on
+2026-09-24 as well.
 
 ### Symlinks and loops — decided on 2026-09-22
 
@@ -141,7 +152,7 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   is the surprise this avoids. Every other dot-leading component stays refused,
   as above.
 
-### The watcher — after feature 2
+### The watcher — after feature 2; decided on 2026-09-24
 
 Decided by the maintainer on 2026-09-22, answering the contradiction the memo
 recorded in section 2.2: feature 2 is **walk, path confinement and atomic
@@ -150,7 +161,64 @@ write**, as the roadmap's row says. The description of `verso-fs` in
 confinement" — stays as it is, read as the crate's eventual shape: the watcher
 arrives after feature 2, and no date is set for it here.
 
-### Opaque handles — decide before feature 6 of Phase 1 (`verso mcp`) and the contract (Phase 2, item 2.1)
+**The watcher, decided on 2026-09-24 by the maintainer**, in session, on the
+memo [`docs/reference/watcher-decision.md`](../reference/watcher-decision.md),
+section 6: every recommendation accepted, the code that was built under them
+no longer provisional. The author's recommendations of the day were put as
+one list, and the answer was *"Tirando o plano de fazer vários PR, eu gosto
+das suas recomendações"* ("apart from the plan of several pull requests, I
+like your recommendations"):
+
+- **`notify`** watches the root (FSEvents on macOS, inotify on Linux), and
+  only what the walk lists is reported.
+- **Each batch indexes the whole folder, for now** — the one path that knows
+  placeholders, walk problems and removals. Refreshing only the batch's paths
+  is the step for folders beyond a few thousand notes, measured with the
+  benchmark when one is in use.
+- **A batch goes out after 300 ms of quiet, or 2 s after its first change**
+  when changes do not stop.
+- **An open note changed outside, with nothing typed in it, takes the disk's
+  text in as one edit**, so the cursor and the undo history stay; **with text
+  not saved yet, it is saved at once**, which meets the difference and shows
+  the conflict banner — the check of [0012](0012-files-are-source-of-truth.md)
+  — so nothing is written over the other app's change; **a note deleted or
+  moved outside keeps its tab, marked**, and nothing recreates it.
+- **Files that are not notes, open in a tab, are not read again**, for now.
+
+What the memo records beside these stands with them: a folder the system will
+not watch opens anyway, with the reason on the status line, and the periodic
+scan recorded above for the `inotify` limit is built when Linux becomes a
+target (the memo's section 3.8).
+
+### Opaque handles — decided on 2026-09-24, as built for Phase 2
+
+**Decided on 2026-09-24 by the maintainer**, in session, on the memo
+[`docs/reference/handles-decision.md`](../reference/handles-decision.md),
+option (a), in the same answer as the watcher's:
+
+- **A note is named by its path relative to the open folder** — in the
+  contract, over MCP and in the command line — as rule 4 of
+  [0026](0026-core-ui-contract-inviolable-rules.md), amended on 2026-09-22,
+  says. Over MCP this is the decision [0045](0045-server-and-mcp-security.md)
+  took on 2026-09-22, which is the text that stands.
+- **No capability crosses the contract.** What lets the window read and write
+  is being one of the app's own views, which the host's capabilities check;
+  the `revision` a write carries is the stamp of what was read, not a
+  capability.
+- **Inside `verso-fs`, a `Handle` is an index into the root's table of
+  relative paths**, valid for that `Root` and in this process only: it does
+  not survive a restart, and after a rename it still names the old path. The
+  window between checking a path and using it stays open; with every symlink
+  followed, `openat`-style traversal would confine nothing more for the
+  user's own folder.
+- **Re-opened before anything outside the app's own views gets access to
+  files** — a plugin ([0016](0016-plugins-execution-and-capabilities.md)), a
+  mobile client ([0025](0025-own-server-and-mobile-pwa.md)), `verso serve`.
+  That is when a capability has to cross: an iOS security-scoped bookmark, an
+  Android SAF URI.
+
+The questions as they were first recorded, before feature 6 of Phase 1 and
+item 2.1 of Phase 2:
 
 - What a handle identifies: an open descriptor (`openat`, immune to a path swap
   between checking and using) or an index into a table of paths (checking is
@@ -181,14 +249,19 @@ arrives after feature 2, and no date is set for it here.
   this revision.
 - While handle semantics stay open, rule 4 of
   [0026](0026-core-ui-contract-inviolable-rules.md) is a constraint on form (do
-  not expose a string), not a security guarantee.
+  not expose a string), not a security guarantee. *(Decided on 2026-09-24, as
+  built for Phase 2: the Decision above. Rule 4 had been amended on
+  2026-09-22 — access crosses as a handle, identity as the relative path — and
+  no capability crosses today, so confinement of every path a client sends is
+  what carries its weight.)*
 - The resource limits (depth, file size, line length) complement Q17 of the
   dialect spec: fuzzing catches crashes, not slowness.
 
 **The MCP half of the handles group as the feature 6 code implements it.
 Recorded on 2026-09-22 from the feature 6 code — provisional, the maintainer
 decides**, under §4 of `docs/reference/mcp-decision.md`. The group stays
-`[OPEN]`; this is what the code does, not a decision.
+`[OPEN]`; this is what the code does, not a decision. *(Decided on 2026-09-24
+as written here, with the group: the Decision above.)*
 
 - **What the agent receives as a note identifier is the path relative to the
   root, as a string, with `.md`** — the same string `list_notes`, `search` and
@@ -207,7 +280,8 @@ decides**, under §4 of `docs/reference/mcp-decision.md`. The group stays
   rather than of each tool's implementation.
 - **The other half of the group is untouched**: what a handle identifies inside
   the process (open descriptor or table index) and how long it stays valid is
-  still `[OPEN]`, for item 2.1 of Phase 2.
+  still `[OPEN]`, for item 2.1 of Phase 2. *(Decided on 2026-09-24: a table
+  index, valid in this process only — the Decision above.)*
 
 ## Discarded alternatives
 
@@ -229,11 +303,32 @@ Considered by the maintainer, on the memo, and set aside:
   then mean "walked but not counted", and exit criterion 2 would depend on the
   maintainer remembering what is in `.trash/`.
 
+Considered by the maintainer on 2026-09-24, on the watcher's memo, and set
+aside:
+
+- **A walk on a timer** instead of the operating system's events — one walk
+  per period whether anything changed or not; it stays the fallback for a
+  folder the system will not watch.
+- **Each operating system's API directly** — one more backend per platform,
+  for the latency `notify` already has.
+- **An open note marked and read on demand**, **a tab with unsaved text left
+  for the autosave**, **a gone note's tab closed** or **a move followed** —
+  a stale view, a conflict found later, text taken off the screen, or a guess
+  pairing a removal with a creation.
+
+And on the handles memo:
+
+- **Capability handles designed now** — a handle type in the contract, a
+  lifetime rule, a table in the host — a design with no consumer to test it
+  against, before a plugin, a mobile client or a server exists.
+
 ## Status
 
 Symlinks, loops and ignored paths: decided on 2026-09-22 by the maintainer,
-Accepted. Opaque handles: `[OPEN]`, before feature 6 of Phase 1 and item 2.1 of
-Phase 2. The watcher: after feature 2, with no date set. The items marked
-**provisional** inside the two decided groups are not decided: they are what the
+Accepted. Opaque handles: decided on 2026-09-24 by the maintainer, as built
+for Phase 2, Accepted; re-opened before anything outside the app's own views
+gets access to files. The watcher: built after feature 2 and decided on
+2026-09-24 by the maintainer, Accepted. The items marked **provisional** inside
+the two groups decided on 2026-09-22 are not decided: they are what the
 feature 2 code does, recorded so that nothing is settled by silence, and they
 wait for the maintainer.

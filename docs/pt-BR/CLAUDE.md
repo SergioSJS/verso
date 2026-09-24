@@ -166,7 +166,13 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
 
 ### O PR
 
-- **Pequeno, um assunto.** Se o resumo precisa de "e", provavelmente são dois PRs.
+- **Grande até o fluxo inteiro existir; pequeno depois.** Até existirem sync,
+  a web e mobile, o trabalho vai em pull requests grandes — não pedir que um
+  seja partido em pequenos. Depois disso: pequeno, um assunto; se o resumo
+  precisa de "e", provavelmente são dois PRs
+  ([ADR 0033](adr/0033-pr-workflow.md) e
+  [ADR 0051](adr/0051-development-flow-and-releases.md), revistos em
+  2026-09-24).
 - Usa `.github/pull_request_template.md`, com as cinco seções preenchidas:
   O quê / Por quê / Alternativas descartadas / Como verificar / Conceito Rust
   usado.
@@ -176,9 +182,11 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
   confirmar que a licença passa no `cargo-deny`.
 - Feature de parser vem com fixture. Fixture nova vem marcada como rascunho da
   IA, para aprovação.
-- Uma branch curta por assunto (`feat/…`, `fix/…`, `docs/…`, `chore/…`) a
-  partir da `main`; a `main` é protegida e só recebe pull requests — nunca
-  fazer push nela ([ADR 0051](adr/0051-development-flow-and-releases.md)).
+- Uma branch a partir da `main`, com nome `feat/…`, `fix/…`, `docs/…` ou
+  `chore/…`; até o fluxo inteiro existir ela pode levar vários assuntos,
+  depois uma branch curta por assunto. A `main` é protegida e só recebe pull
+  requests — nunca fazer push nela
+  ([ADR 0051](adr/0051-development-flow-and-releases.md)).
 - Uma mudança que o usuário vê acrescenta a sua linha em "Não lançado" no
   `CHANGELOG.md` e no `docs/pt-BR/CHANGELOG.md`.
 

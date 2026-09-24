@@ -304,9 +304,9 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
 
 /// The installed app's name: "Verso", or what the build was given — a beta
 /// release builds its command line with `VERSO_APP_NAME=Verso Beta`, so that
-/// `verso <folder>` opens the app of its own channel (ADR 0051). Only macOS
-/// opens an installed app by name.
-#[cfg(target_os = "macos")]
+/// `verso <folder>` opens the app of its own channel (ADR 0051), and says
+/// which one it opened. Only macOS opens an installed app by name; every
+/// platform names it.
 const APP_NAME: &str = match option_env!("VERSO_APP_NAME") {
     Some(name) => name,
     None => "Verso",
@@ -400,7 +400,10 @@ fn run(args: &[OsString]) -> Output {
             let folder = std::path::absolute(folder).unwrap_or_else(|_| folder.clone());
             match launch_app(&folder) {
                 Ok(()) => out.stderr.push(text(
-                    &Msg::Opening(folder.to_string_lossy().into_owned()),
+                    &Msg::Opening {
+                        folder: folder.to_string_lossy().into_owned(),
+                        app: APP_NAME.to_owned(),
+                    },
                     lang,
                 )),
                 Err(Launch::NoFolder) => {
@@ -411,7 +414,13 @@ fn run(args: &[OsString]) -> Output {
                     out.code = 3;
                 }
                 Err(Launch::NoApp(e)) => {
-                    out.stderr.push(text(&Msg::AppNotFound(e), lang));
+                    out.stderr.push(text(
+                        &Msg::AppNotFound {
+                            app: APP_NAME.to_owned(),
+                            tried: e,
+                        },
+                        lang,
+                    ));
                     out.code = 3;
                 }
             }

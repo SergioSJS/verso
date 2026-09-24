@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Version 0.8 · 2026-09-21
+> Version 0.9 · 2026-09-24
 > Single source of the decisions made before the repository existed.
 > Changes after the repository: only status changes and factual corrections,
 > recorded in the History at the end. New boundaries and consequences live in
@@ -105,7 +105,7 @@ Known name collisions, outside the note app category: a .NET interactive noteboo
 
 - Compatibility with Obsidian vaults, or explicit conversion where there is no compatibility. `DECIDED`
 - Opening a file never rewrites it. Conversion only by user action, with a visible diff. `DECIDED`
-- Every piece of structured data degrades to Markdown readable in any editor. `PROPOSED`
+- Every piece of structured data degrades to Markdown readable in any editor. `DECIDED` (promoted in v0.9, ADR 0013)
 
 ### 5.3 Primitives instead of features
 
@@ -113,7 +113,7 @@ Every common workaround in Obsidian is a symptom of a missing primitive. Verso i
 
 | Primitive | Replaces | Status |
 |---|---|---|
-| Typed note: `type:` in the frontmatter + schema in a text file in the folder; with no schema, it is plain Markdown | Dataview, Templater, statblocks | `PROPOSED` |
+| Typed note: `type:` in the frontmatter + schema in a text file in the folder; with no schema, it is plain Markdown | Dataview, Templater, statblocks | `DECIDED` (promoted in v0.9, ADR 0052) |
 | Stable block ID, with backlinks and presence in the graph | an open request in the Obsidian forum since 2020 | `PROPOSED` |
 | Typed relation: an edge with a type and a direction; several relations between the same two nodes | links without semantics | `PROPOSED` |
 | Time as first class: journal and periodic notes | Periodic Notes, Calendar | `PROPOSED` |
@@ -259,9 +259,9 @@ Verso extends this dialect; it never contradicts it.
 ### 11.3 Dialect items
 
 - Typed relation syntax. `OPEN`
-- Schema format and location. `OPEN`
+- Schema format and location. `DECIDED` (v0.9: a `verso-schema` block in a note of the folder; spec Q11, ADR 0052)
 - Per-block visibility syntax (game master's secret). `OPEN`
-- Schema i18n: language-neutral key with a translated label (e.g. `type: npc` displayed as "PdM" or "NPC"). `PROPOSED`
+- Schema i18n: language-neutral key with a translated label (e.g. `type: npc` displayed as "PdM" or "NPC"). `DECIDED` (promoted in v0.9, ADR 0052)
 
 ### 11.4 Fixtures `DECIDED`
 
@@ -457,7 +457,7 @@ Sync, mobile, plugins, board, compatibility shim.
 | 4 | ~~Base parser: pulldown-cmark, comrak or our own~~ | decided: pulldown-cmark (v0.8, ADR 0037; round-trip reading in spec Q18) |
 | 5 | TS type generation: ts-rs or specta | start of Phase 2 |
 | 6 | Typed relation syntax | before implementing relations |
-| 7 | Schema format and location | before the typed note (Phase 2) |
+| 7 | ~~Schema format and location~~ | decided: a `verso-schema` block in a note of the folder (v0.9, spec Q11, ADR 0052) |
 | 8 | Per-block visibility syntax | before sharing and export |
 | 9 | Board persistence | before the board |
 | 10 | Performance targets | after the first baseline |
@@ -480,3 +480,4 @@ of the dialect spec, not here.
 | 0.6 | 2026-09-21 | §11.4: fixture rule changed by the maintainer — any fixture may be drafted by the AI; it counts only with their explicit approval, and the first five are checked in the Obsidian app before approval (ADR 0031). |
 | 0.7 | 2026-09-21 | §14.3: pointer to the two-group reading of the guardrails in ADR 0029, after the independent reading of the Phase 0 review (docs/review/phase-0.md §7). No decision changed. |
 | 0.8 | 2026-09-21 | §9 and §17 item 4: base parser decided by the maintainer — pulldown-cmark, with comrak as the fallback, under the read-only reading of round-trip (spec Q18). Comparison in docs/reference/parser-decision.md (ADR 0037). |
+| 0.9 | 2026-09-24 | §5.2, §5.3, §11.3 and §17 item 7: decided by the maintainer, on the memo docs/reference/typed-note-decision.md — degradation to Markdown (ADR 0013, accepted as written, with "views" and "structured data" delimited), the typed note and schema i18n (ADR 0052), and the format and location of the schemas: a `verso-schema` block in a note, anywhere in the folder except hidden and ignored paths (spec Q11). The location is the maintainer's choice between §5.3 (a text file in the folder) and §8 (schemas in the shared layer of the config), which stays as it is, `PROPOSED`, and now disagrees on schemas. |

@@ -9,22 +9,36 @@
 //! is the body's first paragraph. Found on the base's events, where a
 //! blockquote's extent is exact: raw HTML in the note cannot open or close
 //! one, and the header is read on the first line of the source only.
-//! Blockquotes nested inside a callout are kept as blockquotes (nesting is
-//! spec Q5); the recognized kinds are Q5 too, so any kind is accepted.
+//! A callout inside a callout is drawn as one too, [`MAX_NESTING`] deep —
+//! nesting is spec Q5, `[OPEN]`: Obsidian's public documentation shows
+//! callouts nested inside callouts, and this follows it provisionally; a
+//! plain blockquote inside a callout stays a blockquote. The recognized
+//! kinds are Q5 too, so any kind is accepted.
 
 use pulldown_cmark::{CowStr, Event, Tag, TagEnd};
 
 use crate::events::{self, Offset};
+
+/// How many callouts deep one is drawn inside another; a deeper one stays
+/// a blockquote. Each level is a recursion and a copy of the level's
+/// events, so a note that nests without end cannot make drawing it
+/// quadratic or deep without end (the fuzzing guardrail, ADR 0029).
+pub(crate) const MAX_NESTING: usize = 32;
 
 /// `events` with every callout replaced by its `<div>`.
 pub(crate) fn callouts<'a>(source: &str, events: Vec<Offset<'a>>) -> Vec<Offset<'a>> {
     if !source.contains("[!") {
         return events;
     }
+    within(source, events, 0)
+}
+
+/// [`callouts`] at `depth` callouts deep.
+fn within<'a>(source: &str, events: Vec<Offset<'a>>, depth: usize) -> Vec<Offset<'a>> {
     let mut out: Vec<Offset<'a>> = Vec::with_capacity(events.len());
     let mut i = 0;
     while let Some(offset) = events.get(i) {
-        match callout(source, &events, i, &mut out) {
+        match callout(source, &events, i, depth, &mut out) {
             Some(end) => i = end + 1,
             None => {
                 out.push(offset.clone());
@@ -42,6 +56,7 @@ fn callout<'a>(
     source: &str,
     events: &[Offset<'a>],
     i: usize,
+    depth: usize,
     out: &mut Vec<Offset<'a>>,
 ) -> Option<usize> {
     let (Event::Start(Tag::BlockQuote(_)), quote) = events.get(i)? else {
@@ -84,14 +99,14 @@ fn callout<'a>(
     }
     let paragraph_end =
         (line_end..events.len()).find(|&k| matches!(events[k].0, Event::End(TagEnd::Paragraph)))?;
-    let mut depth: usize = 0;
+    let mut quotes: usize = 0;
     let mut quote_end = None;
     for (k, (event, _)) in events.iter().enumerate().skip(i) {
         match event {
-            Event::Start(Tag::BlockQuote(_)) => depth += 1,
+            Event::Start(Tag::BlockQuote(_)) => quotes += 1,
             Event::End(TagEnd::BlockQuote(_)) => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
+                quotes = quotes.checked_sub(1)?;
+                if quotes == 0 {
                     quote_end = Some(k);
                     break;
                 }
@@ -143,7 +158,11 @@ fn callout<'a>(
         out.push((Event::Start(Tag::Paragraph), paragraph.clone()));
         out.extend(body.iter().cloned());
     }
-    out.extend(children.iter().cloned());
+    if depth + 1 < MAX_NESTING {
+        out.extend(within(source, children.to_vec(), depth + 1));
+    } else {
+        out.extend(children.iter().cloned());
+    }
     out.push((Event::Html("</div>\n".into()), quote.clone()));
     Some(quote_end)
 }

@@ -98,7 +98,7 @@ body.no-side .side, body.no-side #side-divider, body.no-right .right, body.no-ri
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
-:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; border-radius: 3px; }
+:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; border-radius: 3px; }
 ::selection { background: var(--selection); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 [hidden] { display: none !important; }
@@ -203,6 +203,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .quick-list:empty ~ *, .quick-box:has(.quick-list:empty) > input { border-bottom: 0; }
 .quick-list li > button { display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%; text-align: left; padding: .45rem .8rem; border-radius: 6px; }
 .quick-list li.selected > button, .quick-list li > button:hover { background: var(--seal-wash); color: var(--seal); }
+.quick-list li.selected > button { outline: 2px solid var(--brass-ink); outline-offset: -2px; }
 .quick-list .path { color: var(--ink-3); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 
@@ -214,7 +215,11 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .tab:hover { color: var(--ink); }
 .tab[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--seal); }
 .pane:not(.focused) .tab[aria-selected="true"] { border-bottom-color: var(--ink-3); }
-.tab.dirty .tab-name::after { content: " •"; color: var(--seal); }
+/* The dot is drawn, not said: the tab's name says "unsaved" (a browser
+   without alternative text for `content` keeps the first line). */
+.tab.dirty .tab-name::after { content: " •"; content: " •" / ""; color: var(--seal); }
+/* A note deleted or moved outside the app: its tab stays, crossed out. */
+.tab.gone .tab-name { text-decoration: line-through; }
 .tab-close { display: inline-flex; padding: .15rem; border-radius: 4px; color: var(--ink-3); opacity: 0; }
 .tab:hover .tab-close, .tab[aria-selected="true"] .tab-close { opacity: 1; }
 .tab-close:hover { background: var(--paper-3); color: var(--seal); }
@@ -260,7 +265,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .prop-input { font: inherit; color: var(--ink); background: none; border: 0; padding: .25rem .3rem; flex: 1 1 4rem; width: auto; min-width: 4rem; border-radius: 4px; }
 .prop-value:has(.prop-go) { flex-wrap: nowrap; }
 .prop-input:hover { background: var(--paper-3); }
-.prop-input:focus { outline: none; background: var(--paper); box-shadow: 0 0 0 1px var(--brass); }
+.prop-input:focus { outline: none; background: var(--paper); box-shadow: 0 0 0 1px var(--brass-ink); }
 .prop-input::placeholder { color: var(--ink-3); font-style: italic; }
 .prop-value input[type="checkbox"] { accent-color: var(--seal); width: 1rem; height: 1rem; margin: 0 .3rem; }
 .pill { display: inline-flex; align-items: center; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--hair); overflow: hidden; }
@@ -274,7 +279,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .pill-x:hover { color: var(--seal); }
 .prop-add { font: inherit; font-size: .8rem; background: none; border: 0; color: var(--ink); padding: .15rem .3rem; min-width: 5rem; flex: 1; }
 .prop-add::placeholder { color: var(--ink-3); }
-.prop-add:focus { outline: none; }
+.prop-add:focus { outline: none; border-radius: 4px; box-shadow: 0 0 0 1px var(--brass-ink); }
 .prop-remove { display: inline-flex; padding: .3rem; color: var(--ink-3); opacity: 0; border-radius: 4px; }
 .prop:hover .prop-remove, .prop:focus-within .prop-remove { opacity: 1; }
 .prop-remove:hover { color: var(--seal); background: var(--paper-3); }
@@ -419,6 +424,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .menu { position: fixed; z-index: 20; list-style: none; margin: 0; padding: .3rem; min-width: 14rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-size: .88rem; }
 .menu li > button { display: block; width: 100%; text-align: left; padding: .4rem .7rem; border-radius: 5px; }
 .menu li > button:hover, .menu li > button:focus-visible { background: var(--seal-wash); color: var(--seal); outline: none; }
+.menu li > button:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: -2px; }
 .menu li:last-child > button { color: var(--seal); }
 
 /* Rename in place, new note */
@@ -459,7 +465,7 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .editor .cm-searchMatch-selected { background: var(--selection); }
 .editor .cm-tooltip.cm-tooltip-autocomplete { background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-family: var(--ui); font-size: .88rem; }
 .editor .cm-tooltip-autocomplete ul li { padding: .3rem .6rem; }
-.editor .cm-tooltip-autocomplete ul li[aria-selected] { background: var(--seal-wash); color: var(--seal); }
+.editor .cm-tooltip-autocomplete ul li[aria-selected] { background: var(--seal-wash); color: var(--seal); outline: 2px solid var(--brass-ink); outline-offset: -2px; }
 .editor .cm-tooltip.cm-tooltip-autocomplete > ul { max-height: 18em; min-width: 22ch; max-width: 48ch; font-family: var(--ui); }
 .editor .cm-tooltip-autocomplete ul li { display: flex; align-items: center; gap: .5rem; line-height: 1.5; }
 .editor .cm-completionLabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -484,9 +490,11 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .side .drop, #tree-root.drop { outline: 2px solid var(--brass); outline-offset: -2px; border-radius: 6px; background: var(--brass-wash); }
 .editor .cm-completionDetail { color: var(--ink-3); font-style: normal; margin-left: .8em; font-size: .8em; }
 
-/* Callouts — Obsidian's, by kind */
+/* Callouts — Obsidian's, by kind. The kind's colour is the title's text:
+   4.5:1 or more on the callout's paper in every palette (light lightness
+   lowered for note, tip and warning; dark mode unchanged). */
 .callout { margin: 0 0 1em; padding: .6rem .9rem .5rem; border-radius: 6px; background: var(--paper-2); border-left: 3px solid var(--kind, var(--brass)); }
-.callout .callout-title { margin: 0 0 .3rem; font-family: var(--ui); font-weight: 600; font-size: .82em; letter-spacing: .04em; text-transform: uppercase; color: var(--kind, var(--brass)); }
+.callout .callout-title { margin: 0 0 .3rem; font-family: var(--ui); font-weight: 600; font-size: .82em; letter-spacing: .04em; text-transform: uppercase; color: var(--kind, var(--brass-ink)); }
 .callout > :last-child { margin-bottom: 0; }
 /* A foldable callout (`[!kind]+`, `[!kind]-`), as Obsidian shows it: the
  * title opens and closes it, a chevron says which. */
@@ -495,10 +503,18 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .callout.folded > .callout-title::after { transform: rotate(-45deg); }
 .callout.folded > .callout-title { margin-bottom: 0; }
 .callout.folded > :not(.callout-title) { display: none; }
-.callout[data-fold] > .callout-title:focus-visible { outline: 2px solid var(--kind, var(--brass)); outline-offset: 2px; border-radius: 3px; }
-.callout[data-callout="note"], .callout[data-callout="info"], .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: light-dark(oklch(52% 0.1 240), oklch(75% 0.1 240)); }
-.callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: light-dark(oklch(52% 0.12 150), oklch(75% 0.12 150)); }
-.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"], .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: light-dark(oklch(60% 0.14 70), oklch(78% 0.14 75)); }
+.callout[data-fold] > .callout-title:focus-visible { outline: 2px solid var(--kind, var(--brass-ink)); outline-offset: 2px; border-radius: 3px; }
+/* A title with a link in it has its own fold button, which carries the chevron. */
+.callout[data-fold] > .callout-title.has-fold::after { display: none; }
+.callout-fold { display: inline-flex; align-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; transform: rotate(90deg); transition: transform .18s var(--ease-out); }
+.callout.folded .callout-fold { transform: none; }
+.callout-fold:focus-visible { outline: 2px solid var(--kind, var(--brass-ink)); outline-offset: 2px; border-radius: 3px; }
+/* The reading view takes the focus when a link is followed from the
+   keyboard (Tab goes on from there); it draws no ring of its own. */
+.preview:focus { outline: none; }
+.callout[data-callout="note"], .callout[data-callout="info"], .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240)); }
+.callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150)); }
+.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"], .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75)); }
 .callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="bug"], .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { --kind: var(--seal); }
 .callout[data-callout="example"] { --kind: light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300)); }
 .callout[data-callout="quote"], .callout[data-callout="cite"] { --kind: var(--ink-3); }
@@ -515,6 +531,7 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 
 /* ---------- Workspaces bar ---------- */
 .spaces { display: flex; align-items: center; gap: .15rem; padding: .35rem .8rem 0; border-bottom: 1px solid var(--hair); background: var(--paper-2); min-height: 2.1rem; }
+.space-tabs { display: flex; align-items: center; gap: .15rem; min-width: 0; }
 .space-tab { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .3rem .35rem .7rem; font-size: .8rem; font-weight: 600; letter-spacing: .02em; color: var(--ink-3); border-radius: 6px 6px 0 0; }
 .space-tab:hover { color: var(--ink); }
 .space-tab[aria-selected="true"] { color: var(--seal); background: var(--paper); box-shadow: 0 1px 0 var(--paper); }
@@ -528,7 +545,7 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .tab-list { display: flex; align-items: flex-end; gap: .1rem; min-width: 0; overflow-x: auto; scrollbar-width: none; flex: 1; align-self: stretch; }
 .tab-list::-webkit-scrollbar { display: none; }
 .pane-tools { display: inline-flex; gap: .1rem; align-items: center; padding-bottom: .25rem; opacity: .55; }
-.pane:hover .pane-tools, .pane.focused .pane-tools { opacity: 1; }
+.pane:hover .pane-tools, .pane.focused .pane-tools, .pane-tools:focus-within { opacity: 1; }
 .pane-tools .icon { width: 14px; height: 14px; }
 .panes.maximized > .pane { flex: 1; }
 
@@ -562,6 +579,7 @@ body.dragging * { cursor: grabbing !important; }
 /* Image and text leaves */
 .image-box { flex: 1; min-height: 0; overflow: auto; display: grid; place-content: center; padding: 1rem; cursor: zoom-in; }
 .image-box.actual { place-content: start; cursor: zoom-out; }
+.image-box:focus-visible { outline-offset: -2px; }
 .image-view { max-width: 100%; max-height: calc(100vh - 8rem); border-radius: 4px; }
 .image-box.actual .image-view { max-width: none; max-height: none; }
 
@@ -577,9 +595,9 @@ body.dragging * { cursor: grabbing !important; }
 .folder-cols[hidden] { display: none; }
 .folder-cols .col { display: inline-flex; align-items: center; gap: .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); text-align: left; }
 .folder-cols .col:hover { color: var(--ink); }
-.folder-cols .col[aria-sort] { color: var(--seal); }
-.folder-cols .col[aria-sort="ascending"]::after { content: "↑"; }
-.folder-cols .col[aria-sort="descending"]::after { content: "↓"; }
+.folder-cols .col[data-sort] { color: var(--seal); }
+.folder-cols .col[data-sort="ascending"]::after { content: "↑"; }
+.folder-cols .col[data-sort="descending"]::after { content: "↓"; }
 .folder-cols .col-size, .folder-items.list .col-size { justify-content: flex-end; text-align: right; }
 .folder-items .main { display: flex; align-items: center; gap: .6rem; min-width: 0; }
 .folder-items .item .col { font-size: .8rem; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -591,7 +609,7 @@ body.dragging * { cursor: grabbing !important; }
 .leaf.drop { box-shadow: inset 0 0 0 2px var(--brass); }
 /* A web page as a tab: the bar is ours, the page is a native view laid over the host. */
 .web-bar { flex: none; display: flex; align-items: center; gap: .2rem; padding: .3rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); font-size: .82rem; }
-.web-address { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); padding: .25rem .6rem; background: var(--paper-2); border-radius: 999px; cursor: pointer; }
+.web-address { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--ink-2); padding: .25rem .6rem; background: var(--paper-2); border-radius: 999px; cursor: pointer; }
 .web-address:hover { color: var(--seal); }
 .web-toggle { font-size: .8rem; }
 .web-host { flex: 1; min-height: 0; background: var(--paper-2); }
@@ -612,6 +630,7 @@ body.dragging * { cursor: grabbing !important; }
 .slash-section { padding: .55rem .6rem .25rem; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .slash-item { display: flex; align-items: center; gap: .7rem; width: 100%; text-align: left; padding: .4rem .5rem; border-radius: 7px; color: var(--ink); }
 .slash-item.selected, .slash-item:hover { background: var(--seal-wash); }
+.slash-item.selected { outline: 2px solid var(--brass-ink); outline-offset: -2px; }
 .slash-item.selected .slash-title { color: var(--seal); }
 .slash-icon { flex: none; display: grid; place-content: center; width: 34px; height: 34px; border-radius: 7px; background: var(--paper-2); border: 1px solid var(--hair); color: var(--ink-2); }
 .slash-icon .icon { width: 17px; height: 17px; }
@@ -651,7 +670,7 @@ body.popout .ribbon, body.popout .side, body.popout #side-divider, body.popout .
 .embed-pdf .pdf { flex: 1; }
 .embed-note { position: relative; }
 .embed-edit { position: absolute; top: .35rem; right: .4rem; opacity: 0; }
-.embed-note:hover .embed-edit, .folder-note:hover .embed-edit { opacity: 1; }
+.embed-note:hover .embed-edit, .folder-note:hover .embed-edit, .embed-edit:focus-visible { opacity: 1; }
 /* The folder's own note at the top of the folder view */
 .folder-note { position: relative; margin: .2rem 0 1.2rem; }
 .folder-note-head { display: flex; align-items: center; gap: .5rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
@@ -664,14 +683,16 @@ body.popout .ribbon, body.popout .side, body.popout #side-divider, body.popout .
 .pdf-page { margin: 12px auto; position: relative; background: white; box-shadow: 0 1px 2px oklch(0% 0 0 / .12), 0 6px 20px -8px oklch(0% 0 0 / .3); }
 .pdf-page canvas { display: block; }
 .pdf-body { flex: 1; min-height: 0; position: relative; background: var(--paper-2); }
-.pdf-scroll { position: absolute; inset: 0; overflow: auto; outline: none; }
+.pdf-scroll { position: absolute; inset: 0; overflow: auto; }
+/* Focused, the pages show it inside their edge (a box around them clips outside). */
+.pdf-scroll:focus-visible { outline-offset: -2px; }
 .pdf-scroll .pdfViewer { padding: .6rem 0 3rem; }
 .pdf-scroll .pdfViewer .page { margin: 10px auto; box-shadow: 0 1px 2px oklch(0% 0 0 / .12), 0 6px 20px -8px oklch(0% 0 0 / .3); }
 ::highlight(verso-quote-1), ::highlight(verso-quote-2), ::highlight(verso-quote-3), ::highlight(verso-quote-4), ::highlight(verso-quote-5), ::highlight(verso-quote-6), ::highlight(verso-quote-7), ::highlight(verso-quote-8), ::highlight(verso-quote-9), ::highlight(verso-quote-10) { background-color: oklch(85% 0.17 90 / .5); }
 input.pdf-page { width: 3.2rem; font: inherit; text-align: center; padding: .15rem .2rem; border: 1px solid var(--hair); border-radius: 5px; background: var(--paper); color: var(--ink); -moz-appearance: textfield; }
 input.pdf-page::-webkit-inner-spin-button { display: none; }
 input.pdf-search { font: inherit; padding: .2rem .5rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); width: 14rem; }
-input.pdf-search:focus { outline: none; border-color: var(--brass); }
+input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .pdf-find .icon { color: var(--ink-3); margin-right: .2rem; }
 .pdf-search-info { color: var(--ink-3); margin-left: .4rem; white-space: nowrap; }
 .pdf-acts { margin-left: auto; }
@@ -753,7 +774,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .graph .node:focus-visible text.quiet { opacity: 1; }
 .graph-controls { flex: none; width: 15rem; padding: .8rem .9rem 1rem; border-left: 1px solid var(--hair); overflow: auto; display: flex; flex-direction: column; gap: .55rem; font-size: .82rem; color: var(--ink-2); }
 .graph-controls .graph-filter { font: inherit; padding: .35rem .6rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
-.graph-controls .graph-filter:focus { outline: none; border-color: var(--brass); }
+.graph-controls .graph-filter:focus { outline: none; border-color: var(--brass-ink); }
 .graph-field { display: grid; grid-template-columns: 1fr; gap: .2rem; }
 .graph-field select, .graph-field input[type="range"] { font: inherit; width: 100%; accent-color: var(--seal); }
 .graph-field select { padding: .25rem .4rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); }
@@ -815,7 +836,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .settings-box { display: flex; width: min(66rem, 94vw); height: min(44rem, 84vh); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -24px oklch(0% 0 0 / .45); overflow: hidden; }
 .settings-side { flex: none; width: 15rem; display: flex; flex-direction: column; gap: .6rem; padding: 1rem .8rem; background: var(--paper-2); border-right: 1px solid var(--hair); }
 .settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
-.settings-search:focus { outline: none; border-color: var(--brass); }
+.settings-search:focus { outline: none; border-color: var(--brass-ink); }
 .settings-nav { display: flex; flex-direction: column; gap: .1rem; }
 .settings-nav-item { display: flex; align-items: center; gap: .55rem; text-align: left; padding: .4rem .7rem; border-radius: 6px; font-size: .9rem; color: var(--ink-2); }
 .settings-nav-item .icon { width: 15px; height: 15px; color: var(--ink-3); }
@@ -838,7 +859,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 /* The checkbox covers the switch (clickable, focusable, at its size); its
    focus shows on the track, as the global ring would on a control. */
 .switch input { position: absolute; inset: 0; z-index: 1; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
-.switch input:focus-visible + .switch-track { outline: 2px solid var(--brass); outline-offset: 2px; }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
 .switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--hair); transition: background .15s; }
 .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 2px oklch(0% 0 0 / .3); transition: transform .15s var(--ease-out); }
 .switch input:checked + .switch-track { background: var(--seal); border-color: var(--seal); }

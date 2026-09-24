@@ -401,6 +401,59 @@ mod callouts_and_raw_html {
         assert!(html.contains(r#"data-callout="tip""#), "{html}");
     }
 
+    /// Spec Q5, `[OPEN]` for nesting: Obsidian's public documentation shows
+    /// a callout inside a callout, and the reading view draws it so,
+    /// provisionally; a plain quote inside a callout stays a quote.
+    #[test]
+    fn a_callout_inside_a_callout_is_drawn_as_one() {
+        let html = to_html(
+            "> [!question] Pode entrar?\n> Talvez.\n> > [!todo] Antes\n> > Falar com o barão.\n> > > [!example]\n> > > Fundo.\n",
+        );
+        assert_eq!(html.matches(r#"<div class="callout""#).count(), 3, "{html}");
+        for kind in ["question", "todo", "example"] {
+            assert!(
+                html.contains(&format!(r#"data-callout="{kind}""#)),
+                "{html}"
+            );
+        }
+        assert!(
+            html.contains(r#"<p class="callout-title">Antes</p>"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<p class="callout-title">Example</p>"#),
+            "{html}"
+        );
+        assert!(
+            !html.contains("[!todo]") && !html.contains("<blockquote>"),
+            "{html}"
+        );
+        assert_eq!(html.matches("</div>").count(), 3, "{html}");
+
+        let html = to_html("> [!note] Nota\n> > só uma citação\n");
+        assert!(
+            html.contains("<blockquote>\n<p>só uma citação</p>"),
+            "{html}"
+        );
+    }
+
+    /// A note that nests callouts without end draws the first
+    /// `MAX_NESTING` of them and keeps the rest as quotes.
+    #[test]
+    fn nesting_stops_at_the_cap() {
+        let depth = crate::callouts::MAX_NESTING + 8;
+        let source: String = (1..=depth)
+            .map(|k| format!("{}[!a]\n", "> ".repeat(k)))
+            .collect();
+        let html = to_html(&source);
+        assert_eq!(
+            html.matches(r#"<div class="callout""#).count(),
+            crate::callouts::MAX_NESTING,
+            "{html}"
+        );
+        assert_eq!(html.matches("<blockquote>").count(), 8, "{html}");
+    }
+
     /// Finding 13: a `> [!` without `]` and a `^[` without `]` each rescanned
     /// the rest of the document, so many of them took quadratic time.
     #[test]

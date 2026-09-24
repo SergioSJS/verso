@@ -4,6 +4,13 @@
 - Fonte: as mensagens do mantenedor de 2026-09-24, citadas abaixo;
   [0033](0033-pr-workflow.md), [0029](0029-guardrails-in-ci.md)
 - Status no briefing: não consta
+- Revisões: 2026-09-24 — o índice compartilhado da Decisão 6 mantido pelo
+  mantenedor, sobre `docs/reference/beta-config-decision.md`, com um ponto
+  para revê-lo (Consequências). 2026-09-24 — a Decisão 2 suspensa pelo
+  mantenedor até o fluxo inteiro existir — sync, a web, mobile: até lá uma
+  branch pode levar vários assuntos e chega à `main` num pull request grande,
+  ainda com um merge commit ([0033](0033-pr-workflow.md), no mesmo dia, com as
+  palavras do mantenedor).
 
 ## Contexto
 
@@ -30,7 +37,12 @@ modificações até gerar versão, considerando changelog inclusive"*.
 2. **Uma branch curta por assunto** (`feat/…`, `fix/…`, `docs/…`,
    `chore/…`), um pull request pequeno, mesclado com um **merge commit**, que
    guarda todos os commits e os hashes deles — os documentos citam commits por
-   hash. O mantenedor faz o merge; o merge é a aprovação.
+   hash. O mantenedor faz o merge; o merge é a aprovação. *(Até o fluxo
+   inteiro existir — sync, a web, mobile —, uma branch pode levar vários
+   assuntos e o pull request dela é grande, por decisão do mantenedor de
+   2026-09-24 ([0033](0033-pr-workflow.md), Consequências); uma branch curta
+   por assunto depois dele. O merge commit, e o merge do mantenedor como a
+   aprovação, não mudam.)*
 3. **As mudanças se acumulam na `main` até uma versão.** Uma mudança que o
    usuário vê acrescenta as suas linhas em "Não lançado" no `CHANGELOG.md` e
    no gêmeo pt-BR dele.
@@ -92,12 +104,22 @@ modificações até gerar versão, considerando changelog inclusive"*.
 - A primeira versão, quando o mantenedor pedir, é `0.2.0-beta.1`: o mês de uso
   real da Fase 2 roda num app instalado em vez de num build de
   desenvolvimento.
+- **O índice compartilhado é revisto num ponto**: antes que uma beta mude o
+  schema do índice enquanto uma versão de produção está instalada na mesma
+  máquina. Até lá os dois custos de compartilhar não podem acontecer — cada
+  app reconstruir o índice do outro a cada troca, e as consultas de um
+  falharem enquanto o outro reconstrói. Decidido pelo mantenedor em
+  2026-09-24, na sessão, mantendo a opção (a) de
+  `docs/reference/beta-config-decision.md`, que expõe os custos e as duas
+  outras opções.
 
 ## Alternativas descartadas
 
 - Uma branch de integração de vida longa mesclada como um pull request só — o
   que as Fases 1 e 2 fizeram; grande demais para ler e para explicar (a
-  condição de merge 3 da [0033](0033-pr-workflow.md)).
+  condição de merge 3 do [0033](0033-pr-workflow.md)). *(Em 2026-09-24 o
+  mantenedor fez dos pull requests grandes a regra até o fluxo inteiro
+  existir: Decisão 2.)*
 - Merges com squash ou rebase — os dois reescrevem os commits e quebram os
   hashes que os documentos citam.
 - Releases publicadas à mão a partir de um rascunho — a primeira proposta do

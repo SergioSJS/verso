@@ -46,9 +46,11 @@ assinatura.
 
 ## Pull requests
 
-- Pequeno, um assunto. Se o resumo precisa de um "e", provavelmente são dois
-  PRs. Uma branch curta por assunto, a partir da `main`, que é protegida e só
-  recebe pull requests ([ADR 0051](adr/0051-development-flow-and-releases.md)).
+- Até o fluxo inteiro existir — sync, web, mobile —, o trabalho vai em pull
+  requests grandes; pequenos, de um assunto, depois dele (decisão do
+  mantenedor de 2026-09-24, [ADR 0033](adr/0033-pr-workflow.md) e
+  [ADR 0051](adr/0051-development-flow-and-releases.md)). De todo jeito, uma
+  branch parte da `main`, que é protegida e só recebe pull requests.
 - Uma mudança que o usuário vê acrescenta a sua linha em "Não lançado" no
   [CHANGELOG.md](CHANGELOG.md) e no gêmeo em inglês.
 - Use o template em `.github/pull_request_template.md`, com as cinco seções
