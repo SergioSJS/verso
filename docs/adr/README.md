@@ -100,8 +100,9 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 
 ### Open questions raised in the Phase 0 review
 
-Source: [`../review/phase-0.md`](../review/phase-0.md). None has a decision;
-each one records what needs to be answered and when.
+Source: [`../review/phase-0.md`](../review/phase-0.md). Each began with no
+decision and records what needed to be answered and when; the last column
+says where each stands.
 
 | # | Title | When to decide |
 |---|---|---|

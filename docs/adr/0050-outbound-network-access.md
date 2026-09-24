@@ -24,8 +24,8 @@ Decided on 2026-09-23 by the maintainer, on the author's recommendation
 (`docs/review/phase-2.md` §6, item 5; the answer: *"a e b ok"*):
 
 1. **Verso asks the network only for addresses written in the user's notes, or
-   clicked by the user.** No telemetry, no update check, no server of its own,
-   and no third party in a site's place: a site's icon is asked of the site.
+   clicked by the user.** No telemetry, no server of its own, and no third
+   party in a site's place: a site's icon is asked of the site.
 2. **The four ways stay**: a web note's page, a clicked link (in a window of
    its own), a web note's icon, a remote image in a note.
 3. **A "load remote content" setting covers the two that need no click**: a
@@ -43,6 +43,8 @@ Decided on 2026-09-23 by the maintainer, on the author's recommendation
 
 - The core never reaches the network ([0026](0026-core-ui-contract-inviolable-rules.md));
   the window does only in the four ways above.
+- By the same principle, an update check — a request to a server of Verso's
+  — is not allowed; an updater would need a decision of its own.
 - The setting is a preference, not a boundary. The window's content security
   policy still allows `https:` images, and the setting is applied where the
   window cleans the core's HTML (`app/ui/src/sanitize.ts`) and where it draws a

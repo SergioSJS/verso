@@ -112,7 +112,7 @@ maintainer, who amended point 3 on 2026-09-23.
 | 6 | IMPORTANT | The inline-footnote rewrite detected code wrongly, both ways | **Fixed** in `7475c03`: inline footnotes are found on the parser's events, skipping code and math |
 | 7 | IMPORTANT | The render and the parser disagree on what a link is (`$[[x]]$`), against the render's own comment | **Fixed** in `7475c03`: the comment says exactly what differs; the parser's options are unchanged (spec Q15, section 6) |
 | 8 | IMPORTANT | `verso mcp`'s `read_note` of an empty note answered `bad_window` | **Fixed** in `9158f8b`: an empty note, with no window asked, answers an empty window. Test seen failing |
-| 9 | IMPORTANT | `verso <folder>` used a lexical rule: an existing directory named without `/` was "unknown command", a missing one "opening", and `verso open` defaulted to `.`, against [ADR 0042](../adr/0042-open-from-command-line.md) | **Fixed** in `896996a`, provisionally: a first argument that names an existing directory opens it, anything else is a usage error, and `verso open` needs its folder. Recorded in ADR 0042, whose rule stays `[OPEN]`. Tests seen failing |
+| 9 | IMPORTANT | `verso <folder>` used a lexical rule: an existing directory named without `/` was "unknown command", a missing one "opening", and `verso open` defaulted to `.`, against [ADR 0042](../adr/0042-open-from-command-line.md) | **Fixed** in `896996a`, provisionally: a first argument that names an existing directory opens it, anything else is a usage error, and `verso open` needs its folder. Recorded in ADR 0042, whose rule the maintainer decided as built on 2026-09-23 (section 6, item 3). Tests seen failing |
 | 10 | IMPORTANT | `FIXTURES_STRICT=1` on `main` fails while `fixtures/block/list-item` is still a draft, although the spec calls it approved | **Resolved** on 2026-09-23: the maintainer approved the fixture ("faça 8"); `66a64fe` turns its draft line into the approval, and the strict check passes (section 6, item 8) |
 | 11 | IMPORTANT | The CI bench job could not go red: no baseline for `ci-linux`, so the comparison exited 0 by construction | **Fixed** in `5e3d32a`: `--require-baseline` fails when the machine has no baseline, and the job on `main` passes it, so `main` is red until the `ci-linux` baseline is recorded (section 6, item 9; `docs/reference/bench-decision.md`, revision of 2026-09-23) |
 | 12 | IMPORTANT | A bench test compared single timing samples at 1.5× and failed about one run in twenty | **Fixed** in `d73c09f`: that step compares the index size alone. Two failures in 25 runs before, none in 25 after |
@@ -215,8 +215,11 @@ took 13 and 14. Each item carries its answer.
    editing). Each has its provisional line in the spec. **Answer:** accepted
    as following Obsidian — Q13 and Q25 closed; Q5, Q6, Q15 and Q24 decided for
    the reading view and the window; Q22 for the tags (spec v0.16, `80ad6b5`).
-   One premise did not hold: Obsidian nests callouts and the reading view does
-   not, so Q5's nesting stays open.
+   The premise did not hold everywhere: Obsidian nests callouts and the reading
+   view does not, so Q5's nesting stays open; the reading view did not fold
+   callouts either, which it now does (`5b7fc69`); and the window drops the
+   `<iframe>`, `<video>` and `<audio>` Obsidian shows, which stays open under
+   Q6.
 5. **The network** — [ADR 0049](../adr/0049-phase-2-scope-widened.md),
    Consequences: web notes, links clicked in the window (opened in a window of
    their own), web notes' icons asked of the site itself, and remote images
@@ -292,7 +295,8 @@ took 13 and 14. Each item carries its answer.
     Fable reached its usage limit. Whether a Fable reading follows is the
     maintainer's. **Answer:** "17 troque para Opus" — the readings stay with
     Opus 5.5 in place of Fable 5.1; the changes of these answers were read by
-    a fresh Opus 5.5 session (section 7).
+    a fresh Opus 5.5 session, whose findings and their resolution are in
+    section 7.
 18. **The author's additions to Phase 2** — ADR 0049 section 2, Proposed: the
     maintainer confirms or strikes each item. **Answer:** every item
     confirmed; ADR 0049 is Accepted.
@@ -412,4 +416,29 @@ part of spec Q5 is recorded as still open rather than taken as decided.
 All of this — the window's code, the Rust and the documents — was written by
 Opus 5.5, standing in for Fable 5.1 by the maintainer's decision, and read by
 a fresh Opus 5.5 session with the diff and the repository, as the answer to
-item 17 asks.
+item 17 asks. That reading found two BLOCKING: the committed TypeScript
+bindings no longer matched the generated ones after a doc comment changed
+(`bebd610`), and a note could still make the window fetch an image with remote
+content off, through a tab or a control character in the address, since the
+sanitizer checked the raw text while the URL parser drops them (`4379dff`,
+seen failing and then passing in a WebKit harness with a logging server). It
+found three IMPORTANT: the reading view did not fold callouts, so "follows
+Obsidian" did not hold for fold (now it folds, `5b7fc69`), nor for the
+`<iframe>`, `<video>` and `<audio>` Obsidian shows and the window drops
+(recorded open under Q6); `verso open` retried a refused folder with
+`--args`, which a running app ignores, and reported a typo as "opening"
+(`1fc5c79`: the CLI now says the folder is not there); and this section said
+the reading had happened before it had. And eleven MINOR — its headline said
+four IMPORTANT, one entry being a note. Fixed from the MINOR: the setting's
+reach (Live Preview's embeds, folder views, note windows, and no error with no
+folder open), a double click on "Page" that could add a tab, pasted images
+named with a character no link can reach (`ce983c7`), the handed-folder test
+now run on every platform (`baf2c1b`), comments still saying `[OPEN]`
+(`dc976c8`), and the documents' over-claims — ADR 0048's names (typed ones
+only) and a reason it gave the maintainer, ADR 0028's contract crate, ADR
+0035's second phrase table, ADR 0050's update check (a consequence now, not a
+decided item), ADR 0014's acceptance moved into its Decision without waiving
+the ADR each primitive asks, the ADR index's introduction. Two notes stand as
+recorded: the npm license gate, recommended as a PR of its own, rides in this
+one; and CI's jobs were renamed and one removed — this plan gives the private
+repository no branch protection, so no required check names them.

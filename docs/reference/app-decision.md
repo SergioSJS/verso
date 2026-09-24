@@ -204,7 +204,9 @@ What stands between it and the rest of the machine:
   allowlist: no script, style, frame, object, form or event attribute; links
   and sources only http(s), mail, same-page anchors, `data:` images and what
   the window itself resolves. The window's own policy adds no inline script, `object-src
-  'none'`, `base-uri 'none'` and `form-action 'none'`.
+  'none'`, `base-uri 'none'` and `form-action 'none'`. The allowlist drops
+  what Obsidian shows in a note — `<iframe>`, `<video>`, `<audio>` —; whether
+  it should let them through is still open (spec Q6).
 - **The network.** Nothing in the core reaches it. The window does in four
   ways: a web note loads its page in a web view; an http(s) link clicked in the
   window opens its page in a window of its own; a web note's icon is asked of
@@ -249,8 +251,10 @@ first, and where each now lives:
   ([ADR 0048](../adr/0048-file-operations-in-ui.md), Accepted);
 - what the reading view renders — tables, footnotes, math, highlight,
   callouts, comments, body tags: as built (spec v0.16, Q5, Q6, Q13, Q15),
-  except callouts nested in callouts, still open because Obsidian nests them
-  and the reading view does not;
+  with a foldable callout now opening and closing from its title (`5b7fc69`);
+  except callouts nested in callouts, and the `<iframe>`, `<video>` and
+  `<audio>` the window drops, still open because Obsidian shows them and the
+  reading view does not;
 - that a file which is not UTF-8 is not opened for editing (spec Q25,
   closed);
 - the four ways the window reaches the network, with a setting over the two

@@ -60,9 +60,10 @@ Besides the five crates of the core and `verso-bench`, the workspace has two
 more, and eight members in all:
 
 - `crates/verso-contract` — the contract's types, plain data with `serde` and
-  `specta` and no IO, shared by the core, the host and the generated
-  TypeScript ([0026](0026-core-ui-contract-inviolable-rules.md) rule 3,
-  [0038](0038-ts-type-generation.md)).
+  `specta` and no IO, shared by the host and the generated TypeScript
+  ([0026](0026-core-ui-contract-inviolable-rules.md) rule 3,
+  [0038](0038-ts-type-generation.md)); the core keeps its own types, which
+  the host maps onto these.
 - `app/src-tauri` — the Phase 2 desktop host. It reaches the notes only
   through `verso-core`, touches no file of the open folder (rule 5), and has
   no `clippy.toml` of its own, so the workspace's `std::fs` lint applies to it

@@ -24,9 +24,8 @@ Decidido em 2026-09-23 pelo mantenedor, sobre a recomendação do autor
 (`docs/review/phase-2.md` §6, item 5; a resposta: *"a e b ok"*):
 
 1. **O Verso só pede à rede endereços escritos nas notas do usuário, ou
-   clicados pelo usuário.** Sem telemetria, sem checagem de atualização, sem
-   servidor próprio, e sem terceiro no lugar de um site: o ícone de um site é
-   pedido ao site.
+   clicados pelo usuário.** Sem telemetria, sem servidor próprio, e sem
+   terceiro no lugar de um site: o ícone de um site é pedido ao site.
 2. **Os quatro jeitos ficam**: a página de uma nota web, um link clicado (numa
    janela própria), o ícone de uma nota web, uma imagem remota numa nota.
 3. **Um ajuste "carregar conteúdo remoto" cobre os dois que não precisam de
@@ -44,6 +43,9 @@ Decidido em 2026-09-23 pelo mantenedor, sobre a recomendação do autor
 
 - O core nunca acessa a rede ([0026](0026-core-ui-contract-inviolable-rules.md));
   a janela só acessa pelos quatro jeitos acima.
+- Pelo mesmo princípio, uma checagem de atualização — um pedido a um servidor
+  do Verso — não é permitida; um atualizador precisaria de uma decisão
+  própria.
 - O ajuste é uma preferência, não uma fronteira. A política de segurança de
   conteúdo da janela continua permitindo imagens `https:`, e o ajuste é
   aplicado onde a janela limpa o HTML do core (`app/ui/src/sanitize.ts`) e

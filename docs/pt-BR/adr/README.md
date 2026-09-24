@@ -100,8 +100,9 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 
 ### Questões abertas levantadas na revisão da Fase 0
 
-Fonte: [`../review/phase-0.md`](../review/phase-0.md). Nenhuma tem decisão; cada
-uma registra o que precisa ser respondido e quando.
+Fonte: [`../review/phase-0.md`](../review/phase-0.md). Cada uma começou sem
+decisão e registra o que precisava ser respondido e quando; a última coluna diz
+onde cada uma está.
 
 | # | Título | Quando decidir |
 |---|---|---|

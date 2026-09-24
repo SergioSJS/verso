@@ -29,7 +29,8 @@ resumo: renomear e mover pela opção (b), um plano de reescrita de links
 mostrado como um diff por nota e aplicado nota a nota, **sem transação
 lógica**; excluir para `.trash/` depois de uma confirmação; criar recusado
 quando o nome está ocupado; um rename que só muda a caixa permitido onde o
-volume ignora a caixa; um nome que nenhum link alcança recusado pela janela;
+volume ignora a caixa; um nome digitado que nenhum link alcança recusado pela
+janela;
 volumes sem hard links permitidos, com aviso; um placeholder sozinho nem
 renomeado nem excluído.
 
@@ -119,16 +120,20 @@ acima). É o código como ficou depois da leitura da Opus do branch da Fase 2
 - **Nomes que um link não comporta.** O core aceita nomes de nota e de pasta
   com `[`, `]`, `|`, `#` ou `^`, que nenhum `[[…]]` consegue nomear; renomear
   para um nome assim não escreve link nenhum que seria lido como outro alvo, e
-  diz isso. A janela não dá um nome assim ao que cria ou renomeia: recusa e
-  diz por quê (`7d516f5`, escolha do mantenedor de 2026-09-23). Um arquivo que
-  já tem um nome assim abre como qualquer outro, e o core continua aceitando
-  esses nomes para os outros clientes.
+  diz isso. A janela recusa um nome assim quando o usuário o digita — ao criar
+  uma nota ou uma pasta, ao renomear — e diz por quê (`7d516f5`, escolha do
+  mantenedor de 2026-09-23). Um nome que a própria janela faz não é conferido
+  — uma duplicata, um arquivo solto na árvore, as pastas que os ajustes nomeiam
+  —, a não ser o de uma imagem colada ou solta, que perde esses caracteres para
+  o embed dela a alcançar (`ce983c7`). Um arquivo que já tem um nome assim abre
+  como qualquer outro, e o core continua aceitando esses nomes para os outros
+  clientes.
 - **Volumes sem hard links** (exFAT e FAT em unidades removíveis, alguns
   sistemas de arquivos de rede e de nuvem): criar ou mover dá o nome ao
   arquivo por um rename depois de uma conferência de última hora, em vez de um
-  link, e diz que a proteção foi mais fraca. Permitido, com esse aviso:
-  recusar deixaria o Verso inútil numa unidade removível (o mantenedor,
-  2026-09-23).
+  link, e diz que a proteção foi mais fraca. Permitido, com esse aviso, pelo
+  mantenedor em 2026-09-23 — sobre a recomendação de que recusar deixaria o
+  Verso inútil numa unidade removível.
 - **Placeholders.** Um placeholder sozinho não pode ser renomeado nem excluído,
   porque o conteúdo está na nuvem; uma pasta com placeholders muda de lugar e
   vai para a lixeira inteira.

@@ -614,8 +614,10 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   **Decidido em 2026-09-23 pelo mantenedor, para a visualização de leitura**
   (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*), como o código faz. A visualização de leitura mostra como
   callout uma citação cuja primeira linha abre com `[!tipo]`,
-  `[!tipo]+` ou `[!tipo]-`, para qualquer tipo, em minúsculas; `+` e `-` viram
-  dobra; sem título, o nome do tipo, com inicial maiúscula, é o título; uma
+  `[!tipo]+` ou `[!tipo]-`, para qualquer tipo, em minúsculas; `+` e `-` o
+  tornam recolhível pelo título, e `-` o começa fechado, como a documentação do
+  Obsidian mostra — desde `5b7fc69`: antes a dobra só era marcada e nada agia
+  sobre ela, o que a leitura da Opus das respostas achou; sem título, o nome do tipo, com inicial maiúscula, é o título; uma
   citação aninhada dentro de um callout continua citação
   (`crates/verso-dialect/src/callouts.rs`). O parser que alimenta o índice não
   mudou. **O aninhamento continua `[ABERTO]`**: a documentação pública do
@@ -624,12 +626,14 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   que a visualização de leitura segue o Obsidian, o que não vale para o
   aninhamento, então o aninhamento não é tomado como decidido.
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
-  `[ABERTO]` para o índice; `DECIDIDA` para a visualização de leitura em
-  2026-09-23. Bloco indentado por 4 espaços, HTML embutido, `%%comentário%%`,
+  `[ABERTO]` para o índice e para HTML embutido; os comentários na
+  visualização de leitura `DECIDIDOS` em 2026-09-23. Bloco indentado por 4
+  espaços, HTML embutido, `%%comentário%%`,
   link dentro de URL (seção 5.9).
 
   **Decidido em 2026-09-23 pelo mantenedor, para a visualização de leitura e a
-  janela** (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*), como o código faz. O parser que alimenta o índice
+  janela** (`docs/review/phase-2.md` §6, item 4; a resposta: *"a e b ok"*), como o código faz — menos o HTML embutido que o
+  Obsidian mostra e a janela descarta, abaixo. O parser que alimenta o índice
   não mudou, então se um `[[…]]` dentro de um comentário, de HTML embutido ou de
   um bloco indentado é link continua sendo o que a seção 5.9 diz. O que mudou é
   o que a visualização de leitura mostra: `%%…%%` sai dela, na linha ou
@@ -640,7 +644,12 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   (scripts, estilos, frames, formulários e atributos de evento saem), já que
   uma nota de uma pasta compartilhada é entrada não confiável
   ([ADR 0045](../adr/0045-server-and-mcp-security.md)). O que o índice conta
-  como link nesses contextos continua `[ABERTO]`.
+  como link nesses contextos continua `[ABERTO]`. Também continua o HTML
+  embutido que a lista de permissões descarta e a documentação pública do
+  Obsidian mostra numa nota — `<iframe>`, `<video>`, `<audio>`: a premissa
+  apresentada ao mantenedor, de que a visualização de leitura segue o
+  Obsidian, não vale ali (a leitura da Opus das respostas); a lista de
+  permissões fica como está enquanto isso.
 - **Q7. Normalização Unicode na comparação de nomes.** `[ABERTO]`
   NFC × NFD. O APFS (macOS, plataforma inicial) preserva a forma recebida e faz
   busca insensível à normalização; HFS+ forçava NFD; Linux compara bytes. Um
@@ -993,4 +1002,4 @@ ser escolhido.
 | v0.13 | 2026-09-23 | Fatos provisórios registrados em Q12, Q13, Q15 e Q16, vindos do código da branch da Fase 2: onde o código se afasta do ponto 3 da Q12 ("sob" a pasta de origem onde o ponto 3 diz "na", o que o mantenedor ainda não resolveu), tags no corpo, as extensões de Markdown e quebras de linha que a visualização de leitura renderiza, e os arquivos que não são nota. A linha da Q14 sobre `[[#Heading]]` marcada como superada pelo ponto 1 da Q12. Nenhuma questão fechada |
 | v0.14 | 2026-09-23 | Fatos provisórios em Q6, Q12, Q13, Q15, Q16, Q24 e Q25 trazidos até o código depois da leitura da Opus do branch da Fase 2: comentários escondidos e HTML embutido sanitizado na visualização de leitura, uma regra de tag só para o índice e o leitor, embeds resolvidos pela Q12 a partir da nota, a fronteira do frontmatter da janela, arquivos que não são UTF-8 não abertos para edição. Nenhuma questão fechada |
 | v0.15 | 2026-09-23 | **Ponto 3 da Q12 emendado pelo mantenedor**: um nome solto prefere um candidato sob a pasta da nota de origem, em qualquer profundidade, como o Obsidian 1.13.7 faz (a terceira observação de `docs/reference/index-decision.md` §4.1); o índice já fazia, e embeds de arquivos agora fazem também. A Q12 continua fechada |
-| v0.16 | 2026-09-23 | As respostas do mantenedor sobre a revisão da Fase 2 (`docs/review/phase-2.md` §6, itens 4 e 20): **Q13 e Q25 fechadas** como o código faz; Q5 (tipos, dobra, título), Q6, Q15 e Q24 decididas para a visualização de leitura e a janela, com a parte do índice e o resto ainda abertos — o aninhamento da Q5 continua aberto porque a visualização de leitura não segue o Obsidian ali; Q22 decidida para o charset e a caixa das tags; **a ordem do ponto 2 da Q12 dita**: um caminho a partir da raiz primeiro, depois relativo à pasta da origem, e `./` ou `../` só relativo, como o Obsidian 1.13.7 faz. Duas questões fechadas, cinco em parte |
+| v0.16 | 2026-09-23 | As respostas do mantenedor sobre a revisão da Fase 2 (`docs/review/phase-2.md` §6, itens 4 e 20): **Q13 e Q25 fechadas** como o código faz; Q5 (tipos, dobra — sobre a qual a visualização de leitura agora age, `5b7fc69` — e título), Q6 (comentários), Q15 e Q24 decididas para a visualização de leitura e a janela, com a parte do índice e o resto ainda abertos — o aninhamento da Q5 e os `<iframe>`, `<video>` e `<audio>` da Q6 continuam abertos porque a visualização de leitura não segue o Obsidian ali; Q22 decidida para o charset e a caixa das tags; **a ordem do ponto 2 da Q12 dita**: um caminho a partir da raiz primeiro, depois relativo à pasta da origem, e `./` ou `../` só relativo, como o Obsidian 1.13.7 faz. Duas questões fechadas, cinco em parte |
