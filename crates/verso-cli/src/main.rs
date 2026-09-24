@@ -305,7 +305,9 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
 
 /// The installed app's name: "Verso", or what the build was given — a beta
 /// release builds its command line with `VERSO_APP_NAME=Verso Beta`, so that
-/// `verso <folder>` opens the app of its own channel (ADR 0051).
+/// `verso <folder>` opens the app of its own channel (ADR 0051). Only macOS
+/// opens an installed app by name.
+#[cfg(target_os = "macos")]
 const APP_NAME: &str = match option_env!("VERSO_APP_NAME") {
     Some(name) => name,
     None => "Verso",
