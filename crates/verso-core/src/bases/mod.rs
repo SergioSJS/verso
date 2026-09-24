@@ -552,7 +552,8 @@ fn run_with(base: &Base, query: &BaseQuery, facts: &Facts<'_>, budget: u64) -> B
             problems.add(ProblemKind::Expression, format!("formula.{n}: {e}"));
         }
     }
-    let now = query.now_ms + i64::from(query.offset_minutes) * 60_000;
+    let now =
+        query.now_ms.clamp(-time::MAX_MS, time::MAX_MS) + i64::from(query.offset_minutes) * 60_000;
     let env = Env::new(
         facts,
         &formulas,
@@ -597,20 +598,15 @@ fn run_with(base: &Base, query: &BaseQuery, facts: &Facts<'_>, budget: u64) -> B
     order.sort_by(|&a, &b| {
         let mut o = std::cmp::Ordering::Equal;
         if let (Some(Some(x)), Some(Some(y))) = (group_values.get(a), group_values.get(b)) {
-            o = key_order(x, y, lang);
-            if view.group_by.as_ref().is_some_and(|g| g.descending) && !is_null(x) && !is_null(y) {
-                o = o.reverse();
-            }
+            let descending = view.group_by.as_ref().is_some_and(|g| g.descending);
+            o = key_order(x, y, lang, descending);
         }
         for (k, s) in view.sort.iter().enumerate() {
             if o.is_ne() {
                 break;
             }
             let (x, y) = (&sort_values[a][k], &sort_values[b][k]);
-            o = value::sort_order(x, y, lang);
-            if s.descending && !is_null(x) && !is_null(y) {
-                o = o.reverse();
-            }
+            o = key_order(x, y, lang, s.descending);
         }
         o.then_with(|| {
             value::natural(
@@ -750,12 +746,14 @@ fn is_null(v: &V) -> bool {
     matches!(v, V::Null) || matches!(v, V::Str(s) if s.is_empty())
 }
 
-/// The order of groups: empty values last, whatever the direction.
-fn key_order(a: &V, b: &V, lang: &str) -> std::cmp::Ordering {
+/// The order of groups and of sorted rows: empty values last, whatever the
+/// direction — an order with no exception, as sorting needs one.
+fn key_order(a: &V, b: &V, lang: &str, descending: bool) -> std::cmp::Ordering {
     match (is_null(a), is_null(b)) {
         (true, true) => std::cmp::Ordering::Equal,
         (true, false) => std::cmp::Ordering::Greater,
         (false, true) => std::cmp::Ordering::Less,
+        (false, false) if descending => value::sort_order(b, a, lang),
         (false, false) => value::sort_order(a, b, lang),
     }
 }
@@ -770,6 +768,22 @@ fn summary(
     problems: &mut Problems,
     resolve: &mut dyn FnMut(&str, &str) -> Option<String>,
 ) -> Cell {
+    // A summary of the base's own comes first: it may take a default's name.
+    if let Some((_, parsed)) = custom.iter().find(|(n, _)| n == name) {
+        return match parsed {
+            Ok(expr) => {
+                let locals = vec![("values", V::List(values))];
+                match env.eval(expr, 0, &locals) {
+                    Ok(v) => cell(&v, resolve),
+                    Err(e) => error_cell(&e),
+                }
+            }
+            Err(e) => {
+                problems.add(ProblemKind::Expression, format!("summaries.{name}: {e}"));
+                Cell::Empty
+            }
+        };
+    }
     let nums: Vec<f64> = values
         .iter()
         .filter(|v| matches!(v, V::Num(_)))
@@ -829,23 +843,10 @@ fn summary(
             }
             count(seen.len())
         }
-        other => match custom.iter().find(|(n, _)| n == other) {
-            Some((_, Ok(expr))) => {
-                let locals = vec![("values", V::List(values))];
-                match env.eval(expr, 0, &locals) {
-                    Ok(v) => cell(&v, resolve),
-                    Err(e) => error_cell(&e),
-                }
-            }
-            Some((_, Err(e))) => {
-                problems.add(ProblemKind::Expression, format!("summaries.{other}: {e}"));
-                Cell::Empty
-            }
-            None => {
-                problems.add(ProblemKind::Shape, format!("summaries: {other}"));
-                Cell::Empty
-            }
-        },
+        other => {
+            problems.add(ProblemKind::Shape, format!("summaries: {other}"));
+            Cell::Empty
+        }
     }
 }
 

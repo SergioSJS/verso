@@ -9,8 +9,12 @@
 //! shows, never a result made up.
 //!
 //! Every step of an evaluation is counted against the query's budget, and
-//! a text grows to [`MAX_TEXT`] at most: a base comes from a file of the
-//! folder, which anyone may have written.
+//! so is every value it makes or copies — a step per element and per
+//! [`BYTES_PER_STEP`] bytes of text — so that memory grows no faster than
+//! the budget allows. A text grows to [`MAX_TEXT`] at most, a list to
+//! [`MAX_LIST`], a value nests [`MAX_NESTING`] deep and the evaluation
+//! recurses [`MAX_DEPTH`] deep, formulas calling formulas included: a base
+//! comes from a file of the folder, which anyone may have written.
 
 use std::cell::{Cell as StdCell, RefCell};
 use std::collections::HashMap;
@@ -24,6 +28,18 @@ use super::{EvalError, EvalErrorKind, Facts};
 
 /// The longest text an expression may build.
 pub(crate) const MAX_TEXT: usize = 1 << 20;
+
+/// The longest list an expression may build.
+pub(crate) const MAX_LIST: usize = 1 << 20;
+
+/// How deep a value may nest, a list in a list in a list.
+const MAX_NESTING: usize = 100;
+
+/// How deep an evaluation may recurse, on the thread's own stack.
+const MAX_DEPTH: usize = 160;
+
+/// Bytes of text made or copied per step of the budget.
+const BYTES_PER_STEP: usize = 16;
 
 type R = Result<V, EvalError>;
 
@@ -44,6 +60,8 @@ pub(crate) struct Env<'a> {
     active: RefCell<Vec<(usize, usize)>>,
     /// Whether the budget ran out: every later step fails at once.
     pub exhausted: StdCell<bool>,
+    /// How deep the evaluation is now.
+    depth: StdCell<usize>,
 }
 
 /// Names bound by a list method's argument (`value`, `index`, `acc`) or a
@@ -73,17 +91,71 @@ impl<'a> Env<'a> {
             memo: RefCell::new(HashMap::new()),
             active: RefCell::new(Vec::new()),
             exhausted: StdCell::new(false),
+            depth: StdCell::new(0),
         }
     }
 
     fn step(&self) -> Result<(), EvalError> {
+        self.charge(1)
+    }
+
+    /// Takes `units` from the budget; once it is spent, every later step
+    /// fails at once.
+    fn charge(&self, units: usize) -> Result<(), EvalError> {
         let left = self.budget.get();
-        if left == 0 {
+        let units = units as u64;
+        if left < units {
+            self.budget.set(0);
             self.exhausted.set(true);
             return Err(err(EvalErrorKind::Budget, ""));
         }
-        self.budget.set(left - 1);
+        self.budget.set(left - units);
         Ok(())
+    }
+
+    /// The budget's error, once a comparison — which cannot fail — spent it.
+    fn spent(&self) -> Result<(), EvalError> {
+        if self.exhausted.get() {
+            return Err(err(EvalErrorKind::Budget, ""));
+        }
+        Ok(())
+    }
+
+    /// Charges a value just made or copied, and refuses one too long or
+    /// nested too deep.
+    fn weigh(&self, v: &V, nesting: usize) -> Result<(), EvalError> {
+        let text = |s: &str| s.len() / BYTES_PER_STEP;
+        match v {
+            V::Str(s) | V::File(s) | V::Image(s) | V::Icon(s) | V::Html(s) => self.charge(text(s)),
+            V::Regex(p, f) => self.charge(text(p) + text(f)),
+            V::Link {
+                target,
+                display,
+                from,
+            } => self.charge(text(target) + text(display.as_deref().unwrap_or("")) + text(from)),
+            V::List(items) => {
+                self.nest(nesting, items.len())?;
+                items.iter().try_for_each(|i| self.weigh(i, nesting + 1))
+            }
+            V::Obj(entries) => {
+                self.nest(nesting, entries.len())?;
+                entries.iter().try_for_each(|(k, v)| {
+                    self.charge(text(k))?;
+                    self.weigh(v, nesting + 1)
+                })
+            }
+            V::Null | V::Bool(_) | V::Num(_) | V::Date(..) | V::Dur(_) => Ok(()),
+        }
+    }
+
+    fn nest(&self, nesting: usize, len: usize) -> Result<(), EvalError> {
+        if nesting >= MAX_NESTING {
+            return Err(err(EvalErrorKind::TooLarge, "nesting"));
+        }
+        if len > MAX_LIST {
+            return Err(err(EvalErrorKind::TooLarge, "list"));
+        }
+        self.charge(len)
     }
 
     fn random(&self) -> f64 {
@@ -103,15 +175,17 @@ impl<'a> Env<'a> {
     /// A property id as `order`, `sort` and `groupBy` write it: `file.x`,
     /// `formula.x`, `note.x`, or a bare note property.
     pub(crate) fn property(&self, id: &str, row: usize) -> R {
-        if let Some(field) = id.strip_prefix("file.") {
+        let v = if let Some(field) = id.strip_prefix("file.") {
             let path = self.path(row).to_owned();
-            return self.file_field(&path, field);
-        }
-        if let Some(name) = id.strip_prefix("formula.") {
-            return self.formula(row, name);
-        }
-        let name = id.strip_prefix("note.").unwrap_or(id);
-        Ok(self.note_property(self.path(row), name))
+            self.file_field(&path, field)?
+        } else if let Some(name) = id.strip_prefix("formula.") {
+            self.formula(row, name)?
+        } else {
+            let name = id.strip_prefix("note.").unwrap_or(id);
+            self.note_property(self.path(row), name)
+        };
+        self.weigh(&v, 0)?;
+        Ok(v)
     }
 
     /// The value of the formula `name` for the file `row`.
@@ -306,6 +380,19 @@ impl<'a> Env<'a> {
 
     pub(crate) fn eval(&self, e: &Expr, row: usize, locals: &Locals) -> R {
         self.step()?;
+        let depth = self.depth.get();
+        if depth >= MAX_DEPTH {
+            return Err(err(EvalErrorKind::TooLarge, "depth"));
+        }
+        self.depth.set(depth + 1);
+        let v = self.evaluate(e, row, locals);
+        self.depth.set(depth);
+        let v = v?;
+        self.weigh(&v, 0)?;
+        Ok(v)
+    }
+
+    fn evaluate(&self, e: &Expr, row: usize, locals: &Locals) -> R {
         match e {
             Expr::Null => Ok(V::Null),
             Expr::Bool(b) => Ok(V::Bool(*b)),
@@ -344,9 +431,12 @@ impl<'a> Env<'a> {
                     (V::List(items), V::Num(n)) => index_of(items.len(), *n)
                         .and_then(|i| items.get(i).cloned())
                         .unwrap_or(V::Null),
-                    (V::Str(s), V::Num(n)) => index_of(s.chars().count(), *n)
-                        .and_then(|i| s.chars().nth(i))
-                        .map_or(V::Null, |c| V::Str(c.to_string())),
+                    (V::Str(s), V::Num(n)) => {
+                        self.charge(s.len() / BYTES_PER_STEP)?;
+                        index_of(s.chars().count(), *n)
+                            .and_then(|i| s.chars().nth(i))
+                            .map_or(V::Null, |c| V::Str(c.to_string()))
+                    }
                     (_, V::Str(name)) => self.member(&t, name)?,
                     _ => V::Null,
                 })
@@ -421,7 +511,10 @@ impl<'a> Env<'a> {
     /// date, an object's key, a file's field.
     fn member(&self, t: &V, name: &str) -> R {
         Ok(match (t, name) {
-            (V::Str(s), "length") => V::Num(s.chars().count() as f64),
+            (V::Str(s), "length") => {
+                self.charge(s.len() / BYTES_PER_STEP)?;
+                V::Num(s.chars().count() as f64)
+            }
             (V::List(l), "length") => V::Num(l.len() as f64),
             (V::Date(ms, _), field) => {
                 let p = time::parts(*ms);
@@ -692,6 +785,8 @@ impl<'a> Env<'a> {
     }
 
     fn string_method(&self, s: &str, name: &str, args: &[Expr], row: usize, locals: &Locals) -> R {
+        // Every method here reads the text through once, at least.
+        self.charge(s.len() / BYTES_PER_STEP)?;
         let text_args = |me: &Self| -> Result<Vec<String>, EvalError> {
             Ok(me
                 .all_args(args, row, locals)?
@@ -750,11 +845,15 @@ impl<'a> Env<'a> {
                     if pattern.is_empty() {
                         return Ok(V::Str(s.to_owned()));
                     }
-                    let out = s.replace(&pattern, &with);
-                    if out.len() > MAX_TEXT {
+                    // Measured before it is made: a short pattern and a
+                    // long replacement multiply.
+                    let hits = s.matches(pattern.as_str()).count();
+                    let len = (s.len() - hits * pattern.len())
+                        .saturating_add(hits.saturating_mul(with.len()));
+                    if len > MAX_TEXT {
                         return Err(err(EvalErrorKind::TooLarge, "replace"));
                     }
-                    Ok(V::Str(out))
+                    Ok(V::Str(s.replace(&pattern, &with)))
                 }
             },
             "split" => match self.arg(args, 0, row, locals)? {
@@ -843,55 +942,76 @@ impl<'a> Env<'a> {
         match name {
             "contains" => {
                 let v = self.arg(args, 0, row, locals)?;
-                Ok(V::Bool(items.iter().any(|i| equal(i, &v))))
+                let found = items.iter().any(|i| equal(i, &v));
+                self.spent()?;
+                Ok(V::Bool(found))
             }
             "containsAll" => {
                 let wanted = self.all_args(args, row, locals)?;
-                Ok(V::Bool(
-                    wanted.iter().all(|w| items.iter().any(|i| equal(i, w))),
-                ))
+                let found = wanted.iter().all(|w| items.iter().any(|i| equal(i, w)));
+                self.spent()?;
+                Ok(V::Bool(found))
             }
             "containsAny" => {
                 let wanted = self.all_args(args, row, locals)?;
-                Ok(V::Bool(
-                    wanted.iter().any(|w| items.iter().any(|i| equal(i, w))),
-                ))
+                let found = wanted.iter().any(|w| items.iter().any(|i| equal(i, w)));
+                self.spent()?;
+                Ok(V::Bool(found))
             }
             "join" => {
                 let sep = match self.arg(args, 0, row, locals)? {
                     V::Null => ",".to_owned(),
                     v => v.text(self.lang),
                 };
-                let out = items
-                    .iter()
-                    .map(|i| i.text(self.lang))
-                    .collect::<Vec<_>>()
-                    .join(&sep);
-                if out.len() > MAX_TEXT {
-                    return Err(err(EvalErrorKind::TooLarge, "join"));
+                // Grown a piece at a time and stopped at the limit: a long
+                // separator times a long list is never made.
+                let mut out = String::new();
+                for (k, i) in items.iter().enumerate() {
+                    if k > 0 {
+                        out.push_str(&sep);
+                    }
+                    out.push_str(&i.text(self.lang));
+                    if out.len() > MAX_TEXT {
+                        return Err(err(EvalErrorKind::TooLarge, "join"));
+                    }
                 }
                 Ok(V::Str(out))
             }
             "reverse" => Ok(V::List(items.iter().rev().cloned().collect())),
-            "flat" => Ok(V::List(
-                items
+            "flat" => {
+                let len: usize = items
                     .iter()
-                    .flat_map(|i| match i {
-                        V::List(inner) => inner.clone(),
-                        other => vec![other.clone()],
+                    .map(|i| match i {
+                        V::List(inner) => inner.len(),
+                        _ => 1,
                     })
-                    .collect(),
-            )),
+                    .sum();
+                if len > MAX_LIST {
+                    return Err(err(EvalErrorKind::TooLarge, "flat"));
+                }
+                Ok(V::List(
+                    items
+                        .iter()
+                        .flat_map(|i| match i {
+                            V::List(inner) => inner.clone(),
+                            other => vec![other.clone()],
+                        })
+                        .collect(),
+                ))
+            }
             "unique" => {
                 let mut out: Vec<V> = Vec::new();
                 for i in items {
                     if !out.iter().any(|o| equal(o, i)) {
                         out.push(i.clone());
                     }
+                    self.spent()?;
                 }
                 Ok(V::List(out))
             }
             "sort" => {
+                let n = items.len();
+                self.charge(n * n.max(2).ilog2() as usize)?;
                 let mut out = items.to_vec();
                 out.sort_by(|a, b| value::sort_order(a, b, self.lang));
                 Ok(V::List(out))
@@ -904,9 +1024,14 @@ impl<'a> Env<'a> {
                 let Some(expr) = args.first() else {
                     return Err(err(EvalErrorKind::Arguments, name));
                 };
+                // The names from outside, copied once for the whole list.
+                locals.iter().try_for_each(|(_, v)| self.weigh(v, 0))?;
+                let mut scope = locals.clone();
+                let outside = scope.len();
                 let mut out = Vec::new();
                 for (i, item) in items.iter().enumerate() {
-                    let mut scope = locals.clone();
+                    self.weigh(item, 0)?;
+                    scope.truncate(outside);
                     scope.push(("value", item.clone()));
                     scope.push(("index", V::Num(i as f64)));
                     let r = self.eval(expr, row, &scope)?;
@@ -923,8 +1048,12 @@ impl<'a> Env<'a> {
                     return Err(err(EvalErrorKind::Arguments, name));
                 };
                 let mut acc = self.arg(args, 1, row, locals)?;
+                locals.iter().try_for_each(|(_, v)| self.weigh(v, 0))?;
+                let mut scope = locals.clone();
+                let outside = scope.len();
                 for (i, item) in items.iter().enumerate() {
-                    let mut scope = locals.clone();
+                    self.weigh(item, 0)?;
+                    scope.truncate(outside);
                     scope.push(("value", item.clone()));
                     scope.push(("index", V::Num(i as f64)));
                     scope.push(("acc", acc));
@@ -946,29 +1075,50 @@ impl<'a> Env<'a> {
     /// text reads as; a number and a text by the number; links and files
     /// by the file they name.
     pub(crate) fn equal(&self, a: &V, b: &V) -> bool {
+        // Counted like a step; once the budget is spent every comparison
+        // is false at once, and the caller asks `spent`.
+        let len = |v: &V| match v {
+            V::Str(s) => s.len(),
+            _ => 0,
+        };
+        if self
+            .charge(1 + len(a).min(len(b)) / BYTES_PER_STEP)
+            .is_err()
+        {
+            return false;
+        }
         match (a, b) {
             (V::Null, V::Null) => true,
             (V::Null, _) | (_, V::Null) => false,
+            // "They are equivalent as long as they point to the same file,
+            // or if the file does not exist when looked up, their link text
+            // must be identical" (Bases syntax).
             (V::Link { .. } | V::File(_), V::Link { .. } | V::File(_)) => {
                 match (self.link_path(a), self.link_path(b)) {
                     (Some(x), Some(y)) => x == y,
                     _ => match (a, b) {
-                        (V::Link { target: x, .. }, V::Link { target: y, .. }) => {
-                            value::link_target(x).to_lowercase()
-                                == value::link_target(y).to_lowercase()
-                        }
+                        (V::Link { target: x, .. }, V::Link { target: y, .. }) => x == y,
                         _ => false,
                     },
                 }
             }
-            (V::Link { target, .. }, V::Str(s)) | (V::Str(s), V::Link { target, .. }) => {
-                value::link_target(target).to_lowercase() == value::link_target(s).to_lowercase()
+            (V::Link { target, from, .. }, V::Str(s))
+            | (V::Str(s), V::Link { target, from, .. }) => {
+                let named = value::link_target(s);
+                match (
+                    self.facts.resolve(from, target),
+                    self.facts.resolve(from, &named),
+                ) {
+                    (Some(x), Some(y)) => x == y,
+                    _ => *target == named,
+                }
             }
             (V::List(x), V::List(y)) => {
                 x.len() == y.len() && x.iter().zip(y).all(|(p, q)| self.equal(p, q))
             }
             (V::Obj(x), V::Obj(y)) => {
                 x.len() == y.len()
+                    && self.charge(x.len().saturating_mul(y.len())).is_ok()
                     && x.iter()
                         .all(|(k, v)| y.iter().any(|(k2, v2)| k == k2 && self.equal(v, v2)))
             }
@@ -990,8 +1140,11 @@ impl<'a> Env<'a> {
     fn binary(&self, op: BinaryOp, l: V, r: V) -> R {
         use BinaryOp as B;
         match op {
-            B::Eq => Ok(V::Bool(self.equal(&l, &r))),
-            B::Ne => Ok(V::Bool(!self.equal(&l, &r))),
+            B::Eq | B::Ne => {
+                let same = self.equal(&l, &r);
+                self.spent()?;
+                Ok(V::Bool(if matches!(op, B::Eq) { same } else { !same }))
+            }
             B::Lt | B::Le | B::Gt | B::Ge => {
                 let Some(o) = compare(&l, &r, self.offset) else {
                     return Ok(V::Bool(false));
@@ -1080,7 +1233,12 @@ impl<'a> Env<'a> {
                 }
                 Ok(V::Str(out))
             }
-            (V::List(a), V::List(b)) => Ok(V::List(a.iter().chain(b).cloned().collect())),
+            (V::List(a), V::List(b)) => {
+                if a.len() + b.len() > MAX_LIST {
+                    return Err(err(EvalErrorKind::TooLarge, "+"));
+                }
+                Ok(V::List(a.iter().chain(b).cloned().collect()))
+            }
             _ => arith(&l, &r, |a, b| a + b),
         }
     }

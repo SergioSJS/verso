@@ -231,21 +231,43 @@ pub(crate) fn parse_duration(text: &str) -> Option<Duration> {
     Some(out)
 }
 
+/// The furthest a date goes, JavaScript's: a hundred million days either
+/// side of 1970. No arithmetic on dates goes past it, so none overflows.
+pub(crate) const MAX_MS: i64 = 8_640_000_000_000_000;
+
 /// `ms` moved by `d`: its months first, on the calendar, the day kept or
-/// brought back to the month's last; then its fixed part.
+/// brought back to the month's last; then its fixed part. A date moved past
+/// [`MAX_MS`] stops there; one moved by what is not a number stays.
 pub(crate) fn add(ms: i64, d: Duration) -> i64 {
-    let mut t = ms;
-    let whole = d.months.trunc() as i64;
-    if whole != 0 {
+    let edge = |x: f64| if x > 0.0 { MAX_MS } else { -MAX_MS };
+    let mut t = ms.clamp(-MAX_MS, MAX_MS);
+    let whole = d.months.trunc();
+    if whole != 0.0 {
         let p = parts(t);
-        let total = p.year * 12 + i64::from(p.month) - 1 + whole;
+        let total = (p.year * 12 + i64::from(p.month) - 1) as f64 + whole;
+        if total.is_nan() {
+            return t;
+        }
+        // Past MAX_MS either way: 275,760 years.
+        if total.abs() > 3_400_000.0 {
+            return edge(total);
+        }
+        let total = total as i64;
         let year = total.div_euclid(12);
         let month = u32::try_from(total.rem_euclid(12) + 1).unwrap_or(1);
         let day = p.day.min(days_in_month(year, month));
-        t = from_parts(year, month, day, p.hour, p.minute, p.second, p.millisecond);
+        t = from_parts(year, month, day, p.hour, p.minute, p.second, p.millisecond)
+            .clamp(-MAX_MS, MAX_MS);
     }
     let fraction = d.months.fract() * 30.0 * 86_400_000.0;
-    t + (d.ms + fraction).round() as i64
+    let moved = t as f64 + (d.ms + fraction).round();
+    if moved.is_nan() {
+        return t;
+    }
+    if moved.abs() > MAX_MS as f64 {
+        return edge(moved);
+    }
+    moved as i64
 }
 
 const MONTHS_EN: [&str; 12] = [
