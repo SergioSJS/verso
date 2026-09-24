@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.16
+# Verso dialect spec — v0.17
 
-- Version: v0.16 · 2026-09-23
+- Version: v0.17 · 2026-09-24
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -627,6 +627,15 @@ Raised while writing this spec. All of them need an answer before
   which the reading view keeps as blockquotes. The recommendation put to the
   maintainer said the reading view follows Obsidian, which is not so for
   nesting, so nesting is not taken as decided.
+
+  **Provisional fact, recorded on 2026-09-24 from the code on branch
+  `feat/nested-callouts`, not an answer to this question.** The reading view
+  draws a callout inside a callout as a callout, up to 32 deep — a deeper one
+  stays a blockquote, so that a note cannot make drawing it recurse without
+  end — and a plain blockquote inside a callout stays a blockquote. It
+  follows Obsidian's public documentation, which shows nested callouts. The
+  parser that feeds the index is not touched. The maintainer decides; this
+  line only records what the code does in the meantime.
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
   `[OPEN]` for the index and for embedded HTML; the reading view's comments
   `DECIDED` on 2026-09-23. Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
@@ -1001,3 +1010,4 @@ the parser was chosen.
 | v0.14 | 2026-09-23 | Provisional facts under Q6, Q12, Q13, Q15, Q16, Q24 and Q25 brought up to the code after the Opus reading of the Phase 2 branch: comments hidden and embedded HTML sanitized in the reading view, one tag rule for the index and the reader, embeds resolved by Q12 from their note, the window's frontmatter boundary, files that are not UTF-8 not opened for editing. No question closed |
 | v0.15 | 2026-09-23 | **Q12 point 3 amended by the maintainer**: a bare name prefers a candidate under the source note's folder, at any depth, as Obsidian 1.13.7 does (the third observation of `docs/reference/index-decision.md` §4.1); the index already did, and embeds of files now do too. Q12 stays closed |
 | v0.16 | 2026-09-23 | The maintainer's answers on the Phase 2 review (`docs/review/phase-2.md` §6, items 4 and 20): **Q13 and Q25 closed** as the code does them; Q5 (kinds, fold — which the reading view now acts on, `5b7fc69` — and title), Q6 (comments), Q15 and Q24 decided for the reading view and the window, with the index's part and the rest still open — Q5's nesting and Q6's `<iframe>`, `<video>` and `<audio>` stay open because the reading view does not follow Obsidian there; Q22 decided for the tags' charset and case; **Q12 point 2's order stated**: a path from the root first, then relative to the source's folder, and `./` or `../` relative only, as Obsidian 1.13.7 does. Two questions closed, five in part |
+| v0.17 | 2026-09-24 | Q5: a provisional fact, not an answer — the reading view draws a callout inside a callout, up to 32 deep (branch `feat/nested-callouts`); nesting stays `[OPEN]` |

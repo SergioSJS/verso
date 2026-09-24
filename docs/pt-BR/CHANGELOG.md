@@ -23,6 +23,8 @@ versão de teste.
 
 ### Corrigido
 
+- **Um callout dentro de um callout** é desenhado como callout na
+  visualização de leitura, como o Obsidian mostra, em vez de citação.
 - **A linha de comando da beta** diz qual app abre: `verso <pasta>`
   responde "abrindo … no Verso Beta", e nomeia o Verso Beta quando o app
   não está instalado.

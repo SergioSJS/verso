@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.16
+# Spec do dialeto do Verso — v0.17
 
-- Versão: v0.16 · 2026-09-23
+- Versão: v0.17 · 2026-09-24
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -625,6 +625,15 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   leitura mantém como citações. A recomendação apresentada ao mantenedor dizia
   que a visualização de leitura segue o Obsidian, o que não vale para o
   aninhamento, então o aninhamento não é tomado como decidido.
+
+  **Fato provisório, registrado em 2026-09-24 a partir do código do branch
+  `feat/nested-callouts`, não uma resposta a esta questão.** A visualização de
+  leitura desenha um callout dentro de um callout como callout, até 32 níveis
+  — um mais fundo fica citação, para que uma nota não faça o desenho recursar
+  sem fim — e uma citação comum dentro de um callout continua citação. Segue a
+  documentação pública do Obsidian, que mostra callouts aninhados. O parser
+  que alimenta o índice não é tocado. O mantenedor decide; esta linha só
+  registra o que o código faz enquanto isso.
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
   `[ABERTO]` para o índice e para HTML embutido; os comentários na
   visualização de leitura `DECIDIDOS` em 2026-09-23. Bloco indentado por 4
@@ -1003,3 +1012,4 @@ ser escolhido.
 | v0.14 | 2026-09-23 | Fatos provisórios em Q6, Q12, Q13, Q15, Q16, Q24 e Q25 trazidos até o código depois da leitura da Opus do branch da Fase 2: comentários escondidos e HTML embutido sanitizado na visualização de leitura, uma regra de tag só para o índice e o leitor, embeds resolvidos pela Q12 a partir da nota, a fronteira do frontmatter da janela, arquivos que não são UTF-8 não abertos para edição. Nenhuma questão fechada |
 | v0.15 | 2026-09-23 | **Ponto 3 da Q12 emendado pelo mantenedor**: um nome solto prefere um candidato sob a pasta da nota de origem, em qualquer profundidade, como o Obsidian 1.13.7 faz (a terceira observação de `docs/reference/index-decision.md` §4.1); o índice já fazia, e embeds de arquivos agora fazem também. A Q12 continua fechada |
 | v0.16 | 2026-09-23 | As respostas do mantenedor sobre a revisão da Fase 2 (`docs/review/phase-2.md` §6, itens 4 e 20): **Q13 e Q25 fechadas** como o código faz; Q5 (tipos, dobra — sobre a qual a visualização de leitura agora age, `5b7fc69` — e título), Q6 (comentários), Q15 e Q24 decididas para a visualização de leitura e a janela, com a parte do índice e o resto ainda abertos — o aninhamento da Q5 e os `<iframe>`, `<video>` e `<audio>` da Q6 continuam abertos porque a visualização de leitura não segue o Obsidian ali; Q22 decidida para o charset e a caixa das tags; **a ordem do ponto 2 da Q12 dita**: um caminho a partir da raiz primeiro, depois relativo à pasta da origem, e `./` ou `../` só relativo, como o Obsidian 1.13.7 faz. Duas questões fechadas, cinco em parte |
+| v0.17 | 2026-09-24 | Q5: um fato provisório, não uma resposta — a visualização de leitura desenha um callout dentro de um callout, até 32 níveis (branch `feat/nested-callouts`); o aninhamento continua `[ABERTO]` |

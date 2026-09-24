@@ -23,6 +23,8 @@ test release.
 
 ### Fixed
 
+- **A callout inside a callout** is drawn as a callout in the reading
+  view, as Obsidian shows it, instead of as a quote.
 - **The beta's command line** says which app it opens: `verso <folder>`
   answers "opening … in Verso Beta", and names Verso Beta when the app is
   not installed.
