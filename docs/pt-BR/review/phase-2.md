@@ -112,7 +112,7 @@ resolvido pelo mantenedor, que emendou o ponto 3 em 2026-09-23.
 | 6 | IMPORTANTE | A reescrita de nota de rodapé inline detectava código errado, nos dois sentidos | **Corrigido** em `7475c03`: notas de rodapé inline são achadas nos eventos do parser, pulando código e matemática |
 | 7 | IMPORTANTE | O render e o parser discordam sobre o que é link (`$[[x]]$`), contra o próprio comentário do render | **Corrigido** em `7475c03`: o comentário diz exatamente o que difere; as opções do parser não mudam (Q15 da spec, seção 6) |
 | 8 | IMPORTANTE | O `read_note` do `verso mcp` numa nota vazia respondia `bad_window` | **Corrigido** em `9158f8b`: uma nota vazia, sem janela pedida, responde uma janela vazia. Teste visto falhando |
-| 9 | IMPORTANTE | `verso <pasta>` usava uma regra léxica: um diretório existente nomeado sem `/` era "comando desconhecido", um inexistente era "abrindo", e `verso open` assumia `.`, contra a [ADR 0042](../adr/0042-open-from-command-line.md) | **Corrigido** em `896996a`, de forma provisória: um primeiro argumento que nomeia um diretório existente o abre, qualquer outra coisa é erro de uso, e `verso open` exige a pasta. Registrado na ADR 0042, cuja regra continua `[ABERTO]`. Testes vistos falhando |
+| 9 | IMPORTANTE | `verso <pasta>` usava uma regra léxica: um diretório existente nomeado sem `/` era "comando desconhecido", um inexistente era "abrindo", e `verso open` assumia `.`, contra a [ADR 0042](../adr/0042-open-from-command-line.md) | **Corrigido** em `896996a`, de forma provisória: um primeiro argumento que nomeia um diretório existente o abre, qualquer outra coisa é erro de uso, e `verso open` exige a pasta. Registrado na ADR 0042, cuja regra o mantenedor decidiu como construída em 2026-09-23 (seção 6, item 3). Testes vistos falhando |
 | 10 | IMPORTANTE | `FIXTURES_STRICT=1` na `main` falha enquanto `fixtures/block/list-item` ainda é rascunho, embora a spec a chame de aprovada | **Resolvido** em 2026-09-23: o mantenedor aprovou a fixture ("faça 8"); `66a64fe` troca a linha de rascunho pela aprovação, e a checagem estrita passa (seção 6, item 8) |
 | 11 | IMPORTANTE | O job de bench do CI não conseguia ficar vermelho: sem baseline para `ci-linux`, a comparação saía 0 por construção | **Corrigido** em `5e3d32a`: `--require-baseline` falha quando a máquina não tem linha de base, e o job na `main` passa essa opção, então a `main` fica vermelha até a linha de base de `ci-linux` ser registrada (seção 6, item 9; `docs/reference/bench-decision.md`, revisão de 2026-09-23) |
 | 12 | IMPORTANTE | Um teste do bench comparava amostras únicas de tempo a 1,5× e falhava cerca de uma rodada em vinte | **Corrigido** em `d73c09f`: aquele passo compara só o tamanho do índice. Duas falhas em 25 rodadas antes, nenhuma em 25 depois |
@@ -217,9 +217,12 @@ o autor puxou o 13 e o 14. Cada item traz a sua resposta.
    arquivo que não é UTF-8 não é aberto para edição). Cada uma tem sua linha
    provisória na spec. **Resposta:** aceito como seguindo o Obsidian — Q13 e
    Q25 fechadas; Q5, Q6, Q15 e Q24 decididas para a visualização de leitura e
-   a janela; Q22 para as tags (spec v0.16, `80ad6b5`). Uma premissa não valeu:
-   o Obsidian aninha callouts e a visualização de leitura não, então o
-   aninhamento da Q5 continua aberto.
+   a janela; Q22 para as tags (spec v0.16, `80ad6b5`). A premissa não valeu em
+   tudo: o Obsidian aninha callouts e a visualização de leitura não, então o
+   aninhamento da Q5 continua aberto; a visualização de leitura também não
+   recolhia callouts, o que agora faz (`5b7fc69`); e a janela descarta os
+   `<iframe>`, `<video>` e `<audio>` que o Obsidian mostra, o que continua
+   aberto na Q6.
 5. **A rede** — [ADR 0049](../adr/0049-phase-2-scope-widened.md),
    Consequências: notas web, links clicados na janela (abertos numa janela
    própria), os ícones das notas web pedidos ao próprio site, e imagens remotas
@@ -297,7 +300,8 @@ o autor puxou o 13 e o 14. Cada item traz a sua resposta.
     quando o Fable chegou ao limite de uso. Se uma leitura do Fable vem depois
     é do mantenedor. **Resposta:** "17 troque para Opus" — as leituras ficam
     com a Opus 5.5 no lugar do Fable 5.1; as mudanças destas respostas foram
-    lidas por uma sessão nova da Opus 5.5 (seção 7).
+    lidas por uma sessão nova da Opus 5.5, cujos achados e a resolução deles
+    estão na seção 7.
 18. **O que o autor acrescentou à Fase 2** — ADR 0049 seção 2, Proposta: o
     mantenedor confirma ou risca cada item. **Resposta:** todos os itens
     confirmados; a ADR 0049 é Aceita.
@@ -423,3 +427,32 @@ ainda aberta, em vez de tomada como decidida.
 Tudo isso — o código da janela, o Rust e os documentos — foi escrito pela Opus
 5.5, no lugar do Fable 5.1 por decisão do mantenedor, e lido por uma sessão
 nova da Opus 5.5 com o diff e o repositório, como a resposta ao item 17 pede.
+Essa leitura achou dois BLOQUEANTES: os bindings TypeScript commitados não
+batiam mais com os gerados depois que um comentário de documentação mudou
+(`bebd610`), e uma nota ainda conseguia fazer a janela buscar uma imagem com o
+conteúdo remoto desligado, por um tab ou um caractere de controle no endereço,
+já que o sanitizador conferia o texto cru enquanto o parser de URL os descarta
+(`4379dff`, visto falhando e depois passando num harness de WebKit com um
+servidor que registra os pedidos). Achou três IMPORTANTES: a visualização de
+leitura não recolhia callouts, então "segue o Obsidian" não valia para a dobra
+(agora recolhe, `5b7fc69`), nem para os `<iframe>`, `<video>` e `<audio>` que o
+Obsidian mostra e a janela descarta (registrado como aberto na Q6); o
+`verso open` tentava de novo uma pasta recusada com `--args`, que um app aberto
+ignora, e reportava um erro de digitação como "abrindo" (`1fc5c79`: a CLI agora
+diz que a pasta não existe); e esta seção dizia que a leitura tinha acontecido
+antes de acontecer. E onze MENORES — o cabeçalho dela dizia quatro
+IMPORTANTES, uma entrada sendo nota. Corrigidos entre os MENORES: o alcance do
+ajuste (os embeds do Live Preview, as visões de pasta, as janelas de nota, e
+nenhum erro sem pasta aberta), um clique duplo em "Página" que podia
+acrescentar uma aba, imagens coladas com um caractere que nenhum link alcança
+no nome (`ce983c7`), o teste da pasta entregue agora rodando em toda
+plataforma (`baf2c1b`), comentários que ainda diziam `[ABERTO]` (`dc976c8`), e
+o que os documentos afirmavam além da conta — os nomes da ADR 0048 (só os
+digitados) e uma razão que ela atribuía ao mantenedor, o crate do contrato na
+ADR 0028, a segunda tabela de frases na ADR 0035, a checagem de atualização na
+ADR 0050 (agora uma consequência, não um item decidido), a aceitação da ADR
+0014 levada para a Decisão dela sem dispensar a ADR que cada primitiva pede, a
+introdução do índice das ADRs. Duas notas ficam como registradas: o portão de
+licenças npm, recomendado como PR próprio, vai neste; e os jobs do CI foram
+renomeados e um removido — este plano não dá proteção de branch ao repositório
+privado, então nenhuma checagem obrigatória os nomeia.

@@ -210,7 +210,9 @@ resto da máquina:
   permissões: nenhum script, estilo, frame, objeto, formulário ou atributo de
   evento; links e fontes só http(s), e-mail, âncoras da própria página, imagens
   `data:` e o que a janela mesma resolve. A política da própria janela acrescenta nenhum script
-  inline, `object-src 'none'`, `base-uri 'none'` e `form-action 'none'`.
+  inline, `object-src 'none'`, `base-uri 'none'` e `form-action 'none'`. A
+  lista descarta o que o Obsidian mostra numa nota — `<iframe>`, `<video>`,
+  `<audio>` —; se ela deve deixá-los passar continua em aberto (Q6 da spec).
 - **A rede.** Nada no core a acessa. A janela acessa de quatro jeitos: uma
   nota web carrega a página numa web view; um link http(s) clicado na janela
   abre a página numa janela própria; o ícone de uma nota web é pedido ao
@@ -256,8 +258,10 @@ primeiro, e onde cada uma mora agora:
   ([ADR 0048](../adr/0048-file-operations-in-ui.md), Aceita);
 - o que a visão de leitura renderiza — tabelas, notas de rodapé, matemática,
   destaque, callouts, comentários, tags no corpo: como construído (spec v0.16,
-  Q5, Q6, Q13, Q15), menos callouts aninhados em callouts, ainda em aberto
-  porque o Obsidian os aninha e a visão de leitura não;
+  Q5, Q6, Q13, Q15), com um callout recolhível agora abrindo e fechando pelo
+  título (`5b7fc69`); menos callouts aninhados em callouts, e os `<iframe>`,
+  `<video>` e `<audio>` que a janela descarta, ainda em aberto porque o
+  Obsidian os mostra e a visão de leitura não;
 - que um arquivo que não é UTF-8 não é aberto para edição (Q25 da spec,
   fechada);
 - os quatro jeitos que a janela tem de acessar a rede, com um ajuste sobre os

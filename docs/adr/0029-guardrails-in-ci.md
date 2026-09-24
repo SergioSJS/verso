@@ -15,7 +15,7 @@
   code with the control characters and the breadth of the test;
   2026-09-23 — an npm license gate added at the maintainer's request, and the
   generated-types check moved into the Linux Rust job so that a pull request
-  builds the Tauri tree once; the advisory and license exceptions of the Tauri
+  builds the Tauri tree's dependencies once; the advisory and license exceptions of the Tauri
   tree ratified (`docs/review/phase-2.md` §6, items 7 and 13).
 
 ## Context

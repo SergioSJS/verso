@@ -112,10 +112,13 @@ decision.
 **The window's mechanism, recorded on 2026-09-23 at the maintainer's request**
 (`docs/review/phase-2.md` §6, item 12; the answer: *"a e b ok"*):
 
-- **A typed catalog.** Every text the window shows comes from one catalog in
+- **A typed catalog.** Every text the window writes comes from one catalog in
   `app/ui/src/main.ts`: one object per language, each typed as a record over
   one union of keys, so a key missing in either language fails the type check
-  instead of reaching the screen as a raw string.
+  instead of reaching the screen as a raw string. CodeMirror's own texts — its
+  search panel, its buttons — come in pt-BR from a second table,
+  `app/ui/src/phrases.ts`, keyed by CodeMirror's English, which the type
+  check does not cover.
 - **A language setting** — automatic, pt-BR or English — that reloads the
   window to apply; the window rejoins the open folder rather than open it
   again.

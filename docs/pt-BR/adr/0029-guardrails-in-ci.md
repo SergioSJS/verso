@@ -16,7 +16,7 @@
   leitura desse código com os caracteres de controle e a abrangência do teste;
   2026-09-23 — um portão de licenças npm acrescentado a pedido do mantenedor, e
   a verificação dos tipos gerados levada para o job Rust de Linux, para que um
-  pull request compile a árvore do Tauri uma vez só; as exceções de advisory e
+  pull request compile as dependências da árvore do Tauri uma vez só; as exceções de advisory e
   de licença da árvore do Tauri ratificadas (`docs/review/phase-2.md` §6,
   itens 7 e 13).
 

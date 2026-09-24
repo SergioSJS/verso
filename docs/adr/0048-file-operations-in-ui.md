@@ -29,7 +29,7 @@ In short: rename and move by option (b), a plan of link rewrites shown as one
 diff per note and applied note by note, with **no logical transaction**;
 delete into `.trash/` after a confirmation; create refused when the name is
 taken; a rename that only changes case allowed where the volume ignores case;
-a name no link can reach refused by the window; volumes without hard links
+a typed name no link can reach refused by the window; volumes without hard links
 allowed, with a warning; a lone placeholder neither renamed nor deleted.
 
 The questions as they were first recorded, before item 2.3 of Phase 2:
@@ -117,15 +117,19 @@ points.
 - **Names a link cannot hold.** The core accepts note and folder names that
   hold `[`, `]`, `|`, `#` or `^`, which no `[[…]]` can name; a rename to such
   a name writes no link that would be read as another target, and says so.
-  The window gives no such name to what it creates or renames: it refuses
-  and says why (`7d516f5`, the maintainer's choice of 2026-09-23). A file
-  already so named opens as any other, and the core still accepts the names
-  for its other clients.
+  The window refuses such a name when the user types it — creating a note or
+  a folder, renaming — and says why (`7d516f5`, the maintainer's choice of
+  2026-09-23). A name the window makes itself is not checked — a duplicate, a
+  dropped file, the folders the settings name — except a pasted or dropped
+  image's, which loses those characters so that its embed reaches it
+  (`ce983c7`). A file already so named opens as any other, and the core still
+  accepts the names for its other clients.
 - **Volumes without hard links** (exFAT and FAT on removable drives, some
   network and cloud file systems): a create or a move gives the file its name
   by a rename after a last-moment check instead of a link, and says that the
-  guard was weaker. Allowed, with that warning: refusing would leave Verso
-  unusable on a removable drive (the maintainer, 2026-09-23).
+  guard was weaker. Allowed, with that warning, by the maintainer on
+  2026-09-23 — on the recommendation that refusing would leave Verso unusable
+  on a removable drive.
 - **Placeholders.** A single placeholder cannot be renamed or deleted, its
   content being in the cloud; a folder that holds placeholders moves and goes
   to the bin as a whole.

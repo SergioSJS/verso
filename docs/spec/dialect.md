@@ -616,7 +616,10 @@ Raised while writing this spec. All of them need an answer before
   **Decided on 2026-09-23 by the maintainer, for the reading view**
   (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as the code does it. The reading view shows as a callout a blockquote
   whose first line opens with `[!kind]`, `[!kind]+` or `[!kind]-`, for any
-  kind, lower-cased; `+` and `-` are carried as a fold; with no title the
+  kind, lower-cased; `+` and `-` make it foldable from its title, and `-`
+  starts it closed, as Obsidian's documentation shows — since `5b7fc69`:
+  before it the fold was only marked and nothing acted on it, which the Opus
+  reading of the answers found; with no title the
   kind's name, capitalized, is the title; a blockquote nested inside a
   callout stays a blockquote (`crates/verso-dialect/src/callouts.rs`). The
   parser that feeds the index is unchanged. **Nesting stays `[OPEN]`**:
@@ -625,12 +628,13 @@ Raised while writing this spec. All of them need an answer before
   maintainer said the reading view follows Obsidian, which is not so for
   nesting, so nesting is not taken as decided.
 - **Q6. Contexts in which `[[...]]` is not a link, besides backtick and fence.**
-  `[OPEN]` for the index; `DECIDED` for the reading view on 2026-09-23.
-  Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
+  `[OPEN]` for the index and for embedded HTML; the reading view's comments
+  `DECIDED` on 2026-09-23. Block indented by 4 spaces, embedded HTML, `%%comentário%%`, a link
   inside a URL (section 5.9).
 
   **Decided on 2026-09-23 by the maintainer, for the reading view and the
-  window** (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as the code does it. The parser that feeds the index
+  window** (`docs/review/phase-2.md` §6, item 4; the answer: *"a e b ok"*), as the code does it — except the embedded HTML that
+  Obsidian shows and the window drops, below. The parser that feeds the index
   is unchanged, so whether a `[[…]]` inside a comment, embedded HTML or an
   indented block is a link is still what section 5.9 says of it. What changed
   is what the reading view shows: `%%…%%` is dropped from it, inline or across
@@ -640,7 +644,11 @@ Raised while writing this spec. All of them need an answer before
   allowlist the window applies (scripts, styles, frames, forms and event
   attributes are dropped), since a note from a shared folder is untrusted input
   ([ADR 0045](../adr/0045-server-and-mcp-security.md)). What the index counts
-  as a link in those contexts stays `[OPEN]`.
+  as a link in those contexts stays `[OPEN]`. So does the embedded HTML the
+  allowlist drops and Obsidian's public documentation shows in a note —
+  `<iframe>`, `<video>`, `<audio>`: the premise put to the maintainer, that
+  the reading view follows Obsidian, does not hold there (the Opus reading of
+  the answers); the allowlist stays as it is meanwhile.
 - **Q7. Unicode normalization in name comparison.** `[OPEN]`
   NFC × NFD. APFS (macOS, the initial platform) preserves the form it receives
   and does a normalization-insensitive lookup; HFS+ forced NFD; Linux compares
@@ -992,4 +1000,4 @@ the parser was chosen.
 | v0.13 | 2026-09-23 | Provisional facts recorded under Q12, Q13, Q15 and Q16, from the code of the Phase 2 branch: where the code departs from point 3 of Q12 ("under" the source's folder where point 3 says "in", which the maintainer has not settled), body tags, the Markdown extensions and line breaks the reading view renders, and the files that are not notes. The Q14 line on `[[#Heading]]` marked as superseded by Q12 point 1. No question closed |
 | v0.14 | 2026-09-23 | Provisional facts under Q6, Q12, Q13, Q15, Q16, Q24 and Q25 brought up to the code after the Opus reading of the Phase 2 branch: comments hidden and embedded HTML sanitized in the reading view, one tag rule for the index and the reader, embeds resolved by Q12 from their note, the window's frontmatter boundary, files that are not UTF-8 not opened for editing. No question closed |
 | v0.15 | 2026-09-23 | **Q12 point 3 amended by the maintainer**: a bare name prefers a candidate under the source note's folder, at any depth, as Obsidian 1.13.7 does (the third observation of `docs/reference/index-decision.md` §4.1); the index already did, and embeds of files now do too. Q12 stays closed |
-| v0.16 | 2026-09-23 | The maintainer's answers on the Phase 2 review (`docs/review/phase-2.md` §6, items 4 and 20): **Q13 and Q25 closed** as the code does them; Q5 (kinds, fold, title), Q6, Q15 and Q24 decided for the reading view and the window, with the index's part and the rest still open — Q5's nesting stays open because the reading view does not follow Obsidian there; Q22 decided for the tags' charset and case; **Q12 point 2's order stated**: a path from the root first, then relative to the source's folder, and `./` or `../` relative only, as Obsidian 1.13.7 does. Two questions closed, five in part |
+| v0.16 | 2026-09-23 | The maintainer's answers on the Phase 2 review (`docs/review/phase-2.md` §6, items 4 and 20): **Q13 and Q25 closed** as the code does them; Q5 (kinds, fold — which the reading view now acts on, `5b7fc69` — and title), Q6 (comments), Q15 and Q24 decided for the reading view and the window, with the index's part and the rest still open — Q5's nesting and Q6's `<iframe>`, `<video>` and `<audio>` stay open because the reading view does not follow Obsidian there; Q22 decided for the tags' charset and case; **Q12 point 2's order stated**: a path from the root first, then relative to the source's folder, and `./` or `../` relative only, as Obsidian 1.13.7 does. Two questions closed, five in part |

@@ -113,10 +113,13 @@ código faz, não uma decisão.
 **O mecanismo da janela, registrado em 2026-09-23 a pedido do mantenedor**
 (`docs/review/phase-2.md` §6, item 12; a resposta: *"a e b ok"*):
 
-- **Um catálogo tipado.** Todo texto que a janela mostra vem de um catálogo só
+- **Um catálogo tipado.** Todo texto que a janela escreve vem de um catálogo só
   em `app/ui/src/main.ts`: um objeto por idioma, cada um tipado como um registro
   sobre uma união de chaves, então uma chave que falte em qualquer idioma
-  reprova a checagem de tipos em vez de chegar à tela como string crua.
+  reprova a checagem de tipos em vez de chegar à tela como string crua. Os
+  textos do próprio CodeMirror — o painel de busca, os botões — vêm em pt-BR de
+  uma segunda tabela, `app/ui/src/phrases.ts`, com o inglês do CodeMirror como
+  chave, que a checagem de tipos não cobre.
 - **Um ajuste de idioma** — automático, pt-BR ou inglês — que recarrega a
   janela para valer; a janela volta à pasta aberta em vez de abri-la de novo.
 - **As palavras do core.** A janela diz o tipo de todo erro que o core responde

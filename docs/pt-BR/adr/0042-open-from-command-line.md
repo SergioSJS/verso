@@ -155,10 +155,15 @@ junto com a janela.
   como em qualquer troca. Até 2026-09-23 ela ia por `open -a Verso --args`,
   que um app já aberto nunca recebia (`docs/review/phase-2.md`, leitura 3,
   achado 20; corrigido em `b43e914` a pedido do mantenedor). O `open` recusa um
-  documento que não existe, então uma recusa é tentada de novo com `--args`: o
-  app começa e diz que a pasta não existe, como o `verso open` promete. Um
-  binário rodado direto — `$VERSO_APP`, uma árvore de desenvolvimento, Linux —
-  continua começando um processo novo a cada vez.
+  documento que não existe. O `verso open` continua não perguntando nada ao
+  disco antes de lançar; quando nada pôde começar, a CLI pergunta ao
+  `verso-fs` se a pasta existe e diz "não há pasta em …" (saída 3), ou, se a
+  pasta existe, que o app não foi achado (`1fc5c79`). Uma primeira versão
+  tentava de novo com `--args`, que um app já aberto ignora, então um erro de
+  digitação era reportado como "abrindo"; a leitura da Opus das respostas achou
+  isso. Um binário rodado direto — `$VERSO_APP`, uma árvore de
+  desenvolvimento, Linux — continua começando um processo novo a cada vez, e a
+  janela reporta uma pasta que não existe.
 - **A primeira versão deste código** usava uma regra léxica — `.`, `..`, uma
   `/` ou um `~` no começo faziam do argumento uma pasta —, então `verso notas`
   era comando desconhecido e `verso ./nao-existe` dizia que estava abrindo; e
