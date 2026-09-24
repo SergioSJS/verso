@@ -261,7 +261,9 @@ o autor puxou o 13 e o 14. Cada item traz a sua resposta.
    (`docs/reference/bench-decision.md` §6.3;
    [ADR 0039](../adr/0039-performance-targets.md) `[ABERTO]`).
    **Resposta:** depois — o baseline só pode vir do CI, ainda bloqueado pela
-   cobrança.
+   cobrança. Registrado em 2026-09-24 a partir da primeira execução na `main`,
+   com a aprovação do mantenedor (`docs/reference/bench-decision.md`, revisão
+   desse dia).
 10. **A lista de crates** — `verso-contract`, `verso-bench` e `app/src-tauri`
     são membros do workspace, enquanto a [ADR 0028](../adr/0028-crate-structure.md) e o
     `CLAUDE.md` §3 listam cinco crates. **Resposta:** a ADR 0028 e o

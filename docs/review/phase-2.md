@@ -257,6 +257,8 @@ took 13 and 14. Each item carries its answer.
    (`docs/reference/bench-decision.md` §6.3;
    [ADR 0039](../adr/0039-performance-targets.md) `[OPEN]`). **Answer:**
    later — the baseline can only come from CI, still blocked by billing.
+   Recorded on 2026-09-24 from the first run on `main`, with the maintainer's
+   approval (`docs/reference/bench-decision.md`, revision of that day).
 10. **The crate list** — `verso-contract`, `verso-bench` and `app/src-tauri`
     are workspace members, while [ADR 0028](../adr/0028-crate-structure.md) and `CLAUDE.md`
     §3 list five crates. **Answer:** ADR 0028 and `CLAUDE.md` §3 and §7 now
