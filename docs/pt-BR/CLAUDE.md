@@ -122,8 +122,10 @@ mudando o teste.
 | Tipos TS gerados conferidos no CI | regra 3 do contrato virar convenção | Fase 2, 2.1 |
 | Allowlist de licenças npm sobre o lockfile da janela | pacote npm sob licença que o projeto não pode distribuir | Fase 2 |
 
-CI em macOS e Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
-`cargo deny check`, mais os comandos dos guardrails de feature conforme entram.
+CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
+roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
+clippy e os testes no macOS, o fuzzing e o benchmark; os apps são compilados e
+empacotados só numa tag de versão, nunca numa branch.
 
 Se um guardrail bloquear um trabalho legítimo, isso é assunto de PR próprio, com
 justificativa — não de `#[allow]` no meio do diff. Advisory nova só ganha

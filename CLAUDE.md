@@ -125,8 +125,10 @@ the test.
 | Generated TS types checked in CI | rule 3 of the contract becoming a convention | Phase 2, 2.1 |
 | npm license allowlist over the window's lockfile | an npm package under a license the project cannot ship | Phase 2 |
 
-CI on macOS and Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
-`cargo deny check`, plus the commands of the feature guardrails as they enter.
+CI ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 2026-09-23): a pull
+request runs every guardrail but the fuzzing in one Linux job; `main` adds
+clippy and the tests on macOS, the fuzzing and the benchmark; the apps are
+built and packaged only for a version tag, never on a branch.
 
 If a guardrail blocks legitimate work, that is the subject of its own PR, with
 justification — not of an `#[allow]` in the middle of the diff. A new advisory

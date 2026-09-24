@@ -16,7 +16,10 @@
   2026-09-23 — an npm license gate added at the maintainer's request, and the
   generated-types check moved into the Linux Rust job so that a pull request
   builds the Tauri tree's dependencies once; the advisory and license exceptions of the Tauri
-  tree ratified (`docs/review/phase-2.md` §6, items 7 and 13).
+  tree ratified (`docs/review/phase-2.md` §6, items 7 and 13);
+  2026-09-23 — where each guardrail runs, by the maintainer's decision: one
+  Linux job per pull request, clippy and the tests on macOS and the fuzzing on
+  `main` only, the apps packaged only for a version tag.
 
 ## Context
 
@@ -66,6 +69,35 @@ The reason is cost: a macOS minute is billed at ten times a Linux one, and one
 day of pushes to stacked branches spent the private repository's whole monthly
 quota, after which GitHub stopped starting jobs. Maintainer's decision of
 2026-09-22.
+
+**Where each runs, since the maintainer's decision of 2026-09-23** (asked
+"faço o enxugamento?", the answer: *"claro!! atualize ADR que fizer
+sentido"*). The same reason, carried further: every job is a runner that
+starts, installs a toolchain and bills its minutes rounded up, and on 21 and
+22 September macOS legs of every job — `cargo deny` and the WASM check
+included, which answer the same on any OS — were most of the 132 macOS minutes
+the billing page showed for the cycle, in a quota that counts each as ten.
+
+- **A pull request** runs every guardrail but the fuzzing in **one Linux
+  job**, cheapest first, over one cache: the documents' mirror, the fixtures,
+  the npm licenses, the `std::fs` grep, `cargo fmt --check`, `cargo deny
+  check`, clippy, the tests, the generated types, the UI's type check and
+  bundle, the WASM check.
+- **`main`**, after each merge, runs that job again, and three more: **clippy
+  and the tests on macOS** — the checks whose answer can depend on the
+  platform (the file system, extended attributes, WebKit); fmt, `cargo deny`
+  (whose graph covers every target), the WASM check and the documents' checks
+  answer the same on any OS —, the **60-second fuzzing**, on Linux, and the
+  benchmark.
+- **The apps are built and packaged only for a version tag**, in a workflow of
+  its own; branches test, they never package. That workflow is written with
+  the first version, when each platform has something to package, not before:
+  nothing untested waits in CI. Windows, then Linux, join the platform checks
+  on `main` as each port lands ([0022](0022-target-platforms-macos-first.md)).
+- The Linux runners are pinned to `ubuntu-24.04`: the `ubuntu-latest` label
+  moves to Ubuntu 26 from 2026-10-19, which would change the WebKitGTK the
+  shell links against, and the machine of the bench's `ci-linux` baseline,
+  with no commit to blame.
 
 ### Atomic write requirements
 
