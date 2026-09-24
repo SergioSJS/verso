@@ -113,7 +113,7 @@ change, so the autosave writes it 1.5 s later, the default — over the other
 app's version, and the write check lets it through, since the tab holds the
 revision it read last. That is the user's act, and it is recorded as such:
 nothing refuses it, and the status line, which said the note was read again
-and pointed at ⌘Z, no longer invites it (`<commit>`). Where the line
+and pointed at ⌘Z, no longer invites it (`2b4c78d`). Where the line
 separator changed, or the tab shows the file read-only, the disk's text does
 not come in as an edit: the editor starts again, with a new history
 (`fromDisk` in `app/ui/src/main.ts`), and ⌘Z has nothing of the tab's to bring
@@ -254,29 +254,48 @@ branch unless marked otherwise:
 
 The second readings, fresh Opus 5.5 sessions again, of the fixes above and of
 this memo. Their code findings are resolved in the commits that follow this
-branch (`<commit>` where the hash is not known yet); their findings on this
+branch; their findings on this
 memo are resolved here:
 
 - Window, BLOCKING: ⌘Z then ⌘⇧Z — or ⌘U alone — after a read from disk put
   the caret back inside the folded frontmatter, where one Backspace deleted
   the fence and a property; now every transaction in Live Preview keeps every
-  cursor out of it — `<commit>`.
+  cursor out of it — `ba8fb82`.
 - Window, IMPORTANT: the focus restored by its rank after a redraw landed on
   another control once embeds came in above it (now found by identity); every
   reading view was drawn again on every batch (now only a note that embeds a
   changed one); the guard against redrawing under a rename covered the tree
-  only (now the search results and the folder views too) — `<commit>`.
+  only (now the search results and the folder views too) — `2b4c78d`.
 - Window, IMPORTANT: ⌘Z after a read from disk is an ordinary edit, saved over
   the other app's version — recorded in section 3.4; the status line no longer
-  invites it — `<commit>`.
+  invites it — `2b4c78d`.
 - MINOR: the disk's edit isolated in the history, so ⌘Z after typing undoes
   the typing only; the status line's names; the deferred list refresh; the
-  properties panel's deferred check; Enter in the reading view — `<commit>`.
+  properties panel's deferred check; Enter in the reading view — `2b4c78d`.
   The host's reindex under one hold of the lock, and the watcher's messages
   said in pt-BR or English by the window instead of the host's English
-  sentence — `<commit>`. `gh auth status --active` — `<commit>`.
+  sentence — `b60f950`. `gh auth status --active` — `4e5162f`.
 - This memo, MINOR: section 3.2 cited ADR 0029 for keeping the content hash,
   where the `cp -p` reasoning is ADR 0012's provisional paragraph on the write
   check; section 3.1's dependency list left out `kqueue` and `kqueue-sys`;
   section 2 and section 3.4 said undo always brings the tab's text back —
   here.
+
+Then the window was driven on a scratch copy of the Sandbox folder, as the
+maintainer allowed on 2026-09-24. What the run found:
+
+- Backspace at the very start of the body, where Live Preview puts the
+  caret right after the folded frontmatter, deleted the line break after
+  the closing fence: the first line joined it, the block was no longer a
+  frontmatter and every property went with it, unseen — older than the
+  watcher. No key changes the folded frontmatter now; the properties panel
+  does — `435b489`.
+- A callout the user had opened folded again whenever the note was read
+  again; and a note deleted outside and put back left the status line
+  saying it was gone — `5ad0b0d`.
+
+Everything else the run tried went as section 2 says: a change read into a
+clean tab, the conflict banner for a tab with unsaved text with nothing
+written, a note made outside in the tree, the open note deleted outside
+marked with its text kept, and the second reading's frontmatter scenario —
+a change outside, ⌘Z, ⌘⇧Z, Backspace — leaving the properties whole on disk.
