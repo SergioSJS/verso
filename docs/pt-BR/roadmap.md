@@ -185,7 +185,13 @@ A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-target-platforms-m
 
 Além dos sete itens, o mantenedor pediu durante a fase o que faltaria a quem
 sai do Obsidian; a lista é a [ADR 0049](adr/0049-phase-2-scope-widened.md), e o
-que a janela faz com cada arquivo está em `docs/reference/app-decision.md`.
+que a janela faz com cada arquivo está em `docs/reference/app-decision.md`. Em
+2026-09-24 o mantenedor tornou mais três a prioridade, construídas no mesmo
+dia: visões sobre a pasta — tabelas, cards, listas, kanbans e calendários,
+como as bases do Obsidian ([ADR 0053](adr/0053-views-bases.md)) — uma segunda
+janela na mesma pasta, e o terminal e os agentes ligados pelos ajustes
+([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)); o memo é
+`docs/reference/views-decision.md`.
 
 ### Decisões que precisam sair durante a fase
 

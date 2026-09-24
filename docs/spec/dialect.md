@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.18
+# Verso dialect spec — v0.19
 
-- Version: v0.18 · 2026-09-24
+- Version: v0.19 · 2026-09-24
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -607,9 +607,10 @@ behavior is implemented. None of them has an answer in the briefing.
      are shown untyped, with the conflict naming both. A schema that does not
      parse types nothing, and says so.
 
-  Not decided: whether a block nested in a list or a callout counts, or only
-  one at the top level of a note (the memo leans to the top level, which keeps
-  a quoted example out). No fixture comes with this closing — none existed
+  A block nested in a list or a callout does not count: only one at the top
+  level of a note does, and a nested one is shown as not read — decided by the
+  maintainer on 2026-09-24 (`docs/reference/views-decision.md` §2, v0.19),
+  which keeps a quoted example out. No fixture comes with this closing — none existed
   for Q11, and it closed on the maintainer's answer as Q12 and Q26 did. The
   schema fixtures come with the implementation, each drafted by the AI and
   approved by the maintainer in the pull request that adds it
@@ -1080,3 +1081,4 @@ the parser was chosen.
 | v0.16 | 2026-09-23 | The maintainer's answers on the Phase 2 review (`docs/review/phase-2.md` §6, items 4 and 20): **Q13 and Q25 closed** as the code does them; Q5 (kinds, fold — which the reading view now acts on, `5b7fc69` — and title), Q6 (comments), Q15 and Q24 decided for the reading view and the window, with the index's part and the rest still open — Q5's nesting and Q6's `<iframe>`, `<video>` and `<audio>` stay open because the reading view does not follow Obsidian there; Q22 decided for the tags' charset and case; **Q12 point 2's order stated**: a path from the root first, then relative to the source's folder, and `./` or `../` relative only, as Obsidian 1.13.7 does. Two questions closed, five in part |
 | v0.17 | 2026-09-24 | Q5: a provisional fact, not an answer — the reading view draws a callout inside a callout, up to 32 deep (branch `feat/nested-callouts`); nesting stays `[OPEN]` |
 | v0.18 | 2026-09-24 | **Q11 closed by the maintainer** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): a schema is a fenced `verso-schema` block, YAML inside, in a note anywhere in the open folder but hidden and ignored paths, named by the `type` inside it; two schemas with one name type nothing, and the conflict is shown; whether a nested block counts is not decided. Section 6: the typed note, schemas and schema i18n `DECIDED`, constraint 1 (ADR 0013) accepted. Q24: its link part is the next decision. No fixture yet: the implementation brings them. Q6: a pointer to `docs/reference/embedded-media-decision.md`, which corrects the claim that Obsidian's documentation shows `<video>` and `<audio>`; Q6 stays open |
+| v0.19 | 2026-09-24 | Q11: **a nested `verso-schema` block does not count**, decided by the maintainer (`docs/reference/views-decision.md` §2, [ADR 0052](../adr/0052-typed-note.md) point 3): only a block at the top level of a note is a schema, and a nested one is shown as not read. Bases (`.base` files and `base` blocks) are [ADR 0053](../adr/0053-views-bases.md)'s, not this spec's, which is the notes' dialect |

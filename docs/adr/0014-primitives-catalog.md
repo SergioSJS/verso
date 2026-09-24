@@ -8,7 +8,10 @@
   (`docs/review/phase-2.md` §6, item 11); the rest of the catalog stays
   Proposed. 2026-09-24 — the typed note accepted by the maintainer in an ADR
   of its own, [0052](0052-typed-note.md), as the first Consequence asks; its
-  row here points there.
+  row here points there. 2026-09-24 — the structured views accepted by the
+  maintainer in an ADR of their own, [0053](0053-views-bases.md): bases, in
+  Obsidian's format; and the month of the daily notes in the side panel, part
+  of the daily note's row.
 
 ## Context
 
@@ -46,6 +49,13 @@ window builds them ([0049](0049-phase-2-scope-widened.md),
 Whether each still needs an ADR of its own, as the first Consequence asks of
 every primitive, the answer did not say; that stays the maintainer's.
 Periodic notes and every other row stay Proposed.
+
+**The structured views, accepted on 2026-09-24 by the maintainer** in an ADR
+of their own, [0053](0053-views-bases.md): a view is a base — a `.base` file
+or a `base` block — in the format Obsidian documents, laid out as a table,
+cards, a list, a kanban or a calendar; its rows materialize as a Markdown
+table, as [0013](0013-degrades-to-markdown.md) asks. The row above keeps the
+briefing's words; 0053 is the decision.
 
 **The typed note, accepted on 2026-09-24 by the maintainer** in an ADR of its
 own, [0052](0052-typed-note.md), on the memo
