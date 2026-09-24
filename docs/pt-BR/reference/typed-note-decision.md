@@ -1,12 +1,41 @@
 # Memo de decisão: um tipo de nota ponta a ponta, item 2.6 da Fase 2 (a nota tipada, a degradação para Markdown, formato e localização dos schemas)
 
 - Data: 2026-09-24
-- Status: **não decidido.** Nada neste memo é decisão: ele apresenta opções,
-  registra fatos e carrega recomendações que estão marcadas como tais. Quem
-  decide é o mantenedor (`CLAUDE.md` §1). Diferente das features 2 a 6 da
-  Fase 1, **nenhum código é escrito sob as recomendações**: o item 2.6 fica "não
-  começado" até o mantenedor responder, porque o que ele constrói depende da
-  resposta em todas as camadas (seção 1).
+- Status: **decidido pelo mantenedor em 2026-09-24**, na sessão. As
+  recomendações do autor no dia, entre elas as deste memo, foram apresentadas
+  ao mantenedor numa lista só; a resposta: *"Tirando o plano de fazer vários
+  PR, eu gosto das suas recomendações"*. As sete linhas da seção 12 como
+  recomendadas:
+  1. a nota tipada aceita num ADR novo, o
+     [ADR 0052](../adr/0052-typed-note.md), com as respostas da seção 4.2 —
+     `type: <nome>` uma chave, comparada como a Q12 compara nomes; o que o
+     Verso faz e nunca faz;
+  2. o [ADR 0013](../adr/0013-degrades-to-markdown.md) aceito como está
+     escrito (opção A), com "views" e "dado estruturado" delimitados como a
+     seção 4.3 diz;
+  3. a forma (ii): o ADR 0052 novo, o ADR 0013 aceito no lugar;
+  4. o formato da Q11 (c): um bloco cercado `verso-schema` dentro de uma nota;
+  5. a localização da Q11 (iii): em qualquer lugar da pasta menos caminhos
+     ocultos e ignorados — a escolha do mantenedor entre o briefing §5.3 e o
+     briefing §8 com o ADR 0021 (seção 10, item 1);
+  6. dois schemas com o mesmo nome (α): nenhum vale, e o conflito aparece;
+  7. tipos de link (a): fora da primeira fatia, a parte de links da Q24 em
+     seguida.
+
+  A única exceção que a resposta nomeia, "o plano de fazer vários PR", cobre o
+  um pull request por linha da seção 8: até o fluxo inteiro existir, as
+  linhas vão em pull requests grandes
+  ([ADR 0033](../adr/0033-pr-workflow.md), revisto no mesmo dia). Registrado
+  no ADR 0052 (Aceito), no ADR 0013 (Aceito no lugar), no ADR 0014, no ADR
+  0021, na Q11 da spec (v0.18), no roadmap, no índice dos ADRs e no Histórico
+  do briefing (v0.9). Nenhuma fixture veio com o fechamento: não existia
+  nenhuma para a Q11, e a implementação as traz, cada uma aprovada no pull
+  request que a acrescenta. O item 2.6 continua "não começado", sem esperar
+  mais por decisões; se um bloco `verso-schema` aninhado numa lista ou num
+  callout conta continua em aberto (ADR 0052, ponto 3). Até a resposta nada
+  aqui era decisão e, diferente das features 2 a 6 da Fase 1, nenhum código foi
+  escrito sob as recomendações. As seções 1 a 11 são a comparação como estava
+  quando a decisão foi tomada.
 - Autor: Opus 5.5, no papel de autor de documentos que o
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá à "Opus 5". As
   recomendações das seções 4 a 6 são **do autor**, marcadas como tais; não são
@@ -637,7 +666,10 @@ de views do 0014, Proposta), vários tipos numa nota, packs.
 Cada linha é um pull request de um assunto
 ([ADR 0033](../adr/0033-pr-workflow.md)), na sua própria branch curta
 ([ADR 0051](../adr/0051-development-flow-and-releases.md)), com o autor e o
-leitor que o ADR 0032 atribui — ou quem o mantenedor nomear.
+leitor que o ADR 0032 atribui — ou quem o mantenedor nomear. *(Posto de lado
+em 2026-09-24: até o fluxo inteiro existir, as linhas vão em pull requests
+grandes, pela decisão do mantenedor registrada no ADR 0033 e no ADR 0051; as
+linhas continuam a ordem do trabalho.)*
 
 | # | Pull request | O que leva | Conferido sem ler código |
 |---|---|---|---|
@@ -801,6 +833,8 @@ git log -1 --format='%an <%ae>%n%b' d2c88d4   # autor e Signed-off-by são seus
 6. **Dois schemas com o mesmo nome:** (α), (β) ou (γ). Recomendado: (α).
 7. **Tipos de valor de link na primeira fatia:** (a) ou (b). Recomendado: (a),
    com a parte de links da Q24 como o próximo memo.
+
+Respondido em 2026-09-24: as sete como recomendadas (o cabeçalho).
 
 **O que o PR de fechamento registra, se as recomendações forem aceitas:**
 

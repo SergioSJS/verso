@@ -6,7 +6,9 @@
 - Revisions: 2026-09-23 — two primitives accepted by the maintainer as the
   Phase 2 window builds them, the daily note and templates
   (`docs/review/phase-2.md` §6, item 11); the rest of the catalog stays
-  Proposed.
+  Proposed. 2026-09-24 — the typed note accepted by the maintainer in an ADR
+  of its own, [0052](0052-typed-note.md), as the first Consequence asks; its
+  row here points there.
 
 ## Context
 
@@ -15,7 +17,7 @@ An application of the principle in
 is a symptom of a missing primitive. The briefing proposes a catalog, still
 unconfirmed.
 
-## Decision (proposed, not confirmed; two primitives accepted on 2026-09-23)
+## Decision (proposed, not confirmed; two primitives accepted on 2026-09-23, the typed note on 2026-09-24)
 
 Verso implements primitives; specific features come as first-party plugins.
 
@@ -45,12 +47,20 @@ Whether each still needs an ADR of its own, as the first Consequence asks of
 every primitive, the answer did not say; that stays the maintainer's.
 Periodic notes and every other row stay Proposed.
 
+**The typed note, accepted on 2026-09-24 by the maintainer** in an ADR of its
+own, [0052](0052-typed-note.md), on the memo
+`docs/reference/typed-note-decision.md`: `type:` in the frontmatter names a
+schema, which is a `verso-schema` block in a note of the folder; with no
+schema, the note is plain Markdown. The row above keeps the briefing's words;
+0052 is the decision.
+
 ## Consequences
 
 - Each primitive needs its own ADR before being implemented; this ADR only
   records the catalog.
 - Three items depend on syntax that is still `[OPEN]`: typed relation, format
   and location of schemas, and per-block visibility (`docs/spec/dialect.md`).
+  *(The format and location of schemas decided on 2026-09-24: spec Q11.)*
 - "With no schema, it is plain Markdown" is what keeps compatibility with
   Obsidian vaults ([0012](0012-files-are-source-of-truth.md)).
 - A block ID with backlinks and presence in the graph is a prerequisite for
@@ -66,7 +76,7 @@ Periodic notes and every other row stay Proposed.
   to say what is recorded and whether it is opt-in.
 - Typed note (item 2.6 of Phase 2) requires promoting this catalog row to its
   own ADR, Accepted, before it is implemented — the roadmap lists that among
-  the Phase 2 decisions.
+  the Phase 2 decisions. *(Done on 2026-09-24: [0052](0052-typed-note.md).)*
 - Nothing in this catalog is in Phase 1, except what the parser and the index
   need to expose ([0034](0034-roadmap-in-phases.md)).
 
@@ -80,3 +90,4 @@ Periodic notes and every other row stay Proposed.
 ## Status
 
 Proposed. The daily note and templates: accepted on 2026-09-23 (Decision).
+The typed note: accepted on 2026-09-24, in [0052](0052-typed-note.md).

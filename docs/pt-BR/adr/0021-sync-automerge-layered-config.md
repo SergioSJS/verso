@@ -5,6 +5,12 @@
 - Status no briefing: `PROPOSTO`
 - Revisões: 2026-09-21 — a guarda contra placeholder saiu deste ADR e virou
   [0043](0043-placeholder-guard.md), Aceito (revisão da Fase 0, C1).
+  2026-09-24 — onde os schemas moram decidido pelo mantenedor em outro lugar:
+  na pasta aberta, como um bloco `verso-schema` numa nota
+  ([0052](0052-typed-note.md), Q11 da spec), a escolha do mantenedor entre o
+  briefing §5.3 e o briefing §8, que o item 2 deste ADR segue. O item 2 fica
+  como está escrito, Proposto; sobre schemas ele agora discorda dessa decisão,
+  e corrigir o texto dele é do mantenedor, se este ADR for confirmado.
 
 ## Contexto
 

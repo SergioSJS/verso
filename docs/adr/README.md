@@ -41,10 +41,10 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0041](0041-multi-root-workspace.md) | Workspace with multiple roots | Proposed |
 | [0042](0042-open-from-command-line.md) | Open from the command line: `verso <folder>` | Accepted |
 | [0012](0012-files-are-source-of-truth.md) | Files are the source of truth; opening never rewrites | Accepted |
-| [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Proposed |
-| [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted) |
+| [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Accepted (2026-09-24) |
+| [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted; the typed note: Accepted in 0052) |
 | [0015](0015-schema-packs.md) | Schema packs distributable as content | Proposed |
-| [0052](0052-typed-note.md) | Typed note: `type:` in the frontmatter and a schema | `[OPEN]` (a draft for the maintainer; before item 2.6) |
+| [0052](0052-typed-note.md) | Typed note: `type:` in the frontmatter and a schema | Accepted (2026-09-24) |
 
 ### Plugins and LLM
 
@@ -118,7 +118,8 @@ says where each stands.
 
 Three dialect items from §17 live in [`../spec/dialect.md`](../spec/dialect.md),
 where the behavior is specified: typed relation syntax (item 6), format and
-location of the schemas (item 7) and per-block visibility syntax (item 8). The
+location of the schemas (item 7, decided on 2026-09-24 as Q11, with
+[0052](0052-typed-note.md)) and per-block visibility syntax (item 8). The
 parsing gaps (Q1–Q8, Q12–Q26) also live there.
 
 The check for the availability of the name (item 2) is recorded in

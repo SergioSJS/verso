@@ -1,12 +1,40 @@
 # Decision memo: one note type end to end, Phase 2 item 2.6 (the typed note, degradation to Markdown, format and location of the schemas)
 
 - Date: 2026-09-24
-- Status: **not decided.** Nothing in this memo is a decision: it lays out
-  options, records facts and carries recommendations that are labelled as
-  such. The maintainer decides (`CLAUDE.md` §1). Unlike features 2 to 6 of
-  Phase 1, **no code is written under the recommendations**: item 2.6 stays
-  "not started" until the maintainer answers, because what it builds depends on
-  the answer at every layer (section 1).
+- Status: **decided by the maintainer on 2026-09-24**, in session. The
+  author's recommendations of the day, this memo's among them, were put to the
+  maintainer as one list; the answer: *"Tirando o plano de fazer vários PR, eu
+  gosto das suas recomendações"* ("apart from the plan of several pull
+  requests, I like your recommendations"). All seven lines of section 12 as
+  recommended:
+  1. the typed note accepted in a new ADR, [ADR 0052](../adr/0052-typed-note.md),
+     with section 4.2's answers — `type: <name>` a key, compared as Q12
+     compares names; what Verso does and never does;
+  2. [ADR 0013](../adr/0013-degrades-to-markdown.md) accepted as written
+     (option A), with "views" and "structured data" delimited as section 4.3
+     says;
+  3. the form (ii): ADR 0052 new, ADR 0013 accepted in place;
+  4. Q11's format (c): a fenced `verso-schema` block inside a note;
+  5. Q11's location (iii): anywhere in the folder except hidden and ignored
+     paths — the maintainer's choice between briefing §5.3 and briefing §8
+     with ADR 0021 (section 10, item 1);
+  6. two schemas with one name (α): neither applies, and the conflict is
+     shown;
+  7. link kinds (a): out of the first slice, Q24's link part next.
+
+  The one exception the answer names, "the plan of several pull requests",
+  covers section 8's one pull request per row: until the whole flow exists
+  the rows travel in large pull requests
+  ([ADR 0033](../adr/0033-pr-workflow.md), revised the same day). Recorded
+  in ADR 0052 (Accepted), ADR 0013 (Accepted in place), ADR 0014, ADR 0021,
+  spec Q11 (v0.18), the roadmap, the ADR index and the briefing's History
+  (v0.9). No fixture came with the closing: none existed for Q11, and the
+  implementation brings them, each approved in the pull request that adds it.
+  Item 2.6 stays "not started", no longer waiting for decisions; whether a
+  `verso-schema` block nested in a list or a callout counts is still open
+  (ADR 0052, point 3). Until the answer nothing here was a decision and, unlike
+  features 2 to 6 of Phase 1, no code was written under the recommendations.
+  Sections 1 to 11 are the comparison as it stood when the decision was made.
 - Author: Opus 5.5, in the role of author of documents that
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) gives "Opus 5". The
   recommendations in sections 4 to 6 are **the author's**, labelled as such;
@@ -621,7 +649,9 @@ types on one note, packs.
 Each row is a pull request of one subject ([ADR 0033](../adr/0033-pr-workflow.md)),
 on its own short branch ([ADR 0051](../adr/0051-development-flow-and-releases.md)),
 with the author and the reader ADR 0032 assigns — or whoever the maintainer
-names.
+names. *(Set aside on 2026-09-24: until the whole flow exists the rows travel
+in large pull requests, by the maintainer's decision recorded in ADR 0033 and
+ADR 0051; the rows stay the order of the work.)*
 
 | # | Pull request | What it carries | Checked without reading code |
 |---|---|---|---|
@@ -780,6 +810,8 @@ git log -1 --format='%an <%ae>%n%b' d2c88d4   # author and Signed-off-by are you
 6. **Two schemas with one name:** (α), (β) or (γ). Recommended: (α).
 7. **Link kinds in the first slice:** (a) or (b). Recommended: (a), with Q24's
    link part as the next memo.
+
+Answered on 2026-09-24: all seven as recommended (the header).
 
 **What the closing PR records, if the recommendations are accepted:**
 
