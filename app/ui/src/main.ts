@@ -66,7 +66,7 @@ type Strings = Record<
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
-  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown",
+  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -146,7 +146,7 @@ const pt: Strings = {
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
-  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo",
+  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto",
 };
 
 const en: Strings = {
@@ -209,7 +209,7 @@ const en: Strings = {
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
-  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down",
+  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -1206,6 +1206,15 @@ class NoteLeaf extends Leaf {
       }
       // A web address was already sent to the browser window (guardLink).
     });
+    // Enter on a link the core writes without an address (keyLinks)
+    // clicks it, as Enter on a link does.
+    this.preview.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter" || ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+      const a = (ev.target as HTMLElement).closest<HTMLElement>("[role=link]");
+      if (!a || !this.preview.contains(a)) return;
+      ev.preventDefault();
+      a.click();
+    });
     sheet.addEventListener("mousedown", (ev) => {
       if (this.mode === "preview") return;
       if ((ev.target as HTMLElement).closest(".cm-editor, button, a, .conflict, .links, h1, input")) return;
@@ -1723,6 +1732,7 @@ class NoteLeaf extends Leaf {
     this.embeds = [];
     setHtml(this.preview, note.html);
     wireCallouts(this.preview);
+    keyLinks(this.preview);
     this.shownText = note.text;
     this.gatherFootnotes();
     typeset(this.preview);
@@ -1783,6 +1793,7 @@ class NoteLeaf extends Leaf {
         const body = h("div", "embed-note-body");
         setHtml(body, r.data.html);
         wireCallouts(body);
+        keyLinks(body);
         if (heading) sliceHeading(body, heading);
         typeset(body);
         box.append(head, body);
@@ -1805,6 +1816,8 @@ class NoteLeaf extends Leaf {
       const back = h("a", "footnote-back", "↩");
       back.href = `#fnref-${d.id}`;
       back.title = d.id;
+      // Said as what it does, not as the arrow it draws.
+      back.setAttribute("aria-label", t.footnoteBack);
       d.append(back);
       section.append(d);
     }
@@ -1813,6 +1826,13 @@ class NoteLeaf extends Leaf {
   /** The task checkboxes the core numbered (`data-task-line`, the line of
    *  the `[ ]` in the file); any other checkbox stays inert. */
   private wireTasks(): void {
+    // Named by its item's own words (not its sub-items'): reached with
+    // Tab, a box said only "checkbox".
+    for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
+      const li = box.closest("li");
+      const label = li ? ownText(li) : "";
+      if (label) box.setAttribute("aria-label", label);
+    }
     if (this.readOnly) return;
     for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
       const line = Number(box.dataset["taskLine"]);
@@ -1910,6 +1930,9 @@ class NoteLeaf extends Leaf {
       } else {
         span.classList.add("file");
         span.title = rel;
+        // A link, for the keyboard too (Enter clicks it, see the constructor).
+        span.tabIndex = 0;
+        span.setAttribute("role", "link");
         span.addEventListener("click", () => openNote(rel, false));
       }
     }
@@ -4113,6 +4136,22 @@ function wireCallouts(root: ParentNode): void {
       show(box.classList.contains("folded"));
     });
   }
+}
+/** The links the core writes without an address — `[[wikilinks]]` and
+ *  `#tags` — as links for the keyboard and a screen reader too: in the
+ *  Tab order, said as links; Enter clicks them (the reading view's
+ *  keydown). Without an address a link is neither. */
+function keyLinks(root: ParentNode): void {
+  for (const a of root.querySelectorAll<HTMLElement>("a.wikilink:not([href]), a.tag:not([href])")) {
+    a.tabIndex = 0;
+    a.setAttribute("role", "link");
+  }
+}
+/** A list item's own words, without its nested lists'. */
+function ownText(li: HTMLElement): string {
+  let s = "";
+  for (const n of Array.from(li.childNodes)) if (!(n instanceof HTMLElement && /^(UL|OL)$/.test(n.tagName))) s += n.textContent ?? "";
+  return s.replace(/\s+/g, " ").trim().slice(0, 160);
 }
 /** `#` and `^` open a heading or a block, `|` an alias, `[` and `]` end the
  *  link: no `[[…]]` can name a file whose name holds one. The window does
