@@ -66,7 +66,7 @@ type Strings = Record<
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
-  | "tabs" | "unsaved" | "rightPanel",
+  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -146,6 +146,7 @@ const pt: Strings = {
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
+  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior",
 };
 
 const en: Strings = {
@@ -208,6 +209,7 @@ const en: Strings = {
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
+  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -752,8 +754,7 @@ function drop(d: Drag, target: DropTarget, x: number, y: number): void {
         leaf.moveTo(layout().split(pane, dir, zone === "left" || zone === "top" ? "before" : "after"));
       }
     } else if ("space" in target) {
-      const to = target.space.layout.focused ?? target.space.layout.panes()[0];
-      if (to) leaf.moveTo(to);
+      moveTabToSpace(leaf, target.space);
     }
     return;
   }
@@ -770,6 +771,49 @@ function drop(d: Drag, target: DropTarget, x: number, y: number): void {
 function paneOf(node: HTMLElement): Pane | null {
   const paneEl = node.closest<HTMLElement>(".pane");
   return layout().panes().find((p) => p.el === paneEl) ?? null;
+}
+
+/* ---------- Moving a tab without the pointer: what its drag does ---------- */
+/** Taken out and put back, a tab and its content lose the focus: it goes
+ *  back where it was, in the content or on the tab. */
+function movingFocus(leaf: Leaf, move: () => void): void {
+  const inside = leaf.el.contains(document.activeElement);
+  const onTab = document.activeElement === leaf.tab;
+  move();
+  if (inside) leaf.focusContent();
+  if ((inside || onTab) && !leaf.el.contains(document.activeElement)) leaf.tab.focus();
+}
+/** A tab one place back or forward along its bar. */
+function moveTab(leaf: Leaf, by: -1 | 1): void {
+  const i = leaf.pane.leaves.indexOf(leaf);
+  const j = i + by;
+  if (i < 0 || j < 0 || j >= leaf.pane.leaves.length) return;
+  movingFocus(leaf, () => leaf.moveTo(leaf.pane, j));
+}
+/** A tab to the next or previous pane of the workspace, at the end of its bar. */
+function moveTabToPane(leaf: Leaf, by: -1 | 1): void {
+  const panes = layout().panes();
+  const i = panes.indexOf(leaf.pane);
+  const to = panes[(i + by + panes.length) % panes.length];
+  if (i < 0 || !to || to === leaf.pane) return;
+  movingFocus(leaf, () => leaf.moveTo(to));
+}
+/** A tab to a workspace's focused pane (a drop on the workspace's tab).
+ *  To another workspace, this one keeps a pane of its own focused: the
+ *  move used to leave the other workspace's pane focused here. */
+function moveTabToSpace(leaf: Leaf, s: Space): void {
+  const to = s.layout.focused ?? s.layout.panes()[0];
+  if (!to) return;
+  if (s === current) return movingFocus(leaf, () => leaf.moveTo(to));
+  const had = leaf.el.contains(document.activeElement) || document.activeElement === leaf.tab;
+  const from = leaf.pane;
+  leaf.moveTo(to);
+  s.layout.focus(to);
+  const here = layout().panes();
+  layout().focus(here.includes(from) ? from : here[0] ?? null);
+  showOutline(layout().activeLeaf);
+  markCurrent();
+  if (had) layout().activeLeaf?.tab.focus();
 }
 
 /* Files dropped from outside land in the note under the pointer, never
@@ -3003,6 +3047,15 @@ class Pane {
     const i = this.leaves.indexOf(leaf);
     const sep: [string, () => void] = ["—", () => {}];
     const file = leaf.kind !== "graph" && leaf.path !== "";
+    type Item = [string, () => void];
+    // What dragging the tab does, from the menu (and so from the keyboard):
+    // along the bar, to another pane, to another workspace.
+    const moves: Item[] = [
+      ...(i > 0 ? [[t.moveTabBack, () => moveTab(leaf, -1)] as Item] : []),
+      ...(i < this.leaves.length - 1 ? [[t.moveTabForward, () => moveTab(leaf, 1)] as Item] : []),
+      ...(layout().paneCount() > 1 ? [[t.moveTabNextPane, () => moveTabToPane(leaf, 1)] as Item, [t.moveTabPrevPane, () => moveTabToPane(leaf, -1)] as Item] : []),
+      ...(popout ? [] : spaces.filter((s) => s !== current).map((s): Item => [`${t.moveTo}: ${s.label}`, () => moveTabToSpace(leaf, s)])),
+    ];
     showMenu(x, y, [
       [t.close, () => void leaf.close()],
       [t.closeOthers, () => void this.closeExcept((l) => l === leaf || l.pinned)],
@@ -3012,8 +3065,9 @@ class Pane {
       [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned)],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }],
       sep,
-      [t.splitRight, () => leaf.moveTo(layout().split(this, "row"))],
-      [t.splitDownTab, () => leaf.moveTo(layout().split(this, "col"))],
+      [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row")))],
+      [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col")))],
+      ...moves,
       ...(leaf.kind === "note" && !popout ? [[t.openInWindow, () => void (async () => {
         // The window reads the file: what is not saved would stay behind.
         if (!(await leaf.flush())) return stopped([leaf]);
@@ -3021,7 +3075,7 @@ class Pane {
         if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
       })()] as [string, () => void]] : []),
-      ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
+      ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [`${t.moveTo}…`, () => movePrompt(leaf.path)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
       ...(leaf.kind === "note" ? [sep, [t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
     ]);
   }
@@ -4988,6 +5042,13 @@ function allCommands(all = false): Command[] {
     { id: "close-tab", label: t.close, need: Boolean(leaf), run: () => leaf && void leaf.close() },
     { id: "next-tab", label: t.nextTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, 1) },
     { id: "prev-tab", label: t.prevTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
+    // Dragging a tab or a file, without the pointer; no default keys,
+    // any can be bound in the settings.
+    { id: "move-tab-back", label: t.moveTabBack, need: Boolean(leaf), run: () => leaf && moveTab(leaf, -1) },
+    { id: "move-tab-forward", label: t.moveTabForward, need: Boolean(leaf), run: () => leaf && moveTab(leaf, 1) },
+    { id: "move-tab-next-pane", label: t.moveTabNextPane, need: Boolean(leaf) && layout().paneCount() > 1, run: () => leaf && moveTabToPane(leaf, 1) },
+    { id: "move-tab-prev-pane", label: t.moveTabPrevPane, need: Boolean(leaf) && layout().paneCount() > 1, run: () => leaf && moveTabToPane(leaf, -1) },
+    { id: "move-file", label: `${t.moveTo}…`, need: Boolean(leaf?.path) && leaf?.kind !== "graph", run: () => leaf?.path && movePrompt(leaf.path) },
     { id: "reopen", label: t.reopen, need: hasFolder, run: () => { let b = closedTabs.pop(); while (b !== undefined && !allNotes.includes(b) && !allFiles.includes(b)) b = closedTabs.pop(); if (b) openNote(b, false); } },
     { id: "toggle-side", label: t.toggleSide.split(" (")[0] ?? t.toggleSide, run: () => toggleSide() },
     { id: "toggle-right", label: t.toggleRight.split(" (")[0] ?? t.toggleRight, run: () => toggleRight() },
