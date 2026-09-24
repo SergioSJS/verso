@@ -307,22 +307,28 @@ export type FileKind = "note" | "file" | "folder" |
 "placeholder";
 
 /**
- *  What changed in the open folder outside the app — another editor, a
- *  sync client, git — as the watcher saw it and the index then found it:
- *  the payload of the `folder-changed` event the host sends the app's
- *  windows (provisional: `docs/reference/watcher-decision.md`). Notes are
- *  named by their path relative to the folder (rule 4).
+ *  What changed in the open folder, as the watcher saw it and the index
+ *  then found it: the payload of the `folder-changed` event the host sends
+ *  the app's windows after every batch of changes (provisional:
+ *  `docs/reference/watcher-decision.md`). Notes are named by their path
+ *  relative to the folder (rule 4). The lists are what this batch's index
+ *  run found; another run may have found a change first, so a window
+ *  checks every note it shows against the disk whatever they say — read
+ *  again when nothing was typed in it, saved at once otherwise, which meets
+ *  the difference (invariant 11), marked when it is gone.
  */
 export type FolderChanged = {
 	/**  The folder's key: a window showing another folder has nothing to do. */
 	key: string,
-	/**
-	 *  Notes new or changed on disk: an open one is read again, or, with
-	 *  text not yet saved, marked as changed outside.
-	 */
+	/**  Notes this run found new or different on disk. */
 	changed: string[],
-	/**  Notes gone from disk: an open one is marked as gone. */
+	/**  Notes this run found gone from disk. */
 	removed: string[],
+	/**
+	 *  Whether which entries there are, or of which kind, changed: a tree
+	 *  or a folder view is drawn again only then.
+	 */
+	listing: boolean,
 	/**  The index run's counts and problems, as `reindex` answers them. */
 	index: IndexSummary,
 };
