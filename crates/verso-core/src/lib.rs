@@ -310,8 +310,10 @@ pub struct IndexReport {
     /// outside it (`docs/reference/watcher-decision.md`).
     pub changed: Vec<String>,
     pub gone: Vec<String>,
-    /// The listing — the entries, their kinds, lengths and times — is not
-    /// what it was before the run: a tree or a folder view shows it again.
+    /// The listing's shape — which entries, of which kinds — is not what it
+    /// was before the run: a tree or a folder view draws it again. Lengths
+    /// and times alone do not count: every save changes them, and a note
+    /// whose content changed is in `changed` already.
     pub listing_changed: bool,
 }
 
@@ -895,7 +897,12 @@ impl Workspace {
         }
         self.files = files;
         self.dirs = dirs;
-        report.listing_changed = self.entries != entries;
+        report.listing_changed = self.entries.len() != entries.len()
+            || self
+                .entries
+                .iter()
+                .zip(&entries)
+                .any(|(was, is)| was.path != is.path || was.kind != is.kind);
         self.entries = entries;
         report.problems = walk.problems.iter().map(WalkProblem::from).collect();
         // Not walked because of a problem: nothing under it is gone. The
