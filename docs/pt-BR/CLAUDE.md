@@ -176,6 +176,11 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
   confirmar que a licença passa no `cargo-deny`.
 - Feature de parser vem com fixture. Fixture nova vem marcada como rascunho da
   IA, para aprovação.
+- Uma branch curta por assunto (`feat/…`, `fix/…`, `docs/…`, `chore/…`) a
+  partir da `main`; a `main` é protegida e só recebe pull requests — nunca
+  fazer push nela ([ADR 0051](adr/0051-development-flow-and-releases.md)).
+- Uma mudança que o usuário vê acrescenta a sua linha em "Não lançado" no
+  `CHANGELOG.md` e no `docs/pt-BR/CHANGELOG.md`.
 
 ### Revisão
 
@@ -201,6 +206,19 @@ para assinar: código escrito por IA entra pelo DCO comum, e quem assina o
 `Signed-off-by` declara que tem domínio do código e responde por ele
 ([ADR 0006](adr/0006-contribution-dco-no-cla.md)). Não existe assinatura
 da IA.
+
+O mantenedor faz o merge, com um merge commit — nunca squash nem rebase: os
+documentos citam commits por hash
+([ADR 0051](adr/0051-development-flow-and-releases.md)).
+
+### Versões
+
+Uma versão só é gerada **quando o mantenedor pede**, e então um agente pode
+gerá-la: `node scripts/release.mjs prepare X.Y.Z[-beta.N]` abre o pull request
+da release; depois do merge dele, `node scripts/release.mjs tag
+X.Y.Z[-beta.N]` marca a `main`, e a tag compila e publica a release. `-beta.N`
+é uma release de teste. Nunca enviar uma tag de versão à mão; tags de versão
+são permanentes.
 
 ---
 

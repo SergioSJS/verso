@@ -3,6 +3,8 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §14.4
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-09-24 — como um pull request chega à `main`, é mesclado e
+  entra numa versão: [0051](0051-development-flow-and-releases.md).
 
 ## Contexto
 
@@ -35,6 +37,12 @@ explicar por que existe.
   ([0029](0029-guardrails-in-ci.md)).
 - A proibição de alterar `expected.yaml` é replicada em `CLAUDE.md`
   ([0031](0031-fixtures-as-contract.md)).
+
+**Desde 2026-09-24** ([0051](0051-development-flow-and-releases.md)): a
+`main` é protegida e só recebe pull requests; uma branch guarda um assunto; o
+mantenedor faz o merge com um merge commit, que guarda os hashes que os
+documentos citam; uma mudança que o usuário vê acrescenta a sua linha no
+changelog, nas duas línguas.
 
 ## Alternativas descartadas
 

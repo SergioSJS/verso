@@ -48,7 +48,11 @@ off.
 ## Pull requests
 
 - Small, one topic. If the summary needs an "and", it is probably two pull
-  requests.
+  requests. One short branch per topic, from `main`, which is protected and
+  takes pull requests only
+  ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
+- A change a user can see adds its line under "Unreleased" in
+  [CHANGELOG.md](CHANGELOG.md) and in its pt-BR twin.
 - Use the template in `.github/pull_request_template.md`, with its five
   sections filled in: What / Why / Discarded alternatives / How to verify /
   Rust concept used. The last one is explained for someone learning Rust; it is

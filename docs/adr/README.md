@@ -88,6 +88,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0035](0035-cross-cutting-requirements.md) | Cross-cutting requirements: pt-BR and EN, accessibility, benchmark | Accepted |
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted (intent) |
 | [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted |
+| [0051](0051-development-flow-and-releases.md) | Development flow, versions and releases | Accepted |
 
 ### Open technical decisions
 
