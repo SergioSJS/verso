@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Version 0.9 · 2026-09-24
+> Version 0.10 · 2026-09-24
 > Single source of the decisions made before the repository existed.
 > Changes after the repository: only status changes and factual corrections,
 > recorded in the History at the end. New boundaries and consequences live in
@@ -50,7 +50,7 @@ Rules for the AI:
 | Item | Value | Status |
 |---|---|---|
 | Name | Verso | `DECIDED` |
-| Domain | `verso.md` | `PROPOSED` — availability not verified |
+| Domain | `versomd.com` | `DECIDED` — bought by the maintainer on 2026-09-24, the closest to `verso.md` they could get (v0.10) |
 | Package/org name if `verso` is taken | `verso-md` | `PROPOSED` |
 | Subproject names | none until code exists; "Recto" discarded | `DECIDED` |
 
@@ -452,7 +452,7 @@ Sync, mobile, plugins, board, compatibility shim.
 | # | Item | When to decide |
 |---|---|---|
 | 1 | ~~License: package A or B~~ | decided: package A (v0.3, ADR 0005) |
-| 2 | Name availability on crates.io, npm, the GitHub org and the domain | before making the repository public |
+| 2 | Name availability on crates.io, npm and the GitHub org (the domain: `versomd.com`, v0.10, ADR 0004) | before making the repository public |
 | 3 | ~~Language of the repository documentation~~ | decided: English source, pt-BR mirror (v0.5, ADR 0008) |
 | 4 | ~~Base parser: pulldown-cmark, comrak or our own~~ | decided: pulldown-cmark (v0.8, ADR 0037; round-trip reading in spec Q18) |
 | 5 | TS type generation: ts-rs or specta | start of Phase 2 |
@@ -481,3 +481,4 @@ of the dialect spec, not here.
 | 0.7 | 2026-09-21 | §14.3: pointer to the two-group reading of the guardrails in ADR 0029, after the independent reading of the Phase 0 review (docs/review/phase-0.md §7). No decision changed. |
 | 0.8 | 2026-09-21 | §9 and §17 item 4: base parser decided by the maintainer — pulldown-cmark, with comrak as the fallback, under the read-only reading of round-trip (spec Q18). Comparison in docs/reference/parser-decision.md (ADR 0037). |
 | 0.9 | 2026-09-24 | §5.2, §5.3, §11.3 and §17 item 7: decided by the maintainer, on the memo docs/reference/typed-note-decision.md — degradation to Markdown (ADR 0013, accepted as written, with "views" and "structured data" delimited), the typed note and schema i18n (ADR 0052), and the format and location of the schemas: a `verso-schema` block in a note, anywhere in the folder except hidden and ignored paths (spec Q11). The location is the maintainer's choice between §5.3 (a text file in the folder) and §8 (schemas in the shared layer of the config), which stays as it is, `PROPOSED`, and now disagrees on schemas. |
+| 0.10 | 2026-09-24 | §2 and §17 item 2: domain decided by the maintainer — they bought `versomd.com`, the closest to `verso.md` they could get (ADR 0004). Availability on crates.io, npm and the GitHub org remains open. |
