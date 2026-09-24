@@ -68,6 +68,13 @@ pub struct IndexSummary {
     /// indexing, one readable line each with paths relative to the
     /// folder, for the UI to show.
     pub problems: Vec<String>,
+    /// The folder is not watched for changes made outside the app: the
+    /// operating system's reason, as it gives it (no path). The UI says
+    /// what that means, in the user's language (ADR 0035).
+    pub unwatched: Option<String>,
+    /// The folder changed and this index run could not bring the index up
+    /// to date: the core's reason. The UI says it in the user's language.
+    pub unindexed: Option<String>,
 }
 
 /// Any file of the folder as text, with the revision `write_text` takes

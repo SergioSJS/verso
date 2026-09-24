@@ -53,9 +53,10 @@ struct Session {
 /// An index run's summary for this session: the run's own problems, and
 /// the reason the folder is not watched, if it is not.
 fn session_summary(session: &Session, report: &verso_core::IndexReport) -> IndexSummary {
-    let mut summary = summary(report);
-    summary.problems.extend(session.unwatched.iter().cloned());
-    summary
+    IndexSummary {
+        unwatched: session.unwatched.clone(),
+        ..summary(report)
+    }
 }
 
 /// The one open folder, or none yet. One mutex: two commands never
@@ -162,6 +163,8 @@ fn summary(r: &verso_core::IndexReport) -> IndexSummary {
             .map(ToString::to_string)
             .chain(r.warnings.iter().cloned())
             .collect(),
+        unwatched: None,
+        unindexed: None,
     }
 }
 
@@ -244,7 +247,7 @@ async fn install<R: tauri::Runtime>(
         let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
         let report = workspace.index()?;
         let mut info = folder_info(&workspace, &report);
-        info.index.problems.extend(unwatched.iter().cloned());
+        info.index.unwatched.clone_from(&unwatched);
         Ok(Session {
             workspace,
             info,
@@ -273,7 +276,8 @@ async fn install<R: tauri::Runtime>(
 /// again and tells the app's windows. A folder that cannot be watched
 /// opens all the same, and the reason comes back, to go with every
 /// summary of the session: changes made outside then show up on
-/// "reindex". The reason carries the error's kind and no path (rule 4).
+/// "reindex". The reason is the operating system's, with no path (rule 4);
+/// the window says what it means, in the user's language (ADR 0035).
 /// A batch that finds no session for the folder yet sets `missed`.
 fn watch_folder<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
@@ -284,12 +288,8 @@ fn watch_folder<R: tauri::Runtime>(
     let key = workspace.key();
     match workspace.watch(move |_| changed_outside(&app, &key, &missed)) {
         Ok(watch) => (Some(watch), None),
-        Err(e) => (
-            None,
-            Some(format!(
-                "changes made outside Verso show up on Reindex only: {e}"
-            )),
-        ),
+        Err(CoreError::Watch(os)) => (None, Some(os.to_string())),
+        Err(e) => (None, Some(e.to_string())),
     }
 }
 
@@ -331,9 +331,7 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, miss
             // they show.
             Err(reason) => {
                 let mut index = session.info.index.clone();
-                index.problems.push(format!(
-                    "the folder changed and could not be indexed: {reason}"
-                ));
+                index.unindexed = Some(reason);
                 FolderChanged {
                     key: key.to_owned(),
                     changed: Vec::new(),
@@ -1174,9 +1172,19 @@ fn return_to_main<R: tauri::Runtime>(
 #[tauri::command]
 #[specta::specta]
 fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
-    let report = with(&state, Workspace::index)?;
+    // One hold of the lock for the run and the summary: a folder switched
+    // in between would otherwise get the other folder's summary.
     let mut guard = lock(&state.session);
     let session = guard.as_mut().ok_or_else(no_folder)?;
+    let report = match std::panic::catch_unwind(AssertUnwindSafe(|| session.workspace.index())) {
+        Ok(result) => result.map_err(convert)?,
+        Err(payload) => {
+            return Err(failed(format!(
+                "the core failed: {}",
+                panic_text(payload.as_ref())
+            )));
+        }
+    };
     session.info.index = session_summary(session, &report);
     Ok(session.info.index.clone())
 }
