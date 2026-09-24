@@ -259,9 +259,10 @@ primeiro, e onde cada uma mora agora:
 - o que a visão de leitura renderiza — tabelas, notas de rodapé, matemática,
   destaque, callouts, comentários, tags no corpo: como construído (spec v0.16,
   Q5, Q6, Q13, Q15), com um callout recolhível agora abrindo e fechando pelo
-  título (`5b7fc69`); menos callouts aninhados em callouts, e os `<iframe>`,
-  `<video>` e `<audio>` que a janela descarta, ainda em aberto porque o
-  Obsidian os mostra e a visão de leitura não;
+  título (`5b7fc69`); menos, ainda em aberto, callouts aninhados em callouts
+  — desenhados como callouts desde 2026-09-24, provisoriamente (spec v0.17,
+  Q5) — e os `<iframe>`, `<video>` e `<audio>` que a janela descarta
+  ([memo de mídia embutida](embedded-media-decision.md));
 - que um arquivo que não é UTF-8 não é aberto para edição (Q25 da spec,
   fechada);
 - os quatro jeitos que a janela tem de acessar a rede, com um ajuste sobre os

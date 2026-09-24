@@ -619,10 +619,13 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   Obsidian mostra — desde `5b7fc69`: antes a dobra só era marcada e nada agia
   sobre ela, o que a leitura da Opus das respostas achou; sem título, o nome do tipo, com inicial maiúscula, é o título; uma
   citação aninhada dentro de um callout continua citação
-  (`crates/verso-dialect/src/callouts.rs`). O parser que alimenta o índice não
+  (`crates/verso-dialect/src/callouts.rs`) — desde a v0.17, uma que é ela
+  mesma um callout é desenhada como callout (o fato provisório abaixo). O
+  parser que alimenta o índice não
   mudou. **O aninhamento continua `[ABERTO]`**: a documentação pública do
   Obsidian mostra callouts aninhados dentro de callouts, que a visualização de
-  leitura mantém como citações. A recomendação apresentada ao mantenedor dizia
+  leitura mantinha como citações antes da v0.17. A recomendação apresentada ao
+  mantenedor dizia
   que a visualização de leitura segue o Obsidian, o que não vale para o
   aninhamento, então o aninhamento não é tomado como decidido.
 
