@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.2.0-beta.2 — 2026-09-24
+
 ### Added
 
 - **Views over the folder — bases, as Obsidian writes them**: a `.base` file,
