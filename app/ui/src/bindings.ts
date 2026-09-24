@@ -376,6 +376,17 @@ export type IndexSummary = {
 	 *  folder, for the UI to show.
 	 */
 	problems: string[],
+	/**
+	 *  The folder is not watched for changes made outside the app: the
+	 *  operating system's reason, as it gives it (no path). The UI says
+	 *  what that means, in the user's language (ADR 0035).
+	 */
+	unwatched: string | null,
+	/**
+	 *  The folder changed and this index run could not bring the index up
+	 *  to date: the core's reason. The UI says it in the user's language.
+	 */
+	unindexed: string | null,
 };
 
 /**  A link a note makes. */
