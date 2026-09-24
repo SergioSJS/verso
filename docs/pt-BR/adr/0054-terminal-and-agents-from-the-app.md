@@ -31,10 +31,7 @@ opções que o autor apresentou com a sua recomendação:
    de comando vai dentro do app, ao lado do binário dele, e Ajustes →
    Terminal e agentes a liga como `/usr/local/bin/verso`, no `PATH` de todo
    shell (`/etc/paths`), como os editores instalam os seus. Onde essa pasta
-   não é da pessoa, o macOS pede uma senha de administrador, uma vez. A
-   quarentena do download é tirada da linha de comando quando ela é ligada.
-   Outra coisa já ali só é substituída depois de perguntar; "Remover" tira só
-   o link deste app.
+   não é da pessoa, o macOS pede uma senha de administrador, uma vez.
 2. **Um agente é ligado num clique, com o que entra mostrado antes** — a
    recomendação: "Adicionar ao Claude Desktop" mostra a entrada que vai
    gravar e, num sim, a grava no arquivo de configuração do Claude Desktop,
@@ -55,7 +52,13 @@ Como o autor os construiu (o memo, seção 5):
 - **O link é feito com as ferramentas do próprio sistema** (`ln`,
   `readlink`, e `osascript` para a senha), como o "Mostrar no Finder" da
   janela usa o `open`: nenhum desses caminhos é da pasta (regra 5), e o app
-  não lê arquivo próprio ali.
+  não lê arquivo próprio ali. A quarentena do download é tirada da linha de
+  comando quando ela é ligada; outra coisa já naquele caminho só é
+  substituída depois de perguntar; "Remover" tira só o link deste app.
+  [ABERTO] Se o host deve fazer isso pelo `std::fs`, com uma exceção
+  declarada no seu próprio `clippy.toml`, em vez das ferramentas do sistema
+  — a leitura viu as ferramentas como um contorno do guardrail (o memo,
+  seção 8): cabe ao mantenedor decidir.
 - **A versão põe a linha de comando dentro do app** e assina o pacote de
   novo, ad hoc como antes; o arquivo separado continua.
 

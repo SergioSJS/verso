@@ -94,6 +94,12 @@ million steps per query at most and texts of 1 MiB at most.
   `null`, not an error; `file.backlinks` counts links, embeds and property
   links.
 
+[OPEN] The author's reading where "Functions" and "Bases syntax" say
+nothing, for the maintainer to keep or change: the `Unique` summary skips
+empty values; `null < 3` is false, null comparing with nothing; `true == 1`
+is false, `==` making no number of a boolean; a link and a text compare by
+the file they name, then by the text as written.
+
 ### 3.3 The layouts
 
 - **Table**: widths by the column's edge; the column's menu sorts, removes or
@@ -188,5 +194,54 @@ folder, with its own tabs over the same session.
 
 ## 8. The reading
 
-Pending: a fresh Opus 5.5 session reads the change and this memo; its
-findings, and what was done with each, go here.
+Two fresh Opus 5.5 sessions read the change on 2026-09-24: one the Rust (the
+core, the host, the command line), one the UI, the documents and the release
+workflow (ADR 0032, as the maintainer's item 17 of `docs/review/phase-2.md`
+§6 has it). Their findings, and what was done with each:
+
+**BLOCKING — all fixed**
+
+| # | Finding | Done |
+|---|---|---|
+| R1 | Evaluation not bounded in memory or stack: a base could double a list, replace a letter with a long text, nest a list a thousand deep, chain formulas past the stack — and abort the app, unsaved text with it | Every value made or copied is charged to the budget (a step per element and per 16 bytes); lists stop at 2^20 items, nesting at 100, recursion at 160 levels; `replace` and `join` measure before making; comparisons counted. Tests `a_base_cannot_make_the_evaluation_outgrow_its_bounds`, `a_chain_of_formulas_stops_at_the_depth_bound` |
+| R2 | Links to no file compared ignoring case and heading, where "Bases syntax" says their text must be identical | Identical text; a link and a text by the file, then by the text. Test `links_to_no_file_are_equal_only_as_written` |
+| R3 | The default `Count` hid a summary of the base's own named `Count` | The base's own first. Test `a_summary_of_the_base_may_take_a_default_name` |
+| U1 | A `base` block inside a callout, quote or list: its menus rewrote it without the marks, losing filters and views | Shown whole, not edited from its menus |
+| U2 | The filter menu dropped nested groups on any save | A filter with a nested group is left to the source |
+| U3 | A drop resolved against another view of the page, or a redrawn board, wrote wrong values (1970 dates, another board's column) | Only the zones of the drag's own view; a drag whose view was redrawn drops nothing |
+| U4 | A menu edit rewrote the whole base in the package's style (indentation, folded text, blank lines) | The menus edit a base only when the package writes it back byte for byte; otherwise it is edited as text — 83 of the 84 public samples stay editable |
+
+**IMPORTANT**
+
+| # | Finding | Done |
+|---|---|---|
+| R4 | `query_base` runs on the main thread | Deferred: the bounds above cap its time (the budget) and its stack; moving it off the thread, with a snapshot of the folder, is a change of its own |
+| R5 | The sort's comparison was not an order (NaN, month durations, `""` against empty) and could panic | Fixed: an order with no exception, empty values last in both directions. Test `a_sort_over_mixed_values_is_an_order` |
+| R6 | Date arithmetic could overflow | Fixed: dates stop at JavaScript's range. Test `a_date_moved_past_the_calendar_stops_at_its_edge` |
+| R7 | The host links the command line with the system's tools (`ln`, `readlink`, `rm`, `xattr`, `osascript`), which the reading sees as a way around the `std::fs` guardrail | [OPEN] for the maintainer — an exception declared in the host's `clippy.toml`, or the tools as now; recorded in ADR 0054 |
+| R8 | The author's semantics where the documents say nothing, not labelled | Labelled [OPEN] in section 3.2 |
+| R9 | Missing tests: bounds, `Workspace::query_base`, the host's window and command-line paths | Bounds tested (above); the rest deferred |
+| U5 | The kanban's remembered columns went stale and were written into the base | Remembered per property, never written |
+| U6 | The kanban wrote numbers and checkboxes as texts | A column keeps its kind |
+| U7 | A view read a property ignoring case and wrote a second key beside it | Written under the key the note has |
+| U8 | Closed notes' bases kept querying the core | Unregistered; a view taken down asks nothing |
+| U9 | A redraw dropped a field being typed | No redraw while a field of the view has the focus. Focus kept after the view's own writes: deferred |
+| U10 | The sort, group and filter menus used values from when they were drawn: a second change undid the first | Read when the change is made |
+| U11 | Accessibility: column order only by dragging; the `</>` button; the result count not announced | Deferred to the VoiceOver pass |
+| U12 | Author's details inside points marked as the maintainer's (ADR 0053 point 3, ADR 0054 point 1) | Moved under what the author built |
+| U13 | Contradictions: the briefing's structured-views row still PROPOSED while ADR 0053 calls it decided; ADR 0013's "materialize in the file" against copying and "save as a note" | Recorded, no side taken: the maintainer's |
+
+**MINOR** — left, listed for later: a `not` group admitting rows on errors;
+grouping by a link and by a text in neighbouring columns; custom summaries
+evaluated at the first row; non-finite summary numbers; two folders of one
+name giving Claude Desktop one server name; the backup's permissions; the
+command line linked from a translocated app; `xattr` failures ignored; window
+messages sent to "main" only; the `.base` read before its size check; CSV
+cells starting with `= + - @`; no Escape or auto-scroll while dragging;
+datetime offsets dropped on moves; two views named "Table" when adding to an
+empty base; `note.` prefixes in the sort menu; embeds keeping the base text
+read when drawn; an unclosed fence duplicating its last line; "Insert base"
+into the frontmatter in Source mode; a misspelled embed view shown as the
+first; bookmarks written from each window's copy; the release's `cp` without a
+guard; Claude Desktop's file rewritten with its keys sorted (meaning and a
+copy kept, where ADR 0054 says "like a note").
