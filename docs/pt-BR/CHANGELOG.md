@@ -12,7 +12,11 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Corrigido
+
+- **A linha de comando da beta** diz qual app abre: `verso <pasta>`
+  responde "abrindo … no Verso Beta", e nomeia o Verso Beta quando o app
+  não está instalado.
 
 ## 0.2.0-beta.1 — 2026-09-24
 
