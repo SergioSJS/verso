@@ -36,6 +36,10 @@ test release.
 
 ### Fixed
 
+- **Backspace at the start of a note** in Edit mode no longer joins the
+  first line to the hidden properties' closing line, which lost every
+  property unseen; no key changes the folded properties now — the
+  properties panel does.
 - **The beta's command line** says which app it opens: `verso <folder>`
   answers "opening … in Verso Beta", and names Verso Beta when the app is
   not installed.
