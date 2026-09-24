@@ -66,7 +66,7 @@ type Strings = Record<
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
-  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane",
+  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -146,7 +146,7 @@ const pt: Strings = {
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
-  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior",
+  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo",
 };
 
 const en: Strings = {
@@ -209,7 +209,7 @@ const en: Strings = {
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
-  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane",
+  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -2938,6 +2938,7 @@ class Pane {
     this.tabList.setAttribute("aria-orientation", "horizontal");
     this.tabList.addEventListener("keydown", (e) => this.tabKeys(e));
     const all = button("ghost iconic", t.allTabs, "more");
+    all.setAttribute("aria-haspopup", "menu");
     all.addEventListener("click", (e) => {
       const r = all.getBoundingClientRect();
       showMenu(r.left, r.bottom + 4, [
@@ -4372,7 +4373,7 @@ const menu = h("ul", "menu");
 menu.hidden = true;
 menu.setAttribute("role", "menu");
 document.body.append(menu);
-/** Where the focus was when the menu opened, to give it back on Escape. */
+/** Where the focus was when the menu opened, to give it back when it closes. */
 let menuOpener: Element | null = null;
 menu.addEventListener("keydown", (e) => {
   const items = Array.from(menu.querySelectorAll<HTMLButtonElement>("button"));
@@ -4384,18 +4385,23 @@ menu.addEventListener("keydown", (e) => {
     e.preventDefault();
     (e.key === "Home" ? items[0] : items[items.length - 1])?.focus();
   } else if (e.key === "Escape" || e.key === "Tab") {
-    if (e.key === "Escape") e.preventDefault();
+    // Closed, the menu gives the focus back to what opened it: Tab from
+    // the last item used to leave it on the page.
+    e.preventDefault();
     menu.hidden = true;
-    if (e.key === "Escape" && menuOpener instanceof HTMLElement && menuOpener.isConnected) menuOpener.focus();
+    giveBack(menuOpener);
   }
 });
 function showMenu(x: number, y: number, items: [string, () => void][]): void {
   menuOpener = document.activeElement;
   menu.replaceChildren(
     ...items.map(([label, run]) => {
+      // The list items are layout only: the menu's items are its buttons.
       const li = h("li");
+      li.setAttribute("role", "none");
       if (label === "—") {
         li.className = "menu-sep";
+        li.setAttribute("role", "separator");
         return li;
       }
       const b = h("button", "", label);
@@ -4403,6 +4409,11 @@ function showMenu(x: number, y: number, items: [string, () => void][]): void {
       b.setAttribute("role", "menuitem");
       b.addEventListener("click", () => {
         menu.hidden = true;
+        // The focus goes back to what opened the menu before the item
+        // runs: what the item opens (a field, a dialog) takes it from
+        // there, and an item that opens nothing leaves the keyboard where
+        // it was, not on the page.
+        giveBack(menuOpener);
         run();
       });
       li.append(b);
@@ -5902,6 +5913,9 @@ class Ribbon {
   }
   paint(): void {
     const hasFolder = currentFolder !== "";
+    // Drawn anew, a button that had the focus gets it back (a toggle
+    // pressed from the keyboard used to drop it on the page).
+    const had = document.activeElement instanceof HTMLElement && this.el.contains(document.activeElement) ? document.activeElement.dataset["id"] : undefined;
     const top = h("div", "ribbon-group");
     const bottom = h("div", "ribbon-group ribbon-bottom");
     for (const id of this.order) {
@@ -5916,20 +5930,45 @@ class Ribbon {
       b.disabled = Boolean(it.needsFolder) && !hasFolder;
       if (id === "files") b.classList.toggle("on", !document.body.classList.contains("no-side"));
       if (id === "right") b.classList.toggle("on", !document.body.classList.contains("no-right"));
+      if (id === "new") b.setAttribute("aria-haspopup", "menu");
       b.addEventListener("click", () => { if (!this.dragged) it.run(b); this.dragged = false; });
       b.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         const hiddenCount = this.hidden.size;
         showMenu(e.clientX, e.clientY, [
+          // What dragging a button along the column does, from the menu.
+          [t.ribbonUp, () => this.move(id, -1)],
+          [t.ribbonDown, () => this.move(id, 1)],
           [t.ribbonHide, () => { this.hidden.add(id); this.save(); this.paint(); }],
           ...(hiddenCount > 0 ? [[`${t.ribbonShowAll} (${hiddenCount})`, () => { this.hidden.clear(); this.save(); this.paint(); }] as [string, () => void]] : []),
           [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden.clear(); this.save(); this.paint(); }],
         ]);
       });
+      // The menu from the keyboard, as the tree's rows and the tabs have it.
+      b.addEventListener("keydown", (e) => {
+        if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
+        e.preventDefault();
+        const r = b.getBoundingClientRect();
+        b.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.right + 6, clientY: r.top, bubbles: true, cancelable: true }));
+      });
       this.armDrag(b);
       (it.bottom ? bottom : top).append(b);
     }
     this.el.replaceChildren(top, bottom);
+    if (had) (this.el.querySelector<HTMLButtonElement>(`[data-id="${had}"]`) ?? this.el.querySelector<HTMLButtonElement>("button:not(:disabled)"))?.focus();
+  }
+  /** One place up or down among the shown buttons of its group. */
+  private move(id: string, by: -1 | 1): void {
+    const bottom = (x: string) => RIBBON.find((i) => i.id === x)?.bottom === true;
+    const group = this.order.filter((x) => !this.hidden.has(x) && bottom(x) === bottom(id));
+    const other = group[group.indexOf(id) + by];
+    if (other === undefined || !group.includes(id)) return;
+    const a = this.order.indexOf(id);
+    const b = this.order.indexOf(other);
+    this.order[a] = other;
+    this.order[b] = id;
+    this.save();
+    this.paint();
   }
   private dragged = false;
   /** Pointer drag within the column: the button follows the pointer's
