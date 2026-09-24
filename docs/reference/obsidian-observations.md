@@ -22,8 +22,11 @@
 - Verso: `1222492` (v0.2.0-beta.1, the head of `main`), run on a copy of the
   same inputs outside the vault, with a scratch configuration directory.
 - Author: Opus 5.5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
-  Reviewer: Fable 5.1, in a separate session. No Rust and no fixture in this
-  change.
+  Reader: a fresh Opus 5.5 session, standing in for Fable 5.1 by the
+  maintainer's decision of 2026-09-23 (`../review/phase-2.md` §6, item 17) —
+  the model that wrote the memo, the departure from ADR 0032 that decision
+  accepts. Its findings, and what was done with each, are in section 16. No
+  Rust and no fixture in this change.
 - Sources read: spec §4, §5.1, §5.6, §5.7, §5.10, §5.12, §5.13 and §9;
   ADR 0009, [ADR 0030](../adr/0030-base-dialect-obsidian-compatible.md) and
   ADR 0031; [`obsidian-cli.md`](obsidian-cli.md);
@@ -45,7 +48,7 @@ recommendation for the maintainer; and a draft fixture when one fits the schema
 of spec §4. Section 3 is the summary, section 13 lists what turned up along the
 way for other questions, section 14 what could not be observed and why, and
 section 15 how the maintainer decides — and repeats any line of this — without
-reading code.
+reading code. Section 16 records the reading of this memo.
 
 Q8 was observed before (spec §9, Q8) and is not repeated; Q12 is closed and its
 rule is taken as given.
@@ -59,8 +62,11 @@ rule is taken as given.
   §2), and every command carried `vault=Sandbox`. `obsidian vault vault=Sandbox`
   gave the vault's path. Its `.obsidian/app.json` is `{}`, so every setting is
   Obsidian's default — "Use `[[Wikilinks]]`" included, which changes how the app
-  writes links, not how it reads them. The two community plugins enabled there
-  (`obsidian-livesync`, `task-list-kanban`) do not parse notes.
+  writes links, not how it reads them. Two community plugins were enabled
+  there and left on, `obsidian-livesync` and `task-list-kanban`. What they do
+  with notes was not checked — a kanban of tasks reads notes to find its
+  tasks, and LiveSync copies them to its remote (section 2.3) — and neither
+  was whether either changes what the metadata cache reports.
 - Baseline before the run: 8 files, one folder (`assets`), one unresolved target
   (`create a link`, 2 links).
 - The inputs were written as plain files, byte for byte, into a new folder
@@ -123,6 +129,12 @@ changed: `find .obsidian -newer <start of the run>` lists `workspace.json`
 only. Any run by this method should be expected to do the same;
 `obsidian-cli.md` §5 does not say so.
 
+Not checked, and for the maintainer: `obsidian-livesync` is enabled in that
+vault, so the 72 notes and 3 images — and then their deletion — may have
+been sent to its remote database and on to any other device synced with it.
+Whether they were, and what a deletion leaves there, is to be looked at in
+LiveSync, not in the vault.
+
 ## 3. Summary
 
 | Question | Observed | Verso now, against Obsidian | Recommendation, for the maintainer |
@@ -131,11 +143,11 @@ only. Any run by this method should be expected to do the same;
 | Q14 — a missing target | yes | agrees: kept with its count, never a backlink, resolved once the note exists; lists case variants as one row where Obsidian lists two; not a graph node | keep it; state how the list groups spellings and whether the graph shows missing targets |
 | Q19 — heading matching | the parsing, yes; which heading a link reaches, no | agrees on the heading text and on the nested path; does not see setext headings | setext headings are headings; `heading` keeps a nested path as written; the matching rule waits for a check by hand |
 | Q20 — Markdown links | yes | differs: neither parsed nor indexed | count them as links, `syntax: markdown`, by the rules observed |
-| Q24 — the frontmatter | yes | agrees on CRLF, `...`, YAML 1.2 and invalid YAML; differs on a BOM, an empty block, a duplicate key, an empty value, number and string `tags`, and links in properties | follow Obsidian on each point |
+| Q24 — the frontmatter | yes | agrees on CRLF, YAML 1.2 and invalid YAML; differs on a BOM, an empty block, a duplicate key, an empty value, number and string `tags`, links in properties, and a block closed by `...` or with spaces after its `---` lines, whose lines Verso reads as neither frontmatter nor body | follow Obsidian on each point |
 | Q7 — NFC and NFD | yes | agrees on resolution and on the unresolved list; the CLI does not find an NFD-named note from an NFC argument | compare after NFC, as the index does, at the CLI's argument too |
 | Q4 — the `^id` scope | yes, except which duplicate a click reaches | agrees: per note, every definition reported as written | unique per note, case-insensitive, and the last of a duplicate |
 | Q21 — what a block is | yes | recognizes the same ids except on a heading and before trailing spaces; says nothing of which block an id names | a block is a section or a list item, as observed |
-| Q23 — combined forms | yes | agrees on 18 of 30 forms, differs on 11, and one is undocumented | follow Obsidian's reading of the eleven |
+| Q23 — combined forms | yes | agrees on 18 of 30 forms, differs on 11, and one is undocumented; two rows go against the wording of closed Q12 (section 12.3) | follow Obsidian's reading of the eleven — one point of which would amend Q12 |
 
 ---
 
@@ -484,12 +496,12 @@ links") — consistent with the `C# e F#` row above.
   `C# e F#`), which is the spec's rule until Q19 (§4.2).
 - The index and the CLI ignore the heading when counting: 24 backlink rows, as
   in Obsidian.
-- Nothing matches a link's heading against a heading. Read from the code: the
-  window's `follow()` opens the note and does not move to the heading; an embed
-  `![[nota#seção]]` keeps the section whose rendered heading text equals the
-  link's text, both trimmed and lower-cased, taking the first such heading
-  (`sliceHeading`); and the `[[Nota#` completion inserts the heading's text as
-  the index holds it.
+- Only an embed matches a link's heading against a heading. Read from the
+  code: `![[nota#seção]]` keeps the section whose rendered heading text equals
+  the link's text, both trimmed and lower-cased, taking the first such heading
+  (`sliceHeading`, `app/ui/src/main.ts`); the window's `follow()` opens the
+  note and does not move to the heading; and the `[[Nota#` completion inserts
+  the heading's text as the index holds it.
 
 ### 6.4 Agreement and recommendation
 
@@ -675,11 +687,14 @@ by wrapping it with angled brackets (< >)." ("Basic formatting syntax").
   `syntax: markdown` ("PROPOSED … not parsed").
 - So the index holds none of them: the `backlinks` of `q20-alvo` are empty, and
   neither `example.com` nor `q20-nao-existe` is in the unresolved list.
-- Read from the code: the reading view renders a Markdown link as an ordinary
-  anchor, and the window follows a click on one only for `http(s)`
-  (`guardLink`), so `[x](q20-alvo.md)` does nothing when clicked; a Markdown
-  image is left as an `<img>` that the window does not resolve through the
-  folder — it resolves `![[…]]` only.
+- Read from the code: the renderer emits a Markdown link as an ordinary
+  anchor, and the window's sanitizer strips a relative `href` or `src` before
+  the page sees it — it keeps web, mail and in-page addresses on a link, and
+  web or `data:image` addresses on an image (`address()`,
+  `app/ui/src/sanitize.ts`). So `[x](q20-alvo.md)` is shown as an anchor with
+  no address, which `guardLink` never matches, and a click on it does
+  nothing; `![imagem](q20-img.png)` is left as an `<img>` with no `src`. The
+  window resolves `![[…]]` embeds only.
 
 ### 7.4 Agreement and recommendation
 
@@ -728,7 +743,8 @@ Veja [o barão](Barão%20Vermelho.md) e [a taverna](<Taverna.md#Porão>).
 # Would answer Q20, and only in the PR that closes it (rule 17). Fails today: the
 # parser does not read Markdown links and the harness refuses `syntax: markdown`.
 # The image's alt text goes in `alias`, as §5.13 does with a link's text; no field
-# for it is decided.
+# for it is decided. It decodes the destination, while spec §4.2's `target` is
+# "as written": closing Q20 with it changes §4.2 too.
 links:
   - target: Barão Vermelho.md
     alias: o barão
@@ -762,6 +778,12 @@ observed:
     unresolvedLinks "Barão Vermelho", "Taverna", "example.com",
     "Mapa da Taverna.png".
 ```
+
+The draft decodes the destination — `Barão Vermelho.md` for
+`Barão%20Vermelho.md` — and drops the angle brackets around
+`Taverna.md#Porão`, as point 2 of section 7.4 recommends, while spec §4.2
+defines `target` as the text of the target "as written". A pull request that
+closes Q20 with this draft has to change §4.2 as well, for `syntax: markdown`.
 
 ---
 
@@ -816,10 +838,10 @@ Verso: the parser):
 | a BOM before `---` | read; its positions leave the BOM out (`frontmatterPosition` offsets 0 to 33); `tags` lists `#q24bom` | **no frontmatter**: the core hands U+FEFF to the parser, and the index has no tags for the note |
 | CRLF | read | read |
 | CRLF and LF mixed | read | read |
-| closed by `...` | not a frontmatter: a thematic break and a paragraph | not a frontmatter |
+| closed by `...` | not a frontmatter: a thematic break and a paragraph | **neither frontmatter nor body**: the base parser takes the block as metadata, Verso then refuses it, and its lines are lost (section 8.3) |
 | empty (`---` right after `---`) | a `yaml` section with no values; `properties`: "No frontmatter found." | **no frontmatter**: two thematic breaks |
 | only a blank line inside | a `yaml` section with no values | **no frontmatter** |
-| spaces after the `---` | not a frontmatter | not a frontmatter |
+| spaces after the `---` | not a frontmatter | **neither frontmatter nor body**, the same way |
 | a blank line before the `---` | not a frontmatter | not a frontmatter |
 | invalid YAML (`title: [aberto`) | a `yaml` section with no values; `properties`: "No frontmatter found." | a frontmatter whose values are an error (`illegal placement of ':' indicator …`), which the index marks |
 | never closed | not a frontmatter | not a frontmatter |
@@ -884,12 +906,35 @@ list" ("Tags"). "Aliases should always be formatted as a list in YAML."
 
 ### 8.3 Agreement and recommendation
 
-They agree on CRLF, mixed endings, `...` not closing, spaces after the
-delimiter, a blank line before it, a block never closed, invalid YAML (a
-frontmatter without values), JSON, the YAML 1.2 reading of every value but one,
-the singular `tag` and `alias` ignored, and a string of aliases kept whole. They
-differ on a BOM, an empty block, a duplicate key, an empty value, a number in
-`tags`, a string in `tags` and links in properties.
+They agree on CRLF, mixed endings, a blank line before the delimiter, a block
+never closed, invalid YAML (a frontmatter without values), JSON, the YAML 1.2
+reading of every value but one, the singular `tag` and `alias` ignored, and a
+string of aliases kept whole. They differ on a BOM, an empty block, a duplicate
+key, an empty value, a number in `tags`, a string in `tags`, links in
+properties — and on a block closed by `...` or with spaces after its `---`
+lines, which the first version of this memo counted as agreement.
+
+**The `...` and spaces divergence.** Neither app reads such a block as a
+frontmatter, but they part on what its lines are. pulldown-cmark takes both
+shapes as a YAML metadata block — it accepts `...` as a closing line, and
+spaces after either `---` — and the dialect pass then refuses the block,
+because it wants a closing `---` with nothing after it: `frontmatter()` in
+`crates/verso-dialect/src/parse.rs`, its `strip_suffix("---")` around line
+337, for the event taken around line 84. The lines in between are then
+neither frontmatter nor body: the parser reports no link in them,
+`body_tags` skips them as metadata, and the reading view drops them
+(`render.rs`). Obsidian reads them as body — for `...`, a thematic break and a
+paragraph over lines 1 to 3 (the observation of draft c, below); for the
+spaces, the sections were not recorded. Checked in Verso on 2026-09-24, with
+the parser of `1222492`, whose `parse.rs`, `events.rs` and `tags.rs` are
+unchanged at the head of this stack: `---`, `title: Taverna [[Adega]]`,
+`...`, `[[Porão]]` gives one link, `Porão`, and `[[Adega]]` is gone, from the
+parser and from the index's unresolved targets alike; the same with spaces
+after both `---`, the shape observed. With spaces after the opening `---`
+only, the dialect pass accepts the block as a frontmatter; what Obsidian does
+with that shape was not observed. So a link or a tag written in such a block
+counts in Obsidian and disappears in Verso: a construct Obsidian interprets,
+read another way (invariant 12).
 
 **Recommendation, for the maintainer to decide**, point by point, following
 Obsidian:
@@ -908,7 +953,11 @@ Obsidian:
 6. a property whose whole value is `"[[x]]"` or `"[t](x.md)"`, or a list of
    them, is a link — resolved by Q12, a backlink, an unresolved target when it
    is missing — and is kept apart from body links, as Obsidian keeps
-   `frontmatterLinks` apart from `links`.
+   `frontmatterLinks` apart from `links`;
+7. a block opened by `---` that Obsidian does not read as a frontmatter —
+   closed by `...`, or with spaces after both `---` lines, as observed — is
+   body, as Obsidian reads it: its links and tags count, and none of its lines
+   is lost between the two readings.
 
 On CRLF the observation says only that Obsidian reads it; which line break Verso
 keeps when a file mixes them is a matter of writing, which the maintainer left
@@ -918,7 +967,8 @@ for later (spec §9, Q24).
 
 The harness cannot assert that a file has no frontmatter: `frontmatter:` fails
 when the parser finds none (spec §4.1). So the `...` case shows it through a
-body link. Five drafts.
+link inside the would-be block: a body link to Obsidian, lost in Verso today
+(section 8.3). Five drafts.
 
 a) `fixtures/frontmatter/bom/` — `input.md` is the text below preceded by the
 three bytes `EF BB BF`:
@@ -982,6 +1032,7 @@ c) `fixtures/frontmatter/dots-do-not-close/` — `input.md`:
 ```markdown
 ---
 title: Taverna
+lugar: "[[Adega]]"
 ...
 [[Porão]]
 ```
@@ -990,22 +1041,27 @@ title: Taverna
 
 ```yaml
 # AI draft (docs/reference/obsidian-observations.md §8), awaiting the maintainer's approval (ADR 0031).
-# Construct: a block opened by `---` and "closed" by `...` is not a frontmatter.
+# Construct: a block opened by `---` and "closed" by `...` is not a frontmatter; its lines are body.
 # Spec: docs/spec/dialect.md §5.1, Q24. No key asserts that a file has no frontmatter
-# (§4.1): the link on line 4 being a body link is what shows it. Would answer the
-# `...` part of Q24, and only in the PR that closes it (rule 17). Passes today.
+# (§4.1): the link on line 3, inside the would-be block, being a body link is what
+# shows it. Would answer the `...` part of Q24, and only in the PR that closes it
+# (rule 17). Fails today: Verso drops the block's lines, so `Adega` is missing.
 links:
+  - target: Adega
+    pos: { line: 3, col: 9 }
   - target: Porão
-    pos: { line: 4, col: 1 }
+    pos: { line: 5, col: 1 }
 observed:
   app: Obsidian
   version: "1.13.7 (installer 1.11.5), macOS"
   how: >-
     Obsidian CLI on 2026-09-24 against a throwaway folder in the sandbox vault,
-    public API only (ADR 0009; docs/reference/obsidian-cli.md).
-    `obsidian eval` on `app.metadataCache.getCache(...)` -> no frontmatter;
-    sections: thematicBreak 0, paragraph 1-3; links: "Porão" at line 3 col 0;
-    unresolvedLinks { "Porão": 1 }.
+    public API only (ADR 0009; docs/reference/obsidian-cli.md), on this input
+    without its third line: `obsidian eval` on `app.metadataCache.getCache(...)`
+    -> no frontmatter; sections: thematicBreak 0, paragraph 1-3; links:
+    "Porão" at line 3 col 0; unresolvedLinks { "Porão": 1 }. The line
+    `lugar: "[[Adega]]"` was added after the run, at the reading (section 16):
+    this input is to be observed before approval.
 ```
 
 d) `fixtures/frontmatter/yaml-1-2/` — `input.md`:
@@ -1145,10 +1201,12 @@ Seção NFC para título NFD: [[q7-titulos#Coração]]     NFC
 ### 9.4 Agreement and recommendation
 
 They agree on the outcome: both forms of a name reach the same note, and both
-forms of a missing name make one unresolved entry. Obsidian gets there by
-normalizing file paths and link text to NFC at the edges and then comparing
-strings; Verso by folding both sides when it compares. They differ where Verso
-compares without folding: the CLI's note argument and `verso mcp`'s `path`.
+forms of a missing name make one unresolved entry. How Obsidian gets there is
+an inference from section 9.2, not an observation: its paths and its `link`
+text are NFC while its lookups, called directly, do not normalize, which fits
+normalizing at the edges and then comparing strings. Verso folds both sides
+when it compares. They differ where Verso compares without folding: the CLI's
+note argument and `verso mcp`'s `path`.
 
 **Recommendation, for the maintainer to decide:** close Q7 as the index does it
 — every name comparison after NFC on both sides — and apply the same fold
@@ -1188,6 +1246,33 @@ Quarto. ^minusc
 `[[q4-alvo#^dup]]`, `[[q4-alvo#^maiusc]]`, `[[q4-alvo#^MAIUSC]]`,
 `[[q4-alvo#^MINUSC]]`, `[[q4-alvo#^nao-existe]]` and `[[q4-outro#^dup]]`.
 
+`q4-charset.md`, the probe of section 13 (Q22), has one id per paragraph;
+line 11 ends in three spaces after the id, shown here as `···`:
+
+```text
+Sublinhado. ^a_b
+
+Ponto. ^a.b
+
+Acento. ^ação
+
+Só dígitos. ^123
+
+Hífen. ^a-b
+
+Espaços depois. ^fim···
+
+Emoji. ^🍺
+
+Barra. ^a/b
+```
+
+*(Recorded at the reading, which found `q4-charset.md` cited in sections 11.2
+and 13 and missing here. Recovered from the run's own generator script and
+the scratch copy Verso read, both kept outside the repository, and matched
+against Obsidian's recorded `getCache` output for the note: blocks `123` and
+`a-b` only, and no id on the paragraph of line 11.)*
+
 ### 10.2 What Obsidian did
 
 - The `sections` of `q4-alvo` are four paragraphs whose ids are `dup`, `dup`,
@@ -1218,13 +1303,16 @@ Quarto. ^minusc
 They agree on everything both do: the scope is the note, every definition is a
 definition, and block links count toward the note. Obsidian's map keeps one
 block per id (the last, keyed in lower case), which Verso does not model yet.
+That Obsidian's lookup of `#^id` is case-insensitive and answers with the last
+definition is an inference from that map's shape, not an observation: where a
+click lands was not observed (section 14).
 
 **Recommendation, for the maintainer to decide:** an id is unique per note; the
 lookup of `#^id` is case-insensitive; with a duplicate, the last definition
-answers, as Obsidian's cache holds it; and the parser goes on reporting every
-definition, so that a later decision can warn about duplicates without touching
-the parser. A duplicate is never an error on read and is never rewritten
-(invariant 7).
+answers, as Obsidian's cache suggests (above); and the parser goes on
+reporting every definition, so that a later decision can warn about duplicates
+without touching the parser. A duplicate is never an error on read and is
+never rewritten (invariant 7).
 
 ### 10.5 Draft fixture
 
@@ -1405,7 +1493,7 @@ parser's `blocks`. Lines are 1-based lines of the input.
 | `apos-item` (`q21-extra`) | alone on the line after an item, no blank line | the item, 4–5 | 5:1 |
 | `colado` (`q21-extra`) | `Texto^colado`, no space before | none | none |
 | `meio-da-linha` (`q21-extra`) | followed by more text | none | none |
-| `fim` (the Q4 probe) | followed by three spaces | **none** | **`fim`**, 11:17 |
+| `fim` (`q4-charset.md`, section 10.1) | followed by three spaces | **none** | **`fim`**, 11:17 |
 
 The section types Obsidian reported: `yaml`, `heading`, `paragraph`, `list`,
 `blockquote`, `callout`, `table`, `code`, `math`, `thematicBreak`,
@@ -1609,6 +1697,7 @@ They agree on 18 forms:
 - `[[q23-alvo#]]`: resolves to the note in both (Obsidian's display is
   `q23-alvo`; Verso's `heading` is empty).
 - `[[q23-alvo^bloco]]`: the target `q23-alvo^bloco`, unresolved, in both.
+  Q12's wording would resolve it (section 12.3).
 
 They differ on 11:
 
@@ -1635,7 +1724,8 @@ They differ on 11:
 - `[[q23-alvo|[md](https://example.com)]]`: Obsidian, a link to `q23-alvo` with
   display `[md](https://example.com)`. Verso: **no link at all**.
 - `[[|só apelido]]`: Obsidian, a link whose target is `|só apelido`,
-  unresolved. Verso: no link.
+  unresolved. Verso: no link. Q12's wording would make it the note itself
+  (section 12.3).
 - `[[q23-alvo` and `quebrado]]` on two lines: Obsidian, no link. Verso, a link
   whose target holds the line break, unresolved.
 
@@ -1662,12 +1752,31 @@ the eleven:
 4. a wikilink inside an image's alt text is not a link;
 5. a Markdown link inside an alias does not break the wikilink;
 6. `[[|x]]` is a link whose target is `|x` — odd, but it keeps the unresolved
-   lists of the two apps the same;
+   lists of the two apps the same; accepting it would amend Q12 (below);
 7. a wikilink never spans a line break.
 
 Also: keep an image's size in `alias`, as written — it is where Obsidian's API
 puts it too, and whether the text is a size depends on the target being an
 image, which is the renderer's concern. `[[n#s#^b]]` stays with Q19.
+
+**Two rows and one point go against closed Q12's wording.** Q12 point 1, as
+the spec and `index-decision.md` §4.6 word it, says that "`#…`, `^…` and
+`|alias` are removed from the target first". Read literally,
+`[[q23-alvo^bloco]]` would resolve to `q23-alvo`, and `[[|só apelido]]` would
+be an empty target — the note itself. Obsidian did neither (section 12.2).
+The index agrees with Obsidian on the first: it keeps `^…` in a target with
+no `#` before it and leaves it unresolved, so the code departs from Q12's
+wording there, and the spec's sentence that "nothing in the code departs from
+points 1 to 5" does not hold for that case. On the second the parser reports
+no link at all, which matches neither reading. Recommendation 6 follows
+Obsidian, so accepting it would amend Q12 point 1, which is the maintainer's
+to do. This memo records the contradiction and does not pick a side
+(`CLAUDE.md` §1, rule 3). Related, and older than this memo: the comment on
+`RESOLVE` in `crates/verso-index/src/store.rs` (around line 74) calls
+`[[^id]]` an empty target that names the note itself, while the parser gives
+it the target `^id` and the index leaves it unresolved — checked on
+2026-09-24: `[[^meu]]` is listed among the unresolved targets, and
+`[[#^meu]]` is the note's own backlink.
 
 ### 12.4 Draft fixture
 
@@ -1747,14 +1856,14 @@ observed:
 
 ## 13. Observed along the way
 
-- **Q22, the characters of an `^id`.** On a note with one id per paragraph,
-  Obsidian recognized `^a-b` and `^123`, and none of `^a_b`, `^a.b`, `^ação`,
-  `^🍺` and `^a/b`, which matches "Block identifiers can only consist of Latin
-  letters, numbers, and dashes." ("Internal links"). Verso's parser agrees on
-  all of them, and differs on one thing: `^fim` followed by spaces is an id to
-  Verso and not to Obsidian (section 11.2). A draft for the `^id` part of Q22,
-  if the maintainer wants to close it with one — `fixtures/block/charset/`,
-  `input.md`:
+- **Q22, the characters of an `^id`.** On `q4-charset.md` (section 10.1),
+  one id per paragraph, Obsidian recognized `^a-b` and `^123`, and none of
+  `^a_b`, `^a.b`, `^ação`, `^🍺` and `^a/b`, which matches "Block identifiers
+  can only consist of Latin letters, numbers, and dashes." ("Internal
+  links"). Verso's parser agrees on all of them, and differs on one thing:
+  `^fim` followed by spaces is an id to Verso and not to Obsidian (section
+  11.2). A draft for the `^id` part of Q22, if the maintainer wants to close
+  it with one — `fixtures/block/charset/`, `input.md`:
 
 ```markdown
 Hífen. ^a-b
@@ -1838,14 +1947,16 @@ observed:
 
 ## 15. How the maintainer decides and verifies, without reading code
 
-**Check that the change is what it says** — the branch `docs/obsidian-observations`
-is local and not pushed:
+**Check that the change is what it says.** The memo came in `e3c53fc`, on the
+local stack, which was not pushed; the corrections of its reading came later,
+in the commit that adds section 16:
 
 ```
-git diff --stat origin/main...docs/obsidian-observations   # two files: this memo and its pt-BR twin
-git log --format='%an <%ae>%n%b' origin/main..docs/obsidian-observations
-bash scripts/check-docs-mirror.sh                          # on the branch: "docs mirror: ok"
-bash scripts/check-fixtures.sh                             # fixtures/ untouched
+git show --stat e3c53fc                                        # two files: this memo and its pt-BR twin
+git log --oneline -- docs/reference/obsidian-observations.md   # every commit that touched it
+git log -1 --format='%an <%ae>%n%b' e3c53fc                    # author and Signed-off-by are yours
+bash scripts/check-docs-mirror.sh                              # "docs mirror: ok"
+bash scripts/check-fixtures.sh                                 # fixtures/ untouched
 ```
 
 **Repeat any observation.** Create a folder in the `Sandbox` vault, save an
@@ -1887,7 +1998,7 @@ the view moves to — or "top of the note". The rows separate:
    hand.
 4. **Q20** — Markdown links count, by the seven points of section 7.4 (draft
    7.5).
-5. **Q24** — the six points of section 8.3 (drafts 8.4 a to e).
+5. **Q24** — the seven points of section 8.3 (drafts 8.4 a to e).
 6. **Q7** — NFC on both sides of every name comparison, the CLI's argument
    included.
 7. **Q4** — unique per note, case-insensitive, the last of a duplicate (draft
@@ -1903,3 +2014,25 @@ fails without it); spec §9 updated in the same PR (rule 17); and the parser or
 index change the answer needs, written by Fable 5.1 and read by Opus
 ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)). This memo carries none
 of them.
+
+## 16. The reading
+
+A fresh Opus 5.5 session read this memo and its twin, standing in for Fable
+5.1 by the maintainer's decision of 2026-09-23 (header). Its findings, under
+its labels, and what was done with each:
+
+| Finding | Level | What was done |
+|---|---|---|
+| Section 8 counted a block closed by `...`, and spaces after `---`, as agreement, while Verso reads those lines as neither frontmatter nor body; draft 8.4 c's only link sat after the block, where both apps agree | IMPORTANT | Checked, and it holds. The divergence is in sections 3, 8.2 and 8.3, with point 7 of the recommendation; draft c gains a link inside the block, fails today, and says that its new line was not observed |
+| Section 11.2's `fim` row cited an input that section 10.1 did not list | IMPORTANT | The input, `q4-charset.md`, recovered and recorded in section 10.1; sections 11.2 and 13 point to it |
+| Two Q23 rows and recommendation 6 went against closed Q12's wording without saying so, and so does a comment in `store.rs` | IMPORTANT | Recorded in section 12.3, with the note that recommendation 6 would amend Q12; no side taken |
+| Section 15 compared against `origin/main`, which does not fit the local stack | IMPORTANT | `git show --stat e3c53fc` instead |
+| The header named Fable 5.1 as the reviewer | IMPORTANT | The header names the reader and the maintainer's decision; this section |
+| Section 2.1 said, with no source, that the vault's two plugins do not parse notes | MINOR | Softened: not checked |
+| Section 2.3 did not consider LiveSync carrying the run and its deletion elsewhere | MINOR | Recorded for the maintainer |
+| Sections 9.4 and 10.4 worded inferences about Obsidian as facts | MINOR | Marked as inferences |
+| Section 6.3 said nothing matches a link's heading, then described `sliceHeading`, which does | MINOR | Corrected: only an embed does |
+| Section 7.3 gave `guardLink` as why a relative link does nothing; the sanitizer strips the address first | MINOR | Corrected |
+| Draft 7.5 decodes the destination while spec §4.2 defines `target` as written | MINOR | A line in section 7.5 and in the draft: closing Q20 with it changes §4.2 too |
+
+These corrections were written by Opus 5.5 and have not been read again.
