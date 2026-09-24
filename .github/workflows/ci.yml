@@ -15,9 +15,20 @@
 # stacked branches, each push running the workflow twice (push and
 # pull_request), with macOS on every job, spent the whole month's quota.
 # Since then: a branch runs only as a pull request; a push runs only on
-# main; macOS runs only on main. A PR is Linux-only; the merge into main is
-# where both operating systems are checked (ADR 0029, revision of
-# 2026-09-22).
+# main; macOS runs only on main (ADR 0029, revision of 2026-09-22).
+#
+# Layout (the maintainer's decision of 2026-09-23, ADR 0029): every job is a
+# runner that starts, installs a toolchain and bills its minutes rounded up,
+# so a pull request runs every guardrail but the fuzzing in ONE Linux job,
+# cheapest first, over one cache. `main` runs that job again, plus clippy and
+# the tests on macOS, the fuzzing and the benchmark. No job here builds or
+# packages the app: that happens only for a version tag, in a workflow of its
+# own — branches test, they never package.
+#
+# Linux jobs run on ubuntu-24.04, not ubuntu-latest: the latest label moves to
+# Ubuntu 26 from 2026-10-19, and a moved image would change the WebKitGTK
+# packages the Tauri shell links against — and the machine the bench's
+# ci-linux baseline is measured on — with no commit to blame.
 
 name: ci
 
@@ -38,77 +49,132 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  docs-mirror:
-    name: docs mirror and fixtures (ADR 0008, ADR 0031)
-    runs-on: ubuntu-latest
+  checks:
+    name: guardrails (Linux)
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - run: bash scripts/check-docs-mirror.sh
+
+      # --- No toolchain needed: seconds, so they run first and fail fast. ---
+      - name: docs mirror (ADR 0008)
+        run: bash scripts/check-docs-mirror.sh
+      # The fixture lint compares each draft with main: an approval that
+      # came undone fails. A shallow checkout has no main; fetch its tip.
+      - run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
       - name: fixtures structure and keys (ADR 0031)
         run: bash scripts/check-fixtures.sh
+        env:
+          FIXTURES_BASE: origin/main
+          # No draft on main (roadmap, exit criterion 5); a branch may carry one.
+          FIXTURES_STRICT: ${{ github.ref == 'refs/heads/main' && '1' || '0' }}
+      # Every package of the window's npm lockfile declares a license on the
+      # allowlist, as cargo-deny holds the Rust tree to deny.toml. It reads
+      # the lockfile only, with the runner's own Node.
+      - name: npm licenses on the allowlist (ADR 0029)
+        run: node scripts/check-npm-licenses.mjs
+      # verso-core's std::fs exception is the configuration directory alone,
+      # written by src/sidecar.rs. Its clippy.toml has to allow the four
+      # calls crate-wide (clippy cannot scope a list to one file), so this
+      # grep holds the scope to that file. Comment lines are let through: the
+      # crate's docs name the lint. `std::fs`, a bare `fs::` and `fs` imported
+      # in braces (`use std::{fs, io}`) all count; `verso_fs::` does not.
+      - name: std::fs in verso-core only in src/sidecar.rs (ADR 0029)
+        run: |
+          if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-core/src \
+             | grep -v '^crates/verso-core/src/sidecar.rs:' \
+             | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+            echo 'std::fs outside crates/verso-core/src/sidecar.rs (ADR 0029)'
+            exit 1
+          fi
 
-  rust:
-    name: fmt, clippy, test (${{ matrix.os }})
-    # macOS only on main: a PR runs on Linux (cost note at the top).
-    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+      # --- The toolchain, the WASM target, one cache for everything below. ---
+      - name: toolchain from rust-toolchain.toml
+        run: rustup show
+      - run: rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+      # all-features is set in deny.toml ([graph] all-features = true); with
+      # no `targets` there, the graph covers every platform's dependencies, so
+      # one run on Linux answers for macOS and Windows too.
+      - uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2, resolved 2026-09-21
+        with:
+          tool: cargo-deny@0.20.2
+      - name: cargo deny (ADR 0029)
+        run: cargo deny check
+
+      # --- The window's UI: checked, and bundled into app/ui/dist, which the
+      # Tauri shell embeds when it compiles (`generate_context!` refuses a
+      # missing frontendDist), so it comes before any Rust build. ---
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: UI type-checks and bundles
+        working-directory: app/ui
+        run: npm ci && npm run check && npm run build
+
+      # --- The workspace, the Tauri shell with it. ---
+      # The workspace includes the Tauri shell (app/src-tauri, Phase 2), which
+      # links against WebKitGTK on Linux; macOS has WebKit built in.
+      - name: WebKitGTK for the Tauri shell
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: cargo clippy -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - name: cargo test
+        run: cargo test --workspace --all-features --locked
+      # Phase 2 guardrail: the TypeScript bindings committed in
+      # app/ui/src/bindings.ts must be exactly what the Rust contract and
+      # commands generate; otherwise rule 3 (ADR 0026) is a convention. The
+      # exporter reuses the dependencies the tests built (`tauri` itself is
+      # built again, without its test feature).
+      - name: the committed bindings are the generated ones (ADR 0026 rule 3, ADR 0038)
+        run: |
+          cargo run -q --locked -p verso-app -- --export-bindings /tmp/bindings.ts
+          diff -u app/ui/src/bindings.ts /tmp/bindings.ts
+      # Feature guardrail of Phase 1, feature 1: the parser keeps compiling to
+      # WASM (ADR 0029). The target is the same from any host, so Linux alone.
+      - name: verso-dialect compiles to wasm32 (ADR 0029)
+        run: cargo check --target wasm32-unknown-unknown -p verso-dialect --locked
+
+  macos:
+    name: clippy and tests on macOS (main)
+    # The checks whose answer can depend on the platform — the file system,
+    # extended attributes, WebKit — on the platform Phase 2 ships on. Only
+    # after a merge: a macOS minute bills as ten Linux ones.
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: toolchain from rust-toolchain.toml
         run: rustup show
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-      - name: cargo fmt --check
-        run: cargo fmt --all --check
+      # The Tauri shell embeds app/ui/dist when it compiles, and the bundle is
+      # not versioned. Clippy and the tests do not look at the UI, so an empty
+      # page stands in for it here instead of installing Node on a runner
+      # billed ten times over; the Linux job builds and checks the real one.
+      - name: a stand-in for the UI bundle
+        run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
       - name: cargo clippy -D warnings
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: cargo test
         run: cargo test --workspace --all-features --locked
 
-  # Feature guardrails of Phase 1, feature 1 (ADR 0029). Each one was seen
-  # failing before the PR that added it was merged; the PR records how.
-  dialect-wasm:
-    name: verso-dialect compiles to wasm32 (${{ matrix.os }}, ADR 0029)
-    # macOS only on main: a PR runs on Linux (cost note at the top).
-    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: toolchain from rust-toolchain.toml
-        run: rustup show
-      - run: rustup target add wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-      - run: cargo check --target wasm32-unknown-unknown -p verso-dialect --locked
-
-  dialect-fuzz:
-    # cargo-fuzz needs nightly for its sanitizer; the pinned toolchain in
-    # rust-toolchain.toml is bypassed with `+nightly` for this job only.
-    # macOS only on main: a PR runs on Linux (cost note at the top).
-    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
-    # A short run on every PR, from the versioned seeds in `fuzz/seeds`
-    # (one file per input that once broke something; see the fuzz target's
-    # doc); the corpus grows in `fuzz/corpus` locally and is not versioned,
-    # so the directory is created here — cargo-fuzz does not create a corpus
-    # directory it was given by name. Inputs up to 64 KiB: the 8 KB
-    # frontmatter that overflowed the stack was out of reach of the 4 KiB
-    # default (review of PR #7, finding 2).
-    name: verso-dialect fuzz, 60s (${{ matrix.os }}, ADR 0029)
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: aarch64-apple-darwin
+  fuzz:
+    # Feature guardrail of Phase 1, feature 1 (ADR 0029). After each merge,
+    # Linux only: the parser rarely changes now, and a minute of fuzzing on
+    # every pull request cost a runner of its own each time. cargo-fuzz needs
+    # nightly for its sanitizer; the pinned toolchain in rust-toolchain.toml
+    # is bypassed with `+nightly` for this job only. It runs from the
+    # versioned seeds in `fuzz/seeds` (one file per input that once broke
+    # something; see the fuzz target's doc); the corpus grows in
+    # `fuzz/corpus` locally and is not versioned, so the directory is created
+    # here — cargo-fuzz does not create a corpus directory it was given by
+    # name. Inputs up to 64 KiB: the 8 KB frontmatter that overflowed the
+    # stack was out of reach of the 4 KiB default (review of PR #7,
+    # finding 2).
+    name: verso-dialect fuzz, 60s (main, ADR 0029)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - run: rustup toolchain install nightly --profile minimal
@@ -125,7 +191,7 @@ jobs:
         working-directory: crates/verso-dialect
         run: |
           mkdir -p fuzz/corpus/parse
-          cargo +nightly fuzz run --target ${{ matrix.target }} parse fuzz/corpus/parse fuzz/seeds -- -max_total_time=60 -max_len=65536 -timeout=20
+          cargo +nightly fuzz run --target x86_64-unknown-linux-gnu parse fuzz/corpus/parse fuzz/seeds -- -max_total_time=60 -max_len=65536 -timeout=20
       - name: keep a crash, if any, as an artifact
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -134,25 +200,22 @@ jobs:
           path: crates/verso-dialect/fuzz/artifacts
           if-no-files-found: ignore
 
-  deny:
-    # On both operating systems: ADR 0029 and roadmap exit criterion 3 list
-    # `cargo deny check` with the other three, on macOS and Linux.
-    name: cargo deny (${{ matrix.os }})
-    # macOS only on main: a PR runs on Linux (cost note at the top).
-    if: matrix.os == 'ubuntu-latest' || github.ref == 'refs/heads/main'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+  bench:
+    name: benchmark on main (ADR 0029, feature 5)
+    # One job per merge on main, Linux only, never on a pull request
+    # (docs/reference/bench-decision.md §4.2; the cost incident of
+    # 2026-09-22). `--require-baseline`: a run that finds no baseline for
+    # ci-linux fails and prints, on stderr, the entries to record, so the
+    # job cannot be green by construction (§6.3 puts the CI baseline
+    # first). Until the maintainer adds those entries to
+    # crates/verso-bench/baselines.json the job is red on main, on purpose.
+    # A pull request never runs it, and could not record a baseline if it did.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: toolchain from rust-toolchain.toml
         run: rustup show
-      # cargo-deny-action is a container action and runs on Linux only; the
-      # binary is installed instead, so the same check runs on both OSes.
-      - uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2, resolved 2026-09-21
-        with:
-          tool: cargo-deny@0.20.2
-      # all-features is set in deny.toml ([graph] all-features = true).
-      - run: cargo deny check
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: the ladder against the ci-linux baseline
+        run: cargo run --release -p verso-bench -- --machine ci-linux --json --require-baseline

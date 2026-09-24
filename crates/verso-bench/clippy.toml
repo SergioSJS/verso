@@ -1,0 +1,12 @@
+# verso-bench generates tens of thousands of files and measures the product
+# over them. It writes only into a temporary directory it created itself and
+# removes it afterwards — never the user's open folder, which is what ADR
+# 0026 rule 5 protects (docs/reference/bench-decision.md §2.4, option (a),
+# decided 2026-09-22). Clippy does not merge this file with the workspace
+# one, so the test allowances are repeated and the std::fs list is empty
+# here, as it is for verso-fs. It is a dev tool: `publish = false`, not in
+# the product's dependency graph.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+disallowed-methods = []

@@ -13,7 +13,16 @@
   responde aos requisitos da escrita atômica, registrado como provisório, vindo
   de duas leituras desse código; 2026-09-22 — como o código da feature 3
   atende ao guardrail do FTS5, registrado como provisório, e ampliado depois da
-  leitura desse código com os caracteres de controle e a abrangência do teste.
+  leitura desse código com os caracteres de controle e a abrangência do teste;
+  2026-09-23 — um portão de licenças npm acrescentado a pedido do mantenedor, e
+  a verificação dos tipos gerados levada para o job Rust de Linux, para que um
+  pull request compile as dependências da árvore do Tauri uma vez só; as exceções de advisory e
+  de licença da árvore do Tauri ratificadas (`docs/review/phase-2.md` §6,
+  itens 7 e 13); 2026-09-23 — onde cada guardrail roda, por decisão do
+  mantenedor: um job de Linux por pull request, clippy e os testes no macOS e
+  o fuzzing só no `main`, os apps empacotados só numa tag de versão.
+  2026-09-24 — os guardrails rodam localmente antes de um push, por dois
+  scripts, a pedido do mantenedor.
 
 ## Contexto
 
@@ -52,6 +61,7 @@ com ela. Os dois grupos estão separados abaixo.
 | Queries parametrizadas + escape da sintaxe FTS5 | busca quebrando com aspas e operadores | Fase 1, feature 3 |
 | Benchmark com vault sintético | regressão de performance | Fase 1, feature 5 |
 | Verificação de que os tipos TS gerados estão atualizados | regra 3 do contrato virar convenção ([0038](0038-ts-type-generation.md)) | Fase 2, item 2.1 |
+| Allowlist de licenças npm sobre o lockfile da janela (`scripts/check-npm-licenses.mjs`): a lista do `deny.toml` mais OFL-1.1, a licença das fontes | um pacote que a janela empacota sob uma licença que o projeto não pode distribuir | Fase 2, a pedido do mantenedor em 2026-09-23 |
 
 CI em macOS e Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, mais os comandos dos guardrails de feature conforme entram.
@@ -62,6 +72,56 @@ código aterrissa. O motivo é custo: o minuto de macOS é cobrado a dez vezes o
 Linux, e um dia de pushes em branches empilhadas gastou a cota mensal inteira do
 repositório privado, depois do que o GitHub parou de iniciar jobs. Decisão do
 mantenedor de 2026-09-22.
+
+**Onde cada um roda, desde a decisão do mantenedor de 2026-09-23** (perguntado
+"faço o enxugamento?", a resposta: *"claro!! atualize ADR que fizer
+sentido"*). O mesmo motivo, levado adiante: todo job é uma máquina que sobe,
+instala um toolchain e cobra os minutos arredondados para cima, e em 21 e 22
+de setembro pernas de macOS em todo job — `cargo deny` e a checagem de WASM
+inclusive, que respondem igual em qualquer sistema — foram a maior parte dos
+132 minutos de macOS que a página de cobrança mostrou no ciclo, numa cota que
+conta cada um como dez.
+
+- **Um pull request** roda todo guardrail menos o fuzzing em **um job de
+  Linux**, dos mais baratos primeiro, sobre um cache só: o espelho dos
+  documentos, as fixtures, as licenças npm, o grep de `std::fs`,
+  `cargo fmt --check`, `cargo deny check`, clippy, os testes, os tipos gerados,
+  a checagem de tipos e o bundle da UI, a checagem de WASM.
+- **O `main`**, depois de cada merge, roda esse job de novo, e mais três:
+  **clippy e os testes no macOS** — as checagens cuja resposta pode depender
+  da plataforma (o sistema de arquivos, atributos estendidos, o WebKit); fmt,
+  `cargo deny` (cujo grafo cobre todos os alvos), a checagem de WASM e as dos
+  documentos respondem igual em qualquer sistema —, o **fuzzing de 60
+  segundos**, em Linux, e o benchmark.
+- **Os apps são compilados e empacotados só numa tag de versão**, num
+  workflow próprio; branches testam, nunca empacotam. Esse workflow é escrito
+  com a primeira versão, quando cada plataforma tiver o que empacotar, não
+  antes: nada sem teste fica esperando no CI. Windows, depois Linux, entram
+  nas checagens de plataforma do `main` conforme cada porte chegar
+  ([0022](0022-target-platforms-macos-first.md)).
+- As máquinas de Linux ficam fixadas em `ubuntu-24.04`: o rótulo
+  `ubuntu-latest` passa para o Ubuntu 26 a partir de 2026-10-19, o que mudaria
+  o WebKitGTK contra o qual o shell linka, e a máquina do baseline `ci-linux`
+  do bench, sem commit nenhum para culpar.
+
+**Localmente, antes de um push — o pedido do mantenedor de 2026-09-24.** A
+primeira execução do CI depois que a cota voltou falhou num código morto só no
+Linux que nenhuma checagem no Mac conseguia ver (`db2cce1`), e o mantenedor
+perguntou por que isso não foi testado localmente, com o Docker instalado, e
+pediu o caminho no README. Dois scripts rodam os guardrails antes de um push; o
+CI confirma, não é onde uma falha aparece primeiro:
+
+- `scripts/check.sh` — todo guardrail do job de Linux, nativo e na mesma
+  ordem; num Mac, a checagem de macOS.
+- `scripts/check-linux.sh` — fmt, clippy, os testes e os bindings gerados num
+  container Linux, como usuário comum, sobre uma cópia das fontes e volumes
+  nomeados. A primeira execução real dele achou o bundle da UI faltando antes
+  de o shell compilar, o que o CI teria encontrado em seguida (`22d1aa1`).
+
+O macOS não roda num container e o Windows não roda no Docker num Mac ou num
+Linux: o próprio Mac é a checagem de macOS, e o Windows ganha aqui uma checagem
+do build e no CI os testes quando o porte dele chegar. Os scripts seguem o
+workflow à mão; mudar um é mudar os outros.
 
 ### Requisitos da escrita atômica
 
@@ -181,10 +241,17 @@ como está; isto é o que o `verso-index` faz.
 - A allowlist de licenças do `cargo-deny` segue [0005](0005-license.md)
   (MPL-2.0): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, MPL-2.0,
   Unicode-3.0 e CC0-1.0 entram; GPL, LGPL e AGPL ficam fora; qualquer outra só
-  com justificativa no PR. Fecha no PR do item 0.10.
+  com justificativa no PR. Fecha no PR do item 0.10. A árvore do Tauri
+  acrescentou `Apache-2.0 WITH LLVM-exception`, ratificada pelo mantenedor em
+  2026-09-23. Desde esse dia os pacotes npm da janela seguem a mesma lista mais
+  OFL-1.1, lida do lockfile; o portão foi visto falhando num lockfile editado
+  para ter GPL-3.0, nenhuma licença, uma referência a arquivo e um `AND`
+  dentro de um `OR`.
 - Advisory nova deixa o CI vermelho sem PR culpado. Política: exceção no
   `deny.toml` só com justificativa, link para a advisory e data de expiração;
-  exceção expirada é CI vermelho de novo. `Cargo.lock` é versionado.
+  exceção expirada é CI vermelho de novo. `Cargo.lock` é versionado. Os sete
+  avisos de "sem manutenção" da árvore do Tauri, cada um com link e expiração
+  em 2026-12-31, foram ratificados pelo mantenedor em 2026-09-23.
 - `unwrap_used` negado fora de teste muda como o código é escrito desde o
   primeiro PR, não como refatoração posterior.
 - Benchmark é guardrail sem meta: a linha de base existe, mas metas de

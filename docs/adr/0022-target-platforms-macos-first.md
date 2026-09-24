@@ -3,6 +3,8 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §9
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-09-23 — the Windows and Linux apps, their order and how CI
+  follows them, from the maintainer.
 
 ## Context
 
@@ -27,6 +29,13 @@ fastest route to the burnout recorded in §10.3.
   divergence in the core.
 - The iOS and Android constraints are already recorded and should not be
   rediscovered when mobile lands ([0009](0009-external-constraints.md)).
+- **Windows and Linux, by the maintainer on 2026-09-23**: both apps ship,
+  after Phase 2, **Windows first** — there is no Linux machine at hand, and a
+  virtual machine is extra work (*"windows e linux tem que sair também …
+  Windows na frente de linux"*). Each joins CI's platform checks on `main`
+  when its port lands, and the packaging of a version
+  ([0029](0029-guardrails-in-ci.md)); CI already builds and tests the core on
+  Linux on every pull request.
 
 ## Discarded alternatives
 

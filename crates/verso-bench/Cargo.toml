@@ -1,0 +1,29 @@
+[package]
+name = "verso-bench"
+description = "Synthetic vault generator and benchmark (Phase 1, feature 5); a dev tool, never shipped"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "verso-bench"
+path = "src/main.rs"
+
+# A plain binary with no benchmark harness (docs/reference/bench-decision.md
+# §5, decided 2026-09-22): what is measured is a whole process over a vault,
+# not a function. Peak memory comes from `/usr/bin/time` around each child
+# process, so there is no FFI and no `unsafe` (workspace guardrail). serde
+# and serde_json are already in the lockfile: no new crate.
+[dependencies]
+verso-core = { path = "../verso-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3.27"
+
+[lints]
+workspace = true

@@ -1,6 +1,6 @@
 # Roadmap do Verso
 
-- Versão: 2026-09-21, revisão 2 (aplicação de `docs/review/phase-0.md`)
+- Versão: 2026-09-23, revisão 3 (a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas)
 - Fonte: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -113,15 +113,15 @@ Ordem de execução do briefing §15:
 |---|---|---|
 | ~~Definição de round-trip (Q18)~~ | decidido em 2026-09-21: leitura (b), parser somente leitura (`docs/reference/parser-decision.md`) | `docs/spec/dialect.md` Q18, [0037](adr/0037-base-parser.md) |
 | ~~Parser base: `pulldown-cmark`, `comrak` ou próprio~~ | decidido em 2026-09-21: `pulldown-cmark`, `comrak` como fallback (`docs/reference/parser-decision.md`) | [0037](adr/0037-base-parser.md) |
-| Questões de parsing Q2–Q8, Q12–Q17 e Q19–Q25 da spec | antes da feature 1 fechar | `docs/spec/dialect.md` §9 |
+| Questões de parsing Q2–Q8, Q12–Q17 e Q19–Q25 da spec | antes da feature 1 fechar; Q12 fechada em 2026-09-22 com as partes de Q2, Q8 e Q14 de que precisava, Q3 e Q17 em parte, as outras ainda abertas | `docs/spec/dialect.md` §9 |
 | ~~Symlinks, laços e caminhos ignorados (Q26)~~ | decidido em 2026-09-22: todo symlink é seguido, profundidade máxima 64 com erro ao bater no limite; entradas ocultas não são percorridas; nota ignorada é alvo não resolvido e nunca fonte de backlink (`docs/reference/fs-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 | ~~Mecanismo de detecção de placeholder por provedor, começando pelo iCloud Drive~~ | decidido em 2026-09-22: as duas formas do iCloud (`SF_DATALESS` e `.Nome.ext.icloud`), verificadas antes de o arquivo ser aberto; os demais provedores adiados (`docs/reference/fs-decision.md`) | [0043](adr/0043-placeholder-guard.md) |
-| Localização, permissões e limpeza do índice | antes da feature 3 fechar | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
+| ~~Localização, permissões e limpeza do índice~~ | decidido em 2026-09-22: um arquivo por pasta no diretório de configuração, um sidecar que nomeia a pasta, `0700`/`0600`, fora do backup, limpeza sob demanda (`docs/reference/index-decision.md`) | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | ~~Regra de desambiguação entre `verso <pasta>` e subcomando~~ | decidido 2026-09-22: subcomando obrigatório na Fase 1; a regra da Fase 2 registrada e ainda aberta (`docs/reference/cli-decision.md`) | [0042](adr/0042-open-from-command-line.md) |
-| Tokenizador do FTS5 para pt-BR e EN | antes de a feature 5 tirar a linha de base | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
-| Metas de performance | depois da feature 5 produzir a linha de base | [0039](adr/0039-performance-targets.md) |
-| Transporte do MCP, superfície exposta, versão do protocolo | antes da feature 6 fechar | [0045](adr/0045-server-and-mcp-security.md) |
-| O que um handle opaco identifica e por quanto tempo | antes da feature 6 fechar | [0044](adr/0044-verso-fs-semantics.md) |
+| ~~Tokenizador do FTS5 para pt-BR e EN~~ | decidido em 2026-09-22: `unicode61` com `remove_diacritics 2`, sem stemming | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
+| Metas de performance | depois da feature 5 produzir a linha de base; a linha de base do Mac existe desde o commit `6b53c64` (`crates/verso-bench/baselines.json`), as metas continuam abertas | [0039](adr/0039-performance-targets.md) |
+| ~~Transporte do MCP, superfície exposta, versão do protocolo~~ | decidido em 2026-09-22: stdio, sete ferramentas somente leitura, a versão que o `initialize` negociar (`docs/reference/mcp-decision.md`) | [0045](adr/0045-server-and-mcp-security.md) |
+| O que um handle opaco identifica e por quanto tempo | antes da feature 6 fechar; ainda aberto — o MCP e a janela nomeiam notas pelo caminho relativo, e o handle fica dentro do processo | [0044](adr/0044-verso-fs-semantics.md) |
 
 ### Critério de saída
 
@@ -173,24 +173,28 @@ A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-target-platforms-m
 
 ### Escopo
 
-| # | Entrega |
-|---|---|
-| 2.1 | Contrato core↔UI definido primeiro, com tipos TS gerados a partir do Rust |
-| 2.2 | Shell Tauri v2 abrindo uma pasta arbitrária |
-| 2.3 | Árvore de arquivos |
-| 2.4 | Editor CodeMirror 6 com Live Preview |
-| 2.5 | Backlinks e busca vindos do core, pelo contrato |
-| 2.6 | Um tipo de nota ponta a ponta |
-| 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-cross-cutting-requirements.md)) |
+| # | Entrega | Estado em 2026-09-23 |
+|---|---|---|
+| 2.1 | Contrato core↔UI definido primeiro, com tipos TS gerados a partir do Rust | construído: `crates/verso-contract`, bindings gerados pelo `specta`, verificados no CI |
+| 2.2 | Shell Tauri v2 abrindo uma pasta arbitrária | construído: pelo diálogo, por `verso <pasta>` ou pela última pasta ao iniciar |
+| 2.3 | Árvore de arquivos | construída, com criar, renomear, mover, lixeira e cópia; operações de arquivo decididas em 2026-09-23 como construídas ([0048](adr/0048-file-operations-in-ui.md)) |
+| 2.4 | Editor CodeMirror 6 com Live Preview | construído: leitura, Live Preview e fonte |
+| 2.5 | Backlinks e busca vindos do core, pelo contrato | construídos, com links, tags, menções sem link e o grafo |
+| 2.6 | Um tipo de nota ponta a ponta | não começado: espera as decisões abaixo |
+| 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | idiomas construídos, escolhidos nos ajustes; acessibilidade não auditada |
+
+Além dos sete itens, o mantenedor pediu durante a fase o que faltaria a quem
+sai do Obsidian; a lista é a [ADR 0049](adr/0049-phase-2-scope-widened.md), e o
+que a janela faz com cada arquivo está em `docs/reference/app-decision.md`.
 
 ### Decisões que precisam sair durante a fase
 
 | Decisão | Quando | ADR |
 |---|---|---|
-| Geração de tipos TS: `ts-rs` ou `specta` | início da fase, antes do contrato | [0038](adr/0038-ts-type-generation.md) |
-| Identidade de sessão e autorização por operação no contrato | antes do item 2.1 | [0045](adr/0045-server-and-mcp-security.md) |
-| Semântica dos handles opacos no contrato | antes do item 2.1 | [0044](adr/0044-verso-fs-semantics.md) |
-| Renomear, criar, excluir, mover; atualização de links; modificação externa concorrente | antes do item 2.3 | [0048](adr/0048-file-operations-in-ui.md), [0012](adr/0012-files-are-source-of-truth.md) |
+| ~~Geração de tipos TS: `ts-rs` ou `specta`~~ | decidido em 2026-09-22: `specta` com `tauri-specta`, tipos e assinaturas dos comandos gerados | [0038](adr/0038-ts-type-generation.md) |
+| Identidade de sessão e autorização por operação no contrato | antes do item 2.1; o contrato, construído com o host confiando nas próprias janelas e em nada mais (`docs/reference/app-decision.md` §7), aceito como foi construído para a Fase 2 em 2026-09-23; ainda aberto até um servidor entrar em escopo | [0045](adr/0045-server-and-mcp-security.md) |
+| Semântica dos handles opacos no contrato | antes do item 2.1; ainda aberto — o contrato nomeia notas pelo caminho relativo e a revisão é o único token | [0044](adr/0044-verso-fs-semantics.md) |
+| ~~Renomear, criar, excluir, mover; atualização de links; modificação externa concorrente~~ | decidido em 2026-09-23: opção (b), como o código faz — planos mostrados como diffs, sem transação lógica, a lixeira | [0048](adr/0048-file-operations-in-ui.md), [0012](adr/0012-files-are-source-of-truth.md) |
 | Promoção de nota tipada ([0014](adr/0014-primitives-catalog.md)) e de degradação para Markdown ([0013](adr/0013-degrades-to-markdown.md)) a ADR próprio, Aceito | antes da nota tipada (2.6) | ADR novo |
 | Formato e localização dos schemas | antes da nota tipada (2.6) | `docs/spec/dialect.md` Q11 |
 
@@ -228,6 +232,8 @@ compatibilidade ([0017](adr/0017-plugins-format-shim-loading.md)), as
 primitivas ainda propostas ([0014](adr/0014-primitives-catalog.md)) e a
 **escrita por agente com diff** ([0018](adr/0018-llm-native-mcp-in-core.md),
 `DECIDIDO`, sem fase atribuída: a Fase 1 entrega MCP somente leitura e a Fase 2
-não a inclui).
+não a inclui). E também os **apps de Windows e Linux**
+([0022](adr/0022-target-platforms-macos-first.md)): o mantenedor decidiu em
+2026-09-23 que os dois saem, Windows primeiro.
 
-Ordem entre eles: `[ABERTO]`.
+Ordem entre eles: `[ABERTO]`, menos Windows antes de Linux.

@@ -1,0 +1,30 @@
+{
+  "name": "verso-ui",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The window's HTML/TypeScript (Phase 2, walking skeleton). Talks to the core only through the generated bindings.",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "esbuild src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/main.js --sourcemap && cp index.html style.css dist/ && mkdir -p dist/fonts && cp fonts/*.woff2 dist/fonts/ && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs dist/ && rm -rf dist/cmaps dist/standard_fonts && cp -R node_modules/pdfjs-dist/cmaps dist/cmaps && cp -R node_modules/pdfjs-dist/standard_fonts dist/standard_fonts && cp node_modules/pdfjs-dist/web/pdf_viewer.css dist/ && rm -rf dist/images && cp -R node_modules/pdfjs-dist/web/images dist/images && cp node_modules/katex/dist/katex.min.css dist/ && rm -rf dist/fonts/katex && mkdir -p dist/fonts && cp -R node_modules/katex/dist/fonts/. dist/fonts/"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource/literata": "^5.3.0",
+    "@tauri-apps/api": "^2.11.1",
+    "codemirror": "^6.0.2",
+    "katex": "^0.18.7",
+    "pdfjs-dist": "^6.3.289"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

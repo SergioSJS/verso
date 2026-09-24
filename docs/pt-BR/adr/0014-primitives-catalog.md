@@ -3,6 +3,10 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §5.3
 - Status no briefing: `PROPOSTO`
+- Revisões: 2026-09-23 — duas primitivas aceitas pelo mantenedor como a janela
+  da Fase 2 as constrói, a nota do dia e os templates
+  (`docs/review/phase-2.md` §6, item 11); o resto do catálogo continua
+  Proposto.
 
 ## Contexto
 
@@ -10,7 +14,7 @@ Aplicação do princípio de [0003](0003-primitives-not-workarounds.md): cada
 gambiarra comum no Obsidian é sintoma de uma primitiva ausente. O briefing
 propõe um catálogo, ainda sem confirmação.
 
-## Decisão (proposta, não confirmada)
+## Decisão (proposta, não confirmada; duas primitivas aceitas em 2026-09-23)
 
 O Verso implementa primitivas; features específicas vêm como plugins de primeira
 parte.
@@ -23,6 +27,23 @@ parte.
 | Tempo como primeira classe: diário e notas periódicas | Periodic Notes, Calendar |
 | Views estruturadas que podem materializar a saída como Markdown real no arquivo | resultado de consulta invisível a git, busca e agente |
 | Proveniência de escrita no frontmatter: autor, modelo, quando | sem equivalente |
+
+**Duas primitivas aceitas em 2026-09-23 pelo mantenedor**
+(`docs/review/phase-2.md` §6, item 11; a resposta: *"a e b ok"*), como a janela
+da Fase 2 as constrói ([0049](0049-phase-2-scope-widened.md),
+`docs/reference/app-decision.md`):
+
+- **A nota do dia** — a parte diária da linha do tempo: uma nota por dia, com a
+  data como nome, na pasta que os ajustes nomeiam, aberta se existe e senão
+  criada, a partir de um template com o nome dessa pasta — ou, na falta dele,
+  `Diário` ou `Daily` — quando existe um.
+- **Os templates** — qualquer nota na pasta que os ajustes nomeiam é um; ele é
+  inserido numa nota com `{{date}}` e `{{title}}` preenchidos, e uma nota pode
+  ser salva nessa pasta como template.
+
+Se cada uma ainda precisa de uma ADR própria, como a primeira Consequência pede
+de toda primitiva, a resposta não disse; isso continua com o mantenedor. Notas
+periódicas e todas as outras linhas continuam Propostas.
 
 ## Consequências
 
@@ -47,6 +68,7 @@ parte.
 - Nada deste catálogo está na Fase 1, exceto o que o parser e o índice precisam
   expor ([0034](0034-roadmap-in-phases.md)).
 
+
 ## Alternativas descartadas
 
 - Reproduzir Dataview, Templater, Periodic Notes e statblocks como plugins de
@@ -54,4 +76,4 @@ parte.
 
 ## Status
 
-Proposto.
+Proposto. A nota do dia e os templates: aceitos em 2026-09-23 (Decisão).

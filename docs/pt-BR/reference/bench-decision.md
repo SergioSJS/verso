@@ -20,6 +20,21 @@
   Rust e portanto sessão da Fable 5.1
   ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)); este memorando fica
   sendo a especificação contra a qual ela escreve.
+- **Revisão, 2026-09-23**, depois da leitura da Opus do branch da Fase 2
+  (`docs/review/phase-2.md`, leitura 3, achados 11, 12 e 17). O job de CI não
+  conseguia ficar vermelho: só a linha de base do Mac está registrada
+  (`macbook-pro-de-sergio`, commit `d1a5272`), e uma máquina sem linha de base
+  passava por construção — a ordem da seção 6.3, linha de base de CI primeiro,
+  não foi seguida. O `verso-bench --require-baseline` agora falha (saída 1)
+  quando a máquina que ele nomeia não tem linha de base, e imprime as entradas
+  medidas no formato do próprio arquivo de linhas de base, prontas para colar;
+  o job na `main` passa essa opção, então a `main` fica vermelha até as
+  entradas de `ci-linux` serem registradas. O tamanho do índice agora é medido
+  depois de a conexão fechar, com o arquivo `-wal` incorporado; os três
+  tamanhos de índice da linha de base do Mac foram tirados do jeito antigo, 1 a
+  2 % abaixo, dentro da tolerância de 1,05×. O teste que comparava amostras
+  únicas de tempo, e falhava cerca de uma rodada em vinte, verifica só o
+  tamanho do índice.
 - Autor: Opus 5 (documentos,
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md)). Revisor: Fable 5.1.
   Nos memorandos anteriores as recomendações eram da Fable 5.1, registradas

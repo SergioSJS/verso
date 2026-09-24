@@ -7,6 +7,9 @@
 - Revisions: 2026-09-22 — how the feature 4 code meets "no loose string
   literal" recorded under Consequences, as **provisional**; the Decision is
   unchanged (memo `docs/reference/cli-decision.md`).
+- Revisions: 2026-09-23 — how the Phase 2 window meets decision 1 recorded
+  under Consequences, at the maintainer's request (`docs/review/phase-2.md`
+  §6, item 12); the Decision is unchanged.
 
 ## Context
 
@@ -105,6 +108,27 @@ decision.
   on a locked handle and the writing stops at the first error, so
   `verso search … | head -1` ends with the command's own exit code instead of a
   panic on a broken pipe.
+
+**The window's mechanism, recorded on 2026-09-23 at the maintainer's request**
+(`docs/review/phase-2.md` §6, item 12; the answer: *"a e b ok"*):
+
+- **A typed catalog.** Every text the window writes comes from one catalog in
+  `app/ui/src/main.ts`: one object per language, each typed as a record over
+  one union of keys, so a key missing in either language fails the type check
+  instead of reaching the screen as a raw string. CodeMirror's own texts — its
+  search panel, its buttons — come in pt-BR from a second table,
+  `app/ui/src/phrases.ts`, keyed by CodeMirror's English, which the type
+  check does not cover.
+- **A language setting** — automatic, pt-BR or English — that reloads the
+  window to apply; the window rejoins the open folder rather than open it
+  again.
+- **The core's words.** The window says the kind of every error the core
+  answers (`not_found`, `changed`, …) in the user's language, and adds the
+  core's own detail after it, in English. The core's write warnings reach the
+  status line in English too; the contract records their language as
+  `[OPEN]`. The plan, accepted with this record: each warning gets a code in
+  the contract, so that the window can say it in the user's language. Not
+  done yet.
 
 ## Discarded alternatives
 

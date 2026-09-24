@@ -15,9 +15,12 @@ use std::fs::Metadata;
 use std::path::Path;
 
 /// `SF_DATALESS` from macOS's `<sys/stat.h>`: "file is dataless object".
+/// Only macOS has the flag; the tests check the mask on every platform.
+#[cfg(any(target_os = "macos", test))]
 pub(crate) const SF_DATALESS: u32 = 0x4000_0000;
 
 /// Whether `st_flags` say the file's data is not on disk.
+#[cfg(any(target_os = "macos", test))]
 pub(crate) fn flags_are_dataless(st_flags: u32) -> bool {
     st_flags & SF_DATALESS != 0
 }

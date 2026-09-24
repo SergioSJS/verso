@@ -1,0 +1,43 @@
+[package]
+name = "verso-app"
+description = "The desktop shell: a Tauri v2 window over verso-core through the contract (Phase 2, walking skeleton)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+name = "verso_app"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+# Tauri v2 (roadmap, Phase 2 item 2.2). No fs plugin: the only way to a
+# note is verso-core (ADR 0026 rule 5). The dialog plugin is the native
+# folder picker, the entry edge where a path is a string (rule 4).
+# tauri-specta generates the TypeScript bindings from the commands (ADR
+# 0038, decided 2026-09-22: specta); the three specta crates are pinned
+# together because they are release candidates.
+[dependencies]
+verso-core = { path = "../../crates/verso-core" }
+verso-contract = { path = "../../crates/verso-contract" }
+# `unstable`: child web views — a web note shows its page inside its tab
+# (ADR 0049, asked for by the maintainer on 2026-09-23).
+tauri = { version = "2", features = ["unstable"] }
+tauri-plugin-dialog = "2"
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+specta = "=2.0.0-rc.25"
+specta-typescript = "=0.0.12"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+# The commands exercised through Tauri's mock runtime, as the UI calls
+# them (ADR 0029: the contract's guardrail runs without a window).
+tauri = { version = "2", features = ["unstable", "test"] }
+serde_json = "1"
+tempfile = "3.27"
+
+[lints]
+workspace = true

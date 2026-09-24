@@ -3,6 +3,9 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §14.2, §10.1
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-09-23 — os dois outros membros do workspace registrados, a
+  pedido do mantenedor (`docs/review/phase-2.md` §6, item 10); os cinco crates
+  e as regras deles não mudam.
 
 ## Contexto
 
@@ -49,6 +52,23 @@ nunca numa pasta aberta, que é o que o invariante 5 protege. Mesma forma das
 exceções que `verso-fs` e `verso-index` já carregam. Sem dependência de harness
 de benchmark; `divan` fica nomeado como alternativa se a estatística um dia
 justificar uma.
+
+**Os outros membros do workspace, registrados em 2026-09-23 a pedido do
+mantenedor** (`docs/review/phase-2.md` §6, item 10; a resposta: *"a e b
+ok"*). Além dos cinco crates do core e do `verso-bench`, o workspace tem mais
+dois, e oito membros ao todo:
+
+- `crates/verso-contract` — os tipos do contrato, dados simples com `serde` e
+  `specta` e sem IO, compartilhados pelo host e pelo TypeScript gerado
+  ([0026](0026-core-ui-contract-inviolable-rules.md) regra 3,
+  [0038](0038-ts-type-generation.md)); o core guarda os próprios tipos, que o
+  host traduz para estes.
+- `app/src-tauri` — o host desktop da Fase 2. Ele chega às notas só pelo
+  `verso-core`, não toca arquivo nenhum da pasta aberta (regra 5), e não tem
+  `clippy.toml` próprio, então o lint de `std::fs` do workspace vale para ele
+  sem mudança.
+
+Nenhum dos dois muda o que os cinco crates podem fazer.
 
 ## Alternativas descartadas
 

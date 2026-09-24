@@ -456,6 +456,50 @@ primeira rodada não separava: `verso-obs/nota.md`, `verso-obs/sub/nota.md`,
 Duas dessas contradizem o que a seção 4.5 recomenda, e uma contradiz o que o
 código faz. São elas que a seção 4.6 decide.
 
+**Terceira observação, 2026-09-23, pela Opus 5.5.** Mesmo método
+([ADR 0009](../adr/0009-external-constraints.md), Obsidian 1.13.7, API pública,
+pastas descartáveis apagadas depois). O commit `d1a5272` (2026-09-22) mudou o
+ponto 3 da regra do índice depois de sondas citadas num comentário de teste
+(`crates/verso-index/tests/graph.rs`) e na mensagem do commit, e nunca escritas
+aqui; estas são as mesmas sondas, rodadas de novo para ficarem registradas. Os
+nomes foram tornados únicos no vault; a pasta `probe-sub/` vem antes de
+`verso-probe/` na ordem de bytes, como `sub/` vinha no original. Todo link está
+em `verso-probe/a/src.md`, a não ser que a linha diga outra coisa; os
+segmentos estão contados entre parênteses.
+
+| Sonda | Candidatos | Resultado | O que separa |
+|---|---|---|---|
+| `[[probe-sub/vpx]]` | `probe-sub/vpx.md`; `verso-probe/a/probe-sub/vpx.md` | `probe-sub/vpx.md` | caminho a partir da raiz vem antes do mesmo caminho relativo à origem |
+| `[[vpx]]` | `probe-sub/vpx.md` (2); `verso-probe/a/probe-sub/vpx.md` (4) | `verso-probe/a/probe-sub/vpx.md` | um candidato **sob** a pasta da origem ganha de um mais raso em outro lugar |
+| `[[vpu]]` | `verso-probe/vpu.md` (2, a pasta pai); `verso-probe/a/probe-sub/vpu.md` (4) | `verso-probe/a/probe-sub/vpu.md` | o mesmo, contra a pasta pai da pasta da origem |
+| `[[vpt]]` | `probe-sub/vpt.md` (2); `verso-probe/a/probe-sub/deep/vpt.md` (5) | `verso-probe/a/probe-sub/deep/vpt.md` | em qualquer profundidade sob a pasta |
+| `[[vpz]]` | `verso-probe/a/aa/deep/vpz.md` (5); `verso-probe/a/zz/vpz.md` (4) | `verso-probe/a/zz/vpz.md` | entre candidatos sob a pasta, menos segmentos antes da ordem de bytes |
+| `[[vpw]]` | `probe-sub/vpw.md` (2); `verso-probe/vpw.md` (2, a pasta pai) | `probe-sub/vpw.md` | pasta ancestral não ganha nada: decide a ordem de bytes |
+| `[[vpv]]` | `probe-sub/vpv.md` (2); `verso-probe/a/vpv.md` (3, a pasta da própria origem) | `verso-probe/a/vpv.md` | controle: a pasta da própria origem continua ganhando |
+| `[[vpr]]` de `verso-probe/a/src2.md` | `vpr.md` (1, a raiz do vault); `verso-probe/a/probe-sub/vpr.md` (4) | `vpr.md` | controle: caminho a partir da raiz continua vindo antes de qualquer nome |
+
+`app.metadataCache.resolvedLinks` concordou com `getFirstLinkpathDest` em todas
+as linhas.
+
+O que isso muda: o ponto 3 da seção 4.6 diz que ganha um candidato **na** pasta
+da própria nota de origem. O Obsidian prefere um candidato em qualquer lugar
+**sob** essa pasta, em qualquer profundidade, antes de contar segmentos — a
+segunda observação não separava as duas leituras, porque nenhum candidato dela
+ficava abaixo da pasta da origem. O índice faz "sob" desde `d1a5272`.
+Perguntado "sob a pasta, sim ou não?", o mantenedor respondeu sim em 2026-09-23
+("boa, gosto da sua ideia, pode seguir"), e o ponto 3 da seção 4.6 e da Q12 da
+spec agora diz "sob".
+
+**Quarta observação, 2026-09-23, pela Opus 5.5.** Mesmo método, para o ajuste
+"formato de novo link" que o mantenedor aprovou com essa resposta: a partir de
+`verso-probe2/a/src.md`, com `verso-probe2/a/sub/rx.md`,
+`verso-probe2/a/sub2/rx.md` e um `sub2/rx.md` na raiz, `[[./sub/rx]]` e
+`[[./sub2/rx]]` alcançaram as notas sob a pasta da origem — o `./` no começo
+torna o caminho relativo mesmo quando o mesmo caminho existe na raiz —,
+enquanto `[[sub2/rx]]` alcançou a nota da raiz, e `[[../a/sub/rx]]` a que fica
+sob a pasta da origem. Então um link relativo que o Verso escreve como `./…` ou
+`../…` quer dizer o mesmo para o Obsidian.
+
 ### 4.2 O que a observação resolve, e uma contradição que ela levanta
 
 Resolve, como descrição do Obsidian: extensão opcional e `.md` aceita,
@@ -603,9 +647,11 @@ antecedeu a segunda observação.
    maiúsculas, comparado depois de NFC: relativo à **pasta da própria nota de
    origem**, respeitando `..`, e a partir da **raiz da pasta aberta**.
 3. Nenhum caminho casa: casar pelo **nome puro**, sem diferenciar maiúsculas —
-   primeiro um candidato **na pasta da própria nota de origem**; senão o
-   candidato com **menos segmentos de caminho**; entre iguais, o **primeiro em
-   ordem de bytes** (`B/dup.md` antes de `a/dup.md`).
+   primeiro um candidato **sob a pasta da própria nota de origem**, em qualquer
+   profundidade; senão o candidato com **menos segmentos de caminho**; entre
+   iguais, o **primeiro em ordem de bytes** (`B/dup.md` antes de `a/dup.md`).
+   *(Emendado pelo mantenedor em 2026-09-23 depois da terceira observação da
+   seção 4.1; dizia "na".)*
 4. Nada responde: **não resolvido**, guardado com o texto do alvo como
    escrito. Link não resolvido nunca é backlink (Q14).
 5. **Alias de frontmatter não resolve link. Embed resolve pela mesma regra e

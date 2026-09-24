@@ -3,6 +3,11 @@
 - Date: 2026-09-21
 - Source: `docs/review/phase-0.md` R8
 - Status in the briefing: not present
+- Revisions: 2026-09-23 — what the Phase 2 code does recorded under
+  Consequences, as **provisional**; every question stays `[OPEN]`.
+  2026-09-23 — **decided by the maintainer**: that record becomes the
+  Decision, with names no link can reach now refused by the window
+  (`docs/review/phase-2.md` §6, items 2, 19 and 21).
 
 ## Context
 
@@ -16,7 +21,18 @@ covers these operations, and all of them have the potential for data loss.
 
 ## Decision
 
-None. Questions recorded, to be decided before item 2.3 of Phase 2.
+**Decided on 2026-09-23 by the maintainer**, who accepted what the Phase 2
+code does — recorded under Consequences below — when the review's pending
+items were put to them with a recommendation for each
+(`docs/review/phase-2.md` §6, items 2, 19 and 21; the answer: *"a e b ok"*).
+In short: rename and move by option (b), a plan of link rewrites shown as one
+diff per note and applied note by note, with **no logical transaction**;
+delete into `.trash/` after a confirmation; create refused when the name is
+taken; a rename that only changes case allowed where the volume ignores case;
+a typed name no link can reach refused by the window; volumes without hard links
+allowed, with a warning; a lone placeholder neither renamed nor deleted.
+
+The questions as they were first recorded, before item 2.3 of Phase 2:
 
 - **Rename a note:** update links in other files (a) automatically, (b) with a
   consolidated diff of the N files before applying, (c) never. Option (b) is the
@@ -37,20 +53,89 @@ None. Questions recorded, to be decided before item 2.3 of Phase 2.
 ## Consequences
 
 - Mass operations (rename with N links) need a logical transaction: if it fails
-  on file 7 of 12, the state has to be reported and reversible.
+  on file 7 of 12, the state has to be reported and reversible. *(Decided
+  otherwise on 2026-09-23: there is none; what was written is reported, not
+  undone — the Decision above.)*
 - Phase 2 exit criterion 2 ("no data loss in the period") is the test of these
   decisions.
 
 **Requirement recorded on 2026-09-22, from the maintainer, when Q12 was
 closed.** When the app itself moves or renames a note, it should **update the
 links that point at it**, as Obsidian does. The requirement is not decorative:
-Q12's rule resolves a bare name by preferring a candidate in the source note's
-own folder, and resolves a path relative to that folder, so moving a note can
+Q12's rule resolves a bare name by preferring a candidate under the source
+note's own folder (point 3, as amended on 2026-09-23), and resolves a path
+relative to that folder, so moving a note can
 change which note a link reaches and can make a link written as a path stop
 resolving. Everything this ADR leaves open — what happens to an external
 modification, what is atomic, what is shown as a diff — applies to that
 rewrite, which is a write to notes the user did not edit. Phase 2: Phase 1 has
 no UI and moves no file.
+
+**What the Phase 2 code does — decided on 2026-09-23.** Recorded that day as
+provisional, then accepted by the maintainer as it stands (the Decision
+above). It is the code as it stands after the Opus reading of the Phase 2
+branch (`docs/review/phase-2.md`), whose findings changed several of these
+points.
+
+- **Rename and move: option (b).** Before anything moves, the core reads every
+  note whose links may name the entry, with what each link reaches by the
+  index's rule (spec Q12). It then moves the entry with one rename — refused
+  when something stands at the destination, a cloud placeholder included, or
+  when the entry itself is a placeholder — makes the index follow (a moved
+  note keeps what the index knew of it, a placeholder's last known version
+  included) and answers with a plan: for each note whose links no longer reach
+  what they reached, its text before and after, with the revision it was read
+  at. Only those links are rewritten, in a form that reaches the same entry
+  again — a bare name that would now reach another note becomes a path — and
+  never inside code. A move that would silently send a bare link elsewhere
+  gets a plan too, which was the requirement above.
+- **No link is rewritten until the user applies the plan**, shown as one diff
+  per note. Each note is then written by itself, atomically, over its own
+  revision: a note edited since the plan is refused and counted, never
+  overwritten, and an open tab that cannot be saved first is left out and
+  named. A note that links to what moved but cannot be planned — a
+  placeholder, a file that is not UTF-8, a read error — is listed as skipped.
+- **No logical transaction.** The Consequences above ask for one; there is
+  none. The move is one rename and the rewrites are separate writes: a failure
+  on the seventh of twelve leaves six written and the rest not, the window says
+  how many, and nothing undoes them. Once the entry has moved, nothing is reported
+  as a failure; what could not be confirmed is a warning.
+- **Folders** move with everything under them; the notes and attachments
+  inside keep their links, and notes outside that linked in get a plan.
+  **Attachments** plan the notes whose embeds reached them.
+- **Delete** goes to `.trash/` at the root of the open folder, Obsidian's bin,
+  keeping the relative path and adding ` (n)` on a collision; nothing is
+  unlinked. The window asks first, in the page — a first version's confirmation
+  never asked (the Opus reading found it).
+- **Create** writes the text the window gives: `# Name` for a new note, the
+  `url` for a web note, the template for the daily note. A name that is taken
+  is refused with `exists`, whatever stands there; the window also checks names
+  case-insensitively before asking. Names keep their accents and spaces as
+  typed; no Unicode normalization (Q7) is applied.
+- **Case.** A rename that only changes case is allowed on a case-insensitive
+  volume, where both names are the same file.
+- **Names a link cannot hold.** The core accepts note and folder names that
+  hold `[`, `]`, `|`, `#` or `^`, which no `[[…]]` can name; a rename to such
+  a name writes no link that would be read as another target, and says so.
+  The window refuses such a name when the user types it — creating a note or
+  a folder, renaming — and says why (`7d516f5`, the maintainer's choice of
+  2026-09-23). A name the window makes itself is not checked — a duplicate, a
+  dropped file, the folders the settings name — except a pasted or dropped
+  image's, which loses those characters so that its embed reaches it
+  (`ce983c7`). A file already so named opens as any other, and the core still
+  accepts the names for its other clients.
+- **Volumes without hard links** (exFAT and FAT on removable drives, some
+  network and cloud file systems): a create or a move gives the file its name
+  by a rename after a last-moment check instead of a link, and says that the
+  guard was weaker. Allowed, with that warning, by the maintainer on
+  2026-09-23 — on the recommendation that refusing would leave Verso unusable
+  on a removable drive.
+- **Placeholders.** A single placeholder cannot be renamed or deleted, its
+  content being in the cloud; a folder that holds placeholders moves and goes
+  to the bin as a whole.
+- **Concurrent external modification** follows [0012](0012-files-are-source-of-truth.md):
+  every write checks the revision it was given, and the revision a write hands
+  back is that of the bytes it wrote.
 
 ## Discarded alternatives
 
@@ -58,4 +143,5 @@ None recorded.
 
 ## Status
 
-`[OPEN]`. Decide before item 2.3 of Phase 2.
+Accepted on 2026-09-23 by the maintainer, as the Phase 2 code does it (the
+Decision and the record under Consequences).

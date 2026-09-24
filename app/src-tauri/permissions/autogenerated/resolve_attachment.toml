@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resolve-attachment"
+description = "Enables the resolve_attachment command without any pre-configured scope."
+commands.allow = ["resolve_attachment"]
+
+[[permission]]
+identifier = "deny-resolve-attachment"
+description = "Denies the resolve_attachment command without any pre-configured scope."
+commands.deny = ["resolve_attachment"]
