@@ -775,12 +775,15 @@ Registradas, não resolvidas (`CLAUDE.md` §1, regra 3).
 **Conferir que esta mudança é o que diz ser.** A branch é local; não foi
 enviada.
 
+O memo e o rascunho do ADR entraram em dois commits da pilha local — o do
+memo (`4a9ae09`) e o da leitura (`d2c88d4`) — entre outros que não são deste
+assunto; cada um toca os mesmos seis arquivos, todos sob `docs/`:
+
 ```
-git checkout docs/typed-note-decision
-git diff --stat origin/main..HEAD          # seis arquivos, todos sob docs/
+git show --stat 4a9ae09 d2c88d4            # seis arquivos cada, todos sob docs/
 bash scripts/check-docs-mirror.sh          # "docs mirror: ok"
 bash scripts/check-fixtures.sh             # fixtures intocadas; o lint continua passando
-git log --format='%an <%ae>%n%b' origin/main..HEAD   # autor e Signed-off-by são seus
+git log -1 --format='%an <%ae>%n%b' d2c88d4   # autor e Signed-off-by são seus
 ```
 
 **Decidir, em sete linhas:**
@@ -839,4 +842,8 @@ rótulos dela, e o que foi feito com cada um:
 | M9 — o plano de fechamento não citava commit nem PR, e não dava ao ADR 0013 uma linha `Revisões:` | MENOR | Seção 12: as duas coisas, como o índice dos ADRs exige |
 | M10 — uma nota entre as alternativas descartadas do ADR 0052 | MENOR | Levada para o Status dele |
 
-Estas mudanças ainda não foram lidas.
+Os rótulos são os da própria leitura, e ela leu outros três memos na mesma
+passada: os números que esta tabela pula, e o único achado BLOQUEANTE da
+leitura, são desses memos — `beta-config-decision.md`, `handles-decision.md` e
+`embedded-media-decision.md`, corrigidos em `4e8646b`. Estas mudanças ainda
+não foram lidas.
