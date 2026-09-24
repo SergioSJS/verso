@@ -181,7 +181,7 @@ A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-target-platforms-m
 | 2.4 | Editor CodeMirror 6 com Live Preview | construído: leitura, Live Preview e fonte |
 | 2.5 | Backlinks e busca vindos do core, pelo contrato | construídos, com links, tags, menções sem link e o grafo |
 | 2.6 | Um tipo de nota ponta a ponta | não começado: espera as decisões abaixo |
-| 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | idiomas construídos, escolhidos nos ajustes; acessibilidade não auditada |
+| 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | idiomas construídos, escolhidos nos ajustes; acessibilidade auditada estaticamente contra a WCAG 2.2 AA em 2026-09-24 e os achados corrigidos, menos dois ([revisão](review/accessibility.md)), num branch local; ainda não percorrida com um leitor de tela |
 
 Além dos sete itens, o mantenedor pediu durante a fase o que faltaria a quem
 sai do Obsidian; a lista é a [ADR 0049](adr/0049-phase-2-scope-widened.md), e o

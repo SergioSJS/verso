@@ -288,11 +288,11 @@ bench, que precisa do CI rodando.
   por caminho relativo, e a revisão é o único token. A identidade de sessão é
   aceita como ausente na Fase 2 (ADR 0045, 2026-09-23); os handles estão em
   aberto.
-- **Uma passada completa de acessibilidade.** Depois da leitura, os controles
-  têm nome, os diálogos prendem e devolvem o foco, menus e divisores respondem
-  ao teclado, e o texto secundário chega a 4,5:1; ainda não há jeito de teclado
-  para arrastar uma aba ou um arquivo, e ninguém percorreu o app com um leitor
-  de tela ([ADR 0035](../adr/0035-cross-cutting-requirements.md)).
+- **Uma passada completa de acessibilidade** — feita estaticamente em
+  2026-09-24, num branch local: [revisão de acessibilidade](../review/accessibility.md).
+  Abas e arquivos agora também se movem pelo teclado; o que ela deixa para o
+  mantenedor está na seção 8, e ninguém percorreu o app com um leitor de tela
+  ainda ([ADR 0035](../adr/0035-cross-cutting-requirements.md)).
 - **Um observador de arquivos** — construído em 2026-09-24, provisório, no
   branch `feat/watcher`: [memorando do watcher](watcher-decision.md). Antes
   dele, uma mudança feita fora do app aparecia quando a nota era salva (como
