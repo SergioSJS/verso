@@ -351,3 +351,104 @@ fn the_budget_stops_a_formula_that_would_never_end() {
         matches!(&r.groups[0].rows[0].cells[0], Cell::Error(e) if e.kind == EvalErrorKind::Budget)
     );
 }
+
+#[test]
+fn a_summary_of_the_base_may_take_a_default_name() {
+    let r = eval_base(
+        "filters: type == \"npc\"\nsummaries:\n  Count: values.length * 10\nviews:\n  - type: table\n    name: T\n    order: [nível]\n    summaries:\n      nível: Count\n",
+        &query(None),
+    );
+    let npcs = r.total as f64;
+    assert_eq!(r.groups[0].summaries, vec![Some(Cell::Number(npcs * 10.0))]);
+}
+
+#[test]
+fn links_to_no_file_are_equal_only_as_written() {
+    let r = eval_base(
+        "filters: type == \"npc\"\nformulas:\n  a: 'link(\"Nada\") == link(\"Nada\")'\n  b: 'link(\"Nada\") == link(\"nada\")'\n  c: 'link(\"Nada\") == \"nada\"'\nviews:\n  - type: table\n    name: T\n    order: [formula.a, formula.b, formula.c]\n",
+        &query(None),
+    );
+    assert_eq!(
+        r.groups[0].rows[0].cells[..3],
+        [Cell::Bool(true), Cell::Bool(false), Cell::Bool(false)]
+    );
+}
+
+#[test]
+fn a_base_cannot_make_the_evaluation_outgrow_its_bounds() {
+    let fx = fixture();
+    let resolver = |_: &str, t: &str| resolve_name(t);
+    let notes = fx.notes.iter().map(|(k, v)| (k.clone(), v)).collect();
+    let facts = Facts::new(fx.files.clone(), notes, fx.links.clone(), &resolver);
+    let formulas = [
+        // A list doubled forty times.
+        "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40].reduce(acc + acc, [1]).length",
+        // A one-letter pattern and a long replacement.
+        "\"x\".repeat(100000).replace(\"x\", \"y\".repeat(100000))",
+        // A long separator between many items.
+        "\"x\".repeat(100000).split(\"\").join(\"y\".repeat(100000))",
+        // A list nested a thousand deep.
+        "\"x\".repeat(1000).split(\"\").reduce([acc], [])",
+        // Every pair of a long list compared.
+        "\"x\".repeat(100000).split(\"\").map(index).unique().length",
+    ];
+    for f in formulas {
+        let base = parse_base(&format!(
+            "filters: type == \"npc\"\nformulas:\n  f: '{f}'\nviews:\n  - type: table\n    name: T\n    order: [formula.f]\n"
+        ));
+        let started = std::time::Instant::now();
+        let r = run_with(&base, &query(None), &facts, 5_000_000);
+        assert!(started.elapsed().as_secs() < 10, "{f}");
+        let cell = &r.groups[0].rows[0].cells[0];
+        assert!(
+            matches!(cell, Cell::Error(e) if matches!(e.kind, EvalErrorKind::TooLarge | EvalErrorKind::Budget)),
+            "{f}: {cell:?}"
+        );
+    }
+}
+
+#[test]
+fn a_chain_of_formulas_stops_at_the_depth_bound() {
+    // On a thread with room to spare: a test's own thread has less stack
+    // than the app's, and a test is built without optimizations.
+    let r = std::thread::Builder::new()
+        .stack_size(64 << 20)
+        .spawn(|| {
+            let mut yaml = String::from("filters: type == \"npc\"\nformulas:\n  f0: '1'\n");
+            for i in 1..400 {
+                yaml.push_str(&format!("  f{i}: formula.f{} + 1\n", i - 1));
+            }
+            yaml.push_str(
+                "views:\n  - type: table\n    name: T\n    order: [formula.f399, formula.f50]\n",
+            );
+            eval_base(&yaml, &query(None))
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    let cells = &r.groups[0].rows[0].cells;
+    assert!(matches!(&cells[0], Cell::Error(e) if e.kind == EvalErrorKind::TooLarge));
+    assert_eq!(cells[1], Cell::Number(51.0));
+}
+
+#[test]
+fn a_sort_over_mixed_values_is_an_order() {
+    // Numbers, a number that is not one, durations, texts and empties in
+    // one column: the sort must not find a contradiction.
+    let r = eval_base(
+        "formulas:\n  k: 'if(file.name.contains(\"a\"), 0/0, if(file.name.contains(\"e\"), \"\", if(file.name.contains(\"o\"), duration(\"1M\"), file.name.length)))'\nviews:\n  - type: table\n    name: T\n    order: [formula.k]\n    sort:\n      - property: formula.k\n        direction: DESC\n",
+        &query(None),
+    );
+    assert_eq!(r.total, VAULT.len());
+}
+
+#[test]
+fn a_date_moved_past_the_calendar_stops_at_its_edge() {
+    let r = eval_base(
+        "filters: type == \"npc\"\nformulas:\n  far: 'date(\"2025-01-01\") + duration(\"99999999999 years\")'\n  back: 'date(\"2025-01-01\") - duration(\"99999999999 years\") - date(\"2025-01-01\")'\nviews:\n  - type: table\n    name: T\n    order: [formula.far, formula.back]\n",
+        &query(None),
+    );
+    let cells = &r.groups[0].rows[0].cells;
+    assert!(matches!(cells[0], Cell::Date { ms, .. } if ms == time::MAX_MS));
+    assert!(matches!(cells[1], Cell::Number(n) if n < 0.0));
+}

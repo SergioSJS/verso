@@ -194,28 +194,34 @@ pub(crate) fn compare(a: &V, b: &V, offset: i32) -> Option<Ordering> {
 pub(crate) fn sort_order(a: &V, b: &V, lang: &str) -> Ordering {
     fn rank(v: &V) -> u8 {
         match v {
-            V::Num(_) | V::Dur(_) => 0,
-            V::Date(..) => 1,
-            V::Bool(_) => 2,
+            V::Num(_) => 0,
+            V::Dur(_) => 1,
+            V::Date(..) => 2,
+            V::Bool(_) => 3,
             V::Str(_)
             | V::Link { .. }
             | V::File(_)
             | V::Image(_)
             | V::Icon(_)
             | V::Html(_)
-            | V::Regex(..) => 3,
-            V::List(_) | V::Obj(_) => 4,
-            V::Null => 5,
+            | V::Regex(..) => 4,
+            V::List(_) | V::Obj(_) => 5,
+            V::Null => 6,
         }
     }
     let (ra, rb) = (rank(a), rank(b));
-    if ra != rb || ra == 5 {
+    if ra != rb {
         return ra.cmp(&rb);
     }
+    // An order with no exception, as sorting needs one: a number that is
+    // not a number goes at an end, a duration by its length.
+    let length = |d: &Duration| d.ms + d.months * 30.0 * 86_400_000.0;
     match (a, b) {
-        (V::Num(_) | V::Date(..) | V::Bool(_) | V::Dur(_), _) => {
-            compare(a, b, 0).unwrap_or(Ordering::Equal)
-        }
+        (V::Num(x), V::Num(y)) => x.total_cmp(y),
+        (V::Dur(x), V::Dur(y)) => length(x).total_cmp(&length(y)),
+        (V::Date(x, _), V::Date(y, _)) => x.cmp(y),
+        (V::Bool(x), V::Bool(y)) => x.cmp(y),
+        (V::Null, V::Null) => Ordering::Equal,
         _ => {
             let (x, y) = (a.text(lang), b.text(lang));
             natural(&x.to_lowercase(), &y.to_lowercase()).then_with(|| x.cmp(&y))
