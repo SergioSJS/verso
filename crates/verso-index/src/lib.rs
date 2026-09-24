@@ -23,6 +23,7 @@
 //!   Time Machine.
 
 mod keys;
+mod moves;
 mod schema;
 mod search;
 mod store;
@@ -31,15 +32,23 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 
-pub use keys::{note_keys, target_key};
+pub use keys::{file_key, note_keys, target_key};
 pub use search::Hit;
 pub use store::{Backlink, Block, Heading, Link, NoteStamp, Unresolved};
+
+/// The schema version this build writes. The sidecar beside the index
+/// records it (`docs/reference/index-decision.md` §2.4); a different
+/// version on open means a rebuild (`schema.rs`).
+pub const SCHEMA_VERSION: i64 = schema::VERSION;
 
 /// Why the index could not do something.
 #[derive(Debug)]
 pub enum IndexError {
     Sqlite(rusqlite::Error),
     Io(std::io::Error),
+    /// The index disagrees with itself; rebuilding it is the answer (it
+    /// is a cache, ADR 0011). The string says what was found.
+    Corrupt(String),
 }
 
 impl std::fmt::Display for IndexError {
@@ -47,6 +56,7 @@ impl std::fmt::Display for IndexError {
         match self {
             Self::Sqlite(e) => write!(f, "index: {e}"),
             Self::Io(e) => write!(f, "index file: {e}"),
+            Self::Corrupt(what) => write!(f, "index is corrupt: {what}"),
         }
     }
 }

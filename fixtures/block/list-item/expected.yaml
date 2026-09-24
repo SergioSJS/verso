@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1, 2026-09-21), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-09-23 ("faça 8", on docs/review/phase-2.md §6 item 8), after the observation below (ADR 0031).
 # Construct: block ID definition at the end of a list item. Spec: docs/spec/dialect.md §5.7.
 # Answers the list-item part of Q3, decided by the maintainer on 2026-09-21;
 # the spec's section 9 is updated in the same PR (ADR 0031). "vingança"

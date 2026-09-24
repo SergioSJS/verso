@@ -120,9 +120,14 @@ mudando o teste.
 | Queries parametrizadas + escape da sintaxe FTS5 | busca quebrando com aspas e operadores | feature 3 |
 | Benchmark com vault sintético | regressão de performance | feature 5 |
 | Tipos TS gerados conferidos no CI | regra 3 do contrato virar convenção | Fase 2, 2.1 |
+| Allowlist de licenças npm sobre o lockfile da janela | pacote npm sob licença que o projeto não pode distribuir | Fase 2 |
 
-CI em macOS e Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
-`cargo deny check`, mais os comandos dos guardrails de feature conforme entram.
+CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
+roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
+clippy e os testes no macOS, o fuzzing e o benchmark; os apps são compilados e
+empacotados só numa tag de versão, nunca numa branch. Antes de qualquer push,
+`scripts/check.sh` e `scripts/check-linux.sh` passam localmente (README.md): o
+CI confirma, nunca é o primeiro teste.
 
 Se um guardrail bloquear um trabalho legítimo, isso é assunto de PR próprio, com
 justificativa — não de `#[allow]` no meio do diff. Advisory nova só ganha
@@ -142,6 +147,11 @@ crates/
 `verso-dialect` não ganha dependência de IO nem de async. `verso-fs` é o único
 crate que toca os arquivos da pasta aberta; `verso-index` abre só o arquivo do
 índice e `verso-core` só a config. Dependência nova exige justificativa no PR.
+
+Além dos cinco, o workspace tem `crates/verso-contract` (os tipos do contrato,
+sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
+`app/src-tauri` (o host desktop da Fase 2, que chega às notas só pelo
+`verso-core`) — ADR 0028, Consequências.
 
 ---
 
@@ -254,7 +264,8 @@ Parar é o comportamento correto, não uma falha:
 | `reference/` | Notas de referência sobre ferramentas externas e comportamento observado de fora, como o CLI do Obsidian ([ADR 0009](adr/0009-external-constraints.md)) |
 | `docs/pt-BR/` | Espelho pt-BR de toda a documentação, mesma estrutura e nomes ([ADR 0008](adr/0008-documentation-language.md)) |
 | `fixtures/` | Contrato de comportamento. `expected.yaml` é intocável sem aprovação; schema em `spec/dialect.md` §4 |
-| `crates/` | Os cinco crates do core |
+| `crates/` | Os cinco crates do core, mais os tipos do contrato e o benchmark |
+| `app/` | A janela da Fase 2: o host Tauri (`app/src-tauri`) e a UI (`app/ui`) |
 | `.github/pull_request_template.md` | As cinco seções obrigatórias do PR |
 
 ## 8. Idioma

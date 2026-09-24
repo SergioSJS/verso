@@ -11,7 +11,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 3;
+pub(crate) const VERSION: i64 = 6;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -25,6 +25,7 @@ CREATE TABLE notes (
     path      TEXT NOT NULL UNIQUE,
     path_key  TEXT NOT NULL,
     name_key  TEXT NOT NULL,
+    dir       TEXT NOT NULL DEFAULT '',  -- folder of the note, '' at the root (keys.rs)
     title     TEXT,
     modified  INTEGER NOT NULL,
     len       INTEGER NOT NULL,
@@ -32,6 +33,7 @@ CREATE TABLE notes (
     tags      TEXT NOT NULL DEFAULT '[]',
     aliases   TEXT NOT NULL DEFAULT '[]',
     frontmatter_ok INTEGER NOT NULL DEFAULT 1,
+    url       TEXT,                       -- the `url` property, when the note is a web page
     content   TEXT NOT NULL DEFAULT '',
     -- ADR 0043: a placeholder keeps the last known version, marked as
     -- unverified (1); a note read from disk is verified (0).
@@ -58,7 +60,8 @@ CREATE TABLE links (
     note       INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
     kind       TEXT NOT NULL,            -- 'link' | 'embed'
     target     TEXT NOT NULL,            -- as written
-    target_key TEXT NOT NULL,            -- folded (keys.rs)
+    target_key TEXT,                     -- folded (keys.rs); NULL: not a name, never resolves
+    rel_key    TEXT,                     -- the target read from the source's folder, or NULL
     heading    TEXT, block TEXT, alias TEXT,
     line  INTEGER NOT NULL, col INTEGER NOT NULL,
     start INTEGER NOT NULL, end INTEGER NOT NULL
@@ -95,7 +98,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
     conn.execute_batch(CREATE)?;
     conn.execute_batch(&format!(
-        "CREATE VIRTUAL TABLE notes_fts USING fts5(path UNINDEXED, content,
+        "CREATE VIRTUAL TABLE notes_fts USING fts5(path UNINDEXED, title, content,
              content = 'notes', content_rowid = 'id', tokenize = '{TOKENIZER}');"
     ))?;
     conn.execute(

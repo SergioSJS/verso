@@ -3,6 +3,10 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §5.3
 - Status in the briefing: `PROPOSED`
+- Revisions: 2026-09-23 — two primitives accepted by the maintainer as the
+  Phase 2 window builds them, the daily note and templates
+  (`docs/review/phase-2.md` §6, item 11); the rest of the catalog stays
+  Proposed.
 
 ## Context
 
@@ -11,7 +15,7 @@ An application of the principle in
 is a symptom of a missing primitive. The briefing proposes a catalog, still
 unconfirmed.
 
-## Decision (proposed, not confirmed)
+## Decision (proposed, not confirmed; two primitives accepted on 2026-09-23)
 
 Verso implements primitives; specific features come as first-party plugins.
 
@@ -23,6 +27,23 @@ Verso implements primitives; specific features come as first-party plugins.
 | Time as a first-class citizen: daily and periodic notes | Periodic Notes, Calendar |
 | Structured views that can materialize their output as real Markdown in the file | query results invisible to git, search and agents |
 | Write provenance in the frontmatter: author, model, when | no equivalent |
+
+**Two primitives accepted on 2026-09-23 by the maintainer**
+(`docs/review/phase-2.md` §6, item 11; the answer: *"a e b ok"*), as the Phase 2
+window builds them ([0049](0049-phase-2-scope-widened.md),
+`docs/reference/app-decision.md`):
+
+- **The daily note** — the daily part of the time row: one note per day,
+  named by the date, in the folder the settings name, opened if it exists and
+  otherwise created, from a template named like that folder — or, failing
+  that, `Diário` or `Daily` — when there is one.
+- **Templates** — any note in the folder the settings name is one; it is
+  inserted into a note with `{{date}}` and `{{title}}` filled in, and a note
+  can be saved into that folder as one.
+
+Whether each still needs an ADR of its own, as the first Consequence asks of
+every primitive, the answer did not say; that stays the maintainer's.
+Periodic notes and every other row stay Proposed.
 
 ## Consequences
 
@@ -49,6 +70,7 @@ Verso implements primitives; specific features come as first-party plugins.
 - Nothing in this catalog is in Phase 1, except what the parser and the index
   need to expose ([0034](0034-roadmap-in-phases.md)).
 
+
 ## Discarded alternatives
 
 - Reproducing Dataview, Templater, Periodic Notes and statblocks as
@@ -57,4 +79,4 @@ Verso implements primitives; specific features come as first-party plugins.
 
 ## Status
 
-Proposed.
+Proposed. The daily note and templates: accepted on 2026-09-23 (Decision).

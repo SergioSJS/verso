@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reopen-folder"
+description = "Enables the reopen_folder command without any pre-configured scope."
+commands.allow = ["reopen_folder"]
+
+[[permission]]
+identifier = "deny-reopen-folder"
+description = "Denies the reopen_folder command without any pre-configured scope."
+commands.deny = ["reopen_folder"]

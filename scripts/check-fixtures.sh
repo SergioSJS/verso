@@ -8,10 +8,19 @@
 # and whether they are right is the maintainer's approval.
 #
 # A draft says "AI draft" on its first line (ADR 0031 item 4); the script
-# reports drafts but does not fail on them. Roadmap exit criterion 5 reads
-# the report.
+# reports drafts and, by default, does not fail on them. Roadmap exit
+# criterion 5 reads the report. Two things do fail:
 #
-# Deliberately dependency-free (bash, find, grep, sed, awk). The Phase 1 test
+#   - an approval coming undone: a fixture approved on the base branch
+#     (FIXTURES_BASE, default main) that is a draft here. That is not a
+#     decision, it is a line lost in a rebase or a merge — it happened on
+#     2026-09-22 to six fixtures, unnoticed;
+#   - any draft at all when FIXTURES_STRICT=1, which is how main is checked:
+#     a working branch may carry a draft while the maintainer looks at it,
+#     main may not.
+#
+# Deliberately dependency-free (bash, find, grep, sed, awk; git only for the
+# base-branch comparison, skipped when the base is not there). The Phase 1 test
 # harness deserialises expected.yaml into a strict type and is the real
 # check; this script only keeps a draft from using a key that does not exist
 # or sits in the wrong place.
@@ -20,6 +29,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 fail=0
+drafts=0
+base="${FIXTURES_BASE:-main}"
 problem() { fail=1; printf 'FIXTURE: %s\n' "$*" >&2; }
 
 [ -d fixtures ] || { echo "fixtures: none yet"; exit 0; }
@@ -134,10 +145,21 @@ while IFS= read -r dir; do
 
   if head -1 "$dir/expected.yaml" | grep -q 'AI draft'; then
     printf 'draft:    %s\n' "$dir"
+    drafts=$((drafts + 1))
+    # 3. An approval does not come undone by accident.
+    if git cat-file -e "$base:$dir/expected.yaml" 2>/dev/null \
+       && git show "$base:$dir/expected.yaml" | head -1 | grep -q 'Approved'; then
+      problem "$dir: approved on $base, a draft here — the approval line was lost; restore it"
+    fi
   else
     printf 'approved: %s\n' "$dir"
   fi
 done < <(find fixtures -mindepth 2 -maxdepth 2 -type d | sort)
+
+# 4. No draft at all, when asked (main).
+if [ "${FIXTURES_STRICT:-0}" = "1" ] && [ "$drafts" -gt 0 ]; then
+  problem "$drafts draft(s) present with FIXTURES_STRICT=1"
+fi
 
 if [ "$fail" -eq 0 ]; then
   echo "fixtures: $count checked"

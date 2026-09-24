@@ -5,6 +5,9 @@
 - Status in the briefing: not present;
   [0025](0025-own-server-and-mobile-pwa.md) records "authentication and
   exposure" as a question to open
+- Revisions: 2026-09-23 — the contract group: kept `[OPEN]` by the maintainer
+  until a server enters scope, with the Phase 2 contract accepted as built
+  (`docs/review/phase-2.md` §6, item 6).
 
 ## Context
 
@@ -70,6 +73,19 @@ None. Questions recorded, with the moment to decide them.
 - The contract has to have, from the first design on, session identity,
   per-operation authorization and a notion of "who is on the other side", even
   if in local IPC everything is granted. Adding it later means redoing it.
+
+**The maintainer's answer of 2026-09-23** (`docs/review/phase-2.md` §6, item
+6; *"a e b ok"*): the question stays `[OPEN]` until `verso serve`, or any
+other side that is not the app's own window, enters scope; for Phase 2 the
+contract is accepted as built. It has no session identity and no
+per-operation authorization. The host grants the commands to the app's own
+views only — the main window and the note windows — through an app manifest;
+a web view that shows a site gets none, and neither does a remote origin.
+`verso://`, the file protocol beside the contract, answers the app's own
+views only and never serves a note. The host-only commands (`web_*`,
+`open_url`, `open_window`, `reveal`) sit in the same generated bindings as
+the core's. The risk this group names — identity added later means the
+contract redone — is accepted with it.
 
 ### `verso serve` — decide before it enters scope
 
@@ -149,5 +165,6 @@ None recorded.
 
 ## Status
 
-`[OPEN]` for the contract and the server; **MCP decided on 2026-09-22** (above). MCP: closed. Contract: before item 2.1 of
-Phase 2. Server: before it enters scope.
+`[OPEN]` for the contract and the server; **MCP decided on 2026-09-22** (above). MCP: closed. Contract: accepted as built
+for Phase 2 on 2026-09-23, `[OPEN]` until a server enters scope. Server:
+before it enters scope.

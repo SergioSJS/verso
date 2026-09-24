@@ -32,6 +32,7 @@
 //!   download it.
 
 mod confine;
+mod ops;
 mod placeholder;
 mod walk;
 mod write;
@@ -42,6 +43,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::SystemTime;
 
 pub use confine::ConfinementError;
+pub use ops::OpReport;
 pub use walk::{Entry, EntryKind, Problem, Walk};
 pub use write::{WriteError, WriteReport};
 
@@ -186,6 +188,18 @@ impl Root {
     /// to a file that does not exist is legal and its read fails later with
     /// `NotFound`.
     pub fn handle(&mut self, relative: &Path) -> Result<Handle, ConfinementError> {
+        let relative = self.confine(relative)?;
+        Ok(self.intern(relative))
+    }
+
+    /// What [`Root::handle`] checks, without keeping a handle: the confined
+    /// form of a path relative to the root — `.` dropped, `//` collapsed —
+    /// or why it is refused. Nothing on disk is checked and nothing is
+    /// remembered, so a caller that only needs to key the index by a path
+    /// asks here, and keys by the answer, never by the string it was
+    /// given: `./Taverna.md`, `Taverna//x/../Taverna.md` and `Taverna.md`
+    /// are refused or become one name.
+    pub fn confine(&self, relative: &Path) -> Result<PathBuf, ConfinementError> {
         let relative = confine::confine(relative)?;
         // The placeholder name form outranks the hidden rule here as in the
         // walk (ADR 0043), so a walked placeholder can be named again.
@@ -201,7 +215,7 @@ impl Root {
         if self.is_ignored(&relative) {
             return Err(ConfinementError::Ignored);
         }
-        Ok(self.intern(relative))
+        Ok(relative)
     }
 
     /// Walk the folder: every entry that is not ignored, in a deterministic
@@ -251,6 +265,50 @@ impl Root {
             .path_of(handle)
             .ok_or(WriteError::UnknownHandle(handle))?;
         write::write_atomically(&path, content, expected)
+    }
+
+    /// Create a file that does not exist yet, confined like every path,
+    /// with `content`, atomically (ADR 0048): written under a temporary
+    /// name, synced, then linked to its name, which fails rather than
+    /// replacing what appeared there meanwhile. `WriteError::Exists` when
+    /// something already stands there. The report carries the new file's
+    /// stamp and what could not be confirmed once the file was in place.
+    pub fn create(
+        &mut self,
+        relative: &Path,
+        content: &[u8],
+    ) -> Result<(Handle, OpReport), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        let report = ops::create_atomically(&self.path.join(&relative), content)?;
+        Ok((self.intern(relative), report))
+    }
+
+    /// Create a folder (and its parents) inside the root, confined, each
+    /// new directory synced into the one it hangs from.
+    pub fn create_dir(&self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        let report = ops::create_directory(&self.path.join(&relative))?;
+        Ok((relative, report))
+    }
+
+    /// Move an entry to another path of the folder, both confined; refuses
+    /// an occupied destination, unless it is the entry itself under another
+    /// spelling of its name (a case-only rename on APFS); creates the
+    /// destination's folders. A regular file is moved by `link` and
+    /// `unlink`, so nothing that appears at the destination meanwhile is
+    /// replaced; a directory or a symlink is renamed.
+    pub fn rename(&mut self, from: &Path, to: &Path) -> Result<(Handle, OpReport), WriteError> {
+        let from = self.confine(from).map_err(WriteError::Confined)?;
+        let to = self.confine(to).map_err(WriteError::Confined)?;
+        let report = ops::rename_path(&self.path.join(&from), &self.path.join(&to))?;
+        Ok((self.intern(to), report))
+    }
+
+    /// Move an entry into `.trash/` at the root (Obsidian's bin), keeping
+    /// its relative path. Returns where it went, relative to the root.
+    pub fn trash(&mut self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        ops::trash(&self.path, &relative)
     }
 
     fn intern(&mut self, relative: PathBuf) -> Handle {

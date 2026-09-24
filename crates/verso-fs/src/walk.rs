@@ -42,6 +42,13 @@ pub struct Entry {
     pub kind: EntryKind,
     /// 0 for a direct child of the root.
     pub depth: usize,
+    /// Length in bytes as the file system reports it (0 for a directory
+    /// or a placeholder whose metadata could not be read): what a folder
+    /// listing shows, never what a write trusts (that is the `Stamp`).
+    pub len: u64,
+    /// Last modification as the file system reports it; `None` where it
+    /// gave none.
+    pub modified: Option<std::time::SystemTime>,
 }
 
 /// Something the walk met and did not silently pass over.
@@ -185,6 +192,8 @@ impl Walker<'_> {
                             relative: rel.clone(),
                             kind: EntryKind::Placeholder { of: rel },
                             depth,
+                            len: 0,
+                            modified: None,
                         });
                         continue;
                     }
@@ -216,6 +225,8 @@ impl Walker<'_> {
                     relative: rel,
                     kind,
                     depth,
+                    len: meta.len(),
+                    modified: meta.modified().ok(),
                 });
             }
         }
@@ -230,6 +241,8 @@ impl Walker<'_> {
             relative: rel.clone(),
             kind: EntryKind::Directory,
             depth,
+            len: 0,
+            modified: meta.modified().ok(),
         });
         let id = dir_id(meta);
         if let Some((_, first)) = self.ancestors.iter().find(|(a, _)| *a == id) {

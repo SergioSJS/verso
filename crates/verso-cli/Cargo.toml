@@ -20,6 +20,12 @@ path = "src/main.rs"
 # gives for free (`docs/reference/cli-decision.md`, provisional).
 [dependencies]
 verso-core = { path = "../verso-core" }
+# `verso <folder>` asks whether its first argument names an existing
+# directory — of verso-fs, the one crate that touches the disk (ADR 0026
+# rule 5): `Root::open` is the entry edge where a path string is accepted,
+# and it reads nothing. The MCP test also edits a note through it while
+# the server runs, as the std::fs guardrail asks of tests too.
+verso-fs = { path = "../verso-fs" }
 # `verso mcp` (feature 6): the official Rust SDK for the Model Context
 # Protocol, server side over stdio only (docs/reference/mcp-decision.md,
 # provisional). `default-features = false`: no HTTP, no auth, no client.
@@ -30,9 +36,6 @@ serde_json = "1"
 
 [dev-dependencies]
 tempfile = "3.27"
-# The MCP test edits a note while the server runs — through verso-fs, as
-# the std::fs guardrail asks of tests too.
-verso-fs = { path = "../verso-fs" }
 
 [lints]
 workspace = true

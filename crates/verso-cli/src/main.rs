@@ -17,7 +17,7 @@ mod messages;
 
 use std::ffi::OsString;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use messages::{Lang, Msg, text};
@@ -46,6 +46,10 @@ enum Command {
     Mcp {
         folder: PathBuf,
     },
+    /// Open the folder in the app (`verso .`, like an editor's `code .`).
+    Open {
+        folder: PathBuf,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -54,11 +58,40 @@ struct Options {
     lang: Option<Lang>,
 }
 
+/// The first argument when it is not a folder. A folder named like one of
+/// these is reached through `verso open <folder>`.
+const SUBCOMMANDS: [&str; 8] = [
+    "index",
+    "search",
+    "backlinks",
+    "mcp",
+    "open",
+    "help",
+    "--help",
+    "-h",
+];
+
 /// Parse `args` (without the program name). Options may appear anywhere
 /// and are always read, so that an error about the command is printed in
 /// the language the user asked for. The folder stays an `OsString` until
 /// it becomes a `PathBuf`: a name that is not UTF-8 is still a folder.
 fn parse(args: &[OsString]) -> (Options, Result<Command, Msg>) {
+    parse_with(args, names_a_directory)
+}
+
+/// Whether a path names an existing directory, asked of `verso-fs`: the
+/// one crate that touches the disk (ADR 0026 rule 5), whose `Root::open`
+/// is the entry edge where a path string is accepted. Nothing is read.
+fn names_a_directory(path: &Path) -> bool {
+    verso_fs::Root::open(path, Vec::new()).is_ok()
+}
+
+/// [`parse`] with the disk stood in for: `is_dir` says whether a first
+/// argument names an existing directory.
+fn parse_with(
+    args: &[OsString],
+    is_dir: impl Fn(&Path) -> bool,
+) -> (Options, Result<Command, Msg>) {
     let mut json = false;
     let mut lang = None;
     let mut limit = 20usize;
@@ -100,16 +133,41 @@ fn parse(args: &[OsString]) -> (Options, Result<Command, Msg>) {
     let options = Options { json, lang };
     let command = match error {
         Some(msg) => Err(msg),
-        None => command_of(positional, limit, unresolved),
+        None => command_of(positional, limit, unresolved, is_dir),
     };
     (options, command)
 }
 
-fn command_of(positional: Vec<OsString>, limit: usize, unresolved: bool) -> Result<Command, Msg> {
+fn command_of(
+    positional: Vec<OsString>,
+    limit: usize,
+    unresolved: bool,
+    is_dir: impl Fn(&Path) -> bool,
+) -> Result<Command, Msg> {
     let mut positional = positional.into_iter();
     let Some(sub) = positional.next() else {
         return Err(Msg::Usage);
     };
+    let sub_text = sub.to_string_lossy().into_owned();
+    // `verso .`, `verso ../notas`, `verso notas`: a first argument that is
+    // not a subcommand and names an existing directory opens that folder
+    // in the app; one that names nothing is a usage error. A subcommand
+    // wins over a folder of the same name, which `verso open` reaches.
+    // The rule ADR 0042 decides for Phase 2 (2026-09-23).
+    if !SUBCOMMANDS.contains(&sub_text.as_str()) {
+        if !is_dir(Path::new(&sub)) {
+            return Err(Msg::UnknownSubcommand(sub_text));
+        }
+        if unresolved {
+            return Err(Msg::ExtraArgument("--unresolved".to_owned()));
+        }
+        if let Some(extra) = positional.next() {
+            return Err(Msg::ExtraArgument(extra.to_string_lossy().into_owned()));
+        }
+        return Ok(Command::Open {
+            folder: PathBuf::from(sub),
+        });
+    }
     let folder = positional.next().map(PathBuf::from);
     let mut rest: Vec<String> = positional
         .map(|s| s.to_string_lossy().into_owned())
@@ -120,7 +178,7 @@ fn command_of(positional: Vec<OsString>, limit: usize, unresolved: bool) -> Resu
             None => Ok(()),
         }
     };
-    let command = match sub.to_string_lossy().as_ref() {
+    let command = match sub_text.as_str() {
         "index" => {
             if unresolved {
                 return Err(Msg::ExtraArgument("--unresolved".to_owned()));
@@ -165,10 +223,85 @@ fn command_of(positional: Vec<OsString>, limit: usize, unresolved: bool) -> Resu
                 folder: folder.ok_or(Msg::MissingFolder)?,
             }
         }
+        // `verso open <folder>` opens whatever the folder is called, and
+        // asks the disk nothing: the app reports a folder that is not there.
+        "open" => {
+            if unresolved {
+                return Err(Msg::ExtraArgument("--unresolved".to_owned()));
+            }
+            extra(&mut rest)?;
+            Command::Open {
+                folder: folder.ok_or(Msg::MissingFolder)?,
+            }
+        }
         "help" | "--help" | "-h" => Command::Help,
+        // Every name in SUBCOMMANDS has an arm above.
         other => return Err(Msg::UnknownSubcommand(other.to_owned())),
     };
     Ok(command)
+}
+
+/// Start the app on `folder`, detached: `$VERSO_APP` when set, else the
+/// `verso-app` binary beside this one (a development tree), else the
+/// installed application by name. The error names what was tried.
+///
+/// The installed app gets the folder as a document to open, not as an
+/// argument: macOS delivers it by an open event whether it launches the
+/// app or the app is already running, where `open --args` reached only a
+/// new process and a running app never saw the folder
+/// (`docs/review/phase-2.md`, reading 3, finding 20). `open` refuses a
+/// document that is not there. `verso open` asks the disk nothing before
+/// it launches (ADR 0042); when nothing could be started, the disk says
+/// which part was missing — the folder, or the app. `open`'s own words are
+/// not shown.
+fn launch_app(folder: &Path) -> Result<(), Launch> {
+    let mut tried = Vec::new();
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(env) = std::env::var_os("VERSO_APP") {
+        candidates.push(PathBuf::from(env));
+    }
+    if let Ok(me) = std::env::current_exe()
+        && let Some(dir) = me.parent()
+    {
+        candidates.push(dir.join("verso-app"));
+    }
+    for app in candidates {
+        match std::process::Command::new(&app)
+            .arg(folder)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => tried.push(format!("{}: {e}", app.display())),
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        match std::process::Command::new("open")
+            .args(["-a", "Verso"])
+            .arg(folder)
+            .stderr(std::process::Stdio::null())
+            .status()
+        {
+            Ok(status) if status.success() => return Ok(()),
+            Ok(status) => tried.push(format!("open -a Verso: {status}")),
+            Err(e) => tried.push(format!("open -a Verso: {e}")),
+        }
+    }
+    if !names_a_directory(folder) {
+        return Err(Launch::NoFolder);
+    }
+    Err(Launch::NoApp(tried.join("; ")))
+}
+
+/// Why nothing was started on a folder.
+enum Launch {
+    /// The folder is not there.
+    NoFolder,
+    /// No app could be started; what was tried.
+    NoApp(String),
 }
 
 fn with_code(mut out: Output, code: u8) -> Output {
@@ -238,6 +371,27 @@ fn run(args: &[OsString]) -> Output {
         | Command::Unresolved { folder }
         | Command::Mcp { folder } => folder.clone(),
         Command::Help => return out,
+        Command::Open { folder } => {
+            let folder = std::path::absolute(folder).unwrap_or_else(|_| folder.clone());
+            match launch_app(&folder) {
+                Ok(()) => out.stderr.push(text(
+                    &Msg::Opening(folder.to_string_lossy().into_owned()),
+                    lang,
+                )),
+                Err(Launch::NoFolder) => {
+                    out.stderr.push(text(
+                        &Msg::NoFolderToOpen(folder.to_string_lossy().into_owned()),
+                        lang,
+                    ));
+                    out.code = 3;
+                }
+                Err(Launch::NoApp(e)) => {
+                    out.stderr.push(text(&Msg::AppNotFound(e), lang));
+                    out.code = 3;
+                }
+            }
+            return out;
+        }
     };
     let mut ws = match Workspace::open(&folder, None) {
         Ok(ws) => ws,
@@ -248,7 +402,7 @@ fn run(args: &[OsString]) -> Output {
         }
     };
     out.code = match command {
-        Command::Help => 0,
+        Command::Help | Command::Open { .. } => 0,
         Command::Mcp { .. } => {
             // One incremental pass before the first answer (memo §6.3);
             // its report goes to stderr, stdout is the protocol.
@@ -638,6 +792,82 @@ mod tests {
         assert_eq!(
             (o.lang, c.unwrap_err()),
             (Some(Lang::PtBr), Msg::UnknownOption("--foo".into()))
+        );
+    }
+
+    #[test]
+    fn a_first_argument_that_names_a_directory_opens_it() {
+        // The disk stood in for: these are the directories that exist.
+        let dirs = |p: &Path| ["notas", ".", "index"].iter().any(|d| Path::new(d) == p);
+        let parse = |list: &[&str]| parse_with(&args(list), dirs).1;
+        assert_eq!(
+            parse(&["notas"]).unwrap(),
+            Command::Open {
+                folder: "notas".into()
+            }
+        );
+        assert_eq!(parse(&["."]).unwrap(), Command::Open { folder: ".".into() });
+        // Neither a command nor a folder, also when it looks like a path.
+        assert_eq!(
+            parse(&["nao-existe"]).unwrap_err(),
+            Msg::UnknownSubcommand("nao-existe".into())
+        );
+        assert_eq!(
+            parse(&["./nao-existe"]).unwrap_err(),
+            Msg::UnknownSubcommand("./nao-existe".into())
+        );
+        // A folder named like a subcommand: the subcommand wins; `open`
+        // reaches the folder, and asks the disk nothing.
+        assert_eq!(parse(&["index"]).unwrap_err(), Msg::MissingFolder);
+        assert_eq!(
+            parse(&["open", "index"]).unwrap(),
+            Command::Open {
+                folder: "index".into()
+            }
+        );
+        assert_eq!(
+            parse(&["open", "nao-existe"]).unwrap(),
+            Command::Open {
+                folder: "nao-existe".into()
+            }
+        );
+        // `open` needs its folder and nothing more; so does `verso <folder>`.
+        assert_eq!(parse(&["open"]).unwrap_err(), Msg::MissingFolder);
+        assert_eq!(
+            parse(&["open", "notas", "extra"]).unwrap_err(),
+            Msg::ExtraArgument("extra".into())
+        );
+        assert_eq!(
+            parse(&["notas", "extra"]).unwrap_err(),
+            Msg::ExtraArgument("extra".into())
+        );
+        assert_eq!(
+            parse(&["notas", "--unresolved"]).unwrap_err(),
+            Msg::ExtraArgument("--unresolved".into())
+        );
+    }
+
+    #[test]
+    fn the_directory_check_asks_the_disk_through_verso_fs() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+        let (_, c) = parse(&args(&[dir.path().to_str().unwrap()]));
+        assert_eq!(
+            c.unwrap(),
+            Command::Open {
+                folder: dir.path().to_path_buf()
+            }
+        );
+        // A file is not a folder, and neither is a path to nowhere.
+        let file = file.path().to_string_lossy().into_owned();
+        assert_eq!(
+            parse(&args(&[&file])).1.unwrap_err(),
+            Msg::UnknownSubcommand(file)
+        );
+        let missing = dir.path().join("nao-existe").to_string_lossy().into_owned();
+        assert_eq!(
+            parse(&args(&[&missing])).1.unwrap_err(),
+            Msg::UnknownSubcommand(missing)
         );
     }
 

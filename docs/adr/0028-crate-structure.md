@@ -3,6 +3,9 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §14.2, §10.1
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-09-23 — the workspace's two other members recorded, at the
+  maintainer's request (`docs/review/phase-2.md` §6, item 10); the five
+  crates and their rules are unchanged.
 
 ## Context
 
@@ -50,6 +53,23 @@ itself, never into an open folder, which is what invariant 5 protects. The
 same shape as the exceptions `verso-fs` and `verso-index` already carry. No
 benchmark harness dependency; `divan` is named as the fallback if statistics
 later justify one.
+
+**The workspace's other members, recorded on 2026-09-23 at the maintainer's
+request** (`docs/review/phase-2.md` §6, item 10; the answer: *"a e b ok"*).
+Besides the five crates of the core and `verso-bench`, the workspace has two
+more, and eight members in all:
+
+- `crates/verso-contract` — the contract's types, plain data with `serde` and
+  `specta` and no IO, shared by the host and the generated TypeScript
+  ([0026](0026-core-ui-contract-inviolable-rules.md) rule 3,
+  [0038](0038-ts-type-generation.md)); the core keeps its own types, which
+  the host maps onto these.
+- `app/src-tauri` — the Phase 2 desktop host. It reaches the notes only
+  through `verso-core`, touches no file of the open folder (rule 5), and has
+  no `clippy.toml` of its own, so the workspace's `std::fs` lint applies to it
+  unchanged.
+
+Neither changes what the five crates may do.
 
 ## Discarded alternatives
 

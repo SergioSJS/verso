@@ -9,6 +9,8 @@
   2026-09-22 — o mesmo registro atualizado para o código como ele ficou depois
   da leitura do Opus 5: dois daqueles itens reescritos onde o código mudou,
   mais cinco acrescentados, todos ainda **provisórios**.
+  2026-09-23 — o modo do arquivo do sidecar: `0600`, pela resposta do
+  mantenedor (`docs/review/phase-2.md` §6, item 15).
 
 ## Contexto
 
@@ -170,3 +172,13 @@ Aceita em 2026-09-22. Localização, ciclo de vida, permissões, backup, limpeza
 tokenizador estão decididos acima. O código do `verso-index` os implementa
 menos o sidecar, que é da feature 4; o que o código faz hoje está registrado em
 Consequências, e o único item que difere desta Decisão é o sidecar.
+
+**2026-09-23.** O sidecar existe desde `0f8e189`: o `verso-core` escreve
+`<chave>.json` ao lado de `<chave>.sqlite`, com a pasta, a hora da última
+rodada e o esquema, e desde a leitura da Opus do branch da Fase 2 um sidecar
+que não pode ser escrito é aviso, não rodada falha; a janela reabre uma pasta
+por essa chave. O modo do arquivo era o que a umask desse (0644 observado),
+dentro do diretório 0700. Perguntado se o "arquivo `0600`" acima o cobre, o
+mantenedor respondeu que sim em 2026-09-23 (`docs/review/phase-2.md` §6, item
+15): desde `3a9764e` o sidecar é `0600`, definido no temporário antes do
+rename.

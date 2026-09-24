@@ -11,6 +11,13 @@
 - Revisões: 2026-09-22 — o que o código da feature 4 faz registrado em
   Consequências, como **provisório**; a regra de desambiguação continua
   `[ABERTO]`, a Decisão não muda (memo `docs/reference/cli-decision.md`).
+- Revisões: 2026-09-23 — o que o código da Fase 2 faz com `verso <pasta>` e
+  `verso open` registrado em Consequências, como **provisório**; a regra
+  continua `[ABERTO]`.
+- Revisões: 2026-09-23 — **decidido pelo mantenedor para a Fase 2**: a regra
+  como o código a aplica (Decisão); o jeito de a janela começar mudou, para
+  que um app já aberto receba a pasta (`docs/review/phase-2.md` §6, itens 3 e
+  14).
 
 ## Contexto
 
@@ -29,11 +36,17 @@ primeira posição**: `verso index <pasta>`, `verso search <pasta> <palavras…>
 argumento do subcomando e não existe pasta padrão. Um argumento que começa com
 `--` e não é opção conhecida é erro de uso, não pasta.
 
-**Registrado, não decidido, para a Fase 2**: um primeiro argumento que nomeia um
-diretório existente abre esse diretório, qualquer outra coisa é lida como
-subcomando, com `verso open <pasta>` e `verso -- <pasta>` como saídas de
-emergência. `--` como separador não existe na Fase 1, então uma pasta cujo nome
-começa com `--` ainda não pode ser passada.
+**Decidido em 2026-09-23 pelo mantenedor, para a Fase 2**, como o código faz
+(registrado em Consequências; `docs/review/phase-2.md` §6, item 3; a
+resposta: *"a e b ok"*). Um subcomando na primeira posição é sempre o
+subcomando, mesmo quando existe um diretório com esse nome; qualquer outro
+primeiro argumento que nomeia um diretório existente o abre; qualquer outra
+coisa é erro de uso. `verso open <pasta>` abre uma pasta seja qual for o nome.
+O `--` continua não sendo separador, então uma pasta cujo nome começa com
+`--` só abre por um caminho que não comece assim, como `./--nome`. Isto
+substitui o que estava registrado, não decidido, para a Fase 2: a mesma regra
+lida ao contrário — um diretório primeiro, um subcomando senão — com
+`verso -- <pasta>` como segunda saída de emergência.
 
 ## Consequências
 
@@ -45,10 +58,13 @@ começa com `--` ainda não pode ser passada.
   ([0025](0025-own-server-and-mobile-pwa.md), Proposto). `verso <pasta>`
   significa que o primeiro argumento é um caminho quando não casa com um
   subcomando conhecido. Uma pasta chamada `index` ou `search` é o caso ambíguo,
-  e a regra de desambiguação é `[ABERTO]`.
+  e a regra de desambiguação é `[ABERTO]`. *(Decidido em 2026-09-23: o
+  subcomando ganha, e `verso open index` abre a pasta — a Decisão.)*
 - Abrir a UI a partir da CLI só é possível quando existe UI, ou seja, a partir da
   Fase 2 ([0034](0034-roadmap-in-phases.md)). Na Fase 1 o binário é só CLI. Em
   que fase o comando de abertura entra, o briefing não diz: `[ABERTO]`.
+  *(Fase 2: o mantenedor o pediu ali em 2026-09-22 e o aceitou em
+  2026-09-23.)*
 - O `verso-cli` já aparece na Fase 1, então os subcomandos nascem antes do
   comando de abertura; a regra de desambiguação precisa ser decidida antes de o
   conjunto de subcomandos crescer.
@@ -105,10 +121,61 @@ a regra de desambiguação acima continua `[ABERTO]`.
   virar `PathBuf` para o `verso-fs`. Só o subcomando, as palavras da busca e a
   nota são lidos como texto.
 
+**O que o código da Fase 2 faz — decidido em 2026-09-23.** Registrado nesse
+dia como provisório, depois aceito pelo mantenedor como está (a Decisão). O
+pedido do mantenedor de 2026-09-22 ("ser possível fazer um verso . no
+terminal e fazer com que ele abra naquele diretório",
+[0049](0049-phase-2-scope-widened.md) §1) pôs o comando de abrir na Fase 2,
+junto com a janela.
+
+- **Um subcomando na primeira posição é sempre o subcomando** — `index`,
+  `search`, `backlinks`, `mcp`, `open`, `help`, `--help`, `-h` — mesmo quando
+  existe um diretório com esse nome: `verso index` dentro de uma pasta que tem
+  `index/` responde "falta a pasta".
+- **Qualquer outro primeiro argumento que nomeia um diretório existente o
+  abre** na janela: `verso notas`, `verso .`, `verso ../outra`, um caminho
+  absoluto. É a regra que o memo recomenda. Se o argumento nomeia um diretório
+  é perguntado ao `verso-fs` (`Root::open`, que não lê nada). Um segundo
+  argumento depois da pasta é erro de uso.
+- **Qualquer outra coisa na primeira posição é erro de uso**, código de saída
+  2, que diz que não há nem comando nem pasta com esse nome ("comando
+  desconhecido, e nenhuma pasta com esse nome"), seguido do uso.
+- **`verso open <pasta>` abre uma pasta seja qual for o nome** — a saída para
+  uma pasta com nome de subcomando (`verso open index`). Ele não pergunta ao
+  disco antes; uma pasta que não existe é reportada pela janela. **`verso open`
+  sozinho é erro de uso**: não há pasta padrão, seguindo, de forma provisória,
+  o que esta ADR decidiu para os subcomandos da Fase 1.
+- **O `--` continua não sendo separador**, então uma pasta cujo nome começa com
+  `--` só abre por um caminho que não comece assim, como `./--nome`.
+- **Como a janela começa**: a CLI roda `$VERSO_APP` quando existe, senão o
+  binário `verso-app` ao lado dela, senão, no macOS, o app instalado por
+  `open -a Verso <pasta>`. A pasta vai como documento a abrir, que o macOS
+  entrega por um evento de abrir tanto quando lança o app quanto quando o app
+  já está aberto; a janela principal de um app aberto salva as abas e a abre,
+  como em qualquer troca. Até 2026-09-23 ela ia por `open -a Verso --args`,
+  que um app já aberto nunca recebia (`docs/review/phase-2.md`, leitura 3,
+  achado 20; corrigido em `b43e914` a pedido do mantenedor). O `open` recusa um
+  documento que não existe. O `verso open` continua não perguntando nada ao
+  disco antes de lançar; quando nada pôde começar, a CLI pergunta ao
+  `verso-fs` se a pasta existe e diz "não há pasta em …" (saída 3), ou, se a
+  pasta existe, que o app não foi achado (`1fc5c79`). Uma primeira versão
+  tentava de novo com `--args`, que um app já aberto ignora, então um erro de
+  digitação era reportado como "abrindo"; a leitura da Opus das respostas achou
+  isso. Um binário rodado direto — `$VERSO_APP`, uma árvore de
+  desenvolvimento, Linux — continua começando um processo novo a cada vez, e a
+  janela reporta uma pasta que não existe.
+- **A primeira versão deste código** usava uma regra léxica — `.`, `..`, uma
+  `/` ou um `~` no começo faziam do argumento uma pasta —, então `verso notas`
+  era comando desconhecido e `verso ./nao-existe` dizia que estava abrindo; e
+  `verso open` sozinho abria `.`. A leitura da Opus de 2026-09-23 achou as duas
+  coisas (`docs/review/phase-2.md`, leitura 3, achado 9), e elas foram trocadas
+  pelo comportamento acima.
+
 ## Alternativas descartadas
 
 Nenhuma registrada no briefing.
 
 ## Status
 
-Aceito.
+Aceito. A regra da Fase 2: decidida em 2026-09-23 pelo mantenedor (a
+Decisão).

@@ -3,6 +3,11 @@
 - Data: 2026-09-21
 - Fonte: `docs/review/phase-0.md` R8
 - Status no briefing: não consta
+- Revisões: 2026-09-23 — o que o código da Fase 2 faz registrado em
+  Consequências, como **provisório**; toda questão continua `[ABERTO]`.
+  2026-09-23 — **decidido pelo mantenedor**: aquele registro vira a Decisão,
+  com os nomes que nenhum link alcança agora recusados pela janela
+  (`docs/review/phase-2.md` §6, itens 2, 19 e 21).
 
 ## Contexto
 
@@ -16,7 +21,20 @@ dessas operações, e todas têm potencial de perda de dado.
 
 ## Decisão
 
-Nenhuma. Questões registradas, a decidir antes do item 2.3 da Fase 2.
+**Decidido em 2026-09-23 pelo mantenedor**, que aceitou o que o código da Fase
+2 faz — registrado em Consequências, abaixo — quando os itens pendentes da
+revisão lhe foram apresentados com uma recomendação para cada um
+(`docs/review/phase-2.md` §6, itens 2, 19 e 21; a resposta: *"a e b ok"*). Em
+resumo: renomear e mover pela opção (b), um plano de reescrita de links
+mostrado como um diff por nota e aplicado nota a nota, **sem transação
+lógica**; excluir para `.trash/` depois de uma confirmação; criar recusado
+quando o nome está ocupado; um rename que só muda a caixa permitido onde o
+volume ignora a caixa; um nome digitado que nenhum link alcança recusado pela
+janela;
+volumes sem hard links permitidos, com aviso; um placeholder sozinho nem
+renomeado nem excluído.
+
+As questões como foram registradas de início, antes do item 2.3 da Fase 2:
 
 - **Renomear nota:** atualizar links em outros arquivos (a) automaticamente,
   (b) com diff consolidado dos N arquivos antes de aplicar, (c) nunca. A opção
@@ -37,19 +55,91 @@ Nenhuma. Questões registradas, a decidir antes do item 2.3 da Fase 2.
 
 - Operações em massa (rename com N links) precisam de transação lógica: se
   falhar no arquivo 7 de 12, o estado precisa ser reportado e reversível.
+  *(Decidido de outro jeito em 2026-09-23: não há; o que foi escrito é
+  reportado, não desfeito — a Decisão acima.)*
 - O critério de saída 2 da Fase 2 ("nenhuma perda de dado no período") é o
   teste dessas decisões.
 
 **Requisito registrado em 2026-09-22, do mantenedor, quando a Q12 foi
 fechada.** Quando o próprio app mover ou renomear uma nota, ele deve
 **atualizar os links que apontam para ela**, como o Obsidian faz. O requisito
-não é enfeite: a regra da Q12 resolve nome puro preferindo um candidato na
-pasta da própria nota de origem, e resolve caminho relativo a essa pasta, então
+não é enfeite: a regra da Q12 resolve nome puro preferindo um candidato sob a
+pasta da própria nota de origem (ponto 3, como emendado em 2026-09-23), e
+resolve caminho relativo a essa pasta, então
 mover uma nota pode mudar qual nota um link alcança e pode fazer um link
 escrito como caminho deixar de resolver. Tudo o que esta ADR deixa em aberto —
 o que acontece com modificação externa, o que é atômico, o que é mostrado como
 diff — vale para essa reescrita, que é escrita em notas que o usuário não
 editou. Fase 2: a Fase 1 não tem UI e não move arquivo.
+
+**O que o código da Fase 2 faz — decidido em 2026-09-23.** Registrado nesse
+dia como provisório, depois aceito pelo mantenedor como está (a Decisão
+acima). É o código como ficou depois da leitura da Opus do branch da Fase 2
+(`docs/review/phase-2.md`), cujos achados mudaram vários destes pontos.
+
+- **Renomear e mover: opção (b).** Antes de qualquer coisa mudar de lugar, o
+  core lê toda nota cujos links podem nomear a entrada, com o que cada link
+  alcança pela regra do índice (Q12 da spec). Depois muda a entrada de lugar
+  com um rename só — recusado quando algo ocupa o destino, um placeholder da
+  nuvem inclusive, ou quando a própria entrada é um placeholder —, faz o índice
+  acompanhar (uma nota movida guarda o que o índice sabia dela, inclusive a
+  última versão conhecida de um placeholder) e responde com um plano: para cada
+  nota cujos links não alcançam mais o que alcançavam, o texto antes e depois,
+  com a revisão em que foi lida. Só esses links são reescritos, numa forma que
+  alcança de novo a mesma entrada — um nome solto que agora alcançaria outra
+  nota vira caminho — e nunca dentro de código. Uma mudança que mandaria em
+  silêncio um nome solto para outro lugar também ganha plano, que era o
+  requisito acima.
+- **Nenhum link é reescrito até o usuário aplicar o plano**, mostrado como um diff por
+  nota. Cada nota é então escrita sozinha, de forma atômica, sobre a própria
+  revisão: uma nota editada depois do plano é recusada e contada, nunca
+  sobrescrita, e uma aba aberta que não consegue salvar antes fica de fora e é
+  nomeada. Uma nota que linka para o que mudou mas não pode entrar no plano
+  — um placeholder, um arquivo que não é UTF-8, um erro de leitura — aparece
+  como pulada.
+- **Sem transação lógica.** As Consequências acima pedem uma; não há. A mudança
+  é um rename só e as reescritas são escritas separadas: uma falha na sétima de
+  doze deixa seis escritas e o resto não, a janela diz quantas, e nada as
+  desfaz.
+  Depois que a entrada mudou de lugar, nada é reportado como falha; o que não
+  pôde ser confirmado vira aviso.
+- **Pastas** mudam de lugar com tudo o que têm dentro; as notas e anexos de
+  dentro mantêm os links, e as notas de fora que linkavam para dentro ganham
+  plano. **Anexos** planejam as notas cujos embeds os alcançavam.
+- **Excluir** manda para `.trash/` na raiz da pasta aberta, a lixeira do
+  Obsidian, mantendo o caminho relativo e acrescentando ` (n)` numa colisão;
+  nada é apagado de vez. A janela pergunta antes, na página — a confirmação de
+  uma primeira versão nunca perguntava (a leitura da Opus achou isso).
+- **Criar** escreve o texto que a janela dá: `# Nome` para uma nota nova, o
+  `url` para uma nota web, o template para a nota do dia. Um nome ocupado é
+  recusado com `exists`, seja o que for que esteja lá; a janela também confere
+  nomes sem diferenciar maiúsculas antes de pedir. Os nomes guardam acentos e
+  espaços como digitados; nenhuma normalização Unicode (Q7) é aplicada.
+- **Caixa.** Um rename que só muda a caixa é permitido num volume insensível a
+  caixa, onde os dois nomes são o mesmo arquivo.
+- **Nomes que um link não comporta.** O core aceita nomes de nota e de pasta
+  com `[`, `]`, `|`, `#` ou `^`, que nenhum `[[…]]` consegue nomear; renomear
+  para um nome assim não escreve link nenhum que seria lido como outro alvo, e
+  diz isso. A janela recusa um nome assim quando o usuário o digita — ao criar
+  uma nota ou uma pasta, ao renomear — e diz por quê (`7d516f5`, escolha do
+  mantenedor de 2026-09-23). Um nome que a própria janela faz não é conferido
+  — uma duplicata, um arquivo solto na árvore, as pastas que os ajustes nomeiam
+  —, a não ser o de uma imagem colada ou solta, que perde esses caracteres para
+  o embed dela a alcançar (`ce983c7`). Um arquivo que já tem um nome assim abre
+  como qualquer outro, e o core continua aceitando esses nomes para os outros
+  clientes.
+- **Volumes sem hard links** (exFAT e FAT em unidades removíveis, alguns
+  sistemas de arquivos de rede e de nuvem): criar ou mover dá o nome ao
+  arquivo por um rename depois de uma conferência de última hora, em vez de um
+  link, e diz que a proteção foi mais fraca. Permitido, com esse aviso, pelo
+  mantenedor em 2026-09-23 — sobre a recomendação de que recusar deixaria o
+  Verso inútil numa unidade removível.
+- **Placeholders.** Um placeholder sozinho não pode ser renomeado nem excluído,
+  porque o conteúdo está na nuvem; uma pasta com placeholders muda de lugar e
+  vai para a lixeira inteira.
+- **Modificação externa concorrente** segue a [0012](0012-files-are-source-of-truth.md):
+  toda escrita confere a revisão que recebeu, e a revisão que uma escrita
+  devolve é a dos bytes que ela escreveu.
 
 ## Alternativas descartadas
 
@@ -57,4 +147,5 @@ Nenhuma registrada.
 
 ## Status
 
-`[ABERTO]`. Decidir antes do item 2.3 da Fase 2.
+Aceito em 2026-09-23 pelo mantenedor, como o código da Fase 2 faz (a Decisão e
+o registro em Consequências).

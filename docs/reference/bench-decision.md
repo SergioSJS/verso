@@ -20,6 +20,19 @@
   Rust and therefore a Fable 5.1 session
   ([ADR 0032](../adr/0032-author-and-reviewer-roles.md)); this memo stays the
   specification it writes against.
+- **Revision, 2026-09-23**, after the Opus reading of the Phase 2 branch
+  (`docs/review/phase-2.md`, reading 3, findings 11, 12 and 17). The CI job
+  could not go red: only the Mac baseline is recorded (`macbook-pro-de-sergio`,
+  commit `d1a5272`), and a machine with no baseline passed by construction —
+  the order of section 6.3, CI baseline first, was not followed.
+  `verso-bench --require-baseline` now fails (exit 1) when the machine it names
+  has no baseline, and prints the measured entries in the baseline file's own
+  shape, ready to be pasted in; the job on `main` passes it, so `main` stays
+  red until the `ci-linux` entries are recorded. The index size is now measured
+  after the connection closes, with the `-wal` file folded in; the Mac
+  baseline's three index sizes were taken the old way, 1 to 2 % low, inside
+  the 1.05× tolerance. The test that compared single timing samples, and failed
+  about one run in twenty, asserts only the index size.
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. In the earlier memos the recommendations were Fable
   5.1's, recorded by the author, because Fable was writing the feature's code in

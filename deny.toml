@@ -23,6 +23,19 @@ db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "deny"
 ignore = [
   # { id = "RUSTSEC-0000-0000", reason = "why; link; expires 2026-12-31" },
+  # Seven "unmaintained" notices (not vulnerabilities) in the Tauri v2 tree
+  # (Phase 2 shell, app/src-tauri, 2026-09-22). None has a safe upgrade:
+  # they enter through tauri-utils/urlpattern (unic-*), tauri-macros
+  # (proc-macro-error) and tauri-plugin-dialog (paste). Revisit when Tauri
+  # moves off them. Ratified by the maintainer on 2026-09-23
+  # (docs/review/phase-2.md §6, item 7).
+  { id = "RUSTSEC-2024-0436", reason = "paste: unmaintained, pulled by Tauri plugins; https://rustsec.org/advisories/RUSTSEC-2024-0436; expires 2026-12-31" },
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: unmaintained, pulled by Tauri macros; https://rustsec.org/advisories/RUSTSEC-2024-0370; expires 2026-12-31" },
+  { id = "RUSTSEC-2025-0081", reason = "unic-char-property: unmaintained, via tauri-utils/urlpattern; https://rustsec.org/advisories/RUSTSEC-2025-0081; expires 2026-12-31" },
+  { id = "RUSTSEC-2025-0075", reason = "unic-char-range: unmaintained, via tauri-utils/urlpattern; https://rustsec.org/advisories/RUSTSEC-2025-0075; expires 2026-12-31" },
+  { id = "RUSTSEC-2025-0080", reason = "unic-common: unmaintained, via tauri-utils/urlpattern; https://rustsec.org/advisories/RUSTSEC-2025-0080; expires 2026-12-31" },
+  { id = "RUSTSEC-2025-0100", reason = "unic-ucd-ident: unmaintained, via tauri-utils/urlpattern; https://rustsec.org/advisories/RUSTSEC-2025-0100; expires 2026-12-31" },
+  { id = "RUSTSEC-2025-0098", reason = "unic-ucd-version: unmaintained, via tauri-utils/urlpattern; https://rustsec.org/advisories/RUSTSEC-2025-0098; expires 2026-12-31" },
 ]
 
 [licenses]
@@ -37,6 +50,10 @@ allow = [
   "MPL-2.0",
   "Unicode-3.0",
   "CC0-1.0",
+  # Apache-2.0 whose only addition removes a GPL-style linking concern;
+  # target-lexicon, in the Tauri v2 tree (2026-09-22). Ratified by the
+  # maintainer on 2026-09-23 (docs/review/phase-2.md §6, item 7).
+  "Apache-2.0 WITH LLVM-exception",
 ]
 confidence-threshold = 0.9
 # The allowlist is written before the dependencies exist; an unused entry is
