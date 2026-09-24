@@ -1,5 +1,7 @@
 <!--
-A small PR, one subject. If the summary needs an "and", it is probably two PRs.
+Until the whole flow exists (sync, web, mobile), a large PR is fine — the
+maintainer's decision of 2026-09-24 (ADR 0033, ADR 0051); small, one subject,
+after it.
 The five sections below are mandatory (ADR 0033). None of them is a formality:
 the maintainer only approves what they can explain in their own words.
 -->
@@ -60,7 +62,7 @@ PR that does not touch Rust: write "Not applicable" and say why.
 
 ## Before requesting review
 
-- [ ] One subject only.
+- [ ] One subject only (from when the whole flow exists; until then, the subjects are listed under What).
 - [ ] Green CI: `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo deny check`.
 - [ ] No new `#[allow]` to silence a guardrail. If a guardrail blocks legitimate work, that is its own PR, with justification (`CLAUDE.md` §3) — not an `#[allow]` in this diff.
 - [ ] Feature guardrail (fuzz, round-trip, atomic write, confinement, FTS5, benchmark), if this PR introduces it, was seen failing before passing (ADR 0029).

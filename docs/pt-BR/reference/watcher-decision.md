@@ -114,7 +114,7 @@ mudança comum, então o autosave o grava 1,5 s depois, o padrão — por cima d
 versão do outro app, e a checagem de escrita deixa passar, já que a aba tem a
 revisão que leu por último. Isso é ato do usuário, e fica registrado como tal:
 nada o recusa, e a linha de status, que dizia que a nota foi lida de novo e
-apontava o ⌘Z, não o convida mais (`<commit>`). Quando o separador de linha
+apontava o ⌘Z, não o convida mais (`2b4c78d`). Quando o separador de linha
 mudou, ou a aba mostra o arquivo só para leitura, o texto do disco não entra
 como uma edição: o editor recomeça, com um histórico novo (`fromDisk` em
 `app/ui/src/main.ts`), e o ⌘Z não tem nada da aba para trazer de volta.
@@ -258,30 +258,49 @@ marcado:
 
 As segundas leituras, de novo sessões novas do Opus 5.5, das correções acima e
 deste memo. Os achados delas no código estão resolvidos nos commits que vêm
-depois deste branch (`<commit>` onde o hash ainda não é conhecido); os achados
+depois deste branch; os achados
 sobre este memo estão resolvidos aqui:
 
 - Janela, BLOQUEANTE: ⌘Z e depois ⌘⇧Z — ou ⌘U sozinho — depois de uma leitura
   do disco punham o cursor de volta dentro do frontmatter dobrado, onde um
   Backspace apagava a cerca e uma propriedade; agora toda transação no Live
-  Preview mantém todo cursor fora dele — `<commit>`.
+  Preview mantém todo cursor fora dele — `ba8fb82`.
 - Janela, IMPORTANTE: o foco restaurado pela posição depois de um redesenho
   caía em outro controle quando embeds entravam acima dele (agora achado pela
   identidade); toda visão de leitura era redesenhada a cada lote (agora só uma
   nota que embute uma das mudadas); a guarda contra redesenhar sob um
   renomear cobria só a árvore (agora os resultados da busca e as vistas de
-  pasta também) — `<commit>`.
+  pasta também) — `2b4c78d`.
 - Janela, IMPORTANTE: ⌘Z depois de uma leitura do disco é uma edição comum,
   salva por cima da versão do outro app — registrado na seção 3.4; a linha de
-  status não o convida mais — `<commit>`.
+  status não o convida mais — `2b4c78d`.
 - MENOR: a edição do disco isolada no histórico, então ⌘Z depois de digitar
   desfaz só a digitação; os nomes da linha de status; a atualização adiada da
   lista; a checagem adiada do painel de propriedades; Enter na visão de
-  leitura — `<commit>`. O reindexar do host sob uma só tomada do lock, e as
+  leitura — `2b4c78d`. O reindexar do host sob uma só tomada do lock, e as
   mensagens do watcher ditas em pt-BR ou inglês pela janela em vez da frase
-  em inglês do host — `<commit>`. `gh auth status --active` — `<commit>`.
+  em inglês do host — `b60f950`. `gh auth status --active` — `4e5162f`.
 - Este memo, MENOR: a seção 3.2 citava o ADR 0029 para manter o hash do
   conteúdo, onde o raciocínio do `cp -p` é o parágrafo provisório do ADR 0012
   sobre a checagem de escrita; a lista de dependências da seção 3.1 deixava de
   fora `kqueue` e `kqueue-sys`; a seção 2 e a seção 3.4 diziam que desfazer
   sempre traz de volta o texto da aba — aqui.
+
+Depois a janela foi dirigida numa cópia de rascunho da pasta Sandbox, como o
+mantenedor permitiu em 2026-09-24. O que a execução achou:
+
+- Backspace bem no começo do corpo, onde o Live Preview põe o cursor logo
+  depois do frontmatter dobrado, apagava a quebra de linha depois da cerca de
+  fechamento: a primeira linha se juntava a ela, o bloco deixava de ser um
+  frontmatter e todas as propriedades iam junto, sem aparecer — mais antigo
+  que o watcher. Nenhuma tecla muda o frontmatter dobrado agora; o painel de
+  propriedades muda — `435b489`.
+- Um callout que o usuário tinha aberto se recolhia de novo toda vez que a
+  nota era lida de novo; e uma nota apagada fora e devolvida deixava a linha
+  de status dizendo que tinha sumido — `5ad0b0d`.
+
+Todo o resto que a execução tentou foi como a seção 2 diz: uma mudança lida
+numa aba limpa, a faixa de conflito para uma aba com texto não salvo sem nada
+gravado, uma nota feita fora na árvore, a nota aberta apagada fora marcada com
+o texto mantido, e o cenário do frontmatter da segunda leitura — uma mudança
+fora, ⌘Z, ⌘⇧Z, Backspace — deixando as propriedades inteiras no disco.
