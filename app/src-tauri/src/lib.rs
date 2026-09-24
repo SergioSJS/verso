@@ -56,6 +56,10 @@ pub struct App {
     /// (`folder_handed`) — opened once by `open_initial`: a path at the
     /// entry edge, on this side.
     initial_folder: Mutex<Option<PathBuf>>,
+    /// Where the indexes of the folders it opens go: `None` for the
+    /// configuration directory (`verso_core::config_dir`). The tests give
+    /// a temporary one, so that a test run never writes into the user's.
+    config: Option<PathBuf>,
     session: Mutex<Option<Session>>,
 }
 
@@ -68,6 +72,7 @@ impl App {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),
             initial_folder: Mutex::new(initial),
+            config: None,
             session: Mutex::new(None),
         }
     }
@@ -204,16 +209,18 @@ fn may_switch<R: tauri::Runtime>(
 }
 
 /// Open a folder off the event loop — opening indexes it, which can take
-/// seconds on a large vault — and make it the session. The switch is
-/// checked again once the folder is open: a note window may have opened
-/// while the picker was up.
+/// seconds on a large vault — and make it the session. `open` is given the
+/// directory the indexes go to (`App::config`). The switch is checked
+/// again once the folder is open: a note window may have opened while the
+/// picker was up.
 async fn install<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     window: &tauri::Window<R>,
-    open: impl FnOnce() -> Result<Workspace, CoreError> + Send + 'static,
+    open: impl FnOnce(Option<&Path>) -> Result<Workspace, CoreError> + Send + 'static,
 ) -> Result<FolderInfo, ContractError> {
+    let config = app.state::<App>().config.clone();
     let opened = tauri::async_runtime::spawn_blocking(move || -> Result<Session, CoreError> {
-        let mut workspace = open()?;
+        let mut workspace = open(config.as_deref())?;
         let report = workspace.index()?;
         let info = folder_info(&workspace, &report);
         Ok(Session { workspace, info })
@@ -252,7 +259,7 @@ async fn pick_folder<R: tauri::Runtime>(
         return Ok(None);
     };
     let path = picked.into_path().map_err(|e| failed(e.to_string()))?;
-    install(&app, &window, move || Workspace::open(&path, None))
+    install(&app, &window, move |config| Workspace::open(&path, config))
         .await
         .map(Some)
 }
@@ -269,7 +276,7 @@ async fn reopen_folder<R: tauri::Runtime>(
     key: String,
 ) -> Result<FolderInfo, ContractError> {
     may_switch(&app, &window)?;
-    install(&app, &window, move || Workspace::reopen(&key, None)).await
+    install(&app, &window, move |config| Workspace::reopen(&key, config)).await
 }
 
 /// Open, once, the folder handed to the app — named on the command line
@@ -288,7 +295,7 @@ async fn open_initial<R: tauri::Runtime>(
     let Some(path) = lock(&app.state::<App>().initial_folder).take() else {
         return Ok(None);
     };
-    install(&app, &window, move || Workspace::open(&path, None))
+    install(&app, &window, move |config| Workspace::open(&path, config))
         .await
         .map(Some)
 }
@@ -1479,13 +1486,25 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
 
-    /// The app with the folder the command line would have named.
+    /// The temporary directory a test's indexes go to, managed beside the
+    /// state so that it is removed with the app.
+    struct TestConfig {
+        _dir: tempfile::TempDir,
+    }
+
+    /// The app with the folder the command line would have named, and its
+    /// indexes in a temporary directory: never the user's.
     fn app_with(
         initial: Option<PathBuf>,
     ) -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
+        let config = tempfile::tempdir().unwrap();
         let app = mock_builder()
             .plugin(navigation_guard())
-            .manage(App::new(initial))
+            .manage(App {
+                config: Some(config.path().to_path_buf()),
+                ..App::new(initial)
+            })
+            .manage(TestConfig { _dir: config })
             .invoke_handler(commands_for!(MockRuntime).invoke_handler())
             // The app's own context: its capabilities decide what a window may call.
             .build(context())
@@ -1583,7 +1602,7 @@ mod tests {
             "Barão.md",
             "---\ntags: [npc]\nurl: https://example.org\nmeta: {a: 1}\n---\n",
         );
-        let (_app, webview) = app_with(Some(vault.path().to_path_buf()));
+        let (app, webview) = app_with(Some(vault.path().to_path_buf()));
 
         // Which app this is answers with no folder open, through the
         // capability like every command (ADR 0051).
@@ -1613,6 +1632,12 @@ mod tests {
             !key.contains('/') && !info.to_string().contains(vault.path().to_str().unwrap()),
             "{info}"
         );
+        // Its index went to the app's configuration directory — here the
+        // test's temporary one, never the user's: the key opens the folder
+        // again from there.
+        let config = app.state::<App>().config.clone().unwrap();
+        let reopened = Workspace::reopen(&key, Some(&config));
+        assert!(reopened.is_ok(), "{:?}", reopened.err());
         assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
         assert_eq!(
             call(&webview, "current_folder", json!({})).unwrap()["key"],
