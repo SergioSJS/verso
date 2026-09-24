@@ -1037,6 +1037,10 @@ class ConflictBanner {
     this.diff.replaceChildren(diffNode(disk.text, mine));
     this.el.hidden = false;
     this.el.scrollIntoView({ block: "start" });
+    // Said as well as shown: the status line is announced, and a write
+    // refused while typing went by in silence (nothing saves until a
+    // choice is made above the text).
+    ui.status.textContent = t.conflictPending;
   }
   hide(): void {
     this.disk = null;
@@ -2567,6 +2571,8 @@ class GraphLeaf extends Leaf {
     this.svg.append(this.world);
     const head = h("div", "graph-head");
     head.append(this.title, this.count);
+    // How many notes and links the filters leave, announced as they change.
+    this.count.setAttribute("role", "status");
     stage.append(head, this.svg, h("p", "graph-hint", t.graphHint));
     const body = h("div", "graph-body");
     body.append(stage, this.controls);
