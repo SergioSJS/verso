@@ -32,9 +32,13 @@ mod support {
     }
 
     pub fn watch(root: &Root) -> (Watch, Receiver<Changes>) {
+        watch_excluding(root, &[])
+    }
+
+    pub fn watch_excluding(root: &Root, excluded: &[PathBuf]) -> (Watch, Receiver<Changes>) {
         let (tx, rx) = mpsc::channel();
         let watch = root
-            .watch(QUIET, move |changes| {
+            .watch(QUIET, excluded, move |changes| {
                 let _ = tx.send(changes);
             })
             .unwrap();
@@ -150,4 +154,28 @@ fn a_dropped_watch_reports_nothing_more() {
     // a change made after the drop reaches the caller.
     let seen = everything_until_quiet(&rx, Duration::from_secs(2));
     assert!(!seen.contains(&PathBuf::from("Depois.md")), "{seen:?}");
+}
+
+/// The configuration directory inside the open folder (`~` opened as the
+/// folder on macOS holds `~/Library/Application Support/verso`): the index
+/// written there must not wake the watch, or a caller that indexes on each
+/// batch would index for ever.
+#[test]
+fn the_callers_own_directory_is_not_reported() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("Library/Application Support/verso");
+    fs::create_dir_all(config.join("index")).unwrap();
+    let root = Root::open(dir.path(), Vec::new()).unwrap();
+    let (_watch, rx) = watch_excluding(&root, std::slice::from_ref(&config));
+    let _ = everything_until_quiet(&rx, Duration::from_millis(700));
+
+    touch(&config.join("index/pasta-0123.json"), "{}");
+    touch(&config.join("index/pasta-0123.sqlite"), "x");
+    touch(&dir.path().join("Nota.md"), "# Nota\n");
+    let seen = everything_until_quiet(&rx, Duration::from_secs(2));
+    assert!(seen.contains(&PathBuf::from("Nota.md")), "{seen:?}");
+    assert!(
+        seen.iter().all(|p| !p.starts_with("Library")),
+        "the index's own writes reported: {seen:?}"
+    );
 }

@@ -20,11 +20,20 @@
 //! folder has been quiet for the caller's `quiet`, or after [`MAX_WAIT`] of
 //! changes that do not stop.
 //!
-//! What it does not see: the inside of a directory reached through a
-//! symlink that points outside the folder — the walk follows the link
-//! (ADR 0044), the operating system does not watch through it — and what
-//! happens while no watch runs. A caller that reindexes the whole folder on
-//! every batch catches the second at the next change; "reindex" covers both.
+//! What it does not see: on macOS, the inside of a directory reached
+//! through a symlink that points outside the folder — the walk follows the
+//! link (ADR 0044), FSEvents does not watch through it (on Linux `notify`
+//! follows it, and watches all that lies beneath) — and what happens while
+//! no watch runs. A caller that reindexes the whole folder on every batch
+//! catches the second at the next change; "reindex" covers both.
+//!
+//! The caller names directories whose events are dropped whatever their
+//! names — the index's own, when the configuration directory lies inside
+//! the open folder: every index run writes there, and a caller that indexes
+//! on each batch would otherwise wake itself for ever. An error of the
+//! operating system's watcher is reported without the paths `notify`
+//! attaches to it: an absolute path must not reach the contract
+//! (ADR 0026, rule 4).
 
 use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
@@ -91,12 +100,17 @@ struct Filter {
     /// `/private/tmp/x`.
     roots: Vec<PathBuf>,
     ignored: Vec<PathBuf>,
+    /// Absolute directories whose events are dropped, in both forms too.
+    excluded: Vec<PathBuf>,
 }
 
 impl Filter {
     /// The event's path relative to the root, if the walk would list it;
     /// `Some(None)` for the root itself.
     fn relative(&self, path: &Path) -> Option<Option<PathBuf>> {
+        if self.excluded.iter().any(|x| path.starts_with(x)) {
+            return None;
+        }
         let rel = self.roots.iter().find_map(|r| path.strip_prefix(r).ok())?;
         if rel.as_os_str().is_empty() {
             return Some(None);
@@ -109,10 +123,12 @@ impl Filter {
             };
             if name.as_encoded_bytes().starts_with(b".") {
                 // The placeholder form outranks the hidden rule, as in the
-                // walk: `.Name.md.icloud` stands for `Name.md`.
+                // walk: `.Name.md.icloud` stands for `Name.md`, and a
+                // directory of that form is walked under its own name.
                 match placeholder::icloud_placeholder_of(name) {
                     Some(real) if i + 1 == count => out.push(real),
-                    _ => return None,
+                    Some(_) => out.push(name),
+                    None => return None,
                 }
             } else {
                 out.push(name);
@@ -212,31 +228,64 @@ impl Pending {
     }
 }
 
+/// A path and, when it differs, the name the operating system gives it.
+fn both_forms(path: &Path) -> Vec<PathBuf> {
+    let mut forms = vec![path.to_path_buf()];
+    if let Ok(real) = std::fs::canonicalize(path)
+        && real != path
+    {
+        forms.push(real);
+    }
+    forms
+}
+
+/// The watcher's error as its kind alone: `notify` names the paths it was
+/// watching in its message, and the caller hands the message to a window.
+fn without_paths(e: notify::Error) -> std::io::Error {
+    use std::io::{Error, ErrorKind};
+    match e.kind {
+        notify::ErrorKind::Io(io) => match io.raw_os_error() {
+            Some(code) => Error::from_raw_os_error(code),
+            None => Error::from(io.kind()),
+        },
+        notify::ErrorKind::MaxFilesWatch => {
+            Error::other("the system's limit on watched folders was reached")
+        }
+        notify::ErrorKind::PathNotFound => {
+            Error::new(ErrorKind::NotFound, "a folder went away as watching began")
+        }
+        notify::ErrorKind::Generic(_)
+        | notify::ErrorKind::WatchNotFound
+        | notify::ErrorKind::InvalidConfig(_) => {
+            Error::other("the operating system would not watch the folder")
+        }
+    }
+}
+
 /// Start watching `root` (absolute, as [`crate::Root`] keeps it), with
-/// `ignored` confined as the root keeps them.
+/// `ignored` confined as the root keeps them and `excluded` absolute.
 pub(crate) fn start(
     root: &Path,
     ignored: Vec<PathBuf>,
+    excluded: &[PathBuf],
     quiet: Duration,
     on_change: impl FnMut(Changes) + Send + 'static,
 ) -> Result<Watch, std::io::Error> {
-    let mut roots = vec![root.to_path_buf()];
-    if let Ok(real) = std::fs::canonicalize(root)
-        && real != root
-    {
-        roots.push(real);
-    }
-    let filter = Filter { roots, ignored };
+    let filter = Filter {
+        roots: both_forms(root),
+        ignored,
+        excluded: excluded.iter().flat_map(|x| both_forms(x)).collect(),
+    };
     let (tx, rx) = mpsc::channel();
     let mut watcher = notify::recommended_watcher(move |event| {
         // The receiving thread is gone once the watch stopped: nothing to
         // hand the event to, and nothing to report it to.
         let _ = tx.send(event);
     })
-    .map_err(std::io::Error::other)?;
+    .map_err(without_paths)?;
     watcher
         .watch(root, RecursiveMode::Recursive)
-        .map_err(std::io::Error::other)?;
+        .map_err(without_paths)?;
     let stop = Arc::new(AtomicBool::new(false));
     let stopped = Arc::clone(&stop);
     std::thread::Builder::new()
@@ -288,6 +337,7 @@ mod tests {
                 PathBuf::from(format!("/private{root}")),
             ],
             ignored: ignored.iter().map(PathBuf::from).collect(),
+            excluded: vec![PathBuf::from(format!("{root}/Library/verso"))],
         }
     }
 
@@ -306,11 +356,38 @@ mod tests {
         assert_eq!(rel("/tmp/v/Lugares/.verso-tmp-1-2"), None);
         assert_eq!(rel("/tmp/v/Arquivo/Velho.md"), None);
         assert_eq!(rel("/tmp/w/Taverna.md"), None);
-        // The iCloud placeholder form names the real file (ADR 0043).
+        // The iCloud placeholder form names the real file (ADR 0043); a
+        // directory of that form is walked, so it is watched too.
         assert_eq!(
             rel("/tmp/v/Lugares/.Porto.md.icloud"),
             Some(Some("Lugares/Porto.md".into()))
         );
+        assert_eq!(
+            rel("/tmp/v/.Arquivo.icloud/Velho.md"),
+            Some(Some(".Arquivo.icloud/Velho.md".into()))
+        );
+        // The index's own directory, inside the folder: never reported.
+        assert_eq!(rel("/tmp/v/Library/verso/index/v-0123.json"), None);
+        assert_eq!(
+            rel("/tmp/v/Library/Outro.md"),
+            Some(Some("Library/Outro.md".into()))
+        );
+    }
+
+    /// `notify` names the paths it was watching in its errors; the error
+    /// the caller gets does not (ADR 0026 rule 4).
+    #[test]
+    fn an_error_carries_no_path() {
+        let secret = "/Users/u/cofre/Privada";
+        for e in [
+            notify::Error::io(std::io::Error::from_raw_os_error(13)),
+            notify::Error::new(notify::ErrorKind::MaxFilesWatch),
+            notify::Error::path_not_found(),
+            notify::Error::generic(&format!("could not watch {secret}")),
+        ] {
+            let e = without_paths(e.add_path(PathBuf::from(secret)));
+            assert!(!e.to_string().contains("cofre"), "{e}");
+        }
     }
 
     #[test]
