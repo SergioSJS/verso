@@ -2229,7 +2229,7 @@ class NoteLeaf extends Leaf {
         const viewName = raw.includes("#") ? raw.slice(raw.indexOf("#") + 1) : null;
         span.replaceWith(box);
         void commands.readText(rel).then((f) => {
-          if (f.status !== "ok" || this.path !== forPath) return;
+          if (f.status !== "ok" || this.path !== forPath || this.destroyed) return;
           const text = f.data.text;
           const view = new BaseView(baseHost(), { path: rel, thisPath: source, folder: dirOf(rel), text: () => text, edit: null, viewName, key: rel });
           box.append(view.el);
@@ -2335,7 +2335,10 @@ class NoteLeaf extends Leaf {
   override destroy(): void {
     this.destroyed = true;
     window.clearTimeout(this.saveTimer);
-    for (const e of this.embeds) e.destroy();
+    for (const e of this.embeds) {
+      e.destroy();
+      if (e instanceof BaseView) liveBases.delete(e);
+    }
     this.embeds = [];
     this.slash.el.remove();
     this.closeWeb();
@@ -4800,7 +4803,13 @@ function baseHost(): BaseHost {
 }
 /** `text` with `key` holding `value`: the key's lines only (props.ts),
  *  the key made when absent; the reason when the key cannot be written. */
-function withProperty(text: string, key: string, value: PropertyValue): { text: string } | { refused: string } {
+function withProperty(text: string, wanted: string, value: PropertyValue): { text: string } | { refused: string } {
+  // The core reads a property ignoring its case (bases/eval.rs): the key
+  // the note already has is the one written, not a second one beside it.
+  const fm = /^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(text)?.[1] ?? "";
+  const keys = [...fm.matchAll(/^([^\s#\-][^:\n]*?)[ \t]*:(?:\s|$)/gm)].map((m) => m[1] ?? "");
+  const alike = keys.filter((k) => k.toLowerCase() === wanted.toLowerCase());
+  const key = keys.includes(wanted) || alike.length !== 1 ? wanted : (alike[0] ?? wanted);
   let out = text;
   const apply = (edit: Edit): string | null => {
     const c = propertyChange(out, key, edit);

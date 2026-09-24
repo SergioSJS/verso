@@ -58,9 +58,10 @@ function valueFor(c: BaseCell | null): PropertyValue | null {
 
 type Column = { key: BaseCell | null; raw: string; rows: BaseRow[] };
 
-/** The columns a board showed while it is open, by base and view: a
- *  column whose last card moved out stays until the board is opened
- *  again, so that the card can come back to it. */
+/** The columns a board showed while it is open, by base, view and
+ *  property: a column whose last card moved out stays while the window
+ *  is open, so that the card can come back to it. Kept here, never
+ *  written into the base. */
 const seen = new Map<string, Map<string, BaseCell | null>>();
 
 export function renderKanban(ctx: RenderCtx): HTMLElement {
@@ -86,6 +87,21 @@ export function renderKanban(ctx: RenderCtx): HTMLElement {
     }
     byRaw.set(r, { key: grp.key, raw: r, rows: grp.rows });
   }
+  const mineKey = `${ctx.key}\u0000${view.name}\u0000${property}`;
+  const mine = seen.get(mineKey) ?? new Map<string, BaseCell | null>();
+  seen.set(mineKey, mine);
+  // A column the order names with no card: its value as last seen, or of
+  // the kind the other columns are — a number among numbers — so that a
+  // card moved to it writes a number, not a text.
+  const keys = [...byRaw.values()].map((c) => c.key);
+  const all = (kind: string) => keys.length > 0 && keys.every((k) => k?.kind === kind);
+  const typed = (r: string): BaseCell => {
+    const known = mine.get(r);
+    if (known) return known;
+    if (all("number") && r.trim() !== "" && !Number.isNaN(Number(r))) return { kind: "number", value: Number(r) };
+    if (all("bool") && (r === "true" || r === "false")) return { kind: "bool", value: r === "true" };
+    return { kind: "text", value: r };
+  };
   const columns: Column[] = [];
   for (const r of order) {
     const found = byRaw.get(r);
@@ -93,13 +109,11 @@ export function renderKanban(ctx: RenderCtx): HTMLElement {
       columns.push(found);
       byRaw.delete(r);
     } else if (r !== "") {
-      columns.push({ key: { kind: "text", value: r }, raw: r, rows: [] });
+      columns.push({ key: typed(r), raw: r, rows: [] });
     }
   }
   columns.push(...byRaw.values());
-  const mine = seen.get(`${ctx.key}\u0000${view.name}`) ?? new Map<string, BaseCell | null>();
-  seen.set(`${ctx.key}\u0000${view.name}`, mine);
-  for (const c of columns) mine.set(c.raw, c.key);
+  for (const c of columns) if (c.rows.length > 0) mine.set(c.raw, c.key);
   for (const [r, key] of mine) if (!columns.some((c) => c.raw === r)) columns.push({ key, raw: r, rows: [] });
   columns.push(none);
   // The column the group-by property's own column shows on cards: left out,
@@ -129,7 +143,12 @@ export function renderKanban(ctx: RenderCtx): HTMLElement {
   };
   const reorder = (from: string, before: string | null) => {
     if (!ctx.change) return;
-    const names = columns.filter((c) => c.raw !== "").map((c) => c.raw).filter((r) => r !== from);
+    // The columns with cards and the ones the base already names: one
+    // only remembered is not written into it.
+    const names = columns
+      .filter((c) => c.raw !== "" && (c.rows.length > 0 || order.includes(c.raw)))
+      .map((c) => c.raw)
+      .filter((r) => r !== from);
     const at = before === null ? names.length : Math.max(0, names.indexOf(before));
     names.splice(at, 0, from);
     ctx.change((t, i) => Y.setVersoKey(t, i, "columnOrder", names));
