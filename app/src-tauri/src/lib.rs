@@ -1412,9 +1412,10 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
                 app,
                 None,
                 Some(tauri::menu::AboutMetadata {
-                    // macOS shows "Version <short_version> (<version>)".
-                    short_version: Some(env!("CARGO_PKG_VERSION").to_owned()),
-                    version: Some(env!("VERSO_COMMIT").to_owned()),
+                    // macOS shows "Version <version> (<short_version>)": the
+                    // version, then the commit in parentheses as the build.
+                    version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+                    short_version: Some(env!("VERSO_COMMIT").to_owned()),
                     ..Default::default()
                 }),
             )?,
@@ -1583,6 +1584,12 @@ mod tests {
             "---\ntags: [npc]\nurl: https://example.org\nmeta: {a: 1}\n---\n",
         );
         let (_app, webview) = app_with(Some(vault.path().to_path_buf()));
+
+        // Which app this is answers with no folder open, through the
+        // capability like every command (ADR 0051).
+        let info = call(&webview, "app_info", json!({})).unwrap();
+        assert_eq!(info["version"], env!("CARGO_PKG_VERSION"), "{info}");
+        assert!(!info["commit"].as_str().unwrap().is_empty(), "{info}");
 
         // Nothing open yet: every command says so, in the contract's words.
         let err = call(&webview, "list_notes", json!({})).unwrap_err();

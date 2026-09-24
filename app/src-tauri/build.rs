@@ -71,11 +71,15 @@ fn commit() {
         .unwrap_or_else(|| "unknown".to_owned());
     println!("cargo:rustc-env=VERSO_COMMIT={commit}");
     println!("cargo:rerun-if-env-changed=VERSO_COMMIT");
+    // Built again when HEAD moves: this checkout's HEAD, and the branches
+    // in the shared refs (a worktree keeps its HEAD apart; a packed ref has
+    // no file of its own, and a path that may be absent would make Cargo
+    // run this on every build).
     if let Some(dir) = git(&["rev-parse", "--absolute-git-dir"]) {
         println!("cargo:rerun-if-changed={dir}/HEAD");
-        if let Some(head) = git(&["symbolic-ref", "-q", "HEAD"]) {
-            println!("cargo:rerun-if-changed={dir}/{head}");
-        }
+    }
+    if let Some(common) = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"]) {
+        println!("cargo:rerun-if-changed={common}/refs/heads");
     }
 }
 
