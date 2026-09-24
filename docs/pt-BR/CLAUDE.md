@@ -125,7 +125,9 @@ mudando o teste.
 CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
 roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
 clippy e os testes no macOS, o fuzzing e o benchmark; os apps são compilados e
-empacotados só numa tag de versão, nunca numa branch.
+empacotados só numa tag de versão, nunca numa branch. Antes de qualquer push,
+`scripts/check.sh` e `scripts/check-linux.sh` passam localmente (README.md): o
+CI confirma, nunca é o primeiro teste.
 
 Se um guardrail bloquear um trabalho legítimo, isso é assunto de PR próprio, com
 justificativa — não de `#[allow]` no meio do diff. Advisory nova só ganha

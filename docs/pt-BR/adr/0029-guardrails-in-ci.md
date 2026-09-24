@@ -21,6 +21,8 @@
   itens 7 e 13); 2026-09-23 — onde cada guardrail roda, por decisão do
   mantenedor: um job de Linux por pull request, clippy e os testes no macOS e
   o fuzzing só no `main`, os apps empacotados só numa tag de versão.
+  2026-09-24 — os guardrails rodam localmente antes de um push, por dois
+  scripts, a pedido do mantenedor.
 
 ## Contexto
 
@@ -101,6 +103,25 @@ conta cada um como dez.
   `ubuntu-latest` passa para o Ubuntu 26 a partir de 2026-10-19, o que mudaria
   o WebKitGTK contra o qual o shell linka, e a máquina do baseline `ci-linux`
   do bench, sem commit nenhum para culpar.
+
+**Localmente, antes de um push — o pedido do mantenedor de 2026-09-24.** A
+primeira execução do CI depois que a cota voltou falhou num código morto só no
+Linux que nenhuma checagem no Mac conseguia ver (`db2cce1`), e o mantenedor
+perguntou por que isso não foi testado localmente, com o Docker instalado, e
+pediu o caminho no README. Dois scripts rodam os guardrails antes de um push; o
+CI confirma, não é onde uma falha aparece primeiro:
+
+- `scripts/check.sh` — todo guardrail do job de Linux, nativo e na mesma
+  ordem; num Mac, a checagem de macOS.
+- `scripts/check-linux.sh` — fmt, clippy, os testes e os bindings gerados num
+  container Linux, como usuário comum, sobre uma cópia das fontes e volumes
+  nomeados. A primeira execução real dele achou o bundle da UI faltando antes
+  de o shell compilar, o que o CI teria encontrado em seguida (`22d1aa1`).
+
+O macOS não roda num container e o Windows não roda no Docker num Mac ou num
+Linux: o próprio Mac é a checagem de macOS, e o Windows ganha aqui uma checagem
+do build e no CI os testes quando o porte dele chegar. Os scripts seguem o
+workflow à mão; mudar um é mudar os outros.
 
 ### Requisitos da escrita atômica
 
