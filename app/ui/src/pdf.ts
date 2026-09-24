@@ -129,6 +129,7 @@ export class PdfView {
     );
     this.searchInput.type = "search";
     this.searchInput.placeholder = s.search;
+    this.searchInput.setAttribute("aria-label", s.search);
     this.searchInput.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Enter") this.find(this.searchInput.value, e.shiftKey);
