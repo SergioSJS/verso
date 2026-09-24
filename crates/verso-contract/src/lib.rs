@@ -354,3 +354,203 @@ impl std::fmt::Display for ContractError {
 }
 
 impl std::error::Error for ContractError {}
+
+/// A base to evaluate (ADR 0053): a `.base` file, or the text of a `base`
+/// block of a note; the view to show; the window's clock and language.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct BaseQuery {
+    /// The `.base` file, relative to the folder, when the base is one.
+    pub path: Option<String>,
+    /// The base's text, when it is a block of a note: read instead of
+    /// `path`.
+    pub text: Option<String>,
+    /// The file `this` stands for: the note a base is embedded in, or the
+    /// `.base` file itself.
+    pub this: Option<String>,
+    /// The view, by name; the first when absent.
+    pub view: Option<String>,
+    /// Properties to evaluate besides the view's `order`: what the layout
+    /// draws (a card's image, a calendar's date).
+    pub extra: Vec<String>,
+    /// The window's clock: milliseconds since the Unix epoch.
+    pub now: f64,
+    /// The window's zone: minutes east of UTC.
+    pub offset: i32,
+    /// The interface language (`pt-BR`, `en`).
+    pub lang: String,
+}
+
+/// A base evaluated.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct BaseResult {
+    /// Every view of the base, in order.
+    pub views: Vec<BaseView>,
+    /// The view evaluated, as an index into `views`; `None` when the base
+    /// has none and a table of every file was evaluated.
+    pub view: Option<u32>,
+    pub columns: Vec<BaseColumn>,
+    /// The rows; one group when the view is not grouped.
+    pub groups: Vec<BaseGroup>,
+    /// Files that passed the filters, before the view's `limit`.
+    pub total: u32,
+    pub problems: Vec<BaseProblem>,
+    /// Every note property of the folder, once each: what the view's
+    /// menus offer.
+    pub properties: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct BaseView {
+    pub name: String,
+    /// `table`, `cards`, `list`, `kanban`, `calendar`, or one Verso does
+    /// not draw.
+    pub kind: String,
+}
+
+/// A column: the property id as the view writes it (`file.name`,
+/// `status`, `formula.x`), and the name the base gives it, if any.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct BaseColumn {
+    pub id: String,
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct BaseGroup {
+    /// The grouping property's value; `None` when the view is not grouped.
+    pub key: Option<BaseCell>,
+    pub rows: Vec<BaseRow>,
+    /// One per column: the summary the view asks for, if any.
+    pub summaries: Vec<Option<BaseCell>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct BaseRow {
+    pub path: String,
+    /// A Markdown note: its properties may be changed from the view.
+    pub note: bool,
+    /// One per column.
+    pub cells: Vec<BaseCell>,
+}
+
+/// A value as a view shows it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", content = "value", rename_all = "lowercase")]
+pub enum BaseCell {
+    Empty,
+    Text(String),
+    Number(f64),
+    Bool(bool),
+    /// A wall-clock time in the window's zone, in milliseconds since
+    /// 1970-01-01T00:00 of that clock (read it with UTC getters), and
+    /// whether it has a time of day.
+    Date {
+        ms: f64,
+        time: bool,
+    },
+    /// Milliseconds.
+    Duration(f64),
+    List(Vec<BaseCell>),
+    Object(Vec<(String, BaseCell)>),
+    /// A link as written, the text to show, and the file it resolves to.
+    Link {
+        target: String,
+        display: Option<String>,
+        path: Option<String>,
+    },
+    File(String),
+    /// A path relative to the folder, or a URL.
+    Image(String),
+    Icon(String),
+    Html(String),
+    Error {
+        kind: BaseErrorKind,
+        name: String,
+    },
+}
+
+/// Why a value could not be computed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum BaseErrorKind {
+    Syntax,
+    UnknownFunction,
+    UnknownMethod,
+    Arguments,
+    Type,
+    /// Regular expressions are not evaluated yet.
+    Regex,
+    Cycle,
+    Budget,
+    TooLarge,
+}
+
+/// Something about the base as a whole, shown once above the view;
+/// `detail` is what it concerns, as written in the base.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct BaseProblem {
+    pub kind: BaseProblemKind,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum BaseProblemKind {
+    NotABase,
+    TooLong,
+    Shape,
+    Expression,
+    Evaluation,
+    UnknownView,
+    Budget,
+}
+
+/// What stands where the app installs its command line (ADR 0054):
+/// `/usr/local/bin/verso`, on the PATH every shell has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum CliState {
+    /// A link to this app's own command line.
+    Ours,
+    /// Nothing.
+    Missing,
+    /// Something else: another link, a copy put there by hand.
+    Elsewhere,
+    /// This build carries no command line to link (a development build
+    /// without it).
+    Unbundled,
+}
+
+/// How an MCP client's configuration stands with this folder's entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum McpClientState {
+    /// The client is not installed.
+    NoClient,
+    /// No entry for this folder.
+    Absent,
+    /// The entry is there, as the app would write it.
+    Same,
+    /// An entry by that name starts something else.
+    Different,
+}
+
+/// The open folder's MCP server as clients name it, and whether Claude
+/// Desktop knows it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct McpStatus {
+    /// The name of the server in a client's configuration: `verso-<folder>`.
+    pub server: String,
+    pub claude: McpClientState,
+}
+
+/// What adding the folder's server to Claude Desktop did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct McpAdded {
+    pub server: String,
+    /// An entry by that name was there and was replaced.
+    pub replaced: bool,
+    /// The name of the copy of the configuration as it was, beside it.
+    pub backup: Option<String>,
+    pub warnings: Vec<String>,
+}

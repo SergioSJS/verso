@@ -69,6 +69,18 @@ pub struct Unresolved {
     pub count: u64,
 }
 
+/// A link or an embed of some note, with what it resolves to among the
+/// notes ([`Index::all_links`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VaultLink {
+    pub from: String,
+    pub embed: bool,
+    /// As written.
+    pub target: String,
+    pub alias: Option<String>,
+    pub resolved: Option<String>,
+}
+
 /// The SQL that resolves a target key to a note id: a path from the root
 /// first, then a name; several of either → the first by path order in
 /// byte order (observed in Obsidian for names; provisional). An empty
@@ -451,6 +463,56 @@ impl Index {
     pub fn notes(&self) -> Result<Vec<String>, IndexError> {
         let mut st = self.conn.prepare("SELECT path FROM notes ORDER BY path")?;
         let rows = st.query_map([], |r| r.get(0))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Every note with the hash of its content as indexed: what a cache
+    /// kept outside the index compares against to know what changed.
+    pub fn note_hashes(&self) -> Result<Vec<(String, u64)>, IndexError> {
+        let mut st = self
+            .conn
+            .prepare("SELECT path, hash FROM notes ORDER BY path")?;
+        let rows = st.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                u64::from_le_bytes(r.get::<_, i64>(1)?.to_le_bytes()),
+            ))
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// The text of a note as indexed, if the index has the note.
+    pub fn content_of(&self, relative: &str) -> Result<Option<String>, IndexError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT content FROM notes WHERE path = ?1",
+                params![relative],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Every link and embed of the vault, by source note then document
+    /// order, each with the note it resolves to, if any: one query where
+    /// [`Index::links_of`] would take one per note.
+    pub fn all_links(&self) -> Result<Vec<VaultLink>, IndexError> {
+        let sql = format!(
+            "SELECT n.path, l.kind, l.target, l.alias,
+                    (SELECT path FROM notes WHERE id = {RESOLVE})
+             FROM links l JOIN notes n ON n.id = l.note
+             ORDER BY n.path, l.start"
+        );
+        let mut st = self.conn.prepare(&sql)?;
+        let rows = st.query_map([], |r| {
+            Ok(VaultLink {
+                from: r.get(0)?,
+                embed: r.get::<_, String>(1)? == "embed",
+                target: r.get(2)?,
+                alias: r.get(3)?,
+                resolved: r.get(4)?,
+            })
+        })?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 

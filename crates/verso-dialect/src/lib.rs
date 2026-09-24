@@ -27,6 +27,7 @@
 //! fixture contract: the reading view's HTML ([`to_html`], Phase 2) and the
 //! `#tag`s of a body ([`body_tags`]), one rule for the reader and the index.
 
+pub mod bases;
 mod callouts;
 mod comments;
 mod events;

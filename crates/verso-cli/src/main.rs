@@ -48,6 +48,13 @@ enum Command {
     Mcp {
         folder: PathBuf,
     },
+    /// The same, the folder named by the key the app gives it
+    /// (`verso mcp --key <key>`): what the app writes into an MCP client's
+    /// configuration, so that no path of the folder has to go there
+    /// through the window (ADR 0026 rule 4).
+    McpKey {
+        key: String,
+    },
     /// Open the folder in the app (`verso .`, like an editor's `code .`).
     Open {
         folder: PathBuf,
@@ -100,6 +107,7 @@ fn parse_with(
     let mut lang = None;
     let mut limit = 20usize;
     let mut unresolved = false;
+    let mut key: Option<String> = None;
     let mut positional: Vec<OsString> = Vec::new();
     let mut error: Option<Msg> = None;
     let mut iter = args.iter();
@@ -120,6 +128,12 @@ fn parse_with(
                     }
                 }
             }
+            "--key" => match iter.next() {
+                Some(v) => key = Some(v.to_string_lossy().into_owned()),
+                None => {
+                    error.get_or_insert(Msg::BadOptionValue("--key".to_owned()));
+                }
+            },
             "--limit" => match iter.next().and_then(|v| v.to_string_lossy().parse().ok()) {
                 Some(n) => limit = n,
                 None => {
@@ -138,7 +152,7 @@ fn parse_with(
     let options = Options { json, lang };
     let command = match error {
         Some(msg) => Err(msg),
-        None => command_of(positional, limit, unresolved, is_dir),
+        None => command_of(positional, limit, unresolved, key, is_dir),
     };
     (options, command)
 }
@@ -147,6 +161,7 @@ fn command_of(
     positional: Vec<OsString>,
     limit: usize,
     unresolved: bool,
+    key: Option<String>,
     is_dir: impl Fn(&Path) -> bool,
 ) -> Result<Command, Msg> {
     let mut positional = positional.into_iter();
@@ -154,6 +169,19 @@ fn command_of(
         return Err(Msg::Usage);
     };
     let sub_text = sub.to_string_lossy().into_owned();
+    // `--key` names the folder for `mcp` only, and in place of it.
+    if let Some(key) = key {
+        if sub_text != "mcp" {
+            return Err(Msg::ExtraArgument("--key".to_owned()));
+        }
+        if unresolved {
+            return Err(Msg::ExtraArgument("--unresolved".to_owned()));
+        }
+        if let Some(extra) = positional.next() {
+            return Err(Msg::ExtraArgument(extra.to_string_lossy().into_owned()));
+        }
+        return Ok(Command::McpKey { key });
+    }
     // `verso .`, `verso ../notas`, `verso notas`: a first argument that is
     // not a subcommand and names an existing directory opens that folder
     // in the app; one that names nothing is a usage error. A subcommand
@@ -394,7 +422,8 @@ fn run(args: &[OsString]) -> Output {
         | Command::Search { folder, .. }
         | Command::Backlinks { folder, .. }
         | Command::Unresolved { folder }
-        | Command::Mcp { folder } => folder.clone(),
+        | Command::Mcp { folder } => Some(folder.clone()),
+        Command::McpKey { .. } => None,
         Command::Help | Command::Version => return out,
         Command::Open { folder } => {
             let folder = std::path::absolute(folder).unwrap_or_else(|_| folder.clone());
@@ -427,7 +456,12 @@ fn run(args: &[OsString]) -> Output {
             return out;
         }
     };
-    let mut ws = match Workspace::open(&folder, None) {
+    let opened = match (&folder, &command) {
+        (Some(folder), _) => Workspace::open(folder, None),
+        (None, Command::McpKey { key }) => Workspace::reopen(key, None),
+        (None, _) => Err(CoreError::UnknownFolder),
+    };
+    let mut ws = match opened {
         Ok(ws) => ws,
         Err(e) => {
             out.stderr.push(text(&open_error(&e), lang));
@@ -437,7 +471,7 @@ fn run(args: &[OsString]) -> Output {
     };
     out.code = match command {
         Command::Help | Command::Version | Command::Open { .. } => 0,
-        Command::Mcp { .. } => {
+        Command::Mcp { .. } | Command::McpKey { .. } => {
             // One incremental pass before the first answer (memo §6.3);
             // its report goes to stderr, stdout is the protocol.
             match ws.index() {
@@ -769,6 +803,28 @@ mod tests {
             }
         );
         assert_eq!(parse(&args(&["mcp"])).1.unwrap_err(), Msg::MissingFolder);
+        // The key the app writes into an MCP client's configuration names
+        // the folder in its place, for `mcp` only.
+        assert_eq!(
+            parse(&args(&["mcp", "--key", "Campanha-0123456789abcdef"]))
+                .1
+                .unwrap(),
+            Command::McpKey {
+                key: "Campanha-0123456789abcdef".into()
+            }
+        );
+        assert_eq!(
+            parse(&args(&["mcp", "--key", "k", "/v"])).1.unwrap_err(),
+            Msg::ExtraArgument("/v".into())
+        );
+        assert_eq!(
+            parse(&args(&["index", "--key", "k"])).1.unwrap_err(),
+            Msg::ExtraArgument("--key".into())
+        );
+        assert_eq!(
+            parse(&args(&["mcp", "--key"])).1.unwrap_err(),
+            Msg::BadOptionValue("--key".into())
+        );
         assert_eq!(parse(&args(&[])).1.unwrap_err(), Msg::Usage);
         assert_eq!(parse(&args(&["index"])).1.unwrap_err(), Msg::MissingFolder);
         assert_eq!(
