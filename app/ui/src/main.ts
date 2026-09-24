@@ -16,7 +16,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView, basicSetup } from "codemirror";
-import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
+import { Annotation, Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import { keymap, type KeyBinding } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
@@ -28,6 +28,7 @@ import katex from "katex";
 import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { commands, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type NoteText, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
+import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView } from "./props";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
@@ -83,7 +84,10 @@ type Strings = Record<
   replaceCount: (n: number) => string;
   graphNodes: (n: number, m: number) => string;
   pdfHits: (n: number, current: number) => string;
-  changedOutside: (n: number) => string;
+  readOutside: (n: number) => string;
+  conflictOutside: (names: string) => string;
+  goneNamed: (names: string) => string;
+  indexProblems: (n: number, first: string) => string;
 };
 
 const pt: Strings = {
@@ -110,7 +114,10 @@ const pt: Strings = {
   outgoing: "Links de saída", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos", toggleRight: "Mostrar/ocultar painel", palette: "Paleta de comandos", settings: "Ajustes",
   theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
-  changedOutside: (n) => `${n} nota${n === 1 ? "" : "s"} ${n === 1 ? "mudou" : "mudaram"} fora do Verso.`,
+  readOutside: (n) => `${n === 1 ? "Uma nota aberta mudou" : `${n} notas abertas mudaram`} fora do Verso e ${n === 1 ? "foi lida" : "foram lidas"} de novo (⌘Z volta ao texto de antes).`,
+  conflictOutside: (names) => `Mudou fora do Verso, com texto não salvo aqui: ${names}. As duas versões estão na nota.`,
+  goneNamed: (names) => `Apagada ou movida fora do Verso: ${names}. O texto continua na aba.`,
+  indexProblems: (n, first) => `${n === 1 ? "Um problema" : `${n} problemas`} ao indexar: ${first}`,
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
   confirmDelete: (n) => `Apagar "${n}"? Vai para .trash/ na pasta, como no Obsidian.`,
@@ -174,7 +181,10 @@ const en: Strings = {
   outgoing: "Outgoing links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files", toggleRight: "Show/hide panel", palette: "Command palette", settings: "Settings",
   theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
-  changedOutside: (n) => `${n} note${n === 1 ? "" : "s"} changed outside Verso.`,
+  readOutside: (n) => `${n === 1 ? "An open note" : `${n} open notes`} changed outside Verso and ${n === 1 ? "was" : "were"} read again (⌘Z brings back the text before).`,
+  conflictOutside: (names) => `Changed outside Verso, with unsaved text here: ${names}. Both versions are in the note.`,
+  goneNamed: (names) => `Deleted or moved outside Verso: ${names}. The text stays in its tab.`,
+  indexProblems: (n, first) => `${n === 1 ? "A problem" : `${n} problems`} while indexing: ${first}`,
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
   confirmDelete: (n) => `Delete "${n}"? It goes to .trash/ in the folder, as in Obsidian.`,
@@ -1077,6 +1087,10 @@ function lineSeparator(text: string): string | null {
 /** Such a file is shown and never edited: no keystroke, no panel, no
  *  task or paste changes it, so nothing converts it (invariant 8). */
 const readOnlyText: Extension = [EditorState.readOnly.of(true), EditorState.changeFilter.of(() => false)];
+/** Marks the edit that brings in the disk's text after a change made
+ *  outside the app (`NoteLeaf.recheck`): it leaves the tab saved, and ⌘Z
+ *  undoes it like any edit. */
+const fromDisk = Annotation.define<boolean>();
 
 /** A task's line up to its `[` — quote bars, indentation, the list
  *  marker (absent when the item's text starts on a later line) — and the
@@ -1171,6 +1185,14 @@ class NoteLeaf extends Leaf {
   private previewStale = false;
   mode: Mode = settings.defaultMode;
   revision = "";
+  /** Deleted or moved outside the app (`markGone`), until the note is
+   *  there again. */
+  private gone = false;
+  private destroyed = false;
+  /** Bumped by every load and every check: a read that comes back after a
+   *  newer one began, or after the tab went, changes nothing. */
+  private loads = 0;
+  private checks = 0;
   eol = "\n";
   /** The file mixes line endings: shown, never edited (lineSeparator). */
   private readOnly = false;
@@ -1317,8 +1339,10 @@ class NoteLeaf extends Leaf {
           // says; an edit of a key that differs from it is refused.
           if (this.note && u.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) this.props.render(this.note.properties, this.note.text, this.readOnly);
           if (u.docChanged) {
-            this.setDirty(true);
-            this.scheduleSave();
+            if (!u.transactions.some((tr) => tr.annotation(fromDisk))) {
+              this.setDirty(true);
+              this.scheduleSave();
+            }
             this.updateWords();
           }
         }),
@@ -1668,73 +1692,135 @@ class NoteLeaf extends Leaf {
     } else if (!this.previewStale) this.shownText = note.text;
     if (this.mode === "preview") this.paintPreview();
     void this.relink(note.path);
-    const flags: string[] = [];
-    if (note.stale) flags.push(t.stale);
-    if (note.unverified) flags.push(t.unverified);
-    if (this.readOnly) flags.push(t.mixedEol);
     this.props.render(note.properties, note.text, this.readOnly);
-    this.flags.textContent = flags.join(" ");
+    this.paintFlags();
     if (this.pane.active === this) panel.show(this);
     this.updateWords();
     this.applyWeb();
+  }
+  /** What the note says of itself above the text: behind the index, a
+   *  last known version, mixed line endings (read-only), gone. */
+  private paintFlags(): void {
+    const note = this.note;
+    const flags: string[] = [];
+    if (note?.stale) flags.push(t.stale);
+    if (note?.unverified) flags.push(t.unverified);
+    if (this.readOnly) flags.push(t.mixedEol);
+    if (this.gone) flags.push(t.goneOutside);
+    this.flags.textContent = flags.join(" ");
   }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
     return this.loading;
   }
-  /** The note changed on disk outside the app (the watcher): read it
-   *  again, the cursor and the scroll kept as far as the new text allows.
-   *  Text not saved yet is never replaced, even text typed while the read
-   *  was on its way: it stays, and its next save meets the difference
-   *  (invariant 11). */
-  reread(): Promise<void> {
-    this.loading = this.doLoad(this.path, false, true);
-    return this.loading;
+  get isGone(): boolean {
+    return this.gone;
   }
-  /** Other notes changed outside the app: what this one's links resolve
-   *  to, and its backlinks, may have changed with them. */
+  /** Is the note on disk still the one this tab holds? Asked after every
+   *  change seen in the folder (the watcher) and after the app's own file
+   *  operations, whichever index run found the change (provisional:
+   *  docs/reference/watcher-decision.md). The same: nothing. Changed, and
+   *  nothing typed here: the disk's text comes in as one edit — the cursor
+   *  and the selection follow it, and ⌘Z brings this tab's text back.
+   *  Changed, with text not saved yet: saved now, which meets the
+   *  difference (invariant 11). Gone: said, and the text stays. An edit
+   *  under way in the properties panel is waited for. */
+  async recheck(): Promise<"same" | "read" | "conflict" | "gone"> {
+    const path = this.path;
+    if (!path || !this.note || this.conflict.up) return "same";
+    if (this.props.el.contains(document.activeElement)) {
+      this.props.el.addEventListener("focusout", () => window.setTimeout(() => void this.recheck(), 0), { once: true });
+      return "same";
+    }
+    await this.saving;
+    const load = this.loads;
+    const check = ++this.checks;
+    const note = await commands.readNote(path);
+    if (this.destroyed || load !== this.loads || check !== this.checks || path !== this.path) return "same";
+    if (note.status !== "ok") {
+      if (note.error.kind !== "not_found" || this.gone) return "same";
+      this.markGone();
+      return "gone";
+    }
+    if (this.gone) this.setGone(false);
+    if (note.data.revision === this.revision) return "same";
+    if (this.dirty) {
+      void this.flush();
+      return "conflict";
+    }
+    this.fromDisk(note.data);
+    return "read";
+  }
+  /** Other notes changed: what this one's links resolve to, its
+   *  backlinks and the notes it embeds may have changed with them. */
   relinkNow(): void {
-    if (this.note) void this.relink(this.path);
+    if (!this.note) return;
+    this.repaint();
+    void this.relink(this.path);
   }
   /** The note is gone from disk — deleted or moved outside the app: the
-   *  tab keeps its text and says so. */
+   *  tab keeps its text and says so, above the text and in its name. */
   markGone(): void {
     this.setGone(true);
-    this.flags.textContent = t.goneOutside;
+  }
+  override setGone(g: boolean): void {
+    this.gone = g;
+    super.setGone(g);
+    this.paintFlags();
   }
   /** Read `path` into the editor. Over unsaved text only when forced (the
-   *  user chose to discard it) or on a yes; `keep` (a change made outside)
-   *  never over unsaved text, and keeps the cursor and the scroll. */
-  private async doLoad(path: string, force: boolean, keep = false): Promise<void> {
-    if (this.dirty && !force && (keep || !(await askDiscard()))) return;
+   *  user chose to discard it) or on a yes. */
+  private async doLoad(path: string, force: boolean): Promise<void> {
+    if (this.dirty && !force && !(await askDiscard())) return;
     // A write in flight lands first: the read comes after it.
     await this.saving;
+    const load = ++this.loads;
     const note = await commands.readNote(path);
+    if (this.destroyed || load !== this.loads) return;
     if (note.status !== "ok") return fail(note.error);
-    if (keep && this.dirty) return;
-    const view = keep ? { at: this.editor.state.selection.main.head, top: this.sheet.scrollTop } : null;
-    this.setGone(false);
+    this.show(note.data);
+  }
+  /** `note` in the editor from scratch: a new state, a new history. */
+  private show(note: NoteText): void {
     window.clearTimeout(this.saveTimer);
-    this.path = note.data.path;
+    this.path = note.path;
     this.setTitle(name(this.path));
     this.title.textContent = name(this.path);
     this.crumbs.replaceChildren(...crumbsFor(this.path));
-    const sep = lineSeparator(note.data.text);
+    const sep = lineSeparator(note.text);
     this.eol = sep ?? "\n";
     this.readOnly = sep === null;
-    this.editor.setState(this.editorState(note.data.text));
+    this.editor.setState(this.editorState(note.text));
     this.conflict.hide();
-    this.refresh(note.data);
+    this.gone = false;
+    super.setGone(false);
+    this.refresh(note);
     this.setDirty(false);
     this.paintStar();
     this.applyMode();
     markCurrent();
     if (this.pane.active === this) panel.show(this);
     persistSoon();
-    if (view) {
-      this.editor.dispatch({ selection: { anchor: Math.min(view.at, this.editor.state.doc.length) } });
-      this.sheet.scrollTop = view.top;
-    }
+  }
+  /** The disk's text over a tab with nothing typed in it, as one edit
+   *  over what differs: the unchanged start and end stay put, so the
+   *  cursor, the selection and the scroll follow, and ⌘Z brings this
+   *  tab's text back. Line endings that changed, or a file shown
+   *  read-only, start the editor again instead. */
+  private fromDisk(note: NoteText): void {
+    const sep = lineSeparator(note.text);
+    if (sep === null || this.readOnly || sep !== this.eol) return this.show(note);
+    const now = sep === "\n" ? note.text : note.text.split(sep).join("\n");
+    const edit = minimalEdit(this.editor.state.doc.toString(), now);
+    window.clearTimeout(this.saveTimer);
+    if (edit) this.editor.dispatch({ changes: edit, annotations: fromDisk.of(true) });
+    this.conflict.hide();
+    this.refresh(note);
+    this.setDirty(false);
+    // Last, so that the caret never stays inside the folded frontmatter.
+    this.applyMode();
+    markCurrent();
+    persistSoon();
   }
   /** Renamed: read at the new place, unless text was typed meanwhile —
    *  then it stays, and its next save goes to the new place. */
@@ -2018,6 +2104,7 @@ class NoteLeaf extends Leaf {
   /** `mine` is on disk. The leaf is clean only if the editor still holds
    *  exactly that; what was typed meanwhile is saved next. */
   private written(w: Written, mine: string): void {
+    if (this.gone) this.setGone(false);
     this.refresh(w.note);
     if (this.editorText() === mine) this.setDirty(false);
     ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
@@ -2049,6 +2136,7 @@ class NoteLeaf extends Leaf {
     this.editor.focus();
   }
   override destroy(): void {
+    this.destroyed = true;
     window.clearTimeout(this.saveTimer);
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
@@ -3134,6 +3222,9 @@ class Pane {
   }
   open(path: string, focus = false, fresh = false): Leaf {
     let leaf = fresh ? undefined : this.leaves.find((l) => l.path === path);
+    // A tab of a note that went away outside, reused for a note of that
+    // name again: read the new one, unless text was typed in the old.
+    if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
     if (!leaf) {
       const kind = kindOf(path);
       leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : new TextLeaf(this);
@@ -4190,31 +4281,75 @@ async function afterFileChange(): Promise<void> {
   forgetFiles();
   await searchNotes(ui.search.value);
   void panel.loadTags();
-  for (const p of layout().panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
+  // A change made outside that this run found before the watcher did.
+  tellOutcomes(await recheckAll(true));
 }
-/* The folder changed on disk outside Verso — another editor, a sync
- * client, git (the watcher, provisional: docs/reference/watcher-decision.md).
- * The host has indexed it again and says what changed. Lists and panels
- * are drawn again; a tab of a changed note is read again, or, with text not
- * saved yet, saves now and so meets the difference (invariant 11); a tab
- * whose note is gone keeps its text and says so; the other notes' links and
- * backlinks are looked up again. */
+/* The folder changed on disk — another editor, a sync client, git
+ * (the watcher, provisional: docs/reference/watcher-decision.md). The
+ * host sends this after every batch, with what its index run found; since
+ * another run may have found a change first, every open note is checked
+ * against the disk whatever the lists say (`NoteLeaf.recheck`). The tree
+ * and folder views are drawn again only when the entries changed; search,
+ * tags, links and embeds when notes did. */
 async function changedOutside(change: FolderChanged): Promise<void> {
   if (change.key !== currentFolder) return;
-  const changed = new Set(change.changed);
-  const removed = new Set(change.removed);
-  const notes = changed.size + removed.size;
-  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) {
-    if (!(l instanceof NoteLeaf) || !l.path) continue;
-    if (removed.has(l.path)) l.markGone();
-    else if (changed.has(l.path)) void (l.dirty ? l.flush() : l.reread());
-    else if (notes > 0) l.relinkNow();
+  const notes = change.changed.length + change.removed.length > 0;
+  if (change.listing) await refreshLists();
+  else if (notes && ui.search.value.trim() !== "") await searchNotes(ui.search.value);
+  if (notes) void panel.loadTags();
+  const outcomes = await recheckAll(notes);
+  if (change.key !== currentFolder) return;
+  tellOutcomes(outcomes);
+  showProblems(change.index.problems);
+}
+/** The lists drawn again from the core: the ones kept in memory, the tree
+ *  or the search results on screen, the folder views. Not while a name is
+ *  being typed in the tree — redrawing would take the field away, or
+ *  commit half a name: that waits for the field to go. */
+async function refreshLists(): Promise<void> {
+  const typing = ui.notes.querySelector<HTMLInputElement>("input.rename");
+  if (typing) {
+    typing.addEventListener("blur", () => window.setTimeout(() => void refreshLists(), 0), { once: true });
+    return;
   }
   forgetFiles();
-  await searchNotes(ui.search.value);
-  void panel.loadTags();
-  for (const p of layout().panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
-  if (notes > 0) ui.status.textContent = t.changedOutside(notes);
+  await listAll();
+  if (ui.search.value.trim() !== "") await searchNotes(ui.search.value);
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
+}
+type Outcome = { leaf: NoteLeaf; outcome: "same" | "read" | "conflict" | "gone" };
+/** Every open note checked against the disk; `relink`: the others' links
+ *  looked up again too (notes changed somewhere). */
+async function recheckAll(relink: boolean): Promise<Outcome[]> {
+  const leaves = spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)).filter((l): l is NoteLeaf => l instanceof NoteLeaf && l.path !== "");
+  const outcomes = await Promise.all(leaves.map(async (leaf) => ({ leaf, outcome: await leaf.recheck() })));
+  if (relink) for (const o of outcomes) if (o.outcome === "same") o.leaf.relinkNow();
+  return outcomes;
+}
+/** What happened to the notes on screen, said once on the status line
+ *  (announced): read again, both versions shown, gone — named, so that a
+ *  tab in the background is not missed. */
+function tellOutcomes(outcomes: Outcome[]): void {
+  const names = (kind: Outcome["outcome"]) => [...new Set(outcomes.filter((o) => o.outcome === kind).map((o) => name(o.leaf.path)))];
+  const read = names("read");
+  const conflict = names("conflict");
+  const gone = names("gone");
+  const said: string[] = [];
+  if (conflict.length > 0) said.push(t.conflictOutside(conflict.join(", ")));
+  if (gone.length > 0) said.push(t.goneNamed(gone.join(", ")));
+  if (read.length > 0) said.push(t.readOutside(read.length));
+  if (said.length > 0) ui.status.textContent = said.join(" ");
+}
+/** The index's problems, when they are not the ones already shown: the
+ *  first on the status line, all of them on its tooltip. */
+let shownProblems = "";
+function showProblems(problems: string[]): void {
+  const all = problems.join("\n");
+  if (all === shownProblems) return;
+  shownProblems = all;
+  ui.status.title = all;
+  if (problems.length > 0) ui.status.textContent = t.indexProblems(problems.length, problems[0]!);
 }
 function leavesOf(path: string): Leaf[] {
   return spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves.filter((l) => l.path === path)));
@@ -6024,6 +6159,8 @@ function showFolder(info: FolderInfo): void {
   nameFolderButton();
   const i = info.index;
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
+  shownProblems = "";
+  showProblems(i.problems);
   page?.classList.remove("empty");
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
   spaces.length = 0;
@@ -6074,7 +6211,8 @@ async function reindex(): Promise<void> {
   forgetFiles();
   ui.status.textContent = t.indexed(r.data.indexed, r.data.unchanged, r.data.placeholders);
   await searchNotes(ui.search.value);
-  if (leaf?.path && !leaf.dirty) await leaf.load(leaf.path, true);
+  tellOutcomes(await recheckAll(true));
+  showProblems(r.data.problems);
 }
 
 /* ---------- The ribbon: one column of what the app does, reordered by drag ---------- */

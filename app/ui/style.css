@@ -219,7 +219,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
    without alternative text for `content` keeps the first line). */
 .tab.dirty .tab-name::after { content: " •"; content: " •" / ""; color: var(--seal); }
 /* A note deleted or moved outside the app: its tab stays, crossed out. */
-.tab.gone .tab-name { text-decoration: line-through; opacity: .7; }
+.tab.gone .tab-name { text-decoration: line-through; }
 .tab-close { display: inline-flex; padding: .15rem; border-radius: 4px; color: var(--ink-3); opacity: 0; }
 .tab:hover .tab-close, .tab[aria-selected="true"] .tab-close { opacity: 1; }
 .tab-close:hover { background: var(--paper-3); color: var(--seal); }
