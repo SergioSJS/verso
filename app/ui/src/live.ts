@@ -287,7 +287,7 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base"; text: string; rows?: string[]; embed?: true };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base"; text: string; rows?: string[]; embed?: true; nested?: true };
 const BASE_EMBED = /\.base(#[^|]*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
 export function blocksOf(state: EditorState): Block[] {
@@ -306,9 +306,14 @@ export function blocksOf(state: EditorState): Block[] {
         // A `base` block: the view in place of the fence (ADR 0053).
         const info = n.node.getChild("CodeInfo");
         if (info && doc.sliceString(info.from, info.to).trim() === "base") {
-          const code = n.node.getChild("CodeText");
+          // Inside a quote, a callout or a list the parser gives the text a
+          // line at a time, without the marks: such a block is shown, and
+          // its menus do not edit it — they would write it back unmarked.
+          const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
+          let nested = false;
+          for (let p = n.node.parent; p; p = p.parent) if (p.name === "Blockquote" || p.name === "ListItem") nested = true;
           const at = lines(n.from, n.to);
-          if (at) out.push({ ...at, kind: "base", text: code ? doc.sliceString(code.from, code.to) : "" });
+          if (at) out.push({ ...at, kind: "base", text, ...(nested ? { nested: true as const } : {}) });
         }
         return false;
       }
@@ -388,7 +393,7 @@ class BlockWidget extends WidgetType {
       el.append(code);
       const mount = document.createElement("div");
       el.append(mount);
-      const edit = isEmbed
+      const edit = isEmbed || b.nested === true
         ? null
         : (next: string) => {
             const at = startOf(view, el);

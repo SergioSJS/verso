@@ -31,14 +31,20 @@ function out(d: Document, was: string): string {
   const padded = /[[{] +[^\s\]}]/.test(was);
   const tight = /[[{][^\s\]}]/.test(was);
   const s = d.toString({ lineWidth: 0, indentSeq: true, flowCollectionPadding: padded || !tight });
-  return s === "null\n" ? "" : s;
+  if (s === "null\n") return "";
+  // No final line break added where the file had none.
+  return was !== "" && !was.endsWith("\n") && s.endsWith("\n") ? s.slice(0, -1) : s;
 }
 
 /** Whether `text` reads as YAML the menus can change: a mapping, or
- *  nothing yet. A base the user left mid-edit is edited as text only. */
+ *  nothing yet, that the package writes back exactly as it is — so that an
+ *  edit changes the keys it touches and not one other character. A base
+ *  left mid-edit, or written in a style the package does not keep (other
+ *  indentation, a folded text, blank lines), is edited as text only. */
 export function editable(text: string): boolean {
+  if (text.trim() === "") return true;
   const d = doc(text);
-  return d.errors.length === 0 && (d.contents === null || isMap(d.contents));
+  return d.errors.length === 0 && (d.contents === null || isMap(d.contents)) && out(d, text) === text;
 }
 
 /** The views of a base, as plain values. */

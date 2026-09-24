@@ -250,6 +250,9 @@ export class BaseView {
   private index: number | null = null;
   private chosen: string | null;
   private seq = 0;
+  /** Taken down: asked nothing more. */
+  private gone = false;
+  private retry = 0;
   private search = "";
   private timer: number | undefined;
 
@@ -332,6 +335,15 @@ export class BaseView {
   /** Ask the core again and draw. Answers that come back out of order are
    *  dropped: only the last question is drawn. */
   async refresh(): Promise<void> {
+    if (this.gone) return;
+    // A value being typed into the view is not drawn over — the field
+    // would go, and its text with it: asked again once it is left.
+    window.clearTimeout(this.retry);
+    const typing = document.activeElement;
+    if (typing instanceof HTMLElement && this.body.contains(typing) && typing.matches("input, textarea, select")) {
+      this.retry = window.setTimeout(() => void this.refresh(), 400);
+      return;
+    }
     const seq = ++this.seq;
     const text = this.src.text();
     const { cfg, index } = this.config(text);
@@ -508,6 +520,14 @@ export class BaseView {
     const s = this.s;
     const pop = new Popover(anchor, s.sort);
     const options = this.propertyOptions();
+    // Read from the text when the change is made, never from the drawing:
+    // a second change must not undo the first.
+    type Rule = { property?: string; direction?: string };
+    const sortOf = (t: string, i: number): Rule[] => {
+      const v = Y.views(t)[i]?.["sort"];
+      return Array.isArray(v) ? (v as Rule[]) : [];
+    };
+    const groupOf = (t: string, i: number) => (Y.views(t)[i]?.["groupBy"] ?? null) as Rule | null;
     const draw = () => {
       const v = this.view;
       pop.el.replaceChildren();
@@ -516,13 +536,15 @@ export class BaseView {
       rules.forEach((rule, k) => {
         const row = h("div", "base-row");
         row.append(
-          select(s.sortBy, options, rule.property ?? "", (p) => this.change((t, i) => Y.setViewKey(t, i, "sort", rules.map((x, j) => (j === k ? { property: p, direction: x.direction ?? "ASC" } : x))))),
-          select(s.ascending, [["ASC", s.ascending], ["DESC", s.descending]], (rule.direction ?? "ASC").toUpperCase(), (d) => this.change((t, i) => Y.setViewKey(t, i, "sort", rules.map((x, j) => (j === k ? { property: x.property, direction: d } : x))))),
+          select(s.sortBy, options, rule.property ?? "", (p) => this.change((t, i) => Y.setViewKey(t, i, "sort", sortOf(t, i).map((x, j) => (j === k ? { property: p, direction: x.direction ?? "ASC" } : x))))),
+          select(s.ascending, [["ASC", s.ascending], ["DESC", s.descending]], (rule.direction ?? "ASC").toUpperCase(), (d) => this.change((t, i) => Y.setViewKey(t, i, "sort", sortOf(t, i).map((x, j) => (j === k ? { property: x.property, direction: d } : x))))),
         );
         const rm = tool(s.remove, "close");
         rm.addEventListener("click", () => {
-          const next = rules.filter((_, j) => j !== k);
-          this.change((t, i) => Y.setViewKey(t, i, "sort", next.length ? next : undefined));
+          this.change((t, i) => {
+            const next = sortOf(t, i).filter((_, j) => j !== k);
+            return Y.setViewKey(t, i, "sort", next.length ? next : undefined);
+          });
           window.setTimeout(draw, 50);
         });
         row.append(rm);
@@ -531,17 +553,20 @@ export class BaseView {
       const add = h("button", "base-link-button", `+ ${s.addSort}`);
       add.type = "button";
       add.addEventListener("click", () => {
-        this.change((t, i) => Y.setViewKey(t, i, "sort", [...rules, { property: "file.name", direction: "ASC" }]));
+        this.change((t, i) => Y.setViewKey(t, i, "sort", [...sortOf(t, i), { property: "file.name", direction: "ASC" }]));
         window.setTimeout(draw, 50);
       });
       pop.el.append(add, h("h3", "", s.groupBy));
       const g = (v["groupBy"] ?? null) as { property?: string; direction?: string } | null;
       const row = h("div", "base-row");
       row.append(
-        select(s.groupBy, [["", s.noGroup], ...options], g?.property ?? "", (p) => this.change((t, i) => Y.setViewKey(t, i, "groupBy", p === "" ? undefined : { property: p, direction: g?.direction ?? "ASC" }))),
-        select(s.ascending, [["ASC", s.ascending], ["DESC", s.descending]], (g?.direction ?? "ASC").toUpperCase(), (d) => {
-          if (g?.property) this.change((t, i) => Y.setViewKey(t, i, "groupBy", { property: g.property, direction: d }));
-        }),
+        select(s.groupBy, [["", s.noGroup], ...options], g?.property ?? "", (p) => this.change((t, i) => Y.setViewKey(t, i, "groupBy", p === "" ? undefined : { property: p, direction: groupOf(t, i)?.direction ?? "ASC" }))),
+        select(s.ascending, [["ASC", s.ascending], ["DESC", s.descending]], (g?.direction ?? "ASC").toUpperCase(), (d) =>
+          this.change((t, i) => {
+            const now = groupOf(t, i);
+            return now?.property ? Y.setViewKey(t, i, "groupBy", { property: now.property, direction: d }) : t;
+          }),
+        ),
       );
       pop.el.append(row);
     };
@@ -556,17 +581,23 @@ export class BaseView {
       const box = h("section", "base-filter");
       box.append(h("h3", "", title));
       const flat = flatten(get());
-      if (!flat) {
+      // A group inside the group is left to the source: the menus write a
+      // flat list back, and would drop it.
+      if (!flat || flat.nested > 0) {
         box.append(h("p", "base-hint", s.nested));
         return box;
       }
+      let op = flat.op;
       const save = (op: string, items: string[]) => {
         const clean = items.map((x) => x.trim()).filter((x) => x !== "");
         set(clean.length === 0 && flat.nested === 0 ? undefined : { [op]: clean });
       };
       const inputs: HTMLInputElement[] = [];
       box.append(
-        select(s.filter, [["and", s.allTrue], ["or", s.anyTrue], ["not", s.noneTrue]], flat.op, (op) => save(op, inputs.map((x) => x.value))),
+        select(s.filter, [["and", s.allTrue], ["or", s.anyTrue], ["not", s.noneTrue]], flat.op, (next) => {
+          op = next as typeof op;
+          save(op, inputs.map((x) => x.value));
+        }),
       );
       const list = h("div", "base-conditions");
       const addRow = (value: string) => {
@@ -577,18 +608,18 @@ export class BaseView {
         input.placeholder = s.conditionPlaceholder;
         input.setAttribute("aria-label", s.filter);
         input.spellcheck = false;
-        input.addEventListener("change", () => save(flat.op, inputs.map((x) => x.value)));
+        input.addEventListener("change", () => save(op, inputs.map((x) => x.value)));
         input.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            save(flat.op, inputs.map((x) => x.value));
+            save(op, inputs.map((x) => x.value));
           }
         });
         const rm = tool(s.remove, "close");
         rm.addEventListener("click", () => {
           inputs.splice(inputs.indexOf(input), 1);
           row.remove();
-          save(flat.op, inputs.map((x) => x.value));
+          save(op, inputs.map((x) => x.value));
         });
         inputs.push(input);
         row.append(input, rm);
@@ -596,7 +627,6 @@ export class BaseView {
         return input;
       };
       for (const item of flat.items) addRow(item);
-      if (flat.nested > 0) box.append(h("p", "base-hint", s.nested));
       const add = h("button", "base-link-button", `+ ${s.addCondition}`);
       add.type = "button";
       add.addEventListener("click", () => addRow("").focus());
@@ -765,8 +795,10 @@ export class BaseView {
   }
 
   destroy(): void {
+    this.gone = true;
     this.seq++;
     window.clearTimeout(this.timer);
+    window.clearTimeout(this.retry);
     Popover.current?.close();
   }
 }

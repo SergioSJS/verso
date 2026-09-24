@@ -21,9 +21,12 @@ export type DragOptions = {
 /** Where drags are going on: one at a time, whatever the view. */
 let ghost: HTMLElement | null = null;
 
-function zoneAt(x: number, y: number): HTMLElement | null {
+/** The drop zone under the pointer, if it belongs to `root`, the view the
+ *  drag started in: another view's column or day means another thing. */
+function zoneAt(x: number, y: number, root: Element | null): HTMLElement | null {
   const under = document.elementFromPoint(x, y);
-  return under instanceof HTMLElement ? under.closest<HTMLElement>("[data-drop]") : null;
+  const zone = under instanceof HTMLElement ? under.closest<HTMLElement>("[data-drop]") : null;
+  return zone && root?.contains(zone) ? zone : null;
 }
 
 export function draggable(handle: HTMLElement, opts: DragOptions): void {
@@ -44,6 +47,7 @@ export function draggable(handle: HTMLElement, opts: DragOptions): void {
   handle.addEventListener("pointerdown", (down) => {
     if (down.button !== 0) return;
     if ((down.target as HTMLElement).closest("button, input, select, textarea")) return;
+    const root = handle.closest(".base");
     const x0 = down.clientX;
     const y0 = down.clientY;
     let started = false;
@@ -75,7 +79,7 @@ export function draggable(handle: HTMLElement, opts: DragOptions): void {
         ghost.style.left = `${e.clientX + 12}px`;
         ghost.style.top = `${e.clientY + 10}px`;
       }
-      mark(zoneAt(e.clientX, e.clientY));
+      mark(zoneAt(e.clientX, e.clientY, root));
     };
     const end = (e: PointerEvent, dropped: boolean) => {
       document.removeEventListener("pointermove", move);
@@ -86,9 +90,12 @@ export function draggable(handle: HTMLElement, opts: DragOptions): void {
       window.setTimeout(() => (suppress = false), 0);
       handle.classList.remove("dragging");
       if (ghost) ghost.hidden = true;
-      const zone = dropped ? zoneAt(e.clientX, e.clientY) : null;
+      // Redrawn while it moved (a save, the folder changing): the zones the
+      // drag knew are gone with what it started from. Nothing is dropped.
+      const alive = handle.isConnected;
+      const zone = dropped && alive ? zoneAt(e.clientX, e.clientY, root) : null;
       mark(null);
-      if (dropped) opts.drop(zone);
+      if (dropped && alive) opts.drop(zone);
     };
     const up = (e: PointerEvent) => end(e, true);
     const cancel = (e: PointerEvent) => end(e, false);
