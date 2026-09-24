@@ -954,14 +954,23 @@ impl Workspace {
     /// thread of the watch's own, with each batch, once the folder has
     /// been quiet for [`WATCH_QUIET`]; the caller brings the index up to
     /// date with [`Workspace::index`], which finds by itself what changed —
-    /// the batch's paths say that something did, not all of what. Dropping
-    /// the [`Watch`] stops it.
+    /// the batch's paths say that something did, not all of what. The
+    /// index's own directory is left out, for when the configuration
+    /// directory lies inside the folder: every index run writes there.
+    /// Dropping the [`Watch`] stops it.
     pub fn watch(
         &self,
         on_change: impl FnMut(Changes) + Send + 'static,
     ) -> Result<Watch, CoreError> {
+        let own: Vec<PathBuf> = self
+            .index
+            .path()
+            .parent()
+            .map(Path::to_path_buf)
+            .into_iter()
+            .collect();
         self.root
-            .watch(WATCH_QUIET, on_change)
+            .watch(WATCH_QUIET, &own, on_change)
             .map_err(CoreError::Watch)
     }
 
