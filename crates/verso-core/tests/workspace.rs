@@ -1400,3 +1400,26 @@ fn a_note_made_outside_reaches_the_index_through_the_watch() {
     assert!(r.listing_changed);
     assert_eq!(ws.backlinks("Uma").unwrap().unwrap().len(), 1);
 }
+
+/// Verso's own save changes the note's length and time, not the listing's
+/// shape: a window must not draw its tree again after every save.
+#[test]
+fn a_save_is_not_a_listing_change() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _uma = note(vault.path(), "Uma.md", "# Uma\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let read = ws.read_note("Uma").unwrap();
+    ws.write_note(
+        "Uma",
+        "# Uma\n\nMais uma linha, mais longa.\n",
+        &read.revision,
+    )
+    .unwrap();
+    let r = ws.index().unwrap();
+    assert!(
+        r.changed.is_empty() && r.gone.is_empty() && !r.listing_changed,
+        "{r:?}"
+    );
+}
