@@ -215,6 +215,8 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .tab[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--seal); }
 .pane:not(.focused) .tab[aria-selected="true"] { border-bottom-color: var(--ink-3); }
 .tab.dirty .tab-name::after { content: " •"; color: var(--seal); }
+/* A note deleted or moved outside the app: its tab stays, crossed out. */
+.tab.gone .tab-name { text-decoration: line-through; opacity: .7; }
 .tab-close { display: inline-flex; padding: .15rem; border-radius: 4px; color: var(--ink-3); opacity: 0; }
 .tab:hover .tab-close, .tab[aria-selected="true"] .tab-close { opacity: 1; }
 .tab-close:hover { background: var(--paper-3); color: var(--seal); }
