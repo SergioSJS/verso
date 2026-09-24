@@ -364,8 +364,8 @@ impl Index {
     /// one rule the reader marks them with (`verso_dialect::body_tags`:
     /// prose only — not code, not a link, not the frontmatter's own text,
     /// not a comment). Tags are folded to lower case; the list is by count,
-    /// then name. What a tag is stays open (spec Q13, charset Q22); this is
-    /// the provisional rule both sides apply.
+    /// then name. What a tag is (spec Q13) and its charset and case (Q22)
+    /// are this rule, which both sides apply.
     pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, IndexError> {
         let mut st = self
             .conn

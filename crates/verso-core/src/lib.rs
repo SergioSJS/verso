@@ -5,8 +5,7 @@
 //! The orchestrator (ADR 0028): opens a folder through `verso-fs`, parses
 //! notes with `verso-dialect`, keeps `verso-index` current, and answers
 //! the questions the CLI and the contract ask. Phase 1, feature 4; the
-//! file operations of Phase 2, item 2.3 (ADR 0048, `[OPEN]`: what is here
-//! is provisional).
+//! file operations of Phase 2, item 2.3, as ADR 0048 decides them.
 //!
 //! This crate never touches the folder itself: the folder is `verso-fs`'s,
 //! the index file is `verso-index`'s, and the configuration directory
@@ -25,8 +24,8 @@
 //! and `read_text` answer [`CoreError::NotText`], so no editor ever holds
 //! a lossy copy that a save would write back over the original (invariant
 //! 8). The index still decodes lossily, for search, which writes nothing.
-//! Spec Q25 (encoding) is `[OPEN]`; this is the least that keeps the file
-//! safe until it is decided.
+//! Spec Q25 (encoding) decides it so: the file is kept safe, not decoded
+//! for an editor.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
@@ -102,7 +101,7 @@ pub enum CoreError {
     /// The note could not be read from the folder.
     Read(ReadError),
     /// The file's bytes are not UTF-8: there is no text to edit without
-    /// losing what was written (spec Q25, `[OPEN]`).
+    /// losing what was written (spec Q25).
     NotText,
     /// The index was refreshed but its sidecar could not be written.
     Sidecar(std::io::Error),

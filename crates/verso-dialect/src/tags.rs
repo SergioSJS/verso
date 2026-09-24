@@ -5,8 +5,8 @@
 //! `#tag` in the body of a note: one rule, used by the reader to mark tags
 //! and by the index to list them (Opus reading of Phase 2, finding 14), so
 //! that the tags pane never lists a tag the reading view does not show.
-//! Provisional: what a tag is (spec Q13) and its charset (Q22) are the
-//! maintainer's; no fixture asserts this.
+//! What a tag is (spec Q13) and its charset and case (Q22) are this rule,
+//! as the maintainer decided on 2026-09-23; no fixture asserts it yet.
 
 use pulldown_cmark::Event;
 
