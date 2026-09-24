@@ -213,6 +213,42 @@ export const commands = {
 	reveal: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("reveal", { path })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
+	/**
+	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
+	 *  window draws, as a table, cards, a list, a kanban or a calendar.
+	 */
+	queryBase: (query: BaseQuery) => typedError<BaseResult, ContractError>(__TAURI_INVOKE("query_base", { query })),
+	/**
+	 *  Another window on the open folder (ADR 0049, asked for by the
+	 *  maintainer on 2026-09-24): its own tabs over the same session. What one
+	 *  window writes, the other reads as it reads any change made outside —
+	 *  the watcher's `folder-changed` reaches every window — and a write over
+	 *  a note the other changed is refused (invariant 11).
+	 */
+	newWindow: () => typedError<null, ContractError>(__TAURI_INVOKE("new_window")),
+	cliStatus: () => __TAURI_INVOKE<CliState>("cli_status"),
+	/**
+	 *  Link the command line into `/usr/local/bin`. Something else there is
+	 *  replaced only when the window says so (`replace`), after asking. The
+	 *  download's quarantine is taken off the command line first: a shell
+	 *  asks no Gatekeeper question, it refuses to run it.
+	 */
+	installCli: (replace: boolean) => typedError<CliState, ContractError>(__TAURI_INVOKE("install_cli", { replace })),
+	/**  Take the link away — only this app's own. */
+	uninstallCli: () => typedError<CliState, ContractError>(__TAURI_INVOKE("uninstall_cli")),
+	/**
+	 *  The open folder's server as clients name it, and whether Claude
+	 *  Desktop starts it. The entry the app writes starts the linked command
+	 *  line with the folder's key: the folder's path goes nowhere
+	 *  (ADR 0026 rule 4).
+	 */
+	mcpStatus: () => typedError<McpStatus, ContractError>(__TAURI_INVOKE("mcp_status")),
+	/**
+	 *  Add the open folder's server to Claude Desktop — after the window has
+	 *  shown what goes in and the person agreed. Needs the command line
+	 *  linked: the entry starts it.
+	 */
+	mcpAddClaude: () => typedError<McpAdded, ContractError>(__TAURI_INVOKE("mcp_add_claude")),
 };
 
 /* Types */
@@ -234,12 +270,158 @@ export type Backlink = {
 	col: number,
 };
 
+/**  A value as a view shows it. */
+export type BaseCell = { kind: "empty" } | { kind: "text"; value: string } | { kind: "number"; value: number | null } | { kind: "bool"; value: boolean } | 
+/**
+ *  A wall-clock time in the window's zone, in milliseconds since
+ *  1970-01-01T00:00 of that clock (read it with UTC getters), and
+ *  whether it has a time of day.
+ */
+{ kind: "date"; value: {
+	ms: number | null,
+	time: boolean,
+} } | 
+/**  Milliseconds. */
+{ kind: "duration"; value: number | null } | { kind: "list"; value: BaseCell[] } | { kind: "object"; value: ([string, BaseCell])[] } | 
+/**  A link as written, the text to show, and the file it resolves to. */
+{ kind: "link"; value: {
+	target: string,
+	display: string | null,
+	path: string | null,
+} } | { kind: "file"; value: string } | 
+/**  A path relative to the folder, or a URL. */
+{ kind: "image"; value: string } | { kind: "icon"; value: string } | { kind: "html"; value: string } | { kind: "error"; value: {
+	kind: BaseErrorKind,
+	name: string,
+} };
+
+/**
+ *  A column: the property id as the view writes it (`file.name`,
+ *  `status`, `formula.x`), and the name the base gives it, if any.
+ */
+export type BaseColumn = {
+	id: string,
+	name: string | null,
+};
+
+/**  Why a value could not be computed. */
+export type BaseErrorKind = "syntax" | "unknownFunction" | "unknownMethod" | "arguments" | "type" | 
+/**  Regular expressions are not evaluated yet. */
+"regex" | "cycle" | "budget" | "tooLarge";
+
+export type BaseGroup = {
+	/**  The grouping property's value; `None` when the view is not grouped. */
+	key: BaseCell | null,
+	rows: BaseRow[],
+	/**  One per column: the summary the view asks for, if any. */
+	summaries: (BaseCell | null)[],
+};
+
+/**
+ *  Something about the base as a whole, shown once above the view;
+ *  `detail` is what it concerns, as written in the base.
+ */
+export type BaseProblem = {
+	kind: BaseProblemKind,
+	detail: string,
+};
+
+export type BaseProblemKind = "notABase" | "tooLong" | "shape" | "expression" | "evaluation" | "unknownView" | "budget";
+
+/**
+ *  A base to evaluate (ADR 0053): a `.base` file, or the text of a `base`
+ *  block of a note; the view to show; the window's clock and language.
+ */
+export type BaseQuery = {
+	/**  The `.base` file, relative to the folder, when the base is one. */
+	path: string | null,
+	/**
+	 *  The base's text, when it is a block of a note: read instead of
+	 *  `path`.
+	 */
+	text: string | null,
+	/**
+	 *  The file `this` stands for: the note a base is embedded in, or the
+	 *  `.base` file itself.
+	 */
+	this: string | null,
+	/**  The view, by name; the first when absent. */
+	view: string | null,
+	/**
+	 *  Properties to evaluate besides the view's `order`: what the layout
+	 *  draws (a card's image, a calendar's date).
+	 */
+	extra: string[],
+	/**  The window's clock: milliseconds since the Unix epoch. */
+	now: number | null,
+	/**  The window's zone: minutes east of UTC. */
+	offset: number,
+	/**  The interface language (`pt-BR`, `en`). */
+	lang: string,
+};
+
+/**  A base evaluated. */
+export type BaseResult = {
+	/**  Every view of the base, in order. */
+	views: BaseView[],
+	/**
+	 *  The view evaluated, as an index into `views`; `None` when the base
+	 *  has none and a table of every file was evaluated.
+	 */
+	view: number | null,
+	columns: BaseColumn[],
+	/**  The rows; one group when the view is not grouped. */
+	groups: BaseGroup[],
+	/**  Files that passed the filters, before the view's `limit`. */
+	total: number,
+	problems: BaseProblem[],
+	/**
+	 *  Every note property of the folder, once each: what the view's
+	 *  menus offer.
+	 */
+	properties: string[],
+};
+
+export type BaseRow = {
+	path: string,
+	/**  A Markdown note: its properties may be changed from the view. */
+	note: boolean,
+	/**  One per column. */
+	cells: BaseCell[],
+};
+
+export type BaseView = {
+	name: string,
+	/**
+	 *  `table`, `cards`, `list`, `kanban`, `calendar`, or one Verso does
+	 *  not draw.
+	 */
+	kind: string,
+};
+
 /**  A `^id` block of a note (ADR 0018: cite this instead of a position). */
 export type Block = {
 	id: string,
 	line: number,
 	col: number,
 };
+
+/**
+ *  What stands where the app installs its command line (ADR 0054):
+ *  `/usr/local/bin/verso`, on the PATH every shell has.
+ */
+export type CliState = 
+/**  A link to this app's own command line. */
+"ours" | 
+/**  Nothing. */
+"missing" | 
+/**  Something else: another link, a copy put there by hand. */
+"elsewhere" | 
+/**
+ *  This build carries no command line to link (a development build
+ *  without it).
+ */
+"unbundled";
 
 /**
  *  An error as the UI receives it. `message` is the core's text, in
@@ -413,6 +595,37 @@ export type LinkRewrite = {
 	revision: string,
 	before: string,
 	after: string,
+};
+
+/**  What adding the folder's server to Claude Desktop did. */
+export type McpAdded = {
+	server: string,
+	/**  An entry by that name was there and was replaced. */
+	replaced: boolean,
+	/**  The name of the copy of the configuration as it was, beside it. */
+	backup: string | null,
+	warnings: string[],
+};
+
+/**  How an MCP client's configuration stands with this folder's entry. */
+export type McpClientState = 
+/**  The client is not installed. */
+"noClient" | 
+/**  No entry for this folder. */
+"absent" | 
+/**  The entry is there, as the app would write it. */
+"same" | 
+/**  An entry by that name starts something else. */
+"different";
+
+/**
+ *  The open folder's MCP server as clients name it, and whether Claude
+ *  Desktop knows it.
+ */
+export type McpStatus = {
+	/**  The name of the server in a client's configuration: `verso-<folder>`. */
+	server: string,
+	claude: McpClientState,
 };
 
 /**  A note's text as it is on disk now, with what the index knows of it. */
