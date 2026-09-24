@@ -31,31 +31,50 @@ modificações até gerar versão, considerando changelog inclusive"*.
    `chore/…`), um pull request pequeno, mesclado com um **merge commit**, que
    guarda todos os commits e os hashes deles — os documentos citam commits por
    hash. O mantenedor faz o merge; o merge é a aprovação.
-3. **As mudanças se acumulam na `main` até uma versão.** Todo pull request
-   acrescenta as suas linhas em "Não lançado" no `CHANGELOG.md` e no gêmeo
-   pt-BR dele.
+3. **As mudanças se acumulam na `main` até uma versão.** Uma mudança que o
+   usuário vê acrescenta as suas linhas em "Não lançado" no `CHANGELOG.md` e
+   no gêmeo pt-BR dele.
 4. **As versões seguem o SemVer, `0.y.z` antes do 1.0.** `vX.Y.Z` é uma
    release de produção; `vX.Y.Z-beta.N` é uma release de teste. A versão mora
    num lugar só, o `Cargo.toml` do workspace, que todo crate e o app leem; o
-   `app/ui/package.json` é mantido igual. As tags de versão são permanentes:
-   um ruleset recusa apagar ou mover uma tag `v*`.
+   `app/ui/package.json` é mantido igual.
 5. **Uma versão só é gerada quando o mantenedor pede** — pelo mantenedor, ou
    por um agente a pedido dele — com o `scripts/release.mjs`:
    `prepare X.Y.Z[-beta.N]` define a versão e move as entradas não lançadas do
    changelog para ela, num pull request; depois do merge, `tag
-   X.Y.Z[-beta.N]` marca a `main` e envia a tag.
+   X.Y.Z[-beta.N]` marca o commit da `main` que trouxe a versão — o merge do
+   pull request da release, não o que foi mesclado depois dele — e envia a
+   tag.
 6. **A tag compila e publica a release** (`.github/workflows/release.yml`), e
    nada mais o faz: o app de macOS (arm64) num zip e a linha de comando num
    arquivo, o changelog da versão como notas, uma pré-release para
-   `-beta.N`. Uma release de teste é o "Verso Beta", com um identificador
-   próprio, para ser instalado ao lado do app de produção com ajustes
-   próprios, e a linha de comando dele o abre. Windows, depois Linux, entram
-   quando os portes chegarem ([0022](0022-target-platforms-macos-first.md)).
+   `-beta.N`. Antes de compilar, ele confere que a tag nomeia a versão que as
+   fontes carregam, no formato de uma versão, com o changelog dela nas duas
+   línguas, num commit que está na `main`. Uma release de teste é o "Verso
+   Beta", com um identificador próprio, para ser instalado ao lado do app de
+   produção com os próprios ajustes da janela, e a linha de comando dele o
+   abre; o índice, um cache que se refaz, é compartilhado. Windows, depois
+   Linux, entram quando os portes chegarem
+   ([0022](0022-target-platforms-macos-first.md)).
 7. **O app diz qual ele é**: a versão e o commit de onde foi compilado, nos
    ajustes e no painel Sobre do macOS, e pelo `verso --version`.
 
 ## Consequências
 
+- **Provisório, do autor — o mantenedor decide:** um ruleset definido em
+  2026-09-24 recusa apagar ou mover uma tag `v*`, sem ninguém isento. As
+  palavras do mantenedor pedem uma `main` protegida e versões a partir de
+  tags, não tags permanentes; a leitura deste pull request achou a lacuna.
+  Enquanto o ruleset existir, uma versão nunca é desfeita.
+- **Um ensaio antes da primeira tag**: o workflow de release rodado à mão
+  (Actions → release → Run workflow) compila os mesmos arquivos a partir da
+  `main` como uma release de teste e os guarda como artefatos da execução,
+  sem publicar nada.
+- **Uma release que falha**: rode de novo — o passo de publicação substitui
+  os arquivos e as notas de uma release parcial. Se as fontes causam a
+  falha, a versão não pode sair: corrija num pull request, devolva as linhas
+  do changelog da versão que falhou para "Não lançado" no mesmo pull request,
+  e gere o próximo `-beta.N` (ou o próximo patch).
 - O app é assinado ad hoc, não com um Developer ID: o macOS pede uma vez, na
   primeira abertura, para liberá-lo ("Abrir Mesmo Assim" em Privacidade e
   Segurança). Um Developer ID (uma assinatura paga da Apple) é decisão para
@@ -64,9 +83,10 @@ modificações até gerar versão, considerando changelog inclusive"*.
   de Linux ([0029](0029-guardrails-in-ci.md)); gerar versão é raro de
   propósito.
 - A conta do GitHub que os agentes usam é a do mantenedor, então as proteções
-  valem igual para os dois: uma mudança só chega à `main` por pull request, e
-  uma versão só existe por uma tag que o script de release envia quando
-  pedido.
+  valem igual para os dois: uma mudança só chega à `main` por pull request.
+  Que uma versão só venha do script de release, quando pedido, é regra desta
+  ADR e do `CLAUDE.md`, não uma configuração do GitHub. O repositório aceita
+  só merge commits; merges com squash e rebase estão desligados.
 - Um pull request que muda o que o usuário vê sem uma linha no changelog está
   incompleto, como um sem o gêmeo pt-BR está
   ([0008](0008-documentation-language.md)).
@@ -91,4 +111,5 @@ modificações até gerar versão, considerando changelog inclusive"*.
 
 ## Status
 
-Aceito.
+Aceito, menos a permanência das tags de versão: provisória
+(Consequências).

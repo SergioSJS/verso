@@ -219,8 +219,9 @@ documents cite commits by hash ([ADR 0051](docs/adr/0051-development-flow-and-re
 A version is cut **only when the maintainer asks**, and then an agent may cut
 it: `node scripts/release.mjs prepare X.Y.Z[-beta.N]` opens the release pull
 request; after its merge, `node scripts/release.mjs tag X.Y.Z[-beta.N]` tags
-`main`, and the tag builds and publishes the release. `-beta.N` is a test
-release. Never push a version tag by hand; version tags are permanent.
+the commit that brought the version, and the tag builds and publishes the
+release. `-beta.N` is a test release. Never push, move or delete a version
+tag by hand.
 
 ---
 

@@ -22,7 +22,8 @@
   mantenedor: um job de Linux por pull request, clippy e os testes no macOS e
   o fuzzing só no `main`, os apps empacotados só numa tag de versão.
   2026-09-24 — os guardrails rodam localmente antes de um push, por dois
-  scripts, a pedido do mantenedor.
+  scripts, a pedido do mantenedor. 2026-09-24 — o workflow de release existe,
+  com o fluxo de desenvolvimento da [0051](0051-development-flow-and-releases.md).
 
 ## Contexto
 

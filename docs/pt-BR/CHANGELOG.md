@@ -2,8 +2,9 @@
 
 [English](../../CHANGELOG.md)
 
-O que muda de uma versão do Verso para a seguinte, para quem o usa. Todo pull
-request acrescenta as suas linhas em **Não lançado**, nas duas línguas; gerar
+O que muda de uma versão do Verso para a seguinte, para quem o usa. Toda
+mudança que o usuário vê acrescenta as suas linhas em **Não lançado**, nas
+duas línguas; gerar
 uma versão as move para o título da própria versão
 ([ADR 0051](adr/0051-development-flow-and-releases.md)). As versões seguem o
 [SemVer](https://semver.org): `X.Y.Z` para produção, `X.Y.Z-beta.N` para uma
