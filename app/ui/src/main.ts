@@ -85,6 +85,7 @@ type Strings = Record<
   graphNodes: (n: number, m: number) => string;
   pdfHits: (n: number, current: number) => string;
   readOutside: (names: string) => string;
+  backOutside: (names: string) => string;
   notWatched: (why: string) => string;
   notIndexed: (why: string) => string;
   conflictOutside: (names: string) => string;
@@ -117,6 +118,7 @@ const pt: Strings = {
   theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
   readOutside: (names) => `Mudou fora do Verso e foi lida de novo: ${names}.`,
+  backOutside: (names) => `Voltou para a pasta: ${names}.`,
   notWatched: (why) => `Mudanças feitas fora do Verso só aparecem no Reindexar: a pasta não pôde ser vigiada (${why}).`,
   notIndexed: (why) => `A pasta mudou e não pôde ser indexada: ${why}`,
   conflictOutside: (names) => `Mudou fora do Verso, com texto não salvo aqui: ${names}. As duas versões estão na nota.`,
@@ -186,6 +188,7 @@ const en: Strings = {
   theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
   readOutside: (names) => `Changed outside Verso and read again: ${names}.`,
+  backOutside: (names) => `Back in the folder: ${names}.`,
   notWatched: (why) => `Changes made outside Verso show up on Reindex only: the folder could not be watched (${why}).`,
   notIndexed: (why) => `The folder changed and could not be indexed: ${why}`,
   conflictOutside: (names) => `Changed outside Verso, with unsaved text here: ${names}. Both versions are in the note.`,
@@ -1231,6 +1234,8 @@ class NoteLeaf extends Leaf {
   private checks = 0;
   /** A check waits for the properties panel to let go. */
   private checkWaits = false;
+  /** The note the reading view last drew. */
+  private shownPath = "";
   eol = "\n";
   /** The file mixes line endings: shown, never edited (lineSeparator). */
   private readOnly = false;
@@ -1773,7 +1778,7 @@ class NoteLeaf extends Leaf {
    *  Changed, with text not saved yet: saved now, which meets the
    *  difference (invariant 11). Gone: said, and the text stays. An edit
    *  under way in the properties panel is waited for. */
-  async recheck(): Promise<"same" | "read" | "conflict" | "gone"> {
+  async recheck(): Promise<"same" | "read" | "conflict" | "gone" | "back"> {
     const path = this.path;
     if (!path || !this.note || this.conflict.up) return "same";
     if (this.props.el.contains(document.activeElement)) {
@@ -1796,15 +1801,17 @@ class NoteLeaf extends Leaf {
       this.markGone();
       return "gone";
     }
-    if (this.gone) this.setGone(false);
-    if (note.data.revision === this.revision) return "same";
+    const back = this.gone;
+    if (back) this.setGone(false);
+    if (note.data.revision === this.revision) return back ? "back" : "same";
     if (this.dirty) {
       // Waited for, so that what the refused write puts on the status line
       // comes before what the watcher says of it.
       await this.flush();
       return "conflict";
     }
-    return this.fromDisk(note.data) ? "read" : "same";
+    // A note put back as it was comes with a new time: its text is the same.
+    return this.fromDisk(note.data) ? "read" : back ? "back" : "same";
   }
   /** Other notes changed: what this one's links resolve to and its
    *  backlinks may have changed with them. It is drawn again only when it
@@ -1927,10 +1934,13 @@ class NoteLeaf extends Leaf {
     // or what stands at the same place among what the note draws.
     const active = document.activeElement;
     const key = active instanceof HTMLElement && active !== this.preview && this.preview.contains(active) ? focusKey(this.preview, active) : null;
+    // The same note drawn again keeps its callouts as the user left them.
+    const open = this.shownPath === note.path ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
+    this.shownPath = note.path;
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
     setHtml(this.preview, note.html);
-    wireCallouts(this.preview);
+    wireCallouts(this.preview, open);
     keyLinks(this.preview);
     this.shownText = note.text;
     this.gatherFootnotes();
@@ -4397,7 +4407,7 @@ function refreshLists(): void {
   })());
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") whenNotRenaming(l.el, () => void l.load(l.path));
 }
-type Outcome = { leaf: NoteLeaf; outcome: "same" | "read" | "conflict" | "gone" };
+type Outcome = { leaf: NoteLeaf; outcome: "same" | "read" | "conflict" | "gone" | "back" };
 /** Every open note checked against the disk. `changed`: the notes that
  *  changed somewhere (or "all", after the window's own file operations) —
  *  the others look their links up again, and draw again when they embed
@@ -4416,10 +4426,12 @@ function tellOutcomes(outcomes: Outcome[]): void {
   const read = names("read");
   const conflict = names("conflict");
   const gone = names("gone");
+  const back = names("back");
   const said: string[] = [];
   if (conflict.length > 0) said.push(t.conflictOutside(conflict.join(", ")));
   if (gone.length > 0) said.push(t.goneNamed(gone.join(", ")));
   if (read.length > 0) said.push(t.readOutside(read.join(", ")));
+  if (back.length > 0) said.push(t.backOutside(back.join(", ")));
   if (said.length > 0) ui.status.textContent = said.join(" ");
 }
 /** The index's problems, when they are not the ones already shown: the
@@ -4463,8 +4475,10 @@ async function newUntitled(pane: Pane): Promise<void> {
  *  `[!kind]+` or `[!kind]-` callout opens and closes it, by the pointer or
  *  the keyboard, and `-` starts it closed (spec Q5). A link in the title
  *  stays a link. */
-function wireCallouts(root: ParentNode): void {
+function wireCallouts(root: ParentNode, open: readonly boolean[] = []): void {
+  let at = 0;
   for (const box of root.querySelectorAll<HTMLElement>(".callout[data-fold]")) {
+    const was = open[at++];
     const title = box.querySelector<HTMLElement>(":scope > .callout-title");
     if (!title) continue;
     // A title with a link in it cannot be the button too — a link inside a
@@ -4491,7 +4505,7 @@ function wireCallouts(root: ParentNode): void {
       box.classList.toggle("folded", !open);
       control.setAttribute("aria-expanded", String(open));
     };
-    show(box.dataset["fold"] !== "-");
+    show(was ?? box.dataset["fold"] !== "-");
     title.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest("a")) return;
       show(box.classList.contains("folded"));
