@@ -992,8 +992,13 @@ abstract class Leaf {
       return;
     }
     if (!(await this.flush()) && !(await askDiscard())) return;
+    // The keyboard was on this tab, or in it: it lands on the tab that
+    // takes its place, not on the page.
+    const had = this.tab === document.activeElement || this.el.contains(document.activeElement);
+    const pane = this.pane;
     this.destroy();
-    this.pane.remove(this);
+    pane.remove(this);
+    if (had) landIn(pane);
   }
   setPinned(p: boolean): void {
     this.pinned = p;
@@ -3173,6 +3178,7 @@ class Pane {
       l.destroy();
       this.remove(l, true);
     }
+    if (lost()) landIn(this);
   }
   /** `next` takes `leaf`'s place — the same tab position, path and pin —
    *  once `leaf` has saved what it holds; a refused save keeps `leaf`. */
@@ -3240,7 +3246,23 @@ class Pane {
       this.remove(l, true);
     }
     if (layout().paneCount() > 1) layout().remove(this);
+    if (lost()) landIn(this);
   }
+}
+/** The focus fell on the page: what had it went away. */
+function lost(): boolean {
+  return document.activeElement === null || document.activeElement === document.body;
+}
+/** Where the keyboard lands once tabs closed: the tab now in front of
+ *  `pane`, or of the focused pane when `pane` went; its content when the
+ *  tab bar is hidden; the pane's tools when it has no tab left. */
+function landIn(pane: Pane): void {
+  const here = layout().panes().includes(pane) ? pane : layout().focused;
+  const leaf = here?.active;
+  if (leaf) {
+    leaf.tab.focus();
+    if (document.activeElement !== leaf.tab) leaf.focusContent();
+  } else here?.tools.querySelector<HTMLButtonElement>("button")?.focus();
 }
 
 /* ---------- Layout: a tree of splits ---------- */
