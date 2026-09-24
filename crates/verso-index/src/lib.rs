@@ -34,7 +34,7 @@ use rusqlite::Connection;
 
 pub use keys::{file_key, note_keys, target_key};
 pub use search::Hit;
-pub use store::{Backlink, Block, Heading, Link, NoteStamp, Unresolved};
+pub use store::{Backlink, Block, Heading, Link, NoteStamp, Unresolved, VaultLink};
 
 /// The schema version this build writes. The sidecar beside the index
 /// records it (`docs/reference/index-decision.md` §2.4); a different

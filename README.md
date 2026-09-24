@@ -61,10 +61,14 @@ beside the production app with its own window settings
 - **Installing one**: from the repository's Releases page, unzip the app
   into `/Applications`. It is signed ad hoc, not by a registered developer:
   the first time, macOS refuses to open it — allow it once in System Settings
-  → Privacy & Security → "Open Anyway". The `verso-cli` archive holds the
-  command line; put `verso` on your `PATH`. Extracted by the Finder, it is
-  held back the same way on its first run: allow it there too, or run
-  `xattr -d com.apple.quarantine verso` once.
+  → Privacy & Security → "Open Anyway". The command line comes inside the
+  app: Settings → Terminal and agents → Install links it as
+  `/usr/local/bin/verso` (macOS asks for your password if that directory is
+  not yours), and the same page connects Claude Desktop and shows the entry
+  for other MCP clients ([ADR 0054](docs/adr/0054-terminal-and-agents-from-the-app.md)).
+  The `verso-cli` archive holds the same command line for a machine without
+  the app; extracted by the Finder, it is held back on its first run: allow
+  it in the same place, or run `xattr -d com.apple.quarantine verso` once.
 - **Which one is running**: Settings → General → Version, the About panel, or
   `verso --version`.
 - **Cutting one** happens only when the maintainer asks:

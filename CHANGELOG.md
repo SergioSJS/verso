@@ -14,6 +14,26 @@ test release.
 
 ### Added
 
+- **Views over the folder — bases, as Obsidian writes them**: a `.base` file,
+  or a `base` block in a note, shows the notes as a table, cards, a list, a
+  kanban or a calendar, filtered, sorted, grouped and summarized, with
+  formulas; the same file Obsidian opens. A card dragged to another column,
+  a note dragged to another day and a cell edited in the table write that
+  one property into the note. Menus change the view — sort, group, filters,
+  properties, layout — without touching the rest of the base's file. A
+  view's rows copy as a Markdown table or CSV, or become a note. Command
+  palette → "New base" and "Insert base"; `![[File.base#View]]` embeds one.
+- **The month of your daily notes** in the side panel: a mark on each day
+  with a note; a click opens it or makes it.
+- **A second window on the same folder**: Window → New Window, or the command
+  palette → "New window", with its own tabs; what one writes, the other
+  reads.
+- **Terminal and agents in the settings**: one click puts `verso` on the
+  terminal's `PATH`, one more connects Claude Desktop to the folder (the entry
+  shown first, a copy of its file kept); the entry for Claude Code and other
+  MCP clients is ready to copy. `verso mcp --key <key>` names the folder by
+  the key the app gives it.
+
 - **Changes made outside Verso show up by themselves**: a note edited in
   another app, a sync or `git pull` reaches the open tabs, the search and the
   backlinks a moment later, and the tree when files come, go or move. A tab

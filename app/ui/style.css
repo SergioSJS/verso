@@ -886,3 +886,190 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 /* ---------- A property the panel shows but does not rewrite (props.ts): Source mode edits it ---------- */
 .prop.fixed .prop-input:disabled { color: var(--ink-2); background: none; cursor: default; }
 .prop.fixed .pill-label { cursor: default; }
+
+/* ---------- Bases (ADR 0053): a view over the folder ----------
+ * The bar is chrome (Instrument Sans, small); what the files say reads in
+ * the book face. Hairlines separate, space groups; the seal marks today
+ * and where a card lands. */
+.base-host { padding-top: .2rem; }
+.base { display: flex; flex-direction: column; gap: .35rem; min-width: 0; font-family: var(--ui); }
+.base-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem .8rem; padding-bottom: .45rem; border-bottom: 1px solid var(--hair); }
+.base-bar-left, .base-bar-right { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
+.base-views { display: inline-flex; align-items: center; gap: .4rem; padding: .28rem .55rem; border-radius: 6px; font-weight: 600; font-size: .9rem; color: var(--ink); }
+.base-views:hover, .base-views:focus-visible { background: var(--paper-3); }
+.base-views .icon:last-child { width: 12px; height: 12px; transform: rotate(90deg); color: var(--ink-3); }
+.base-count { font-size: .8rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.base-tool { display: inline-flex; align-items: center; gap: .3rem; padding: .3rem; border-radius: 6px; color: var(--ink-2); font-size: .82rem; }
+.base-tool:hover:not(:disabled), .base-tool:focus-visible, .base-tool[aria-expanded="true"] { color: var(--ink); background: var(--paper-3); }
+.base-tool:disabled { opacity: .35; }
+.base-tool .icon { width: 15px; height: 15px; }
+.base-new { padding: .28rem .6rem .28rem .45rem; color: var(--seal); }
+.base-new:hover { background: var(--seal-wash) !important; color: var(--seal) !important; }
+.base-search { width: 11rem; padding: .28rem .55rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; font-size: .82rem; }
+.base-search:focus { outline: none; border-color: var(--brass); }
+.base-notices:empty { display: none; }
+.base-problem { margin: 0; padding: .35rem .6rem; border-left: 2px solid var(--brass); background: var(--brass-wash); color: var(--ink); font-size: .82rem; }
+.base-hint { margin: .6rem 0; color: var(--ink-3); font-size: .85rem; }
+.base-empty { margin: 1.2rem 0; color: var(--ink-3); font-size: .9rem; font-style: italic; font-family: var(--book); }
+.base-body { min-width: 0; }
+
+/* The popovers under the bar. */
+.base-pop { position: fixed; z-index: 21; width: min(24rem, calc(100vw - 16px)); max-height: min(70vh, 32rem); overflow: auto; padding: .6rem .75rem .75rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 9px; box-shadow: 0 12px 34px -12px oklch(0% 0 0 / .35); font-family: var(--ui); font-size: .85rem; }
+.base-pop h3 { margin: .45rem 0 .35rem; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.base-pop h3:first-child { margin-top: 0; }
+.base-field { display: grid; grid-template-columns: 9rem 1fr; align-items: center; gap: .5rem; margin: .3rem 0; }
+.base-field > span { color: var(--ink-2); }
+.base-field input, .base-field select, .base-conditions input { min-width: 0; padding: .25rem .4rem; border: 1px solid var(--hair); border-radius: 5px; background: var(--paper); color: var(--ink); font: inherit; }
+.base-field input:focus, .base-field select:focus, .base-conditions input:focus { outline: none; border-color: var(--brass); }
+.base-check-field { grid-template-columns: auto 1fr; }
+.base-row { display: flex; align-items: center; gap: .35rem; margin: .25rem 0; }
+.base-row .base-field { flex: 1; grid-template-columns: 1fr; margin: 0; }
+.base-row .base-field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.base-conditions .base-row input { flex: 1; font-family: var(--mono); font-size: .8rem; }
+.base-link-button { padding: .2rem .1rem; color: var(--seal); font-size: .82rem; }
+.base-link-button:hover, .base-link-button:focus-visible { text-decoration: underline; }
+.base-filter + .base-filter { margin-top: .6rem; padding-top: .5rem; border-top: 1px solid var(--hair); }
+.base-props { list-style: none; margin: 0; padding: 0; }
+.base-props li { display: flex; align-items: center; gap: .45rem; padding: .18rem .1rem; }
+.base-props li.off label { color: var(--ink-3); }
+.base-props li label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.base-props li .base-tool { padding: .12rem; }
+
+/* Cells. */
+.base-num { font-variant-numeric: tabular-nums; }
+.base-date { font-variant-numeric: tabular-nums; }
+.base-pills { display: inline-flex; flex-wrap: wrap; gap: .2rem; }
+.base-pill { padding: .02rem .45rem; border-radius: 999px; background: var(--paper-3); font-size: .85em; }
+.base-link { color: var(--seal); text-decoration: none; }
+.base-link:hover, .base-link:focus-visible { text-decoration: underline; }
+.base-link.unresolved { color: var(--ink-3); text-decoration: underline dotted; }
+.base-img { max-width: 100%; max-height: 4.5rem; border-radius: 4px; vertical-align: middle; }
+.base-swatch { display: inline-block; width: 1.1rem; height: 1.1rem; border-radius: 4px; border: 1px solid var(--hair); vertical-align: middle; }
+.base-error { color: var(--seal); cursor: help; }
+.base-icon { font-family: var(--mono); font-size: .8em; color: var(--ink-3); }
+.base-check { accent-color: var(--seal); }
+
+/* Table. */
+.base-table-wrap { overflow-x: auto; }
+.base-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .88rem; }
+.base-table th { position: relative; padding: 0; text-align: left; font-weight: 600; font-size: .78rem; color: var(--ink-2); border-bottom: 1px solid var(--hair); }
+.base-th { width: 100%; padding: .45rem .55rem; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 0; }
+.base-th:hover, .base-th:focus-visible { background: var(--paper-2); color: var(--ink); }
+.base-col-grip { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 1; }
+.base-col-grip:hover { background: linear-gradient(90deg, transparent 3px, var(--brass) 3px, var(--brass) 4px, transparent 4px); }
+.base-table td { padding: .38rem .55rem; border-bottom: 1px solid color-mix(in oklch, var(--hair) 60%, transparent); vertical-align: top; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
+.base-table[data-height="medium"] td { padding-block: .7rem; }
+.base-table[data-height="tall"] td { padding-block: 1.1rem; }
+.base-table[data-height="extraTall"] td { padding-block: 1.7rem; }
+.base-table tbody tr:hover td { background: color-mix(in oklch, var(--paper-2) 70%, transparent); }
+.base-file { color: var(--ink); font-weight: 600; text-decoration: none; font-family: var(--book); }
+.base-file:hover, .base-file:focus-visible { color: var(--seal); text-decoration: underline; }
+.base-editable { cursor: text; }
+.base-editable:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: -2px; }
+.base-cell-input { width: 100%; padding: .1rem .3rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; }
+.base-group th { padding: .9rem .55rem .35rem; border-bottom: 1px solid var(--hair); background: transparent; }
+.base-group-key { font-family: var(--book); font-weight: 600; font-size: .95rem; color: var(--ink); }
+.base-group-count { margin-left: .5rem; font-size: .75rem; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.base-summary td { padding: .3rem .55rem; font-size: .78rem; color: var(--ink-2); border-bottom: 1px solid var(--hair); background: var(--paper-2); }
+.base-summary-name { color: var(--ink-3); }
+tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
+
+/* Cards. */
+.base-cards-wrap { --card-w: 220px; }
+.base-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--card-w), 100%), 1fr)); gap: .8rem; margin: .4rem 0 1rem; padding: 0; list-style: none; }
+.base-card { position: relative; display: flex; flex-direction: column; gap: .35rem; height: 100%; padding: .7rem .8rem .75rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; }
+.base-card:hover { border-color: color-mix(in oklch, var(--brass) 55%, var(--hair)); }
+.base-cover { margin: -.7rem -.8rem .2rem; overflow: hidden; border-radius: 7px 7px 0 0; background: var(--paper-3); }
+.base-cover .base-img { display: block; width: 100%; height: 100%; max-height: none; border-radius: 0; object-fit: cover; }
+.base-cover[data-fit="contain"] .base-img { object-fit: contain; }
+.base-card-title { font-family: var(--book); font-weight: 600; font-size: .98rem; line-height: 1.3; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.base-card-title:hover, .base-card-title:focus-visible { color: var(--seal); text-decoration: underline; }
+.base-card-props { display: grid; grid-template-columns: auto 1fr; gap: .12rem .6rem; margin: 0; font-size: .8rem; }
+.base-card-props dt { color: var(--ink-3); }
+.base-card-props dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.base-group-head { display: flex; align-items: baseline; margin: 1rem 0 .2rem; font-family: var(--book); font-size: 1rem; }
+
+/* List. */
+.base-list { margin: .4rem 0 1rem; padding-left: 1.4rem; font-family: var(--book); }
+.base-list[data-markers="none"] { list-style: none; padding-left: 0; }
+.base-list li { margin: .2rem 0; }
+.base-list-rest { color: var(--ink-2); font-size: .92em; }
+.base-list-props { margin: .15rem 0 .3rem; padding-left: 1.2rem; color: var(--ink-2); font-size: .9em; }
+
+/* Kanban. */
+.base-kanban-wrap { overflow-x: auto; padding-bottom: .6rem; }
+/* Every column as tall as the board: a card dropped anywhere in a
+ * column's band lands in it, below its last card too. */
+.base-kanban { display: flex; align-items: stretch; gap: .75rem; min-height: 12rem; }
+.base-column { flex: 0 0 17rem; display: flex; flex-direction: column; max-height: 78vh; background: var(--paper-2); border: 1px solid transparent; border-radius: 9px; }
+.base-column.drop { border-color: var(--brass); background: var(--brass-wash); }
+.base-column-head { display: flex; align-items: center; gap: .35rem; padding: .55rem .6rem .45rem .8rem; }
+.base-column-head[draggable="true"] { cursor: grab; }
+.base-column-head h3 { flex: 1; margin: 0; font-family: var(--book); font-size: .95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.base-column-cards { flex: 1; overflow: auto; margin: 0; padding: 0 .5rem .6rem; list-style: none; display: flex; flex-direction: column; gap: .45rem; min-height: 2.4rem; }
+.base-column .base-card { padding: .55rem .65rem .6rem; }
+.base .movable { cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
+.base .movable.dragging { opacity: .45; cursor: grabbing; }
+.base-card-more { position: absolute; top: .3rem; right: .3rem; opacity: 0; }
+.base-card:hover .base-card-more, .base-card-more:focus-visible { opacity: 1; }
+.base-column-new { flex: 0 0 13rem; padding: .5rem; background: transparent; border: 1px dashed var(--hair); }
+.base-column-new input { width: 100%; padding: .35rem .5rem; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: .88rem; }
+.base-column-new input:focus { outline: none; }
+
+/* Calendar. */
+.base-cal-head { display: flex; align-items: center; gap: .35rem; margin: .2rem 0 .5rem; }
+.base-cal-title { min-width: 11rem; margin: 0; font-family: var(--display); font-weight: 500; font-size: 1.2rem; text-align: center; }
+.base-cal-today { margin-left: auto; padding: .28rem .6rem; }
+.base-cal-grid { display: grid; grid-template-rows: auto; border-top: 1px solid var(--hair); border-left: 1px solid var(--hair); }
+.base-cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.base-cal-name { padding: .3rem .45rem; font-size: .72rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); border-right: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+.base-cal-day { min-height: 6.4rem; padding: .25rem .3rem .35rem; border-right: 1px solid var(--hair); border-bottom: 1px solid var(--hair); min-width: 0; }
+.base-cal-day.outside { background: color-mix(in oklch, var(--paper-2) 60%, transparent); }
+.base-cal-day.outside .base-cal-num { color: var(--ink-3); opacity: .6; }
+.base-cal-day.drop { background: var(--brass-wash); outline: 1px solid var(--brass); outline-offset: -1px; }
+.base-cal-day-top { display: flex; align-items: center; justify-content: space-between; }
+.base-cal-num { display: inline-grid; place-items: center; min-width: 1.6rem; height: 1.6rem; border-radius: 999px; font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.base-cal-day.today .base-cal-num { background: var(--seal); color: var(--seal-ink); font-weight: 600; }
+.base-cal-add { opacity: 0; padding: .12rem; }
+.base-cal-day:hover .base-cal-add, .base-cal-add:focus-visible { opacity: 1; }
+.base-cal-items { margin: .15rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .15rem; }
+.base-cal-item { display: block; padding: .1rem .35rem; border-radius: 4px; background: var(--paper-3); color: var(--ink); font-size: .78rem; line-height: 1.35; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: grab; }
+.base-cal-item:hover, .base-cal-item:focus-visible { background: var(--seal-wash); color: var(--seal); }
+.base-cal-item.span { background: var(--brass-wash); }
+.base-cal-time { font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.base-cal-more { padding: .05rem .35rem; font-size: .75rem; color: var(--ink-3); }
+.base-cal-more:hover, .base-cal-more:focus-visible { color: var(--seal); }
+
+/* A base inside a note: the reading view and Live Preview. Its links are
+ * its own, not the note's. */
+.embed-base a, .cm-lp-base a { border-bottom: 0; }
+.embed-base a.base-file, .cm-lp-base a.base-file, .embed-base a.base-card-title, .cm-lp-base a.base-card-title { color: var(--ink); }
+.embed-base a.base-file:hover, .embed-base a.base-card-title:hover, .cm-lp-base a.base-file:hover, .cm-lp-base a.base-card-title:hover { color: var(--seal); }
+.embed-base table, .embed-base th, .embed-base td { border-left: 0; border-right: 0; }
+.embed-base { margin: 1rem 0; padding: .6rem .8rem .8rem; border: 1px solid var(--hair); border-radius: 9px; font-size: .95rem; }
+.cm-lp-base { position: relative; margin: .6rem 0; padding: .6rem .8rem .8rem; border: 1px solid var(--hair); border-radius: 9px; white-space: normal; font-family: var(--ui); }
+.cm-lp-base-source { position: absolute; top: .35rem; right: .45rem; z-index: 1; padding: .1rem .35rem; border-radius: 5px; font-family: var(--mono); font-size: .72rem; color: var(--ink-3); opacity: 0; }
+.cm-lp-base:hover .cm-lp-base-source, .cm-lp-base-source:focus-visible { opacity: 1; }
+.cm-lp-base-source:hover { background: var(--paper-3); color: var(--ink); }
+
+/* The month of the daily notes, in the side panel. */
+.daily-cal { padding: .3rem .2rem; font-family: var(--ui); }
+.daily-head { display: flex; align-items: center; gap: .15rem; margin-bottom: .4rem; }
+.daily-title { flex: 1; margin: 0; font-family: var(--display); font-weight: 500; font-size: 1.02rem; text-align: center; }
+.daily-today { padding: .2rem .45rem; font-size: .75rem; }
+.daily-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.daily-name { padding: .15rem 0; font-size: .66rem; text-align: center; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+.daily-cell { display: grid; place-items: center; padding: .08rem; }
+.daily-day { position: relative; width: 2rem; height: 2rem; border-radius: 999px; font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.daily-day:hover, .daily-day:focus-visible { background: var(--paper-3); color: var(--ink); }
+.daily-day.has::after { content: ""; position: absolute; left: 50%; bottom: .2rem; width: 4px; height: 4px; margin-left: -2px; border-radius: 999px; background: var(--brass); }
+.daily-day.today { background: var(--seal); color: var(--seal-ink); font-weight: 600; }
+.daily-day.today.has::after { background: var(--seal-ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .base-card, .base-column, .base-cal-day { transition: border-color .15s var(--ease-out), background-color .15s var(--ease-out); }
+}
+
+/* Terminal and agents (ADR 0054): a state, its button, and snippets to copy. */
+.setting-actions { display: inline-flex; align-items: center; gap: .5rem; flex-wrap: wrap; justify-content: flex-end; }
+.setting-snippet { display: flex; align-items: flex-start; gap: .5rem; max-width: 26rem; }
+.setting-code { flex: 1; min-width: 0; margin: 0; padding: .45rem .6rem; overflow-x: auto; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 6px; font-family: var(--mono); font-size: .76rem; line-height: 1.45; white-space: pre; }

@@ -11,7 +11,9 @@
 - Revisões: 2026-09-24 — `[ABERTO]` fechado pelo mantenedor na sessão, sobre
   o memo: Decisão, Consequências, Alternativas descartadas e Status
   preenchidos no lugar; o último parágrafo do Contexto, que descrevia o
-  rascunho, reescrito.
+  rascunho, reescrito. 2026-09-24 — o detalhe aberto do ponto 3 fechado pelo
+  mantenedor no mesmo dia (`docs/reference/views-decision.md` §2): só um
+  bloco no nível de cima de uma nota conta.
 
 ## Contexto
 
@@ -73,10 +75,10 @@ este ADR ([0033](0033-pr-workflow.md), revisto no mesmo dia).
    mantenedor escolheu a da §5.3, como o memo recomenda: um schema é conteúdo,
    como os packs são ([0015](0015-schema-packs.md)), e viaja com a pasta. A §8
    e o 0021 ficam como estão escritos, Propostos, e discordam deste ponto
-   sobre schemas (memo, seções 5.1 a 5.6 e 10, item 1). **Não decidido:** se
-   um bloco aninhado numa lista ou num callout conta, ou só um no nível de
-   cima da nota — o memo deixou isso para a mudança que fecha e pende para o
-   nível de cima, que deixa de fora um exemplo citado.
+   sobre schemas (memo, seções 5.1 a 5.6 e 10, item 1). **Só um bloco no nível de cima da nota conta**,
+   decidido em 2026-09-24 (`docs/reference/views-decision.md` §2): um bloco
+   dentro de uma lista ou de um callout não é lido como schema, e a nota diz
+   isso — o que deixa de fora um exemplo citado.
 4. **Um schema declara, na primeira versão**, `type` (o nome que as notas
    escrevem no próprio `type:`), `label` (o nome do tipo por idioma da
    interface, pt-BR e EN; um que falte cai no nome) e `properties`, uma lista
@@ -209,5 +211,5 @@ seção 6 do memo — esperam a parte de links da Q24.
 Aceito em 2026-09-24 pelo mantenedor, na sessão, sobre o memo
 `docs/reference/typed-note-decision.md`: a Decisão acima. Rascunhado no mesmo
 dia junto com o memo e lido com ele por uma sessão nova da Opus 5.5 (o memo,
-seção 13). Fica em aberto dentro dele: se um bloco `verso-schema` aninhado
-numa lista ou num callout conta (ponto 3).
+seção 13). O detalhe aberto do ponto 3 — se um bloco `verso-schema`
+aninhado conta — fechado pelo mantenedor no mesmo dia: não conta.

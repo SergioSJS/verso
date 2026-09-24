@@ -33,6 +33,10 @@ export type LiveOptions = {
   /** The rendered HTML of an embedded note, once known; `null` when the
    *  target is not a note; `undefined` while being asked. */
   noteHtml?: (target: string) => string | null | undefined;
+  /** A base drawn into `mount` (ADR 0053): a `base` block's text (`embed`
+   *  null; `edit` replaces the block's text), or a `.base` file embedded on
+   *  a line of its own. Returns what takes it down. */
+  base?: (text: string, embed: string | null, mount: HTMLElement, edit: ((next: string) => void) | null) => () => void;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -283,7 +287,8 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed"; text: string; rows?: string[] };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base"; text: string; rows?: string[]; embed?: true; nested?: true };
+const BASE_EMBED = /\.base(#[^|]*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
 export function blocksOf(state: EditorState): Block[] {
   const doc = state.doc;
@@ -297,6 +302,21 @@ export function blocksOf(state: EditorState): Block[] {
   };
   tree.iterate({
     enter: (n) => {
+      if (n.name === "FencedCode") {
+        // A `base` block: the view in place of the fence (ADR 0053).
+        const info = n.node.getChild("CodeInfo");
+        if (info && doc.sliceString(info.from, info.to).trim() === "base") {
+          // Inside a quote, a callout or a list the parser gives the text a
+          // line at a time, without the marks: such a block is shown, and
+          // its menus do not edit it — they would write it back unmarked.
+          const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
+          let nested = false;
+          for (let p = n.node.parent; p; p = p.parent) if (p.name === "Blockquote" || p.name === "ListItem") nested = true;
+          const at = lines(n.from, n.to);
+          if (at) out.push({ ...at, kind: "base", text, ...(nested ? { nested: true as const } : {}) });
+        }
+        return false;
+      }
       if (n.name === "Table") {
         const rows: string[] = [];
         for (let c = n.node.firstChild; c; c = c.nextSibling) {
@@ -327,9 +347,22 @@ export function blocksOf(state: EditorState): Block[] {
     if (taken.some((b) => line.from <= b.to && line.to >= b.from)) continue;
     let code = false;
     for (let p: SyntaxNode | null = tree.resolveInner(line.from + line.text.search(/\S/), 1); p; p = p.parent) if (p.name === "FencedCode" || p.name === "CodeBlock") code = true;
-    if (!code) out.push({ from: line.from, to: line.to, kind: "embed", text: embed[1] ?? "" });
+    if (!code) out.push(BASE_EMBED.test(embed[1] ?? "") ? { from: line.from, to: line.to, kind: "base", text: embed[1] ?? "", embed: true } : { from: line.from, to: line.to, kind: "embed", text: embed[1] ?? "" });
   }
   return out.sort((a, b) => a.from - b.from);
+}
+
+/** What takes a drawn base down, by its widget's element. */
+const bases = new WeakMap<HTMLElement, () => void>();
+
+/** The text between a fenced block's fences, in `from`..`to` of `doc`:
+ *  the lines after the first and before the last. */
+function fenceInside(doc: Text, from: number, to: number): { from: number; to: number } | null {
+  const first = doc.lineAt(from);
+  const last = doc.lineAt(to);
+  if (last.number - first.number < 1) return null;
+  const inside = { from: Math.min(first.to + 1, doc.length), to: last.from };
+  return inside.from <= inside.to ? inside : null;
 }
 
 class BlockWidget extends WidgetType {
@@ -343,6 +376,38 @@ class BlockWidget extends WidgetType {
     const el = document.createElement("div");
     el.className = `cm-lp-block cm-lp-${this.block.kind}`;
     const b = this.block;
+    if (b.kind === "base") {
+      const isEmbed = b.embed === true;
+      // The block's source, a click away: the caret into the fence.
+      const code = document.createElement("button");
+      code.type = "button";
+      code.className = "cm-lp-base-source";
+      code.textContent = "</>";
+      code.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at, view.state.doc.length) } });
+        view.focus();
+      });
+      el.append(code);
+      const mount = document.createElement("div");
+      el.append(mount);
+      const edit = isEmbed || b.nested === true
+        ? null
+        : (next: string) => {
+            const at = startOf(view, el);
+            if (at === null) return;
+            const found = blocksOf(view.state).find((x) => x.kind === "base" && x.from === at);
+            const inside = found ? fenceInside(view.state.doc, found.from, found.to) : null;
+            if (!inside) return;
+            const body = next.endsWith("\n") ? next : `${next}\n`;
+            view.dispatch({ changes: { from: inside.from, to: inside.to, insert: body } });
+          };
+      const stop = this.opts.base?.(b.text, isEmbed ? b.text : null, mount, edit);
+      if (stop) bases.set(el, stop);
+      return el;
+    }
     if (b.kind === "math") {
       try {
         el.innerHTML = katex.renderToString(b.text, { displayMode: true, throwOnError: false });
@@ -401,6 +466,10 @@ class BlockWidget extends WidgetType {
   }
   override ignoreEvent(): boolean {
     return true;
+  }
+  override destroy(dom: HTMLElement): void {
+    bases.get(dom)?.();
+    bases.delete(dom);
   }
 }
 

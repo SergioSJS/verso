@@ -8,6 +8,12 @@
 - Revisões: 2026-09-23 — seção 2 confirmada pelo mantenedor, item a item; as
   Consequências sobre as questões abertas, a rede e as licenças npm atualizadas
   com as respostas do mantenedor desse dia (`docs/review/phase-2.md` §6).
+  2026-09-24 — duas linhas da seção 3 deixam de valer, pelo pedido do
+  mantenedor desse dia ("deve ser a prioridade agora. são funções básicas e
+  importantes"): as visões de kanban, calendário e tabela estão decididas no
+  [0053](0053-views-bases.md), e uma segunda janela na mesma pasta está
+  construída (`docs/reference/views-decision.md` §4); o terminal e os agentes
+  ligados pelos ajustes são o [0054](0054-terminal-and-agents-from-the-app.md).
 
 ## Contexto
 

@@ -17,7 +17,9 @@
 //! 0.13.4 panicked or took exponential time, fixed in the upstream revision
 //! the base is built from (ADR 0037); `callout-raw-html.txt`, a raw
 //! `</blockquote>` on a callout's title line, on which `to_html` sliced the
-//! HTML backwards and panicked (Opus reading of Phase 2, finding 1). Seeds
+//! HTML backwards and panicked (Opus reading of Phase 2, finding 1). The
+//! same input is read as a base and as one expression of a base's
+//! language, which must return as well (ADR 0053). Seeds
 //! run smallest first, so a seed that fails ends the job before any
 //! mutation: a seed is only added once it passes. Run:
 //! `cargo +nightly fuzz run parse fuzz/corpus/parse fuzz/seeds`.
@@ -79,4 +81,11 @@ fuzz_target!(|data: &[u8]| {
     for tag in verso_dialect::body_tags(source) {
         assert_eq!(tag.span.slice(source), Some(format!("#{}", tag.name).as_str()));
     }
+    // A base comes from a file of the folder too (ADR 0053): reading it,
+    // and every expression it holds, returns for any input.
+    let base = verso_dialect::bases::parse_base(source);
+    for (_, text) in base.formulas.iter().chain(base.summaries.iter()) {
+        let _ = verso_dialect::bases::parse_expression(text);
+    }
+    let _ = verso_dialect::bases::parse_expression(source);
 });

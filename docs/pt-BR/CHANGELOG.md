@@ -14,6 +14,27 @@ versão de teste.
 
 ### Acrescentado
 
+- **Visões sobre a pasta — bases, como o Obsidian as escreve**: um arquivo
+  `.base`, ou um bloco `base` numa nota, mostra as notas como tabela, cards,
+  lista, kanban ou calendário, filtradas, ordenadas, agrupadas e resumidas,
+  com fórmulas; o mesmo arquivo que o Obsidian abre. Um cartão arrastado para
+  outra coluna, uma nota arrastada para outro dia e uma célula editada na
+  tabela gravam só aquela propriedade na nota. Menus mudam a visão —
+  ordenar, agrupar, filtros, propriedades, layout — sem mexer no resto do
+  arquivo da base. As linhas de uma visão viram tabela Markdown ou CSV
+  copiados, ou uma nota. Paleta de comandos → "Nova base" e "Inserir base";
+  `![[Arquivo.base#Visão]]` incorpora uma.
+- **O mês das suas notas diárias** no painel lateral: uma marca em cada dia
+  com nota; um clique a abre ou a cria.
+- **Uma segunda janela na mesma pasta**: menu Window → New Window, ou a
+  paleta de comandos → "Nova janela", com abas próprias; o que uma grava, a
+  outra lê.
+- **Terminal e agentes nos ajustes**: um clique põe o `verso` no `PATH` do
+  terminal, mais um liga o Claude Desktop à pasta (a entrada mostrada antes,
+  uma cópia do arquivo dele guardada); a entrada para o Claude Code e outros
+  clientes MCP vem pronta para copiar. `verso mcp --key <chave>` nomeia a
+  pasta pela chave que o app dá a ela.
+
 - **Mudanças feitas fora do Verso aparecem sozinhas**: uma nota editada em
   outro app, uma sincronização ou um `git pull` chegam às abas abertas, à
   busca e aos backlinks um instante depois, e à árvore quando arquivos

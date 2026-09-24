@@ -9,7 +9,12 @@
 - Revisions: 2026-09-23 — section 2 confirmed by the maintainer, item by item;
   the Consequences on the open questions, the network and the npm licenses
   brought up to date with the maintainer's answers of that day
-  (`docs/review/phase-2.md` §6).
+  (`docs/review/phase-2.md` §6). 2026-09-24 — two lines of section 3 no longer
+  hold, by the maintainer's request of that day ("deve ser a prioridade agora.
+  são funções básicas e importantes"): the kanban, calendar and table views
+  are decided in [0053](0053-views-bases.md), and a second window on the same
+  folder is built (`docs/reference/views-decision.md` §4); the terminal and
+  agents set up from the settings are [0054](0054-terminal-and-agents-from-the-app.md).
 
 ## Context
 
