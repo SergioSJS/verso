@@ -1621,6 +1621,7 @@ class NoteLeaf extends Leaf {
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
     setHtml(this.preview, note.html);
+    wireCallouts(this.preview);
     this.shownText = note.text;
     this.gatherFootnotes();
     typeset(this.preview);
@@ -1680,6 +1681,7 @@ class NoteLeaf extends Leaf {
         head.after(edit);
         const body = h("div", "embed-note-body");
         setHtml(body, r.data.html);
+        wireCallouts(body);
         if (heading) sliceHeading(body, heading);
         typeset(body);
         box.append(head, body);
@@ -2176,6 +2178,7 @@ class FolderLeaf extends Leaf {
     if (r.status !== "ok" || this.path !== folder) return;
     const body = h("div", "folder-note-body");
     setHtml(body, r.data.html);
+    wireCallouts(body);
     typeset(body);
     const edit = button("ghost iconic embed-edit", t.edit, "edit");
     edit.addEventListener("click", () => openNote(notePath, false));
@@ -3850,6 +3853,32 @@ async function newUntitled(pane: Pane): Promise<void> {
   const taken = new Set(allNotes.map((p) => p.toLowerCase()));
   while (taken.has(`${folder ? folder + "/" : ""}${candidate}.md`.toLowerCase())) candidate = `${t.untitled} ${++untitledN + 1}`;
   await createNote(folder, candidate, pane, true);
+}
+/** Obsidian's foldable callouts, in the reading view: the title of a
+ *  `[!kind]+` or `[!kind]-` callout opens and closes it, by the pointer or
+ *  the keyboard, and `-` starts it closed (spec Q5). A link in the title
+ *  stays a link. */
+function wireCallouts(root: ParentNode): void {
+  for (const box of root.querySelectorAll<HTMLElement>(".callout[data-fold]")) {
+    const title = box.querySelector<HTMLElement>(":scope > .callout-title");
+    if (!title) continue;
+    const show = (open: boolean) => {
+      box.classList.toggle("folded", !open);
+      title.setAttribute("aria-expanded", String(open));
+    };
+    title.tabIndex = 0;
+    title.setAttribute("role", "button");
+    show(box.dataset["fold"] !== "-");
+    title.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).closest("a")) return;
+      show(box.classList.contains("folded"));
+    });
+    title.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      show(box.classList.contains("folded"));
+    });
+  }
 }
 /** `#` and `^` open a heading or a block, `|` an alias, `[` and `]` end the
  *  link: no `[[…]]` can name a file whose name holds one. The window does
