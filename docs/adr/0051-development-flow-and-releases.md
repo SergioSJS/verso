@@ -6,7 +6,11 @@
 - Status in the briefing: not present
 - Revisions: 2026-09-24 — Decision 6's shared index kept by the maintainer,
   on `docs/reference/beta-config-decision.md`, with one point to revisit it
-  (Consequences).
+  (Consequences). 2026-09-24 — Decision 2 suspended by the maintainer until
+  the whole flow exists — sync, the web, mobile: until then a branch may carry
+  several subjects and reaches `main` in a large pull request, still with a
+  merge commit ([0033](0033-pr-workflow.md), the same day, with the
+  maintainer's words).
 
 ## Context
 
@@ -33,7 +37,12 @@ modificações até gerar versão, considerando changelog inclusive"*.
 2. **One short branch per subject** (`feat/…`, `fix/…`, `docs/…`,
    `chore/…`), a small pull request, merged with a **merge commit**, which
    keeps every commit and its hash — the documents cite commits by hash. The
-   maintainer merges; the merge is the approval.
+   maintainer merges; the merge is the approval. *(Until the whole flow
+   exists — sync, the web, mobile — a branch may carry several subjects and
+   its pull request is large, by the maintainer's decision of 2026-09-24
+   ([0033](0033-pr-workflow.md), Consequences); one short branch per subject
+   after it. The merge commit, and the maintainer's merge as the approval,
+   are unchanged.)*
 3. **Changes accumulate on `main` until a version.** A change a user can see
    adds its lines under "Unreleased" in `CHANGELOG.md` and its pt-BR twin.
 4. **Versions follow SemVer, `0.y.z` before 1.0.** `vX.Y.Z` is a production
@@ -104,7 +113,8 @@ modificações até gerar versão, considerando changelog inclusive"*.
 
 - A long-lived integration branch merged as one pull request — what Phases 1
   and 2 did; too large to read and to explain (merge condition 3 of
-  [0033](0033-pr-workflow.md)).
+  [0033](0033-pr-workflow.md)). *(On 2026-09-24 the maintainer made large
+  pull requests the rule until the whole flow exists: Decision 2.)*
 - Squash or rebase merges — both rewrite the commits and break the hashes the
   documents cite.
 - Releases published by hand from a draft — the author's first proposal; the
