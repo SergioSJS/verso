@@ -21,7 +21,8 @@
   Linux job per pull request, clippy and the tests on macOS and the fuzzing on
   `main` only, the apps packaged only for a version tag. 2026-09-24 — the
   guardrails run locally before a push, by two scripts, at the maintainer's
-  request.
+  request. 2026-09-24 — the release workflow exists, with the development
+  flow of [0051](0051-development-flow-and-releases.md).
 
 ## Context
 
@@ -92,9 +93,10 @@ the billing page showed for the cycle, in a quota that counts each as ten.
   answer the same on any OS —, the **60-second fuzzing**, on Linux, and the
   benchmark.
 - **The apps are built and packaged only for a version tag**, in a workflow of
-  its own; branches test, they never package. That workflow is written with
-  the first version, when each platform has something to package, not before:
-  nothing untested waits in CI. Windows, then Linux, join the platform checks
+  its own; branches test, they never package. That workflow,
+  `.github/workflows/release.yml`, came with the development flow of
+  [0051](0051-development-flow-and-releases.md) on 2026-09-24, macOS first;
+  its bundle was built and checked on the Mac before it was written. Windows, then Linux, join the platform checks
   on `main` as each port lands ([0022](0022-target-platforms-macos-first.md)).
 - The Linux runners are pinned to `ubuntu-24.04`: the `ubuntu-latest` label
   moves to Ubuntu 26 from 2026-10-19, which would change the WebKitGTK the

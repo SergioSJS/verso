@@ -50,6 +50,30 @@ next ones take about a minute. What neither covers:
   `cargo +nightly fuzz run parse` in `crates/verso-dialect`, and
   `cargo run --release -p verso-bench -- --help`.
 
+## Versions
+
+Each version is listed in [CHANGELOG.md](CHANGELOG.md); what is merged but not
+released yet sits under "Unreleased". `vX.Y.Z` is a production release,
+`vX.Y.Z-beta.N` a test release, published as "Verso Beta", which installs
+beside the production app with its own window settings
+([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
+
+- **Installing one**: from the repository's Releases page, unzip the app
+  into `/Applications`. It is signed ad hoc, not by a registered developer:
+  the first time, macOS refuses to open it — allow it once in System Settings
+  → Privacy & Security → "Open Anyway". The `verso-cli` archive holds the
+  command line; put `verso` on your `PATH`. Extracted by the Finder, it is
+  held back the same way on its first run: allow it there too, or run
+  `xattr -d com.apple.quarantine verso` once.
+- **Which one is running**: Settings → General → Version, the About panel, or
+  `verso --version`.
+- **Cutting one** happens only when the maintainer asks:
+  `node scripts/release.mjs prepare X.Y.Z[-beta.N]` opens the release pull
+  request, and after its merge `node scripts/release.mjs tag X.Y.Z[-beta.N]`
+  tags the commit that brought the version; the tag builds and publishes the
+  release. Before the first tag, a rehearsal — Actions → release → Run
+  workflow — builds the same files and publishes nothing.
+
 ## Documents
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to propose a change, sign-off, what

@@ -830,6 +830,8 @@ input.pdf-search:focus { outline: none; border-color: var(--brass); }
 .setting-text { min-width: 0; }
 .setting-title { font-size: .93rem; color: var(--ink); }
 .setting-desc { font-size: .8rem; color: var(--ink-3); margin-top: .15rem; }
+/* A value to read, not to change: the version and its commit. */
+.setting-value { font-family: var(--mono); font-size: .82rem; color: var(--ink-2); user-select: text; white-space: nowrap; }
 .setting input[type="text"], .setting input[type="number"], .setting select { font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; width: 14rem; max-width: 40vw; }
 .setting input[type="range"] { width: 11rem; accent-color: var(--seal); }
 .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }

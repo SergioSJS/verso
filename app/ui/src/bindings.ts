@@ -140,6 +140,11 @@ export const commands = {
 	index: IndexSummary,
 } | null, ContractError>(__TAURI_INVOKE("current_folder")),
 	/**
+	 *  The app's version and the commit it was built from (ADR 0051), for the
+	 *  settings. Host-only, like `open_url`: nothing of the folder.
+	 */
+	appInfo: () => typedError<AppInfo, ContractError>(__TAURI_INVOKE("app_info")),
+	/**
 	 *  A note in a window of its own: the same UI, which asks which note
 	 *  by its window's label.
 	 */
@@ -211,6 +216,15 @@ export const commands = {
 };
 
 /* Types */
+/**
+ *  What the running app is: its version (the workspace's, ADR 0051) and the
+ *  commit it was built from — shown in the settings and the About panel.
+ */
+export type AppInfo = {
+	version: string,
+	commit: string,
+};
+
 /**  A link into a note, from another. */
 export type Backlink = {
 	from: string,

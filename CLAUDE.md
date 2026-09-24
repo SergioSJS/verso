@@ -180,6 +180,11 @@ through `verso-core`) — ADR 0028, Consequences.
   that the license passes `cargo-deny`.
 - A parser feature comes with a fixture. A new fixture comes marked as an AI
   draft, for approval.
+- One short branch per subject (`feat/…`, `fix/…`, `docs/…`, `chore/…`) from
+  `main`; `main` is protected and takes pull requests only — never push to it
+  ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
+- A change a user can see adds its line under "Unreleased" in `CHANGELOG.md`
+  and in `docs/pt-BR/CHANGELOG.md`.
 
 ### Review
 
@@ -205,6 +210,18 @@ for signing: code written by AI comes in through the ordinary DCO, and whoever
 signs the `Signed-off-by` declares that they have command of the code and answer
 for it ([ADR 0006](docs/adr/0006-contribution-dco-no-cla.md)). There is no
 signature by the AI.
+
+The maintainer merges, with a merge commit — never squash or rebase: the
+documents cite commits by hash ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
+
+### Versions
+
+A version is cut **only when the maintainer asks**, and then an agent may cut
+it: `node scripts/release.mjs prepare X.Y.Z[-beta.N]` opens the release pull
+request; after its merge, `node scripts/release.mjs tag X.Y.Z[-beta.N]` tags
+the commit that brought the version, and the tag builds and publishes the
+release. `-beta.N` is a test release. Never push a version tag by hand;
+version tags are permanent — no one can move or delete one.
 
 ---
 
