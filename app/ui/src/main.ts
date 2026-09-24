@@ -1306,7 +1306,10 @@ class NoteLeaf extends Leaf {
         });
         const extOf = f.type.split("/")[1]?.replace("jpeg", "jpg").replace("svg+xml", "svg") ?? "png";
         const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
-        const base = f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) && !/^blob/i.test(f.name) ? f.name : `${name(this.path)} ${stamp}.${extOf}`;
+        // Named so that the embed written for it can reach it: no `[`, `]`,
+        // `|`, `#` or `^`, which a note's own name may still hold.
+        const raw = f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) && !/^blob/i.test(f.name) ? f.name : `${name(this.path)} ${stamp}.${extOf}`;
+        const base = raw.replace(/[[\]|#^]/g, " ").replace(/ {2,}/g, " ").trim();
         // Beside the note, in its own assets/ folder — not loose among the notes.
         const folder = dirOf(this.path);
         const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
@@ -1602,8 +1605,11 @@ class NoteLeaf extends Leaf {
    *  save: what the preview resolves against and the panel lists. Then
    *  the preview is dressed: unresolved links marked, embedded notes
    *  filled in. */
-  /** The reading view drawn again, as the settings now say. */
+  /** The reading view, and Live Preview's embedded notes, drawn again as
+   *  the settings now say. */
   repaint(): void {
+    this.embedCache.clear();
+    this.editor.dispatch({ effects: redraw.of(null) });
     this.previewStale = true;
     if (this.mode === "preview") this.paintPreview();
   }
@@ -2950,6 +2956,8 @@ class Pane {
    *  once `leaf` has saved what it holds; a refused save keeps `leaf`. */
   async swap(leaf: Leaf, next: Leaf): Promise<void> {
     if (!(await leaf.flush())) return;
+    // A second click while the first one saved: the tab is already gone.
+    if (!this.leaves.includes(leaf)) return;
     this.insert(next, this.leaves.indexOf(leaf));
     void next.load(leaf.path);
     this.activate(next, true);
@@ -3801,10 +3809,18 @@ function remoteContentChanged(): void {
     for (const p of sp.layout.panes())
       for (const l of p.leaves) {
         if (l instanceof NoteLeaf) l.repaint();
+        else if (l instanceof FolderLeaf) void l.load(l.path);
         l.setTitle(l.tabName.textContent ?? "");
       }
-  void searchNotes(ui.search.value);
+  if (currentFolder) void searchNotes(ui.search.value);
 }
+/* The settings live in this window's storage, shared by the note windows:
+ * a change made in one reaches the others, which draw again with it. */
+window.addEventListener("storage", (e) => {
+  if (e.key !== "verso.settings") return;
+  loadSettings();
+  remoteContentChanged();
+});
 async function afterFileChange(): Promise<void> {
   const r = await commands.reindex();
   if (r.status !== "ok") fail(r.error);
