@@ -307,7 +307,12 @@ bench, que precisa do CI rodando.
   mantenedor; depois das correções de 2026-09-23, por um teste de fumaça numa
   cópia descartável da pasta Sandbox (`../review/phase-2.md` §7). A maior parte
   das correções da janela foi conferida por verificação de tipos, build e
-  harnesses com script, não no app rodando. Ele não rodou no Linux nem no
+  harnesses com script, não no app rodando. As mudanças da janela vindas das
+  respostas do mantenedor — a página HTML e a fonte dela, os nomes recusados,
+  o conteúdo remoto, os callouts recolhíveis — passaram pela checagem de tipos
+  e pelo build, e o sanitizador rodou num harness de WebKit; nenhuma foi
+  clicada no app rodando. A pasta entregue a um app aberto foi: com um bundle
+  descartável do build de debug. Ele não rodou no Linux nem no
   Windows, onde a origem do protocolo é outra (`http://verso.localhost` em vez
   de `verso://localhost`) e as web views filhas podem se comportar diferente.
 - Nenhuma medida de memória ou de velocidade além de uma leitura em

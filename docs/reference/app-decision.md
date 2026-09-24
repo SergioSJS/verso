@@ -298,7 +298,11 @@ which needs CI to run.
   the maintainer by hand; after the fixes of 2026-09-23, by a smoke run on a
   scratch copy of the Sandbox folder (`../review/phase-2.md` §7). Most of the
   window's fixes were checked by type-check, build and scripted harnesses, not
-  in the running app. It was not run on Linux or Windows, where the
+  in the running app. The window's changes of the maintainer's answers — the
+  HTML page and its source, refused names, remote content, foldable callouts
+  — were type-checked and built, and the sanitizer run in a WebKit harness;
+  none was clicked through in the running app. The folder handed to a running
+  app was: with a throwaway bundle of the debug build. It was not run on Linux or Windows, where the
   protocol's origin differs (`http://verso.localhost` instead of
   `verso://localhost`) and child web views may behave differently.
 - No measurement of memory or speed beyond one reading on 2026-09-22: about
