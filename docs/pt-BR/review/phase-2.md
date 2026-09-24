@@ -279,7 +279,9 @@ o autor puxou o 13 e o 14. Cada item traz a sua resposta.
     para a janela poder traduzi-lo, está planejado, não feito.
 13. **Custo do CI** — todo pull request compila a árvore do Tauri duas vezes
     (leitura 3, achado 21). **Resposta:** corrigido em `bce6030` — as
-    checagens dos bindings e da UI rodam no job Rust de Linux.
+    checagens dos bindings e da UI rodam no job Rust de Linux; depois, a
+    pedido do mantenedor, um pull request roda um job de Linux ao todo, e o
+    macOS e o fuzzing só no `main` (ADR 0029).
 14. **`open -a` com o app já aberto** (leitura 3, achado 20).
     **Resposta:** corrigido em `b43e914` — a pasta vai ao app instalado como
     documento a abrir, que um app aberto recebe; visto funcionando com um

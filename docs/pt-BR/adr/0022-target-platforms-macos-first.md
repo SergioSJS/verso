@@ -3,6 +3,8 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §9
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-09-23 — os apps de Windows e Linux, a ordem deles e como o CI
+  os acompanha, do mantenedor.
 
 ## Contexto
 
@@ -27,6 +29,13 @@ mais rápida para o burnout registrado em §10.3.
   plataforma no core.
 - As restrições de iOS e Android já estão registradas e não devem ser
   redescobertas quando o mobile entrar ([0009](0009-external-constraints.md)).
+- **Windows e Linux, pelo mantenedor em 2026-09-23**: os dois apps saem,
+  depois da Fase 2, **Windows primeiro** — não há máquina Linux à mão, e uma
+  máquina virtual é trabalho a mais (*"windows e linux tem que sair também …
+  Windows na frente de linux"*). Cada um entra nas checagens de plataforma do
+  CI no `main` quando o porte dele chegar, e no empacotamento de uma versão
+  ([0029](0029-guardrails-in-ci.md)); o CI já compila e testa o core em Linux
+  em todo pull request.
 
 ## Alternativas descartadas
 

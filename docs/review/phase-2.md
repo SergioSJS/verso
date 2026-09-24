@@ -274,7 +274,9 @@ took 13 and 14. Each item carries its answer.
     it, is planned, not done.
 13. **CI cost** — every pull request builds the Tauri tree twice (reading 3,
     finding 21). **Answer:** fixed in `bce6030` — the bindings and UI checks
-    run in the Linux Rust job.
+    run in the Linux Rust job; then, at the maintainer's request, a pull
+    request runs one Linux job in all, and macOS and the fuzzing only on
+    `main` (ADR 0029).
 14. **`open -a` with the app already running** (reading 3, finding 20).
     **Answer:** fixed in `b43e914` — the folder goes to the installed app as a
     document to open, which a running app receives; seen working with a

@@ -232,6 +232,8 @@ compatibilidade ([0017](adr/0017-plugins-format-shim-loading.md)), as
 primitivas ainda propostas ([0014](adr/0014-primitives-catalog.md)) e a
 **escrita por agente com diff** ([0018](adr/0018-llm-native-mcp-in-core.md),
 `DECIDIDO`, sem fase atribuída: a Fase 1 entrega MCP somente leitura e a Fase 2
-não a inclui).
+não a inclui). E também os **apps de Windows e Linux**
+([0022](adr/0022-target-platforms-macos-first.md)): o mantenedor decidiu em
+2026-09-23 que os dois saem, Windows primeiro.
 
-Ordem entre eles: `[ABERTO]`.
+Ordem entre eles: `[ABERTO]`, menos Windows antes de Linux.

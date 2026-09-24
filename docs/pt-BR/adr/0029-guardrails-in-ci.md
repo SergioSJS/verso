@@ -18,7 +18,9 @@
   a verificação dos tipos gerados levada para o job Rust de Linux, para que um
   pull request compile as dependências da árvore do Tauri uma vez só; as exceções de advisory e
   de licença da árvore do Tauri ratificadas (`docs/review/phase-2.md` §6,
-  itens 7 e 13).
+  itens 7 e 13); 2026-09-23 — onde cada guardrail roda, por decisão do
+  mantenedor: um job de Linux por pull request, clippy e os testes no macOS e
+  o fuzzing só no `main`, os apps empacotados só numa tag de versão.
 
 ## Contexto
 
@@ -68,6 +70,37 @@ código aterrissa. O motivo é custo: o minuto de macOS é cobrado a dez vezes o
 Linux, e um dia de pushes em branches empilhadas gastou a cota mensal inteira do
 repositório privado, depois do que o GitHub parou de iniciar jobs. Decisão do
 mantenedor de 2026-09-22.
+
+**Onde cada um roda, desde a decisão do mantenedor de 2026-09-23** (perguntado
+"faço o enxugamento?", a resposta: *"claro!! atualize ADR que fizer
+sentido"*). O mesmo motivo, levado adiante: todo job é uma máquina que sobe,
+instala um toolchain e cobra os minutos arredondados para cima, e em 21 e 22
+de setembro pernas de macOS em todo job — `cargo deny` e a checagem de WASM
+inclusive, que respondem igual em qualquer sistema — foram a maior parte dos
+132 minutos de macOS que a página de cobrança mostrou no ciclo, numa cota que
+conta cada um como dez.
+
+- **Um pull request** roda todo guardrail menos o fuzzing em **um job de
+  Linux**, dos mais baratos primeiro, sobre um cache só: o espelho dos
+  documentos, as fixtures, as licenças npm, o grep de `std::fs`,
+  `cargo fmt --check`, `cargo deny check`, clippy, os testes, os tipos gerados,
+  a checagem de tipos e o bundle da UI, a checagem de WASM.
+- **O `main`**, depois de cada merge, roda esse job de novo, e mais três:
+  **clippy e os testes no macOS** — as checagens cuja resposta pode depender
+  da plataforma (o sistema de arquivos, atributos estendidos, o WebKit); fmt,
+  `cargo deny` (cujo grafo cobre todos os alvos), a checagem de WASM e as dos
+  documentos respondem igual em qualquer sistema —, o **fuzzing de 60
+  segundos**, em Linux, e o benchmark.
+- **Os apps são compilados e empacotados só numa tag de versão**, num
+  workflow próprio; branches testam, nunca empacotam. Esse workflow é escrito
+  com a primeira versão, quando cada plataforma tiver o que empacotar, não
+  antes: nada sem teste fica esperando no CI. Windows, depois Linux, entram
+  nas checagens de plataforma do `main` conforme cada porte chegar
+  ([0022](0022-target-platforms-macos-first.md)).
+- As máquinas de Linux ficam fixadas em `ubuntu-24.04`: o rótulo
+  `ubuntu-latest` passa para o Ubuntu 26 a partir de 2026-10-19, o que mudaria
+  o WebKitGTK contra o qual o shell linka, e a máquina do baseline `ci-linux`
+  do bench, sem commit nenhum para culpar.
 
 ### Requisitos da escrita atômica
 
