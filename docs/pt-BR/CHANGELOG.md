@@ -12,6 +12,15 @@ versão de teste.
 
 ## Não lançado
 
+### Acrescentado
+
+- **Mudanças feitas fora do Verso aparecem sozinhas**: uma nota editada em
+  outro app, uma sincronização ou um `git pull` chegam à árvore, à busca, aos
+  backlinks e às abas abertas um instante depois. Uma aba sem nada digitado é
+  lida de novo, onde o cursor estava; uma com texto ainda não salvo mostra as
+  duas versões, como quando um salvar encontra o arquivo mudado; uma nota
+  apagada ou movida fora mantém o texto na aba, riscada.
+
 ### Corrigido
 
 - **A linha de comando da beta** diz qual app abre: `verso <pasta>`

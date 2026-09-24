@@ -11,7 +11,10 @@
   dois grupos decididos: o caminho de escrita de um symlink (decidido, decorre
   da escolha) e três itens marcados como **provisórios**, para o mantenedor
   confirmar ou mudar; mais dois itens provisórios vindos da segunda leitura
-  desse código — raiz absoluta, e handle para nome de placeholder.
+  desse código — raiz absoluta, e handle para nome de placeholder. 2026-09-24
+  — o watcher construído, provisoriamente, sobre o memo
+  [`docs/reference/watcher-decision.md`](../reference/watcher-decision.md),
+  que lista o que o mantenedor decide; os grupos desta ADR ficam intocados.
 
 ## Contexto
 
