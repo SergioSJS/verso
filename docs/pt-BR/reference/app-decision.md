@@ -293,9 +293,11 @@ bench, que precisa do CI rodando.
   ao teclado, e o texto secundário chega a 4,5:1; ainda não há jeito de teclado
   para arrastar uma aba ou um arquivo, e ninguém percorreu o app com um leitor
   de tela ([ADR 0035](../adr/0035-cross-cutting-requirements.md)).
-- **Um observador de arquivos.** Uma mudança feita fora do app aparece quando a
-  nota é salva (como escrita recusada) ou reaberta, ou num "reindexar"; nada
-  atualiza a árvore sozinho.
+- **Um observador de arquivos** — construído em 2026-09-24, provisório, no
+  branch `feat/watcher`: [memorando do watcher](watcher-decision.md). Antes
+  dele, uma mudança feita fora do app aparecia quando a nota era salva (como
+  escrita recusada) ou reaberta, ou num "reindexar"; nada atualizava a árvore
+  sozinho.
 - **Uma segunda janela na mesma pasta**, e arrastar uma aba para fora.
 - **Tudo o que a [ADR 0034](../adr/0034-roadmap-in-phases.md) deixa de fora até
   a fase acabar**: sync, mobile, plugins, o board, o shim de compatibilidade.

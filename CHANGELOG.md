@@ -12,6 +12,15 @@ test release.
 
 ## Unreleased
 
+### Added
+
+- **Changes made outside Verso show up by themselves**: a note edited in
+  another app, a sync or `git pull` reaches the tree, the search, the
+  backlinks and the open tabs a moment later. A tab with nothing typed in it
+  is read again, where the cursor was; one with text not saved yet shows
+  both versions, as when a save meets a changed file; a note deleted or
+  moved outside keeps its text in its tab, crossed out.
+
 ### Fixed
 
 - **The beta's command line** says which app it opens: `verso <folder>`

@@ -11,7 +11,10 @@
   groups: the write path of a symlink (decided, it follows from the choice) and
   three items marked **provisional**, for the maintainer to confirm or change;
   two more provisional items from the second reading of that code — an absolute
-  root, and a handle for a placeholder name.
+  root, and a handle for a placeholder name. 2026-09-24 — the watcher built,
+  provisionally, on the memo
+  [`docs/reference/watcher-decision.md`](../reference/watcher-decision.md),
+  which lists what the maintainer decides; this ADR's groups are untouched.
 
 ## Context
 

@@ -284,9 +284,10 @@ which needs CI to run.
   secondary text reaches 4.5:1; there is still no keyboard way to drag a tab or
   a file, and nobody has gone through the app with a screen reader
   ([ADR 0035](../adr/0035-cross-cutting-requirements.md)).
-- **A file watcher.** A change made outside the app shows up when the note is
-  saved (as a refused write) or reopened, or on "reindex"; nothing refreshes
-  the tree on its own.
+- **A file watcher** — built on 2026-09-24, provisional, on branch
+  `feat/watcher`: [watcher memo](watcher-decision.md). Before it, a change made
+  outside the app showed up when the note was saved (as a refused write) or
+  reopened, or on "reindex"; nothing refreshed the tree on its own.
 - **A second window on the same folder**, and tearing a tab out by dragging it.
 - **Everything [ADR 0034](../adr/0034-roadmap-in-phases.md) keeps out until the
   phase ends**: sync, mobile, plugins, the board, the compatibility shim.
