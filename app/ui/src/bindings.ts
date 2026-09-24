@@ -31,9 +31,12 @@ export const commands = {
 	 */
 	reopenFolder: (key: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("reopen_folder", { key })),
 	/**
-	 *  Open, once, the folder named on the command line (`verso-app
-	 *  <folder>`); `None` afterwards and when there was none. The UI calls it
-	 *  at start-up, before falling back to the last folder it remembers.
+	 *  Open, once, the folder handed to the app — named on the command line
+	 *  (`verso-app <folder>`) or, on macOS, sent by an open event
+	 *  (`folder_handed`); `None` afterwards and when there was none. The UI
+	 *  calls it at start-up, before falling back to the last folder it
+	 *  remembers, and again when the host says a folder was handed to the app
+	 *  while it ran.
 	 */
 	openInitial: () => typedError<{
 	/**  The folder's own name (its last path component), for display. */
