@@ -28,19 +28,22 @@ use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderInfo,
-    Heading, Hit, IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed,
-    SkipReason, Skipped, Tag, TextFile, Trashed, WebNote, Written,
+    AppInfo, Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderChanged,
+    FolderInfo, Heading, Hit, IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue,
+    Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
-/// The open folder: its workspace and what the UI was told about it.
+/// The open folder: its workspace, what the UI was told about it, and
+/// the watch that keeps both current while the folder changes outside the
+/// app — dropped, and so stopped, with the session.
 struct Session {
     workspace: Workspace,
     info: FolderInfo,
+    _watch: Option<verso_core::Watch>,
 }
 
 /// The one open folder, or none yet. One mutex: two commands never
@@ -219,11 +222,17 @@ async fn install<R: tauri::Runtime>(
     open: impl FnOnce(Option<&Path>) -> Result<Workspace, CoreError> + Send + 'static,
 ) -> Result<FolderInfo, ContractError> {
     let config = app.state::<App>().config.clone();
+    let handle = app.clone();
     let opened = tauri::async_runtime::spawn_blocking(move || -> Result<Session, CoreError> {
         let mut workspace = open(config.as_deref())?;
         let report = workspace.index()?;
-        let info = folder_info(&workspace, &report);
-        Ok(Session { workspace, info })
+        let mut info = folder_info(&workspace, &report);
+        let watch = watch_folder(&handle, &workspace, &mut info);
+        Ok(Session {
+            workspace,
+            info,
+            _watch: watch,
+        })
     })
     .await
     .map_err(|e| failed(e.to_string()))?
@@ -232,6 +241,85 @@ async fn install<R: tauri::Runtime>(
     let info = opened.info.clone();
     *lock(&app.state::<App>().session) = Some(opened);
     Ok(info)
+}
+
+/// Watch the open folder for changes made outside the app (provisional:
+/// `docs/reference/watcher-decision.md`): each batch indexes the folder
+/// again and tells the app's windows what changed. A folder that cannot be
+/// watched opens all the same; the reason joins the index's problems, and
+/// changes made outside then show up on "reindex".
+fn watch_folder<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    workspace: &Workspace,
+    info: &mut FolderInfo,
+) -> Option<verso_core::Watch> {
+    let app = app.clone();
+    let key = info.key.clone();
+    match workspace.watch(move |_| changed_outside(&app, &key)) {
+        Ok(watch) => Some(watch),
+        Err(e) => {
+            info.index.problems.push(e.to_string());
+            None
+        }
+    }
+}
+
+/// A batch from the watch, on its thread: index the folder again and, if
+/// anything changed, send the app's windows what (`folder-changed`). The
+/// batch says that something changed; the index run finds what — a note
+/// Verso itself just wrote is already current and is not reported. A
+/// batch for a folder that is no longer the open one does nothing.
+fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) {
+    let state = app.state::<App>();
+    let payload = {
+        let mut guard = lock(&state.session);
+        let Some(session) = guard.as_mut() else {
+            return;
+        };
+        if session.info.key != key {
+            return;
+        }
+        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| session.workspace.index()));
+        let report = match outcome {
+            Ok(Ok(report)) => Ok(report),
+            Ok(Err(e)) => Err(e.to_string()),
+            Err(payload) => Err(format!("the core failed: {}", panic_text(payload.as_ref()))),
+        };
+        match report {
+            Ok(report) => {
+                session.info.index = summary(&report);
+                if report.changed.is_empty() && report.gone.is_empty() && !report.listing_changed {
+                    return;
+                }
+                FolderChanged {
+                    key: key.to_owned(),
+                    changed: report.changed,
+                    removed: report.gone,
+                    index: session.info.index.clone(),
+                }
+            }
+            // The index could not be brought up to date: the windows are
+            // told, with the reason among the problems, and keep what
+            // they show.
+            Err(reason) => {
+                let mut index = session.info.index.clone();
+                index.problems.push(format!(
+                    "the folder changed and could not be indexed: {reason}"
+                ));
+                FolderChanged {
+                    key: key.to_owned(),
+                    changed: Vec::new(),
+                    removed: Vec::new(),
+                    index,
+                }
+            }
+        }
+    };
+    for label in app.webview_windows().into_keys() {
+        if label == "main" || label.starts_with("note-") {
+            let _ = app.emit_to(label.as_str(), "folder-changed", payload.clone());
+        }
+    }
 }
 
 /// Run the native folder picker and open what the user chose: the entry
@@ -1047,7 +1135,6 @@ fn return_to_main<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<(), ContractError> {
-    use tauri::Emitter;
     app.emit_to("main", "open-note", path)
         .map_err(|e| failed(e.to_string()))?;
     lock(&state.popouts).remove(window.label());
@@ -1070,48 +1157,51 @@ fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
 /// the app runs on Wry, the tests on Tauri's mock runtime.
 macro_rules! commands_for {
     ($runtime:path) => {
-        tauri_specta::Builder::<$runtime>::new().commands(tauri_specta::collect_commands![
-            pick_folder::<$runtime>,
-            reopen_folder::<$runtime>,
-            open_initial::<$runtime>,
-            list_notes,
-            read_note,
-            search,
-            links,
-            backlinks,
-            write_note,
-            create_note,
-            create_file,
-            create_folder,
-            delete_note,
-            rename_note,
-            resolve_attachment,
-            list_files,
-            list_folders,
-            list_tags,
-            read_file_text,
-            list_entries,
-            list_web_notes,
-            graph,
-            current_folder,
-            app_info,
-            open_window::<$runtime>,
-            popout_target::<$runtime>,
-            return_to_main::<$runtime>,
-            open_url::<$runtime>,
-            web_open::<$runtime>,
-            web_bounds::<$runtime>,
-            web_visible::<$runtime>,
-            web_close::<$runtime>,
-            web_nav::<$runtime>,
-            web_url::<$runtime>,
-            read_text,
-            write_text,
-            rename_entry,
-            delete_entry,
-            reveal,
-            reindex
-        ])
+        tauri_specta::Builder::<$runtime>::new()
+            .commands(tauri_specta::collect_commands![
+                pick_folder::<$runtime>,
+                reopen_folder::<$runtime>,
+                open_initial::<$runtime>,
+                list_notes,
+                read_note,
+                search,
+                links,
+                backlinks,
+                write_note,
+                create_note,
+                create_file,
+                create_folder,
+                delete_note,
+                rename_note,
+                resolve_attachment,
+                list_files,
+                list_folders,
+                list_tags,
+                read_file_text,
+                list_entries,
+                list_web_notes,
+                graph,
+                current_folder,
+                app_info,
+                open_window::<$runtime>,
+                popout_target::<$runtime>,
+                return_to_main::<$runtime>,
+                open_url::<$runtime>,
+                web_open::<$runtime>,
+                web_bounds::<$runtime>,
+                web_visible::<$runtime>,
+                web_close::<$runtime>,
+                web_nav::<$runtime>,
+                web_url::<$runtime>,
+                read_text,
+                write_text,
+                rename_entry,
+                delete_entry,
+                reveal,
+                reindex
+            ])
+            // Not in any command: the payload of the `folder-changed` event.
+            .typ::<FolderChanged>()
     };
 }
 
@@ -1368,7 +1458,6 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 /// the Linux runs check it too; only macOS sends the event.
 #[cfg(any(target_os = "macos", test))]
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
-    use tauri::Emitter;
     *lock(&app.state::<App>().initial_folder) = Some(folder);
     if let Some(main) = app.get_webview_window("main") {
         let _ = main.set_focus();
@@ -1381,7 +1470,6 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
 /// save and never answers, so it is closed here: left open, it would keep
 /// the app alive after its windows had gone.
 fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
-    use tauri::Emitter;
     let mut ours = false;
     for (label, window) in app.webview_windows() {
         if is_app_view(&label) {
@@ -1545,6 +1633,56 @@ mod tests {
         );
         assert!(!info.to_string().contains(vault.path().to_str().unwrap()));
         assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
+    }
+
+    /// A note another app writes while the folder is open: the index finds
+    /// it and the app's windows are told, by its path relative to the
+    /// folder; a note Verso wrote itself is never reported as changed
+    /// outside (the watcher, provisional: `docs/reference/watcher-decision.md`).
+    #[test]
+    fn a_change_made_outside_reaches_the_windows() {
+        use std::time::{Duration, Instant};
+        use tauri::Listener;
+        let vault = tempfile::tempdir().unwrap();
+        let _uma = note(vault.path(), "Uma.md", "# Uma\n");
+        let (app, main) = app_with(Some(vault.path().to_path_buf()));
+        let (tx, rx) = std::sync::mpsc::channel::<Value>();
+        app.listen_any("folder-changed", move |event| {
+            let _ = tx.send(serde_json::from_str(event.payload()).unwrap());
+        });
+        let info = call(&main, "open_initial", json!({})).unwrap();
+        // What the system still had to say about the folder's creation.
+        while rx.recv_timeout(Duration::from_millis(700)).is_ok() {}
+
+        let read = call(&main, "read_note", json!({ "path": "Uma" })).unwrap();
+        call(
+            &main,
+            "write_note",
+            json!({ "path": "Uma", "text": "# Uma\n\nDito aqui.\n", "revision": read["revision"] }),
+        )
+        .unwrap();
+        let _duas = note(vault.path(), "Duas.md", "O caminho para [[Uma]].\n");
+
+        let names = |event: &Value, field: &str, note: &str| {
+            event[field].as_array().unwrap().iter().any(|p| p == note)
+        };
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut seen = Vec::new();
+        while let Ok(event) = rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+            seen.push(event.clone());
+            if names(&event, "changed", "Duas.md") {
+                break;
+            }
+        }
+        let told = seen.iter().find(|e| names(e, "changed", "Duas.md"));
+        let told = told.unwrap_or_else(|| panic!("the windows were never told: {seen:?}"));
+        assert_eq!(told["key"], info["key"], "{told}");
+        assert!(
+            !seen.iter().any(|e| names(e, "changed", "Uma.md")),
+            "Verso's own write reported as a change made outside: {seen:?}"
+        );
+        let back = call(&main, "backlinks", json!({ "path": "Uma" })).unwrap();
+        assert_eq!(back.as_array().unwrap().len(), 1, "{back}");
     }
 
     fn call(
