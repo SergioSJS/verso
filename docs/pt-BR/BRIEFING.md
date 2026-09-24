@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.9 · 2026-09-24
+> Versão 0.10 · 2026-09-24
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -50,7 +50,7 @@ Regras para a IA:
 | Item | Valor | Status |
 |---|---|---|
 | Nome | Verso | `DECIDIDO` |
-| Domínio | `verso.md` | `PROPOSTO` — disponibilidade não verificada |
+| Domínio | `versomd.com` | `DECIDIDO` — comprado pelo mantenedor em 2026-09-24, o mais próximo de `verso.md` que ele conseguiu (v0.10) |
 | Nome de pacote/org se `verso` estiver ocupado | `verso-md` | `PROPOSTO` |
 | Nomes de subprojetos | nenhum até existir código; "Recto" descartado | `DECIDIDO` |
 
@@ -452,7 +452,7 @@ Sync, mobile, plugins, board, shim de compatibilidade.
 | # | Item | Quando decidir |
 |---|---|---|
 | 1 | ~~Licença: pacote A ou B~~ | decidido: pacote A (v0.3, ADR 0005) |
-| 2 | Disponibilidade do nome em crates.io, npm, org do GitHub e domínio | antes de tornar o repositório público |
+| 2 | Disponibilidade do nome em crates.io, npm e org do GitHub (o domínio: `versomd.com`, v0.10, ADR 0004) | antes de tornar o repositório público |
 | 3 | ~~Idioma da documentação do repositório~~ | decidido: inglês fonte, pt-BR espelho (v0.5, ADR 0008) |
 | 4 | ~~Parser base: pulldown-cmark, comrak ou próprio~~ | decidido: pulldown-cmark (v0.8, ADR 0037; leitura de round-trip na spec Q18) |
 | 5 | Geração de tipos TS: ts-rs ou specta | início da Fase 2 |
@@ -481,3 +481,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.7 | 2026-09-21 | §14.3: ponteiro para a leitura em dois grupos dos guardrails no ADR 0029, após a leitura independente da revisão da Fase 0 (docs/review/phase-0.md §7). Nenhuma decisão alterada. |
 | 0.8 | 2026-09-21 | §9 e §17 item 4: parser base decidido pelo mantenedor — pulldown-cmark, com comrak como fallback, na leitura somente leitura de round-trip (spec Q18). Comparação em docs/reference/parser-decision.md (ADR 0037). |
 | 0.9 | 2026-09-24 | §5.2, §5.3, §11.3 e §17 item 7: decididos pelo mantenedor, sobre o memo docs/reference/typed-note-decision.md — a degradação para Markdown (ADR 0013, aceito como está escrito, com "views" e "dado estruturado" delimitados), a nota tipada e o i18n de schema (ADR 0052), e o formato e a localização dos schemas: um bloco `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados (Q11 da spec). A localização é a escolha do mantenedor entre a §5.3 (arquivo de texto na pasta) e a §8 (schemas na camada compartilhada da config), que fica como está, `PROPOSTO`, e agora discorda sobre schemas. |
+| 0.10 | 2026-09-24 | §2 e §17 item 2: domínio decidido pelo mantenedor — comprou `versomd.com`, o mais próximo de `verso.md` que conseguiu (ADR 0004). A disponibilidade em crates.io, npm e org do GitHub segue em aberto. |
