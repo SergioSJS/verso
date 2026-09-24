@@ -65,7 +65,8 @@ type Strings = Record<
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside"
-  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys",
+  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
+  | "tabs" | "unsaved" | "rightPanel",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -144,6 +145,7 @@ const pt: Strings = {
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
+  tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
 };
 
 const en: Strings = {
@@ -205,6 +207,7 @@ const en: Strings = {
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
+  tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -839,11 +842,15 @@ function askDiscard(): Promise<boolean> {
 }
 
 /* ---------- Leaves ---------- */
+/** Numbers the ids a tab and its panel name each other by. */
+let leafIds = 0;
 abstract class Leaf {
   readonly el = h("section", "leaf");
   readonly tab = h("button", "tab");
   readonly tabIcon = h("span", "tab-icon");
   readonly tabName = h("span", "tab-name");
+  /** Said, not shown: the dot after the name shows it. */
+  readonly tabUnsaved = h("span", "sr-only", `, ${t.unsaved}`);
   abstract readonly kind: Kind;
   path = "";
   dirty = false;
@@ -852,11 +859,27 @@ abstract class Leaf {
 
   constructor(public pane: Pane) {
     this.tab.type = "button";
+    // A tab of its pane's tablist, and the panel it shows. Only the
+    // chosen tab is in the Tab order (Pane.activate); the arrows reach
+    // the others (Pane.tabKeys).
+    const n = ++leafIds;
+    this.tab.id = `verso-tab-${n}`;
+    this.el.id = `verso-panel-${n}`;
+    this.tab.setAttribute("role", "tab");
+    this.tab.setAttribute("aria-controls", this.el.id);
+    this.tab.tabIndex = -1;
+    this.el.setAttribute("role", "tabpanel");
+    this.el.setAttribute("aria-labelledby", this.tab.id);
+    // The close and pin marks are the pointer's (the tab's menu and ⌘W
+    // close it from the keyboard): kept out of the tab's name.
     const close = h("span", "tab-close");
-    close.append(icon("close", t.close));
+    close.setAttribute("aria-hidden", "true");
+    close.append(icon("close"));
     const pin = h("span", "tab-pin");
-    pin.append(icon("pin", t.pinTab));
-    this.tab.append(this.tabIcon, this.tabName, pin, close);
+    pin.setAttribute("aria-hidden", "true");
+    pin.append(icon("pin"));
+    this.tabUnsaved.hidden = true;
+    this.tab.append(this.tabIcon, this.tabName, this.tabUnsaved, pin, close);
     this.tab.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) void this.close();
       else this.pane.activate(this, true);
@@ -887,6 +910,7 @@ abstract class Leaf {
   setDirty(d: boolean): void {
     this.dirty = d;
     this.tab.classList.toggle("dirty", d);
+    this.tabUnsaved.hidden = !d;
   }
   abstract load(path: string, force?: boolean): Promise<void>;
   /** The file moved (renamed in the app): follow it to `path`. */
@@ -1082,6 +1106,8 @@ class NoteLeaf extends Leaf {
     };
     const head = h("header", "leaf-head");
     head.append(this.crumbs, this.modes);
+    // Drawn, not said: the Save button beside it and the tab say it.
+    this.dirtyMark.setAttribute("aria-hidden", "true");
     this.saveButton.type = "button";
     this.saveButton.title = prettyKeys("Mod-s");
     this.saveButton.addEventListener("click", () => void this.save());
@@ -2852,7 +2878,11 @@ class Pane {
   tabsHidden = false;
 
   constructor() {
-    this.tabs.setAttribute("role", "tablist");
+    // The tabs are the tablist; the pane's tools sit beside it, outside.
+    this.tabList.setAttribute("role", "tablist");
+    this.tabList.setAttribute("aria-label", t.tabs);
+    this.tabList.setAttribute("aria-orientation", "horizontal");
+    this.tabList.addEventListener("keydown", (e) => this.tabKeys(e));
     const all = button("ghost iconic", t.allTabs, "more");
     all.addEventListener("click", (e) => {
       const r = all.getBoundingClientRect();
@@ -2950,7 +2980,24 @@ class Pane {
   setVertical(v: boolean): void {
     this.vertical = v;
     this.el.classList.toggle("vertical", v);
+    this.tabList.setAttribute("aria-orientation", v ? "vertical" : "horizontal");
     persistSoon();
+  }
+  /** The tab bar from the keyboard, as a tablist answers (WAI-ARIA
+   *  tabs): the arrows along the bar, Home and End choose a tab and keep
+   *  the focus on it; Enter or Space opens it (the button's own click). */
+  private tabKeys(e: KeyboardEvent): void {
+    const i = this.leaves.findIndex((l) => l.tab === e.target);
+    if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+    const n = this.leaves.length;
+    const back = this.vertical ? "ArrowUp" : "ArrowLeft";
+    const on = this.vertical ? "ArrowDown" : "ArrowRight";
+    const j = e.key === on ? (i + 1) % n : e.key === back ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    const leaf = this.leaves[j];
+    if (!leaf) return;
+    e.preventDefault();
+    this.activate(leaf, false);
+    leaf.tab.focus();
   }
   tabMenu(leaf: Leaf, x: number, y: number): void {
     const i = this.leaves.indexOf(leaf);
@@ -3016,6 +3063,7 @@ class Pane {
     for (const l of this.leaves) {
       l.el.hidden = l !== leaf;
       l.tab.setAttribute("aria-selected", String(l === leaf));
+      l.tab.tabIndex = l === leaf ? 0 : -1;
     }
     layout().focus(this);
     showOutline(leaf);
@@ -3286,15 +3334,20 @@ class Layout {
 }
 
 /* ---------- Workspaces: the top bar, one layout each ---------- */
+let spaceIds = 0;
 class Space {
   readonly tab = h("button", "space-tab");
   readonly layout = new Layout();
   constructor(public label: string) {
     this.tab.type = "button";
     this.tab.setAttribute("role", "tab");
+    this.tab.id = `verso-space-${++spaceIds}`;
+    this.tab.setAttribute("aria-controls", "panes");
     const n = h("span", "space-name", label);
+    // The pointer's close mark; the menu closes it from the keyboard.
     const close = h("span", "tab-close");
-    close.append(icon("close", t.closeSpace));
+    close.setAttribute("aria-hidden", "true");
+    close.append(icon("close"));
     this.tab.append(n, close);
     this.tab.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) void closeSpace(this);
@@ -3361,10 +3414,42 @@ function paneToOpenIn(): Pane {
   const l = current?.layout ?? newSpace().layout;
   return l.focused ?? l.panes()[0] ?? l.reset();
 }
+/** The workspaces' tabs: a tablist of their own, with the "new workspace"
+ *  button beside it rather than inside; the arrows, Home and End choose
+ *  one, as in a pane's tab bar. */
+const spaceTabs = h("div", "space-tabs");
+spaceTabs.setAttribute("role", "tablist");
+spaceTabs.setAttribute("aria-label", t.space);
+spaceTabs.addEventListener("keydown", (e) => {
+  const i = spaces.findIndex((s) => s.tab === e.target);
+  if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+  const n = spaces.length;
+  const j = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+  const to = spaces[j];
+  if (!to) return;
+  e.preventDefault();
+  showSpace(to);
+  to.tab.focus();
+});
 function renderSpaces(): void {
-  ui.spaces.replaceChildren(...spaces.map((s) => s.tab), newSpaceButton);
-  for (const s of spaces) s.tab.setAttribute("aria-selected", String(s === current));
+  const had = document.activeElement;
+  spaceTabs.replaceChildren(...spaces.map((s) => s.tab));
+  ui.spaces.replaceChildren(spaceTabs, newSpaceButton);
+  for (const s of spaces) {
+    s.tab.setAttribute("aria-selected", String(s === current));
+    s.tab.tabIndex = s === current ? 0 : -1;
+  }
   ui.spaces.hidden = spaces.length <= 1;
+  // While there is a choice, the panes are the chosen workspace's panel.
+  if (spaces.length > 1 && current) {
+    ui.panes.setAttribute("role", "tabpanel");
+    ui.panes.setAttribute("aria-labelledby", current.tab.id);
+  } else {
+    ui.panes.removeAttribute("role");
+    ui.panes.removeAttribute("aria-labelledby");
+  }
+  // Put back in the bar, a control had lost the focus: it gets it back.
+  if (had instanceof HTMLElement && had !== document.activeElement && ui.spaces.contains(had)) had.focus();
 }
 function newSpace(label?: string): Space {
   const s = new Space(label ?? `${t.space} ${spaces.length + 1}`);
@@ -3697,9 +3782,15 @@ class Panel {
       ["tags", "tag", t.tags],
       ["bookmarks", "star", t.bookmarks],
     ];
+    // A tablist and its one panel: the arrows, Home and End choose a tab,
+    // and only the chosen one is in the Tab order.
+    this.tabs.setAttribute("aria-label", t.rightPanel);
+    this.body.setAttribute("role", "tabpanel");
     for (const [id, ic, label] of defs) {
       const b = button("right-tab", label, ic);
       b.setAttribute("role", "tab");
+      b.id = `verso-right-${id}`;
+      b.setAttribute("aria-controls", this.body.id);
       b.dataset["tab"] = id;
       b.addEventListener("click", () => {
         this.current = id;
@@ -3707,11 +3798,34 @@ class Panel {
       });
       this.tabs.append(b);
     }
+    this.tabs.addEventListener("keydown", (e) => {
+      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]"));
+      const i = all.indexOf(e.target as HTMLButtonElement);
+      if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+      const n = all.length;
+      const j = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+      const to = all[j];
+      if (!to) return;
+      e.preventDefault();
+      this.current = (to.dataset["tab"] ?? "outline") as PanelTab;
+      this.refresh();
+      to.focus();
+    });
     try {
       const saved = localStorage.getItem("verso.rightTab") as PanelTab | null;
       if (saved) this.current = saved;
     } catch {
       // No storage.
+    }
+    this.markTabs();
+  }
+  /** The chosen tab: selected, in the Tab order, naming the panel. */
+  private markTabs(): void {
+    for (const b of this.tabs.querySelectorAll<HTMLButtonElement>("button")) {
+      const on = b.dataset["tab"] === this.current;
+      b.setAttribute("aria-selected", String(on));
+      b.tabIndex = on ? 0 : -1;
+      if (on) this.body.setAttribute("aria-labelledby", b.id);
     }
   }
   show(leaf: Leaf | null): void {
@@ -3731,7 +3845,7 @@ class Panel {
     } catch {
       // No storage.
     }
-    for (const b of this.tabs.querySelectorAll("button")) b.setAttribute("aria-selected", String(b.dataset["tab"] === this.current));
+    this.markTabs();
     this.paint();
   }
   /** Notes whose text has this note's name without linking to it: the
