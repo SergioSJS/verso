@@ -76,7 +76,11 @@ export function allowRemoteContent(on: boolean): void {
 
 /** A link's or an image's address, if it may stay: the web, mail (links),
  *  a place in the same page (links), an image in data (images). A
- *  relative address names nothing here (the UI resolves embeds itself). */
+ *  relative address names nothing here (the UI resolves embeds itself).
+ *  A web or mail address comes back as the URL parser writes it: the
+ *  parser drops tabs, newlines and leading control characters, so the raw
+ *  text (`h&#9;ttps://…`) could differ from what the page would fetch and
+ *  slip past a check made on it. */
 function address(value: string, image: boolean): string | null {
   const v = value.trim();
   if (v.startsWith("#")) return image ? null : v;
@@ -86,10 +90,20 @@ function address(value: string, image: boolean): string | null {
   } catch {
     return null;
   }
-  if (url.protocol === "http:" || url.protocol === "https:") return v;
-  if (!image && url.protocol === "mailto:") return v;
+  if (url.protocol === "http:" || url.protocol === "https:") return url.href;
+  if (!image && url.protocol === "mailto:") return url.href;
   if (image && url.protocol === "data:" && /^data:image\//i.test(v)) return v;
   return null;
+}
+
+/** Whether `src` is an address on the web, as the page would read it. */
+function onTheWeb(src: string): boolean {
+  try {
+    const url = new URL(src);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function keepAttributes(el: Element, tag: string): void {
@@ -152,7 +166,7 @@ function clean(body: HTMLElement): void {
     }
     keepAttributes(el, tag);
     const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";
-    if (!remote && /^https?:/i.test(src)) {
+    if (!remote && onTheWeb(src)) {
       const link = doc.createElement("a");
       link.setAttribute("href", src);
       link.className = "remote-image";
