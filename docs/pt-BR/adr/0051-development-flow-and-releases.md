@@ -4,6 +4,9 @@
 - Fonte: as mensagens do mantenedor de 2026-09-24, citadas abaixo;
   [0033](0033-pr-workflow.md), [0029](0029-guardrails-in-ci.md)
 - Status no briefing: não consta
+- Revisões: 2026-09-24 — o índice compartilhado da Decisão 6 mantido pelo
+  mantenedor, sobre `docs/reference/beta-config-decision.md`, com um ponto
+  para revê-lo (Consequências).
 
 ## Contexto
 
@@ -92,6 +95,14 @@ modificações até gerar versão, considerando changelog inclusive"*.
 - A primeira versão, quando o mantenedor pedir, é `0.2.0-beta.1`: o mês de uso
   real da Fase 2 roda num app instalado em vez de num build de
   desenvolvimento.
+- **O índice compartilhado é revisto num ponto**: antes que uma beta mude o
+  schema do índice enquanto uma versão de produção está instalada na mesma
+  máquina. Até lá os dois custos de compartilhar não podem acontecer — cada
+  app reconstruir o índice do outro a cada troca, e as consultas de um
+  falharem enquanto o outro reconstrói. Decidido pelo mantenedor em
+  2026-09-24, na sessão, mantendo a opção (a) de
+  `docs/reference/beta-config-decision.md`, que expõe os custos e as duas
+  outras opções.
 
 ## Alternativas descartadas
 

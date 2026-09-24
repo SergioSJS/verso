@@ -1,9 +1,18 @@
 # Decision memo: where a test release keeps its indexes
 
 - Date: 2026-09-24
-- Status: **not decided.** It asks whether a decided point should be
-  revisited, with options and a recommendation labelled as such; the
-  maintainer decides (`CLAUDE.md` §1). No code follows this memo.
+- Status: **decided by the maintainer on 2026-09-24**, in session: option
+  (a), the recommendation of section 3 — [ADR 0051](../adr/0051-development-flow-and-releases.md)
+  Decision 6 stands, and the index stays shared, to be revisited at one
+  point: before a beta changes the index schema while a production version is
+  installed on the same machine. The author's recommendations of the day, this
+  one among them, were put to the maintainer as one list; the answer:
+  *"Tirando o plano de fazer vários PR, eu gosto das suas recomendações"*
+  ("apart from the plan of several pull requests, I like your
+  recommendations"). The point to revisit is recorded in ADR 0051's
+  Consequences. No code follows this memo. Until the answer it was not
+  decided: it asked whether a decided point should be revisited, with options
+  and a recommendation labelled as such.
 - Written by Opus 5.5 overnight, standing in for Fable 5.1 by the
   maintainer's decision of 2026-09-23; read by a fresh Opus 5.5 session under
   the same decision, and corrected after that reading: the first version
@@ -69,3 +78,5 @@ happen, and after it (b) is the smaller change.
 
 1. Keep (a), or change it — (b) or (c) — through a revision of ADR 0051 and
    ADR 0011.
+
+Answered on 2026-09-24: (a) kept, with the point to revisit it (the header).

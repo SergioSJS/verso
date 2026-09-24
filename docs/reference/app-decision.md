@@ -279,6 +279,9 @@ which needs CI to run.
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): the contract names notes
   by relative path, and the revision is the only token. Session identity is
   accepted as absent for Phase 2 (ADR 0045, 2026-09-23); handles are open.
+  *(Decided on 2026-09-24: handles as built for Phase 2, re-opened before
+  anything outside the app's own views gets access to files —
+  [handles memo](handles-decision.md).)*
 - **A full accessibility pass** — done statically on 2026-09-24, on a local
   branch: [accessibility review](../review/accessibility.md). Tabs and files
   now move from the keyboard too; what it leaves to the maintainer is in its
@@ -288,6 +291,8 @@ which needs CI to run.
   `feat/watcher`: [watcher memo](watcher-decision.md). Before it, a change made
   outside the app showed up when the note was saved (as a refused write) or
   reopened, or on "reindex"; nothing refreshed the tree on its own.
+  *(Decided on 2026-09-24 as built, every recommendation of the memo
+  accepted.)*
 - **A second window on the same folder**, and tearing a tab out by dragging it.
 - **Everything [ADR 0034](../adr/0034-roadmap-in-phases.md) keeps out until the
   phase ends**: sync, mobile, plugins, the board, the compatibility shim.

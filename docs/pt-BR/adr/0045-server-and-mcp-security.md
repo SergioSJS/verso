@@ -6,7 +6,13 @@
   registra "autenticação e exposição" como questão a abrir
 - Revisões: 2026-09-23 — o grupo do contrato: mantido `[ABERTO]` pelo
   mantenedor até um servidor entrar em escopo, com o contrato da Fase 2 aceito
-  como foi construído (`docs/review/phase-2.md` §6, item 6).
+  como foi construído (`docs/review/phase-2.md` §6, item 6). 2026-09-24 — o
+  identificador de nota: a decisão de 2026-09-22, o caminho relativo à raiz, é
+  o texto que vale, pela resposta do mantenedor sobre
+  `docs/reference/handles-decision.md`, que achou este ADR, o
+  [0026](0026-core-ui-contract-inviolable-rules.md) e o
+  [0044](0044-verso-fs-semantics.md) discordando sobre isso; o parágrafo mais
+  antigo que dizia o grupo do `verso mcp` provisório acertado com uma nota.
 
 ## Contexto
 
@@ -105,7 +111,12 @@ acrescentada depois é contrato refeito — é aceito junto.
 2026-09-22 a partir do código da feature 6 — provisório, o mantenedor decide**,
 sob as recomendações das §2 a §6 de `docs/reference/mcp-decision.md`. É o que o
 código faz, não uma decisão: as três questões acima seguem `[ABERTO]`, e o
-código muda se o mantenedor decidir outra coisa.
+código muda se o mantenedor decidir outra coisa. *(Superado no mesmo dia no que
+ele diz `[ABERTO]`: o mantenedor decidiu o grupo do `verso mcp` em 2026-09-22 —
+a lista acima, com a qual este registro concorda — e em 2026-09-24 confirmou o
+caminho relativo como identificador de nota
+(`docs/reference/handles-decision.md`). O resto continua o registro do que o
+código faz; a língua do que um modelo lê continua `[ABERTO]`, abaixo.)*
 
 - **Transporte: stdio, e nada fica escutando.** O `verso mcp <pasta>` é lançado
   pelo cliente como processo filho e fala JSON-RPC pela própria entrada e saída

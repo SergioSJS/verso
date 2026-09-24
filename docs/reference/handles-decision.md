@@ -1,9 +1,25 @@
 # Decision memo: the opaque handles group of ADR 0044
 
 - Date: 2026-09-24
-- Status: **not decided.** Options and a recommendation, labelled as such; the
-  maintainer decides (`CLAUDE.md` §1). No code follows this memo: it asks to
-  record what the code already does, or not.
+- Status: **decided by the maintainer on 2026-09-24**, in session, on
+  section 5:
+  1. **option (a)** — ADR 0044's third group decided as built, for Phase 2:
+     notes are named by their relative path, no capability crosses the
+     contract, and the `Handle` stays an index into a table inside the
+     process; the group is re-opened **before anything outside the app's own
+     views gets access to files — a plugin, a mobile client, `verso serve`**;
+  2. of the disagreeing texts of section 2, **ADR 0045's decision of
+     2026-09-22 stands**: the note identifier over MCP is the path relative to
+     the root.
+
+  The author's recommendations of the day, this one among them, were put to
+  the maintainer as one list; the answer: *"Tirando o plano de fazer vários
+  PR, eu gosto das suas recomendações"* ("apart from the plan of several pull
+  requests, I like your recommendations"). Recorded in ADR 0044 (the group and
+  its Status), ADR 0026 and ADR 0045 (the stale paragraphs, each with a
+  revision line), the [roadmap](../roadmap.md)'s two rows on handles and the
+  [ADR index](../adr/README.md)'s row for 0044. No code follows this memo:
+  it asked to record what the code already does, or not.
 - Written by Opus 5.5 overnight, standing in for Fable 5.1 by the
   maintainer's decision of 2026-09-23; read by a fresh Opus 5.5 session under
   the same decision, and corrected after that reading.
@@ -72,3 +88,5 @@ Nothing new was run: it describes the code and the documents as they stand.
 
 1. (a) or (b).
 2. Whichever: which of the disagreeing texts of section 2 stands.
+
+Answered on 2026-09-24: (a), and ADR 0045's text stands (the header).

@@ -1,12 +1,27 @@
 # Decision memo: the watcher (changes made outside the app)
 
 - Date: 2026-09-24
-- Status: **not decided.** Nothing in this memo is a decision: it lays out
-  options, records facts and carries recommendations labelled as such. The
-  maintainer decides (`CLAUDE.md` §1). The code on branch `feat/watcher` and
-  the fixes above it are written **under the recommendations, marked
-  provisional**, and change if the maintainer decides otherwise — the
-  arrangement used for features 2 to 6.
+- Status: **decided by the maintainer on 2026-09-24**, in session. The
+  author's recommendations of the day, this memo's section 6 among them, were
+  put to the maintainer as one list; the answer: *"Tirando o plano de fazer
+  vários PR, eu gosto das suas recomendações"* ("apart from the plan of
+  several pull requests, I like your recommendations"). Every line of section
+  6 as recommended:
+  1. **`notify`** (section 3.1);
+  2. **a whole-folder index per batch, for now** (3.2);
+  3. **300 ms of quiet, 2 s at most**, kept (3.3);
+  4. **the disk's text brought in as one edit, a tab with unsaved text saved
+     at once to meet the conflict banner, a gone note's tab kept and
+     marked**, kept (3.4 to 3.6);
+  5. **files that are not notes not refreshed**, accepted for now (3.7).
+
+  Until then nothing here was a decision, and the code on branch
+  `feat/watcher` and the fixes above it were written under the
+  recommendations, marked provisional — the arrangement used for features 2
+  to 6; they are no longer provisional. Recorded in
+  [ADR 0044](../adr/0044-verso-fs-semantics.md). Sections 1 to 5 are the
+  comparison as it stood when the decision was made; section 7 records the
+  readings.
 - Asked for: agreed in session on 2026-09-23 — the watcher comes next,
   before the month of real use that closes Phase 2 ([roadmap](../roadmap.md),
   Phase 2, exit criterion); no repository document records that answer
@@ -189,6 +204,8 @@ is built when Linux becomes a target, as ADR 0044 says; Linux is not one yet.
 4. Sections 3.4 to 3.6: bring in as one edit / save now / keep and mark —
    keep or change.
 5. Section 3.7: non-note files not refreshed — accept for now or not.
+
+Answered on 2026-09-24: all five as recommended (the header).
 
 ## 7. The readings
 

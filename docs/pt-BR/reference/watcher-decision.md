@@ -1,12 +1,26 @@
 # Memo de decisão: o watcher (mudanças feitas fora do app)
 
 - Data: 2026-09-24
-- Status: **não decidido.** Nada neste memo é uma decisão: ele expõe opções,
-  registra fatos e traz recomendações identificadas como tais. O mantenedor
-  decide (`CLAUDE.md` §1). O código do branch `feat/watcher` e as correções
-  acima dele estão escritos **segundo as recomendações, marcados como
-  provisórios**, e mudam se o mantenedor decidir diferente — o mesmo arranjo
-  das features 2 a 6.
+- Status: **decidido pelo mantenedor em 2026-09-24**, na sessão. As
+  recomendações do autor no dia, entre elas a seção 6 deste memo, foram
+  apresentadas ao mantenedor numa lista só; a resposta: *"Tirando o plano de
+  fazer vários PR, eu gosto das suas recomendações"*. Cada linha da seção 6
+  como recomendada:
+  1. **`notify`** (seção 3.1);
+  2. **indexar a pasta inteira por lote, por ora** (3.2);
+  3. **300 ms de quietude, 2 s no máximo**, mantidos (3.3);
+  4. **o texto do disco trazido como uma edição, uma aba com texto não salvo
+     salva na hora para encontrar a faixa de conflito, a aba de uma nota
+     sumida mantida e marcada**, mantidos (3.4 a 3.6);
+  5. **arquivos que não são notas não atualizados**, aceito por ora (3.7).
+
+  Até então nada aqui era decisão, e o código do branch `feat/watcher` e as
+  correções acima dele estavam escritos segundo as recomendações, marcados
+  como provisórios — o mesmo arranjo das features 2 a 6; não são mais
+  provisórios. Registrado no
+  [ADR 0044](../adr/0044-verso-fs-semantics.md). As seções 1 a 5 são a
+  comparação como estava quando a decisão foi tomada; a seção 7 registra as
+  leituras.
 - Pedido: combinado na sessão em 2026-09-23 — o watcher vem a seguir, antes
   do mês de uso real que fecha a Fase 2 ([roadmap](../roadmap.md), Fase 2,
   critério de saída); nenhum documento do repositório registra essa resposta
@@ -194,6 +208,8 @@ diz o ADR 0044; o Linux ainda não é.
    manter ou mudar.
 5. Seção 3.7: arquivos que não são notas não atualizados — aceitar por ora ou
    não.
+
+Respondido em 2026-09-24: as cinco como recomendadas (o cabeçalho).
 
 ## 7. As leituras
 

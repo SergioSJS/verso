@@ -4,6 +4,9 @@
 - Source: the maintainer's messages of 2026-09-24, quoted below;
   [0033](0033-pr-workflow.md), [0029](0029-guardrails-in-ci.md)
 - Status in the briefing: not present
+- Revisions: 2026-09-24 — Decision 6's shared index kept by the maintainer,
+  on `docs/reference/beta-config-decision.md`, with one point to revisit it
+  (Consequences).
 
 ## Context
 
@@ -89,6 +92,13 @@ modificações até gerar versão, considerando changelog inclusive"*.
 - The first version, when the maintainer asks for it, is `0.2.0-beta.1`: Phase
   2's month of real use runs on an installed app instead of a development
   build.
+- **The shared index is revisited at one point**: before a beta changes the
+  index schema while a production version is installed on the same machine.
+  Until then the two costs of sharing cannot happen — each app rebuilding the
+  other's index at every switch, and one app's queries failing while the other
+  rebuilds. Decided by the maintainer on 2026-09-24, in session, keeping
+  option (a) of `docs/reference/beta-config-decision.md`, which lays out the
+  costs and the two other options.
 
 ## Discarded alternatives
 

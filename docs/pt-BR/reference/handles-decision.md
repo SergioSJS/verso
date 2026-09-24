@@ -1,9 +1,25 @@
 # Memo de decisão: o grupo dos handles opacos do ADR 0044
 
 - Data: 2026-09-24
-- Status: **não decidido.** Opções e uma recomendação, identificadas como
-  tais; o mantenedor decide (`CLAUDE.md` §1). Nenhum código segue este memo:
-  ele pergunta se registra o que o código já faz, ou não.
+- Status: **decidido pelo mantenedor em 2026-09-24**, na sessão, sobre a
+  seção 5:
+  1. **a opção (a)** — o terceiro grupo do ADR 0044 decidido como construído,
+     para a Fase 2: as notas são nomeadas pelo caminho relativo, nenhuma
+     capacidade cruza o contrato, e o `Handle` continua um índice numa tabela
+     dentro do processo; o grupo é reaberto **antes que qualquer coisa fora
+     das views do próprio app ganhe acesso a arquivos — um plugin, um cliente
+     mobile, o `verso serve`**;
+  2. dos textos discordantes da seção 2, **vale a decisão de 2026-09-22 do
+     ADR 0045**: o identificador de nota pelo MCP é o caminho relativo à raiz.
+
+  As recomendações do autor no dia, esta entre elas, foram apresentadas ao
+  mantenedor numa lista só; a resposta: *"Tirando o plano de fazer vários PR,
+  eu gosto das suas recomendações"*. Registrado no ADR 0044 (o grupo e o
+  Status dele), no ADR 0026 e no ADR 0045 (os parágrafos desatualizados, cada
+  um com uma linha de revisão), nas duas linhas do [roadmap](../roadmap.md)
+  sobre handles e na linha do 0044 no [índice dos ADRs](../adr/README.md).
+  Nenhum código segue este memo: ele perguntava se registrava o que o código
+  já faz, ou não.
 - Escrito pelo Opus 5.5 durante a noite, no lugar do Fable 5.1 por decisão do
   mantenedor de 2026-09-23; lido por uma sessão nova do Opus 5.5 sob a mesma
   decisão, e corrigido depois dessa leitura.
@@ -74,3 +90,5 @@ Nada novo foi executado: ele descreve o código e os documentos como estão.
 
 1. (a) ou (b).
 2. Qualquer que seja: qual dos textos discordantes da seção 2 vale.
+
+Respondido em 2026-09-24: (a), e vale o texto do ADR 0045 (o cabeçalho).
