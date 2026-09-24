@@ -2307,7 +2307,16 @@ class FolderLeaf extends Leaf {
       if (mine) b.setAttribute("aria-sort", desc ? "descending" : "ascending");
       else b.removeAttribute("aria-sort");
     }
+    // Drawn anew, the list gives the keyboard its row back: the same
+    // entry, or the one now in its place.
+    const a = document.activeElement;
+    const all = () => Array.from(this.items.querySelectorAll<HTMLButtonElement>("button.item"));
+    const had = a instanceof HTMLButtonElement && this.items.contains(a) ? { path: a.dataset["path"] ?? "", index: all().indexOf(a) } : null;
     this.items.replaceChildren(...this.rows.slice().sort(cmp).map((r) => this.item(r)));
+    if (had) {
+      const now = all();
+      (now.find((b) => b.dataset["path"] === had.path) ?? now[Math.min(Math.max(had.index, 0), now.length - 1)])?.focus();
+    }
   }
   private item(r: FolderRow): HTMLLIElement {
     const li = h("li");
@@ -2325,6 +2334,7 @@ class FolderLeaf extends Leaf {
     main.append(thumb, h("span", "label", r.label));
     b.append(main, h("span", "col col-kind", kindLabel(r.path, r.kind)), h("span", "col col-size", r.kind === "folder" && r.size === 0 ? "—" : humanSize(r.size)), h("span", "col col-modified", humanDate(r.modified)));
     b.title = r.path;
+    b.dataset["path"] = r.path;
     const open = (pane: boolean) => (r.kind === "folder" ? openFolder(r.path) : openNote(r.path, pane));
     b.addEventListener("click", (e) => open(e.metaKey || e.ctrlKey));
     b.addEventListener("mousedown", () => b.focus());
@@ -4173,6 +4183,9 @@ async function moveFile(path: string, folder: string): Promise<void> {
  *  the move could not plan or confirm; a refusal says its own reason.
  *  Answers whether the entry moved. */
 async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
+  // Asked from the tree with the keyboard: the keyboard lands on what
+  // moved, there, once the tree is drawn again (restoreTreeFocus).
+  const fromTree = keyboardIn(ui.notes);
   // What moves is saved first; a tab of it that cannot be saved stops the move.
   const unsaved = await flushed(leavesUnder(from));
   if (unsaved.length > 0) {
@@ -4191,6 +4204,11 @@ async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
   if (openFolders.has(from)) {
     openFolders.delete(from);
     openFolders.add(r.data.path);
+  }
+  if (fromTree) {
+    treeLandOn = `${allFolders.includes(from) ? "folder" : "file"}:${r.data.path}`;
+    const parts = r.data.path.split("/");
+    for (let k = 1; k < parts.length; k++) openFolders.add(parts.slice(0, k).join("/"));
   }
   await afterFileChange();
   // Notes that link to what moved but could not be planned are named:
@@ -4229,9 +4247,11 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
 }
 /** A destination folder, typed with completion over the vault's folders. */
 function movePrompt(path: string): void {
+  const back = document.activeElement;
+  showSide();
   const input = h("input", "new-note");
   input.placeholder = t.moveWhere;
-  input.setAttribute("aria-label", t.moveTo);
+  input.setAttribute("aria-label", `${t.moveTo}: ${path.split("/").pop() ?? path}`);
   const list = h("datalist");
   list.id = "folders-list";
   list.append(...["", ...allFolders].filter((f) => f !== path && !f.startsWith(`${path}/`)).map((f) => {
@@ -4247,16 +4267,21 @@ function movePrompt(path: string): void {
   ui.notesHeading.after(row);
   input.focus();
   let done = false;
-  const finish = (commit: boolean) => {
+  // Enter or Escape gives the focus back where the field was asked from;
+  // leaving the field for somewhere else does not take it back.
+  const finish = (commit: boolean, restore = false) => {
     if (done) return;
     done = true;
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
+    if (restore) giveBack(back);
     if (commit) void moveFile(path, v);
   };
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("blur", () => finish(false));
 }
@@ -4399,22 +4424,28 @@ function renameInline(li: HTMLElement, path: string, folder = false): void {
   const input = h("input", "rename");
   const current = folder ? path.split("/").pop() ?? path : name(path);
   input.value = current;
-  input.setAttribute("aria-label", t.rename);
+  input.setAttribute("aria-label", `${t.rename}: ${current}`);
   row.replaceWith(input);
   input.focus();
   input.select();
   let done = false;
-  const finish = (commit: boolean) => {
+  // Enter or Escape: the row takes the focus back (a folder's label is in
+  // its summary, which does); the tree then lands on the renamed entry.
+  const back = row.matches("button") ? row : li;
+  const finish = (commit: boolean, restore = false) => {
     if (done) return;
     done = true;
     const value = input.value;
     input.replaceWith(row);
+    if (restore) giveBack(back);
     if (commit) void (folder ? renameFolder(path, value) : renameNote(path, value));
   };
   input.addEventListener("keydown", (e) => {
     e.stopPropagation();
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("click", (e) => e.stopPropagation());
   input.addEventListener("blur", () => finish(input.value.trim() !== current));
@@ -4513,6 +4544,8 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   return li;
 }
 function newFolderPrompt(folder: string): void {
+  const back = document.activeElement;
+  showSide();
   const input = h("input", "new-note");
   input.placeholder = t.newFolderName;
   input.setAttribute("aria-label", t.newFolder);
@@ -4521,9 +4554,10 @@ function newFolderPrompt(folder: string): void {
   row.append(icon("folderPlus"), where, input);
   ui.notesHeading.after(row);
   input.focus();
-  const finish = (commit: boolean) => {
+  const finish = (commit: boolean, restore = false) => {
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
+    if (restore) giveBack(back);
     if (!commit || !v || unlinkable(v)) return;
     void commands.createFolder(folder ? `${folder}/${v}` : v).then(async (r) => {
       if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
@@ -4533,8 +4567,10 @@ function newFolderPrompt(folder: string): void {
     });
   };
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("blur", () => finish(false));
 }
@@ -4542,6 +4578,8 @@ function newFolderPrompt(folder: string): void {
  *  note's name from the host and path. Opening the property opens the
  *  page in a window of its own; the star bookmarks it. */
 function newWebPagePrompt(): void {
+  const back = document.activeElement;
+  showSide();
   const input = h("input", "new-note");
   input.type = "url";
   input.placeholder = t.webUrl;
@@ -4551,11 +4589,12 @@ function newWebPagePrompt(): void {
   ui.notesHeading.after(row);
   input.focus();
   let done = false;
-  const finish = (commit: boolean) => {
+  const finish = (commit: boolean, restore = false) => {
     if (done) return;
     done = true;
     const v = input.value.trim();
     row.remove();
+    if (restore) giveBack(back);
     if (!commit || !v) return;
     let url: URL;
     try {
@@ -4577,12 +4616,16 @@ function newWebPagePrompt(): void {
     })();
   };
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("blur", () => finish(false));
 }
 function newNotePrompt(folder: string): void {
+  const back = document.activeElement;
+  showSide();
   const input = h("input", "new-note");
   input.placeholder = t.newNoteName;
   input.setAttribute("aria-label", t.newNote);
@@ -4591,16 +4634,37 @@ function newNotePrompt(folder: string): void {
   row.append(where, input);
   ui.notesHeading.after(row);
   input.focus();
-  const finish = (commit: boolean) => {
+  const finish = (commit: boolean, restore = false) => {
     const v = input.value;
     row.remove();
+    if (restore) giveBack(back);
     if (commit) void createNote(folder, v);
   };
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("blur", () => finish(false));
+}
+/** The sidebar on screen, for a field that opens in it (new note, new
+ *  folder, a web page, "Move to…"): in a hidden sidebar the field could
+ *  not take the focus, and the command seemed to do nothing. */
+function showSide(): void {
+  if (narrow.matches) document.body.classList.add("side-open");
+  else document.body.classList.remove("no-side");
+  paintToggles();
+}
+/** The focus back on `el`, when it is still on the page. */
+function giveBack(el: Element | null): void {
+  if (el instanceof HTMLElement && el !== document.body && el.isConnected) el.focus();
+}
+/** The focus is in `container` and came there from the keyboard (its
+ *  ring shows): what the keyboard asked for may move it on. */
+function keyboardIn(container: HTMLElement): boolean {
+  const a = document.activeElement;
+  return a instanceof HTMLElement && container.contains(a) && a.matches(":focus-visible");
 }
 
 type Folder = { folders: Map<string, Folder>; files: string[] };
@@ -4664,6 +4728,11 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
       } else if (e.key === "Delete" || (e.key === "Backspace" && e.metaKey)) {
         e.preventDefault();
         void deleteEntry(full, "folder");
+      } else if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+        // The folder's menu (open, move, new note here…), as a file's row has it.
+        e.preventDefault();
+        const r = s.getBoundingClientRect();
+        s.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.left + 24, clientY: r.bottom, bubbles: true, cancelable: true }));
       }
     });
     d.append(s, renderTree(child, depth + 1, full));
@@ -4683,11 +4752,69 @@ async function listAll(): Promise<void> {
   allFolders = folders.status === "ok" ? folders.data : [];
   allEntries.clear();
   if (entries.status === "ok") for (const e of entries.data) allEntries.set(e.path, e);
+  const was = treeFocus();
   ui.notes.className = "tree";
   ui.notes.replaceChildren(...Array.from(renderTree(tree([...allNotes, ...allFiles], allFolders), 0).children));
   Array.from(ui.notes.children).forEach((li, i) => (li as HTMLElement).style.setProperty("--i", String(i)));
   if (allNotes.length + allFiles.length === 0) ui.notes.append(h("li", "empty", t.noNotes));
   markCurrent();
+  restoreTreeFocus(was);
+}
+/* The tree from the keyboard: the arrows walk the rows on screen, Right
+ * opens a folder or steps into it, Left closes it or steps out to its
+ * folder, Home and End reach the ends. The rows stay what they are —
+ * buttons, and each folder's summary — and each stays in the Tab order,
+ * as the folder view's rows do. */
+function treeRows(): HTMLElement[] {
+  return Array.from(ui.notes.querySelectorAll<HTMLElement>("summary, li[data-path] > button")).filter((r) => r.getClientRects().length > 0);
+}
+ui.notes.addEventListener("keydown", (e) => {
+  if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const row = e.target as HTMLElement;
+  const rows = treeRows();
+  const i = rows.indexOf(row);
+  if (i < 0) return;
+  const folder = row.tagName === "SUMMARY" && row.parentElement instanceof HTMLDetailsElement ? row.parentElement : null;
+  let to: HTMLElement | null | undefined = null;
+  if (e.key === "ArrowDown") to = rows[i + 1];
+  else if (e.key === "ArrowUp") to = rows[i - 1];
+  else if (e.key === "Home") to = rows[0];
+  else if (e.key === "End") to = rows[rows.length - 1];
+  else if (e.key === "ArrowRight" && folder) {
+    if (!folder.open) folder.open = true;
+    else if (rows[i + 1] && folder.contains(rows[i + 1]!)) to = rows[i + 1];
+  } else if (e.key === "ArrowLeft") {
+    if (folder?.open) folder.open = false;
+    else to = row.closest("li")?.parentElement?.closest("details")?.querySelector<HTMLElement>(":scope > summary");
+  } else return;
+  e.preventDefault();
+  to?.focus();
+});
+/** A row of the tree, as a key that outlives the row being drawn anew. */
+function rowKey(r: HTMLElement): string {
+  return r.tagName === "SUMMARY" ? `folder:${r.dataset["folder"] ?? ""}` : `file:${r.closest("li")?.dataset["path"] ?? ""}`;
+}
+/** Where a rename or a move asked from the tree lands, once drawn (renameTo). */
+let treeLandOn: string | null = null;
+/** The row the keyboard is on, before the list is drawn anew. */
+function treeFocus(): { key: string; index: number } | null {
+  const a = document.activeElement;
+  if (!(a instanceof HTMLElement) || !ui.notes.contains(a)) return null;
+  return { key: rowKey(a), index: Math.max(0, treeRows().indexOf(a)) };
+}
+/** Drawn anew (a file changed, a search, a rename), the tree gives the
+ *  keyboard its row back — the same entry, or the one now in its place —
+ *  unless the focus went somewhere else meanwhile. */
+function restoreTreeFocus(was: { key: string; index: number } | null): void {
+  const land = treeLandOn;
+  treeLandOn = null;
+  if (!was && !land) return;
+  const a = document.activeElement;
+  if (a instanceof HTMLElement && a !== document.body && !ui.notes.contains(a)) return;
+  const rows = treeRows();
+  const want = land ?? was?.key;
+  const next = rows.find((r) => rowKey(r) === want) ?? (was ? rows[Math.min(was.index, rows.length - 1)] : undefined);
+  next?.focus();
 }
 function snippetNode(snippet: string): HTMLSpanElement {
   const s = h("span", "snippet");
@@ -4731,6 +4858,7 @@ async function searchNotes(words: string): Promise<void> {
   if (paths.length > 0) hits = hits.filter((hit) => paths.every((p) => hit.path.toLowerCase().includes(p)));
   if (files.length > 0) hits = hits.filter((hit) => files.every((f) => name(hit.path).toLowerCase().includes(f)));
   hits = hits.slice(0, 200);
+  const was = treeFocus();
   ui.notes.className = "list";
   ui.notes.replaceChildren(
     ...hits.map((hit) =>
@@ -4740,6 +4868,7 @@ async function searchNotes(words: string): Promise<void> {
       }),
     ),
   );
+  restoreTreeFocus(was);
   ui.status.textContent = t.hits(hits.length);
 }
 let collapsed = false;
