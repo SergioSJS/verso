@@ -12,7 +12,11 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **The beta's command line** says which app it opens: `verso <folder>`
+  answers "opening … in Verso Beta", and names Verso Beta when the app is
+  not installed.
 
 ## 0.2.0-beta.1 — 2026-09-24
 
