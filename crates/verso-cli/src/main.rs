@@ -62,7 +62,7 @@ struct Options {
 
 /// The first argument when it is not a folder. A folder named like one of
 /// these is reached through `verso open <folder>`.
-const SUBCOMMANDS: [&str; 11] = [
+const SUBCOMMANDS: [&str; 10] = [
     "index",
     "search",
     "backlinks",
@@ -71,7 +71,6 @@ const SUBCOMMANDS: [&str; 11] = [
     "help",
     "--help",
     "-h",
-    "version",
     "--version",
     "-V",
 ];
@@ -241,7 +240,7 @@ fn command_of(
             }
         }
         "help" | "--help" | "-h" => Command::Help,
-        "version" | "--version" | "-V" => Command::Version,
+        "--version" | "-V" => Command::Version,
         // Every name in SUBCOMMANDS has an arm above.
         other => return Err(Msg::UnknownSubcommand(other.to_owned())),
     };
@@ -751,7 +750,7 @@ mod tests {
         assert_eq!(parse(&args(&["help"])).1.unwrap(), Command::Help);
         assert_eq!(parse(&args(&["--help"])).1.unwrap(), Command::Help);
         assert_eq!(parse(&args(&["-h"])).1.unwrap(), Command::Help);
-        for form in ["version", "--version", "-V"] {
+        for form in ["--version", "-V"] {
             assert_eq!(parse(&args(&[form])).1.unwrap(), Command::Version);
         }
         assert_eq!(

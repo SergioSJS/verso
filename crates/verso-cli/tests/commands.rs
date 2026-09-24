@@ -154,7 +154,7 @@ fn usage_and_open_errors_have_their_exit_codes_and_go_to_stderr() {
     assert!(out.starts_with("usage: verso"), "{out}");
     assert!(err.is_empty(), "{err}");
     // Nor is asking for the version: the workspace's, and a commit.
-    for form in ["--version", "-V", "version"] {
+    for form in ["--version", "-V"] {
         let (code, out, err) = verso(config.path(), "pt_BR", &[form]);
         assert_eq!(code, 0, "{form}");
         let expected = format!("verso {} (", env!("CARGO_PKG_VERSION"));

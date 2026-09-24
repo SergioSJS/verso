@@ -124,6 +124,7 @@ uso: verso <comando> <pasta> [...]
   verso <pasta>                        abre a pasta no aplicativo (verso . = esta pasta)
   verso open <pasta>                   o mesmo, para uma pasta chamada como um comando
   verso help                           esta ajuda
+  verso --version                      a versão e o commit
 
 opções: --json (saída em JSON), --limit N (busca), --lang pt-BR|en
 códigos de saída: 0 ok, 1 problemas na pasta reportados, 2 uso, 3 não abriu
@@ -207,6 +208,7 @@ usage: verso <command> <folder> [...]
   verso <folder>                       open the folder in the app (verso . = this one)
   verso open <folder>                  the same, for a folder named like a command
   verso help                           this help
+  verso --version                      the version and the commit
 
 options: --json (JSON output), --limit N (search), --lang pt-BR|en
 exit codes: 0 ok, 1 problems in the folder reported, 2 usage, 3 could not open
