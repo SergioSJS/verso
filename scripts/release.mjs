@@ -27,7 +27,8 @@
 //
 // `--dry-run` shows what `prepare` or `tag` would do and changes nothing.
 // A production version is X.Y.Z; a test release is X.Y.Z-beta.N.
-// Dependency-free; Node 18 or later, with git, cargo and gh on PATH.
+// Dependency-free; Node 18 or later, with git, cargo and gh on PATH —
+// `prepare` checks gh before it changes anything.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -120,7 +121,20 @@ function notesFrom(texts, v) {
   return `${parts[0]}\n\n---\n\n**Português (Brasil)**\n\n${parts[1]}\n`;
 }
 
+/** `prepare` ends by opening the pull request with gh, so gh is checked
+ *  first: missing from PATH or logged out, it stops `prepare` before
+ *  anything is written or pushed. The first beta's pushed its branch and
+ *  then failed there, leaving the pull request to open by hand. */
+function needGh() {
+  try {
+    execFileSync("gh", ["auth", "status"], { cwd: root, stdio: "ignore" });
+  } catch {
+    fail("gh is not on PATH, or not logged in (gh auth login); nothing was changed");
+  }
+}
+
 function prepare(v) {
+  needGh();
   if (run("git", ["status", "--porcelain"]) !== "") fail("the working tree is not clean");
   run("git", ["fetch", "--quiet", "origin", "main"]);
 
