@@ -1,0 +1,63 @@
+# Verso
+
+[English](../../README.md)
+
+O Verso é um aplicativo aberto de notas em Markdown: arquivos simples em
+disco, compatível com vaults do Obsidian, feito primeiro para preparar
+sessões de RPG de mesa ([ADR 0036](adr/0036-tabletop-rpg-support.md)). Ele
+está na Fase 2 do [roadmap](roadmap.md): uma janela desktop no macOS, em uso
+diário pelo mantenedor. O repositório fica privado até estar pronto.
+
+## Compilar e rodar
+
+```
+cd app/ui && npm ci && npm run build && cd ../..
+cargo build -p verso-app -p verso-cli
+./target/debug/verso /caminho/de/uma/pasta
+```
+
+A UI precisa do Node 22, e o Rust precisa do toolchain que o
+`rust-toolchain.toml` fixa (o `rustup` o instala). A linha de comando sozinha
+— `verso index`, `verso search`, `verso backlinks`, `verso mcp` — não precisa
+de UI: `./target/debug/verso help`.
+
+## Testar localmente, antes do push
+
+O CI confirma; ele não deve ser onde uma falha aparece primeiro. Dois scripts
+rodam os guardrails do CI ([ADR 0029](adr/0029-guardrails-in-ci.md)) na sua
+máquina:
+
+| Script | Roda | Precisa de |
+|---|---|---|
+| `scripts/check.sh` | todo guardrail do job de Linux do CI, nativo — num Mac, é a checagem de macOS | o toolchain, o Node 22, `cargo install cargo-deny --locked` |
+| `scripts/check-linux.sh` | fmt, clippy, os testes e os bindings gerados num container Linux, como usuário comum | Docker; o bundle da UI que o primeiro script gera |
+
+```
+scripts/check.sh && scripts/check-linux.sh
+```
+
+A primeira execução de Linux baixa uma imagem, um toolchain e as
+dependências; as seguintes levam cerca de um minuto. O que nenhum dos dois
+cobre:
+
+- **macOS num container** não existe: o Docker roda Linux. Num Mac, o
+  `scripts/check.sh` é a checagem de macOS; o CI repete clippy e os testes no
+  macOS depois de cada merge no `main`.
+- **Windows**: o Docker num Mac ou num Linux não roda Windows, e o Verso ainda
+  não compila para Windows. Com o porte para Windows
+  ([ADR 0022](adr/0022-target-platforms-macos-first.md)), uma checagem do
+  build de Windows entra nesses scripts, e os testes rodam em Windows no CI.
+- **O fuzzing e o benchmark**, que o CI roda no `main`:
+  `cargo +nightly fuzz run parse` em `crates/verso-dialect`, e
+  `cargo run --release -p verso-bench -- --help`.
+
+## Documentos
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — como propor uma mudança, a assinatura,
+  o que nunca fazer.
+- [roadmap.md](roadmap.md) — as fases e os critérios de saída.
+- [adr/](adr/README.md) — um registro por decisão.
+- [spec/dialect.md](spec/dialect.md) — o dialeto Markdown, com as questões em
+  aberto.
+- [reference/app-decision.md](reference/app-decision.md) — o que a janela faz,
+  e como verificar sem ler código.
