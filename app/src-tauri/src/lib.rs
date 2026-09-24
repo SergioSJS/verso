@@ -26,7 +26,8 @@
 
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -43,7 +44,18 @@ use verso_core::{CoreError, ReadError, Workspace, WriteError};
 struct Session {
     workspace: Workspace,
     info: FolderInfo,
+    /// Why the folder is not watched, when it is not: said with every
+    /// summary of the session, since each index run replaces the problems.
+    unwatched: Option<String>,
     _watch: Option<verso_core::Watch>,
+}
+
+/// An index run's summary for this session: the run's own problems, and
+/// the reason the folder is not watched, if it is not.
+fn session_summary(session: &Session, report: &verso_core::IndexReport) -> IndexSummary {
+    let mut summary = summary(report);
+    summary.problems.extend(session.unwatched.iter().cloned());
+    summary
 }
 
 /// The one open folder, or none yet. One mutex: two commands never
@@ -223,14 +235,20 @@ async fn install<R: tauri::Runtime>(
 ) -> Result<FolderInfo, ContractError> {
     let config = app.state::<App>().config.clone();
     let handle = app.clone();
+    let missed = Arc::new(AtomicBool::new(false));
+    let seen = Arc::clone(&missed);
     let opened = tauri::async_runtime::spawn_blocking(move || -> Result<Session, CoreError> {
         let mut workspace = open(config.as_deref())?;
+        // Watched before the first index run, so that a change made while
+        // it runs — seconds on a large folder — is not missed.
+        let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
         let report = workspace.index()?;
         let mut info = folder_info(&workspace, &report);
-        let watch = watch_folder(&handle, &workspace, &mut info);
+        info.index.problems.extend(unwatched.iter().cloned());
         Ok(Session {
             workspace,
             info,
+            unwatched,
             _watch: watch,
         })
     })
@@ -240,45 +258,57 @@ async fn install<R: tauri::Runtime>(
     may_switch(app, window)?;
     let info = opened.info.clone();
     *lock(&app.state::<App>().session) = Some(opened);
+    // A batch that came while the folder was being opened found no session
+    // to bring up to date; it runs now.
+    if missed.swap(false, Ordering::SeqCst) {
+        let app = app.clone();
+        let key = info.key.clone();
+        tauri::async_runtime::spawn_blocking(move || changed_outside(&app, &key, &missed));
+    }
     Ok(info)
 }
 
 /// Watch the open folder for changes made outside the app (provisional:
 /// `docs/reference/watcher-decision.md`): each batch indexes the folder
-/// again and tells the app's windows what changed. A folder that cannot be
-/// watched opens all the same; the reason joins the index's problems, and
-/// changes made outside then show up on "reindex".
+/// again and tells the app's windows. A folder that cannot be watched
+/// opens all the same, and the reason comes back, to go with every
+/// summary of the session: changes made outside then show up on
+/// "reindex". The reason carries the error's kind and no path (rule 4).
+/// A batch that finds no session for the folder yet sets `missed`.
 fn watch_folder<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     workspace: &Workspace,
-    info: &mut FolderInfo,
-) -> Option<verso_core::Watch> {
+    missed: Arc<AtomicBool>,
+) -> (Option<verso_core::Watch>, Option<String>) {
     let app = app.clone();
-    let key = info.key.clone();
-    match workspace.watch(move |_| changed_outside(&app, &key)) {
-        Ok(watch) => Some(watch),
-        Err(e) => {
-            info.index.problems.push(e.to_string());
-            None
-        }
+    let key = workspace.key();
+    match workspace.watch(move |_| changed_outside(&app, &key, &missed)) {
+        Ok(watch) => (Some(watch), None),
+        Err(e) => (
+            None,
+            Some(format!(
+                "changes made outside Verso show up on Reindex only: {e}"
+            )),
+        ),
     }
 }
 
-/// A batch from the watch, on its thread: index the folder again and, if
-/// anything changed, send the app's windows what (`folder-changed`). The
-/// batch says that something changed; the index run finds what — a note
-/// Verso itself just wrote is already current and is not reported. A
-/// batch for a folder that is no longer the open one does nothing.
-fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) {
+/// A batch from the watch, on its thread: index the folder again and send
+/// the app's windows `folder-changed`, once — every window listens to it,
+/// whatever its label. The payload names what this run found changed (a
+/// note Verso itself just wrote is current already and is not named), and
+/// the windows check their open notes against the disk anyway: another
+/// index run — "reindex", the command line — may have found a change
+/// first. A batch that finds no session for its folder does nothing and
+/// sets `missed`: the folder is still being opened, or another one is.
+fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, missed: &AtomicBool) {
     let state = app.state::<App>();
     let payload = {
         let mut guard = lock(&state.session);
-        let Some(session) = guard.as_mut() else {
+        let Some(session) = guard.as_mut().filter(|s| s.info.key == key) else {
+            missed.store(true, Ordering::SeqCst);
             return;
         };
-        if session.info.key != key {
-            return;
-        }
         let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| session.workspace.index()));
         let report = match outcome {
             Ok(Ok(report)) => Ok(report),
@@ -287,14 +317,12 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) {
         };
         match report {
             Ok(report) => {
-                session.info.index = summary(&report);
-                if report.changed.is_empty() && report.gone.is_empty() && !report.listing_changed {
-                    return;
-                }
+                session.info.index = session_summary(session, &report);
                 FolderChanged {
                     key: key.to_owned(),
                     changed: report.changed,
                     removed: report.gone,
+                    listing: report.listing_changed,
                     index: session.info.index.clone(),
                 }
             }
@@ -310,16 +338,17 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) {
                     key: key.to_owned(),
                     changed: Vec::new(),
                     removed: Vec::new(),
+                    listing: false,
                     index,
                 }
             }
         }
     };
-    for label in app.webview_windows().into_keys() {
-        if label == "main" || label.starts_with("note-") {
-            let _ = app.emit_to(label.as_str(), "folder-changed", payload.clone());
-        }
-    }
+    // Once: `emit_to` a label also reaches every listener that listens to
+    // all, which is how the windows listen, so a loop over the windows
+    // delivered each batch once per window to each of them. Web pages'
+    // views cannot listen (capabilities/default.json).
+    let _ = app.emit("folder-changed", payload);
 }
 
 /// Run the native folder picker and open what the user chose: the entry
@@ -1145,11 +1174,11 @@ fn return_to_main<R: tauri::Runtime>(
 #[tauri::command]
 #[specta::specta]
 fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
-    let summary = with(&state, |ws| Ok(summary(&ws.index()?)))?;
-    if let Some(session) = lock(&state.session).as_mut() {
-        session.info.index = summary.clone();
-    }
-    Ok(summary)
+    let report = with(&state, Workspace::index)?;
+    let mut guard = lock(&state.session);
+    let session = guard.as_mut().ok_or_else(no_folder)?;
+    session.info.index = session_summary(session, &report);
+    Ok(session.info.index.clone())
 }
 
 /// The commands, once, for the handler, the bindings and the tests. A
@@ -1575,7 +1604,10 @@ mod tests {
     use super::*;
 
     /// The temporary directory a test's indexes go to, managed beside the
-    /// state so that it is removed with the app.
+    /// state. The tests' app is never torn down — a folder's watch holds a
+    /// handle to it — so the directory stays in the system's temporary
+    /// directory, like any test's; what matters is that it is never the
+    /// user's configuration directory.
     struct TestConfig {
         _dir: tempfile::TempDir,
     }
@@ -1683,6 +1715,41 @@ mod tests {
         );
         let back = call(&main, "backlinks", json!({ "path": "Uma" })).unwrap();
         assert_eq!(back.as_array().unwrap().len(), 1, "{back}");
+    }
+
+    /// One batch reaches the windows once, however many there are: `emit_to`
+    /// a label also reaches whoever listens to all, as the windows do, so a
+    /// loop over the windows delivered each batch once per window.
+    #[test]
+    fn one_batch_is_told_once_whatever_the_windows() {
+        use std::sync::atomic::AtomicUsize;
+        use std::time::Duration;
+        use tauri::Listener;
+        let vault = tempfile::tempdir().unwrap();
+        let _uma = note(vault.path(), "Uma.md", "# Uma\n");
+        let (app, main) = app_with(Some(vault.path().to_path_buf()));
+        let info = call(&main, "open_initial", json!({})).unwrap();
+        for label in ["note-0", "note-1"] {
+            tauri::WebviewWindowBuilder::new(&app, label, Default::default())
+                .build()
+                .unwrap();
+        }
+        let told = Arc::new(AtomicUsize::new(0));
+        let seen = Arc::clone(&told);
+        // What the system still had to say about the folder's creation.
+        std::thread::sleep(Duration::from_millis(700));
+        app.listen_any("folder-changed", move |_| {
+            seen.fetch_add(1, Ordering::SeqCst);
+        });
+        let missed = AtomicBool::new(false);
+        changed_outside(app.handle(), info["key"].as_str().unwrap(), &missed);
+        assert_eq!(told.load(Ordering::SeqCst), 1);
+        assert!(!missed.load(Ordering::SeqCst));
+        // A batch for a folder that is not the open one tells nobody, and
+        // says it missed.
+        changed_outside(app.handle(), "outra-0123456789abcdef", &missed);
+        assert_eq!(told.load(Ordering::SeqCst), 1);
+        assert!(missed.load(Ordering::SeqCst));
     }
 
     fn call(
