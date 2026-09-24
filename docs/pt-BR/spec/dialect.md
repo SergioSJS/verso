@@ -717,7 +717,12 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   Obsidian mostra numa nota — `<iframe>`, `<video>`, `<audio>`: a premissa
   apresentada ao mantenedor, de que a visualização de leitura segue o
   Obsidian, não vale ali (a leitura da Opus das respostas); a lista de
-  permissões fica como está enquanto isso.
+  permissões fica como está enquanto isso. *(Corrigido em 2026-09-24 por
+  `docs/reference/embedded-media-decision.md`: a ajuda pública do Obsidian
+  mostra `<iframe>` numa nota; nenhuma página pública mostra `<video>` ou
+  `<audio>` no HTML cru de uma nota — áudio e vídeo estão documentados como
+  embeds `![[…]]`. A questão continua `[ABERTO]`, e aquele memo expõe as
+  opções.)*
 - **Q7. Normalização Unicode na comparação de nomes.** `[ABERTO]`
   NFC × NFD. O APFS (macOS, plataforma inicial) preserva a forma recebida e faz
   busca insensível à normalização; HFS+ forçava NFD; Linux compara bytes. Um
@@ -1078,4 +1083,4 @@ ser escolhido.
 | v0.15 | 2026-09-23 | **Ponto 3 da Q12 emendado pelo mantenedor**: um nome solto prefere um candidato sob a pasta da nota de origem, em qualquer profundidade, como o Obsidian 1.13.7 faz (a terceira observação de `docs/reference/index-decision.md` §4.1); o índice já fazia, e embeds de arquivos agora fazem também. A Q12 continua fechada |
 | v0.16 | 2026-09-23 | As respostas do mantenedor sobre a revisão da Fase 2 (`docs/review/phase-2.md` §6, itens 4 e 20): **Q13 e Q25 fechadas** como o código faz; Q5 (tipos, dobra — sobre a qual a visualização de leitura agora age, `5b7fc69` — e título), Q6 (comentários), Q15 e Q24 decididas para a visualização de leitura e a janela, com a parte do índice e o resto ainda abertos — o aninhamento da Q5 e os `<iframe>`, `<video>` e `<audio>` da Q6 continuam abertos porque a visualização de leitura não segue o Obsidian ali; Q22 decidida para o charset e a caixa das tags; **a ordem do ponto 2 da Q12 dita**: um caminho a partir da raiz primeiro, depois relativo à pasta da origem, e `./` ou `../` só relativo, como o Obsidian 1.13.7 faz. Duas questões fechadas, cinco em parte |
 | v0.17 | 2026-09-24 | Q5: um fato provisório, não uma resposta — a visualização de leitura desenha um callout dentro de um callout, até 32 níveis (branch `feat/nested-callouts`); o aninhamento continua `[ABERTO]` |
-| v0.18 | 2026-09-24 | **Q11 fechada pelo mantenedor** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): um schema é um bloco cercado `verso-schema`, com YAML dentro, numa nota em qualquer lugar da pasta aberta menos caminhos ocultos e ignorados, nomeado pelo `type` que traz dentro; dois schemas com o mesmo nome não tipam nada, e o conflito aparece; se um bloco aninhado conta não está decidido. Seção 6: a nota tipada, os schemas e o i18n de schema `DECIDIDOS`, a restrição 1 (ADR 0013) aceita. Q24: a parte dos links é a próxima decisão. Nenhuma fixture ainda: a implementação as traz |
+| v0.18 | 2026-09-24 | **Q11 fechada pelo mantenedor** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): um schema é um bloco cercado `verso-schema`, com YAML dentro, numa nota em qualquer lugar da pasta aberta menos caminhos ocultos e ignorados, nomeado pelo `type` que traz dentro; dois schemas com o mesmo nome não tipam nada, e o conflito aparece; se um bloco aninhado conta não está decidido. Seção 6: a nota tipada, os schemas e o i18n de schema `DECIDIDOS`, a restrição 1 (ADR 0013) aceita. Q24: a parte dos links é a próxima decisão. Nenhuma fixture ainda: a implementação as traz. Q6: um ponteiro para `docs/reference/embedded-media-decision.md`, que corrige a afirmação de que a documentação do Obsidian mostra `<video>` e `<audio>`; a Q6 continua aberta |

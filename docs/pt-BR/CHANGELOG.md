@@ -18,11 +18,11 @@ versão de teste.
   outro app, uma sincronização ou um `git pull` chegam às abas abertas, à
   busca e aos backlinks um instante depois, e à árvore quando arquivos
   chegam, saem ou se movem. Uma aba sem nada digitado recebe o texto novo
-  como uma edição, com o cursor mantendo o lugar no texto — ⌘Z traz de volta
-  o que a aba tinha; uma com texto ainda não salvo mostra as duas versões,
-  como quando um salvar encontra o arquivo mudado; uma nota apagada ou movida
-  fora mantém o texto na aba, marcada como sumida. Problemas encontrados ao
-  indexar aparecem na linha de status.
+  como uma edição, com o cursor mantendo o lugar no texto; uma com texto
+  ainda não salvo mostra as duas versões, como quando um salvar encontra o
+  arquivo mudado; uma nota apagada ou movida fora mantém o texto na aba,
+  marcada como sumida. Problemas encontrados ao indexar aparecem na linha de
+  status.
 - **Mover sem arrastar**: uma aba anda para trás e para a frente na sua
   barra e vai para a área seguinte ou anterior pelo menu dela (Shift-F10),
   pela paleta de comandos ou por um atalho à sua escolha, e para outra área

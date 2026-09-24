@@ -5,9 +5,11 @@
   maintainer decides (`CLAUDE.md` §1). No code follows this memo: what a note
   may load into the window is a security boundary, and it waits for the
   answer.
-- Written by Opus 5.5 overnight, standing in for Fable 5.1 by the
-  maintainer's decision of 2026-09-23; read by a fresh Opus 5.5 session under
-  the same decision, and corrected after that reading.
+- Written by Opus 5.5 overnight, the author
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md) gives documents ("Opus
+  5"); read by a fresh Opus 5.5 session standing in for Fable 5.1, the reader
+  ADR 0032 gives them, by the maintainer's decision of 2026-09-23
+  (`../review/phase-2.md` §6, item 17), and corrected after that reading.
 - The question: spec Q6 ([dialect spec](../spec/dialect.md), section 9) keeps
   `[OPEN]` the embedded HTML the window drops — `<iframe>`, `<video>`,
   `<audio>` — on the premise that Obsidian shows it. That premise holds for

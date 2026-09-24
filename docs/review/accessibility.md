@@ -153,9 +153,10 @@ answered the keyboard.
 
 Computed from `app/ui/style.css`, every palette (paper, sepia, slate, moss),
 light and dark, each colour against every background it is drawn on. The
-pairs below failed; every other pair checked passed — body, secondary and
-tertiary text, links, selected rows, the Save button, the flags, code
-colours on the code background, and every pair in dark mode.
+pairs below failed — the last callout row found by the reading (section 11);
+every other pair checked passed — body, secondary and tertiary text, links,
+selected rows, the Save button, the flags, code colours on the code
+background, and every pair in dark mode.
 
 | Pair | Where | Before (worst) | After (worst) |
 |---|---|---|---|
@@ -164,13 +165,14 @@ colours on the code background, and every pair in dark mode.
 | Warning callout title | light, every palette | 3.29:1 | 4.79:1 (`12f1043`) |
 | Note callout title | light, sepia | 4.41:1 | 4.80:1 (`12f1043`) |
 | Tip callout title | light, sepia and moss | 4.23:1 | 4.80:1 (`12f1043`) |
+| Title of a callout kind with no colour of its own (`todo`, `important`, any other) | light, every palette | 3.19:1 | 5.01:1 (`f80fe96`) |
 | A menu's item, a list's option | the wash against the page | 1.15:1 | an inset ring, 4.51:1 or more (`78983ef`) |
 | Field borders | hairline on the page, every mode | 1.36:1 | the maintainer's (item 4 of section 8) |
 | A switch that is off | track fill and border on the page | 1.20:1 and 1.36:1 | the maintainer's (item 4 of section 8) |
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | IMPORTANT | Callout titles under 4.5:1 in light mode (table above) (1.4.3) | **Fixed** in `12f1043`: only the lightness changes, as in `83d4a0a` |
+| 1 | IMPORTANT | Callout titles under 4.5:1 in light mode (table above) (1.4.3) | **Fixed** in `12f1043`: only the lightness changes, as in `83d4a0a`; the kinds with no colour of their own in `f80fe96`, which gives them `--brass-ink` (section 11) |
 | 2 | IMPORTANT | Controls' boundaries under 3:1: the fields' hairline borders, and a switch that is off, whose track and border barely differ from the page (1.4.11) | **The maintainer's**: the hairline is the design's language; section 8, item 4, with a proposal |
 | 3 | MINOR | The graph colours notes by folder, and colour alone says which (1.4.1); the legend names the colours, a screen reader hears the note's name only | **The maintainer's**: section 8, item 12 |
 
@@ -341,12 +343,19 @@ without the mouse:
 9. **The editor's way out.** Settings → Hotkeys opens with "Tab in the
    editor"; in a note, Escape, then Tab within two seconds, leaves the
    editor.
-10. **With VoiceOver** (⌘F5): type in a note in Verso and, before the
-    autosave runs, change the same note in another app — VoiceOver says
-    "Nothing written: the file changed on disk…" and the status line names
-    the note (with nothing typed, the watcher reads the note again instead,
-    and nothing is refused); a tab is said as a tab of its bar, with
-    "unsaved changes" after its name while it has some.
+10. **With VoiceOver** (⌘F5). The window saves every tab with unsaved text
+    when it loses the focus, and the autosave runs 1.5 s after typing stops,
+    so the other app's change has to come without taking the focus from
+    Verso: in a terminal, in the open folder, start
+    `sleep 5; printf '\nde fora\n' >> nota.md`, go back to Verso and type in
+    `nota.md` without pausing until the line lands — or raise the Autosave
+    setting to 10 seconds first. The save is refused: "Nothing written: the
+    file changed on disk…" is followed at once by "Changed outside Verso,
+    with unsaved text here: …", and the second may be the one VoiceOver
+    speaks; the status line names the note. (With nothing typed, the watcher
+    reads the note again instead, and nothing is refused.) A tab is said as
+    a tab of its bar, with "unsaved changes" after its name while it has
+    some.
 
 ## 11. The reading
 
@@ -373,3 +382,11 @@ item 1 of section 8. It found no BLOCKING, 5 IMPORTANT and 17 MINOR:
   deferral, the graph's count and the press near its edge (section 8, items
   15 to 17), and the roadmap's line, which now points here rather than
   counting.
+
+A second reading, by a fresh Opus 5.5 session on 2026-09-24, found step 10 of
+section 10 still impossible as written — the window saves every tab with
+unsaved text when it loses the focus, so switching to the other app wrote the
+typed text first (IMPORTANT) — and section 5 still saying every other pair
+passed beside the failing pair recorded above, and the pt-BR twin writing
+"a ADR" where the memos write "o ADR" (MINOR). All three are corrected in
+this record.

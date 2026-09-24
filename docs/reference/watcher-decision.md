@@ -51,7 +51,7 @@ save meets the difference.
 | `verso-fs` | `Root::watch(quiet, excluded, on_change)`: one `notify` watcher on the root, recursive (FSEvents on macOS, inotify on Linux). A thread of its own batches the events: a batch goes out once the folder has been quiet for `quiet`, or after 2 s of changes that do not stop. Only what the walk lists is reported — no hidden entry (`.obsidian/`, the atomic write's `.verso-tmp-*`), no ignored path — and only events that change something: an open or a read is not a change. Events under the `excluded` directories are dropped. An error of the OS watcher comes back as its kind, never with the paths `notify` names in its message. Dropping the `Watch` stops it without waiting for its thread. |
 | `verso-core` | `Workspace::watch` with a quiet interval of 300 ms (`WATCH_QUIET`), the index's own directory excluded (for a configuration directory inside the folder). `IndexReport` names the notes it counted: `changed` (new or different on disk), `gone` (removed), and `listing_changed` (entries added, removed or of another kind — not sizes or times). |
 | Host | Each open folder has a watch, started before the first index run and held by the session. A batch runs `index()` on the watch's thread, under the session's lock, and then sends `folder-changed` once — every window listens to it: the folder's key, what this run found changed and removed by relative path, whether the listing changed, the index summary. A batch that comes before the session exists runs once the session is in place. A folder the system will not watch opens anyway, and the reason goes with every summary of the session. |
-| Window | Every open note is checked against the disk on every `folder-changed`, after the window's own file operations and after Reindex — whichever index run found the change. The same revision: nothing. Changed, nothing typed: the disk's text comes in as one edit over what differs, so the cursor, the selection and the scroll follow the text, the undo history stays (⌘Z brings the tab's text back), and the caret never stays inside the folded frontmatter. Changed, with text not saved yet: saved at once, which meets the difference and shows the conflict banner (invariant 11) — nothing is written over the other app's change. Gone: the tab keeps its text; in the main window its name is crossed out and says so to a screen reader, and a line above the text says so in every window. An edit under way in the properties panel is waited for. The tree and folder views are drawn again only when the listing changed, and not while a name is being typed in the tree. The status line names the notes it speaks of, and shows the index's problems. |
+| Window | Every open note is checked against the disk on every `folder-changed`, after the window's own file operations and after Reindex — whichever index run found the change. The same revision: nothing. Changed, nothing typed: the disk's text comes in as one edit over what differs, so the cursor, the selection and the scroll follow the text, the undo history stays (⌘Z brings the tab's text back — except where the line separator changed or the tab shows the file read-only: there the editor starts again, with a new history), and the caret never stays inside the folded frontmatter. Changed, with text not saved yet: saved at once, which meets the difference and shows the conflict banner (invariant 11) — nothing is written over the other app's change. Gone: the tab keeps its text; in the main window its name is crossed out and says so to a screen reader, and a line above the text says so in every window. An edit under way in the properties panel is waited for. The tree and folder views are drawn again only when the listing changed, and not while a name is being typed in the tree. The status line names the notes it speaks of, and shows the index's problems. |
 | Contract | `FolderChanged`, the event's payload, generated into the bindings with the commands (rule 3). |
 
 Verso's own writes are not reported as changes made outside: a save updates
@@ -64,7 +64,7 @@ note unchanged, and the window's check finds the revision it already holds.
 
 | | (a) `notify` 8.2 | (b) Walk on a timer | (c) Each OS's API directly |
 |---|---|---|---|
-| Dependency | `notify` (CC0-1.0) with `notify-types`, `walkdir`, `same-file` and `log`; on macOS `fsevent-sys`; on Linux `inotify`, `inotify-sys` and `mio` — all pass `deny.toml` | none | `fsevent-sys` or FFI, per platform |
+| Dependency | `notify` (CC0-1.0) with `notify-types`, `walkdir`, `same-file` and `log`; on macOS `fsevent-sys`; on Linux `inotify`, `inotify-sys` and `mio`; and, in `Cargo.lock`, `kqueue` and `kqueue-sys` (MIT), which `notify` uses on the BSDs and iOS and offers on macOS as a backend not enabled here — all pass `deny.toml`, which checks every target | none | `fsevent-sys` or FFI, per platform |
 | Latency | tens of milliseconds plus the quiet interval | the timer's period | as (a) |
 | Cost at rest | none | one walk per period, changed or not | none |
 | Windows and Linux | the same API ([ADR 0022](../adr/0022-target-platforms-macos-first.md): both ship) | the same code | one more backend each |
@@ -84,7 +84,8 @@ fallback for when the OS refuses to watch (section 3.8).
 thousand notes, measured with the benchmark when one is in use. Skipping the
 read of notes whose time and size did not change would make (a) cheap, but it
 would drop the content hash from change detection, which
-[ADR 0029](../adr/0029-guardrails-in-ci.md) and the feature 2 memo keep on
+[ADR 0012](../adr/0012-files-are-source-of-truth.md) — its provisional
+paragraph on what the write check compares — and the feature 2 memo keep on
 purpose (a rewrite that keeps time and size, as `cp -p` or a sync client can);
 this memo does not propose it.
 
@@ -100,11 +101,23 @@ looking. Provisional; the numbers are the code's, not measured against users.
 | | (a) Bring the disk's text in, as one edit | (b) Mark it, read on demand |
 |---|---|---|
 | The user sees | the new text, the cursor where it was in the text | the old text and a notice |
-| What the tab had | one ⌘Z away: if a sync client writes an older version back, or the other editor saves over the note from its own buffer, the tab's text is not lost until the tab is closed | kept on screen until the user acts |
+| What the tab had | one ⌘Z away: if a sync client writes an older version back, or the other editor saves over the note from its own buffer, the tab's text is not lost until the tab is closed — except where the line separator changed or the tab shows the file read-only, where the editor starts again with a new history | kept on screen until the user acts |
 | Risk | the other app's text wins on screen until the user notices (the status line says the note was read again) | a stale view until the user acts |
 
 **Recommendation: (a).** Obsidian's own behaviour for a note open in it and
 changed outside was not observed for this memo.
+
+**⌘Z after the disk's text came in is an edit of the user's** (the second
+readings, section 7). Undo puts the tab's older text back as an ordinary
+change, so the autosave writes it 1.5 s later, the default — over the other
+app's version, and the write check lets it through, since the tab holds the
+revision it read last. That is the user's act, and it is recorded as such:
+nothing refuses it, and the status line, which said the note was read again
+and pointed at ⌘Z, no longer invites it (`<commit>`). Where the line
+separator changed, or the tab shows the file read-only, the disk's text does
+not come in as an edit: the editor starts again, with a new history
+(`fromDisk` in `app/ui/src/main.ts`), and ⌘Z has nothing of the tab's to bring
+back.
 
 ### 3.5 An open note changed outside, with text not saved yet
 
@@ -238,3 +251,32 @@ branch unless marked otherwise:
   `7190830` and this memo; the contract's comment — `1cea893`; the nested
   callouts' stale sentences — the spec and the app memo; this memo's
   precision — here.
+
+The second readings, fresh Opus 5.5 sessions again, of the fixes above and of
+this memo. Their code findings are resolved in the commits that follow this
+branch (`<commit>` where the hash is not known yet); their findings on this
+memo are resolved here:
+
+- Window, BLOCKING: ⌘Z then ⌘⇧Z — or ⌘U alone — after a read from disk put
+  the caret back inside the folded frontmatter, where one Backspace deleted
+  the fence and a property; now every transaction in Live Preview keeps every
+  cursor out of it — `<commit>`.
+- Window, IMPORTANT: the focus restored by its rank after a redraw landed on
+  another control once embeds came in above it (now found by identity); every
+  reading view was drawn again on every batch (now only a note that embeds a
+  changed one); the guard against redrawing under a rename covered the tree
+  only (now the search results and the folder views too) — `<commit>`.
+- Window, IMPORTANT: ⌘Z after a read from disk is an ordinary edit, saved over
+  the other app's version — recorded in section 3.4; the status line no longer
+  invites it — `<commit>`.
+- MINOR: the disk's edit isolated in the history, so ⌘Z after typing undoes
+  the typing only; the status line's names; the deferred list refresh; the
+  properties panel's deferred check; Enter in the reading view — `<commit>`.
+  The host's reindex under one hold of the lock, and the watcher's messages
+  said in pt-BR or English by the window instead of the host's English
+  sentence — `<commit>`. `gh auth status --active` — `<commit>`.
+- This memo, MINOR: section 3.2 cited ADR 0029 for keeping the content hash,
+  where the `cp -p` reasoning is ADR 0012's provisional paragraph on the write
+  check; section 3.1's dependency list left out `kqueue` and `kqueue-sys`;
+  section 2 and section 3.4 said undo always brings the tab's text back —
+  here.

@@ -12,10 +12,12 @@
   registrado nas Consequências do ADR 0051. Nenhum código segue este memo. Até
   a resposta ele não estava decidido: perguntava se um ponto decidido deveria
   ser revisto, com opções e uma recomendação identificadas como tais.
-- Escrito pelo Opus 5.5 durante a noite, no lugar do Fable 5.1 por decisão do
-  mantenedor de 2026-09-23; lido por uma sessão nova do Opus 5.5 sob a mesma
-  decisão, e corrigido depois dessa leitura: a primeira versão apresentava um
-  ponto decidido como uma lacuna.
+- Escrito pelo Opus 5.5 durante a noite, o autor que o
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá aos documentos
+  ("Opus 5"); lido por uma sessão nova do Opus 5.5 no lugar do Fable 5.1, o
+  leitor que o ADR 0032 dá a eles, por decisão do mantenedor de 2026-09-23
+  (`../review/phase-2.md` §6, item 17), e corrigido depois dessa leitura: a
+  primeira versão apresentava um ponto decidido como uma lacuna.
 
 ## 1. O que está decidido
 
@@ -34,7 +36,7 @@ app de produção abrem o mesmo arquivo de índice para a mesma pasta, enquanto 
 ajustes da janela, os workspaces e a última pasta vivem no armazenamento da web
 view, que o macOS mantém por identificador.
 
-## 2. O que compartilhar custa, visto ao testar a primeira beta
+## 2. O que compartilhar custaria
 
 - **Uma mudança de schema reconstrói.** Um índice cuja versão de schema não é
   a do código é descartado e construído de novo
@@ -58,7 +60,7 @@ Nenhuma versão de produção está instalada ainda, então nada disso aconteceu
 | Onde | `…/verso` | `…/verso-beta` para uma release de teste, `…/verso` para produção | `…/verso/index/v6/…`, `…/verso/index/v7/…` |
 | Mudanças de schema | reconstrução a cada troca | nenhuma entre canais | nenhuma |
 | Os dois abertos ao mesmo tempo | seção 2 | independentes | independentes quando os schemas diferem |
-| Muda um texto decidido | não | a Decisão 6 do ADR 0051, e a regra do diretório do ADR 0011 | o caminho do índice do ADR 0011 |
+| Muda um texto decidido | não | a Decisão 6 do ADR 0051, e a regra do diretório do ADR 0011 | o caminho do índice do ADR 0011, e a Decisão 6 do ADR 0051: o índice deixa de ser compartilhado entre versões com schemas diferentes |
 | Custo | nenhum | a beta indexa cada pasta uma vez; a linha de comando dela precisa usar o mesmo diretório que o app dela (um canal de build dado aos dois) | arquivos de versões velhas ficam até serem removidos |
 
 **Recomendação: manter (a)**, a decisão, e revê-la num ponto: antes que uma

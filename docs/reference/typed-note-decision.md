@@ -784,15 +784,19 @@ Recorded, not resolved (`CLAUDE.md` §1, rule 3).
 **Check that this change is what it says it is.** The branch is local; it was
 not pushed.
 
-The memo and the draft ADR came in two commits of the local stack — the
-memo's (`4a9ae09`) and the reading's (`d2c88d4`) — among others that are not
-this subject; each touches the same six files, all under `docs/`:
+The memo and the draft ADR came in three commits of the local stack, among
+others that are not this subject: the memo's (`4a9ae09`) and the reading's
+(`d2c88d4`), which touch the same six files, and `f06cb2d`, which corrected
+this section and section 13 in the memo and its twin. The maintainer's
+decision was recorded after them, and a second reading's corrections after
+that. All under `docs/`:
 
 ```
-git show --stat 4a9ae09 d2c88d4            # six files each, all under docs/
-bash scripts/check-docs-mirror.sh          # "docs mirror: ok"
-bash scripts/check-fixtures.sh             # fixtures untouched; the lint still passes
-git log -1 --format='%an <%ae>%n%b' d2c88d4   # author and Signed-off-by are yours
+git show --stat 4a9ae09 d2c88d4 f06cb2d                      # six, six and two files, all under docs/
+git log --oneline -- docs/reference/typed-note-decision.md   # every commit that touched the memo
+bash scripts/check-docs-mirror.sh                            # "docs mirror: ok"
+bash scripts/check-fixtures.sh                               # fixtures untouched; the lint still passes
+git log -1 --format='%an <%ae>%n%b' d2c88d4                  # author and Signed-off-by are yours
 ```
 
 **Decide, in seven lines:**
@@ -858,3 +862,13 @@ pass: the numbers this table skips, and the reading's one BLOCKING finding,
 are those memos' — `beta-config-decision.md`, `handles-decision.md` and
 `embedded-media-decision.md`, corrected in `4e8646b`. These changes have not
 been read yet.
+
+A second reading, by a fresh Opus 5.5 session on 2026-09-24, found three
+MINOR, resolved after the maintainer's decision: ADR 0052 said it entered
+`[OPEN]` "like ADRs 0044 to 0048", which entered with questions only, on
+subjects the briefing does not have — its Context now says so, and row I6
+above overstates the precedent the same way; section 12 said the memo came in
+two commits, where `f06cb2d` is a third — now three, with the decision after
+them; and ADR 0052's Consequence that a schema is read "inside the fuzzed
+parser" holds only for a schema inside a note, formats (b) and (c), which the
+decided format (c) is — now said there.

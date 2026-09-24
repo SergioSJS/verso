@@ -5,9 +5,11 @@
   mantenedor decide (`CLAUDE.md` §1). Nenhum código segue este memo: o que
   uma nota pode carregar na janela é uma fronteira de segurança, e isso espera
   a resposta.
-- Escrito pelo Opus 5.5 durante a noite, no lugar do Fable 5.1 por decisão do
-  mantenedor de 2026-09-23; lido por uma sessão nova do Opus 5.5 sob a mesma
-  decisão, e corrigido depois dessa leitura.
+- Escrito pelo Opus 5.5 durante a noite, o autor que o
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá aos documentos
+  ("Opus 5"); lido por uma sessão nova do Opus 5.5 no lugar do Fable 5.1, o
+  leitor que o ADR 0032 dá a eles, por decisão do mantenedor de 2026-09-23
+  (`../review/phase-2.md` §6, item 17), e corrigido depois dessa leitura.
 - A questão: a Q6 da spec ([spec do dialeto](../spec/dialect.md), seção 9)
   mantém `[ABERTO]` o HTML embutido que a janela descarta — `<iframe>`,
   `<video>`, `<audio>` — com a premissa de que o Obsidian o mostra. Essa
