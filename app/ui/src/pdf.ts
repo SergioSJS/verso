@@ -138,6 +138,8 @@ export class PdfView {
     this.searchInput.addEventListener("input", () => {
       if (this.searchInput.value === "") this.find("", false);
     });
+    // "3 of 10", "Nothing found": announced as they change.
+    this.searchInfo.setAttribute("role", "status");
     const find = h("span", "pdf-find");
     find.append(icon("search"), this.searchInput, this.searchInfo);
     const acts = h("span", "pdf-acts");
