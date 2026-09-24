@@ -11,6 +11,9 @@
 - Revisions: 2026-09-24 — `[OPEN]` closed by the maintainer in session, on the
   memo: Decision, Consequences, Discarded alternatives and Status filled in
   place; the Context's last paragraph, which described the draft, rewritten.
+  2026-09-24 — point 3's open detail closed by the maintainer the same day
+  (`docs/reference/views-decision.md` §2): only a block at the top level of a
+  note counts.
 
 ## Context
 
@@ -71,9 +74,10 @@ this ADR ([0033](0033-pr-workflow.md), revised the same day).
    content, as packs are ([0015](0015-schema-packs.md)), and travels with the
    folder. §8 and 0021 are left as written, Proposed, and disagree with this
    point on schemas (memo, sections 5.1 to 5.6 and 10, item 1).
-   **Not decided:** whether a block nested in a list or a callout counts, or
-   only one at the top level of the note — the memo left it to the closing
-   change and leans to the top level, which keeps a quoted example out.
+   **Only a block at the top level of the note counts**, decided on
+   2026-09-24 (`docs/reference/views-decision.md` §2): a block inside a list
+   or a callout is not read as a schema, and the note says so — which keeps a
+   quoted example out.
 4. **A schema declares, in its first version**, `type` (the name notes write
    in their own `type:`), `label` (the type's name per interface language,
    pt-BR and EN; a missing one falls back to the name) and `properties`, an
@@ -201,5 +205,5 @@ memo's section 6 — wait for Q24's link part.
 Accepted on 2026-09-24 by the maintainer, in session, on the memo
 `docs/reference/typed-note-decision.md`: the Decision above. Drafted the same
 day with the memo and read with it by a fresh Opus 5.5 session (the memo,
-section 13). Left open inside it: whether a `verso-schema` block nested in a
-list or a callout counts (point 3).
+section 13). Point 3's open detail — whether a nested `verso-schema` block
+counts — closed by the maintainer the same day: it does not.

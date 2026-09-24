@@ -185,7 +185,13 @@ The first version that gets used. macOS only ([ADR 0022](adr/0022-target-platfor
 Beyond the seven items, the maintainer asked during the phase for what a
 person leaving Obsidian would miss; the list is
 [ADR 0049](adr/0049-phase-2-scope-widened.md), and what the window does with
-each file is in `docs/reference/app-decision.md`.
+each file is in `docs/reference/app-decision.md`. On 2026-09-24 the maintainer
+made three more the priority, built the same day: views over the folder —
+tables, cards, lists, kanbans and calendars, as Obsidian's bases
+([ADR 0053](adr/0053-views-bases.md)) — a second window on the same folder,
+and the terminal and agents set up from the settings
+([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)); the memo is
+`docs/reference/views-decision.md`.
 
 ### Decisions that have to come out during the phase
 

@@ -42,9 +42,10 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0042](0042-open-from-command-line.md) | Open from the command line: `verso <folder>` | Accepted |
 | [0012](0012-files-are-source-of-truth.md) | Files are the source of truth; opening never rewrites | Accepted |
 | [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Accepted (2026-09-24) |
-| [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted; the typed note: Accepted in 0052) |
+| [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted; the typed note: Accepted in 0052; the structured views: Accepted in 0053) |
 | [0015](0015-schema-packs.md) | Schema packs distributable as content | Proposed |
 | [0052](0052-typed-note.md) | Typed note: `type:` in the frontmatter and a schema | Accepted (2026-09-24) |
+| [0053](0053-views-bases.md) | Views over the folder: bases, in Obsidian's format | Accepted (2026-09-24) |
 
 ### Plugins and LLM
 
@@ -75,6 +76,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0027](0027-runtime-capabilities.md) | Capabilities queryable at runtime | Proposed |
 | [0028](0028-crate-structure.md) | Crate structure | Accepted |
 | [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted (the setting's default: provisional) |
+| [0054](0054-terminal-and-agents-from-the-app.md) | The command line and agents, set up from the app | Accepted (2026-09-24) |
 
 ### Dialect, engineering and roadmap
 

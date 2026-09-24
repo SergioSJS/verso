@@ -10,7 +10,9 @@
   the whole flow exists — sync, the web, mobile: until then a branch may carry
   several subjects and reaches `main` in a large pull request, still with a
   merge commit ([0033](0033-pr-workflow.md), the same day, with the
-  maintainer's words).
+  maintainer's words). 2026-09-24 — Decision 6: the command line also travels
+  inside the app, which the settings link onto the `PATH`
+  ([0054](0054-terminal-and-agents-from-the-app.md)); the archive stays.
 
 ## Context
 
