@@ -108,7 +108,7 @@ says where each stands.
 
 | # | Title | When to decide |
 |---|---|---|
-| [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Feature 2 of Phase 1 (symlinks, paths); feature 6 and item 2.1 (handles) |
+| [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Symlinks and ignored paths: Accepted (2026-09-22); handles: accepted as built for Phase 2 (2026-09-24), re-opened before anything outside the app's own views gets access to files; the watcher: Accepted (2026-09-24) |
 | [0045](0045-server-and-mcp-security.md) | Security of the server, the MCP and the contract | MCP: Accepted; contract: accepted as built for Phase 2, `[OPEN]` until a server enters scope; server: before it enters scope |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Index: location, lifecycle and tokenizer | Features 3 and 5 of Phase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Open questions on the plugin API | Before designing the API (after Phase 2) |

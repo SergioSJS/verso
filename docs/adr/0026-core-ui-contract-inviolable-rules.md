@@ -5,7 +5,15 @@
 - Status in the briefing: `DECIDED`
 - Revisions: 2026-09-21 — scope of rules 4 and 5 delimited (Phase 0 review,
   C2). The decision did not change; what changed is the boundary where it
-  holds.
+  holds. 2026-09-22 — rule 4 amended by the maintainer
+  (`docs/reference/mcp-decision.md`, the decision of 2026-09-22): access
+  crosses as an opaque handle, a note's identity as its path relative to the
+  open folder, and an absolute path or one with `..` never crosses; the old
+  wording is kept beside the new one in the Decision. 2026-09-24 — two
+  sentences that still called the handles `[OPEN]`, or said rule 4 was not
+  rewritten, brought in line with a note each: the amendment happened, and
+  the handles group of [0044](0044-verso-fs-semantics.md) was decided on
+  2026-09-24, as built for Phase 2 (`docs/reference/handles-decision.md`).
 
 ## Context
 
@@ -61,7 +69,10 @@ hold is this:
   displays paths, so the original wording would have been broken there too. A
   path as a string also exists at the entry edge (CLI argument, config key) and
   inside `verso-fs`. What a handle identifies and how long it is valid is still
-  `[OPEN]` in [0044](0044-verso-fs-semantics.md).
+  `[OPEN]` in [0044](0044-verso-fs-semantics.md). *(Decided there on
+  2026-09-24, as built for Phase 2: an index into a table of paths, valid in
+  this process only, with no capability crossing the contract; re-opened
+  before anything outside the app's own views gets access to files.)*
 - **Rule 5** holds for **the files of the open folder** (and of each root of a
   workspace). Only `verso-fs` reads, writes, renames, deletes or watches those
   files. Outside the rule, because they are app files and not user files: the
@@ -105,7 +116,12 @@ rule's weight at that edge is **confinement of every path a client sends**,
 checked before the index or the disk is touched, including on the calls that
 only read the index. Rule 4 itself is **not** rewritten here: rewriting it
 belongs to the maintainer, in the PR that closes the
-[0044](0044-verso-fs-semantics.md) handles group.
+[0044](0044-verso-fs-semantics.md) handles group. *(Brought in line on
+2026-09-24: the maintainer amended rule 4 on 2026-09-22, the same day, before
+the handles group closed — the Decision carries the new wording — and the
+relative path at the MCP edge is the decision
+[0045](0045-server-and-mcp-security.md) took then, confirmed as the text that
+stands when the group was decided on 2026-09-24.)*
 
 ## Discarded alternatives
 

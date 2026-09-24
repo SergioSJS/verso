@@ -14,7 +14,15 @@
   desse código — raiz absoluta, e handle para nome de placeholder. 2026-09-24
   — o watcher construído, provisoriamente, sobre o memo
   [`docs/reference/watcher-decision.md`](../reference/watcher-decision.md),
-  que lista o que o mantenedor decide; os grupos desta ADR ficam intocados.
+  que lista o que o mantenedor decide; os grupos deste ADR ficam intocados.
+  2026-09-24 — **decidido pelo mantenedor**, na sessão: o watcher, sobre o
+  memo dele, com todas as recomendações aceitas; e o grupo dos handles
+  opacos, sobre o memo
+  [`docs/reference/handles-decision.md`](../reference/handles-decision.md),
+  decidido como construído para a Fase 2 e reaberto antes que qualquer coisa
+  fora das views do próprio app ganhe acesso a arquivos. Os dois registrados
+  na Decisão; as linhas que diziam o grupo aberto ficam, cada uma com uma
+  nota.
 
 ## Contexto
 
@@ -26,8 +34,10 @@ que precisam de resposta antes de `verso-fs` existir.
 
 ## Decisão
 
-Dois dos três grupos estão decididos. O terceiro continua registrado com o
-momento de decidir.
+Os três grupos estão decididos: symlinks e caminhos ignorados em 2026-09-22,
+os handles opacos em 2026-09-24, como construídos para a Fase 2 e com o
+momento de reabri-los. O watcher, que veio depois da feature 2, foi decidido
+em 2026-09-24 também.
 
 ### Symlinks e laços — decidido em 2026-09-22
 
@@ -148,7 +158,7 @@ decidido.**
   algo que a varredura acabou de mostrar é a surpresa que isso evita. Todo outro
   componente começando com ponto continua recusado, como acima.
 
-### O watcher — depois da feature 2
+### O watcher — depois da feature 2; decidido em 2026-09-24
 
 Decidido pelo mantenedor em 2026-09-22, respondendo à contradição que o memo
 registrou na seção 2.2: a feature 2 é **varredura, confinamento de caminho e
@@ -157,7 +167,66 @@ escrita atômica**, como diz a linha do roadmap. A descrição de `verso-fs` no
 confinamento" — fica como está, lida como a forma final do crate: o watcher
 chega depois da feature 2, e nenhuma data é marcada para ele aqui.
 
-### Handles opacos — decidir antes da feature 6 da Fase 1 (`verso mcp`) e do contrato (Fase 2, item 2.1)
+**O watcher, decidido em 2026-09-24 pelo mantenedor**, na sessão, sobre o
+memo [`docs/reference/watcher-decision.md`](../reference/watcher-decision.md),
+seção 6: todas as recomendações aceitas, o código construído sob elas não é
+mais provisório. As recomendações do autor no dia foram apresentadas numa
+lista só, e a resposta foi *"Tirando o plano de fazer vários PR, eu gosto das
+suas recomendações"*:
+
+- **O `notify`** vigia a raiz (FSEvents no macOS, inotify no Linux), e só é
+  informado o que a varredura lista.
+- **Cada lote indexa a pasta inteira, por ora** — o único caminho que conhece
+  placeholders, problemas da varredura e remoções. Atualizar só os caminhos do
+  lote é o passo para pastas acima de alguns milhares de notas, medido com o
+  benchmark quando houver uma em uso.
+- **Um lote sai depois de 300 ms de quietude, ou 2 s depois da primeira
+  mudança** quando as mudanças não param.
+- **Uma nota aberta mudada fora, sem nada digitado, recebe o texto do disco
+  como uma edição**, então o cursor e o histórico de desfazer ficam; **com
+  texto ainda não salvo, é salva na hora**, o que encontra a diferença e
+  mostra a faixa de conflito — a checagem do
+  [0012](0012-files-are-source-of-truth.md) —, então nada é gravado por cima
+  da mudança do outro app; **uma nota apagada ou movida fora mantém a aba,
+  marcada**, e nada a recria.
+- **Arquivos que não são notas, abertos numa aba, não são lidos de novo**, por
+  ora.
+
+O que o memo registra ao lado disso vale junto: uma pasta que o sistema não
+vigia abre assim mesmo, com o motivo na linha de status, e a varredura
+periódica registrada acima para o limite do `inotify` é construída quando o
+Linux virar alvo (a seção 3.8 do memo).
+
+### Handles opacos — decididos em 2026-09-24, como construídos para a Fase 2
+
+**Decidido em 2026-09-24 pelo mantenedor**, na sessão, sobre o memo
+[`docs/reference/handles-decision.md`](../reference/handles-decision.md),
+opção (a), na mesma resposta do watcher:
+
+- **Uma nota é nomeada pelo caminho relativo à pasta aberta** — no contrato,
+  pelo MCP e na linha de comando —, como diz a regra 4 do
+  [0026](0026-core-ui-contract-inviolable-rules.md), emendada em 2026-09-22.
+  Pelo MCP é a decisão que o [0045](0045-server-and-mcp-security.md) tomou em
+  2026-09-22, que é o texto que vale.
+- **Nenhuma capacidade cruza o contrato.** O que deixa a janela ler e escrever
+  é ser uma das views do próprio app, o que as capabilities do host conferem;
+  a `revision` que uma escrita leva é o carimbo do que foi lido, não uma
+  capacidade.
+- **Dentro do `verso-fs`, um `Handle` é um índice na tabela de caminhos
+  relativos da raiz**, válido só para aquele `Root` e neste processo: não
+  sobrevive a um reinício, e depois de um renomear continua nomeando o caminho
+  antigo. A janela entre checar um caminho e usá-lo continua aberta; com todo
+  symlink seguido, uma travessia estilo `openat` não confinaria nada a mais na
+  própria pasta do usuário.
+- **Reaberto antes que qualquer coisa fora das views do próprio app ganhe
+  acesso a arquivos** — um plugin
+  ([0016](0016-plugins-execution-and-capabilities.md)), um cliente mobile
+  ([0025](0025-own-server-and-mobile-pwa.md)), o `verso serve`. É quando uma
+  capacidade precisa cruzar: um bookmark com escopo de segurança do iOS, uma
+  URI SAF do Android.
+
+As perguntas como foram registradas primeiro, antes da feature 6 da Fase 1 e
+do item 2.1 da Fase 2:
 
 - O que um handle identifica: um descritor aberto (`openat`, imune a troca de
   caminho entre verificar e usar) ou um índice numa tabela de caminhos (a
@@ -188,14 +257,19 @@ chega depois da feature 2, e nenhuma data é marcada para ele aqui.
   revisão.
 - Enquanto a semântica de handle estiver aberta, a regra 4 de
   [0026](0026-core-ui-contract-inviolable-rules.md) é uma restrição de forma
-  (não expor string), não uma garantia de segurança.
+  (não expor string), não uma garantia de segurança. *(Decidida em 2026-09-24,
+  como construída para a Fase 2: a Decisão acima. A regra 4 tinha sido
+  emendada em 2026-09-22 — acesso cruza como handle, identidade como caminho
+  relativo — e nenhuma capacidade cruza hoje, então o confinamento de todo
+  caminho que um cliente envia é o que sustenta o peso dela.)*
 - Os limites de recurso (profundidade, tamanho de arquivo, comprimento de linha)
   complementam Q17 da spec do dialeto: o fuzzing pega crash, não lentidão.
 
 **A metade MCP do grupo dos handles como o código da feature 6 a implementa.
 Registrado em 2026-09-22 a partir do código da feature 6 — provisório, o
 mantenedor decide**, sob a §4 de `docs/reference/mcp-decision.md`. O grupo segue
-`[ABERTO]`; isto é o que o código faz, não uma decisão.
+`[ABERTO]`; isto é o que o código faz, não uma decisão. *(Decidido em
+2026-09-24 como está escrito aqui, junto com o grupo: a Decisão acima.)*
 
 - **O que o agente recebe como identificador de nota é o caminho relativo à
   raiz, como string, com `.md`** — a mesma string que o `list_notes`, o `search`
@@ -214,7 +288,8 @@ mantenedor decide**, sob a §4 de `docs/reference/mcp-decision.md`. O grupo segu
   superfície, e não da implementação de cada ferramenta.
 - **A outra metade do grupo fica intocada**: o que um handle identifica dentro
   do processo (descritor aberto ou índice de tabela) e por quanto tempo vale
-  segue `[ABERTO]`, para o item 2.1 da Fase 2.
+  segue `[ABERTO]`, para o item 2.1 da Fase 2. *(Decidido em 2026-09-24: um
+  índice de tabela, válido só neste processo — a Decisão acima.)*
 
 ## Alternativas descartadas
 
@@ -236,11 +311,34 @@ Consideradas pelo mantenedor, sobre o memo, e postas de lado:
   passaria a significar "percorrido mas não contado", e o critério de saída 2
   dependeria de o mantenedor lembrar o que está em `.trash/`.
 
+Consideradas pelo mantenedor em 2026-09-24, sobre o memo do watcher, e postas
+de lado:
+
+- **Uma varredura com timer** no lugar dos eventos do sistema operacional —
+  uma varredura por período, mudando algo ou não; fica como o recurso para uma
+  pasta que o sistema não vigia.
+- **A API de cada sistema operacional direto** — mais um backend por
+  plataforma, pela latência que o `notify` já tem.
+- **Uma nota aberta marcada e lida quando pedido**, **uma aba com texto não
+  salvo deixada para o autosave**, **a aba de uma nota sumida fechada** ou
+  **uma movida seguida** — uma vista desatualizada, um conflito achado mais
+  tarde, texto tirado da tela, ou um palpite que pareia uma remoção com uma
+  criação.
+
+E sobre o memo dos handles:
+
+- **Handles de capacidade projetados agora** — um tipo de handle no contrato,
+  uma regra de tempo de vida, uma tabela no host —, um projeto sem consumidor
+  contra o qual testar, antes que exista um plugin, um cliente mobile ou um
+  servidor.
+
 ## Status
 
 Symlinks, laços e caminhos ignorados: decidido em 2026-09-22 pelo mantenedor,
-Aceito. Handles opacos: `[ABERTO]`, antes da feature 6 da Fase 1 e do item 2.1
-da Fase 2. O watcher: depois da feature 2, sem data marcada. Os itens marcados
-como **provisórios** dentro dos dois grupos decididos não estão decididos: são o
-que o código da feature 2 faz, registrados para que nada seja resolvido por
-silêncio, e esperam o mantenedor.
+Aceito. Handles opacos: decididos em 2026-09-24 pelo mantenedor, como
+construídos para a Fase 2, Aceito; reabertos antes que qualquer coisa fora das
+views do próprio app ganhe acesso a arquivos. O watcher: construído depois da
+feature 2 e decidido em 2026-09-24 pelo mantenedor, Aceito. Os itens marcados
+como **provisórios** dentro dos dois grupos decididos em 2026-09-22 não estão
+decididos: são o que o código da feature 2 faz, registrados para que nada seja
+resolvido por silêncio, e esperam o mantenedor.

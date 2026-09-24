@@ -288,7 +288,9 @@ bench, que precisa do CI rodando.
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): o contrato nomeia notas
   por caminho relativo, e a revisão é o único token. A identidade de sessão é
   aceita como ausente na Fase 2 (ADR 0045, 2026-09-23); os handles estão em
-  aberto.
+  aberto. *(Decidido em 2026-09-24: os handles como construídos para a Fase 2,
+  reabertos antes que qualquer coisa fora das views do próprio app ganhe
+  acesso a arquivos — [memorando dos handles](handles-decision.md).)*
 - **Uma passada completa de acessibilidade** — feita estaticamente em
   2026-09-24, num branch local: [revisão de acessibilidade](../review/accessibility.md).
   Abas e arquivos agora também se movem pelo teclado; o que ela deixa para o
@@ -298,7 +300,8 @@ bench, que precisa do CI rodando.
   branch `feat/watcher`: [memorando do watcher](watcher-decision.md). Antes
   dele, uma mudança feita fora do app aparecia quando a nota era salva (como
   escrita recusada) ou reaberta, ou num "reindexar"; nada atualizava a árvore
-  sozinho.
+  sozinho. *(Decidido em 2026-09-24 como construído, todas as recomendações do
+  memo aceitas.)*
 - **Uma segunda janela na mesma pasta**, e arrastar uma aba para fora.
 - **Tudo o que a [ADR 0034](../adr/0034-roadmap-in-phases.md) deixa de fora até
   a fase acabar**: sync, mobile, plugins, o board, o shim de compatibilidade.

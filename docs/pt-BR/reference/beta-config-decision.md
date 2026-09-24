@@ -1,9 +1,17 @@
 # Memo de decisão: onde uma release de teste guarda os índices
 
 - Data: 2026-09-24
-- Status: **não decidido.** Pergunta se um ponto decidido deve ser revisto,
-  com opções e uma recomendação identificadas como tais; o mantenedor decide
-  (`CLAUDE.md` §1). Nenhum código segue este memo.
+- Status: **decidido pelo mantenedor em 2026-09-24**, na sessão: a opção
+  (a), a recomendação da seção 3 — a Decisão 6 do
+  [ADR 0051](../adr/0051-development-flow-and-releases.md) continua de pé, e o
+  índice segue compartilhado, a ser revisto num ponto: antes que uma beta mude
+  o schema do índice enquanto uma versão de produção está instalada na mesma
+  máquina. As recomendações do autor no dia, esta entre elas, foram
+  apresentadas ao mantenedor numa lista só; a resposta: *"Tirando o plano de
+  fazer vários PR, eu gosto das suas recomendações"*. O ponto a rever está
+  registrado nas Consequências do ADR 0051. Nenhum código segue este memo. Até
+  a resposta ele não estava decidido: perguntava se um ponto decidido deveria
+  ser revisto, com opções e uma recomendação identificadas como tais.
 - Escrito pelo Opus 5.5 durante a noite, no lugar do Fable 5.1 por decisão do
   mantenedor de 2026-09-23; lido por uma sessão nova do Opus 5.5 sob a mesma
   decisão, e corrigido depois dessa leitura: a primeira versão apresentava um
@@ -69,3 +77,6 @@ dele (b) é a mudança menor.
 
 1. Manter (a), ou mudá-la — (b) ou (c) — por uma revisão do ADR 0051 e do
    ADR 0011.
+
+Respondido em 2026-09-24: (a) mantida, com o ponto para revê-la (o
+cabeçalho).

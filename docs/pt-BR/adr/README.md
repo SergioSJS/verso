@@ -108,7 +108,7 @@ onde cada uma está.
 
 | # | Título | Quando decidir |
 |---|---|---|
-| [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Feature 2 da Fase 1 (symlinks, caminhos); feature 6 e item 2.1 (handles) |
+| [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Symlinks e caminhos ignorados: Aceito (2026-09-22); handles: aceitos como construídos para a Fase 2 (2026-09-24), reabertos antes que qualquer coisa fora das views do próprio app ganhe acesso a arquivos; o watcher: Aceito (2026-09-24) |
 | [0045](0045-server-and-mcp-security.md) | Segurança do servidor, do MCP e do contrato | MCP: Aceito; contrato: aceito como foi construído para a Fase 2, `[ABERTO]` até um servidor entrar em escopo; servidor: antes de entrar em escopo |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Índice: localização, ciclo de vida e tokenizador | Features 3 e 5 da Fase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Questões abertas da API de plugin | Antes de desenhar a API (depois da Fase 2) |

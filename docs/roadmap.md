@@ -1,6 +1,6 @@
 # Verso roadmap
 
-- Version: 2026-09-23, revision 3 (Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through)
+- Version: 2026-09-24, revision 4 (the handles, decided by the maintainer on 2026-09-24, struck through in both phases). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
 - Source: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -121,7 +121,7 @@ Execution order from briefing §15:
 | ~~FTS5 tokenizer for pt-BR and EN~~ | decided 2026-09-22: `unicode61` with `remove_diacritics 2`, no stemming | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Performance targets | after feature 5 produces the baseline; the Mac baseline exists since commit `6b53c64` (`crates/verso-bench/baselines.json`), the targets are still open | [0039](adr/0039-performance-targets.md) |
 | ~~MCP transport, exposed surface, protocol version~~ | decided 2026-09-22: stdio, seven read-only tools, the version `initialize` negotiates (`docs/reference/mcp-decision.md`) | [0045](adr/0045-server-and-mcp-security.md) |
-| What an opaque handle identifies and for how long | before feature 6 closes; still open — the MCP and the window name notes by relative path, and the handle stays inside the process | [0044](adr/0044-verso-fs-semantics.md) |
+| ~~What an opaque handle identifies and for how long~~ | decided 2026-09-24, as built: notes named by their relative path — the MCP, the CLI and the window — and the handle an index into a table of paths inside the process; re-opened before anything outside the app's own views gets access to files (`docs/reference/handles-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 
 ### Exit criterion
 
@@ -193,7 +193,7 @@ each file is in `docs/reference/app-decision.md`.
 |---|---|---|
 | ~~TS type generation: `ts-rs` or `specta`~~ | decided 2026-09-22: `specta` with `tauri-specta`, types and command signatures generated | [0038](adr/0038-ts-type-generation.md) |
 | Session identity and per-operation authorization in the contract | before item 2.1; the contract, built with the host trusting its own windows and nothing else (`docs/reference/app-decision.md` §7), accepted as built for Phase 2 on 2026-09-23; still open until a server enters scope | [0045](adr/0045-server-and-mcp-security.md) |
-| Semantics of the opaque handles in the contract | before item 2.1; still open — the contract names notes by relative path and the revision is the only token | [0044](adr/0044-verso-fs-semantics.md) |
+| ~~Semantics of the opaque handles in the contract~~ | decided 2026-09-24, as built for Phase 2: the contract names notes by relative path, no capability crosses it, and the revision is the only token; re-opened before a plugin, a mobile client or `verso serve` gets access to files (`docs/reference/handles-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 | ~~Rename, create, delete, move; link updating; concurrent external modification~~ | decided 2026-09-23: option (b), as the code does it — plans shown as diffs, no logical transaction, the bin | [0048](adr/0048-file-operations-in-ui.md), [0012](adr/0012-files-are-source-of-truth.md) |
 | Promotion of the typed note ([0014](adr/0014-primitives-catalog.md)) and of degradation to Markdown ([0013](adr/0013-degrades-to-markdown.md)) to an ADR of their own, Accepted | before the typed note (2.6) | new ADR |
 | Format and location of the schemas | before the typed note (2.6) | `docs/spec/dialect.md` Q11 |
