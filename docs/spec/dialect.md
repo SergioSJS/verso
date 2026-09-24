@@ -621,10 +621,12 @@ Raised while writing this spec. All of them need an answer before
   before it the fold was only marked and nothing acted on it, which the Opus
   reading of the answers found; with no title the
   kind's name, capitalized, is the title; a blockquote nested inside a
-  callout stays a blockquote (`crates/verso-dialect/src/callouts.rs`). The
+  callout stays a blockquote (`crates/verso-dialect/src/callouts.rs`) — since
+  v0.17, one that is itself a callout is drawn as a callout (the provisional
+  fact below). The
   parser that feeds the index is unchanged. **Nesting stays `[OPEN]`**:
   Obsidian's public documentation shows callouts nested inside callouts,
-  which the reading view keeps as blockquotes. The recommendation put to the
+  which the reading view kept as blockquotes before v0.17. The recommendation put to the
   maintainer said the reading view follows Obsidian, which is not so for
   nesting, so nesting is not taken as decided.
 

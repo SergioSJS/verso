@@ -15,32 +15,39 @@ versão de teste.
 ### Acrescentado
 
 - **Mudanças feitas fora do Verso aparecem sozinhas**: uma nota editada em
-  outro app, uma sincronização ou um `git pull` chegam à árvore, à busca, aos
-  backlinks e às abas abertas um instante depois. Uma aba sem nada digitado é
-  lida de novo, onde o cursor estava; uma com texto ainda não salvo mostra as
-  duas versões, como quando um salvar encontra o arquivo mudado; uma nota
-  apagada ou movida fora mantém o texto na aba, riscada.
+  outro app, uma sincronização ou um `git pull` chegam às abas abertas, à
+  busca e aos backlinks um instante depois, e à árvore quando arquivos
+  chegam, saem ou se movem. Uma aba sem nada digitado recebe o texto novo
+  como uma edição, com o cursor mantendo o lugar no texto — ⌘Z traz de volta
+  o que a aba tinha; uma com texto ainda não salvo mostra as duas versões,
+  como quando um salvar encontra o arquivo mudado; uma nota apagada ou movida
+  fora mantém o texto na aba, marcada como sumida. Problemas encontrados ao
+  indexar aparecem na linha de status.
 - **Mover sem arrastar**: uma aba anda para trás e para a frente na sua
-  barra, vai para a área seguinte ou anterior e para outra área de
-  trabalho, e um arquivo aberto vai para outra pasta, pelo menu da aba
-  (Shift-F10), pela paleta de comandos ou por um atalho à sua escolha; os
+  barra e vai para a área seguinte ou anterior pelo menu dela (Shift-F10),
+  pela paleta de comandos ou por um atalho à sua escolha, e para outra área
+  de trabalho pelo menu dela; um arquivo aberto vai para outra pasta; os
   botões da faixa sobem e descem pelo seu menu.
+
+### Alterado
+
+- **Um callout dentro de um callout** é desenhado como callout na
+  visualização de leitura, como a documentação do Obsidian mostra, em vez de
+  citação — provisoriamente, até a Q5 da spec ser decidida.
 
 ### Corrigido
 
-- **Um callout dentro de um callout** é desenhado como callout na
-  visualização de leitura, como o Obsidian mostra, em vez de citação.
 - **A linha de comando da beta** diz qual app abre: `verso <pasta>`
   responde "abrindo … no Verso Beta", e nomeia o Verso Beta quando o app
   não está instalado.
 - **Acessibilidade**, uma passada pela janela: as barras de abas, a árvore
-  de arquivos, o grafo e os menus respondem às setas e guardam o lugar do
-  teclado; links, tags e tarefas da visão de leitura são alcançados pelo
-  teclado; os editores, os campos das propriedades e as regiões da janela
-  têm nome para o leitor de tela; uma escrita recusada porque o arquivo
-  mudou em disco é anunciada; o anel de foco e os títulos de callout têm
-  contraste suficiente; o tamanho da fonte vai até 30 px (200%); Ajustes →
-  Atalhos diz como sair do editor pelo teclado.
+  de arquivos e o grafo respondem às setas, e os menus e os redesenhos
+  guardam o lugar do teclado; links, tags e tarefas da visão de leitura são
+  alcançados pelo teclado; os editores, os campos das propriedades e as
+  regiões da janela têm nome para o leitor de tela; uma escrita recusada
+  porque o arquivo mudou em disco é anunciada; o anel de foco e os títulos
+  de callout têm contraste suficiente; o tamanho da fonte vai até 30 px
+  (200%); Ajustes → Atalhos diz como sair do editor pelo teclado.
 
 ## 0.2.0-beta.1 — 2026-09-24
 

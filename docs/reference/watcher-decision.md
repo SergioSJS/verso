@@ -3,17 +3,20 @@
 - Date: 2026-09-24
 - Status: **not decided.** Nothing in this memo is a decision: it lays out
   options, records facts and carries recommendations labelled as such. The
-  maintainer decides (`CLAUDE.md` §1). The code on branch `feat/watcher` is
-  written **under the recommendations, marked provisional**, and changes if
-  the maintainer decides otherwise — the arrangement used for features 2 to 6.
-- Asked for: on 2026-09-23 the maintainer agreed that the watcher comes next,
+  maintainer decides (`CLAUDE.md` §1). The code on branch `feat/watcher` and
+  the fixes above it are written **under the recommendations, marked
+  provisional**, and change if the maintainer decides otherwise — the
+  arrangement used for features 2 to 6.
+- Asked for: agreed in session on 2026-09-23 — the watcher comes next,
   before the month of real use that closes Phase 2 ([roadmap](../roadmap.md),
-  Phase 2, exit criterion). [ADR 0044](../adr/0044-verso-fs-semantics.md)
-  placed it after feature 2 with no date; [ADR 0028](../adr/0028-crate-structure.md)
+  Phase 2, exit criterion); no repository document records that answer
+  besides this line. [ADR 0044](../adr/0044-verso-fs-semantics.md) placed the
+  watcher after feature 2 with no date; [ADR 0028](../adr/0028-crate-structure.md)
   puts it in `verso-fs`.
 - Written by Opus 5.5, standing in for Fable 5.1 as the Rust author by the
   maintainer's decision of 2026-09-23 (usage limit), overnight while the
-  maintainer slept; the reading is recorded in section 7.
+  maintainer slept; read by two fresh Opus 5.5 sessions under the same
+  decision (section 7).
 
 ## 1. What was missing
 
@@ -30,15 +33,15 @@ save meets the difference.
 
 | Layer | What it does |
 |---|---|
-| `verso-fs` | `Root::watch(quiet, on_change)`: one `notify` watcher on the root, recursive (FSEvents on macOS, inotify on Linux). A thread of its own batches the events: a batch goes out once the folder has been quiet for `quiet`, or after 2 s of changes that do not stop. Only what the walk lists is reported — no hidden entry (`.obsidian/`, the atomic write's `.verso-tmp-*`), no ignored path — and only events that change something: an open or a read is not a change. Dropping the `Watch` stops it without waiting for its thread. |
-| `verso-core` | `Workspace::watch` with a quiet interval of 300 ms (`WATCH_QUIET`). `IndexReport` now names the notes it counted: `changed` (new or different on disk), `gone` (removed), and `listing_changed` (entries added, removed or of another kind — not sizes or times). |
-| Host | Each open folder has a watch, held by the session and dropped with it. A batch runs `index()` on the watch's thread, under the session's lock, and when something changed sends the main window and the note windows a `folder-changed` event: the folder's key, the changed and removed notes by relative path, the index summary. A folder the system will not watch opens anyway, with the reason among the index's problems. |
-| Window | Lists and panels are drawn again. A tab of a changed note with nothing typed in it is read again, keeping the cursor and the scroll; with text not saved yet, it saves at once, which meets the difference and shows the conflict banner (invariant 11) — nothing is written over the other app's change. A tab whose note is gone keeps its text, crossed out in the tab bar, with a line saying so. Other open notes look their links and backlinks up again. The status line says how many notes changed outside. |
+| `verso-fs` | `Root::watch(quiet, excluded, on_change)`: one `notify` watcher on the root, recursive (FSEvents on macOS, inotify on Linux). A thread of its own batches the events: a batch goes out once the folder has been quiet for `quiet`, or after 2 s of changes that do not stop. Only what the walk lists is reported — no hidden entry (`.obsidian/`, the atomic write's `.verso-tmp-*`), no ignored path — and only events that change something: an open or a read is not a change. Events under the `excluded` directories are dropped. An error of the OS watcher comes back as its kind, never with the paths `notify` names in its message. Dropping the `Watch` stops it without waiting for its thread. |
+| `verso-core` | `Workspace::watch` with a quiet interval of 300 ms (`WATCH_QUIET`), the index's own directory excluded (for a configuration directory inside the folder). `IndexReport` names the notes it counted: `changed` (new or different on disk), `gone` (removed), and `listing_changed` (entries added, removed or of another kind — not sizes or times). |
+| Host | Each open folder has a watch, started before the first index run and held by the session. A batch runs `index()` on the watch's thread, under the session's lock, and then sends `folder-changed` once — every window listens to it: the folder's key, what this run found changed and removed by relative path, whether the listing changed, the index summary. A batch that comes before the session exists runs once the session is in place. A folder the system will not watch opens anyway, and the reason goes with every summary of the session. |
+| Window | Every open note is checked against the disk on every `folder-changed`, after the window's own file operations and after Reindex — whichever index run found the change. The same revision: nothing. Changed, nothing typed: the disk's text comes in as one edit over what differs, so the cursor, the selection and the scroll follow the text, the undo history stays (⌘Z brings the tab's text back), and the caret never stays inside the folded frontmatter. Changed, with text not saved yet: saved at once, which meets the difference and shows the conflict banner (invariant 11) — nothing is written over the other app's change. Gone: the tab keeps its text; in the main window its name is crossed out and says so to a screen reader, and a line above the text says so in every window. An edit under way in the properties panel is waited for. The tree and folder views are drawn again only when the listing changed, and not while a name is being typed in the tree. The status line names the notes it speaks of, and shows the index's problems. |
 | Contract | `FolderChanged`, the event's payload, generated into the bindings with the commands (rule 3). |
 
 Verso's own writes are not reported as changes made outside: a save updates
 the index with the stamp of what it wrote, so the next `index()` finds that
-note unchanged. A test removes that update and sees the assertion fail.
+note unchanged, and the window's check finds the revision it already holds.
 
 ## 3. The decisions
 
@@ -46,7 +49,7 @@ note unchanged. A test removes that update and sees the assertion fail.
 
 | | (a) `notify` 8.2 | (b) Walk on a timer | (c) Each OS's API directly |
 |---|---|---|---|
-| Dependency | `notify` (CC0-1.0) and, on macOS, `fsevent-sys`, `notify-types`, `walkdir`, `log`; on Linux `inotify` | none | `fsevent-sys` or FFI, per platform |
+| Dependency | `notify` (CC0-1.0) with `notify-types`, `walkdir`, `same-file` and `log`; on macOS `fsevent-sys`; on Linux `inotify`, `inotify-sys` and `mio` — all pass `deny.toml` | none | `fsevent-sys` or FFI, per platform |
 | Latency | tens of milliseconds plus the quiet interval | the timer's period | as (a) |
 | Cost at rest | none | one walk per period, changed or not | none |
 | Windows and Linux | the same API ([ADR 0022](../adr/0022-target-platforms-macos-first.md): both ship) | the same code | one more backend each |
@@ -59,7 +62,7 @@ fallback for when the OS refuses to watch (section 3.8).
 | | (a) Index the whole folder | (b) Refresh only the batch's paths |
 |---|---|---|
 | Correctness | the one path that knows placeholders, walk problems and removals; catches changes the watcher missed | new code beside `index()`: a single path's placeholder, a directory created or moved, a rename |
-| Cost per batch | the benchmark's "index, nothing changed": 42 ms at 1,000 notes, 1.4 s at 10,000, 10 s at 50,000 (it reads every note: the stamp holds the content's hash) | proportional to the batch |
+| Cost per batch | the benchmark's "index, nothing changed": 42 ms at 1,000 notes, 1.4 s at 10,000, 10 s at 50,000 (it reads every note: the stamp holds the content's hash). The run holds the session's lock, so every window's command waits for it: the window freezes for that long | proportional to the batch |
 | The maintainer's folders | 61 notes (the campaign) and 1,387: well under 100 ms | — |
 
 **Recommendation: (a) now**, and (b) as the step for folders beyond a few
@@ -79,10 +82,11 @@ looking. Provisional; the numbers are the code's, not measured against users.
 
 ### 3.4 An open note changed outside, nothing typed in it
 
-| | (a) Read it again, keep cursor and scroll | (b) Mark it, read on demand |
+| | (a) Bring the disk's text in, as one edit | (b) Mark it, read on demand |
 |---|---|---|
-| The user sees | the new text | the old text and a notice |
-| Risk | none to the user's text: it is only read again when the tab has no unsaved text, and not if text is typed while the read is on its way | a stale view until the user acts |
+| The user sees | the new text, the cursor where it was in the text | the old text and a notice |
+| What the tab had | one ⌘Z away: if a sync client writes an older version back, or the other editor saves over the note from its own buffer, the tab's text is not lost until the tab is closed | kept on screen until the user acts |
+| Risk | the other app's text wins on screen until the user notices (the status line says the note was read again) | a stale view until the user acts |
 
 **Recommendation: (a).** Obsidian's own behaviour for a note open in it and
 changed outside was not observed for this memo.
@@ -93,70 +97,87 @@ changed outside was not observed for this memo.
 |---|---|---|
 | What happens | the write is refused (the file is not the one that was read) and the conflict banner shows both versions, with reload and write-mine — the flow invariant 11 already has | the same, a moment later, when the autosave runs |
 
-**Recommendation: (a)**: the user learns at once that the note changed
-elsewhere, while the difference is small. Nothing is written either way.
+**Recommendation: (a)**: the conflict comes up while the difference is small,
+and the status line names the note, so a tab in the background is not missed.
+Nothing is written either way.
 
 ### 3.6 An open note deleted or moved outside
 
-| | (a) Keep the tab, crossed out, with a line | (b) Close the tab when nothing is unsaved | (c) Follow a move |
+| | (a) Keep the tab, marked, with a line | (b) Close the tab when nothing is unsaved | (c) Follow a move |
 |---|---|---|---|
 | The text | stays until the user closes the tab | gone from the screen (it is on disk elsewhere, or in the bin) | follows the note |
 | Cost | none | none | pairing a removal and a creation by content: guesswork on renames with edits |
 
 **Recommendation: (a)**, the one that loses nothing and guesses nothing. A
-move made outside shows the new note in the tree; the user opens it.
+move made outside shows the new note in the tree; the user opens it. A save
+from such a tab fails ("not found"): nothing recreates the note by itself.
 
 ### 3.7 Files that are not notes, open in a tab
 
 Text files (a `.css`, a `.json`), images and PDFs open in a tab are not read
-again when they change outside: `IndexReport` names notes only, and the
-listing reports entries, not contents. **Recommendation:** leave it for now
-and record it; a text file's editor has the same conflict banner on save.
+again when they change outside: the window checks notes. **Recommendation:**
+leave it for now and record it; a text file's editor has the same conflict
+banner on save.
 
 ### 3.8 A folder the system will not watch
 
-On Linux a large folder can exhaust the inotify limit; ADR 0044 recorded the
-behaviour for then: degrade to a periodic scan with a warning, never fail
-silently. **What the code does now:** the folder opens, the reason is among
-the index's problems, and changes made outside show up on "Reindex". The
-periodic scan is built when Linux becomes a target, as ADR 0044 says.
+On Linux a large folder can exhaust the inotify limit, and `notify`'s
+recursive start stops at the first directory it cannot read — hidden ones
+included (`.git/objects`, `.obsidian/plugins`), which the walk never enters —
+so one unreadable directory switches watching off for the whole folder.
+ADR 0044 recorded the behaviour for then: degrade to a periodic scan with a
+warning, never fail silently. **What the code does now:** the folder opens,
+the reason (its kind, no path) goes with every index summary and shows on the
+status line, and changes made outside show up on "Reindex". The periodic scan
+is built when Linux becomes a target, as ADR 0044 says; Linux is not one yet.
 
 ### 3.9 What the watcher does not see
 
-- The inside of a directory reached through a symlink that points outside the
-  folder: the walk follows it (ADR 0044), the operating system does not watch
-  through it. "Reindex" covers it.
-- Changes while no watch runs (between the index and the watch's start,
-  a few milliseconds): the next batch indexes the whole folder and finds them.
+- On macOS, the inside of a directory reached through a symlink that points
+  outside the folder: the walk follows it (ADR 0044), FSEvents does not watch
+  through it. On Linux `notify` follows it, and watches everything beneath.
+  "Reindex" covers the first.
+- Changes made by another machine on a network volume: FSEvents does not
+  report them, and nothing fails, so nothing is said.
+- Changes made before the watch starts: it starts before the first index
+  run, so only a change in the moment between opening the folder and starting
+  the watch is missed until the next batch or "Reindex".
 - `verso mcp` is unchanged: it indexes at start, offers `index`, and marks a
   note `stale` when the file's stamp differs
   ([mcp memo](mcp-decision.md)). The watcher is the window's.
 
 ## 4. How it was verified
 
-- `verso-fs`, on the real operating system's events: a note created, written,
-  moved and removed is reported by its relative path; `.obsidian/`, an ignored
-  path and a temporary file are not; reading every note under a watch reports
-  nothing (on Linux every open is an event: without the filter a caller that
-  indexes on each batch would never stop); a dropped watch reports nothing
-  more. Unit tests for the path filter (including the `/private` form of a
-  temporary folder on macOS and the iCloud placeholder name), the event
-  filter and the batch timing.
+- `verso-fs`, on the real operating system's events, macOS and Linux (Docker):
+  a note created, written, moved and removed is reported by its relative path;
+  `.obsidian/`, an ignored path, a temporary file and an excluded directory
+  are not; reading every note under a watch reports nothing — on Linux, with
+  the read filter removed, the same test reports every note read, the loop
+  the filter prevents; a dropped watch reports nothing more; an error built
+  with a path comes back without it.
 - `verso-core`: `changed`, `gone` and `listing_changed` in the end-to-end
-  index test; a note made outside reaches the index through the watch.
+  index test; a save of Verso's is not a listing change; a note made outside
+  reaches the index through the watch.
 - Host: a note written from outside while the folder is open reaches the
   windows as `folder-changed`, and Verso's own write at the same time is not
-  reported; with the write's index update removed, that assertion fails.
+  named (with the write's index update removed, that assertion fails); one
+  batch reaches three windows once (three times with the loop the reading
+  found); a batch for a folder that is not the open one tells nobody.
+- Window: the edit that brings the disk's text in was run against
+  CodeMirror's own state and history in a throwaway harness — the reading's
+  frontmatter scenario keeps the caret after the frontmatter, undo restores,
+  surrogate pairs are never split. The window itself was not run.
 - The test suite no longer writes into the user's configuration directory
   (branch `fix/beta-follow-ups`, under this one).
 
 ## 5. What this memo did not verify
 
 - The window was not run: the maintainer was asleep and the screen is theirs.
-  The UI half is checked by type-check and build only; the tab behaviours of
-  sections 3.4 to 3.6 wait for a smoke run on a scratch copy.
+  The tab behaviours of sections 3.4 to 3.6 wait for a smoke run on a scratch
+  copy.
 - Real iCloud Drive evictions and downloads under a watch.
-- Windows (not a target yet).
+- Windows (not a target yet), and the host crate on Linux (it needs
+  WebKitGTK; the watcher crates were run there).
 - The cost of section 3.2 on a folder of tens of thousands of notes with
   changes arriving continuously.
 
@@ -165,11 +186,38 @@ periodic scan is built when Linux becomes a target, as ADR 0044 says.
 1. Section 3.1: `notify` — yes or no.
 2. Section 3.2: whole-folder index per batch for now — yes or no.
 3. Section 3.3: 300 ms / 2 s — keep or change.
-4. Sections 3.4 to 3.6: read again / save now / keep crossed out — keep or change.
+4. Sections 3.4 to 3.6: bring in as one edit / save now / keep and mark —
+   keep or change.
 5. Section 3.7: non-note files not refreshed — accept for now or not.
 
-## 7. The reading
+## 7. The readings
 
-Pending: a fresh Opus 5.5 session reads the branch (the maintainer's decision
-of 2026-09-23 on item 17 of the Phase 2 review), and its findings are
-recorded here.
+Two fresh Opus 5.5 sessions read the branch — one the Rust, one the window
+and the documents — by the maintainer's decision of 2026-09-23 on item 17 of
+the Phase 2 review. Every finding was resolved in the commits above the
+branch unless marked otherwise:
+
+- Rust, BLOCKING: an OS watcher error reached the window with absolute paths
+  (rule 4) — `645e8f5`.
+- Rust, IMPORTANT: each batch delivered once per window to every window —
+  `1cea893`; a change another index run found first was never told —
+  `1cea893` and `7190830`; the configuration directory inside the folder woke
+  the watch for ever — `645e8f5`, `6de2245`; on Linux one unreadable
+  directory switches watching off and the warning was then lost — the
+  warning kept (`1cea893`), the rest recorded in section 3.8.
+- Rust, MINOR: the symlink doc on Linux, a placeholder-named directory not
+  watched — `645e8f5`; the watch started after the index — `1cea893`; the
+  test helper's clean-up claim, the contract's comment — `1cea893`; a test for
+  `9974e11` — `6de2245`; `gh auth status` too wide — `12ab794`; the
+  dependency list and the UI freeze on large folders — this memo.
+- Window, BLOCKING: the caret restored inside the folded frontmatter, where
+  one Backspace deleted the hidden properties — `7190830`.
+- Window, IMPORTANT: stolen changes (as above), silent problems, the property
+  edit lost, the tree rebuilt under an inline rename, the crossed-out tab's
+  contrast — `7190830`; the gone state by styling alone — `0d27fcc`; the
+  "none" risk of section 3.4 — this memo.
+- Window, MINOR: read races, the cursor by offset, the gone state cleared only
+  by a read, less refreshed than claimed, racy status, note windows —
+  `7190830` and this memo; the contract's comment — `1cea893`; the nested
+  callouts' stale sentences — the spec and the app memo; this memo's
+  precision — here.

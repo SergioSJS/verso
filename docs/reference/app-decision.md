@@ -252,9 +252,9 @@ first, and where each now lives:
 - what the reading view renders — tables, footnotes, math, highlight,
   callouts, comments, body tags: as built (spec v0.16, Q5, Q6, Q13, Q15),
   with a foldable callout now opening and closing from its title (`5b7fc69`);
-  except callouts nested in callouts, and the `<iframe>`, `<video>` and
-  `<audio>` the window drops, still open because Obsidian shows them and the
-  reading view does not;
+  except, still open, callouts nested in callouts — drawn as callouts since
+  2026-09-24, provisionally (spec v0.17, Q5) — and the `<iframe>`, `<video>`
+  and `<audio>` the window drops ([embedded-media memo](embedded-media-decision.md));
 - that a file which is not UTF-8 is not opened for editing (spec Q25,
   closed);
 - the four ways the window reaches the network, with a setting over the two
