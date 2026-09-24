@@ -18,7 +18,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView, basicSetup } from "codemirror";
 import { Annotation, Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import { keymap, type KeyBinding } from "@codemirror/view";
-import { indentWithTab } from "@codemirror/commands";
+import { indentWithTab, isolateHistory } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
@@ -26,7 +26,7 @@ import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import katex from "katex";
 import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { commands, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type NoteText, type TextFile, type Written } from "./bindings";
+import { commands, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type NoteText, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
 import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
@@ -65,7 +65,7 @@ type Strings = Record<
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "appVersion" | "appVersionDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
-  | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab"
+  | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
   | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc",
   string
@@ -84,7 +84,9 @@ type Strings = Record<
   replaceCount: (n: number) => string;
   graphNodes: (n: number, m: number) => string;
   pdfHits: (n: number, current: number) => string;
-  readOutside: (n: number) => string;
+  readOutside: (names: string) => string;
+  notWatched: (why: string) => string;
+  notIndexed: (why: string) => string;
   conflictOutside: (names: string) => string;
   goneNamed: (names: string) => string;
   indexProblems: (n: number, first: string) => string;
@@ -114,7 +116,9 @@ const pt: Strings = {
   outgoing: "Links de saída", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos", toggleRight: "Mostrar/ocultar painel", palette: "Paleta de comandos", settings: "Ajustes",
   theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
-  readOutside: (n) => `${n === 1 ? "Uma nota aberta mudou" : `${n} notas abertas mudaram`} fora do Verso e ${n === 1 ? "foi lida" : "foram lidas"} de novo (⌘Z volta ao texto de antes).`,
+  readOutside: (names) => `Mudou fora do Verso e foi lida de novo: ${names}.`,
+  notWatched: (why) => `Mudanças feitas fora do Verso só aparecem no Reindexar: a pasta não pôde ser vigiada (${why}).`,
+  notIndexed: (why) => `A pasta mudou e não pôde ser indexada: ${why}`,
   conflictOutside: (names) => `Mudou fora do Verso, com texto não salvo aqui: ${names}. As duas versões estão na nota.`,
   goneNamed: (names) => `Apagada ou movida fora do Verso: ${names}. O texto continua na aba.`,
   indexProblems: (n, first) => `${n === 1 ? "Um problema" : `${n} problemas`} ao indexar: ${first}`,
@@ -139,7 +143,7 @@ const pt: Strings = {
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
-  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso",
+  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
@@ -181,7 +185,9 @@ const en: Strings = {
   outgoing: "Outgoing links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files", toggleRight: "Show/hide panel", palette: "Command palette", settings: "Settings",
   theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
-  readOutside: (n) => `${n === 1 ? "An open note" : `${n} open notes`} changed outside Verso and ${n === 1 ? "was" : "were"} read again (⌘Z brings back the text before).`,
+  readOutside: (names) => `Changed outside Verso and read again: ${names}.`,
+  notWatched: (why) => `Changes made outside Verso show up on Reindex only: the folder could not be watched (${why}).`,
+  notIndexed: (why) => `The folder changed and could not be indexed: ${why}`,
   conflictOutside: (names) => `Changed outside Verso, with unsaved text here: ${names}. Both versions are in the note.`,
   goneNamed: (names) => `Deleted or moved outside Verso: ${names}. The text stays in its tab.`,
   indexProblems: (n, first) => `${n === 1 ? "A problem" : `${n} problems`} while indexing: ${first}`,
@@ -206,7 +212,7 @@ const en: Strings = {
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
-  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso",
+  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
@@ -1090,7 +1096,33 @@ function lineSeparator(text: string): string | null {
  *  task or paste changes it, so nothing converts it (invariant 8). */
 const readOnlyText: Extension = [EditorState.readOnly.of(true), EditorState.changeFilter.of(() => false)];
 /** What takes the focus in the reading view, in document order. */
-const PREVIEW_FOCUSABLE = "a[href], a[tabindex], button, input, summary, [role=button][tabindex]";
+const PREVIEW_FOCUSABLE = "a[href], a[tabindex], [role=link][tabindex], button, input, summary, [role=button][tabindex], [tabindex='0']";
+/** Embedded notes and PDFs come in after a redraw, so nothing in them is
+ *  counted when the focus is found again. */
+const EMBEDDED = ".embed, .embed-note, .embed-pdf";
+/** What the note itself draws that takes the focus, in document order. */
+function ownFocusable(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(PREVIEW_FOCUSABLE)].filter((e) => !e.parentElement?.closest(EMBEDDED) && !e.matches(EMBEDDED));
+}
+/** A focused element of the reading view as a redraw can find it again: a
+ *  task by its line, a link by its target and rank among the links to it,
+ *  anything else by its rank among what the note draws. */
+function focusKey(root: HTMLElement, el: HTMLElement): string | null {
+  const line = el.getAttribute("data-task-line");
+  if (line !== null) return `task\u0000${line}`;
+  const own = ownFocusable(root);
+  const target = el.getAttribute("data-target");
+  if (target !== null) return `target\u0000${target}\u0000${own.filter((e) => e.getAttribute("data-target") === target).indexOf(el)}`;
+  const at = own.indexOf(el);
+  return at < 0 ? null : `at\u0000${at}`;
+}
+function byFocusKey(root: HTMLElement, key: string): HTMLElement | null {
+  const [kind, a = "", b = ""] = key.split("\u0000");
+  if (kind === "task") return root.querySelector<HTMLElement>(`[data-task-line="${CSS.escape(a)}"]`);
+  const own = ownFocusable(root);
+  if (kind === "target") return own.filter((e) => e.getAttribute("data-target") === a)[Number(b)] ?? null;
+  return own[Number(a)] ?? null;
+}
 /** Marks the edit that brings in the disk's text after a change made
  *  outside the app (`NoteLeaf.recheck`): it leaves the tab saved, and ⌘Z
  *  undoes it like any edit. */
@@ -1197,6 +1229,8 @@ class NoteLeaf extends Leaf {
    *  newer one began, or after the tab went, changes nothing. */
   private loads = 0;
   private checks = 0;
+  /** A check waits for the properties panel to let go. */
+  private checkWaits = false;
   eol = "\n";
   /** The file mixes line endings: shown, never edited (lineSeparator). */
   private readOnly = false;
@@ -1239,6 +1273,9 @@ class NoteLeaf extends Leaf {
       noteHtml: (target) => this.embedHtml(target),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
+    // Focusable from code, not by Tab: a link followed from the keyboard
+    // hands the keyboard to the note that opened (`focusContent`).
+    this.preview.tabIndex = -1;
     // A double click on the text opens it for editing, as a note app does.
     this.preview.addEventListener("dblclick", (ev) => {
       if ((ev.target as HTMLElement).closest("a, input, button, .embed-pdf, .embed-note, .math")) return;
@@ -1635,6 +1672,7 @@ class NoteLeaf extends Leaf {
   }
   override focusContent(): void {
     if (this.mode !== "preview") this.editor.focus();
+    else this.preview.focus({ preventScroll: true });
   }
   override headings(): NoteText["headings"] {
     return this.note?.headings ?? [];
@@ -1739,7 +1777,13 @@ class NoteLeaf extends Leaf {
     const path = this.path;
     if (!path || !this.note || this.conflict.up) return "same";
     if (this.props.el.contains(document.activeElement)) {
-      this.props.el.addEventListener("focusout", () => window.setTimeout(() => void this.recheck(), 0), { once: true });
+      if (!this.checkWaits) {
+        this.checkWaits = true;
+        this.props.el.addEventListener("focusout", () => window.setTimeout(() => {
+          this.checkWaits = false;
+          void this.recheck().then((outcome) => tellOutcomes([{ leaf: this, outcome }]));
+        }, 0), { once: true });
+      }
       return "same";
     }
     await this.saving;
@@ -1760,15 +1804,18 @@ class NoteLeaf extends Leaf {
       await this.flush();
       return "conflict";
     }
-    this.fromDisk(note.data);
-    return "read";
+    return this.fromDisk(note.data) ? "read" : "same";
   }
-  /** Other notes changed: what this one's links resolve to, its
-   *  backlinks and the notes it embeds may have changed with them. */
-  relinkNow(): void {
-    if (!this.note) return;
-    this.repaint();
+  /** Other notes changed: what this one's links resolve to and its
+   *  backlinks may have changed with them. It is drawn again only when it
+   *  embeds one of `changed` (paths), or when `changed` is "all": a redraw
+   *  rebuilds PDFs and images and moves the reading position. */
+  relinkNow(changed: ReadonlySet<string> | "all"): void {
+    if (!this.note || this.destroyed) return;
     void this.relink(this.path);
+    const names = changed === "all" ? null : new Set([...changed].map((p) => name(p).toLowerCase()));
+    const embeds = [...this.note.text.matchAll(/!\[\[([^\]|#^]+)/g)].map((m) => (m[1] ?? "").trim().split("/").pop()!.replace(/\.md$/i, "").toLowerCase());
+    if (names === null ? embeds.length > 0 : embeds.some((e) => names.has(e))) this.repaint();
   }
   /** The note is gone from disk — deleted or moved outside the app: the
    *  tab keeps its text and says so, above the text and in its name. */
@@ -1819,20 +1866,27 @@ class NoteLeaf extends Leaf {
    *  cursor, the selection and the scroll follow, and ⌘Z brings this
    *  tab's text back. Line endings that changed, or a file shown
    *  read-only, start the editor again instead. */
-  private fromDisk(note: NoteText): void {
+  private fromDisk(note: NoteText): boolean {
     const sep = lineSeparator(note.text);
-    if (sep === null || this.readOnly || sep !== this.eol) return this.show(note);
+    if (sep === null || this.readOnly || sep !== this.eol) {
+      this.show(note);
+      return true;
+    }
     const now = sep === "\n" ? note.text : note.text.split(sep).join("\n");
     const edit = minimalEdit(this.editor.state.doc.toString(), now);
     window.clearTimeout(this.saveTimer);
-    if (edit) this.editor.dispatch({ changes: edit, annotations: fromDisk.of(true) });
+    // Its own step in the history: ⌘Z right after typing undoes the typing,
+    // not the typing and the other app's change together.
+    if (edit) this.editor.dispatch({ changes: edit, annotations: [fromDisk.of(true), isolateHistory.of("full")] });
     this.conflict.hide();
     this.refresh(note);
     this.setDirty(false);
-    // Last, so that the caret never stays inside the folded frontmatter.
+    // Last, so that the caret never stays inside the folded frontmatter
+    // (Live Preview's own filter keeps it out on every later transaction).
     this.applyMode();
     markCurrent();
     persistSoon();
+    return edit !== null;
   }
   /** Renamed: read at the new place, unless text was typed meanwhile —
    *  then it stays, and its next save goes to the new place. */
@@ -1869,10 +1923,10 @@ class NoteLeaf extends Leaf {
     if (!this.previewStale || !note) return;
     this.previewStale = false;
     // The keyboard keeps its place through a redraw — a task checked, the
-    // note read again: the focus goes back to what stands at the same place
-    // among the reading view's focusable elements.
+    // note read again: the focus goes back to the same task, the same link,
+    // or what stands at the same place among what the note draws.
     const active = document.activeElement;
-    const at = active && this.preview.contains(active) ? [...this.preview.querySelectorAll(PREVIEW_FOCUSABLE)].indexOf(active) : -1;
+    const key = active instanceof HTMLElement && active !== this.preview && this.preview.contains(active) ? focusKey(this.preview, active) : null;
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
     setHtml(this.preview, note.html);
@@ -1884,7 +1938,7 @@ class NoteLeaf extends Leaf {
     void this.embedImages(note.path);
     this.wireTasks();
     this.dressLinks(note.path);
-    if (at >= 0) this.preview.querySelectorAll<HTMLElement>(PREVIEW_FOCUSABLE)[at]?.focus({ preventScroll: true });
+    if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
   }
   private async relink(path: string): Promise<void> {
     const [back, links] = await Promise.all([commands.backlinks(path), commands.links(path)]);
@@ -4304,7 +4358,7 @@ async function afterFileChange(): Promise<void> {
   void panel.loadTags();
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
   // A change made outside that this run found before the watcher did.
-  tellOutcomes(await recheckAll(true));
+  tellOutcomes(await recheckAll("all"));
 }
 /* The folder changed on disk — another editor, a sync client, git
  * (the watcher, provisional: docs/reference/watcher-decision.md). The
@@ -4315,37 +4369,43 @@ async function afterFileChange(): Promise<void> {
  * tags, links and embeds when notes did. */
 async function changedOutside(change: FolderChanged): Promise<void> {
   if (change.key !== currentFolder) return;
-  const notes = change.changed.length + change.removed.length > 0;
-  if (change.listing) await refreshLists();
-  else if (notes && ui.search.value.trim() !== "") await searchNotes(ui.search.value);
-  if (notes) void panel.loadTags();
-  const outcomes = await recheckAll(notes);
+  const changed = new Set([...change.changed, ...change.removed]);
+  if (change.listing) refreshLists();
+  else if (changed.size > 0 && ui.search.value.trim() !== "") whenNotRenaming(ui.notes, () => void searchNotes(ui.search.value));
+  if (changed.size > 0) void panel.loadTags();
+  const outcomes = await recheckAll(changed.size > 0 ? changed : null);
   if (change.key !== currentFolder) return;
   tellOutcomes(outcomes);
-  showProblems(change.index.problems);
+  showProblems(change.index);
+}
+/** `run` once no name is being typed in `container`: redrawing it would
+ *  take the field away, or commit half a name. Looked at again until then,
+ *  since a field that Enter or Escape removes fires no event to wait for. */
+function whenNotRenaming(container: ParentNode, run: () => void): void {
+  if (!container.querySelector("input.rename")) return run();
+  window.setTimeout(() => whenNotRenaming(container, run), 400);
 }
 /** The lists drawn again from the core: the ones kept in memory, the tree
  *  or the search results on screen, the folder views. Not while a name is
  *  being typed in the tree — redrawing would take the field away, or
  *  commit half a name: that waits for the field to go. */
-async function refreshLists(): Promise<void> {
-  const typing = ui.notes.querySelector<HTMLInputElement>("input.rename");
-  if (typing) {
-    typing.addEventListener("blur", () => window.setTimeout(() => void refreshLists(), 0), { once: true });
-    return;
-  }
-  forgetFiles();
-  await listAll();
-  if (ui.search.value.trim() !== "") await searchNotes(ui.search.value);
-  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
+function refreshLists(): void {
+  whenNotRenaming(ui.notes, () => void (async () => {
+    forgetFiles();
+    await listAll();
+    if (ui.search.value.trim() !== "") await searchNotes(ui.search.value);
+  })());
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") whenNotRenaming(l.el, () => void l.load(l.path));
 }
 type Outcome = { leaf: NoteLeaf; outcome: "same" | "read" | "conflict" | "gone" };
-/** Every open note checked against the disk; `relink`: the others' links
- *  looked up again too (notes changed somewhere). */
-async function recheckAll(relink: boolean): Promise<Outcome[]> {
+/** Every open note checked against the disk. `changed`: the notes that
+ *  changed somewhere (or "all", after the window's own file operations) —
+ *  the others look their links up again, and draw again when they embed
+ *  one; `null`: nothing else to do. */
+async function recheckAll(changed: ReadonlySet<string> | "all" | null): Promise<Outcome[]> {
   const leaves = spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)).filter((l): l is NoteLeaf => l instanceof NoteLeaf && l.path !== "");
   const outcomes = await Promise.all(leaves.map(async (leaf) => ({ leaf, outcome: await leaf.recheck() })));
-  if (relink) for (const o of outcomes) if (o.outcome === "same") o.leaf.relinkNow();
+  if (changed !== null) for (const o of outcomes) if (o.outcome === "same") o.leaf.relinkNow(changed);
   return outcomes;
 }
 /** What happened to the notes on screen, said once on the status line
@@ -4359,13 +4419,18 @@ function tellOutcomes(outcomes: Outcome[]): void {
   const said: string[] = [];
   if (conflict.length > 0) said.push(t.conflictOutside(conflict.join(", ")));
   if (gone.length > 0) said.push(t.goneNamed(gone.join(", ")));
-  if (read.length > 0) said.push(t.readOutside(read.length));
+  if (read.length > 0) said.push(t.readOutside(read.join(", ")));
   if (said.length > 0) ui.status.textContent = said.join(" ");
 }
 /** The index's problems, when they are not the ones already shown: the
  *  first on the status line, all of them on its tooltip. */
 let shownProblems = "";
-function showProblems(problems: string[]): void {
+function showProblems(index: IndexSummary): void {
+  const problems = [
+    ...(index.unwatched !== null ? [t.notWatched(index.unwatched)] : []),
+    ...(index.unindexed !== null ? [t.notIndexed(index.unindexed)] : []),
+    ...index.problems,
+  ];
   const all = problems.join("\n");
   if (all === shownProblems) return;
   shownProblems = all;
@@ -4409,10 +4474,10 @@ function wireCallouts(root: ParentNode): void {
     const control = linked ? h("button", "callout-fold") : title;
     if (control instanceof HTMLButtonElement) {
       control.type = "button";
-      control.setAttribute("aria-label", title.textContent?.trim() || (box.dataset["callout"] ?? ""));
+      control.setAttribute("aria-label", t.foldCallout);
       control.append(icon("chevron"));
       title.classList.add("has-fold");
-      title.prepend(control);
+      title.append(control);
     } else {
       title.tabIndex = 0;
       title.setAttribute("role", "button");
@@ -6206,7 +6271,7 @@ function showFolder(info: FolderInfo): void {
   const i = info.index;
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   shownProblems = "";
-  showProblems(i.problems);
+  showProblems(i);
   page?.classList.remove("empty");
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
   spaces.length = 0;
@@ -6257,8 +6322,8 @@ async function reindex(): Promise<void> {
   forgetFiles();
   ui.status.textContent = t.indexed(r.data.indexed, r.data.unchanged, r.data.placeholders);
   await searchNotes(ui.search.value);
-  tellOutcomes(await recheckAll(true));
-  showProblems(r.data.problems);
+  tellOutcomes(await recheckAll("all"));
+  showProblems(r.data);
 }
 
 /* ---------- The ribbon: one column of what the app does, reordered by drag ---------- */
