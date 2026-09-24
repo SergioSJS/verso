@@ -44,6 +44,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0013](0013-degrades-to-markdown.md) | Todo dado estruturado degrada para Markdown legível | Proposto |
 | [0014](0014-primitives-catalog.md) | Catálogo de primitivas do Verso | Proposto (a nota do dia e os templates: Aceito) |
 | [0015](0015-schema-packs.md) | Packs de schema distribuíveis como conteúdo | Proposto |
+| [0052](0052-typed-note.md) | Nota tipada: `type:` no frontmatter e schema na pasta | Proposto |
 
 ### Plugins e LLM
 

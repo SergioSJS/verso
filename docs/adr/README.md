@@ -44,6 +44,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Proposed |
 | [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted) |
 | [0015](0015-schema-packs.md) | Schema packs distributable as content | Proposed |
+| [0052](0052-typed-note.md) | Typed note: `type:` in the frontmatter and a schema in the folder | Proposed |
 
 ### Plugins and LLM
 
