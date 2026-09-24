@@ -468,6 +468,17 @@ export const outOfFrontmatter = EditorState.transactionFilter.of((tr) => {
   return [tr, { selection: EditorSelection.create(ranges, selection.mainIndex), sequential: true }];
 });
 
+/** In Live Preview the folded frontmatter is changed by the properties
+ *  panel, never by a key: typing, pasting or deleting that reaches into it
+ *  — Backspace at the start of the body, which would join the first line
+ *  to the closing fence and undo the whole block, ⌘⌫, a cut — leaves it
+ *  as it is. The panel's own edits carry no user event and pass. */
+export const keepFrontmatter = EditorState.changeFilter.of((tr) => {
+  if (!(tr.isUserEvent("input") || tr.isUserEvent("delete") || tr.isUserEvent("move"))) return true;
+  const end = frontmatterEnd(tr.startState.doc);
+  return end < 0 ? true : [0, end + 1];
+});
+
 function linesOfSelection(view: EditorView): Set<number> {
   const lines = new Set<number>();
   for (const r of view.state.selection.ranges) {
@@ -726,5 +737,5 @@ export function livePreview(opts: LiveOptions) {
     },
     provide: (f) => [EditorView.decorations.from(f, (v) => v.decorations), EditorView.atomicRanges.of((view) => view.state.field(f).atomic)],
   });
-  return [plugin, clicks, frontmatter, outOfFrontmatter];
+  return [plugin, clicks, frontmatter, outOfFrontmatter, keepFrontmatter];
 }
