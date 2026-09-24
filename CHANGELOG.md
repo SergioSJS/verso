@@ -3,7 +3,8 @@
 [Português (Brasil)](docs/pt-BR/CHANGELOG.md)
 
 What changes from one version of Verso to the next, for someone who uses it.
-Every pull request adds its lines under **Unreleased**, in both languages;
+Every change a user can see adds its lines under **Unreleased**, in both
+languages;
 cutting a version moves them under the version's own heading
 ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)). Versions follow
 [SemVer](https://semver.org): `X.Y.Z` for production, `X.Y.Z-beta.N` for a

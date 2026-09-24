@@ -21,7 +21,8 @@
   Linux job per pull request, clippy and the tests on macOS and the fuzzing on
   `main` only, the apps packaged only for a version tag. 2026-09-24 — the
   guardrails run locally before a push, by two scripts, at the maintainer's
-  request.
+  request. 2026-09-24 — the release workflow exists, with the development
+  flow of [0051](0051-development-flow-and-releases.md).
 
 ## Context
 

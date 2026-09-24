@@ -14,6 +14,10 @@
 - Revisions: 2026-09-23 — what the Phase 2 code does with `verso <folder>`
   and `verso open` recorded under Consequences, as **provisional**; the rule
   stays `[OPEN]`.
+- Revisions: 2026-09-24 — `verso --version` (and `-V`) joins `--help` among
+  the arguments let through, with the development flow
+  ([0051](0051-development-flow-and-releases.md)); no bare `version`, which
+  would take a folder's name.
 - Revisions: 2026-09-23 — **decided by the maintainer for Phase 2**: the rule
   as the code applies it (Decision); how the window starts changed, so that
   an app already running receives the folder (`docs/review/phase-2.md` §6,
@@ -113,8 +117,9 @@ decision; the disambiguation rule above stays `[OPEN]`.
   error comes out in the language the user asked for even when the rest of the
   line is wrong.
 - **`verso help` prints the usage and exits 0**; asking for help is not a usage
-  error. `verso -h` and `verso --help` do the same: `--help` is the one
-  argument beginning with `--` that the unknown-option rule above lets through.
+  error. `verso -h` and `verso --help` do the same: `--help` and `--version`
+  (since 2026-09-24, with `-V`) are the arguments beginning with `--` that the
+  unknown-option rule above lets through.
 - **`--` is not supported as a separator.** It falls under the same rule, so a
   folder whose name begins with `--` cannot be passed at all in Phase 1. The
   memo only wants the separator from Phase 2 on; the gap is recorded rather

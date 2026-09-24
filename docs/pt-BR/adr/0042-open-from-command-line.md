@@ -14,6 +14,10 @@
 - Revisões: 2026-09-23 — o que o código da Fase 2 faz com `verso <pasta>` e
   `verso open` registrado em Consequências, como **provisório**; a regra
   continua `[ABERTO]`.
+- Revisões: 2026-09-24 — `verso --version` (e `-V`) entra ao lado do `--help`
+  entre os argumentos que passam, com o fluxo de desenvolvimento
+  ([0051](0051-development-flow-and-releases.md)); sem um `version` solto,
+  que tomaria o nome de uma pasta.
 - Revisões: 2026-09-23 — **decidido pelo mantenedor para a Fase 2**: a regra
   como o código a aplica (Decisão); o jeito de a janela começar mudou, para
   que um app já aberto receba a pasta (`docs/review/phase-2.md` §6, itens 3 e
@@ -111,8 +115,9 @@ a regra de desambiguação acima continua `[ABERTO]`.
   impresso**, então o erro sai no idioma que o usuário pediu mesmo quando o
   resto da linha está errado.
 - **`verso help` imprime o uso e sai com 0**; pedir ajuda não é erro de uso. O
-  `verso -h` e o `verso --help` fazem o mesmo: `--help` é o único argumento que
-  começa com `--` que a regra de opção desconhecida acima deixa passar.
+  `verso -h` e o `verso --help` fazem o mesmo: `--help` e `--version` (desde
+  2026-09-24, com `-V`) são os argumentos que começam com `--` que a regra de
+  opção desconhecida acima deixa passar.
 - **O `--` não é suportado como separador.** Ele cai na mesma regra, então uma
   pasta cujo nome começa com `--` não pode ser passada de jeito nenhum na
   Fase 1. O memo só quer o separador a partir da Fase 2; a lacuna fica
