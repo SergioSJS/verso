@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.2.0-beta.1 — 2026-09-24
+
 ### Acrescentado
 
 - **A linha de comando**: `verso index`, `verso search`, `verso backlinks` e
