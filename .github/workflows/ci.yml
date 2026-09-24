@@ -103,6 +103,16 @@ jobs:
       - name: cargo deny (ADR 0029)
         run: cargo deny check
 
+      # --- The window's UI: checked, and bundled into app/ui/dist, which the
+      # Tauri shell embeds when it compiles (`generate_context!` refuses a
+      # missing frontendDist), so it comes before any Rust build. ---
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: UI type-checks and bundles
+        working-directory: app/ui
+        run: npm ci && npm run check && npm run build
+
       # --- The workspace, the Tauri shell with it. ---
       # The workspace includes the Tauri shell (app/src-tauri, Phase 2), which
       # links against WebKitGTK on Linux; macOS has WebKit built in.
@@ -121,12 +131,6 @@ jobs:
         run: |
           cargo run -q --locked -p verso-app -- --export-bindings /tmp/bindings.ts
           diff -u app/ui/src/bindings.ts /tmp/bindings.ts
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-      - name: UI type-checks and bundles
-        working-directory: app/ui
-        run: npm ci && npm run check && npm run build
       # Feature guardrail of Phase 1, feature 1: the parser keeps compiling to
       # WASM (ADR 0029). The target is the same from any host, so Linux alone.
       - name: verso-dialect compiles to wasm32 (ADR 0029)
@@ -144,6 +148,12 @@ jobs:
       - name: toolchain from rust-toolchain.toml
         run: rustup show
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      # The Tauri shell embeds app/ui/dist when it compiles, and the bundle is
+      # not versioned. Clippy and the tests do not look at the UI, so an empty
+      # page stands in for it here instead of installing Node on a runner
+      # billed ten times over; the Linux job builds and checks the real one.
+      - name: a stand-in for the UI bundle
+        run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
       - name: cargo clippy -D warnings
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: cargo test
