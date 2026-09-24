@@ -5,6 +5,12 @@
 - Status in the briefing: `PROPOSED`
 - Revisions: 2026-09-21 — the placeholder guard left this ADR and became
   [0043](0043-placeholder-guard.md), Accepted (Phase 0 review, C1).
+  2026-09-24 — where schemas live decided by the maintainer elsewhere: in the
+  open folder, as a `verso-schema` block in a note
+  ([0052](0052-typed-note.md), spec Q11), the maintainer's choice between
+  briefing §5.3 and briefing §8, which this ADR's item 2 follows. Item 2 is
+  left as written, Proposed; on schemas it now disagrees with that decision,
+  and its wording is the maintainer's to correct if this ADR is confirmed.
 
 ## Context
 

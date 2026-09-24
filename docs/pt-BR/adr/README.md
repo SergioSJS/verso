@@ -41,9 +41,10 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0041](0041-multi-root-workspace.md) | Workspace com múltiplas raízes | Proposto |
 | [0042](0042-open-from-command-line.md) | Abrir pela linha de comando: `verso <pasta>` | Aceito |
 | [0012](0012-files-are-source-of-truth.md) | Arquivos são a fonte de verdade; abrir nunca reescreve | Aceito |
-| [0013](0013-degrades-to-markdown.md) | Todo dado estruturado degrada para Markdown legível | Proposto |
-| [0014](0014-primitives-catalog.md) | Catálogo de primitivas do Verso | Proposto (a nota do dia e os templates: Aceito) |
+| [0013](0013-degrades-to-markdown.md) | Todo dado estruturado degrada para Markdown legível | Aceito (2026-09-24) |
+| [0014](0014-primitives-catalog.md) | Catálogo de primitivas do Verso | Proposto (a nota do dia e os templates: Aceito; a nota tipada: Aceito no 0052) |
 | [0015](0015-schema-packs.md) | Packs de schema distribuíveis como conteúdo | Proposto |
+| [0052](0052-typed-note.md) | Nota tipada: `type:` no frontmatter e um schema | Aceito (2026-09-24) |
 
 ### Plugins e LLM
 
@@ -107,7 +108,7 @@ onde cada uma está.
 
 | # | Título | Quando decidir |
 |---|---|---|
-| [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Feature 2 da Fase 1 (symlinks, caminhos); feature 6 e item 2.1 (handles) |
+| [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Symlinks e caminhos ignorados: Aceito (2026-09-22); handles: aceitos como construídos para a Fase 2 (2026-09-24), reabertos antes que qualquer coisa fora das views do próprio app ganhe acesso a arquivos; o watcher: Aceito (2026-09-24) |
 | [0045](0045-server-and-mcp-security.md) | Segurança do servidor, do MCP e do contrato | MCP: Aceito; contrato: aceito como foi construído para a Fase 2, `[ABERTO]` até um servidor entrar em escopo; servidor: antes de entrar em escopo |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Índice: localização, ciclo de vida e tokenizador | Features 3 e 5 da Fase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Questões abertas da API de plugin | Antes de desenhar a API (depois da Fase 2) |
@@ -117,7 +118,8 @@ onde cada uma está.
 
 Três itens de dialeto do §17 vivem em [`../spec/dialect.md`](../spec/dialect.md),
 onde o comportamento é especificado: sintaxe de relação tipada (item 6), formato
-e localização dos schemas (item 7) e sintaxe de visibilidade por bloco (item 8).
+e localização dos schemas (item 7, decidido em 2026-09-24 como a Q11, com o
+[0052](0052-typed-note.md)) e sintaxe de visibilidade por bloco (item 8).
 As lacunas de parsing (Q1–Q8, Q12–Q26) também vivem lá.
 
 A verificação de disponibilidade do nome (item 2) está registrada em

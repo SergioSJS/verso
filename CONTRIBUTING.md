@@ -47,10 +47,12 @@ off.
 
 ## Pull requests
 
-- Small, one topic. If the summary needs an "and", it is probably two pull
-  requests. One short branch per topic, from `main`, which is protected and
-  takes pull requests only
-  ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
+- Until the whole flow exists — sync, web, mobile — work goes in large pull
+  requests; small, one-topic ones after it (the maintainer's decision of
+  2026-09-24, [ADR 0033](docs/adr/0033-pr-workflow.md) and
+  [ADR 0051](docs/adr/0051-development-flow-and-releases.md)). Either way a
+  branch starts from `main`, which is protected and takes pull requests
+  only.
 - A change a user can see adds its line under "Unreleased" in
   [CHANGELOG.md](CHANGELOG.md) and in its pt-BR twin.
 - Use the template in `.github/pull_request_template.md`, with its five

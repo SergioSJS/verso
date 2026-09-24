@@ -12,7 +12,45 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- **Changes made outside Verso show up by themselves**: a note edited in
+  another app, a sync or `git pull` reaches the open tabs, the search and the
+  backlinks a moment later, and the tree when files come, go or move. A tab
+  with nothing typed in it takes in the new text as one edit, the cursor
+  keeping its place in the text; one with text not saved yet shows both
+  versions, as when a save meets a changed file; a note deleted or moved
+  outside keeps its text in its tab, marked as gone. Problems met while
+  indexing show on the status line.
+- **Moving without dragging**: a tab moves back and forward along its bar
+  and to the next or previous pane from its menu (Shift-F10), the command
+  palette or a hotkey of your choice, and to another workspace from its
+  menu; an open file moves to another folder; the ribbon's buttons move up
+  and down from their menu.
+
+### Changed
+
+- **A callout inside a callout** is drawn as a callout in the reading view,
+  as Obsidian's documentation shows it, instead of as a quote —
+  provisionally, until spec Q5 is decided.
+
+### Fixed
+
+- **Backspace at the start of a note** in Edit mode no longer joins the
+  first line to the hidden properties' closing line, which lost every
+  property unseen; no key changes the folded properties now — the
+  properties panel does.
+- **The beta's command line** says which app it opens: `verso <folder>`
+  answers "opening … in Verso Beta", and names Verso Beta when the app is
+  not installed.
+- **Accessibility**, a pass over the window: the tab bars, the file tree and
+  the graph answer the arrow keys, and the menus and redraws keep the
+  keyboard's place; links, tags and tasks in the reading view are reached
+  from the keyboard; the editors, the properties' fields and the window's
+  regions are named for a screen reader; a write refused because the file
+  changed on disk is announced; the focus ring and the callout titles have
+  enough contrast; the font size goes up to 30 px (200%); Settings →
+  Hotkeys says how to leave the editor from the keyboard.
 
 ## 0.2.0-beta.1 — 2026-09-24
 

@@ -1,6 +1,6 @@
 # Roadmap do Verso
 
-- Versão: 2026-09-23, revisão 3 (a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas)
+- Versão: 2026-09-24, revisão 4 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
 - Fonte: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -121,7 +121,7 @@ Ordem de execução do briefing §15:
 | ~~Tokenizador do FTS5 para pt-BR e EN~~ | decidido em 2026-09-22: `unicode61` com `remove_diacritics 2`, sem stemming | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Metas de performance | depois da feature 5 produzir a linha de base; a linha de base do Mac existe desde o commit `6b53c64` (`crates/verso-bench/baselines.json`), as metas continuam abertas | [0039](adr/0039-performance-targets.md) |
 | ~~Transporte do MCP, superfície exposta, versão do protocolo~~ | decidido em 2026-09-22: stdio, sete ferramentas somente leitura, a versão que o `initialize` negociar (`docs/reference/mcp-decision.md`) | [0045](adr/0045-server-and-mcp-security.md) |
-| O que um handle opaco identifica e por quanto tempo | antes da feature 6 fechar; ainda aberto — o MCP e a janela nomeiam notas pelo caminho relativo, e o handle fica dentro do processo | [0044](adr/0044-verso-fs-semantics.md) |
+| ~~O que um handle opaco identifica e por quanto tempo~~ | decidido em 2026-09-24, como construído: notas nomeadas pelo caminho relativo — o MCP, a CLI e a janela — e o handle um índice numa tabela de caminhos dentro do processo; reaberto antes que qualquer coisa fora das views do próprio app ganhe acesso a arquivos (`docs/reference/handles-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 
 ### Critério de saída
 
@@ -173,15 +173,15 @@ A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-target-platforms-m
 
 ### Escopo
 
-| # | Entrega | Estado em 2026-09-23 |
+| # | Entrega | Estado em 2026-09-24 |
 |---|---|---|
 | 2.1 | Contrato core↔UI definido primeiro, com tipos TS gerados a partir do Rust | construído: `crates/verso-contract`, bindings gerados pelo `specta`, verificados no CI |
 | 2.2 | Shell Tauri v2 abrindo uma pasta arbitrária | construído: pelo diálogo, por `verso <pasta>` ou pela última pasta ao iniciar |
 | 2.3 | Árvore de arquivos | construída, com criar, renomear, mover, lixeira e cópia; operações de arquivo decididas em 2026-09-23 como construídas ([0048](adr/0048-file-operations-in-ui.md)) |
 | 2.4 | Editor CodeMirror 6 com Live Preview | construído: leitura, Live Preview e fonte |
 | 2.5 | Backlinks e busca vindos do core, pelo contrato | construídos, com links, tags, menções sem link e o grafo |
-| 2.6 | Um tipo de nota ponta a ponta | não começado: espera as decisões abaixo |
-| 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | idiomas construídos, escolhidos nos ajustes; acessibilidade não auditada |
+| 2.6 | Um tipo de nota ponta a ponta | não começado; as decisões dele tomadas em 2026-09-24 ([0052](adr/0052-typed-note.md), Q11 da spec), e o trabalho é a seção 8 do memo (`docs/reference/typed-note-decision.md`) |
+| 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | idiomas construídos, escolhidos nos ajustes; acessibilidade auditada estaticamente contra a WCAG 2.2 AA em 2026-09-24, num branch local — o que foi corrigido e o que espera o mantenedor está na [revisão](review/accessibility.md); ainda não percorrida com um leitor de tela |
 
 Além dos sete itens, o mantenedor pediu durante a fase o que faltaria a quem
 sai do Obsidian; a lista é a [ADR 0049](adr/0049-phase-2-scope-widened.md), e o
@@ -193,10 +193,10 @@ que a janela faz com cada arquivo está em `docs/reference/app-decision.md`.
 |---|---|---|
 | ~~Geração de tipos TS: `ts-rs` ou `specta`~~ | decidido em 2026-09-22: `specta` com `tauri-specta`, tipos e assinaturas dos comandos gerados | [0038](adr/0038-ts-type-generation.md) |
 | Identidade de sessão e autorização por operação no contrato | antes do item 2.1; o contrato, construído com o host confiando nas próprias janelas e em nada mais (`docs/reference/app-decision.md` §7), aceito como foi construído para a Fase 2 em 2026-09-23; ainda aberto até um servidor entrar em escopo | [0045](adr/0045-server-and-mcp-security.md) |
-| Semântica dos handles opacos no contrato | antes do item 2.1; ainda aberto — o contrato nomeia notas pelo caminho relativo e a revisão é o único token | [0044](adr/0044-verso-fs-semantics.md) |
+| ~~Semântica dos handles opacos no contrato~~ | decidido em 2026-09-24, como construído para a Fase 2: o contrato nomeia notas pelo caminho relativo, nenhuma capacidade o cruza, e a revisão é o único token; reaberto antes que um plugin, um cliente mobile ou o `verso serve` ganhe acesso a arquivos (`docs/reference/handles-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 | ~~Renomear, criar, excluir, mover; atualização de links; modificação externa concorrente~~ | decidido em 2026-09-23: opção (b), como o código faz — planos mostrados como diffs, sem transação lógica, a lixeira | [0048](adr/0048-file-operations-in-ui.md), [0012](adr/0012-files-are-source-of-truth.md) |
-| Promoção de nota tipada ([0014](adr/0014-primitives-catalog.md)) e de degradação para Markdown ([0013](adr/0013-degrades-to-markdown.md)) a ADR próprio, Aceito | antes da nota tipada (2.6) | ADR novo |
-| Formato e localização dos schemas | antes da nota tipada (2.6) | `docs/spec/dialect.md` Q11 |
+| ~~Promoção de nota tipada ([0014](adr/0014-primitives-catalog.md)) e de degradação para Markdown ([0013](adr/0013-degrades-to-markdown.md)) a ADR próprio, Aceito~~ | decidido em 2026-09-24: a nota tipada num ADR novo, Aceito; a degradação para Markdown aceita no lugar, com "views" e "dado estruturado" delimitados (`docs/reference/typed-note-decision.md`) | [0052](adr/0052-typed-note.md), [0013](adr/0013-degrades-to-markdown.md) |
+| ~~Formato e localização dos schemas~~ | decidido em 2026-09-24: um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados; dois schemas com o mesmo nome não tipam nada | `docs/spec/dialect.md` Q11, [0052](adr/0052-typed-note.md) |
 
 ### Critério de saída
 

@@ -5,6 +5,15 @@
 - Status no briefing: `DECIDIDO`
 - Revisões: 2026-09-21 — escopo das regras 4 e 5 delimitado (revisão da Fase 0,
   C2). A decisão não mudou; o que mudou é a fronteira em que ela vale.
+  2026-09-22 — regra 4 emendada pelo mantenedor
+  (`docs/reference/mcp-decision.md`, a decisão de 2026-09-22): acesso cruza
+  como handle opaco, a identidade de uma nota como o caminho relativo à pasta
+  aberta, e caminho absoluto ou com `..` nunca cruza; o texto antigo fica ao
+  lado do novo na Decisão. 2026-09-24 — duas frases que ainda diziam os
+  handles `[ABERTO]`, ou que a regra 4 não era reescrita, acertadas com uma
+  nota cada: a emenda aconteceu, e o grupo dos handles do
+  [0044](0044-verso-fs-semantics.md) foi decidido em 2026-09-24, como
+  construído para a Fase 2 (`docs/reference/handles-decision.md`).
 
 ## Contexto
 
@@ -60,7 +69,11 @@ elas valem é esta:
   mostra caminhos, então o texto original também quebraria lá. Caminho em
   string também existe na borda de entrada (argumento da CLI, chave da config) e
   dentro de `verso-fs`. O que um handle identifica e por quanto tempo vale
-  continua `[ABERTO]` na [0044](0044-verso-fs-semantics.md).
+  continua `[ABERTO]` no [0044](0044-verso-fs-semantics.md). *(Decidido lá em
+  2026-09-24, como construído para a Fase 2: um índice numa tabela de
+  caminhos, válido só neste processo, sem nenhuma capacidade cruzando o
+  contrato; reaberto antes que qualquer coisa fora das views do próprio app
+  ganhe acesso a arquivos.)*
 - **Regra 5** vale para **os arquivos da pasta aberta** (e de cada raiz de um
   workspace). Só `verso-fs` lê, grava, renomeia, apaga ou observa esses
   arquivos. Ficam fora da regra, por serem arquivos do app e não do usuário: o
@@ -104,7 +117,12 @@ e o que sustenta o peso da regra naquela borda é o **confinamento de todo
 caminho que um cliente envia**, verificado antes de tocar o índice ou o disco,
 inclusive nas chamadas que só leem o índice. A regra 4 **não** é reescrita aqui:
 reescrevê-la é do mantenedor, no PR que fechar o grupo dos handles do
-[0044](0044-verso-fs-semantics.md).
+[0044](0044-verso-fs-semantics.md). *(Acertado em 2026-09-24: o mantenedor
+emendou a regra 4 em 2026-09-22, no mesmo dia, antes de o grupo dos handles
+fechar — a Decisão traz o texto novo — e o caminho relativo na borda do MCP é
+a decisão que o [0045](0045-server-and-mcp-security.md) tomou então,
+confirmada como o texto que vale quando o grupo foi decidido em
+2026-09-24.)*
 
 ## Alternativas descartadas
 

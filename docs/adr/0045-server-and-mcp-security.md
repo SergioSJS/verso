@@ -7,7 +7,13 @@
   exposure" as a question to open
 - Revisions: 2026-09-23 — the contract group: kept `[OPEN]` by the maintainer
   until a server enters scope, with the Phase 2 contract accepted as built
-  (`docs/review/phase-2.md` §6, item 6).
+  (`docs/review/phase-2.md` §6, item 6). 2026-09-24 — the note identifier:
+  the decision of 2026-09-22, the path relative to the root, is the text that
+  stands, by the maintainer's answer on `docs/reference/handles-decision.md`,
+  which found this ADR, [0026](0026-core-ui-contract-inviolable-rules.md) and
+  [0044](0044-verso-fs-semantics.md) disagreeing about it; the older
+  paragraph that called the `verso mcp` group provisional brought in line
+  with a note.
 
 ## Context
 
@@ -106,7 +112,12 @@ contract redone — is accepted with it.
 2026-09-22 from the feature 6 code — provisional, the maintainer decides**,
 under the recommendations of `docs/reference/mcp-decision.md` §2 to §6. This is
 what the code does, not a decision: the three questions above stay `[OPEN]`, and
-the code changes if the maintainer decides otherwise.
+the code changes if the maintainer decides otherwise. *(Superseded the same day
+for what it calls `[OPEN]`: the maintainer decided the `verso mcp` group on
+2026-09-22 — the list above, with which this record agrees — and on 2026-09-24
+confirmed the relative path as the note identifier
+(`docs/reference/handles-decision.md`). The rest stays the record of what the
+code does; the language of what a model reads is still `[OPEN]`, below.)*
 
 - **Transport: stdio, and nothing listens.** `verso mcp <folder>` is spawned by
   the client as a child process and speaks JSON-RPC over its own standard input

@@ -16,9 +16,9 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView, basicSetup } from "codemirror";
-import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
+import { Annotation, Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import { keymap, type KeyBinding } from "@codemirror/view";
-import { indentWithTab } from "@codemirror/commands";
+import { indentWithTab, isolateHistory } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
@@ -26,8 +26,9 @@ import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import katex from "katex";
 import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { commands, type ContractError, type FileEntry, type FolderInfo, type NoteText, type TextFile, type Written } from "./bindings";
+import { commands, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type NoteText, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
+import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView } from "./props";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
@@ -64,8 +65,9 @@ type Strings = Record<
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "appVersion" | "appVersionDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
-  | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed"
-  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys",
+  | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
+  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
+  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -82,6 +84,13 @@ type Strings = Record<
   replaceCount: (n: number) => string;
   graphNodes: (n: number, m: number) => string;
   pdfHits: (n: number, current: number) => string;
+  readOutside: (names: string) => string;
+  backOutside: (names: string) => string;
+  notWatched: (why: string) => string;
+  notIndexed: (why: string) => string;
+  conflictOutside: (names: string) => string;
+  goneNamed: (names: string) => string;
+  indexProblems: (n: number, first: string) => string;
 };
 
 const pt: Strings = {
@@ -108,6 +117,13 @@ const pt: Strings = {
   outgoing: "Links de saída", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos", toggleRight: "Mostrar/ocultar painel", palette: "Paleta de comandos", settings: "Ajustes",
   theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
+  readOutside: (names) => `Mudou fora do Verso e foi lida de novo: ${names}.`,
+  backOutside: (names) => `Voltou para a pasta: ${names}.`,
+  notWatched: (why) => `Mudanças feitas fora do Verso só aparecem no Reindexar: a pasta não pôde ser vigiada (${why}).`,
+  notIndexed: (why) => `A pasta mudou e não pôde ser indexada: ${why}`,
+  conflictOutside: (names) => `Mudou fora do Verso, com texto não salvo aqui: ${names}. As duas versões estão na nota.`,
+  goneNamed: (names) => `Apagada ou movida fora do Verso: ${names}. O texto continua na aba.`,
+  indexProblems: (n, first) => `${n === 1 ? "Um problema" : `${n} problemas`} ao indexar: ${first}`,
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
   confirmDelete: (n) => `Apagar "${n}"? Vai para .trash/ na pasta, como no Obsidian.`,
@@ -129,19 +145,22 @@ const pt: Strings = {
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
-  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida",
+  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
   hotkeyChange: "Alterar", hotkeyPress: "Pressione as teclas…", hotkeyReset: "Restaurar", hotkeysHint: "Clique em Alterar e pressione a combinação. Um atalho já usado por outro comando é retirado dele.", hotkeyNone: "—",
   themeDesc: "Claro, escuro ou como o sistema.", hueDesc: "A família de cores do papel e dos destaques.", fontSizeDesc: "Tamanho base da interface e das notas.", attachmentsDesc: "Subpasta, ao lado da nota, onde imagens coladas são salvas.", dailyDesc: "Onde a nota de hoje é criada.", templatesDesc: "Qualquer nota nessa pasta é um template.", autosaveDesc: "Segundos depois de parar de digitar.",
-  graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique abre · duplo clique centra · arraste move · roda amplia", graphLabels: "Nomes",
+  graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique ou Enter abre · duplo clique ou ⇧Enter centra · as setas percorrem as notas · arraste move · roda amplia", graphLabels: "Nomes",
   ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
+  tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
+  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
+  editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
 };
 
 const en: Strings = {
@@ -168,6 +187,13 @@ const en: Strings = {
   outgoing: "Outgoing links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files", toggleRight: "Show/hide panel", palette: "Command palette", settings: "Settings",
   theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
+  readOutside: (names) => `Changed outside Verso and read again: ${names}.`,
+  backOutside: (names) => `Back in the folder: ${names}.`,
+  notWatched: (why) => `Changes made outside Verso show up on Reindex only: the folder could not be watched (${why}).`,
+  notIndexed: (why) => `The folder changed and could not be indexed: ${why}`,
+  conflictOutside: (names) => `Changed outside Verso, with unsaved text here: ${names}. Both versions are in the note.`,
+  goneNamed: (names) => `Deleted or moved outside Verso: ${names}. The text stays in its tab.`,
+  indexProblems: (n, first) => `${n === 1 ? "A problem" : `${n} problems`} while indexing: ${first}`,
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
   confirmDelete: (n) => `Delete "${n}"? It goes to .trash/ in the folder, as in Obsidian.`,
@@ -189,19 +215,22 @@ const en: Strings = {
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
-  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read",
+  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
   hotkeyChange: "Change", hotkeyPress: "Press the keys…", hotkeyReset: "Restore", hotkeysHint: "Click Change and press the combination. A shortcut another command used is taken from it.", hotkeyNone: "—",
   themeDesc: "Light, dark, or as the system.", hueDesc: "The color family of the paper and the accents.", fontSizeDesc: "Base size of the interface and the notes.", attachmentsDesc: "Subfolder beside the note where pasted images go.", dailyDesc: "Where today's note is created.", templatesDesc: "Any note in that folder is a template.", autosaveDesc: "Seconds after typing stops.",
-  graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click opens · double-click centers · drag moves · wheel zooms", graphLabels: "Names",
+  graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click or Enter opens · double-click or ⇧Enter centers · the arrows walk the notes · drag moves · wheel zooms", graphLabels: "Names",
   ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options",
   replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
+  tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
+  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
+  editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -239,6 +268,13 @@ function button(cls: string, label: string, ic?: string): HTMLButtonElement {
 function name(path: string): string {
   const base = path.split("/").pop() ?? path;
   return base.endsWith(".md") ? base.slice(0, -3) : base;
+}
+/** A leaf's folder path, a navigation named as such: every open tab has
+ *  one, and a screen reader lists them by name. */
+function crumbsNav(): HTMLElement {
+  const nav = h("nav", "crumbs");
+  nav.setAttribute("aria-label", t.crumbs);
+  return nav;
 }
 /** The folder path as links: the vault, then each folder, each opening
  *  its folder view. */
@@ -432,8 +468,17 @@ try {
   if (raw) folderSort = { ...folderSort, ...(JSON.parse(raw) as Partial<typeof folderSort>) };
 } catch { /* no storage */ }
 
+/** The folder button's name begins with what it shows — the folder's
+ *  name, or "No folder" — then says what it does: a voice command names
+ *  what is on screen (WCAG 2.5.3), and it used to say only "Open folder". */
+function nameFolderButton(): void {
+  ui.open.setAttribute("aria-label", `${folderName || t.noFolder} — ${t.open}`);
+}
 for (const slot of document.querySelectorAll<HTMLElement>(".ic[data-icon]")) slot.replaceChildren(icon(slot.dataset["icon"] ?? ""));
-ui.open.setAttribute("aria-label", t.open);
+nameFolderButton();
+// The page's regions, named: the app's commands, the folder's side, the panel.
+ui.ribbon.setAttribute("aria-label", t.commands);
+document.querySelector(".side")?.setAttribute("aria-label", t.folderView);
 ui.collapse.replaceChildren(icon("collapse", t.collapseAll));
 ui.collapse.title = t.collapseAll;
 ui.search.placeholder = t.search;
@@ -746,8 +791,7 @@ function drop(d: Drag, target: DropTarget, x: number, y: number): void {
         leaf.moveTo(layout().split(pane, dir, zone === "left" || zone === "top" ? "before" : "after"));
       }
     } else if ("space" in target) {
-      const to = target.space.layout.focused ?? target.space.layout.panes()[0];
-      if (to) leaf.moveTo(to);
+      moveTabToSpace(leaf, target.space);
     }
     return;
   }
@@ -764,6 +808,51 @@ function drop(d: Drag, target: DropTarget, x: number, y: number): void {
 function paneOf(node: HTMLElement): Pane | null {
   const paneEl = node.closest<HTMLElement>(".pane");
   return layout().panes().find((p) => p.el === paneEl) ?? null;
+}
+
+/* ---------- Moving a tab without the pointer: what its drag does ---------- */
+/** Taken out and put back, a tab and its content lose the focus: it goes
+ *  back where it was, in the content or on the tab. */
+function movingFocus(leaf: Leaf, move: () => void): void {
+  const inside = leaf.el.contains(document.activeElement);
+  const onTab = document.activeElement === leaf.tab;
+  move();
+  if (inside) leaf.focusContent();
+  if ((inside || onTab) && !leaf.el.contains(document.activeElement)) leaf.tab.focus();
+}
+/** A tab one place back or forward along its bar. */
+function moveTab(leaf: Leaf, by: -1 | 1): void {
+  const i = leaf.pane.leaves.indexOf(leaf);
+  const j = i + by;
+  if (i < 0 || j < 0 || j >= leaf.pane.leaves.length) return;
+  movingFocus(leaf, () => leaf.moveTo(leaf.pane, j));
+}
+/** A tab to the next or previous pane of the workspace, at the end of its bar. */
+function moveTabToPane(leaf: Leaf, by: -1 | 1): void {
+  const panes = layout().panes();
+  const i = panes.indexOf(leaf.pane);
+  const to = panes[(i + by + panes.length) % panes.length];
+  if (i < 0 || !to || to === leaf.pane) return;
+  movingFocus(leaf, () => leaf.moveTo(to));
+}
+/** A tab to a workspace's focused pane (a drop on the workspace's tab).
+ *  To another workspace, this one keeps a pane of its own focused: the
+ *  move used to leave the other workspace's pane focused here. */
+function moveTabToSpace(leaf: Leaf, s: Space): void {
+  const to = s.layout.focused ?? s.layout.panes()[0];
+  if (!to) return;
+  if (s === current) return movingFocus(leaf, () => leaf.moveTo(to));
+  const had = leaf.el.contains(document.activeElement) || document.activeElement === leaf.tab;
+  const from = leaf.pane;
+  leaf.moveTo(to);
+  s.layout.focus(to);
+  const here = layout().panes();
+  layout().focus(here.includes(from) ? from : here[0] ?? null);
+  showOutline(layout().activeLeaf);
+  markCurrent();
+  // The keyboard stays in the pane it was in, on its tools if the pane is
+  // empty now.
+  if (had) landIn(from);
 }
 
 /* Files dropped from outside land in the note under the pointer, never
@@ -836,11 +925,18 @@ function askDiscard(): Promise<boolean> {
 }
 
 /* ---------- Leaves ---------- */
+/** Numbers the ids a tab and its panel name each other by. */
+let leafIds = 0;
 abstract class Leaf {
   readonly el = h("section", "leaf");
   readonly tab = h("button", "tab");
   readonly tabIcon = h("span", "tab-icon");
   readonly tabName = h("span", "tab-name");
+  /** Said, not shown: the dot after the name shows it. */
+  readonly tabUnsaved = h("span", "sr-only", `, ${t.unsaved}`);
+  /** Said, not shown: the name crossed out shows it (a note deleted or
+   *  moved outside the app, `markGone`). */
+  readonly tabGone = h("span", "sr-only", `, ${t.goneTab}`);
   abstract readonly kind: Kind;
   path = "";
   dirty = false;
@@ -849,11 +945,28 @@ abstract class Leaf {
 
   constructor(public pane: Pane) {
     this.tab.type = "button";
+    // A tab of its pane's tablist, and the panel it shows. Only the
+    // chosen tab is in the Tab order (Pane.activate); the arrows reach
+    // the others (Pane.tabKeys).
+    const n = ++leafIds;
+    this.tab.id = `verso-tab-${n}`;
+    this.el.id = `verso-panel-${n}`;
+    this.tab.setAttribute("role", "tab");
+    this.tab.setAttribute("aria-controls", this.el.id);
+    this.tab.tabIndex = -1;
+    this.el.setAttribute("role", "tabpanel");
+    this.el.setAttribute("aria-labelledby", this.tab.id);
+    // The close and pin marks are the pointer's (the tab's menu and ⌘W
+    // close it from the keyboard): kept out of the tab's name.
     const close = h("span", "tab-close");
-    close.append(icon("close", t.close));
+    close.setAttribute("aria-hidden", "true");
+    close.append(icon("close"));
     const pin = h("span", "tab-pin");
-    pin.append(icon("pin", t.pinTab));
-    this.tab.append(this.tabIcon, this.tabName, pin, close);
+    pin.setAttribute("aria-hidden", "true");
+    pin.append(icon("pin"));
+    this.tabUnsaved.hidden = true;
+    this.tabGone.hidden = true;
+    this.tab.append(this.tabIcon, this.tabName, this.tabUnsaved, this.tabGone, pin, close);
     this.tab.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) void this.close();
       else this.pane.activate(this, true);
@@ -884,6 +997,13 @@ abstract class Leaf {
   setDirty(d: boolean): void {
     this.dirty = d;
     this.tab.classList.toggle("dirty", d);
+    this.tabUnsaved.hidden = !d;
+  }
+  /** The file is gone from disk, deleted or moved outside the app: the
+   *  name is crossed out and says so. */
+  setGone(g: boolean): void {
+    this.tab.classList.toggle("gone", g);
+    this.tabGone.hidden = !g;
   }
   abstract load(path: string, force?: boolean): Promise<void>;
   /** The file moved (renamed in the app): follow it to `path`. */
@@ -905,8 +1025,13 @@ abstract class Leaf {
       return;
     }
     if (!(await this.flush()) && !(await askDiscard())) return;
+    // The keyboard was on this tab, or in it: it lands on the tab that
+    // takes its place, not on the page.
+    const had = this.tab === document.activeElement || this.el.contains(document.activeElement);
+    const pane = this.pane;
     this.destroy();
-    this.pane.remove(this);
+    pane.remove(this);
+    if (had) landIn(pane);
   }
   setPinned(p: boolean): void {
     this.pinned = p;
@@ -950,6 +1075,10 @@ class ConflictBanner {
     this.diff.replaceChildren(diffNode(disk.text, mine));
     this.el.hidden = false;
     this.el.scrollIntoView({ block: "start" });
+    // Said as well as shown: the status line is announced, and a write
+    // refused while typing went by in silence (nothing saves until a
+    // choice is made above the text).
+    ui.status.textContent = t.conflictPending;
   }
   hide(): void {
     this.disk = null;
@@ -969,6 +1098,38 @@ function lineSeparator(text: string): string | null {
 /** Such a file is shown and never edited: no keystroke, no panel, no
  *  task or paste changes it, so nothing converts it (invariant 8). */
 const readOnlyText: Extension = [EditorState.readOnly.of(true), EditorState.changeFilter.of(() => false)];
+/** What takes the focus in the reading view, in document order. */
+const PREVIEW_FOCUSABLE = "a[href], a[tabindex], [role=link][tabindex], button, input, summary, [role=button][tabindex], [tabindex='0']";
+/** Embedded notes and PDFs come in after a redraw, so nothing in them is
+ *  counted when the focus is found again. */
+const EMBEDDED = ".embed, .embed-note, .embed-pdf";
+/** What the note itself draws that takes the focus, in document order. */
+function ownFocusable(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(PREVIEW_FOCUSABLE)].filter((e) => !e.parentElement?.closest(EMBEDDED) && !e.matches(EMBEDDED));
+}
+/** A focused element of the reading view as a redraw can find it again: a
+ *  task by its line, a link by its target and rank among the links to it,
+ *  anything else by its rank among what the note draws. */
+function focusKey(root: HTMLElement, el: HTMLElement): string | null {
+  const line = el.getAttribute("data-task-line");
+  if (line !== null) return `task\u0000${line}`;
+  const own = ownFocusable(root);
+  const target = el.getAttribute("data-target");
+  if (target !== null) return `target\u0000${target}\u0000${own.filter((e) => e.getAttribute("data-target") === target).indexOf(el)}`;
+  const at = own.indexOf(el);
+  return at < 0 ? null : `at\u0000${at}`;
+}
+function byFocusKey(root: HTMLElement, key: string): HTMLElement | null {
+  const [kind, a = "", b = ""] = key.split("\u0000");
+  if (kind === "task") return root.querySelector<HTMLElement>(`[data-task-line="${CSS.escape(a)}"]`);
+  const own = ownFocusable(root);
+  if (kind === "target") return own.filter((e) => e.getAttribute("data-target") === a)[Number(b)] ?? null;
+  return own[Number(a)] ?? null;
+}
+/** Marks the edit that brings in the disk's text after a change made
+ *  outside the app (`NoteLeaf.recheck`): it leaves the tab saved, and ⌘Z
+ *  undoes it like any edit. */
+const fromDisk = Annotation.define<boolean>();
 
 /** A task's line up to its `[` — quote bars, indentation, the list
  *  marker (absent when the item's text starts on a later line) — and the
@@ -993,7 +1154,7 @@ new MutationObserver((records) => {
 type Mode = "preview" | "live" | "source";
 class NoteLeaf extends Leaf {
   readonly kind: Kind = "note";
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   readonly modes = h("div", "modes");
   readonly modeButtons: Record<Mode, HTMLButtonElement>;
   readonly title = h("h1", "note-title");
@@ -1001,7 +1162,7 @@ class NoteLeaf extends Leaf {
   readonly saveButton = h("button", "save", t.save);
   readonly flags = h("p", "flags");
   readonly props = new PropertiesView({
-    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed },
+    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed, open: t.openPage },
     // One property changed in the panel: the frontmatter lines of that
     // key change in the editor's document, nothing else; the save follows
     // as after any keystroke.
@@ -1032,7 +1193,7 @@ class NoteLeaf extends Leaf {
    * web view of the window, laid over this host and kept in step with it. */
   readonly webBar = h("div", "web-bar");
   readonly webHost = h("div", "web-host");
-  readonly webAddress = h("span", "web-address");
+  readonly webAddress = h("button", "web-address");
   private webLabel: string | null = null;
   /** A view is being made; its label arrives with the answer. */
   private webOpening = false;
@@ -1063,6 +1224,18 @@ class NoteLeaf extends Leaf {
   private previewStale = false;
   mode: Mode = settings.defaultMode;
   revision = "";
+  /** Deleted or moved outside the app (`markGone`), until the note is
+   *  there again. */
+  private gone = false;
+  private destroyed = false;
+  /** Bumped by every load and every check: a read that comes back after a
+   *  newer one began, or after the tab went, changes nothing. */
+  private loads = 0;
+  private checks = 0;
+  /** A check waits for the properties panel to let go. */
+  private checkWaits = false;
+  /** The note the reading view last drew. */
+  private shownPath = "";
   eol = "\n";
   /** The file mixes line endings: shown, never edited (lineSeparator). */
   private readOnly = false;
@@ -1079,6 +1252,8 @@ class NoteLeaf extends Leaf {
     };
     const head = h("header", "leaf-head");
     head.append(this.crumbs, this.modes);
+    // Drawn, not said: the Save button beside it and the tab say it.
+    this.dirtyMark.setAttribute("aria-hidden", "true");
     this.saveButton.type = "button";
     this.saveButton.title = prettyKeys("Mod-s");
     this.saveButton.addEventListener("click", () => void this.save());
@@ -1103,6 +1278,9 @@ class NoteLeaf extends Leaf {
       noteHtml: (target) => this.embedHtml(target),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
+    // Focusable from code, not by Tab: a link followed from the keyboard
+    // hands the keyboard to the note that opened (`focusContent`).
+    this.preview.tabIndex = -1;
     // A double click on the text opens it for editing, as a note app does.
     this.preview.addEventListener("dblclick", (ev) => {
       if ((ev.target as HTMLElement).closest("a, input, button, .embed-pdf, .embed-note, .math")) return;
@@ -1125,13 +1303,25 @@ class NoteLeaf extends Leaf {
         // A footnote, in either direction: to the note at the bottom, back to the mark.
         const id = decodeURIComponent(a.getAttribute("href")?.slice(1) ?? "");
         const target = Array.from(this.preview.querySelectorAll<HTMLElement>("[id]")).find((e) => e.id === id);
-        target?.scrollIntoView({ block: "center", behavior: "smooth" });
+        target?.scrollIntoView({ block: "center", behavior: calm.matches ? "auto" : "smooth" });
         if (target) {
           target.classList.add("flash");
           setTimeout(() => target.classList.remove("flash"), 1200);
         }
       }
       // A web address was already sent to the browser window (guardLink).
+    });
+    // Enter on a link the core writes without an address (keyLinks)
+    // clicks it, as Enter on a link does.
+    this.preview.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter" || ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+      const a = (ev.target as HTMLElement).closest<HTMLElement>("[role=link]");
+      if (!a || !this.preview.contains(a)) return;
+      ev.preventDefault();
+      a.click();
+      // Followed from the keyboard: the keyboard goes along to what opened.
+      const now = this.pane.active;
+      if (now && now !== this) void now.loading.then(() => now.focusContent());
     });
     sheet.addEventListener("mousedown", (ev) => {
       if (this.mode === "preview") return;
@@ -1175,6 +1365,9 @@ class NoteLeaf extends Leaf {
         syntaxHighlighting(classHighlighter),
         // The system's spell checker, in the languages it is set to.
         EditorView.contentAttributes.of({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off" }),
+        // The text box is named after the note, as it is now (a rename
+        // with unsaved text keeps this state).
+        EditorView.contentAttributes.of(() => ({ "aria-label": name(this.path) })),
         slashKeymap(this.slash),
         tableKeymap,
         keymap.of([indentWithTab]),
@@ -1195,8 +1388,10 @@ class NoteLeaf extends Leaf {
           // says; an edit of a key that differs from it is refused.
           if (this.note && u.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) this.props.render(this.note.properties, this.note.text, this.readOnly);
           if (u.docChanged) {
-            this.setDirty(true);
-            this.scheduleSave();
+            if (!u.transactions.some((tr) => tr.annotation(fromDisk))) {
+              this.setDirty(true);
+              this.scheduleSave();
+            }
             this.updateWords();
           }
         }),
@@ -1366,6 +1561,8 @@ class NoteLeaf extends Leaf {
     const toggle = button("ghost", t.webShowNote);
     toggle.classList.add("web-toggle");
     toggle.addEventListener("click", () => this.setWebShown(!this.webShown));
+    // A button: opening the page in a window of its own answered the pointer only.
+    this.webAddress.type = "button";
     this.webAddress.addEventListener("click", () => void commands.openUrl(this.webUrl));
     this.webAddress.title = t.webOpenWindow;
     this.webBar.append(
@@ -1480,6 +1677,7 @@ class NoteLeaf extends Leaf {
   }
   override focusContent(): void {
     if (this.mode !== "preview") this.editor.focus();
+    else this.preview.focus({ preventScroll: true });
   }
   override headings(): NoteText["headings"] {
     return this.note?.headings ?? [];
@@ -1502,6 +1700,7 @@ class NoteLeaf extends Leaf {
   }
   renameHere(): void {
     if (!this.note) return;
+    const back = document.activeElement;
     const input = h("input", "title-input");
     input.value = name(this.path);
     input.setAttribute("aria-label", t.rename);
@@ -1509,16 +1708,18 @@ class NoteLeaf extends Leaf {
     input.focus();
     input.select();
     let done = false;
-    const finish = (commit: boolean) => {
+    const finish = (commit: boolean, restore = false) => {
       if (done) return;
       done = true;
       const v = input.value;
       input.replaceWith(this.title);
+      // From the keyboard, the focus goes back where it came from.
+      if (restore) giveBack(back instanceof HTMLElement && back.isConnected && back !== document.body ? back : this.tab);
       if (commit) void renameNote(this.path, v);
     };
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") finish(true);
-      else if (e.key === "Escape") finish(false);
+      if (e.key === "Enter") finish(true, true);
+      else if (e.key === "Escape") finish(false, true);
     });
     input.addEventListener("blur", () => finish(input.value.trim() !== name(this.path)));
   }
@@ -1544,19 +1745,94 @@ class NoteLeaf extends Leaf {
     } else if (!this.previewStale) this.shownText = note.text;
     if (this.mode === "preview") this.paintPreview();
     void this.relink(note.path);
-    const flags: string[] = [];
-    if (note.stale) flags.push(t.stale);
-    if (note.unverified) flags.push(t.unverified);
-    if (this.readOnly) flags.push(t.mixedEol);
     this.props.render(note.properties, note.text, this.readOnly);
-    this.flags.textContent = flags.join(" ");
+    this.paintFlags();
     if (this.pane.active === this) panel.show(this);
     this.updateWords();
     this.applyWeb();
   }
+  /** What the note says of itself above the text: behind the index, a
+   *  last known version, mixed line endings (read-only), gone. */
+  private paintFlags(): void {
+    const note = this.note;
+    const flags: string[] = [];
+    if (note?.stale) flags.push(t.stale);
+    if (note?.unverified) flags.push(t.unverified);
+    if (this.readOnly) flags.push(t.mixedEol);
+    if (this.gone) flags.push(t.goneOutside);
+    this.flags.textContent = flags.join(" ");
+  }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
     return this.loading;
+  }
+  get isGone(): boolean {
+    return this.gone;
+  }
+  /** Is the note on disk still the one this tab holds? Asked after every
+   *  change seen in the folder (the watcher) and after the app's own file
+   *  operations, whichever index run found the change (provisional:
+   *  docs/reference/watcher-decision.md). The same: nothing. Changed, and
+   *  nothing typed here: the disk's text comes in as one edit — the cursor
+   *  and the selection follow it, and ⌘Z brings this tab's text back.
+   *  Changed, with text not saved yet: saved now, which meets the
+   *  difference (invariant 11). Gone: said, and the text stays. An edit
+   *  under way in the properties panel is waited for. */
+  async recheck(): Promise<"same" | "read" | "conflict" | "gone" | "back"> {
+    const path = this.path;
+    if (!path || !this.note || this.conflict.up) return "same";
+    if (this.props.el.contains(document.activeElement)) {
+      if (!this.checkWaits) {
+        this.checkWaits = true;
+        this.props.el.addEventListener("focusout", () => window.setTimeout(() => {
+          this.checkWaits = false;
+          void this.recheck().then((outcome) => tellOutcomes([{ leaf: this, outcome }]));
+        }, 0), { once: true });
+      }
+      return "same";
+    }
+    await this.saving;
+    const load = this.loads;
+    const check = ++this.checks;
+    const note = await commands.readNote(path);
+    if (this.destroyed || load !== this.loads || check !== this.checks || path !== this.path) return "same";
+    if (note.status !== "ok") {
+      if (note.error.kind !== "not_found" || this.gone) return "same";
+      this.markGone();
+      return "gone";
+    }
+    const back = this.gone;
+    if (back) this.setGone(false);
+    if (note.data.revision === this.revision) return back ? "back" : "same";
+    if (this.dirty) {
+      // Waited for, so that what the refused write puts on the status line
+      // comes before what the watcher says of it.
+      await this.flush();
+      return "conflict";
+    }
+    // A note put back as it was comes with a new time: its text is the same.
+    return this.fromDisk(note.data) ? "read" : back ? "back" : "same";
+  }
+  /** Other notes changed: what this one's links resolve to and its
+   *  backlinks may have changed with them. It is drawn again only when it
+   *  embeds one of `changed` (paths), or when `changed` is "all": a redraw
+   *  rebuilds PDFs and images and moves the reading position. */
+  relinkNow(changed: ReadonlySet<string> | "all"): void {
+    if (!this.note || this.destroyed) return;
+    void this.relink(this.path);
+    const names = changed === "all" ? null : new Set([...changed].map((p) => name(p).toLowerCase()));
+    const embeds = [...this.note.text.matchAll(/!\[\[([^\]|#^]+)/g)].map((m) => (m[1] ?? "").trim().split("/").pop()!.replace(/\.md$/i, "").toLowerCase());
+    if (names === null ? embeds.length > 0 : embeds.some((e) => names.has(e))) this.repaint();
+  }
+  /** The note is gone from disk — deleted or moved outside the app: the
+   *  tab keeps its text and says so, above the text and in its name. */
+  markGone(): void {
+    this.setGone(true);
+  }
+  override setGone(g: boolean): void {
+    this.gone = g;
+    super.setGone(g);
+    this.paintFlags();
   }
   /** Read `path` into the editor. Over unsaved text only when forced (the
    *  user chose to discard it) or on a yes. */
@@ -1564,25 +1840,60 @@ class NoteLeaf extends Leaf {
     if (this.dirty && !force && !(await askDiscard())) return;
     // A write in flight lands first: the read comes after it.
     await this.saving;
+    const load = ++this.loads;
     const note = await commands.readNote(path);
+    if (this.destroyed || load !== this.loads) return;
     if (note.status !== "ok") return fail(note.error);
+    this.show(note.data);
+  }
+  /** `note` in the editor from scratch: a new state, a new history. */
+  private show(note: NoteText): void {
     window.clearTimeout(this.saveTimer);
-    this.path = note.data.path;
+    this.path = note.path;
     this.setTitle(name(this.path));
     this.title.textContent = name(this.path);
     this.crumbs.replaceChildren(...crumbsFor(this.path));
-    const sep = lineSeparator(note.data.text);
+    const sep = lineSeparator(note.text);
     this.eol = sep ?? "\n";
     this.readOnly = sep === null;
-    this.editor.setState(this.editorState(note.data.text));
+    this.editor.setState(this.editorState(note.text));
     this.conflict.hide();
-    this.refresh(note.data);
+    this.gone = false;
+    super.setGone(false);
+    this.refresh(note);
     this.setDirty(false);
     this.paintStar();
     this.applyMode();
     markCurrent();
     if (this.pane.active === this) panel.show(this);
     persistSoon();
+  }
+  /** The disk's text over a tab with nothing typed in it, as one edit
+   *  over what differs: the unchanged start and end stay put, so the
+   *  cursor, the selection and the scroll follow, and ⌘Z brings this
+   *  tab's text back. Line endings that changed, or a file shown
+   *  read-only, start the editor again instead. */
+  private fromDisk(note: NoteText): boolean {
+    const sep = lineSeparator(note.text);
+    if (sep === null || this.readOnly || sep !== this.eol) {
+      this.show(note);
+      return true;
+    }
+    const now = sep === "\n" ? note.text : note.text.split(sep).join("\n");
+    const edit = minimalEdit(this.editor.state.doc.toString(), now);
+    window.clearTimeout(this.saveTimer);
+    // Its own step in the history: ⌘Z right after typing undoes the typing,
+    // not the typing and the other app's change together.
+    if (edit) this.editor.dispatch({ changes: edit, annotations: [fromDisk.of(true), isolateHistory.of("full")] });
+    this.conflict.hide();
+    this.refresh(note);
+    this.setDirty(false);
+    // Last, so that the caret never stays inside the folded frontmatter
+    // (Live Preview's own filter keeps it out on every later transaction).
+    this.applyMode();
+    markCurrent();
+    persistSoon();
+    return edit !== null;
   }
   /** Renamed: read at the new place, unless text was typed meanwhile —
    *  then it stays, and its next save goes to the new place. */
@@ -1618,16 +1929,26 @@ class NoteLeaf extends Leaf {
     const note = this.note;
     if (!this.previewStale || !note) return;
     this.previewStale = false;
+    // The keyboard keeps its place through a redraw — a task checked, the
+    // note read again: the focus goes back to the same task, the same link,
+    // or what stands at the same place among what the note draws.
+    const active = document.activeElement;
+    const key = active instanceof HTMLElement && active !== this.preview && this.preview.contains(active) ? focusKey(this.preview, active) : null;
+    // The same note drawn again keeps its callouts as the user left them.
+    const open = this.shownPath === note.path ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
+    this.shownPath = note.path;
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
     setHtml(this.preview, note.html);
-    wireCallouts(this.preview);
+    wireCallouts(this.preview, open);
+    keyLinks(this.preview);
     this.shownText = note.text;
     this.gatherFootnotes();
     typeset(this.preview);
     void this.embedImages(note.path);
     this.wireTasks();
     this.dressLinks(note.path);
+    if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
   }
   private async relink(path: string): Promise<void> {
     const [back, links] = await Promise.all([commands.backlinks(path), commands.links(path)]);
@@ -1682,6 +2003,7 @@ class NoteLeaf extends Leaf {
         const body = h("div", "embed-note-body");
         setHtml(body, r.data.html);
         wireCallouts(body);
+        keyLinks(body);
         if (heading) sliceHeading(body, heading);
         typeset(body);
         box.append(head, body);
@@ -1704,6 +2026,8 @@ class NoteLeaf extends Leaf {
       const back = h("a", "footnote-back", "↩");
       back.href = `#fnref-${d.id}`;
       back.title = d.id;
+      // Said as what it does, not as the arrow it draws.
+      back.setAttribute("aria-label", t.footnoteBack);
       d.append(back);
       section.append(d);
     }
@@ -1712,6 +2036,13 @@ class NoteLeaf extends Leaf {
   /** The task checkboxes the core numbered (`data-task-line`, the line of
    *  the `[ ]` in the file); any other checkbox stays inert. */
   private wireTasks(): void {
+    // Named by its item's own words (not its sub-items'): reached with
+    // Tab, a box said only "checkbox".
+    for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
+      const li = box.closest("li");
+      const label = li ? ownText(li) : "";
+      if (label) box.setAttribute("aria-label", label);
+    }
     if (this.readOnly) return;
     for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
       const line = Number(box.dataset["taskLine"]);
@@ -1802,6 +2133,7 @@ class NoteLeaf extends Leaf {
           onPage: () => {},
         });
         box.append(view.el);
+        view.container.setAttribute("aria-label", rel.split("/").pop() ?? rel);
         span.replaceWith(box);
         this.embeds.push(view);
         const page = Number(/page=(\d+)/.exec(span.dataset["target"] ?? "")?.[1] ?? "1");
@@ -1809,6 +2141,9 @@ class NoteLeaf extends Leaf {
       } else {
         span.classList.add("file");
         span.title = rel;
+        // A link, for the keyboard too (Enter clicks it, see the constructor).
+        span.tabIndex = 0;
+        span.setAttribute("role", "link");
         span.addEventListener("click", () => openNote(rel, false));
       }
     }
@@ -1851,6 +2186,7 @@ class NoteLeaf extends Leaf {
   /** `mine` is on disk. The leaf is clean only if the editor still holds
    *  exactly that; what was typed meanwhile is saved next. */
   private written(w: Written, mine: string): void {
+    if (this.gone) this.setGone(false);
     this.refresh(w.note);
     if (this.editorText() === mine) this.setDirty(false);
     ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
@@ -1882,6 +2218,7 @@ class NoteLeaf extends Leaf {
     this.editor.focus();
   }
   override destroy(): void {
+    this.destroyed = true;
     window.clearTimeout(this.saveTimer);
     for (const e of this.embeds) e.destroy();
     this.embeds = [];
@@ -1895,18 +2232,34 @@ class NoteLeaf extends Leaf {
 class ImageLeaf extends Leaf {
   readonly kind: Kind = "image";
   readonly img = h("img", "image-view");
+  readonly box = h("div", "image-box");
   constructor(pane: Pane) {
     super(pane);
-    const box = h("div", "image-box");
+    const box = this.box;
     box.append(this.img);
     this.el.append(box);
-    box.addEventListener("click", () => box.classList.toggle("actual"));
+    // Fitted or at its actual size, by a click or by Enter and Space: a
+    // toggle, focusable, so that the arrows scroll a large image too.
+    box.tabIndex = 0;
+    box.setAttribute("role", "button");
+    box.setAttribute("aria-pressed", "false");
+    const flip = () => box.setAttribute("aria-pressed", String(box.classList.toggle("actual")));
+    box.addEventListener("click", flip);
+    box.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      flip();
+    });
+  }
+  override focusContent(): void {
+    this.box.focus();
   }
   async load(path: string): Promise<void> {
     this.path = path;
     this.setTitle(name(path));
     this.img.src = convertFileSrc(path, "verso");
     this.img.alt = name(path);
+    this.box.setAttribute("aria-label", `${t.actualSize}: ${name(path)}`);
     markCurrent();
     persistSoon();
   }
@@ -1920,7 +2273,7 @@ class TextLeaf extends Leaf {
   readonly kind: Kind = "text";
   readonly host = h("div", "editor source");
   readonly flags = h("p", "flags");
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   /** For an HTML file, the way back to its page. */
   readonly modes = htmlModes(this, "source");
   readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
@@ -1951,6 +2304,8 @@ class TextLeaf extends Leaf {
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
         this.readOnly ? readOnlyText : [],
+        // The text box is named after the file.
+        EditorView.contentAttributes.of(() => ({ "aria-label": this.path.split("/").pop() ?? this.path })),
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
         editorChrome(["Mod-s"]),
         EditorView.updateListener.of((u) => {
@@ -2070,7 +2425,7 @@ type FolderRow = { path: string; kind: Kind; label: string; size: number; modifi
 class FolderLeaf extends Leaf {
   readonly kind: Kind = "folder";
   readonly head = h("header", "folder-head");
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   readonly title = h("h1", "note-title");
   readonly meta = h("p", "folder-meta");
   readonly cols = h("div", "folder-cols");
@@ -2098,6 +2453,7 @@ class FolderLeaf extends Leaf {
       b.type = "button";
       b.title = `${t.sortBy}: ${label}`;
       b.dataset["key"] = key;
+      b.dataset["label"] = label;
       b.addEventListener("click", () => {
         folderSort = { key, desc: folderSort.key === key ? !folderSort.desc : key === "modified" || key === "size" };
         try { localStorage.setItem("verso.folderSort", JSON.stringify(folderSort)); } catch { /* no storage */ }
@@ -2201,12 +2557,25 @@ class FolderLeaf extends Leaf {
       else if (key === "kind") d = kindLabel(a.path, a.kind).localeCompare(kindLabel(b.path, b.kind), LOCALE);
       return (d || a.label.localeCompare(b.label, LOCALE, { numeric: true })) * (key === "name" || d === 0 ? dir : dir);
     };
+    // The sort the arrow shows is said in the column's name: `aria-sort`
+    // belongs to a table's header, and this list is not a table.
     for (const b of this.cols.querySelectorAll<HTMLButtonElement>("button")) {
       const mine = b.dataset["key"] === key;
-      if (mine) b.setAttribute("aria-sort", desc ? "descending" : "ascending");
-      else b.removeAttribute("aria-sort");
+      const label = `${t.sortBy}: ${b.dataset["label"] ?? ""}`;
+      if (mine) b.dataset["sort"] = desc ? "descending" : "ascending";
+      else delete b.dataset["sort"];
+      b.setAttribute("aria-label", mine ? `${label}, ${desc ? t.sortDesc : t.sortAsc}` : label);
     }
+    // Drawn anew, the list gives the keyboard its row back: the same
+    // entry, or the one now in its place.
+    const a = document.activeElement;
+    const all = () => Array.from(this.items.querySelectorAll<HTMLButtonElement>("button.item"));
+    const had = a instanceof HTMLButtonElement && this.items.contains(a) ? { path: a.dataset["path"] ?? "", index: all().indexOf(a) } : null;
     this.items.replaceChildren(...this.rows.slice().sort(cmp).map((r) => this.item(r)));
+    if (had) {
+      const now = all();
+      (now.find((b) => b.dataset["path"] === had.path) ?? now[Math.min(Math.max(had.index, 0), now.length - 1)])?.focus();
+    }
   }
   private item(r: FolderRow): HTMLLIElement {
     const li = h("li");
@@ -2224,6 +2593,7 @@ class FolderLeaf extends Leaf {
     main.append(thumb, h("span", "label", r.label));
     b.append(main, h("span", "col col-kind", kindLabel(r.path, r.kind)), h("span", "col col-size", r.kind === "folder" && r.size === 0 ? "—" : humanSize(r.size)), h("span", "col col-modified", humanDate(r.modified)));
     b.title = r.path;
+    b.dataset["path"] = r.path;
     const open = (pane: boolean) => (r.kind === "folder" ? openFolder(r.path) : openNote(r.path, pane));
     b.addEventListener("click", (e) => open(e.metaKey || e.ctrlKey));
     b.addEventListener("mousedown", () => b.focus());
@@ -2260,7 +2630,7 @@ class FolderLeaf extends Leaf {
  * quote of the selection into a companion note beside the file. */
 class PdfLeaf extends Leaf {
   readonly kind: Kind = "pdf";
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   readonly view: PdfView;
   constructor(pane: Pane) {
     super(pane);
@@ -2278,6 +2648,7 @@ class PdfLeaf extends Leaf {
   async load(path: string, _force?: boolean, page = 1): Promise<void> {
     this.path = path;
     this.setTitle(path.split("/").pop() ?? path);
+    this.view.container.setAttribute("aria-label", path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     void this.loadPassages();
     await this.view.load(convertFileSrc(path, "verso"), page);
@@ -2332,7 +2703,7 @@ function htmlModes(leaf: Leaf, on: "page" | "source"): HTMLElement {
 class FrameLeaf extends Leaf {
   readonly kind: Kind = "frame";
   readonly frame = h("iframe", "frame-view");
-  readonly crumbs = h("nav", "crumbs");
+  readonly crumbs = crumbsNav();
   constructor(pane: Pane) {
     super(pane);
     this.frame.setAttribute("sandbox", "");
@@ -2384,9 +2755,15 @@ class GraphLeaf extends Leaf {
     top.append(h("span", "crumbs", t.graph));
     const stage = h("div", "graph-stage");
     this.svg.setAttribute("class", "graph");
+    // The drawing is a group of notes, named by the graph's title.
+    this.title.id = `verso-graph-${this.tab.id}`;
+    this.svg.setAttribute("role", "group");
+    this.svg.setAttribute("aria-labelledby", this.title.id);
     this.svg.append(this.world);
     const head = h("div", "graph-head");
     head.append(this.title, this.count);
+    // How many notes and links the filters leave, announced as they change.
+    this.count.setAttribute("role", "status");
     stage.append(head, this.svg, h("p", "graph-hint", t.graphHint));
     const body = h("div", "graph-body");
     body.append(stage, this.controls);
@@ -2411,6 +2788,7 @@ class GraphLeaf extends Leaf {
     const filter = h("input", "graph-filter");
     filter.type = "search";
     filter.placeholder = t.graphFilter;
+    filter.setAttribute("aria-label", t.graphFilter);
     filter.value = this.opts.filter;
     filter.addEventListener("input", () => { this.opts.filter = filter.value; this.save(); this.rebuild(); });
     filter.addEventListener("keydown", (e) => e.stopPropagation());
@@ -2526,6 +2904,17 @@ class GraphLeaf extends Leaf {
   private applyView(): void {
     const r = this.svg.getBoundingClientRect();
     this.world.setAttribute("transform", `translate(${r.width / 2 + this.pan.x} ${r.height / 2 + this.pan.y}) scale(${this.zoom})`);
+  }
+  /** A note the keyboard reached, panned to the middle when it is outside
+   *  the stage: a focused note must not be out of sight (WCAG 2.4.11). */
+  private reveal(n: GNode): void {
+    const r = this.svg.getBoundingClientRect();
+    const x = r.width / 2 + this.pan.x + n.x * this.zoom;
+    const y = r.height / 2 + this.pan.y + n.y * this.zoom;
+    const edge = 24;
+    if (x >= edge && x <= r.width - edge && y >= edge && y <= r.height - edge) return;
+    this.pan = { x: -n.x * this.zoom, y: -n.y * this.zoom };
+    this.applyView();
   }
   async load(path: string): Promise<void> {
     this.path = path;
@@ -2703,29 +3092,53 @@ class GraphLeaf extends Leaf {
       });
       g.addEventListener("click", () => { if (!moved) openNote(n.id, false); });
       g.addEventListener("dblclick", () => void this.load(n.id));
-      // From the keyboard: Tab reaches a note, Enter opens it, Shift-Enter centers the graph on it.
-      g.setAttribute("tabindex", "0");
+      // From the keyboard: the graph is one Tab stop (the note in its
+      // middle, else the first); the arrows walk the notes, Home and End
+      // reach the ends, Enter opens one and Shift-Enter centers the graph
+      // on it. Every node used to be a Tab stop of its own, hundreds of
+      // them between the note and the graph's controls.
+      g.setAttribute("tabindex", "-1");
       g.setAttribute("role", "button");
       g.setAttribute("aria-label", name(n.id));
       g.addEventListener("keydown", (e) => {
+        const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+        if (step !== 0 || e.key === "Home" || e.key === "End") {
+          e.preventDefault();
+          const all = this.dots.length;
+          const i = this.dots.findIndex((d) => d.g === g);
+          const j = e.key === "Home" ? 0 : e.key === "End" ? all - 1 : (i + step + all) % all;
+          this.dots[j]?.g.focus();
+          return;
+        }
         if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
         if (e.shiftKey) void this.load(n.id);
         else openNote(n.id, false);
       });
-      g.addEventListener("mouseenter", () => {
+      // Its neighbours lit, by the pointer or the keyboard alike.
+      const light = () => {
         const near = neighbours.get(n.id) ?? new Set();
         for (const d of this.dots) d.g.classList.toggle("dim", d.n !== n && !near.has(d.n.id));
         for (const ln of this.lines) ln.l.classList.toggle("lit", ln.a === n || ln.b === n);
         for (const ln of this.lines) ln.l.classList.toggle("dim", !(ln.a === n || ln.b === n));
-      });
-      g.addEventListener("mouseleave", () => {
+      };
+      const unlight = () => {
         for (const d of this.dots) d.g.classList.remove("dim");
         for (const ln of this.lines) ln.l.classList.remove("lit", "dim");
+      };
+      g.addEventListener("mouseenter", light);
+      g.addEventListener("mouseleave", unlight);
+      g.addEventListener("focus", () => {
+        // The Tab stop follows the keyboard, and the note is brought into view.
+        for (const d of this.dots) d.g.setAttribute("tabindex", d.g === g ? "0" : "-1");
+        this.reveal(n);
+        light();
       });
+      g.addEventListener("blur", unlight);
       world.append(g);
       return { g, n };
     });
+    (this.dots.find((d) => d.n.id === this.path) ?? this.dots[0])?.g.setAttribute("tabindex", "0");
     this.legend.replaceChildren();
     if (this.opts.colors) {
       const folders = Array.from(new Set(this.nodes.map((n) => n.folder).filter(Boolean))).sort().slice(0, 12);
@@ -2821,12 +3234,17 @@ class Pane {
   tabsHidden = false;
 
   constructor() {
-    this.tabs.setAttribute("role", "tablist");
+    // The tabs are the tablist; the pane's tools sit beside it, outside.
+    this.tabList.setAttribute("role", "tablist");
+    this.tabList.setAttribute("aria-label", t.tabs);
+    this.tabList.setAttribute("aria-orientation", "horizontal");
+    this.tabList.addEventListener("keydown", (e) => this.tabKeys(e));
     const all = button("ghost iconic", t.allTabs, "more");
+    all.setAttribute("aria-haspopup", "menu");
     all.addEventListener("click", (e) => {
       const r = all.getBoundingClientRect();
       showMenu(r.left, r.bottom + 4, [
-        ...this.leaves.map((l) => [`${l.dirty ? "• " : ""}${l.tabName.textContent ?? ""}`, () => this.activate(l, true)] as [string, () => void]),
+        ...this.leaves.map((l) => [`${l.tabName.textContent ?? ""}${l.dirty ? ` (${t.unsaved})` : ""}`, () => this.activate(l, true)] as [string, () => void]),
         ["—", () => {}],
         [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical)],
         [t.hideTabs, () => this.setTabsHidden(true)],
@@ -2886,6 +3304,9 @@ class Pane {
   }
   open(path: string, focus = false, fresh = false): Leaf {
     let leaf = fresh ? undefined : this.leaves.find((l) => l.path === path);
+    // A tab of a note that went away outside, reused for a note of that
+    // name again: read the new one, unless text was typed in the old.
+    if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
     if (!leaf) {
       const kind = kindOf(path);
       leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : new TextLeaf(this);
@@ -2919,12 +3340,38 @@ class Pane {
   setVertical(v: boolean): void {
     this.vertical = v;
     this.el.classList.toggle("vertical", v);
+    this.tabList.setAttribute("aria-orientation", v ? "vertical" : "horizontal");
     persistSoon();
+  }
+  /** The tab bar from the keyboard, as a tablist answers (WAI-ARIA
+   *  tabs): the arrows along the bar, Home and End choose a tab and keep
+   *  the focus on it; Enter or Space opens it (the button's own click). */
+  private tabKeys(e: KeyboardEvent): void {
+    const i = this.leaves.findIndex((l) => l.tab === e.target);
+    if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+    const n = this.leaves.length;
+    const back = this.vertical ? "ArrowUp" : "ArrowLeft";
+    const on = this.vertical ? "ArrowDown" : "ArrowRight";
+    const j = e.key === on ? (i + 1) % n : e.key === back ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    const leaf = this.leaves[j];
+    if (!leaf) return;
+    e.preventDefault();
+    this.activate(leaf, false);
+    leaf.tab.focus();
   }
   tabMenu(leaf: Leaf, x: number, y: number): void {
     const i = this.leaves.indexOf(leaf);
     const sep: [string, () => void] = ["—", () => {}];
     const file = leaf.kind !== "graph" && leaf.path !== "";
+    type Item = [string, () => void];
+    // What dragging the tab does, from the menu (and so from the keyboard):
+    // along the bar, to another pane, to another workspace.
+    const moves: Item[] = [
+      ...(i > 0 ? [[t.moveTabBack, () => moveTab(leaf, -1)] as Item] : []),
+      ...(i < this.leaves.length - 1 ? [[t.moveTabForward, () => moveTab(leaf, 1)] as Item] : []),
+      ...(layout().paneCount() > 1 ? [[t.moveTabNextPane, () => moveTabToPane(leaf, 1)] as Item, [t.moveTabPrevPane, () => moveTabToPane(leaf, -1)] as Item] : []),
+      ...(popout ? [] : spaces.filter((s) => s !== current).map((s): Item => [`${t.moveTo}: ${s.label}`, () => moveTabToSpace(leaf, s)])),
+    ];
     showMenu(x, y, [
       [t.close, () => void leaf.close()],
       [t.closeOthers, () => void this.closeExcept((l) => l === leaf || l.pinned)],
@@ -2934,8 +3381,9 @@ class Pane {
       [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned)],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }],
       sep,
-      [t.splitRight, () => leaf.moveTo(layout().split(this, "row"))],
-      [t.splitDownTab, () => leaf.moveTo(layout().split(this, "col"))],
+      [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row")))],
+      [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col")))],
+      ...moves,
       ...(leaf.kind === "note" && !popout ? [[t.openInWindow, () => void (async () => {
         // The window reads the file: what is not saved would stay behind.
         if (!(await leaf.flush())) return stopped([leaf]);
@@ -2943,7 +3391,7 @@ class Pane {
         if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
       })()] as [string, () => void]] : []),
-      ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
+      ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [`${t.moveTo}…`, () => movePrompt(leaf.path)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
       ...(leaf.kind === "note" ? [sep, [t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
     ]);
   }
@@ -2954,6 +3402,7 @@ class Pane {
       l.destroy();
       this.remove(l, true);
     }
+    if (lost()) landIn(this);
   }
   /** `next` takes `leaf`'s place — the same tab position, path and pin —
    *  once `leaf` has saved what it holds; a refused save keeps `leaf`. */
@@ -2985,6 +3434,7 @@ class Pane {
     for (const l of this.leaves) {
       l.el.hidden = l !== leaf;
       l.tab.setAttribute("aria-selected", String(l === leaf));
+      l.tab.tabIndex = l === leaf ? 0 : -1;
     }
     layout().focus(this);
     showOutline(leaf);
@@ -3020,7 +3470,23 @@ class Pane {
       this.remove(l, true);
     }
     if (layout().paneCount() > 1) layout().remove(this);
+    if (lost()) landIn(this);
   }
+}
+/** The focus fell on the page: what had it went away. */
+function lost(): boolean {
+  return document.activeElement === null || document.activeElement === document.body;
+}
+/** Where the keyboard lands once tabs closed: the tab now in front of
+ *  `pane`, or of the focused pane when `pane` went; its content when the
+ *  tab bar is hidden; the pane's tools when it has no tab left. */
+function landIn(pane: Pane): void {
+  const here = layout().panes().includes(pane) ? pane : layout().focused;
+  const leaf = here?.active;
+  if (leaf) {
+    leaf.tab.focus();
+    if (document.activeElement !== leaf.tab) leaf.focusContent();
+  } else here?.tools.querySelector<HTMLButtonElement>("button")?.focus();
 }
 
 /* ---------- Layout: a tree of splits ---------- */
@@ -3255,15 +3721,20 @@ class Layout {
 }
 
 /* ---------- Workspaces: the top bar, one layout each ---------- */
+let spaceIds = 0;
 class Space {
   readonly tab = h("button", "space-tab");
   readonly layout = new Layout();
   constructor(public label: string) {
     this.tab.type = "button";
     this.tab.setAttribute("role", "tab");
+    this.tab.id = `verso-space-${++spaceIds}`;
+    this.tab.setAttribute("aria-controls", "panes");
     const n = h("span", "space-name", label);
+    // The pointer's close mark; the menu closes it from the keyboard.
     const close = h("span", "tab-close");
-    close.append(icon("close", t.closeSpace));
+    close.setAttribute("aria-hidden", "true");
+    close.append(icon("close"));
     this.tab.append(n, close);
     this.tab.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) void closeSpace(this);
@@ -3298,18 +3769,21 @@ class Space {
     n.replaceWith(input);
     input.focus();
     input.select();
-    const finish = () => {
+    const finish = (commit: boolean, restore = false) => {
       if (!input.isConnected) return;
-      this.label = input.value.trim() || this.label;
+      if (commit) this.label = input.value.trim() || this.label;
       n.textContent = this.label;
       input.replaceWith(n);
       persistSoon();
+      // From the keyboard, back on the workspace's tab.
+      if (restore) this.tab.focus();
     };
     input.addEventListener("keydown", (ev) => {
       ev.stopPropagation();
-      if (ev.key === "Enter" || ev.key === "Escape") finish();
+      if (ev.key === "Enter") finish(true, true);
+      else if (ev.key === "Escape") finish(false, true);
     });
-    input.addEventListener("blur", finish);
+    input.addEventListener("blur", () => finish(true));
   }
 }
 const spaces: Space[] = [];
@@ -3330,10 +3804,42 @@ function paneToOpenIn(): Pane {
   const l = current?.layout ?? newSpace().layout;
   return l.focused ?? l.panes()[0] ?? l.reset();
 }
+/** The workspaces' tabs: a tablist of their own, with the "new workspace"
+ *  button beside it rather than inside; the arrows, Home and End choose
+ *  one, as in a pane's tab bar. */
+const spaceTabs = h("div", "space-tabs");
+spaceTabs.setAttribute("role", "tablist");
+spaceTabs.setAttribute("aria-label", t.space);
+spaceTabs.addEventListener("keydown", (e) => {
+  const i = spaces.findIndex((s) => s.tab === e.target);
+  if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+  const n = spaces.length;
+  const j = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+  const to = spaces[j];
+  if (!to) return;
+  e.preventDefault();
+  showSpace(to);
+  to.tab.focus();
+});
 function renderSpaces(): void {
-  ui.spaces.replaceChildren(...spaces.map((s) => s.tab), newSpaceButton);
-  for (const s of spaces) s.tab.setAttribute("aria-selected", String(s === current));
+  const had = document.activeElement;
+  spaceTabs.replaceChildren(...spaces.map((s) => s.tab));
+  ui.spaces.replaceChildren(spaceTabs, newSpaceButton);
+  for (const s of spaces) {
+    s.tab.setAttribute("aria-selected", String(s === current));
+    s.tab.tabIndex = s === current ? 0 : -1;
+  }
   ui.spaces.hidden = spaces.length <= 1;
+  // While there is a choice, the panes are the chosen workspace's panel.
+  if (spaces.length > 1 && current) {
+    ui.panes.setAttribute("role", "tabpanel");
+    ui.panes.setAttribute("aria-labelledby", current.tab.id);
+  } else {
+    ui.panes.removeAttribute("role");
+    ui.panes.removeAttribute("aria-labelledby");
+  }
+  // Put back in the bar, a control had lost the focus: it gets it back.
+  if (had instanceof HTMLElement && had !== document.activeElement && ui.spaces.contains(had)) had.focus();
 }
 function newSpace(label?: string): Space {
   const s = new Space(label ?? `${t.space} ${spaces.length + 1}`);
@@ -3666,9 +4172,16 @@ class Panel {
       ["tags", "tag", t.tags],
       ["bookmarks", "star", t.bookmarks],
     ];
+    // A tablist and its one panel: the arrows, Home and End choose a tab,
+    // and only the chosen one is in the Tab order.
+    this.el.setAttribute("aria-label", t.rightPanel);
+    this.tabs.setAttribute("aria-label", t.rightPanel);
+    this.body.setAttribute("role", "tabpanel");
     for (const [id, ic, label] of defs) {
       const b = button("right-tab", label, ic);
       b.setAttribute("role", "tab");
+      b.id = `verso-right-${id}`;
+      b.setAttribute("aria-controls", this.body.id);
       b.dataset["tab"] = id;
       b.addEventListener("click", () => {
         this.current = id;
@@ -3676,11 +4189,34 @@ class Panel {
       });
       this.tabs.append(b);
     }
+    this.tabs.addEventListener("keydown", (e) => {
+      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]"));
+      const i = all.indexOf(e.target as HTMLButtonElement);
+      if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+      const n = all.length;
+      const j = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+      const to = all[j];
+      if (!to) return;
+      e.preventDefault();
+      this.current = (to.dataset["tab"] ?? "outline") as PanelTab;
+      this.refresh();
+      to.focus();
+    });
     try {
       const saved = localStorage.getItem("verso.rightTab") as PanelTab | null;
       if (saved) this.current = saved;
     } catch {
       // No storage.
+    }
+    this.markTabs();
+  }
+  /** The chosen tab: selected, in the Tab order, naming the panel. */
+  private markTabs(): void {
+    for (const b of this.tabs.querySelectorAll<HTMLButtonElement>("button")) {
+      const on = b.dataset["tab"] === this.current;
+      b.setAttribute("aria-selected", String(on));
+      b.tabIndex = on ? 0 : -1;
+      if (on) this.body.setAttribute("aria-labelledby", b.id);
     }
   }
   show(leaf: Leaf | null): void {
@@ -3700,7 +4236,7 @@ class Panel {
     } catch {
       // No storage.
     }
-    for (const b of this.tabs.querySelectorAll("button")) b.setAttribute("aria-selected", String(b.dataset["tab"] === this.current));
+    this.markTabs();
     this.paint();
   }
   /** Notes whose text has this note's name without linking to it: the
@@ -3830,7 +4366,88 @@ async function afterFileChange(): Promise<void> {
   forgetFiles();
   await searchNotes(ui.search.value);
   void panel.loadTags();
-  for (const p of layout().panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
+  // A change made outside that this run found before the watcher did.
+  tellOutcomes(await recheckAll("all"));
+}
+/* The folder changed on disk — another editor, a sync client, git
+ * (the watcher, provisional: docs/reference/watcher-decision.md). The
+ * host sends this after every batch, with what its index run found; since
+ * another run may have found a change first, every open note is checked
+ * against the disk whatever the lists say (`NoteLeaf.recheck`). The tree
+ * and folder views are drawn again only when the entries changed; search,
+ * tags, links and embeds when notes did. */
+async function changedOutside(change: FolderChanged): Promise<void> {
+  if (change.key !== currentFolder) return;
+  const changed = new Set([...change.changed, ...change.removed]);
+  if (change.listing) refreshLists();
+  else if (changed.size > 0 && ui.search.value.trim() !== "") whenNotRenaming(ui.notes, () => void searchNotes(ui.search.value));
+  if (changed.size > 0) void panel.loadTags();
+  const outcomes = await recheckAll(changed.size > 0 ? changed : null);
+  if (change.key !== currentFolder) return;
+  tellOutcomes(outcomes);
+  showProblems(change.index);
+}
+/** `run` once no name is being typed in `container`: redrawing it would
+ *  take the field away, or commit half a name. Looked at again until then,
+ *  since a field that Enter or Escape removes fires no event to wait for. */
+function whenNotRenaming(container: ParentNode, run: () => void): void {
+  if (!container.querySelector("input.rename")) return run();
+  window.setTimeout(() => whenNotRenaming(container, run), 400);
+}
+/** The lists drawn again from the core: the ones kept in memory, the tree
+ *  or the search results on screen, the folder views. Not while a name is
+ *  being typed in the tree — redrawing would take the field away, or
+ *  commit half a name: that waits for the field to go. */
+function refreshLists(): void {
+  whenNotRenaming(ui.notes, () => void (async () => {
+    forgetFiles();
+    await listAll();
+    if (ui.search.value.trim() !== "") await searchNotes(ui.search.value);
+  })());
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") whenNotRenaming(l.el, () => void l.load(l.path));
+}
+type Outcome = { leaf: NoteLeaf; outcome: "same" | "read" | "conflict" | "gone" | "back" };
+/** Every open note checked against the disk. `changed`: the notes that
+ *  changed somewhere (or "all", after the window's own file operations) —
+ *  the others look their links up again, and draw again when they embed
+ *  one; `null`: nothing else to do. */
+async function recheckAll(changed: ReadonlySet<string> | "all" | null): Promise<Outcome[]> {
+  const leaves = spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)).filter((l): l is NoteLeaf => l instanceof NoteLeaf && l.path !== "");
+  const outcomes = await Promise.all(leaves.map(async (leaf) => ({ leaf, outcome: await leaf.recheck() })));
+  if (changed !== null) for (const o of outcomes) if (o.outcome === "same") o.leaf.relinkNow(changed);
+  return outcomes;
+}
+/** What happened to the notes on screen, said once on the status line
+ *  (announced): read again, both versions shown, gone — named, so that a
+ *  tab in the background is not missed. */
+function tellOutcomes(outcomes: Outcome[]): void {
+  const names = (kind: Outcome["outcome"]) => [...new Set(outcomes.filter((o) => o.outcome === kind).map((o) => name(o.leaf.path)))];
+  const read = names("read");
+  const conflict = names("conflict");
+  const gone = names("gone");
+  const back = names("back");
+  const said: string[] = [];
+  if (conflict.length > 0) said.push(t.conflictOutside(conflict.join(", ")));
+  if (gone.length > 0) said.push(t.goneNamed(gone.join(", ")));
+  if (read.length > 0) said.push(t.readOutside(read.join(", ")));
+  if (back.length > 0) said.push(t.backOutside(back.join(", ")));
+  if (said.length > 0) ui.status.textContent = said.join(" ");
+}
+/** The index's problems, when they are not the ones already shown: the
+ *  first on the status line, all of them on its tooltip. */
+let shownProblems = "";
+function showProblems(index: IndexSummary): void {
+  const problems = [
+    ...(index.unwatched !== null ? [t.notWatched(index.unwatched)] : []),
+    ...(index.unindexed !== null ? [t.notIndexed(index.unindexed)] : []),
+    ...index.problems,
+  ];
+  const all = problems.join("\n");
+  if (all === shownProblems) return;
+  shownProblems = all;
+  ui.status.title = all;
+  if (problems.length > 0) ui.status.textContent = t.indexProblems(problems.length, problems[0]!);
 }
 function leavesOf(path: string): Leaf[] {
   return spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves.filter((l) => l.path === path)));
@@ -3858,27 +4475,58 @@ async function newUntitled(pane: Pane): Promise<void> {
  *  `[!kind]+` or `[!kind]-` callout opens and closes it, by the pointer or
  *  the keyboard, and `-` starts it closed (spec Q5). A link in the title
  *  stays a link. */
-function wireCallouts(root: ParentNode): void {
+function wireCallouts(root: ParentNode, open: readonly boolean[] = []): void {
+  let at = 0;
   for (const box of root.querySelectorAll<HTMLElement>(".callout[data-fold]")) {
+    const was = open[at++];
     const title = box.querySelector<HTMLElement>(":scope > .callout-title");
     if (!title) continue;
+    // A title with a link in it cannot be the button too — a link inside a
+    // button is not a link to a screen reader, and Enter would fold and
+    // follow at once: it gets a fold button of its own before its text.
+    const linked = title.querySelector("a") !== null;
+    const control = linked ? h("button", "callout-fold") : title;
+    if (control instanceof HTMLButtonElement) {
+      control.type = "button";
+      control.setAttribute("aria-label", t.foldCallout);
+      control.append(icon("chevron"));
+      title.classList.add("has-fold");
+      title.append(control);
+    } else {
+      title.tabIndex = 0;
+      title.setAttribute("role", "button");
+      title.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        show(box.classList.contains("folded"));
+      });
+    }
     const show = (open: boolean) => {
       box.classList.toggle("folded", !open);
-      title.setAttribute("aria-expanded", String(open));
+      control.setAttribute("aria-expanded", String(open));
     };
-    title.tabIndex = 0;
-    title.setAttribute("role", "button");
-    show(box.dataset["fold"] !== "-");
+    show(was ?? box.dataset["fold"] !== "-");
     title.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest("a")) return;
       show(box.classList.contains("folded"));
     });
-    title.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      e.preventDefault();
-      show(box.classList.contains("folded"));
-    });
   }
+}
+/** The links the core writes without an address — `[[wikilinks]]` and
+ *  `#tags` — as links for the keyboard and a screen reader too: in the
+ *  Tab order, said as links; Enter clicks them (the reading view's
+ *  keydown). Without an address a link is neither. */
+function keyLinks(root: ParentNode): void {
+  for (const a of root.querySelectorAll<HTMLElement>("a.wikilink:not([href]), a.tag:not([href])")) {
+    a.tabIndex = 0;
+    a.setAttribute("role", "link");
+  }
+}
+/** A list item's own words, without its nested lists'. */
+function ownText(li: HTMLElement): string {
+  let s = "";
+  for (const n of Array.from(li.childNodes)) if (!(n instanceof HTMLElement && /^(UL|OL)$/.test(n.tagName))) s += n.textContent ?? "";
+  return s.replace(/\s+/g, " ").trim().slice(0, 160);
 }
 /** `#` and `^` open a heading or a block, `|` an alias, `[` and `]` end the
  *  link: no `[[…]]` can name a file whose name holds one. The window does
@@ -3950,6 +4598,9 @@ async function moveFile(path: string, folder: string): Promise<void> {
  *  the move could not plan or confirm; a refusal says its own reason.
  *  Answers whether the entry moved. */
 async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
+  // Asked from the tree with the keyboard: the keyboard lands on what
+  // moved, there, once the tree is drawn again (restoreTreeFocus).
+  const fromTree = keyboardIn(ui.notes);
   // What moves is saved first; a tab of it that cannot be saved stops the move.
   const unsaved = await flushed(leavesUnder(from));
   if (unsaved.length > 0) {
@@ -3968,6 +4619,11 @@ async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
   if (openFolders.has(from)) {
     openFolders.delete(from);
     openFolders.add(r.data.path);
+  }
+  if (fromTree) {
+    treeLandOn = `${allFolders.includes(from) ? "folder" : "file"}:${r.data.path}`;
+    const parts = r.data.path.split("/");
+    for (let k = 1; k < parts.length; k++) openFolders.add(parts.slice(0, k).join("/"));
   }
   await afterFileChange();
   // Notes that link to what moved but could not be planned are named:
@@ -4006,9 +4662,11 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
 }
 /** A destination folder, typed with completion over the vault's folders. */
 function movePrompt(path: string): void {
+  const back = document.activeElement;
+  showSide();
   const input = h("input", "new-note");
   input.placeholder = t.moveWhere;
-  input.setAttribute("aria-label", t.moveTo);
+  input.setAttribute("aria-label", `${t.moveTo}: ${path.split("/").pop() ?? path}`);
   const list = h("datalist");
   list.id = "folders-list";
   list.append(...["", ...allFolders].filter((f) => f !== path && !f.startsWith(`${path}/`)).map((f) => {
@@ -4024,16 +4682,21 @@ function movePrompt(path: string): void {
   ui.notesHeading.after(row);
   input.focus();
   let done = false;
-  const finish = (commit: boolean) => {
+  // Enter or Escape gives the focus back where the field was asked from;
+  // leaving the field for somewhere else does not take it back.
+  const finish = (commit: boolean, restore = false) => {
     if (done) return;
     done = true;
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
+    if (restore) returnFromSide(back);
     if (commit) void moveFile(path, v);
   };
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("blur", () => finish(false));
 }
@@ -4124,7 +4787,7 @@ const menu = h("ul", "menu");
 menu.hidden = true;
 menu.setAttribute("role", "menu");
 document.body.append(menu);
-/** Where the focus was when the menu opened, to give it back on Escape. */
+/** Where the focus was when the menu opened, to give it back when it closes. */
 let menuOpener: Element | null = null;
 menu.addEventListener("keydown", (e) => {
   const items = Array.from(menu.querySelectorAll<HTMLButtonElement>("button"));
@@ -4136,18 +4799,23 @@ menu.addEventListener("keydown", (e) => {
     e.preventDefault();
     (e.key === "Home" ? items[0] : items[items.length - 1])?.focus();
   } else if (e.key === "Escape" || e.key === "Tab") {
-    if (e.key === "Escape") e.preventDefault();
+    // Closed, the menu gives the focus back to what opened it: Tab from
+    // the last item used to leave it on the page.
+    e.preventDefault();
     menu.hidden = true;
-    if (e.key === "Escape" && menuOpener instanceof HTMLElement && menuOpener.isConnected) menuOpener.focus();
+    giveBack(menuOpener);
   }
 });
 function showMenu(x: number, y: number, items: [string, () => void][]): void {
   menuOpener = document.activeElement;
   menu.replaceChildren(
     ...items.map(([label, run]) => {
+      // The list items are layout only: the menu's items are its buttons.
       const li = h("li");
+      li.setAttribute("role", "none");
       if (label === "—") {
         li.className = "menu-sep";
+        li.setAttribute("role", "separator");
         return li;
       }
       const b = h("button", "", label);
@@ -4155,6 +4823,11 @@ function showMenu(x: number, y: number, items: [string, () => void][]): void {
       b.setAttribute("role", "menuitem");
       b.addEventListener("click", () => {
         menu.hidden = true;
+        // The focus goes back to what opened the menu before the item
+        // runs: what the item opens (a field, a dialog) takes it from
+        // there, and an item that opens nothing leaves the keyboard where
+        // it was, not on the page.
+        giveBack(menuOpener);
         run();
       });
       li.append(b);
@@ -4176,22 +4849,28 @@ function renameInline(li: HTMLElement, path: string, folder = false): void {
   const input = h("input", "rename");
   const current = folder ? path.split("/").pop() ?? path : name(path);
   input.value = current;
-  input.setAttribute("aria-label", t.rename);
+  input.setAttribute("aria-label", `${t.rename}: ${current}`);
   row.replaceWith(input);
   input.focus();
   input.select();
   let done = false;
-  const finish = (commit: boolean) => {
+  // Enter or Escape: the row takes the focus back (a folder's label is in
+  // its summary, which does); the tree then lands on the renamed entry.
+  const back = row.matches("button") ? row : li;
+  const finish = (commit: boolean, restore = false) => {
     if (done) return;
     done = true;
     const value = input.value;
     input.replaceWith(row);
+    if (restore) returnFromSide(back);
     if (commit) void (folder ? renameFolder(path, value) : renameNote(path, value));
   };
   input.addEventListener("keydown", (e) => {
     e.stopPropagation();
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("click", (e) => e.stopPropagation());
   input.addEventListener("blur", () => finish(input.value.trim() !== current));
@@ -4290,6 +4969,8 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   return li;
 }
 function newFolderPrompt(folder: string): void {
+  const back = document.activeElement;
+  showSide();
   const input = h("input", "new-note");
   input.placeholder = t.newFolderName;
   input.setAttribute("aria-label", t.newFolder);
@@ -4298,9 +4979,10 @@ function newFolderPrompt(folder: string): void {
   row.append(icon("folderPlus"), where, input);
   ui.notesHeading.after(row);
   input.focus();
-  const finish = (commit: boolean) => {
+  const finish = (commit: boolean, restore = false) => {
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
+    if (restore) returnFromSide(back);
     if (!commit || !v || unlinkable(v)) return;
     void commands.createFolder(folder ? `${folder}/${v}` : v).then(async (r) => {
       if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
@@ -4310,8 +4992,10 @@ function newFolderPrompt(folder: string): void {
     });
   };
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("blur", () => finish(false));
 }
@@ -4319,6 +5003,8 @@ function newFolderPrompt(folder: string): void {
  *  note's name from the host and path. Opening the property opens the
  *  page in a window of its own; the star bookmarks it. */
 function newWebPagePrompt(): void {
+  const back = document.activeElement;
+  showSide();
   const input = h("input", "new-note");
   input.type = "url";
   input.placeholder = t.webUrl;
@@ -4328,11 +5014,12 @@ function newWebPagePrompt(): void {
   ui.notesHeading.after(row);
   input.focus();
   let done = false;
-  const finish = (commit: boolean) => {
+  const finish = (commit: boolean, restore = false) => {
     if (done) return;
     done = true;
     const v = input.value.trim();
     row.remove();
+    if (restore) returnFromSide(back);
     if (!commit || !v) return;
     let url: URL;
     try {
@@ -4354,12 +5041,16 @@ function newWebPagePrompt(): void {
     })();
   };
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("blur", () => finish(false));
 }
 function newNotePrompt(folder: string): void {
+  const back = document.activeElement;
+  showSide();
   const input = h("input", "new-note");
   input.placeholder = t.newNoteName;
   input.setAttribute("aria-label", t.newNote);
@@ -4368,16 +5059,49 @@ function newNotePrompt(folder: string): void {
   row.append(where, input);
   ui.notesHeading.after(row);
   input.focus();
-  const finish = (commit: boolean) => {
+  const finish = (commit: boolean, restore = false) => {
     const v = input.value;
     row.remove();
+    if (restore) returnFromSide(back);
     if (commit) void createNote(folder, v);
   };
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") finish(true);
-    else if (e.key === "Escape") finish(false);
+    // Cancelled, the key clicks nothing where the focus goes back to.
+    if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+    if (e.key === "Enter") finish(true, true);
+    else if (e.key === "Escape") finish(false, true);
   });
   input.addEventListener("blur", () => finish(false));
+}
+/** The sidebar on screen, for a field that opens in it (new note, new
+ *  folder, a web page, "Move to…"): in a hidden sidebar the field could
+ *  not take the focus, and the command seemed to do nothing. */
+function showSide(): void {
+  if (narrow.matches) document.body.classList.add("side-open");
+  else document.body.classList.remove("no-side");
+  paintToggles();
+}
+/** The focus back on `el`, when it is still on the page. */
+function giveBack(el: Element | null): void {
+  // A ribbon button drawn again meanwhile (showing the side panel paints
+  // the ribbon anew): its successor, by the item it stands for.
+  if (el instanceof HTMLElement && !el.isConnected && el.classList.contains("ribbon-item") && el.dataset["id"]) {
+    el = document.querySelector(`.ribbon-item[data-id="${CSS.escape(el.dataset["id"])}"]`);
+  }
+  if (el instanceof HTMLElement && el !== document.body && el.isConnected) el.focus();
+}
+/** A field in the side panel closed from the keyboard: on a narrow window
+ *  the drawer goes too when the focus returns outside it, so as not to
+ *  cover where it lands; a row of the tree keeps it open. */
+function returnFromSide(back: Element | null): void {
+  if (narrow.matches && !(back instanceof Element && back.closest(".side"))) document.body.classList.remove("side-open");
+  giveBack(back);
+}
+/** The focus is in `container` and came there from the keyboard (its
+ *  ring shows): what the keyboard asked for may move it on. */
+function keyboardIn(container: HTMLElement): boolean {
+  const a = document.activeElement;
+  return a instanceof HTMLElement && container.contains(a) && a.matches(":focus-visible");
 }
 
 type Folder = { folders: Map<string, Folder>; files: string[] };
@@ -4441,6 +5165,11 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
       } else if (e.key === "Delete" || (e.key === "Backspace" && e.metaKey)) {
         e.preventDefault();
         void deleteEntry(full, "folder");
+      } else if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+        // The folder's menu (open, move, new note here…), as a file's row has it.
+        e.preventDefault();
+        const r = s.getBoundingClientRect();
+        s.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.left + 24, clientY: r.bottom, bubbles: true, cancelable: true }));
       }
     });
     d.append(s, renderTree(child, depth + 1, full));
@@ -4460,11 +5189,69 @@ async function listAll(): Promise<void> {
   allFolders = folders.status === "ok" ? folders.data : [];
   allEntries.clear();
   if (entries.status === "ok") for (const e of entries.data) allEntries.set(e.path, e);
+  const was = treeFocus();
   ui.notes.className = "tree";
   ui.notes.replaceChildren(...Array.from(renderTree(tree([...allNotes, ...allFiles], allFolders), 0).children));
   Array.from(ui.notes.children).forEach((li, i) => (li as HTMLElement).style.setProperty("--i", String(i)));
   if (allNotes.length + allFiles.length === 0) ui.notes.append(h("li", "empty", t.noNotes));
   markCurrent();
+  restoreTreeFocus(was);
+}
+/* The tree from the keyboard: the arrows walk the rows on screen, Right
+ * opens a folder or steps into it, Left closes it or steps out to its
+ * folder, Home and End reach the ends. The rows stay what they are —
+ * buttons, and each folder's summary — and each stays in the Tab order,
+ * as the folder view's rows do. */
+function treeRows(): HTMLElement[] {
+  return Array.from(ui.notes.querySelectorAll<HTMLElement>("summary, li[data-path] > button")).filter((r) => r.getClientRects().length > 0);
+}
+ui.notes.addEventListener("keydown", (e) => {
+  if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const row = e.target as HTMLElement;
+  const rows = treeRows();
+  const i = rows.indexOf(row);
+  if (i < 0) return;
+  const folder = row.tagName === "SUMMARY" && row.parentElement instanceof HTMLDetailsElement ? row.parentElement : null;
+  let to: HTMLElement | null | undefined = null;
+  if (e.key === "ArrowDown") to = rows[i + 1];
+  else if (e.key === "ArrowUp") to = rows[i - 1];
+  else if (e.key === "Home") to = rows[0];
+  else if (e.key === "End") to = rows[rows.length - 1];
+  else if (e.key === "ArrowRight" && folder) {
+    if (!folder.open) folder.open = true;
+    else if (rows[i + 1] && folder.contains(rows[i + 1]!)) to = rows[i + 1];
+  } else if (e.key === "ArrowLeft") {
+    if (folder?.open) folder.open = false;
+    else to = row.closest("li")?.parentElement?.closest("details")?.querySelector<HTMLElement>(":scope > summary");
+  } else return;
+  e.preventDefault();
+  to?.focus();
+});
+/** A row of the tree, as a key that outlives the row being drawn anew. */
+function rowKey(r: HTMLElement): string {
+  return r.tagName === "SUMMARY" ? `folder:${r.dataset["folder"] ?? ""}` : `file:${r.closest("li")?.dataset["path"] ?? ""}`;
+}
+/** Where a rename or a move asked from the tree lands, once drawn (renameTo). */
+let treeLandOn: string | null = null;
+/** The row the keyboard is on, before the list is drawn anew. */
+function treeFocus(): { key: string; index: number } | null {
+  const a = document.activeElement;
+  if (!(a instanceof HTMLElement) || !ui.notes.contains(a)) return null;
+  return { key: rowKey(a), index: Math.max(0, treeRows().indexOf(a)) };
+}
+/** Drawn anew (a file changed, a search, a rename), the tree gives the
+ *  keyboard its row back — the same entry, or the one now in its place —
+ *  unless the focus went somewhere else meanwhile. */
+function restoreTreeFocus(was: { key: string; index: number } | null): void {
+  const land = treeLandOn;
+  treeLandOn = null;
+  if (!was && !land) return;
+  const a = document.activeElement;
+  if (a instanceof HTMLElement && a !== document.body && !ui.notes.contains(a)) return;
+  const rows = treeRows();
+  const want = land ?? was?.key;
+  const next = rows.find((r) => rowKey(r) === want) ?? (was ? rows[Math.min(was.index, rows.length - 1)] : undefined);
+  next?.focus();
 }
 function snippetNode(snippet: string): HTMLSpanElement {
   const s = h("span", "snippet");
@@ -4508,6 +5295,7 @@ async function searchNotes(words: string): Promise<void> {
   if (paths.length > 0) hits = hits.filter((hit) => paths.every((p) => hit.path.toLowerCase().includes(p)));
   if (files.length > 0) hits = hits.filter((hit) => files.every((f) => name(hit.path).toLowerCase().includes(f)));
   hits = hits.slice(0, 200);
+  const was = treeFocus();
   ui.notes.className = "list";
   ui.notes.replaceChildren(
     ...hits.map((hit) =>
@@ -4517,6 +5305,7 @@ async function searchNotes(words: string): Promise<void> {
       }),
     ),
   );
+  restoreTreeFocus(was);
   ui.status.textContent = t.hits(hits.length);
 }
 let collapsed = false;
@@ -4819,6 +5608,13 @@ function allCommands(all = false): Command[] {
     { id: "close-tab", label: t.close, need: Boolean(leaf), run: () => leaf && void leaf.close() },
     { id: "next-tab", label: t.nextTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, 1) },
     { id: "prev-tab", label: t.prevTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
+    // Dragging a tab or a file, without the pointer; no default keys,
+    // any can be bound in the settings.
+    { id: "move-tab-back", label: t.moveTabBack, need: Boolean(leaf) && leaf!.pane.leaves.indexOf(leaf!) > 0, run: () => leaf && moveTab(leaf, -1) },
+    { id: "move-tab-forward", label: t.moveTabForward, need: Boolean(leaf) && leaf!.pane.leaves.indexOf(leaf!) < leaf!.pane.leaves.length - 1, run: () => leaf && moveTab(leaf, 1) },
+    { id: "move-tab-next-pane", label: t.moveTabNextPane, need: Boolean(leaf) && layout().paneCount() > 1, run: () => leaf && moveTabToPane(leaf, 1) },
+    { id: "move-tab-prev-pane", label: t.moveTabPrevPane, need: Boolean(leaf) && layout().paneCount() > 1, run: () => leaf && moveTabToPane(leaf, -1) },
+    { id: "move-file", label: `${t.moveTo}…`, need: Boolean(leaf?.path) && leaf?.kind !== "graph", run: () => leaf?.path && movePrompt(leaf.path) },
     { id: "reopen", label: t.reopen, need: hasFolder, run: () => { let b = closedTabs.pop(); while (b !== undefined && !allNotes.includes(b) && !allFiles.includes(b)) b = closedTabs.pop(); if (b) openNote(b, false); } },
     { id: "toggle-side", label: t.toggleSide.split(" (")[0] ?? t.toggleSide, run: () => toggleSide() },
     { id: "toggle-right", label: t.toggleRight.split(" (")[0] ?? t.toggleRight, run: () => toggleRight() },
@@ -5046,6 +5842,7 @@ class SettingsDialog {
     asDialog(this.el, t.settings, () => this.hide());
     this.search.type = "search";
     this.search.placeholder = t.searchSettings;
+    this.search.setAttribute("aria-label", t.searchSettings);
     this.search.addEventListener("input", () => this.paint());
     this.search.addEventListener("keydown", (e) => {
       e.stopPropagation();
@@ -5154,7 +5951,12 @@ class SettingsDialog {
       });
       return v;
     });
-    add("general", t.language, t.languageDesc, () => this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); void this.reloadForLanguage(); }));
+    add("general", t.language, t.languageDesc, () => {
+      const sel = this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); void this.reloadForLanguage(); });
+      // Each language's name in its own language, said so.
+      for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
+      return sel;
+    });
     add("general", t.remoteContent, t.remoteContentDesc, () => this.toggle(settings.remoteContent, (v) => { settings.remoteContent = v; saveSettings(); remoteContentChanged(); }));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
@@ -5165,9 +5967,12 @@ class SettingsDialog {
     add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }));
     add("appearance", t.hue, t.hueDesc, () => this.select([["paper", t.huePaper], ["sepia", t.hueSepia], ["slate", t.hueSlate], ["moss", t.hueMoss]], settings.palette, (v) => { settings.palette = v; saveSettings(); }));
     add("appearance", t.fontSize, t.fontSizeDesc, () => {
+      // Up to twice the default (15 px): the window has no page zoom, so
+      // this is how text reaches 200% (WCAG 1.4.4). Said in pixels.
       const r = h("input");
-      r.type = "range"; r.min = "12"; r.max = "22"; r.step = "1"; r.value = String(settings.fontSize);
-      r.addEventListener("input", () => { settings.fontSize = Number(r.value); saveSettings(); });
+      r.type = "range"; r.min = "12"; r.max = "30"; r.step = "1"; r.value = String(settings.fontSize);
+      r.setAttribute("aria-valuetext", `${r.value} px`);
+      r.addEventListener("input", () => { settings.fontSize = Number(r.value); r.setAttribute("aria-valuetext", `${r.value} px`); saveSettings(); });
       return r;
     });
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
@@ -5177,6 +5982,10 @@ class SettingsDialog {
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
     add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
     add("files", t.templates, t.templatesDesc, () => this.text(settings.templates, (v) => { settings.templates = v; saveSettings(); }));
+    // Tab indents in an editor: how the keyboard leaves one, said where
+    // the keys are (CodeMirror's own way out: Esc then Tab, or its
+    // tab-focus toggle, Ctrl-M, ⇧⌥M on macOS).
+    add("hotkeys", t.editorTab, t.editorTabDesc.replace("{keys}", prettyKeys(MAC ? "Shift-Alt-m" : "Mod-m")), () => null);
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     return out;
   }
@@ -5336,19 +6145,42 @@ function paintToggles(): void {
   ribbon?.paint();
   toggleSideButton.classList.toggle("off", document.body.classList.contains("no-side"));
   toggleRightButton.classList.toggle("off", document.body.classList.contains("no-right"));
+  paintExpanded();
+}
+/** The sidebar, and the right panel, on screen: a drawer open in a
+ *  narrow window, else not hidden. */
+function sideShown(): boolean {
+  return narrow.matches ? document.body.classList.contains("side-open") : !document.body.classList.contains("no-side");
+}
+function rightShown(): boolean {
+  return narrow.matches ? document.body.classList.contains("right-open") : !document.body.classList.contains("no-right");
+}
+/** Shown or hidden is the toggles' state, said as well as drawn. Set in
+ *  place: a drawer that closes on a press elsewhere must not redraw the
+ *  ribbon under the pointer, whose click would be lost. */
+function paintExpanded(): void {
+  toggleSideButton.setAttribute("aria-expanded", String(sideShown()));
+  toggleRightButton.setAttribute("aria-expanded", String(rightShown()));
+  ui.ribbon.querySelector('[data-id="files"]')?.setAttribute("aria-expanded", String(sideShown()));
+  ui.ribbon.querySelector('[data-id="right"]')?.setAttribute("aria-expanded", String(rightShown()));
 }
 const narrow = window.matchMedia("(max-width: 760px)");
-narrow.addEventListener("change", () => document.body.classList.remove("side-open", "right-open"));
+narrow.addEventListener("change", () => {
+  document.body.classList.remove("side-open", "right-open");
+  paintExpanded();
+});
 document.addEventListener("mousedown", (e) => {
   if (!narrow.matches) return;
   const at = e.target as HTMLElement;
   if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side")) document.body.classList.remove("side-open");
   if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right")) document.body.classList.remove("right-open");
+  paintExpanded();
 });
 function toggleSide(): void {
   if (narrow.matches) {
     document.body.classList.toggle("side-open");
     document.body.classList.remove("right-open");
+    paintExpanded();
     return;
   }
   document.body.classList.toggle("no-side");
@@ -5358,6 +6190,7 @@ function toggleRight(): void {
   if (narrow.matches) {
     document.body.classList.toggle("right-open");
     document.body.classList.remove("side-open");
+    paintExpanded();
     return;
   }
   document.body.classList.toggle("no-right");
@@ -5391,6 +6224,7 @@ async function joinAsPopout(): Promise<void> {
   currentFolder = folder.data.key;
   folderName = folder.data.name;
   ui.folder.textContent = folder.data.name;
+  nameFolderButton();
   page?.classList.remove("empty");
   ui.search.disabled = false;
   loadBookmarks();
@@ -5447,8 +6281,11 @@ function showFolder(info: FolderInfo): void {
     // No storage: nothing remembered, nothing lost.
   }
   ui.folder.textContent = info.name;
+  nameFolderButton();
   const i = info.index;
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
+  shownProblems = "";
+  showProblems(i);
   page?.classList.remove("empty");
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
   spaces.length = 0;
@@ -5499,7 +6336,8 @@ async function reindex(): Promise<void> {
   forgetFiles();
   ui.status.textContent = t.indexed(r.data.indexed, r.data.unchanged, r.data.placeholders);
   await searchNotes(ui.search.value);
-  if (leaf?.path && !leaf.dirty) await leaf.load(leaf.path, true);
+  tellOutcomes(await recheckAll("all"));
+  showProblems(r.data);
 }
 
 /* ---------- The ribbon: one column of what the app does, reordered by drag ---------- */
@@ -5543,6 +6381,9 @@ class Ribbon {
   }
   paint(): void {
     const hasFolder = currentFolder !== "";
+    // Drawn anew, a button that had the focus gets it back (a toggle
+    // pressed from the keyboard used to drop it on the page).
+    const had = document.activeElement instanceof HTMLElement && this.el.contains(document.activeElement) ? document.activeElement.dataset["id"] : undefined;
     const top = h("div", "ribbon-group");
     const bottom = h("div", "ribbon-group ribbon-bottom");
     for (const id of this.order) {
@@ -5557,20 +6398,48 @@ class Ribbon {
       b.disabled = Boolean(it.needsFolder) && !hasFolder;
       if (id === "files") b.classList.toggle("on", !document.body.classList.contains("no-side"));
       if (id === "right") b.classList.toggle("on", !document.body.classList.contains("no-right"));
+      // The two toggles say whether what they show is on screen.
+      if (id === "files") b.setAttribute("aria-expanded", String(sideShown()));
+      if (id === "right") b.setAttribute("aria-expanded", String(rightShown()));
+      if (id === "new") b.setAttribute("aria-haspopup", "menu");
       b.addEventListener("click", () => { if (!this.dragged) it.run(b); this.dragged = false; });
       b.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         const hiddenCount = this.hidden.size;
         showMenu(e.clientX, e.clientY, [
+          // What dragging a button along the column does, from the menu.
+          [t.ribbonUp, () => this.move(id, -1)],
+          [t.ribbonDown, () => this.move(id, 1)],
           [t.ribbonHide, () => { this.hidden.add(id); this.save(); this.paint(); }],
           ...(hiddenCount > 0 ? [[`${t.ribbonShowAll} (${hiddenCount})`, () => { this.hidden.clear(); this.save(); this.paint(); }] as [string, () => void]] : []),
           [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden.clear(); this.save(); this.paint(); }],
         ]);
       });
+      // The menu from the keyboard, as the tree's rows and the tabs have it.
+      b.addEventListener("keydown", (e) => {
+        if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
+        e.preventDefault();
+        const r = b.getBoundingClientRect();
+        b.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.right + 6, clientY: r.top, bubbles: true, cancelable: true }));
+      });
       this.armDrag(b);
       (it.bottom ? bottom : top).append(b);
     }
     this.el.replaceChildren(top, bottom);
+    if (had) (this.el.querySelector<HTMLButtonElement>(`[data-id="${had}"]`) ?? this.el.querySelector<HTMLButtonElement>("button:not(:disabled)"))?.focus();
+  }
+  /** One place up or down among the shown buttons of its group. */
+  private move(id: string, by: -1 | 1): void {
+    const bottom = (x: string) => RIBBON.find((i) => i.id === x)?.bottom === true;
+    const group = this.order.filter((x) => !this.hidden.has(x) && bottom(x) === bottom(id));
+    const other = group[group.indexOf(id) + by];
+    if (other === undefined || !group.includes(id)) return;
+    const a = this.order.indexOf(id);
+    const b = this.order.indexOf(other);
+    this.order[a] = other;
+    this.order[b] = id;
+    this.save();
+    this.paint();
   }
   private dragged = false;
   /** Pointer drag within the column: the button follows the pointer's
@@ -5721,6 +6590,7 @@ if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false
  * terminal reaches the installed app on macOS by an open event): the host
  * keeps it; this window saves its tabs, as for any switch, and opens it. */
 if (!popout) void listen("folder-handed", () => void openFolderBy(() => commands.openInitial()));
+void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void (async () => {
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the

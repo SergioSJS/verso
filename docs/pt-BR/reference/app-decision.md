@@ -259,9 +259,10 @@ primeiro, e onde cada uma mora agora:
 - o que a visão de leitura renderiza — tabelas, notas de rodapé, matemática,
   destaque, callouts, comentários, tags no corpo: como construído (spec v0.16,
   Q5, Q6, Q13, Q15), com um callout recolhível agora abrindo e fechando pelo
-  título (`5b7fc69`); menos callouts aninhados em callouts, e os `<iframe>`,
-  `<video>` e `<audio>` que a janela descarta, ainda em aberto porque o
-  Obsidian os mostra e a visão de leitura não;
+  título (`5b7fc69`); menos, ainda em aberto, callouts aninhados em callouts
+  — desenhados como callouts desde 2026-09-24, provisoriamente (spec v0.17,
+  Q5) — e os `<iframe>`, `<video>` e `<audio>` que a janela descarta
+  ([memo de mídia embutida](embedded-media-decision.md));
 - que um arquivo que não é UTF-8 não é aberto para edição (Q25 da spec,
   fechada);
 - os quatro jeitos que a janela tem de acessar a rede, com um ajuste sobre os
@@ -278,24 +279,31 @@ bench, que precisa do CI rodando.
 
 ## 10. O que não está construído
 
-- **O item 2.6, um tipo de nota de ponta a ponta.** Ele precisa da
-  [ADR 0013](../adr/0013-degrades-to-markdown.md) e da
-  [ADR 0014](../adr/0014-primitives-catalog.md) aceitas e da Q11 da spec
-  respondida.
+- **O item 2.6, um tipo de nota de ponta a ponta.** Ele precisa do
+  [ADR 0013](../adr/0013-degrades-to-markdown.md) e do
+  [ADR 0014](../adr/0014-primitives-catalog.md) aceitos e da Q11 da spec
+  respondida. *(Decidido em 2026-09-24: o ADR 0013 aceito, a nota tipada
+  aceita no [ADR 0052](../adr/0052-typed-note.md), a Q11 respondida; ainda não
+  construído — [memorando da nota tipada](typed-note-decision.md), seção 8.)*
 - **Handles opacos e identidade de sessão no contrato**
   ([ADR 0044](../adr/0044-verso-fs-semantics.md),
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): o contrato nomeia notas
   por caminho relativo, e a revisão é o único token. A identidade de sessão é
   aceita como ausente na Fase 2 (ADR 0045, 2026-09-23); os handles estão em
-  aberto.
-- **Uma passada completa de acessibilidade.** Depois da leitura, os controles
-  têm nome, os diálogos prendem e devolvem o foco, menus e divisores respondem
-  ao teclado, e o texto secundário chega a 4,5:1; ainda não há jeito de teclado
-  para arrastar uma aba ou um arquivo, e ninguém percorreu o app com um leitor
-  de tela ([ADR 0035](../adr/0035-cross-cutting-requirements.md)).
-- **Um observador de arquivos.** Uma mudança feita fora do app aparece quando a
-  nota é salva (como escrita recusada) ou reaberta, ou num "reindexar"; nada
-  atualiza a árvore sozinho.
+  aberto. *(Decidido em 2026-09-24: os handles como construídos para a Fase 2,
+  reabertos antes que qualquer coisa fora das views do próprio app ganhe
+  acesso a arquivos — [memorando dos handles](handles-decision.md).)*
+- **Uma passada completa de acessibilidade** — feita estaticamente em
+  2026-09-24, num branch local: [revisão de acessibilidade](../review/accessibility.md).
+  Abas e arquivos agora também se movem pelo teclado; o que ela deixa para o
+  mantenedor está na seção 8, e ninguém percorreu o app com um leitor de tela
+  ainda ([ADR 0035](../adr/0035-cross-cutting-requirements.md)).
+- **Um observador de arquivos** — construído em 2026-09-24, provisório, no
+  branch `feat/watcher`: [memorando do watcher](watcher-decision.md). Antes
+  dele, uma mudança feita fora do app aparecia quando a nota era salva (como
+  escrita recusada) ou reaberta, ou num "reindexar"; nada atualizava a árvore
+  sozinho. *(Decidido em 2026-09-24 como construído, todas as recomendações do
+  memo aceitas.)*
 - **Uma segunda janela na mesma pasta**, e arrastar uma aba para fora.
 - **Tudo o que a [ADR 0034](../adr/0034-roadmap-in-phases.md) deixa de fora até
   a fase acabar**: sync, mobile, plugins, o board, o shim de compatibilidade.

@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.16
+# Spec do dialeto do Verso — v0.18
 
-- Versão: v0.16 · 2026-09-23
+- Versão: v0.18 · 2026-09-24
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -431,20 +431,22 @@ forma.
 
 ## 6. Extensões do Verso
 
-Nada nesta seção está decidido. Tudo aqui é `PROPOSTO` ou `[ABERTO]`, e nada
-pode contradizer a seção 5.
+Nada nesta seção estava decidido até 2026-09-24, quando o mantenedor decidiu
+a nota tipada, os schemas dela e os rótulos deles por idioma
+([ADR 0052](../adr/0052-typed-note.md); Q11). O resto é `PROPOSTO` ou
+`[ABERTO]`, e nada pode contradizer a seção 5.
 
 | Extensão | Forma | Status |
 |---|---|---|
-| Nota tipada | `type:` no frontmatter + schema em arquivo de texto na pasta; sem schema, é Markdown comum | `PROPOSTO` ([ADR 0014](../adr/0014-primitives-catalog.md)) |
+| Nota tipada | `type:` no frontmatter nomeia um schema da pasta, comparado como a Q12 compara nomes de nota; sem schema, é Markdown comum | `DECIDIDO` em 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md)) |
 | Proveniência de escrita | autor, modelo e quando, no frontmatter | `PROPOSTO` ([ADR 0014](../adr/0014-primitives-catalog.md)) |
 | Views materializáveis | saída de consulta escrita como Markdown real no arquivo | `PROPOSTO` ([ADR 0014](../adr/0014-primitives-catalog.md)) |
-| i18n de schema | chave neutra de idioma com rótulo traduzido (`type: npc` exibido como "PdM" ou "NPC") | `PROPOSTO` (§11.3) |
+| i18n de schema | chave neutra de idioma com rótulo traduzido (`type: npc` exibido como "PdM" ou "NPC") | `DECIDIDO` em 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md): um `label` por idioma da interface) |
 | Relação tipada | aresta com tipo e direção; várias relações entre os mesmos dois nós | `[ABERTO]` (Q10) |
-| Schemas | formato e localização | `[ABERTO]` (Q11) |
+| Schemas | um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados | `DECIDIDO` em 2026-09-24 (Q11) |
 | Visibilidade por bloco | segredo do mestre | `[ABERTO]` (Q9) |
 
-Exemplo de nota tipada, na forma proposta:
+Exemplo de nota tipada:
 
 ```markdown
 ---
@@ -455,13 +457,29 @@ title: Barão Vermelho
 O barão governa o distrito norte.
 ```
 
+E do schema que a tipa, um bloco em qualquer nota da pasta — a prosa em volta
+do bloco é para pessoas e agentes (Q11):
+
+```verso-schema
+type: npc
+label: { pt-BR: PdM, en: NPC }
+properties:
+  - key: facção
+    kind: text
+    label: { pt-BR: Facção, en: Faction }
+  - key: nível
+    kind: number
+    label: { pt-BR: Nível, en: Level }
+```
+
 Um vault do Obsidian que já use `type:` no frontmatter para outra finalidade
 continua válido: sem schema correspondente na pasta, a nota é Markdown comum.
 
 Restrições que qualquer extensão precisa respeitar:
 
 1. Degrada para Markdown legível em qualquer editor
-   ([ADR 0013](../adr/0013-degrades-to-markdown.md), `PROPOSTO`).
+   ([ADR 0013](../adr/0013-degrades-to-markdown.md), `DECIDIDO` em
+   2026-09-24).
 2. Não muda o significado de construção existente (seção 2).
 3. Sobrevive a round-trip sem reescrever o arquivo
    ([ADR 0012](../adr/0012-files-are-source-of-truth.md)).
@@ -553,11 +571,49 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
   tipo e direção, várias relações entre os mesmos dois nós
   ([ADR 0014](../adr/0014-primitives-catalog.md)), e degradar para Markdown
   legível ([ADR 0013](../adr/0013-degrades-to-markdown.md)).
-- **Q11. Formato e localização dos schemas.** `[ABERTO]`
+- **Q11. Formato e localização dos schemas.** `DECIDIDA` em 2026-09-24.
   Decidir antes da nota tipada, na Fase 2 (§17 item 7). "Arquivo de texto na
   pasta" é a única pista do briefing. Tensiona com D2: schema dentro da pasta,
   config fora dela. Afeta os packs de schema
   ([ADR 0015](../adr/0015-schema-packs.md)).
+
+  **Decidida em 2026-09-24 pelo mantenedor**, na sessão, sobre o memo
+  `docs/reference/typed-note-decision.md` (seções 5 e 6): as recomendações do
+  autor no dia foram apresentadas ao mantenedor numa lista só, e a resposta
+  foi *"Tirando o plano de fazer vários PR, eu gosto das suas
+  recomendações"*. A nota tipada em si é o
+  [ADR 0052](../adr/0052-typed-note.md), aceito no mesmo dia.
+
+  1. **Formato:** um bloco de código cercado cuja linguagem é `verso-schema`,
+     com YAML dentro, numa nota — um tipo por bloco; vários blocos podem
+     dividir uma nota. Na primeira versão ele diz `type` (o nome que as notas
+     escrevem no próprio `type:`), `label` por idioma da interface, e
+     `properties`, uma lista ordenada de `key`, `kind` e `label`, com os tipos
+     de valor `text`, `list`, `number`, `checkbox`, `date` e `datetime`. Nada
+     nele executa. É lido sob os limites do frontmatter (Q17).
+  2. **Localização:** qualquer nota da pasta aberta, menos sob caminhos
+     ocultos e ignorados (Q26; [ADR 0044](../adr/0044-verso-fs-semantics.md)).
+     A identidade de um schema é o `type` que ele traz dentro, não o nome nem
+     o lugar da nota. É a escolha do mantenedor entre o briefing §5.3 —
+     "arquivo de texto na pasta", com o ADR 0014 e a seção 6 depois dele — e o
+     briefing §8 com o [ADR 0021](../adr/0021-sync-automerge-layered-config.md),
+     os dois `PROPOSTO`, que põem os schemas na camada compartilhada da
+     configuração, fora da árvore: a da §5.3. Um schema é conteúdo, como os
+     packs são, então a tensão com D2 não aparece; o ADR 0021 fica como está
+     escrito, Proposto, e discorda sobre schemas.
+  3. **Dois schemas com o mesmo nome:** nenhum vale; as notas desse tipo
+     aparecem sem tipo, com o conflito nomeando os dois. Um schema que não se
+     lê não tipa nada, e diz isso.
+
+  Não decidido: se um bloco aninhado numa lista ou num callout conta, ou só um
+  no nível de cima de uma nota (o memo pende para o nível de cima, que deixa de
+  fora um exemplo citado). Nenhuma fixture vem com este fechamento — não
+  existia nenhuma para a Q11, e ela fechou pela resposta do mantenedor como a
+  Q12 e a Q26 fecharam. As fixtures de schema vêm com a implementação, cada
+  uma rascunhada pela IA e aprovada pelo mantenedor no pull request que a
+  acrescenta ([ADR 0031](../adr/0031-fixtures-as-contract.md)), junto com a
+  chave de `expected.yaml` para um bloco de schema (seção 4.1) e a categoria
+  dele (seção 8).
 
 ### Lacunas de parsing — não respondidas pelo briefing
 
@@ -619,12 +675,24 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   Obsidian mostra — desde `5b7fc69`: antes a dobra só era marcada e nada agia
   sobre ela, o que a leitura da Opus das respostas achou; sem título, o nome do tipo, com inicial maiúscula, é o título; uma
   citação aninhada dentro de um callout continua citação
-  (`crates/verso-dialect/src/callouts.rs`). O parser que alimenta o índice não
+  (`crates/verso-dialect/src/callouts.rs`) — desde a v0.17, uma que é ela
+  mesma um callout é desenhada como callout (o fato provisório abaixo). O
+  parser que alimenta o índice não
   mudou. **O aninhamento continua `[ABERTO]`**: a documentação pública do
   Obsidian mostra callouts aninhados dentro de callouts, que a visualização de
-  leitura mantém como citações. A recomendação apresentada ao mantenedor dizia
+  leitura mantinha como citações antes da v0.17. A recomendação apresentada ao
+  mantenedor dizia
   que a visualização de leitura segue o Obsidian, o que não vale para o
   aninhamento, então o aninhamento não é tomado como decidido.
+
+  **Fato provisório, registrado em 2026-09-24 a partir do código do branch
+  `feat/nested-callouts`, não uma resposta a esta questão.** A visualização de
+  leitura desenha um callout dentro de um callout como callout, até 32 níveis
+  — um mais fundo fica citação, para que uma nota não faça o desenho recursar
+  sem fim — e uma citação comum dentro de um callout continua citação. Segue a
+  documentação pública do Obsidian, que mostra callouts aninhados. O parser
+  que alimenta o índice não é tocado. O mantenedor decide; esta linha só
+  registra o que o código faz enquanto isso.
 - **Q6. Contextos em que `[[...]]` não é link, além de crase e cerca.**
   `[ABERTO]` para o índice e para HTML embutido; os comentários na
   visualização de leitura `DECIDIDOS` em 2026-09-23. Bloco indentado por 4
@@ -649,7 +717,12 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   Obsidian mostra numa nota — `<iframe>`, `<video>`, `<audio>`: a premissa
   apresentada ao mantenedor, de que a visualização de leitura segue o
   Obsidian, não vale ali (a leitura da Opus das respostas); a lista de
-  permissões fica como está enquanto isso.
+  permissões fica como está enquanto isso. *(Corrigido em 2026-09-24 por
+  `docs/reference/embedded-media-decision.md`: a ajuda pública do Obsidian
+  mostra `<iframe>` numa nota; nenhuma página pública mostra `<video>` ou
+  `<audio>` no HTML cru de uma nota — áudio e vídeo estão documentados como
+  embeds `![[…]]`. A questão continua `[ABERTO]`, e aquele memo expõe as
+  opções.)*
 - **Q7. Normalização Unicode na comparação de nomes.** `[ABERTO]`
   NFC × NFD. O APFS (macOS, plataforma inicial) preserva a forma recebida e faz
   busca insensível à normalização; HFS+ forçava NFD; Linux compara bytes. Um
@@ -955,6 +1028,12 @@ ser escolhido.
   também uma conversão de quebras de linha misturadas por ação do usuário, com
   o diff (invariante 8), que o mantenedor deixou para depois
   (`docs/review/phase-2.md` §6, item 23).
+
+  **A parte dos links é a próxima, pela resposta do mantenedor de
+  2026-09-24** ([ADR 0052](../adr/0052-typed-note.md), ponto 9): propriedades
+  que guardam links ficam fora da primeira fatia da nota tipada, e "wikilinks
+  dentro de valores" é a próxima parte desta questão a decidir. Continua
+  `[ABERTO]` até lá.
 - **Q25. Codificação.** `DECIDIDA` em 2026-09-23.
   Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
   do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
@@ -1003,3 +1082,5 @@ ser escolhido.
 | v0.14 | 2026-09-23 | Fatos provisórios em Q6, Q12, Q13, Q15, Q16, Q24 e Q25 trazidos até o código depois da leitura da Opus do branch da Fase 2: comentários escondidos e HTML embutido sanitizado na visualização de leitura, uma regra de tag só para o índice e o leitor, embeds resolvidos pela Q12 a partir da nota, a fronteira do frontmatter da janela, arquivos que não são UTF-8 não abertos para edição. Nenhuma questão fechada |
 | v0.15 | 2026-09-23 | **Ponto 3 da Q12 emendado pelo mantenedor**: um nome solto prefere um candidato sob a pasta da nota de origem, em qualquer profundidade, como o Obsidian 1.13.7 faz (a terceira observação de `docs/reference/index-decision.md` §4.1); o índice já fazia, e embeds de arquivos agora fazem também. A Q12 continua fechada |
 | v0.16 | 2026-09-23 | As respostas do mantenedor sobre a revisão da Fase 2 (`docs/review/phase-2.md` §6, itens 4 e 20): **Q13 e Q25 fechadas** como o código faz; Q5 (tipos, dobra — sobre a qual a visualização de leitura agora age, `5b7fc69` — e título), Q6 (comentários), Q15 e Q24 decididas para a visualização de leitura e a janela, com a parte do índice e o resto ainda abertos — o aninhamento da Q5 e os `<iframe>`, `<video>` e `<audio>` da Q6 continuam abertos porque a visualização de leitura não segue o Obsidian ali; Q22 decidida para o charset e a caixa das tags; **a ordem do ponto 2 da Q12 dita**: um caminho a partir da raiz primeiro, depois relativo à pasta da origem, e `./` ou `../` só relativo, como o Obsidian 1.13.7 faz. Duas questões fechadas, cinco em parte |
+| v0.17 | 2026-09-24 | Q5: um fato provisório, não uma resposta — a visualização de leitura desenha um callout dentro de um callout, até 32 níveis (branch `feat/nested-callouts`); o aninhamento continua `[ABERTO]` |
+| v0.18 | 2026-09-24 | **Q11 fechada pelo mantenedor** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): um schema é um bloco cercado `verso-schema`, com YAML dentro, numa nota em qualquer lugar da pasta aberta menos caminhos ocultos e ignorados, nomeado pelo `type` que traz dentro; dois schemas com o mesmo nome não tipam nada, e o conflito aparece; se um bloco aninhado conta não está decidido. Seção 6: a nota tipada, os schemas e o i18n de schema `DECIDIDOS`, a restrição 1 (ADR 0013) aceita. Q24: a parte dos links é a próxima decisão. Nenhuma fixture ainda: a implementação as traz. Q6: um ponteiro para `docs/reference/embedded-media-decision.md`, que corrige a afirmação de que a documentação do Obsidian mostra `<video>` e `<audio>`; a Q6 continua aberta |

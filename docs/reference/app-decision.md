@@ -252,9 +252,9 @@ first, and where each now lives:
 - what the reading view renders — tables, footnotes, math, highlight,
   callouts, comments, body tags: as built (spec v0.16, Q5, Q6, Q13, Q15),
   with a foldable callout now opening and closing from its title (`5b7fc69`);
-  except callouts nested in callouts, and the `<iframe>`, `<video>` and
-  `<audio>` the window drops, still open because Obsidian shows them and the
-  reading view does not;
+  except, still open, callouts nested in callouts — drawn as callouts since
+  2026-09-24, provisionally (spec v0.17, Q5) — and the `<iframe>`, `<video>`
+  and `<audio>` the window drops ([embedded-media memo](embedded-media-decision.md));
 - that a file which is not UTF-8 is not opened for editing (spec Q25,
   closed);
 - the four ways the window reaches the network, with a setting over the two
@@ -273,20 +273,28 @@ which needs CI to run.
 - **Item 2.6, one note type end to end.** It needs
   [ADR 0013](../adr/0013-degrades-to-markdown.md) and
   [ADR 0014](../adr/0014-primitives-catalog.md) accepted and spec Q11
-  answered.
+  answered. *(Decided on 2026-09-24: ADR 0013 accepted, the typed note
+  accepted in [ADR 0052](../adr/0052-typed-note.md), Q11 answered; not built
+  yet — [typed-note memo](typed-note-decision.md), section 8.)*
 - **Opaque handles and session identity in the contract**
   ([ADR 0044](../adr/0044-verso-fs-semantics.md),
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): the contract names notes
   by relative path, and the revision is the only token. Session identity is
   accepted as absent for Phase 2 (ADR 0045, 2026-09-23); handles are open.
-- **A full accessibility pass.** After the reading, controls carry names,
-  dialogs hold and return focus, menus and dividers answer the keyboard, and
-  secondary text reaches 4.5:1; there is still no keyboard way to drag a tab or
-  a file, and nobody has gone through the app with a screen reader
+  *(Decided on 2026-09-24: handles as built for Phase 2, re-opened before
+  anything outside the app's own views gets access to files —
+  [handles memo](handles-decision.md).)*
+- **A full accessibility pass** — done statically on 2026-09-24, on a local
+  branch: [accessibility review](../review/accessibility.md). Tabs and files
+  now move from the keyboard too; what it leaves to the maintainer is in its
+  section 8, and nobody has gone through the app with a screen reader yet
   ([ADR 0035](../adr/0035-cross-cutting-requirements.md)).
-- **A file watcher.** A change made outside the app shows up when the note is
-  saved (as a refused write) or reopened, or on "reindex"; nothing refreshes
-  the tree on its own.
+- **A file watcher** — built on 2026-09-24, provisional, on branch
+  `feat/watcher`: [watcher memo](watcher-decision.md). Before it, a change made
+  outside the app showed up when the note was saved (as a refused write) or
+  reopened, or on "reindex"; nothing refreshed the tree on its own.
+  *(Decided on 2026-09-24 as built, every recommendation of the memo
+  accepted.)*
 - **A second window on the same folder**, and tearing a tab out by dragging it.
 - **Everything [ADR 0034](../adr/0034-roadmap-in-phases.md) keeps out until the
   phase ends**: sync, mobile, plugins, the board, the compatibility shim.

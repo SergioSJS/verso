@@ -41,10 +41,17 @@ impl Lang {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Msg {
     Usage,
-    /// `verso <folder>`: the app is starting on the folder.
-    Opening(String),
-    /// `verso <folder>`: no app to start; what was tried.
-    AppNotFound(String),
+    /// `verso <folder>`: the app, by its name ("Verso", or a test
+    /// release's "Verso Beta"), is starting on the folder.
+    Opening {
+        folder: String,
+        app: String,
+    },
+    /// `verso <folder>`: no app to start, by its name; what was tried.
+    AppNotFound {
+        app: String,
+        tried: String,
+    },
     /// `verso open <folder>`: nothing started, and no folder is there.
     NoFolderToOpen(String),
     /// A first argument that is neither a subcommand nor an existing folder.
@@ -146,9 +153,9 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                     .to_owned()
             }
             Msg::CannotOpen(e) => format!("não abriu: {e}"),
-            Msg::Opening(folder) => format!("abrindo {folder} no Verso"),
-            Msg::AppNotFound(tried) => format!(
-                "não achei o aplicativo Verso ({tried}). Defina VERSO_APP com o caminho do executável ou instale o app."
+            Msg::Opening { folder, app } => format!("abrindo {folder} no {app}"),
+            Msg::AppNotFound { app, tried } => format!(
+                "não achei o aplicativo {app} ({tried}). Defina VERSO_APP com o caminho do executável ou instale o app."
             ),
             Msg::NoFolderToOpen(folder) => format!("não há pasta em {folder}"),
             Msg::IndexSummary {
@@ -230,9 +237,9 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
                     .to_owned()
             }
             Msg::CannotOpen(e) => format!("could not open: {e}"),
-            Msg::Opening(folder) => format!("opening {folder} in Verso"),
-            Msg::AppNotFound(tried) => format!(
-                "could not find the Verso application ({tried}). Set VERSO_APP to the executable or install the app."
+            Msg::Opening { folder, app } => format!("opening {folder} in {app}"),
+            Msg::AppNotFound { app, tried } => format!(
+                "could not find the {app} application ({tried}). Set VERSO_APP to the executable or install the app."
             ),
             Msg::NoFolderToOpen(folder) => format!("no folder at {folder}"),
             Msg::IndexSummary {
@@ -350,8 +357,14 @@ mod tests {
                 unchanged: 2,
             },
             Msg::McpFailed("e".into()),
-            Msg::Opening("/v".into()),
-            Msg::AppNotFound("e".into()),
+            Msg::Opening {
+                folder: "/v".into(),
+                app: "Verso Beta".into(),
+            },
+            Msg::AppNotFound {
+                app: "Verso Beta".into(),
+                tried: "e".into(),
+            },
             Msg::NoFolderToOpen("/v".into()),
         ]
     }
@@ -386,8 +399,8 @@ mod tests {
             Msg::IndexFailed(_) => 23,
             Msg::McpServing { .. } => 24,
             Msg::McpFailed(_) => 25,
-            Msg::Opening(_) => 26,
-            Msg::AppNotFound(_) => 27,
+            Msg::Opening { .. } => 26,
+            Msg::AppNotFound { .. } => 27,
             Msg::NoFolderToOpen(_) => 28,
         }
     }
@@ -400,6 +413,18 @@ mod tests {
         // minus one; the samples must reach it without a gap.
         let expected: Vec<usize> = (0..=28).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
+    }
+
+    /// The command line says which app it opens: a test release's, "Verso
+    /// Beta", by that name (ADR 0051).
+    #[test]
+    fn opening_names_the_app() {
+        let msg = Msg::Opening {
+            folder: "/v".into(),
+            app: "Verso Beta".into(),
+        };
+        assert_eq!(text(&msg, Lang::En), "opening /v in Verso Beta");
+        assert_eq!(text(&msg, Lang::PtBr), "abrindo /v no Verso Beta");
     }
 
     #[test]

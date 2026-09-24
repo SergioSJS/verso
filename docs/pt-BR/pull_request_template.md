@@ -1,5 +1,7 @@
 <!--
-PR pequeno, um assunto. Se o resumo precisa de "e", provavelmente são dois PRs.
+Até o fluxo inteiro existir (sync, web, mobile), um PR grande serve — decisão
+do mantenedor de 2026-09-24 (ADR 0033, ADR 0051); pequeno, de um assunto,
+depois dele.
 As cinco seções abaixo são obrigatórias (ADR 0033). Nenhuma delas é formalidade:
 o mantenedor só aprova o que consegue explicar com as próprias palavras.
 -->
@@ -60,7 +62,7 @@ PR que não toca em Rust: escreva "Não se aplica" e diga por quê.
 
 ## Antes de pedir revisão
 
-- [ ] Um assunto só.
+- [ ] Um assunto só (a partir de quando o fluxo inteiro existir; até lá, os assuntos vão listados em O quê).
 - [ ] CI verde: `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo deny check`.
 - [ ] Nenhum `#[allow]` novo para calar guardrail. Se um guardrail bloqueia trabalho legítimo, isso é PR próprio, com justificativa (`CLAUDE.md` §3) — não `#[allow]` neste diff.
 - [ ] Guardrail de feature (fuzz, round-trip, escrita atômica, confinamento, FTS5, benchmark), se este PR o introduz, foi visto falhando antes de passar (ADR 0029).

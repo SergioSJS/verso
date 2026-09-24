@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.8 · 2026-09-21
+> Versão 0.9 · 2026-09-24
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -105,7 +105,7 @@ Colisões conhecidas do nome, fora da categoria de apps de notas: plataforma de 
 
 - Compatibilidade com vaults do Obsidian, ou conversão explícita onde não houver compatibilidade. `DECIDIDO`
 - Abrir um arquivo nunca o reescreve. Conversão só por ação do usuário, com diff visível. `DECIDIDO`
-- Todo dado estruturado degrada para Markdown legível em qualquer editor. `PROPOSTO`
+- Todo dado estruturado degrada para Markdown legível em qualquer editor. `DECIDIDO` (promovido na v0.9, ADR 0013)
 
 ### 5.3 Primitivas em vez de features
 
@@ -113,7 +113,7 @@ Cada gambiarra comum no Obsidian é sintoma de uma primitiva ausente. O Verso im
 
 | Primitiva | Substitui | Status |
 |---|---|---|
-| Nota tipada: `type:` no frontmatter + schema em arquivo de texto na pasta; sem schema, é Markdown comum | Dataview, Templater, statblocks | `PROPOSTO` |
+| Nota tipada: `type:` no frontmatter + schema em arquivo de texto na pasta; sem schema, é Markdown comum | Dataview, Templater, statblocks | `DECIDIDO` (promovido na v0.9, ADR 0052) |
 | ID estável de bloco, com backlinks e presença no grafo | pedido aberto no fórum do Obsidian desde 2020 | `PROPOSTO` |
 | Relação tipada: aresta com tipo e direção; várias relações entre os mesmos dois nós | links sem semântica | `PROPOSTO` |
 | Tempo como primeira classe: diário e notas periódicas | Periodic Notes, Calendar | `PROPOSTO` |
@@ -259,9 +259,9 @@ O Verso estende esse dialeto; nunca o contradiz.
 ### 11.3 Itens de dialeto
 
 - Sintaxe de relação tipada. `ABERTO`
-- Formato e localização dos schemas. `ABERTO`
+- Formato e localização dos schemas. `DECIDIDO` (v0.9: um bloco `verso-schema` numa nota da pasta; Q11 da spec, ADR 0052)
 - Sintaxe de visibilidade por bloco (segredo do mestre). `ABERTO`
-- i18n de schema: chave neutra de idioma com rótulo traduzido (ex.: `type: npc` exibido como "PdM" ou "NPC"). `PROPOSTO`
+- i18n de schema: chave neutra de idioma com rótulo traduzido (ex.: `type: npc` exibido como "PdM" ou "NPC"). `DECIDIDO` (promovido na v0.9, ADR 0052)
 
 ### 11.4 Fixtures `DECIDIDO`
 
@@ -457,7 +457,7 @@ Sync, mobile, plugins, board, shim de compatibilidade.
 | 4 | ~~Parser base: pulldown-cmark, comrak ou próprio~~ | decidido: pulldown-cmark (v0.8, ADR 0037; leitura de round-trip na spec Q18) |
 | 5 | Geração de tipos TS: ts-rs ou specta | início da Fase 2 |
 | 6 | Sintaxe de relação tipada | antes de implementar relações |
-| 7 | Formato e localização dos schemas | antes da nota tipada (Fase 2) |
+| 7 | ~~Formato e localização dos schemas~~ | decidido: um bloco `verso-schema` numa nota da pasta (v0.9, Q11 da spec, ADR 0052) |
 | 8 | Sintaxe de visibilidade por bloco | antes de compartilhamento e exportação |
 | 9 | Persistência do board | antes do board |
 | 10 | Metas de performance | após a primeira linha de base |
@@ -480,3 +480,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.6 | 2026-09-21 | §11.4: regra de fixtures alterada pelo mantenedor — qualquer fixture pode ser rascunhada pela IA; só vale com aprovação explícita dele, e as cinco primeiras são conferidas no app Obsidian antes da aprovação (ADR 0031). |
 | 0.7 | 2026-09-21 | §14.3: ponteiro para a leitura em dois grupos dos guardrails no ADR 0029, após a leitura independente da revisão da Fase 0 (docs/review/phase-0.md §7). Nenhuma decisão alterada. |
 | 0.8 | 2026-09-21 | §9 e §17 item 4: parser base decidido pelo mantenedor — pulldown-cmark, com comrak como fallback, na leitura somente leitura de round-trip (spec Q18). Comparação em docs/reference/parser-decision.md (ADR 0037). |
+| 0.9 | 2026-09-24 | §5.2, §5.3, §11.3 e §17 item 7: decididos pelo mantenedor, sobre o memo docs/reference/typed-note-decision.md — a degradação para Markdown (ADR 0013, aceito como está escrito, com "views" e "dado estruturado" delimitados), a nota tipada e o i18n de schema (ADR 0052), e o formato e a localização dos schemas: um bloco `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados (Q11 da spec). A localização é a escolha do mantenedor entre a §5.3 (arquivo de texto na pasta) e a §8 (schemas na camada compartilhada da config), que fica como está, `PROPOSTO`, e agora discorda sobre schemas. |

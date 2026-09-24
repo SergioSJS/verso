@@ -41,9 +41,10 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0041](0041-multi-root-workspace.md) | Workspace with multiple roots | Proposed |
 | [0042](0042-open-from-command-line.md) | Open from the command line: `verso <folder>` | Accepted |
 | [0012](0012-files-are-source-of-truth.md) | Files are the source of truth; opening never rewrites | Accepted |
-| [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Proposed |
-| [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted) |
+| [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Accepted (2026-09-24) |
+| [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted; the typed note: Accepted in 0052) |
 | [0015](0015-schema-packs.md) | Schema packs distributable as content | Proposed |
+| [0052](0052-typed-note.md) | Typed note: `type:` in the frontmatter and a schema | Accepted (2026-09-24) |
 
 ### Plugins and LLM
 
@@ -107,7 +108,7 @@ says where each stands.
 
 | # | Title | When to decide |
 |---|---|---|
-| [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Feature 2 of Phase 1 (symlinks, paths); feature 6 and item 2.1 (handles) |
+| [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Symlinks and ignored paths: Accepted (2026-09-22); handles: accepted as built for Phase 2 (2026-09-24), re-opened before anything outside the app's own views gets access to files; the watcher: Accepted (2026-09-24) |
 | [0045](0045-server-and-mcp-security.md) | Security of the server, the MCP and the contract | MCP: Accepted; contract: accepted as built for Phase 2, `[OPEN]` until a server enters scope; server: before it enters scope |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Index: location, lifecycle and tokenizer | Features 3 and 5 of Phase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Open questions on the plugin API | Before designing the API (after Phase 2) |
@@ -117,7 +118,8 @@ says where each stands.
 
 Three dialect items from §17 live in [`../spec/dialect.md`](../spec/dialect.md),
 where the behavior is specified: typed relation syntax (item 6), format and
-location of the schemas (item 7) and per-block visibility syntax (item 8). The
+location of the schemas (item 7, decided on 2026-09-24 as Q11, with
+[0052](0052-typed-note.md)) and per-block visibility syntax (item 8). The
 parsing gaps (Q1–Q8, Q12–Q26) also live there.
 
 The check for the availability of the name (item 2) is recorded in

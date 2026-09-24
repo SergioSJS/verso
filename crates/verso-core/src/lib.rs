@@ -33,7 +33,7 @@ use std::time::UNIX_EPOCH;
 
 use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
-pub use verso_fs::{ConfinementError, ReadError, WriteError};
+pub use verso_fs::{Changes, ConfinementError, ReadError, Watch, WriteError};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 mod sidecar;
@@ -86,6 +86,13 @@ mod revision {
     }
 }
 
+/// How long the folder must be quiet before a watch hands a batch over
+/// ([`Workspace::watch`]): long enough that a save made of several writes,
+/// or a checkout, is one batch; short enough that a change made in another
+/// editor shows up while the user is still looking. Provisional
+/// (`docs/reference/watcher-decision.md`).
+pub const WATCH_QUIET: std::time::Duration = std::time::Duration::from_millis(300);
+
 /// Why the workspace could not be opened or refreshed.
 #[derive(Debug)]
 pub enum CoreError {
@@ -114,6 +121,10 @@ pub enum CoreError {
     InvalidKey,
     /// The key names no folder opened before, or the folder is gone.
     UnknownFolder,
+    /// The operating system will not watch the folder (on Linux, the
+    /// inotify limit): changes made outside show up on the next index run,
+    /// not by themselves.
+    Watch(std::io::Error),
 }
 
 impl std::fmt::Display for CoreError {
@@ -132,6 +143,7 @@ impl std::fmt::Display for CoreError {
             Self::Write(e) => write!(f, "write: {e}"),
             Self::InvalidKey => write!(f, "the folder key is not one this core issued"),
             Self::UnknownFolder => write!(f, "no folder opened before has this key"),
+            Self::Watch(e) => write!(f, "the folder cannot be watched for changes: {e}"),
         }
     }
 }
@@ -293,6 +305,16 @@ pub struct IndexReport {
     /// What the run could not do besides indexing, one line each: today,
     /// a sidecar that could not be written. The index itself is current.
     pub warnings: Vec<String>,
+    /// The notes counted in `indexed` and `removed`, by path: what a
+    /// window showing one of them reloads or marks when the folder changed
+    /// outside it (`docs/reference/watcher-decision.md`).
+    pub changed: Vec<String>,
+    pub gone: Vec<String>,
+    /// The listing's shape — which entries, of which kinds — is not what it
+    /// was before the run: a tree or a folder view draws it again. Lengths
+    /// and times alone do not count: every save changes them, and a note
+    /// whose content changed is in `changed` already.
+    pub listing_changed: bool,
 }
 
 /// A note that links to what moved, and its text with the links pointing
@@ -829,6 +851,7 @@ impl Workspace {
                                 .upsert(&relative, stamp, &content, &parsed)
                                 .map_err(CoreError::Index)?;
                             report.indexed += 1;
+                            report.changed.push(relative.clone());
                         }
                         Err(verso_fs::ReadError::Unavailable) => {
                             // Present, content unavailable (ADR 0043): the
@@ -874,6 +897,12 @@ impl Workspace {
         }
         self.files = files;
         self.dirs = dirs;
+        report.listing_changed = self.entries.len() != entries.len()
+            || self
+                .entries
+                .iter()
+                .zip(&entries)
+                .any(|(was, is)| was.path != is.path || was.kind != is.kind);
         self.entries = entries;
         report.problems = walk.problems.iter().map(WalkProblem::from).collect();
         // Not walked because of a problem: nothing under it is gone. The
@@ -894,6 +923,7 @@ impl Workspace {
                 && self.index.remove(&known).map_err(CoreError::Index)?
             {
                 report.removed += 1;
+                report.gone.push(known);
             }
         }
         let now = seconds_since_epoch(std::time::SystemTime::now());
@@ -916,6 +946,32 @@ impl Workspace {
                 .push(format!("the index sidecar could not be written: {e}"));
         }
         Ok(report)
+    }
+
+    /// Watch the folder for changes made outside the app — by another
+    /// editor, a sync client, git (provisional:
+    /// `docs/reference/watcher-decision.md`). `on_change` is called on a
+    /// thread of the watch's own, with each batch, once the folder has
+    /// been quiet for [`WATCH_QUIET`]; the caller brings the index up to
+    /// date with [`Workspace::index`], which finds by itself what changed —
+    /// the batch's paths say that something did, not all of what. The
+    /// index's own directory is left out, for when the configuration
+    /// directory lies inside the folder: every index run writes there.
+    /// Dropping the [`Watch`] stops it.
+    pub fn watch(
+        &self,
+        on_change: impl FnMut(Changes) + Send + 'static,
+    ) -> Result<Watch, CoreError> {
+        let own: Vec<PathBuf> = self
+            .index
+            .path()
+            .parent()
+            .map(Path::to_path_buf)
+            .into_iter()
+            .collect();
+        self.root
+            .watch(WATCH_QUIET, &own, on_change)
+            .map_err(CoreError::Watch)
     }
 
     pub fn search(&self, words: &str, limit: usize) -> Result<Vec<Hit>, CoreError> {

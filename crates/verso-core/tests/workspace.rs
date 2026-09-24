@@ -129,6 +129,10 @@ fn index_search_backlinks_and_incremental_runs() {
     // Second run: nothing changed.
     let r = ws.index().unwrap();
     assert_eq!((r.indexed, r.unchanged, r.removed), (0, 2, 0));
+    assert!(
+        r.changed.is_empty() && r.gone.is_empty() && !r.listing_changed,
+        "{r:?}"
+    );
 
     // A note edited through verso-fs, one removed, one added.
     {
@@ -141,6 +145,12 @@ fn index_search_backlinks_and_incremental_runs() {
     let _nova = note(vault.path(), "Nova.md", "[[Taverna#Porão]]\n");
     let r = ws.index().unwrap();
     assert_eq!((r.indexed, r.unchanged, r.removed), (2, 0, 1), "{r:?}");
+    // By name, for a window showing one of them.
+    let mut changed = r.changed.clone();
+    changed.sort();
+    assert_eq!(changed, vec!["Nova.md", "Taverna.md"]);
+    assert_eq!(r.gone, vec!["Barão Vermelho.md"]);
+    assert!(r.listing_changed);
     // Removed from disk: no longer a known note.
     assert_eq!(ws.backlinks("Barão Vermelho").unwrap(), None);
     assert_eq!(ws.backlinks("Taverna").unwrap().unwrap().len(), 1);
@@ -1351,5 +1361,65 @@ fn web_notes_and_the_whole_graph_come_from_the_index() {
             ("A.md".to_owned(), "C.md".to_owned()),
             ("B.md".to_owned(), "C.md".to_owned()),
         ]
+    );
+}
+
+/// A note created by another app while the folder is open: the watch says
+/// something changed, and the next index run finds what (the watcher,
+/// provisional: `docs/reference/watcher-decision.md`).
+#[test]
+fn a_note_made_outside_reaches_the_index_through_the_watch() {
+    use std::time::{Duration, Instant};
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _uma = note(vault.path(), "Uma.md", "# Uma\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let _watch = ws
+        .watch(move |changes| {
+            let _ = tx.send(changes);
+        })
+        .unwrap();
+    // Whatever the system still had to say about the folder's creation.
+    while rx.recv_timeout(Duration::from_millis(700)).is_ok() {}
+
+    let _duas = note(vault.path(), "Duas.md", "O caminho para [[Uma]].\n");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let seen = loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        match rx.recv_timeout(left) {
+            Ok(c) if c.rescan || c.paths.iter().any(|p| p == Path::new("Duas.md")) => break true,
+            Ok(_) => {}
+            Err(_) => break false,
+        }
+    };
+    assert!(seen, "the watch never reported the new note");
+    let r = ws.index().unwrap();
+    assert_eq!(r.changed, vec!["Duas.md"], "{r:?}");
+    assert!(r.listing_changed);
+    assert_eq!(ws.backlinks("Uma").unwrap().unwrap().len(), 1);
+}
+
+/// Verso's own save changes the note's length and time, not the listing's
+/// shape: a window must not draw its tree again after every save.
+#[test]
+fn a_save_is_not_a_listing_change() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _uma = note(vault.path(), "Uma.md", "# Uma\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let read = ws.read_note("Uma").unwrap();
+    ws.write_note(
+        "Uma",
+        "# Uma\n\nMais uma linha, mais longa.\n",
+        &read.revision,
+    )
+    .unwrap();
+    let r = ws.index().unwrap();
+    assert!(
+        r.changed.is_empty() && r.gone.is_empty() && !r.listing_changed,
+        "{r:?}"
     );
 }

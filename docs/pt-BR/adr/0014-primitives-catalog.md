@@ -6,7 +6,9 @@
 - Revisões: 2026-09-23 — duas primitivas aceitas pelo mantenedor como a janela
   da Fase 2 as constrói, a nota do dia e os templates
   (`docs/review/phase-2.md` §6, item 11); o resto do catálogo continua
-  Proposto.
+  Proposto. 2026-09-24 — a nota tipada aceita pelo mantenedor num ADR
+  próprio, o [0052](0052-typed-note.md), como a primeira Consequência pede; a
+  linha dela aqui aponta para lá.
 
 ## Contexto
 
@@ -14,7 +16,7 @@ Aplicação do princípio de [0003](0003-primitives-not-workarounds.md): cada
 gambiarra comum no Obsidian é sintoma de uma primitiva ausente. O briefing
 propõe um catálogo, ainda sem confirmação.
 
-## Decisão (proposta, não confirmada; duas primitivas aceitas em 2026-09-23)
+## Decisão (proposta, não confirmada; duas primitivas aceitas em 2026-09-23, a nota tipada em 2026-09-24)
 
 O Verso implementa primitivas; features específicas vêm como plugins de primeira
 parte.
@@ -41,9 +43,16 @@ da Fase 2 as constrói ([0049](0049-phase-2-scope-widened.md),
   inserido numa nota com `{{date}}` e `{{title}}` preenchidos, e uma nota pode
   ser salva nessa pasta como template.
 
-Se cada uma ainda precisa de uma ADR própria, como a primeira Consequência pede
+Se cada uma ainda precisa de um ADR próprio, como a primeira Consequência pede
 de toda primitiva, a resposta não disse; isso continua com o mantenedor. Notas
 periódicas e todas as outras linhas continuam Propostas.
+
+**A nota tipada, aceita em 2026-09-24 pelo mantenedor** num ADR próprio, o
+[0052](0052-typed-note.md), sobre o memo
+`docs/reference/typed-note-decision.md`: `type:` no frontmatter nomeia um
+schema, que é um bloco `verso-schema` numa nota da pasta; sem schema, a nota é
+Markdown comum. A linha acima mantém as palavras do briefing; o 0052 é a
+decisão.
 
 ## Consequências
 
@@ -51,6 +60,8 @@ periódicas e todas as outras linhas continuam Propostas.
   só registra o catálogo.
 - Três itens dependem de sintaxe ainda `[ABERTO]`: relação tipada, formato e
   localização dos schemas, e visibilidade por bloco (`docs/spec/dialect.md`).
+  *(O formato e a localização dos schemas decididos em 2026-09-24: a Q11 da
+  spec.)*
 - "Sem schema, é Markdown comum" é o que mantém a compatibilidade com vaults do
   Obsidian ([0012](0012-files-are-source-of-truth.md)).
 - ID de bloco com backlinks e presença no grafo é pré-requisito da citação
@@ -64,7 +75,7 @@ periódicas e todas as outras linhas continuam Propostas.
   dizer o que é gravado e se é opt-in.
 - Nota tipada (item 2.6 da Fase 2) exige promover esta linha do catálogo a ADR
   próprio, Aceito, antes de ser implementada — o roadmap lista isso entre as
-  decisões da Fase 2.
+  decisões da Fase 2. *(Feito em 2026-09-24: [0052](0052-typed-note.md).)*
 - Nada deste catálogo está na Fase 1, exceto o que o parser e o índice precisam
   expor ([0034](0034-roadmap-in-phases.md)).
 
@@ -76,4 +87,5 @@ periódicas e todas as outras linhas continuam Propostas.
 
 ## Status
 
-Proposto. A nota do dia e os templates: aceitos em 2026-09-23 (Decisão).
+Proposto. A nota do dia e os templates: aceitos em 2026-09-23 (Decisão). A
+nota tipada: aceita em 2026-09-24, no [0052](0052-typed-note.md).
