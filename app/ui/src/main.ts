@@ -66,7 +66,7 @@ type Strings = Record<
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
-  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs",
+  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -146,7 +146,7 @@ const pt: Strings = {
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
-  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho",
+  moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
 };
 
 const en: Strings = {
@@ -209,7 +209,7 @@ const en: Strings = {
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
-  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path",
+  moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -1119,7 +1119,7 @@ class NoteLeaf extends Leaf {
    * web view of the window, laid over this host and kept in step with it. */
   readonly webBar = h("div", "web-bar");
   readonly webHost = h("div", "web-host");
-  readonly webAddress = h("span", "web-address");
+  readonly webAddress = h("button", "web-address");
   private webLabel: string | null = null;
   /** A view is being made; its label arrives with the answer. */
   private webOpening = false;
@@ -1467,6 +1467,8 @@ class NoteLeaf extends Leaf {
     const toggle = button("ghost", t.webShowNote);
     toggle.classList.add("web-toggle");
     toggle.addEventListener("click", () => this.setWebShown(!this.webShown));
+    // A button: opening the page in a window of its own answered the pointer only.
+    this.webAddress.type = "button";
     this.webAddress.addEventListener("click", () => void commands.openUrl(this.webUrl));
     this.webAddress.title = t.webOpenWindow;
     this.webBar.append(
@@ -1942,6 +1944,7 @@ class NoteLeaf extends Leaf {
           onPage: () => {},
         });
         box.append(view.el);
+        view.container.setAttribute("aria-label", rel.split("/").pop() ?? rel);
         span.replaceWith(box);
         this.embeds.push(view);
         const page = Number(/page=(\d+)/.exec(span.dataset["target"] ?? "")?.[1] ?? "1");
@@ -2038,18 +2041,34 @@ class NoteLeaf extends Leaf {
 class ImageLeaf extends Leaf {
   readonly kind: Kind = "image";
   readonly img = h("img", "image-view");
+  readonly box = h("div", "image-box");
   constructor(pane: Pane) {
     super(pane);
-    const box = h("div", "image-box");
+    const box = this.box;
     box.append(this.img);
     this.el.append(box);
-    box.addEventListener("click", () => box.classList.toggle("actual"));
+    // Fitted or at its actual size, by a click or by Enter and Space: a
+    // toggle, focusable, so that the arrows scroll a large image too.
+    box.tabIndex = 0;
+    box.setAttribute("role", "button");
+    box.setAttribute("aria-pressed", "false");
+    const flip = () => box.setAttribute("aria-pressed", String(box.classList.toggle("actual")));
+    box.addEventListener("click", flip);
+    box.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      flip();
+    });
+  }
+  override focusContent(): void {
+    this.box.focus();
   }
   async load(path: string): Promise<void> {
     this.path = path;
     this.setTitle(name(path));
     this.img.src = convertFileSrc(path, "verso");
     this.img.alt = name(path);
+    this.box.setAttribute("aria-label", `${t.actualSize}: ${name(path)}`);
     markCurrent();
     persistSoon();
   }
@@ -2243,6 +2262,7 @@ class FolderLeaf extends Leaf {
       b.type = "button";
       b.title = `${t.sortBy}: ${label}`;
       b.dataset["key"] = key;
+      b.dataset["label"] = label;
       b.addEventListener("click", () => {
         folderSort = { key, desc: folderSort.key === key ? !folderSort.desc : key === "modified" || key === "size" };
         try { localStorage.setItem("verso.folderSort", JSON.stringify(folderSort)); } catch { /* no storage */ }
@@ -2346,10 +2366,14 @@ class FolderLeaf extends Leaf {
       else if (key === "kind") d = kindLabel(a.path, a.kind).localeCompare(kindLabel(b.path, b.kind), LOCALE);
       return (d || a.label.localeCompare(b.label, LOCALE, { numeric: true })) * (key === "name" || d === 0 ? dir : dir);
     };
+    // The sort the arrow shows is said in the column's name: `aria-sort`
+    // belongs to a table's header, and this list is not a table.
     for (const b of this.cols.querySelectorAll<HTMLButtonElement>("button")) {
       const mine = b.dataset["key"] === key;
-      if (mine) b.setAttribute("aria-sort", desc ? "descending" : "ascending");
-      else b.removeAttribute("aria-sort");
+      const label = `${t.sortBy}: ${b.dataset["label"] ?? ""}`;
+      if (mine) b.dataset["sort"] = desc ? "descending" : "ascending";
+      else delete b.dataset["sort"];
+      b.setAttribute("aria-label", mine ? `${label}, ${desc ? t.sortDesc : t.sortAsc}` : label);
     }
     // Drawn anew, the list gives the keyboard its row back: the same
     // entry, or the one now in its place.
@@ -2433,6 +2457,7 @@ class PdfLeaf extends Leaf {
   async load(path: string, _force?: boolean, page = 1): Promise<void> {
     this.path = path;
     this.setTitle(path.split("/").pop() ?? path);
+    this.view.container.setAttribute("aria-label", path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     void this.loadPassages();
     await this.view.load(convertFileSrc(path, "verso"), page);
@@ -5774,19 +5799,42 @@ function paintToggles(): void {
   ribbon?.paint();
   toggleSideButton.classList.toggle("off", document.body.classList.contains("no-side"));
   toggleRightButton.classList.toggle("off", document.body.classList.contains("no-right"));
+  paintExpanded();
+}
+/** The sidebar, and the right panel, on screen: a drawer open in a
+ *  narrow window, else not hidden. */
+function sideShown(): boolean {
+  return narrow.matches ? document.body.classList.contains("side-open") : !document.body.classList.contains("no-side");
+}
+function rightShown(): boolean {
+  return narrow.matches ? document.body.classList.contains("right-open") : !document.body.classList.contains("no-right");
+}
+/** Shown or hidden is the toggles' state, said as well as drawn. Set in
+ *  place: a drawer that closes on a press elsewhere must not redraw the
+ *  ribbon under the pointer, whose click would be lost. */
+function paintExpanded(): void {
+  toggleSideButton.setAttribute("aria-expanded", String(sideShown()));
+  toggleRightButton.setAttribute("aria-expanded", String(rightShown()));
+  ui.ribbon.querySelector('[data-id="files"]')?.setAttribute("aria-expanded", String(sideShown()));
+  ui.ribbon.querySelector('[data-id="right"]')?.setAttribute("aria-expanded", String(rightShown()));
 }
 const narrow = window.matchMedia("(max-width: 760px)");
-narrow.addEventListener("change", () => document.body.classList.remove("side-open", "right-open"));
+narrow.addEventListener("change", () => {
+  document.body.classList.remove("side-open", "right-open");
+  paintExpanded();
+});
 document.addEventListener("mousedown", (e) => {
   if (!narrow.matches) return;
   const at = e.target as HTMLElement;
   if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side")) document.body.classList.remove("side-open");
   if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right")) document.body.classList.remove("right-open");
+  paintExpanded();
 });
 function toggleSide(): void {
   if (narrow.matches) {
     document.body.classList.toggle("side-open");
     document.body.classList.remove("right-open");
+    paintExpanded();
     return;
   }
   document.body.classList.toggle("no-side");
@@ -5796,6 +5844,7 @@ function toggleRight(): void {
   if (narrow.matches) {
     document.body.classList.toggle("right-open");
     document.body.classList.remove("side-open");
+    paintExpanded();
     return;
   }
   document.body.classList.toggle("no-right");
@@ -6000,6 +6049,9 @@ class Ribbon {
       b.disabled = Boolean(it.needsFolder) && !hasFolder;
       if (id === "files") b.classList.toggle("on", !document.body.classList.contains("no-side"));
       if (id === "right") b.classList.toggle("on", !document.body.classList.contains("no-right"));
+      // The two toggles say whether what they show is on screen.
+      if (id === "files") b.setAttribute("aria-expanded", String(sideShown()));
+      if (id === "right") b.setAttribute("aria-expanded", String(rightShown()));
       if (id === "new") b.setAttribute("aria-haspopup", "menu");
       b.addEventListener("click", () => { if (!this.dragged) it.run(b); this.dragged = false; });
       b.addEventListener("contextmenu", (e) => {

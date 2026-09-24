@@ -143,6 +143,10 @@ export class PdfView {
     const acts = h("span", "pdf-acts");
     acts.append(btn("link", s.copyPageLink, () => opts.onCopyLink(this.fragment())), btn("quote", s.quoteSelection, () => this.quote()));
     this.bar.append(pages, zoom, find, acts);
+    // The pages: a region named after the file (by the caller), in the
+    // Tab order, so that the arrows and Page Down scroll them.
+    this.container.tabIndex = 0;
+    this.container.setAttribute("role", "region");
     this.container.append(h("div", "pdfViewer"));
     this.body.append(this.container);
     this.el.append(this.bar, this.body);
