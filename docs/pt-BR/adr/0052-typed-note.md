@@ -1,10 +1,12 @@
-# ADR 0052 — Nota tipada: `type:` no frontmatter e schema na pasta
+# ADR 0052 — Nota tipada: `type:` no frontmatter e um schema
 
 - Data: 2026-09-24
-- Fonte: `docs/BRIEFING.md` §5.3 (a linha da nota tipada), §11.3, §16.1, §17
-  item 7; [0014](0014-primitives-catalog.md), Consequências; o memo
+- Fonte: `docs/BRIEFING.md` §5.3 (a linha da nota tipada), §8, §11.3, §16.1,
+  §17 item 7; [0014](0014-primitives-catalog.md), Consequências; o memo
   [`docs/reference/typed-note-decision.md`](../reference/typed-note-decision.md)
-- Status no briefing: `PROPOSTO`
+- Status no briefing: `PROPOSTO` para a linha da nota tipada (§5.3) e para o
+  i18n de schema (§11.3); `ABERTO` para o formato e a localização dos schemas
+  (§11.3, §17 item 7)
 
 ## Contexto
 
@@ -24,12 +26,23 @@ tipo de uma propriedade é o que o valor YAML dela for, e nada diz o que um PdM
 tem.
 
 Este ADR foi rascunhado junto com o memo, que apresenta as opções e as
-recomendações do autor. Nada nele está decidido.
+recomendações do autor. Como os ADRs 0044 a 0048, ele entra `[ABERTO]`: um
+rascunho para o mantenedor, sem nada decidido.
 
-## Decisão (proposta, não confirmada)
+## Decisão
 
-Os pontos 1 e 2 repetem a frase do briefing; como o nome é comparado, e os
-pontos 3 a 7, são a recomendação do memo, à espera do mantenedor.
+Nenhuma: `[ABERTO]`. Os sete pontos abaixo são um rascunho para o mantenedor
+aceitar, mudar ou recusar.
+
+O que eles repetem do briefing, onde está `PROPOSTO`: `type:` no frontmatter
+tipa uma nota, e sem schema a nota é Markdown comum (§5.3; pontos 1 e 2); o
+valor é uma chave neutra de idioma, mostrada sob um rótulo traduzido por
+idioma (§11.3; pontos 1 e 4). Onde um schema fica, o briefing dá duas
+respostas (§5.3, §8) e marca a questão como `ABERTO` (§11.3, §17 item 7): é o
+ponto 3. Todo o resto é a recomendação do memo, à espera do mantenedor — nos
+pontos 1 e 2 também: que o valor é um único texto, como o nome é comparado, e
+que nada é reportado para um `type` que não tipa nada (memo, seção 4.2 (a)
+e (c)).
 
 1. **Uma nota é tipada quando o frontmatter dela tem um `type` com um único
    texto que nomeia um schema da pasta aberta.** O nome é comparado como a Q12
@@ -38,11 +51,20 @@ pontos 3 a 7, são a recomendação do memo, à espera do mantenedor.
 2. **Sem esse schema a nota é Markdown comum**, exatamente como hoje, e `type` é
    uma propriedade qualquer — sem `type`, com um `type` que não nomeia schema
    nenhum, ou com um `type` que não é um único texto. Nada é reportado: um vault
-   pode usar `type:` para fins próprios (briefing §5.3; spec §6).
-3. **Um schema é texto na pasta aberta. Formato e localização são a Q11 da
-   spec, `[ABERTO]`.** O memo recomenda um bloco cercado cuja linguagem é
-   `verso-schema`, com YAML dentro, em qualquer nota da pasta fora de caminhos
-   ocultos e ignorados, nomeado pelo `type` que traz dentro (memo, seção 5.6).
+   pode usar `type:` para fins próprios (memo, seção 4.2 (a); spec §6).
+3. **Onde um schema fica, e em que formato, é a Q11 da spec, `[ABERTO]`, e os
+   documentos respondem a localização duas vezes.** O briefing §5.3 — e o
+   ADR 0014 e a spec §6 depois dele — põe um schema em "arquivo de texto na
+   pasta"; o briefing §8 — e o [0021](0021-sync-automerge-layered-config.md)
+   depois dele, os dois `PROPOSTO` — põe schemas na camada compartilhada da
+   configuração, que o [0011](0011-config-outside-tree-index-as-cache.md)
+   mantém fora da árvore. A contradição fica registrada, não resolvida (memo,
+   seção 10, item 1), e este rascunho não escolhe lado: quem escolhe é a
+   resposta da Q11. O memo apresenta quatro formatos e quatro localizações, o
+   diretório de configuração entre elas (seções 5.2 e 5.3), e recomenda um
+   bloco cercado cuja linguagem é `verso-schema`, com YAML dentro, em qualquer
+   nota da pasta fora de caminhos ocultos e ignorados, nomeado pelo `type` que
+   traz dentro (seção 5.6).
 4. **Um schema declara, na primeira versão**, o nome do tipo, o rótulo dele por
    idioma da interface e uma lista ordenada de propriedades, cada uma com
    chave, rótulo e tipo de valor (`kind`): `text`, `list`, `number`,
@@ -68,9 +90,10 @@ pontos 3 a 7, são a recomendação do memo, à espera do mantenedor.
 ## Consequências
 
 - **A degradação vale por construção.** A nota tipada é uma nota Markdown, o
-  schema dela é texto na pasta, e o índice deriva os dois e não guarda nada que
-  os arquivos não tenham ([0013](0013-degrades-to-markdown.md), cuja aceitação o
-  memo submete ao mantenedor junto com este;
+  schema dela é texto onde quer que a Q11 o ponha (ponto 3), e o índice deriva
+  os dois e não guarda nada que os arquivos não tenham
+  ([0013](0013-degrades-to-markdown.md), cuja aceitação o memo submete ao
+  mantenedor junto com este;
   [0011](0011-config-outside-tree-index-as-cache.md)).
 - **Abrir nunca reescreve** ([0012](0012-files-are-source-of-truth.md),
   invariantes 7, 8 e 11). Trazer as notas de um tipo para um schema alterado, se
@@ -107,10 +130,13 @@ pontos 3 a 7, são a recomendação do memo, à espera do mantenedor.
 - Reproduzir Dataview, Templater e statblocks como plugins de terceiros —
   registrado no [0014](0014-primitives-catalog.md), onde o catálogo descarta
   essa via.
-- Nenhuma das opções do memo é descartada antes de o mantenedor escolher; o PR
-  de fechamento registra aqui as que ficarem de lado.
 
 ## Status
 
-Proposto. Rascunhado em 2026-09-24 junto com o memo
-`docs/reference/typed-note-decision.md`; só o mantenedor o aceita.
+`[ABERTO]`: um rascunho para o mantenedor, a decidir antes do item 2.6 da
+Fase 2. Rascunhado em 2026-09-24 junto com o memo
+`docs/reference/typed-note-decision.md`, e lido com ele por uma sessão nova da
+Opus 5.5 (o memo, seção 13). Só o mantenedor o fecha: aceito como está ou
+mudado, ele é editado no lugar, citando o commit ou o PR em que o mantenedor
+decidiu. As opções do memo não são descartadas antes de o mantenedor escolher;
+esse PR leva as que ficarem de lado para as Alternativas descartadas.

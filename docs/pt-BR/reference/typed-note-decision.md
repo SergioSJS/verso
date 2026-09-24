@@ -10,10 +10,14 @@
 - Autor: Opus 5.5, no papel de autor de documentos que o
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá à "Opus 5". As
   recomendações das seções 4 a 6 são **do autor**, marcadas como tais; não são
-  decisões. Revisor: Fable 5.1 (ADR 0032); ninguém leu ainda. Nenhum Rust,
-  nenhum TypeScript e nenhuma fixture nesta mudança. Um rascunho do
-  [ADR 0052](../adr/0052-typed-note.md), **Proposto**, vem junto, para que o
-  mantenedor possa aceitar, mudar ou recusar um texto em vez de um resumo.
+  decisões. Leitor: uma sessão nova da Opus 5.5, no lugar do Fable 5.1 por
+  decisão do mantenedor de 2026-09-23 (`../review/phase-2.md` §6, item 17, e
+  §7) — então o modelo que escreveu este memo o leu, o desvio do ADR 0032 que
+  essa decisão aceita. Os achados, e o que foi feito com cada um, estão na
+  seção 13. Nenhum Rust, nenhum TypeScript e nenhuma fixture nesta mudança. Um
+  rascunho do [ADR 0052](../adr/0052-typed-note.md), **`[ABERTO]`**, vem
+  junto, para que o mantenedor possa aceitar, mudar ou recusar um texto em vez
+  de um resumo.
 - Decide sobre: as duas linhas que o [roadmap](../roadmap.md) põe antes do item
   2.6 — **"Promoção de nota tipada
   ([0014](../adr/0014-primitives-catalog.md)) e de degradação para Markdown
@@ -72,14 +76,15 @@ escopo da fase que não começou. O roadmap diz que ele espera duas decisões:
 | Promoção de nota tipada (0014) e de degradação para Markdown (0013) a ADR próprio, Aceito | antes da nota tipada (2.6) | ADR novo |
 | Formato e localização dos schemas | antes da nota tipada (2.6) | Q11 da spec |
 
-Elas vêm antes do código pelo mesmo motivo que a Q18 veio antes da feature 1 e a
-Q12 antes da feature 3: toda camada depende da resposta. Qual arquivo declara um
-tipo, e onde ele fica, decide o que o parser reporta, o que o índice guarda, o
-que cruza o contrato, o que a janela desenha e o que o `verso mcp` responde. Uma
-fatia construída sob uma resposta e decidida sob outra é retrabalho sem culpado.
-O [ADR 0003](../adr/0003-primitives-not-workarounds.md) e o ADR 0014 dizem isso
-com todas as letras: toda primitiva precisa do seu próprio ADR antes de ser
-implementada.
+Elas vêm antes do código pelo mesmo motivo que a Q18 veio antes da feature 1:
+toda camada depende da resposta. Qual arquivo declara um tipo, e onde ele fica,
+decide o que o parser reporta, o que o índice guarda, o que cruza o contrato, o
+que a janela desenha e o que o `verso mcp` responde. Uma fatia construída sob
+uma resposta e decidida sob outra é retrabalho sem culpado: a Q12 fechou com o
+código da feature 3 já escrito, e esse código ficou devendo cinco diferenças
+(Q12 da spec). O [ADR 0003](../adr/0003-primitives-not-workarounds.md) e o
+ADR 0014 dizem isso com todas as letras: toda primitiva precisa do seu próprio
+ADR antes de ser implementada.
 
 Duas coisas o ligam ao portão:
 
@@ -87,10 +92,11 @@ Duas coisas o ligam ao portão:
   (critério de saída 1). O mês de um mestre é PdMs, lugares, facções e sessões;
   a nota tipada é o único item da Fase 2 voltado para esse material, e não para
   notas em geral.
-- A **consulta por tipo** é a única capacidade de agente que a Fase 1 adiou: o
-  critério de saída 4 dela diz "Consulta por tipo fica para quando a nota tipada
-  existir (Fase 2, item 2.6)", e o ADR 0018 diz que ela "entra no MCP quando a
-  nota tipada entrar".
+- A **consulta por tipo** é a capacidade de agente que a Fase 1 deixou para
+  este item: o critério de saída 4 dela diz "Consulta por tipo fica para quando
+  a nota tipada existir (Fase 2, item 2.6)", e o ADR 0018 diz que ela "entra no
+  MCP quando a nota tipada entrar". (A escrita por agente também fica fora da
+  Fase 1, e não tem fase: o roadmap a põe depois da Fase 2.)
 
 O material decidido que restringe as respostas, nada dele reaberto aqui:
 
@@ -181,7 +187,7 @@ rodando para este memo. As citações ficam no inglês do original.
 | "Once a property type is assigned to a property name, all properties with that name across your vault will use the same type." | mesma página |
 | "Internal links in text properties must be surrounded with quotes" — `link: "[[Episode IV]]"`; o mesmo dentro de listas | mesma página |
 | Propriedades aninhadas: "To view nested properties, we recommend using the source mode." Markdown não é renderizado em propriedades, "an intentional limitation" | mesma página |
-| Propriedades padrão: `tags`, `aliases` e `cssclasses` (`tag`, `alias` e `cssclass` obsoletas desde a 1.9). `type` não é uma delas | mesma página |
+| Propriedades padrão: `tags`, `aliases` e `cssclasses`; `tag`, `alias` e `cssclass` ficaram obsoletas na 1.4, e o suporte a elas como propriedades padrão cai na 1.9. `type` não é uma delas | mesma página; a obsolescência na 1.4 também no changelog da linha seguinte |
 | "Backlinks: Properties with links will now properly show in backlink entries." | "Obsidian 1.4 Desktop", 2023-08-31, `https://obsidian.md/changelog/2023-08-31-desktop-v1.4.5/` |
 | `CachedMetadata.frontmatterLinks?: FrontmatterLinkCache[]`, `@since 1.4.0`, cada um com a `key` da propriedade | `obsidian.d.ts`, pacote npm `obsidian` 1.13.1, MIT |
 | Uma base é um arquivo `.base` de "valid YAML conforming to the schema" — filters, formulas, properties, summaries, views — e pode ser "embedded in a code block" | "Bases syntax", `https://obsidian.md/help/bases/syntax` |
@@ -296,8 +302,9 @@ Embutir qualquer tipo no app: um PdM é conteúdo, nunca código
 ### 4.3 A degradação para Markdown (ADR 0013)
 
 A nota tipada degrada por construção: é uma nota Markdown, o schema dela é
-texto na pasta, e o índice deriva os dois. O que o mantenedor escolhe é quanto
-do [ADR 0013](../adr/0013-degrades-to-markdown.md) passa a valer junto com ela.
+texto — na pasta, em três das quatro localizações da seção 5.3 —, e o índice
+deriva os dois. O que o mantenedor escolhe é quanto do
+[ADR 0013](../adr/0013-degrades-to-markdown.md) passa a valer junto com ela.
 
 | | A. Aceitar o 0013 como está escrito, com duas palavras delimitadas | B. Aceitá-lo só para notas tipadas e schemas |
 |---|---|---|
@@ -377,13 +384,13 @@ O raciocínio:
 |---|---|---|---|---|
 | Legível em qualquer editor (0013) | sim, como YAML | sim | sim | sim, com verbosidade |
 | Prosa ao lado da definição, para pessoas e agentes | comentários | o corpo da nota | o corpo da nota, em volta do bloco | uma string `description` |
-| No Obsidian | não é formato suportado (seção 3); o que o app mostra não foi observado | uma nota cujas propriedades guardam um valor aninhado — o Obsidian recomenda o modo source para esses | uma nota com um bloco de código | não é formato suportado |
+| No Obsidian | não é formato suportado (seção 3); o que o app mostra não foi observado | uma nota cujas propriedades guardam um valor aninhado — o Obsidian recomenda o modo fonte para esses | uma nota com um bloco de código | não é formato suportado |
 | Soma aos nomes de propriedade do vault no Obsidian | não | sim — um nome, se a definição inteira ficar sob uma chave só | não | não |
 | Achado e lido hoje | listado pela varredura como arquivo, nunca lido | percorrido e lido; o frontmatter dele já é um `Value` | percorrido e lido; o bloco é novo no relatório do parser | listado como arquivo, nunca lido |
 | Um agente o lê pelo `verso mcp` hoje | nenhuma ferramenta o lê | `read_note` | `read_note` | nenhuma ferramenta o lê |
 | Trabalho no parser | um caminho de leitura novo no core para um arquivo que não é nota, e então YAML | uma função pura sobre o `Value` que o parser já monta | um campo novo no relatório do `verso-dialect` — span e posição —, e então YAML | um parser de JSON (dependência nova) e um subconjunto escolhido de JSON Schema |
 | Contrato das fixtures (spec §4: um `input.md` por caso) | um layout novo: a entrada não é Markdown | cabe: uma chave nova no `expected.yaml` | cabe: uma chave nova no `expected.yaml` | um layout novo |
-| Edição na janela do Verso | como arquivo de texto | só no modo source: o Live Preview dobra o frontmatter, e o painel mostra valores aninhados sem editá-los | em qualquer modo, como bloco de código | como arquivo de texto |
+| Edição na janela do Verso | como arquivo de texto | só no modo fonte: o Live Preview dobra o frontmatter, e o painel mostra valores aninhados sem editá-los | em qualquer modo, como bloco de código | como arquivo de texto |
 | Espaço para código (0047) | pouco | pouco | pouco | muito: condicionais, referências, padrões |
 
 ### 5.3 A localização, lado a lado
@@ -634,7 +641,7 @@ leitor que o ADR 0032 atribui — ou quem o mantenedor nomear.
 
 | # | Pull request | O que leva | Conferido sem ler código |
 |---|---|---|---|
-| 1 | A decisão (documentos) | o ADR 0052 com a resposta do mantenedor; o 0013 aceito no lugar com as delimitações, se A; a linha do 0014 apontando para o 0052; a Q11 da spec fechada, as duas linhas da §6, a chave nova de primeiro nível da §4 para um bloco de schema e uma categoria de fixture `schema/`, que o `scripts/check-fixtures.sh` aprende, e a linha do histórico; as duas linhas do roadmap riscadas; os status do briefing (§5.3, §11.3, §17 item 7) mudados no Histórico dele, como o cabeçalho permite; **as fixtures de schema, rascunhadas pela IA e aprovadas pelo mantenedor neste mesmo PR** — invariante 17: uma fixture que responde a uma questão `[ABERTO]` só entra no PR que a fecha | o `input.md` e o `expected.yaml` das fixtures |
+| 1 | A decisão (documentos) | o ADR 0052 com a resposta do mantenedor; o 0013 aceito no lugar com as delimitações, se A; a linha do 0014 apontando para o 0052; a Q11 da spec fechada, as duas linhas da §6, uma chave nova de primeiro nível na §4.1 para um bloco de schema — que o `scripts/check-fixtures.sh` aprende (ele confere chaves, não nomes de categoria) —, uma categoria `schema` entre as categorias da §8 da spec, e a linha do histórico; as duas linhas do roadmap riscadas; os status do briefing (§5.3, §11.3, §17 item 7) mudados no Histórico dele, como o cabeçalho permite; **as fixtures de schema, rascunhadas pela IA e aprovadas pelo mantenedor neste mesmo PR, cada uma listada em `crates/verso-dialect/tests/fixtures.rs`, como o script exige** — invariante 17: uma fixture que responde a uma questão `[ABERTO]` só entra no PR que a fecha | o `input.md` e o `expected.yaml` das fixtures |
 | 2 | `verso-dialect`: o bloco de schema | um campo do relatório para blocos `verso-schema` — span, posição, a definição lida ou o seu erro —, sob os limites do frontmatter | as fixtures passam; o alvo de fuzzing, que roda `parse`, chega ao bloco; a fidelidade de span do teste de round-trip cobre o campo; a checagem de WASM continua verde |
 | 3 | `verso-index`: tipos e schemas | o `type` da nota, como escrito e normalizado; os schemas achados; notas por tipo; a versão do schema do índice para 7, o que o reconstrói, como um cache pode ser | `cargo test`; visto na janela na linha 5 |
 | 4 | `verso-core` e o contrato | as propriedades tipadas de uma nota, e se cada uma cabe; a lista de tipos; notas por tipo; os bindings gerados de novo | a checagem dos bindings gerados ([ADR 0038](../adr/0038-ts-type-generation.md)) |
@@ -796,13 +803,13 @@ git log --format='%an <%ae>%n%b' origin/main..HEAD   # autor e Signed-off-by sã
 
 | Onde | O que ganha |
 |---|---|
-| [ADR 0052](../adr/0052-typed-note.md) | Aceito, com as palavras do mantenedor e a data; as opções deixadas de lado vão para as Alternativas descartadas dele |
-| [ADR 0013](../adr/0013-degrades-to-markdown.md) | Decisão e Status editados no lugar: Aceito, com as duas delimitações |
+| [ADR 0052](../adr/0052-typed-note.md) | Decisão e Status editados no lugar: Aceito, com as palavras do mantenedor e a data, citando o commit ou o PR em que ele decidiu; as opções deixadas de lado vão para as Alternativas descartadas dele |
+| [ADR 0013](../adr/0013-degrades-to-markdown.md) | Decisão e Status editados no lugar: Aceito, citando o commit ou o PR em que o mantenedor decidiu; as duas delimitações nas Consequências dele, com uma linha `Revisões:` |
 | [ADR 0014](../adr/0014-primitives-catalog.md) | a linha da nota tipada aponta para o 0052; uma linha de Revisões |
 | [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) | a consequência sobre consulta por tipo aponta para o 0052 |
 | [Índice dos ADRs](../adr/README.md) | as linhas do 0013 e do 0052 |
-| [Spec](../spec/dialect.md) | a Q11 fechada com a resposta; as linhas da §6 para a nota tipada e os schemas; a chave nova e a categoria de fixture da §4; uma linha no histórico |
-| `fixtures/` | os casos `schema/`, aprovados naquele PR |
+| [Spec](../spec/dialect.md) | a Q11 fechada com a resposta; as linhas da §6 para a nota tipada e os schemas; a chave nova da §4.1; a categoria de fixture nova da §8; uma linha no histórico |
+| `fixtures/` | os casos `schema/`, aprovados naquele PR, cada um listado em `crates/verso-dialect/tests/fixtures.rs`; a chave nova no `scripts/check-fixtures.sh` |
 | [Roadmap](../roadmap.md) | as duas linhas da Fase 2 riscadas; o item 2.6 "decidido, não construído" |
 | `docs/BRIEFING.md` e o seu original em pt-BR | só mudanças de status, no Histórico dele: a linha da nota tipada do §5.3, a linha do §11.3 sobre formato e localização dos schemas, o §17 item 7 |
 | [ADR 0021](../adr/0021-sync-automerge-layered-config.md) | a contradição da seção 10, item 1, como o mantenedor a redigir |
@@ -811,3 +818,25 @@ git log --format='%an <%ae>%n%b' origin/main..HEAD   # autor e Signed-off-by sã
 Q10, Q9, Q24 (a parte de links primeiro), a primitiva de views, packs, config
 em camadas, proveniência, notas periódicas, múltiplas raízes, um layout de
 fixture para dois arquivos, e os handles opacos.
+
+## 13. A leitura
+
+Uma sessão nova da Opus 5.5 leu este memo, o rascunho do ADR 0052, os gêmeos
+em pt-BR dos dois e as duas linhas do índice dos ADRs, no lugar do Fable 5.1
+por decisão do mantenedor de 2026-09-23 (cabeçalho). Os achados, com os
+rótulos dela, e o que foi feito com cada um:
+
+| Achado | Nível | O que foi feito |
+|---|---|---|
+| I5 — o ADR 0052 punha o schema "na pasta aberta" (ponto 3, a primeira Consequência), o que toma o lado do briefing §5.3 contra o §8 e o ADR 0021 (seção 10, item 1) e deixa de fora a localização (iv) enquanto chama a Q11 de aberta | IMPORTANTE | O ponto 3 do ADR dá o formato e a localização como a Q11, `[ABERTO]`, registra os dois lugares em que os documentos põem schemas, e não escolhe lado; a primeira Consequência e o título não situam mais o schema, nem a seção 4.3 daqui |
+| I6 — o ADR 0052 entrou Proposto, um status que espelha o briefing, com texto de Decisão rascunhado pela IA | IMPORTANTE | `[ABERTO]`, um rascunho para o mantenedor, no ADR, no gêmeo e nas duas linhas do índice, como entraram os ADRs 0044 a 0048; a abertura da Decisão diz o que repete o briefing (§5.3, §11.3) e o que é recomendação deste memo, a regra do "único texto" e o "nada é reportado" entre elas (seção 4.2 (a)) |
+| O cabeçalho dava o Fable 5.1 como leitor | IMPORTANTE | O cabeçalho nomeia o leitor e a decisão do mantenedor; esta seção |
+| M1 — `tag`, `alias` e `cssclass` "obsoletas desde a 1.9" | MENOR | Obsoletas na 1.4 e sem suporte como propriedades padrão na 1.9, as duas coisas pela página Properties, a primeira também pelo changelog da 1.4 (seção 3) |
+| M5 — termos em pt-BR no gêmeo | MENOR | "modo source" virou "modo fonte", como dizem o roadmap e a janela; "Memo de decisão", "Status:" e "o ADR" já estavam em uso, e o gêmeo não fala de release de teste |
+| M6 — uma categoria de fixture posta na §4 da spec, "que o `scripts/check-fixtures.sh` aprende" | MENOR | Seções 8 e 12: a chave nova na §4.1, que o script aprende; a categoria entre as da §8; cada fixture listada em `crates/verso-dialect/tests/fixtures.rs` |
+| M7 — "a Q12 antes da feature 3" | MENOR | Seção 1: a Q12 fechou com o código da feature 3 já escrito |
+| M8 — a consulta por tipo chamada de "a única capacidade de agente que a Fase 1 adiou" | MENOR | Seção 1: a escrita por agente também fica fora da Fase 1, sem fase |
+| M9 — o plano de fechamento não citava commit nem PR, e não dava ao ADR 0013 uma linha `Revisões:` | MENOR | Seção 12: as duas coisas, como o índice dos ADRs exige |
+| M10 — uma nota entre as alternativas descartadas do ADR 0052 | MENOR | Levada para o Status dele |
+
+Estas mudanças ainda não foram lidas.

@@ -10,9 +10,13 @@
 - Author: Opus 5.5, in the role of author of documents that
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) gives "Opus 5". The
   recommendations in sections 4 to 6 are **the author's**, labelled as such;
-  they are not decisions. Reviewer: Fable 5.1 (ADR 0032); not read by anyone
-  yet. No Rust, no TypeScript and no fixture in this change. A draft
-  [ADR 0052](../adr/0052-typed-note.md), **Proposed**, comes with it, so that
+  they are not decisions. Reader: a fresh Opus 5.5 session, standing in for
+  Fable 5.1 by the maintainer's decision of 2026-09-23
+  (`../review/phase-2.md` §6, item 17, and §7) — so the model that wrote this
+  memo read it, the departure from ADR 0032 that decision accepts. Its
+  findings, and what was done with each, are in section 13. No Rust, no
+  TypeScript and no fixture in this change. A draft
+  [ADR 0052](../adr/0052-typed-note.md), **`[OPEN]`**, comes with it, so that
   the maintainer can accept, change or refuse a text rather than a summary.
 - Decides on: the two rows the [roadmap](../roadmap.md) puts before item 2.6 —
   **"Promotion of the typed note
@@ -73,13 +77,15 @@ the phase not started. The roadmap says it waits for two decisions:
 | Promotion of the typed note (0014) and of degradation to Markdown (0013) to an ADR of their own, Accepted | before the typed note (2.6) | new ADR |
 | Format and location of the schemas | before the typed note (2.6) | spec Q11 |
 
-They come before the code for the reason Q18 came before feature 1 and Q12
-before feature 3: every layer depends on the answer. Which file declares a type,
-and where it lives, decides what the parser reports, what the index stores, what
-crosses the contract, what the window draws and what `verso mcp` answers. A
-slice built under one answer and decided under another is rework with nobody at
-fault. [ADR 0003](../adr/0003-primitives-not-workarounds.md) and ADR 0014 say
-it outright: every primitive needs its own ADR before it is implemented.
+They come before the code for the reason Q18 came before feature 1: every
+layer depends on the answer. Which file declares a type, and where it lives,
+decides what the parser reports, what the index stores, what crosses the
+contract, what the window draws and what `verso mcp` answers. A slice built
+under one answer and decided under another is rework with nobody at fault: Q12
+closed with feature 3's code already written, and that code then owed five
+differences (spec Q12). [ADR 0003](../adr/0003-primitives-not-workarounds.md)
+and ADR 0014 say it outright: every primitive needs its own ADR before it is
+implemented.
 
 Two things tie it to the gate:
 
@@ -87,9 +93,11 @@ Two things tie it to the gate:
   criterion 1). A game master's month is NPCs, places, factions and sessions;
   the typed note is the one Phase 2 item aimed at that material rather than at
   notes in general.
-- **Query by type** is the one agent capability Phase 1 postponed: its exit
-  criterion 4 says "Querying by type waits until the typed note exists (Phase
-  2, item 2.6)", and ADR 0018 puts it in `verso mcp` "when typed notes do".
+- **Query by type** is the agent capability Phase 1 left to this item: its
+  exit criterion 4 says "Querying by type waits until the typed note exists
+  (Phase 2, item 2.6)", and ADR 0018 puts it in `verso mcp` "when typed notes
+  do". (Agent writing is outside Phase 1 too, and has no phase: the roadmap
+  lists it after Phase 2.)
 
 The decided material that constrains the answers, none of it reopened here:
 
@@ -176,7 +184,7 @@ the running app for this memo.
 | "Once a property type is assigned to a property name, all properties with that name across your vault will use the same type." | same page |
 | "Internal links in text properties must be surrounded with quotes" — `link: "[[Episode IV]]"`; the same inside lists | same page |
 | Nested properties: "To view nested properties, we recommend using the source mode." Markdown is not rendered in properties, "an intentional limitation" | same page |
-| Default properties: `tags`, `aliases` and `cssclasses` (`tag`, `alias` and `cssclass` deprecated in 1.9). `type` is not one of them | same page |
+| Default properties: `tags`, `aliases` and `cssclasses`; `tag`, `alias` and `cssclass` were deprecated in 1.4, and their support as default properties is dropped in 1.9. `type` is not one of them | same page; the 1.4 deprecation also in the changelog of the next row |
 | "Backlinks: Properties with links will now properly show in backlink entries." | "Obsidian 1.4 Desktop", 2023-08-31, `https://obsidian.md/changelog/2023-08-31-desktop-v1.4.5/` |
 | `CachedMetadata.frontmatterLinks?: FrontmatterLinkCache[]`, `@since 1.4.0`, each one carrying the property's `key` | `obsidian.d.ts`, npm package `obsidian` 1.13.1, MIT |
 | A base is a `.base` file of "valid YAML conforming to the schema" — filters, formulas, properties, summaries, views — and can be "embedded in a code block" | "Bases syntax", `https://obsidian.md/help/bases/syntax` |
@@ -283,9 +291,9 @@ schema says. Build any type into the app: an NPC is content, never code
 ### 4.3 Degradation to Markdown (ADR 0013)
 
 The typed note degrades by construction: it is a Markdown note, its schema is
-text in the folder, and the index derives both. What the maintainer chooses is
-how much of [ADR 0013](../adr/0013-degrades-to-markdown.md) becomes binding
-with it.
+text — in the folder, under three of the four locations of section 5.3 — and
+the index derives both. What the maintainer chooses is how much of
+[ADR 0013](../adr/0013-degrades-to-markdown.md) becomes binding with it.
 
 | | A. Accept 0013 as written, with two words delimited | B. Accept it for typed notes and schemas only |
 |---|---|---|
@@ -617,7 +625,7 @@ names.
 
 | # | Pull request | What it carries | Checked without reading code |
 |---|---|---|---|
-| 1 | The decision (documents) | ADR 0052 with the maintainer's answer; 0013 accepted in place with the delimitations, if A; 0014's row pointing at 0052; spec Q11 closed, §6's two rows, §4's new first-level key for a schema block and a `schema/` fixture category, which `scripts/check-fixtures.sh` learns, and the history line; the roadmap's two rows struck; the briefing's statuses (§5.3, §11.3, §17 item 7) changed in its History, as its header allows; **the schema fixtures, drafted by the AI and approved by the maintainer in this same PR** — invariant 17: a fixture that answers an `[OPEN]` question enters only in the PR that closes it | the fixtures' `input.md` and `expected.yaml` |
+| 1 | The decision (documents) | ADR 0052 with the maintainer's answer; 0013 accepted in place with the delimitations, if A; 0014's row pointing at 0052; spec Q11 closed, §6's two rows, a new first-level key in §4.1 for a schema block — which `scripts/check-fixtures.sh` learns (it checks keys, not category names) — a `schema` category among spec §8's categories, and the history line; the roadmap's two rows struck; the briefing's statuses (§5.3, §11.3, §17 item 7) changed in its History, as its header allows; **the schema fixtures, drafted by the AI and approved by the maintainer in this same PR, each listed in `crates/verso-dialect/tests/fixtures.rs`, as the script requires** — invariant 17: a fixture that answers an `[OPEN]` question enters only in the PR that closes it | the fixtures' `input.md` and `expected.yaml` |
 | 2 | `verso-dialect`: the schema block | a report field for `verso-schema` blocks — span, position, the parsed definition or its error — under the frontmatter's limits | the fixtures pass; the fuzz target, which runs `parse`, reaches the block; the round-trip test's span fidelity covers the field; the WASM check stays green |
 | 3 | `verso-index`: types and schemas | the note's `type`, as written and folded; the schemas found; notes by type; the index's schema version to 7, which rebuilds it, as a cache may be | `cargo test`; seen in the window at row 5 |
 | 4 | `verso-core` and the contract | the typed properties of a note, and whether each fits; the list of types; notes by type; the bindings regenerated | the generated-bindings check ([ADR 0038](../adr/0038-ts-type-generation.md)) |
@@ -774,13 +782,13 @@ git log --format='%an <%ae>%n%b' origin/main..HEAD   # author and Signed-off-by 
 
 | Where | What it gains |
 |---|---|
-| [ADR 0052](../adr/0052-typed-note.md) | Accepted, with the maintainer's words and date; the options set aside move to its Discarded alternatives |
-| [ADR 0013](../adr/0013-degrades-to-markdown.md) | Decision and Status edited in place: Accepted, with the two delimitations |
+| [ADR 0052](../adr/0052-typed-note.md) | Decision and Status edited in place: Accepted, with the maintainer's words and date, citing the commit or pull request in which they decided; the options set aside move to its Discarded alternatives |
+| [ADR 0013](../adr/0013-degrades-to-markdown.md) | Decision and Status edited in place: Accepted, citing the commit or pull request in which the maintainer decided; the two delimitations in its Consequences, with a `Revisions:` line |
 | [ADR 0014](../adr/0014-primitives-catalog.md) | the typed-note row points at 0052; a Revisions line |
 | [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) | the consequence on query by type points at 0052 |
 | [ADR index](../adr/README.md) | the rows of 0013 and 0052 |
-| [Spec](../spec/dialect.md) | Q11 closed with the answer; §6's rows for the typed note and the schemas; §4's new key and fixture category; a history line |
-| `fixtures/` | the `schema/` cases, approved in that PR |
+| [Spec](../spec/dialect.md) | Q11 closed with the answer; §6's rows for the typed note and the schemas; §4.1's new key; §8's new fixture category; a history line |
+| `fixtures/` | the `schema/` cases, approved in that PR, each listed in `crates/verso-dialect/tests/fixtures.rs`; the new key in `scripts/check-fixtures.sh` |
 | [Roadmap](../roadmap.md) | the two Phase 2 rows struck through; item 2.6 "decided, not built" |
 | `docs/BRIEFING.md` and its pt-BR original | status changes only, in its History: §5.3's typed-note row, §11.3's line on schema format and location, §17 item 7 |
 | [ADR 0021](../adr/0021-sync-automerge-layered-config.md) | the contradiction of section 10, item 1, as the maintainer words it |
@@ -789,3 +797,25 @@ git log --format='%an <%ae>%n%b' origin/main..HEAD   # author and Signed-off-by 
 more: Q10, Q9, Q24 (the link part first), the views primitive, packs, layered
 configuration, provenance, periodic notes, multi-root, a fixture layout for two
 files, and the opaque handles.
+
+## 13. The reading
+
+A fresh Opus 5.5 session read this memo, the draft ADR 0052, their pt-BR twins
+and the ADR index's two rows, standing in for Fable 5.1 by the maintainer's
+decision of 2026-09-23 (header). Its findings, under its labels, and what was
+done with each:
+
+| Finding | Level | What was done |
+|---|---|---|
+| I5 — ADR 0052 put the schema "in the open folder" (point 3, the first Consequence), which takes briefing §5.3's side against §8 and ADR 0021 (section 10, item 1) and leaves out location (iv) while calling Q11 open | IMPORTANT | Point 3 of the ADR gives the format and the location as Q11, `[OPEN]`, records both places the documents put schemas, and takes no side; the first Consequence and the title no longer place the schema, nor does section 4.3 here |
+| I6 — ADR 0052 entered Proposed, a status that mirrors the briefing, on Decision text the AI drafted | IMPORTANT | `[OPEN]`, a draft for the maintainer, in the ADR, its twin and both index rows, as ADRs 0044 to 0048 entered; the Decision's opening says what restates the briefing (§5.3, §11.3) and what is this memo's recommendation, the "one text" rule and "nothing is reported" among it (section 4.2 (a)) |
+| The header named Fable 5.1 as the reader | IMPORTANT | The header names the reader and the maintainer's decision; this section |
+| M1 — `tag`, `alias` and `cssclass` "deprecated in 1.9" | MINOR | Deprecated in 1.4 and dropped as default properties in 1.9, both from the Properties page, the first also from the 1.4 changelog (section 3) |
+| M5 — pt-BR terms in the twin | MINOR | "modo source" is "modo fonte", as the roadmap and the window say; "Memo de decisão", "Status:" and "o ADR" were already in use, and the twin names no test release |
+| M6 — a fixture category put in spec §4, "which `scripts/check-fixtures.sh` learns" | MINOR | Sections 8 and 12: the new key in §4.1, which the script learns; the category among §8's; each fixture listed in `crates/verso-dialect/tests/fixtures.rs` |
+| M7 — "Q12 before feature 3" | MINOR | Section 1: Q12 closed with feature 3's code already written |
+| M8 — query by type called "the one agent capability Phase 1 postponed" | MINOR | Section 1: agent writing is outside Phase 1 too, with no phase |
+| M9 — the closing plan cited no commit or pull request, and gave ADR 0013 no `Revisions:` line | MINOR | Section 12: both, as the ADR index requires |
+| M10 — a note among ADR 0052's discarded alternatives | MINOR | Moved to its Status |
+
+These changes have not been read yet.
