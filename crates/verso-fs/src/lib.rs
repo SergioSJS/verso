@@ -3,8 +3,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! The one crate that touches the files of the open folder (ADR 0026 rule 5,
-//! ADR 0028): walking it, confining every path to it, reading, and writing
-//! atomically. Phase 1, feature 2. The watcher comes later (ADR 0044).
+//! ADR 0028): walking it, confining every path to it, reading, writing
+//! atomically (Phase 1, feature 2), and watching it for changes made
+//! elsewhere ([`Root::watch`]; ADR 0044 placed the watcher after feature 2,
+//! and it is provisional until the maintainer decides on
+//! `docs/reference/watcher-decision.md`).
 //!
 //! A path as a string exists at the entry edge — [`Root::open`] takes one —
 //! and inside this crate. Everything that crosses out is a [`Handle`]
@@ -35,6 +38,7 @@ mod confine;
 mod ops;
 mod placeholder;
 mod walk;
+mod watch;
 mod write;
 
 use std::collections::HashMap;
@@ -45,6 +49,7 @@ use std::time::SystemTime;
 pub use confine::ConfinementError;
 pub use ops::OpReport;
 pub use walk::{Entry, EntryKind, Problem, Walk};
+pub use watch::{Changes, MAX_WAIT, Watch};
 pub use write::{WriteError, WriteReport};
 
 /// Deepest directory nesting the walk enters. The root's children are at
@@ -302,6 +307,21 @@ impl Root {
         let to = self.confine(to).map_err(WriteError::Confined)?;
         let report = ops::rename_path(&self.path.join(&from), &self.path.join(&to))?;
         Ok((self.intern(to), report))
+    }
+
+    /// Watch the folder for changes, whoever makes them: `on_change` gets
+    /// each batch of paths relative to the root — only what the walk lists,
+    /// no hidden entry and no ignored path — on a thread of the watch's own,
+    /// once the folder has been quiet for `quiet` (or after [`MAX_WAIT`] of
+    /// changes that do not stop). Reading a file is not a change. Dropping
+    /// the [`Watch`] stops it. Fails when the operating system will not
+    /// watch the folder (on Linux, when the inotify limit is reached).
+    pub fn watch(
+        &self,
+        quiet: std::time::Duration,
+        on_change: impl FnMut(Changes) + Send + 'static,
+    ) -> Result<Watch, std::io::Error> {
+        watch::start(&self.path, self.ignored.clone(), quiet, on_change)
     }
 
     /// Move an entry into `.trash/` at the root (Obsidian's bin), keeping
