@@ -129,12 +129,14 @@ function prepare(v) {
     const body = text.slice(s.from, s.to).trim();
     if (body === "" || body === empty) fail(`${file}: nothing under "${unreleased}" to release`);
     const released = `${unreleased}\n\n${empty}\n\n## ${v} — ${date}\n\n${body}\n\n`;
-    write(file, text.slice(0, s.start) + released + text.slice(s.to));
+    write(file, `${(text.slice(0, s.start) + released + text.slice(s.to)).trimEnd()}\n`);
   }
   if (dryRun) return;
 
   run("git", ["add", "Cargo.toml", "Cargo.lock", "app/ui/package.json", "app/ui/package-lock.json", ...CHANGELOGS.map((c) => c.file)]);
-  run("git", ["commit", "--quiet", "-s", "-m", `release: v${v}`, "-m", `Sets the version to ${v} and moves the changelog's unreleased entries under it (ADR 0051). After the merge: node scripts/release.mjs tag ${v}`]);
+  run("git", ["commit", "--quiet", "-s", "-m", `release: v${v}`,
+    "-m", `Sets the version to ${v} and moves the changelog's unreleased\nentries under it (ADR 0051).`,
+    "-m", `After the merge: node scripts/release.mjs tag ${v}`]);
   run("git", ["push", "--quiet", "-u", "origin", branch], { stdio: ["ignore", "pipe", "pipe"] });
   const body = [
     "## What",
