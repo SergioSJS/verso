@@ -45,6 +45,8 @@ pub enum Msg {
     Opening(String),
     /// `verso <folder>`: no app to start; what was tried.
     AppNotFound(String),
+    /// `verso open <folder>`: nothing started, and no folder is there.
+    NoFolderToOpen(String),
     /// A first argument that is neither a subcommand nor an existing folder.
     UnknownSubcommand(String),
     UnknownOption(String),
@@ -147,6 +149,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
             Msg::AppNotFound(tried) => format!(
                 "não achei o aplicativo Verso ({tried}). Defina VERSO_APP com o caminho do executável ou instale o app."
             ),
+            Msg::NoFolderToOpen(folder) => format!("não há pasta em {folder}"),
             Msg::IndexSummary {
                 indexed,
                 unchanged,
@@ -229,6 +232,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
             Msg::AppNotFound(tried) => format!(
                 "could not find the Verso application ({tried}). Set VERSO_APP to the executable or install the app."
             ),
+            Msg::NoFolderToOpen(folder) => format!("no folder at {folder}"),
             Msg::IndexSummary {
                 indexed,
                 unchanged,
@@ -346,6 +350,7 @@ mod tests {
             Msg::McpFailed("e".into()),
             Msg::Opening("/v".into()),
             Msg::AppNotFound("e".into()),
+            Msg::NoFolderToOpen("/v".into()),
         ]
     }
 
@@ -381,6 +386,7 @@ mod tests {
             Msg::McpFailed(_) => 25,
             Msg::Opening(_) => 26,
             Msg::AppNotFound(_) => 27,
+            Msg::NoFolderToOpen(_) => 28,
         }
     }
 
@@ -390,7 +396,7 @@ mod tests {
         seen.sort_unstable();
         // `ordinal` is exhaustive, so its highest arm is the variant count
         // minus one; the samples must reach it without a gap.
-        let expected: Vec<usize> = (0..=27).collect();
+        let expected: Vec<usize> = (0..=28).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
     }
 

@@ -153,7 +153,7 @@ fn command_of(
     // not a subcommand and names an existing directory opens that folder
     // in the app; one that names nothing is a usage error. A subcommand
     // wins over a folder of the same name, which `verso open` reaches.
-    // The rule ADR 0042 records as a recommendation, provisional.
+    // The rule ADR 0042 decides for Phase 2 (2026-09-23).
     if !SUBCOMMANDS.contains(&sub_text.as_str()) {
         if !is_dir(Path::new(&sub)) {
             return Err(Msg::UnknownSubcommand(sub_text));
@@ -250,11 +250,11 @@ fn command_of(
 /// app or the app is already running, where `open --args` reached only a
 /// new process and a running app never saw the folder
 /// (`docs/review/phase-2.md`, reading 3, finding 20). `open` refuses a
-/// document that is not there, and `verso open` asks the disk nothing
-/// (ADR 0042), so a refusal is tried again as an argument: the app starts
-/// and says the folder is not there. Only when both fail is the app
-/// reported missing; `open`'s own words are not shown.
-fn launch_app(folder: &Path) -> Result<(), String> {
+/// document that is not there. `verso open` asks the disk nothing before
+/// it launches (ADR 0042); when nothing could be started, the disk says
+/// which part was missing — the folder, or the app. `open`'s own words are
+/// not shown.
+fn launch_app(folder: &Path) -> Result<(), Launch> {
     let mut tried = Vec::new();
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Some(env) = std::env::var_os("VERSO_APP") {
@@ -279,20 +279,29 @@ fn launch_app(folder: &Path) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     {
-        for how in [&["-a", "Verso"][..], &["-a", "Verso", "--args"][..]] {
-            match std::process::Command::new("open")
-                .args(how)
-                .arg(folder)
-                .stderr(std::process::Stdio::null())
-                .status()
-            {
-                Ok(status) if status.success() => return Ok(()),
-                Ok(status) => tried.push(format!("open {}: {status}", how.join(" "))),
-                Err(e) => tried.push(format!("open {}: {e}", how.join(" "))),
-            }
+        match std::process::Command::new("open")
+            .args(["-a", "Verso"])
+            .arg(folder)
+            .stderr(std::process::Stdio::null())
+            .status()
+        {
+            Ok(status) if status.success() => return Ok(()),
+            Ok(status) => tried.push(format!("open -a Verso: {status}")),
+            Err(e) => tried.push(format!("open -a Verso: {e}")),
         }
     }
-    Err(tried.join("; "))
+    if !names_a_directory(folder) {
+        return Err(Launch::NoFolder);
+    }
+    Err(Launch::NoApp(tried.join("; ")))
+}
+
+/// Why nothing was started on a folder.
+enum Launch {
+    /// The folder is not there.
+    NoFolder,
+    /// No app could be started; what was tried.
+    NoApp(String),
 }
 
 fn with_code(mut out: Output, code: u8) -> Output {
@@ -369,7 +378,14 @@ fn run(args: &[OsString]) -> Output {
                     &Msg::Opening(folder.to_string_lossy().into_owned()),
                     lang,
                 )),
-                Err(e) => {
+                Err(Launch::NoFolder) => {
+                    out.stderr.push(text(
+                        &Msg::NoFolderToOpen(folder.to_string_lossy().into_owned()),
+                        lang,
+                    ));
+                    out.code = 3;
+                }
+                Err(Launch::NoApp(e)) => {
                     out.stderr.push(text(&Msg::AppNotFound(e), lang));
                     out.code = 3;
                 }
