@@ -66,6 +66,9 @@ off.
   documentation mirror. A local `#[allow]` in the middle of a diff is not an
   answer; a guardrail that blocks legitimate work is its own pull request, with
   a justification.
+- Run `scripts/check.sh` and `scripts/check-linux.sh` before you push
+  ([README](README.md#test-locally-before-pushing)): CI confirms what they
+  found green; it should not be where a failure is first seen.
 - Merge takes all three: CI green, no BLOCKING finding open, and the maintainer
   can explain the pull request in their own words. Findings are classified as
   BLOCKING, IMPORTANT or MINOR.

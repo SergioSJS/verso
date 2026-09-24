@@ -19,7 +19,9 @@
   tree ratified (`docs/review/phase-2.md` §6, items 7 and 13);
   2026-09-23 — where each guardrail runs, by the maintainer's decision: one
   Linux job per pull request, clippy and the tests on macOS and the fuzzing on
-  `main` only, the apps packaged only for a version tag.
+  `main` only, the apps packaged only for a version tag. 2026-09-24 — the
+  guardrails run locally before a push, by two scripts, at the maintainer's
+  request.
 
 ## Context
 
@@ -98,6 +100,25 @@ the billing page showed for the cycle, in a quota that counts each as ten.
   moves to Ubuntu 26 from 2026-10-19, which would change the WebKitGTK the
   shell links against, and the machine of the bench's `ci-linux` baseline,
   with no commit to blame.
+
+**Locally, before a push — the maintainer's request of 2026-09-24.** The
+first CI run after the quota came back failed on Linux-only dead code that no
+check on the Mac could see (`db2cce1`), and the maintainer asked why it had
+not been tested locally, with Docker installed, and for the way to be in the
+README. Two scripts run the guardrails before a push; CI confirms, it is not
+where a failure is first seen:
+
+- `scripts/check.sh` — every guardrail of the Linux job, natively and in the
+  same order; on a Mac, the macOS check.
+- `scripts/check-linux.sh` — fmt, clippy, the tests and the generated
+  bindings in a Linux container, as an ordinary user, over a copy of the
+  sources and named volumes. Its first real run found the UI bundle missing
+  before the shell compiled, which CI would have hit next (`22d1aa1`).
+
+macOS cannot run in a container and Windows cannot run in Docker on a Mac or
+on Linux: the Mac itself is the macOS check, and Windows gets a check of its
+build here and its tests in CI when its port lands. The scripts follow the
+workflow by hand; a change to one is a change to the others.
 
 ### Atomic write requirements
 

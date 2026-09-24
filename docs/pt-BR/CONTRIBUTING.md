@@ -65,6 +65,9 @@ assinatura.
   da documentação. Um `#[allow]` local no meio do diff não é resposta;
   guardrail que bloqueia trabalho legítimo é assunto de PR próprio, com
   justificativa.
+- Rode `scripts/check.sh` e `scripts/check-linux.sh` antes do push
+  ([README](README.md#testar-localmente-antes-do-push)): o CI confirma o que
+  eles acharam verde; ele não deve ser onde uma falha aparece primeiro.
 - O merge exige os três: CI verde, nenhum achado BLOQUEANTE em aberto e o
   mantenedor conseguindo explicar o PR com as próprias palavras. Os achados são
   classificados em BLOQUEANTE, IMPORTANTE ou MENOR.
