@@ -1,0 +1,133 @@
+# Releases (ADR 0051, ADR 0029): the apps are built and packaged here and
+# nowhere else, only for a version tag — `vX.Y.Z` for production,
+# `vX.Y.Z-beta.N` for a test release. `node scripts/release.mjs tag X.Y.Z`
+# pushes the tag, when the maintainer asks for a version; branches and pull
+# requests never build or package the app.
+#
+# A rehearsal (Actions → release → Run workflow) builds the same files from
+# `main` without publishing anything and keeps them as run artifacts: the
+# way to see this workflow work before its first real tag, which cannot be
+# taken back once published.
+#
+# macOS only, arm64: the platform Phase 2 ships on (ADR 0022). Windows, then
+# Linux, get a job of their own when their ports land. A test release is
+# built as "Verso Beta", with an identifier of its own, so that it installs
+# beside the production app with its own window settings, and its command
+# line opens that app. The app is signed ad hoc, not with a Developer ID:
+# macOS asks once, on first open, to allow it (README.md); a Developer ID is
+# a decision for before public distribution.
+#
+# Cost: one macOS job, about ten minutes, each billed as ten Linux ones.
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    name: Verso for macOS (${{ github.ref_name }})
+    runs-on: macos-latest
+    steps:
+      # The whole history, for the check that a tag sits on main; and no
+      # token left behind for the build steps — only the publish step gets
+      # one, through GH_TOKEN.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      # Before any build: the tag names the version the sources carry, in
+      # the shape of a version, with its changelog in both languages, on a
+      # commit that is on main. A rehearsal builds main's version as a beta.
+      - name: what is released
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            node scripts/release.mjs verify "$GITHUB_REF_NAME"
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::$GITHUB_REF_NAME is not on main"
+              exit 1
+            fi
+            version="${GITHUB_REF_NAME#v}"
+            node scripts/release.mjs notes "$version" > notes.md
+          else
+            version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$EVENT:$version" in
+            push:*-beta.*|workflow_dispatch:*) echo "beta=true" >> "$GITHUB_OUTPUT"; echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
+            *) echo "beta=false" >> "$GITHUB_OUTPUT"; echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: toolchain from rust-toolchain.toml
+        run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: the UI bundle
+        working-directory: app/ui
+        run: npm ci && npm run build
+      - name: the app
+        env:
+          BETA: ${{ steps.version.outputs.beta }}
+        run: |
+          if [ "$BETA" = true ]; then
+            npm --prefix app/ui exec -- tauri build --bundles app \
+              --config '{"identifier":"dev.verso.app.beta","productName":"Verso Beta"}'
+          else
+            npm --prefix app/ui exec -- tauri build --bundles app
+          fi
+      - name: the command line
+        env:
+          VERSO_APP_NAME: ${{ steps.version.outputs.name }}
+        run: cargo build --release --locked -p verso-cli
+      # ditto keeps the app's signature and extended attributes in the zip.
+      - name: the release's files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          NAME: ${{ steps.version.outputs.name }}
+        run: |
+          slug="$(printf '%s' "$NAME" | tr ' ' '-')"
+          ditto -c -k --keepParent "target/release/bundle/macos/$NAME.app" "$slug-$VERSION-macos-arm64.zip"
+          tar -czf "verso-cli-$VERSION-macos-arm64.tar.gz" -C target/release verso
+      - name: keep the rehearsal's files
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rehearsal-macos-arm64
+          path: |
+            ./*-macos-arm64.zip
+            ./verso-cli-*-macos-arm64.tar.gz
+      # A run again after a partial publish replaces the files and the notes
+      # instead of failing on a release that already exists.
+      - name: publish the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NAME: ${{ steps.version.outputs.name }}
+          BETA: ${{ steps.version.outputs.beta }}
+        run: |
+          files=(./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz)
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
+          else
+            pre=()
+            if [ "$BETA" = true ]; then pre=(--prerelease); fi
+            gh release create "$GITHUB_REF_NAME" --title "$NAME $VERSION" --notes-file notes.md "${pre[@]}" "${files[@]}"
+          fi

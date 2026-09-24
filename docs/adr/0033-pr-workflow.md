@@ -3,6 +3,8 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §14.4
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-09-24 — how a pull request reaches `main`, is merged and
+  becomes part of a version: [0051](0051-development-flow-and-releases.md).
 
 ## Context
 
@@ -35,6 +37,11 @@ explain why it exists.
   ([0029](0029-guardrails-in-ci.md)).
 - The prohibition on changing `expected.yaml` is replicated in `CLAUDE.md`
   ([0031](0031-fixtures-as-contract.md)).
+
+**Since 2026-09-24** ([0051](0051-development-flow-and-releases.md)): `main`
+is protected and takes pull requests only; a branch holds one subject; the
+maintainer merges with a merge commit, which keeps the hashes the documents
+cite; a change a user can see adds its changelog line, in both languages.
 
 ## Discarded alternatives
 

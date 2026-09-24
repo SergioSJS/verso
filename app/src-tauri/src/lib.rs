@@ -31,9 +31,9 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderInfo, Heading, Hit,
-    IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed, SkipReason,
-    Skipped, Tag, TextFile, Trashed, WebNote, Written,
+    AppInfo, Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderInfo,
+    Heading, Hit, IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed,
+    SkipReason, Skipped, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -291,6 +291,17 @@ async fn open_initial<R: tauri::Runtime>(
     install(&app, &window, move || Workspace::open(&path, None))
         .await
         .map(Some)
+}
+
+/// The app's version and the commit it was built from (ADR 0051), for the
+/// settings. Host-only, like `open_url`: nothing of the folder.
+#[tauri::command]
+#[specta::specta]
+fn app_info() -> Result<AppInfo, ContractError> {
+    Ok(AppInfo {
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        commit: env!("VERSO_COMMIT").to_owned(),
+    })
 }
 
 /// The folder that is open, for a window that joins the session (a note
@@ -1076,6 +1087,7 @@ macro_rules! commands_for {
             list_web_notes,
             graph,
             current_folder,
+            app_info,
             open_window::<$runtime>,
             popout_target::<$runtime>,
             return_to_main::<$runtime>,
@@ -1396,7 +1408,17 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
         "Verso",
         true,
         &[
-            &PredefinedMenuItem::about(app, None, None)?,
+            &PredefinedMenuItem::about(
+                app,
+                None,
+                Some(tauri::menu::AboutMetadata {
+                    // macOS shows "Version <version> (<short_version>)": the
+                    // version, then the commit in parentheses as the build.
+                    version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+                    short_version: Some(env!("VERSO_COMMIT").to_owned()),
+                    ..Default::default()
+                }),
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, None)?,
             &PredefinedMenuItem::separator(app)?,
@@ -1562,6 +1584,12 @@ mod tests {
             "---\ntags: [npc]\nurl: https://example.org\nmeta: {a: 1}\n---\n",
         );
         let (_app, webview) = app_with(Some(vault.path().to_path_buf()));
+
+        // Which app this is answers with no folder open, through the
+        // capability like every command (ADR 0051).
+        let info = call(&webview, "app_info", json!({})).unwrap();
+        assert_eq!(info["version"], env!("CARGO_PKG_VERSION"), "{info}");
+        assert!(!info["commit"].as_str().unwrap().is_empty(), "{info}");
 
         // Nothing open yet: every command says so, in the contract's words.
         let err = call(&webview, "list_notes", json!({})).unwrap_err();

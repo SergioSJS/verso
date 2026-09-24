@@ -22,7 +22,8 @@
   mantenedor: um job de Linux por pull request, clippy e os testes no macOS e
   o fuzzing só no `main`, os apps empacotados só numa tag de versão.
   2026-09-24 — os guardrails rodam localmente antes de um push, por dois
-  scripts, a pedido do mantenedor.
+  scripts, a pedido do mantenedor. 2026-09-24 — o workflow de release existe,
+  com o fluxo de desenvolvimento da [0051](0051-development-flow-and-releases.md).
 
 ## Contexto
 
@@ -94,9 +95,11 @@ conta cada um como dez.
   documentos respondem igual em qualquer sistema —, o **fuzzing de 60
   segundos**, em Linux, e o benchmark.
 - **Os apps são compilados e empacotados só numa tag de versão**, num
-  workflow próprio; branches testam, nunca empacotam. Esse workflow é escrito
-  com a primeira versão, quando cada plataforma tiver o que empacotar, não
-  antes: nada sem teste fica esperando no CI. Windows, depois Linux, entram
+  workflow próprio; branches testam, nunca empacotam. Esse workflow, o
+  `.github/workflows/release.yml`, veio com o fluxo de desenvolvimento da
+  [0051](0051-development-flow-and-releases.md) em 2026-09-24, macOS
+  primeiro; o bundle dele foi compilado e conferido no Mac antes de ele ser
+  escrito. Windows, depois Linux, entram
   nas checagens de plataforma do `main` conforme cada porte chegar
   ([0022](0022-target-platforms-macos-first.md)).
 - As máquinas de Linux ficam fixadas em `ubuntu-24.04`: o rótulo

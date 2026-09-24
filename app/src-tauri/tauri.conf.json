@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Verso",
-  "version": "0.0.0",
   "identifier": "dev.verso.app",
   "build": {
     "frontendDist": "../ui/dist"
@@ -24,7 +23,8 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
+    "macOS": { "signingIdentity": "-" },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

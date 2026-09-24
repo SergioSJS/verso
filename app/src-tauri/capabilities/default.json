@@ -32,6 +32,7 @@
     "allow-list-web-notes",
     "allow-graph",
     "allow-current-folder",
+    "allow-app-info",
     "allow-open-window",
     "allow-popout-target",
     "allow-return-to-main",
