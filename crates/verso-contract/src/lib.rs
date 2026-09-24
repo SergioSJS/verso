@@ -194,6 +194,14 @@ pub struct Trashed {
     pub warnings: Vec<String>,
 }
 
+/// What the running app is: its version (the workspace's, ADR 0051) and the
+/// commit it was built from — shown in the settings and the About panel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct AppInfo {
+    pub version: String,
+    pub commit: String,
+}
+
 /// A note that is a web page: its path and the address in its `url`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct WebNote {

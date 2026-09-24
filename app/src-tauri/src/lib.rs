@@ -31,9 +31,9 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderInfo, Heading, Hit,
-    IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed, SkipReason,
-    Skipped, Tag, TextFile, Trashed, WebNote, Written,
+    AppInfo, Backlink, Block, ContractError, Edge, ErrorKind, FileEntry, FileKind, FolderInfo,
+    Heading, Hit, IndexSummary, Link, LinkRewrite, NoteText, Property, PropertyValue, Renamed,
+    SkipReason, Skipped, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -291,6 +291,17 @@ async fn open_initial<R: tauri::Runtime>(
     install(&app, &window, move || Workspace::open(&path, None))
         .await
         .map(Some)
+}
+
+/// The app's version and the commit it was built from (ADR 0051), for the
+/// settings. Host-only, like `open_url`: nothing of the folder.
+#[tauri::command]
+#[specta::specta]
+fn app_info() -> Result<AppInfo, ContractError> {
+    Ok(AppInfo {
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        commit: env!("VERSO_COMMIT").to_owned(),
+    })
 }
 
 /// The folder that is open, for a window that joins the session (a note
@@ -1076,6 +1087,7 @@ macro_rules! commands_for {
             list_web_notes,
             graph,
             current_folder,
+            app_info,
             open_window::<$runtime>,
             popout_target::<$runtime>,
             return_to_main::<$runtime>,
@@ -1396,7 +1408,16 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
         "Verso",
         true,
         &[
-            &PredefinedMenuItem::about(app, None, None)?,
+            &PredefinedMenuItem::about(
+                app,
+                None,
+                Some(tauri::menu::AboutMetadata {
+                    // macOS shows "Version <short_version> (<version>)".
+                    short_version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+                    version: Some(env!("VERSO_COMMIT").to_owned()),
+                    ..Default::default()
+                }),
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, None)?,
             &PredefinedMenuItem::separator(app)?,

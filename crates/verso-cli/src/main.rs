@@ -27,6 +27,8 @@ use verso_core::{CoreError, WalkProblem, Workspace};
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Help,
+    /// `verso --version`: the version and the commit it was built from.
+    Version,
     Index {
         folder: PathBuf,
     },
@@ -60,7 +62,7 @@ struct Options {
 
 /// The first argument when it is not a folder. A folder named like one of
 /// these is reached through `verso open <folder>`.
-const SUBCOMMANDS: [&str; 8] = [
+const SUBCOMMANDS: [&str; 11] = [
     "index",
     "search",
     "backlinks",
@@ -69,6 +71,9 @@ const SUBCOMMANDS: [&str; 8] = [
     "help",
     "--help",
     "-h",
+    "version",
+    "--version",
+    "-V",
 ];
 
 /// Parse `args` (without the program name). Options may appear anywhere
@@ -122,8 +127,9 @@ fn parse_with(
                     error.get_or_insert(Msg::BadOptionValue("--limit".to_owned()));
                 }
             },
-            // Asking for help is a command, not an unknown option.
-            "--help" => positional.push(arg.clone()),
+            // Asking for help or the version is a command, not an unknown
+            // option.
+            "--help" | "--version" => positional.push(arg.clone()),
             other if other.starts_with("--") => {
                 error.get_or_insert(Msg::UnknownOption(other.to_owned()));
             }
@@ -235,6 +241,7 @@ fn command_of(
             }
         }
         "help" | "--help" | "-h" => Command::Help,
+        "version" | "--version" | "-V" => Command::Version,
         // Every name in SUBCOMMANDS has an arm above.
         other => return Err(Msg::UnknownSubcommand(other.to_owned())),
     };
@@ -280,14 +287,14 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
     #[cfg(target_os = "macos")]
     {
         match std::process::Command::new("open")
-            .args(["-a", "Verso"])
+            .args(["-a", APP_NAME])
             .arg(folder)
             .stderr(std::process::Stdio::null())
             .status()
         {
             Ok(status) if status.success() => return Ok(()),
-            Ok(status) => tried.push(format!("open -a Verso: {status}")),
-            Err(e) => tried.push(format!("open -a Verso: {e}")),
+            Ok(status) => tried.push(format!("open -a {APP_NAME}: {status}")),
+            Err(e) => tried.push(format!("open -a {APP_NAME}: {e}")),
         }
     }
     if !names_a_directory(folder) {
@@ -295,6 +302,14 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
     }
     Err(Launch::NoApp(tried.join("; ")))
 }
+
+/// The installed app's name: "Verso", or what the build was given — a beta
+/// release builds its command line with `VERSO_APP_NAME=Verso Beta`, so that
+/// `verso <folder>` opens the app of its own channel (ADR 0051).
+const APP_NAME: &str = match option_env!("VERSO_APP_NAME") {
+    Some(name) => name,
+    None => "Verso",
+};
 
 /// Why nothing was started on a folder.
 enum Launch {
@@ -354,6 +369,15 @@ fn run(args: &[OsString]) -> Output {
             out.stdout.push(text(&Msg::Usage, lang));
             return out;
         }
+        // The same line in every language: a name, a version, a commit.
+        Ok(Command::Version) => {
+            out.stdout.push(format!(
+                "verso {} ({})",
+                env!("CARGO_PKG_VERSION"),
+                env!("VERSO_COMMIT")
+            ));
+            return out;
+        }
         Ok(command) => command,
         Err(msg) => {
             out.stderr.push(text(&msg, lang));
@@ -370,7 +394,7 @@ fn run(args: &[OsString]) -> Output {
         | Command::Backlinks { folder, .. }
         | Command::Unresolved { folder }
         | Command::Mcp { folder } => folder.clone(),
-        Command::Help => return out,
+        Command::Help | Command::Version => return out,
         Command::Open { folder } => {
             let folder = std::path::absolute(folder).unwrap_or_else(|_| folder.clone());
             match launch_app(&folder) {
@@ -402,7 +426,7 @@ fn run(args: &[OsString]) -> Output {
         }
     };
     out.code = match command {
-        Command::Help | Command::Open { .. } => 0,
+        Command::Help | Command::Version | Command::Open { .. } => 0,
         Command::Mcp { .. } => {
             // One incremental pass before the first answer (memo §6.3);
             // its report goes to stderr, stdout is the protocol.
@@ -725,6 +749,9 @@ mod tests {
         assert_eq!(parse(&args(&["help"])).1.unwrap(), Command::Help);
         assert_eq!(parse(&args(&["--help"])).1.unwrap(), Command::Help);
         assert_eq!(parse(&args(&["-h"])).1.unwrap(), Command::Help);
+        for form in ["version", "--version", "-V"] {
+            assert_eq!(parse(&args(&[form])).1.unwrap(), Command::Version);
+        }
         assert_eq!(
             parse(&args(&["mcp", "/v"])).1.unwrap(),
             Command::Mcp {
