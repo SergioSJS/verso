@@ -88,6 +88,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0035](0035-cross-cutting-requirements.md) | Requisitos transversais: pt-BR e EN, acessibilidade, benchmark | Aceito |
 | [0036](0036-tabletop-rpg-support.md) | Suporte especial a RPG de mesa | Aceito (intenção) |
 | [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito |
+| [0051](0051-development-flow-and-releases.md) | Fluxo de desenvolvimento, versões e releases | Aceito |
 
 ### Decisões técnicas em aberto
 

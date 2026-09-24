@@ -51,6 +51,26 @@ cobre:
   `cargo +nightly fuzz run parse` em `crates/verso-dialect`, e
   `cargo run --release -p verso-bench -- --help`.
 
+## Versões
+
+Cada versão está listada no [CHANGELOG.md](CHANGELOG.md); o que já foi
+mesclado mas ainda não saiu fica em "Não lançado". `vX.Y.Z` é uma release de
+produção, `vX.Y.Z-beta.N` uma release de teste, publicada como "Verso Beta",
+que se instala ao lado do app de produção com ajustes próprios
+([ADR 0051](adr/0051-development-flow-and-releases.md)).
+
+- **Para instalar uma**: pela página de Releases do repositório, descompacte
+  o app em `/Applications`. Ele é assinado ad hoc, não por um desenvolvedor
+  registrado: na primeira vez o macOS se recusa a abri-lo — libere uma vez em
+  Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim". O
+  arquivo `verso-cli` traz a linha de comando; ponha o `verso` no seu `PATH`.
+- **Qual está rodando**: Ajustes → Geral → Versão, o painel Sobre, ou
+  `verso --version`.
+- **Gerar uma** só acontece quando o mantenedor pede:
+  `node scripts/release.mjs prepare X.Y.Z[-beta.N]` abre o pull request da
+  release, e depois do merge dele `node scripts/release.mjs tag
+  X.Y.Z[-beta.N]` marca a `main`; a tag compila e publica a release.
+
 ## Documentos
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — como propor uma mudança, a assinatura,
