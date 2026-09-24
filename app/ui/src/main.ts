@@ -26,7 +26,7 @@ import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import katex from "katex";
 import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { commands, type ContractError, type FileEntry, type FolderInfo, type NoteText, type TextFile, type Written } from "./bindings";
+import { commands, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type NoteText, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView } from "./props";
@@ -64,7 +64,7 @@ type Strings = Record<
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "appVersion" | "appVersionDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
   | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
-  | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed"
+  | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys",
   string
 > & {
@@ -82,6 +82,7 @@ type Strings = Record<
   replaceCount: (n: number) => string;
   graphNodes: (n: number, m: number) => string;
   pdfHits: (n: number, current: number) => string;
+  changedOutside: (n: number) => string;
 };
 
 const pt: Strings = {
@@ -108,6 +109,7 @@ const pt: Strings = {
   outgoing: "Links de saída", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos", toggleRight: "Mostrar/ocultar painel", palette: "Paleta de comandos", settings: "Ajustes",
   theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
+  changedOutside: (n) => `${n} nota${n === 1 ? "" : "s"} ${n === 1 ? "mudou" : "mudaram"} fora do Verso.`,
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
   confirmDelete: (n) => `Apagar "${n}"? Vai para .trash/ na pasta, como no Obsidian.`,
@@ -129,7 +131,7 @@ const pt: Strings = {
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
-  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida",
+  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as janelas de nota antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
@@ -168,6 +170,7 @@ const en: Strings = {
   outgoing: "Outgoing links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files", toggleRight: "Show/hide panel", palette: "Command palette", settings: "Settings",
   theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
+  changedOutside: (n) => `${n} note${n === 1 ? "" : "s"} changed outside Verso.`,
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
   confirmDelete: (n) => `Delete "${n}"? It goes to .trash/ in the folder, as in Obsidian.`,
@@ -189,7 +192,7 @@ const en: Strings = {
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
-  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read",
+  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the note windows before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
@@ -1558,14 +1561,38 @@ class NoteLeaf extends Leaf {
     this.loading = this.doLoad(path, force);
     return this.loading;
   }
+  /** The note changed on disk outside the app (the watcher): read it
+   *  again, the cursor and the scroll kept as far as the new text allows.
+   *  Text not saved yet is never replaced, even text typed while the read
+   *  was on its way: it stays, and its next save meets the difference
+   *  (invariant 11). */
+  reread(): Promise<void> {
+    this.loading = this.doLoad(this.path, false, true);
+    return this.loading;
+  }
+  /** Other notes changed outside the app: what this one's links resolve
+   *  to, and its backlinks, may have changed with them. */
+  relinkNow(): void {
+    if (this.note) void this.relink(this.path);
+  }
+  /** The note is gone from disk — deleted or moved outside the app: the
+   *  tab keeps its text and says so. */
+  markGone(): void {
+    this.tab.classList.add("gone");
+    this.flags.textContent = t.goneOutside;
+  }
   /** Read `path` into the editor. Over unsaved text only when forced (the
-   *  user chose to discard it) or on a yes. */
-  private async doLoad(path: string, force: boolean): Promise<void> {
-    if (this.dirty && !force && !(await askDiscard())) return;
+   *  user chose to discard it) or on a yes; `keep` (a change made outside)
+   *  never over unsaved text, and keeps the cursor and the scroll. */
+  private async doLoad(path: string, force: boolean, keep = false): Promise<void> {
+    if (this.dirty && !force && (keep || !(await askDiscard()))) return;
     // A write in flight lands first: the read comes after it.
     await this.saving;
     const note = await commands.readNote(path);
     if (note.status !== "ok") return fail(note.error);
+    if (keep && this.dirty) return;
+    const view = keep ? { at: this.editor.state.selection.main.head, top: this.sheet.scrollTop } : null;
+    this.tab.classList.remove("gone");
     window.clearTimeout(this.saveTimer);
     this.path = note.data.path;
     this.setTitle(name(this.path));
@@ -1583,6 +1610,10 @@ class NoteLeaf extends Leaf {
     markCurrent();
     if (this.pane.active === this) panel.show(this);
     persistSoon();
+    if (view) {
+      this.editor.dispatch({ selection: { anchor: Math.min(view.at, this.editor.state.doc.length) } });
+      this.sheet.scrollTop = view.top;
+    }
   }
   /** Renamed: read at the new place, unless text was typed meanwhile —
    *  then it stays, and its next save goes to the new place. */
@@ -3832,6 +3863,30 @@ async function afterFileChange(): Promise<void> {
   void panel.loadTags();
   for (const p of layout().panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
 }
+/* The folder changed on disk outside Verso — another editor, a sync
+ * client, git (the watcher, provisional: docs/reference/watcher-decision.md).
+ * The host has indexed it again and says what changed. Lists and panels
+ * are drawn again; a tab of a changed note is read again, or, with text not
+ * saved yet, saves now and so meets the difference (invariant 11); a tab
+ * whose note is gone keeps its text and says so; the other notes' links and
+ * backlinks are looked up again. */
+async function changedOutside(change: FolderChanged): Promise<void> {
+  if (change.key !== currentFolder) return;
+  const changed = new Set(change.changed);
+  const removed = new Set(change.removed);
+  const notes = changed.size + removed.size;
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) {
+    if (!(l instanceof NoteLeaf) || !l.path) continue;
+    if (removed.has(l.path)) l.markGone();
+    else if (changed.has(l.path)) void (l.dirty ? l.flush() : l.reread());
+    else if (notes > 0) l.relinkNow();
+  }
+  forgetFiles();
+  await searchNotes(ui.search.value);
+  void panel.loadTags();
+  for (const p of layout().panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
+  if (notes > 0) ui.status.textContent = t.changedOutside(notes);
+}
 function leavesOf(path: string): Leaf[] {
   return spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves.filter((l) => l.path === path)));
 }
@@ -5721,6 +5776,7 @@ if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false
  * terminal reaches the installed app on macOS by an open event): the host
  * keeps it; this window saves its tabs, as for any switch, and opens it. */
 if (!popout) void listen("folder-handed", () => void openFolderBy(() => commands.openInitial()));
+void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void (async () => {
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
