@@ -490,7 +490,9 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .side .drop, #tree-root.drop { outline: 2px solid var(--brass); outline-offset: -2px; border-radius: 6px; background: var(--brass-wash); }
 .editor .cm-completionDetail { color: var(--ink-3); font-style: normal; margin-left: .8em; font-size: .8em; }
 
-/* Callouts — Obsidian's, by kind */
+/* Callouts — Obsidian's, by kind. The kind's colour is the title's text:
+   4.5:1 or more on the callout's paper in every palette (light lightness
+   lowered for note, tip and warning; dark mode unchanged). */
 .callout { margin: 0 0 1em; padding: .6rem .9rem .5rem; border-radius: 6px; background: var(--paper-2); border-left: 3px solid var(--kind, var(--brass)); }
 .callout .callout-title { margin: 0 0 .3rem; font-family: var(--ui); font-weight: 600; font-size: .82em; letter-spacing: .04em; text-transform: uppercase; color: var(--kind, var(--brass)); }
 .callout > :last-child { margin-bottom: 0; }
@@ -502,9 +504,9 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .callout.folded > .callout-title { margin-bottom: 0; }
 .callout.folded > :not(.callout-title) { display: none; }
 .callout[data-fold] > .callout-title:focus-visible { outline: 2px solid var(--kind, var(--brass-ink)); outline-offset: 2px; border-radius: 3px; }
-.callout[data-callout="note"], .callout[data-callout="info"], .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: light-dark(oklch(52% 0.1 240), oklch(75% 0.1 240)); }
-.callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: light-dark(oklch(52% 0.12 150), oklch(75% 0.12 150)); }
-.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"], .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: light-dark(oklch(60% 0.14 70), oklch(78% 0.14 75)); }
+.callout[data-callout="note"], .callout[data-callout="info"], .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --kind: light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240)); }
+.callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --kind: light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150)); }
+.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"], .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --kind: light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75)); }
 .callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="bug"], .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { --kind: var(--seal); }
 .callout[data-callout="example"] { --kind: light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300)); }
 .callout[data-callout="quote"], .callout[data-callout="cite"] { --kind: var(--ink-3); }
