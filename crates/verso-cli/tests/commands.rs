@@ -153,6 +153,17 @@ fn usage_and_open_errors_have_their_exit_codes_and_go_to_stderr() {
     assert_eq!(code, 0);
     assert!(out.starts_with("usage: verso"), "{out}");
     assert!(err.is_empty(), "{err}");
+    // Nor is asking for the version: the workspace's, and a commit.
+    for form in ["--version", "-V", "version"] {
+        let (code, out, err) = verso(config.path(), "pt_BR", &[form]);
+        assert_eq!(code, 0, "{form}");
+        let expected = format!("verso {} (", env!("CARGO_PKG_VERSION"));
+        assert!(
+            out.starts_with(&expected) && out.trim_end().ends_with(')'),
+            "{out}"
+        );
+        assert!(err.is_empty(), "{err}");
+    }
     let (code, _, err) = verso(config.path(), "pt_BR", &["frob"]);
     assert_eq!(code, 2);
     assert!(
