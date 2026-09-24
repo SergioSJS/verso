@@ -20,6 +20,11 @@ test release.
   is read again, where the cursor was; one with text not saved yet shows
   both versions, as when a save meets a changed file; a note deleted or
   moved outside keeps its text in its tab, crossed out.
+- **Moving without dragging**: a tab moves back and forward along its bar,
+  to the next or previous pane and to another workspace, and an open file
+  to another folder, from the tab's menu (Shift-F10), the command palette
+  or a hotkey of your choice; the ribbon's buttons move up and down from
+  their menu.
 
 ### Fixed
 
@@ -28,6 +33,14 @@ test release.
 - **The beta's command line** says which app it opens: `verso <folder>`
   answers "opening … in Verso Beta", and names Verso Beta when the app is
   not installed.
+- **Accessibility**, a pass over the window: the tab bars, the file tree,
+  the graph and the menus answer the arrow keys and keep the keyboard's
+  place; links, tags and tasks in the reading view are reached from the
+  keyboard; the editors, the properties' fields and the window's regions
+  are named for a screen reader; a write refused because the file changed
+  on disk is announced; the focus ring and the callout titles have enough
+  contrast; the font size goes up to 30 px (200%); Settings → Hotkeys says
+  how to leave the editor from the keyboard.
 
 ## 0.2.0-beta.1 — 2026-09-24
 
