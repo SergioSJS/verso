@@ -279,10 +279,12 @@ bench, que precisa do CI rodando.
 
 ## 10. O que não está construído
 
-- **O item 2.6, um tipo de nota de ponta a ponta.** Ele precisa da
-  [ADR 0013](../adr/0013-degrades-to-markdown.md) e da
-  [ADR 0014](../adr/0014-primitives-catalog.md) aceitas e da Q11 da spec
-  respondida.
+- **O item 2.6, um tipo de nota de ponta a ponta.** Ele precisa do
+  [ADR 0013](../adr/0013-degrades-to-markdown.md) e do
+  [ADR 0014](../adr/0014-primitives-catalog.md) aceitos e da Q11 da spec
+  respondida. *(Decidido em 2026-09-24: o ADR 0013 aceito, a nota tipada
+  aceita no [ADR 0052](../adr/0052-typed-note.md), a Q11 respondida; ainda não
+  construído — [memorando da nota tipada](typed-note-decision.md), seção 8.)*
 - **Handles opacos e identidade de sessão no contrato**
   ([ADR 0044](../adr/0044-verso-fs-semantics.md),
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): o contrato nomeia notas

@@ -273,7 +273,9 @@ which needs CI to run.
 - **Item 2.6, one note type end to end.** It needs
   [ADR 0013](../adr/0013-degrades-to-markdown.md) and
   [ADR 0014](../adr/0014-primitives-catalog.md) accepted and spec Q11
-  answered.
+  answered. *(Decided on 2026-09-24: ADR 0013 accepted, the typed note
+  accepted in [ADR 0052](../adr/0052-typed-note.md), Q11 answered; not built
+  yet — [typed-note memo](typed-note-decision.md), section 8.)*
 - **Opaque handles and session identity in the contract**
   ([ADR 0044](../adr/0044-verso-fs-semantics.md),
   [ADR 0045](../adr/0045-server-and-mcp-security.md)): the contract names notes

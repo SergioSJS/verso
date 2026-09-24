@@ -41,10 +41,10 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0041](0041-multi-root-workspace.md) | Workspace com múltiplas raízes | Proposto |
 | [0042](0042-open-from-command-line.md) | Abrir pela linha de comando: `verso <pasta>` | Aceito |
 | [0012](0012-files-are-source-of-truth.md) | Arquivos são a fonte de verdade; abrir nunca reescreve | Aceito |
-| [0013](0013-degrades-to-markdown.md) | Todo dado estruturado degrada para Markdown legível | Proposto |
-| [0014](0014-primitives-catalog.md) | Catálogo de primitivas do Verso | Proposto (a nota do dia e os templates: Aceito) |
+| [0013](0013-degrades-to-markdown.md) | Todo dado estruturado degrada para Markdown legível | Aceito (2026-09-24) |
+| [0014](0014-primitives-catalog.md) | Catálogo de primitivas do Verso | Proposto (a nota do dia e os templates: Aceito; a nota tipada: Aceito no 0052) |
 | [0015](0015-schema-packs.md) | Packs de schema distribuíveis como conteúdo | Proposto |
-| [0052](0052-typed-note.md) | Nota tipada: `type:` no frontmatter e um schema | `[ABERTO]` (rascunho para o mantenedor; antes do item 2.6) |
+| [0052](0052-typed-note.md) | Nota tipada: `type:` no frontmatter e um schema | Aceito (2026-09-24) |
 
 ### Plugins e LLM
 
@@ -118,7 +118,8 @@ onde cada uma está.
 
 Três itens de dialeto do §17 vivem em [`../spec/dialect.md`](../spec/dialect.md),
 onde o comportamento é especificado: sintaxe de relação tipada (item 6), formato
-e localização dos schemas (item 7) e sintaxe de visibilidade por bloco (item 8).
+e localização dos schemas (item 7, decidido em 2026-09-24 como a Q11, com o
+[0052](0052-typed-note.md)) e sintaxe de visibilidade por bloco (item 8).
 As lacunas de parsing (Q1–Q8, Q12–Q26) também vivem lá.
 
 A verificação de disponibilidade do nome (item 2) está registrada em
