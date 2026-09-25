@@ -16,10 +16,10 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView, basicSetup } from "codemirror";
-import { Annotation, Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
+import { Annotation, Compartment, EditorState, Prec, Transaction, type Extension } from "@codemirror/state";
 import { keymap, type KeyBinding } from "@codemirror/view";
 import { indentWithTab, isolateHistory } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
+import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
@@ -55,12 +55,12 @@ type Strings = Record<
   | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
   | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
-  | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions"
+  | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions" | "propertiesTitle"
   | "replaceTitle" | "find" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
   | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
-  | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage"
+  | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage" | "spreadSingle" | "spreadOdd" | "spreadEven" | "spreadToggle" | "lineNumbers" | "lineNumbersDesc"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "htmlPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
@@ -143,12 +143,12 @@ const pt: Strings = {
   colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
   duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copied: "Caminho copiado.",
   moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
-  addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link",
+  addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link", propertiesTitle: "Propriedades",
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
   graphNodes: (n, m) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} de ${n}`,
-  pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
+  pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.", spreadSingle: "Página única", spreadOdd: "Duas páginas (com capa)", spreadEven: "Duas páginas (sem capa)", spreadToggle: "Modo de exibição de páginas", lineNumbers: "Números de linha", lineNumbersDesc: "Exibe a contagem de linhas na margem do editor.",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
@@ -221,12 +221,12 @@ const en: Strings = {
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
   duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copied: "Path copied.",
   moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
-  addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions",
+  addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions", propertiesTitle: "Properties",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
   graphNodes: (n, m) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} of ${n}`,
-  pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
+  pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.", spreadSingle: "Single page", spreadOdd: "Two pages (with cover)", spreadEven: "Two pages (without cover)", spreadToggle: "Page display mode", lineNumbers: "Line numbers", lineNumbersDesc: "Show line numbers in the editor margin.",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
@@ -388,8 +388,8 @@ const ui = {
 };
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
-type Settings = { lang: "auto" | "pt-BR" | "en"; theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; linkFormat: "shortest" | "relative" | "root"; remoteContent: boolean; hotkeys: Record<string, string> };
-const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: t.dailyName, templates: t.templatesName, spellcheck: true, defaultMode: "preview", measure: "normal", linkFormat: "shortest", remoteContent: true, hotkeys: {} };
+type Settings = { lang: "auto" | "pt-BR" | "en"; theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; lineNumbers: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; linkFormat: "shortest" | "relative" | "root"; remoteContent: boolean; hotkeys: Record<string, string> };
+const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: t.dailyName, templates: t.templatesName, spellcheck: true, lineNumbers: false, defaultMode: "preview", measure: "normal", linkFormat: "shortest", remoteContent: true, hotkeys: {} };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
   try {
@@ -413,6 +413,8 @@ function applySettings(): void {
   document.documentElement.dataset["palette"] = settings.palette;
   document.documentElement.dataset["measure"] = settings.measure;
   document.documentElement.style.fontSize = `${settings.fontSize}px`;
+  if (settings.lineNumbers) document.documentElement.classList.add("show-line-numbers");
+  else document.documentElement.classList.remove("show-line-numbers");
   allowRemoteContent(settings.remoteContent);
 }
 loadSettings();
@@ -769,6 +771,12 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     const spaceTab = at.closest<HTMLElement>(".space-tab");
     const space = spaceTab ? spaces.find((s) => s.tab === spaceTab) : undefined;
     if (spaceTab && space) return { space, el: spaceTab };
+    for (const p of layout().panes()) {
+      const pr = p.el.getBoundingClientRect();
+      if (x >= pr.left - 12 && x <= pr.right + 12 && y >= pr.top - 8 && y <= pr.bottom + 8) {
+        return { body: p.body };
+      }
+    }
     return null;
   }
   if (drag?.kind === "file") {
@@ -783,6 +791,12 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     }
     const body = at.closest<HTMLElement>(".pane-body") ?? at.closest<HTMLElement>(".pane")?.querySelector<HTMLElement>(".pane-body") ?? null;
     if (body) return { body };
+    for (const p of layout().panes()) {
+      const pr = p.el.getBoundingClientRect();
+      if (x >= pr.left - 12 && x <= pr.right + 12 && y >= pr.top - 8 && y <= pr.bottom + 8) {
+        return { body: p.body };
+      }
+    }
     const tabs = at.closest<HTMLElement>(".tabs");
     if (tabs) return { tabs };
   }
@@ -1192,17 +1206,17 @@ class NoteLeaf extends Leaf {
   readonly modes = h("div", "modes");
   readonly modeButtons: Record<Mode, HTMLButtonElement>;
   readonly title = h("h1", "note-title");
-  readonly dirtyMark = h("span", "dirty", "•");
+  readonly dirtyMark = h("span", "dirty-mark", "•");
   readonly saveButton = h("button", "save", t.save);
   readonly flags = h("p", "flags");
   readonly props = new PropertiesView({
-    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed, open: t.openPage },
+    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed, open: t.openPage, propertiesTitle: t.propertiesTitle },
     // One property changed in the panel: the frontmatter lines of that
     // key change in the editor's document, nothing else; the save follows
     // as after any keystroke.
     doc: () => this.editor.state.doc.toString(),
     apply: (change) => {
-      this.editor.dispatch({ changes: change });
+      this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("input") });
       if (this.mode === "preview") void this.save();
     },
     // The key moved in the text since the panel was drawn: the save that
@@ -1408,7 +1422,7 @@ class NoteLeaf extends Leaf {
         EditorView.contentAttributes.of(() => ({ "aria-label": name(this.path) })),
         slashKeymap(this.slash),
         tableKeymap,
-        keymap.of([indentWithTab]),
+        keymap.of([...markdownKeymap, indentWithTab]),
         EditorView.lineWrapping,
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
         this.readOnly ? readOnlyText : [],
@@ -1458,6 +1472,8 @@ class NoteLeaf extends Leaf {
     v.dispatch({
       changes: { from, to, insert: `${before}${selected}${after}` },
       selection: selected ? { anchor: from + before.length, head: to + before.length } : { anchor: from + before.length },
+      annotations: Transaction.userEvent.of("input"),
+      scrollIntoView: true,
     });
     v.focus();
   }
@@ -1472,7 +1488,11 @@ class NoteLeaf extends Leaf {
       const p = typeof prefix === "string" ? prefix : prefix(i + 1);
       changes.push(line.text.startsWith(p) ? { from: line.from, to: line.from + p.length, insert: "" } : { from: line.from, insert: p });
     }
-    v.dispatch({ changes });
+    v.dispatch({
+      changes,
+      annotations: Transaction.userEvent.of("input"),
+      scrollIntoView: true,
+    });
     v.focus();
   }
   private cycleHeading(): void {
@@ -1482,7 +1502,11 @@ class NoteLeaf extends Leaf {
     const level = m ? m[1]!.length : 0;
     const next = level >= 3 ? 0 : level + 1;
     const stripped = line.text.replace(/^#{1,6}\s/, "");
-    v.dispatch({ changes: { from: line.from, to: line.to, insert: next === 0 ? stripped : `${"#".repeat(next)} ${stripped}` } });
+    v.dispatch({
+      changes: { from: line.from, to: line.to, insert: next === 0 ? stripped : `${"#".repeat(next)} ${stripped}` },
+      annotations: Transaction.userEvent.of("input"),
+      scrollIntoView: true,
+    });
     v.focus();
   }
   private buildToolbar(): void {
@@ -1519,7 +1543,12 @@ class NoteLeaf extends Leaf {
     const line = v.state.doc.lineAt(pos);
     const before = line.text.trim() === "" ? "" : "\n\n";
     const text = tableTemplate(3, 2, t.tableColumn);
-    v.dispatch({ changes: { from: line.to, insert: before + text + "\n" }, selection: { anchor: line.to + before.length + 2, head: line.to + before.length + 2 + t.tableColumn.length } });
+    v.dispatch({
+      changes: { from: line.to, insert: before + text + "\n" },
+      selection: { anchor: line.to + before.length + 2, head: line.to + before.length + 2 + t.tableColumn.length },
+      annotations: Transaction.userEvent.of("input"),
+      scrollIntoView: true,
+    });
     v.focus();
   }
   /** Images pasted or dropped become files beside the note and an embed
@@ -1554,9 +1583,16 @@ class NoteLeaf extends Leaf {
         allFiles.push(r.data);
         const target = linkText(this.path, r.data);
         const pos = this.editor.state.selection.main.to;
-        this.editor.dispatch({ changes: { from: pos, insert: `![[${target}]]` }, selection: { anchor: pos + target.length + 5 } });
+        const top = this.sheet.scrollTop;
+        this.editor.dispatch({
+          changes: { from: pos, insert: `![[${target}]]` },
+          selection: { anchor: pos + target.length + 5 },
+          annotations: Transaction.userEvent.of("input"),
+        });
+        this.sheet.scrollTop = top;
         ui.status.textContent = t.pasted;
         await afterFileChange();
+        this.sheet.scrollTop = top;
       }
     })();
     return true;
@@ -1725,15 +1761,62 @@ class NoteLeaf extends Leaf {
     return this.editor.state.doc.sliceString(0, undefined, this.eol);
   }
   follow(target: string): void {
-    const to = this.resolve(target);
-    if (to) return void openIn(this.pane, to);
+    const rawTarget = target.trim();
+    const hashIdx = rawTarget.indexOf("#");
+    const notePart = hashIdx >= 0 ? rawTarget.slice(0, hashIdx).trim() : rawTarget;
+    const headingPart = hashIdx >= 0 ? rawTarget.slice(hashIdx + 1).trim() : "";
+
+    const jumpToHeading = (leaf: Leaf, heading: string) => {
+      if (!heading || !(leaf instanceof NoteLeaf)) return;
+      void leaf.loading.then(() => {
+        const cleanHd = heading.toLowerCase().replace(/^#+\s*/, "");
+        const hds = leaf.headings();
+        const match = hds.find((h) => {
+          const t = h.text.trim().toLowerCase();
+          return t === cleanHd || t.replace(/\s+/g, "-") === cleanHd;
+        });
+        if (match) {
+          leaf.jumpTo(match.line);
+          return;
+        }
+        const doc = leaf.editor.state.doc;
+        for (let i = 1; i <= doc.lines; i++) {
+          const lineText = doc.line(i).text.trim();
+          if (lineText.startsWith("#") && lineText.replace(/^#+\s*/, "").toLowerCase() === cleanHd) {
+            leaf.jumpTo(i);
+            return;
+          }
+        }
+      });
+    };
+
+    if (!notePart) {
+      if (headingPart) jumpToHeading(this, headingPart);
+      return;
+    }
+
+    const to = this.resolve(notePart);
+    if (to) {
+      const leaf = openIn(this.pane, to);
+      if (headingPart && leaf) jumpToHeading(leaf, headingPart);
+      return;
+    }
+
     // Not a note: an attachment, maybe with `#page=N` for a PDF.
-    const key = target.split("#")[0] ?? target;
-    const page = Number(/page=(\d+)/.exec(target)?.[1] ?? "0");
+    const key = notePart;
+    const page = Number(/page=(\d+)/.exec(rawTarget)?.[1] ?? "0");
     void commands.resolveAttachment(this.path, key).then((r) => {
-      if (r.status !== "ok" || !r.data) return void (ui.status.textContent = t.unresolved(target));
-      const leaf = openIn(this.pane, r.data);
-      if (leaf instanceof PdfLeaf && page > 0) void leaf.loading.then(() => leaf.goTo(page));
+      if (r.status === "ok" && r.data) {
+        const leaf = openIn(this.pane, r.data);
+        if (leaf instanceof PdfLeaf && page > 0) void leaf.loading.then(() => leaf.goTo(page));
+        return;
+      }
+      // Note does not exist: auto-create note like Obsidian
+      void createNote(dirOf(this.path), notePart, this.pane, false).then(() => {
+        if (headingPart && this.pane.active instanceof NoteLeaf) {
+          jumpToHeading(this.pane.active, headingPart);
+        }
+      });
     });
   }
   renameHere(): void {
@@ -1962,6 +2045,62 @@ class NoteLeaf extends Leaf {
     this.previewStale = true;
     if (this.mode === "preview") this.paintPreview();
   }
+  private wireTableResizers(root: HTMLElement): void {
+    for (const table of root.querySelectorAll<HTMLTableElement>("table")) {
+      const ths = table.querySelectorAll<HTMLTableCellElement>("th");
+      if (ths.length === 0) continue;
+      for (const th of ths) {
+        if (th.querySelector(".table-col-grip")) continue;
+        const grip = h("div", "table-col-grip");
+        th.style.position = "relative";
+        th.append(grip);
+        grip.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          grip.setPointerCapture(e.pointerId);
+          const startX = e.clientX;
+          const startWidth = th.offsetWidth;
+          const onMove = (ev: PointerEvent) => {
+            const newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+            th.style.width = `${newWidth}px`;
+            th.style.minWidth = `${newWidth}px`;
+          };
+          const onUp = () => {
+            grip.removeEventListener("pointermove", onMove);
+            grip.removeEventListener("pointerup", onUp);
+          };
+          grip.addEventListener("pointermove", onMove);
+          grip.addEventListener("pointerup", onUp);
+        });
+      }
+    }
+  }
+
+  private wireCodeBlocks(root: HTMLElement): void {
+    for (const pre of root.querySelectorAll<HTMLPreElement>("pre")) {
+      if (pre.querySelector(".copy-code-btn")) continue;
+      pre.style.position = "relative";
+      const btn = h("button", "copy-code-btn", "Copiar");
+      btn.type = "button";
+      btn.addEventListener("click", () => {
+        const code = pre.querySelector("code")?.textContent ?? pre.textContent ?? "";
+        void navigator.clipboard.writeText(code).then(() => {
+          btn.textContent = "Copiado!";
+          setTimeout(() => { btn.textContent = "Copiar"; }, 1500);
+        });
+      });
+      pre.append(btn);
+    }
+  }
+
+  private wirePreviewImages(root: HTMLElement): void {
+    for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
+      const size = sizeOf(img.getAttribute("alt") ?? "");
+      if (size?.w) img.style.width = `${size.w}px`;
+      if (size?.h) img.style.height = `${size.h}px`;
+    }
+  }
+
   /** Draw the reading view from the note, if it changed since it was drawn. */
   private paintPreview(): void {
     const note = this.note;
@@ -1990,6 +2129,9 @@ class NoteLeaf extends Leaf {
     void this.embedImages(note.path);
     this.wireTasks();
     this.dressLinks(note.path);
+    this.wireTableResizers(this.preview);
+    this.wireCodeBlocks(this.preview);
+    this.wirePreviewImages(this.preview);
     if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
   }
   private async relink(path: string): Promise<void> {
@@ -2633,9 +2775,9 @@ class FolderLeaf extends Leaf {
   readonly title = h("h1", "note-title");
   readonly meta = h("p", "folder-meta");
   readonly cols = h("div", "folder-cols");
-  readonly items = h("ul", "folder-items grid");
+  readonly items = h("ul", "folder-items list");
   readonly note = h("article", "folder-note");
-  grid = true;
+  grid = false;
   rows: FolderRow[] = [];
   constructor(pane: Pane) {
     super(pane);
@@ -2651,7 +2793,7 @@ class FolderLeaf extends Leaf {
     const sheet = h("div", "sheet");
     sheet.append(this.head, this.meta, this.note, this.cols, this.items);
     this.el.append(top, sheet);
-    this.cols.hidden = true;
+    this.cols.hidden = false;
     const col = (key: SortKey, label: string, cls: string) => {
       const b = h("button", `col ${cls}`, label);
       b.type = "button";
@@ -3055,7 +3197,29 @@ class GraphLeaf extends Leaf {
       const r = svg.getBoundingClientRect();
       const mx = e.clientX - r.left - r.width / 2;
       const my = e.clientY - r.top - r.height / 2;
-      const factor = Math.exp(-e.deltaY * 0.0015);
+
+      // Trackpad pinch gesture (WebKit sets ctrlKey: true) or Ctrl/Meta + wheel
+      if (e.ctrlKey || e.metaKey) {
+        const factor = Math.exp(-e.deltaY * 0.01);
+        const next = Math.max(0.15, Math.min(6, this.zoom * factor));
+        const k = next / this.zoom;
+        this.pan.x = mx - (mx - this.pan.x) * k;
+        this.pan.y = my - (my - this.pan.y) * k;
+        this.zoom = next;
+        this.applyView();
+        return;
+      }
+
+      // Trackpad 2-finger pan or Shift+wheel pan
+      if (e.shiftKey || Math.abs(e.deltaX) > 0) {
+        this.pan.x -= (e.shiftKey ? e.deltaY : e.deltaX);
+        if (!e.shiftKey) this.pan.y -= e.deltaY;
+        this.applyView();
+        return;
+      }
+
+      // Mouse wheel zoom centered at cursor
+      const factor = Math.exp(-e.deltaY * 0.0025);
       const next = Math.max(0.15, Math.min(6, this.zoom * factor));
       const k = next / this.zoom;
       this.pan.x = mx - (mx - this.pan.x) * k;
@@ -5000,25 +5164,23 @@ async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
 function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
   const folder = kind === "folder";
   const here = folder ? path : dirOf(path);
-  const sep: [string, () => void] = ["—", () => {}];
-  const items: [string, () => void][] = folder
-    ? [[t.openFolder, () => openFolder(path)]]
-    : [[t.openTab, () => openNote(path, false)], [t.openPane, () => openNote(path, true)]];
-  if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path)]);
+  const sep: MenuItem = ["—", () => {}];
+  const items: MenuItem[] = folder
+    ? [[t.openFolder, () => openFolder(path), "folderOpen"]]
+    : [[t.openTab, () => openNote(path, false), "note"], [t.openPane, () => openNote(path, true), "split"]];
+  if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
   items.push(
     sep,
-    [t.rename, rename],
-    [`${t.moveTo}…`, () => movePrompt(path)],
-    ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind)] as [string, () => void]]),
+    [t.rename, rename, "edit"],
+    [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
+    ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
     sep,
-    [t.reveal, () => void commands.reveal(path)],
-    [t.copyPath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied))],
+    [t.reveal, () => void commands.reveal(path), "search"],
+    [t.copyPath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"],
     sep,
-    [t.newHere, () => newNotePrompt(here)],
-    [t.newFolder, () => newFolderPrompt(here)],
-    [t.newBase, () => void newBase(here)],
+    ...createMenuItems(here),
     sep,
-    [t.deleteEntry, () => void deleteEntry(path, kind)],
+    [t.deleteEntry, () => void deleteEntry(path, kind), "close"],
   );
   showMenu(x, y, items);
 }
@@ -5066,7 +5228,7 @@ function movePrompt(path: string): void {
  *  beside the file, created on first use — as a callout that links back
  *  to the page. Written over the revision that was read. */
 function pdfStrings() {
-  return { page: t.pdfPage, prevPage: t.pdfPrev, nextPage: t.pdfNext, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst, loadFailed: t.pdfLoadFailed };
+  return { page: t.pdfPage, prevPage: t.pdfPrev, nextPage: t.pdfNext, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, spreadSingle: t.spreadSingle, spreadOdd: t.spreadOdd, spreadEven: t.spreadEven, spreadToggle: t.spreadToggle, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst, loadFailed: t.pdfLoadFailed };
 }
 function companionOf(pdf: string): string {
   const base = pdf.split("/").pop() ?? pdf;
@@ -5168,10 +5330,19 @@ menu.addEventListener("keydown", (e) => {
     giveBack(menuOpener);
   }
 });
-function showMenu(x: number, y: number, items: [string, () => void][]): void {
+type MenuItem = [label: string, run: () => void, iconName?: string];
+function createMenuItems(folder = ""): MenuItem[] {
+  return [
+    [t.newHere, () => newNotePrompt(folder), "plus"],
+    [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
+    [t.newBase, () => void newBase(folder), "calendar"],
+    [t.newWebPage, () => newWebPagePrompt(folder), "globe"],
+  ];
+}
+function showMenu(x: number, y: number, items: MenuItem[]): void {
   menuOpener = document.activeElement;
   menu.replaceChildren(
-    ...items.map(([label, run]) => {
+    ...items.map(([label, run, iconName]) => {
       // The list items are layout only: the menu's items are its buttons.
       const li = h("li");
       li.setAttribute("role", "none");
@@ -5180,8 +5351,10 @@ function showMenu(x: number, y: number, items: [string, () => void][]): void {
         li.setAttribute("role", "separator");
         return li;
       }
-      const b = h("button", "", label);
+      const b = h("button");
       b.type = "button";
+      if (iconName) b.append(icon(iconName));
+      b.append(h("span", "", label));
       b.setAttribute("role", "menuitem");
       b.addEventListener("click", () => {
         menu.hidden = true;
@@ -5364,7 +5537,7 @@ function newFolderPrompt(folder: string): void {
 /** A web page kept as a note: its address in the `url` property, the
  *  note's name from the host and path. Opening the property opens the
  *  page in a window of its own; the star bookmarks it. */
-function newWebPagePrompt(): void {
+function newWebPagePrompt(folder?: string): void {
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");
@@ -5392,10 +5565,9 @@ function newWebPagePrompt(): void {
     }
     const last = decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() ?? "").replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " ");
     const base = `${url.hostname.replace(/^www\./, "")}${last ? " – " + last : ""}`.replace(/[\\/:*?"<>|#^[\]]/g, " ").trim();
-    const leaf = layout().activeLeaf;
-    const folder = leaf?.path ? dirOf(leaf.path) : "";
+    const targetFolder = folder !== undefined ? folder : (layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "");
     void (async () => {
-      const r = await commands.createNote(folder ? `${folder}/${base}` : base, `---\nurl: ${url.href}\n---\n`);
+      const r = await commands.createNote(targetFolder ? `${targetFolder}/${base}` : base, `---\nurl: ${url.href}\n---\n`);
       if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
       await afterFileChange();
       openNote(r.data.path, false);
@@ -5848,7 +6020,7 @@ type Command = { id: string; label: string; keys?: string; run: () => void };
 /** Default keys, as `Mod-Shift-x`; the settings may override each. */
 const DEFAULT_KEYS: Record<string, string> = {
   "open-folder": "Mod-o", search: "Mod-k", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
-  "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Shift-l", "toggle-right": "Mod-Shift-r",
+  "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Alt-ArrowLeft", "toggle-right": "Mod-Alt-ArrowRight",
   reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[",
 };
 function keyOf(id: string): string {
@@ -5878,7 +6050,7 @@ function comboOf(e: KeyboardEvent): string {
 /** `Mod-Shift-p` shown as the keys on this machine: ⌘⇧P, Ctrl+Shift+P. */
 function prettyKeys(combo: string): string {
   if (!combo) return "";
-  return combo.split("-").map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
+  return combo.split("-").map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p === "ArrowLeft" ? "←" : p === "ArrowRight" ? "→" : p === "ArrowUp" ? "↑" : p === "ArrowDown" ? "↓" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
 }
 /** `label (⌘B)`: a tooltip with the keys as this machine writes them. */
 function withKeys(label: string, combo: string): string {
@@ -6344,6 +6516,7 @@ class SettingsDialog {
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
+    add("editor", t.lineNumbers, t.lineNumbersDesc, () => this.toggle(settings.lineNumbers, (v) => { settings.lineNumbers = v; saveSettings(); }));
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
     add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
@@ -6831,7 +7004,7 @@ const RIBBON: RibbonItem[] = [
   { id: "new", icon: "plus", label: () => t.newNote, keys: "new-note", needsFolder: true, run: (b) => {
     const folder = layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "";
     const r = b.getBoundingClientRect();
-    showMenu(r.right + 6, r.top, [[t.newNote, () => newNotePrompt(folder)], [t.newFolder, () => newFolderPrompt(folder)], [t.newWebPage, () => newWebPagePrompt()]]);
+    showMenu(r.right + 6, r.top, createMenuItems(folder));
   } },
   { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "daily", needsFolder: true, run: () => void dailyNote() },
   { id: "graph", icon: "graph", label: () => t.graphWhole, needsFolder: true, run: () => paneToOpenIn().openGraph("") },
@@ -6967,6 +7140,17 @@ paintKeyHints();
 
 ui.open.addEventListener("click", () => void openFolderDialog());
 ui.collapse.addEventListener("click", collapseAll);
+ui.treeRoot.addEventListener("contextmenu", (e) => {
+  if ((e.target as HTMLElement).closest("button.row, summary, input")) return;
+  e.preventDefault();
+  const sep: MenuItem = ["—", () => {}];
+  const items: MenuItem[] = [
+    ...createMenuItems(""),
+    sep,
+    [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
+  ];
+  showMenu(e.clientX, e.clientY, items);
+});
 let pending: number | undefined;
 ui.search.addEventListener("input", () => {
   window.clearTimeout(pending);

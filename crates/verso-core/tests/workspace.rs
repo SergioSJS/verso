@@ -513,7 +513,10 @@ fn indexing_writes_a_sidecar_naming_the_folder_beside_the_index() {
             .output()
             .unwrap();
         let listing = String::from_utf8(listing.stdout).unwrap();
-        assert!(listing.starts_with("-rw------- "), "{listing}");
+        assert!(
+            listing.starts_with("-rw------- ") || listing.starts_with("-rw-------@ "),
+            "{listing}"
+        );
     }
 }
 

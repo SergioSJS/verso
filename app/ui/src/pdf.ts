@@ -9,7 +9,7 @@
 // The bytes come through the core's `verso://` protocol like any file.
 
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from "pdfjs-dist";
-import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
+import { EventBus, PDFFindController, PDFLinkService, PDFViewer, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { icon } from "./icons";
 
 GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", document.baseURI).href;
@@ -44,6 +44,10 @@ export type PdfStrings = {
   zoomOut: string;
   fitWidth: string;
   fitPage: string;
+  spreadSingle: string;
+  spreadOdd: string;
+  spreadEven: string;
+  spreadToggle: string;
   search: string;
   noHits: string;
   hits: (n: number, current: number) => string;
@@ -98,6 +102,7 @@ export class PdfView {
   private passages: Passage[] = [];
   private pendingPage = 1;
   private fitMode: "page-width" | "page-fit" | null = "page-width";
+  private spreadMode: number = SpreadMode.NONE;
 
   constructor(private readonly opts: PdfOptions) {
     const s = opts.strings;
@@ -121,11 +126,20 @@ export class PdfView {
     const pages = h("span", "pdf-pages");
     pages.append(btn("chevronUp", s.prevPage, () => this.goTo(this.page - 1)), this.pageInput, this.total, btn("chevron", s.nextPage, () => this.goTo(this.page + 1)));
     const zoom = h("span", "pdf-zoom");
+    const spreadLabels = [s.spreadSingle, s.spreadOdd, s.spreadEven];
+    const spreadBtn = btn("reading", s.spreadToggle, () => {
+      this.spreadMode = (this.spreadMode + 1) % 3;
+      this.viewer.spreadMode = this.spreadMode;
+      spreadBtn.title = `${s.spreadToggle}: ${spreadLabels[this.spreadMode]}`;
+      opts.onStatus(spreadLabels[this.spreadMode] ?? "");
+    });
+    spreadBtn.title = `${s.spreadToggle}: ${spreadLabels[this.spreadMode]}`;
     zoom.append(
       btn("zoomOut", s.zoomOut, () => this.zoom(1 / 1.2)),
       btn("zoomIn", s.zoomIn, () => this.zoom(1.2)),
       btn("fitWidth", s.fitWidth, () => this.fit("page-width")),
       btn("fitPage", s.fitPage, () => this.fit("page-fit")),
+      spreadBtn,
     );
     this.searchInput.type = "search";
     this.searchInput.placeholder = s.search;

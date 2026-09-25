@@ -12,7 +12,30 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Acrescentado
+
+- **Checkboxes de tarefas interativos no modo Editar**: clicar em caixas de seleção (`[ ]` / `[x]`) alterna o estado com suporte a histórico e estilo tachado.
+- **Botão para copiar blocos de código**: botão de cópia disponível no modo Editar e na leitura, com confirmação visual.
+- **Metadados (frontmatter) recolhíveis**: botão de recolher/expandir as propriedades da nota, lembrando a preferência no armazenamento local.
+- **Recolhimento de código e números de linha**: calha de dobra com setas indicadoras para títulos e blocos de código; opção de exibir números de linha nos ajustes.
+- **Suporte a iframes interativos**: renderização segura de `<iframe>` no modo leitura e edição com sandbox e liberação de CSP.
+- **Colunas de tabelas redimensionáveis**: controle de arrastar nas larguras de colunas de tabelas na visualização de leitura.
+- **Visualização de duas páginas em PDFs**: alternância entre página única, páginas duplas com capa (ímpar) e páginas duplas sem capa (par) na barra do PDF.
+- **Gestos de zoom e navegação no grafo**: zoom suave na roda do mouse, pinça no trackpad e navegação com dois dedos.
+- **Navegação para títulos internos e criação automática de notas**: links para `[[#Título]]` ou `[[Nota#Título]]` rolam até a seção, e links para notas inexistentes criam o arquivo ao clicar.
+- **Menu de contexto no espaço vazio da árvore**: clicar com o botão direito na árvore de arquivos oferece opções para criar notas, pastas, bases, páginas web e recolher/expandir tudo.
+- **Suporte a múltiplas janelas no App Exposé do macOS**: registro nativo no menu de janelas do macOS para agrupamento no Exposé / Mission Control.
+
+### Corrigido
+
+- **Alinhamento das abas laterais e estabilidade visual da barra de abas**: corrigido vazamento de botões na aba direita e eliminado salto de layout causado pelo indicador de alterações não salvas.
+- **Atalhos das barras laterais**: atualizados para `Cmd/Ctrl+Alt+Seta Esquerda/Direita` com exibição de símbolos de setas.
+- **Interpretação de escala em imagens no modo Editar**: corrigida leitura de tamanhos como `![|60](url)` e exibição de imagens padrão em Markdown.
+- **Agrupamento de desfazer/refazer (Ctrl+Z)**: transações anotadas corretamente para preservar a integridade do histórico do CodeMirror.
+- **Salto da barra de rolagem ao colar imagens**: mantida a posição da rolagem ao colar anexos na nota.
+- **Links internos dentro de blocos de código**: preveniu que trechos dentro de crases fossem interpretados como links da nota.
+- **Abertura de pastas via CLI no macOS**: `verso <pasta>` agora abre em uma nova janela em vez de substituir a janela anterior.
+- **Dicas visuais ao arrastar abas**: cálculo aprimorado da área de soltura perto de divisores e bordas dos painéis.
 
 ## 0.2.0-beta.2 — 2026-09-24
 

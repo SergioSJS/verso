@@ -1999,6 +1999,8 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
             &PredefinedMenuItem::close_window(app, None)?,
         ],
     )?;
+    #[cfg(target_os = "macos")]
+    window.set_as_windows_menu_for_nsapp()?;
     Menu::with_items(app, &[&verso, &edit, &view, &window])
 }
 
