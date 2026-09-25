@@ -25,6 +25,7 @@ versão de teste.
 - **Navegação para títulos internos e criação automática de notas**: links para `[[#Título]]` ou `[[Nota#Título]]` rolam até a seção, e links para notas inexistentes criam o arquivo ao clicar.
 - **Menu de contexto no espaço vazio da árvore**: clicar com o botão direito na árvore de arquivos oferece opções para criar notas, pastas, bases, páginas web e recolher/expandir tudo.
 - **Suporte a múltiplas janelas no App Exposé do macOS**: registro nativo no menu de janelas do macOS para agrupamento no Exposé / Mission Control.
+- **Cofre de exemplo e demonstração**: cofre modelo integrado em `demo-vault/` demonstrando todas as funcionalidades do Verso (sintaxe Markdown, KaTeX, tarefas interativas, wikilinks, notas incorporadas, propriedades YAML, bases, visualização em grafo e leitor de PDF em duas páginas) com importação em um clique pela paleta de comandos, menu e tela inicial.
 
 ### Corrigido
 

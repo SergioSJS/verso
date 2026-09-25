@@ -25,6 +25,7 @@ test release.
 - **Internal heading navigation and auto-creation of missing notes**: clicking `[[#Heading]]` or `[[Note#Heading]]` jumps to the heading, and clicking missing notes creates them automatically.
 - **Tree root context menu**: right-clicking empty space in the file tree opens options to create notes, folders, bases, web pages, or collapse/expand all.
 - **macOS multi-window support in App Exposé**: Tauri window menu registration for native macOS App Exposé / Mission Control window grouping.
+- **Demo and template vault**: integrated sample vault in `demo-vault/` showcasing all Verso features (Markdown syntax, KaTeX, interactive tasks, wikilinks, embeds, YAML properties, bases, graph view, and two-page PDF spread) with one-click import from the command palette, menu, and welcome screen.
 
 ### Fixed
 
