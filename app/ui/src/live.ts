@@ -45,10 +45,11 @@ export const redraw = StateEffect.define<null>();
 const WIKILINK = /(!?)\[\[([^\]\n]+)\]\]/g;
 const IMAGE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
 
-/** `![[img.png|300]]` or `|300x200`: Obsidian's size after the pipe. */
+/** `![[img.png|300]]` or `|300x200` or `![|60](url)`: Obsidian's size after the pipe. */
 export function sizeOf(alias: string | null): { w: number; h: number | null } | null {
   if (!alias) return null;
-  const m = /^\s*(\d+)(?:x(\d+))?\s*$/.exec(alias);
+  const clean = alias.replace(/^\|/, "").trim();
+  const m = /^(\d+)(?:x(\d+))?$/.exec(clean);
   return m ? { w: Number(m[1]), h: m[2] ? Number(m[2]) : null } : null;
 }
 
@@ -122,6 +123,61 @@ class ImageWidget extends WidgetType {
   }
 }
 
+class TaskCheckboxWidget extends WidgetType {
+  constructor(readonly checked: boolean, readonly pos: number) {
+    super();
+  }
+  override eq(other: TaskCheckboxWidget): boolean {
+    return other.checked === this.checked && other.pos === this.pos;
+  }
+  override toDOM(view: EditorView): HTMLElement {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.className = "cm-lp-task-check";
+    input.checked = this.checked;
+    input.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const next = !this.checked;
+      view.dispatch({
+        changes: { from: this.pos, to: this.pos + 3, insert: next ? "[x]" : "[ ]" },
+        userEvent: "input",
+      });
+    });
+    return input;
+  }
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+class CodeCopyWidget extends WidgetType {
+  constructor(readonly code: string) {
+    super();
+  }
+  override eq(other: CodeCopyWidget): boolean {
+    return other.code === this.code;
+  }
+  override toDOM(): HTMLElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cm-lp-copy-code";
+    btn.title = "Copiar código";
+    btn.textContent = "Copiar";
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void navigator.clipboard.writeText(this.code).then(() => {
+        btn.textContent = "Copiado!";
+        setTimeout(() => { btn.textContent = "Copiar"; }, 1500);
+      });
+    });
+    return btn;
+  }
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
 /** The folded frontmatter: a hint that properties live above. */
 class FrontmatterWidget extends WidgetType {
   constructor(readonly lines: number, readonly onClick: (() => void) | undefined, readonly title: string) {
@@ -143,6 +199,34 @@ class FrontmatterWidget extends WidgetType {
   }
   override ignoreEvent(): boolean {
     return true;
+  }
+}
+
+/** Rendered iframe in Live Preview when cursor is outside the HTML block. */
+class IframeWidget extends WidgetType {
+  constructor(readonly src: string, readonly styleStr: string, readonly width: string, readonly height: string) {
+    super();
+  }
+  override eq(other: IframeWidget): boolean {
+    return other.src === this.src && other.styleStr === this.styleStr && other.width === this.width && other.height === this.height;
+  }
+  toDOM(): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "cm-lp-block cm-lp-iframe-wrap";
+    const iframe = document.createElement("iframe");
+    iframe.src = this.src;
+    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-popups allow-forms");
+    iframe.setAttribute("loading", "lazy");
+    if (this.styleStr) iframe.style.cssText = this.styleStr;
+    if (this.width) iframe.width = this.width;
+    if (this.height) iframe.height = this.height;
+    if (!this.styleStr && !this.height) iframe.style.height = "600px";
+    if (!this.styleStr && !this.width) iframe.style.width = "100%";
+    wrap.append(iframe);
+    return wrap;
+  }
+  override ignoreEvent(): boolean {
+    return false;
   }
 }
 
@@ -657,12 +741,39 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const l = doc.line(n);
             out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-fence" }) });
           }
+          const raw = doc.sliceString(node.from, node.to);
+          const fLines = raw.split("\n");
+          const codeText = (fLines.length > 2 ? fLines.slice(1, -1).join("\n") : fLines.slice(1).join("\n")).trimEnd();
+          if (codeText.length > 0) {
+            out.push({
+              from: node.from,
+              to: node.from,
+              deco: Decoration.widget({ widget: new CodeCopyWidget(codeText), side: 1 }),
+            });
+          }
         } else if (name === "Blockquote") {
           const a = doc.lineAt(node.from).number;
           const b = doc.lineAt(node.to).number;
           for (let n = a; n <= b; n++) {
             const l = doc.line(n);
             out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-quote" }) });
+          }
+        } else if (name === "HTMLBlock" || name === "HTMLTag") {
+          const raw = doc.sliceString(node.from, node.to);
+          const m = /<iframe\b([^>]*?)>(?:.*?<\/iframe>)?/is.exec(raw);
+          if (m && !shown) {
+            const attrs = m[1] ?? "";
+            const src = /src=["'](.*?)["']/i.exec(attrs)?.[1] ?? "";
+            const style = /style=["'](.*?)["']/i.exec(attrs)?.[1] ?? "";
+            const width = /width=["'](.*?)["']/i.exec(attrs)?.[1] ?? "";
+            const height = /height=["'](.*?)["']/i.exec(attrs)?.[1] ?? "";
+            if (src.startsWith("http://") || src.startsWith("https://")) {
+              out.push({
+                from: node.from,
+                to: node.to,
+                deco: Decoration.replace({ widget: new IframeWidget(src, style, width, height), block: true }),
+              });
+            }
           }
         } else if (name === "QuoteMark") {
           // Every `>` of a quote, those inside its paragraphs too, with the
@@ -673,9 +784,44 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         } else if (name === "ListItem") {
           const line = doc.lineAt(node.from);
           const mark = node.node.getChild("ListMark");
-          const bullet = mark !== null && /^[-*+]$/.test(doc.sliceString(mark.from, mark.to));
-          out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: bullet ? "cm-lp-li cm-lp-bullet" : "cm-lp-li" }) });
-          if (bullet && mark && !touched(line.from, line.to)) hide(mark.from, Math.min(mark.to + 1, line.to));
+          const taskMarker = node.node.getChild("TaskMarker") ?? node.node.getChild("Task")?.getChild("TaskMarker");
+          const isTask = taskMarker !== null;
+          const bullet = !isTask && mark !== null && /^[-*+]$/.test(doc.sliceString(mark.from, mark.to));
+
+          let depth = 0;
+          let p = node.node.parent;
+          while (p) {
+            if (p.name === "ListItem") depth++;
+            p = p.parent;
+          }
+          const indentSpaces = (line.text.match(/^([ \t]*)/)?.[1] ?? "").replace(/\t/g, "  ").length;
+          const visualDepth = Math.max(depth, Math.floor(indentSpaces / 2));
+          const lineAttrs: Record<string, string> = {};
+          if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
+
+          const touchedMark = mark && view.state.selection.ranges.some((r) => r.from <= mark.to + 1 && r.to >= line.from);
+
+          if (taskMarker) {
+            const taskText = doc.sliceString(taskMarker.from, taskMarker.to);
+            const checked = /^\[[xX]\]$/.test(taskText);
+            const cls = checked ? "cm-lp-li cm-lp-task cm-lp-task-done" : "cm-lp-li cm-lp-task";
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
+            if (mark) hide(line.from, Math.min(mark.to + 1, line.to));
+            const touchedTask = view.state.selection.ranges.some((r) => r.from <= taskMarker.to && r.to >= taskMarker.from);
+            if (!touchedTask) {
+              out.push({
+                from: taskMarker.from,
+                to: taskMarker.to,
+                deco: Decoration.replace({ widget: new TaskCheckboxWidget(checked, taskMarker.from) }),
+              });
+            }
+          } else {
+            const showBullet = bullet && !touchedMark;
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: showBullet ? "cm-lp-li cm-lp-bullet" : "cm-lp-li", attributes: lineAttrs }) });
+            if (bullet && mark && !touchedMark) {
+              hide(line.from, Math.min(mark.to + 1, line.to));
+            }
+          }
         } else if (name === "Link" && !shown) {
           out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-link" }) });
           const url = node.node.getChild("URL");
@@ -687,6 +833,25 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             if (first) hide(first.from, first.to);
             const close = marks[1];
             if (close) hide(close.from, node.to);
+          }
+        } else if (name === "Image" && !shown) {
+          const urlNode = node.node.getChild("URL");
+          const marks = node.node.getChildren("LinkMark");
+          if (urlNode) {
+            const rawUrl = doc.sliceString(urlNode.from, urlNode.to);
+            let alt = "";
+            const m0 = marks[0];
+            const m1 = marks[1];
+            if (m0 && m1) alt = doc.sliceString(m0.to, m1.from);
+            const size = sizeOf(alt);
+            const src = /^https?:\/\//i.test(rawUrl) ? rawUrl : opts.imageUrl(rawUrl);
+            if (src) {
+              out.push({
+                from: node.from,
+                to: node.to,
+                deco: Decoration.replace({ widget: new ImageWidget(src, alt, size?.w ?? null) }),
+              });
+            }
           }
         } else if (name === "HorizontalRule" && !shown) {
           out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-hr" }) });
@@ -703,12 +868,22 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       const end = start + m[0].length;
       const inner = m[2] ?? "";
       const embed = m[1] === "!";
-      const kind = tree.resolveInner(start + 2, 1).name;
-      if (kind === "InlineCode" || kind === "FencedCode" || kind === "CodeText") continue;
+      let inCode = false;
+      let curr: import("@lezer/common").SyntaxNode | null = tree.resolveInner(start + 2, 1);
+      while (curr) {
+        if (curr.name === "InlineCode" || curr.name === "FencedCode" || curr.name === "CodeBlock" || curr.name === "CodeText") {
+          inCode = true;
+          break;
+        }
+        curr = curr.parent;
+      }
+      if (inCode) continue;
       if (math.some((r) => start < r.to && end > r.from)) continue;
       const target = (inner.split("|")[0] ?? "").split("#")[0] ?? "";
       const alias = inner.includes("|") ? (inner.split("|")[1] ?? "") : null;
-      const shown = embed && IMAGE.test(target) ? view.state.selection.ranges.some((r) => r.from <= end && r.to >= start && !(r.from === r.to && (r.from === start || r.from === end))) : touched(start, end);
+      const shown = embed && IMAGE.test(target)
+        ? view.state.selection.ranges.some((r) => r.empty && r.from <= end && r.to >= start && !(r.from === r.to && (r.from === start || r.from === end)))
+        : touched(start, end);
       if (embed && IMAGE.test(target) && !shown) {
         const url = opts.imageUrl(target);
         if (url) {

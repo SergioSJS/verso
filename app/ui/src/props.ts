@@ -29,6 +29,7 @@ export type PropsStrings = {
   fixed: string;
   /** The button that opens a value's web address. */
   open: string;
+  propertiesTitle?: string;
 };
 
 export type Change = { from: number; to: number; insert: string };
@@ -85,6 +86,13 @@ export class PropertiesView {
   private pending: (() => void) | null = null;
   constructor(private readonly opts: PropsOptions) {
     this.el.hidden = true;
+    try {
+      if (localStorage.getItem("verso.props.collapsed") === "true") {
+        this.el.classList.add("collapsed");
+      }
+    } catch {
+      // No storage.
+    }
     this.el.addEventListener("focusout", (e) => {
       if (this.pending && !this.el.contains(e.relatedTarget as Node | null)) {
         const run = this.pending;
@@ -112,7 +120,21 @@ export class PropertiesView {
     add.append(icon("plus"), h("span", "", this.opts.strings.addProperty));
     add.addEventListener("click", () => this.newRow(add));
     add.hidden = this.readOnly;
-    this.el.replaceChildren(...rows, add);
+    if (this.items.length > 0) {
+      const header = h("div", "props-header");
+      const toggle = h("button", "props-toggle");
+      toggle.type = "button";
+      toggle.append(icon("chevron"), h("span", "", this.opts.strings.propertiesTitle ?? "Propriedades"));
+      toggle.addEventListener("click", () => {
+        const collapsed = !this.el.classList.contains("collapsed");
+        this.el.classList.toggle("collapsed", collapsed);
+        try { localStorage.setItem("verso.props.collapsed", String(collapsed)); } catch {}
+      });
+      header.append(toggle);
+      this.el.replaceChildren(header, ...rows, add);
+    } else {
+      this.el.replaceChildren(...rows, add);
+    }
     this.el.hidden = false;
     this.el.classList.toggle("empty", this.items.length === 0);
     if (focusKey !== undefined) {
