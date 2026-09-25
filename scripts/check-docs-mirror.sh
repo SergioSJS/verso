@@ -30,10 +30,13 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
+# Ensure git doesn't quote UTF-8 filenames with octal escapes
+git() { command git -c core.quotepath=false "$@"; }
+
 # Tracked Markdown that deliberately has no twin. Keep this list short and
 # justified. Fixture inputs are contract data, not documentation (ADR 0031).
 EXCLUDED=()
-EXCLUDED_PREFIXES=(fixtures/)
+EXCLUDED_PREFIXES=(fixtures/ demo-vault/)
 
 fail=0
 say() { printf '%s\n' "$*" >&2; }

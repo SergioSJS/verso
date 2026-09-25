@@ -1,0 +1,10 @@
+views:
+  - type: table
+    name: Todos os Projetos
+    order:
+      - file.name
+  - type: kanban
+    name: Por Status
+    groupBy: status
+  - type: list
+    name: Lista de Projetos

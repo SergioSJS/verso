@@ -40,6 +40,7 @@ import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
 import { ask } from "./dialog";
 import { allowRemoteContent, cleanHtmlText, setHtml } from "./sanitize";
+import { DEMO_VAULT_FILES } from "./demoVault";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -74,7 +75,8 @@ type Strings = Record<
   | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
-  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc",
+  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
+  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -176,6 +178,7 @@ const pt: Strings = {
   mcpAddAsk: "Isto entra no arquivo de configuração do Claude Desktop; uma cópia do arquivo como está fica ao lado dele:\n\n{entry}\n\nDepois, reinicie o Claude Desktop.", mcpAddYes: "Adicionar", mcpAdded: "Adicionado. Reinicie o Claude Desktop.", mcpBackup: "Cópia do anterior: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
+  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!",
 };
 
 const en: Strings = {
@@ -254,6 +257,7 @@ const en: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
+  importDemoVault: "Import demo vault", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -5066,6 +5070,33 @@ async function newBase(folder: string): Promise<void> {
   await afterFileChange();
   openNote(r.data, false);
 }
+/** Populate the current vault with sample notes, bases, and templates. */
+async function importDemoVault(): Promise<void> {
+  if (!currentFolder) {
+    const picked = await openFolderBy(() => commands.pickFolder());
+    if (!picked || !currentFolder) return;
+  }
+  const confirmed = await ask(t.importDemoVaultConfirm, { yes: t.importDemoVault, no: t.cancel });
+  if (!confirmed) return;
+
+  const folders = ["assets", "daily", "projetos", "templates"];
+  for (const f of folders) {
+    openFolders.add(f);
+    void commands.createFolder(f);
+  }
+
+  for (const item of DEMO_VAULT_FILES) {
+    const res = await commands.createFile(item.path, item.b64);
+    if (res.status !== "ok" && res.error.kind !== "exists") {
+      fail(res.error);
+    }
+  }
+
+  await afterFileChange();
+  refreshLists();
+  openNote("00 - Bem-vindo ao Verso.md", false);
+  ui.status.textContent = t.demoVaultImported;
+}
 /** A `base` block at the caret of the note being edited. */
 function insertBase(): void {
   const leaf = layout().activeLeaf;
@@ -5332,12 +5363,17 @@ menu.addEventListener("keydown", (e) => {
 });
 type MenuItem = [label: string, run: () => void, iconName?: string];
 function createMenuItems(folder = ""): MenuItem[] {
-  return [
+  const items: MenuItem[] = [
     [t.newHere, () => newNotePrompt(folder), "plus"],
     [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
     [t.newBase, () => void newBase(folder), "calendar"],
     [t.newWebPage, () => newWebPagePrompt(folder), "globe"],
   ];
+  if (folder === "") {
+    items.push(["—", () => {}]);
+    items.push([t.importDemoVault, () => void importDemoVault(), "template"]);
+  }
+  return items;
 }
 function showMenu(x: number, y: number, items: MenuItem[]): void {
   menuOpener = document.activeElement;
@@ -6129,6 +6165,7 @@ function allCommands(all = false): Command[] {
     { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
     { id: "insert-template", label: t.insertTemplate, need: hasFolder, run: () => insertTemplate() },
     { id: "save-template", label: t.saveAsTemplate, need: hasFolder, run: () => void saveAsTemplate() },
+    { id: "import-demo-vault", label: t.importDemoVault, run: () => void importDemoVault() },
     { id: "quick", label: t.quick, need: hasFolder, run: () => quick.show() },
     { id: "palette", label: t.commands, need: hasFolder, run: () => paletteDialog.show() },
     { id: "search", label: t.search, need: hasFolder, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
@@ -6867,7 +6904,16 @@ rightDivider.addEventListener("pointerdown", (e) => {
 function lesson(): void {
   page?.classList.add("empty");
   const box = h("div", "lesson");
-  box.append(h("h1", "", t.lessonTitle), h("p", "", t.lessonBody), h("p", "keys", t.lessonKeys.replace(/\{([\w-]+)\}/g, (_, id: string) => prettyKeys(keyOf(id)))));
+  const importBtn = h("button", "lesson-import", t.importDemoVault);
+  importBtn.type = "button";
+  importBtn.prepend(icon("template"));
+  importBtn.addEventListener("click", () => void importDemoVault());
+  box.append(
+    h("h1", "", t.lessonTitle),
+    h("p", "", t.lessonBody),
+    h("p", "keys", t.lessonKeys.replace(/\{([\w-]+)\}/g, (_, id: string) => prettyKeys(keyOf(id)))),
+    importBtn,
+  );
   ui.panes.replaceChildren(box);
 }
 /** A popped-out window joins the session: the folder is open already. */
