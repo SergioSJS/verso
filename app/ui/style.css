@@ -1196,6 +1196,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-body { flex: 1; min-width: 0; overflow: auto; padding: 1.2rem 2rem 2rem; }
 .settings-title { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin: 0 0 .6rem; }
 .settings-heading { font-family: var(--ui); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 1.2rem 0 .3rem; }
+.settings-subheading { font-family: var(--ui); font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); margin: 1.6rem 0 .4rem; padding-bottom: .35rem; border-bottom: 1px solid var(--hair); font-weight: 600; }
 .settings-hint { font-size: .82rem; color: var(--ink-3); margin: 0 0 .6rem; }
 .setting { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: .8rem 0; border-bottom: 1px solid var(--hair); }
 .setting-text { min-width: 0; }
