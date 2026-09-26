@@ -249,6 +249,12 @@ export const commands = {
 	 *  linked: the entry starts it.
 	 */
 	mcpAddClaude: () => typedError<McpAdded, ContractError>(__TAURI_INVOKE("mcp_add_claude")),
+	/**  Checks GitHub releases for a new version of the application. */
+	checkForUpdates: () => typedError<UpdateInfo, ContractError>(__TAURI_INVOKE("check_for_updates")),
+	/**  Downloads and installs an update directly from within the app. */
+	downloadAndInstallUpdate: (downloadUrl: string, assetUrl: string | null) => typedError<InstallResult, ContractError>(__TAURI_INVOKE("download_and_install_update", { downloadUrl, assetUrl })),
+	/**  Restarts the application to apply updates. */
+	restartApp: () => typedError<null, ContractError>(__TAURI_INVOKE("restart_app")),
 };
 
 /* Types */
@@ -571,6 +577,14 @@ export type IndexSummary = {
 	unindexed: string | null,
 };
 
+/**  Result of an in-app update installation. */
+export type InstallResult = {
+	success: boolean,
+	message: string,
+	app_path: string | null,
+	requires_restart: boolean,
+};
+
 /**  A link a note makes. */
 export type Link = {
 	/**  As written in the note. */
@@ -750,6 +764,40 @@ export type TextFile = {
 export type Trashed = {
 	path: string,
 	warnings: string[],
+};
+
+/**  Information about an application update. */
+export type UpdateInfo = {
+	/**  The currently running version (e.g. "0.2.0-beta.2"). */
+	current_version: string,
+	/**  The latest version available on GitHub (e.g. "0.2.0-beta.3"). */
+	latest_version: string,
+	/**  Whether an update is available (latest_version > current_version). */
+	has_update: boolean,
+	/**  Release title (e.g. "Verso Beta 0.2.0-beta.3"). */
+	release_name: string,
+	/**  Changelog / release notes in Markdown. */
+	release_notes: string,
+	/**  Direct asset download URL (or browser download url). */
+	download_url: string | null,
+	/**  GitHub API asset URL (used for authenticated downloads if repo is private). */
+	asset_url: string | null,
+	/**  Name of the download file (e.g. "Verso-Beta-0.2.0-beta.3-macos-arm64.zip"). */
+	asset_name: string | null,
+	/**  Size of the asset in bytes. */
+	asset_size: number | null,
+	/**  ISO 8601 publication timestamp. */
+	published_at: string | null,
+};
+
+/**  Download progress payload emitted during update downloads. */
+export type UpdateProgress = {
+	downloaded_bytes: number | null,
+	total_bytes: number | null,
+	percent: number | null,
+	/**  "downloading" | "extracting" | "installing" | "done" | "error" */
+	status: string,
+	message: string | null,
 };
 
 /**  A note that is a web page: its path and the address in its `url`. */

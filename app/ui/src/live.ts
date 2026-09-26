@@ -20,6 +20,7 @@ import katex from "katex";
 import { cells } from "./table";
 import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -66,11 +67,12 @@ class ImageWidget extends WidgetType {
     readonly src: string,
     readonly alt: string,
     readonly width: number | null,
+    readonly height: number | null = null,
   ) {
     super();
   }
   override eq(other: ImageWidget): boolean {
-    return other.src === this.src && other.width === this.width;
+    return other.src === this.src && other.width === this.width && other.height === this.height;
   }
   override toDOM(view: EditorView): HTMLElement {
     const box = document.createElement("span");
@@ -80,36 +82,61 @@ class ImageWidget extends WidgetType {
     img.src = this.src;
     img.alt = this.alt;
     if (this.width) img.style.width = `${this.width}px`;
+    if (this.height) img.style.height = `${this.height}px`;
     const grip = document.createElement("span");
     grip.className = "cm-lp-grip";
-    grip.title = "↔";
-    // Dragging the corner rewrites the size after the pipe in the source.
+    grip.title = "⤡";
+    // Dragging the corner rewrites the size in the source (width and height).
     grip.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       e.stopPropagation();
       grip.setPointerCapture(e.pointerId);
       const x0 = e.clientX;
-      const w0 = img.getBoundingClientRect().width;
+      const y0 = e.clientY;
+      const rect = img.getBoundingClientRect();
+      const w0 = rect.width;
+      const h0 = rect.height;
       let w = Math.round(w0);
+      let h = Math.round(h0);
       const badge = document.createElement("span");
       badge.className = "cm-lp-size";
+      badge.textContent = `${w} × ${h} px`;
       box.append(badge);
       const move = (ev: PointerEvent) => {
-        w = Math.max(40, Math.round(w0 + ev.clientX - x0));
+        w = Math.max(40, Math.round(w0 + (ev.clientX - x0)));
+        h = Math.max(40, Math.round(h0 + (ev.clientY - y0)));
         img.style.width = `${w}px`;
-        badge.textContent = `${w} px`;
+        img.style.height = `${h}px`;
+        badge.textContent = `${w} × ${h} px`;
       };
-      const up = () => {
+      const up = (ev: PointerEvent) => {
         grip.removeEventListener("pointermove", move);
         grip.removeEventListener("pointerup", up);
         badge.remove();
+        try { grip.releasePointerCapture(ev.pointerId); } catch {}
         // The embed as the document has it now, at the widget's place.
         const at = startOf(view, box);
         if (at === null) return;
-        const m = /^!\[\[([^\]\n]+)\]\]/.exec(view.state.sliceDoc(at, view.state.doc.lineAt(at).to));
-        if (!m) return;
-        const target = (m[1] ?? "").split("|")[0] ?? "";
-        view.dispatch({ changes: { from: at, to: at + m[0].length, insert: `![[${target}|${w}]]` } });
+        const line = view.state.doc.lineAt(at);
+        const restOfLine = view.state.sliceDoc(at, line.to);
+
+        // 1. Wikilink embed: ![[target]] or ![[target|300]] or ![[target|300x200]]
+        const mWiki = /^!\[\[([^\]\n]+)\]\]/.exec(restOfLine);
+        if (mWiki) {
+          const target = (mWiki[1] ?? "").split("|")[0] ?? "";
+          view.dispatch({ changes: { from: at, to: at + mWiki[0].length, insert: `![[${target}|${w}x${h}]]` } });
+          return;
+        }
+
+        // 2. Markdown image: ![alt](url) or ![alt|size](url)
+        const mMd = /^!\[([^\]\n]*)\]\(([^)\n]+)\)/.exec(restOfLine);
+        if (mMd) {
+          const rawAlt = mMd[1] ?? "";
+          const url = mMd[2] ?? "";
+          const baseAlt = rawAlt.split("|")[0] ?? "";
+          const newAlt = baseAlt ? `${baseAlt}|${w}x${h}` : `${w}x${h}`;
+          view.dispatch({ changes: { from: at, to: at + mMd[0].length, insert: `![${newAlt}](${url})` } });
+        }
       };
       grip.addEventListener("pointermove", move);
       grip.addEventListener("pointerup", up);
@@ -220,13 +247,17 @@ class IframeWidget extends WidgetType {
     const wrap = document.createElement("div");
     wrap.className = "cm-lp-block cm-lp-iframe-wrap";
     const iframe = document.createElement("iframe");
-    iframe.src = this.src;
-    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-popups allow-forms");
+    const rawSrc = this.src;
+    if (rawSrc.startsWith("http://") || rawSrc.startsWith("https://")) {
+      iframe.src = convertFileSrc(`__proxy?url=${encodeURIComponent(rawSrc)}`, "verso");
+    } else {
+      iframe.src = rawSrc;
+    }
     iframe.setAttribute("loading", "lazy");
     if (this.styleStr) iframe.style.cssText = this.styleStr;
     if (this.width) iframe.width = this.width;
     if (this.height) iframe.height = this.height;
-    if (!this.styleStr && !this.height) iframe.style.height = "600px";
+    if (!this.styleStr && !this.height) iframe.style.height = "800px";
     if (!this.styleStr && !this.width) iframe.style.width = "100%";
     wrap.append(iframe);
     return wrap;
@@ -515,6 +546,29 @@ class BlockWidget extends WidgetType {
       for (const c of head) {
         const th = document.createElement("th");
         th.textContent = c;
+        th.style.position = "relative";
+        const grip = document.createElement("div");
+        grip.className = "table-col-grip";
+        grip.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          grip.setPointerCapture(e.pointerId);
+          const startX = e.clientX;
+          const startWidth = th.offsetWidth;
+          const onMove = (ev: PointerEvent) => {
+            const newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+            th.style.width = `${newWidth}px`;
+            th.style.minWidth = `${newWidth}px`;
+          };
+          const onUp = (ev: PointerEvent) => {
+            grip.removeEventListener("pointermove", onMove);
+            grip.removeEventListener("pointerup", onUp);
+            try { grip.releasePointerCapture(ev.pointerId); } catch {}
+          };
+          grip.addEventListener("pointermove", onMove);
+          grip.addEventListener("pointerup", onUp);
+        });
+        th.append(grip);
         tr.append(th);
       }
       thead.append(tr);
@@ -916,7 +970,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               out.push({
                 from: node.from,
                 to: node.to,
-                deco: Decoration.replace({ widget: new ImageWidget(src, alt, size?.w ?? null) }),
+                deco: Decoration.replace({ widget: new ImageWidget(src, alt, size?.w ?? null, size?.h ?? null) }),
               });
             }
           }
@@ -961,7 +1015,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         const url = opts.imageUrl(target);
         if (url) {
           const size = sizeOf(alias);
-          out.push({ from: start, to: end, deco: Decoration.replace({ widget: new ImageWidget(url, target, size?.w ?? null) }) });
+          out.push({ from: start, to: end, deco: Decoration.replace({ widget: new ImageWidget(url, target, size?.w ?? null, size?.h ?? null) }) });
           continue;
         }
       }

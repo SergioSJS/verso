@@ -1,6 +1,4 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 // The core's HTML reaches the page only through here. The renderer lets a
 // note's raw HTML through, as the base parser does, and this page holds
@@ -173,7 +171,7 @@ function clean(body: HTMLElement): void {
         el.remove();
         continue;
       }
-      el.setAttribute("sandbox", "allow-scripts allow-same-origin allow-popups allow-forms");
+      el.setAttribute("src", convertFileSrc(`__proxy?url=${encodeURIComponent(src)}`, "verso"));
       el.setAttribute("loading", "lazy");
     }
     const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";

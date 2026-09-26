@@ -50,6 +50,7 @@ const PATHS: Record<string, string> = {
   calendar: "M2.5 4h11v9.5h-11zM2.5 7.5h11M5 2.5v3M11 2.5v3",
   props: "M2.5 4h11M2.5 8h7M2.5 12h9M12 10.5v3M10.5 12h3",
   chevronUp: "M3.5 10 8 5.5l4.5 4.5",
+  chevronDown: "M3.5 6 8 10.5l4.5-4.5",
   palette: "M8 13.5a5.5 5.5 0 1 1 5.2-3.7c-.3.8-1.2 1-1.9.7-.9-.4-1.6.5-1.2 1.3.3.6 0 1.5-.8 1.6A6 6 0 0 1 8 13.5zM5.5 6.5h.01M8.5 4.5h.01M11 6.5h.01M5.5 9.5h.01",
   keyboard: "M2 4.5h12v7H2zM4.5 7h.01M7 7h.01M9.5 7h.01M12 7h.01M4.5 9.5h7",
   fitPage: "M8 2.5v11M8 2.5 5.5 5M8 2.5l2.5 2.5M8 13.5 5.5 11M8 13.5l2.5-2.5",
@@ -78,6 +79,8 @@ const PATHS: Record<string, string> = {
   kanban: "M2.5 3h3v10h-3zM6.5 3h3v6h-3zM10.5 3h3v8h-3z",
   base: "M2.5 3.5h11v9h-11zM2.5 6.5h11M6 6.5v6",
   terminal: "M2.5 3.5h11v9h-11zM4.5 6.5l2 1.5-2 1.5M8 10h3",
+  download: "M3 11.5v1a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5v-1M8 2v7.5M5 6.5 8 9.5 11 6.5",
+  sparkles: "M8 2l1.2 3.8L13 7l-3.8 1.2L8 12l-1.2-3.8L3 7l3.8-1.2zM12.5 1.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z",
 };
 
 export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGElement {

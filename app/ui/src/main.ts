@@ -24,10 +24,21 @@ import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { LanguageDescription, bracketMatching, defaultHighlightStyle, foldAll, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting, unfoldAll } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
-import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import {
+  highlightSelectionMatches,
+  search,
+  searchKeymap,
+  openSearchPanel,
+  closeSearchPanel,
+  getSearchQuery,
+  setSearchQuery,
+  SearchQuery,
+  searchPanelOpen,
+} from "@codemirror/search";
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { lintKeymap } from "@codemirror/lint";
 import katex from "katex";
+import { CustomSearchPanel, ReadingSearch, searchStrings } from "./searchPanel";
 
 const baseEditorExtensions: Extension = [
   highlightActiveLineGutter(),
@@ -47,6 +58,10 @@ const baseEditorExtensions: Extension = [
   crosshairCursor(),
   highlightActiveLine(),
   highlightSelectionMatches(),
+  search({
+    top: true,
+    createPanel: (view) => new CustomSearchPanel(view, searchStrings()),
+  }),
   keymap.of([
     ...closeBracketsKeymap,
     ...defaultKeymap,
@@ -57,7 +72,7 @@ const baseEditorExtensions: Extension = [
     ...lintKeymap,
   ]),
 ];
-import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type NoteText, type PropertyValue, type TextFile, type Written } from "./bindings";
+import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { icon } from "./icons";
 import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
@@ -89,9 +104,12 @@ type Strings = Record<
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
   | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
   | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions" | "propertiesTitle"
-  | "replaceTitle" | "find" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
+  | "replaceTitle" | "find" | "findInNote" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
   | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
+  | "headingFont" | "headingFontDesc" | "bodyFont" | "bodyFontDesc" | "headingColor" | "headingColorDesc"
+  | "fontSerif" | "fontSans" | "fontEditorial" | "fontMono" | "fontSystem"
+  | "colorDefault" | "colorBrass" | "colorSeal" | "colorMoss" | "colorSlate" | "colorRoyal" | "colorAmethyst"
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage" | "spreadSingle" | "spreadOdd" | "spreadEven" | "spreadToggle" | "lineNumbers" | "lineNumbersDesc"
   | "lineNumbersEdit" | "lineNumbersEditDesc" | "lineNumbersSource" | "lineNumbersSourceDesc" | "lineNumbersPreview" | "lineNumbersPreviewDesc" | "foldAllHeadings" | "unfoldAllHeadings"
@@ -109,7 +127,8 @@ type Strings = Record<
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
   | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
-  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported",
+  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported"
+  | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -197,9 +216,14 @@ const pt: Strings = {
   themeDesc: "Claro, escuro ou como o sistema.", hueDesc: "A família de cores do papel e dos destaques.", fontSizeDesc: "Tamanho base da interface e das notas.", attachmentsDesc: "Subpasta, ao lado da nota, onde imagens coladas são salvas.", dailyDesc: "Onde a nota de hoje é criada.", templatesDesc: "Qualquer nota nessa pasta é um template.", autosaveDesc: "Segundos depois de parar de digitar.",
   graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique ou Enter abre · duplo clique ou ⇧Enter centra · as setas percorrem as notas · arraste move · roda amplia", graphLabels: "Nomes",
   ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções",
-  replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
+  replaceTitle: "Localizar e substituir no cofre", find: "Localizar", findInNote: "Localizar na nota", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
+  headingFont: "Fonte dos títulos", headingFontDesc: "Família tipográfica aplicada aos títulos e cabeçalhos.",
+  bodyFont: "Fonte do texto", bodyFontDesc: "Família tipográfica aplicada ao texto das notas e interface.",
+  headingColor: "Cor de destaque dos títulos", headingColorDesc: "Tonalidade aplicada aos títulos e cabeçalhos.",
+  fontSerif: "Serifada clássica (Fraunces)", fontSans: "Sem serifa moderna (Instrument Sans)", fontEditorial: "Editorial literária (Literata)", fontMono: "Monoespaçada (Código)", fontSystem: "Sistema padrão",
+  colorBrass: "Âmbar / Brass (Acolhedor)", colorDefault: "Tinta natural (Neutro)", colorSeal: "Rubi / Selo (Vibrante)", colorMoss: "Esmeralda / Musgo (Natural)", colorSlate: "Ardósia / Índigo (Frio)", colorRoyal: "Safira Real (Azul)", colorAmethyst: "Ametista Real (Roxo)",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
@@ -213,6 +237,7 @@ const pt: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
   importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!",
+  checkUpdates: "Verificar atualizações automaticamente", checkUpdatesDesc: "Verifica e avisa ao abrir o aplicativo quando uma nova versão do Verso estiver disponível.", checkNow: "Verificar atualizações", checkingUpdates: "Verificando atualizações…", updateUpToDate: "Você está usando a versão mais recente.", updateAvailable: "Nova versão disponível", downloadAndUpdate: "Baixar e atualizar", downloadingUpdate: "Baixando atualização…", updateReady: "Atualização pronta!", restartNow: "Reiniciar agora", viewReleaseNotes: "Ver notas da versão", hideReleaseNotes: "Ocultar notas da versão", updateBannerTitle: "Nova versão disponível", seeInSettings: "Ver nos Ajustes", updateFailed: "Não foi possível verificar atualizações.",
 };
 
 const en: Strings = {
@@ -277,9 +302,14 @@ const en: Strings = {
   themeDesc: "Light, dark, or as the system.", hueDesc: "The color family of the paper and the accents.", fontSizeDesc: "Base size of the interface and the notes.", attachmentsDesc: "Subfolder beside the note where pasted images go.", dailyDesc: "Where today's note is created.", templatesDesc: "Any note in that folder is a template.", autosaveDesc: "Seconds after typing stops.",
   graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click or Enter opens · double-click or ⇧Enter centers · the arrows walk the notes · drag moves · wheel zooms", graphLabels: "Names",
   ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options",
-  replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
+  replaceTitle: "Find and replace in the vault", find: "Find", findInNote: "Find in note", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
+  headingFont: "Heading font", headingFontDesc: "Typeface applied to headings and titles.",
+  bodyFont: "Body font", bodyFontDesc: "Typeface applied to note body and interface text.",
+  headingColor: "Heading accent color", headingColorDesc: "Color tone applied to headings and sections.",
+  fontSerif: "Classic Serif (Fraunces)", fontSans: "Modern Sans (Instrument Sans)", fontEditorial: "Literary Serif (Literata)", fontMono: "Monospace (Code)", fontSystem: "System Default",
+  colorBrass: "Warm Brass (Amber)", colorDefault: "Natural Ink (Neutral)", colorSeal: "Ruby Seal (Vibrant)", colorMoss: "Emerald Moss (Natural)", colorSlate: "Slate Indigo (Cool)", colorRoyal: "Royal Sapphire (Blue)", colorAmethyst: "Royal Amethyst (Purple)",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
@@ -292,7 +322,8 @@ const en: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
-  importDemoVault: "Import demo vault", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!",
+  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!",
+  checkUpdates: "Check for updates automatically", checkUpdatesDesc: "Check and notify on startup when a new version of Verso is available.", checkNow: "Check for updates", checkingUpdates: "Checking for updates…", updateUpToDate: "You are running the latest version.", updateAvailable: "New version available", downloadAndUpdate: "Download and update", downloadingUpdate: "Downloading update…", updateReady: "Update ready!", restartNow: "Restart now", viewReleaseNotes: "View release notes", hideReleaseNotes: "Hide release notes", updateBannerTitle: "New version available", seeInSettings: "View in Settings", updateFailed: "Could not check for updates.",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -437,6 +468,7 @@ type Settings = {
   daily: string;
   templates: string;
   spellcheck: boolean;
+  checkUpdates: boolean;
   lineNumbers?: boolean;
   lineNumbersEdit: boolean;
   lineNumbersSource: boolean;
@@ -445,6 +477,9 @@ type Settings = {
   measure: "normal" | "wide";
   linkFormat: "shortest" | "relative" | "root";
   remoteContent: boolean;
+  headingFont?: "serif" | "sans" | "editorial" | "mono" | "system";
+  bodyFont?: "sans" | "serif" | "mono" | "system";
+  headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
   hotkeys: Record<string, string>;
 };
 const DEFAULTS: Settings = {
@@ -457,6 +492,7 @@ const DEFAULTS: Settings = {
   daily: t.dailyName,
   templates: t.templatesName,
   spellcheck: true,
+  checkUpdates: true,
   lineNumbersEdit: false,
   lineNumbersSource: true,
   lineNumbersPreview: false,
@@ -464,6 +500,9 @@ const DEFAULTS: Settings = {
   measure: "normal",
   linkFormat: "shortest",
   remoteContent: true,
+  headingFont: "serif",
+  bodyFont: "sans",
+  headingColor: "brass",
   hotkeys: {},
 };
 let settings: Settings = { ...DEFAULTS };
@@ -500,6 +539,31 @@ function applySettings(): void {
   document.documentElement.classList.toggle("show-line-numbers-edit", Boolean(settings.lineNumbersEdit));
   document.documentElement.classList.toggle("show-line-numbers-source", Boolean(settings.lineNumbersSource));
   document.documentElement.classList.toggle("show-line-numbers-preview", Boolean(settings.lineNumbersPreview));
+  const headingFonts: Record<string, string> = {
+    serif: '"Fraunces", "Iowan Old Style", Georgia, serif',
+    sans: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    editorial: '"Literata", "Charter", Georgia, serif',
+    mono: 'ui-monospace, "SF Mono", Menlo, monospace',
+    system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  };
+  const bodyFonts: Record<string, string> = {
+    sans: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    serif: '"Literata", "Charter", Georgia, serif',
+    mono: 'ui-monospace, "SF Mono", Menlo, monospace',
+    system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  };
+  const headingColors: Record<string, string> = {
+    brass: "var(--brass-ink)",
+    default: "var(--ink)",
+    seal: "var(--seal)",
+    moss: "light-dark(oklch(45% 0.12 145), oklch(75% 0.11 145))",
+    slate: "light-dark(oklch(45% 0.05 240), oklch(75% 0.05 240))",
+    royal: "light-dark(oklch(46% 0.14 260), oklch(75% 0.13 260))",
+    amethyst: "light-dark(oklch(48% 0.15 310), oklch(76% 0.13 310))",
+  };
+  document.documentElement.style.setProperty("--heading-font", headingFonts[settings.headingFont ?? "serif"] || headingFonts.serif!);
+  document.documentElement.style.setProperty("--ui", bodyFonts[settings.bodyFont ?? "sans"] || bodyFonts.sans!);
+  document.documentElement.style.setProperty("--heading-color", headingColors[settings.headingColor ?? "brass"] || headingColors.brass!);
   allowRemoteContent(settings.remoteContent);
   updateLeavesLineNumbers?.();
 }
@@ -1411,6 +1475,7 @@ class NoteLeaf extends Leaf {
   /** PDF readers and bases embedded in the preview, closed when it is
    *  redrawn. */
   embeds: (PdfView | BaseView)[] = [];
+  readonly readingSearch: ReadingSearch;
 
   constructor(pane: Pane) {
     super(pane);
@@ -1435,6 +1500,7 @@ class NoteLeaf extends Leaf {
     this.buildToolbar();
     const sheet = this.sheet;
     sheet.append(titleRow, this.flags, this.props.el, this.conflict.el, this.preview, this.editorHost);
+    this.readingSearch = new ReadingSearch(this.sheet, this.preview, searchStrings());
     this.buildWebBar();
     this.webBar.hidden = true;
     this.webHost.hidden = true;
@@ -1486,6 +1552,12 @@ class NoteLeaf extends Leaf {
     // Enter on a link the core writes without an address (keyLinks)
     // clicks it, as Enter on a link does.
     this.preview.addEventListener("keydown", (ev) => {
+      if (comboOf(ev) === "Mod-f") {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.openReadingSearch();
+        return;
+      }
       if (ev.key !== "Enter" || ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
       const a = (ev.target as HTMLElement).closest<HTMLElement>("[role=link]");
       if (!a || !this.preview.contains(a)) return;
@@ -1725,9 +1797,29 @@ class NoteLeaf extends Leaf {
     this.saveButton.hidden = !d;
   }
   setMode(mode: Mode): void {
+    const prevMode = this.mode;
     this.mode = mode;
     this.applyMode();
-    if (mode !== "preview" && this.note) this.editor.focus();
+    if (mode === "preview") {
+      if (searchPanelOpen(this.editor.state)) {
+        const q = getSearchQuery(this.editor.state).search;
+        closeSearchPanel(this.editor);
+        this.openReadingSearch(q);
+      }
+    } else {
+      if (this.readingSearch?.isOpen) {
+        const q = this.readingSearch.getQuery();
+        this.readingSearch.close();
+        openSearchPanel(this.editor);
+        if (q) {
+          this.editor.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: q })) });
+        }
+      }
+      if (this.note) this.editor.focus();
+    }
+  }
+  openReadingSearch(initialQuery?: string): void {
+    this.readingSearch.open(initialQuery);
   }
   applyMode(): void {
     const m = this.mode;
@@ -2231,7 +2323,8 @@ class NoteLeaf extends Leaf {
 
   private wirePreviewImages(root: HTMLElement): void {
     for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
-      const size = sizeOf(img.getAttribute("alt") ?? "");
+      const alt = img.getAttribute("alt") ?? "";
+      const size = sizeOf(alt);
       if (size?.w) img.style.width = `${size.w}px`;
       if (size?.h) img.style.height = `${size.h}px`;
       const rawSrc = img.getAttribute("src") ?? "";
@@ -2243,6 +2336,91 @@ class NoteLeaf extends Leaf {
             }
           });
         }
+      }
+
+      // Corner resize grip in Reading mode
+      const parent = img.parentElement;
+      if (parent && !parent.classList.contains("cm-lp-image-box")) {
+        const box = h("span", "cm-lp-image-box preview-image-box");
+        parent.insertBefore(box, img);
+        box.append(img);
+        const grip = h("span", "cm-lp-grip");
+        grip.title = "⤡";
+        box.append(grip);
+
+        grip.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          grip.setPointerCapture(e.pointerId);
+          const x0 = e.clientX;
+          const y0 = e.clientY;
+          const rect = img.getBoundingClientRect();
+          const w0 = rect.width;
+          const h0 = rect.height;
+          let curW = Math.round(w0);
+          let curH = Math.round(h0);
+          const badge = h("span", "cm-lp-size", `${curW} × ${curH} px`);
+          box.append(badge);
+
+          const move = (ev: PointerEvent) => {
+            curW = Math.max(40, Math.round(w0 + (ev.clientX - x0)));
+            curH = Math.max(40, Math.round(h0 + (ev.clientY - y0)));
+            img.style.width = `${curW}px`;
+            img.style.height = `${curH}px`;
+            badge.textContent = `${curW} × ${curH} px`;
+          };
+
+          const up = (ev: PointerEvent) => {
+            grip.removeEventListener("pointermove", move);
+            grip.removeEventListener("pointerup", up);
+            badge.remove();
+            try { grip.releasePointerCapture(ev.pointerId); } catch {}
+            this.persistImageSize(img, rawSrc, alt, curW, curH);
+          };
+
+          grip.addEventListener("pointermove", move);
+          grip.addEventListener("pointerup", up);
+        });
+      }
+    }
+  }
+
+  private persistImageSize(img: HTMLImageElement, rawSrc: string, alt: string, w: number, h: number): void {
+    const doc = this.editor.state.doc;
+    const fullText = doc.toString();
+    const target = alt.split("|")[0] ?? "";
+    const sizeStr = `${w}x${h}`;
+
+    // 1. Wikilink embed: ![[target]] or ![[target|...]]
+    if (target) {
+      const escTarget = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const reWiki = new RegExp(`!\\[\\[(${escTarget})(?:\\|[^\\]\\n]*)?\\]\\]`);
+      const m = reWiki.exec(fullText);
+      if (m && m.index !== undefined) {
+        const from = m.index;
+        const to = from + m[0].length;
+        const insert = `![[${target}|${sizeStr}]]`;
+        this.editor.dispatch({ changes: { from, to, insert } });
+        void this.save();
+        img.setAttribute("alt", `${target}|${sizeStr}`);
+        return;
+      }
+    }
+
+    // 2. Markdown image: ![alt](url)
+    if (rawSrc) {
+      const escUrl = rawSrc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const reMd = new RegExp(`!\\[([^\\]\\n]*)\\]\\((${escUrl})\\)`);
+      const m = reMd.exec(fullText);
+      if (m && m.index !== undefined) {
+        const from = m.index;
+        const to = from + m[0].length;
+        const baseAlt = (m[1] ?? "").split("|")[0] ?? "";
+        const newAlt = baseAlt ? `${baseAlt}|${sizeStr}` : sizeStr;
+        const insert = `![${newAlt}](${rawSrc})`;
+        this.editor.dispatch({ changes: { from, to, insert } });
+        void this.save();
+        img.setAttribute("alt", newAlt);
       }
     }
   }
@@ -2457,6 +2635,7 @@ class NoteLeaf extends Leaf {
     this.wireListFolds(this.preview);
     this.wireBlockquoteFolds(this.preview);
     this.wireReadingLineNumbers(this.preview, note.text);
+    if (this.readingSearch?.isOpen) this.readingSearch.find();
     if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
   }
   private async relink(path: string): Promise<void> {
@@ -2802,6 +2981,7 @@ class NoteLeaf extends Leaf {
   override destroy(): void {
     this.destroyed = true;
     window.clearTimeout(this.saveTimer);
+    this.readingSearch?.close();
     for (const e of this.embeds) {
       e.destroy();
       if (e instanceof BaseView) liveBases.delete(e);
@@ -4061,38 +4241,47 @@ class Pane {
   }
   tabMenu(leaf: Leaf, x: number, y: number): void {
     const i = this.leaves.indexOf(leaf);
-    const sep: [string, () => void] = ["—", () => {}];
+    const sep: MenuItem = ["—", () => {}];
     const file = leaf.kind !== "graph" && leaf.path !== "";
-    type Item = [string, () => void];
     // What dragging the tab does, from the menu (and so from the keyboard):
-    // along the bar, to another pane, to another workspace.
-    const moves: Item[] = [
-      ...(i > 0 ? [[t.moveTabBack, () => moveTab(leaf, -1)] as Item] : []),
-      ...(i < this.leaves.length - 1 ? [[t.moveTabForward, () => moveTab(leaf, 1)] as Item] : []),
-      ...(layout().paneCount() > 1 ? [[t.moveTabNextPane, () => moveTabToPane(leaf, 1)] as Item, [t.moveTabPrevPane, () => moveTabToPane(leaf, -1)] as Item] : []),
-      ...(popout ? [] : spaces.filter((s) => s !== current).map((s): Item => [`${t.moveTo}: ${s.label}`, () => moveTabToSpace(leaf, s)])),
+    const moves: MenuItem[] = [
+      ...(i > 0 ? [[t.moveTabBack, () => moveTab(leaf, -1), "chevronLeft"] as MenuItem] : []),
+      ...(i < this.leaves.length - 1 ? [[t.moveTabForward, () => moveTab(leaf, 1), "chevron"] as MenuItem] : []),
+      ...(layout().paneCount() > 1 ? [[t.moveTabNextPane, () => moveTabToPane(leaf, 1), "panelRight"] as MenuItem, [t.moveTabPrevPane, () => moveTabToPane(leaf, -1), "sidebar"] as MenuItem] : []),
+      ...(popout ? [] : spaces.filter((s) => s !== current).map((s): MenuItem => [`${t.moveTo}: ${s.label}`, () => moveTabToSpace(leaf, s), "sidebar"])),
     ];
     showMenu(x, y, [
-      [t.close, () => void leaf.close()],
-      [t.closeOthers, () => void this.closeExcept((l) => l === leaf || l.pinned)],
-      [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i || l.pinned)],
-      [t.closeAll, () => void this.closeExcept((l) => l.pinned)],
-      sep,
-      [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned)],
-      [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }],
-      sep,
-      [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row")))],
-      [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col")))],
-      ...moves,
-      ...(leaf.kind === "note" && !popout ? [[t.openInWindow, () => void (async () => {
-        // The window reads the file: what is not saved would stay behind.
+      // 1. Window & Split actions
+      ...(!popout && leaf.path ? [[t.openInWindow, () => void (async () => {
         if (!(await leaf.flush())) return stopped([leaf]);
         const opened = await commands.openWindow(leaf.path);
         if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
-      })()] as [string, () => void]] : []),
-      ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [`${t.moveTo}…`, () => movePrompt(leaf.path)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
-      ...(leaf.kind === "note" ? [sep, [t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
+      })(), "maximize"] as MenuItem] : []),
+      [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
+      [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"],
+      [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"],
+      sep,
+      // 2. Pin / Unpin
+      [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned), "pin"],
+      // 3. Move tab actions
+      ...(moves.length > 0 ? [sep, ...moves] : []),
+      // 4. File / Explorer operations
+      ...(file ? [
+        sep,
+        [t.revealInTree, () => void revealInTree(leaf.path), "folder"] as MenuItem,
+        ...(leaf instanceof NoteLeaf ? [[t.rename, () => leaf.renameHere(), "edit"] as MenuItem] : []),
+        [`${t.moveTo}…`, () => movePrompt(leaf.path), "folderPlus"] as MenuItem,
+        [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
+        [t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem,
+      ] : []),
+      ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
+      // 5. Close actions
+      sep,
+      [t.close, () => void leaf.close(), "close"],
+      [t.closeOthers, () => void this.closeExcept((l) => l === leaf || l.pinned), "close"],
+      [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i || l.pinned), "close"],
+      [t.closeAll, () => void this.closeExcept((l) => l.pinned), "close"],
     ]);
   }
   async closeExcept(keep: (l: Leaf) => boolean): Promise<void> {
@@ -6401,7 +6590,7 @@ const quick = new QuickSwitcher();
 type Command = { id: string; label: string; keys?: string; run: () => void };
 /** Default keys, as `Mod-Shift-x`; the settings may override each. */
 const DEFAULT_KEYS: Record<string, string> = {
-  "open-folder": "Mod-o", search: "Mod-k", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
+  "open-folder": "Mod-o", search: "Mod-k", "find-in-note": "Mod-f", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
   "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Alt-ArrowLeft", "toggle-right": "Mod-Alt-ArrowRight",
   reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[",
 };
@@ -6463,11 +6652,40 @@ function paintKeyHints(): void {
  *  would stop copying, pasting, undoing, quitting… (a command keeps its
  *  own default: ⌘W closes the tab, as in a browser). */
 const RESERVED = new Set(["Mod-c", "Mod-v", "Mod-x", "Mod-z", "Mod-Shift-z", "Mod-y", "Mod-a", "Mod-q", "Mod-w", "Mod-f", ...(MAC ? ["Mod-h", "Mod-Alt-h", "Mod-m", "Mod-`", "Mod-Ctrl-f"] : [])]);
+function openFindInActiveLeaf(): void {
+  const leaf = layout().activeLeaf;
+  if (!leaf) return;
+  if (leaf instanceof NoteLeaf) {
+    if (leaf.mode === "preview") {
+      leaf.openReadingSearch();
+    } else {
+      openSearchPanel(leaf.editor);
+    }
+  } else if (leaf instanceof TextLeaf) {
+    openSearchPanel(leaf.editor);
+  } else if (leaf instanceof PdfLeaf) {
+    leaf.view.searchInput.focus();
+    leaf.view.searchInput.select();
+  } else if (leaf instanceof BaseLeaf) {
+    const input = leaf.el.querySelector<HTMLInputElement>("input[type='search'], .base-search");
+    input?.focus();
+    input?.select();
+  } else {
+    ui.search.focus();
+    ui.search.select();
+  }
+}
+
 /** Run the command a key event is the hotkey of; true when one ran. Every
  *  hotkey holds Mod, so plain typing never reaches a command. */
 function runHotkey(e: KeyboardEvent): boolean {
   const combo = comboOf(e);
   if (!combo.startsWith("Mod-")) return false;
+  if (combo === "Mod-f") {
+    e.preventDefault();
+    openFindInActiveLeaf();
+    return true;
+  }
   // ⌘1…⌘9: the workspaces.
   const digit = /^Mod-([1-9])$/.exec(combo);
   if (digit && spaces.length > 1) {
@@ -6517,6 +6735,7 @@ function allCommands(all = false): Command[] {
     { id: "quick", label: t.quick, need: hasFolder, run: () => quick.show() },
     { id: "palette", label: t.commands, need: hasFolder, run: () => paletteDialog.show() },
     { id: "search", label: t.search, need: hasFolder, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
+    { id: "find-in-note", label: t.findInNote, need: Boolean(leaf), run: () => openFindInActiveLeaf() },
     { id: "replace", label: `${t.replaceTitle}…`, need: hasFolder, run: () => replaceDialog.show() },
     { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
@@ -6544,6 +6763,7 @@ function allCommands(all = false): Command[] {
     { id: "vertical-tabs", label: pane?.vertical ? t.horizontalTabs : t.verticalTabs, need: Boolean(pane), run: () => pane?.setVertical(!pane.vertical) },
     { id: "collapse-all", label: t.collapseAll, need: hasFolder, run: () => collapseAll() },
     { id: "settings", label: t.settings.split(" (")[0] ?? t.settings, run: () => settingsDialog.show() },
+    { id: "check-updates", label: t.checkNow, run: () => { settingsDialog.show("general"); void updateController.check(false); } },
     { id: "toggle-mode", label: `${t.reading} / ${t.edit}`, need: Boolean(note), run: () => note?.toggleMode() },
     { id: "source", label: t.source, need: Boolean(note), run: () => note?.setMode("source") },
     { id: "save", label: t.save, need: Boolean(note), run: () => void note?.save() },
@@ -6746,10 +6966,164 @@ class ReplaceDialog {
 }
 const replaceDialog = new ReplaceDialog();
 
+class UpdateController {
+  private _info: UpdateInfo | null = null;
+  private _checking = false;
+  private _downloading = false;
+  private _progress: UpdateProgress | null = null;
+  private _result: InstallResult | null = null;
+  private _error: string | null = null;
+  private bannerEl: HTMLElement | null = null;
+  private unlistenProgress: (() => void) | null = null;
+  private listeners = new Set<() => void>();
+
+  get info(): UpdateInfo | null { return this._info; }
+  get checking(): boolean { return this._checking; }
+  get downloading(): boolean { return this._downloading; }
+  get progress(): UpdateProgress | null { return this._progress; }
+  get result(): InstallResult | null { return this._result; }
+  get error(): string | null { return this._error; }
+
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  notify(): void {
+    for (const fn of this.listeners) fn();
+  }
+
+  async check(silent = false): Promise<UpdateInfo | null> {
+    if (this._checking || this._downloading) return this._info;
+    this._checking = true;
+    this._error = null;
+    this.notify();
+    try {
+      const res = await commands.checkForUpdates();
+      if (res.status === "ok") {
+        this._info = res.data;
+        if (res.data.has_update) {
+          this.showBanner(res.data);
+        }
+        return res.data;
+      } else {
+        if (!silent) this._error = res.error.message;
+        return null;
+      }
+    } catch (e: any) {
+      if (!silent) this._error = String(e?.message || e);
+      return null;
+    } finally {
+      this._checking = false;
+      this.notify();
+    }
+  }
+
+  async downloadAndInstall(): Promise<InstallResult | null> {
+    if (!this._info || this._downloading) return null;
+    this._downloading = true;
+    this._error = null;
+    this._result = null;
+    this._progress = {
+      downloaded_bytes: 0,
+      total_bytes: this._info.asset_size ?? 0,
+      percent: 0,
+      status: "downloading",
+      message: null,
+    };
+    this.notify();
+
+    if (!this.unlistenProgress) {
+      this.unlistenProgress = await listen<UpdateProgress>("verso://update-progress", (e) => {
+        this._progress = e.payload;
+        this.notify();
+      });
+    }
+
+    try {
+      const res = await commands.downloadAndInstallUpdate(
+        this._info.download_url ?? "",
+        this._info.asset_url
+      );
+      if (res.status === "ok") {
+        this._result = res.data;
+        this._downloading = false;
+        this.notify();
+        return res.data;
+      } else {
+        this._error = res.error.message;
+        this._downloading = false;
+        this.notify();
+        return null;
+      }
+    } catch (e: any) {
+      this._error = String(e?.message || e);
+      this._downloading = false;
+      this.notify();
+      return null;
+    }
+  }
+
+  async restart(): Promise<void> {
+    await commands.restartApp();
+  }
+
+  showBanner(info: UpdateInfo): void {
+    if (this.bannerEl) return;
+    try {
+      if (sessionStorage.getItem("verso.update.dismissed") === info.latest_version) return;
+    } catch {}
+
+    const banner = h("div", "verso-update-banner");
+    banner.append(icon("sparkles"));
+
+    const text = h("span", "", `${t.updateBannerTitle}: v${info.latest_version}`);
+    const actions = h("div", "verso-update-banner-actions");
+
+    const dlBtn = h("button", "update-btn-primary", t.downloadAndUpdate);
+    dlBtn.prepend(icon("download"));
+    dlBtn.addEventListener("click", () => {
+      this.dismissBanner();
+      settingsDialog.show("general");
+      void this.downloadAndInstall();
+    });
+
+    const settingsBtn = h("button", "update-btn-secondary", t.seeInSettings);
+    settingsBtn.addEventListener("click", () => {
+      this.dismissBanner();
+      settingsDialog.show("general");
+    });
+
+    const closeBtn = h("button", "verso-update-banner-close");
+    closeBtn.append(icon("close"));
+    closeBtn.setAttribute("aria-label", t.cancel);
+    closeBtn.addEventListener("click", () => {
+      try {
+        sessionStorage.setItem("verso.update.dismissed", info.latest_version);
+      } catch {}
+      this.dismissBanner();
+    });
+
+    actions.append(dlBtn, settingsBtn, closeBtn);
+    banner.append(text, actions);
+    document.body.append(banner);
+    this.bannerEl = banner;
+  }
+
+  dismissBanner(): void {
+    if (this.bannerEl) {
+      this.bannerEl.remove();
+      this.bannerEl = null;
+    }
+  }
+}
+const updateController = new UpdateController();
+
 /** A settings page is a list of items: a title, a line about it, a control. */
 let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
 /** Ends a recording in progress, leaving the keys as they were. */
 let disarmRecorder: (() => void) | null = null;
+let updateCardUnsub: (() => void) | null = null;
 class SettingsDialog {
   readonly el = h("div", "quick settings");
   readonly box = h("div", "settings-box");
@@ -6778,7 +7152,8 @@ class SettingsDialog {
     this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.el.hidden && !hotkeyRecorder) this.hide(); });
   }
-  show(): void {
+  show(section?: string): void {
+    if (section) this.section = section;
     opened(this.el);
     this.el.hidden = false;
     this.notice.hidden = this.notice.textContent === "";
@@ -6868,12 +7243,144 @@ class SettingsDialog {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
+    add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
+      const wrap = h("div", "setting-version-wrap");
+      wrap.style.display = "flex";
+      wrap.style.flexDirection = "column";
+      wrap.style.alignItems = "stretch";
+      wrap.style.gap = ".5rem";
+      wrap.style.width = "100%";
+
+      const topRow = h("div", "setting-version-row");
       const v = h("span", "setting-value", "…");
       void commands.appInfo().then((r) => {
         v.textContent = r.status === "ok" ? `${r.data.version} · ${r.data.commit}` : "?";
       });
-      return v;
+
+      const checkBtn = h("button", "update-btn-secondary", t.checkNow);
+      checkBtn.prepend(icon("refresh"));
+      checkBtn.addEventListener("click", () => {
+        void updateController.check(false);
+      });
+
+      topRow.append(v, checkBtn);
+      wrap.append(topRow);
+
+      const card = h("div", "update-card");
+      card.style.display = "none";
+      wrap.append(card);
+
+      let showNotes = false;
+
+      const renderCard = () => {
+        card.textContent = "";
+        checkBtn.disabled = updateController.checking || updateController.downloading;
+        if (updateController.checking) {
+          checkBtn.textContent = t.checkingUpdates;
+          checkBtn.prepend(icon("refresh"));
+          return;
+        } else {
+          checkBtn.textContent = t.checkNow;
+          checkBtn.prepend(icon("refresh"));
+        }
+
+        if (updateController.error) {
+          card.style.display = "flex";
+          const errEl = h("div", "setting-desc", `⚠ ${updateController.error}`);
+          errEl.style.color = "var(--seal)";
+          card.append(errEl);
+          return;
+        }
+
+        const info = updateController.info;
+        if (!info) {
+          card.style.display = "none";
+          return;
+        }
+
+        card.style.display = "flex";
+
+        if (!info.has_update) {
+          const badge = h("div", "update-badge success");
+          badge.append(icon("check"), h("span", "", t.updateUpToDate));
+          card.append(badge);
+          return;
+        }
+
+        const header = h("div", "update-card-header");
+        const title = h("div", "update-card-title");
+        title.append(icon("sparkles"), h("span", "", `${t.updateAvailable}: v${info.latest_version}${info.release_name && info.release_name !== info.latest_version ? ` (${info.release_name})` : ""}`));
+        header.append(title);
+        card.append(header);
+
+        if (updateController.downloading && updateController.progress) {
+          const prog = updateController.progress;
+          const progWrap = h("div", "update-progress-wrap");
+          const track = h("div", "update-progress-track");
+          const bar = h("div", "update-progress-bar");
+          const pct = Math.min(100, Math.max(0, (prog.percent as number) ?? 0));
+          bar.style.width = `${pct}%`;
+          track.append(bar);
+
+          const txt = h("div", "update-progress-text");
+          const mbDownloaded = (((prog.downloaded_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1);
+          const mbTotal = prog.total_bytes ? (((prog.total_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1) : "?";
+          const statusMsg = prog.status === "extracting" ? "Descompactando…" : prog.status === "installing" ? "Instalando…" : `${t.downloadingUpdate} ${pct.toFixed(0)}% (${mbDownloaded} MB / ${mbTotal} MB)`;
+          txt.append(h("span", "", statusMsg), h("span", "", `${pct.toFixed(0)}%`));
+
+          progWrap.append(track, txt);
+          card.append(progWrap);
+        } else if (updateController.result) {
+          const res = updateController.result;
+          const resBox = h("div", "update-badge success");
+          resBox.append(icon("check"), h("span", "", res.message));
+          card.append(resBox);
+
+          if (res.requires_restart) {
+            const restartBtn = h("button", "update-btn-primary", t.restartNow);
+            restartBtn.prepend(icon("refresh"));
+            restartBtn.addEventListener("click", () => void updateController.restart());
+            card.append(restartBtn);
+          }
+        } else {
+          const actions = h("div", "update-actions");
+          const dlBtn = h("button", "update-btn-primary", t.downloadAndUpdate);
+          dlBtn.prepend(icon("download"));
+          dlBtn.addEventListener("click", () => void updateController.downloadAndInstall());
+
+          const notesBtn = h("button", "update-btn-secondary", showNotes ? t.hideReleaseNotes : t.viewReleaseNotes);
+          notesBtn.prepend(icon(showNotes ? "chevronUp" : "chevronDown"));
+          notesBtn.addEventListener("click", () => {
+            showNotes = !showNotes;
+            renderCard();
+          });
+
+          actions.append(dlBtn, notesBtn);
+          card.append(actions);
+
+          if (showNotes && info.release_notes) {
+            const notesBox = h("div", "update-notes-box");
+            notesBox.textContent = info.release_notes;
+            card.append(notesBox);
+          }
+        }
+      };
+
+      if (updateCardUnsub) {
+        updateCardUnsub();
+        updateCardUnsub = null;
+      }
+      updateCardUnsub = updateController.subscribe(() => {
+        if (wrap.isConnected) {
+          renderCard();
+        } else if (updateCardUnsub) {
+          updateCardUnsub();
+          updateCardUnsub = null;
+        }
+      });
+      renderCard();
+      return wrap;
     });
     add("general", t.language, t.languageDesc, () => {
       const sel = this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); void this.reloadForLanguage(); });
@@ -6899,6 +7406,28 @@ class SettingsDialog {
       r.addEventListener("input", () => { settings.fontSize = Number(r.value); r.setAttribute("aria-valuetext", `${r.value} px`); saveSettings(); });
       return r;
     });
+    add("appearance", t.headingFont, t.headingFontDesc, () => this.select([
+      ["serif", t.fontSerif],
+      ["sans", t.fontSans],
+      ["editorial", t.fontEditorial],
+      ["mono", t.fontMono],
+      ["system", t.fontSystem],
+    ], settings.headingFont || "serif", (v) => { settings.headingFont = v as any; saveSettings(); }));
+    add("appearance", t.bodyFont, t.bodyFontDesc, () => this.select([
+      ["sans", t.fontSans],
+      ["serif", t.fontEditorial],
+      ["mono", t.fontMono],
+      ["system", t.fontSystem],
+    ], settings.bodyFont || "sans", (v) => { settings.bodyFont = v as any; saveSettings(); }));
+    add("appearance", t.headingColor, t.headingColorDesc, () => this.select([
+      ["brass", t.colorBrass],
+      ["default", t.colorDefault],
+      ["seal", t.colorSeal],
+      ["moss", t.colorMoss],
+      ["slate", t.colorSlate],
+      ["royal", t.colorRoyal],
+      ["amethyst", t.colorAmethyst],
+    ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
@@ -7663,6 +8192,9 @@ if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false
  * keeps it; this window saves its tabs, as for any switch, and opens it. */
 if (!popout) void listen("folder-handed", () => void openFolderBy(() => commands.openInitial()));
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
+if (!popout && settings.checkUpdates) {
+  setTimeout(() => void updateController.check(true), 2500);
+}
 void (async () => {
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
