@@ -72,15 +72,15 @@ body.no-side.no-right { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 0; }
 .ribbon-item.on { color: var(--seal); }
 .ribbon-item:disabled { opacity: .3; cursor: default; }
 .ribbon-item.dragging { background: var(--brass-wash); color: var(--seal); box-shadow: 0 0 0 1px var(--brass); cursor: grabbing; }
-body.no-side .side, body.no-side #side-divider, body.no-right .right, body.no-right #right-divider { visibility: hidden; overflow: hidden; min-width: 0; }
+body.no-side aside.side, body.no-side #side-divider, body.no-right aside.right, body.no-right #right-divider { visibility: hidden; overflow: hidden; min-width: 0; }
 /* Narrow window (a phone, a half screen): the side bars become drawers
  * over the page, opened by the same toggles, closed by a tap outside. */
 @media (max-width: 760px) {
   body, body.no-side, body.no-right, body.no-side.no-right { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 0; }
-  body .side, body .right, body.no-side .side, body.no-right .right { position: fixed; top: 0; bottom: 0; width: min(85vw, 320px); z-index: 8; visibility: visible; overflow: visible; box-shadow: 0 0 48px oklch(0% 0 0 / .28); transition: transform .22s var(--ease-out); }
-  body .side { left: 0; transform: translateX(-100%); }
-  body .right { right: 0; transform: translateX(100%); }
-  body.side-open .side, body.right-open .right { transform: none; }
+  body aside.side, body aside.right, body.no-side aside.side, body.no-right aside.right { position: fixed; top: 0; bottom: 0; width: min(85vw, 320px); z-index: 8; visibility: visible; overflow: visible; box-shadow: 0 0 48px oklch(0% 0 0 / .28); transition: transform .22s var(--ease-out); }
+  body aside.side { left: 0; transform: translateX(-100%); }
+  body aside.right { right: 0; transform: translateX(100%); }
+  body.side-open aside.side, body.right-open aside.right { transform: none; }
   #side-divider, #right-divider { display: none; }
   .status-keys { display: none; }
   .leaf-head { flex-wrap: wrap; gap: .4rem .8rem; }
@@ -183,11 +183,12 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .tab.pinned .tab-close { display: none; }
 .tabs.drop { box-shadow: inset 0 -2px 0 var(--brass); }
 .pane-body { position: relative; }
-.pane-body.drop-hint::after { content: ""; position: absolute; inset: 0; background: var(--brass-wash); border: 2px solid var(--brass); pointer-events: none; z-index: 2; opacity: .85; }
-.pane-body.drop-hint.left::after { right: 50%; }
-.pane-body.drop-hint.right::after { left: 50%; }
-.pane-body.drop-hint.top::after { bottom: 50%; }
-.pane-body.drop-hint.bottom::after { top: 50%; }
+.pane-body.drop-hint { visibility: visible !important; }
+.pane-body.drop-hint::after { content: ""; position: absolute; inset: 0; background: var(--brass-wash); border: 2px solid var(--brass); pointer-events: none; z-index: 10; opacity: .85; }
+.pane-body.drop-hint.left::after, .pane-body.drop-hint.drop-left::after { right: 50%; }
+.pane-body.drop-hint.right::after, .pane-body.drop-hint.drop-right::after { left: 50%; }
+.pane-body.drop-hint.top::after, .pane-body.drop-hint.drop-top::after { bottom: 50%; }
+.pane-body.drop-hint.bottom::after, .pane-body.drop-hint.drop-bottom::after { top: 50%; }
 .pane-empty { flex: 1; display: grid; place-content: center; text-align: center; color: var(--ink-3); font-family: var(--book); font-style: italic; padding: 2rem; }
 .pane-empty .icon { margin: 0 auto .6rem; width: 22px; height: 22px; color: var(--brass); }
 .pane-empty p { margin: 0; max-width: 26ch; }
@@ -208,7 +209,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 
 
 /* Tabs */
-.tabs { display: flex; align-items: flex-end; gap: .1rem; padding: .5rem .8rem 0; border-bottom: 1px solid var(--hair); min-height: 2.3rem; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; align-items: flex-end; gap: .1rem; padding: .5rem .8rem 0; border-bottom: 1px solid var(--hair); height: 2.45rem; min-height: 2.45rem; max-height: 2.45rem; box-sizing: border-box; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { display: inline-flex; align-items: center; gap: .45rem; max-width: 22ch; padding: .35rem .3rem .45rem .7rem; font-size: .84rem; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
 .tab-name { overflow: hidden; text-overflow: ellipsis; }
@@ -225,7 +226,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .tab-close:hover { background: var(--paper-3); color: var(--seal); }
 .tab .icon { width: 12px; height: 12px; }
 
-.pane-body { flex: 1; min-height: 0; display: flex; }
+.pane-body { flex: 1; min-height: 0; display: flex; position: relative; }
 .leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .leaf-head { display: flex; align-items: center; gap: .8rem; padding: .55rem clamp(1rem, 3vw, 2.4rem) 0; }
 /* Tight: the leading crumbs slide out to the left under a fade; the
@@ -310,7 +311,14 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .preview h1 { font-size: 1.65em; } .preview h2 { font-size: 1.35em; } .preview h3 { font-size: 1.12em; } .preview h4 { font-size: 1em; text-transform: uppercase; letter-spacing: .06em; font-family: var(--ui); color: var(--ink-2); }
 .preview p, .preview ul, .preview ol, .preview blockquote, .preview pre, .preview table { margin: 0 0 1em; }
 .preview ul, .preview ol { padding-left: 1.3em; }
+.preview ol, .preview ol ol, .preview ol ol ol { list-style-type: decimal; }
 .preview li { margin: .2em 0; }
+.preview li > ul,
+.preview li > ol {
+  margin: 0.15em 0 0.15em 0.35em;
+  padding-left: 1.25em;
+  border-left: 1.5px solid color-mix(in oklch, var(--ink) 22%, transparent);
+}
 .preview li::marker { color: var(--brass); }
 .preview strong { font-weight: 600; }
 .preview pre { font-family: var(--mono); font-size: .85em; line-height: 1.55; padding: .8rem 1rem; background: var(--paper-2); border-radius: 4px; overflow: auto; }
@@ -343,9 +351,41 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .editor .cm-content { padding: 0 .5rem; caret-color: var(--seal); }
 .editor .cm-cursor { border-left: 2px solid var(--seal); }
 .editor .cm-gutters { background: none; border: none; }
-.editor .cm-lineNumbers { display: none; }
-.editor.show-line-numbers .cm-lineNumbers { display: flex; color: var(--ink-3); font-size: .8rem; }
+.editor .cm-lineNumbers {
+  color: var(--ink-3);
+  font-size: .8rem;
+}
+.editor .cm-lineNumbers .cm-gutterElement {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+}
+/* Heading gutter element: aligned vertically with the text of the heading */
+.editor .cm-gutterElement.cm-lp-gutter-h {
+  display: flex !important;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-bottom: .35em;
+  font-size: .85rem;
+}
+.editor .cm-gutterElement.cm-lp-gutter-h1 {
+  padding-bottom: .45em;
+}
+.editor .cm-gutterElement.cm-lp-gutter-h2 {
+  padding-bottom: .38em;
+}
+.editor .cm-gutterElement.cm-lp-gutter-h3 {
+  padding-bottom: .3em;
+}
+
+/* Guard against showing line numbers when disabled */
+html:not(.show-line-numbers-edit) .editor.live .cm-lineNumbers,
+html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
+  display: none !important;
+}
+
 .editor .cm-foldGutter { width: 1.1rem; }
+.editor.source .cm-foldGutter { display: flex; width: 1.1rem; }
 .editor .cm-foldGutter .cm-gutterElement { cursor: pointer; color: var(--ink-3); opacity: 0; transition: opacity .15s; }
 .editor .cm-foldGutter .cm-gutterElement:has(.cm-foldMarker), .editor:hover .cm-foldGutter .cm-gutterElement { opacity: 1; }
 .editor .cm-foldGutter .cm-gutterElement:hover { color: var(--seal); }
@@ -355,8 +395,204 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .editor .cm-selectionBackground, .editor .cm-editor ::selection { background: var(--selection) !important; }
 .editor.source .cm-scroller { font-family: var(--mono); font-size: .9rem; line-height: 1.6; }
 .editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
-.editor.source .cm-lineNumbers { display: flex; }
 .editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2); }
+
+/* Reading mode line numbers & fold gutter */
+.preview {
+  position: relative;
+  padding-left: 2.2rem;
+}
+.preview .preview-line-num {
+  display: none;
+}
+html.show-line-numbers-preview .preview {
+  padding-left: 4.0rem;
+}
+html.show-line-numbers-preview .preview .preview-line-num {
+  display: inline-flex;
+  position: absolute;
+  left: 1.6rem;
+  width: 1.8rem;
+  text-align: right;
+  justify-content: flex-end;
+  font-family: var(--mono);
+  font-size: .76rem;
+  color: var(--ink-3);
+  opacity: .55;
+  user-select: none;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* Vertical alignment of line numbers with text */
+html.show-line-numbers-preview .preview p .preview-line-num,
+html.show-line-numbers-preview .preview li .preview-line-num,
+html.show-line-numbers-preview .preview blockquote .preview-line-num,
+html.show-line-numbers-preview .preview table .preview-line-num,
+html.show-line-numbers-preview .preview .callout .preview-line-num,
+html.show-line-numbers-preview .preview pre .preview-line-num {
+  margin-top: 0.25rem;
+}
+html.show-line-numbers-preview .preview pre .preview-line-num {
+  left: -2.4rem;
+}
+
+/* Heading line numbers vertical alignment: centered on the heading text */
+html.show-line-numbers-preview .preview h1 .preview-line-num {
+  margin-top: 0.55rem;
+  font-size: .8rem;
+}
+html.show-line-numbers-preview .preview h2 .preview-line-num {
+  margin-top: 0.38rem;
+  font-size: .8rem;
+}
+html.show-line-numbers-preview .preview h3 .preview-line-num {
+  margin-top: 0.22rem;
+  font-size: .78rem;
+}
+html.show-line-numbers-preview .preview h4 .preview-line-num {
+  margin-top: 0.12rem;
+  font-size: .76rem;
+}
+html.show-line-numbers-preview .preview h5 .preview-line-num,
+html.show-line-numbers-preview .preview h6 .preview-line-num {
+  margin-top: 0.08rem;
+  font-size: .76rem;
+}
+
+/* Reading mode fold buttons (in the left fold gutter, identical to Edit Mode) */
+.preview .heading-fold-btn,
+.preview .list-fold-btn,
+.preview .quote-fold-btn {
+  position: absolute;
+  left: 0.35rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  z-index: 2;
+  transition: opacity .15s, color .15s, transform .2s var(--ease-out);
+  transform: rotate(90deg); /* Unfolded: points DOWN 'v' */
+}
+
+/* Vertical alignment of fold buttons with their respective line/block */
+.preview h1 > .heading-fold-btn { margin-top: 0.55rem; }
+.preview h2 > .heading-fold-btn { margin-top: 0.38rem; }
+.preview h3 > .heading-fold-btn { margin-top: 0.22rem; }
+.preview h4 > .heading-fold-btn { margin-top: 0.12rem; }
+.preview h5 > .heading-fold-btn,
+.preview h6 > .heading-fold-btn { margin-top: 0.08rem; }
+.preview li > .list-fold-btn { margin-top: 0.25rem; }
+.preview blockquote > .quote-fold-btn { margin-top: 0.25rem; }
+
+/* Hover reveals fold button in the gutter */
+.preview h1:hover > .heading-fold-btn,
+.preview h2:hover > .heading-fold-btn,
+.preview h3:hover > .heading-fold-btn,
+.preview h4:hover > .heading-fold-btn,
+.preview h5:hover > .heading-fold-btn,
+.preview h6:hover > .heading-fold-btn,
+.preview li:hover > .list-fold-btn,
+.preview blockquote:hover > .quote-fold-btn,
+.preview .heading-fold-btn:focus-visible,
+.preview .list-fold-btn:focus-visible,
+.preview .quote-fold-btn:focus-visible {
+  opacity: 1;
+}
+
+.preview .heading-fold-btn:hover,
+.preview .list-fold-btn:hover,
+.preview .quote-fold-btn:hover {
+  color: var(--seal);
+}
+
+/* Folded / Collapsed state: always visible, points RIGHT '>', color seal */
+.preview .heading-folded > .heading-fold-btn,
+.preview li.list-folded > .list-fold-btn,
+.preview blockquote.quote-folded > .quote-fold-btn {
+  opacity: 1;
+  transform: rotate(0deg); /* Folded: points RIGHT '>' */
+  color: var(--seal);
+}
+
+/* Folded elements hide content */
+.preview li.list-folded > ul,
+.preview li.list-folded > ol {
+  display: none !important;
+}
+
+/* Folded placeholder: identical to CodeMirror's .cm-foldPlaceholder in Edit mode */
+.preview .heading-folded::after,
+.preview li.list-folded::after,
+.preview blockquote.quote-folded::after {
+  content: "···";
+  display: inline-block;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  color: var(--ink-3);
+  border-radius: 3px;
+  padding: 0 .35rem;
+  margin-left: .4rem;
+  font-family: var(--mono);
+  font-size: .82em;
+  line-height: 1.1;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+}
+.preview .heading-folded:hover::after,
+.preview li.list-folded:hover::after,
+.preview blockquote.quote-folded:hover::after {
+  background: var(--paper-3);
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+/* Reading mode code folding */
+.preview pre .code-fold-btn {
+  position: absolute;
+  top: .5rem;
+  right: 2.2rem;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  color: var(--ink-3);
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity .15s, transform .2s var(--ease-out);
+}
+.preview pre:hover .code-fold-btn,
+.preview pre.code-folded .code-fold-btn,
+.preview pre .code-fold-btn:focus-visible {
+  opacity: 1;
+}
+.preview pre.code-folded .code-fold-btn {
+  transform: rotate(-90deg);
+  color: var(--seal);
+}
+.preview pre.code-folded code {
+  display: none !important;
+}
+.preview pre.code-folded::after {
+  content: "···";
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+
 
 /* Live preview marks */
 .editor .cm-line.cm-lp-h { font-family: var(--display); font-weight: 600; line-height: 1.2; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
@@ -369,9 +605,28 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .editor .cm-lp-strike { text-decoration: line-through; color: var(--ink-3); }
 .editor .cm-lp-code { font-family: var(--mono); font-size: .88em; background: var(--paper-3); border-radius: 3px; padding: 0 .25em; }
 .editor .cm-line.cm-lp-fence { font-family: var(--mono); font-size: .88em; background: var(--paper-2); }
-.editor .cm-line.cm-lp-quote { border-left: 2px solid var(--brass); padding-left: 1.1em; color: var(--ink-2); font-style: italic; }
-.editor .cm-line.cm-lp-li { padding-left: calc(1.3em + var(--lp-depth, 0) * 1.5em); }
-.editor .cm-line.cm-lp-bullet::before { content: "•"; color: var(--brass); margin-left: -1.1em; margin-right: .55em; }
+.editor .cm-line.cm-lp-li {
+  position: relative;
+  padding-left: calc(1.3em + var(--lp-depth, 0) * 1.5em);
+}
+.editor .cm-line.cm-lp-li[style*="--lp-depth"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 1.3em;
+  width: calc(var(--lp-depth, 0) * 1.5em);
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent 0.35em,
+    color-mix(in oklch, var(--ink) 22%, transparent) 0.35em,
+    color-mix(in oklch, var(--ink) 22%, transparent) calc(0.35em + 1.5px),
+    transparent calc(0.35em + 1.5px),
+    transparent 1.5em
+  );
+  pointer-events: none;
+}
 .editor input.cm-lp-task-check { accent-color: var(--seal); width: 1.05em; height: 1.05em; margin-right: 0.55em; vertical-align: -0.15em; cursor: pointer; }
 .editor .cm-line.cm-lp-task-done { color: var(--ink-3); text-decoration: line-through; }
 .editor .cm-lp-link { color: var(--seal); }
@@ -821,7 +1076,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 
 /* Right panel */
 .right { display: flex; flex-direction: column; min-height: 0; background: var(--paper-2); border-left: 1px solid var(--hair); }
-.right-tabs { display: flex; align-items: flex-end; gap: .2rem; padding: .5rem .8rem 0; border-bottom: 1px solid var(--hair); min-height: 2.3rem; }
+.right-tabs { display: flex; align-items: flex-end; gap: .2rem; padding: .5rem .8rem 0; border-bottom: 1px solid var(--hair); height: 2.45rem; min-height: 2.45rem; max-height: 2.45rem; box-sizing: border-box; }
 .right-tab { display: inline-flex; align-items: center; justify-content: center; padding: .35rem .5rem .45rem; color: var(--ink-3); border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 4px 4px 0 0; }
 .right-tab:hover { color: var(--ink); }
 .right-tab[aria-selected="true"] { color: var(--seal); font-weight: 600; border-bottom-color: var(--seal); background: transparent; box-shadow: none; }

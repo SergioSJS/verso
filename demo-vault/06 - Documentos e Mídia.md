@@ -19,10 +19,11 @@ O Verso é muito mais do que um leitor de texto: ele integra imagens com redimen
 
 Você pode incluir imagens com sintaxe padrão Markdown ou com anotação de tamanho via wikilink:
 
-### Imagem com Largura Definida (`![|320](...)`)
-Abaixo, a imagem é renderizada com 320 pixels de largura:
+### Imagem via Wikilink com Largura Definida (`![[assets/diagrama.svg|320]]`)
+![[assets/diagrama.svg|320]]
 
-![|320](assets/diagrama.svg)
+### Imagem via Markdown Padrão (`![Diagrama|320](assets/diagrama.svg)`)
+![Diagrama|320](assets/diagrama.svg)
 
 ---
 
@@ -46,9 +47,9 @@ Ao abrir um arquivo PDF no Verso:
 
 O Verso permite incorporar páginas da web de forma segura dentro de um sandbox isolado, tanto no modo de Leitura quanto no modo de Edição (Live Preview):
 
-<iframe src="https://example.com" style="width: 100%; height: 320px; border-radius: 8px;"></iframe>
+<iframe src="https://www.openstreetmap.org/export/embed.html?bbox=-46.66%2C-23.57%2C-46.63%2C-23.54&amp;layer=mapnik" style="width: 100%; height: 320px; border-radius: 8px;"></iframe>
 
 ---
 
-Parabéns! Você concluiu a exploração dos guias do Verso.
-Retorne para a [[00 - Bem-vindo ao Verso|Página Inicial]] para revisar os tópicos ou crie suas próprias notas!
+Avance para o próximo guia: [[07 - Notas Diárias, Calendário e Templates]].
+Ou retorne para a [[00 - Bem-vindo ao Verso|Página Inicial]].
