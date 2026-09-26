@@ -233,6 +233,51 @@ pub struct AppInfo {
     pub commit: String,
 }
 
+/// Information about an application update.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct UpdateInfo {
+    /// The currently running version (e.g. "0.2.0-beta.2").
+    pub current_version: String,
+    /// The latest version available on GitHub (e.g. "0.2.0-beta.3").
+    pub latest_version: String,
+    /// Whether an update is available (latest_version > current_version).
+    pub has_update: bool,
+    /// Release title (e.g. "Verso Beta 0.2.0-beta.3").
+    pub release_name: String,
+    /// Changelog / release notes in Markdown.
+    pub release_notes: String,
+    /// Direct asset download URL (or browser download url).
+    pub download_url: Option<String>,
+    /// GitHub API asset URL (used for authenticated downloads if repo is private).
+    pub asset_url: Option<String>,
+    /// Name of the download file (e.g. "Verso-Beta-0.2.0-beta.3-macos-arm64.zip").
+    pub asset_name: Option<String>,
+    /// Size of the asset in bytes.
+    pub asset_size: Option<f64>,
+    /// ISO 8601 publication timestamp.
+    pub published_at: Option<String>,
+}
+
+/// Download progress payload emitted during update downloads.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct UpdateProgress {
+    pub downloaded_bytes: f64,
+    pub total_bytes: Option<f64>,
+    pub percent: Option<f64>,
+    /// "downloading" | "extracting" | "installing" | "done" | "error"
+    pub status: String,
+    pub message: Option<String>,
+}
+
+/// Result of an in-app update installation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct InstallResult {
+    pub success: bool,
+    pub message: String,
+    pub app_path: Option<String>,
+    pub requires_restart: bool,
+}
+
 /// A note that is a web page: its path and the address in its `url`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct WebNote {

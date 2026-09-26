@@ -35,8 +35,9 @@ use verso_contract::{
     AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
     Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexSummary,
-    Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property, PropertyValue,
-    Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, WebNote, Written,
+    InstallResult, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property,
+    PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateInfo,
+    UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -429,6 +430,562 @@ fn app_info() -> Result<AppInfo, ContractError> {
         commit: env!("VERSO_COMMIT").to_owned(),
     })
 }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct ParsedVersion {
+    major: u64,
+    minor: u64,
+    patch: u64,
+    prerelease: Option<(String, u64)>,
+}
+
+impl ParsedVersion {
+    fn parse(s: &str) -> Option<Self> {
+        let s = s
+            .trim()
+            .strip_prefix('v')
+            .or_else(|| s.trim().strip_prefix('V'))
+            .unwrap_or(s.trim());
+        let (ver_part, pre_part) = match s.split_once('-') {
+            Some((v, p)) => (v, Some(p)),
+            None => (s, None),
+        };
+        let parts: Vec<&str> = ver_part.split('.').collect();
+        if parts.is_empty() || parts.len() > 3 {
+            return None;
+        }
+        let major = parts[0].parse().ok()?;
+        let minor = if parts.len() > 1 { parts[1].parse().ok()? } else { 0 };
+        let patch = if parts.len() > 2 { parts[2].parse().ok()? } else { 0 };
+        let prerelease = match pre_part {
+            None => None,
+            Some(pre) => {
+                let (tag, num) = if let Some((t, n)) = pre.split_once('.') {
+                    (t.to_string(), n.parse::<u64>().unwrap_or(0))
+                } else if let Some((t, n)) = pre.split_once('-') {
+                    (t.to_string(), n.parse::<u64>().unwrap_or(0))
+                } else {
+                    let idx = pre.find(|c: char| c.is_ascii_digit()).unwrap_or(pre.len());
+                    let t = &pre[..idx];
+                    let n = pre[idx..].parse::<u64>().unwrap_or(0);
+                    (t.to_string(), n)
+                };
+                Some((tag, num))
+            }
+        };
+        Some(Self {
+            major,
+            minor,
+            patch,
+            prerelease,
+        })
+    }
+
+    fn is_newer_than(&self, other: &Self) -> bool {
+        if self.major != other.major {
+            return self.major > other.major;
+        }
+        if self.minor != other.minor {
+            return self.minor > other.minor;
+        }
+        if self.patch != other.patch {
+            return self.patch > other.patch;
+        }
+        match (&self.prerelease, &other.prerelease) {
+            (None, Some(_)) => true,
+            (Some(_), None) => false,
+            (None, None) => false,
+            (Some((tag1, num1)), Some((tag2, num2))) => {
+                if tag1 == tag2 {
+                    num1 > num2
+                } else {
+                    let rank = |t: &str| match t {
+                        "alpha" => 1,
+                        "beta" => 2,
+                        "rc" => 3,
+                        _ => 0,
+                    };
+                    let r1 = rank(tag1);
+                    let r2 = rank(tag2);
+                    if r1 != r2 {
+                        r1 > r2
+                    } else {
+                        tag1 > tag2
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn github_token() -> Option<String> {
+    if let Ok(tok) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {
+        let t = tok.trim();
+        if !t.is_empty() {
+            return Some(t.to_string());
+        }
+    }
+    let output = std::process::Command::new("gh").args(["auth", "token"]).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let t = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if !t.is_empty() {
+        Some(t)
+    } else {
+        None
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct GhRelease {
+    tag_name: String,
+    name: Option<String>,
+    body: Option<String>,
+    published_at: Option<String>,
+    #[serde(default)]
+    draft: bool,
+    #[serde(default)]
+    assets: Vec<GhAsset>,
+}
+
+#[derive(serde::Deserialize)]
+struct GhAsset {
+    name: String,
+    url: String,
+    browser_download_url: String,
+    size: u64,
+}
+
+/// Checks GitHub releases for a new version of the application.
+#[tauri::command]
+#[specta::specta]
+fn check_for_updates() -> Result<UpdateInfo, ContractError> {
+    let current_str = env!("CARGO_PKG_VERSION");
+    let current_ver = ParsedVersion::parse(current_str).ok_or_else(|| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Could not parse current app version: {current_str}"),
+    })?;
+
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(format!("Verso-App/{current_str}"))
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Failed to create HTTP client: {e}"),
+        })?;
+
+    let mut req = client
+        .get("https://api.github.com/repos/SergioSJS/verso/releases")
+        .header("Accept", "application/vnd.github.v3+json");
+    if let Some(token) = github_token() {
+        req = req.header("Authorization", format!("Bearer {token}"));
+    }
+
+    let res = req.send().map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível verificar atualizações: {e}"),
+    })?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let message = if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde.".to_string()
+        } else if status == reqwest::StatusCode::NOT_FOUND {
+            "Repositório de atualizações não encontrado.".to_string()
+        } else {
+            format!("GitHub API returned HTTP {status}")
+        };
+        return Err(ContractError {
+            kind: ErrorKind::Failed,
+            message,
+        });
+    }
+
+    let releases: Vec<GhRelease> = res.json().map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Failed to parse GitHub releases response: {e}"),
+    })?;
+
+    let mut best_release: Option<&GhRelease> = None;
+    let mut best_ver = current_ver.clone();
+    let mut latest_seen_ver = current_ver.clone();
+    let mut latest_seen_tag = current_str.to_string();
+
+    for rel in &releases {
+        if rel.draft {
+            continue;
+        }
+        if let Some(parsed) = ParsedVersion::parse(&rel.tag_name) {
+            if parsed.is_newer_than(&latest_seen_ver) {
+                latest_seen_ver = parsed.clone();
+                latest_seen_tag = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
+            }
+            if parsed.is_newer_than(&best_ver) {
+                best_ver = parsed;
+                best_release = Some(rel);
+            }
+        }
+    }
+
+    if let Some(rel) = best_release {
+        let preferred_arch = if cfg!(target_arch = "aarch64") {
+            "arm64"
+        } else {
+            "x64"
+        };
+        let asset = rel.assets.iter().find(|a| {
+            let n = a.name.to_lowercase();
+            n.ends_with(".zip") && n.contains("macos") && (n.contains(preferred_arch) || (preferred_arch == "arm64" && n.contains("aarch64")))
+        }).or_else(|| {
+            rel.assets.iter().find(|a| {
+                let n = a.name.to_lowercase();
+                n.ends_with(".zip") && (n.contains("macos") || n.contains("verso") || n.contains("darwin"))
+            })
+        });
+
+        let download_url = asset.map(|a| a.browser_download_url.clone());
+        let asset_url = asset.map(|a| a.url.clone());
+        let asset_name = asset.map(|a| a.name.clone());
+        let asset_size = asset.map(|a| a.size as f64);
+        let latest_ver_str = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
+
+        Ok(UpdateInfo {
+            current_version: current_str.to_string(),
+            latest_version: latest_ver_str,
+            has_update: true,
+            release_name: rel.name.clone().unwrap_or_else(|| rel.tag_name.clone()),
+            release_notes: rel.body.clone().unwrap_or_default(),
+            download_url,
+            asset_url,
+            asset_name,
+            asset_size,
+            published_at: rel.published_at.clone(),
+        })
+    } else {
+        Ok(UpdateInfo {
+            current_version: current_str.to_string(),
+            latest_version: latest_seen_tag,
+            has_update: false,
+            release_name: String::new(),
+            release_notes: String::new(),
+            download_url: None,
+            asset_url: None,
+            asset_name: None,
+            asset_size: None,
+            published_at: None,
+        })
+    }
+}
+
+fn is_trusted_update_url(url: &str) -> bool {
+    let Ok(parsed) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    if parsed.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+    let h = host.to_lowercase();
+    h == "github.com"
+        || h == "api.github.com"
+        || h.ends_with(".github.com")
+        || h == "objects.githubusercontent.com"
+        || h.ends_with(".githubusercontent.com")
+}
+
+struct TempDirCleaner(std::path::PathBuf);
+impl Drop for TempDirCleaner {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Downloads and installs an update directly from within the app.
+#[tauri::command]
+#[specta::specta]
+fn download_and_install_update<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    download_url: String,
+    asset_url: Option<String>,
+) -> Result<InstallResult, ContractError> {
+    if !is_trusted_update_url(&download_url) {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "URL de download não permitida.".to_string(),
+        });
+    }
+    if asset_url.as_deref().is_some_and(|u| !is_trusted_update_url(u)) {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "URL do recurso não permitida.".to_string(),
+        });
+    }
+
+    let token = github_token();
+
+    let (url, use_auth) = if let Some(ref a_url) = asset_url {
+        if token.is_some() {
+            (a_url.as_str(), true)
+        } else {
+            (download_url.as_str(), false)
+        }
+    } else {
+        (download_url.as_str(), false)
+    };
+
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("Verso-App")
+        .build()
+        .map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Failed to create HTTP client: {e}"),
+        })?;
+
+    let mut req = client.get(url);
+    if let Some(t) = token.as_deref().filter(|_| use_auth) {
+        req = req
+            .header("Authorization", format!("Bearer {t}"))
+            .header("Accept", "application/octet-stream");
+    }
+
+    let mut res = req.send().map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Erro ao baixar atualização: {e}"),
+    })?;
+
+    if !res.status().is_success() {
+        return Err(ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Erro no download: HTTP {}", res.status()),
+        });
+    }
+
+    let total_bytes = res.content_length();
+    let temp_dir = std::env::temp_dir().join(format!("verso-update-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível criar pasta temporária: {e}"),
+    })?;
+    let _cleaner = TempDirCleaner(temp_dir.clone());
+
+    let zip_path = temp_dir.join("update.zip");
+    let mut file = std::fs::File::create(&zip_path).map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível criar arquivo temporário: {e}"),
+    })?;
+
+    let mut buffer = [0u8; 131072]; // 128 KB
+    let mut downloaded: u64 = 0;
+    let mut last_emit = std::time::Instant::now();
+
+    loop {
+        use std::io::Read;
+        let bytes_read = res.read(&mut buffer).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Erro ao ler dados da atualização: {e}"),
+        })?;
+        if bytes_read == 0 {
+            break;
+        }
+        use std::io::Write;
+        file.write_all(&buffer[..bytes_read]).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Erro ao salvar dados da atualização: {e}"),
+        })?;
+        downloaded += bytes_read as u64;
+
+        if last_emit.elapsed() > std::time::Duration::from_millis(150) {
+            last_emit = std::time::Instant::now();
+            let _ = app.emit(
+                "verso://update-progress",
+                UpdateProgress {
+                    downloaded_bytes: downloaded as f64,
+                    total_bytes: total_bytes.map(|t| t as f64),
+                    percent: total_bytes.map(|t| if t > 0 { (downloaded as f64 / t as f64) * 100.0 } else { 0.0 }),
+                    status: "downloading".to_string(),
+                    message: None,
+                },
+            );
+        }
+    }
+    use std::io::Write;
+    let _ = file.flush();
+
+    let _ = app.emit(
+        "verso://update-progress",
+        UpdateProgress {
+            downloaded_bytes: downloaded as f64,
+            total_bytes: Some(downloaded as f64),
+            percent: Some(100.0),
+            status: "extracting".to_string(),
+            message: Some("Descompactando arquivos...".to_string()),
+        },
+    );
+
+    let extract_dir = temp_dir.join("extracted");
+    let _ = std::fs::create_dir_all(&extract_dir);
+    let ditto_status = std::process::Command::new("ditto")
+        .arg("-x")
+        .arg("-k")
+        .arg(&zip_path)
+        .arg(&extract_dir)
+        .status();
+
+    let extract_success = match ditto_status {
+        Ok(st) => st.success(),
+        Err(_) => {
+            std::process::Command::new("unzip")
+                .arg("-q")
+                .arg("-o")
+                .arg(&zip_path)
+                .arg("-d")
+                .arg(&extract_dir)
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false)
+        }
+    };
+
+    if !extract_success {
+        return Err(ContractError {
+            kind: ErrorKind::Failed,
+            message: "Falha ao descompactar a atualização.".to_string(),
+        });
+    }
+
+    let mut extracted_app: Option<std::path::PathBuf> = None;
+    if let Ok(entries) = std::fs::read_dir(&extract_dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() && p.extension().is_some_and(|ext| ext == "app") {
+                extracted_app = Some(p);
+                break;
+            }
+        }
+    }
+
+    let extracted_app = extracted_app.ok_or_else(|| ContractError {
+        kind: ErrorKind::Failed,
+        message: "Nenhum pacote de aplicativo (.app) encontrado no arquivo baixado.".to_string(),
+    })?;
+
+    // Clear quarantine attribute so Gatekeeper does not block the extracted version
+    let _ = std::process::Command::new("xattr")
+        .args(["-dr", "com.apple.quarantine"])
+        .arg(&extracted_app)
+        .output();
+
+    let _ = app.emit(
+        "verso://update-progress",
+        UpdateProgress {
+            downloaded_bytes: downloaded as f64,
+            total_bytes: Some(downloaded as f64),
+            percent: Some(100.0),
+            status: "installing".to_string(),
+            message: Some("Instalando a nova versão...".to_string()),
+        },
+    );
+
+    let current_exe = std::env::current_exe().ok();
+    let mut running_bundle: Option<std::path::PathBuf> = None;
+    if let Some(ref exe) = current_exe {
+        let mut curr = exe.parent();
+        while let Some(p) = curr {
+            if p.extension().is_some_and(|ext| ext == "app") {
+                running_bundle = Some(p.to_path_buf());
+                break;
+            }
+            curr = p.parent();
+        }
+    }
+
+    if let Some(ref running_app) = running_bundle {
+        let old_app = temp_dir.join("running_backup.app");
+        let _ = std::fs::remove_dir_all(&old_app);
+
+        let moved_ok = std::fs::rename(running_app, &old_app).is_ok();
+        if moved_ok {
+            let copy_status = std::process::Command::new("ditto")
+                .arg(&extracted_app)
+                .arg(running_app)
+                .status();
+
+            if copy_status.is_ok_and(|s| s.success()) {
+                let _ = std::fs::remove_dir_all(&old_app);
+                let _ = app.emit(
+                    "verso://update-progress",
+                    UpdateProgress {
+                        downloaded_bytes: downloaded as f64,
+                        total_bytes: Some(downloaded as f64),
+                        percent: Some(100.0),
+                        status: "done".to_string(),
+                        message: Some("Atualização instalada com sucesso!".to_string()),
+                    },
+                );
+                return Ok(InstallResult {
+                    success: true,
+                    message: "Atualização instalada com sucesso! Reinicie o aplicativo para usar a nova versão.".to_string(),
+                    app_path: Some(running_app.display().to_string()),
+                    requires_restart: true,
+                });
+            } else {
+                let _ = std::fs::rename(&old_app, running_app);
+            }
+        }
+    }
+
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let downloads_dir = std::path::PathBuf::from(home).join("Downloads");
+    let fallback_app_name = std::ffi::OsString::from("Verso.app");
+    let dest_app_name = extracted_app.file_name().unwrap_or(&fallback_app_name);
+    let dest = downloads_dir.join(dest_app_name);
+    let _ = std::fs::remove_dir_all(&dest);
+    let copy_status = std::process::Command::new("ditto")
+        .arg(&extracted_app)
+        .arg(&dest)
+        .status();
+
+    if copy_status.is_ok_and(|s| s.success()) {
+        let _ = std::process::Command::new("open")
+            .arg("-R")
+            .arg(&dest)
+            .spawn();
+        let _ = app.emit(
+            "verso://update-progress",
+            UpdateProgress {
+                downloaded_bytes: downloaded as f64,
+                total_bytes: Some(downloaded as f64),
+                percent: Some(100.0),
+                status: "done".to_string(),
+                message: Some("Nova versão copiada para Downloads.".to_string()),
+            },
+        );
+        Ok(InstallResult {
+            success: true,
+            message: format!("A nova versão foi baixada e colocada em sua pasta Downloads: {}", dest.display()),
+            app_path: Some(dest.display().to_string()),
+            requires_restart: false,
+        })
+    } else {
+        Err(ContractError {
+            kind: ErrorKind::Failed,
+            message: "Não foi possível copiar o aplicativo para a pasta Downloads.".to_string(),
+        })
+    }
+}
+
+/// Restarts the application to apply updates.
+#[tauri::command]
+#[specta::specta]
+fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), ContractError> {
+    app.restart();
+}
+
 
 /// The folder that is open, for a window that joins the session (a note
 /// in a window of its own) and for a reload: `None` when none is.
@@ -1630,10 +2187,14 @@ macro_rules! commands_for {
                 install_cli,
                 uninstall_cli,
                 mcp_status,
-                mcp_add_claude
+                mcp_add_claude,
+                check_for_updates,
+                download_and_install_update::<$runtime>,
+                restart_app::<$runtime>
             ])
-            // Not in any command: the payload of the `folder-changed` event.
+            // Not in any command: the payload of events.
             .typ::<FolderChanged>()
+            .typ::<UpdateProgress>()
     };
 }
 
@@ -1798,6 +2359,87 @@ fn serve(
     }
 }
 
+fn is_safe_proxy_url(url_str: &str) -> bool {
+    if let Ok(parsed) = reqwest::Url::parse(url_str) {
+        if parsed.scheme() != "http" && parsed.scheme() != "https" {
+            return false;
+        }
+        if let Some(host) = parsed.host_str() {
+            let h = host.trim_matches(['[', ']']).to_lowercase();
+            if h == "localhost"
+                || h.ends_with(".localhost")
+                || h == "local"
+                || h.ends_with(".local")
+                || h == "127.0.0.1"
+                || h == "::1"
+                || h == "169.254.169.254"
+            {
+                return false;
+            }
+            if let Ok(ip) = h.parse::<std::net::IpAddr>() {
+                match ip {
+                    std::net::IpAddr::V4(ipv4) => {
+                        if ipv4.is_loopback()
+                            || ipv4.is_private()
+                            || ipv4.is_link_local()
+                            || ipv4.is_broadcast()
+                            || ipv4.is_unspecified()
+                        {
+                            return false;
+                        }
+                    }
+                    std::net::IpAddr::V6(ipv6) => {
+                        if ipv6.is_loopback() || ipv6.is_unspecified() {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+    }
+    false
+}
+
+fn proxy_web_page(url_str: &str) -> Result<(u16, String, Vec<u8>), String> {
+    if !is_safe_proxy_url(url_str) {
+        return Err("Endereço de URL inválido ou não permitido para exibição.".to_string());
+    }
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client.get(url_str).send().map_err(|e| e.to_string())?;
+    let status = resp.status().as_u16();
+    let final_url = resp.url().as_str().to_owned();
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("text/html; charset=utf-8")
+        .to_owned();
+    let mut bytes = resp.bytes().map_err(|e| e.to_string())?.to_vec();
+
+    if let Some(mut html) = (content_type.contains("text/html"))
+        .then(|| String::from_utf8(bytes.clone()).ok())
+        .flatten()
+    {
+        let base_tag = format!("<base href=\"{final_url}\">\n");
+        if let Some(pos) = html.find("<head>") {
+            html.insert_str(pos + 6, &base_tag);
+            bytes = html.into_bytes();
+        } else if let Some(pos) = html.find("<HEAD>") {
+            html.insert_str(pos + 6, &base_tag);
+            bytes = html.into_bytes();
+        } else {
+            html.insert_str(0, &base_tag);
+            bytes = html.into_bytes();
+        }
+    }
+    Ok((status, content_type, bytes))
+}
+
 /// `verso://localhost/<relative path>`: a file of the folder that is not
 /// a note — an image an embed names, a PDF, an HTML page shown without
 /// scripts — read through the core, so the only door to the disk stays
@@ -1809,6 +2451,39 @@ fn serve_file<R: tauri::Runtime>(
     request: tauri::http::Request<Vec<u8>>,
 ) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
     let relative = percent_decode(request.uri().path().trim_start_matches('/'));
+    if relative == "__proxy" {
+        let query = request.uri().query().unwrap_or("");
+        let mut target_url = None;
+        for pair in query.split('&') {
+            if let Some(("url", v)) = pair.split_once('=') {
+                target_url = Some(percent_decode(v));
+                break;
+            }
+        }
+        if let Some(target) = target_url.filter(|t| is_safe_proxy_url(t)) {
+            match proxy_web_page(&target) {
+                    Ok((status, content_type, body)) => {
+                        return tauri::http::Response::builder()
+                            .status(status)
+                            .header("Content-Type", content_type)
+                            .header("Access-Control-Allow-Origin", "*")
+                            .header("Cache-Control", "no-cache")
+                            .body(std::borrow::Cow::Owned(body))
+                            .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())));
+                    }
+                    Err(err) => {
+                        let html = format!(
+                            "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{err}</p></body></html>"
+                        );
+                        return tauri::http::Response::builder()
+                            .status(502)
+                            .header("Content-Type", "text/html; charset=utf-8")
+                            .body(std::borrow::Cow::Owned(html.into_bytes()))
+                            .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())));
+                }
+            }
+        }
+    }
     let origin = request
         .headers()
         .get("Origin")
@@ -2588,4 +3263,62 @@ mod tests {
         let nothing_open = serve(None, "main", "mapa.svg", None);
         assert_eq!(nothing_open.status, 404);
     }
+
+    #[test]
+    fn version_comparison_works_for_releases_and_betas() {
+        let v020b2 = ParsedVersion::parse("0.2.0-beta.2").unwrap();
+        let v020b1 = ParsedVersion::parse("v0.2.0-beta.1").unwrap();
+        let v020b3 = ParsedVersion::parse("0.2.0-beta.3").unwrap();
+        let v020 = ParsedVersion::parse("v0.2.0").unwrap();
+        let v021 = ParsedVersion::parse("0.2.1").unwrap();
+        let v030 = ParsedVersion::parse("v0.3.0").unwrap();
+        let v100 = ParsedVersion::parse("1.0.0").unwrap();
+        let v1 = ParsedVersion::parse("v1").unwrap();
+        let v12 = ParsedVersion::parse("v1.2").unwrap();
+
+        assert_eq!(v1.major, 1);
+        assert_eq!(v1.minor, 0);
+        assert_eq!(v1.patch, 0);
+        assert_eq!(v12.major, 1);
+        assert_eq!(v12.minor, 2);
+        assert_eq!(v12.patch, 0);
+
+        assert!(!v020b2.is_newer_than(&v020b2));
+        assert!(!v020b1.is_newer_than(&v020b2));
+        assert!(v020b2.is_newer_than(&v020b1));
+        assert!(v020b3.is_newer_than(&v020b2));
+        assert!(v020.is_newer_than(&v020b2)); // stable > beta
+        assert!(!v020b2.is_newer_than(&v020)); // beta < stable
+        assert!(v021.is_newer_than(&v020));
+        assert!(v030.is_newer_than(&v021));
+        assert!(v100.is_newer_than(&v030));
+    }
+
+    #[test]
+    fn trusted_update_urls_allow_github_only() {
+        assert!(is_trusted_update_url("https://github.com/SergioSJS/verso/releases/download/v0.2.0/verso.zip"));
+        assert!(is_trusted_update_url("https://api.github.com/repos/SergioSJS/verso/releases/assets/12345"));
+        assert!(is_trusted_update_url("https://objects.githubusercontent.com/github-production-release-asset-2e65be/12345"));
+
+        assert!(!is_trusted_update_url("http://github.com/fake.zip")); // HTTP disallowed
+        assert!(!is_trusted_update_url("https://malicious.com/virus.zip"));
+        assert!(!is_trusted_update_url("https://github.com.evil.com/fake.zip"));
+        assert!(!is_trusted_update_url("file:///tmp/update.zip"));
+    }
+
+    #[test]
+    fn safe_proxy_urls_block_ssrf() {
+        assert!(is_safe_proxy_url("https://example.com/page"));
+        assert!(is_safe_proxy_url("http://public-site.org/index.html"));
+
+        assert!(!is_safe_proxy_url("http://localhost:8080"));
+        assert!(!is_safe_proxy_url("http://127.0.0.1:3000"));
+        assert!(!is_safe_proxy_url("http://[::1]:8080"));
+        assert!(!is_safe_proxy_url("http://169.254.169.254/latest/meta-data/"));
+        assert!(!is_safe_proxy_url("http://192.168.1.1/admin"));
+        assert!(!is_safe_proxy_url("http://10.0.0.1/"));
+        assert!(!is_safe_proxy_url("ftp://example.com/file"));
+        assert!(!is_safe_proxy_url("file:///etc/passwd"));
+    }
 }
+
