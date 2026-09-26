@@ -6864,9 +6864,10 @@ class SettingsDialog {
     return i;
   }
   /** Every item of every section, for the search; the section otherwise. */
-  private items(): { section: string; title: string; desc: string; node: () => HTMLElement }[] {
-    const out: { section: string; title: string; desc: string; node: () => HTMLElement }[] = [];
-    const add = (section: string, title: string, desc: string, control: () => HTMLElement | null) => out.push({ section, title, desc, node: () => this.item(title, desc, control()) });
+  private items(): { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] {
+    const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
+    const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
+      out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
     add("general", t.appVersion, t.appVersionDesc, () => {
       const v = h("span", "setting-value", "…");
       void commands.appInfo().then((r) => {
@@ -6901,9 +6902,13 @@ class SettingsDialog {
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
-    add("editor", t.lineNumbersEdit, t.lineNumbersEditDesc, () => this.toggle(settings.lineNumbersEdit, (v) => { settings.lineNumbersEdit = v; saveSettings(); }));
-    add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }));
-    add("editor", t.lineNumbersPreview, t.lineNumbersPreviewDesc, () => this.toggle(settings.lineNumbersPreview, (v) => { settings.lineNumbersPreview = v; saveSettings(); }));
+    // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
+    // 1. Reading mode (Leitura)
+    // 2. Edit mode (Editar)
+    // 3. Source mode (Fonte)
+    add("editor", t.lineNumbersPreview, t.lineNumbersPreviewDesc, () => this.toggle(settings.lineNumbersPreview, (v) => { settings.lineNumbersPreview = v; saveSettings(); }), t.lineNumbers);
+    add("editor", t.lineNumbersEdit, t.lineNumbersEditDesc, () => this.toggle(settings.lineNumbersEdit, (v) => { settings.lineNumbersEdit = v; saveSettings(); }), t.lineNumbers);
+    add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
     add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
@@ -7090,13 +7095,20 @@ class SettingsDialog {
       b.addEventListener("click", () => { this.section = sec.id; this.search.value = ""; this.paint(); });
       return b;
     }));
-    const items = this.items().filter((it) => (q ? `${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
+    const items = this.items().filter((it) => (q ? `${it.group ?? ""} ${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
     const frag = document.createDocumentFragment();
     let lastSection = "";
+    let lastGroup = "";
     for (const it of items) {
       if (q && it.section !== lastSection) {
         lastSection = it.section;
         frag.append(h("h3", "settings-heading", this.sections().find((sec) => sec.id === it.section)?.label ?? ""));
+      }
+      if (it.group && it.group !== lastGroup) {
+        lastGroup = it.group;
+        frag.append(h("h3", "settings-subheading", it.group));
+      } else if (!it.group) {
+        lastGroup = "";
       }
       frag.append(it.node());
     }
