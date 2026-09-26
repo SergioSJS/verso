@@ -12,13 +12,14 @@
 // dialect's and is found by hand, outside code.
 
 import { syntaxTree } from "@codemirror/language";
-import { EditorSelection, EditorState, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import { EditorSelection, EditorState, RangeSet, StateEffect, StateField } from "@codemirror/state";
+import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import type { Text } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import katex from "katex";
 import { cells } from "./table";
 import { frontmatterClose } from "./frontmatter";
+import { icon } from "./icons";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -162,13 +163,18 @@ class CodeCopyWidget extends WidgetType {
     btn.type = "button";
     btn.className = "cm-lp-copy-code";
     btn.title = "Copiar código";
-    btn.textContent = "Copiar";
+    btn.setAttribute("aria-label", "Copiar código");
+    btn.append(icon("copy"));
     btn.addEventListener("mousedown", (e) => e.preventDefault());
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       void navigator.clipboard.writeText(this.code).then(() => {
-        btn.textContent = "Copiado!";
-        setTimeout(() => { btn.textContent = "Copiar"; }, 1500);
+        btn.replaceChildren(icon("check"));
+        btn.title = "Copiado!";
+        setTimeout(() => {
+          btn.replaceChildren(icon("copy"));
+          btn.title = "Copiar código";
+        }, 1500);
       });
     });
     return btn;
@@ -226,7 +232,7 @@ class IframeWidget extends WidgetType {
     return wrap;
   }
   override ignoreEvent(): boolean {
-    return false;
+    return true;
   }
 }
 
@@ -771,7 +777,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               out.push({
                 from: node.from,
                 to: node.to,
-                deco: Decoration.replace({ widget: new IframeWidget(src, style, width, height), block: true }),
+                deco: Decoration.replace({ widget: new IframeWidget(src, style, width, height) }),
               });
             }
           }
@@ -786,7 +792,9 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           const mark = node.node.getChild("ListMark");
           const taskMarker = node.node.getChild("TaskMarker") ?? node.node.getChild("Task")?.getChild("TaskMarker");
           const isTask = taskMarker !== null;
-          const bullet = !isTask && mark !== null && /^[-*+]$/.test(doc.sliceString(mark.from, mark.to));
+          const markText = mark ? doc.sliceString(mark.from, mark.to) : "";
+          const bullet = !isTask && mark !== null && /^[-*+]$/.test(markText);
+          const isOrdered = !isTask && mark !== null && /^\d+\.$/.test(markText);
 
           let depth = 0;
           let p = node.node.parent;
@@ -794,12 +802,12 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             if (p.name === "ListItem") depth++;
             p = p.parent;
           }
-          const indentSpaces = (line.text.match(/^([ \t]*)/)?.[1] ?? "").replace(/\t/g, "  ").length;
-          const visualDepth = Math.max(depth, Math.floor(indentSpaces / 2));
+          const indentText = line.text.match(/^([ \t]*)/)?.[1] ?? "";
+          const tabs = (indentText.match(/\t/g) ?? []).length;
+          const spaces = indentText.replace(/\t/g, "").length;
+          const visualDepth = Math.max(depth, tabs > 0 ? tabs : Math.floor(spaces / (isOrdered ? 4 : 2)));
           const lineAttrs: Record<string, string> = {};
           if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
-
-          const touchedMark = mark && view.state.selection.ranges.some((r) => r.from <= mark.to + 1 && r.to >= line.from);
 
           if (taskMarker) {
             const taskText = doc.sliceString(taskMarker.from, taskMarker.to);
@@ -816,10 +824,11 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               });
             }
           } else {
-            const showBullet = bullet && !touchedMark;
-            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: showBullet ? "cm-lp-li cm-lp-bullet" : "cm-lp-li", attributes: lineAttrs }) });
-            if (bullet && mark && !touchedMark) {
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: bullet ? "cm-lp-li cm-lp-bullet" : "cm-lp-li", attributes: lineAttrs }) });
+            if (bullet && mark) {
               hide(line.from, Math.min(mark.to + 1, line.to));
+            } else if (isOrdered && mark && mark.from > line.from) {
+              hide(line.from, mark.from);
             }
           }
         } else if (name === "Link" && !shown) {
@@ -981,5 +990,24 @@ export function livePreview(opts: LiveOptions) {
     },
     provide: (f) => [EditorView.decorations.from(f, (v) => v.decorations), EditorView.atomicRanges.of((view) => view.state.field(f).atomic)],
   });
-  return [plugin, clicks, frontmatter, outOfFrontmatter, keepFrontmatter];
+  class HeadingGutterMarker extends GutterMarker {
+    constructor(readonly elementClass: string) {
+      super();
+    }
+  }
+
+  const headingGutter = gutterLineClass.compute(["doc"], (state) => {
+    const markers: ReturnType<GutterMarker["range"]>[] = [];
+    for (let i = 1; i <= state.doc.lines; i++) {
+      const line = state.doc.line(i);
+      const m = /^(#{1,6})\s/.exec(line.text);
+      if (m) {
+        const level = m[1]!.length;
+        markers.push(new HeadingGutterMarker(`cm-lp-gutter-h cm-lp-gutter-h${level}`).range(line.from));
+      }
+    }
+    return RangeSet.of(markers);
+  });
+
+  return [plugin, clicks, frontmatter, outOfFrontmatter, keepFrontmatter, headingGutter];
 }

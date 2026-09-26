@@ -15,17 +15,48 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { EditorView, basicSetup } from "codemirror";
+import { EditorView } from "codemirror";
 import { Annotation, Compartment, EditorState, Prec, Transaction, type Extension } from "@codemirror/state";
-import { keymap, type KeyBinding } from "@codemirror/view";
-import { indentWithTab, isolateHistory } from "@codemirror/commands";
+import { keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, type KeyBinding } from "@codemirror/view";
+import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory } from "@codemirror/commands";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
-import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
+import { LanguageDescription, bracketMatching, defaultHighlightStyle, foldAll, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting, unfoldAll } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import { lintKeymap } from "@codemirror/lint";
 import katex from "katex";
-import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+
+const baseEditorExtensions: Extension = [
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentUnit.of("\t"),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+    ...lintKeymap,
+  ]),
+];
 import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type NoteText, type PropertyValue, type TextFile, type Written } from "./bindings";
 import { icon } from "./icons";
 import { minimalEdit } from "./edit";
@@ -35,6 +66,7 @@ import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
 import { stringsFor } from "./bases/strings";
 import { DailyCalendar } from "./bases/daily";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
+import { listKeymap } from "./listKeymap";
 import { PdfView } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
@@ -62,6 +94,7 @@ type Strings = Record<
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage" | "spreadSingle" | "spreadOdd" | "spreadEven" | "spreadToggle" | "lineNumbers" | "lineNumbersDesc"
+  | "lineNumbersEdit" | "lineNumbersEditDesc" | "lineNumbersSource" | "lineNumbersSourceDesc" | "lineNumbersPreview" | "lineNumbersPreviewDesc" | "foldAllHeadings" | "unfoldAllHeadings"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "htmlPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
@@ -151,6 +184,7 @@ const pt: Strings = {
   graphNodes: (n, m) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} de ${n}`,
   pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.", spreadSingle: "Página única", spreadOdd: "Duas páginas (com capa)", spreadEven: "Duas páginas (sem capa)", spreadToggle: "Modo de exibição de páginas", lineNumbers: "Números de linha", lineNumbersDesc: "Exibe a contagem de linhas na margem do editor.",
+  lineNumbersEdit: "Números de linha (Modo Editar)", lineNumbersEditDesc: "Exibe a numeração de linhas no editor visual (Live Preview).", lineNumbersSource: "Números de linha (Modo Fonte)", lineNumbersSourceDesc: "Exibe a numeração de linhas no editor de código-fonte Markdown puro.", lineNumbersPreview: "Números de linha (Modo Leitura)", lineNumbersPreviewDesc: "Exibe a numeração de linhas nos blocos do modo de leitura.", foldAllHeadings: "Contrair todas as seções", unfoldAllHeadings: "Expandir todas as seções",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
@@ -230,6 +264,7 @@ const en: Strings = {
   graphNodes: (n, m) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} of ${n}`,
   pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.", spreadSingle: "Single page", spreadOdd: "Two pages (with cover)", spreadEven: "Two pages (without cover)", spreadToggle: "Page display mode", lineNumbers: "Line numbers", lineNumbersDesc: "Show line numbers in the editor margin.",
+  lineNumbersEdit: "Line numbers (Edit mode)", lineNumbersEditDesc: "Show line numbers in the visual editor (Live Preview).", lineNumbersSource: "Line numbers (Source mode)", lineNumbersSourceDesc: "Show line numbers in the plain Markdown source code editor.", lineNumbersPreview: "Line numbers (Reading mode)", lineNumbersPreviewDesc: "Show line numbers on blocks in reading view.", foldAllHeadings: "Collapse all sections", unfoldAllHeadings: "Expand all sections",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
@@ -392,13 +427,57 @@ const ui = {
 };
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
-type Settings = { lang: "auto" | "pt-BR" | "en"; theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; lineNumbers: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; linkFormat: "shortest" | "relative" | "root"; remoteContent: boolean; hotkeys: Record<string, string> };
-const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: t.dailyName, templates: t.templatesName, spellcheck: true, lineNumbers: false, defaultMode: "preview", measure: "normal", linkFormat: "shortest", remoteContent: true, hotkeys: {} };
+type Settings = {
+  lang: "auto" | "pt-BR" | "en";
+  theme: "auto" | "light" | "dark";
+  palette: Hue;
+  fontSize: number;
+  attachments: string;
+  autosave: number;
+  daily: string;
+  templates: string;
+  spellcheck: boolean;
+  lineNumbers?: boolean;
+  lineNumbersEdit: boolean;
+  lineNumbersSource: boolean;
+  lineNumbersPreview: boolean;
+  defaultMode: "preview" | "live";
+  measure: "normal" | "wide";
+  linkFormat: "shortest" | "relative" | "root";
+  remoteContent: boolean;
+  hotkeys: Record<string, string>;
+};
+const DEFAULTS: Settings = {
+  lang: "auto",
+  theme: "auto",
+  palette: "paper",
+  fontSize: 15,
+  attachments: "assets",
+  autosave: 1.5,
+  daily: t.dailyName,
+  templates: t.templatesName,
+  spellcheck: true,
+  lineNumbersEdit: false,
+  lineNumbersSource: true,
+  lineNumbersPreview: false,
+  defaultMode: "preview",
+  measure: "normal",
+  linkFormat: "shortest",
+  remoteContent: true,
+  hotkeys: {},
+};
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
   try {
     const raw = localStorage.getItem("verso.settings");
-    if (raw) settings = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Settings>;
+      if (parsed.lineNumbers !== undefined) {
+        if (parsed.lineNumbersEdit === undefined) parsed.lineNumbersEdit = parsed.lineNumbers;
+        if (parsed.lineNumbersSource === undefined) parsed.lineNumbersSource = parsed.lineNumbers;
+      }
+      settings = { ...DEFAULTS, ...parsed };
+    }
   } catch {
     settings = { ...DEFAULTS };
   }
@@ -412,14 +491,17 @@ function saveSettings(): void {
   }
   applySettings();
 }
+let updateLeavesLineNumbers: (() => void) | null = null;
 function applySettings(): void {
   document.documentElement.dataset["theme"] = settings.theme;
   document.documentElement.dataset["palette"] = settings.palette;
   document.documentElement.dataset["measure"] = settings.measure;
   document.documentElement.style.fontSize = `${settings.fontSize}px`;
-  if (settings.lineNumbers) document.documentElement.classList.add("show-line-numbers");
-  else document.documentElement.classList.remove("show-line-numbers");
+  document.documentElement.classList.toggle("show-line-numbers-edit", Boolean(settings.lineNumbersEdit));
+  document.documentElement.classList.toggle("show-line-numbers-source", Boolean(settings.lineNumbersSource));
+  document.documentElement.classList.toggle("show-line-numbers-preview", Boolean(settings.lineNumbersPreview));
   allowRemoteContent(settings.remoteContent);
+  updateLeavesLineNumbers?.();
 }
 loadSettings();
 const LAST_FOLDER = "verso.lastFolder";
@@ -723,7 +805,9 @@ const ghost = h("div", "drag-ghost");
 ghost.hidden = true;
 document.body.append(ghost);
 function clearDropHints(): void {
-  for (const e of document.querySelectorAll(".drop-hint, .drop")) e.classList.remove("drop-hint", "drop", "left", "right", "top", "bottom", "center");
+  for (const e of document.querySelectorAll(".drop-hint, .drop")) {
+    e.classList.remove("drop-hint", "drop", "left", "right", "top", "bottom", "center", "drop-left", "drop-right", "drop-top", "drop-bottom", "drop-center");
+  }
 }
 function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
   handle.addEventListener("pointerdown", (down) => {
@@ -766,7 +850,11 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
   ghost.hidden = true;
   const at = document.elementFromPoint(x, y) as HTMLElement | null;
   ghost.hidden = false;
-  if (!at) return null;
+  if (!at) {
+    const panes = layout().panes();
+    if (panes.length > 0) return { body: panes[panes.length - 1]!.body };
+    return null;
+  }
   if (drag?.kind === "tab") {
     const tabs = at.closest<HTMLElement>(".tabs");
     if (tabs) return { tabs };
@@ -775,12 +863,21 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     const spaceTab = at.closest<HTMLElement>(".space-tab");
     const space = spaceTab ? spaces.find((s) => s.tab === spaceTab) : undefined;
     if (spaceTab && space) return { space, el: spaceTab };
-    for (const p of layout().panes()) {
+    const panes = layout().panes();
+    let closestPane: Pane | null = null;
+    let closestDist = Infinity;
+    for (const p of panes) {
       const pr = p.el.getBoundingClientRect();
-      if (x >= pr.left - 12 && x <= pr.right + 12 && y >= pr.top - 8 && y <= pr.bottom + 8) {
-        return { body: p.body };
+      const dx = Math.max(pr.left - x, 0, x - pr.right);
+      const dy = Math.max(pr.top - y, 0, y - pr.bottom);
+      const dist = Math.hypot(dx, dy);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestPane = p;
       }
     }
+    if (closestPane) return { body: closestPane.body };
+    if (panes.length > 0) return { body: panes[panes.length - 1]!.body };
     return null;
   }
   if (drag?.kind === "file") {
@@ -808,17 +905,25 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
 }
 function zoneOf(body: HTMLElement, x: number, y: number): "left" | "right" | "top" | "bottom" | "center" {
   const r = body.getBoundingClientRect();
-  const fx = (x - r.left) / r.width;
-  const fy = (y - r.top) / r.height;
-  if (fx < 0.22) return "left";
-  if (fx > 0.78) return "right";
-  if (fy < 0.22) return "top";
-  if (fy > 0.78) return "bottom";
-  return "center";
+  const fx = Math.max(0, Math.min(1, (x - r.left) / r.width));
+  const fy = Math.max(0, Math.min(1, (y - r.top) / r.height));
+  if (fx >= 0.35 && fx <= 0.65 && fy >= 0.35 && fy <= 0.65) return "center";
+  const dLeft = fx;
+  const dRight = 1 - fx;
+  const dTop = fy;
+  const dBottom = 1 - fy;
+  const min = Math.min(dLeft, dRight, dTop, dBottom);
+  if (min === dLeft) return "left";
+  if (min === dRight) return "right";
+  if (min === dTop) return "top";
+  return "bottom";
 }
 function hint(target: DropTarget, x: number, y: number): void {
   if ("tabs" in target) target.tabs.classList.add("drop");
-  else if ("body" in target) target.body.classList.add("drop-hint", zoneOf(target.body, x, y));
+  else if ("body" in target) {
+    const zone = zoneOf(target.body, x, y);
+    target.body.classList.add("drop-hint", zone, "drop-" + zone);
+  }
   else if ("insert" in target) target.insert.el.classList.add("drop");
   else target.el.classList.add("drop");
 }
@@ -1264,8 +1369,19 @@ class NoteLeaf extends Leaf {
   backlinksData: { from: string; line: number }[] = [];
   linksData: { target: string; resolved: string | null }[] = [];
   readonly liveCompartment = new Compartment();
+  readonly lineNumbersCompartment = new Compartment();
   readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty, label: t.slash.insert });
   readonly live: ReturnType<typeof livePreview>;
+  shouldShowLineNumbers(): boolean {
+    if (this.mode === "live") return Boolean(settings.lineNumbersEdit);
+    if (this.mode === "source") return Boolean(settings.lineNumbersSource);
+    return false;
+  }
+  applyLineNumbers(): void {
+    this.editor.dispatch({
+      effects: this.lineNumbersCompartment.reconfigure(this.shouldShowLineNumbers() ? lineNumbers() : []),
+    });
+  }
   note: NoteText | null = null;
   /** The text the reading view was drawn from: a task's line is checked against it. */
   private shownText = "";
@@ -1273,7 +1389,7 @@ class NoteLeaf extends Leaf {
    *  to be drawn: the view (and every PDF in it) is built again only when
    *  its HTML changed, and only once it is seen. */
   private drawn = "";
-  private previewStale = false;
+  previewStale = false;
   mode: Mode = settings.defaultMode;
   revision = "";
   /** Deleted or moved outside the app (`markGone`), until the note is
@@ -1415,7 +1531,8 @@ class NoteLeaf extends Leaf {
     return EditorState.create({
       doc,
       extensions: [
-        basicSetup,
+        baseEditorExtensions,
+        this.lineNumbersCompartment.of(this.shouldShowLineNumbers() ? lineNumbers() : []),
         md.language.data.of({ autocomplete: completeWikilinks }),
         md,
         syntaxHighlighting(classHighlighter),
@@ -1426,6 +1543,7 @@ class NoteLeaf extends Leaf {
         EditorView.contentAttributes.of(() => ({ "aria-label": name(this.path) })),
         slashKeymap(this.slash),
         tableKeymap,
+        listKeymap,
         keymap.of([...markdownKeymap, indentWithTab]),
         EditorView.lineWrapping,
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
@@ -1619,6 +1737,7 @@ class NoteLeaf extends Leaf {
     for (const [k, b] of Object.entries(this.modeButtons)) b.setAttribute("aria-pressed", String(k === m));
     if (m === "preview") this.paintPreview();
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? this.live : []) });
+    this.applyLineNumbers();
     if (m === "live") {
       // The caret never lands inside the folded frontmatter.
       const end = frontmatterEnd(this.editor.state.doc);
@@ -2084,16 +2203,29 @@ class NoteLeaf extends Leaf {
     for (const pre of root.querySelectorAll<HTMLPreElement>("pre")) {
       if (pre.querySelector(".copy-code-btn")) continue;
       pre.style.position = "relative";
-      const btn = h("button", "copy-code-btn", "Copiar");
+      const foldBtn = button("code-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+      foldBtn.type = "button";
+      foldBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        pre.classList.toggle("code-folded");
+      });
+      const btn = h("button", "copy-code-btn");
       btn.type = "button";
+      btn.title = "Copiar código";
+      btn.setAttribute("aria-label", "Copiar código");
+      btn.append(icon("copy"));
       btn.addEventListener("click", () => {
         const code = pre.querySelector("code")?.textContent ?? pre.textContent ?? "";
         void navigator.clipboard.writeText(code).then(() => {
-          btn.textContent = "Copiado!";
-          setTimeout(() => { btn.textContent = "Copiar"; }, 1500);
+          btn.replaceChildren(icon("check"));
+          btn.title = "Copiado!";
+          setTimeout(() => {
+            btn.replaceChildren(icon("copy"));
+            btn.title = "Copiar código";
+          }, 1500);
         });
       });
-      pre.append(btn);
+      pre.append(foldBtn, btn);
     }
   }
 
@@ -2102,11 +2234,196 @@ class NoteLeaf extends Leaf {
       const size = sizeOf(img.getAttribute("alt") ?? "");
       if (size?.w) img.style.width = `${size.w}px`;
       if (size?.h) img.style.height = `${size.h}px`;
+      const rawSrc = img.getAttribute("src") ?? "";
+      if (rawSrc && !rawSrc.startsWith("http://") && !rawSrc.startsWith("https://") && !rawSrc.startsWith("data:") && !rawSrc.startsWith("verso:") && !rawSrc.startsWith("tauri:")) {
+        if (this.note) {
+          void commands.resolveAttachment(this.note.path, rawSrc).then((r) => {
+            if (r.status === "ok" && r.data) {
+              img.src = convertFileSrc(r.data, "verso");
+            }
+          });
+        }
+      }
+    }
+  }
+
+  private wireHeadingFolds(root: HTMLElement): void {
+    const headings = Array.from(root.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
+    for (const h of headings) {
+      if (h.querySelector(".heading-fold-btn")) continue;
+      const btn = button("heading-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+      btn.type = "button";
+      h.prepend(btn);
+      const toggle = () => {
+        const level = parseInt(h.tagName.slice(1), 10);
+        const folded = !h.classList.contains("heading-folded");
+        h.classList.toggle("heading-folded", folded);
+        let next = h.nextElementSibling as HTMLElement | null;
+        while (next) {
+          if (/^H[1-6]$/i.test(next.tagName)) {
+            const nextLevel = parseInt(next.tagName.slice(1), 10);
+            if (nextLevel <= level) break;
+          }
+          next.style.display = folded ? "none" : "";
+          next = next.nextElementSibling as HTMLElement | null;
+        }
+      };
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggle();
+      });
+      h.addEventListener("click", (e) => {
+        if (h.classList.contains("heading-folded")) {
+          e.stopPropagation();
+          toggle();
+        }
+      });
+    }
+  }
+
+  private wireListFolds(root: HTMLElement): void {
+    const listItems = Array.from(root.querySelectorAll<HTMLLIElement>("li"));
+    for (const li of listItems) {
+      if (li.querySelector(":scope > .list-fold-btn")) continue;
+      const childList = li.querySelector<HTMLElement>(":scope > ul, :scope > ol");
+      if (!childList) continue;
+      const btn = button("list-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+      btn.type = "button";
+      btn.setAttribute("aria-expanded", "true");
+      li.prepend(btn);
+      const toggle = () => {
+        const folded = !li.classList.contains("list-folded");
+        li.classList.toggle("list-folded", folded);
+        btn.setAttribute("aria-expanded", String(!folded));
+      };
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggle();
+      });
+      li.addEventListener("click", (e) => {
+        if (li.classList.contains("list-folded")) {
+          e.stopPropagation();
+          toggle();
+        }
+      });
+    }
+  }
+
+  private wireBlockquoteFolds(root: HTMLElement): void {
+    for (const bq of root.querySelectorAll<HTMLQuoteElement>("blockquote")) {
+      if (bq.querySelector(":scope > .quote-fold-btn")) continue;
+      if (bq.classList.contains("callout")) continue;
+      const btn = button("quote-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+      btn.type = "button";
+      btn.setAttribute("aria-expanded", "true");
+      bq.prepend(btn);
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        bq.classList.toggle("quote-folded");
+        btn.setAttribute("aria-expanded", String(!bq.classList.contains("quote-folded")));
+      });
+    }
+  }
+
+  private wireReadingLineNumbers(root: HTMLElement, text: string): void {
+    for (const old of root.querySelectorAll(".preview-line-num")) {
+      old.remove();
+    }
+    const lines = text.split("\n");
+    const elements = Array.from(root.querySelectorAll<HTMLElement>(
+      "h1, h2, h3, h4, h5, h6, p, li, pre, blockquote, table, .callout, .embed-base, .embed-pdf"
+    ));
+    let lineIdx = 0;
+    for (const el of elements) {
+      if (el.parentElement && el.parentElement.closest("li, blockquote, .callout, pre, table") && (el.tagName === "P" || el.tagName === "PRE")) {
+        continue;
+      }
+      let matchedLine = -1;
+      const taskBox = el.querySelector<HTMLInputElement>("input[type=checkbox][data-task-line]");
+      if (taskBox?.dataset["taskLine"]) {
+        matchedLine = parseInt(taskBox.dataset["taskLine"], 10);
+        lineIdx = Math.max(lineIdx, matchedLine);
+      } else {
+        const rawText = el.textContent?.trim().toLowerCase() ?? "";
+        const snippet = rawText.slice(0, 40).replace(/\s+/g, " ");
+        for (let i = lineIdx; i < lines.length; i++) {
+          const l = lines[i]?.trim().toLowerCase() ?? "";
+          if (!l) continue;
+          if (/^H[1-6]$/i.test(el.tagName)) {
+            if (l.startsWith("#") && (snippet === "" || l.includes(snippet.slice(0, 15)))) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.tagName === "LI") {
+            if (/^([-*+]|\d+\.)\s/.test(l)) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.tagName === "PRE") {
+            if (l.startsWith("```") || l.startsWith("~~~")) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.tagName === "BLOCKQUOTE") {
+            if (l.startsWith(">")) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.tagName === "TABLE") {
+            if (l.startsWith("|")) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.classList.contains("callout")) {
+            if (l.startsWith("> [!")) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (snippet && l.includes(snippet.slice(0, 15))) {
+            matchedLine = i + 1;
+            lineIdx = i + 1;
+            break;
+          }
+        }
+      }
+      if (matchedLine > 0) {
+        const num = h("span", "preview-line-num", String(matchedLine));
+        num.setAttribute("aria-hidden", "true");
+        el.prepend(num);
+      }
+    }
+  }
+
+  foldAllHeadings(fold: boolean): void {
+    if (this.mode === "preview") {
+      const headings = Array.from(this.preview.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
+      for (const h of headings) {
+        const level = parseInt(h.tagName.slice(1), 10);
+        h.classList.toggle("heading-folded", fold);
+        let next = h.nextElementSibling as HTMLElement | null;
+        while (next) {
+          if (/^H[1-6]$/i.test(next.tagName)) {
+            const nextLevel = parseInt(next.tagName.slice(1), 10);
+            if (nextLevel <= level) break;
+          }
+          next.style.display = fold ? "none" : "";
+          next = next.nextElementSibling as HTMLElement | null;
+        }
+      }
+    } else {
+      if (fold) foldAll(this.editor);
+      else unfoldAll(this.editor);
     }
   }
 
   /** Draw the reading view from the note, if it changed since it was drawn. */
-  private paintPreview(): void {
+  paintPreview(): void {
     const note = this.note;
     if (!this.previewStale || !note) return;
     this.previewStale = false;
@@ -2136,6 +2453,10 @@ class NoteLeaf extends Leaf {
     this.wireTableResizers(this.preview);
     this.wireCodeBlocks(this.preview);
     this.wirePreviewImages(this.preview);
+    this.wireHeadingFolds(this.preview);
+    this.wireListFolds(this.preview);
+    this.wireBlockquoteFolds(this.preview);
+    this.wireReadingLineNumbers(this.preview, note.text);
     if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
   }
   private async relink(path: string): Promise<void> {
@@ -2549,6 +2870,12 @@ class TextLeaf extends Leaf {
   private saveTimer: number | undefined;
   /** Writes run one at a time, each over the revision the last one left. */
   private saving: Promise<void> = Promise.resolve();
+  readonly lineNumbersCompartment = new Compartment();
+  applyLineNumbers(): void {
+    this.editor.dispatch({
+      effects: this.lineNumbersCompartment.reconfigure(settings.lineNumbersSource ? lineNumbers() : []),
+    });
+  }
   constructor(pane: Pane) {
     super(pane);
     const head = h("header", "leaf-head");
@@ -2567,7 +2894,8 @@ class TextLeaf extends Leaf {
     return EditorState.create({
       doc,
       extensions: [
-        basicSetup,
+        baseEditorExtensions,
+        this.lineNumbersCompartment.of(settings.lineNumbersSource ? lineNumbers() : []),
         ...language,
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
@@ -4159,6 +4487,23 @@ class Space {
   }
 }
 const spaces: Space[] = [];
+updateLeavesLineNumbers = () => {
+  for (const sp of spaces) {
+    for (const p of sp.layout.panes()) {
+      for (const l of p.leaves) {
+        if (l instanceof NoteLeaf) {
+          l.applyLineNumbers();
+          if (l.mode === "preview") {
+            l.previewStale = true;
+            l.paintPreview();
+          }
+        } else if (l instanceof TextLeaf) {
+          l.applyLineNumbers();
+        }
+      }
+    }
+  }
+};
 let current: Space | null = null;
 const newSpaceButton = button("ghost iconic", t.newSpace, "plus");
 newSpaceButton.addEventListener("click", () => newSpace());
@@ -4826,11 +5171,12 @@ function tellOutcomes(outcomes: Outcome[]): void {
 /** The index's problems, when they are not the ones already shown: the
  *  first on the status line, all of them on its tooltip. */
 let shownProblems = "";
-function showProblems(index: IndexSummary): void {
+function showProblems(index?: IndexSummary | null): void {
+  if (!index) return;
   const problems = [
-    ...(index.unwatched !== null ? [t.notWatched(index.unwatched)] : []),
-    ...(index.unindexed !== null ? [t.notIndexed(index.unindexed)] : []),
-    ...index.problems,
+    ...(index.unwatched ? [t.notWatched(index.unwatched)] : []),
+    ...(index.unindexed ? [t.notIndexed(index.unindexed)] : []),
+    ...(Array.isArray(index.problems) ? index.problems : []),
   ];
   const all = problems.join("\n");
   if (all === shownProblems) return;
@@ -6165,6 +6511,8 @@ function allCommands(all = false): Command[] {
     { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
     { id: "insert-template", label: t.insertTemplate, need: hasFolder, run: () => insertTemplate() },
     { id: "save-template", label: t.saveAsTemplate, need: hasFolder, run: () => void saveAsTemplate() },
+    { id: "fold-all-headings", label: t.foldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(true) },
+    { id: "unfold-all-headings", label: t.unfoldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(false) },
     { id: "import-demo-vault", label: t.importDemoVault, run: () => void importDemoVault() },
     { id: "quick", label: t.quick, need: hasFolder, run: () => quick.show() },
     { id: "palette", label: t.commands, need: hasFolder, run: () => paletteDialog.show() },
@@ -6553,7 +6901,9 @@ class SettingsDialog {
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
-    add("editor", t.lineNumbers, t.lineNumbersDesc, () => this.toggle(settings.lineNumbers, (v) => { settings.lineNumbers = v; saveSettings(); }));
+    add("editor", t.lineNumbersEdit, t.lineNumbersEditDesc, () => this.toggle(settings.lineNumbersEdit, (v) => { settings.lineNumbersEdit = v; saveSettings(); }));
+    add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }));
+    add("editor", t.lineNumbersPreview, t.lineNumbersPreviewDesc, () => this.toggle(settings.lineNumbersPreview, (v) => { settings.lineNumbersPreview = v; saveSettings(); }));
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
     add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
@@ -6981,7 +7331,7 @@ function showFolder(info: FolderInfo): void {
   }
   ui.folder.textContent = info.name;
   nameFolderButton();
-  const i = info.index;
+  const i = info.index ?? { indexed: 0, unchanged: 0, placeholders: 0, removed: 0, problems: [], unwatched: null, unindexed: null };
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   shownProblems = "";
   showProblems(i);

@@ -51,6 +51,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 4. [[04 - Visualização de Bases e Dados]] — Como funcionam os arquivos `.base` e como incorporar exibições vivas nas suas notas.
 5. [[05 - Visualização de Grafo e Conexões]] — Como explorar a teia de relações entre suas anotações com zoom e pan intuitivos.
 6. [[06 - Documentos e Mídia]] — Visualização de PDFs com modo de 2 páginas, redimensionamento de imagens e incorporação de páginas web seguras via iframes.
+7. [[07 - Notas Diárias, Calendário e Templates]] — Registro cronológico diário, navegação mensal pelo calendário e automação de notas com templates.
 
 ---
 
@@ -61,6 +62,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 | **Paleta de Comandos** | `⌘ ⇧ P` | `Ctrl + Shift + P` |
 | **Abrir Pasta / Vault** | `⌘ O` | `Ctrl + O` |
 | **Nova Nota** | `⌘ N` | `Ctrl + N` |
+| **Nota de Hoje (Daily)** | `⌘ D` | `Ctrl + D` |
 | **Busca Global** | `⌘ K` | `Ctrl + K` |
 | **Alternar Barra Esquerda** | `⌘ ⌥ ←` | `Ctrl + Alt + ←` |
 | **Alternar Barra Direita** | `⌘ ⌥ →` | `Ctrl + Alt + →` |

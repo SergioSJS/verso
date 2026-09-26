@@ -85,6 +85,7 @@ export function allowRemoteContent(on: boolean): void {
 function address(value: string, image: boolean): string | null {
   const v = value.trim();
   if (v.startsWith("#")) return image ? null : v;
+  if (image && !v.includes(":") && !v.startsWith("//")) return v;
   let url: URL;
   try {
     url = new URL(v);
