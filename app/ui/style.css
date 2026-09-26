@@ -84,8 +84,8 @@ body.no-side aside.side, body.no-side #side-divider, body.no-right aside.right, 
   #side-divider, #right-divider { display: none; }
   .status-keys { display: none; }
   .leaf-head { flex-wrap: wrap; gap: .4rem .8rem; }
-  .sheet, .leaf-head, .toolbar { padding-left: 1rem; padding-right: 1rem; }
-  .toolbar { margin-left: 1rem; margin-right: 1rem; }
+  .sheet, .leaf-head, .toolbar { padding-left: .7rem; padding-right: .7rem; }
+  .toolbar { margin-left: .7rem; margin-right: .7rem; }
   .tabs { padding-left: .4rem; }
   .prop { grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr) auto; }
   .folder-cols, .folder-items.list .item { grid-template-columns: minmax(0, 1fr) 5rem 5rem; }
@@ -228,7 +228,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 
 .pane-body { flex: 1; min-height: 0; display: flex; position: relative; }
 .leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-.leaf-head { display: flex; align-items: center; gap: .8rem; padding: .55rem clamp(1rem, 3vw, 2.4rem) 0; }
+.leaf-head { display: flex; align-items: center; gap: .8rem; padding: .55rem clamp(.7rem, 1.5vw, 1.2rem) 0; }
 /* Tight: the leading crumbs slide out to the left under a fade; the
  * current folder stays readable at the right. */
 .crumbs { flex: 1 1 0; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
@@ -245,7 +245,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .iconic { display: inline-flex; padding: .3rem; }
 .icon { flex: none; }
 
-.sheet { flex: 1; min-height: 0; overflow: auto; padding: .6rem clamp(1rem, 3vw, 2.4rem) 6rem; }
+.sheet { flex: 1; min-height: 0; overflow: auto; padding: .6rem clamp(.7rem, 1.5vw, 1.2rem) 6rem; }
 .title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; }
 .note-title { flex: 1; margin: 0; font-family: var(--display); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; color: var(--ink); }
 .note-title:empty { display: none; }
@@ -304,7 +304,7 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .panel-sub { margin: 1rem .6rem .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
 
 /* Reading */
-.preview { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; margin-top: 1.2rem; max-width: 100ch; }
+.preview { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
 .preview:empty { display: none; }
 .preview > :first-child { margin-top: 0; }
 .preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--display); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.8em 0 .5em; font-variation-settings: "opsz" 48, "SOFT" 30; }
@@ -359,6 +359,9 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   display: flex !important;
   align-items: center;
   justify-content: flex-end;
+  min-width: 1.6rem;
+  padding-right: 0.35rem;
+  box-sizing: border-box;
 }
 /* Heading gutter element: aligned vertically with the text of the heading */
 .editor .cm-gutterElement.cm-lp-gutter-h {
@@ -400,21 +403,23 @@ html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
 /* Reading mode line numbers & fold gutter */
 .preview {
   position: relative;
-  padding-left: 2.2rem;
+  padding-left: 1.6rem;
 }
 .preview .preview-line-num {
   display: none;
 }
 html.show-line-numbers-preview .preview {
-  padding-left: 4.0rem;
+  padding-left: 3.2rem;
 }
 html.show-line-numbers-preview .preview .preview-line-num {
   display: inline-flex;
   position: absolute;
-  left: 1.6rem;
-  width: 1.8rem;
+  left: 1.1rem;
+  width: 1.6rem;
   text-align: right;
   justify-content: flex-end;
+  padding-right: 0.35rem;
+  box-sizing: border-box;
   font-family: var(--mono);
   font-size: .76rem;
   color: var(--ink-3);
@@ -434,7 +439,7 @@ html.show-line-numbers-preview .preview pre .preview-line-num {
   margin-top: 0.25rem;
 }
 html.show-line-numbers-preview .preview pre .preview-line-num {
-  left: -2.4rem;
+  left: -2.1rem;
 }
 
 /* Heading line numbers vertical alignment: centered on the heading text */
@@ -465,7 +470,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .preview .list-fold-btn,
 .preview .quote-fold-btn {
   position: absolute;
-  left: 0.35rem;
+  left: 0.15rem;
   width: 1.1rem;
   height: 1.1rem;
   display: inline-flex;
@@ -1009,7 +1014,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 
 /* Formatting toolbar */
 /* Between the head and the sheet, never over it: the document scrolls below. */
-.toolbar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .1rem; margin: .5rem clamp(1rem, 3vw, 2.4rem) 0; padding: .25rem .3rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2); width: fit-content; max-width: calc(100% - 2 * clamp(1rem, 3vw, 2.4rem)); }
+.toolbar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .1rem; margin: .5rem clamp(.7rem, 1.5vw, 1.2rem) 0; padding: .25rem .3rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2); width: fit-content; max-width: calc(100% - 2 * clamp(.7rem, 1.5vw, 1.2rem)); }
 .tool { display: inline-flex; padding: .3rem; border-radius: 5px; color: var(--ink-2); }
 .tool:hover { color: var(--ink); background: var(--paper-3); }
 .tool .icon { width: 15px; height: 15px; }
