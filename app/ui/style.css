@@ -600,7 +600,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 
 
 /* Live preview marks */
-.editor .cm-line.cm-lp-h { font-family: var(--display); font-weight: 600; line-height: 1.2; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
+.editor .cm-line.cm-lp-h { font-family: var(--display); font-weight: 600; line-height: 1.25; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
 .editor .cm-line.cm-lp-h1 { font-size: 1.65em; }
 .editor .cm-line.cm-lp-h2 { font-size: 1.35em; }
 .editor .cm-line.cm-lp-h3 { font-size: 1.12em; }
@@ -608,11 +608,158 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-lp-strong { font-weight: 600; }
 .editor .cm-lp-em { font-style: italic; }
 .editor .cm-lp-strike { text-decoration: line-through; color: var(--ink-3); }
+.editor .cm-lp-mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .15em; }
 .editor .cm-lp-code { font-family: var(--mono); font-size: .88em; background: var(--paper-3); border-radius: 3px; padding: 0 .25em; }
-.editor .cm-line.cm-lp-fence { font-family: var(--mono); font-size: .88em; background: var(--paper-2); }
+
+/* Fenced code blocks in Live Preview */
+.editor .cm-line.cm-lp-fence {
+  font-family: var(--mono);
+  font-size: .88em;
+  background: var(--paper-2);
+  padding-left: 1.1em;
+  padding-right: 1.1em;
+}
+.editor .cm-line.cm-lp-fence-first {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  padding-top: .45rem;
+}
+.editor .cm-line.cm-lp-fence-first.cm-lp-fence-closed {
+  min-height: 1.5em;
+  display: flex;
+  align-items: center;
+}
+.editor .cm-line.cm-lp-fence-last {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  padding-bottom: .45rem;
+  margin-bottom: .8em;
+}
+.editor .cm-line.cm-lp-fence-last.cm-lp-fence-closed {
+  min-height: .4em;
+  line-height: .4em;
+}
+.editor .cm-line.cm-lp-fence-single {
+  border-radius: 6px;
+  padding-top: .35rem;
+  padding-bottom: .35rem;
+  margin-bottom: .8em;
+}
+.editor .cm-lp-fence-lang {
+  font-family: var(--ui);
+  font-size: .74em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-3);
+  padding: .1rem .4rem;
+  background: var(--paper-3);
+  border-radius: 3px;
+  display: inline-block;
+  user-select: none;
+}
+
+/* Blockquotes in Live Preview */
+.editor .cm-line.cm-lp-quote {
+  border-left: 2px solid var(--brass);
+  padding-left: 1.1em;
+  color: var(--ink-2);
+  font-style: italic;
+}
+.editor .cm-line.cm-lp-quote-head {
+  padding-top: .2rem;
+}
+.editor .cm-line.cm-lp-quote-tail {
+  padding-bottom: .2rem;
+  margin-bottom: .6em;
+}
+
+/* Callouts in Live Preview */
+.editor .cm-line.cm-lp-callout {
+  background: var(--paper-2);
+  border-left: 3px solid var(--callout-color, var(--brass));
+  padding-left: 1rem;
+  padding-right: .8rem;
+}
+.editor .cm-line.cm-lp-callout-head {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  padding-top: .5rem;
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: .86em;
+  letter-spacing: .03em;
+  color: var(--callout-color, var(--brass-ink));
+}
+.editor .cm-lp-callout-tag {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: .82em;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--callout-color, var(--brass-ink));
+  margin-right: .35em;
+}
+.editor .cm-line.cm-lp-callout-tail {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  padding-bottom: .5rem;
+  margin-bottom: .8em;
+}
+.editor .cm-line.cm-lp-callout-note,
+.editor .cm-line.cm-lp-callout-info,
+.editor .cm-line.cm-lp-callout-abstract,
+.editor .cm-line.cm-lp-callout-summary,
+.editor .cm-line.cm-lp-callout-tldr {
+  --callout-color: light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240));
+}
+.editor .cm-line.cm-lp-callout-tip,
+.editor .cm-line.cm-lp-callout-hint,
+.editor .cm-line.cm-lp-callout-success,
+.editor .cm-line.cm-lp-callout-check,
+.editor .cm-line.cm-lp-callout-done {
+  --callout-color: light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150));
+}
+.editor .cm-line.cm-lp-callout-warning,
+.editor .cm-line.cm-lp-callout-caution,
+.editor .cm-line.cm-lp-callout-attention,
+.editor .cm-line.cm-lp-callout-question,
+.editor .cm-line.cm-lp-callout-help,
+.editor .cm-line.cm-lp-callout-faq {
+  --callout-color: light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75));
+}
+.editor .cm-line.cm-lp-callout-danger,
+.editor .cm-line.cm-lp-callout-error,
+.editor .cm-line.cm-lp-callout-bug,
+.editor .cm-line.cm-lp-callout-failure,
+.editor .cm-line.cm-lp-callout-fail,
+.editor .cm-line.cm-lp-callout-missing {
+  --callout-color: var(--seal);
+}
+.editor .cm-line.cm-lp-callout-example {
+  --callout-color: light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300));
+}
+.editor .cm-line.cm-lp-callout-quote,
+.editor .cm-line.cm-lp-callout-cite {
+  --callout-color: var(--ink-3);
+}
+
+/* Lists and Bullets in Live Preview */
 .editor .cm-line.cm-lp-li {
   position: relative;
   padding-left: calc(1.3em + var(--lp-depth, 0) * 1.5em);
+}
+.editor .cm-line.cm-lp-bullet::before {
+  content: "•";
+  color: var(--brass);
+  margin-left: -1.1em;
+  margin-right: .55em;
+  font-size: 1.1em;
+  line-height: 1;
+  vertical-align: middle;
+}
+.editor .cm-line.cm-lp-ordered {
+  /* Numbered list item */
 }
 .editor .cm-line.cm-lp-li[style*="--lp-depth"]::after {
   content: "";
@@ -634,8 +781,36 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 }
 .editor input.cm-lp-task-check { accent-color: var(--seal); width: 1.05em; height: 1.05em; margin-right: 0.55em; vertical-align: -0.15em; cursor: pointer; }
 .editor .cm-line.cm-lp-task-done { color: var(--ink-3); text-decoration: line-through; }
-.editor .cm-lp-link { color: var(--seal); }
+.editor .cm-lp-link { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 40%, transparent); cursor: pointer; text-decoration: none; }
 .editor .cm-lp-hr { color: var(--brass); letter-spacing: .3em; }
+
+/* Horizontal rule line in Live Preview */
+.editor .cm-line.cm-lp-hr-line {
+  position: relative;
+  text-align: center;
+  height: 1.8em;
+  line-height: 1.8em;
+  margin: .8em 0;
+}
+.editor .cm-line.cm-lp-hr-line::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--hair);
+}
+.editor .cm-line.cm-lp-hr-line::after {
+  content: "⁂";
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
+  padding: 0 .8em;
+  color: var(--brass);
+  letter-spacing: .5em;
+  font-size: .9em;
+}
 .editor .cm-line.cm-lp-table { font-family: var(--mono); font-size: .86em; line-height: 1.6; white-space: pre; }
 /* Blocks shown rendered in Live Preview until the caret enters them */
 .editor .cm-lp-block { cursor: text; margin: .3rem 0; }

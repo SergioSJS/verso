@@ -723,7 +723,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const l = doc.line(n);
             out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-table" }) });
           }
-        } else if (/^ATXHeading[1-6]$/.test(name)) {
+        } else if (/^(ATXHeading[1-6]|SetextHeading[12])$/.test(name)) {
           const level = name.slice(-1);
           const line = doc.lineAt(node.from);
           out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: `cm-lp-h cm-lp-h${level}` }) });
@@ -743,10 +743,34 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         } else if (name === "FencedCode") {
           const a = doc.lineAt(node.from).number;
           const b = doc.lineAt(node.to).number;
+          const codeMarks = node.node.getChildren("CodeMark");
+          const openMark = codeMarks[0];
+          const closeMark = codeMarks.length > 1 ? codeMarks[codeMarks.length - 1] : null;
+          const info = node.node.getChild("CodeInfo");
+
           for (let n = a; n <= b; n++) {
             const l = doc.line(n);
-            out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-fence" }) });
+            const isFirst = n === a;
+            const isLast = n === b && b > a;
+            const isSingle = a === b;
+            let lineCls = "cm-lp-fence";
+            if (isSingle) lineCls += " cm-lp-fence-single";
+            else if (isFirst) lineCls += " cm-lp-fence-first" + (!active.has(a) ? " cm-lp-fence-closed" : "");
+            else if (isLast) lineCls += " cm-lp-fence-last" + (!active.has(b) ? " cm-lp-fence-closed" : "");
+            else lineCls += " cm-lp-fence-body";
+            out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: lineCls }) });
           }
+
+          if (openMark && !active.has(a)) {
+            hide(openMark.from, openMark.to);
+            if (info) {
+              out.push({ from: info.from, to: info.to, deco: Decoration.mark({ class: "cm-lp-fence-lang" }) });
+            }
+          }
+          if (closeMark && b > a && !active.has(b)) {
+            hide(closeMark.from, closeMark.to);
+          }
+
           const raw = doc.sliceString(node.from, node.to);
           const fLines = raw.split("\n");
           const codeText = (fLines.length > 2 ? fLines.slice(1, -1).join("\n") : fLines.slice(1).join("\n")).trimEnd();
@@ -760,9 +784,39 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         } else if (name === "Blockquote") {
           const a = doc.lineAt(node.from).number;
           const b = doc.lineAt(node.to).number;
+          const firstLine = doc.lineAt(node.from);
+          const cleanLead = firstLine.text.replace(/^[ \t]*(?:>[ \t]?)+[ \t]*/, "");
+          const calloutMatch = /^\[!([a-zA-Z0-9_-]+)\]([+-]?)(?:[ \t]+(.*))?$/.exec(cleanLead);
+          const calloutKind = calloutMatch ? calloutMatch[1]!.toLowerCase() : null;
+
           for (let n = a; n <= b; n++) {
             const l = doc.line(n);
-            out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-quote" }) });
+            const isFirst = n === a;
+            const isLast = n === b;
+            if (calloutKind) {
+              let cls = `cm-lp-callout cm-lp-callout-${calloutKind}`;
+              if (isFirst) cls += " cm-lp-callout-head";
+              if (isLast) cls += " cm-lp-callout-tail";
+              out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: cls }) });
+            } else {
+              let cls = "cm-lp-quote";
+              if (isFirst) cls += " cm-lp-quote-head";
+              if (isLast) cls += " cm-lp-quote-tail";
+              out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: cls }) });
+            }
+          }
+
+          if (calloutKind && !active.has(a)) {
+            const m = /(?:^>[ \t]*)\[!([a-zA-Z0-9_-]+)\][+-]?/.exec(firstLine.text);
+            if (m) {
+              const bStart = firstLine.from + m[0].indexOf("[!");
+              const kStart = bStart + 2;
+              const kEnd = kStart + m[1]!.length;
+              const bEnd = firstLine.from + m[0].length;
+              hide(bStart, kStart);
+              out.push({ from: kStart, to: kEnd, deco: Decoration.mark({ class: "cm-lp-callout-tag" }) });
+              hide(kEnd, bEnd);
+            }
           }
         } else if (name === "HTMLBlock" || name === "HTMLTag") {
           const raw = doc.sliceString(node.from, node.to);
@@ -783,14 +837,16 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           }
         } else if (name === "QuoteMark") {
           // Every `>` of a quote, those inside its paragraphs too, with the
-          // space after it when there is one.
-          let quote = node.node.parent;
-          while (quote && quote.name !== "Blockquote") quote = quote.parent;
-          if (quote && !touched(quote.from, quote.to)) hide(node.from, /[ \t]/.test(doc.sliceString(node.to, node.to + 1)) ? node.to + 1 : node.to);
+          // space after it when there is one, hidden if line is not active.
+          const line = doc.lineAt(node.from);
+          if (!active.has(line.number)) {
+            hide(node.from, /[ \t]/.test(doc.sliceString(node.to, node.to + 1)) ? node.to + 1 : node.to);
+          }
         } else if (name === "ListItem") {
           const line = doc.lineAt(node.from);
+          const isLineActive = active.has(line.number);
           const mark = node.node.getChild("ListMark");
-          const taskMarker = node.node.getChild("TaskMarker") ?? node.node.getChild("Task")?.getChild("TaskMarker");
+          const taskMarker = node.node.getChild("TaskMarker") ?? node.node.getChild("Task")?.getChild("TaskMarker") ?? null;
           const isTask = taskMarker !== null;
           const markText = mark ? doc.sliceString(mark.from, mark.to) : "";
           const bullet = !isTask && mark !== null && /^[-*+]$/.test(markText);
@@ -814,7 +870,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const checked = /^\[[xX]\]$/.test(taskText);
             const cls = checked ? "cm-lp-li cm-lp-task cm-lp-task-done" : "cm-lp-li cm-lp-task";
             out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
-            if (mark) hide(line.from, Math.min(mark.to + 1, line.to));
+            if (mark && !isLineActive) hide(line.from, Math.min(mark.to + 1, line.to));
             const touchedTask = view.state.selection.ranges.some((r) => r.from <= taskMarker.to && r.to >= taskMarker.from);
             if (!touchedTask) {
               out.push({
@@ -824,10 +880,12 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               });
             }
           } else {
-            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: bullet ? "cm-lp-li cm-lp-bullet" : "cm-lp-li", attributes: lineAttrs }) });
-            if (bullet && mark) {
+            const showBullet = bullet && !isLineActive;
+            const cls = showBullet ? "cm-lp-li cm-lp-bullet" : isOrdered ? "cm-lp-li cm-lp-ordered" : "cm-lp-li";
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
+            if (bullet && mark && !isLineActive) {
               hide(line.from, Math.min(mark.to + 1, line.to));
-            } else if (isOrdered && mark && mark.from > line.from) {
+            } else if (isOrdered && mark && !isLineActive && mark.from > line.from) {
               hide(line.from, mark.from);
             }
           }
@@ -862,8 +920,14 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               });
             }
           }
-        } else if (name === "HorizontalRule" && !shown) {
-          out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-hr" }) });
+        } else if (name === "HorizontalRule") {
+          const line = doc.lineAt(node.from);
+          if (!active.has(line.number)) {
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-hr-line" }) });
+            hide(node.from, node.to);
+          } else {
+            out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-hr" }) });
+          }
         }
       },
     });
@@ -910,6 +974,31 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         // Hide "[[" (or "![["), the "target|" before an alias, and "]]".
         hide(start, start + (embed ? 3 : 2));
         if (alias !== null) hide(start + (embed ? 3 : 2), end - 2 - alias.length);
+        hide(end - 2, end);
+      }
+    }
+
+    // Highlight marks: `==highlight==`
+    const MARK_RE = /==([^=\n]+)==/g;
+    MARK_RE.lastIndex = 0;
+    while ((m = MARK_RE.exec(text)) !== null) {
+      const start = from + m.index;
+      const end = start + m[0].length;
+      let inCode = false;
+      let curr: import("@lezer/common").SyntaxNode | null = tree.resolveInner(start + 2, 1);
+      while (curr) {
+        if (curr.name === "InlineCode" || curr.name === "FencedCode" || curr.name === "CodeBlock" || curr.name === "CodeText") {
+          inCode = true;
+          break;
+        }
+        curr = curr.parent;
+      }
+      if (inCode) continue;
+      if (math.some((r) => start < r.to && end > r.from)) continue;
+      const isSpanTouched = touched(start, end);
+      out.push({ from: start, to: end, deco: Decoration.mark({ class: "cm-lp-mark" }) });
+      if (!isSpanTouched) {
+        hide(start, start + 2);
         hide(end - 2, end);
       }
     }
