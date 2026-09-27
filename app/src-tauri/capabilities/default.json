@@ -56,6 +56,9 @@
     "allow-install-cli",
     "allow-uninstall-cli",
     "allow-mcp-status",
-    "allow-mcp-add-claude"
+    "allow-mcp-add-claude",
+    "allow-check-for-updates",
+    "allow-download-and-install-update",
+    "allow-restart-app"
   ]
 }

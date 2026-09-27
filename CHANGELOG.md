@@ -12,7 +12,41 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+### Fixed
+
+---
+
+## 0.3.0-beta.1 — 2026-09-27
+
+### Added
+
+- **Live checkbox interaction and task styling in Live Preview**: clicking task checkboxes (`[ ]` / `[x]`) toggles their state with history support and strikethrough styling.
+- **Copy button on code blocks**: copy buttons available in both Live Preview and reading mode with visual feedback.
+- **Collapsible properties/frontmatter view**: fold toggle to collapse or expand frontmatter metadata, remembering preference in storage.
+- **Code folding and line numbers**: fold gutter with chevron indicators for headings and code blocks; optional line numbering toggle in settings.
+- **Interactive iframe support**: sandboxed `<iframe>` rendering in reading mode and Live Preview with CSP allowlist.
+- **Resizable table columns**: drag grip on table header columns in reading mode.
+- **PDF two-page spread view**: toggle between single page, odd spread (with cover), and even spread in the PDF viewer toolbar.
+- **Graph zoom and pan gestures**: smooth mouse wheel zoom, trackpad pinch-to-zoom, and two-finger panning on the graph view.
+- **Internal heading navigation and auto-creation of missing notes**: clicking `[[#Heading]]` or `[[Note#Heading]]` jumps to the heading, and clicking missing notes creates them automatically.
+- **Tree root context menu**: right-clicking empty space in the file tree opens options to create notes, folders, bases, web pages, or collapse/expand all.
+- **macOS multi-window support in App Exposé**: Tauri window menu registration for native macOS App Exposé / Mission Control window grouping.
+- **Demo and template vault**: integrated sample vault in `demo-vault/` showcasing all Verso features (Markdown syntax, KaTeX, interactive tasks, wikilinks, embeds, YAML properties, bases, graph view, and two-page PDF spread) with one-click import from the command palette, menu, and welcome screen.
+- **In-app update notifications and download**: Verso checks for new versions on GitHub Releases at startup (configurable; on by default) and lets you download and install the update from within the app, with a live progress bar. Supports macOS, Windows, and Linux.
+- **Redesigned in-text search panel (Ctrl+F)**: modern panel with search icon, match counter ("2 of 7"), previous/next arrow buttons, and a close button; now works in all three modes — Edit, Live Preview, and Reading.
+
+### Fixed
+
+- **Sidebar tab alignment and tab bar layout shift**: fixed active right-sidebar tab leakage and eliminated layout jump caused by unsaved note tab indicator.
+- **Sidebar toggle hotkeys**: changed default sidebar toggle shortcuts to `Cmd/Ctrl+Alt+Left/Right` arrow keys with proper symbol formatting.
+- **Markdown image size parsing in Live Preview**: fixed sizing like `![|60](url)` and rendered standard markdown images with scaling.
+- **Undo/redo transaction grouping**: properly labeled editor transactions with user event annotations so CodeMirror's history stack is not corrupted.
+- **Scroll jump on image paste**: preserved editor scroll position when pasting image files into notes.
+- **Wikilinks inside code blocks**: prevented inline code and fenced code blocks from misinterpreting wikilinks.
+- **Window overwrite when launched from CLI on macOS**: `verso <path>` opens in a separate window without replacing the existing running instance.
+- **Tab drag-and-drop drop preview hints**: improved drop target hit testing near pane edges and dividers.
 
 ## 0.2.0-beta.2 — 2026-09-24
 

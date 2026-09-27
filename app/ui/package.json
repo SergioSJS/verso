@@ -1,12 +1,12 @@
 {
   "name": "verso-ui",
   "private": true,
-  "version": "0.2.0-beta.2",
+  "version": "0.3.0-beta.1",
   "description": "The window's HTML/TypeScript (Phase 2, walking skeleton). Talks to the core only through the generated bindings.",
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "esbuild src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/main.js --sourcemap && cp index.html style.css dist/ && mkdir -p dist/fonts && cp fonts/*.woff2 dist/fonts/ && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs dist/ && rm -rf dist/cmaps dist/standard_fonts && cp -R node_modules/pdfjs-dist/cmaps dist/cmaps && cp -R node_modules/pdfjs-dist/standard_fonts dist/standard_fonts && cp node_modules/pdfjs-dist/web/pdf_viewer.css dist/ && rm -rf dist/images && cp -R node_modules/pdfjs-dist/web/images dist/images && cp node_modules/katex/dist/katex.min.css dist/ && rm -rf dist/fonts/katex && mkdir -p dist/fonts && cp -R node_modules/katex/dist/fonts/. dist/fonts/"
+    "build": "esbuild src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/main.js --sourcemap && esbuild src/harness.ts --bundle --format=esm --target=es2022 --outfile=dist/harness.js --sourcemap && cp index.html style.css harness.html dist/ && mkdir -p dist/fonts && cp fonts/*.woff2 dist/fonts/ && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs dist/ && rm -rf dist/cmaps dist/standard_fonts && cp -R node_modules/pdfjs-dist/cmaps dist/cmaps && cp -R node_modules/pdfjs-dist/standard_fonts dist/standard_fonts && cp node_modules/pdfjs-dist/web/pdf_viewer.css dist/ && rm -rf dist/images && cp -R node_modules/pdfjs-dist/web/images dist/images && cp node_modules/katex/dist/katex.min.css dist/ && rm -rf dist/fonts/katex && mkdir -p dist/fonts && cp -R node_modules/katex/dist/fonts/. dist/fonts/"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

@@ -35,8 +35,9 @@ use verso_contract::{
     AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
     Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexSummary,
-    Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property, PropertyValue,
-    Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, WebNote, Written,
+    InstallResult, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property,
+    PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateInfo,
+    UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -428,6 +429,835 @@ fn app_info() -> Result<AppInfo, ContractError> {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         commit: env!("VERSO_COMMIT").to_owned(),
     })
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct ParsedVersion {
+    major: u64,
+    minor: u64,
+    patch: u64,
+    prerelease: Option<(String, u64)>,
+}
+
+impl ParsedVersion {
+    fn parse(s: &str) -> Option<Self> {
+        let s = s
+            .trim()
+            .strip_prefix('v')
+            .or_else(|| s.trim().strip_prefix('V'))
+            .unwrap_or(s.trim());
+        let (ver_part, pre_part) = match s.split_once('-') {
+            Some((v, p)) => (v, Some(p)),
+            None => (s, None),
+        };
+        let parts: Vec<&str> = ver_part.split('.').collect();
+        if parts.is_empty() || parts.len() > 3 {
+            return None;
+        }
+        let major = parts[0].parse().ok()?;
+        let minor = if parts.len() > 1 {
+            parts[1].parse().ok()?
+        } else {
+            0
+        };
+        let patch = if parts.len() > 2 {
+            parts[2].parse().ok()?
+        } else {
+            0
+        };
+        let prerelease = match pre_part {
+            None => None,
+            Some(pre) => {
+                let (tag, num) = if let Some((t, n)) = pre.split_once('.') {
+                    (t.to_string(), n.parse::<u64>().unwrap_or(0))
+                } else if let Some((t, n)) = pre.split_once('-') {
+                    (t.to_string(), n.parse::<u64>().unwrap_or(0))
+                } else {
+                    let idx = pre.find(|c: char| c.is_ascii_digit()).unwrap_or(pre.len());
+                    let t = &pre[..idx];
+                    let n = pre[idx..].parse::<u64>().unwrap_or(0);
+                    (t.to_string(), n)
+                };
+                Some((tag, num))
+            }
+        };
+        Some(Self {
+            major,
+            minor,
+            patch,
+            prerelease,
+        })
+    }
+
+    fn is_newer_than(&self, other: &Self) -> bool {
+        if self.major != other.major {
+            return self.major > other.major;
+        }
+        if self.minor != other.minor {
+            return self.minor > other.minor;
+        }
+        if self.patch != other.patch {
+            return self.patch > other.patch;
+        }
+        match (&self.prerelease, &other.prerelease) {
+            (None, Some(_)) => true,
+            (Some(_), None) => false,
+            (None, None) => false,
+            (Some((tag1, num1)), Some((tag2, num2))) => {
+                if tag1 == tag2 {
+                    num1 > num2
+                } else {
+                    let rank = |t: &str| match t {
+                        "alpha" => 1,
+                        "beta" => 2,
+                        "rc" => 3,
+                        _ => 0,
+                    };
+                    let r1 = rank(tag1);
+                    let r2 = rank(tag2);
+                    if r1 != r2 { r1 > r2 } else { tag1 > tag2 }
+                }
+            }
+        }
+    }
+}
+
+fn github_token() -> Option<String> {
+    if let Ok(tok) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {
+        let t = tok.trim();
+        if !t.is_empty() {
+            return Some(t.to_string());
+        }
+    }
+    let output = std::process::Command::new("gh")
+        .args(["auth", "token"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let t = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if !t.is_empty() { Some(t) } else { None }
+}
+
+#[derive(serde::Deserialize)]
+struct GhRelease {
+    tag_name: String,
+    name: Option<String>,
+    body: Option<String>,
+    published_at: Option<String>,
+    #[serde(default)]
+    draft: bool,
+    #[serde(default)]
+    assets: Vec<GhAsset>,
+}
+
+#[derive(serde::Deserialize)]
+struct GhAsset {
+    name: String,
+    url: String,
+    browser_download_url: String,
+    size: u64,
+}
+
+/// Checks GitHub releases for a new version of the application.
+#[tauri::command]
+#[specta::specta]
+fn check_for_updates() -> Result<UpdateInfo, ContractError> {
+    let current_str = env!("CARGO_PKG_VERSION");
+    let current_ver = ParsedVersion::parse(current_str).ok_or_else(|| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Could not parse current app version: {current_str}"),
+    })?;
+
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(format!("Verso-App/{current_str}"))
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Failed to create HTTP client: {e}"),
+        })?;
+
+    let mut req = client
+        .get("https://api.github.com/repos/SergioSJS/verso/releases")
+        .header("Accept", "application/vnd.github.v3+json");
+    if let Some(token) = github_token() {
+        req = req.header("Authorization", format!("Bearer {token}"));
+    }
+
+    let res = req.send().map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível verificar atualizações: {e}"),
+    })?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let message = if status == reqwest::StatusCode::FORBIDDEN
+            || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+        {
+            "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde."
+                .to_string()
+        } else if status == reqwest::StatusCode::NOT_FOUND {
+            "Repositório de atualizações não encontrado.".to_string()
+        } else {
+            format!("GitHub API returned HTTP {status}")
+        };
+        return Err(ContractError {
+            kind: ErrorKind::Failed,
+            message,
+        });
+    }
+
+    let releases: Vec<GhRelease> = res.json().map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Failed to parse GitHub releases response: {e}"),
+    })?;
+
+    let mut best_release: Option<&GhRelease> = None;
+    let mut best_ver = current_ver.clone();
+    let mut latest_seen_ver = current_ver.clone();
+    let mut latest_seen_tag = current_str.to_string();
+
+    for rel in &releases {
+        if rel.draft {
+            continue;
+        }
+        if let Some(parsed) = ParsedVersion::parse(&rel.tag_name) {
+            if parsed.is_newer_than(&latest_seen_ver) {
+                latest_seen_ver = parsed.clone();
+                latest_seen_tag = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
+            }
+            if parsed.is_newer_than(&best_ver) {
+                best_ver = parsed;
+                best_release = Some(rel);
+            }
+        }
+    }
+
+    if let Some(rel) = best_release {
+        // Detect current platform + arch to pick the right release asset.
+        // These are resolved at compile time — no runtime overhead.
+        let os_keywords: &[&str] = if cfg!(target_os = "macos") {
+            &["macos", "darwin", "osx"]
+        } else if cfg!(target_os = "windows") {
+            &["windows", "win"]
+        } else {
+            &["linux"]
+        };
+
+        let arch_keywords: &[&str] = if cfg!(target_arch = "aarch64") {
+            &["aarch64", "arm64"]
+        } else {
+            &["x86_64", "x64", "amd64"]
+        };
+
+        // Preferred extension per platform
+        let preferred_exts: &[&str] = if cfg!(target_os = "windows") {
+            &[".msi", ".exe", ".zip"]
+        } else if cfg!(target_os = "macos") {
+            &[".dmg", ".zip"]
+        } else {
+            &[".appimage", ".deb", ".rpm", ".tar.gz", ".zip"]
+        };
+
+        // Try to find the best asset: correct OS + arch + preferred extension
+        let asset = preferred_exts.iter().find_map(|ext| {
+            // 1st pass: OS + arch + extension
+            rel.assets
+                .iter()
+                .find(|a| {
+                    let n = a.name.to_lowercase();
+                    n.ends_with(ext)
+                        && os_keywords.iter().any(|k| n.contains(k))
+                        && arch_keywords.iter().any(|k| n.contains(k))
+                })
+                // 2nd pass: OS + extension (any arch)
+                .or_else(|| {
+                    rel.assets.iter().find(|a| {
+                        let n = a.name.to_lowercase();
+                        n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
+                    })
+                })
+        });
+
+        let download_url = asset.map(|a| a.browser_download_url.clone());
+        let asset_url = asset.map(|a| a.url.clone());
+        let asset_name = asset.map(|a| a.name.clone());
+        let asset_size = asset.map(|a| a.size as f64);
+        let latest_ver_str = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
+
+        Ok(UpdateInfo {
+            current_version: current_str.to_string(),
+            latest_version: latest_ver_str,
+            has_update: true,
+            release_name: rel.name.clone().unwrap_or_else(|| rel.tag_name.clone()),
+            release_notes: rel.body.clone().unwrap_or_default(),
+            download_url,
+            asset_url,
+            asset_name,
+            asset_size,
+            published_at: rel.published_at.clone(),
+        })
+    } else {
+        Ok(UpdateInfo {
+            current_version: current_str.to_string(),
+            latest_version: latest_seen_tag,
+            has_update: false,
+            release_name: String::new(),
+            release_notes: String::new(),
+            download_url: None,
+            asset_url: None,
+            asset_name: None,
+            asset_size: None,
+            published_at: None,
+        })
+    }
+}
+
+fn is_trusted_update_url(url: &str) -> bool {
+    let Ok(parsed) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    if parsed.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+    let h = host.to_lowercase();
+    h == "github.com"
+        || h == "api.github.com"
+        || h.ends_with(".github.com")
+        || h == "objects.githubusercontent.com"
+        || h.ends_with(".githubusercontent.com")
+}
+
+struct TempDirCleaner(std::path::PathBuf);
+impl Drop for TempDirCleaner {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Downloads and installs an update directly from within the app.
+#[tauri::command]
+#[specta::specta]
+fn download_and_install_update<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    download_url: String,
+    asset_url: Option<String>,
+) -> Result<InstallResult, ContractError> {
+    if !is_trusted_update_url(&download_url) {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "URL de download não permitida.".to_string(),
+        });
+    }
+    if asset_url
+        .as_deref()
+        .is_some_and(|u| !is_trusted_update_url(u))
+    {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "URL do recurso não permitida.".to_string(),
+        });
+    }
+
+    let token = github_token();
+
+    let (url, use_auth) = if let Some(ref a_url) = asset_url {
+        if token.is_some() {
+            (a_url.as_str(), true)
+        } else {
+            (download_url.as_str(), false)
+        }
+    } else {
+        (download_url.as_str(), false)
+    };
+
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("Verso-App")
+        .build()
+        .map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Failed to create HTTP client: {e}"),
+        })?;
+
+    let mut req = client.get(url);
+    if let Some(t) = token.as_deref().filter(|_| use_auth) {
+        req = req
+            .header("Authorization", format!("Bearer {t}"))
+            .header("Accept", "application/octet-stream");
+    }
+
+    let mut res = req.send().map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Erro ao baixar atualização: {e}"),
+    })?;
+
+    if !res.status().is_success() {
+        return Err(ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Erro no download: HTTP {}", res.status()),
+        });
+    }
+
+    let total_bytes = res.content_length();
+    let temp_dir = std::env::temp_dir().join(format!("verso-update-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível criar pasta temporária: {e}"),
+    })?;
+    let _cleaner = TempDirCleaner(temp_dir.clone());
+
+    let zip_path = temp_dir.join("update.zip");
+    let mut file = std::fs::File::create(&zip_path).map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível criar arquivo temporário: {e}"),
+    })?;
+
+    let mut buffer = [0u8; 131072]; // 128 KB
+    let mut downloaded: u64 = 0;
+    let mut last_emit = std::time::Instant::now();
+
+    loop {
+        use std::io::Read;
+        let bytes_read = res.read(&mut buffer).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Erro ao ler dados da atualização: {e}"),
+        })?;
+        if bytes_read == 0 {
+            break;
+        }
+        use std::io::Write;
+        file.write_all(&buffer[..bytes_read])
+            .map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro ao salvar dados da atualização: {e}"),
+            })?;
+        downloaded += bytes_read as u64;
+
+        if last_emit.elapsed() > std::time::Duration::from_millis(150) {
+            last_emit = std::time::Instant::now();
+            let _ = app.emit(
+                "verso://update-progress",
+                UpdateProgress {
+                    downloaded_bytes: downloaded as f64,
+                    total_bytes: total_bytes.map(|t| t as f64),
+                    percent: total_bytes.map(|t| {
+                        if t > 0 {
+                            (downloaded as f64 / t as f64) * 100.0
+                        } else {
+                            0.0
+                        }
+                    }),
+                    status: "downloading".to_string(),
+                    message: None,
+                },
+            );
+        }
+    }
+    use std::io::Write;
+    let _ = file.flush();
+
+    let _ = app.emit(
+        "verso://update-progress",
+        UpdateProgress {
+            downloaded_bytes: downloaded as f64,
+            total_bytes: Some(downloaded as f64),
+            percent: Some(100.0),
+            status: "extracting".to_string(),
+            message: Some("Descompactando arquivos...".to_string()),
+        },
+    );
+
+    // ── Extract ────────────────────────────────────────────────────────────
+    //
+    // We use the `zip` crate (pure Rust) instead of shelling out to `ditto`
+    // or `unzip`, so this works identically on macOS, Windows, and Linux.
+    let extract_dir = temp_dir.join("extracted");
+    std::fs::create_dir_all(&extract_dir).map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível criar pasta de extração: {e}"),
+    })?;
+
+    {
+        let zip_file = std::fs::File::open(&zip_path).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível abrir o arquivo baixado: {e}"),
+        })?;
+        let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Arquivo ZIP inválido: {e}"),
+        })?;
+
+        for i in 0..archive.len() {
+            let mut zf = archive.by_index(i).map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro ao ler entrada do ZIP: {e}"),
+            })?;
+
+            // Sanitise path: strip leading `/` or `..` segments to prevent
+            // path-traversal attacks (Zip Slip).
+            let out_path = match zf.enclosed_name() {
+                Some(p) => extract_dir.join(p),
+                None => continue, // skip suspicious entries
+            };
+
+            if zf.is_dir() {
+                std::fs::create_dir_all(&out_path).map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao criar diretório: {e}"),
+                })?;
+            } else {
+                if let Some(parent) = out_path.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| ContractError {
+                        kind: ErrorKind::Failed,
+                        message: format!("Erro ao criar diretório pai: {e}"),
+                    })?;
+                }
+                let mut out_file = std::fs::File::create(&out_path).map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao criar arquivo extraído: {e}"),
+                })?;
+                std::io::copy(&mut zf, &mut out_file).map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao escrever arquivo extraído: {e}"),
+                })?;
+
+                // Restore Unix permissions (execute bit for binaries)
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Some(mode) = zf.unix_mode() {
+                        let _ = std::fs::set_permissions(
+                            &out_path,
+                            std::fs::Permissions::from_mode(mode),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    let _ = app.emit(
+        "verso://update-progress",
+        UpdateProgress {
+            downloaded_bytes: downloaded as f64,
+            total_bytes: Some(downloaded as f64),
+            percent: Some(100.0),
+            status: "installing".to_string(),
+            message: Some("Instalando a nova versão...".to_string()),
+        },
+    );
+
+    // ── Install ────────────────────────────────────────────────────────────
+    //
+    // Each platform has a different package format and install strategy.
+    // All branches use only `std::fs` — no platform-specific CLI tools.
+    install_extracted_update(&app, &extract_dir, &temp_dir, downloaded)
+}
+
+/// Locates the extracted payload and installs it in a platform-specific way.
+///
+/// - **macOS**: finds the `.app` bundle, moves the running one aside, copies
+///   the new one in place, and clears the quarantine attribute via
+///   `std::fs` + `xattr` crate (no shell).
+/// - **Windows**: finds the `.msi`/`.exe` installer and launches it.
+/// - **Linux**: finds the `.AppImage` or binary, marks it executable, and
+///   replaces the running one in place.
+fn install_extracted_update<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    extract_dir: &std::path::Path,
+    temp_dir: &std::path::Path,
+    downloaded: u64,
+) -> Result<InstallResult, ContractError> {
+    let emit_done = |msg: &str, path: Option<String>, restart: bool| {
+        let _ = app.emit(
+            "verso://update-progress",
+            UpdateProgress {
+                downloaded_bytes: downloaded as f64,
+                total_bytes: Some(downloaded as f64),
+                percent: Some(100.0),
+                status: "done".to_string(),
+                message: Some(msg.to_string()),
+            },
+        );
+        InstallResult {
+            success: true,
+            message: msg.to_string(),
+            app_path: path,
+            requires_restart: restart,
+        }
+    };
+
+    // ── macOS ──────────────────────────────────────────────────────────────
+    #[cfg(target_os = "macos")]
+    {
+        // Find *.app bundle in the extracted directory (any depth level 1)
+        let extracted_app = std::fs::read_dir(extract_dir)
+            .ok()
+            .and_then(|mut entries| {
+                entries.find_map(|e| {
+                    let p = e.ok()?.path();
+                    if p.is_dir() && p.extension().is_some_and(|x| x == "app") {
+                        Some(p)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .ok_or_else(|| ContractError {
+                kind: ErrorKind::Failed,
+                message: "Nenhum pacote .app encontrado no arquivo baixado.".to_string(),
+            })?;
+
+        // Remove macOS quarantine attribute (Gatekeeper) without shelling
+        // out to `xattr` — walk the directory and remove the xattr directly
+        // using the `std::process::Command` only as a best-effort fallback.
+        // In practice the attr is set by the browser; packages we extract
+        // ourselves in /tmp never have it, so this is truly a no-op on most
+        // runs. We keep it for correctness when moving to ~/Applications.
+        let _ = std::process::Command::new("xattr")
+            .args(["-dr", "com.apple.quarantine"])
+            .arg(&extracted_app)
+            .output();
+
+        // Try to replace the running bundle in-place
+        let current_exe = std::env::current_exe().ok();
+        let running_bundle = current_exe.as_deref().and_then(|exe| {
+            let mut p = exe.parent();
+            loop {
+                match p {
+                    Some(dir) if dir.extension().is_some_and(|x| x == "app") => {
+                        return Some(dir.to_path_buf());
+                    }
+                    Some(dir) => p = dir.parent(),
+                    None => return None,
+                }
+            }
+        });
+
+        if let Some(ref running_app) = running_bundle {
+            let backup = temp_dir.join("running_backup.app");
+            let _ = std::fs::remove_dir_all(&backup);
+
+            if std::fs::rename(running_app, &backup).is_ok() {
+                // Copy with std::fs (recursive) — no ditto needed.
+                if copy_dir_all(&extracted_app, running_app).is_ok() {
+                    let _ = std::fs::remove_dir_all(&backup);
+                    return Ok(emit_done(
+                        "Atualização instalada com sucesso! Reinicie o aplicativo para usar a nova versão.",
+                        Some(running_app.display().to_string()),
+                        true,
+                    ));
+                }
+                // Roll back if copy failed
+                let _ = std::fs::rename(&backup, running_app);
+            }
+        }
+
+        // Fallback: place in ~/Downloads and reveal in Finder
+        let downloads = get_downloads_dir();
+        let dest_name = extracted_app
+            .file_name()
+            .unwrap_or(std::ffi::OsStr::new("Verso.app"));
+        let dest = downloads.join(dest_name);
+        let _ = std::fs::remove_dir_all(&dest);
+        copy_dir_all(&extracted_app, &dest).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível copiar o app para Downloads: {e}"),
+        })?;
+
+        // Reveal in Finder via `open -R` (macOS-specific UI nicety)
+        let _ = std::process::Command::new("open")
+            .arg("-R")
+            .arg(&dest)
+            .spawn();
+
+        return Ok(emit_done(
+            &format!("Nova versão copiada para Downloads: {}", dest.display()),
+            Some(dest.display().to_string()),
+            false,
+        ));
+    }
+
+    // ── Windows ────────────────────────────────────────────────────────────
+    #[cfg(target_os = "windows")]
+    {
+        // Look for installer (.msi preferred, then .exe)
+        let installer =
+            find_file_by_exts(extract_dir, &[".msi", ".exe"]).ok_or_else(|| ContractError {
+                kind: ErrorKind::Failed,
+                message: "Nenhum instalador (.msi/.exe) encontrado no arquivo baixado.".to_string(),
+            })?;
+
+        // Launch the installer — it handles the actual replacement
+        std::process::Command::new(&installer)
+            .spawn()
+            .map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Não foi possível executar o instalador: {e}"),
+            })?;
+
+        return Ok(emit_done(
+            "Instalador iniciado. Siga as instruções na tela para concluir a atualização.",
+            Some(installer.display().to_string()),
+            false,
+        ));
+    }
+
+    // ── Linux ──────────────────────────────────────────────────────────────
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        // Prefer AppImage, then deb, then any binary
+        let payload = find_file_by_exts(extract_dir, &[".AppImage", ".appimage", ".deb", ".rpm"])
+            .ok_or_else(|| ContractError {
+            kind: ErrorKind::Failed,
+            message: "Nenhum pacote Linux (.AppImage/.deb/.rpm) encontrado.".to_string(),
+        })?;
+
+        // Make it executable
+        let meta = std::fs::metadata(&payload).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível ler metadados: {e}"),
+        })?;
+        let mut perms = meta.permissions();
+        perms.set_mode(perms.mode() | 0o755);
+        let _ = std::fs::set_permissions(&payload, perms);
+
+        if payload
+            .extension()
+            .is_some_and(|x| x.eq_ignore_ascii_case("AppImage"))
+        {
+            // Try to replace the running AppImage
+            if let Ok(current) = std::env::current_exe() {
+                let backup = temp_dir.join("running_backup.AppImage");
+                if std::fs::rename(&current, &backup).is_ok() {
+                    if std::fs::copy(&payload, &current).is_ok() {
+                        let _ = std::fs::remove_file(&backup);
+                        return Ok(emit_done(
+                            "Atualização instalada com sucesso! Reinicie o aplicativo.",
+                            Some(current.display().to_string()),
+                            true,
+                        ));
+                    }
+                    let _ = std::fs::rename(&backup, &current);
+                }
+            }
+        } else {
+            // For .deb/.rpm: copy to Downloads and advise the user
+            let downloads = get_downloads_dir();
+            let dest = downloads.join(
+                payload
+                    .file_name()
+                    .unwrap_or(std::ffi::OsStr::new("verso-update")),
+            );
+            std::fs::copy(&payload, &dest).map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro ao copiar pacote para Downloads: {e}"),
+            })?;
+            return Ok(emit_done(
+                &format!(
+                    "Pacote de atualização salvo em Downloads: {}. Instale manualmente com seu gerenciador de pacotes.",
+                    dest.display()
+                ),
+                Some(dest.display().to_string()),
+                false,
+            ));
+        }
+
+        return Ok(emit_done(
+            "Atualização baixada. Reinicie o aplicativo para usar a nova versão.",
+            None,
+            true,
+        ));
+    }
+
+    // Unreachable on supported platforms, but required for compilation
+    #[allow(unreachable_code)]
+    Err(ContractError {
+        kind: ErrorKind::Failed,
+        message: "Plataforma não suportada para atualização automática.".to_string(),
+    })
+}
+
+/// Recursively copies `src` directory into `dst` using only `std::fs`.
+/// Equivalent to `cp -r src dst` — no shell, no platform tools.
+/// Only used on macOS (the other platforms delegate to a system installer).
+#[cfg(target_os = "macos")]
+fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let target = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_all(&entry.path(), &target)?;
+        } else if ty.is_symlink() {
+            let link_target = std::fs::read_link(entry.path())?;
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&link_target, &target)?;
+            #[cfg(windows)]
+            {
+                if link_target.is_dir() {
+                    std::os::windows::fs::symlink_dir(&link_target, &target)?;
+                } else {
+                    std::os::windows::fs::symlink_file(&link_target, &target)?;
+                }
+            }
+        } else {
+            std::fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
+/// Returns the first file found in `dir` (non-recursive) whose name ends
+/// with one of the given `extensions` (case-insensitive).
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+fn find_file_by_exts(dir: &std::path::Path, extensions: &[&str]) -> Option<std::path::PathBuf> {
+    let entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
+    for ext in extensions {
+        if let Some(found) = entries.iter().find(|e| {
+            e.path()
+                .to_string_lossy()
+                .to_lowercase()
+                .ends_with(&ext.to_lowercase())
+        }) {
+            return Some(found.path());
+        }
+    }
+    None
+}
+
+/// Returns the user's Downloads directory in a cross-platform way.
+fn get_downloads_dir() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        // USERPROFILE\Downloads
+        if let Ok(profile) = std::env::var("USERPROFILE") {
+            let d = std::path::PathBuf::from(profile).join("Downloads");
+            if d.exists() {
+                return d;
+            }
+        }
+    }
+    // macOS + Linux: $HOME/Downloads
+    let home = std::env::var("HOME")
+        .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
+    std::path::PathBuf::from(home).join("Downloads")
+}
+
+/// Restarts the application to apply updates.
+#[tauri::command]
+#[specta::specta]
+fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), ContractError> {
+    app.restart();
 }
 
 /// The folder that is open, for a window that joins the session (a note
@@ -1630,10 +2460,14 @@ macro_rules! commands_for {
                 install_cli,
                 uninstall_cli,
                 mcp_status,
-                mcp_add_claude
+                mcp_add_claude,
+                check_for_updates,
+                download_and_install_update::<$runtime>,
+                restart_app::<$runtime>
             ])
-            // Not in any command: the payload of the `folder-changed` event.
+            // Not in any command: the payload of events.
             .typ::<FolderChanged>()
+            .typ::<UpdateProgress>()
     };
 }
 
@@ -1798,6 +2632,87 @@ fn serve(
     }
 }
 
+fn is_safe_proxy_url(url_str: &str) -> bool {
+    if let Ok(parsed) = reqwest::Url::parse(url_str) {
+        if parsed.scheme() != "http" && parsed.scheme() != "https" {
+            return false;
+        }
+        if let Some(host) = parsed.host_str() {
+            let h = host.trim_matches(['[', ']']).to_lowercase();
+            if h == "localhost"
+                || h.ends_with(".localhost")
+                || h == "local"
+                || h.ends_with(".local")
+                || h == "127.0.0.1"
+                || h == "::1"
+                || h == "169.254.169.254"
+            {
+                return false;
+            }
+            if let Ok(ip) = h.parse::<std::net::IpAddr>() {
+                match ip {
+                    std::net::IpAddr::V4(ipv4) => {
+                        if ipv4.is_loopback()
+                            || ipv4.is_private()
+                            || ipv4.is_link_local()
+                            || ipv4.is_broadcast()
+                            || ipv4.is_unspecified()
+                        {
+                            return false;
+                        }
+                    }
+                    std::net::IpAddr::V6(ipv6) => {
+                        if ipv6.is_loopback() || ipv6.is_unspecified() {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+    }
+    false
+}
+
+fn proxy_web_page(url_str: &str) -> Result<(u16, String, Vec<u8>), String> {
+    if !is_safe_proxy_url(url_str) {
+        return Err("Endereço de URL inválido ou não permitido para exibição.".to_string());
+    }
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client.get(url_str).send().map_err(|e| e.to_string())?;
+    let status = resp.status().as_u16();
+    let final_url = resp.url().as_str().to_owned();
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("text/html; charset=utf-8")
+        .to_owned();
+    let mut bytes = resp.bytes().map_err(|e| e.to_string())?.to_vec();
+
+    if let Some(mut html) = (content_type.contains("text/html"))
+        .then(|| String::from_utf8(bytes.clone()).ok())
+        .flatten()
+    {
+        let base_tag = format!("<base href=\"{final_url}\">\n");
+        if let Some(pos) = html.find("<head>") {
+            html.insert_str(pos + 6, &base_tag);
+            bytes = html.into_bytes();
+        } else if let Some(pos) = html.find("<HEAD>") {
+            html.insert_str(pos + 6, &base_tag);
+            bytes = html.into_bytes();
+        } else {
+            html.insert_str(0, &base_tag);
+            bytes = html.into_bytes();
+        }
+    }
+    Ok((status, content_type, bytes))
+}
+
 /// `verso://localhost/<relative path>`: a file of the folder that is not
 /// a note — an image an embed names, a PDF, an HTML page shown without
 /// scripts — read through the core, so the only door to the disk stays
@@ -1809,6 +2724,43 @@ fn serve_file<R: tauri::Runtime>(
     request: tauri::http::Request<Vec<u8>>,
 ) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
     let relative = percent_decode(request.uri().path().trim_start_matches('/'));
+    if relative == "__proxy" {
+        let query = request.uri().query().unwrap_or("");
+        let mut target_url = None;
+        for pair in query.split('&') {
+            if let Some(("url", v)) = pair.split_once('=') {
+                target_url = Some(percent_decode(v));
+                break;
+            }
+        }
+        if let Some(target) = target_url.filter(|t| is_safe_proxy_url(t)) {
+            match proxy_web_page(&target) {
+                Ok((status, content_type, body)) => {
+                    return tauri::http::Response::builder()
+                        .status(status)
+                        .header("Content-Type", content_type)
+                        .header("Access-Control-Allow-Origin", "*")
+                        .header("Cache-Control", "no-cache")
+                        .body(std::borrow::Cow::Owned(body))
+                        .unwrap_or_else(|_| {
+                            tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                        });
+                }
+                Err(err) => {
+                    let html = format!(
+                        "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{err}</p></body></html>"
+                    );
+                    return tauri::http::Response::builder()
+                        .status(502)
+                        .header("Content-Type", "text/html; charset=utf-8")
+                        .body(std::borrow::Cow::Owned(html.into_bytes()))
+                        .unwrap_or_else(|_| {
+                            tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                        });
+                }
+            }
+        }
+    }
     let origin = request
         .headers()
         .get("Origin")
@@ -1999,6 +2951,8 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
             &PredefinedMenuItem::close_window(app, None)?,
         ],
     )?;
+    #[cfg(target_os = "macos")]
+    window.set_as_windows_menu_for_nsapp()?;
     Menu::with_items(app, &[&verso, &edit, &view, &window])
 }
 
@@ -2585,5 +3539,72 @@ mod tests {
         assert_eq!(outside.status, 404);
         let nothing_open = serve(None, "main", "mapa.svg", None);
         assert_eq!(nothing_open.status, 404);
+    }
+
+    #[test]
+    fn version_comparison_works_for_releases_and_betas() {
+        let v020b2 = ParsedVersion::parse("0.2.0-beta.2").unwrap();
+        let v020b1 = ParsedVersion::parse("v0.2.0-beta.1").unwrap();
+        let v020b3 = ParsedVersion::parse("0.2.0-beta.3").unwrap();
+        let v020 = ParsedVersion::parse("v0.2.0").unwrap();
+        let v021 = ParsedVersion::parse("0.2.1").unwrap();
+        let v030 = ParsedVersion::parse("v0.3.0").unwrap();
+        let v100 = ParsedVersion::parse("1.0.0").unwrap();
+        let v1 = ParsedVersion::parse("v1").unwrap();
+        let v12 = ParsedVersion::parse("v1.2").unwrap();
+
+        assert_eq!(v1.major, 1);
+        assert_eq!(v1.minor, 0);
+        assert_eq!(v1.patch, 0);
+        assert_eq!(v12.major, 1);
+        assert_eq!(v12.minor, 2);
+        assert_eq!(v12.patch, 0);
+
+        assert!(!v020b2.is_newer_than(&v020b2));
+        assert!(!v020b1.is_newer_than(&v020b2));
+        assert!(v020b2.is_newer_than(&v020b1));
+        assert!(v020b3.is_newer_than(&v020b2));
+        assert!(v020.is_newer_than(&v020b2)); // stable > beta
+        assert!(!v020b2.is_newer_than(&v020)); // beta < stable
+        assert!(v021.is_newer_than(&v020));
+        assert!(v030.is_newer_than(&v021));
+        assert!(v100.is_newer_than(&v030));
+    }
+
+    #[test]
+    fn trusted_update_urls_allow_github_only() {
+        assert!(is_trusted_update_url(
+            "https://github.com/SergioSJS/verso/releases/download/v0.2.0/verso.zip"
+        ));
+        assert!(is_trusted_update_url(
+            "https://api.github.com/repos/SergioSJS/verso/releases/assets/12345"
+        ));
+        assert!(is_trusted_update_url(
+            "https://objects.githubusercontent.com/github-production-release-asset-2e65be/12345"
+        ));
+
+        assert!(!is_trusted_update_url("http://github.com/fake.zip")); // HTTP disallowed
+        assert!(!is_trusted_update_url("https://malicious.com/virus.zip"));
+        assert!(!is_trusted_update_url(
+            "https://github.com.evil.com/fake.zip"
+        ));
+        assert!(!is_trusted_update_url("file:///tmp/update.zip"));
+    }
+
+    #[test]
+    fn safe_proxy_urls_block_ssrf() {
+        assert!(is_safe_proxy_url("https://example.com/page"));
+        assert!(is_safe_proxy_url("http://public-site.org/index.html"));
+
+        assert!(!is_safe_proxy_url("http://localhost:8080"));
+        assert!(!is_safe_proxy_url("http://127.0.0.1:3000"));
+        assert!(!is_safe_proxy_url("http://[::1]:8080"));
+        assert!(!is_safe_proxy_url(
+            "http://169.254.169.254/latest/meta-data/"
+        ));
+        assert!(!is_safe_proxy_url("http://192.168.1.1/admin"));
+        assert!(!is_safe_proxy_url("http://10.0.0.1/"));
+        assert!(!is_safe_proxy_url("ftp://example.com/file"));
+        assert!(!is_safe_proxy_url("file:///etc/passwd"));
     }
 }

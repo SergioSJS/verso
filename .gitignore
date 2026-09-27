@@ -65,3 +65,20 @@ Desktop.ini
 
 # Agent worktrees created by Claude Code sessions
 .claude/worktrees/
+
+# Vault de exemplo (demo-vault): ignorar lixeira, pastas de rascunho e notas de teste
+demo-vault/.trash/
+demo-vault/.obsidian/
+demo-vault/sandbox/
+demo-vault/testes/
+demo-vault/scratch/
+demo-vault/local/
+demo-vault/test*
+demo-vault/teste*
+demo-vault/**/test*
+demo-vault/**/teste*
+demo-vault/**/*.test.*
+demo-vault/**/*.teste.*
+demo-vault/**/*.tmp
+demo-vault/**/*.bak
+demo-vault/assets/*test*

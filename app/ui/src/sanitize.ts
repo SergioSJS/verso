@@ -1,6 +1,4 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 // The core's HTML reaches the page only through here. The renderer lets a
 // note's raw HTML through, as the base parser does, and this page holds
@@ -17,7 +15,7 @@ const XHTML = "http://www.w3.org/1999/xhtml";
 const ELEMENTS = new Set([
   "a", "abbr", "b", "bdi", "bdo", "blockquote", "br", "caption", "cite", "code", "col", "colgroup",
   "dd", "del", "details", "dfn", "div", "dl", "dt", "em", "figcaption", "figure", "h1", "h2", "h3",
-  "h4", "h5", "h6", "hr", "i", "img", "input", "ins", "kbd", "li", "mark", "ol", "p", "pre", "q",
+  "h4", "h5", "h6", "hr", "i", "iframe", "img", "input", "ins", "kbd", "li", "mark", "ol", "p", "pre", "q",
   "rp", "rt", "ruby", "s", "samp", "small", "span", "strong", "sub", "summary", "sup", "table",
   "tbody", "td", "tfoot", "th", "thead", "time", "tr", "u", "ul", "var", "wbr",
 ]);
@@ -27,7 +25,7 @@ const ELEMENTS = new Set([
  *  element could turn text back into markup when the result is parsed
  *  again). Any other element not kept is unwrapped: its text stays. */
 const DROPPED = new Set([
-  "script", "style", "link", "meta", "base", "iframe", "frame", "frameset", "object", "embed",
+  "script", "style", "link", "meta", "base", "frame", "frameset", "object", "embed",
   "applet", "param", "template", "noscript", "noembed", "noframes", "title", "textarea", "select",
   "option", "optgroup", "datalist", "output", "progress", "meter", "canvas", "audio", "video",
   "source", "track", "map", "area", "portal", "xmp", "plaintext", "listing", "slot", "head",
@@ -37,6 +35,7 @@ const DROPPED = new Set([
 const GLOBAL = new Set(["class", "id", "title", "lang", "dir", "style", "align", "data-target", "data-tag", "data-callout", "data-fold", "data-task-line"]);
 const OWN: Record<string, Set<string>> = {
   a: new Set(["href"]),
+  iframe: new Set(["src", "width", "height", "style", "title", "allow", "allowfullscreen", "loading", "sandbox"]),
   img: new Set(["src", "alt", "width", "height"]),
   ol: new Set(["start", "reversed", "type"]),
   li: new Set(["value"]),
@@ -84,6 +83,7 @@ export function allowRemoteContent(on: boolean): void {
 function address(value: string, image: boolean): string | null {
   const v = value.trim();
   if (v.startsWith("#")) return image ? null : v;
+  if (image && !v.includes(":") && !v.startsWith("//")) return v;
   let url: URL;
   try {
     url = new URL(v);
@@ -165,6 +165,15 @@ function clean(body: HTMLElement): void {
       continue;
     }
     keepAttributes(el, tag);
+    if (tag === "iframe") {
+      const src = el.getAttribute("src") ?? "";
+      if (!onTheWeb(src)) {
+        el.remove();
+        continue;
+      }
+      el.setAttribute("src", convertFileSrc(`__proxy?url=${encodeURIComponent(src)}`, "verso"));
+      el.setAttribute("loading", "lazy");
+    }
     const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";
     if (!remote && onTheWeb(src)) {
       const link = doc.createElement("a");

@@ -314,14 +314,14 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
     #[cfg(target_os = "macos")]
     {
         match std::process::Command::new("open")
-            .args(["-a", APP_NAME])
+            .args(["-n", "-a", APP_NAME])
             .arg(folder)
             .stderr(std::process::Stdio::null())
             .status()
         {
             Ok(status) if status.success() => return Ok(()),
-            Ok(status) => tried.push(format!("open -a {APP_NAME}: {status}")),
-            Err(e) => tried.push(format!("open -a {APP_NAME}: {e}")),
+            Ok(status) => tried.push(format!("open -n -a {APP_NAME}: {status}")),
+            Err(e) => tried.push(format!("open -n -a {APP_NAME}: {e}")),
         }
     }
     if !names_a_directory(folder) {
