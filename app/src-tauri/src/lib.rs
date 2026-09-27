@@ -455,8 +455,16 @@ impl ParsedVersion {
             return None;
         }
         let major = parts[0].parse().ok()?;
-        let minor = if parts.len() > 1 { parts[1].parse().ok()? } else { 0 };
-        let patch = if parts.len() > 2 { parts[2].parse().ok()? } else { 0 };
+        let minor = if parts.len() > 1 {
+            parts[1].parse().ok()?
+        } else {
+            0
+        };
+        let patch = if parts.len() > 2 {
+            parts[2].parse().ok()?
+        } else {
+            0
+        };
         let prerelease = match pre_part {
             None => None,
             Some(pre) => {
@@ -507,11 +515,7 @@ impl ParsedVersion {
                     };
                     let r1 = rank(tag1);
                     let r2 = rank(tag2);
-                    if r1 != r2 {
-                        r1 > r2
-                    } else {
-                        tag1 > tag2
-                    }
+                    if r1 != r2 { r1 > r2 } else { tag1 > tag2 }
                 }
             }
         }
@@ -525,16 +529,15 @@ fn github_token() -> Option<String> {
             return Some(t.to_string());
         }
     }
-    let output = std::process::Command::new("gh").args(["auth", "token"]).output().ok()?;
+    let output = std::process::Command::new("gh")
+        .args(["auth", "token"])
+        .output()
+        .ok()?;
     if !output.status.success() {
         return None;
     }
     let t = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if !t.is_empty() {
-        Some(t)
-    } else {
-        None
-    }
+    if !t.is_empty() { Some(t) } else { None }
 }
 
 #[derive(serde::Deserialize)]
@@ -590,8 +593,11 @@ fn check_for_updates() -> Result<UpdateInfo, ContractError> {
 
     if !res.status().is_success() {
         let status = res.status();
-        let message = if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
-            "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde.".to_string()
+        let message = if status == reqwest::StatusCode::FORBIDDEN
+            || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+        {
+            "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde."
+                .to_string()
         } else if status == reqwest::StatusCode::NOT_FOUND {
             "Repositório de atualizações não encontrado.".to_string()
         } else {
@@ -658,19 +664,21 @@ fn check_for_updates() -> Result<UpdateInfo, ContractError> {
         // Try to find the best asset: correct OS + arch + preferred extension
         let asset = preferred_exts.iter().find_map(|ext| {
             // 1st pass: OS + arch + extension
-            rel.assets.iter().find(|a| {
-                let n = a.name.to_lowercase();
-                n.ends_with(ext)
-                    && os_keywords.iter().any(|k| n.contains(k))
-                    && arch_keywords.iter().any(|k| n.contains(k))
-            })
-            // 2nd pass: OS + extension (any arch)
-            .or_else(|| {
-                rel.assets.iter().find(|a| {
+            rel.assets
+                .iter()
+                .find(|a| {
                     let n = a.name.to_lowercase();
-                    n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
+                    n.ends_with(ext)
+                        && os_keywords.iter().any(|k| n.contains(k))
+                        && arch_keywords.iter().any(|k| n.contains(k))
                 })
-            })
+                // 2nd pass: OS + extension (any arch)
+                .or_else(|| {
+                    rel.assets.iter().find(|a| {
+                        let n = a.name.to_lowercase();
+                        n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
+                    })
+                })
         });
 
         let download_url = asset.map(|a| a.browser_download_url.clone());
@@ -746,7 +754,10 @@ fn download_and_install_update<R: tauri::Runtime>(
             message: "URL de download não permitida.".to_string(),
         });
     }
-    if asset_url.as_deref().is_some_and(|u| !is_trusted_update_url(u)) {
+    if asset_url
+        .as_deref()
+        .is_some_and(|u| !is_trusted_update_url(u))
+    {
         return Err(ContractError {
             kind: ErrorKind::Refused,
             message: "URL do recurso não permitida.".to_string(),
@@ -821,10 +832,11 @@ fn download_and_install_update<R: tauri::Runtime>(
             break;
         }
         use std::io::Write;
-        file.write_all(&buffer[..bytes_read]).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Erro ao salvar dados da atualização: {e}"),
-        })?;
+        file.write_all(&buffer[..bytes_read])
+            .map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro ao salvar dados da atualização: {e}"),
+            })?;
         downloaded += bytes_read as u64;
 
         if last_emit.elapsed() > std::time::Duration::from_millis(150) {
@@ -834,7 +846,13 @@ fn download_and_install_update<R: tauri::Runtime>(
                 UpdateProgress {
                     downloaded_bytes: downloaded as f64,
                     total_bytes: total_bytes.map(|t| t as f64),
-                    percent: total_bytes.map(|t| if t > 0 { (downloaded as f64 / t as f64) * 100.0 } else { 0.0 }),
+                    percent: total_bytes.map(|t| {
+                        if t > 0 {
+                            (downloaded as f64 / t as f64) * 100.0
+                        } else {
+                            0.0
+                        }
+                    }),
                     status: "downloading".to_string(),
                     message: None,
                 },
@@ -1070,8 +1088,8 @@ fn install_extracted_update<R: tauri::Runtime>(
     #[cfg(target_os = "windows")]
     {
         // Look for installer (.msi preferred, then .exe)
-        let installer = find_file_by_exts(extract_dir, &[".msi", ".exe"])
-            .ok_or_else(|| ContractError {
+        let installer =
+            find_file_by_exts(extract_dir, &[".msi", ".exe"]).ok_or_else(|| ContractError {
                 kind: ErrorKind::Failed,
                 message: "Nenhum instalador (.msi/.exe) encontrado no arquivo baixado.".to_string(),
             })?;
@@ -1099,9 +1117,9 @@ fn install_extracted_update<R: tauri::Runtime>(
         // Prefer AppImage, then deb, then any binary
         let payload = find_file_by_exts(extract_dir, &[".AppImage", ".appimage", ".deb", ".rpm"])
             .ok_or_else(|| ContractError {
-                kind: ErrorKind::Failed,
-                message: "Nenhum pacote Linux (.AppImage/.deb/.rpm) encontrado.".to_string(),
-            })?;
+            kind: ErrorKind::Failed,
+            message: "Nenhum pacote Linux (.AppImage/.deb/.rpm) encontrado.".to_string(),
+        })?;
 
         // Make it executable
         let meta = std::fs::metadata(&payload).map_err(|e| ContractError {
@@ -1112,7 +1130,10 @@ fn install_extracted_update<R: tauri::Runtime>(
         perms.set_mode(perms.mode() | 0o755);
         let _ = std::fs::set_permissions(&payload, perms);
 
-        if payload.extension().is_some_and(|x| x.eq_ignore_ascii_case("AppImage")) {
+        if payload
+            .extension()
+            .is_some_and(|x| x.eq_ignore_ascii_case("AppImage"))
+        {
             // Try to replace the running AppImage
             if let Ok(current) = std::env::current_exe() {
                 let backup = temp_dir.join("running_backup.AppImage");
@@ -1131,13 +1152,20 @@ fn install_extracted_update<R: tauri::Runtime>(
         } else {
             // For .deb/.rpm: copy to Downloads and advise the user
             let downloads = get_downloads_dir();
-            let dest = downloads.join(payload.file_name().unwrap_or(std::ffi::OsStr::new("verso-update")));
+            let dest = downloads.join(
+                payload
+                    .file_name()
+                    .unwrap_or(std::ffi::OsStr::new("verso-update")),
+            );
             std::fs::copy(&payload, &dest).map_err(|e| ContractError {
                 kind: ErrorKind::Failed,
                 message: format!("Erro ao copiar pacote para Downloads: {e}"),
             })?;
             return Ok(emit_done(
-                &format!("Pacote de atualização salvo em Downloads: {}. Instale manualmente com seu gerenciador de pacotes.", dest.display()),
+                &format!(
+                    "Pacote de atualização salvo em Downloads: {}. Instale manualmente com seu gerenciador de pacotes.",
+                    dest.display()
+                ),
                 Some(dest.display().to_string()),
                 false,
             ));
@@ -1218,7 +1246,8 @@ fn get_downloads_dir() -> std::path::PathBuf {
         }
     }
     // macOS + Linux: $HOME/Downloads
-    let home = std::env::var("HOME").unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
+    let home = std::env::var("HOME")
+        .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
     std::path::PathBuf::from(home).join("Downloads")
 }
 
@@ -1228,7 +1257,6 @@ fn get_downloads_dir() -> std::path::PathBuf {
 fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), ContractError> {
     app.restart();
 }
-
 
 /// The folder that is open, for a window that joins the session (a note
 /// in a window of its own) and for a reload: `None` when none is.
@@ -2705,24 +2733,28 @@ fn serve_file<R: tauri::Runtime>(
         }
         if let Some(target) = target_url.filter(|t| is_safe_proxy_url(t)) {
             match proxy_web_page(&target) {
-                    Ok((status, content_type, body)) => {
-                        return tauri::http::Response::builder()
-                            .status(status)
-                            .header("Content-Type", content_type)
-                            .header("Access-Control-Allow-Origin", "*")
-                            .header("Cache-Control", "no-cache")
-                            .body(std::borrow::Cow::Owned(body))
-                            .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())));
-                    }
-                    Err(err) => {
-                        let html = format!(
-                            "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{err}</p></body></html>"
-                        );
-                        return tauri::http::Response::builder()
-                            .status(502)
-                            .header("Content-Type", "text/html; charset=utf-8")
-                            .body(std::borrow::Cow::Owned(html.into_bytes()))
-                            .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())));
+                Ok((status, content_type, body)) => {
+                    return tauri::http::Response::builder()
+                        .status(status)
+                        .header("Content-Type", content_type)
+                        .header("Access-Control-Allow-Origin", "*")
+                        .header("Cache-Control", "no-cache")
+                        .body(std::borrow::Cow::Owned(body))
+                        .unwrap_or_else(|_| {
+                            tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                        });
+                }
+                Err(err) => {
+                    let html = format!(
+                        "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{err}</p></body></html>"
+                    );
+                    return tauri::http::Response::builder()
+                        .status(502)
+                        .header("Content-Type", "text/html; charset=utf-8")
+                        .body(std::borrow::Cow::Owned(html.into_bytes()))
+                        .unwrap_or_else(|_| {
+                            tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                        });
                 }
             }
         }
@@ -3539,13 +3571,21 @@ mod tests {
 
     #[test]
     fn trusted_update_urls_allow_github_only() {
-        assert!(is_trusted_update_url("https://github.com/SergioSJS/verso/releases/download/v0.2.0/verso.zip"));
-        assert!(is_trusted_update_url("https://api.github.com/repos/SergioSJS/verso/releases/assets/12345"));
-        assert!(is_trusted_update_url("https://objects.githubusercontent.com/github-production-release-asset-2e65be/12345"));
+        assert!(is_trusted_update_url(
+            "https://github.com/SergioSJS/verso/releases/download/v0.2.0/verso.zip"
+        ));
+        assert!(is_trusted_update_url(
+            "https://api.github.com/repos/SergioSJS/verso/releases/assets/12345"
+        ));
+        assert!(is_trusted_update_url(
+            "https://objects.githubusercontent.com/github-production-release-asset-2e65be/12345"
+        ));
 
         assert!(!is_trusted_update_url("http://github.com/fake.zip")); // HTTP disallowed
         assert!(!is_trusted_update_url("https://malicious.com/virus.zip"));
-        assert!(!is_trusted_update_url("https://github.com.evil.com/fake.zip"));
+        assert!(!is_trusted_update_url(
+            "https://github.com.evil.com/fake.zip"
+        ));
         assert!(!is_trusted_update_url("file:///tmp/update.zip"));
     }
 
@@ -3557,11 +3597,12 @@ mod tests {
         assert!(!is_safe_proxy_url("http://localhost:8080"));
         assert!(!is_safe_proxy_url("http://127.0.0.1:3000"));
         assert!(!is_safe_proxy_url("http://[::1]:8080"));
-        assert!(!is_safe_proxy_url("http://169.254.169.254/latest/meta-data/"));
+        assert!(!is_safe_proxy_url(
+            "http://169.254.169.254/latest/meta-data/"
+        ));
         assert!(!is_safe_proxy_url("http://192.168.1.1/admin"));
         assert!(!is_safe_proxy_url("http://10.0.0.1/"));
         assert!(!is_safe_proxy_url("ftp://example.com/file"));
         assert!(!is_safe_proxy_url("file:///etc/passwd"));
     }
 }
-
