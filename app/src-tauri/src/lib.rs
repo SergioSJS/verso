@@ -1664,6 +1664,74 @@ fn reveal(state: State<'_, App>, path: String) -> Result<(), ContractError> {
         .map_err(|e| failed(e.to_string()))
 }
 
+/// Copy the absolute path of an entry to the system clipboard.
+/// Formed here at the edge, goes to the operating system's clipboard directly;
+/// no absolute path crosses back to the UI (ADR 0026 rule 4).
+#[tauri::command]
+#[specta::specta]
+fn copy_full_path(state: State<'_, App>, path: String) -> Result<(), ContractError> {
+    let absolute = with(&state, |ws| ws.absolute(&path))?;
+    let text = absolute.to_string_lossy().to_string();
+    #[cfg(target_os = "macos")]
+    {
+        use std::io::Write;
+        let mut child = std::process::Command::new("pbcopy")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| failed(e.to_string()))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(text.as_bytes())
+                .map_err(|e| failed(e.to_string()))?;
+        }
+        child.wait().map_err(|e| failed(e.to_string()))?;
+        Ok(())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::io::Write;
+        let mut child = std::process::Command::new("clip")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| failed(e.to_string()))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(text.as_bytes())
+                .map_err(|e| failed(e.to_string()))?;
+        }
+        child.wait().map_err(|e| failed(e.to_string()))?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        use std::io::Write;
+        let cmd = if std::process::Command::new("which")
+            .arg("wl-copy")
+            .output()
+            .map_or(false, |o| o.status.success())
+        {
+            "wl-copy"
+        } else {
+            "xclip"
+        };
+        let mut c = std::process::Command::new(cmd);
+        if cmd == "xclip" {
+            c.args(["-selection", "clipboard"]);
+        }
+        let mut child = c
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| failed(e.to_string()))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(text.as_bytes())
+                .map_err(|e| failed(e.to_string()))?;
+        }
+        child.wait().map_err(|e| failed(e.to_string()))?;
+        Ok(())
+    }
+}
+
 fn text_out(t: verso_core::TextFile) -> TextFile {
     TextFile {
         path: t.path,
@@ -2453,6 +2521,7 @@ macro_rules! commands_for {
                 rename_entry,
                 delete_entry,
                 reveal,
+                copy_full_path,
                 reindex,
                 query_base,
                 new_window::<$runtime>,

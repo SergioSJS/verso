@@ -49,6 +49,7 @@ fn main() {
         "rename_entry",
         "delete_entry",
         "reveal",
+        "copy_full_path",
         "reindex",
         "app_info",
         "query_base",

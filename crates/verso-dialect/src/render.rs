@@ -68,11 +68,33 @@ pub fn to_html(source: &str) -> String {
     // Whether each open link or image is a wikilink: only those get the
     // anchor or the span, and only their ends close it.
     let mut wiki: Vec<bool> = Vec::new();
+    // Setext headings (e.g. `Title\n---`) are not ATX headings in Verso's dialect.
+    // They are rendered as a paragraph followed by a thematic break (`<hr />`).
+    let mut setext: Vec<bool> = Vec::new();
     let rendered = events.into_iter().flat_map(|(event, range)| {
         context.enter(&event);
         match event {
             Event::Start(Tag::MetadataBlock(_)) | Event::End(TagEnd::MetadataBlock(_)) => vec![],
             _ if context.metadata() => vec![],
+            Event::Start(Tag::Heading { .. }) => {
+                let is_atx = source
+                    .get(range)
+                    .is_some_and(|s| s.trim_start().starts_with('#'));
+                if is_atx {
+                    setext.push(false);
+                    vec![event]
+                } else {
+                    setext.push(true);
+                    vec![Event::Start(Tag::Paragraph)]
+                }
+            }
+            Event::End(TagEnd::Heading(_)) => {
+                if setext.pop().unwrap_or(false) {
+                    vec![Event::End(TagEnd::Paragraph), Event::Rule]
+                } else {
+                    vec![event]
+                }
+            }
             Event::Start(Tag::Link {
                 link_type: LinkType::WikiLink { .. },
                 dest_url,
@@ -615,5 +637,20 @@ mod tasks {
         );
         assert!(html.contains(r#"data-callout="note""#), "{html}");
         assert_eq!(task_lines(&to_html("a\r\n- [ ] b\r\n")), [2]);
+    }
+
+    #[test]
+    fn thematic_breaks_render_even_without_blank_lines() {
+        let source =
+            "Texto sem linha em branco\n---\nOutro texto\n- item 1\n- item 2\n---\n- item 3";
+        let html = to_html(source);
+        assert!(
+            !html.contains("<h2>"),
+            "should not be setext heading: {html}"
+        );
+        assert!(html.contains("<p>Texto sem linha em branco</p>"), "{html}");
+        assert!(html.contains("<hr />") || html.contains("<hr>"), "{html}");
+        assert!(html.contains("<li>item 1</li>"), "{html}");
+        assert!(html.contains("<li>item 3</li>"), "{html}");
     }
 }

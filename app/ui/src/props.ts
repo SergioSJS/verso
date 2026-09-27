@@ -289,26 +289,38 @@ export class PropertiesView {
   }
   private newRow(before: HTMLElement): void {
     const row = h("div", "prop kind-new");
+    const keyCol = h("span", "prop-key");
     const input = h("input", "prop-input prop-key-input");
     input.type = "text";
     input.placeholder = this.opts.strings.keyPlaceholder;
     input.setAttribute("aria-label", this.opts.strings.keyPlaceholder);
+    keyCol.append(icon("tag"), input);
+    const valueCol = h("div", "prop-value");
+    const remove = h("button", "prop-remove");
+    remove.type = "button";
+    remove.title = this.opts.strings.remove;
+    remove.append(icon("close"));
     let done = false;
     const finish = (commit: boolean) => {
       if (done) return;
       done = true;
       const key = input.value.trim().replace(/:+$/, "");
       row.remove();
+      this.el.classList.remove("adding");
+      if (this.items.length === 0) this.el.classList.add("empty");
       if (!commit || !key) return;
       this.edit(key, { op: "create" });
     };
+    remove.addEventListener("click", () => finish(false));
     input.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Enter") finish(true);
       else if (e.key === "Escape") finish(false);
     });
     input.addEventListener("blur", () => finish(true));
-    row.append(h("span", "prop-key"), input);
+    row.append(keyCol, valueCol, remove);
+    this.el.classList.remove("empty");
+    this.el.classList.add("adding");
     before.before(row);
     input.focus();
   }
