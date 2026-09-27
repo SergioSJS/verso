@@ -2786,6 +2786,10 @@ class NoteLeaf extends Leaf {
     // Tab, a box said only "checkbox".
     for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
       const li = box.closest("li");
+      if (li) {
+        li.classList.add("task-item");
+        li.parentElement?.classList.add("contains-task-list");
+      }
       const label = li ? ownText(li) : "";
       if (label) box.setAttribute("aria-label", label);
     }

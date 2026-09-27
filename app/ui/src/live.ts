@@ -777,13 +777,27 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const l = doc.line(n);
             out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-table" }) });
           }
-        } else if (/^(ATXHeading[1-6]|SetextHeading[12])$/.test(name)) {
+        } else if (/^ATXHeading[1-6]$/.test(name)) {
           const level = name.slice(-1);
           const line = doc.lineAt(node.from);
           out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: `cm-lp-h cm-lp-h${level}` }) });
           if (!shown) {
             const mark = node.node.getChild("HeaderMark");
             if (mark) hide(mark.from, Math.min(mark.to + 1, node.to));
+          }
+        } else if (/^SetextHeading[12]$/.test(name)) {
+          const mark = node.node.getChild("HeaderMark");
+          if (mark) {
+            const markLine = doc.lineAt(mark.from);
+            const markText = doc.sliceString(mark.from, mark.to);
+            if (markText.startsWith("-")) {
+              if (!active.has(markLine.number)) {
+                out.push({ from: markLine.from, to: markLine.from, deco: Decoration.line({ class: "cm-lp-hr-line" }) });
+                hide(mark.from, mark.to);
+              } else {
+                out.push({ from: mark.from, to: mark.to, deco: Decoration.mark({ class: "cm-lp-hr" }) });
+              }
+            }
           }
         } else if (name === "StrongEmphasis" || name === "Emphasis" || name === "Strikethrough") {
           const cls = name === "StrongEmphasis" ? "cm-lp-strong" : name === "Emphasis" ? "cm-lp-em" : "cm-lp-strike";
@@ -898,7 +912,6 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           }
         } else if (name === "ListItem") {
           const line = doc.lineAt(node.from);
-          const isLineActive = active.has(line.number);
           const mark = node.node.getChild("ListMark");
           const taskMarker = node.node.getChild("TaskMarker") ?? node.node.getChild("Task")?.getChild("TaskMarker") ?? null;
           const isTask = taskMarker !== null;
