@@ -1188,6 +1188,8 @@ fn install_extracted_update<R: tauri::Runtime>(
 
 /// Recursively copies `src` directory into `dst` using only `std::fs`.
 /// Equivalent to `cp -r src dst` — no shell, no platform tools.
+/// Only used on macOS (the other platforms delegate to a system installer).
+#[cfg(target_os = "macos")]
 fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dst)?;
     for entry in std::fs::read_dir(src)? {
@@ -1209,7 +1211,7 @@ fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result
                 }
             }
         } else {
-            std::fs::copy(&entry.path(), &target)?;
+            std::fs::copy(entry.path(), &target)?;
         }
     }
     Ok(())
