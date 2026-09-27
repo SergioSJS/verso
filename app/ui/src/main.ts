@@ -102,7 +102,7 @@ type Strings = Record<
   | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
   | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
-  | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
+  | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copyRelativePath" | "copyFullPath" | "openInNewTab" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
   | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions" | "propertiesTitle"
   | "replaceTitle" | "find" | "findInNote" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
   | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
@@ -195,7 +195,7 @@ const pt: Strings = {
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
   slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", empty: "Nada com esse nome." },
   colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
-  duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copied: "Caminho copiado.",
+  duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copyRelativePath: "Copiar caminho relativo", copyFullPath: "Copiar caminho completo", openInNewTab: "Abrir em nova aba", copied: "Caminho copiado.",
   moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
   addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link", propertiesTitle: "Propriedades",
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
@@ -281,7 +281,7 @@ const en: Strings = {
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the bin (.trash)?`,
   slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", empty: "Nothing by that name." },
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
-  duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copied: "Path copied.",
+  duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copyRelativePath: "Copy relative path", copyFullPath: "Copy full path", openInNewTab: "Open in new tab", copied: "Path copied.",
   moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
   addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions", propertiesTitle: "Properties",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
@@ -4172,6 +4172,17 @@ class Pane {
     this.tabs.addEventListener("dblclick", (e) => {
       if (e.target === this.tabs || e.target === this.tabList) void newUntitled(this);
     });
+    this.tabs.addEventListener("contextmenu", (e) => {
+      if ((e.target as HTMLElement).closest(".tab")) return;
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY, [
+        [t.newNote, () => void newUntitled(this), "plus"],
+        ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        ["—", () => {}],
+        [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
+        [t.hideTabs, () => this.setTabsHidden(true)],
+      ]);
+    });
     this.empty.append(icon("outline"), h("p", "", t.emptyPane));
     this.body.append(this.empty);
     this.el.append(this.tabs, this.tabsDivider, this.body);
@@ -4258,6 +4269,8 @@ class Pane {
         if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
       })(), "maximize"] as MenuItem] : []),
+      ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+      [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
       [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"],
       [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"],
@@ -4272,7 +4285,8 @@ class Pane {
         [t.revealInTree, () => void revealInTree(leaf.path), "folder"] as MenuItem,
         ...(leaf instanceof NoteLeaf ? [[t.rename, () => leaf.renameHere(), "edit"] as MenuItem] : []),
         [`${t.moveTo}…`, () => movePrompt(leaf.path), "folderPlus"] as MenuItem,
-        [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
+        [t.copyRelativePath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
+        [t.copyFullPath, () => void commands.copyFullPath(leaf.path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"] as MenuItem,
         [t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem,
       ] : []),
       ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
@@ -4646,7 +4660,11 @@ class Space {
     });
     this.tab.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      showMenu(e.clientX, e.clientY, [[t.rename, () => this.rename(n)], [t.closeSpace, () => closeSpace(this)]]);
+      showMenu(e.clientX, e.clientY, [
+        [t.rename, () => this.rename(n)],
+        ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        [t.closeSpace, () => closeSpace(this)],
+      ]);
     });
   }
   /** The name in place becomes a field; Enter, Escape or leaving it ends. */
@@ -4792,15 +4810,24 @@ function persistSoon(): void {
   }, 300);
 }
 
+ui.spaces.addEventListener("contextmenu", (e) => {
+  if ((e.target as HTMLElement).closest(".space-tab")) return;
+  e.preventDefault();
+  showMenu(e.clientX, e.clientY, [
+    [t.newSpace, () => newSpace(), "plus"],
+    ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+  ]);
+});
+
 /* ---------- Opening things ---------- */
 function openIn(pane: Pane, path: string): Leaf {
   return pane.open(path, false);
 }
-function openNote(path: string, aside: boolean): Leaf | null {
+function openNote(path: string, aside: boolean, fresh = false): Leaf | null {
   document.body.classList.remove("side-open");
   let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
-  return pane.open(path, false);
+  return pane.open(path, false, fresh);
 }
 function openFolder(path: string): void {
   const pane = paneToOpenIn();
@@ -5733,7 +5760,15 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
   const sep: MenuItem = ["—", () => {}];
   const items: MenuItem[] = folder
     ? [[t.openFolder, () => openFolder(path), "folderOpen"]]
-    : [[t.openTab, () => openNote(path, false), "note"], [t.openPane, () => openNote(path, true), "split"]];
+    : [
+        [t.openTab, () => openNote(path, false), "note"],
+        [t.openInNewTab, () => openNote(path, false, true), "tab"],
+        [t.openPane, () => openNote(path, true), "split"],
+        ...(!popout ? [[t.openInWindow, () => void (async () => {
+          const opened = await commands.openWindow(path);
+          if (opened.status !== "ok") return fail(opened.error);
+        })(), "maximize"] as MenuItem] : []),
+      ];
   if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
   items.push(
     sep,
@@ -5742,7 +5777,8 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
     ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
     sep,
     [t.reveal, () => void commands.reveal(path), "search"],
-    [t.copyPath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"],
+    [t.copyRelativePath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"],
+    [t.copyFullPath, () => void commands.copyFullPath(path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"],
     sep,
     ...createMenuItems(here),
     sep,
@@ -6840,7 +6876,7 @@ const paletteDialog = new Palette();
 /* ---------- ⌘, settings ---------- */
 /* ---------- Find and replace across the vault: a plan, then one atomic write per note ---------- */
 class ReplaceDialog {
-  readonly el = h("div", "quick settings-box");
+  readonly el = h("div", "quick");
   constructor() {
     this.el.hidden = true;
     asDialog(this.el, t.replaceTitle, () => this.hide());
@@ -6850,10 +6886,20 @@ class ReplaceDialog {
   show(): void {
     opened(this.el);
     const box = h("div", "plan-box replace-box");
-    box.append(h("h2", "", t.replaceTitle));
-    const field = (label: string, input: HTMLElement) => {
-      const l = h("label", "field");
-      l.append(h("span", "", label), input);
+    const header = h("div", "replace-header");
+    const titleGroup = h("div", "replace-title-group");
+    titleGroup.append(icon("replace"), h("h2", "", t.replaceTitle));
+    const closeBtn = button("ghost iconic close-btn", t.close, "close");
+    closeBtn.addEventListener("click", () => this.hide());
+    header.append(titleGroup, closeBtn);
+    box.append(header);
+
+    const field = (label: string, input: HTMLElement, iconName: string) => {
+      const l = h("label", "field replace-field");
+      const lbl = h("span", "field-label", label);
+      const inputWrap = h("div", "input-with-icon");
+      inputWrap.append(icon(iconName), input);
+      l.append(lbl, inputWrap);
       box.append(l);
       return l;
     };
@@ -6867,8 +6913,8 @@ class ReplaceDialog {
     matchCase.type = "checkbox";
     const regex = h("input");
     regex.type = "checkbox";
-    field(t.find, find);
-    field(t.replaceWith, repl);
+    field(t.find, find, "search");
+    field(t.replaceWith, repl, "replace");
     const opts = h("div", "replace-opts");
     const opt = (input: HTMLInputElement, label: string) => {
       const l = h("label", "opt");
@@ -6880,8 +6926,8 @@ class ReplaceDialog {
     box.append(opts);
     const note = h("p", "replace-note");
     note.setAttribute("role", "status");
-    const go = button("save", t.previewChanges);
-    const cancel = button("ghost", t.planSkip);
+    const go = button("save iconic", t.previewChanges, "check");
+    const cancel = button("ghost iconic", t.planSkip, "close");
     cancel.addEventListener("click", () => this.hide());
     const actions = h("div", "conflict-actions");
     actions.append(go, cancel);
@@ -7948,6 +7994,7 @@ const RIBBON: RibbonItem[] = [
   { id: "replace", icon: "replace", label: () => t.replaceTitle, keys: "replace", needsFolder: true, run: () => replaceDialog.show() },
   { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
+  { id: "new-window", icon: "maximize", label: () => t.newWindow, needsFolder: true, run: () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)) },
   { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "toggle-right", bottom: true, run: () => toggleRight() },
   { id: "settings", icon: "gear", label: () => t.settings, keys: "settings", bottom: true, run: () => settingsDialog.show() },
 ];

@@ -211,6 +211,12 @@ export const commands = {
 	 *  never crosses back to the UI (ADR 0026 rule 4).
 	 */
 	reveal: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("reveal", { path })),
+	/**
+	 *  Copy the absolute path of an entry to the system clipboard.
+	 *  Formed here at the edge, goes to the operating system's clipboard directly;
+	 *  no absolute path crosses back to the UI (ADR 0026 rule 4).
+	 */
+	copyFullPath: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("copy_full_path", { path })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 	/**

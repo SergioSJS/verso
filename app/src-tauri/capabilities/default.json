@@ -49,6 +49,7 @@
     "allow-rename-entry",
     "allow-delete-entry",
     "allow-reveal",
+    "allow-copy-full-path",
     "allow-reindex",
     "allow-query-base",
     "allow-new-window",
