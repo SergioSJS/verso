@@ -14,6 +14,14 @@ test release.
 
 ### Added
 
+### Fixed
+
+---
+
+## 0.3.0-beta.1 — 2026-09-27
+
+### Added
+
 - **Live checkbox interaction and task styling in Live Preview**: clicking task checkboxes (`[ ]` / `[x]`) toggles their state with history support and strikethrough styling.
 - **Copy button on code blocks**: copy buttons available in both Live Preview and reading mode with visual feedback.
 - **Collapsible properties/frontmatter view**: fold toggle to collapse or expand frontmatter metadata, remembering preference in storage.
@@ -26,6 +34,8 @@ test release.
 - **Tree root context menu**: right-clicking empty space in the file tree opens options to create notes, folders, bases, web pages, or collapse/expand all.
 - **macOS multi-window support in App Exposé**: Tauri window menu registration for native macOS App Exposé / Mission Control window grouping.
 - **Demo and template vault**: integrated sample vault in `demo-vault/` showcasing all Verso features (Markdown syntax, KaTeX, interactive tasks, wikilinks, embeds, YAML properties, bases, graph view, and two-page PDF spread) with one-click import from the command palette, menu, and welcome screen.
+- **In-app update notifications and download**: Verso checks for new versions on GitHub Releases at startup (configurable; on by default) and lets you download and install the update from within the app, with a live progress bar. Supports macOS, Windows, and Linux.
+- **Redesigned in-text search panel (Ctrl+F)**: modern panel with search icon, match counter ("2 of 7"), previous/next arrow buttons, and a close button; now works in all three modes — Edit, Live Preview, and Reading.
 
 ### Fixed
 

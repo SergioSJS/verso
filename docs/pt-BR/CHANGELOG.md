@@ -14,6 +14,14 @@ versão de teste.
 
 ### Acrescentado
 
+### Corrigido
+
+---
+
+## 0.3.0-beta.1 — 2026-09-27
+
+### Acrescentado
+
 - **Checkboxes de tarefas interativos no modo Editar**: clicar em caixas de seleção (`[ ]` / `[x]`) alterna o estado com suporte a histórico e estilo tachado.
 - **Botão para copiar blocos de código**: botão de cópia disponível no modo Editar e na leitura, com confirmação visual.
 - **Metadados (frontmatter) recolhíveis**: botão de recolher/expandir as propriedades da nota, lembrando a preferência no armazenamento local.
@@ -26,6 +34,8 @@ versão de teste.
 - **Menu de contexto no espaço vazio da árvore**: clicar com o botão direito na árvore de arquivos oferece opções para criar notas, pastas, bases, páginas web e recolher/expandir tudo.
 - **Suporte a múltiplas janelas no App Exposé do macOS**: registro nativo no menu de janelas do macOS para agrupamento no Exposé / Mission Control.
 - **Cofre de exemplo e demonstração**: cofre modelo integrado em `demo-vault/` demonstrando todas as funcionalidades do Verso (sintaxe Markdown, KaTeX, tarefas interativas, wikilinks, notas incorporadas, propriedades YAML, bases, visualização em grafo e leitor de PDF em duas páginas) com importação em um clique pela paleta de comandos, menu e tela inicial.
+- **Notificações de nova versão e download pelo app**: o Verso verifica novas versões no GitHub Releases ao abrir (configurável; ativado por padrão) e permite baixar e instalar a atualização de dentro do app, com barra de progresso em tempo real. Funciona no macOS, Windows e Linux.
+- **Painel de busca no texto redesenhado (Ctrl+F)**: painel moderno com ícone de lupa, contador de correspondências ("2 de 7"), botões de próximo/anterior e botão de fechar; agora funciona nos três modos — Editar, Visualizar e Leitura.
 
 ### Corrigido
 
