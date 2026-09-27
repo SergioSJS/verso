@@ -768,7 +768,7 @@ export type Trashed = {
 
 /**  Information about an application update. */
 export type UpdateInfo = {
-	/**  The currently running version (e.g. "0.3.0-beta.1"). */
+	/**  The currently running version (e.g. "0.2.0-beta.2"). */
 	current_version: string,
 	/**  The latest version available on GitHub (e.g. "0.2.0-beta.3"). */
 	latest_version: string,
