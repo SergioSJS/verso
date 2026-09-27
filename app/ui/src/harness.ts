@@ -506,7 +506,7 @@ mockIPC(async (cmd, args) => {
   }
 
   if (cmd === "app_info") {
-    return { status: "ok", data: { version: "0.2.0-beta.2", is_dev: true } };
+    return { status: "ok", data: { version: "0.3.0-beta.1", is_dev: true } };
   }
 
   if (cmd === "cli_status") {
