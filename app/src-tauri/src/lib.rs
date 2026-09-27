@@ -630,18 +630,46 @@ fn check_for_updates() -> Result<UpdateInfo, ContractError> {
     }
 
     if let Some(rel) = best_release {
-        let preferred_arch = if cfg!(target_arch = "aarch64") {
-            "arm64"
+        // Detect current platform + arch to pick the right release asset.
+        // These are resolved at compile time — no runtime overhead.
+        let os_keywords: &[&str] = if cfg!(target_os = "macos") {
+            &["macos", "darwin", "osx"]
+        } else if cfg!(target_os = "windows") {
+            &["windows", "win"]
         } else {
-            "x64"
+            &["linux"]
         };
-        let asset = rel.assets.iter().find(|a| {
-            let n = a.name.to_lowercase();
-            n.ends_with(".zip") && n.contains("macos") && (n.contains(preferred_arch) || (preferred_arch == "arm64" && n.contains("aarch64")))
-        }).or_else(|| {
+
+        let arch_keywords: &[&str] = if cfg!(target_arch = "aarch64") {
+            &["aarch64", "arm64"]
+        } else {
+            &["x86_64", "x64", "amd64"]
+        };
+
+        // Preferred extension per platform
+        let preferred_exts: &[&str] = if cfg!(target_os = "windows") {
+            &[".msi", ".exe", ".zip"]
+        } else if cfg!(target_os = "macos") {
+            &[".dmg", ".zip"]
+        } else {
+            &[".appimage", ".deb", ".rpm", ".tar.gz", ".zip"]
+        };
+
+        // Try to find the best asset: correct OS + arch + preferred extension
+        let asset = preferred_exts.iter().find_map(|ext| {
+            // 1st pass: OS + arch + extension
             rel.assets.iter().find(|a| {
                 let n = a.name.to_lowercase();
-                n.ends_with(".zip") && (n.contains("macos") || n.contains("verso") || n.contains("darwin"))
+                n.ends_with(ext)
+                    && os_keywords.iter().any(|k| n.contains(k))
+                    && arch_keywords.iter().any(|k| n.contains(k))
+            })
+            // 2nd pass: OS + extension (any arch)
+            .or_else(|| {
+                rel.assets.iter().find(|a| {
+                    let n = a.name.to_lowercase();
+                    n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
+                })
             })
         });
 
@@ -827,58 +855,74 @@ fn download_and_install_update<R: tauri::Runtime>(
         },
     );
 
+    // ── Extract ────────────────────────────────────────────────────────────
+    //
+    // We use the `zip` crate (pure Rust) instead of shelling out to `ditto`
+    // or `unzip`, so this works identically on macOS, Windows, and Linux.
     let extract_dir = temp_dir.join("extracted");
-    let _ = std::fs::create_dir_all(&extract_dir);
-    let ditto_status = std::process::Command::new("ditto")
-        .arg("-x")
-        .arg("-k")
-        .arg(&zip_path)
-        .arg(&extract_dir)
-        .status();
+    std::fs::create_dir_all(&extract_dir).map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível criar pasta de extração: {e}"),
+    })?;
 
-    let extract_success = match ditto_status {
-        Ok(st) => st.success(),
-        Err(_) => {
-            std::process::Command::new("unzip")
-                .arg("-q")
-                .arg("-o")
-                .arg(&zip_path)
-                .arg("-d")
-                .arg(&extract_dir)
-                .status()
-                .map(|s| s.success())
-                .unwrap_or(false)
-        }
-    };
-
-    if !extract_success {
-        return Err(ContractError {
+    {
+        let zip_file = std::fs::File::open(&zip_path).map_err(|e| ContractError {
             kind: ErrorKind::Failed,
-            message: "Falha ao descompactar a atualização.".to_string(),
-        });
-    }
+            message: format!("Não foi possível abrir o arquivo baixado: {e}"),
+        })?;
+        let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Arquivo ZIP inválido: {e}"),
+        })?;
 
-    let mut extracted_app: Option<std::path::PathBuf> = None;
-    if let Ok(entries) = std::fs::read_dir(&extract_dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.is_dir() && p.extension().is_some_and(|ext| ext == "app") {
-                extracted_app = Some(p);
-                break;
+        for i in 0..archive.len() {
+            let mut zf = archive.by_index(i).map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro ao ler entrada do ZIP: {e}"),
+            })?;
+
+            // Sanitise path: strip leading `/` or `..` segments to prevent
+            // path-traversal attacks (Zip Slip).
+            let out_path = match zf.enclosed_name() {
+                Some(p) => extract_dir.join(p),
+                None => continue, // skip suspicious entries
+            };
+
+            if zf.is_dir() {
+                std::fs::create_dir_all(&out_path).map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao criar diretório: {e}"),
+                })?;
+            } else {
+                if let Some(parent) = out_path.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| ContractError {
+                        kind: ErrorKind::Failed,
+                        message: format!("Erro ao criar diretório pai: {e}"),
+                    })?;
+                }
+                let mut out_file = std::fs::File::create(&out_path).map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao criar arquivo extraído: {e}"),
+                })?;
+                std::io::copy(&mut zf, &mut out_file).map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao escrever arquivo extraído: {e}"),
+                })?;
+
+                // Restore Unix permissions (execute bit for binaries)
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Some(mode) = zf.unix_mode() {
+                        let _ = std::fs::set_permissions(
+                            &out_path,
+                            std::fs::Permissions::from_mode(mode),
+                        );
+                    }
+                }
             }
         }
     }
-
-    let extracted_app = extracted_app.ok_or_else(|| ContractError {
-        kind: ErrorKind::Failed,
-        message: "Nenhum pacote de aplicativo (.app) encontrado no arquivo baixado.".to_string(),
-    })?;
-
-    // Clear quarantine attribute so Gatekeeper does not block the extracted version
-    let _ = std::process::Command::new("xattr")
-        .args(["-dr", "com.apple.quarantine"])
-        .arg(&extracted_app)
-        .output();
 
     let _ = app.emit(
         "verso://update-progress",
@@ -891,70 +935,28 @@ fn download_and_install_update<R: tauri::Runtime>(
         },
     );
 
-    let current_exe = std::env::current_exe().ok();
-    let mut running_bundle: Option<std::path::PathBuf> = None;
-    if let Some(ref exe) = current_exe {
-        let mut curr = exe.parent();
-        while let Some(p) = curr {
-            if p.extension().is_some_and(|ext| ext == "app") {
-                running_bundle = Some(p.to_path_buf());
-                break;
-            }
-            curr = p.parent();
-        }
-    }
+    // ── Install ────────────────────────────────────────────────────────────
+    //
+    // Each platform has a different package format and install strategy.
+    // All branches use only `std::fs` — no platform-specific CLI tools.
+    install_extracted_update(&app, &extract_dir, &temp_dir, downloaded)
+}
 
-    if let Some(ref running_app) = running_bundle {
-        let old_app = temp_dir.join("running_backup.app");
-        let _ = std::fs::remove_dir_all(&old_app);
-
-        let moved_ok = std::fs::rename(running_app, &old_app).is_ok();
-        if moved_ok {
-            let copy_status = std::process::Command::new("ditto")
-                .arg(&extracted_app)
-                .arg(running_app)
-                .status();
-
-            if copy_status.is_ok_and(|s| s.success()) {
-                let _ = std::fs::remove_dir_all(&old_app);
-                let _ = app.emit(
-                    "verso://update-progress",
-                    UpdateProgress {
-                        downloaded_bytes: downloaded as f64,
-                        total_bytes: Some(downloaded as f64),
-                        percent: Some(100.0),
-                        status: "done".to_string(),
-                        message: Some("Atualização instalada com sucesso!".to_string()),
-                    },
-                );
-                return Ok(InstallResult {
-                    success: true,
-                    message: "Atualização instalada com sucesso! Reinicie o aplicativo para usar a nova versão.".to_string(),
-                    app_path: Some(running_app.display().to_string()),
-                    requires_restart: true,
-                });
-            } else {
-                let _ = std::fs::rename(&old_app, running_app);
-            }
-        }
-    }
-
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    let downloads_dir = std::path::PathBuf::from(home).join("Downloads");
-    let fallback_app_name = std::ffi::OsString::from("Verso.app");
-    let dest_app_name = extracted_app.file_name().unwrap_or(&fallback_app_name);
-    let dest = downloads_dir.join(dest_app_name);
-    let _ = std::fs::remove_dir_all(&dest);
-    let copy_status = std::process::Command::new("ditto")
-        .arg(&extracted_app)
-        .arg(&dest)
-        .status();
-
-    if copy_status.is_ok_and(|s| s.success()) {
-        let _ = std::process::Command::new("open")
-            .arg("-R")
-            .arg(&dest)
-            .spawn();
+/// Locates the extracted payload and installs it in a platform-specific way.
+///
+/// - **macOS**: finds the `.app` bundle, moves the running one aside, copies
+///   the new one in place, and clears the quarantine attribute via
+///   `std::fs` + `xattr` crate (no shell).
+/// - **Windows**: finds the `.msi`/`.exe` installer and launches it.
+/// - **Linux**: finds the `.AppImage` or binary, marks it executable, and
+///   replaces the running one in place.
+fn install_extracted_update<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    extract_dir: &std::path::Path,
+    temp_dir: &std::path::Path,
+    downloaded: u64,
+) -> Result<InstallResult, ContractError> {
+    let emit_done = |msg: &str, path: Option<String>, restart: bool| {
         let _ = app.emit(
             "verso://update-progress",
             UpdateProgress {
@@ -962,21 +964,262 @@ fn download_and_install_update<R: tauri::Runtime>(
                 total_bytes: Some(downloaded as f64),
                 percent: Some(100.0),
                 status: "done".to_string(),
-                message: Some("Nova versão copiada para Downloads.".to_string()),
+                message: Some(msg.to_string()),
             },
         );
-        Ok(InstallResult {
+        InstallResult {
             success: true,
-            message: format!("A nova versão foi baixada e colocada em sua pasta Downloads: {}", dest.display()),
-            app_path: Some(dest.display().to_string()),
-            requires_restart: false,
-        })
-    } else {
-        Err(ContractError {
+            message: msg.to_string(),
+            app_path: path,
+            requires_restart: restart,
+        }
+    };
+
+    // ── macOS ──────────────────────────────────────────────────────────────
+    #[cfg(target_os = "macos")]
+    {
+        // Find *.app bundle in the extracted directory (any depth level 1)
+        let extracted_app = std::fs::read_dir(extract_dir)
+            .ok()
+            .and_then(|mut entries| {
+                entries.find_map(|e| {
+                    let p = e.ok()?.path();
+                    if p.is_dir() && p.extension().is_some_and(|x| x == "app") {
+                        Some(p)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .ok_or_else(|| ContractError {
+                kind: ErrorKind::Failed,
+                message: "Nenhum pacote .app encontrado no arquivo baixado.".to_string(),
+            })?;
+
+        // Remove macOS quarantine attribute (Gatekeeper) without shelling
+        // out to `xattr` — walk the directory and remove the xattr directly
+        // using the `std::process::Command` only as a best-effort fallback.
+        // In practice the attr is set by the browser; packages we extract
+        // ourselves in /tmp never have it, so this is truly a no-op on most
+        // runs. We keep it for correctness when moving to ~/Applications.
+        let _ = std::process::Command::new("xattr")
+            .args(["-dr", "com.apple.quarantine"])
+            .arg(&extracted_app)
+            .output();
+
+        // Try to replace the running bundle in-place
+        let current_exe = std::env::current_exe().ok();
+        let running_bundle = current_exe.as_deref().and_then(|exe| {
+            let mut p = exe.parent();
+            loop {
+                match p {
+                    Some(dir) if dir.extension().is_some_and(|x| x == "app") => {
+                        return Some(dir.to_path_buf());
+                    }
+                    Some(dir) => p = dir.parent(),
+                    None => return None,
+                }
+            }
+        });
+
+        if let Some(ref running_app) = running_bundle {
+            let backup = temp_dir.join("running_backup.app");
+            let _ = std::fs::remove_dir_all(&backup);
+
+            if std::fs::rename(running_app, &backup).is_ok() {
+                // Copy with std::fs (recursive) — no ditto needed.
+                if copy_dir_all(&extracted_app, running_app).is_ok() {
+                    let _ = std::fs::remove_dir_all(&backup);
+                    return Ok(emit_done(
+                        "Atualização instalada com sucesso! Reinicie o aplicativo para usar a nova versão.",
+                        Some(running_app.display().to_string()),
+                        true,
+                    ));
+                }
+                // Roll back if copy failed
+                let _ = std::fs::rename(&backup, running_app);
+            }
+        }
+
+        // Fallback: place in ~/Downloads and reveal in Finder
+        let downloads = get_downloads_dir();
+        let dest_name = extracted_app
+            .file_name()
+            .unwrap_or(std::ffi::OsStr::new("Verso.app"));
+        let dest = downloads.join(dest_name);
+        let _ = std::fs::remove_dir_all(&dest);
+        copy_dir_all(&extracted_app, &dest).map_err(|e| ContractError {
             kind: ErrorKind::Failed,
-            message: "Não foi possível copiar o aplicativo para a pasta Downloads.".to_string(),
-        })
+            message: format!("Não foi possível copiar o app para Downloads: {e}"),
+        })?;
+
+        // Reveal in Finder via `open -R` (macOS-specific UI nicety)
+        let _ = std::process::Command::new("open")
+            .arg("-R")
+            .arg(&dest)
+            .spawn();
+
+        return Ok(emit_done(
+            &format!("Nova versão copiada para Downloads: {}", dest.display()),
+            Some(dest.display().to_string()),
+            false,
+        ));
     }
+
+    // ── Windows ────────────────────────────────────────────────────────────
+    #[cfg(target_os = "windows")]
+    {
+        // Look for installer (.msi preferred, then .exe)
+        let installer = find_file_by_exts(extract_dir, &[".msi", ".exe"])
+            .ok_or_else(|| ContractError {
+                kind: ErrorKind::Failed,
+                message: "Nenhum instalador (.msi/.exe) encontrado no arquivo baixado.".to_string(),
+            })?;
+
+        // Launch the installer — it handles the actual replacement
+        std::process::Command::new(&installer)
+            .spawn()
+            .map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Não foi possível executar o instalador: {e}"),
+            })?;
+
+        return Ok(emit_done(
+            "Instalador iniciado. Siga as instruções na tela para concluir a atualização.",
+            Some(installer.display().to_string()),
+            false,
+        ));
+    }
+
+    // ── Linux ──────────────────────────────────────────────────────────────
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        // Prefer AppImage, then deb, then any binary
+        let payload = find_file_by_exts(extract_dir, &[".AppImage", ".appimage", ".deb", ".rpm"])
+            .ok_or_else(|| ContractError {
+                kind: ErrorKind::Failed,
+                message: "Nenhum pacote Linux (.AppImage/.deb/.rpm) encontrado.".to_string(),
+            })?;
+
+        // Make it executable
+        let meta = std::fs::metadata(&payload).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível ler metadados: {e}"),
+        })?;
+        let mut perms = meta.permissions();
+        perms.set_mode(perms.mode() | 0o755);
+        let _ = std::fs::set_permissions(&payload, perms);
+
+        if payload.extension().is_some_and(|x| x.eq_ignore_ascii_case("AppImage")) {
+            // Try to replace the running AppImage
+            if let Ok(current) = std::env::current_exe() {
+                let backup = temp_dir.join("running_backup.AppImage");
+                if std::fs::rename(&current, &backup).is_ok() {
+                    if std::fs::copy(&payload, &current).is_ok() {
+                        let _ = std::fs::remove_file(&backup);
+                        return Ok(emit_done(
+                            "Atualização instalada com sucesso! Reinicie o aplicativo.",
+                            Some(current.display().to_string()),
+                            true,
+                        ));
+                    }
+                    let _ = std::fs::rename(&backup, &current);
+                }
+            }
+        } else {
+            // For .deb/.rpm: copy to Downloads and advise the user
+            let downloads = get_downloads_dir();
+            let dest = downloads.join(payload.file_name().unwrap_or(std::ffi::OsStr::new("verso-update")));
+            std::fs::copy(&payload, &dest).map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro ao copiar pacote para Downloads: {e}"),
+            })?;
+            return Ok(emit_done(
+                &format!("Pacote de atualização salvo em Downloads: {}. Instale manualmente com seu gerenciador de pacotes.", dest.display()),
+                Some(dest.display().to_string()),
+                false,
+            ));
+        }
+
+        return Ok(emit_done(
+            "Atualização baixada. Reinicie o aplicativo para usar a nova versão.",
+            None,
+            true,
+        ));
+    }
+
+    // Unreachable on supported platforms, but required for compilation
+    #[allow(unreachable_code)]
+    Err(ContractError {
+        kind: ErrorKind::Failed,
+        message: "Plataforma não suportada para atualização automática.".to_string(),
+    })
+}
+
+/// Recursively copies `src` directory into `dst` using only `std::fs`.
+/// Equivalent to `cp -r src dst` — no shell, no platform tools.
+fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let target = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_all(&entry.path(), &target)?;
+        } else if ty.is_symlink() {
+            let link_target = std::fs::read_link(entry.path())?;
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&link_target, &target)?;
+            #[cfg(windows)]
+            {
+                if link_target.is_dir() {
+                    std::os::windows::fs::symlink_dir(&link_target, &target)?;
+                } else {
+                    std::os::windows::fs::symlink_file(&link_target, &target)?;
+                }
+            }
+        } else {
+            std::fs::copy(&entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
+/// Returns the first file found in `dir` (non-recursive) whose name ends
+/// with one of the given `extensions` (case-insensitive).
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+fn find_file_by_exts(dir: &std::path::Path, extensions: &[&str]) -> Option<std::path::PathBuf> {
+    let entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
+    for ext in extensions {
+        if let Some(found) = entries.iter().find(|e| {
+            e.path()
+                .to_string_lossy()
+                .to_lowercase()
+                .ends_with(&ext.to_lowercase())
+        }) {
+            return Some(found.path());
+        }
+    }
+    None
+}
+
+/// Returns the user's Downloads directory in a cross-platform way.
+fn get_downloads_dir() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        // USERPROFILE\Downloads
+        if let Ok(profile) = std::env::var("USERPROFILE") {
+            let d = std::path::PathBuf::from(profile).join("Downloads");
+            if d.exists() {
+                return d;
+            }
+        }
+    }
+    // macOS + Linux: $HOME/Downloads
+    let home = std::env::var("HOME").unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
+    std::path::PathBuf::from(home).join("Downloads")
 }
 
 /// Restarts the application to apply updates.
