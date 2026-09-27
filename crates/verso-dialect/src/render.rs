@@ -69,32 +69,34 @@ pub fn to_html(source: &str) -> String {
     // anchor or the span, and only their ends close it.
     let mut wiki: Vec<bool> = Vec::new();
     // Setext headings (e.g. `Title\n---`) are not ATX headings in Verso's dialect.
-    // They are rendered as a paragraph followed by a thematic break (`<hr />`).
-    let mut setext: Vec<bool> = Vec::new();
+    // When underlined with dashes, they are rendered as a paragraph followed by a thematic break (`<hr />`).
+    let mut setext: Vec<Option<bool>> = Vec::new();
     let rendered = events.into_iter().flat_map(|(event, range)| {
         context.enter(&event);
         match event {
             Event::Start(Tag::MetadataBlock(_)) | Event::End(TagEnd::MetadataBlock(_)) => vec![],
             _ if context.metadata() => vec![],
             Event::Start(Tag::Heading { .. }) => {
-                let is_atx = source
-                    .get(range)
-                    .is_some_and(|s| s.trim_start().starts_with('#'));
+                let text = source.get(range);
+                let is_atx = text.is_some_and(|s| s.trim_start().starts_with('#'));
                 if is_atx {
-                    setext.push(false);
+                    setext.push(None);
                     vec![event]
                 } else {
-                    setext.push(true);
+                    let is_dash_rule = text.is_some_and(|s| {
+                        s.lines()
+                            .last()
+                            .is_some_and(|l| l.trim_start().starts_with('-'))
+                    });
+                    setext.push(Some(is_dash_rule));
                     vec![Event::Start(Tag::Paragraph)]
                 }
             }
-            Event::End(TagEnd::Heading(_)) => {
-                if setext.pop().unwrap_or(false) {
-                    vec![Event::End(TagEnd::Paragraph), Event::Rule]
-                } else {
-                    vec![event]
-                }
-            }
+            Event::End(TagEnd::Heading(_)) => match setext.pop().flatten() {
+                Some(true) => vec![Event::End(TagEnd::Paragraph), Event::Rule],
+                Some(false) => vec![Event::End(TagEnd::Paragraph)],
+                None => vec![event],
+            },
             Event::Start(Tag::Link {
                 link_type: LinkType::WikiLink { .. },
                 dest_url,

@@ -328,7 +328,9 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   border-left: 1.5px solid color-mix(in oklch, var(--ink) 22%, transparent);
 }
 .preview li::marker { color: var(--brass); }
+.preview li.task-item,
 .preview li:has(> input[type="checkbox"]),
+.preview li:has(> p > input[type="checkbox"]),
 .preview li:has(> .list-fold-btn + input[type="checkbox"]),
 .preview li:has(> .preview-line-num + input[type="checkbox"]),
 .preview li:has(> input[data-task-line]) {
@@ -336,13 +338,19 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   list-style-type: none !important;
   margin-left: 0;
 }
+.preview li.task-item::marker,
 .preview li:has(> input[type="checkbox"])::marker,
+.preview li:has(> p > input[type="checkbox"])::marker,
 .preview li:has(> .list-fold-btn + input[type="checkbox"])::marker,
 .preview li:has(> .preview-line-num + input[type="checkbox"])::marker,
 .preview li:has(> input[data-task-line])::marker {
   content: none !important;
+  display: none !important;
 }
+.preview ul.contains-task-list,
+.preview ul:has(> li.task-item),
 .preview ul:has(> li > input[type="checkbox"]),
+.preview ul:has(> li > p > input[type="checkbox"]),
 .preview ul:has(> li > input[data-task-line]) {
   list-style: none;
   padding-left: 0.35em;
