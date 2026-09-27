@@ -1,0 +1,9 @@
+# verso-app manages the desktop shell, self-update and OS integration.
+# It only touches temporary files for update downloads and the application bundle itself,
+# never a file of the open folder (ADR 0026, rule 5). Clippy does not merge this
+# file with the workspace one, so test allowances are repeated.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+disallowed-methods = []

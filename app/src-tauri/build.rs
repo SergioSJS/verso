@@ -58,6 +58,9 @@ fn main() {
         "uninstall_cli",
         "mcp_status",
         "mcp_add_claude",
+        "check_for_updates",
+        "download_and_install_update",
+        "restart_app",
     ]);
     commit();
     if let Err(e) = tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest)) {

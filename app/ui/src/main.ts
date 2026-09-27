@@ -15,18 +15,64 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { EditorView, basicSetup } from "codemirror";
-import { Annotation, Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
-import { keymap, type KeyBinding } from "@codemirror/view";
-import { indentWithTab, isolateHistory } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
+import { EditorView } from "codemirror";
+import { Annotation, Compartment, EditorState, Prec, Transaction, type Extension } from "@codemirror/state";
+import { keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, type KeyBinding } from "@codemirror/view";
+import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory } from "@codemirror/commands";
+import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
-import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
+import { LanguageDescription, bracketMatching, defaultHighlightStyle, foldAll, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting, unfoldAll } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
+import {
+  highlightSelectionMatches,
+  search,
+  searchKeymap,
+  openSearchPanel,
+  closeSearchPanel,
+  getSearchQuery,
+  setSearchQuery,
+  SearchQuery,
+  searchPanelOpen,
+} from "@codemirror/search";
+import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import { lintKeymap } from "@codemirror/lint";
 import katex from "katex";
-import { startCompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type NoteText, type PropertyValue, type TextFile, type Written } from "./bindings";
+import { CustomSearchPanel, ReadingSearch, searchStrings } from "./searchPanel";
+
+const baseEditorExtensions: Extension = [
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentUnit.of("\t"),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  search({
+    top: true,
+    createPanel: (view) => new CustomSearchPanel(view, searchStrings()),
+  }),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+    ...lintKeymap,
+  ]),
+];
+import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { icon } from "./icons";
 import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
@@ -35,11 +81,13 @@ import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
 import { stringsFor } from "./bases/strings";
 import { DailyCalendar } from "./bases/daily";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
+import { listKeymap } from "./listKeymap";
 import { PdfView } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
 import { ask } from "./dialog";
 import { allowRemoteContent, cleanHtmlText, setHtml } from "./sanitize";
+import { DEMO_VAULT_FILES } from "./demoVault";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -55,12 +103,16 @@ type Strings = Record<
   | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
   | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
-  | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions"
-  | "replaceTitle" | "find" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
+  | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions" | "propertiesTitle"
+  | "replaceTitle" | "find" | "findInNote" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
   | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
   | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
+  | "headingFont" | "headingFontDesc" | "bodyFont" | "bodyFontDesc" | "headingColor" | "headingColorDesc"
+  | "fontSerif" | "fontSans" | "fontEditorial" | "fontMono" | "fontSystem"
+  | "colorDefault" | "colorBrass" | "colorSeal" | "colorMoss" | "colorSlate" | "colorRoyal" | "colorAmethyst"
   | "table" | "formatTable" | "slashHint" | "copiedFiles" | "newWebPage" | "webUrl" | "openPage" | "callout" | "codeBlock" | "today" | "now" | "divider" | "embedNote" | "image" | "webNoteCreated" | "headingN"
-  | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage"
+  | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage" | "spreadSingle" | "spreadOdd" | "spreadEven" | "spreadToggle" | "lineNumbers" | "lineNumbersDesc"
+  | "lineNumbersEdit" | "lineNumbersEditDesc" | "lineNumbersSource" | "lineNumbersSourceDesc" | "lineNumbersPreview" | "lineNumbersPreviewDesc" | "foldAllHeadings" | "unfoldAllHeadings"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "htmlPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
@@ -74,7 +126,9 @@ type Strings = Record<
   | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
-  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc",
+  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
+  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported"
+  | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -143,12 +197,13 @@ const pt: Strings = {
   colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
   duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copied: "Caminho copiado.",
   moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
-  addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link",
+  addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link", propertiesTitle: "Propriedades",
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} nota${n === 1 ? "" : "s"} muda${n === 1 ? "" : "m"}. Confira e aplique.`,
   graphNodes: (n, m) => `${n} nota${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} de ${n}`,
-  pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.",
+  pdfPage: "Página", pdfOf: "de", zoomIn: "Aproximar", zoomOut: "Afastar", fitWidth: "Ajustar à largura", pdfSearch: "Buscar no PDF", pdfNoHits: "Nada encontrado", fitPage: "Página inteira", copyPageLink: "Copiar link desta página", quoteSelection: "Citar seleção nas anotações", selectFirst: "Selecione um trecho do PDF primeiro.", pdfNotes: "Anotações", quoted: "Trecho citado nas anotações.", pageLinkCopied: "Link da página copiado.", spreadSingle: "Página única", spreadOdd: "Duas páginas (com capa)", spreadEven: "Duas páginas (sem capa)", spreadToggle: "Modo de exibição de páginas", lineNumbers: "Números de linha", lineNumbersDesc: "Exibe a contagem de linhas na margem do editor.",
+  lineNumbersEdit: "Números de linha (Modo Editar)", lineNumbersEditDesc: "Exibe a numeração de linhas no editor visual (Live Preview).", lineNumbersSource: "Números de linha (Modo Fonte)", lineNumbersSourceDesc: "Exibe a numeração de linhas no editor de código-fonte Markdown puro.", lineNumbersPreview: "Números de linha (Modo Leitura)", lineNumbersPreviewDesc: "Exibe a numeração de linhas nos blocos do modo de leitura.", foldAllHeadings: "Contrair todas as seções", unfoldAllHeadings: "Expandir todas as seções",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
@@ -161,9 +216,14 @@ const pt: Strings = {
   themeDesc: "Claro, escuro ou como o sistema.", hueDesc: "A família de cores do papel e dos destaques.", fontSizeDesc: "Tamanho base da interface e das notas.", attachmentsDesc: "Subpasta, ao lado da nota, onde imagens coladas são salvas.", dailyDesc: "Onde a nota de hoje é criada.", templatesDesc: "Qualquer nota nessa pasta é um template.", autosaveDesc: "Segundos depois de parar de digitar.",
   graphWhole: "Grafo do cofre", graphFilter: "Filtrar: nome ou tag:x", graphOrphans: "Mostrar notas sem links", graphDepth: "Profundidade", graphRepel: "Repulsão", graphDistance: "Distância", graphSize: "Tamanho", graphColors: "Cor por pasta", graphAllTags: "Todas as tags", graphHint: "Clique ou Enter abre · duplo clique ou ⇧Enter centra · as setas percorrem as notas · arraste move · roda amplia", graphLabels: "Nomes",
   ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções",
-  replaceTitle: "Localizar e substituir no cofre", find: "Localizar", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
+  replaceTitle: "Localizar e substituir no cofre", find: "Localizar", findInNote: "Localizar na nota", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
   hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
+  headingFont: "Fonte dos títulos", headingFontDesc: "Família tipográfica aplicada aos títulos e cabeçalhos.",
+  bodyFont: "Fonte do texto", bodyFontDesc: "Família tipográfica aplicada ao texto das notas e interface.",
+  headingColor: "Cor de destaque dos títulos", headingColorDesc: "Tonalidade aplicada aos títulos e cabeçalhos.",
+  fontSerif: "Serifada clássica (Fraunces)", fontSans: "Sem serifa moderna (Instrument Sans)", fontEditorial: "Editorial literária (Literata)", fontMono: "Monoespaçada (Código)", fontSystem: "Sistema padrão",
+  colorBrass: "Âmbar / Brass (Acolhedor)", colorDefault: "Tinta natural (Neutro)", colorSeal: "Rubi / Selo (Vibrante)", colorMoss: "Esmeralda / Musgo (Natural)", colorSlate: "Ardósia / Índigo (Frio)", colorRoyal: "Safira Real (Azul)", colorAmethyst: "Ametista Real (Roxo)",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
@@ -176,6 +236,8 @@ const pt: Strings = {
   mcpAddAsk: "Isto entra no arquivo de configuração do Claude Desktop; uma cópia do arquivo como está fica ao lado dele:\n\n{entry}\n\nDepois, reinicie o Claude Desktop.", mcpAddYes: "Adicionar", mcpAdded: "Adicionado. Reinicie o Claude Desktop.", mcpBackup: "Cópia do anterior: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
+  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!",
+  checkUpdates: "Verificar atualizações automaticamente", checkUpdatesDesc: "Verifica e avisa ao abrir o aplicativo quando uma nova versão do Verso estiver disponível.", checkNow: "Verificar atualizações", checkingUpdates: "Verificando atualizações…", updateUpToDate: "Você está usando a versão mais recente.", updateAvailable: "Nova versão disponível", downloadAndUpdate: "Baixar e atualizar", downloadingUpdate: "Baixando atualização…", updateReady: "Atualização pronta!", restartNow: "Reiniciar agora", viewReleaseNotes: "Ver notas da versão", hideReleaseNotes: "Ocultar notas da versão", updateBannerTitle: "Nova versão disponível", seeInSettings: "Ver nos Ajustes", updateFailed: "Não foi possível verificar atualizações.",
 };
 
 const en: Strings = {
@@ -221,12 +283,13 @@ const en: Strings = {
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
   duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copied: "Path copied.",
   moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
-  addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions",
+  addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions", propertiesTitle: "Properties",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
   graphNodes: (n, m) => `${n} note${n === 1 ? "" : "s"} · ${m} link${m === 1 ? "" : "s"}`,
   pdfHits: (n, current) => `${current} of ${n}`,
-  pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.",
+  pdfPage: "Page", pdfOf: "of", zoomIn: "Zoom in", zoomOut: "Zoom out", fitWidth: "Fit width", pdfSearch: "Search the PDF", pdfNoHits: "Nothing found", fitPage: "Whole page", copyPageLink: "Copy a link to this page", quoteSelection: "Quote the selection in the notes", selectFirst: "Select a passage of the PDF first.", pdfNotes: "Notes", quoted: "Passage quoted in the notes.", pageLinkCopied: "Page link copied.", spreadSingle: "Single page", spreadOdd: "Two pages (with cover)", spreadEven: "Two pages (without cover)", spreadToggle: "Page display mode", lineNumbers: "Line numbers", lineNumbersDesc: "Show line numbers in the editor margin.",
+  lineNumbersEdit: "Line numbers (Edit mode)", lineNumbersEditDesc: "Show line numbers in the visual editor (Live Preview).", lineNumbersSource: "Line numbers (Source mode)", lineNumbersSourceDesc: "Show line numbers in the plain Markdown source code editor.", lineNumbersPreview: "Line numbers (Reading mode)", lineNumbersPreviewDesc: "Show line numbers on blocks in reading view.", foldAllHeadings: "Collapse all sections", unfoldAllHeadings: "Expand all sections",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
@@ -239,9 +302,14 @@ const en: Strings = {
   themeDesc: "Light, dark, or as the system.", hueDesc: "The color family of the paper and the accents.", fontSizeDesc: "Base size of the interface and the notes.", attachmentsDesc: "Subfolder beside the note where pasted images go.", dailyDesc: "Where today's note is created.", templatesDesc: "Any note in that folder is a template.", autosaveDesc: "Seconds after typing stops.",
   graphWhole: "Vault graph", graphFilter: "Filter: name or tag:x", graphOrphans: "Show notes without links", graphDepth: "Depth", graphRepel: "Repulsion", graphDistance: "Distance", graphSize: "Size", graphColors: "Color by folder", graphAllTags: "All tags", graphHint: "Click or Enter opens · double-click or ⇧Enter centers · the arrows walk the notes · drag moves · wheel zooms", graphLabels: "Names",
   ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options",
-  replaceTitle: "Find and replace in the vault", find: "Find", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
+  replaceTitle: "Find and replace in the vault", find: "Find", findInNote: "Find in note", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
   hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
+  headingFont: "Heading font", headingFontDesc: "Typeface applied to headings and titles.",
+  bodyFont: "Body font", bodyFontDesc: "Typeface applied to note body and interface text.",
+  headingColor: "Heading accent color", headingColorDesc: "Color tone applied to headings and sections.",
+  fontSerif: "Classic Serif (Fraunces)", fontSans: "Modern Sans (Instrument Sans)", fontEditorial: "Literary Serif (Literata)", fontMono: "Monospace (Code)", fontSystem: "System Default",
+  colorBrass: "Warm Brass (Amber)", colorDefault: "Natural Ink (Neutral)", colorSeal: "Ruby Seal (Vibrant)", colorMoss: "Emerald Moss (Natural)", colorSlate: "Slate Indigo (Cool)", colorRoyal: "Royal Sapphire (Blue)", colorAmethyst: "Royal Amethyst (Purple)",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
@@ -254,6 +322,8 @@ const en: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
+  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!",
+  checkUpdates: "Check for updates automatically", checkUpdatesDesc: "Check and notify on startup when a new version of Verso is available.", checkNow: "Check for updates", checkingUpdates: "Checking for updates…", updateUpToDate: "You are running the latest version.", updateAvailable: "New version available", downloadAndUpdate: "Download and update", downloadingUpdate: "Downloading update…", updateReady: "Update ready!", restartNow: "Restart now", viewReleaseNotes: "View release notes", hideReleaseNotes: "Hide release notes", updateBannerTitle: "New version available", seeInSettings: "View in Settings", updateFailed: "Could not check for updates.",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -388,13 +458,65 @@ const ui = {
 };
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
-type Settings = { lang: "auto" | "pt-BR" | "en"; theme: "auto" | "light" | "dark"; palette: Hue; fontSize: number; attachments: string; autosave: number; daily: string; templates: string; spellcheck: boolean; defaultMode: "preview" | "live"; measure: "normal" | "wide"; linkFormat: "shortest" | "relative" | "root"; remoteContent: boolean; hotkeys: Record<string, string> };
-const DEFAULTS: Settings = { lang: "auto", theme: "auto", palette: "paper", fontSize: 15, attachments: "assets", autosave: 1.5, daily: t.dailyName, templates: t.templatesName, spellcheck: true, defaultMode: "preview", measure: "normal", linkFormat: "shortest", remoteContent: true, hotkeys: {} };
+type Settings = {
+  lang: "auto" | "pt-BR" | "en";
+  theme: "auto" | "light" | "dark";
+  palette: Hue;
+  fontSize: number;
+  attachments: string;
+  autosave: number;
+  daily: string;
+  templates: string;
+  spellcheck: boolean;
+  checkUpdates: boolean;
+  lineNumbers?: boolean;
+  lineNumbersEdit: boolean;
+  lineNumbersSource: boolean;
+  lineNumbersPreview: boolean;
+  defaultMode: "preview" | "live";
+  measure: "normal" | "wide";
+  linkFormat: "shortest" | "relative" | "root";
+  remoteContent: boolean;
+  headingFont?: "serif" | "sans" | "editorial" | "mono" | "system";
+  bodyFont?: "sans" | "serif" | "mono" | "system";
+  headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
+  hotkeys: Record<string, string>;
+};
+const DEFAULTS: Settings = {
+  lang: "auto",
+  theme: "auto",
+  palette: "paper",
+  fontSize: 15,
+  attachments: "assets",
+  autosave: 1.5,
+  daily: t.dailyName,
+  templates: t.templatesName,
+  spellcheck: true,
+  checkUpdates: true,
+  lineNumbersEdit: false,
+  lineNumbersSource: true,
+  lineNumbersPreview: false,
+  defaultMode: "preview",
+  measure: "normal",
+  linkFormat: "shortest",
+  remoteContent: true,
+  headingFont: "serif",
+  bodyFont: "sans",
+  headingColor: "brass",
+  hotkeys: {},
+};
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
   try {
     const raw = localStorage.getItem("verso.settings");
-    if (raw) settings = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Settings>;
+      if (parsed.lineNumbers !== undefined) {
+        if (parsed.lineNumbersEdit === undefined) parsed.lineNumbersEdit = parsed.lineNumbers;
+        if (parsed.lineNumbersSource === undefined) parsed.lineNumbersSource = parsed.lineNumbers;
+      }
+      settings = { ...DEFAULTS, ...parsed };
+    }
   } catch {
     settings = { ...DEFAULTS };
   }
@@ -408,12 +530,42 @@ function saveSettings(): void {
   }
   applySettings();
 }
+let updateLeavesLineNumbers: (() => void) | null = null;
 function applySettings(): void {
   document.documentElement.dataset["theme"] = settings.theme;
   document.documentElement.dataset["palette"] = settings.palette;
   document.documentElement.dataset["measure"] = settings.measure;
   document.documentElement.style.fontSize = `${settings.fontSize}px`;
+  document.documentElement.classList.toggle("show-line-numbers-edit", Boolean(settings.lineNumbersEdit));
+  document.documentElement.classList.toggle("show-line-numbers-source", Boolean(settings.lineNumbersSource));
+  document.documentElement.classList.toggle("show-line-numbers-preview", Boolean(settings.lineNumbersPreview));
+  const headingFonts: Record<string, string> = {
+    serif: '"Fraunces", "Iowan Old Style", Georgia, serif',
+    sans: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    editorial: '"Literata", "Charter", Georgia, serif',
+    mono: 'ui-monospace, "SF Mono", Menlo, monospace',
+    system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  };
+  const bodyFonts: Record<string, string> = {
+    sans: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    serif: '"Literata", "Charter", Georgia, serif',
+    mono: 'ui-monospace, "SF Mono", Menlo, monospace',
+    system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  };
+  const headingColors: Record<string, string> = {
+    brass: "var(--brass-ink)",
+    default: "var(--ink)",
+    seal: "var(--seal)",
+    moss: "light-dark(oklch(45% 0.12 145), oklch(75% 0.11 145))",
+    slate: "light-dark(oklch(45% 0.05 240), oklch(75% 0.05 240))",
+    royal: "light-dark(oklch(46% 0.14 260), oklch(75% 0.13 260))",
+    amethyst: "light-dark(oklch(48% 0.15 310), oklch(76% 0.13 310))",
+  };
+  document.documentElement.style.setProperty("--heading-font", headingFonts[settings.headingFont ?? "serif"] || headingFonts.serif!);
+  document.documentElement.style.setProperty("--ui", bodyFonts[settings.bodyFont ?? "sans"] || bodyFonts.sans!);
+  document.documentElement.style.setProperty("--heading-color", headingColors[settings.headingColor ?? "brass"] || headingColors.brass!);
   allowRemoteContent(settings.remoteContent);
+  updateLeavesLineNumbers?.();
 }
 loadSettings();
 const LAST_FOLDER = "verso.lastFolder";
@@ -717,7 +869,9 @@ const ghost = h("div", "drag-ghost");
 ghost.hidden = true;
 document.body.append(ghost);
 function clearDropHints(): void {
-  for (const e of document.querySelectorAll(".drop-hint, .drop")) e.classList.remove("drop-hint", "drop", "left", "right", "top", "bottom", "center");
+  for (const e of document.querySelectorAll(".drop-hint, .drop")) {
+    e.classList.remove("drop-hint", "drop", "left", "right", "top", "bottom", "center", "drop-left", "drop-right", "drop-top", "drop-bottom", "drop-center");
+  }
 }
 function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
   handle.addEventListener("pointerdown", (down) => {
@@ -760,7 +914,11 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
   ghost.hidden = true;
   const at = document.elementFromPoint(x, y) as HTMLElement | null;
   ghost.hidden = false;
-  if (!at) return null;
+  if (!at) {
+    const panes = layout().panes();
+    if (panes.length > 0) return { body: panes[panes.length - 1]!.body };
+    return null;
+  }
   if (drag?.kind === "tab") {
     const tabs = at.closest<HTMLElement>(".tabs");
     if (tabs) return { tabs };
@@ -769,6 +927,21 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     const spaceTab = at.closest<HTMLElement>(".space-tab");
     const space = spaceTab ? spaces.find((s) => s.tab === spaceTab) : undefined;
     if (spaceTab && space) return { space, el: spaceTab };
+    const panes = layout().panes();
+    let closestPane: Pane | null = null;
+    let closestDist = Infinity;
+    for (const p of panes) {
+      const pr = p.el.getBoundingClientRect();
+      const dx = Math.max(pr.left - x, 0, x - pr.right);
+      const dy = Math.max(pr.top - y, 0, y - pr.bottom);
+      const dist = Math.hypot(dx, dy);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestPane = p;
+      }
+    }
+    if (closestPane) return { body: closestPane.body };
+    if (panes.length > 0) return { body: panes[panes.length - 1]!.body };
     return null;
   }
   if (drag?.kind === "file") {
@@ -783,6 +956,12 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     }
     const body = at.closest<HTMLElement>(".pane-body") ?? at.closest<HTMLElement>(".pane")?.querySelector<HTMLElement>(".pane-body") ?? null;
     if (body) return { body };
+    for (const p of layout().panes()) {
+      const pr = p.el.getBoundingClientRect();
+      if (x >= pr.left - 12 && x <= pr.right + 12 && y >= pr.top - 8 && y <= pr.bottom + 8) {
+        return { body: p.body };
+      }
+    }
     const tabs = at.closest<HTMLElement>(".tabs");
     if (tabs) return { tabs };
   }
@@ -790,17 +969,25 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
 }
 function zoneOf(body: HTMLElement, x: number, y: number): "left" | "right" | "top" | "bottom" | "center" {
   const r = body.getBoundingClientRect();
-  const fx = (x - r.left) / r.width;
-  const fy = (y - r.top) / r.height;
-  if (fx < 0.22) return "left";
-  if (fx > 0.78) return "right";
-  if (fy < 0.22) return "top";
-  if (fy > 0.78) return "bottom";
-  return "center";
+  const fx = Math.max(0, Math.min(1, (x - r.left) / r.width));
+  const fy = Math.max(0, Math.min(1, (y - r.top) / r.height));
+  if (fx >= 0.35 && fx <= 0.65 && fy >= 0.35 && fy <= 0.65) return "center";
+  const dLeft = fx;
+  const dRight = 1 - fx;
+  const dTop = fy;
+  const dBottom = 1 - fy;
+  const min = Math.min(dLeft, dRight, dTop, dBottom);
+  if (min === dLeft) return "left";
+  if (min === dRight) return "right";
+  if (min === dTop) return "top";
+  return "bottom";
 }
 function hint(target: DropTarget, x: number, y: number): void {
   if ("tabs" in target) target.tabs.classList.add("drop");
-  else if ("body" in target) target.body.classList.add("drop-hint", zoneOf(target.body, x, y));
+  else if ("body" in target) {
+    const zone = zoneOf(target.body, x, y);
+    target.body.classList.add("drop-hint", zone, "drop-" + zone);
+  }
   else if ("insert" in target) target.insert.el.classList.add("drop");
   else target.el.classList.add("drop");
 }
@@ -1192,17 +1379,17 @@ class NoteLeaf extends Leaf {
   readonly modes = h("div", "modes");
   readonly modeButtons: Record<Mode, HTMLButtonElement>;
   readonly title = h("h1", "note-title");
-  readonly dirtyMark = h("span", "dirty", "•");
+  readonly dirtyMark = h("span", "dirty-mark", "•");
   readonly saveButton = h("button", "save", t.save);
   readonly flags = h("p", "flags");
   readonly props = new PropertiesView({
-    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed, open: t.openPage },
+    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed, open: t.openPage, propertiesTitle: t.propertiesTitle },
     // One property changed in the panel: the frontmatter lines of that
     // key change in the editor's document, nothing else; the save follows
     // as after any keystroke.
     doc: () => this.editor.state.doc.toString(),
     apply: (change) => {
-      this.editor.dispatch({ changes: change });
+      this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("input") });
       if (this.mode === "preview") void this.save();
     },
     // The key moved in the text since the panel was drawn: the save that
@@ -1246,8 +1433,19 @@ class NoteLeaf extends Leaf {
   backlinksData: { from: string; line: number }[] = [];
   linksData: { target: string; resolved: string | null }[] = [];
   readonly liveCompartment = new Compartment();
+  readonly lineNumbersCompartment = new Compartment();
   readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty, label: t.slash.insert });
   readonly live: ReturnType<typeof livePreview>;
+  shouldShowLineNumbers(): boolean {
+    if (this.mode === "live") return Boolean(settings.lineNumbersEdit);
+    if (this.mode === "source") return Boolean(settings.lineNumbersSource);
+    return false;
+  }
+  applyLineNumbers(): void {
+    this.editor.dispatch({
+      effects: this.lineNumbersCompartment.reconfigure(this.shouldShowLineNumbers() ? lineNumbers() : []),
+    });
+  }
   note: NoteText | null = null;
   /** The text the reading view was drawn from: a task's line is checked against it. */
   private shownText = "";
@@ -1255,7 +1453,7 @@ class NoteLeaf extends Leaf {
    *  to be drawn: the view (and every PDF in it) is built again only when
    *  its HTML changed, and only once it is seen. */
   private drawn = "";
-  private previewStale = false;
+  previewStale = false;
   mode: Mode = settings.defaultMode;
   revision = "";
   /** Deleted or moved outside the app (`markGone`), until the note is
@@ -1277,6 +1475,7 @@ class NoteLeaf extends Leaf {
   /** PDF readers and bases embedded in the preview, closed when it is
    *  redrawn. */
   embeds: (PdfView | BaseView)[] = [];
+  readonly readingSearch: ReadingSearch;
 
   constructor(pane: Pane) {
     super(pane);
@@ -1301,6 +1500,7 @@ class NoteLeaf extends Leaf {
     this.buildToolbar();
     const sheet = this.sheet;
     sheet.append(titleRow, this.flags, this.props.el, this.conflict.el, this.preview, this.editorHost);
+    this.readingSearch = new ReadingSearch(this.sheet, this.preview, searchStrings());
     this.buildWebBar();
     this.webBar.hidden = true;
     this.webHost.hidden = true;
@@ -1352,6 +1552,12 @@ class NoteLeaf extends Leaf {
     // Enter on a link the core writes without an address (keyLinks)
     // clicks it, as Enter on a link does.
     this.preview.addEventListener("keydown", (ev) => {
+      if (comboOf(ev) === "Mod-f") {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.openReadingSearch();
+        return;
+      }
       if (ev.key !== "Enter" || ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
       const a = (ev.target as HTMLElement).closest<HTMLElement>("[role=link]");
       if (!a || !this.preview.contains(a)) return;
@@ -1397,7 +1603,8 @@ class NoteLeaf extends Leaf {
     return EditorState.create({
       doc,
       extensions: [
-        basicSetup,
+        baseEditorExtensions,
+        this.lineNumbersCompartment.of(this.shouldShowLineNumbers() ? lineNumbers() : []),
         md.language.data.of({ autocomplete: completeWikilinks }),
         md,
         syntaxHighlighting(classHighlighter),
@@ -1408,7 +1615,8 @@ class NoteLeaf extends Leaf {
         EditorView.contentAttributes.of(() => ({ "aria-label": name(this.path) })),
         slashKeymap(this.slash),
         tableKeymap,
-        keymap.of([indentWithTab]),
+        listKeymap,
+        keymap.of([...markdownKeymap, indentWithTab]),
         EditorView.lineWrapping,
         this.liveCompartment.of(this.mode === "live" ? this.live : []),
         this.readOnly ? readOnlyText : [],
@@ -1458,6 +1666,8 @@ class NoteLeaf extends Leaf {
     v.dispatch({
       changes: { from, to, insert: `${before}${selected}${after}` },
       selection: selected ? { anchor: from + before.length, head: to + before.length } : { anchor: from + before.length },
+      annotations: Transaction.userEvent.of("input"),
+      scrollIntoView: true,
     });
     v.focus();
   }
@@ -1472,7 +1682,11 @@ class NoteLeaf extends Leaf {
       const p = typeof prefix === "string" ? prefix : prefix(i + 1);
       changes.push(line.text.startsWith(p) ? { from: line.from, to: line.from + p.length, insert: "" } : { from: line.from, insert: p });
     }
-    v.dispatch({ changes });
+    v.dispatch({
+      changes,
+      annotations: Transaction.userEvent.of("input"),
+      scrollIntoView: true,
+    });
     v.focus();
   }
   private cycleHeading(): void {
@@ -1482,7 +1696,11 @@ class NoteLeaf extends Leaf {
     const level = m ? m[1]!.length : 0;
     const next = level >= 3 ? 0 : level + 1;
     const stripped = line.text.replace(/^#{1,6}\s/, "");
-    v.dispatch({ changes: { from: line.from, to: line.to, insert: next === 0 ? stripped : `${"#".repeat(next)} ${stripped}` } });
+    v.dispatch({
+      changes: { from: line.from, to: line.to, insert: next === 0 ? stripped : `${"#".repeat(next)} ${stripped}` },
+      annotations: Transaction.userEvent.of("input"),
+      scrollIntoView: true,
+    });
     v.focus();
   }
   private buildToolbar(): void {
@@ -1519,7 +1737,12 @@ class NoteLeaf extends Leaf {
     const line = v.state.doc.lineAt(pos);
     const before = line.text.trim() === "" ? "" : "\n\n";
     const text = tableTemplate(3, 2, t.tableColumn);
-    v.dispatch({ changes: { from: line.to, insert: before + text + "\n" }, selection: { anchor: line.to + before.length + 2, head: line.to + before.length + 2 + t.tableColumn.length } });
+    v.dispatch({
+      changes: { from: line.to, insert: before + text + "\n" },
+      selection: { anchor: line.to + before.length + 2, head: line.to + before.length + 2 + t.tableColumn.length },
+      annotations: Transaction.userEvent.of("input"),
+      scrollIntoView: true,
+    });
     v.focus();
   }
   /** Images pasted or dropped become files beside the note and an embed
@@ -1554,9 +1777,16 @@ class NoteLeaf extends Leaf {
         allFiles.push(r.data);
         const target = linkText(this.path, r.data);
         const pos = this.editor.state.selection.main.to;
-        this.editor.dispatch({ changes: { from: pos, insert: `![[${target}]]` }, selection: { anchor: pos + target.length + 5 } });
+        const top = this.sheet.scrollTop;
+        this.editor.dispatch({
+          changes: { from: pos, insert: `![[${target}]]` },
+          selection: { anchor: pos + target.length + 5 },
+          annotations: Transaction.userEvent.of("input"),
+        });
+        this.sheet.scrollTop = top;
         ui.status.textContent = t.pasted;
         await afterFileChange();
+        this.sheet.scrollTop = top;
       }
     })();
     return true;
@@ -1567,9 +1797,29 @@ class NoteLeaf extends Leaf {
     this.saveButton.hidden = !d;
   }
   setMode(mode: Mode): void {
+    const prevMode = this.mode;
     this.mode = mode;
     this.applyMode();
-    if (mode !== "preview" && this.note) this.editor.focus();
+    if (mode === "preview") {
+      if (searchPanelOpen(this.editor.state)) {
+        const q = getSearchQuery(this.editor.state).search;
+        closeSearchPanel(this.editor);
+        this.openReadingSearch(q);
+      }
+    } else {
+      if (this.readingSearch?.isOpen) {
+        const q = this.readingSearch.getQuery();
+        this.readingSearch.close();
+        openSearchPanel(this.editor);
+        if (q) {
+          this.editor.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: q })) });
+        }
+      }
+      if (this.note) this.editor.focus();
+    }
+  }
+  openReadingSearch(initialQuery?: string): void {
+    this.readingSearch.open(initialQuery);
   }
   applyMode(): void {
     const m = this.mode;
@@ -1579,6 +1829,7 @@ class NoteLeaf extends Leaf {
     for (const [k, b] of Object.entries(this.modeButtons)) b.setAttribute("aria-pressed", String(k === m));
     if (m === "preview") this.paintPreview();
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? this.live : []) });
+    this.applyLineNumbers();
     if (m === "live") {
       // The caret never lands inside the folded frontmatter.
       const end = frontmatterEnd(this.editor.state.doc);
@@ -1725,15 +1976,62 @@ class NoteLeaf extends Leaf {
     return this.editor.state.doc.sliceString(0, undefined, this.eol);
   }
   follow(target: string): void {
-    const to = this.resolve(target);
-    if (to) return void openIn(this.pane, to);
+    const rawTarget = target.trim();
+    const hashIdx = rawTarget.indexOf("#");
+    const notePart = hashIdx >= 0 ? rawTarget.slice(0, hashIdx).trim() : rawTarget;
+    const headingPart = hashIdx >= 0 ? rawTarget.slice(hashIdx + 1).trim() : "";
+
+    const jumpToHeading = (leaf: Leaf, heading: string) => {
+      if (!heading || !(leaf instanceof NoteLeaf)) return;
+      void leaf.loading.then(() => {
+        const cleanHd = heading.toLowerCase().replace(/^#+\s*/, "");
+        const hds = leaf.headings();
+        const match = hds.find((h) => {
+          const t = h.text.trim().toLowerCase();
+          return t === cleanHd || t.replace(/\s+/g, "-") === cleanHd;
+        });
+        if (match) {
+          leaf.jumpTo(match.line);
+          return;
+        }
+        const doc = leaf.editor.state.doc;
+        for (let i = 1; i <= doc.lines; i++) {
+          const lineText = doc.line(i).text.trim();
+          if (lineText.startsWith("#") && lineText.replace(/^#+\s*/, "").toLowerCase() === cleanHd) {
+            leaf.jumpTo(i);
+            return;
+          }
+        }
+      });
+    };
+
+    if (!notePart) {
+      if (headingPart) jumpToHeading(this, headingPart);
+      return;
+    }
+
+    const to = this.resolve(notePart);
+    if (to) {
+      const leaf = openIn(this.pane, to);
+      if (headingPart && leaf) jumpToHeading(leaf, headingPart);
+      return;
+    }
+
     // Not a note: an attachment, maybe with `#page=N` for a PDF.
-    const key = target.split("#")[0] ?? target;
-    const page = Number(/page=(\d+)/.exec(target)?.[1] ?? "0");
+    const key = notePart;
+    const page = Number(/page=(\d+)/.exec(rawTarget)?.[1] ?? "0");
     void commands.resolveAttachment(this.path, key).then((r) => {
-      if (r.status !== "ok" || !r.data) return void (ui.status.textContent = t.unresolved(target));
-      const leaf = openIn(this.pane, r.data);
-      if (leaf instanceof PdfLeaf && page > 0) void leaf.loading.then(() => leaf.goTo(page));
+      if (r.status === "ok" && r.data) {
+        const leaf = openIn(this.pane, r.data);
+        if (leaf instanceof PdfLeaf && page > 0) void leaf.loading.then(() => leaf.goTo(page));
+        return;
+      }
+      // Note does not exist: auto-create note like Obsidian
+      void createNote(dirOf(this.path), notePart, this.pane, false).then(() => {
+        if (headingPart && this.pane.active instanceof NoteLeaf) {
+          jumpToHeading(this.pane.active, headingPart);
+        }
+      });
     });
   }
   renameHere(): void {
@@ -1962,8 +2260,348 @@ class NoteLeaf extends Leaf {
     this.previewStale = true;
     if (this.mode === "preview") this.paintPreview();
   }
+  private wireTableResizers(root: HTMLElement): void {
+    for (const table of root.querySelectorAll<HTMLTableElement>("table")) {
+      const ths = table.querySelectorAll<HTMLTableCellElement>("th");
+      if (ths.length === 0) continue;
+      for (const th of ths) {
+        if (th.querySelector(".table-col-grip")) continue;
+        const grip = h("div", "table-col-grip");
+        th.style.position = "relative";
+        th.append(grip);
+        grip.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          grip.setPointerCapture(e.pointerId);
+          const startX = e.clientX;
+          const startWidth = th.offsetWidth;
+          const onMove = (ev: PointerEvent) => {
+            const newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+            th.style.width = `${newWidth}px`;
+            th.style.minWidth = `${newWidth}px`;
+          };
+          const onUp = () => {
+            grip.removeEventListener("pointermove", onMove);
+            grip.removeEventListener("pointerup", onUp);
+          };
+          grip.addEventListener("pointermove", onMove);
+          grip.addEventListener("pointerup", onUp);
+        });
+      }
+    }
+  }
+
+  private wireCodeBlocks(root: HTMLElement): void {
+    for (const pre of root.querySelectorAll<HTMLPreElement>("pre")) {
+      if (pre.querySelector(".copy-code-btn")) continue;
+      pre.style.position = "relative";
+      const foldBtn = button("code-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+      foldBtn.type = "button";
+      foldBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        pre.classList.toggle("code-folded");
+      });
+      const btn = h("button", "copy-code-btn");
+      btn.type = "button";
+      btn.title = "Copiar código";
+      btn.setAttribute("aria-label", "Copiar código");
+      btn.append(icon("copy"));
+      btn.addEventListener("click", () => {
+        const code = pre.querySelector("code")?.textContent ?? pre.textContent ?? "";
+        void navigator.clipboard.writeText(code).then(() => {
+          btn.replaceChildren(icon("check"));
+          btn.title = "Copiado!";
+          setTimeout(() => {
+            btn.replaceChildren(icon("copy"));
+            btn.title = "Copiar código";
+          }, 1500);
+        });
+      });
+      pre.append(foldBtn, btn);
+    }
+  }
+
+  private wirePreviewImages(root: HTMLElement): void {
+    for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
+      const alt = img.getAttribute("alt") ?? "";
+      const size = sizeOf(alt);
+      if (size?.w) img.style.width = `${size.w}px`;
+      if (size?.h) img.style.height = `${size.h}px`;
+      const rawSrc = img.getAttribute("src") ?? "";
+      if (rawSrc && !rawSrc.startsWith("http://") && !rawSrc.startsWith("https://") && !rawSrc.startsWith("data:") && !rawSrc.startsWith("verso:") && !rawSrc.startsWith("tauri:")) {
+        if (this.note) {
+          void commands.resolveAttachment(this.note.path, rawSrc).then((r) => {
+            if (r.status === "ok" && r.data) {
+              img.src = convertFileSrc(r.data, "verso");
+            }
+          });
+        }
+      }
+
+      // Corner resize grip in Reading mode
+      const parent = img.parentElement;
+      if (parent && !parent.classList.contains("cm-lp-image-box")) {
+        const box = h("span", "cm-lp-image-box preview-image-box");
+        parent.insertBefore(box, img);
+        box.append(img);
+        const grip = h("span", "cm-lp-grip");
+        grip.title = "⤡";
+        box.append(grip);
+
+        grip.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          grip.setPointerCapture(e.pointerId);
+          const x0 = e.clientX;
+          const y0 = e.clientY;
+          const rect = img.getBoundingClientRect();
+          const w0 = rect.width;
+          const h0 = rect.height;
+          let curW = Math.round(w0);
+          let curH = Math.round(h0);
+          const badge = h("span", "cm-lp-size", `${curW} × ${curH} px`);
+          box.append(badge);
+
+          const move = (ev: PointerEvent) => {
+            curW = Math.max(40, Math.round(w0 + (ev.clientX - x0)));
+            curH = Math.max(40, Math.round(h0 + (ev.clientY - y0)));
+            img.style.width = `${curW}px`;
+            img.style.height = `${curH}px`;
+            badge.textContent = `${curW} × ${curH} px`;
+          };
+
+          const up = (ev: PointerEvent) => {
+            grip.removeEventListener("pointermove", move);
+            grip.removeEventListener("pointerup", up);
+            badge.remove();
+            try { grip.releasePointerCapture(ev.pointerId); } catch {}
+            this.persistImageSize(img, rawSrc, alt, curW, curH);
+          };
+
+          grip.addEventListener("pointermove", move);
+          grip.addEventListener("pointerup", up);
+        });
+      }
+    }
+  }
+
+  private persistImageSize(img: HTMLImageElement, rawSrc: string, alt: string, w: number, h: number): void {
+    const doc = this.editor.state.doc;
+    const fullText = doc.toString();
+    const target = alt.split("|")[0] ?? "";
+    const sizeStr = `${w}x${h}`;
+
+    // 1. Wikilink embed: ![[target]] or ![[target|...]]
+    if (target) {
+      const escTarget = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const reWiki = new RegExp(`!\\[\\[(${escTarget})(?:\\|[^\\]\\n]*)?\\]\\]`);
+      const m = reWiki.exec(fullText);
+      if (m && m.index !== undefined) {
+        const from = m.index;
+        const to = from + m[0].length;
+        const insert = `![[${target}|${sizeStr}]]`;
+        this.editor.dispatch({ changes: { from, to, insert } });
+        void this.save();
+        img.setAttribute("alt", `${target}|${sizeStr}`);
+        return;
+      }
+    }
+
+    // 2. Markdown image: ![alt](url)
+    if (rawSrc) {
+      const escUrl = rawSrc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const reMd = new RegExp(`!\\[([^\\]\\n]*)\\]\\((${escUrl})\\)`);
+      const m = reMd.exec(fullText);
+      if (m && m.index !== undefined) {
+        const from = m.index;
+        const to = from + m[0].length;
+        const baseAlt = (m[1] ?? "").split("|")[0] ?? "";
+        const newAlt = baseAlt ? `${baseAlt}|${sizeStr}` : sizeStr;
+        const insert = `![${newAlt}](${rawSrc})`;
+        this.editor.dispatch({ changes: { from, to, insert } });
+        void this.save();
+        img.setAttribute("alt", newAlt);
+      }
+    }
+  }
+
+  private wireHeadingFolds(root: HTMLElement): void {
+    const headings = Array.from(root.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
+    for (const h of headings) {
+      if (h.querySelector(".heading-fold-btn")) continue;
+      const btn = button("heading-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+      btn.type = "button";
+      h.prepend(btn);
+      const toggle = () => {
+        const level = parseInt(h.tagName.slice(1), 10);
+        const folded = !h.classList.contains("heading-folded");
+        h.classList.toggle("heading-folded", folded);
+        let next = h.nextElementSibling as HTMLElement | null;
+        while (next) {
+          if (/^H[1-6]$/i.test(next.tagName)) {
+            const nextLevel = parseInt(next.tagName.slice(1), 10);
+            if (nextLevel <= level) break;
+          }
+          next.style.display = folded ? "none" : "";
+          next = next.nextElementSibling as HTMLElement | null;
+        }
+      };
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggle();
+      });
+      h.addEventListener("click", (e) => {
+        if (h.classList.contains("heading-folded")) {
+          e.stopPropagation();
+          toggle();
+        }
+      });
+    }
+  }
+
+  private wireListFolds(root: HTMLElement): void {
+    const listItems = Array.from(root.querySelectorAll<HTMLLIElement>("li"));
+    for (const li of listItems) {
+      if (li.querySelector(":scope > .list-fold-btn")) continue;
+      const childList = li.querySelector<HTMLElement>(":scope > ul, :scope > ol");
+      if (!childList) continue;
+      const btn = button("list-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+      btn.type = "button";
+      btn.setAttribute("aria-expanded", "true");
+      li.prepend(btn);
+      const toggle = () => {
+        const folded = !li.classList.contains("list-folded");
+        li.classList.toggle("list-folded", folded);
+        btn.setAttribute("aria-expanded", String(!folded));
+      };
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggle();
+      });
+      li.addEventListener("click", (e) => {
+        if (li.classList.contains("list-folded")) {
+          e.stopPropagation();
+          toggle();
+        }
+      });
+    }
+  }
+
+  private wireBlockquoteFolds(root: HTMLElement): void {
+    for (const bq of root.querySelectorAll<HTMLQuoteElement>("blockquote")) {
+      if (bq.querySelector(":scope > .quote-fold-btn")) continue;
+      if (bq.classList.contains("callout")) continue;
+      const btn = button("quote-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+      btn.type = "button";
+      btn.setAttribute("aria-expanded", "true");
+      bq.prepend(btn);
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        bq.classList.toggle("quote-folded");
+        btn.setAttribute("aria-expanded", String(!bq.classList.contains("quote-folded")));
+      });
+    }
+  }
+
+  private wireReadingLineNumbers(root: HTMLElement, text: string): void {
+    for (const old of root.querySelectorAll(".preview-line-num")) {
+      old.remove();
+    }
+    const lines = text.split("\n");
+    const elements = Array.from(root.querySelectorAll<HTMLElement>(
+      "h1, h2, h3, h4, h5, h6, p, li, pre, blockquote, table, .callout, .embed-base, .embed-pdf"
+    ));
+    let lineIdx = 0;
+    for (const el of elements) {
+      if (el.parentElement && el.parentElement.closest("li, blockquote, .callout, pre, table") && (el.tagName === "P" || el.tagName === "PRE")) {
+        continue;
+      }
+      let matchedLine = -1;
+      const taskBox = el.querySelector<HTMLInputElement>("input[type=checkbox][data-task-line]");
+      if (taskBox?.dataset["taskLine"]) {
+        matchedLine = parseInt(taskBox.dataset["taskLine"], 10);
+        lineIdx = Math.max(lineIdx, matchedLine);
+      } else {
+        const rawText = el.textContent?.trim().toLowerCase() ?? "";
+        const snippet = rawText.slice(0, 40).replace(/\s+/g, " ");
+        for (let i = lineIdx; i < lines.length; i++) {
+          const l = lines[i]?.trim().toLowerCase() ?? "";
+          if (!l) continue;
+          if (/^H[1-6]$/i.test(el.tagName)) {
+            if (l.startsWith("#") && (snippet === "" || l.includes(snippet.slice(0, 15)))) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.tagName === "LI") {
+            if (/^([-*+]|\d+\.)\s/.test(l)) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.tagName === "PRE") {
+            if (l.startsWith("```") || l.startsWith("~~~")) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.tagName === "BLOCKQUOTE") {
+            if (l.startsWith(">")) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.tagName === "TABLE") {
+            if (l.startsWith("|")) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (el.classList.contains("callout")) {
+            if (l.startsWith("> [!")) {
+              matchedLine = i + 1;
+              lineIdx = i + 1;
+              break;
+            }
+          } else if (snippet && l.includes(snippet.slice(0, 15))) {
+            matchedLine = i + 1;
+            lineIdx = i + 1;
+            break;
+          }
+        }
+      }
+      if (matchedLine > 0) {
+        const num = h("span", "preview-line-num", String(matchedLine));
+        num.setAttribute("aria-hidden", "true");
+        el.prepend(num);
+      }
+    }
+  }
+
+  foldAllHeadings(fold: boolean): void {
+    if (this.mode === "preview") {
+      const headings = Array.from(this.preview.querySelectorAll<HTMLHeadingElement>("h1, h2, h3, h4, h5, h6"));
+      for (const h of headings) {
+        const level = parseInt(h.tagName.slice(1), 10);
+        h.classList.toggle("heading-folded", fold);
+        let next = h.nextElementSibling as HTMLElement | null;
+        while (next) {
+          if (/^H[1-6]$/i.test(next.tagName)) {
+            const nextLevel = parseInt(next.tagName.slice(1), 10);
+            if (nextLevel <= level) break;
+          }
+          next.style.display = fold ? "none" : "";
+          next = next.nextElementSibling as HTMLElement | null;
+        }
+      }
+    } else {
+      if (fold) foldAll(this.editor);
+      else unfoldAll(this.editor);
+    }
+  }
+
   /** Draw the reading view from the note, if it changed since it was drawn. */
-  private paintPreview(): void {
+  paintPreview(): void {
     const note = this.note;
     if (!this.previewStale || !note) return;
     this.previewStale = false;
@@ -1990,6 +2628,14 @@ class NoteLeaf extends Leaf {
     void this.embedImages(note.path);
     this.wireTasks();
     this.dressLinks(note.path);
+    this.wireTableResizers(this.preview);
+    this.wireCodeBlocks(this.preview);
+    this.wirePreviewImages(this.preview);
+    this.wireHeadingFolds(this.preview);
+    this.wireListFolds(this.preview);
+    this.wireBlockquoteFolds(this.preview);
+    this.wireReadingLineNumbers(this.preview, note.text);
+    if (this.readingSearch?.isOpen) this.readingSearch.find();
     if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
   }
   private async relink(path: string): Promise<void> {
@@ -2335,6 +2981,7 @@ class NoteLeaf extends Leaf {
   override destroy(): void {
     this.destroyed = true;
     window.clearTimeout(this.saveTimer);
+    this.readingSearch?.close();
     for (const e of this.embeds) {
       e.destroy();
       if (e instanceof BaseView) liveBases.delete(e);
@@ -2403,6 +3050,12 @@ class TextLeaf extends Leaf {
   private saveTimer: number | undefined;
   /** Writes run one at a time, each over the revision the last one left. */
   private saving: Promise<void> = Promise.resolve();
+  readonly lineNumbersCompartment = new Compartment();
+  applyLineNumbers(): void {
+    this.editor.dispatch({
+      effects: this.lineNumbersCompartment.reconfigure(settings.lineNumbersSource ? lineNumbers() : []),
+    });
+  }
   constructor(pane: Pane) {
     super(pane);
     const head = h("header", "leaf-head");
@@ -2421,7 +3074,8 @@ class TextLeaf extends Leaf {
     return EditorState.create({
       doc,
       extensions: [
-        basicSetup,
+        baseEditorExtensions,
+        this.lineNumbersCompartment.of(settings.lineNumbersSource ? lineNumbers() : []),
         ...language,
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
@@ -2633,9 +3287,9 @@ class FolderLeaf extends Leaf {
   readonly title = h("h1", "note-title");
   readonly meta = h("p", "folder-meta");
   readonly cols = h("div", "folder-cols");
-  readonly items = h("ul", "folder-items grid");
+  readonly items = h("ul", "folder-items list");
   readonly note = h("article", "folder-note");
-  grid = true;
+  grid = false;
   rows: FolderRow[] = [];
   constructor(pane: Pane) {
     super(pane);
@@ -2651,7 +3305,7 @@ class FolderLeaf extends Leaf {
     const sheet = h("div", "sheet");
     sheet.append(this.head, this.meta, this.note, this.cols, this.items);
     this.el.append(top, sheet);
-    this.cols.hidden = true;
+    this.cols.hidden = false;
     const col = (key: SortKey, label: string, cls: string) => {
       const b = h("button", `col ${cls}`, label);
       b.type = "button";
@@ -3055,7 +3709,29 @@ class GraphLeaf extends Leaf {
       const r = svg.getBoundingClientRect();
       const mx = e.clientX - r.left - r.width / 2;
       const my = e.clientY - r.top - r.height / 2;
-      const factor = Math.exp(-e.deltaY * 0.0015);
+
+      // Trackpad pinch gesture (WebKit sets ctrlKey: true) or Ctrl/Meta + wheel
+      if (e.ctrlKey || e.metaKey) {
+        const factor = Math.exp(-e.deltaY * 0.01);
+        const next = Math.max(0.15, Math.min(6, this.zoom * factor));
+        const k = next / this.zoom;
+        this.pan.x = mx - (mx - this.pan.x) * k;
+        this.pan.y = my - (my - this.pan.y) * k;
+        this.zoom = next;
+        this.applyView();
+        return;
+      }
+
+      // Trackpad 2-finger pan or Shift+wheel pan
+      if (e.shiftKey || Math.abs(e.deltaX) > 0) {
+        this.pan.x -= (e.shiftKey ? e.deltaY : e.deltaX);
+        if (!e.shiftKey) this.pan.y -= e.deltaY;
+        this.applyView();
+        return;
+      }
+
+      // Mouse wheel zoom centered at cursor
+      const factor = Math.exp(-e.deltaY * 0.0025);
       const next = Math.max(0.15, Math.min(6, this.zoom * factor));
       const k = next / this.zoom;
       this.pan.x = mx - (mx - this.pan.x) * k;
@@ -3565,38 +4241,47 @@ class Pane {
   }
   tabMenu(leaf: Leaf, x: number, y: number): void {
     const i = this.leaves.indexOf(leaf);
-    const sep: [string, () => void] = ["—", () => {}];
+    const sep: MenuItem = ["—", () => {}];
     const file = leaf.kind !== "graph" && leaf.path !== "";
-    type Item = [string, () => void];
     // What dragging the tab does, from the menu (and so from the keyboard):
-    // along the bar, to another pane, to another workspace.
-    const moves: Item[] = [
-      ...(i > 0 ? [[t.moveTabBack, () => moveTab(leaf, -1)] as Item] : []),
-      ...(i < this.leaves.length - 1 ? [[t.moveTabForward, () => moveTab(leaf, 1)] as Item] : []),
-      ...(layout().paneCount() > 1 ? [[t.moveTabNextPane, () => moveTabToPane(leaf, 1)] as Item, [t.moveTabPrevPane, () => moveTabToPane(leaf, -1)] as Item] : []),
-      ...(popout ? [] : spaces.filter((s) => s !== current).map((s): Item => [`${t.moveTo}: ${s.label}`, () => moveTabToSpace(leaf, s)])),
+    const moves: MenuItem[] = [
+      ...(i > 0 ? [[t.moveTabBack, () => moveTab(leaf, -1), "chevronLeft"] as MenuItem] : []),
+      ...(i < this.leaves.length - 1 ? [[t.moveTabForward, () => moveTab(leaf, 1), "chevron"] as MenuItem] : []),
+      ...(layout().paneCount() > 1 ? [[t.moveTabNextPane, () => moveTabToPane(leaf, 1), "panelRight"] as MenuItem, [t.moveTabPrevPane, () => moveTabToPane(leaf, -1), "sidebar"] as MenuItem] : []),
+      ...(popout ? [] : spaces.filter((s) => s !== current).map((s): MenuItem => [`${t.moveTo}: ${s.label}`, () => moveTabToSpace(leaf, s), "sidebar"])),
     ];
     showMenu(x, y, [
-      [t.close, () => void leaf.close()],
-      [t.closeOthers, () => void this.closeExcept((l) => l === leaf || l.pinned)],
-      [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i || l.pinned)],
-      [t.closeAll, () => void this.closeExcept((l) => l.pinned)],
-      sep,
-      [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned)],
-      [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }],
-      sep,
-      [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row")))],
-      [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col")))],
-      ...moves,
-      ...(leaf.kind === "note" && !popout ? [[t.openInWindow, () => void (async () => {
-        // The window reads the file: what is not saved would stay behind.
+      // 1. Window & Split actions
+      ...(!popout && leaf.path ? [[t.openInWindow, () => void (async () => {
         if (!(await leaf.flush())) return stopped([leaf]);
         const opened = await commands.openWindow(leaf.path);
         if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
-      })()] as [string, () => void]] : []),
-      ...(file ? [sep, [t.revealInTree, () => void revealInTree(leaf.path)] as [string, () => void], [t.rename, () => (leaf instanceof NoteLeaf ? leaf.renameHere() : void 0)] as [string, () => void], [`${t.moveTo}…`, () => movePrompt(leaf.path)] as [string, () => void], [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied))] as [string, () => void], [t.reveal, () => void commands.reveal(leaf.path)] as [string, () => void]] : []),
-      ...(leaf.kind === "note" ? [sep, [t.graph, () => this.openGraph(leaf.path)] as [string, () => void]] : []),
+      })(), "maximize"] as MenuItem] : []),
+      [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
+      [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"],
+      [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"],
+      sep,
+      // 2. Pin / Unpin
+      [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned), "pin"],
+      // 3. Move tab actions
+      ...(moves.length > 0 ? [sep, ...moves] : []),
+      // 4. File / Explorer operations
+      ...(file ? [
+        sep,
+        [t.revealInTree, () => void revealInTree(leaf.path), "folder"] as MenuItem,
+        ...(leaf instanceof NoteLeaf ? [[t.rename, () => leaf.renameHere(), "edit"] as MenuItem] : []),
+        [`${t.moveTo}…`, () => movePrompt(leaf.path), "folderPlus"] as MenuItem,
+        [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
+        [t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem,
+      ] : []),
+      ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
+      // 5. Close actions
+      sep,
+      [t.close, () => void leaf.close(), "close"],
+      [t.closeOthers, () => void this.closeExcept((l) => l === leaf || l.pinned), "close"],
+      [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i || l.pinned), "close"],
+      [t.closeAll, () => void this.closeExcept((l) => l.pinned), "close"],
     ]);
   }
   async closeExcept(keep: (l: Leaf) => boolean): Promise<void> {
@@ -3991,6 +4676,23 @@ class Space {
   }
 }
 const spaces: Space[] = [];
+updateLeavesLineNumbers = () => {
+  for (const sp of spaces) {
+    for (const p of sp.layout.panes()) {
+      for (const l of p.leaves) {
+        if (l instanceof NoteLeaf) {
+          l.applyLineNumbers();
+          if (l.mode === "preview") {
+            l.previewStale = true;
+            l.paintPreview();
+          }
+        } else if (l instanceof TextLeaf) {
+          l.applyLineNumbers();
+        }
+      }
+    }
+  }
+};
 let current: Space | null = null;
 const newSpaceButton = button("ghost iconic", t.newSpace, "plus");
 newSpaceButton.addEventListener("click", () => newSpace());
@@ -4658,11 +5360,12 @@ function tellOutcomes(outcomes: Outcome[]): void {
 /** The index's problems, when they are not the ones already shown: the
  *  first on the status line, all of them on its tooltip. */
 let shownProblems = "";
-function showProblems(index: IndexSummary): void {
+function showProblems(index?: IndexSummary | null): void {
+  if (!index) return;
   const problems = [
-    ...(index.unwatched !== null ? [t.notWatched(index.unwatched)] : []),
-    ...(index.unindexed !== null ? [t.notIndexed(index.unindexed)] : []),
-    ...index.problems,
+    ...(index.unwatched ? [t.notWatched(index.unwatched)] : []),
+    ...(index.unindexed ? [t.notIndexed(index.unindexed)] : []),
+    ...(Array.isArray(index.problems) ? index.problems : []),
   ];
   const all = problems.join("\n");
   if (all === shownProblems) return;
@@ -4902,6 +5605,33 @@ async function newBase(folder: string): Promise<void> {
   await afterFileChange();
   openNote(r.data, false);
 }
+/** Populate the current vault with sample notes, bases, and templates. */
+async function importDemoVault(): Promise<void> {
+  if (!currentFolder) {
+    const picked = await openFolderBy(() => commands.pickFolder());
+    if (!picked || !currentFolder) return;
+  }
+  const confirmed = await ask(t.importDemoVaultConfirm, { yes: t.importDemoVault, no: t.cancel });
+  if (!confirmed) return;
+
+  const folders = ["assets", "daily", "projetos", "templates"];
+  for (const f of folders) {
+    openFolders.add(f);
+    void commands.createFolder(f);
+  }
+
+  for (const item of DEMO_VAULT_FILES) {
+    const res = await commands.createFile(item.path, item.b64);
+    if (res.status !== "ok" && res.error.kind !== "exists") {
+      fail(res.error);
+    }
+  }
+
+  await afterFileChange();
+  refreshLists();
+  openNote("00 - Bem-vindo ao Verso.md", false);
+  ui.status.textContent = t.demoVaultImported;
+}
 /** A `base` block at the caret of the note being edited. */
 function insertBase(): void {
   const leaf = layout().activeLeaf;
@@ -5000,25 +5730,23 @@ async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
 function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
   const folder = kind === "folder";
   const here = folder ? path : dirOf(path);
-  const sep: [string, () => void] = ["—", () => {}];
-  const items: [string, () => void][] = folder
-    ? [[t.openFolder, () => openFolder(path)]]
-    : [[t.openTab, () => openNote(path, false)], [t.openPane, () => openNote(path, true)]];
-  if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path)]);
+  const sep: MenuItem = ["—", () => {}];
+  const items: MenuItem[] = folder
+    ? [[t.openFolder, () => openFolder(path), "folderOpen"]]
+    : [[t.openTab, () => openNote(path, false), "note"], [t.openPane, () => openNote(path, true), "split"]];
+  if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
   items.push(
     sep,
-    [t.rename, rename],
-    [`${t.moveTo}…`, () => movePrompt(path)],
-    ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind)] as [string, () => void]]),
+    [t.rename, rename, "edit"],
+    [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
+    ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
     sep,
-    [t.reveal, () => void commands.reveal(path)],
-    [t.copyPath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied))],
+    [t.reveal, () => void commands.reveal(path), "search"],
+    [t.copyPath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"],
     sep,
-    [t.newHere, () => newNotePrompt(here)],
-    [t.newFolder, () => newFolderPrompt(here)],
-    [t.newBase, () => void newBase(here)],
+    ...createMenuItems(here),
     sep,
-    [t.deleteEntry, () => void deleteEntry(path, kind)],
+    [t.deleteEntry, () => void deleteEntry(path, kind), "close"],
   );
   showMenu(x, y, items);
 }
@@ -5066,7 +5794,7 @@ function movePrompt(path: string): void {
  *  beside the file, created on first use — as a callout that links back
  *  to the page. Written over the revision that was read. */
 function pdfStrings() {
-  return { page: t.pdfPage, prevPage: t.pdfPrev, nextPage: t.pdfNext, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst, loadFailed: t.pdfLoadFailed };
+  return { page: t.pdfPage, prevPage: t.pdfPrev, nextPage: t.pdfNext, of: t.pdfOf, zoomIn: t.zoomIn, zoomOut: t.zoomOut, fitWidth: t.fitWidth, fitPage: t.fitPage, spreadSingle: t.spreadSingle, spreadOdd: t.spreadOdd, spreadEven: t.spreadEven, spreadToggle: t.spreadToggle, search: t.pdfSearch, noHits: t.pdfNoHits, hits: t.pdfHits, copyPageLink: t.copyPageLink, quoteSelection: t.quoteSelection, selectFirst: t.selectFirst, loadFailed: t.pdfLoadFailed };
 }
 function companionOf(pdf: string): string {
   const base = pdf.split("/").pop() ?? pdf;
@@ -5168,10 +5896,24 @@ menu.addEventListener("keydown", (e) => {
     giveBack(menuOpener);
   }
 });
-function showMenu(x: number, y: number, items: [string, () => void][]): void {
+type MenuItem = [label: string, run: () => void, iconName?: string];
+function createMenuItems(folder = ""): MenuItem[] {
+  const items: MenuItem[] = [
+    [t.newHere, () => newNotePrompt(folder), "plus"],
+    [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
+    [t.newBase, () => void newBase(folder), "calendar"],
+    [t.newWebPage, () => newWebPagePrompt(folder), "globe"],
+  ];
+  if (folder === "") {
+    items.push(["—", () => {}]);
+    items.push([t.importDemoVault, () => void importDemoVault(), "template"]);
+  }
+  return items;
+}
+function showMenu(x: number, y: number, items: MenuItem[]): void {
   menuOpener = document.activeElement;
   menu.replaceChildren(
-    ...items.map(([label, run]) => {
+    ...items.map(([label, run, iconName]) => {
       // The list items are layout only: the menu's items are its buttons.
       const li = h("li");
       li.setAttribute("role", "none");
@@ -5180,8 +5922,10 @@ function showMenu(x: number, y: number, items: [string, () => void][]): void {
         li.setAttribute("role", "separator");
         return li;
       }
-      const b = h("button", "", label);
+      const b = h("button");
       b.type = "button";
+      if (iconName) b.append(icon(iconName));
+      b.append(h("span", "", label));
       b.setAttribute("role", "menuitem");
       b.addEventListener("click", () => {
         menu.hidden = true;
@@ -5364,7 +6108,7 @@ function newFolderPrompt(folder: string): void {
 /** A web page kept as a note: its address in the `url` property, the
  *  note's name from the host and path. Opening the property opens the
  *  page in a window of its own; the star bookmarks it. */
-function newWebPagePrompt(): void {
+function newWebPagePrompt(folder?: string): void {
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");
@@ -5392,10 +6136,9 @@ function newWebPagePrompt(): void {
     }
     const last = decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() ?? "").replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " ");
     const base = `${url.hostname.replace(/^www\./, "")}${last ? " – " + last : ""}`.replace(/[\\/:*?"<>|#^[\]]/g, " ").trim();
-    const leaf = layout().activeLeaf;
-    const folder = leaf?.path ? dirOf(leaf.path) : "";
+    const targetFolder = folder !== undefined ? folder : (layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "");
     void (async () => {
-      const r = await commands.createNote(folder ? `${folder}/${base}` : base, `---\nurl: ${url.href}\n---\n`);
+      const r = await commands.createNote(targetFolder ? `${targetFolder}/${base}` : base, `---\nurl: ${url.href}\n---\n`);
       if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
       await afterFileChange();
       openNote(r.data.path, false);
@@ -5847,8 +6590,8 @@ const quick = new QuickSwitcher();
 type Command = { id: string; label: string; keys?: string; run: () => void };
 /** Default keys, as `Mod-Shift-x`; the settings may override each. */
 const DEFAULT_KEYS: Record<string, string> = {
-  "open-folder": "Mod-o", search: "Mod-k", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
-  "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Shift-l", "toggle-right": "Mod-Shift-r",
+  "open-folder": "Mod-o", search: "Mod-k", "find-in-note": "Mod-f", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
+  "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Alt-ArrowLeft", "toggle-right": "Mod-Alt-ArrowRight",
   reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[",
 };
 function keyOf(id: string): string {
@@ -5878,7 +6621,7 @@ function comboOf(e: KeyboardEvent): string {
 /** `Mod-Shift-p` shown as the keys on this machine: ⌘⇧P, Ctrl+Shift+P. */
 function prettyKeys(combo: string): string {
   if (!combo) return "";
-  return combo.split("-").map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
+  return combo.split("-").map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p === "ArrowLeft" ? "←" : p === "ArrowRight" ? "→" : p === "ArrowUp" ? "↑" : p === "ArrowDown" ? "↓" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
 }
 /** `label (⌘B)`: a tooltip with the keys as this machine writes them. */
 function withKeys(label: string, combo: string): string {
@@ -5909,11 +6652,40 @@ function paintKeyHints(): void {
  *  would stop copying, pasting, undoing, quitting… (a command keeps its
  *  own default: ⌘W closes the tab, as in a browser). */
 const RESERVED = new Set(["Mod-c", "Mod-v", "Mod-x", "Mod-z", "Mod-Shift-z", "Mod-y", "Mod-a", "Mod-q", "Mod-w", "Mod-f", ...(MAC ? ["Mod-h", "Mod-Alt-h", "Mod-m", "Mod-`", "Mod-Ctrl-f"] : [])]);
+function openFindInActiveLeaf(): void {
+  const leaf = layout().activeLeaf;
+  if (!leaf) return;
+  if (leaf instanceof NoteLeaf) {
+    if (leaf.mode === "preview") {
+      leaf.openReadingSearch();
+    } else {
+      openSearchPanel(leaf.editor);
+    }
+  } else if (leaf instanceof TextLeaf) {
+    openSearchPanel(leaf.editor);
+  } else if (leaf instanceof PdfLeaf) {
+    leaf.view.searchInput.focus();
+    leaf.view.searchInput.select();
+  } else if (leaf instanceof BaseLeaf) {
+    const input = leaf.el.querySelector<HTMLInputElement>("input[type='search'], .base-search");
+    input?.focus();
+    input?.select();
+  } else {
+    ui.search.focus();
+    ui.search.select();
+  }
+}
+
 /** Run the command a key event is the hotkey of; true when one ran. Every
  *  hotkey holds Mod, so plain typing never reaches a command. */
 function runHotkey(e: KeyboardEvent): boolean {
   const combo = comboOf(e);
   if (!combo.startsWith("Mod-")) return false;
+  if (combo === "Mod-f") {
+    e.preventDefault();
+    openFindInActiveLeaf();
+    return true;
+  }
   // ⌘1…⌘9: the workspaces.
   const digit = /^Mod-([1-9])$/.exec(combo);
   if (digit && spaces.length > 1) {
@@ -5957,9 +6729,13 @@ function allCommands(all = false): Command[] {
     { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
     { id: "insert-template", label: t.insertTemplate, need: hasFolder, run: () => insertTemplate() },
     { id: "save-template", label: t.saveAsTemplate, need: hasFolder, run: () => void saveAsTemplate() },
+    { id: "fold-all-headings", label: t.foldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(true) },
+    { id: "unfold-all-headings", label: t.unfoldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(false) },
+    { id: "import-demo-vault", label: t.importDemoVault, run: () => void importDemoVault() },
     { id: "quick", label: t.quick, need: hasFolder, run: () => quick.show() },
     { id: "palette", label: t.commands, need: hasFolder, run: () => paletteDialog.show() },
     { id: "search", label: t.search, need: hasFolder, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
+    { id: "find-in-note", label: t.findInNote, need: Boolean(leaf), run: () => openFindInActiveLeaf() },
     { id: "replace", label: `${t.replaceTitle}…`, need: hasFolder, run: () => replaceDialog.show() },
     { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
@@ -5987,6 +6763,7 @@ function allCommands(all = false): Command[] {
     { id: "vertical-tabs", label: pane?.vertical ? t.horizontalTabs : t.verticalTabs, need: Boolean(pane), run: () => pane?.setVertical(!pane.vertical) },
     { id: "collapse-all", label: t.collapseAll, need: hasFolder, run: () => collapseAll() },
     { id: "settings", label: t.settings.split(" (")[0] ?? t.settings, run: () => settingsDialog.show() },
+    { id: "check-updates", label: t.checkNow, run: () => { settingsDialog.show("general"); void updateController.check(false); } },
     { id: "toggle-mode", label: `${t.reading} / ${t.edit}`, need: Boolean(note), run: () => note?.toggleMode() },
     { id: "source", label: t.source, need: Boolean(note), run: () => note?.setMode("source") },
     { id: "save", label: t.save, need: Boolean(note), run: () => void note?.save() },
@@ -6189,10 +6966,164 @@ class ReplaceDialog {
 }
 const replaceDialog = new ReplaceDialog();
 
+class UpdateController {
+  private _info: UpdateInfo | null = null;
+  private _checking = false;
+  private _downloading = false;
+  private _progress: UpdateProgress | null = null;
+  private _result: InstallResult | null = null;
+  private _error: string | null = null;
+  private bannerEl: HTMLElement | null = null;
+  private unlistenProgress: (() => void) | null = null;
+  private listeners = new Set<() => void>();
+
+  get info(): UpdateInfo | null { return this._info; }
+  get checking(): boolean { return this._checking; }
+  get downloading(): boolean { return this._downloading; }
+  get progress(): UpdateProgress | null { return this._progress; }
+  get result(): InstallResult | null { return this._result; }
+  get error(): string | null { return this._error; }
+
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  notify(): void {
+    for (const fn of this.listeners) fn();
+  }
+
+  async check(silent = false): Promise<UpdateInfo | null> {
+    if (this._checking || this._downloading) return this._info;
+    this._checking = true;
+    this._error = null;
+    this.notify();
+    try {
+      const res = await commands.checkForUpdates();
+      if (res.status === "ok") {
+        this._info = res.data;
+        if (res.data.has_update) {
+          this.showBanner(res.data);
+        }
+        return res.data;
+      } else {
+        if (!silent) this._error = res.error.message;
+        return null;
+      }
+    } catch (e: any) {
+      if (!silent) this._error = String(e?.message || e);
+      return null;
+    } finally {
+      this._checking = false;
+      this.notify();
+    }
+  }
+
+  async downloadAndInstall(): Promise<InstallResult | null> {
+    if (!this._info || this._downloading) return null;
+    this._downloading = true;
+    this._error = null;
+    this._result = null;
+    this._progress = {
+      downloaded_bytes: 0,
+      total_bytes: this._info.asset_size ?? 0,
+      percent: 0,
+      status: "downloading",
+      message: null,
+    };
+    this.notify();
+
+    if (!this.unlistenProgress) {
+      this.unlistenProgress = await listen<UpdateProgress>("verso://update-progress", (e) => {
+        this._progress = e.payload;
+        this.notify();
+      });
+    }
+
+    try {
+      const res = await commands.downloadAndInstallUpdate(
+        this._info.download_url ?? "",
+        this._info.asset_url
+      );
+      if (res.status === "ok") {
+        this._result = res.data;
+        this._downloading = false;
+        this.notify();
+        return res.data;
+      } else {
+        this._error = res.error.message;
+        this._downloading = false;
+        this.notify();
+        return null;
+      }
+    } catch (e: any) {
+      this._error = String(e?.message || e);
+      this._downloading = false;
+      this.notify();
+      return null;
+    }
+  }
+
+  async restart(): Promise<void> {
+    await commands.restartApp();
+  }
+
+  showBanner(info: UpdateInfo): void {
+    if (this.bannerEl) return;
+    try {
+      if (sessionStorage.getItem("verso.update.dismissed") === info.latest_version) return;
+    } catch {}
+
+    const banner = h("div", "verso-update-banner");
+    banner.append(icon("sparkles"));
+
+    const text = h("span", "", `${t.updateBannerTitle}: v${info.latest_version}`);
+    const actions = h("div", "verso-update-banner-actions");
+
+    const dlBtn = h("button", "update-btn-primary", t.downloadAndUpdate);
+    dlBtn.prepend(icon("download"));
+    dlBtn.addEventListener("click", () => {
+      this.dismissBanner();
+      settingsDialog.show("general");
+      void this.downloadAndInstall();
+    });
+
+    const settingsBtn = h("button", "update-btn-secondary", t.seeInSettings);
+    settingsBtn.addEventListener("click", () => {
+      this.dismissBanner();
+      settingsDialog.show("general");
+    });
+
+    const closeBtn = h("button", "verso-update-banner-close");
+    closeBtn.append(icon("close"));
+    closeBtn.setAttribute("aria-label", t.cancel);
+    closeBtn.addEventListener("click", () => {
+      try {
+        sessionStorage.setItem("verso.update.dismissed", info.latest_version);
+      } catch {}
+      this.dismissBanner();
+    });
+
+    actions.append(dlBtn, settingsBtn, closeBtn);
+    banner.append(text, actions);
+    document.body.append(banner);
+    this.bannerEl = banner;
+  }
+
+  dismissBanner(): void {
+    if (this.bannerEl) {
+      this.bannerEl.remove();
+      this.bannerEl = null;
+    }
+  }
+}
+const updateController = new UpdateController();
+
 /** A settings page is a list of items: a title, a line about it, a control. */
 let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
 /** Ends a recording in progress, leaving the keys as they were. */
 let disarmRecorder: (() => void) | null = null;
+let updateCardUnsub: (() => void) | null = null;
 class SettingsDialog {
   readonly el = h("div", "quick settings");
   readonly box = h("div", "settings-box");
@@ -6221,7 +7152,8 @@ class SettingsDialog {
     this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.el.hidden && !hotkeyRecorder) this.hide(); });
   }
-  show(): void {
+  show(section?: string): void {
+    if (section) this.section = section;
     opened(this.el);
     this.el.hidden = false;
     this.notice.hidden = this.notice.textContent === "";
@@ -6307,15 +7239,148 @@ class SettingsDialog {
     return i;
   }
   /** Every item of every section, for the search; the section otherwise. */
-  private items(): { section: string; title: string; desc: string; node: () => HTMLElement }[] {
-    const out: { section: string; title: string; desc: string; node: () => HTMLElement }[] = [];
-    const add = (section: string, title: string, desc: string, control: () => HTMLElement | null) => out.push({ section, title, desc, node: () => this.item(title, desc, control()) });
+  private items(): { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] {
+    const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
+    const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
+      out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
+    add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
+      const wrap = h("div", "setting-version-wrap");
+      wrap.style.display = "flex";
+      wrap.style.flexDirection = "column";
+      wrap.style.alignItems = "stretch";
+      wrap.style.gap = ".5rem";
+      wrap.style.width = "100%";
+
+      const topRow = h("div", "setting-version-row");
       const v = h("span", "setting-value", "…");
       void commands.appInfo().then((r) => {
         v.textContent = r.status === "ok" ? `${r.data.version} · ${r.data.commit}` : "?";
       });
-      return v;
+
+      const checkBtn = h("button", "update-btn-secondary", t.checkNow);
+      checkBtn.prepend(icon("refresh"));
+      checkBtn.addEventListener("click", () => {
+        void updateController.check(false);
+      });
+
+      topRow.append(v, checkBtn);
+      wrap.append(topRow);
+
+      const card = h("div", "update-card");
+      card.style.display = "none";
+      wrap.append(card);
+
+      let showNotes = false;
+
+      const renderCard = () => {
+        card.textContent = "";
+        checkBtn.disabled = updateController.checking || updateController.downloading;
+        if (updateController.checking) {
+          checkBtn.textContent = t.checkingUpdates;
+          checkBtn.prepend(icon("refresh"));
+          return;
+        } else {
+          checkBtn.textContent = t.checkNow;
+          checkBtn.prepend(icon("refresh"));
+        }
+
+        if (updateController.error) {
+          card.style.display = "flex";
+          const errEl = h("div", "setting-desc", `⚠ ${updateController.error}`);
+          errEl.style.color = "var(--seal)";
+          card.append(errEl);
+          return;
+        }
+
+        const info = updateController.info;
+        if (!info) {
+          card.style.display = "none";
+          return;
+        }
+
+        card.style.display = "flex";
+
+        if (!info.has_update) {
+          const badge = h("div", "update-badge success");
+          badge.append(icon("check"), h("span", "", t.updateUpToDate));
+          card.append(badge);
+          return;
+        }
+
+        const header = h("div", "update-card-header");
+        const title = h("div", "update-card-title");
+        title.append(icon("sparkles"), h("span", "", `${t.updateAvailable}: v${info.latest_version}${info.release_name && info.release_name !== info.latest_version ? ` (${info.release_name})` : ""}`));
+        header.append(title);
+        card.append(header);
+
+        if (updateController.downloading && updateController.progress) {
+          const prog = updateController.progress;
+          const progWrap = h("div", "update-progress-wrap");
+          const track = h("div", "update-progress-track");
+          const bar = h("div", "update-progress-bar");
+          const pct = Math.min(100, Math.max(0, (prog.percent as number) ?? 0));
+          bar.style.width = `${pct}%`;
+          track.append(bar);
+
+          const txt = h("div", "update-progress-text");
+          const mbDownloaded = (((prog.downloaded_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1);
+          const mbTotal = prog.total_bytes ? (((prog.total_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1) : "?";
+          const statusMsg = prog.status === "extracting" ? "Descompactando…" : prog.status === "installing" ? "Instalando…" : `${t.downloadingUpdate} ${pct.toFixed(0)}% (${mbDownloaded} MB / ${mbTotal} MB)`;
+          txt.append(h("span", "", statusMsg), h("span", "", `${pct.toFixed(0)}%`));
+
+          progWrap.append(track, txt);
+          card.append(progWrap);
+        } else if (updateController.result) {
+          const res = updateController.result;
+          const resBox = h("div", "update-badge success");
+          resBox.append(icon("check"), h("span", "", res.message));
+          card.append(resBox);
+
+          if (res.requires_restart) {
+            const restartBtn = h("button", "update-btn-primary", t.restartNow);
+            restartBtn.prepend(icon("refresh"));
+            restartBtn.addEventListener("click", () => void updateController.restart());
+            card.append(restartBtn);
+          }
+        } else {
+          const actions = h("div", "update-actions");
+          const dlBtn = h("button", "update-btn-primary", t.downloadAndUpdate);
+          dlBtn.prepend(icon("download"));
+          dlBtn.addEventListener("click", () => void updateController.downloadAndInstall());
+
+          const notesBtn = h("button", "update-btn-secondary", showNotes ? t.hideReleaseNotes : t.viewReleaseNotes);
+          notesBtn.prepend(icon(showNotes ? "chevronUp" : "chevronDown"));
+          notesBtn.addEventListener("click", () => {
+            showNotes = !showNotes;
+            renderCard();
+          });
+
+          actions.append(dlBtn, notesBtn);
+          card.append(actions);
+
+          if (showNotes && info.release_notes) {
+            const notesBox = h("div", "update-notes-box");
+            notesBox.textContent = info.release_notes;
+            card.append(notesBox);
+          }
+        }
+      };
+
+      if (updateCardUnsub) {
+        updateCardUnsub();
+        updateCardUnsub = null;
+      }
+      updateCardUnsub = updateController.subscribe(() => {
+        if (wrap.isConnected) {
+          renderCard();
+        } else if (updateCardUnsub) {
+          updateCardUnsub();
+          updateCardUnsub = null;
+        }
+      });
+      renderCard();
+      return wrap;
     });
     add("general", t.language, t.languageDesc, () => {
       const sel = this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); void this.reloadForLanguage(); });
@@ -6341,9 +7406,38 @@ class SettingsDialog {
       r.addEventListener("input", () => { settings.fontSize = Number(r.value); r.setAttribute("aria-valuetext", `${r.value} px`); saveSettings(); });
       return r;
     });
+    add("appearance", t.headingFont, t.headingFontDesc, () => this.select([
+      ["serif", t.fontSerif],
+      ["sans", t.fontSans],
+      ["editorial", t.fontEditorial],
+      ["mono", t.fontMono],
+      ["system", t.fontSystem],
+    ], settings.headingFont || "serif", (v) => { settings.headingFont = v as any; saveSettings(); }));
+    add("appearance", t.bodyFont, t.bodyFontDesc, () => this.select([
+      ["sans", t.fontSans],
+      ["serif", t.fontEditorial],
+      ["mono", t.fontMono],
+      ["system", t.fontSystem],
+    ], settings.bodyFont || "sans", (v) => { settings.bodyFont = v as any; saveSettings(); }));
+    add("appearance", t.headingColor, t.headingColorDesc, () => this.select([
+      ["brass", t.colorBrass],
+      ["default", t.colorDefault],
+      ["seal", t.colorSeal],
+      ["moss", t.colorMoss],
+      ["slate", t.colorSlate],
+      ["royal", t.colorRoyal],
+      ["amethyst", t.colorAmethyst],
+    ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
+    // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
+    // 1. Reading mode (Leitura)
+    // 2. Edit mode (Editar)
+    // 3. Source mode (Fonte)
+    add("editor", t.lineNumbersPreview, t.lineNumbersPreviewDesc, () => this.toggle(settings.lineNumbersPreview, (v) => { settings.lineNumbersPreview = v; saveSettings(); }), t.lineNumbers);
+    add("editor", t.lineNumbersEdit, t.lineNumbersEditDesc, () => this.toggle(settings.lineNumbersEdit, (v) => { settings.lineNumbersEdit = v; saveSettings(); }), t.lineNumbers);
+    add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
     add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
@@ -6530,13 +7624,20 @@ class SettingsDialog {
       b.addEventListener("click", () => { this.section = sec.id; this.search.value = ""; this.paint(); });
       return b;
     }));
-    const items = this.items().filter((it) => (q ? `${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
+    const items = this.items().filter((it) => (q ? `${it.group ?? ""} ${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
     const frag = document.createDocumentFragment();
     let lastSection = "";
+    let lastGroup = "";
     for (const it of items) {
       if (q && it.section !== lastSection) {
         lastSection = it.section;
         frag.append(h("h3", "settings-heading", this.sections().find((sec) => sec.id === it.section)?.label ?? ""));
+      }
+      if (it.group && it.group !== lastGroup) {
+        lastGroup = it.group;
+        frag.append(h("h3", "settings-subheading", it.group));
+      } else if (!it.group) {
+        lastGroup = "";
       }
       frag.append(it.node());
     }
@@ -6694,7 +7795,16 @@ rightDivider.addEventListener("pointerdown", (e) => {
 function lesson(): void {
   page?.classList.add("empty");
   const box = h("div", "lesson");
-  box.append(h("h1", "", t.lessonTitle), h("p", "", t.lessonBody), h("p", "keys", t.lessonKeys.replace(/\{([\w-]+)\}/g, (_, id: string) => prettyKeys(keyOf(id)))));
+  const importBtn = h("button", "lesson-import", t.importDemoVault);
+  importBtn.type = "button";
+  importBtn.prepend(icon("template"));
+  importBtn.addEventListener("click", () => void importDemoVault());
+  box.append(
+    h("h1", "", t.lessonTitle),
+    h("p", "", t.lessonBody),
+    h("p", "keys", t.lessonKeys.replace(/\{([\w-]+)\}/g, (_, id: string) => prettyKeys(keyOf(id)))),
+    importBtn,
+  );
   ui.panes.replaceChildren(box);
 }
 /** A popped-out window joins the session: the folder is open already. */
@@ -6762,7 +7872,7 @@ function showFolder(info: FolderInfo): void {
   }
   ui.folder.textContent = info.name;
   nameFolderButton();
-  const i = info.index;
+  const i = info.index ?? { indexed: 0, unchanged: 0, placeholders: 0, removed: 0, problems: [], unwatched: null, unindexed: null };
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   shownProblems = "";
   showProblems(i);
@@ -6831,7 +7941,7 @@ const RIBBON: RibbonItem[] = [
   { id: "new", icon: "plus", label: () => t.newNote, keys: "new-note", needsFolder: true, run: (b) => {
     const folder = layout().activeLeaf?.path ? dirOf(layout().activeLeaf!.path) : "";
     const r = b.getBoundingClientRect();
-    showMenu(r.right + 6, r.top, [[t.newNote, () => newNotePrompt(folder)], [t.newFolder, () => newFolderPrompt(folder)], [t.newWebPage, () => newWebPagePrompt()]]);
+    showMenu(r.right + 6, r.top, createMenuItems(folder));
   } },
   { id: "daily", icon: "calendarDay", label: () => t.daily, keys: "daily", needsFolder: true, run: () => void dailyNote() },
   { id: "graph", icon: "graph", label: () => t.graphWhole, needsFolder: true, run: () => paneToOpenIn().openGraph("") },
@@ -6967,6 +8077,17 @@ paintKeyHints();
 
 ui.open.addEventListener("click", () => void openFolderDialog());
 ui.collapse.addEventListener("click", collapseAll);
+ui.treeRoot.addEventListener("contextmenu", (e) => {
+  if ((e.target as HTMLElement).closest("button.row, summary, input")) return;
+  e.preventDefault();
+  const sep: MenuItem = ["—", () => {}];
+  const items: MenuItem[] = [
+    ...createMenuItems(""),
+    sep,
+    [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
+  ];
+  showMenu(e.clientX, e.clientY, items);
+});
 let pending: number | undefined;
 ui.search.addEventListener("input", () => {
   window.clearTimeout(pending);
@@ -7071,6 +8192,9 @@ if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false
  * keeps it; this window saves its tabs, as for any switch, and opens it. */
 if (!popout) void listen("folder-handed", () => void openFolderBy(() => commands.openInitial()));
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
+if (!popout && settings.checkUpdates) {
+  setTimeout(() => void updateController.check(true), 2500);
+}
 void (async () => {
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the

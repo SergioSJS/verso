@@ -19,7 +19,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: verso: http://verso.localhost; media-src verso: http://verso.localhost; frame-src verso: http://verso.localhost; object-src 'none'; connect-src 'self' verso: http://verso.localhost; worker-src 'self' blob:; base-uri 'none'; form-action 'none'"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http: verso: http://verso.localhost; media-src https: http: verso: http://verso.localhost; frame-src https: http: verso: http://verso.localhost; object-src 'none'; connect-src 'self' https: http: verso: http://verso.localhost; worker-src 'self' blob:; base-uri 'none'; form-action 'none'"
     }
   },
   "bundle": {

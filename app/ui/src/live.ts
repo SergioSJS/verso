@@ -12,13 +12,15 @@
 // dialect's and is found by hand, outside code.
 
 import { syntaxTree } from "@codemirror/language";
-import { EditorSelection, EditorState, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import { EditorSelection, EditorState, RangeSet, StateEffect, StateField } from "@codemirror/state";
+import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import type { Text } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import katex from "katex";
 import { cells } from "./table";
 import { frontmatterClose } from "./frontmatter";
+import { icon } from "./icons";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -45,10 +47,11 @@ export const redraw = StateEffect.define<null>();
 const WIKILINK = /(!?)\[\[([^\]\n]+)\]\]/g;
 const IMAGE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
 
-/** `![[img.png|300]]` or `|300x200`: Obsidian's size after the pipe. */
+/** `![[img.png|300]]` or `|300x200` or `![|60](url)`: Obsidian's size after the pipe. */
 export function sizeOf(alias: string | null): { w: number; h: number | null } | null {
   if (!alias) return null;
-  const m = /^\s*(\d+)(?:x(\d+))?\s*$/.exec(alias);
+  const clean = alias.replace(/^\|/, "").trim();
+  const m = /^(\d+)(?:x(\d+))?$/.exec(clean);
   return m ? { w: Number(m[1]), h: m[2] ? Number(m[2]) : null } : null;
 }
 
@@ -64,11 +67,12 @@ class ImageWidget extends WidgetType {
     readonly src: string,
     readonly alt: string,
     readonly width: number | null,
+    readonly height: number | null = null,
   ) {
     super();
   }
   override eq(other: ImageWidget): boolean {
-    return other.src === this.src && other.width === this.width;
+    return other.src === this.src && other.width === this.width && other.height === this.height;
   }
   override toDOM(view: EditorView): HTMLElement {
     const box = document.createElement("span");
@@ -78,36 +82,61 @@ class ImageWidget extends WidgetType {
     img.src = this.src;
     img.alt = this.alt;
     if (this.width) img.style.width = `${this.width}px`;
+    if (this.height) img.style.height = `${this.height}px`;
     const grip = document.createElement("span");
     grip.className = "cm-lp-grip";
-    grip.title = "↔";
-    // Dragging the corner rewrites the size after the pipe in the source.
+    grip.title = "⤡";
+    // Dragging the corner rewrites the size in the source (width and height).
     grip.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       e.stopPropagation();
       grip.setPointerCapture(e.pointerId);
       const x0 = e.clientX;
-      const w0 = img.getBoundingClientRect().width;
+      const y0 = e.clientY;
+      const rect = img.getBoundingClientRect();
+      const w0 = rect.width;
+      const h0 = rect.height;
       let w = Math.round(w0);
+      let h = Math.round(h0);
       const badge = document.createElement("span");
       badge.className = "cm-lp-size";
+      badge.textContent = `${w} × ${h} px`;
       box.append(badge);
       const move = (ev: PointerEvent) => {
-        w = Math.max(40, Math.round(w0 + ev.clientX - x0));
+        w = Math.max(40, Math.round(w0 + (ev.clientX - x0)));
+        h = Math.max(40, Math.round(h0 + (ev.clientY - y0)));
         img.style.width = `${w}px`;
-        badge.textContent = `${w} px`;
+        img.style.height = `${h}px`;
+        badge.textContent = `${w} × ${h} px`;
       };
-      const up = () => {
+      const up = (ev: PointerEvent) => {
         grip.removeEventListener("pointermove", move);
         grip.removeEventListener("pointerup", up);
         badge.remove();
+        try { grip.releasePointerCapture(ev.pointerId); } catch {}
         // The embed as the document has it now, at the widget's place.
         const at = startOf(view, box);
         if (at === null) return;
-        const m = /^!\[\[([^\]\n]+)\]\]/.exec(view.state.sliceDoc(at, view.state.doc.lineAt(at).to));
-        if (!m) return;
-        const target = (m[1] ?? "").split("|")[0] ?? "";
-        view.dispatch({ changes: { from: at, to: at + m[0].length, insert: `![[${target}|${w}]]` } });
+        const line = view.state.doc.lineAt(at);
+        const restOfLine = view.state.sliceDoc(at, line.to);
+
+        // 1. Wikilink embed: ![[target]] or ![[target|300]] or ![[target|300x200]]
+        const mWiki = /^!\[\[([^\]\n]+)\]\]/.exec(restOfLine);
+        if (mWiki) {
+          const target = (mWiki[1] ?? "").split("|")[0] ?? "";
+          view.dispatch({ changes: { from: at, to: at + mWiki[0].length, insert: `![[${target}|${w}x${h}]]` } });
+          return;
+        }
+
+        // 2. Markdown image: ![alt](url) or ![alt|size](url)
+        const mMd = /^!\[([^\]\n]*)\]\(([^)\n]+)\)/.exec(restOfLine);
+        if (mMd) {
+          const rawAlt = mMd[1] ?? "";
+          const url = mMd[2] ?? "";
+          const baseAlt = rawAlt.split("|")[0] ?? "";
+          const newAlt = baseAlt ? `${baseAlt}|${w}x${h}` : `${w}x${h}`;
+          view.dispatch({ changes: { from: at, to: at + mMd[0].length, insert: `![${newAlt}](${url})` } });
+        }
       };
       grip.addEventListener("pointermove", move);
       grip.addEventListener("pointerup", up);
@@ -117,6 +146,66 @@ class ImageWidget extends WidgetType {
   }
   /** Clicks on the image stay on the image: the source is not revealed
    *  and the caret does not move; the grip handles its own pointer. */
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+class TaskCheckboxWidget extends WidgetType {
+  constructor(readonly checked: boolean, readonly pos: number) {
+    super();
+  }
+  override eq(other: TaskCheckboxWidget): boolean {
+    return other.checked === this.checked && other.pos === this.pos;
+  }
+  override toDOM(view: EditorView): HTMLElement {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.className = "cm-lp-task-check";
+    input.checked = this.checked;
+    input.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const next = !this.checked;
+      view.dispatch({
+        changes: { from: this.pos, to: this.pos + 3, insert: next ? "[x]" : "[ ]" },
+        userEvent: "input",
+      });
+    });
+    return input;
+  }
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+class CodeCopyWidget extends WidgetType {
+  constructor(readonly code: string) {
+    super();
+  }
+  override eq(other: CodeCopyWidget): boolean {
+    return other.code === this.code;
+  }
+  override toDOM(): HTMLElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cm-lp-copy-code";
+    btn.title = "Copiar código";
+    btn.setAttribute("aria-label", "Copiar código");
+    btn.append(icon("copy"));
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void navigator.clipboard.writeText(this.code).then(() => {
+        btn.replaceChildren(icon("check"));
+        btn.title = "Copiado!";
+        setTimeout(() => {
+          btn.replaceChildren(icon("copy"));
+          btn.title = "Copiar código";
+        }, 1500);
+      });
+    });
+    return btn;
+  }
   override ignoreEvent(): boolean {
     return true;
   }
@@ -140,6 +229,38 @@ class FrontmatterWidget extends WidgetType {
       this.onClick?.();
     });
     return el;
+  }
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** Rendered iframe in Live Preview when cursor is outside the HTML block. */
+class IframeWidget extends WidgetType {
+  constructor(readonly src: string, readonly styleStr: string, readonly width: string, readonly height: string) {
+    super();
+  }
+  override eq(other: IframeWidget): boolean {
+    return other.src === this.src && other.styleStr === this.styleStr && other.width === this.width && other.height === this.height;
+  }
+  toDOM(): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "cm-lp-block cm-lp-iframe-wrap";
+    const iframe = document.createElement("iframe");
+    const rawSrc = this.src;
+    if (rawSrc.startsWith("http://") || rawSrc.startsWith("https://")) {
+      iframe.src = convertFileSrc(`__proxy?url=${encodeURIComponent(rawSrc)}`, "verso");
+    } else {
+      iframe.src = rawSrc;
+    }
+    iframe.setAttribute("loading", "lazy");
+    if (this.styleStr) iframe.style.cssText = this.styleStr;
+    if (this.width) iframe.width = this.width;
+    if (this.height) iframe.height = this.height;
+    if (!this.styleStr && !this.height) iframe.style.height = "800px";
+    if (!this.styleStr && !this.width) iframe.style.width = "100%";
+    wrap.append(iframe);
+    return wrap;
   }
   override ignoreEvent(): boolean {
     return true;
@@ -425,6 +546,29 @@ class BlockWidget extends WidgetType {
       for (const c of head) {
         const th = document.createElement("th");
         th.textContent = c;
+        th.style.position = "relative";
+        const grip = document.createElement("div");
+        grip.className = "table-col-grip";
+        grip.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          grip.setPointerCapture(e.pointerId);
+          const startX = e.clientX;
+          const startWidth = th.offsetWidth;
+          const onMove = (ev: PointerEvent) => {
+            const newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+            th.style.width = `${newWidth}px`;
+            th.style.minWidth = `${newWidth}px`;
+          };
+          const onUp = (ev: PointerEvent) => {
+            grip.removeEventListener("pointermove", onMove);
+            grip.removeEventListener("pointerup", onUp);
+            try { grip.releasePointerCapture(ev.pointerId); } catch {}
+          };
+          grip.addEventListener("pointermove", onMove);
+          grip.addEventListener("pointerup", onUp);
+        });
+        th.append(grip);
         tr.append(th);
       }
       thead.append(tr);
@@ -633,7 +777,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const l = doc.line(n);
             out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-table" }) });
           }
-        } else if (/^ATXHeading[1-6]$/.test(name)) {
+        } else if (/^(ATXHeading[1-6]|SetextHeading[12])$/.test(name)) {
           const level = name.slice(-1);
           const line = doc.lineAt(node.from);
           out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: `cm-lp-h cm-lp-h${level}` }) });
@@ -653,29 +797,152 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         } else if (name === "FencedCode") {
           const a = doc.lineAt(node.from).number;
           const b = doc.lineAt(node.to).number;
+          const codeMarks = node.node.getChildren("CodeMark");
+          const openMark = codeMarks[0];
+          const closeMark = codeMarks.length > 1 ? codeMarks[codeMarks.length - 1] : null;
+          const info = node.node.getChild("CodeInfo");
+
           for (let n = a; n <= b; n++) {
             const l = doc.line(n);
-            out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-fence" }) });
+            const isFirst = n === a;
+            const isLast = n === b && b > a;
+            const isSingle = a === b;
+            let lineCls = "cm-lp-fence";
+            if (isSingle) lineCls += " cm-lp-fence-single";
+            else if (isFirst) lineCls += " cm-lp-fence-first" + (!active.has(a) ? " cm-lp-fence-closed" : "");
+            else if (isLast) lineCls += " cm-lp-fence-last" + (!active.has(b) ? " cm-lp-fence-closed" : "");
+            else lineCls += " cm-lp-fence-body";
+            out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: lineCls }) });
+          }
+
+          if (openMark && !active.has(a)) {
+            hide(openMark.from, openMark.to);
+            if (info) {
+              out.push({ from: info.from, to: info.to, deco: Decoration.mark({ class: "cm-lp-fence-lang" }) });
+            }
+          }
+          if (closeMark && b > a && !active.has(b)) {
+            hide(closeMark.from, closeMark.to);
+          }
+
+          const raw = doc.sliceString(node.from, node.to);
+          const fLines = raw.split("\n");
+          const codeText = (fLines.length > 2 ? fLines.slice(1, -1).join("\n") : fLines.slice(1).join("\n")).trimEnd();
+          if (codeText.length > 0) {
+            out.push({
+              from: node.from,
+              to: node.from,
+              deco: Decoration.widget({ widget: new CodeCopyWidget(codeText), side: 1 }),
+            });
           }
         } else if (name === "Blockquote") {
           const a = doc.lineAt(node.from).number;
           const b = doc.lineAt(node.to).number;
+          const firstLine = doc.lineAt(node.from);
+          const cleanLead = firstLine.text.replace(/^[ \t]*(?:>[ \t]?)+[ \t]*/, "");
+          const calloutMatch = /^\[!([a-zA-Z0-9_-]+)\]([+-]?)(?:[ \t]+(.*))?$/.exec(cleanLead);
+          const calloutKind = calloutMatch ? calloutMatch[1]!.toLowerCase() : null;
+
           for (let n = a; n <= b; n++) {
             const l = doc.line(n);
-            out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-quote" }) });
+            const isFirst = n === a;
+            const isLast = n === b;
+            if (calloutKind) {
+              let cls = `cm-lp-callout cm-lp-callout-${calloutKind}`;
+              if (isFirst) cls += " cm-lp-callout-head";
+              if (isLast) cls += " cm-lp-callout-tail";
+              out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: cls }) });
+            } else {
+              let cls = "cm-lp-quote";
+              if (isFirst) cls += " cm-lp-quote-head";
+              if (isLast) cls += " cm-lp-quote-tail";
+              out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: cls }) });
+            }
+          }
+
+          if (calloutKind && !active.has(a)) {
+            const m = /(?:^>[ \t]*)\[!([a-zA-Z0-9_-]+)\][+-]?/.exec(firstLine.text);
+            if (m) {
+              const bStart = firstLine.from + m[0].indexOf("[!");
+              const kStart = bStart + 2;
+              const kEnd = kStart + m[1]!.length;
+              const bEnd = firstLine.from + m[0].length;
+              hide(bStart, kStart);
+              out.push({ from: kStart, to: kEnd, deco: Decoration.mark({ class: "cm-lp-callout-tag" }) });
+              hide(kEnd, bEnd);
+            }
+          }
+        } else if (name === "HTMLBlock" || name === "HTMLTag") {
+          const raw = doc.sliceString(node.from, node.to);
+          const m = /<iframe\b([^>]*?)>(?:.*?<\/iframe>)?/is.exec(raw);
+          if (m && !shown) {
+            const attrs = m[1] ?? "";
+            const src = /src=["'](.*?)["']/i.exec(attrs)?.[1] ?? "";
+            const style = /style=["'](.*?)["']/i.exec(attrs)?.[1] ?? "";
+            const width = /width=["'](.*?)["']/i.exec(attrs)?.[1] ?? "";
+            const height = /height=["'](.*?)["']/i.exec(attrs)?.[1] ?? "";
+            if (src.startsWith("http://") || src.startsWith("https://")) {
+              out.push({
+                from: node.from,
+                to: node.to,
+                deco: Decoration.replace({ widget: new IframeWidget(src, style, width, height) }),
+              });
+            }
           }
         } else if (name === "QuoteMark") {
           // Every `>` of a quote, those inside its paragraphs too, with the
-          // space after it when there is one.
-          let quote = node.node.parent;
-          while (quote && quote.name !== "Blockquote") quote = quote.parent;
-          if (quote && !touched(quote.from, quote.to)) hide(node.from, /[ \t]/.test(doc.sliceString(node.to, node.to + 1)) ? node.to + 1 : node.to);
+          // space after it when there is one, hidden if line is not active.
+          const line = doc.lineAt(node.from);
+          if (!active.has(line.number)) {
+            hide(node.from, /[ \t]/.test(doc.sliceString(node.to, node.to + 1)) ? node.to + 1 : node.to);
+          }
         } else if (name === "ListItem") {
           const line = doc.lineAt(node.from);
+          const isLineActive = active.has(line.number);
           const mark = node.node.getChild("ListMark");
-          const bullet = mark !== null && /^[-*+]$/.test(doc.sliceString(mark.from, mark.to));
-          out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: bullet ? "cm-lp-li cm-lp-bullet" : "cm-lp-li" }) });
-          if (bullet && mark && !touched(line.from, line.to)) hide(mark.from, Math.min(mark.to + 1, line.to));
+          const taskMarker = node.node.getChild("TaskMarker") ?? node.node.getChild("Task")?.getChild("TaskMarker") ?? null;
+          const isTask = taskMarker !== null;
+          const markText = mark ? doc.sliceString(mark.from, mark.to) : "";
+          const bullet = !isTask && mark !== null && /^[-*+]$/.test(markText);
+          const isOrdered = !isTask && mark !== null && /^\d+\.$/.test(markText);
+
+          let depth = 0;
+          let p = node.node.parent;
+          while (p) {
+            if (p.name === "ListItem") depth++;
+            p = p.parent;
+          }
+          const indentText = line.text.match(/^([ \t]*)/)?.[1] ?? "";
+          const tabs = (indentText.match(/\t/g) ?? []).length;
+          const spaces = indentText.replace(/\t/g, "").length;
+          const visualDepth = Math.max(depth, tabs > 0 ? tabs : Math.floor(spaces / (isOrdered ? 4 : 2)));
+          const lineAttrs: Record<string, string> = {};
+          if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
+
+          if (taskMarker) {
+            const taskText = doc.sliceString(taskMarker.from, taskMarker.to);
+            const checked = /^\[[xX]\]$/.test(taskText);
+            const cls = checked ? "cm-lp-li cm-lp-task cm-lp-task-done" : "cm-lp-li cm-lp-task";
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
+            if (mark && !isLineActive) hide(line.from, Math.min(mark.to + 1, line.to));
+            const touchedTask = view.state.selection.ranges.some((r) => r.from <= taskMarker.to && r.to >= taskMarker.from);
+            if (!touchedTask) {
+              out.push({
+                from: taskMarker.from,
+                to: taskMarker.to,
+                deco: Decoration.replace({ widget: new TaskCheckboxWidget(checked, taskMarker.from) }),
+              });
+            }
+          } else {
+            const showBullet = bullet && !isLineActive;
+            const cls = showBullet ? "cm-lp-li cm-lp-bullet" : isOrdered ? "cm-lp-li cm-lp-ordered" : "cm-lp-li";
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
+            if (bullet && mark && !isLineActive) {
+              hide(line.from, Math.min(mark.to + 1, line.to));
+            } else if (isOrdered && mark && !isLineActive && mark.from > line.from) {
+              hide(line.from, mark.from);
+            }
+          }
         } else if (name === "Link" && !shown) {
           out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-link" }) });
           const url = node.node.getChild("URL");
@@ -688,8 +955,33 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const close = marks[1];
             if (close) hide(close.from, node.to);
           }
-        } else if (name === "HorizontalRule" && !shown) {
-          out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-hr" }) });
+        } else if (name === "Image" && !shown) {
+          const urlNode = node.node.getChild("URL");
+          const marks = node.node.getChildren("LinkMark");
+          if (urlNode) {
+            const rawUrl = doc.sliceString(urlNode.from, urlNode.to);
+            let alt = "";
+            const m0 = marks[0];
+            const m1 = marks[1];
+            if (m0 && m1) alt = doc.sliceString(m0.to, m1.from);
+            const size = sizeOf(alt);
+            const src = /^https?:\/\//i.test(rawUrl) ? rawUrl : opts.imageUrl(rawUrl);
+            if (src) {
+              out.push({
+                from: node.from,
+                to: node.to,
+                deco: Decoration.replace({ widget: new ImageWidget(src, alt, size?.w ?? null, size?.h ?? null) }),
+              });
+            }
+          }
+        } else if (name === "HorizontalRule") {
+          const line = doc.lineAt(node.from);
+          if (!active.has(line.number)) {
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-hr-line" }) });
+            hide(node.from, node.to);
+          } else {
+            out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-hr" }) });
+          }
         }
       },
     });
@@ -703,17 +995,27 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       const end = start + m[0].length;
       const inner = m[2] ?? "";
       const embed = m[1] === "!";
-      const kind = tree.resolveInner(start + 2, 1).name;
-      if (kind === "InlineCode" || kind === "FencedCode" || kind === "CodeText") continue;
+      let inCode = false;
+      let curr: import("@lezer/common").SyntaxNode | null = tree.resolveInner(start + 2, 1);
+      while (curr) {
+        if (curr.name === "InlineCode" || curr.name === "FencedCode" || curr.name === "CodeBlock" || curr.name === "CodeText") {
+          inCode = true;
+          break;
+        }
+        curr = curr.parent;
+      }
+      if (inCode) continue;
       if (math.some((r) => start < r.to && end > r.from)) continue;
       const target = (inner.split("|")[0] ?? "").split("#")[0] ?? "";
       const alias = inner.includes("|") ? (inner.split("|")[1] ?? "") : null;
-      const shown = embed && IMAGE.test(target) ? view.state.selection.ranges.some((r) => r.from <= end && r.to >= start && !(r.from === r.to && (r.from === start || r.from === end))) : touched(start, end);
+      const shown = embed && IMAGE.test(target)
+        ? view.state.selection.ranges.some((r) => r.empty && r.from <= end && r.to >= start && !(r.from === r.to && (r.from === start || r.from === end)))
+        : touched(start, end);
       if (embed && IMAGE.test(target) && !shown) {
         const url = opts.imageUrl(target);
         if (url) {
           const size = sizeOf(alias);
-          out.push({ from: start, to: end, deco: Decoration.replace({ widget: new ImageWidget(url, target, size?.w ?? null) }) });
+          out.push({ from: start, to: end, deco: Decoration.replace({ widget: new ImageWidget(url, target, size?.w ?? null, size?.h ?? null) }) });
           continue;
         }
       }
@@ -726,6 +1028,31 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         // Hide "[[" (or "![["), the "target|" before an alias, and "]]".
         hide(start, start + (embed ? 3 : 2));
         if (alias !== null) hide(start + (embed ? 3 : 2), end - 2 - alias.length);
+        hide(end - 2, end);
+      }
+    }
+
+    // Highlight marks: `==highlight==`
+    const MARK_RE = /==([^=\n]+)==/g;
+    MARK_RE.lastIndex = 0;
+    while ((m = MARK_RE.exec(text)) !== null) {
+      const start = from + m.index;
+      const end = start + m[0].length;
+      let inCode = false;
+      let curr: import("@lezer/common").SyntaxNode | null = tree.resolveInner(start + 2, 1);
+      while (curr) {
+        if (curr.name === "InlineCode" || curr.name === "FencedCode" || curr.name === "CodeBlock" || curr.name === "CodeText") {
+          inCode = true;
+          break;
+        }
+        curr = curr.parent;
+      }
+      if (inCode) continue;
+      if (math.some((r) => start < r.to && end > r.from)) continue;
+      const isSpanTouched = touched(start, end);
+      out.push({ from: start, to: end, deco: Decoration.mark({ class: "cm-lp-mark" }) });
+      if (!isSpanTouched) {
+        hide(start, start + 2);
         hide(end - 2, end);
       }
     }
@@ -806,5 +1133,24 @@ export function livePreview(opts: LiveOptions) {
     },
     provide: (f) => [EditorView.decorations.from(f, (v) => v.decorations), EditorView.atomicRanges.of((view) => view.state.field(f).atomic)],
   });
-  return [plugin, clicks, frontmatter, outOfFrontmatter, keepFrontmatter];
+  class HeadingGutterMarker extends GutterMarker {
+    constructor(readonly elementClass: string) {
+      super();
+    }
+  }
+
+  const headingGutter = gutterLineClass.compute(["doc"], (state) => {
+    const markers: ReturnType<GutterMarker["range"]>[] = [];
+    for (let i = 1; i <= state.doc.lines; i++) {
+      const line = state.doc.line(i);
+      const m = /^(#{1,6})\s/.exec(line.text);
+      if (m) {
+        const level = m[1]!.length;
+        markers.push(new HeadingGutterMarker(`cm-lp-gutter-h cm-lp-gutter-h${level}`).range(line.from));
+      }
+    }
+    return RangeSet.of(markers);
+  });
+
+  return [plugin, clicks, frontmatter, outOfFrontmatter, keepFrontmatter, headingGutter];
 }
