@@ -397,9 +397,20 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .preview hr + ul, .preview hr + ol { margin-top: -0.4em; }
 .preview li > ul,
 .preview li > ol {
-  margin: 0.15em 0 0.15em 0.35em;
-  padding-left: 1.25em;
+  margin: 0.15em 0 0.15em -0.65em;
+  padding-left: 1.45em;
   border-left: 1.5px solid color-mix(in oklch, var(--ink) 22%, transparent);
+}
+.preview li.task-item > ul,
+.preview li.task-item > ol,
+.preview li:has(> input[type="checkbox"]) > ul,
+.preview li:has(> input[type="checkbox"]) > ol,
+.preview li:has(> p > input[type="checkbox"]) > ul,
+.preview li:has(> p > input[type="checkbox"]) > ol,
+.preview li:has(> input[data-task-line]) > ul,
+.preview li:has(> input[data-task-line]) > ol {
+  margin-left: 0.4em;
+  padding-left: 1.25em;
 }
 .preview li::marker { color: var(--brass); }
 .preview li.task-item,
@@ -503,21 +514,21 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   padding-right: 0.35rem;
   box-sizing: border-box;
 }
-/* Heading gutter element: aligned vertically with the text of the heading */
-.editor .cm-gutterElement.cm-lp-gutter-h {
+/* Heading line numbers gutter element: aligned vertically with the text of the heading */
+.editor .cm-lineNumbers .cm-gutterElement.cm-lp-gutter-h {
   display: flex !important;
   align-items: flex-end;
   justify-content: flex-end;
   padding-bottom: .35em;
   font-size: .85rem;
 }
-.editor .cm-gutterElement.cm-lp-gutter-h1 {
+.editor .cm-lineNumbers .cm-gutterElement.cm-lp-gutter-h1 {
   padding-bottom: .45em;
 }
-.editor .cm-gutterElement.cm-lp-gutter-h2 {
+.editor .cm-lineNumbers .cm-gutterElement.cm-lp-gutter-h2 {
   padding-bottom: .38em;
 }
-.editor .cm-gutterElement.cm-lp-gutter-h3 {
+.editor .cm-lineNumbers .cm-gutterElement.cm-lp-gutter-h3 {
   padding-bottom: .3em;
 }
 
@@ -527,18 +538,76 @@ html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
   display: none !important;
 }
 
-.editor .cm-foldGutter { width: 1.1rem; }
-.editor.source .cm-foldGutter { display: flex; width: 1.1rem; }
-.editor .cm-foldGutter .cm-gutterElement { cursor: pointer; color: var(--ink-3); opacity: 0; transition: opacity .15s; }
-.editor .cm-foldGutter .cm-gutterElement:has(.cm-foldMarker), .editor:hover .cm-foldGutter .cm-gutterElement { opacity: 1; }
-.editor .cm-foldGutter .cm-gutterElement:hover { color: var(--seal); }
+/* Fold gutter in Edit mode */
+.editor .cm-foldGutter {
+  width: 1.2rem;
+}
+.editor.source .cm-foldGutter {
+  display: flex;
+  width: 1.2rem;
+}
+.editor .cm-foldGutter .cm-gutterElement {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink-3);
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+  box-sizing: border-box;
+}
+.editor .cm-foldGutter .cm-gutterElement:has(.cm-foldMarker-folded) {
+  opacity: 1;
+}
+.editor:hover .cm-foldGutter .cm-gutterElement {
+  opacity: 1;
+}
+.editor .cm-foldGutter .cm-gutterElement:hover {
+  color: var(--seal);
+}
+.editor .cm-foldGutter .cm-foldMarker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  line-height: 1;
+  transition: transform .15s ease-out;
+}
+.editor .cm-foldGutter .cm-foldMarker .icon {
+  width: 11px;
+  height: 11px;
+}
+.editor .cm-foldGutter .cm-foldMarker-open {
+  transform: rotate(90deg);
+}
+.editor .cm-foldGutter .cm-foldMarker-folded {
+  transform: rotate(0deg);
+  color: var(--seal);
+}
+/* Heading fold gutter element: drops by .8em (matching .cm-line.cm-lp-h padding-top) to center with heading text */
+.editor .cm-foldGutter .cm-gutterElement.cm-lp-gutter-h {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding-top: .8em;
+  padding-bottom: 0;
+  box-sizing: border-box;
+}
 .editor .cm-foldPlaceholder { background: var(--paper-2); border: 1px solid var(--hair); color: var(--ink-3); border-radius: 3px; padding: 0 .35rem; margin: 0 .2rem; font-family: var(--mono); font-size: .82em; cursor: pointer; line-height: 1; }
 .editor .cm-foldPlaceholder:hover { background: var(--paper-3); color: var(--ink); border-color: var(--ink-3); }
-.editor .cm-activeLine { background: none; }
+
+/* Active line & selection highlights */
+.editor .cm-activeLine,
+.editor .cm-activeLineGutter,
+.editor.live .cm-activeLine,
+.editor.live .cm-activeLineGutter {
+  background: none !important;
+}
 .editor .cm-selectionBackground, .editor .cm-editor ::selection { background: var(--selection) !important; }
 .editor.source .cm-scroller { font-family: var(--mono); font-size: .9rem; line-height: 1.6; }
 .editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
-.editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2); }
+.editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2) !important; }
 
 /* Reading mode line numbers & fold gutter */
 .preview {
