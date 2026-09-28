@@ -931,44 +931,29 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           const visualDepth = Math.max(depth, tabs > 0 ? tabs : Math.floor(spaces / (isOrdered ? 4 : 2)));
           const lineAttrs: Record<string, string> = {};
 
-          const touchedMark = mark
-            ? view.state.selection.ranges.some((r) => r.from <= mark.to && r.to >= line.from)
-            : false;
-
           if (taskMarker) {
             const taskText = doc.sliceString(taskMarker.from, taskMarker.to);
             const checked = /^\[[xX]\]$/.test(taskText);
-            const touchedTask = view.state.selection.ranges.some((r) => r.from <= taskMarker.to && r.to >= taskMarker.from);
 
-            if (!touchedMark) {
-              if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
-              const cls = checked ? "cm-lp-li cm-lp-task cm-lp-task-done" : "cm-lp-li cm-lp-task";
-              out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
-              if (mark) hide(line.from, Math.min(mark.to + 1, line.to));
-            } else {
-              out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-li-raw" }) });
-            }
+            if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
+            const cls = checked ? "cm-lp-li cm-lp-task cm-lp-task-done" : "cm-lp-li cm-lp-task";
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
+            if (mark) hide(line.from, Math.min(mark.to + 1, line.to));
 
-            if (!touchedTask) {
-              out.push({
-                from: taskMarker.from,
-                to: taskMarker.to,
-                deco: Decoration.replace({ widget: new TaskCheckboxWidget(checked, taskMarker.from) }),
-              });
-            }
+            out.push({
+              from: taskMarker.from,
+              to: taskMarker.to,
+              deco: Decoration.replace({ widget: new TaskCheckboxWidget(checked, taskMarker.from) }),
+            });
           } else {
-            const showBullet = bullet && !touchedMark;
-            if (!touchedMark) {
-              if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
-              const cls = showBullet ? "cm-lp-li cm-lp-bullet" : isOrdered ? "cm-lp-li cm-lp-ordered" : "cm-lp-li";
-              out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
-              if (bullet && mark) {
-                hide(line.from, Math.min(mark.to + 1, line.to));
-              } else if (isOrdered && mark && mark.from > line.from) {
-                hide(line.from, mark.from);
-              }
-            } else {
-              out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-li-raw" }) });
+            const showBullet = bullet;
+            if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
+            const cls = showBullet ? "cm-lp-li cm-lp-bullet" : isOrdered ? "cm-lp-li cm-lp-ordered" : "cm-lp-li";
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
+            if (bullet && mark) {
+              hide(line.from, Math.min(mark.to + 1, line.to));
+            } else if (isOrdered && mark && mark.from > line.from) {
+              hide(line.from, mark.from);
             }
           }
         } else if (name === "Link" && !shown) {

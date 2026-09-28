@@ -39,12 +39,20 @@ import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, s
 import { lintKeymap } from "@codemirror/lint";
 import katex from "katex";
 import { CustomSearchPanel, ReadingSearch, searchStrings } from "./searchPanel";
+import { icon } from "./icons";
 
 const baseEditorExtensions: Extension = [
   highlightActiveLineGutter(),
   highlightSpecialChars(),
   history(),
-  foldGutter(),
+  foldGutter({
+    markerDOM: (open) => {
+      const span = document.createElement("span");
+      span.className = open ? "cm-foldMarker cm-foldMarker-open" : "cm-foldMarker cm-foldMarker-folded";
+      span.append(icon("chevron"));
+      return span;
+    },
+  }),
   drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
@@ -73,7 +81,6 @@ const baseEditorExtensions: Extension = [
   ]),
 ];
 import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
-import { icon } from "./icons";
 import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
