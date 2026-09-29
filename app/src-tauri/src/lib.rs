@@ -2759,22 +2759,17 @@ fn is_safe_proxy_url(url_str: &str) -> bool {
         }
         if let Some(host) = parsed.host_str() {
             let h = host.trim_matches(['[', ']']).to_lowercase();
-            if h == "localhost"
-                || h.ends_with(".localhost")
-                || h == "local"
-                || h.ends_with(".local")
-                || h == "127.0.0.1"
-                || h == "::1"
-                || h == "169.254.169.254"
+            // Block cloud metadata services (IMDS)
+            if h == "169.254.169.254"
+                || h.ends_with(".169.254.169.254")
+                || h == "instance-data"
             {
                 return false;
             }
             if let Ok(ip) = h.parse::<std::net::IpAddr>() {
                 match ip {
                     std::net::IpAddr::V4(ipv4) => {
-                        if ipv4.is_loopback()
-                            || ipv4.is_private()
-                            || ipv4.is_link_local()
+                        if ipv4.is_link_local()
                             || ipv4.is_broadcast()
                             || ipv4.is_unspecified()
                         {
@@ -2782,7 +2777,7 @@ fn is_safe_proxy_url(url_str: &str) -> bool {
                         }
                     }
                     std::net::IpAddr::V6(ipv6) => {
-                        if ipv6.is_loopback() || ipv6.is_unspecified() {
+                        if ipv6.is_unspecified() {
                             return false;
                         }
                     }
@@ -2800,6 +2795,7 @@ fn proxy_web_page(url_str: &str) -> Result<(u16, String, Vec<u8>), String> {
     }
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
+        .redirect(reqwest::redirect::Policy::limited(10))
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
         .build()
         .map_err(|e| e.to_string())?;
@@ -3753,15 +3749,13 @@ mod tests {
         assert!(is_safe_proxy_url(
             "https://olddragon.com.br/personagens/f54ec4eb-f3b5-4b93-ac8c-524f102d0ba6"
         ));
+        assert!(is_safe_proxy_url("http://192.168.3.100:8083/category/stored/Livros"));
+        assert!(is_safe_proxy_url("http://localhost:8080"));
+        assert!(is_safe_proxy_url("http://127.0.0.1:3000"));
 
-        assert!(!is_safe_proxy_url("http://localhost:8080"));
-        assert!(!is_safe_proxy_url("http://127.0.0.1:3000"));
-        assert!(!is_safe_proxy_url("http://[::1]:8080"));
         assert!(!is_safe_proxy_url(
             "http://169.254.169.254/latest/meta-data/"
         ));
-        assert!(!is_safe_proxy_url("http://192.168.1.1/admin"));
-        assert!(!is_safe_proxy_url("http://10.0.0.1/"));
         assert!(!is_safe_proxy_url("ftp://example.com/file"));
         assert!(!is_safe_proxy_url("file:///etc/passwd"));
     }
