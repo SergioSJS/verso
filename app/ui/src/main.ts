@@ -134,7 +134,7 @@ type Strings = Record<
   | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
-  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
+  | "tabs" | "unsaved" | "rightPanel" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
@@ -245,6 +245,7 @@ const pt: Strings = {
   colorBrass: "Âmbar / Brass (Acolhedor)", colorDefault: "Tinta natural (Neutro)", colorSeal: "Rubi / Selo (Vibrante)", colorMoss: "Esmeralda / Musgo (Natural)", colorSlate: "Ardósia / Índigo (Frio)", colorRoyal: "Safira Real (Azul)", colorAmethyst: "Ametista Real (Roxo)",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
+  navBack: "Voltar", navForward: "Avançar",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
   newBase: "Nova base", insertBase: "Inserir base", calendarTab: "Calendário", newWindow: "Nova janela",
   sCli: "Terminal e agentes", cliTitle: "Comando verso no terminal", cliDesc: "Instala o comando verso em /usr/local/bin: verso . abre a pasta no app, verso search <pasta> <palavras> busca, verso mcp atende um agente. O macOS pede a sua senha uma vez.",
@@ -337,6 +338,7 @@ const en: Strings = {
   colorBrass: "Warm Brass (Amber)", colorDefault: "Natural Ink (Neutral)", colorSeal: "Ruby Seal (Vibrant)", colorMoss: "Emerald Moss (Natural)", colorSlate: "Slate Indigo (Cool)", colorRoyal: "Royal Sapphire (Blue)", colorAmethyst: "Royal Amethyst (Purple)",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
+  navBack: "Back", navForward: "Forward",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
   sCli: "Terminal and agents", cliTitle: "The verso command in the terminal", cliDesc: "Installs the verso command in /usr/local/bin: verso . opens the folder in the app, verso search <folder> <words> searches, verso mcp serves an agent. macOS asks for your password once.",
   cliOurs: "Installed.", cliMissing: "Not installed.", cliElsewhere: "Another verso is in /usr/local/bin.", cliUnbundled: "This build of the app carries no command.",
@@ -4434,6 +4436,16 @@ class Pane {
   active: Leaf | null = null;
   vertical = false;
   tabsHidden = false;
+  /** Where this pane has been, in the order it showed them, and where in
+   *  that trail it stands: a browser's back and forward, one trail per
+   *  pane, so a split navigates on its own. A tab closed meanwhile leaves
+   *  the trail — nothing is reopened behind the user's back. */
+  private trail: Leaf[] = [];
+  private trailAt = -1;
+  /** The trail itself is moving the pane: what follows is not recorded. */
+  private navigating = false;
+  private readonly backButton = button("ghost iconic", t.navBack, "chevronLeft");
+  private readonly forwardButton = button("ghost iconic", t.navForward, "chevron");
 
   constructor() {
     // The tabs are the tablist; the pane's tools sit beside it, outside.
@@ -4489,7 +4501,10 @@ class Pane {
     max.addEventListener("click", () => layout().toggleMaximize(this));
     const close = button("ghost iconic", t.closePane, "close");
     close.addEventListener("click", () => void this.closeAll());
-    this.tools.append(all, orient, plus, max, close);
+    this.backButton.addEventListener("click", () => this.go(-1));
+    this.forwardButton.addEventListener("click", () => this.go(1));
+    this.refreshNav();
+    this.tools.append(this.backButton, this.forwardButton, all, orient, plus, max, close);
     this.tabs.append(this.tabList, this.tools);
     this.tabs.addEventListener("dblclick", (e) => {
       if (e.target === this.tabs || e.target === this.tabList) void newUntitled(this);
@@ -4666,13 +4681,48 @@ class Pane {
     markCurrent();
     leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (focus) leaf.focusContent();
+    this.mark(leaf);
     persistSoon();
+  }
+  /** The trail learns where the pane went — unless it was the trail that
+   *  took it there. A step away from the middle of the trail drops what
+   *  lay ahead, as a browser does. */
+  private mark(leaf: Leaf): void {
+    if (!this.navigating && this.trail[this.trailAt] !== leaf) {
+      this.trail.length = this.trailAt + 1;
+      this.trail.push(leaf);
+      if (this.trail.length > 60) this.trail.shift();
+      this.trailAt = this.trail.length - 1;
+    }
+    this.refreshNav();
+  }
+  private refreshNav(): void {
+    this.backButton.disabled = !this.canGo(-1);
+    this.forwardButton.disabled = !this.canGo(1);
+  }
+  /** Whether there is a step back (`-1`) or forward (`1`) to take. */
+  canGo(d: -1 | 1): boolean {
+    return this.trail[this.trailAt + d] !== undefined;
+  }
+  /** Take that step: the tab it names comes to the front, with the focus. */
+  go(d: -1 | 1): void {
+    const leaf = this.trail[this.trailAt + d];
+    if (!leaf) return;
+    this.trailAt += d;
+    this.navigating = true;
+    this.activate(leaf, true);
+    this.navigating = false;
   }
   remove(leaf: Leaf, moving = false): void {
     const i = this.leaves.indexOf(leaf);
     if (i < 0) return;
     if (!moving && leaf.path && leaf.kind !== "folder" && leaf.kind !== "graph") closedTabs.push(leaf.path);
     this.leaves.splice(i, 1);
+    // The trail forgets the tab that closed; the cursor keeps its place.
+    const goneBefore = this.trail.slice(0, this.trailAt + 1).filter((l) => l === leaf).length;
+    this.trail = this.trail.filter((l) => l !== leaf);
+    this.trailAt = Math.max(-1, Math.min(this.trailAt - goneBefore, this.trail.length - 1));
+    this.refreshNav();
     leaf.tab.remove();
     leaf.el.remove();
     if (this.active === leaf) {
@@ -7061,7 +7111,7 @@ type Command = { id: string; label: string; keys?: string; run: () => void };
 const DEFAULT_KEYS: Record<string, string> = {
   "open-folder": "Mod-o", search: "Mod-k", "find-in-note": "Mod-f", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
   "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Alt-ArrowLeft", "toggle-right": "Mod-Alt-ArrowRight",
-  reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[",
+  reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[", "nav-back": "Mod-[", "nav-forward": "Mod-]",
 };
 function keyOf(id: string): string {
   return settings.hotkeys[id] ?? DEFAULT_KEYS[id] ?? "";
@@ -7209,6 +7259,8 @@ function allCommands(all = false): Command[] {
     { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
+    { id: "nav-back", label: t.navBack, need: Boolean(pane?.canGo(-1)), run: () => pane?.go(-1) },
+    { id: "nav-forward", label: t.navForward, need: Boolean(pane?.canGo(1)), run: () => pane?.go(1) },
     { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
     { id: "split-down", label: t.splitDown, need: Boolean(pane), run: () => pane && layout().split(pane, "col") },
     { id: "new-space", label: t.newSpace.split(" (")[0] ?? t.newSpace, need: hasFolder, run: () => newSpace() },

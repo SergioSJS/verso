@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+### Added
+
+- **Back and forward between notes**: each pane keeps its own trail of where it has been — ‹ and › in its tab bar, ⌘[ and ⌘] on the keyboard, and both in the palette and in Settings → Hotkeys. A split navigates on its own, and a tab closed meanwhile leaves the trail instead of being reopened behind you.
+
 ### Fixed
 
 - **"Add property" no longer paints over the note**: on a note with no properties the button was taken out of the flow and floated over whatever was under it — the title's rule and the first lines of the note. It keeps its own band at the right now, and still appears only when the sheet is hovered.
