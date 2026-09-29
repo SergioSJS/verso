@@ -131,6 +131,31 @@ function tameStyle(style: CSSStyleDeclaration): void {
 /* ---------- Embedded web pages ---------- */
 
 
+/** What the child view actually navigates to. Almost always the URL as
+ *  written; YouTube's `/embed/` player is the exception — it refuses any
+ *  request without an HTTP Referer ("error 153"), which a top-level view
+ *  never sends — so the watch page, whose player asks no such thing,
+ *  stands in for it. The origin the gate asks about is unchanged. */
+function embedTarget(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if ((host === "www.youtube.com" || host === "youtube.com" || host === "www.youtube-nocookie.com") && u.pathname.startsWith("/embed/")) {
+      const id = u.pathname.slice("/embed/".length).split("/")[0] ?? "";
+      if (id) {
+        const watch = new URL("https://www.youtube.com/watch");
+        watch.searchParams.set("v", id);
+        const start = u.searchParams.get("start") ?? u.searchParams.get("t");
+        if (start) watch.searchParams.set("t", start);
+        return watch.toString();
+      }
+    }
+  } catch {
+    /* the URL as written */
+  }
+  return url;
+}
+
 /** Whether a host name is this machine or the local network: loopback,
  *  the private ranges, link-local, carrier-grade NAT, `localhost` and
  *  mDNS `.local` names. Judged by the name as written: a public name that
@@ -239,7 +264,7 @@ function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElemen
   if (!host.style.width) host.style.width = "100%";
   const gate = gateOf(url);
   if (!gate) {
-    host.setAttribute("data-embed-web", url);
+    host.setAttribute("data-embed-web", embedTarget(url));
     return host;
   }
   if (!hooks) {
@@ -311,7 +336,7 @@ function onGate(e: MouseEvent): void {
     const held = box.querySelector("template")?.content.querySelector("div.embed-web");
     if (!held) return;
     // Only a box this module made carries the address it asked about.
-    held.setAttribute("data-embed-web", url);
+    held.setAttribute("data-embed-web", embedTarget(url));
     box.replaceWith(document.importNode(held, true));
   };
   switch (button.getAttribute("data-embed-action")) {
