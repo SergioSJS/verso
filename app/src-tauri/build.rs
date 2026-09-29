@@ -51,7 +51,6 @@ fn main() {
         "reveal",
         "copy_full_path",
         "set_embed_origins",
-        "embed_proxy_base",
         "set_walk_rules",
         "set_menu_language",
         "reindex",
