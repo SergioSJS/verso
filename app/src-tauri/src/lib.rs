@@ -103,7 +103,9 @@ pub struct App {
     walk_rules: Mutex<verso_core::WalkRules>,
     /// The folders behind the menu's "Open Recent" items, in the order
     /// the menu shows: item `verso-recent-<i>` opens `menu_recents[i]`.
-    /// Paths at the edge, on this side; they never cross to the UI.
+    /// Paths at the edge, on this side; they never cross to the UI. The
+    /// menu is macOS's; elsewhere the field would sit unread.
+    #[cfg(target_os = "macos")]
     menu_recents: Mutex<Vec<PathBuf>>,
     /// The menu's language, pushed by the UI with its own ("pt" or "en").
     menu_language: Mutex<String>,
@@ -122,6 +124,7 @@ impl App {
             session: Mutex::new(None),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
             walk_rules: Mutex::new(verso_core::WalkRules::default()),
+            #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
         }
@@ -988,7 +991,7 @@ fn copy_full_path(state: State<'_, App>, path: String) -> Result<(), ContractErr
         let cmd = if std::process::Command::new("which")
             .arg("wl-copy")
             .output()
-            .map_or(false, |o| o.status.success())
+            .is_ok_and(|o| o.status.success())
         {
             "wl-copy"
         } else {
