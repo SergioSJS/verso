@@ -171,7 +171,8 @@ function clean(body: HTMLElement): void {
         el.remove();
         continue;
       }
-      el.setAttribute("src", convertFileSrc(`__proxy?url=${encodeURIComponent(src)}`, "verso"));
+      const proxyBase = convertFileSrc("__proxy", "verso");
+      el.setAttribute("src", `${proxyBase}?url=${encodeURIComponent(src)}`);
       el.setAttribute("loading", "lazy");
     }
     const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";

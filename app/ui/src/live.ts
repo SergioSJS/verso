@@ -251,7 +251,8 @@ class IframeWidget extends WidgetType {
     const iframe = document.createElement("iframe");
     const rawSrc = this.src;
     if (rawSrc.startsWith("http://") || rawSrc.startsWith("https://")) {
-      iframe.src = convertFileSrc(`__proxy?url=${encodeURIComponent(rawSrc)}`, "verso");
+      const proxyBase = convertFileSrc("__proxy", "verso");
+      iframe.src = `${proxyBase}?url=${encodeURIComponent(rawSrc)}`;
     } else {
       iframe.src = rawSrc;
     }

@@ -154,10 +154,10 @@ impl GitIgnorePattern {
         if let Some(ext) = clean_pat.strip_prefix("*.") {
             return file_name.ends_with(&format!(".{ext}"));
         }
-        if let Some(prefix) = clean_pat.strip_suffix('*') {
-            if file_name.starts_with(prefix) {
-                return true;
-            }
+        if let Some(prefix) = clean_pat.strip_suffix('*')
+            && file_name.starts_with(prefix)
+        {
+            return true;
         }
         if !clean_pat.contains('/') {
             return file_name == clean_pat;
