@@ -1129,6 +1129,7 @@ fn open_url<R: tauri::Runtime>(app: tauri::AppHandle<R>, url: String) -> Result<
     let parsed = http_url(&url)?;
     let title = parsed.host_str().unwrap_or("web").to_owned();
     tauri::WebviewWindowBuilder::new(&app, next_web_label(), tauri::WebviewUrl::External(parsed))
+        .user_agent(WEB_USER_AGENT)
         .title(title)
         .inner_size(1100.0, 800.0)
         .on_navigation(web_only)
@@ -1173,6 +1174,12 @@ fn chrome_offset<R: tauri::Runtime>(window: &tauri::Window<R>) -> f64 {
     }
 }
 
+/// The user agent a web page's view presents: Safari's own, current
+/// form. WKWebView's default carries no browser token, and a site that
+/// sniffs it serves broken pages — YouTube's embed player answers
+/// "configuration error" to it, whole and entire.
+const WEB_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15";
+
 fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
     let parsed: tauri::Url = url.parse().map_err(|e| failed(format!("{e}")))?;
     if !web_only(&parsed) {
@@ -1204,6 +1211,7 @@ fn web_open<R: tauri::Runtime>(
     window
         .add_child(
             tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
+                .user_agent(WEB_USER_AGENT)
                 .on_navigation(web_only)
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
             tauri::LogicalPosition::new(x, y),
