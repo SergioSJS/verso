@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.3.0-beta.2 — 2026-09-29
+
 ### Added
 
 - **Native PDF embedding with page specification in Reading View and Live Preview**: embed PDF documents with specific page numbers and dimensions (e.g. `![[doc.pdf#page=3]]`, `![[doc.pdf#3]]`, `![[doc.pdf#page=3|600]]`, or `![[doc.pdf|page=5]]`). In Live Preview, PDFs are rendered with an inline viewer and click-to-edit `</>` button.
