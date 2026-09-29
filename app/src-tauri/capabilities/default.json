@@ -51,6 +51,7 @@
     "allow-reveal",
     "allow-copy-full-path",
     "allow-set-embed-origins",
+    "allow-embed-proxy-base",
     "allow-set-walk-rules",
     "allow-set-menu-language",
     "allow-reindex",

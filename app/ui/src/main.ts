@@ -93,7 +93,7 @@ import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
 import { ask, tell } from "./dialog";
-import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml } from "./sanitize";
+import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml, setProxyBase } from "./sanitize";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import { renderMermaid } from "./mermaid";
 
@@ -667,6 +667,12 @@ function pushEmbedOrigins(): Promise<boolean> {
   );
 }
 const embedOriginsPushed = pushEmbedOrigins();
+/** The embed proxy's base, token included, from the host: without it an
+ *  embedded page renders as a link, never a broken frame. */
+const proxyBaseReady = commands
+  .embedProxyBase()
+  .then((r) => setProxyBase(r.status === "ok" ? r.data : null))
+  .catch(() => setProxyBase(null));
 /** The scan's rules handed to the host, which walks the folder with them.
  *  Awaited with the embed origins, before any folder opens. */
 function pushWalkRules(): Promise<boolean> {
@@ -8581,7 +8587,7 @@ if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
 void (async () => {
-  await Promise.all([embedOriginsPushed, walkRulesPushed]);
+  await Promise.all([embedOriginsPushed, walkRulesPushed, proxyBaseReady]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
   // window joins it rather than open another.

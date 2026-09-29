@@ -130,12 +130,18 @@ function tameStyle(style: CSSStyleDeclaration): void {
 
 /* ---------- Embedded web pages ---------- */
 
-/** Where the embed proxy serves a web page from: a host of its own,
- *  apart from the folder's files, whose responses may not reach back into
- *  `verso:`. The address is encoded once; the host decodes it once. */
-const PROXY = "verso://proxy/__proxy?url=";
-export function proxied(url: string): string {
-  return `${PROXY}${encodeURIComponent(url)}`;
+/** Where the embed proxy serves a web page from: the host's loopback
+ *  listener, an origin of its own whose responses may not reach back
+ *  into `verso:`. WebKit never navigates an iframe to a custom scheme,
+ *  so the base is plain HTTP, handed over by the host with the session's
+ *  token in it (`embed_proxy_base`). The address is encoded once; the
+ *  host decodes it once. Without a base, an embed becomes a link. */
+let proxyBase: string | null = null;
+export function setProxyBase(base: string | null): void {
+  proxyBase = base;
+}
+function proxied(url: string): string | null {
+  return proxyBase ? `${proxyBase}${encodeURIComponent(url)}` : null;
 }
 /** Every embedded page runs sandboxed: scripts in its own origin (the
  *  proxy's), no navigation of the window around it. */
@@ -220,12 +226,13 @@ function gateOf(url: string): { kind: "local" | "remote"; origin: string } | nul
  *  inside the box in a `template`: inert, nothing is fetched until a
  *  click. Built in `doc`, the inert document of a note or the page. */
 function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElement {
-  frame.setAttribute("src", proxied(url));
+  const src = proxied(url);
+  frame.setAttribute("src", src ?? "");
   frame.setAttribute("sandbox", SANDBOX);
   frame.setAttribute("loading", "lazy");
   const gate = gateOf(url);
-  if (!gate) return frame;
-  if (!hooks) {
+  if (!gate && src) return frame;
+  if (!hooks || !src || !gate) {
     // No window to ask (not configured): a link, never the page.
     const link = doc.createElement("a");
     link.className = "remote-image";
@@ -293,7 +300,7 @@ function onGate(e: MouseEvent): void {
   const load = () => {
     const held = box.querySelector("template")?.content.querySelector("iframe");
     // Only a frame this module made: through the proxy, sandboxed.
-    if (!held || !held.getAttribute("src")?.startsWith(PROXY)) return;
+    if (!held || !proxyBase || !held.getAttribute("src")?.startsWith(proxyBase)) return;
     held.setAttribute("sandbox", SANDBOX);
     box.replaceWith(document.importNode(held, true));
   };

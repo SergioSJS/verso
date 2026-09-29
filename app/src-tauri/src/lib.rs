@@ -105,6 +105,12 @@ pub struct App {
     menu_recents: Mutex<Vec<PathBuf>>,
     /// The menu's language, pushed by the UI with its own ("pt" or "en").
     menu_language: Mutex<String>,
+    /// The embed proxy's local address: its port on 127.0.0.1 and the
+    /// session's secret. WebKit refuses to navigate an iframe to a custom
+    /// scheme — the request never reaches the `verso://` handler — so the
+    /// embed proxy answers over plain HTTP on the loopback instead, and
+    /// the token keeps every other local program out of it.
+    embed_proxy: Mutex<Option<(u16, String)>>,
 }
 
 impl App {
@@ -122,6 +128,7 @@ impl App {
             walk_rules: Mutex::new(verso_core::WalkRules::default()),
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
+            embed_proxy: Mutex::new(None),
         }
     }
 }
@@ -1091,13 +1098,30 @@ fn is_file_url(url: &tauri::Url) -> bool {
 /// HTML-file viewer is a frame that loads through the protocol, and a
 /// guard that refused it would refuse the viewer. What the protocol
 /// serves runs no script (`CSP: sandbox`) and is never a note.
-fn may_navigate(label: &str, url: &tauri::Url, dev_url: Option<&tauri::Url>) -> bool {
+/// The embed proxy's own address, and nothing else on the loopback: the
+/// one web navigation an app view's iframes are allowed (the token is
+/// the server's to check). `on_navigation` hears subframes too, so
+/// without this the guard silently emptied every embedded page.
+fn is_embed_proxy_url(url: &tauri::Url, proxy_port: Option<u16>) -> bool {
+    url.scheme() == "http"
+        && url.host_str() == Some("127.0.0.1")
+        && proxy_port.is_some_and(|p| url.port() == Some(p))
+        && url.path() == "/__proxy"
+}
+
+fn may_navigate(
+    label: &str,
+    url: &tauri::Url,
+    dev_url: Option<&tauri::Url>,
+    proxy_port: Option<u16>,
+) -> bool {
     if url.as_str() == "about:blank" {
         return true;
     }
     if is_app_view(label) {
         is_app_url(url)
             || is_file_url(url)
+            || is_embed_proxy_url(url, proxy_port)
             || (cfg!(debug_assertions) && dev_url.is_some_and(|dev| dev.origin() == url.origin()))
     } else if label.starts_with("web-") {
         web_only(url)
@@ -1113,7 +1137,10 @@ fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::new("verso-navigation")
         .on_navigation(|webview, url| {
             let dev_url = webview.app_handle().config().build.dev_url.clone();
-            may_navigate(webview.label(), url, dev_url.as_ref())
+            let proxy_port = lock(&webview.app_handle().state::<App>().embed_proxy)
+                .as_ref()
+                .map(|(port, _)| *port);
+            may_navigate(webview.label(), url, dev_url.as_ref(), proxy_port)
         })
         .build()
 }
@@ -1806,6 +1833,7 @@ macro_rules! commands_for {
                 reveal,
                 copy_full_path,
                 set_embed_origins,
+                embed_proxy_base,
                 set_walk_rules,
                 set_menu_language::<$runtime>,
                 reindex::<$runtime>,
@@ -2133,10 +2161,146 @@ fn proxy_web_page(
 /// The policy an embedded page runs under: it may use the public web —
 /// its own scripts, styles, images — but nothing of the app. No `verso:`
 /// or `tauri:` request resolves from inside it, so a hostile page can
-/// neither read the folder's files through `verso://localhost` nor
-/// bounce through the proxy again.
+/// neither read the folder's files through `verso://localhost` nor reach
+/// the app's own pages.
 const PROXY_CSP: &str =
     "default-src http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; frame-src http: https:";
+
+/// A session secret nothing outside this process knows: the loopback
+/// port is reachable by every local program, and the token in the URL is
+/// what keeps the proxy answering this app alone.
+fn embed_proxy_token() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let pid = std::process::id();
+    let marker: u128 = &now as *const _ as usize as u128;
+    let mut hasher = <sha2::Sha256 as sha2::Digest>::new();
+    sha2::Digest::update(&mut hasher, now.to_le_bytes());
+    sha2::Digest::update(&mut hasher, pid.to_le_bytes());
+    sha2::Digest::update(&mut hasher, marker.to_le_bytes());
+    format!("{:x}", sha2::Digest::finalize(hasher))
+}
+
+/// Start the embed proxy: a loopback HTTP listener on an ephemeral port.
+///
+/// Why HTTP and not the `verso://` protocol: WebKit refuses to navigate
+/// a subframe to a custom scheme — the scheme handler is never called for
+/// an `<iframe src="verso://…">`, on any host, sandboxed or not (verified
+/// 2026-09-29; it is why embedded pages never rendered). A loopback
+/// address is ordinary web content, which iframes load; the policy is the
+/// same (`is_allowed_proxy_url`, `PROXY_CSP`), the origin is still apart
+/// from the app's and the files', and the token gates the port.
+fn start_embed_proxy<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> std::io::Result<(u16, String)> {
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0))?;
+    let port = listener.local_addr()?.port();
+    let token = embed_proxy_token();
+    let expected = token.clone();
+    std::thread::Builder::new()
+        .name("embed-proxy".into())
+        .spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(stream) = stream else { continue };
+                let app = app.clone();
+                let expected = expected.clone();
+                // One page fetch may sit on a slow site for seconds; a
+                // thread per request keeps the other embeds loading.
+                let _ = std::thread::Builder::new()
+                    .name("embed-proxy-request".into())
+                    .spawn(move || embed_proxy_answer(stream, &app, &expected));
+            }
+        })?;
+    Ok((port, token))
+}
+
+/// One request to the embed proxy: `GET /__proxy?t=<token>&url=<page>`.
+fn embed_proxy_answer<R: tauri::Runtime>(
+    mut stream: std::net::TcpStream,
+    app: &tauri::AppHandle<R>,
+    expected_token: &str,
+) {
+    use std::io::{Read, Write};
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(10)));
+    // The request head alone; the proxy takes no body.
+    let mut head = Vec::new();
+    let mut buf = [0u8; 2048];
+    while !head.windows(4).any(|w| w == b"\r\n\r\n") && head.len() < 16 * 1024 {
+        match stream.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => head.extend_from_slice(&buf[..n]),
+        }
+    }
+    let head = String::from_utf8_lossy(&head);
+    let mut answer = |status: u16, reason: &str, content_type: &str, body: &[u8]| {
+        let _ = write!(
+            stream,
+            "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Security-Policy: {PROXY_CSP}\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-cache\r\nConnection: close\r\nContent-Length: {}\r\n\r\n",
+            body.len()
+        );
+        let _ = stream.write_all(body);
+    };
+    let Some(path) = head
+        .lines()
+        .next()
+        .and_then(|l| l.strip_prefix("GET "))
+        .and_then(|l| l.split(' ').next())
+    else {
+        return answer(405, "Method Not Allowed", "text/plain", b"GET only");
+    };
+    let Some(query) = path.strip_prefix("/__proxy?") else {
+        return answer(404, "Not Found", "text/plain", b"not found");
+    };
+    let mut token = None;
+    let mut target = None;
+    for pair in query.split('&') {
+        match pair.split_once('=') {
+            Some(("t", v)) => token = Some(v.to_owned()),
+            Some(("url", v)) => target = Some(percent_decode(v)),
+            _ => {}
+        }
+    }
+    // The token, before anything else: without it, this port answers
+    // no one — not another local program, not a page guessing.
+    if token.as_deref() != Some(expected_token) {
+        return answer(403, "Forbidden", "text/plain", b"forbidden");
+    }
+    let Some(target) = target else {
+        return answer(400, "Bad Request", "text/plain", b"missing url");
+    };
+    let approved = {
+        let state = app.state::<App>();
+        let guard = lock(&state.embed_origins);
+        guard.clone()
+    };
+    match proxy_web_page(&target, &approved) {
+        Ok((status, content_type, body)) => {
+            let reason = if status < 400 { "OK" } else { "Upstream" };
+            answer(status, reason, &content_type, &body);
+        }
+        Err(err) => {
+            let escaped = err
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;");
+            let html = format!(
+                "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{escaped}</p></body></html>"
+            );
+            answer(502, "Bad Gateway", "text/html; charset=utf-8", html.as_bytes());
+        }
+    }
+}
+
+/// Where the window builds an embed's `src`: the proxy's base, token
+/// included, for `encodeURIComponent(page)` to follow. The token stays
+/// between the host and its own web view.
+#[tauri::command]
+#[specta::specta]
+fn embed_proxy_base(state: State<'_, App>) -> Result<Option<String>, ContractError> {
+    Ok(lock(&state.embed_proxy)
+        .as_ref()
+        .map(|(port, token)| format!("http://127.0.0.1:{port}/__proxy?t={token}&url=")))
+}
 
 /// `verso://localhost/<relative path>`: a file of the folder that is not
 /// a note — an image an embed names, a PDF, an HTML page shown without
@@ -2162,73 +2326,12 @@ fn serve_file<R: tauri::Runtime>(
             .body(std::borrow::Cow::Owned(body.to_vec()))
             .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())))
     };
+    // An embed once pointed at `verso://proxy` here; WebKit never
+    // delivers an iframe navigation to a custom scheme, so the embed
+    // proxy now answers over the loopback (`start_embed_proxy`). A
+    // stale address gets a plain refusal.
     if host == "proxy" || relative == "__proxy" || relative.starts_with("__proxy?") {
-        // The embed proxy answers the app's own views, from its own
-        // host, and nothing else.
-        if !is_app_view(ctx.webview_label()) {
-            return plain(403, b"not a view of this app");
-        }
-        if host != "proxy" {
-            return plain(403, b"the embed proxy is served from verso://proxy");
-        }
-        if !(relative == "__proxy" || relative.starts_with("__proxy?")) {
-            return plain(404, b"not found");
-        }
-        let mut target_url = None;
-        let query = request
-            .uri()
-            .query()
-            .map(str::to_owned)
-            .or_else(|| relative.strip_prefix("__proxy?").map(str::to_owned));
-        if let Some(query) = query {
-            for pair in query.split('&') {
-                if let Some(("url", v)) = pair.split_once('=') {
-                    target_url = Some(percent_decode(v));
-                    break;
-                }
-            }
-        }
-        let Some(target) = target_url else {
-            return plain(400, b"Missing url parameter");
-        };
-        let approved = {
-            let state = ctx.app_handle().state::<App>();
-            let guard = lock(&state.embed_origins);
-            guard.clone()
-        };
-        match proxy_web_page(&target, &approved) {
-            Ok((status, content_type, body)) => {
-                return tauri::http::Response::builder()
-                    .status(status)
-                    .header("Content-Type", content_type)
-                    .header("Content-Security-Policy", PROXY_CSP)
-                    .header("X-Content-Type-Options", "nosniff")
-                    .header("Cache-Control", "no-cache")
-                    .body(std::borrow::Cow::Owned(body))
-                    .unwrap_or_else(|_| {
-                        tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
-                    });
-            }
-            Err(err) => {
-                // The error text can carry the note's URL: escaped, or
-                // the error page itself becomes an injection point.
-                let escaped = err
-                    .replace('&', "&amp;")
-                    .replace('<', "&lt;")
-                    .replace('>', "&gt;");
-                let html = format!(
-                    "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{escaped}</p></body></html>"
-                );
-                return tauri::http::Response::builder()
-                    .status(502)
-                    .header("Content-Type", "text/html; charset=utf-8")
-                    .header("Content-Security-Policy", PROXY_CSP)
-                    .body(std::borrow::Cow::Owned(html.into_bytes()))
-                    .unwrap_or_else(|_| {
-                        tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
-                    });
-            }
-        }
+        return plain(410, b"the embed proxy moved to the loopback; reload the window");
     }
     let origin = request
         .headers()
@@ -2290,6 +2393,15 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         .register_uri_scheme_protocol("verso", serve_file)
         .manage(App::new(initial_folder))
         .invoke_handler(commands.invoke_handler())
+        .setup(|app| {
+            // The embed proxy's loopback listener; without it the window
+            // gets no base and an embed becomes a link, never an error.
+            match start_embed_proxy(app.handle().clone()) {
+                Ok(bound) => *lock(&app.state::<App>().embed_proxy) = Some(bound),
+                Err(e) => eprintln!("embed proxy did not start: {e}"),
+            }
+            Ok(())
+        })
         .build(context())?
         .run(on_event);
     Ok(())
@@ -3082,51 +3194,77 @@ mod tests {
             assert!(may_navigate(
                 label,
                 &url("tauri://localhost/index.html"),
-                None
+                None, None
             ));
             assert!(may_navigate(
                 label,
                 &url("http://tauri.localhost/index.html"),
-                None
+                None, None
             ));
-            assert!(may_navigate(label, &url("https://tauri.localhost/"), None));
-            assert!(may_navigate(label, &url("about:blank"), None));
-            assert!(!may_navigate(label, &url("https://example.org/"), None));
+            assert!(may_navigate(label, &url("https://tauri.localhost/"), None, None));
+            assert!(may_navigate(label, &url("about:blank"), None, None));
+            assert!(!may_navigate(label, &url("https://example.org/"), None, None));
             // The HTML-file viewer's frame: the handler cannot tell it
             // from the window, and the protocol runs no script.
             assert!(may_navigate(
                 label,
                 &url("verso://localhost/pagina.html"),
-                None
+                None, None
             ));
             assert!(may_navigate(
                 label,
                 &url("http://verso.localhost/pagina.html"),
-                None
+                None, None
             ));
-            assert!(!may_navigate(label, &url("verso://evil/x.html"), None));
-            assert!(!may_navigate(label, &url("file:///etc/passwd"), None));
-            assert!(!may_navigate(label, &url("tauri://evil/"), None));
-            assert!(!may_navigate(label, &url("http://localhost:5173/"), None));
+            assert!(!may_navigate(label, &url("verso://evil/x.html"), None, None));
+            assert!(!may_navigate(label, &url("file:///etc/passwd"), None, None));
+            assert!(!may_navigate(label, &url("tauri://evil/"), None, None));
+            assert!(!may_navigate(label, &url("http://localhost:5173/"), None, None));
             assert_eq!(
-                may_navigate(label, &url("http://localhost:5173/x"), Some(&dev)),
+                may_navigate(label, &url("http://localhost:5173/x"), Some(&dev), None),
                 cfg!(debug_assertions)
             );
+            // The embed proxy: this session's port and path, nothing
+            // else on the loopback.
+            assert!(may_navigate(
+                label,
+                &url("http://127.0.0.1:50677/__proxy?t=x&url=y"),
+                None,
+                Some(50677)
+            ));
+            assert!(!may_navigate(
+                label,
+                &url("http://127.0.0.1:50677/__proxy?t=x&url=y"),
+                None,
+                None
+            ));
+            assert!(!may_navigate(
+                label,
+                &url("http://127.0.0.1:50678/__proxy?t=x&url=y"),
+                None,
+                Some(50677)
+            ));
+            assert!(!may_navigate(
+                label,
+                &url("http://127.0.0.1:50677/other"),
+                None,
+                Some(50677)
+            ));
         }
-        assert!(may_navigate("web-1", &url("https://example.org/"), None));
-        assert!(may_navigate("web-1", &url("http://example.org/"), None));
+        assert!(may_navigate("web-1", &url("https://example.org/"), None, None));
+        assert!(may_navigate("web-1", &url("http://example.org/"), None, None));
         assert!(!may_navigate(
             "web-1",
             &url("tauri://localhost/index.html"),
-            None
+            None, None
         ));
         assert!(!may_navigate(
             "web-1",
             &url("verso://localhost/mapa.svg"),
-            None
+            None, None
         ));
-        assert!(!may_navigate("other", &url("https://example.org/"), None));
-        assert!(!may_navigate("other", &url("tauri://localhost/"), None));
+        assert!(!may_navigate("other", &url("https://example.org/"), None, None));
+        assert!(!may_navigate("other", &url("tauri://localhost/"), None, None));
     }
 
     fn header<'a>(served: &'a Served, name: &str) -> Option<&'a str> {

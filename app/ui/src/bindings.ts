@@ -225,6 +225,12 @@ export const commands = {
 	 */
 	setEmbedOrigins: (origins: string[]) => typedError<null, ContractError>(__TAURI_INVOKE("set_embed_origins", { origins })),
 	/**
+	 *  Where the window builds an embed's `src`: the proxy's base, token
+	 *  included, for `encodeURIComponent(page)` to follow. The token stays
+	 *  between the host and its own web view.
+	 */
+	embedProxyBase: () => typedError<string | null, ContractError>(__TAURI_INVOKE("embed_proxy_base")),
+	/**
 	 *  The walk's rules, from the settings: whether the well-known build
 	 *  directories and each `.gitignore` are honored (ADR 0044, revised
 	 *  2026-09-29). Applied to the open folder at once; the UI reindexes
