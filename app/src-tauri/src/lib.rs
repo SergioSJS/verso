@@ -96,6 +96,15 @@ pub struct App {
     /// approved by hand. Only these may name a private or local address;
     /// everything else the embed proxy fetches must be public.
     embed_origins: Mutex<std::collections::HashSet<String>>,
+    /// The walk's rules — the user's setting, pushed by the UI before a
+    /// folder opens and applied to the session on change.
+    walk_rules: Mutex<verso_core::WalkRules>,
+    /// The folders behind the menu's "Open Recent" items, in the order
+    /// the menu shows: item `verso-recent-<i>` opens `menu_recents[i]`.
+    /// Paths at the edge, on this side; they never cross to the UI.
+    menu_recents: Mutex<Vec<PathBuf>>,
+    /// The menu's language, pushed by the UI with its own ("pt" or "en").
+    menu_language: Mutex<String>,
 }
 
 impl App {
@@ -110,6 +119,9 @@ impl App {
             config: None,
             session: Mutex::new(None),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
+            walk_rules: Mutex::new(verso_core::WalkRules::default()),
+            menu_recents: Mutex::new(Vec::new()),
+            menu_language: Mutex::new("pt".to_owned()),
         }
     }
 }
@@ -259,11 +271,15 @@ async fn install<R: tauri::Runtime>(
     open: impl FnOnce(Option<&Path>) -> Result<Workspace, CoreError> + Send + 'static,
 ) -> Result<FolderInfo, ContractError> {
     let config = app.state::<App>().config.clone();
+    let rules = *lock(&app.state::<App>().walk_rules);
     let handle = app.clone();
     let missed = Arc::new(AtomicBool::new(false));
     let seen = Arc::clone(&missed);
     let opened = tauri::async_runtime::spawn_blocking(move || -> Result<Session, CoreError> {
         let mut workspace = open(config.as_deref())?;
+        // The user's walk rules, before the watch and the first index:
+        // both honor them from the start.
+        workspace.set_walk_rules(rules);
         // Watched before the first index run, so that a change made while
         // it runs — seconds on a large folder — is not missed.
         let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
@@ -294,6 +310,9 @@ async fn install<R: tauri::Runtime>(
         let key = info.key.clone();
         tauri::async_runtime::spawn_blocking(move || changed_outside(&app, &key, &missed));
     }
+    // The folder just opened is the freshest recent: the menu learns.
+    #[cfg(target_os = "macos")]
+    refresh_menu(app);
     Ok(info)
 }
 
@@ -882,6 +901,45 @@ fn set_embed_origins(state: State<'_, App>, origins: Vec<String>) -> Result<(), 
         .filter_map(|u| embed_origin_of(&u))
         .collect();
     *lock(&state.embed_origins) = normalized;
+    Ok(())
+}
+
+/// The walk's rules, from the settings: whether the well-known build
+/// directories and each `.gitignore` are honored (ADR 0044, revised
+/// 2026-09-29). Applied to the open folder at once; the UI reindexes
+/// after a change, so the listing answers to the new rules.
+#[tauri::command]
+#[specta::specta]
+fn set_walk_rules(
+    state: State<'_, App>,
+    builtin_ignores: bool,
+    gitignore: bool,
+) -> Result<(), ContractError> {
+    let rules = verso_core::WalkRules {
+        builtin_ignores,
+        gitignore,
+    };
+    *lock(&state.walk_rules) = rules;
+    if let Some(session) = lock(&state.session).as_mut() {
+        session.workspace.set_walk_rules(rules);
+    }
+    Ok(())
+}
+
+/// The window's language, for the native menu ("pt" or "en"); pushed at
+/// start-up and when the setting changes.
+#[tauri::command]
+#[specta::specta]
+fn set_menu_language<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+    language: String,
+) -> Result<(), ContractError> {
+    *lock(&state.menu_language) = language;
+    #[cfg(target_os = "macos")]
+    refresh_menu(&app);
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
     Ok(())
 }
 
@@ -1514,42 +1572,21 @@ fn bundled_cli() -> Option<PathBuf> {
         "/Applications/Verso.app/Contents/MacOS/verso",
     ));
 
-    for cli in candidates {
-        let ok = std::process::Command::new("test")
-            .arg("-x")
-            .arg(&cli)
-            .status()
-            .is_ok_and(|s| s.success());
-        if ok {
-            return Some(cli);
-        }
-    }
-    None
+    candidates.into_iter().find(|cli| executable_file(cli))
 }
 
 fn cli_state_now() -> CliState {
     let Some(ours) = bundled_cli() else {
         return CliState::Unbundled;
     };
-    let link = std::process::Command::new("readlink")
-        .arg(CLI_LINK)
-        .output();
-    if let Ok(out) = link
-        && out.status.success()
-    {
-        let target = String::from_utf8_lossy(&out.stdout).trim().to_owned();
-        return if Path::new(&target) == ours {
+    if let Some(target) = link_target(Path::new(CLI_LINK)) {
+        return if target == ours {
             CliState::Ours
         } else {
             CliState::Elsewhere
         };
     }
-    let there = std::process::Command::new("test")
-        .arg("-e")
-        .arg(CLI_LINK)
-        .status()
-        .is_ok_and(|s| s.success());
-    if there {
+    if something_at(Path::new(CLI_LINK)) {
         CliState::Elsewhere
     } else {
         CliState::Missing
@@ -1613,20 +1650,19 @@ fn install_cli(replace: bool) -> Result<CliState, ContractError> {
             message: "another verso is on the PATH".to_owned(),
         });
     }
-    let _ = std::process::Command::new("xattr")
-        .args(["-d", "com.apple.quarantine"])
-        .arg(&ours)
-        .output();
+    #[cfg(target_os = "macos")]
+    clear_quarantine(&ours);
     // Without privileges first: the directory may be the person's own.
-    let plain = std::process::Command::new("ln")
-        .arg("-sfn")
-        .arg(&ours)
-        .arg(CLI_LINK)
-        .output()
-        .map_err(|e| failed(e.to_string()))?;
-    if !plain.status.success() {
+    #[cfg(unix)]
+    let plain = replace_symlink(&ours, Path::new(CLI_LINK));
+    #[cfg(not(unix))]
+    let plain: std::io::Result<()> = Err(std::io::Error::other("no CLI link on this platform"));
+    if let Err(error) = plain {
         #[cfg(target_os = "macos")]
         {
+            // The error itself is not shown here: the administrator
+            // prompt is the answer to it.
+            let _ = error;
             let shell = format!(
                 "mkdir -p /usr/local/bin && ln -sfn {} {CLI_LINK}",
                 shell_word(&ours)
@@ -1636,9 +1672,7 @@ fn install_cli(replace: bool) -> Result<CliState, ContractError> {
             }
         }
         #[cfg(not(target_os = "macos"))]
-        return Err(failed(
-            String::from_utf8_lossy(&plain.stderr).trim().to_owned(),
-        ));
+        return Err(failed(error.to_string()));
     }
     Ok(cli_state_now())
 }
@@ -1650,21 +1684,16 @@ fn uninstall_cli() -> Result<CliState, ContractError> {
     if cli_state_now() != CliState::Ours {
         return Ok(cli_state_now());
     }
-    let plain = std::process::Command::new("rm")
-        .arg(CLI_LINK)
-        .output()
-        .map_err(|e| failed(e.to_string()))?;
-    if !plain.status.success() {
+    if let Err(error) = remove_file_at(Path::new(CLI_LINK)) {
         #[cfg(target_os = "macos")]
         {
+            let _ = error;
             if !as_administrator(&format!("rm {CLI_LINK}"))? {
                 return Err(refused("cancelled"));
             }
         }
         #[cfg(not(target_os = "macos"))]
-        return Err(failed(
-            String::from_utf8_lossy(&plain.stderr).trim().to_owned(),
-        ));
+        return Err(failed(error.to_string()));
     }
     Ok(cli_state_now())
 }
@@ -1777,6 +1806,8 @@ macro_rules! commands_for {
                 reveal,
                 copy_full_path,
                 set_embed_origins,
+                set_walk_rules,
+                set_menu_language::<$runtime>,
                 reindex::<$runtime>,
                 query_base,
                 new_window::<$runtime>,
@@ -2230,10 +2261,27 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     let builder = tauri::Builder::default();
     #[cfg(target_os = "macos")]
     let builder = builder.menu(app_menu).on_menu_event(|app, event| {
-        if event.id() == QUIT {
+        let id = event.id().as_ref();
+        if id == QUIT {
             ask_windows_to_quit(app);
-        } else if event.id() == NEW_WINDOW && lock(&app.state::<App>().session).is_some() {
+        } else if id == NEW_WINDOW {
+            // With no folder open the new window offers the picker — the
+            // blank window the menu promises.
             let _ = open_folder_window(app);
+        } else if id == OPEN_FOLDER {
+            let _ = app.emit_to("main", "menu-open-folder", ());
+        } else if id == SETTINGS {
+            let _ = app.emit_to("main", "menu-settings", ());
+        } else if let Some(index) = id.strip_prefix(RECENT_PREFIX) {
+            // The folder stays on this side; the window is told the same
+            // way an `open -a Verso <folder>` event tells it.
+            let folder = index
+                .parse::<usize>()
+                .ok()
+                .and_then(|i| lock(&app.state::<App>().menu_recents).get(i).cloned());
+            if let Some(folder) = folder {
+                folder_handed(app, folder);
+            }
         }
     });
     builder
@@ -2314,11 +2362,99 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 #[cfg(target_os = "macos")]
 const QUIT: &str = "verso-quit";
 
-/// The id of the Window menu's "New Window" item: another window on the
-/// open folder (`new_window`). No shortcut of its own — ⌘⇧N is the
-/// window's "new note…" — one can be bound in the settings.
+/// The id of the File menu's "New Window" item: another window — on the
+/// open folder, or an empty one that offers the picker when none is
+/// open. No shortcut of its own — ⌘⇧N is the window's "new note…" — one
+/// can be bound in the settings.
 #[cfg(target_os = "macos")]
 const NEW_WINDOW: &str = "verso-new-window";
+
+/// The id of "Open Folder…": the window's own picker flow, asked for
+/// from the menu.
+#[cfg(target_os = "macos")]
+const OPEN_FOLDER: &str = "verso-open-folder";
+
+/// The id of "Settings…" (⌘,), which the main window answers.
+#[cfg(target_os = "macos")]
+const SETTINGS: &str = "verso-settings";
+
+/// The prefix of an "Open Recent" item's id; the rest is the item's
+/// index into `App::menu_recents`.
+#[cfg(target_os = "macos")]
+const RECENT_PREFIX: &str = "verso-recent-";
+
+/// The menu's words in the window's language ("pt" is the default, as
+/// the product's; ADR 0035). Predefined items keep the system's own.
+#[cfg(target_os = "macos")]
+fn menu_label(lang: &str, key: &str) -> &'static str {
+    let pt = lang != "en";
+    match key {
+        "quit" => {
+            if pt {
+                "Encerrar o Verso"
+            } else {
+                "Quit Verso"
+            }
+        }
+        "settings" => {
+            if pt {
+                "Ajustes…"
+            } else {
+                "Settings…"
+            }
+        }
+        "file" => {
+            if pt {
+                "Arquivo"
+            } else {
+                "File"
+            }
+        }
+        "new-window" => {
+            if pt {
+                "Nova janela"
+            } else {
+                "New Window"
+            }
+        }
+        "open-folder" => {
+            if pt {
+                "Abrir pasta…"
+            } else {
+                "Open Folder…"
+            }
+        }
+        "open-recent" => {
+            if pt {
+                "Abrir recente"
+            } else {
+                "Open Recent"
+            }
+        }
+        "edit" => {
+            if pt {
+                "Edição"
+            } else {
+                "Edit"
+            }
+        }
+        "view" => {
+            if pt {
+                "Visualização"
+            } else {
+                "View"
+            }
+        }
+        "window" => {
+            if pt {
+                "Janela"
+            } else {
+                "Window"
+            }
+        }
+        _ => "",
+    }
+}
 
 /// The macOS menu bar: the system's own items, except Quit. The system's
 /// Quit terminates the process without an event the app can answer (the
@@ -2328,7 +2464,21 @@ const NEW_WINDOW: &str = "verso-new-window";
 #[cfg(target_os = "macos")]
 fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-    let quit = MenuItem::with_id(app, QUIT, "Quit Verso", true, Some("CmdOrCtrl+Q"))?;
+    let (lang, recents) = {
+        let state = app.state::<App>();
+        let lang = lock(&state.menu_language).clone();
+        // The menu's recents come from the index sidecars: the folders
+        // opened before, freshest first (verso_core::recent_folders).
+        // What the menu shows and what a click opens are the same list,
+        // kept here so the id `verso-recent-<i>` stays meaningful.
+        let recents = verso_core::recent_folders(state.config.as_deref());
+        let mut keep = lock(&state.menu_recents);
+        keep.clear();
+        keep.extend(recents.iter().take(9).cloned());
+        (lang, keep.clone())
+    };
+    let l = |key: &str| menu_label(&lang, key);
+    let quit = MenuItem::with_id(app, QUIT, l("quit"), true, Some("CmdOrCtrl+Q"))?;
     let verso = Submenu::with_items(
         app,
         "Verso",
@@ -2346,6 +2496,8 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
                 }),
             )?,
             &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, SETTINGS, l("settings"), true, Some("CmdOrCtrl+,"))?,
+            &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, None)?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::hide(app, None)?,
@@ -2355,9 +2507,63 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
             &quit,
         ],
     )?;
+    // Each recent folder by its name, the parent in parentheses to tell
+    // two "Notas" apart; the id carries the index into `menu_recents`.
+    let mut recent_items: Vec<MenuItem<R>> = Vec::new();
+    for (i, folder) in recents.iter().enumerate() {
+        let name = folder
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| folder.to_string_lossy().into_owned());
+        let parent = folder
+            .parent()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let home = std::env::var("HOME").unwrap_or_default();
+        let parent = if !home.is_empty() && parent.starts_with(&home) {
+            parent.replacen(&home, "~", 1)
+        } else {
+            parent
+        };
+        let text = if parent.is_empty() {
+            name
+        } else {
+            format!("{name} ({parent})")
+        };
+        recent_items.push(MenuItem::with_id(
+            app,
+            format!("{RECENT_PREFIX}{i}"),
+            text,
+            true,
+            None::<&str>,
+        )?);
+    }
+    let recent_refs: Vec<&dyn tauri::menu::IsMenuItem<R>> = recent_items
+        .iter()
+        .map(|i| i as &dyn tauri::menu::IsMenuItem<R>)
+        .collect();
+    let open_recent = Submenu::with_items(app, l("open-recent"), !recents.is_empty(), &recent_refs)?;
+    let file = Submenu::with_items(
+        app,
+        l("file"),
+        true,
+        &[
+            &MenuItem::with_id(app, NEW_WINDOW, l("new-window"), true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                OPEN_FOLDER,
+                l("open-folder"),
+                true,
+                Some("CmdOrCtrl+Shift+O"),
+            )?,
+            &open_recent,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+        ],
+    )?;
     let edit = Submenu::with_items(
         app,
-        "Edit",
+        l("edit"),
         true,
         &[
             &PredefinedMenuItem::undo(app, None)?,
@@ -2371,27 +2577,38 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
     )?;
     let view = Submenu::with_items(
         app,
-        "View",
+        l("view"),
         true,
         &[&PredefinedMenuItem::fullscreen(app, None)?],
     )?;
-    let new_window = MenuItem::with_id(app, NEW_WINDOW, "New Window", true, None::<&str>)?;
     let window = Submenu::with_items(
         app,
-        "Window",
+        l("window"),
         true,
         &[
-            &new_window,
-            &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::minimize(app, None)?,
             &PredefinedMenuItem::maximize(app, None)?,
-            &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::close_window(app, None)?,
         ],
     )?;
     #[cfg(target_os = "macos")]
     window.set_as_windows_menu_for_nsapp()?;
-    Menu::with_items(app, &[&verso, &edit, &view, &window])
+    Menu::with_items(app, &[&verso, &file, &edit, &view, &window])
+}
+
+/// Build the menu again — the recents moved, or the language did. Menu
+/// items exist on the main thread only, so the work is sent there; an
+/// app without a menu bar (the tests' mock runtime) is left alone.
+#[cfg(target_os = "macos")]
+fn refresh_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if app.menu().is_none() {
+        return;
+    }
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Ok(menu) = app_menu(&handle) {
+            let _ = handle.set_menu(menu);
+        }
+    });
 }
 
 #[cfg(test)]
