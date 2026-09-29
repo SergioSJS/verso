@@ -14,12 +14,16 @@ versão de teste.
 
 ### Acrescentado
 
+- **Embutimento nativo de PDFs com especificação de página no modo Leitura e Editar (Live Preview)**: suporte completo a embutir documentos PDF apontando para uma página específica e dimensões personalizadas (ex: `![[doc.pdf#page=3]]`, `![[doc.pdf#3]]`, `![[doc.pdf#page=3|600]]` ou `![[doc.pdf|page=5]]`). No modo Editar, o PDF é exibido com visualizador interativo inline e botão `</>` para editar o link.
 - **Suporte a diagramas Mermaid no modo Leitura e Editar (Live Preview)**: renderização nativa de fluxogramas, diagramas de sequência, classes, git graphs e gráficos de pizza com adaptação automática a temas claro/escuro e segurança estrita com sanitização de SVG. No modo Editar, clicar no diagrama ou no botão `</>` abre o código-fonte para edição imediata.
 - **Barra de progresso de indexação em tempo real**: adicionada barra de progresso no topo da janela e no rodapé indicando a fase de escaneamento e indexação, porcentagem, contagem de notas e arquivo atual ao abrir ou reindexar um cofre.
 - **Ignorar pastas de dependências, builds e regras do .gitignore**: diretórios como `node_modules`, `target`, `dist`, `build`, `.venv` e padrões definidos em arquivos `.gitignore` são agora automaticamente ignorados durante a indexação e vigilância de arquivos, eliminando travamentos em projetos de código.
 - **Renderização preguiçosa da árvore de arquivos**: pastas na barra lateral agora renderizam seus elementos DOM sob demanda ao serem expandidas, eliminando a criação antecipada de milhares de nós e tornando a abertura de grandes projetos instantânea.
 
 ### Corrigido
+
+- **Embutimento de páginas web e serviços locais via iframe**: permissão para endereços de rede local privada (`192.168.x.x`, `10.x.x.x`, etc.) e `localhost` no proxy de páginas web embutidas, viabilizando o uso de serviços caseiros como Calibre-Web, servidores locais e painéis de home lab mantendo a proteção contra SSRF em instâncias de nuvem.
+- **Roteamento de parâmetros e redirecionamentos no proxy web**: correção no tratamento de query strings e seguimento automático de redirecionamentos HTTP em iframes.
 
 ---
 

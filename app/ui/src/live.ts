@@ -41,6 +41,8 @@ export type LiveOptions = {
    *  null; `edit` replaces the block's text), or a `.base` file embedded on
    *  a line of its own. Returns what takes it down. */
   base?: (text: string, embed: string | null, mount: HTMLElement, edit: ((next: string) => void) | null) => () => void;
+  /** A PDF file embedded on a line of its own, drawn into `mount`. */
+  pdf?: (text: string, mount: HTMLElement) => () => void;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -411,8 +413,9 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid"; text: string; rows?: string[]; embed?: true; nested?: true };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true };
 const BASE_EMBED = /\.base(#[^|]*)?$/i;
+const PDF_EXT = /\.pdf([#|].*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
 export function blocksOf(state: EditorState): Block[] {
   const doc = state.doc;
@@ -476,7 +479,16 @@ export function blocksOf(state: EditorState): Block[] {
     if (taken.some((b) => line.from <= b.to && line.to >= b.from)) continue;
     let code = false;
     for (let p: SyntaxNode | null = tree.resolveInner(line.from + line.text.search(/\S/), 1); p; p = p.parent) if (p.name === "FencedCode" || p.name === "CodeBlock") code = true;
-    if (!code) out.push(BASE_EMBED.test(embed[1] ?? "") ? { from: line.from, to: line.to, kind: "base", text: embed[1] ?? "", embed: true } : { from: line.from, to: line.to, kind: "embed", text: embed[1] ?? "" });
+    if (!code) {
+      const raw = embed[1] ?? "";
+      if (BASE_EMBED.test(raw)) {
+        out.push({ from: line.from, to: line.to, kind: "base", text: raw, embed: true });
+      } else if (PDF_EXT.test(raw)) {
+        out.push({ from: line.from, to: line.to, kind: "pdf", text: raw, embed: true });
+      } else {
+        out.push({ from: line.from, to: line.to, kind: "embed", text: raw });
+      }
+    }
   }
   return out.sort((a, b) => a.from - b.from);
 }
@@ -570,6 +582,33 @@ class BlockWidget extends WidgetType {
       });
 
       void renderMermaid(b.text, mount);
+      return el;
+    }
+    if (b.kind === "pdf") {
+      el.className = "cm-lp-block cm-lp-pdf-wrap";
+      el.style.position = "relative";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "cm-lp-base-source";
+      editBtn.textContent = "</>";
+      editBtn.title = "Editar link do PDF";
+      editBtn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at + 3, view.state.doc.length) } });
+        view.focus();
+      });
+      el.append(editBtn);
+
+      const mount = document.createElement("div");
+      mount.className = "embed-pdf";
+      el.append(mount);
+
+      const stop = this.opts.pdf?.(b.text, mount);
+      if (stop) bases.set(el, stop);
       return el;
     }
     if (b.kind === "math") {

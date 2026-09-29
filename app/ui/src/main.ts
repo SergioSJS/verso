@@ -89,7 +89,7 @@ import { stringsFor } from "./bases/strings";
 import { DailyCalendar } from "./bases/daily";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
 import { listKeymap } from "./listKeymap";
-import { PdfView } from "./pdf";
+import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
 import { ask } from "./dialog";
@@ -417,7 +417,7 @@ function dirOf(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
 }
 function ext(path: string): string {
-  const base = path.split("/").pop() ?? "";
+  const base = (path.split("/").pop() ?? "").split(/[#?|]/)[0] ?? "";
   const i = base.lastIndexOf(".");
   return i > 0 ? base.slice(i + 1).toLowerCase() : "";
 }
@@ -1583,6 +1583,7 @@ class NoteLeaf extends Leaf {
       frontmatterTitle: (n) => (n === 1 ? t.yamlLine : t.yamlLines).replace("{n}", String(n)),
       noteHtml: (target) => this.embedHtml(target),
       base: (text, embed, mount, edit) => this.liveBase(text, embed, mount, edit),
+      pdf: (target, mount) => this.livePdf(target, mount),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
     (this.editorHost as any).__cmView = this.editor;
@@ -2865,6 +2866,49 @@ class NoteLeaf extends Leaf {
       }
     };
   }
+  /** A PDF file embedded on a line of its own in Live Preview. */
+  private livePdf(target: string, mount: HTMLElement): () => void {
+    const spec = parsePdfSpec(target);
+    if (spec.height) mount.style.height = `${spec.height}px`;
+    if (spec.width) mount.style.width = `${spec.width}px`;
+
+    let destroyed = false;
+    let view: PdfView | null = null;
+
+    void commands.resolveAttachment(this.path, spec.file).then((r) => {
+      if (destroyed) return;
+      if (r.status !== "ok" || !r.data) {
+        mount.textContent = `PDF não encontrado: ${spec.file}`;
+        mount.style.display = "flex";
+        mount.style.alignItems = "center";
+        mount.style.justifyContent = "center";
+        mount.style.color = "var(--ink-muted)";
+        mount.style.fontStyle = "italic";
+        mount.style.padding = "2rem";
+        return;
+      }
+      const rel = r.data;
+      view = new PdfView({
+        strings: pdfStrings(),
+        onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${rel.split("/").pop() ?? rel}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
+        onQuote: (fragment, page, text) => void quoteIntoNotes(rel, fragment, page, text),
+        onStatus: (m) => (ui.status.textContent = m),
+        onPage: () => {},
+      });
+      mount.append(view.el);
+      view.container.setAttribute("aria-label", rel.split("/").pop() ?? rel);
+      this.embeds.push(view);
+      void view.load(convertFileSrc(rel, "verso"), spec.page);
+    });
+
+    return () => {
+      destroyed = true;
+      if (view) {
+        this.embeds = this.embeds.filter((e) => e !== view);
+        view.destroy();
+      }
+    };
+  }
   /** Footnote definitions gathered at the end under a hairline, each with
    *  a way back to its mark; the marks get ids for that. */
   private gatherFootnotes(): void {
@@ -2953,7 +2997,7 @@ class NoteLeaf extends Leaf {
    *  own path for what it embeds in turn (spec Q12). */
   private async embedImages(forPath: string, root: HTMLElement = this.preview, source = forPath): Promise<void> {
     const spans = Array.from(root.querySelectorAll<HTMLElement>("span.embed"));
-    const targets = new Set(spans.map((e) => (e.dataset["target"] ?? "").split("#")[0] ?? ""));
+    const targets = new Set(spans.map((e) => parsePdfSpec(e.dataset["target"] ?? "").file));
     const found = new Map<string, string | null>();
     await Promise.all(
       Array.from(targets).map(async (target) => {
@@ -2963,15 +3007,15 @@ class NoteLeaf extends Leaf {
     );
     if (this.path !== forPath) return;
     for (const span of spans) {
-      const target = (span.dataset["target"] ?? "").split("#")[0] ?? "";
-      const rel = found.get(target);
+      const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
+      const rel = found.get(spec.file);
       if (!rel) continue;
       if (kindOf(rel) === "image") {
         const img = h("img");
         img.src = convertFileSrc(rel, "verso");
-        img.alt = target;
+        img.alt = spec.file;
         img.loading = "lazy";
-        const size = sizeOf(span.textContent === target ? null : span.textContent);
+        const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
         if (size) {
           img.style.width = `${size.w}px`;
           if (size.h) img.style.height = `${size.h}px`;
@@ -2997,6 +3041,8 @@ class NoteLeaf extends Leaf {
       } else if (kindOf(rel) === "pdf") {
         // The PDF itself, in a box of its own, at the page the target names.
         const box = h("div", "embed-pdf");
+        if (spec.height) box.style.height = `${spec.height}px`;
+        if (spec.width) box.style.width = `${spec.width}px`;
         const view = new PdfView({
           strings: pdfStrings(),
           onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${rel.split("/").pop() ?? rel}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
@@ -3008,8 +3054,7 @@ class NoteLeaf extends Leaf {
         view.container.setAttribute("aria-label", rel.split("/").pop() ?? rel);
         span.replaceWith(box);
         this.embeds.push(view);
-        const page = Number(/page=(\d+)/.exec(span.dataset["target"] ?? "")?.[1] ?? "1");
-        void view.load(convertFileSrc(rel, "verso"), page);
+        void view.load(convertFileSrc(rel, "verso"), spec.page);
       } else {
         span.classList.add("file");
         span.title = rel;

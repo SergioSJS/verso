@@ -14,12 +14,16 @@ test release.
 
 ### Added
 
+- **Native PDF embedding with page specification in Reading View and Live Preview**: embed PDF documents with specific page numbers and dimensions (e.g. `![[doc.pdf#page=3]]`, `![[doc.pdf#3]]`, `![[doc.pdf#page=3|600]]`, or `![[doc.pdf|page=5]]`). In Live Preview, PDFs are rendered with an inline viewer and click-to-edit `</>` button.
 - **Mermaid diagrams support in Reading View and Live Preview**: render flowcharts, sequence diagrams, class diagrams, git graphs, and pie charts with automatic dark/light theme adaptation and strict sandboxed SVG security. Clicking diagrams or the `</>` button in Live Preview reveals the source for inline editing.
 - **Real-time indexing progress bar**: added an animated top progress line and status-bar progress indicator displaying current scanning/indexing phases, percentage, note counts, and current file name when opening or reindexing a folder.
 - **Gitignore and build directory exclusion**: folders like `node_modules`, `target`, `dist`, `build`, `.venv`, and patterns in `.gitignore` are now automatically ignored during vault indexing and file watching, preventing freezes on large projects.
 - **Lazy file tree rendering**: folders in the sidebar tree now render their child DOM nodes on demand when expanded rather than eagerly rendering the full directory tree upfront, dramatically speeding up folder opening in large repositories.
 
 ### Fixed
+
+- **Web page iframe embedding for local network and home servers**: allowed private local network IP addresses (`192.168.x.x`, `10.x.x.x`, etc.) and `localhost` in the embedded web proxy, enabling embeds of local services such as Calibre-Web, dev servers, and home lab dashboards while maintaining SSRF defense against cloud metadata endpoints.
+- **Web proxy URL routing and redirect support**: fixed query string parameter handling and added redirect following for external and local iframes.
 
 ---
 
