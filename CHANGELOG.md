@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **"Add property" no longer paints over the note**: on a note with no properties the button was taken out of the flow and floated over whatever was under it — the title's rule and the first lines of the note. It keeps its own band at the right now, and still appears only when the sheet is hovered.
 
 ## 0.3.0-beta.2 — 2026-09-29
 
