@@ -262,6 +262,25 @@ Set aside on 2026-09-29, with the revision:
 - **Option C: keep the proxy** — server-rendered pages worked and every
   module-script page stayed blank; rejected with the proxy itself.
 
+### Revised again, hours later: the child web view — decided on 2026-09-29
+
+The direct iframe met the last wall: a site that sends `X-Frame-Options`
+or `frame-ancestors` (huggingface.co, rolai.app) refuses every frame, in
+any application. The page's real place was in the app all along: the
+**child web view** (`web_open`), a top-level view those headers do not
+bind — the same machinery that has always shown a web note's page. An
+approved embed's box (`.embed-web[data-embed-web]`) gets a child view
+overlaid on it, clipped to the pane it scrolls in, following it frame by
+frame (`tickEmbedViews`, the pattern of the web note's `tickWeb`), hidden
+with the overlays, closed when the box leaves the DOM.
+
+With that, the app view itself never navigates to the web at all, and
+the navigation guard went back to fully closed — stronger than option A
+as first built (`app_views_never_navigate_to_the_web_even_approved`).
+The gate and the settings list are unchanged: the child view is only
+made for an origin the user approved. Verified on 2026-09-29 with
+huggingface.co and rolai.app rendering whole, X-Frame-Options and all.
+
 ## Status
 
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the

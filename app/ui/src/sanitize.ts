@@ -130,9 +130,6 @@ function tameStyle(style: CSSStyleDeclaration): void {
 
 /* ---------- Embedded web pages ---------- */
 
-/** Every embedded page runs sandboxed: scripts in its own real origin,
- *  no navigation of the window around it. */
-const SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups";
 
 /** Whether a host name is this machine or the local network: loopback,
  *  the private ranges, link-local, carrier-grade NAT, `localhost` and
@@ -220,15 +217,27 @@ function gateOf(url: string): { kind: "local" | "public" | "remote"; origin: str
  *  inside the box in a `template`: inert, nothing is fetched until a
  *  click. Built in `doc`, the inert document of a note or the page. */
 function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElement {
-  // The page loads itself, in its own real origin: the browser's
-  // isolation keeps it out of the app and the folder, the sandbox keeps
-  // it from steering the window, and the guard only lets an approved
-  // origin through.
-  frame.setAttribute("src", url);
-  frame.setAttribute("sandbox", SANDBOX);
-  frame.setAttribute("loading", "lazy");
+  // The page renders in a child web view the window overlays on this
+  // box — a top-level view, which X-Frame-Options does not bind, unlike
+  // an iframe (ADR 0056). The note's <iframe> only donates its size.
+  const host = doc.createElement("div");
+  host.className = "embed-web";
+  const style = frame.getAttribute("style") ?? "";
+  if (style) {
+    host.style.cssText = style;
+    tameStyle(host.style);
+  }
+  const width = frame.getAttribute("width");
+  const height = frame.getAttribute("height");
+  if (width) host.style.width = /^\d+$/.test(width) ? `${width}px` : width;
+  if (height) host.style.height = /^\d+$/.test(height) ? `${height}px` : height;
+  if (!host.style.height) host.style.height = "800px";
+  if (!host.style.width) host.style.width = "100%";
   const gate = gateOf(url);
-  if (!gate) return frame;
+  if (!gate) {
+    host.setAttribute("data-embed-web", url);
+    return host;
+  }
   if (!hooks) {
     // No window to ask (not configured): a link, never the page.
     const link = doc.createElement("a");
@@ -262,7 +271,7 @@ function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElemen
   if (gate.kind === "remote") actions.append(button("load", s.load, "save"));
   else actions.append(button("cancel", s.cancel, "ghost"), button("approve", s.approve, "save"));
   const held = doc.createElement("template");
-  held.content.append(frame);
+  held.content.append(host);
   box.append(where, text, actions, held);
   return box;
 }
@@ -295,10 +304,10 @@ function onGate(e: MouseEvent): void {
   const url = box.getAttribute("data-embed-url") ?? "";
   const origin = box.getAttribute("data-embed-origin") ?? "";
   const load = () => {
-    const held = box.querySelector("template")?.content.querySelector("iframe");
-    // Only a frame this module made: the box's own address, sandboxed.
-    if (!held || held.getAttribute("src") !== url) return;
-    held.setAttribute("sandbox", SANDBOX);
+    const held = box.querySelector("template")?.content.querySelector("div.embed-web");
+    if (!held) return;
+    // Only a box this module made carries the address it asked about.
+    held.setAttribute("data-embed-web", url);
     box.replaceWith(document.importNode(held, true));
   };
   switch (button.getAttribute("data-embed-action")) {

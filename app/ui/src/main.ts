@@ -1489,10 +1489,92 @@ function syncWebViews(): void {
   for (const l of webLeaves) l.syncWeb();
 }
 window.addEventListener("resize", syncWebViews);
+
+/* Embedded pages inside notes: each `[data-embed-web]` box gets a child
+ * web view of the host overlaid on it (web_open) — a top-level view,
+ * which X-Frame-Options does not bind, unlike an iframe (ADR 0056). The
+ * view follows its box frame by frame while something moves, clipped to
+ * the pane it scrolls in, hidden with the overlays, closed when the box
+ * leaves the DOM. */
+type EmbedView = { label: string | null; opening: boolean; last: string; still: number };
+const embedViews = new Map<HTMLElement, EmbedView>();
+let embedRaf = 0;
+function syncEmbedViews(): void {
+  if (!embedRaf) embedRaf = window.requestAnimationFrame(tickEmbedViews);
+  for (const v of embedViews.values()) v.still = 0;
+}
+function tickEmbedViews(): void {
+  embedRaf = 0;
+  const hosts = Array.from(document.querySelectorAll<HTMLElement>("[data-embed-web]"));
+  for (const [el, v] of embedViews) {
+    if (!el.isConnected || !el.hasAttribute("data-embed-web")) {
+      embedViews.delete(el);
+      if (v.label) void commands.webClose(v.label);
+    }
+  }
+  let busy = false;
+  for (const el of hosts) {
+    let v = embedViews.get(el);
+    if (!v) {
+      v = { label: null, opening: false, last: "", still: 0 };
+      embedViews.set(el, v);
+    }
+    const url = el.dataset["embedWeb"] ?? "";
+    // Clipped to the pane the note scrolls in: a child view floats over
+    // the window, so past the pane's edge it is cut, not carried.
+    const pane = el.closest<HTMLElement>(".preview, .cm-scroller");
+    const r = el.getBoundingClientRect();
+    const c = pane?.getBoundingClientRect();
+    const left = c ? Math.max(r.left, c.left) : r.left;
+    const top = c ? Math.max(r.top, c.top) : r.top;
+    const w = (c ? Math.min(r.right, c.right) : r.right) - left;
+    const hgt = (c ? Math.min(r.bottom, c.bottom) : r.bottom) - top;
+    const visible = el.isConnected && el.offsetParent !== null && w > 1 && hgt > 1 && !overlayOpen();
+    if (!v.label) {
+      if (visible && !v.opening && url) {
+        v.opening = true;
+        const want = v;
+        void commands.webOpen(url, left, top, Math.max(1, w), Math.max(1, hgt)).then((res) => {
+          want.opening = false;
+          if (res.status !== "ok") {
+            el.removeAttribute("data-embed-web");
+            return;
+          }
+          if (!el.isConnected) {
+            void commands.webClose(res.data);
+            return;
+          }
+          want.label = res.data;
+          want.last = "";
+          syncEmbedViews();
+        });
+      }
+      busy = true;
+    } else {
+      const key = visible ? `1|${Math.round(left)}|${Math.round(top)}|${Math.round(w)}|${Math.round(hgt)}` : "0";
+      if (key !== v.last) {
+        v.last = key;
+        v.still = 0;
+        const label = v.label;
+        if (visible) void commands.webBounds(label, left, top, w, hgt).then(() => commands.webVisible(label, true));
+        else void commands.webVisible(label, false);
+      } else v.still++;
+      if (v.still < 10) busy = true;
+    }
+  }
+  if (busy) embedRaf = window.requestAnimationFrame(tickEmbedViews);
+}
+window.addEventListener("resize", syncEmbedViews);
+document.addEventListener("scroll", syncEmbedViews, { capture: true, passive: true });
+// New boxes appear after async renders; a cheap sweep catches them.
+window.setInterval(syncEmbedViews, 700);
 new MutationObserver((records) => {
-  if (webLeaves.size === 0) return;
+  if (webLeaves.size === 0 && embedViews.size === 0) return;
   // An editor, a PDF or the graph redraws itself: nothing moves outside.
-  if (records.some((r) => !(r.target instanceof Element && r.target.closest(".cm-editor, .pdf, svg.graph")))) syncWebViews();
+  if (records.some((r) => !(r.target instanceof Element && r.target.closest(".cm-editor, .pdf, svg.graph")))) {
+    syncWebViews();
+    syncEmbedViews();
+  }
 }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "class", "style"] });
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
