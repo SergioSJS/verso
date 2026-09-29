@@ -555,6 +555,15 @@ export type Hit = {
 	snippet: string,
 };
 
+/**  Progress payload emitted during vault indexing. */
+export type IndexProgress = {
+	/**  "scanning" | "indexing" | "done" */
+	phase: string,
+	current: number,
+	total: number,
+	file: string | null,
+};
+
 /**
  *  What one `index` run did (ADR 0043: placeholders are present, never
  *  removed).

@@ -294,10 +294,29 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
     if let Some(env) = std::env::var_os("VERSO_APP") {
         candidates.push(PathBuf::from(env));
     }
-    if let Ok(me) = std::env::current_exe()
-        && let Some(dir) = me.parent()
+    if let Ok(me) = std::env::current_exe() {
+        if let Some(dir) = me.parent() {
+            candidates.push(dir.join("verso-app"));
+        }
+        #[cfg(unix)]
+        if let Ok(out) = std::process::Command::new("readlink").arg(&me).output() {
+            if out.status.success() {
+                let target = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+                let real_path = PathBuf::from(target);
+                if let Some(dir) = real_path.parent() {
+                    candidates.push(dir.join("verso-app"));
+                }
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
     {
-        candidates.push(dir.join("verso-app"));
+        candidates.push(PathBuf::from("/Applications/Verso Beta.app/Contents/MacOS/verso-app"));
+        candidates.push(PathBuf::from("/Applications/Verso.app/Contents/MacOS/verso-app"));
+        if let Ok(home) = std::env::var("HOME") {
+            candidates.push(PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso-app"));
+            candidates.push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso-app"));
+        }
     }
     for app in candidates {
         match std::process::Command::new(&app)
@@ -313,15 +332,23 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
     }
     #[cfg(target_os = "macos")]
     {
-        match std::process::Command::new("open")
-            .args(["-n", "-a", APP_NAME])
-            .arg(folder)
-            .stderr(std::process::Stdio::null())
-            .status()
-        {
-            Ok(status) if status.success() => return Ok(()),
-            Ok(status) => tried.push(format!("open -n -a {APP_NAME}: {status}")),
-            Err(e) => tried.push(format!("open -n -a {APP_NAME}: {e}")),
+        let mut app_names = vec![APP_NAME];
+        if APP_NAME == "Verso" {
+            app_names.push("Verso Beta");
+        } else if APP_NAME == "Verso Beta" {
+            app_names.push("Verso");
+        }
+        for name in app_names {
+            match std::process::Command::new("open")
+                .args(["-n", "-a", name])
+                .arg(folder)
+                .stderr(std::process::Stdio::null())
+                .status()
+            {
+                Ok(status) if status.success() => return Ok(()),
+                Ok(status) => tried.push(format!("open -n -a {name}: {status}")),
+                Err(e) => tried.push(format!("open -n -a {name}: {e}")),
+            }
         }
     }
     if !names_a_directory(folder) {

@@ -108,6 +108,70 @@ compile_error!(
     "verso-fs needs a directory identity for loop detection; only Unix (dev, ino) is implemented — ADR 0022: macOS first"
 );
 
+pub(crate) fn is_default_ignored_dir(name: &str) -> bool {
+    matches!(
+        name,
+        "node_modules"
+            | "target"
+            | "vendor"
+            | "dist"
+            | "build"
+            | "out"
+            | ".next"
+            | ".nuxt"
+            | ".turbo"
+            | ".output"
+            | "__pycache__"
+            | ".venv"
+            | "venv"
+            | "env"
+            | ".pytest_cache"
+            | ".mypy_cache"
+            | ".ruff_cache"
+            | ".terraform"
+            | "test-results"
+            | "coverage"
+            | "bower_components"
+            | ".cache"
+            | ".parcel-cache"
+    )
+}
+
+#[derive(Debug, Clone)]
+struct GitIgnorePattern {
+    pattern: String,
+    prefix: PathBuf,
+}
+
+impl GitIgnorePattern {
+    fn matches(&self, relative_path: &Path, file_name: &str, is_dir: bool) -> bool {
+        let pattern = self.pattern.as_str();
+        let is_dir_only = pattern.ends_with('/');
+        if is_dir_only && !is_dir {
+            return false;
+        }
+        let clean_pat = pattern.trim_end_matches('/');
+        if let Some(ext) = clean_pat.strip_prefix("*.") {
+            return file_name.ends_with(&format!(".{ext}"));
+        }
+        if let Some(prefix) = clean_pat.strip_suffix('*') {
+            if file_name.starts_with(prefix) {
+                return true;
+            }
+        }
+        if !clean_pat.contains('/') {
+            return file_name == clean_pat;
+        }
+        if let Ok(rel) = relative_path.strip_prefix(&self.prefix) {
+            let rel_str = rel.to_string_lossy();
+            if rel_str == clean_pat || rel_str.starts_with(&format!("{clean_pat}/")) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 struct Walker<'a> {
     root: &'a mut Root,
     out: Walk,
@@ -116,6 +180,7 @@ struct Walker<'a> {
     /// Every directory walked so far, with the path it was walked under.
     visited: Vec<(DirId, PathBuf)>,
     visited_ids: HashSet<DirId>,
+    git_ignores: Vec<GitIgnorePattern>,
 }
 
 pub(crate) fn walk(root: &mut Root) -> Walk {
@@ -126,6 +191,7 @@ pub(crate) fn walk(root: &mut Root) -> Walk {
         ancestors: Vec::new(),
         visited: Vec::new(),
         visited_ids: HashSet::new(),
+        git_ignores: Vec::new(),
     };
     match std::fs::metadata(&root_path) {
         Ok(meta) => {
@@ -145,6 +211,21 @@ pub(crate) fn walk(root: &mut Root) -> Walk {
 
 impl Walker<'_> {
     fn directory(&mut self, absolute: &Path, relative: &Path, depth: usize) {
+        let gitignore_path = absolute.join(".gitignore");
+        let initial_patterns_len = self.git_ignores.len();
+        if let Ok(content) = std::fs::read_to_string(&gitignore_path) {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('!') {
+                    continue;
+                }
+                self.git_ignores.push(GitIgnorePattern {
+                    pattern: trimmed.to_string(),
+                    prefix: relative.to_path_buf(),
+                });
+            }
+        }
+
         let iter = match std::fs::read_dir(absolute) {
             Ok(iter) => iter,
             Err(error) => {
@@ -152,6 +233,7 @@ impl Walker<'_> {
                     relative: relative.to_path_buf(),
                     error,
                 });
+                self.git_ignores.truncate(initial_patterns_len);
                 return;
             }
         };
@@ -173,6 +255,7 @@ impl Walker<'_> {
             if self.root.is_ignored(&rel) {
                 continue;
             }
+            let name_str = name.to_string_lossy();
             let placeholder_of = placeholder::icloud_placeholder_of(&name);
             // The iCloud sibling form is recognized before the hidden rule
             // (ADR 0043); any other dot entry is not walked (ADR 0044).
@@ -208,7 +291,18 @@ impl Walker<'_> {
                     continue;
                 }
             };
-            if meta.is_dir() {
+            let is_dir = meta.is_dir();
+            if is_dir && is_default_ignored_dir(&name_str) {
+                continue;
+            }
+            if self
+                .git_ignores
+                .iter()
+                .any(|rule| rule.matches(&rel, &name_str, is_dir))
+            {
+                continue;
+            }
+            if is_dir {
                 // A directory named like a placeholder is a directory.
                 self.subdirectory(&abs, rel, depth, &meta);
             } else {
@@ -235,6 +329,7 @@ impl Walker<'_> {
                 });
             }
         }
+        self.git_ignores.truncate(initial_patterns_len);
     }
 
     fn subdirectory(&mut self, abs: &Path, rel: PathBuf, depth: usize, meta: &Metadata) {

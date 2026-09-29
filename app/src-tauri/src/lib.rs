@@ -34,12 +34,21 @@ use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
-    Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexSummary,
-    InstallResult, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property,
-    PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateInfo,
+    Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexProgress,
+    IndexSummary, InstallResult, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText,
+    Property, PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateInfo,
     UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
+
+fn to_progress(p: verso_core::IndexProgress) -> IndexProgress {
+    IndexProgress {
+        phase: p.phase,
+        current: p.current as u32,
+        total: p.total as u32,
+        file: p.file,
+    }
+}
 
 /// The open folder: its workspace, what the UI was told about it, and
 /// the watch that keeps both current while the folder changes outside the
@@ -250,7 +259,11 @@ async fn install<R: tauri::Runtime>(
         // Watched before the first index run, so that a change made while
         // it runs — seconds on a large folder — is not missed.
         let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
-        let report = workspace.index()?;
+        let handle_for_progress = handle.clone();
+        let report = workspace.index_with_progress(move |p| {
+            let progress = to_progress(p);
+            let _ = handle_for_progress.emit("index-progress", &progress);
+        })?;
         let mut info = folder_info(&workspace, &report);
         info.index.unwatched.clone_from(&unwatched);
         Ok(Session {
@@ -314,7 +327,13 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, miss
             missed.store(true, Ordering::SeqCst);
             return;
         };
-        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| session.workspace.index()));
+        let handle_for_progress = app.clone();
+        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            session.workspace.index_with_progress(move |p| {
+                let progress = to_progress(p);
+                let _ = handle_for_progress.emit("index-progress", &progress);
+            })
+        }));
         let report = match outcome {
             Ok(Ok(report)) => Ok(report),
             Ok(Err(e)) => Err(e.to_string()),
@@ -364,17 +383,12 @@ async fn pick_folder<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
-    let picker = app.clone();
+    let (tx, mut rx) = tauri::async_runtime::channel(1);
     let parent = window.clone();
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        picker
-            .dialog()
-            .file()
-            .set_parent(&parent)
-            .blocking_pick_folder()
-    })
-    .await
-    .map_err(|e| failed(e.to_string()))?;
+    app.dialog().file().set_parent(&parent).pick_folder(move |picked| {
+        let _ = tx.try_send(picked);
+    });
+    let picked = rx.recv().await.flatten();
     let Some(picked) = picked else {
         return Ok(None);
     };
@@ -2107,12 +2121,21 @@ fn return_to_main<R: tauri::Runtime>(
 /// Refresh the index from the folder: only what changed is re-read.
 #[tauri::command]
 #[specta::specta]
-fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
+fn reindex<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+) -> Result<IndexSummary, ContractError> {
     // One hold of the lock for the run and the summary: a folder switched
     // in between would otherwise get the other folder's summary.
     let mut guard = lock(&state.session);
     let session = guard.as_mut().ok_or_else(no_folder)?;
-    let report = match std::panic::catch_unwind(AssertUnwindSafe(|| session.workspace.index())) {
+    let handle_for_progress = app.clone();
+    let report = match std::panic::catch_unwind(AssertUnwindSafe(|| {
+        session.workspace.index_with_progress(move |p| {
+            let progress = to_progress(p);
+            let _ = handle_for_progress.emit("index-progress", &progress);
+        })
+    })) {
         Ok(result) => result.map_err(convert)?,
         Err(payload) => {
             return Err(failed(format!(
@@ -2261,16 +2284,35 @@ const CLI_LINK: &str = "/usr/local/bin/verso";
 /// A path at the edge, for the operating system's tools only: it never
 /// crosses to the window (ADR 0026 rule 4).
 fn bundled_cli() -> Option<PathBuf> {
-    let cli = std::env::current_exe().ok()?.with_file_name("verso");
-    // Asked of the system's `test`, as `reveal` asks `open`: none of these
-    // files is the folder's, and this crate reads none itself.
-    std::process::Command::new("test")
-        .arg("-x")
-        .arg(&cli)
-        .status()
-        .ok()
-        .filter(std::process::ExitStatus::success)
-        .map(|_| cli)
+    let mut candidates = Vec::new();
+    if let Ok(cli) = std::env::current_exe() {
+        candidates.push(cli.with_file_name("verso"));
+        if let Some(parent) = cli.parent() {
+            candidates.push(parent.join("verso"));
+            if let Some(bundle) = parent.parent() {
+                candidates.push(bundle.join("Resources").join("verso"));
+                candidates.push(bundle.join("MacOS").join("verso"));
+            }
+        }
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        candidates.push(PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso"));
+        candidates.push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso"));
+    }
+    candidates.push(PathBuf::from("/Applications/Verso Beta.app/Contents/MacOS/verso"));
+    candidates.push(PathBuf::from("/Applications/Verso.app/Contents/MacOS/verso"));
+
+    for cli in candidates {
+        let ok = std::process::Command::new("test")
+            .arg("-x")
+            .arg(&cli)
+            .status()
+            .is_ok_and(|s| s.success());
+        if ok {
+            return Some(cli);
+        }
+    }
+    None
 }
 
 fn cli_state_now() -> CliState {
@@ -2522,7 +2564,7 @@ macro_rules! commands_for {
                 delete_entry,
                 reveal,
                 copy_full_path,
-                reindex,
+                reindex::<$runtime>,
                 query_base,
                 new_window::<$runtime>,
                 cli_status,
@@ -2537,6 +2579,7 @@ macro_rules! commands_for {
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
             .typ::<UpdateProgress>()
+            .typ::<IndexProgress>()
     };
 }
 

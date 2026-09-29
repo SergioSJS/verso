@@ -186,7 +186,7 @@ function clean(body: HTMLElement): void {
 }
 
 function cleaned(html: string): HTMLElement {
-  const body = new DOMParser().parseFromString(html, "text/html").body;
+  const body = new DOMParser().parseFromString(html ?? "", "text/html").body;
   clean(body);
   return body;
 }
@@ -194,6 +194,7 @@ function cleaned(html: string): HTMLElement {
 /** The core's HTML as nodes of this page, cleaned. Parsed in an inert
  *  document: nothing in it loads or runs before it is clean. */
 export function cleanHtml(html: string): DocumentFragment {
+  if (!html) return document.createDocumentFragment();
   const body = cleaned(html);
   const out = document.createDocumentFragment();
   for (const node of Array.from(body.childNodes)) out.append(document.adoptNode(node));
@@ -204,6 +205,7 @@ export function cleanHtml(html: string): DocumentFragment {
  *  embeds). What is left parses back to itself: no raw-text element and
  *  no foreign content survive to change meaning on the way. */
 export function cleanHtmlText(html: string): string {
+  if (!html) return "";
   return cleaned(html).innerHTML;
 }
 

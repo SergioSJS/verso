@@ -259,6 +259,68 @@ const fileMap = new Map<string, string>();
 for (const f of DEMO_VAULT_FILES) {
   fileMap.set(f.path, f.b64);
 }
+fileMap.set("teste.md", btoa(unescape(encodeURIComponent(`# teste
+
+---
+Você ferrou a adição de Propriedades… muito bem...:
+---
+# Backlog2
+
+- Vários problemas na lida com bullets
+	- Ao editar a no modo Editar, se estiver editando uma linha com bullet ele vira traço e vai mega pra frante, parecendo qu está dentro da hierarquia como no printe abaixo, todos estão no msm nível, a linha dois é onde ta o cursor, nesse mesmo exemplo, ta todo cagado se eu uso setas do teclado pra navegar das linhas ele vai da linha 1 para linha 3, e se vc notar, com dificuldade eu consegui jogar o cursor na linha 2 e visualmente ta marcando a linha 1
+	- ![[Backlog2 20260927222209.png]]
+	- O traço vertical está bugadasso, passando por cima dos bullets e está feio vc fez errado a linha deveria estar alinhada com o bullet pai daquele grupo e ir até o fim ou até o próximo pai daquele nível, para os bullets de checkbox essa linha vertical está certa
+	- ![[Backlog2 20260927222556.png]]
+	- Os checkbox estão com problema na navegação com setas e está extremamente dificil de clicar na linha certa pra colocar o cursor pra editar, também está com problema de, na linha que está com o cursor, surge o caractere de traço
+	- ![[Backlog2 20260927222906.png]]
+
+- modo Leitura está TODO CAGADO, as linhas de separação não estão aparecendo mais, so aparecem se tiver uma linha vazia em cima e embaixo, a visão dos bullets de checkbox tão ferrada, vc ta renderizando o bullet do primeiro checkbox, os bloco de contrair e expandir estão todos errados, em fim, até o que funcionava nisso vc ferrou, nao era pra ser diferente a configuração visual entre Leitura e Editar, toda hora é um bug imbecil diferente, dito isso revise tudo, tente viabilizar que o estilo seja o mesmo ou o mais próximo possível. Dito isso olha a merda do modo de leitura, ta uma bosta, a primeira linha dos blocos de bullets tem um espaço gigantesco.
+
+- ![[Backlog2 20260927224043.png]]
+
+- A adição de propriedades é outra que está toda ferrada… isso está irritante, o projeto ta no começo e a gente pede um ajuste e vc sai ferrando várias partes que estavam bem e não dispara erro algum… ![[Backlog2 20260927224441.png]]
+
+- a experiencia ta tao ruim que está sendo melhor editar no modo Fonte que no modo Editar, PUTA QUE PARIU!!!!!
+
+- deveria ser fácil abrir mais uma janela do aplicativo, se eu clicar com botão direito na barra deveria ter opção de nova janela, a mesma coisa dentro da aplicação
+
+- Pq diabos a opção de localizar e substituir faz aparecer a merda de uma caixa vazia no fundo e o modal estranho e seco, sem ícones (qual seu problema em inserir icones na aplicação, nao tem em lugar algum se eu não pedir) por cima?![[Backlog2 20260927224735.png]] 
+
+
+- Deveria ser possível abrir o msm arquivo em mais de uma aba, aparacendo essa opções nas abas e ao clicar com botão direito
+- Deveria ter como copiar o caminho relativo e o caminho completo dos arquivos
+---
+- linha 1
+- linha 2
+- linha 3
+---
+- Linha 1 nível 1
+- Linha 2 nível 1
+	- Linha 1 nível 2
+	- Linha 2 nível 2
+
+teste
+
+- [ ] Check 1
+- [ ] Check 2
+	- [ ] Check 3
+		- [ ] Check 4	 
+
+---
+
+Aaa
+
+- [ ] Nível 1
+	- [ ] Nível 2
+		- [ ] Nível 3
+	 
+- Nível 1
+	- Nível 2
+		- Nível 3
+
+1. Nível 1
+	1. Nível 2
+		1. Nível 3`))));
 
 // Convert file src mock:
 (window as unknown as { __TAURI_INTERNALS__: { convertFileSrc: (p: string) => string } }).__TAURI_INTERNALS__.convertFileSrc = (filePath: string) => {
@@ -281,7 +343,7 @@ const defaultIndex = {
   unindexed: null,
 };
 
-mockIPC(async (cmd, args) => {
+async function handleIPC(cmd: string, args: unknown): Promise<any> {
   if (cmd === "current_folder" || cmd === "pick_folder" || cmd === "reopen_folder") {
     return {
       status: "ok",
@@ -510,7 +572,13 @@ mockIPC(async (cmd, args) => {
   }
 
   if (cmd === "cli_status") {
-    return { status: "ok", data: { kind: "missing" } };
+    return { status: "ok", data: "ours" };
+  }
+  if (cmd === "install_cli") {
+    return { status: "ok", data: "ours" };
+  }
+  if (cmd === "uninstall_cli") {
+    return { status: "ok", data: "missing" };
   }
 
   if (cmd.startsWith("plugin:event|") || cmd.startsWith("plugin:window|")) {
@@ -519,6 +587,15 @@ mockIPC(async (cmd, args) => {
 
   console.log("[Mock IPC]", cmd, args);
   return { status: "ok", data: null };
+}
+
+mockIPC(async (cmd, args) => {
+  const res = await handleIPC(cmd, args);
+  if (res && typeof res === "object" && "status" in res) {
+    if (res.status === "ok") return res.data;
+    if (res.status === "error") throw res.error;
+  }
+  return res;
 });
 
 // Now import main application code:
