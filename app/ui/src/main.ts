@@ -1520,15 +1520,29 @@ function tickEmbedViews(): void {
       embedViews.set(el, v);
     }
     const url = el.dataset["embedWeb"] ?? "";
-    // Clipped to the pane the note scrolls in: a child view floats over
-    // the window, so past the pane's edge it is cut, not carried.
-    const pane = el.closest<HTMLElement>(".preview, .cm-scroller");
+    // Clipped to the nearest scrolling ancestor and to the window: a
+    // child view floats over everything, so past an edge it is cut,
+    // not carried over the pane's chrome.
+    let pane: HTMLElement | null = el.parentElement;
+    while (pane && !/(auto|scroll|hidden)/.test(getComputedStyle(pane).overflowY)) pane = pane.parentElement;
     const r = el.getBoundingClientRect();
-    const c = pane?.getBoundingClientRect();
-    const left = c ? Math.max(r.left, c.left) : r.left;
-    const top = c ? Math.max(r.top, c.top) : r.top;
-    const w = (c ? Math.min(r.right, c.right) : r.right) - left;
-    const hgt = (c ? Math.min(r.bottom, c.bottom) : r.bottom) - top;
+    let left = r.left;
+    let top = r.top;
+    let right = r.right;
+    let bottom = r.bottom;
+    if (pane) {
+      const c = pane.getBoundingClientRect();
+      left = Math.max(left, c.left);
+      top = Math.max(top, c.top);
+      right = Math.min(right, c.right);
+      bottom = Math.min(bottom, c.bottom);
+    }
+    left = Math.max(left, 0);
+    top = Math.max(top, 0);
+    right = Math.min(right, window.innerWidth);
+    bottom = Math.min(bottom, window.innerHeight);
+    const w = right - left;
+    const hgt = bottom - top;
     const visible = el.isConnected && el.offsetParent !== null && w > 1 && hgt > 1 && !overlayOpen();
     if (!v.label) {
       if (visible && !v.opening && url) {
