@@ -93,8 +93,8 @@ pub struct App {
     config: Option<PathBuf>,
     session: Mutex<Option<Session>>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
-    /// approved by hand. Only these may name a private or local address;
-    /// everything else the embed proxy fetches must be public.
+    /// approved by hand — the only web addresses the navigation guard
+    /// lets an app view's frames load (ADR 0056, revised 2026-09-29).
     embed_origins: Mutex<std::collections::HashSet<String>>,
     /// The walk's rules — the user's setting, pushed by the UI before a
     /// folder opens and applied to the session on change.
@@ -889,8 +889,8 @@ fn reveal(state: State<'_, App>, path: String) -> Result<(), ContractError> {
 
 /// The origins of embedded pages the user approved, replacing the list
 /// as a whole. The UI keeps the list with its settings and pushes it
-/// here; the embed proxy refuses a private or local address whose
-/// origin is not on it.
+/// here; the navigation guard lets an app view's frames load exactly
+/// these (ADR 0056, revised 2026-09-29).
 #[tauri::command]
 #[specta::specta]
 fn set_embed_origins(state: State<'_, App>, origins: Vec<String>) -> Result<(), ContractError> {

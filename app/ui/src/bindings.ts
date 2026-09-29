@@ -220,8 +220,8 @@ export const commands = {
 	/**
 	 *  The origins of embedded pages the user approved, replacing the list
 	 *  as a whole. The UI keeps the list with its settings and pushes it
-	 *  here; the embed proxy refuses a private or local address whose
-	 *  origin is not on it.
+	 *  here; the navigation guard lets an app view's frames load exactly
+	 *  these (ADR 0056, revised 2026-09-29).
 	 */
 	setEmbedOrigins: (origins: string[]) => typedError<null, ContractError>(__TAURI_INVOKE("set_embed_origins", { origins })),
 	/**

@@ -78,7 +78,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0050](0050-outbound-network-access.md) | Acesso de saída à rede a partir da janela | Aceito (o padrão do ajuste: provisório); revisado pela 0055 e pela 0056 (2026-09-29) |
 | [0054](0054-terminal-and-agents-from-the-app.md) | A linha de comando e os agentes, ligados pelo app | Aceito (2026-09-24); o `[ABERTO]` sobre as ferramentas do sistema fechado (2026-09-29) |
 | [0055](0055-in-app-updater.md) | O atualizador dentro do app | Aceito (2026-09-29) |
-| [0056](0056-embedded-web-pages.md) | Páginas web embutidas: o proxy, a origem dele e a rede local | Aceito (2026-09-29) |
+| [0056](0056-embedded-web-pages.md) | Páginas web embutidas: o proxy, a origem dele e a rede local | Aceito (2026-09-29); revisto no mesmo dia: sem proxy, as páginas carregam direto das origens que o usuário aprovou |
 
 ### Dialeto, engenharia e roadmap
 

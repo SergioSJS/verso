@@ -11,7 +11,8 @@
   project's releases at startup, with a setting to turn it off.
   [0056](0056-embedded-web-pages.md) adds a fifth way to the four the
   Decision enumerates: a web page embedded in a note, fetched by the host's
-  proxy.
+  proxy. *(0056 was revised the same day: the page loads itself in its
+  frame, from an origin the user approved, and the host fetches nothing.)*
 
 ## Context
 

@@ -11,7 +11,9 @@
   projeto ao abrir, com um ajuste para desligar.
   A [0056](0056-embedded-web-pages.md) acrescenta um quinto jeito aos quatro
   que a Decisão enumera: uma página web embutida numa nota, buscada pelo
-  proxy do host.
+  proxy do host. *(A 0056 foi revista no mesmo dia: a página carrega sozinha
+  no frame dela, de uma origem que o usuário aprovou, e o host não busca
+  nada.)*
 
 ## Contexto
 

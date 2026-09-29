@@ -2833,7 +2833,7 @@ class NoteLeaf extends Leaf {
       const to = this.resolve(raw);
       if (!to || !to.endsWith(".md") || to === this.path) continue;
       // A web note embedded is its page, not its (empty) text: the same
-      // proxied, sandboxed frame an <iframe> gets, gate included.
+      // direct, sandboxed frame an <iframe> gets, gate included.
       const webUrl = webNotes.get(to);
       if (webUrl) {
         const box = h("section", "embed-note");

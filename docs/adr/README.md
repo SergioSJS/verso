@@ -78,7 +78,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted (the setting's default: provisional); revised by 0055 and 0056 (2026-09-29) |
 | [0054](0054-terminal-and-agents-from-the-app.md) | The command line and agents, set up from the app | Accepted (2026-09-24); its `[OPEN]` on the system's tools closed (2026-09-29) |
 | [0055](0055-in-app-updater.md) | The in-app updater | Accepted (2026-09-29) |
-| [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29) |
+| [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29); revised the same day: no proxy, pages load directly from origins the user approved |
 
 ### Dialect, engineering and roadmap
 

@@ -130,8 +130,8 @@ function tameStyle(style: CSSStyleDeclaration): void {
 
 /* ---------- Embedded web pages ---------- */
 
-/** Every embedded page runs sandboxed: scripts in its own origin (the
- *  proxy's), no navigation of the window around it. */
+/** Every embedded page runs sandboxed: scripts in its own real origin,
+ *  no navigation of the window around it. */
 const SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups";
 
 /** Whether a host name is this machine or the local network: loopback,
@@ -215,7 +215,7 @@ function gateOf(url: string): { kind: "local" | "public" | "remote"; origin: str
   return null;
 }
 
-/** The iframe for web page `url` through the proxy, sandboxed; or, when
+/** The iframe for web page `url`, loaded directly and sandboxed; or, when
  *  it may not load yet, a box that says why and asks. The iframe waits
  *  inside the box in a `template`: inert, nothing is fetched until a
  *  click. Built in `doc`, the inert document of a note or the page. */
