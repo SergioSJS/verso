@@ -35,9 +35,9 @@ use verso_contract::{
     AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
     Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexProgress,
-    IndexSummary, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText,
-    Property, PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed,
-    UpdateProgress, WebNote, Written,
+    IndexSummary, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property,
+    PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateProgress, WebNote,
+    Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -476,7 +476,6 @@ fn app_info() -> Result<AppInfo, ContractError> {
         commit: env!("VERSO_COMMIT").to_owned(),
     })
 }
-
 
 /// Restarts the application to apply updates.
 #[tauri::command]
@@ -2331,7 +2330,8 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
         .iter()
         .map(|i| i as &dyn tauri::menu::IsMenuItem<R>)
         .collect();
-    let open_recent = Submenu::with_items(app, l("open-recent"), !recents.is_empty(), &recent_refs)?;
+    let open_recent =
+        Submenu::with_items(app, l("open-recent"), !recents.is_empty(), &recent_refs)?;
     let file = Submenu::with_items(
         app,
         l("file"),
@@ -3034,7 +3034,9 @@ mod tests {
         assert!(!is_trusted_update_url(
             "https://objects.githubusercontent.com/github-production-release-asset-2e65be/12345"
         ));
-        assert!(!is_trusted_update_url("https://gist.github.com/x/raw/a.zip"));
+        assert!(!is_trusted_update_url(
+            "https://gist.github.com/x/raw/a.zip"
+        ));
         assert!(!is_trusted_update_url("http://github.com/fake.zip")); // HTTP disallowed
         assert!(!is_trusted_update_url("https://malicious.com/virus.zip"));
         assert!(!is_trusted_update_url(
@@ -3061,5 +3063,4 @@ mod tests {
         // The child web view is where a page loads, any http(s) page.
         assert!(may_navigate("web-1", &url("https://rolai.app/x"), None));
     }
-
 }
