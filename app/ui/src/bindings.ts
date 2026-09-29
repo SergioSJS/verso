@@ -232,6 +232,19 @@ export const commands = {
 	 */
 	setWalkRules: (builtinIgnores: boolean, gitignore: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_walk_rules", { builtinIgnores, gitignore })),
 	/**
+	 *  A line from the window into the app's log: what `fail()` shows for a
+	 *  moment there, and what the browser would otherwise swallow — a
+	 *  script error, a rejected promise. The source is the window's, the
+	 *  text is the window's; nothing else is added and nothing is sent
+	 *  anywhere (`log.rs`).
+	 */
+	logWrite: (level: string, message: string) => typedError<null, ContractError>(__TAURI_INVOKE("log_write", { level, message })),
+	/**
+	 *  The end of the log and where it lives: what a bug report carries, so
+	 *  the user can read it before it goes anywhere.
+	 */
+	logRead: () => typedError<string, ContractError>(__TAURI_INVOKE("log_read")),
+	/**
 	 *  The window's language, for the native menu ("pt" or "en"); pushed at
 	 *  start-up and when the setting changes.
 	 */

@@ -2511,3 +2511,9 @@ textarea.embed-allowed { width: 100%; min-width: 16rem; font-family: var(--mono)
 
 /* The embedded page's box: the child web view is overlaid exactly on it. */
 .embed-web { border: 1px solid var(--line, #d8cfc2); border-radius: 8px; background: var(--panel, #f7f1e8); }
+
+/* The bug button, and the dot it wears when the window swallowed an
+   error since it was last opened. */
+#report-bug { position: relative; }
+#report-bug.has-news::after { content: ""; position: absolute; top: .25rem; right: .25rem; width: 6px; height: 6px; border-radius: 50%; background: var(--danger, #b91c1c); }
+textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono); font-size: .8rem; line-height: 1.5; resize: vertical; }

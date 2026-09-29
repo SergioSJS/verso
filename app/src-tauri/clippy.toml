@@ -4,8 +4,11 @@
 # (ADR 0026, rule 5): the folder's files still cross only `verso-core` →
 # `verso-fs`. Clippy's disallowed-methods list is per crate, not per
 # module, so the confinement here is the grep in `scripts/check.sh`:
-# `std::fs` in this crate lives in `src/update.rs` alone, exactly as
-# `verso-core` confines it to `src/sidecar.rs`. Declared for the
+# `std::fs` in this crate lives in `src/update.rs` and `src/log.rs`
+# alone, exactly as `verso-core` confines it to `src/sidecar.rs`.
+# `src/log.rs` writes the app's diagnostic log in the configuration
+# directory — never the open folder — added on 2026-09-29, when the
+# maintainer found the app kept no record of its own errors. Declared for the
 # maintainer's ratification in the PR that adds it (ADR 0029: an
 # exception is the subject of its own declaration, never a silent
 # config change).

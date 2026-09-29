@@ -14,6 +14,7 @@ test release.
 
 ### Added
 
+- **The app keeps a log, and a button to report a problem**: Verso wrote nothing down before — a command that failed said so in the status bar and was gone, and a panic or a script error left no trace at all. It now keeps one small file in its configuration directory (never in your folder, readable by you alone, rotated and capped): what it started with, every failed command, every panic, every error the window would have swallowed. The status bar gains a bug button — it wears a dot when something was swallowed since you last looked — and it opens a report already filled in with the version, the commit, the state, the session's errors and the end of the log. Nothing is sent anywhere: you read it, edit it, and the button copies it.
 - **Back and forward between notes**: each pane keeps its own trail of where it has been — ‹ and › in its tab bar, ⌘[ and ⌘] on the keyboard, the mouse's own back and forward buttons, and both in the palette and in Settings → Hotkeys. A split navigates on its own, and a tab closed meanwhile leaves the trail instead of being reopened behind you. The editor no longer takes ⌘[ and ⌘] for itself: it indents with Tab and Shift-Tab.
 
 ### Fixed

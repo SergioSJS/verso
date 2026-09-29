@@ -87,6 +87,7 @@ const baseEditorExtensions: Extension = [
 ];
 import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { minimalEdit } from "./edit";
+import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
 import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
@@ -139,7 +140,7 @@ type Strings = Record<
   | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
-  | "tabs" | "unsaved" | "rightPanel" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
+  | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
@@ -250,6 +251,7 @@ const pt: Strings = {
   colorBrass: "Âmbar / Brass (Acolhedor)", colorDefault: "Tinta natural (Neutro)", colorSeal: "Rubi / Selo (Vibrante)", colorMoss: "Esmeralda / Musgo (Natural)", colorSlate: "Ardósia / Índigo (Frio)", colorRoyal: "Safira Real (Azul)", colorAmethyst: "Ametista Real (Roxo)",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
+  reportBug: "Relatar problema", reportHint: "Tudo abaixo fica no seu computador: o botão copia, nada é enviado. Leia e edite à vontade antes de colar onde quiser.", reportWhat: "O que aconteceu", reportHere: "(conte aqui o que você fez e o que esperava)", reportContext: "Contexto", reportErrors: "Erros desta sessão", reportNoErrors: "nenhum", reportLog: "Registro do aplicativo",
   navBack: "Voltar", navForward: "Avançar",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
   newBase: "Nova base", insertBase: "Inserir base", calendarTab: "Calendário", newWindow: "Nova janela",
@@ -343,6 +345,7 @@ const en: Strings = {
   colorBrass: "Warm Brass (Amber)", colorDefault: "Natural Ink (Neutral)", colorSeal: "Ruby Seal (Vibrant)", colorMoss: "Emerald Moss (Natural)", colorSlate: "Slate Indigo (Cool)", colorRoyal: "Royal Sapphire (Blue)", colorAmethyst: "Royal Amethyst (Purple)",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
+  reportBug: "Report a problem", reportHint: "Everything below stays on your computer: the button copies it, nothing is sent. Read it and edit it as you like before pasting it anywhere.", reportWhat: "What happened", reportHere: "(say here what you did and what you expected)", reportContext: "Context", reportErrors: "Errors this session", reportNoErrors: "none", reportLog: "The app's log",
   navBack: "Back", navForward: "Forward",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
   sCli: "Terminal and agents", cliTitle: "The verso command in the terminal", cliDesc: "Installs the verso command in /usr/local/bin: verso . opens the folder in the app, verso search <folder> <words> searches, verso mcp serves an agent. macOS asks for your password once.",
@@ -471,7 +474,10 @@ function fail(e: ContractError | unknown): void {
   const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
   const said = sentence[kind];
   ui.status.textContent = said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
+  note("ERROR", kind ? `${kind}: ${message}` : message);
 }
+
+watchWindow();
 
 const ui = {
   open: el<HTMLButtonElement>("open"),
@@ -481,6 +487,7 @@ const ui = {
   search: el<HTMLInputElement>("search"),
   searchLabel: el<HTMLSpanElement>("search-label"),
   status: el<HTMLSpanElement>("status"),
+  reportBug: el<HTMLButtonElement>("report-bug"),
   words: el<HTMLSpanElement>("words"),
   notesHeading: el<HTMLHeadingElement>("notes-heading"),
   notes: el<HTMLUListElement>("notes"),
@@ -7264,6 +7271,7 @@ function allCommands(all = false): Command[] {
     { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
+    { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
     { id: "nav-back", label: t.navBack, need: Boolean(pane?.canGo(-1)), run: () => pane?.go(-1) },
     { id: "nav-forward", label: t.navForward, need: Boolean(pane?.canGo(1)), run: () => pane?.go(1) },
     { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
@@ -7501,6 +7509,96 @@ class ReplaceDialog {
   }
 }
 const replaceDialog = new ReplaceDialog();
+
+/* The bug report: what the window knows about itself and what it
+ * swallowed, gathered into one field the user reads and edits before it
+ * goes anywhere. Nothing is sent: the button copies, and the log it
+ * quotes is the app's own file, on this machine. */
+class BugDialog {
+  readonly el = h("div", "quick");
+  constructor() {
+    this.el.hidden = true;
+    asDialog(this.el, t.reportBug, () => this.hide());
+    document.body.append(this.el);
+    this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
+  }
+  hide(): void {
+    this.el.hidden = true;
+    closed(this.el);
+  }
+  /** Everything but the user's own words, which go at the top. */
+  private async context(): Promise<string> {
+    const info = await commands.appInfo();
+    const build = info.status === "ok" ? `${info.data.version} (${info.data.commit})` : "?";
+    const read = await commands.logRead();
+    const log = read.status === "ok" ? read.data : "";
+    const leaf = layout().activeLeaf;
+    const where = leaf ? `${leaf.kind}${leaf instanceof NoteLeaf ? ` (${leaf.mode})` : ""}` : "—";
+    const onOff = (v: boolean) => (v ? "on" : "off");
+    const seen = swallowed();
+    const errors = seen.length === 0
+      ? t.reportNoErrors
+      : seen.map((e) => `${e.at} ${e.level} ${e.text}`).join("\n");
+    return [
+      `## ${t.reportContext}`,
+      "",
+      `- Verso ${build} · ${navigator.platform} · ${settings.lang}`,
+      `- folder: ${currentFolder === "" ? "—" : "ok"} · tab: ${where}`,
+      `- remote ${onOff(settings.remoteContent)} · build dirs ${onOff(settings.ignoreBuildDirs)} · gitignore ${onOff(settings.respectGitignore)} · embeds ${settings.embedOrigins.length}`,
+      "",
+      `## ${t.reportErrors}`,
+      "",
+      errors,
+      "",
+      `## ${t.reportLog}`,
+      "",
+      log,
+    ].join("\n");
+  }
+  show(): void {
+    opened(this.el);
+    const box = h("div", "plan-box replace-box");
+    const header = h("div", "replace-header");
+    const titleGroup = h("div", "replace-title-group");
+    titleGroup.append(icon("bug"), h("h2", "", t.reportBug));
+    const closeBtn = button("ghost iconic close-btn", t.close, "close");
+    closeBtn.addEventListener("click", () => this.hide());
+    header.append(titleGroup, closeBtn);
+    const hint = h("p", "settings-hint", t.reportHint);
+    const field = h("textarea", "report-text") as unknown as HTMLTextAreaElement;
+    field.spellcheck = false;
+    const head = `## ${t.reportWhat}\n\n`;
+    field.value = `${head}${t.reportHere}\n\n`;
+    const actions = h("div", "confirm-actions");
+    const copy = button("save", t.copyText);
+    copy.addEventListener("click", () => {
+      void navigator.clipboard.writeText(field.value).then(() => {
+        ui.status.textContent = t.copiedText;
+        this.hide();
+      });
+    });
+    actions.append(copy);
+    box.append(header, hint, field, actions);
+    this.el.replaceChildren(box);
+    this.el.hidden = false;
+    // The dot is answered: what was swallowed is on the screen now.
+    ui.reportBug.classList.remove("has-news");
+    field.focus();
+    field.setSelectionRange(head.length, head.length + t.reportHere.length);
+    // The context joins as soon as the host answers, under the cursor.
+    void this.context().then((rest) => {
+      if (this.el.hidden) return;
+      const at = field.selectionStart;
+      const to = field.selectionEnd;
+      field.value = `${field.value}${rest}`;
+      field.setSelectionRange(at, to);
+    });
+  }
+}
+const bugDialog = new BugDialog();
+ui.reportBug.title = t.reportBug;
+ui.reportBug.append(icon("bug", t.reportBug));
+ui.reportBug.addEventListener("click", () => bugDialog.show());
 
 class UpdateController {
   private _info: UpdateInfo | null = null;

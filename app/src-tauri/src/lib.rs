@@ -41,6 +41,7 @@ use verso_contract::{
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
+mod log;
 mod update;
 use update::*;
 
@@ -162,9 +163,13 @@ fn convert(e: CoreError) -> ContractError {
 }
 
 fn failed(message: impl Into<String>) -> ContractError {
+    let message = message.into();
+    // The funnel for the host's own failures: what the window is about
+    // to show for a moment, the log keeps (`log.rs`).
+    log::write("ERROR", "host", &message);
     ContractError {
         kind: ErrorKind::Failed,
-        message: message.into(),
+        message,
     }
 }
 
@@ -906,6 +911,46 @@ fn set_embed_origins(state: State<'_, App>, origins: Vec<String>) -> Result<(), 
         .collect();
     *lock(&state.embed_origins) = normalized;
     Ok(())
+}
+
+/// A line from the window into the app's log: what `fail()` shows for a
+/// moment there, and what the browser would otherwise swallow — a
+/// script error, a rejected promise. The source is the window's, the
+/// text is the window's; nothing else is added and nothing is sent
+/// anywhere (`log.rs`).
+#[tauri::command]
+#[specta::specta]
+fn log_write(level: String, message: String) -> Result<(), ContractError> {
+    let level = match level.as_str() {
+        "PANIC" | "ERROR" | "WARN" | "INFO" => level,
+        _ => "ERROR".to_owned(),
+    };
+    log::write(&level, "window", &message);
+    Ok(())
+}
+
+/// The end of the log and where it lives: what a bug report carries, so
+/// the user can read it before it goes anywhere.
+#[tauri::command]
+#[specta::specta]
+fn log_read() -> Result<String, ContractError> {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let where_ = log::path().map_or_else(String::new, |p| {
+        let shown = p.display().to_string();
+        // The report may be pasted somewhere public: the home directory
+        // is the user's name, more often than not.
+        if home.is_empty() {
+            shown
+        } else {
+            shown.replacen(&home, "~", 1)
+        }
+    });
+    let tail = log::tail(16 * 1024);
+    Ok(if where_.is_empty() {
+        tail
+    } else {
+        format!("{where_}\n\n{tail}")
+    })
 }
 
 /// The walk's rules, from the settings: whether the well-known build
@@ -1819,6 +1864,8 @@ macro_rules! commands_for {
                 copy_full_path,
                 set_embed_origins,
                 set_walk_rules,
+                log_write,
+                log_read,
                 set_menu_language::<$runtime>,
                 reindex::<$runtime>,
                 query_base,
@@ -2075,6 +2122,18 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             }
         }
     });
+    log::open();
+    log::install_panic_hook();
+    log::write(
+        "INFO",
+        "host",
+        &format!(
+            "started {} ({}) on {}",
+            env!("CARGO_PKG_VERSION"),
+            env!("VERSO_COMMIT"),
+            std::env::consts::OS
+        ),
+    );
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(navigation_guard())

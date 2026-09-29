@@ -4,6 +4,8 @@
 
 import mermaid from "mermaid";
 
+import { note } from "./report";
+
 let initializedTheme: string | null = null;
 let idCounter = 0;
 
@@ -100,6 +102,9 @@ export async function renderMermaid(
     dummy?.remove();
 
     const message = err instanceof Error ? err.message : String(err);
+    // Shown in the note, and written down: a diagram that fails is a
+    // bug report's evidence too (`report.ts`).
+    note("ERROR", `mermaid: ${message.split("\n")[0] ?? message}`);
     const errorBox = document.createElement("div");
     errorBox.className = "mermaid-error";
 
