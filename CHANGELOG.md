@@ -14,7 +14,7 @@ test release.
 
 ### Added
 
-- **Back and forward between notes**: each pane keeps its own trail of where it has been — ‹ and › in its tab bar, ⌘[ and ⌘] on the keyboard, and both in the palette and in Settings → Hotkeys. A split navigates on its own, and a tab closed meanwhile leaves the trail instead of being reopened behind you.
+- **Back and forward between notes**: each pane keeps its own trail of where it has been — ‹ and › in its tab bar, ⌘[ and ⌘] on the keyboard, the mouse's own back and forward buttons, and both in the palette and in Settings → Hotkeys. A split navigates on its own, and a tab closed meanwhile leaves the trail instead of being reopened behind you. The editor no longer takes ⌘[ and ⌘] for itself: it indents with Tab and Shift-Tab.
 
 ### Fixed
 

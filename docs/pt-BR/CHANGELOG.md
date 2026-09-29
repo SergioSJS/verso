@@ -14,7 +14,7 @@ versão de teste.
 
 ### Acrescentado
 
-- **Voltar e avançar entre notas**: cada área guarda a própria trilha de onde esteve — ‹ e › na barra de abas dela, ⌘[ e ⌘] no teclado, e os dois na paleta e em Ajustes → Atalhos. Uma área dividida navega sozinha, e uma aba fechada no meio sai da trilha em vez de reabrir pelas suas costas.
+- **Voltar e avançar entre notas**: cada área guarda a própria trilha de onde esteve — ‹ e › na barra de abas dela, ⌘[ e ⌘] no teclado, os botões de voltar e avançar do próprio mouse, e os dois na paleta e em Ajustes → Atalhos. Uma área dividida navega sozinha, e uma aba fechada no meio sai da trilha em vez de reabrir pelas suas costas. O editor não toma mais ⌘[ e ⌘] para si: ele indenta com Tab e Shift-Tab.
 
 ### Corrigido
 

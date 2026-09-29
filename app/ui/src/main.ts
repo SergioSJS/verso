@@ -72,7 +72,12 @@ const baseEditorExtensions: Extension = [
   }),
   keymap.of([
     ...closeBracketsKeymap,
-    ...defaultKeymap,
+    // Mod-[ and Mod-] are the window's back and forward (DEFAULT_KEYS).
+    // CodeMirror binds them to indenting, which Tab and Shift-Tab already
+    // do here (`indentWithTab`), and an editor that answers a key stops
+    // the window from seeing it at all (the handler skips a key whose
+    // default was prevented).
+    ...defaultKeymap.filter((b) => b.key !== "Mod-[" && b.key !== "Mod-]"),
     ...searchKeymap,
     ...historyKeymap,
     ...foldKeymap,
@@ -8678,6 +8683,21 @@ document.addEventListener("keydown", (e) => {
   if (hotkeyRecorder || e.defaultPrevented) return;
   runHotkey(e);
 });
+
+/* The mouse's back and forward — buttons 3 and 4 — where the hand
+ * already expects them, on the pane that has the focus. Both events are
+ * heard: `mousedown` is where the button is stopped before anything else
+ * reads it as a click, and `auxclick` is what a non-primary button
+ * reports when the view does not send the first. */
+function mouseNav(e: MouseEvent): boolean {
+  if (e.button !== 3 && e.button !== 4) return false;
+  e.preventDefault();
+  e.stopPropagation();
+  (layout().focused ?? layout().panes()[0])?.go(e.button === 3 ? -1 : 1);
+  return true;
+}
+document.addEventListener("mousedown", (e) => void mouseNav(e), true);
+document.addEventListener("auxclick", (e) => void mouseNav(e), true);
 
 const sideDivider = el<HTMLDivElement>("side-divider");
 sideDivider.title = t.sidebarResize;
