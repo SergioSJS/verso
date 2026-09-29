@@ -3,11 +3,13 @@
 # (src/sidecar.rs; docs/reference/index-decision.md §2.4). Never a file of
 # the open folder (ADR 0026, rule 5). Clippy does not merge this file with
 # the workspace one, so the test allowances are repeated and the std::fs
-# list is the workspace's minus the four calls the sidecar needs: a write
+# list is the workspace's minus the five calls the sidecar needs: a write
 # to a temporary name, a chmod of it to 0600 (ADR 0046: "file `0600`"; the
 # maintainer's answer of 2026-09-23, docs/review/phase-2.md §6 item 15), a
-# rename over the sidecar, a read of it. Everything that lists, inspects or
-# removes a path stays denied here.
+# rename over the sidecar, a read of it, and a listing of the
+# configuration directory (`read_dir`) so the folders opened before can be
+# offered as the window's recents — ratified by the maintainer on
+# 2026-09-29. Everything that inspects or removes a path stays denied.
 
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
@@ -22,7 +24,6 @@ disallowed-methods = [
   { path = "std::fs::create_dir_all", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::hard_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::soft_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
-  { path = "std::fs::read_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::read_link", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::symlink_metadata", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
@@ -49,4 +50,5 @@ disallowed-methods = [
   { path = "std::path::Path::canonicalize", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
 ]
 # Allowed here, for the sidecar only: std::fs::write,
-# std::fs::set_permissions, std::fs::rename, std::fs::read_to_string.
+# std::fs::set_permissions, std::fs::rename, std::fs::read_to_string,
+# std::fs::read_dir (the recents listing, ratified 2026-09-29).

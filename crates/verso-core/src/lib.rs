@@ -33,7 +33,7 @@ use std::time::UNIX_EPOCH;
 
 use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
-pub use verso_fs::{Changes, ConfinementError, ReadError, Watch, WriteError};
+pub use verso_fs::{Changes, ConfinementError, ReadError, WalkRules, Watch, WriteError};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 pub mod bases;
@@ -739,6 +739,22 @@ fn joined(dir: &str, target: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
+/// The folders opened before, most recently indexed first, read from the
+/// index sidecars under [`config_dir`] (or the given directory) — for the
+/// window's recent-folders menu. Paths at the edge, on this side: none of
+/// them crosses the contract (ADR 0026 rule 4).
+#[must_use]
+pub fn recent_folders(config: Option<&Path>) -> Vec<PathBuf> {
+    let dir = match config {
+        Some(dir) => dir.to_path_buf(),
+        None => match config_dir() {
+            Ok(dir) => dir,
+            Err(_) => return Vec::new(),
+        },
+    };
+    sidecar::known_folders(&dir.join("index"))
+}
+
 impl Workspace {
     /// Open `folder` with its index under [`config_dir`] (or the given
     /// directory). Nothing is read yet.
@@ -828,6 +844,12 @@ impl Workspace {
     /// the report, not a failure: the index is current either way.
     pub fn index(&mut self) -> Result<IndexReport, CoreError> {
         self.index_with_progress(|_| {})
+    }
+
+    /// The walk's rules — the user's setting, from outside the tree.
+    /// Takes effect on the next index run; the caller reindexes.
+    pub fn set_walk_rules(&mut self, rules: WalkRules) {
+        self.root.set_rules(rules);
     }
 
     pub fn index_with_progress<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
