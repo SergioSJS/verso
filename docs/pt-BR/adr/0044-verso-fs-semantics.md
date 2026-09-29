@@ -25,7 +25,13 @@
   nota. 2026-09-29 — uma contradição `[ABERTO]` registrada no grupo dos
   caminhos ignorados: o commit `e5754b0` implementou uma lista embutida de
   diretórios ignorados e a leitura do `.gitignore`, as duas descartadas por
-  este ADR. Nada decidido; o status não muda.
+  este ADR. Nada decidido; o status não muda. 2026-09-29 — **essa
+  contradição decidida pelo mantenedor** no mesmo dia, na sessão: os dois
+  comportamentos aceitos, feitos direito e atrás de ajustes — a semântica do
+  próprio git para o `.gitignore`, pelo crate `ignore`, e a lista embutida e
+  o `.gitignore` cada um atrás de uma chave, ligados por padrão. Registrado
+  numa seção própria depois do grupo dos caminhos ignorados; as linhas de
+  2026-09-22 que ela revê ficam, cada uma com uma nota.
 
 ## Contexto
 
@@ -39,7 +45,7 @@ que precisam de resposta antes de `verso-fs` existir.
 
 Os três grupos estão decididos: symlinks e caminhos ignorados em 2026-09-22,
 os handles opacos em 2026-09-24, como construídos para a Fase 2 e com o
-momento de reabri-los. O watcher, que veio depois da feature 2, foi decidido
+momento de reabri-los; os caminhos ignorados foram revistos em 2026-09-29. O watcher, que veio depois da feature 2, foi decidido
 em 2026-09-24 também.
 
 ### Symlinks e laços — decidido em 2026-09-22
@@ -126,8 +132,14 @@ também a resposta da Q26 de [`docs/spec/dialect.md`](../spec/dialect.md):
   ([0011](0011-config-outside-tree-index-as-cache.md)), **vazia por padrão**.
   `node_modules/` não é oculto, então é percorrido a menos que o usuário o
   liste: é o preço de uma regra de uma frase em vez de uma blocklist.
+  *(Revisto em 2026-09-29: a lista fica, vazia por padrão, e uma lista
+  embutida de diretórios de build — `node_modules/` entre eles — é pulada ao
+  lado dela, a menos que um ajuste a desligue; ver "Caminhos ignorados,
+  revistos" abaixo.)*
 - **`.gitignore` não é lido na Fase 1.** A gramática dele é um projeto à parte, e
-  o modo de falha é nota sumindo em silêncio.
+  o modo de falha é nota sumindo em silêncio. *(Revisto em 2026-09-29: o
+  `.gitignore` de cada diretório é respeitado, com a semântica do git, a menos
+  que um ajuste o desligue; ver "Caminhos ignorados, revistos" abaixo.)*
 - **Nota ignorada é alvo de link não resolvido e nunca é fonte de backlink.** Um
   `[[link]]` de uma nota visível para uma ignorada continua não resolvido; um
   link escrito dentro de uma nota ignorada não conta para nada — nem como
@@ -197,7 +209,68 @@ comportamento — aí a lacuna do `!` e a assimetria do watcher viram correçõe
 a fazer, e vale decidir junto um jeito de desligar — **ou** mandar o código
 voltar ao desenho decidido acima, uma lista de ignorados confinada no
 diretório de configuração, vazia por padrão. Até lá o código e este ADR
-discordam, e este ADR é o que foi decidido.
+discordam, e este ADR é o que foi decidido. *(Decidido em 2026-09-29, pelo
+primeiro caminho: a seção seguinte.)*
+
+### Caminhos ignorados, revistos — decidido em 2026-09-29
+
+**Decidido em 2026-09-29 pelo mantenedor**, na sessão, respondendo ao
+`[ABERTO]` acima: *"refaça a logica desse gitignore pra ficar mais aderente e
+escalável"* e *"coloque em settings essa opção"*. Ignorar diretórios de
+build e respeitar o `.gitignore` ficam aceitos, feitos direito e atrás de
+ajustes. Isto revê duas linhas do grupo de 2026-09-22 — só a lista
+configurável, e nada de `.gitignore` — e nada mais nele: entradas ocultas
+continuam não sendo percorridas, o padrão de placeholder continua acima da
+regra de oculto, a lista configurável continua confinada e vazia por padrão,
+e uma nota ignorada continua alvo não resolvido e nunca fonte de backlink,
+seja qual for a regra que a deixou de fora.
+
+Como o autor construiu sob essa decisão (`crates/verso-fs`), no lugar do
+casador parcial do commit `e5754b0`:
+
+- **A semântica do próprio git, pelo motor do ripgrep.** A varredura lê o
+  `.gitignore` de cada diretório com o módulo gitignore do crate `ignore` —
+  o motor do ripgrep; só esse módulo, não a varredura própria do crate, que
+  continua sendo a do `verso-fs`. Ela segue o git: `!` reinclui (`!keep.md`
+  depois de `*.md`), `**` alcança qualquer profundidade, uma `/` no início
+  ancora o padrão no diretório do arquivo dele (`/dist`), uma `/` no fim casa
+  só diretórios (`logs/`), e um `.gitignore` mais fundo sobrepõe o de fora —
+  decide o arquivo mais interno que tem opinião sobre a entrada. **Um
+  diretório ignorado é podado inteiro**, então um `!` dentro dele nunca vale:
+  limitação do próprio git, mantida de propósito em vez de melhorada, para
+  que a pasta pareça a mesma para o Verso e para o git.
+- **A lista embutida** (`is_default_ignored_dir`, em
+  `crates/verso-fs/src/walk.rs`): 23 nomes de diretório — `node_modules`,
+  `target`, `vendor`, `dist`, `build`, `out`, `env`, `venv`, `coverage`,
+  `__pycache__` e semelhantes — pulados em qualquer profundidade. Ela casa só
+  diretórios; um arquivo com um desses nomes é percorrido.
+- **Os dois atrás de uma chave.** `WalkRules { builtin_ignores, gitignore }`
+  (`crates/verso-fs/src/lib.rs`), os dois ligados por padrão. Os ajustes da
+  janela — "Ignorar pastas de build" e "Respeitar .gitignore" — os definem
+  pelo comando `set_walk_rules`; desligar qualquer um e reindexar traz de
+  volta ao índice as entradas que ele tinha deixado de fora.
+- **Testes**, em `crates/verso-fs/tests/walk.rs`:
+  `gitignore_semantics_are_gits_own` (negação, âncora, só diretório, `**`,
+  um arquivo mais fundo sobrepondo o de fora) e
+  `walk_rules_turn_both_ignore_kinds_off`.
+- **Uma dependência nova, `ignore`**, justificada em
+  `crates/verso-fs/Cargo.toml`. A licença dela é dupla, Unlicense ou MIT;
+  passa na allowlist do `cargo-deny` pela MIT
+  ([0029](0029-guardrails-in-ci.md)).
+
+**Um limite conhecido, aceito.** O watcher (`crates/verso-fs/src/watch.rs`)
+descarta eventos sob os nomes embutidos quando essa chave está ligada, mas
+não aplica os padrões do `.gitignore`: um evento traz um caminho sem a
+cadeia de arquivos `.gitignore` acima dele de que os casadores precisam. Um
+evento sob um caminho ignorado pelo `.gitignore` passa, então, e a varredura
+que responde a ele continua deixando o caminho de fora — o índice sai certo,
+ao custo de uma reindexação que não muda nada.
+
+O que vira o risco registrado no `[ABERTO]` acima: uma nota deixada de
+fora por uma linha de `.gitignore` ou por um nome embutido fica fora do
+índice, da busca, dos backlinks e da reescrita de links numa renomeação,
+como antes; os ajustes agora são o caminho para trazê-la de volta, e o `!`
+do próprio git funciona como quem usa git espera.
 
 ### O watcher — depois da feature 2; decidido em 2026-09-24
 
@@ -345,9 +418,12 @@ Consideradas pelo mantenedor, sobre o memo, e postas de lado:
   e deixa uma janela de TOCTOU que só travessia estilo `openat` fecha.
 - **Caminhos ignorados: blocklist curada de nomes** (`.obsidian/`, `.git/`,
   `.trash/`, `node_modules/`) — uma lista sempre um nome desatualizada.
+  *(Retomada em 2026-09-29 para diretórios de build, atrás de um ajuste:
+  "Caminhos ignorados, revistos".)*
 - **Caminhos ignorados: ler `.gitignore`** — a gramática inteira é um projeto à
   parte, e uma linha `*.md` no `.gitignore` de um repositório esvaziaria o
-  vault.
+  vault. *(Retomada em 2026-09-29, por um motor existente da gramática
+  inteira e atrás de um ajuste: "Caminhos ignorados, revistos".)*
 - **Nota ignorada totalmente indexada, ou alvo que resolve** — "ignorado"
   passaria a significar "percorrido mas não contado", e o critério de saída 2
   dependeria de o mantenedor lembrar o que está em `.trash/`.
@@ -373,12 +449,24 @@ E sobre o memo dos handles:
   contra o qual testar, antes que exista um plugin, um cliente mobile ou um
   servidor.
 
+Consideradas pelo mantenedor em 2026-09-29, sobre o `[ABERTO]` do grupo dos
+caminhos ignorados, e postas de lado:
+
+- **Voltar o código ao desenho de 2026-09-22** — um dos dois caminhos que o
+  `[ABERTO]` apontava; o mantenedor escolheu o outro.
+- **Manter o casador do commit `e5754b0` e consertar o `!` dele** — posto de
+  lado pelo *"refaça a logica"*: uma gramática própria era o projeto de que
+  este ADR tinha avisado, e um motor existente da semântica do git a
+  substituiu.
+
 ## Status
 
 Symlinks, laços e caminhos ignorados: decidido em 2026-09-22 pelo mantenedor,
-Aceito. Handles opacos: decididos em 2026-09-24 pelo mantenedor, como
-construídos para a Fase 2, Aceito; reabertos antes que qualquer coisa fora das
-views do próprio app ganhe acesso a arquivos. O watcher: construído depois da
+Aceito; caminhos ignorados revistos em 2026-09-29 pelo mantenedor — a lista
+embutida e o `.gitignore`, atrás de ajustes — Aceito. Handles opacos:
+decididos em 2026-09-24 pelo mantenedor, como construídos para a Fase 2,
+Aceito; reabertos antes que qualquer coisa fora das views do próprio app ganhe
+acesso a arquivos. O watcher: construído depois da
 feature 2 e decidido em 2026-09-24 pelo mantenedor, Aceito. Os itens marcados
 como **provisórios** dentro dos dois grupos decididos em 2026-09-22 não estão
 decididos: são o que o código da feature 2 faz, registrados para que nada seja

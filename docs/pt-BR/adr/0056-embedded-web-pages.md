@@ -7,6 +7,9 @@
   caminhos da janela até a rede);
   [0026](0026-core-ui-contract-inviolable-rules.md), regra 5
 - Status no briefing: não consta
+- Revisões: 2026-09-29 — confirmado pelo mantenedor na sessão ("Ratifique o
+  que precisar", respondendo à lista do que estava pendente): o ADR fica
+  Aceito como está escrito.
 
 ## Contexto
 
@@ -125,4 +128,5 @@ Como o autor construiu isso sob essa decisão (`app/src-tauri/src/lib.rs`,
 
 Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão.
 O mecanismo sob eles é do autor, construído sob essa decisão e identificado
-como tal acima.
+como tal acima. Confirmado em 2026-09-29 pelo mantenedor: o ADR fica
+Aceito.

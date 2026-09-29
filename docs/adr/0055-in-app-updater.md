@@ -7,6 +7,9 @@
   updater would need a decision of its own"); [0051](0051-development-flow-and-releases.md)
   (releases); [0022](0022-target-platforms-macos-first.md) (macOS first)
 - Status in the briefing: not present
+- Revisions: 2026-09-29 — the check's default, on, ratified by the maintainer
+  in session ("Ratifique o que precisar", answering the list of what was
+  pending); the ADR stands Accepted as written.
 
 ## Context
 
@@ -105,6 +108,8 @@ How the author built the install under that decision
   not assumed here.
 - **The setting's default is on**, as it was in 0.3.0-beta.1. That default
   came with the code, not from a decision; the maintainer may choose off.
+  *(Ratified on 2026-09-29 by the maintainer, in session: the check stays on
+  by default, and the setting turns it off.)*
 - Releases are built for macOS only today
   ([0022](0022-target-platforms-macos-first.md),
   [0051](0051-development-flow-and-releases.md)). The code picks an asset for
@@ -136,4 +141,6 @@ How the author built the install under that decision
 
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the
 Decision — keep the updater and fix it. The hardening under them is the
-author's, built under that decision and labelled as such above.
+author's, built under that decision and labelled as such above. Revised on
+2026-09-29: the default-on check ratified by the maintainer; the ADR stands
+Accepted.

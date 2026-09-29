@@ -17,7 +17,8 @@ versão de teste.
 - **Embutimento nativo de PDFs com especificação de página no modo Leitura e Editar (Live Preview)**: suporte completo a embutir documentos PDF apontando para uma página específica e dimensões personalizadas (ex: `![[doc.pdf#page=3]]`, `![[doc.pdf#3]]`, `![[doc.pdf#page=3|600]]` ou `![[doc.pdf|page=5]]`). No modo Editar, o PDF é exibido com visualizador interativo inline e botão `</>` para editar o link.
 - **Suporte a diagramas Mermaid no modo Leitura e Editar (Live Preview)**: renderização nativa de fluxogramas, diagramas de sequência, classes, git graphs e gráficos de pizza com adaptação automática a temas claro/escuro e segurança estrita com sanitização de SVG. No modo Editar, clicar no diagrama ou no botão `</>` abre o código-fonte para edição imediata.
 - **Barra de progresso de indexação em tempo real**: adicionada barra de progresso no topo da janela e no rodapé indicando a fase de escaneamento e indexação, porcentagem, contagem de notas e arquivo atual ao abrir ou reindexar um cofre.
-- **Ignorar pastas de dependências, builds e regras do .gitignore**: diretórios como `node_modules`, `target`, `dist`, `build`, `.venv` e padrões definidos em arquivos `.gitignore` são agora automaticamente ignorados durante a indexação e vigilância de arquivos, eliminando travamentos em projetos de código.
+- **Ignorar pastas de build e regras do .gitignore, com dois ajustes**: "Ignorar pastas de build" deixa pastas como `node_modules`, `target`, `dist`, `build` e `.venv` fora do índice e da busca, e "Respeitar .gitignore" deixa de fora o que o `.gitignore` de cada pasta exclui — com as regras do próprio git, então `!` traz um arquivo de volta, `/dist` vale só para a pasta dele e `logs/` casa só pastas. Os dois vêm ligados; desligue um e reindexe, e o que ele deixava de fora volta. Abrir um projeto de código não trava mais nas dependências dele.
+- **Uma barra de menus no macOS**: Arquivo ganha Nova janela (que oferece escolher a pasta quando nenhuma está aberta), Abrir pasta… (⌘⇧O) e Abrir recente, as pastas que você abriu antes; o menu Verso ganha Ajustes… (⌘,). O menu segue o idioma do app.
 - **Renderização preguiçosa da árvore de arquivos**: pastas na barra lateral agora renderizam seus elementos DOM sob demanda ao serem expandidas, eliminando a criação antecipada de milhares de nós e tornando a abertura de grandes projetos instantânea.
 
 ### Corrigido
@@ -28,6 +29,9 @@ versão de teste.
 - **Reimportar o conteúdo de demonstração mantém os arquivos que você editou**: um arquivo da demonstração que já existe com outro conteúdo fica como está, e o Verso lista os que manteve.
 - **Headings setext**: uma linha de texto sublinhada com `===` ou `---` é reconhecida como heading (nível 1 ou 2), como no Obsidian.
 - **Roteamento de parâmetros e redirecionamentos no proxy web**: correção no tratamento de query strings e seguimento automático de redirecionamentos HTTP em iframes.
+- **Instalar a linha de comando pelos Ajustes não precisa mais de ferramentas do shell**: o próprio Verso cria, confere e remove o link `verso`, e tira a quarentena do download da linha de comando; o macOS pede a senha de administrador só quando `/usr/local/bin` não é seu.
+- **Imagens da web no modo Editar (Live Preview) seguem "Carregar conteúdo remoto"**: com o ajuste desligado, uma imagem da web vira um link para o endereço dela, como o modo Leitura já fazia.
+- **Páginas embutidas ficam dentro do painel delas**: uma página embutida cujo estilo pedia posição fixa ou absoluta não consegue mais se espalhar pelo resto da janela, no modo Editar e no modo Leitura.
 
 ---
 

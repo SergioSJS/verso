@@ -17,7 +17,8 @@ test release.
 - **Native PDF embedding with page specification in Reading View and Live Preview**: embed PDF documents with specific page numbers and dimensions (e.g. `![[doc.pdf#page=3]]`, `![[doc.pdf#3]]`, `![[doc.pdf#page=3|600]]`, or `![[doc.pdf|page=5]]`). In Live Preview, PDFs are rendered with an inline viewer and click-to-edit `</>` button.
 - **Mermaid diagrams support in Reading View and Live Preview**: render flowcharts, sequence diagrams, class diagrams, git graphs, and pie charts with automatic dark/light theme adaptation and strict sandboxed SVG security. Clicking diagrams or the `</>` button in Live Preview reveals the source for inline editing.
 - **Real-time indexing progress bar**: added an animated top progress line and status-bar progress indicator displaying current scanning/indexing phases, percentage, note counts, and current file name when opening or reindexing a folder.
-- **Gitignore and build directory exclusion**: folders like `node_modules`, `target`, `dist`, `build`, `.venv`, and patterns in `.gitignore` are now automatically ignored during vault indexing and file watching, preventing freezes on large projects.
+- **Gitignore and build directory exclusion, with two settings**: "Ignore build folders" leaves folders like `node_modules`, `target`, `dist`, `build` and `.venv` out of the index and the search, and "Respect .gitignore" leaves out what each folder's `.gitignore` excludes — by git's own rules, so `!` brings a file back, `/dist` binds to its folder and `logs/` matches folders only. Both are on by default; turn one off and reindex, and what it left out comes back. Opening a code project no longer freezes on its dependencies.
+- **A menu bar on macOS**: File gains New Window (it offers the folder picker when no folder is open), Open Folder… (⌘⇧O) and Open Recent, the folders you opened before; the Verso menu gains Settings… (⌘,). The menu follows the app's language.
 - **Lazy file tree rendering**: folders in the sidebar tree now render their child DOM nodes on demand when expanded rather than eagerly rendering the full directory tree upfront, dramatically speeding up folder opening in large repositories.
 
 ### Fixed
@@ -28,6 +29,9 @@ test release.
 - **Re-importing the demo content keeps files you edited**: a demo file that already exists with other content is left as it is, and Verso lists the ones it kept.
 - **Setext headings**: a line of text underlined with `===` or `---` is recognized as a heading (level 1 or 2), as in Obsidian.
 - **Web proxy URL routing and redirect support**: fixed query string parameter handling and added redirect following for external and local iframes.
+- **Installing the command line from Settings needs no shell tools**: Verso makes, checks and removes the `verso` link itself, and takes the download's quarantine off the command line; macOS asks for an administrator's password only when `/usr/local/bin` is not yours.
+- **Web images in Live Preview follow "Load remote content"**: with the setting off, a web image becomes a link to its address, as the reading view already did.
+- **Embedded pages stay inside their pane**: an embedded page whose style asked for a fixed or absolute position can no longer spill over the rest of the window, in Live Preview and in the reading view.
 
 ---
 

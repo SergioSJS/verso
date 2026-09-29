@@ -1,4 +1,4 @@
-# AI draft (Fable 5), 2026-09-29 — not valid before the maintainer approves it in the PR that adds it (ADR 0031).
+# Approved by the maintainer on 2026-09-29, in session ("ratifique o que precisar", answering the pending list that named this fixture), closing the setext part of Q19 (ADR 0031). Drafted by Fable 5 from the observation below.
 # Construct: setext headings (`===`/`---`). Spec: docs/spec/dialect.md §5.12; part of Q19.
 # Obsidian parses a setext underline as a heading even when the `---` sits
 # directly under running text with a list right after — under "Sem linha em

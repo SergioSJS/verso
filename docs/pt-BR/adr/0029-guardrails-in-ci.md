@@ -29,7 +29,13 @@
   faz o trabalho que uma lista nega conta como a chamada negada; duas exceções
   à lista de `std::fs` declaradas para a ratificação do mantenedor, a pedido
   do mantenedor na sessão para deixar claro nos documentos o risco de
-  contornar um guardrail (Decisão, "Contornar um guardrail").
+  contornar um guardrail (Decisão, "Contornar um guardrail"). 2026-09-29 —
+  as duas exceções ratificadas pelo mantenedor, na sessão ("Ratifique o que
+  precisar"), e uma terceira declarada e ratificada no mesmo dia,
+  `std::fs::read_dir` no `verso-core`; a contradição sobre o link da linha de
+  comando resolvida, o link do shell agora feito com `std::fs` dentro de
+  `src/update.rs` e só o pedido de administrador restando como subprocesso (a
+  mesma seção).
 
 ## Contexto
 
@@ -321,6 +327,23 @@ mantenedor:**
   de que os scripts e o workflow mudam juntos, o mesmo passo pertence ao
   `.github/workflows/ci.yml`.
 
+**Ratificadas em 2026-09-29 pelo mantenedor**, na sessão, respondendo à lista
+do que estava pendente ("Ratifique o que precisar"): as duas exceções acima
+ficam como declaradas. O grep que confina o `std::fs` do shell a
+`src/update.rs` roda tanto em `scripts/check.sh` quanto em
+`.github/workflows/ci.yml`.
+
+**Uma terceira exceção, declarada e ratificada no mesmo dia.**
+`crates/verso-core/clippy.toml` agora também permite `std::fs::read_dir`,
+confinado como antes a `src/sidecar.rs` pelo grep, para que os sidecars do
+índice possam ser listados para as pastas recentes do menu
+(`verso_core::recent_folders`). O que ele lista é o diretório de configuração
+([0011](0011-config-outside-tree-index-as-cache.md)), nunca a pasta aberta
+(regra 5 da [0026](0026-core-ui-contract-inviolable-rules.md)); e os caminhos
+que ele lê ficam do lado do host — o menu os mostra, a janela nunca os recebe
+(regra 4). Tudo o que inspeciona ou remove um caminho continua negado ali.
+Ratificada pelo mantenedor em 2026-09-29, na mesma resposta.
+
 **Uma contradição, registrada e não resolvida.** O shell liga a linha de
 comando pelos ajustes ([0054](0054-terminal-and-agents-from-the-app.md)) com
 as ferramentas do sistema — `test`, `readlink`, `ln`, `rm`, `xattr`,
@@ -330,6 +353,26 @@ regra acima torna essas chamadas uma violação. A
 [0054](0054-terminal-and-agents-from-the-app.md) as declarou abertamente e
 deixou `[ABERTO]` se elas deveriam virar `std::fs` com uma exceção declarada;
 essa pergunta é do mantenedor, e esta revisão não a responde.
+
+**Resolvida em 2026-09-29**, a pedido do mantenedor na sessão ("arrume essa
+parte do cli, tem que ficar 100%"). `install_cli`, `uninstall_cli` e
+`cli_state_now` não iniciam mais `test`, `readlink`, `ln`, `rm` nem `xattr`.
+O trabalho de sistema de arquivos deles foi para `src/update.rs`, dentro do
+alcance do grep e sob a exceção ratificada acima: `executable_file`,
+`link_target`, `something_at`, `replace_symlink` e `remove_file_at` usam
+`std::fs`, e `clear_quarantine` tira a quarentena do download pelo crate
+`xattr`, justificado em `app/src-tauri/Cargo.toml`. O único subprocesso que
+resta é o `osascript`, para o pedido de administrador. É privilégio, não um
+desvio da lista: `std::fs` não consegue pedir a senha de um administrador.
+Quando a chamada simples de `std::fs` falha porque `/usr/local/bin` não é da
+pessoa, o comando que o macOS roda com os direitos de administrador é
+`mkdir -p /usr/local/bin && ln -sfn <a linha de comando empacotada>
+/usr/local/bin/verso`, ou `rm /usr/local/bin/verso` para removê-lo —
+comandos fixos sobre esse único caminho, o caminho do binário empacotado
+entre aspas como uma só palavra do shell, depois de o macOS pedir a senha.
+Declarado aqui e aceito como o único subprocesso do link da linha de comando.
+O `[ABERTO]` da [0054](0054-terminal-and-agents-from-the-app.md) sobre a
+mesma pergunta fica fechado com isto.
 
 ## Consequências
 

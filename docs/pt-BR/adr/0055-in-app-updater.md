@@ -8,6 +8,9 @@
   [0051](0051-development-flow-and-releases.md) (releases);
   [0022](0022-target-platforms-macos-first.md) (macOS primeiro)
 - Status no briefing: não consta
+- Revisões: 2026-09-29 — o padrão da verificação, ligado, ratificado pelo
+  mantenedor na sessão ("Ratifique o que precisar", respondendo à lista do
+  que estava pendente); o ADR fica Aceito como está escrito.
 
 ## Contexto
 
@@ -107,7 +110,8 @@ Como o autor construiu a instalação sob essa decisão
   visto no primeiro release gerado depois desta mudança, não é suposto aqui.
 - **O padrão do ajuste é ligado**, como era na 0.3.0-beta.1. Esse padrão
   veio com o código, não de uma decisão; o mantenedor pode escolher
-  desligado.
+  desligado. *(Ratificado em 2026-09-29 pelo mantenedor, na sessão: a
+  verificação continua ligada por padrão, e o ajuste a desliga.)*
 - Hoje os releases são gerados só para macOS
   ([0022](0022-target-platforms-macos-first.md),
   [0051](0051-development-flow-and-releases.md)). O código escolhe asset
@@ -139,4 +143,6 @@ Como o autor construiu a instalação sob essa decisão
 
 Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão
 — manter o atualizador e consertá-lo. O endurecimento sob eles é do autor,
-construído sob essa decisão e identificado como tal acima.
+construído sob essa decisão e identificado como tal acima. Revisto em
+2026-09-29: o padrão ligado da verificação ratificado pelo mantenedor; o ADR
+fica Aceito.

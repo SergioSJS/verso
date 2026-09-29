@@ -12,6 +12,11 @@
   [0051](0051-development-flow-and-releases.md) (versões),
   [0026](0026-core-ui-contract-inviolable-rules.md) regra 4
 - Status no briefing: ausente
+- Revisões: 2026-09-29 — o `[ABERTO]` sobre as ferramentas do sistema
+  fechado pelo mantenedor, na sessão ("arrume essa parte do cli, tem que
+  ficar 100%"): o link é feito pelo `std::fs` no `src/update.rs` do shell,
+  com o `osascript` mantido só para o pedido de administrador
+  ([0029](0029-guardrails-in-ci.md), revisão de 2026-09-29).
 
 ## Contexto
 
@@ -58,7 +63,14 @@ Como o autor os construiu (o memo, seção 5):
   [ABERTO] Se o host deve fazer isso pelo `std::fs`, com uma exceção
   declarada no seu próprio `clippy.toml`, em vez das ferramentas do sistema
   — a leitura viu as ferramentas como um contorno do guardrail (o memo,
-  seção 8): cabe ao mantenedor decidir.
+  seção 8): cabe ao mantenedor decidir. *(Fechado em 2026-09-29: o link, a
+  verificação dele e a remoção passam pelo `std::fs` em
+  `app/src-tauri/src/update.rs`, sob a exceção que a
+  [0029](0029-guardrails-in-ci.md) ratificou nesse dia, e a quarentena pelo
+  crate `xattr`; `test`, `readlink`, `ln`, `rm` e `xattr` não são mais
+  iniciados. O `osascript` fica, só quando a chamada simples é recusada,
+  para a senha do administrador — declarado na
+  [0029](0029-guardrails-in-ci.md).)*
 - **A versão põe a linha de comando dentro do app** e assina o pacote de
   novo, ad hoc como antes; o arquivo separado continua.
 
