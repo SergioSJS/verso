@@ -50,6 +50,7 @@
     "allow-delete-entry",
     "allow-reveal",
     "allow-copy-full-path",
+    "allow-set-embed-origins",
     "allow-reindex",
     "allow-query-base",
     "allow-new-window",
