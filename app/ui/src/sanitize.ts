@@ -1,5 +1,3 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
-
 // The core's HTML reaches the page only through here. The renderer lets a
 // note's raw HTML through, as the base parser does, and this page holds
 // the bridge to the core: a note from a shared folder must not run a
@@ -106,6 +104,193 @@ function onTheWeb(src: string): boolean {
   }
 }
 
+/* ---------- Embedded web pages ---------- */
+
+/** Where the embed proxy serves a web page from: a host of its own,
+ *  apart from the folder's files, whose responses may not reach back into
+ *  `verso:`. The address is encoded once; the host decodes it once. */
+const PROXY = "verso://proxy/__proxy?url=";
+export function proxied(url: string): string {
+  return `${PROXY}${encodeURIComponent(url)}`;
+}
+/** Every embedded page runs sandboxed: scripts in its own origin (the
+ *  proxy's), no navigation of the window around it. */
+const SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups";
+
+/** Whether a host name is this machine or the local network: loopback,
+ *  the private ranges, link-local, carrier-grade NAT, `localhost` and
+ *  mDNS `.local` names. Judged by the name as written: a public name that
+ *  resolves to a private address is caught by the host, which refuses it. */
+export function localHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) return true;
+  const v4 = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(h);
+  if (v4) {
+    const a = Number(v4[1]);
+    const b = Number(v4[2]);
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+  }
+  if (!h.includes(":")) return false;
+  if (h === "::" || h === "::1") return true;
+  // An IPv4 address mapped into IPv6, as the URL parser writes it (hex).
+  const mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h);
+  if (mapped) {
+    const hi = parseInt(mapped[1] ?? "0", 16);
+    const lo = parseInt(mapped[2] ?? "0", 16);
+    return localHost(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+  }
+  const first = parseInt(h.split(":")[0] || "0", 16);
+  // Unique local fc00::/7, link-local fe80::/10.
+  return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80;
+}
+
+/** The origins on the local network the user approved (kept with the
+ *  settings; the host holds its own copy and is the one that enforces). */
+let approved = new Set<string>();
+export function allowEmbedOrigins(origins: string[]): void {
+  approved = new Set(origins);
+}
+/** Pages loaded by a click while remote content is off, this session:
+ *  drawn again, they stay loaded. */
+const clicked = new Set<string>();
+
+export type EmbedStrings = {
+  /** Remote content is off: the page was not loaded. */
+  remoteOff: string;
+  load: string;
+  /** The page is on the local network. */
+  local: string;
+  approve: string;
+  cancel: string;
+};
+type EmbedHooks = {
+  strings: EmbedStrings;
+  /** The origin approved for good: kept, and the whole list handed to the
+   *  host. False when the host did not take it; the page is not loaded. */
+  approve: (origin: string) => Promise<boolean>;
+};
+let hooks: EmbedHooks | null = null;
+/** The window's words and its way of keeping an approval. Once per
+ *  window, before any note is drawn. */
+export function configureEmbeds(h: EmbedHooks): void {
+  if (!hooks) document.addEventListener("click", onGate, true);
+  hooks = h;
+}
+
+/** Why a page is not loaded yet: on the local network and not approved,
+ *  or remote content is off; null when it may load. */
+function gateOf(url: string): { kind: "local" | "remote"; origin: string } | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (localHost(u.hostname) && !approved.has(u.origin)) return { kind: "local", origin: u.origin };
+  if (!remote && !clicked.has(url)) return { kind: "remote", origin: u.origin };
+  return null;
+}
+
+/** The iframe for web page `url` through the proxy, sandboxed; or, when
+ *  it may not load yet, a box that says why and asks. The iframe waits
+ *  inside the box in a `template`: inert, nothing is fetched until a
+ *  click. Built in `doc`, the inert document of a note or the page. */
+function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElement {
+  frame.setAttribute("src", proxied(url));
+  frame.setAttribute("sandbox", SANDBOX);
+  frame.setAttribute("loading", "lazy");
+  const gate = gateOf(url);
+  if (!gate) return frame;
+  if (!hooks) {
+    // No window to ask (not configured): a link, never the page.
+    const link = doc.createElement("a");
+    link.className = "remote-image";
+    link.setAttribute("href", url);
+    link.textContent = url;
+    return link;
+  }
+  const s = hooks.strings;
+  const box = doc.createElement("div");
+  box.className = "embed-gate";
+  box.setAttribute("data-embed-kind", gate.kind);
+  box.setAttribute("data-embed-url", url);
+  box.setAttribute("data-embed-origin", gate.origin);
+  const where = doc.createElement("code");
+  where.className = "embed-gate-origin";
+  where.textContent = gate.kind === "local" ? gate.origin : url;
+  const text = doc.createElement("p");
+  text.className = "embed-gate-text";
+  text.textContent = gate.kind === "local" ? s.local : s.remoteOff;
+  const actions = doc.createElement("div");
+  actions.className = "embed-gate-actions";
+  const button = (action: string, label: string, cls: string) => {
+    const b = doc.createElement("button");
+    b.type = "button";
+    b.className = cls;
+    b.setAttribute("data-embed-action", action);
+    b.textContent = label;
+    return b;
+  };
+  if (gate.kind === "local") actions.append(button("cancel", s.cancel, "ghost"), button("approve", s.approve, "save"));
+  else actions.append(button("load", s.load, "save"));
+  const held = doc.createElement("template");
+  held.content.append(frame);
+  box.append(where, text, actions, held);
+  return box;
+}
+
+/** The web page embedded in Live Preview: its address, and what the
+ *  note's `<iframe>` gave for size and style. */
+export function webFrame(url: string, width: string, height: string, style: string): HTMLElement {
+  const frame = document.createElement("iframe");
+  if (style) frame.style.cssText = style;
+  if (width) frame.width = width;
+  if (height) frame.height = height;
+  if (!style && !height) frame.style.height = "800px";
+  if (!style && !width) frame.style.width = "100%";
+  return gated(document, frame, url);
+}
+
+/** A click on a gate's button, wherever the gate was drawn (a reading
+ *  view, an embedded note, Live Preview): one listener for the window. */
+function onGate(e: MouseEvent): void {
+  const button = (e.target as Element | null)?.closest?.("[data-embed-action]");
+  const box = button?.closest(".embed-gate");
+  if (!button || !(box instanceof HTMLElement)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const url = box.getAttribute("data-embed-url") ?? "";
+  const origin = box.getAttribute("data-embed-origin") ?? "";
+  const load = () => {
+    const held = box.querySelector("template")?.content.querySelector("iframe");
+    // Only a frame this module made: through the proxy, sandboxed.
+    if (!held || !held.getAttribute("src")?.startsWith(PROXY)) return;
+    held.setAttribute("sandbox", SANDBOX);
+    box.replaceWith(document.importNode(held, true));
+  };
+  switch (button.getAttribute("data-embed-action")) {
+    case "load":
+      clicked.add(url);
+      load();
+      break;
+    case "approve":
+      void hooks?.approve(origin).then((ok) => {
+        if (!ok) return;
+        approved.add(origin);
+        load();
+      });
+      break;
+    case "cancel": {
+      const link = document.createElement("a");
+      link.className = "remote-image";
+      link.href = url;
+      link.textContent = url;
+      box.replaceWith(link);
+      break;
+    }
+  }
+}
+
 function keepAttributes(el: Element, tag: string): void {
   const own = OWN[tag];
   for (const attr of Array.from(el.attributes)) {
@@ -171,9 +356,10 @@ function clean(body: HTMLElement): void {
         el.remove();
         continue;
       }
-      const proxyBase = convertFileSrc("__proxy", "verso");
-      el.setAttribute("src", `${proxyBase}?url=${encodeURIComponent(src)}`);
-      el.setAttribute("loading", "lazy");
+      const placed = doc.createElement("span");
+      el.replaceWith(placed);
+      placed.replaceWith(gated(doc, el as HTMLIFrameElement, src));
+      continue;
     }
     const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";
     if (!remote && onTheWeb(src)) {

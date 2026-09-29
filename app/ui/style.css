@@ -1128,6 +1128,12 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .table-col-grip:hover, .table-col-grip:active { background: var(--brass); }
 .cm-lp-iframe-wrap { padding: .8rem 0; width: 100%; }
 .cm-lp-iframe-wrap iframe, .preview iframe { max-width: 100%; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); }
+/* An embedded page not loaded yet: remote content off, or on the local
+ * network and not approved (sanitize.ts). */
+.embed-gate { display: flex; flex-direction: column; gap: .5rem; margin: .6rem 0; padding: .8rem 1rem; border: 1px dashed var(--hair); border-radius: 6px; color: var(--ink-2); font-size: .88rem; }
+.embed-gate-origin { align-self: flex-start; overflow-wrap: anywhere; }
+.embed-gate-text { margin: 0; line-height: 1.5; }
+.embed-gate-actions { display: flex; gap: .5rem; }
 .editor .cm-lp-embed { border-left: 2px solid var(--brass); padding: .2rem 0 .2rem .9rem; background: var(--paper-2); border-radius: 0 6px 6px 0; }
 .editor .cm-lp-embed-title { font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--seal); margin-bottom: .2rem; }
 .editor .cm-lp-embed-body { font-family: var(--book); }

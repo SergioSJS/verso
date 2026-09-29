@@ -13,8 +13,6 @@ export type AskOptions = {
   yes: string;
   /** The button that means no. */
   no: string;
-  /** Which button is focused by default (defaults to "no" for safety on destructive actions). */
-  defaultButton?: "yes" | "no";
 };
 
 let queue: Promise<unknown> = Promise.resolve();
@@ -28,7 +26,15 @@ export function ask(message: string, opts: AskOptions): Promise<boolean> {
   return answer;
 }
 
-function show(message: string, opts: AskOptions): Promise<boolean> {
+/** Say something that needs no answer, and wait until it is read: one
+ *  button, and every way out of `ask` closes it. */
+export function tell(message: string, ok: string): Promise<void> {
+  const read = queue.then(() => show(message, { yes: ok, no: null })).then(() => undefined);
+  queue = read.catch(() => undefined);
+  return read;
+}
+
+function show(message: string, opts: { yes: string; no: string | null }): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const shade = document.createElement("div");
@@ -41,17 +47,23 @@ function show(message: string, opts: AskOptions): Promise<boolean> {
     text.id = `verso-ask-${++asked}`;
     text.textContent = message;
     box.setAttribute("aria-labelledby", text.id);
-    const no = document.createElement("button");
-    no.type = "button";
-    no.className = "ghost";
-    no.textContent = opts.no;
     const yes = document.createElement("button");
     yes.type = "button";
     yes.className = "save";
     yes.textContent = opts.yes;
+    // The safe button, focused first. With nothing to refuse (`tell`), the
+    // one button is safe.
+    let no = yes;
     const actions = document.createElement("div");
     actions.className = "confirm-actions";
-    actions.append(no, yes);
+    if (opts.no !== null) {
+      no = document.createElement("button");
+      no.type = "button";
+      no.className = "ghost";
+      no.textContent = opts.no;
+      actions.append(no);
+    }
+    actions.append(yes);
     box.append(text, actions);
     shade.append(box);
 
@@ -73,7 +85,7 @@ function show(message: string, opts: AskOptions): Promise<boolean> {
         finish(false);
       } else if (e.key === "Enter") {
         e.preventDefault();
-        finish(document.activeElement === yes || (opts.defaultButton === "yes" && document.activeElement !== no));
+        finish(document.activeElement === yes && no !== yes);
       } else if (e.key === "Tab") {
         e.preventDefault();
         (document.activeElement === yes ? no : yes).focus();
@@ -81,10 +93,10 @@ function show(message: string, opts: AskOptions): Promise<boolean> {
     };
     // Focus stays inside.
     const onFocus = (e: FocusEvent) => {
-      if (!box.contains(e.target as Node)) (opts.defaultButton === "yes" ? yes : no).focus();
+      if (!box.contains(e.target as Node)) no.focus();
     };
-    yes.addEventListener("click", () => finish(true));
-    no.addEventListener("click", () => finish(false));
+    yes.addEventListener("click", () => finish(no !== yes));
+    if (no !== yes) no.addEventListener("click", () => finish(false));
     shade.addEventListener("mousedown", (e) => {
       if (e.target === shade) {
         e.preventDefault();
@@ -94,10 +106,6 @@ function show(message: string, opts: AskOptions): Promise<boolean> {
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("focusin", onFocus, true);
     document.body.append(shade);
-    if (opts.defaultButton === "yes") {
-      yes.focus();
-    } else {
-      no.focus();
-    }
+    no.focus();
   });
 }

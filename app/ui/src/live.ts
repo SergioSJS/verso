@@ -20,7 +20,7 @@ import katex from "katex";
 import { cells } from "./table";
 import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { webFrame } from "./sanitize";
 import { smartUnindentList } from "./listKeymap";
 import { renderMermaid } from "./mermaid";
 
@@ -250,21 +250,10 @@ class IframeWidget extends WidgetType {
   toDOM(): HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "cm-lp-block cm-lp-iframe-wrap";
-    const iframe = document.createElement("iframe");
-    const rawSrc = this.src;
-    if (rawSrc.startsWith("http://") || rawSrc.startsWith("https://")) {
-      const proxyBase = convertFileSrc("__proxy", "verso");
-      iframe.src = `${proxyBase}?url=${encodeURIComponent(rawSrc)}`;
-    } else {
-      iframe.src = rawSrc;
-    }
-    iframe.setAttribute("loading", "lazy");
-    if (this.styleStr) iframe.style.cssText = this.styleStr;
-    if (this.width) iframe.width = this.width;
-    if (this.height) iframe.height = this.height;
-    if (!this.styleStr && !this.height) iframe.style.height = "800px";
-    if (!this.styleStr && !this.width) iframe.style.width = "100%";
-    wrap.append(iframe);
+    // Only web addresses reach here (see the HTMLBlock branch): through the
+    // proxy, sandboxed, and asked first when remote content is off or the
+    // page is on the local network — as in the reading view.
+    wrap.append(webFrame(this.src, this.width, this.height, this.styleStr));
     return wrap;
   }
   override ignoreEvent(): boolean {
@@ -780,13 +769,25 @@ function getListPrefix(text: string): { prefix: string; indent: string; contentS
   return { prefix: m[0], indent: m[1] ?? "", contentStart: m[0].length };
 }
 
+/** The list prefix of `line`, when the line is a list item and not text
+ *  inside a code block that only looks like one (`- item` in a fenced or
+ *  indented block): the syntax tree decides, as for the embeds above. */
+function listPrefixOf(state: EditorState, line: { from: number; text: string }): ReturnType<typeof getListPrefix> {
+  const info = getListPrefix(line.text);
+  if (!info) return null;
+  for (let p: SyntaxNode | null = syntaxTree(state).resolveInner(line.from + info.indent.length, 1); p; p = p.parent) {
+    if (p.name === "FencedCode" || p.name === "CodeBlock") return null;
+  }
+  return info;
+}
+
 function listCursorLeft(view: EditorView): boolean {
   const { state } = view;
   const { doc, selection } = state;
   if (!selection.main.empty) return false;
   const pos = selection.main.head;
   const line = doc.lineAt(pos);
-  const info = getListPrefix(line.text);
+  const info = listPrefixOf(state, line);
   if (!info) return false;
   const contentStart = line.from + info.contentStart;
   if (pos <= contentStart) {
@@ -807,7 +808,7 @@ function listCursorRight(view: EditorView): boolean {
   const line = doc.lineAt(pos);
   if (pos === line.to && line.number < doc.lines) {
     const nextLine = doc.line(line.number + 1);
-    const nextInfo = getListPrefix(nextLine.text);
+    const nextInfo = listPrefixOf(state, nextLine);
     if (nextInfo) {
       view.dispatch({ selection: EditorSelection.cursor(nextLine.from + nextInfo.contentStart), userEvent: "select" });
       return true;
@@ -822,7 +823,7 @@ function listCursorHome(view: EditorView): boolean {
   if (!selection.main.empty) return false;
   const pos = selection.main.head;
   const line = doc.lineAt(pos);
-  const info = getListPrefix(line.text);
+  const info = listPrefixOf(state, line);
   if (!info) return false;
   const contentStart = line.from + info.contentStart;
   if (pos > contentStart) {
@@ -838,7 +839,7 @@ function listBackspace(view: EditorView): boolean {
   if (!selection.main.empty) return false;
   const pos = selection.main.head;
   const line = doc.lineAt(pos);
-  const info = getListPrefix(line.text);
+  const info = listPrefixOf(state, line);
   if (!info) return false;
   const contentStart = line.from + info.contentStart;
   if (pos === contentStart) {
@@ -872,7 +873,7 @@ export const snapOutOfListPrefix = EditorState.transactionFilter.of((tr) => {
   const ranges = tr.newSelection.ranges.map((r) => {
     if (!r.empty) return r;
     const line = doc.lineAt(r.head);
-    const info = getListPrefix(line.text);
+    const info = listPrefixOf(tr.state, line);
     if (!info) return r;
     const contentStart = line.from + info.contentStart;
     if (r.head >= line.from && r.head < contentStart) {
@@ -970,27 +971,13 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const l = doc.line(n);
             out.push({ from: l.from, to: l.from, deco: Decoration.line({ class: "cm-lp-table" }) });
           }
-        } else if (/^ATXHeading[1-6]$/.test(name)) {
+        } else if (/^(ATXHeading[1-6]|SetextHeading[12])$/.test(name)) {
           const level = name.slice(-1);
           const line = doc.lineAt(node.from);
           out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: `cm-lp-h cm-lp-h${level}` }) });
           if (!shown) {
             const mark = node.node.getChild("HeaderMark");
             if (mark) hide(mark.from, Math.min(mark.to + 1, node.to));
-          }
-        } else if (/^SetextHeading[12]$/.test(name)) {
-          const mark = node.node.getChild("HeaderMark");
-          if (mark) {
-            const markLine = doc.lineAt(mark.from);
-            const markText = doc.sliceString(mark.from, mark.to);
-            if (markText.startsWith("-")) {
-              if (!active.has(markLine.number)) {
-                out.push({ from: markLine.from, to: markLine.from, deco: Decoration.line({ class: "cm-lp-hr-line" }) });
-                hide(mark.from, mark.to);
-              } else {
-                out.push({ from: mark.from, to: mark.to, deco: Decoration.mark({ class: "cm-lp-hr" }) });
-              }
-            }
           }
         } else if (name === "StrongEmphasis" || name === "Emphasis" || name === "Strikethrough") {
           const cls = name === "StrongEmphasis" ? "cm-lp-strong" : name === "Emphasis" ? "cm-lp-em" : "cm-lp-strike";
