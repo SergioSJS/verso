@@ -104,6 +104,30 @@ function onTheWeb(src: string): boolean {
   }
 }
 
+/** Whether image `src` is held back: on the web, with remote content
+ *  off. The reading view and Live Preview both ask here. */
+export function heldImage(src: string): boolean {
+  return !remote && onTheWeb(src);
+}
+/** What a held image becomes: a link to it, named by its alt text or its
+ *  address; a click opens it in the browser, nothing is fetched here. */
+export function imageLink(doc: Document, src: string, alt: string): HTMLAnchorElement {
+  const link = doc.createElement("a");
+  link.setAttribute("href", src);
+  link.className = "remote-image";
+  link.textContent = alt || src;
+  return link;
+}
+
+/** An inline style kept, but not one that lifts the element out of the
+ *  note (fixed or absolute): anything else is clipped by its scroller.
+ *  With remote content off, it loses whatever it would fetch. */
+function tameStyle(style: CSSStyleDeclaration): void {
+  const position = style.getPropertyValue("position").trim().toLowerCase();
+  if (position !== "" && position !== "static" && position !== "relative" && position !== "sticky" && position !== "-webkit-sticky") style.removeProperty("position");
+  if (!remote) for (const property of Array.from(style)) if (/url\s*\(/i.test(style.getPropertyValue(property))) style.removeProperty(property);
+}
+
 /* ---------- Embedded web pages ---------- */
 
 /** Where the embed proxy serves a web page from: a host of its own,
@@ -240,10 +264,15 @@ function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElemen
 }
 
 /** The web page embedded in Live Preview: its address, and what the
- *  note's `<iframe>` gave for size and style. */
+ *  note's `<iframe>` gave for size and style — the style tamed as the
+ *  reading view's is, so the frame cannot lift itself out of the pane. */
 export function webFrame(url: string, width: string, height: string, style: string): HTMLElement {
   const frame = document.createElement("iframe");
-  if (style) frame.style.cssText = style;
+  if (style) {
+    frame.style.cssText = style;
+    tameStyle(frame.style);
+    if (frame.style.length === 0) frame.removeAttribute("style");
+  }
   if (width) frame.width = width;
   if (height) frame.height = height;
   if (!style && !height) frame.style.height = "800px";
@@ -311,13 +340,9 @@ function keepAttributes(el: Element, tag: string): void {
       el.removeAttribute(name);
     }
   }
-  // An inline style stays, but not one that lifts the element out of the
-  // note (fixed or absolute): anything else is clipped by its scroller.
   const style = (el as HTMLElement).style as CSSStyleDeclaration | undefined;
   if (style && el.hasAttribute("style")) {
-    const position = style.getPropertyValue("position").trim().toLowerCase();
-    if (position !== "" && position !== "static" && position !== "relative" && position !== "sticky" && position !== "-webkit-sticky") style.removeProperty("position");
-    if (!remote) for (const property of Array.from(style)) if (/url\s*\(/i.test(style.getPropertyValue(property))) style.removeProperty(property);
+    tameStyle(style);
     if (style.length === 0) el.removeAttribute("style");
   }
 }
@@ -362,13 +387,7 @@ function clean(body: HTMLElement): void {
       continue;
     }
     const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";
-    if (!remote && onTheWeb(src)) {
-      const link = doc.createElement("a");
-      link.setAttribute("href", src);
-      link.className = "remote-image";
-      link.textContent = el.getAttribute("alt") || src;
-      el.replaceWith(link);
-    }
+    if (heldImage(src)) el.replaceWith(imageLink(doc, src, el.getAttribute("alt") ?? ""));
   }
 }
 
