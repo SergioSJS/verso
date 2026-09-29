@@ -161,8 +161,12 @@ export function localHost(hostname: string): boolean {
 /** The origins on the local network the user approved (kept with the
  *  settings; the host holds its own copy and is the one that enforces). */
 let approved = new Set<string>();
+/** `*` in the list is the person's own "everything": every site loads
+ *  without asking. Their choice, made where the risk is spelled out. */
+let approvedAll = false;
 export function allowEmbedOrigins(origins: string[]): void {
   approved = new Set(origins);
+  approvedAll = origins.includes("*");
 }
 /** Pages loaded by a click while remote content is off, this session:
  *  drawn again, they stay loaded. */
@@ -205,7 +209,7 @@ function gateOf(url: string): { kind: "local" | "public" | "remote"; origin: str
   // Every origin needs the user's one-time approval before an app view
   // may navigate a frame to it — the host's guard enforces the same
   // list (the maintainer's decision of 2026-09-29; ADR 0056 revised).
-  if (!approved.has(u.origin)) {
+  if (!approvedAll && !approved.has(u.origin)) {
     return { kind: localHost(u.hostname) ? "local" : "public", origin: u.origin };
   }
   if (!remote && !clicked.has(url)) return { kind: "remote", origin: u.origin };

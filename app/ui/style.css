@@ -2503,11 +2503,8 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
 
 
 
-/* The allowed-embeds list in the settings: one origin per row, the
-   remove button at its side. */
-.embed-allowed-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.2rem 0; }
-.embed-allowed-origin { overflow-wrap: anywhere; }
-.embed-allowed-none { opacity: 0.7; margin: 0; }
+/* The allowed-embeds field in the settings: one origin per line. */
+textarea.embed-allowed { width: 100%; min-width: 16rem; font-family: var(--mono); font-size: .85em; line-height: 1.5; resize: vertical; }
 
 /* The embedded page's box: the child web view is overlaid exactly on it. */
 .embed-web { border: 1px solid var(--line, #d8cfc2); border-radius: 8px; background: var(--panel, #f7f1e8); }
