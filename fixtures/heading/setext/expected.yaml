@@ -1,0 +1,25 @@
+# AI draft (Fable 5), 2026-09-29 — not valid before the maintainer approves it in the PR that adds it (ADR 0031).
+# Construct: setext headings (`===`/`---`). Spec: docs/spec/dialect.md §5.12; part of Q19.
+# Obsidian parses a setext underline as a heading even when the `---` sits
+# directly under running text with a list right after — under "Sem linha em
+# branco" it is a heading, never a thematic break. Verso never contradicts
+# that (ADR 0030, invariant 12).
+headings:
+  - level: 1
+    text: Taverna
+    pos: { line: 1, col: 1 }
+  - level: 2
+    text: Porão
+    pos: { line: 4, col: 1 }
+  - level: 2
+    text: Sem linha em branco
+    pos: { line: 8, col: 1 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-09-29 against a throwaway folder in the Sandbox
+    vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache("fx-tmp/fx-setext.md")
+    .headings` -> "Taverna" level 1 at line 0, "Porão" level 2 at line 3,
+    "Sem linha em branco" level 2 at line 7 (0-based lines).

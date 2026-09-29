@@ -102,8 +102,26 @@ fn check_spans(source: &str, document: &Document) -> Result<(), TestCaseError> {
         let text = heading.span.slice(source).ok_or_else(|| {
             TestCaseError::fail(format!("heading span {:?} off a boundary", heading.span))
         })?;
-        prop_assert!(text.starts_with('#'), "heading {text:?}");
-        prop_assert!(!text.contains('\n'), "heading spans one line: {text:?}");
+        if text.starts_with('#') {
+            // ATX: one line, `#` first.
+            prop_assert!(!text.contains('\n'), "heading spans one line: {text:?}");
+        } else {
+            // Setext (fixtures/heading/setext, the Q19 draft): the span
+            // ends on the underline, a line of `=` or `-` — inside a
+            // blockquote, behind its `>` markers.
+            let underline = text
+                .lines()
+                .last()
+                .unwrap_or_default()
+                .trim()
+                .trim_start_matches(['>', ' ', '\t']);
+            prop_assert!(
+                !underline.is_empty()
+                    && (underline.chars().all(|c| c == '=')
+                        || underline.chars().all(|c| c == '-')),
+                "setext heading ends on its underline: {text:?}"
+            );
+        }
         prop_assert!(
             text.contains(&heading.text),
             "heading text {:?} in {text:?}",

@@ -68,35 +68,11 @@ pub fn to_html(source: &str) -> String {
     // Whether each open link or image is a wikilink: only those get the
     // anchor or the span, and only their ends close it.
     let mut wiki: Vec<bool> = Vec::new();
-    // Setext headings (e.g. `Title\n---`) are not ATX headings in Verso's dialect.
-    // When underlined with dashes, they are rendered as a paragraph followed by a thematic break (`<hr />`).
-    let mut setext: Vec<Option<bool>> = Vec::new();
     let rendered = events.into_iter().flat_map(|(event, range)| {
         context.enter(&event);
         match event {
             Event::Start(Tag::MetadataBlock(_)) | Event::End(TagEnd::MetadataBlock(_)) => vec![],
             _ if context.metadata() => vec![],
-            Event::Start(Tag::Heading { .. }) => {
-                let text = source.get(range);
-                let is_atx = text.is_some_and(|s| s.trim_start().starts_with('#'));
-                if is_atx {
-                    setext.push(None);
-                    vec![event]
-                } else {
-                    let is_dash_rule = text.is_some_and(|s| {
-                        s.lines()
-                            .last()
-                            .is_some_and(|l| l.trim_start().starts_with('-'))
-                    });
-                    setext.push(Some(is_dash_rule));
-                    vec![Event::Start(Tag::Paragraph)]
-                }
-            }
-            Event::End(TagEnd::Heading(_)) => match setext.pop().flatten() {
-                Some(true) => vec![Event::End(TagEnd::Paragraph), Event::Rule],
-                Some(false) => vec![Event::End(TagEnd::Paragraph)],
-                None => vec![event],
-            },
             Event::Start(Tag::Link {
                 link_type: LinkType::WikiLink { .. },
                 dest_url,
@@ -642,17 +618,17 @@ mod tasks {
     }
 
     #[test]
-    fn thematic_breaks_render_even_without_blank_lines() {
-        let source =
-            "Texto sem linha em branco\n---\nOutro texto\n- item 1\n- item 2\n---\n- item 3";
-        let html = to_html(source);
-        assert!(
-            !html.contains("<h2>"),
-            "should not be setext heading: {html}"
-        );
-        assert!(html.contains("<p>Texto sem linha em branco</p>"), "{html}");
-        assert!(html.contains("<hr />") || html.contains("<hr>"), "{html}");
-        assert!(html.contains("<li>item 1</li>"), "{html}");
-        assert!(html.contains("<li>item 3</li>"), "{html}");
+    fn setext_headings_are_headings_as_in_obsidian() {
+        // Observed 2026-09-29: Obsidian's metadataCache parses
+        // `Texto\n---` as a level-2 heading even with no blank line
+        // before it, and `Texto\n===` as level 1 (fixture
+        // fixtures/heading/setext). Verso never contradicts that
+        // (ADR 0030); the look is the view's business, not the parser's.
+        let html = to_html("Taverna\n===\n\nPorão\n---\nTexto depois.\n");
+        assert!(html.contains("<h1>Taverna</h1>"), "{html}");
+        assert!(html.contains("<h2>Porão</h2>"), "{html}");
+        let html = to_html("Sem linha em branco\n---\n- item\n");
+        assert!(html.contains("<h2>Sem linha em branco</h2>"), "{html}");
+        assert!(html.contains("<li>item</li>"), "{html}");
     }
 }
