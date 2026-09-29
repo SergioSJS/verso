@@ -368,8 +368,11 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .prop-remove:hover { color: var(--seal); background: var(--paper-3); }
 .prop-remove .icon { width: 12px; height: 12px; }
 /* No properties: a hairline under the title, the add button a ghost at its right end. */
-.props.empty { position: relative; height: 0; margin: .5rem 0 .9rem; padding: 0; border-bottom: 0; }
-.props.empty .prop-new { position: absolute; right: 0; top: -.1rem; margin: 0; padding: .15rem .4rem; background: var(--paper); opacity: 0; transition: opacity .15s; }
+/* No properties: the rule under the title stays, and the button keeps
+   its own band at the right — in the flow, so it is never painted over
+   the title above it or the note below. Shown on hovering the sheet. */
+.props.empty { display: flex; justify-content: flex-end; height: auto; margin: .5rem 0 .3rem; padding: 0; border-bottom: 0; }
+.props.empty .prop-new { margin: 0; padding: .1rem .4rem; opacity: 0; transition: opacity .15s; }
 .sheet:hover .props.empty .prop-new, .props.empty .prop-new:focus-visible { opacity: 1; }
 .props.adding { position: relative; height: auto; margin: .5rem 0 .9rem; padding: .1rem 0; border-bottom: 1px solid var(--hair); }
 .props.adding .prop-new { display: none; }
