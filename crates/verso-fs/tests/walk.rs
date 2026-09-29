@@ -98,6 +98,60 @@ fn node_modules_and_gitignore_entries_are_not_walked() {
 }
 
 #[test]
+fn gitignore_semantics_are_gits_own() {
+    let dir = tempfile::tempdir().unwrap();
+    // Negation re-includes; `/anchored` binds to this directory only;
+    // `logs/` matches directories alone; `**/deep.md` reaches down; a
+    // deeper .gitignore overrides the outer one.
+    touch(
+        &dir.path().join(".gitignore"),
+        "*.md\n!keep.md\n/anchored\nlogs/\n**/deep.md\n",
+    );
+    touch(&dir.path().join("drop.md"), "");
+    touch(&dir.path().join("keep.md"), "");
+    touch(&dir.path().join("anchored"), "");
+    touch(&dir.path().join("sub/anchored"), "");
+    touch(&dir.path().join("logs/a.txt"), "");
+    touch(&dir.path().join("logs.txt"), "");
+    touch(&dir.path().join("sub/deep.md"), "");
+    touch(&dir.path().join("inner/.gitignore"), "!*.md\n");
+    touch(&dir.path().join("inner/back.md"), "");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    assert_eq!(
+        relatives(&mut root),
+        vec![
+            ("inner".into(), EntryKind::Directory),
+            ("inner/back.md".into(), EntryKind::Note),
+            ("keep.md".into(), EntryKind::Note),
+            ("logs.txt".into(), EntryKind::File),
+            ("sub".into(), EntryKind::Directory),
+            ("sub/anchored".into(), EntryKind::File),
+        ]
+    );
+}
+
+#[test]
+fn walk_rules_turn_both_ignore_kinds_off() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("build/nota.md"), "");
+    touch(&dir.path().join(".gitignore"), "*.md\n");
+    touch(&dir.path().join("solta.md"), "");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    root.set_rules(verso_fs::WalkRules {
+        builtin_ignores: false,
+        gitignore: false,
+    });
+    assert_eq!(
+        relatives(&mut root),
+        vec![
+            ("build".into(), EntryKind::Directory),
+            ("build/nota.md".into(), EntryKind::Note),
+            ("solta.md".into(), EntryKind::Note),
+        ]
+    );
+}
+
+#[test]
 fn icloud_placeholder_is_present_and_names_the_real_file() {
     let dir = tempfile::tempdir().unwrap();
     touch(&dir.path().join("img/.Mapa da Taverna.png.icloud"), "");

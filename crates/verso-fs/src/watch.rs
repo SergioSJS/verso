@@ -102,6 +102,12 @@ struct Filter {
     ignored: Vec<PathBuf>,
     /// Absolute directories whose events are dropped, in both forms too.
     excluded: Vec<PathBuf>,
+    /// Whether the built-in ignored directories are dropped here too, as
+    /// the walk drops them (the root's rules). Events under a
+    /// `.gitignore`d path still pass: the walk that answers them leaves
+    /// the path out, at the cost of a spare reindex — the matchers'
+    /// directory context does not exist here.
+    builtin_ignores: bool,
 }
 
 impl Filter {
@@ -122,7 +128,7 @@ impl Filter {
                 return None;
             };
             let name_str = name.to_string_lossy();
-            if crate::walk::is_default_ignored_dir(&name_str) {
+            if self.builtin_ignores && crate::walk::is_default_ignored_dir(&name_str) {
                 return None;
             }
             if name.as_encoded_bytes().starts_with(b".") {
@@ -271,6 +277,7 @@ fn without_paths(e: notify::Error) -> std::io::Error {
 pub(crate) fn start(
     root: &Path,
     ignored: Vec<PathBuf>,
+    rules: crate::WalkRules,
     excluded: &[PathBuf],
     quiet: Duration,
     on_change: impl FnMut(Changes) + Send + 'static,
@@ -279,6 +286,7 @@ pub(crate) fn start(
         roots: both_forms(root),
         ignored,
         excluded: excluded.iter().flat_map(|x| both_forms(x)).collect(),
+        builtin_ignores: rules.builtin_ignores,
     };
     let (tx, rx) = mpsc::channel();
     let mut watcher = notify::recommended_watcher(move |event| {
@@ -342,6 +350,7 @@ mod tests {
             ],
             ignored: ignored.iter().map(PathBuf::from).collect(),
             excluded: vec![PathBuf::from(format!("{root}/Library/verso"))],
+            builtin_ignores: true,
         }
     }
 

@@ -133,6 +133,28 @@ impl std::error::Error for ReadError {}
 
 static ROOTS: AtomicU32 = AtomicU32::new(1);
 
+/// What the walk leaves out beyond the hidden rule and the caller's own
+/// ignored paths (ADR 0044, revised 2026-09-29 — the maintainer accepted
+/// both, behind these switches).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WalkRules {
+    /// Skip the well-known build and dependency directories
+    /// (`node_modules`, `target`, `dist`, …) wherever they appear.
+    pub builtin_ignores: bool,
+    /// Honor each directory's `.gitignore`, with git's own semantics —
+    /// negation, `**`, anchoring, dir-only patterns.
+    pub gitignore: bool,
+}
+
+impl Default for WalkRules {
+    fn default() -> Self {
+        Self {
+            builtin_ignores: true,
+            gitignore: true,
+        }
+    }
+}
+
 /// An open folder: the entry edge where a path string is accepted, and the
 /// owner of every [`Handle`].
 #[derive(Debug)]
@@ -143,6 +165,9 @@ pub struct Root {
     /// on top of the hidden rule (ADR 0044; the list itself lives in the
     /// config outside the tree, ADR 0011, and is handed in here).
     ignored: Vec<PathBuf>,
+    /// What else the walk leaves out; the user's setting, handed in from
+    /// outside the tree like `ignored`.
+    rules: WalkRules,
     /// Handle index → path relative to the root, and the reverse.
     table: Vec<PathBuf>,
     by_path: HashMap<PathBuf, u32>,
@@ -180,9 +205,22 @@ impl Root {
             id: ROOTS.fetch_add(1, Ordering::Relaxed),
             path,
             ignored,
+            rules: WalkRules::default(),
             table: Vec::new(),
             by_path: HashMap::new(),
         })
+    }
+
+    /// The walk's rules — the user's setting. Takes effect on the next
+    /// walk; the caller reindexes after changing them.
+    pub fn set_rules(&mut self, rules: WalkRules) {
+        self.rules = rules;
+    }
+
+    /// The rules the walk runs under.
+    #[must_use]
+    pub fn rules(&self) -> WalkRules {
+        self.rules
     }
 
     /// The handle for a path relative to the root, confined first: an
@@ -325,7 +363,14 @@ impl Root {
         excluded: &[PathBuf],
         on_change: impl FnMut(Changes) + Send + 'static,
     ) -> Result<Watch, std::io::Error> {
-        watch::start(&self.path, self.ignored.clone(), excluded, quiet, on_change)
+        watch::start(
+            &self.path,
+            self.ignored.clone(),
+            self.rules,
+            excluded,
+            quiet,
+            on_change,
+        )
     }
 
     /// Move an entry into `.trash/` at the root (Obsidian's bin), keeping

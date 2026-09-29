@@ -60,6 +60,35 @@ impl Sidecar {
     }
 }
 
+/// The folders whose indexes live under `config`, most recently indexed
+/// first: the sidecars say which folder each index belongs to, so the
+/// window can offer them as its recent folders. A sidecar that cannot be
+/// read is left out quietly — this is a menu, not an audit; a folder that
+/// no longer exists fails at the click, with its ordinary error.
+#[must_use]
+pub fn known_folders(config: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(config) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(i64, PathBuf)> = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_none_or(|e| e != "json") {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(sidecar) = serde_json::from_str::<Sidecar>(&text) else {
+            continue;
+        };
+        found.push((sidecar.indexed_at, sidecar.folder));
+    }
+    found.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
+    found.dedup_by(|a, b| a.1 == b.1);
+    found.into_iter().map(|(_, f)| f).collect()
+}
+
 /// `0600`, as the index file (ADR 0046). On a platform that is not Unix,
 /// nothing is set — the same as the index.
 #[cfg(unix)]
