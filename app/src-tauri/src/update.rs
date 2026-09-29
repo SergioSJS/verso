@@ -106,15 +106,26 @@ pub(crate) fn github_token() -> Option<String> {
             return Some(t.to_string());
         }
     }
-    let output = std::process::Command::new("gh")
-        .args(["auth", "token"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
+    // An app the Dock launches inherits none of the shell's PATH, so
+    // `gh` is looked for where its installers put it too — without
+    // this, a private repository answers 404 and the check says the
+    // repository does not exist.
+    for gh in ["gh", "/opt/homebrew/bin/gh", "/usr/local/bin/gh"] {
+        let Ok(output) = std::process::Command::new(gh)
+            .args(["auth", "token"])
+            .output()
+        else {
+            continue;
+        };
+        if !output.status.success() {
+            continue;
+        }
+        let t = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !t.is_empty() {
+            return Some(t);
+        }
     }
-    let t = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if !t.is_empty() { Some(t) } else { None }
+    None
 }
 
 #[derive(serde::Deserialize)]
@@ -180,7 +191,10 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
             "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde."
                 .to_string()
         } else if status == reqwest::StatusCode::NOT_FOUND {
-            "Repositório de atualizações não encontrado.".to_string()
+            // A private repository answers 404 to a request without a
+            // credential; the likeliest cause is the missing token, not
+            // a repository that vanished.
+            "Sem acesso ao repositório de atualizações: entre com `gh auth login` no terminal (o repositório é privado).".to_string()
         } else {
             format!("GitHub API returned HTTP {status}")
         };
