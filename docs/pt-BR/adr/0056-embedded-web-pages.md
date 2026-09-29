@@ -270,6 +270,26 @@ Deixados de lado em 2026-09-29, com a revisão:
   funcionavam e toda página de módulos de script ficava em branco;
   rejeitada com o próprio proxy.
 
+### Revisado de novo, horas depois: a child web view — decidido em 2026-09-29
+
+O iframe direto bateu na última parede: um site que envia
+`X-Frame-Options` ou `frame-ancestors` (huggingface.co, rolai.app) recusa
+todo frame, em qualquer aplicativo. O lugar verdadeiro da página estava
+no app desde sempre: a **child web view** (`web_open`), uma view de topo
+que esses cabeçalhos não alcançam — a mesma máquina que sempre mostrou a
+página de uma nota web. A caixa de um embed aprovado
+(`.embed-web[data-embed-web]`) recebe uma child view sobreposta,
+recortada ao painel em que rola, seguindo-a quadro a quadro
+(`tickEmbedViews`, o padrão do `tickWeb` da nota web), escondida com os
+overlays, fechada quando a caixa sai do DOM.
+
+Com isso, a própria view do app nunca navega para a web, e o guard de
+navegação voltou a totalmente fechado — mais forte que a opção A como
+construída primeiro (`app_views_never_navigate_to_the_web_even_approved`).
+O gate e a lista nos ajustes não mudam: a child view só nasce para uma
+origem que o usuário aprovou. Verificado em 2026-09-29 com huggingface.co
+e rolai.app renderizando inteiros, X-Frame-Options e tudo.
+
 ## Status
 
 Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão.

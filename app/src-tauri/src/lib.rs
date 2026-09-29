@@ -93,8 +93,10 @@ pub struct App {
     config: Option<PathBuf>,
     session: Mutex<Option<Session>>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
-    /// approved by hand — the only web addresses the navigation guard
-    /// lets an app view's frames load (ADR 0056, revised 2026-09-29).
+    /// approved by hand, mirrored from the window's settings. An embed
+    /// renders in a child web view (`web_open`), so the app view itself
+    /// never navigates to the web; the gate in the window is what asks,
+    /// and this list is its record on this side (ADR 0056, revised).
     embed_origins: Mutex<std::collections::HashSet<String>>,
     /// The walk's rules — the user's setting, pushed by the UI before a
     /// folder opens and applied to the session on change.
@@ -1091,34 +1093,13 @@ fn is_file_url(url: &tauri::Url) -> bool {
 /// HTML-file viewer is a frame that loads through the protocol, and a
 /// guard that refused it would refuse the viewer. What the protocol
 /// serves runs no script (`CSP: sandbox`) and is never a note.
-/// A web address an app view's iframes may load: one whose origin the
-/// user approved by hand, in the embed gate ("Always allow"), and only
-/// those — decided by the maintainer on 2026-09-29 (option A: consent
-/// per origin; ADR 0056 revised). The page loads directly, in its own
-/// real origin, where the browser's isolation does the rest; a proxy
-/// cannot render module-script pages (CORS) and is gone. `on_navigation`
-/// hears subframes too; the frame is sandboxed without
-/// allow-top-navigation, so an embed never steers the window.
-fn is_approved_embed(url: &tauri::Url, approved: &std::collections::HashSet<String>) -> bool {
-    if url.scheme() != "http" && url.scheme() != "https" {
-        return false;
-    }
-    embed_origin_of(url).is_some_and(|o| approved.contains(&o))
-}
-
-fn may_navigate(
-    label: &str,
-    url: &tauri::Url,
-    dev_url: Option<&tauri::Url>,
-    approved: &std::collections::HashSet<String>,
-) -> bool {
+fn may_navigate(label: &str, url: &tauri::Url, dev_url: Option<&tauri::Url>) -> bool {
     if url.as_str() == "about:blank" {
         return true;
     }
     if is_app_view(label) {
         is_app_url(url)
             || is_file_url(url)
-            || is_approved_embed(url, approved)
             || (cfg!(debug_assertions) && dev_url.is_some_and(|dev| dev.origin() == url.origin()))
     } else if label.starts_with("web-") {
         web_only(url)
@@ -1134,8 +1115,7 @@ fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::new("verso-navigation")
         .on_navigation(|webview, url| {
             let dev_url = webview.app_handle().config().build.dev_url.clone();
-            let approved = lock(&webview.app_handle().state::<App>().embed_origins).clone();
-            may_navigate(webview.label(), url, dev_url.as_ref(), &approved)
+            may_navigate(webview.label(), url, dev_url.as_ref())
         })
         .build()
 }
@@ -2879,56 +2859,55 @@ mod tests {
     fn navigation_stays_within_each_views_own_world() {
         let url = |s: &str| tauri::Url::parse(s).unwrap();
         let dev = url("http://localhost:5173/");
-        let none = std::collections::HashSet::new();
         for label in ["main", "note-3"] {
             assert!(may_navigate(
                 label,
                 &url("tauri://localhost/index.html"),
-                None, &none
+                None
             ));
             assert!(may_navigate(
                 label,
                 &url("http://tauri.localhost/index.html"),
-                None, &none
+                None
             ));
-            assert!(may_navigate(label, &url("https://tauri.localhost/"), None, &none));
-            assert!(may_navigate(label, &url("about:blank"), None, &none));
-            assert!(!may_navigate(label, &url("https://example.org/"), None, &none));
+            assert!(may_navigate(label, &url("https://tauri.localhost/"), None));
+            assert!(may_navigate(label, &url("about:blank"), None));
+            assert!(!may_navigate(label, &url("https://example.org/"), None));
             // The HTML-file viewer's frame: the handler cannot tell it
             // from the window, and the protocol runs no script.
             assert!(may_navigate(
                 label,
                 &url("verso://localhost/pagina.html"),
-                None, &none
+                None
             ));
             assert!(may_navigate(
                 label,
                 &url("http://verso.localhost/pagina.html"),
-                None, &none
+                None
             ));
-            assert!(!may_navigate(label, &url("verso://evil/x.html"), None, &none));
-            assert!(!may_navigate(label, &url("file:///etc/passwd"), None, &none));
-            assert!(!may_navigate(label, &url("tauri://evil/"), None, &none));
-            assert!(!may_navigate(label, &url("http://localhost:5173/"), None, &none));
+            assert!(!may_navigate(label, &url("verso://evil/x.html"), None));
+            assert!(!may_navigate(label, &url("file:///etc/passwd"), None));
+            assert!(!may_navigate(label, &url("tauri://evil/"), None));
+            assert!(!may_navigate(label, &url("http://localhost:5173/"), None));
             assert_eq!(
-                may_navigate(label, &url("http://localhost:5173/x"), Some(&dev), &none),
+                may_navigate(label, &url("http://localhost:5173/x"), Some(&dev)),
                 cfg!(debug_assertions)
             );
         }
-        assert!(may_navigate("web-1", &url("https://example.org/"), None, &none));
-        assert!(may_navigate("web-1", &url("http://example.org/"), None, &none));
+        assert!(may_navigate("web-1", &url("https://example.org/"), None));
+        assert!(may_navigate("web-1", &url("http://example.org/"), None));
         assert!(!may_navigate(
             "web-1",
             &url("tauri://localhost/index.html"),
-            None, &none
+            None
         ));
         assert!(!may_navigate(
             "web-1",
             &url("verso://localhost/mapa.svg"),
-            None, &none
+            None
         ));
-        assert!(!may_navigate("other", &url("https://example.org/"), None, &none));
-        assert!(!may_navigate("other", &url("tauri://localhost/"), None, &none));
+        assert!(!may_navigate("other", &url("https://example.org/"), None));
+        assert!(!may_navigate("other", &url("tauri://localhost/"), None));
     }
 
     fn header<'a>(served: &'a Served, name: &str) -> Option<&'a str> {
@@ -3057,35 +3036,22 @@ mod tests {
     }
 
     #[test]
-    fn embeds_navigate_only_to_approved_origins() {
-        // The maintainer's decision of 2026-09-29 (ADR 0056 revised):
-        // an embedded page loads directly, and only an origin the user
-        // approved in the gate may be navigated to by an app view.
+    fn app_views_never_navigate_to_the_web_even_approved() {
+        // An embed renders in a child web view (`web_open`); the app
+        // view itself has no business on the web, approved origin or
+        // not (ADR 0056, revised 2026-09-29 — the child view is the
+        // page's place, as it always was for web notes).
         let url = |s: &str| tauri::Url::parse(s).unwrap();
-        let none = std::collections::HashSet::new();
-        let mut approved = std::collections::HashSet::new();
-        approved.insert("https://rolai.app".to_string());
-        approved.insert("http://192.168.3.100:8083".to_string());
-
         for label in ["main", "note-3"] {
-            // Nothing on the web without consent.
-            assert!(!may_navigate(label, &url("https://rolai.app/x"), None, &none));
-            // The approved origin, and exactly it.
-            assert!(may_navigate(label, &url("https://rolai.app/x"), None, &approved));
-            assert!(may_navigate(
-                label,
-                &url("http://192.168.3.100:8083/category/x"),
-                None,
-                &approved
-            ));
+            assert!(!may_navigate(label, &url("https://rolai.app/x"), None));
             assert!(!may_navigate(
                 label,
-                &url("http://192.168.3.100:9000/"),
-                None,
-                &approved
+                &url("http://192.168.3.100:8083/category/x"),
+                None
             ));
-            assert!(!may_navigate(label, &url("https://evil.example/"), None, &approved));
-            assert!(!may_navigate(label, &url("ftp://rolai.app/"), None, &approved));
         }
+        // The child web view is where a page loads, any http(s) page.
+        assert!(may_navigate("web-1", &url("https://rolai.app/x"), None));
     }
+
 }
