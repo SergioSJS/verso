@@ -268,9 +268,9 @@ class IframeWidget extends WidgetType {
   toDOM(): HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "cm-lp-block cm-lp-iframe-wrap";
-    // Only web addresses reach here (see the HTMLBlock branch): through the
-    // proxy, sandboxed, and asked first when remote content is off or the
-    // page is on the local network — as in the reading view.
+    // Only web addresses reach here (see the HTMLBlock branch): loaded
+    // directly, sandboxed, and asked first on each origin's first embed
+    // or when remote content is off — as in the reading view.
     wrap.append(webFrame(this.src, this.width, this.height, this.styleStr));
     return wrap;
   }
