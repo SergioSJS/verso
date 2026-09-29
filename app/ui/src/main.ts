@@ -39,12 +39,20 @@ import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, s
 import { lintKeymap } from "@codemirror/lint";
 import katex from "katex";
 import { CustomSearchPanel, ReadingSearch, searchStrings } from "./searchPanel";
+import { icon } from "./icons";
 
 const baseEditorExtensions: Extension = [
   highlightActiveLineGutter(),
   highlightSpecialChars(),
   history(),
-  foldGutter(),
+  foldGutter({
+    markerDOM: (open) => {
+      const span = document.createElement("span");
+      span.className = open ? "cm-foldMarker cm-foldMarker-open" : "cm-foldMarker cm-foldMarker-folded";
+      span.append(icon("chevron"));
+      return span;
+    },
+  }),
   drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
@@ -72,8 +80,7 @@ const baseEditorExtensions: Extension = [
     ...lintKeymap,
   ]),
 ];
-import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
-import { icon } from "./icons";
+import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
@@ -82,12 +89,13 @@ import { stringsFor } from "./bases/strings";
 import { DailyCalendar } from "./bases/daily";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
 import { listKeymap } from "./listKeymap";
-import { PdfView } from "./pdf";
+import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
-import { ask } from "./dialog";
-import { allowRemoteContent, cleanHtmlText, setHtml } from "./sanitize";
+import { ask, tell } from "./dialog";
+import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml, webFrame } from "./sanitize";
 import { DEMO_VAULT_FILES } from "./demoVault";
+import { renderMermaid } from "./mermaid";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -102,7 +110,7 @@ type Strings = Record<
   | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
   | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
-  | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
+  | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copyRelativePath" | "copyFullPath" | "openInNewTab" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
   | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions" | "propertiesTitle"
   | "replaceTitle" | "find" | "findInNote" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
   | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
@@ -119,7 +127,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "appVersion" | "appVersionDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
-  | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
+  | "remoteContent" | "remoteContentDesc" | "ignoreBuildDirs" | "ignoreBuildDirsDesc" | "respectGitignore" | "respectGitignoreDesc" | "embedRemoteOff" | "embedLoad" | "embedLocal" | "embedPublic" | "embedApprove" | "embedAllowed" | "embedAllowedDesc" | "embedAllowedNone" | "embedRemove" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
   | "newBase" | "insertBase" | "calendarTab" | "newWindow"
@@ -127,7 +135,7 @@ type Strings = Record<
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
   | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
-  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported"
+  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
 > & {
@@ -152,12 +160,22 @@ type Strings = Record<
   conflictOutside: (names: string) => string;
   goneNamed: (names: string) => string;
   indexProblems: (n: number, first: string) => string;
+  scanningVault: string;
+  indexingNotes: (cur: number, tot: number, pct: number, file: string) => string;
+  indexingDone: string;
+  openingFolder: string;
+  demoVaultNew: (n: number) => string;
 };
 
 const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
+  scanningVault: "Escaneando arquivos…",
+  indexingNotes: (cur, tot, pct, file) => `Indexando: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
+  indexingDone: "Indexação concluída.",
+  openingFolder: "Abrindo pasta e escaneando arquivos…",
+  demoVaultNew: (n) => (n === 1 ? "1 novo" : `${n} novos`),
   cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.", propChanged: "Essa propriedade mudou no texto desde que o painel foi desenhado; nada foi alterado — o painel se atualiza ao salvar, repita a edição.", propFixed: "Edite no modo Fonte: este valor tem comentário, várias linhas ou uma forma que o painel não reescreve sem perda.", propExists: "Essa propriedade já está no texto.", planLeftOut: "Deixadas de fora (mudanças que não puderam ser salvas):",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
@@ -195,7 +213,7 @@ const pt: Strings = {
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
   slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", empty: "Nada com esse nome." },
   colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
-  duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copied: "Caminho copiado.",
+  duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copyRelativePath: "Copiar caminho relativo", copyFullPath: "Copiar caminho completo", openInNewTab: "Abrir em nova aba", copied: "Caminho copiado.",
   moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
   addProperty: "Adicionar propriedade", keyPlaceholder: "Nome da propriedade", emptyValue: "Vazio", addItem: "Adicionar…", remove: "Remover", mentions: "Menções sem link", propertiesTitle: "Propriedades",
   words: (w, c) => `${w.toLocaleString("pt-BR")} palavra${w === 1 ? "" : "s"} · ${c.toLocaleString("pt-BR")} caractere${c === 1 ? "" : "s"}`,
@@ -206,7 +224,8 @@ const pt: Strings = {
   lineNumbersEdit: "Números de linha (Modo Editar)", lineNumbersEditDesc: "Exibe a numeração de linhas no editor visual (Live Preview).", lineNumbersSource: "Números de linha (Modo Fonte)", lineNumbersSourceDesc: "Exibe a numeração de linhas no editor de código-fonte Markdown puro.", lineNumbersPreview: "Números de linha (Modo Leitura)", lineNumbersPreviewDesc: "Exibe a numeração de linhas nos blocos do modo de leitura.", foldAllHeadings: "Contrair todas as seções", unfoldAllHeadings: "Expandir todas as seções",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
-  remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
+  ignoreBuildDirs: "Ignorar pastas de build", ignoreBuildDirsDesc: "node_modules, target, dist e semelhantes ficam fora do índice e da busca.", respectGitignore: "Respeitar .gitignore", respectGitignoreDesc: "Os arquivos .gitignore de dentro da pasta aberta (na raiz e em cada subpasta) valem para o índice: o que eles excluem fica fora da busca e dos links, com as regras do git (inclusive `!`). Sem .gitignore na pasta, nada muda.",
+  remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", embedRemoteOff: "Conteúdo remoto desligado: esta página não foi carregada.", embedLoad: "Carregar", embedLocal: "Esta página está na rede local (neste computador ou num aparelho da sua rede). Permita só se confiar nela; permitida, ela carrega sempre.", embedPublic: "Esta nota quer embutir um site. Permitido, ele sempre carrega dentro das notas.", embedApprove: "Permitir sempre", embedAllowed: "Sites permitidos nas notas", embedAllowedDesc: "Uma origem por linha (https://site.com — sem esquema, https:// é assumido). Apagar uma linha volta a perguntar no próximo embed. Digite * numa linha para liberar todos os sites — atenção: com *, qualquer nota carrega qualquer página sem perguntar, inclusive endereços da sua rede local.", embedAllowedNone: "Nenhum site permitido ainda; a pergunta aparece na nota, no primeiro embed de cada site.", embedRemove: "Remover", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
   errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
@@ -236,7 +255,7 @@ const pt: Strings = {
   mcpAddAsk: "Isto entra no arquivo de configuração do Claude Desktop; uma cópia do arquivo como está fica ao lado dele:\n\n{entry}\n\nDepois, reinicie o Claude Desktop.", mcpAddYes: "Adicionar", mcpAdded: "Adicionado. Reinicie o Claude Desktop.", mcpBackup: "Cópia do anterior: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
-  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!",
+  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!", demoVaultKept: "Estes arquivos já existiam com outro conteúdo e foram mantidos como estão, porque foram editados:", demoVaultKeptOk: "OK",
   checkUpdates: "Verificar atualizações automaticamente", checkUpdatesDesc: "Verifica e avisa ao abrir o aplicativo quando uma nova versão do Verso estiver disponível.", checkNow: "Verificar atualizações", checkingUpdates: "Verificando atualizações…", updateUpToDate: "Você está usando a versão mais recente.", updateAvailable: "Nova versão disponível", downloadAndUpdate: "Baixar e atualizar", downloadingUpdate: "Baixando atualização…", updateReady: "Atualização pronta!", restartNow: "Reiniciar agora", viewReleaseNotes: "Ver notas da versão", hideReleaseNotes: "Ocultar notas da versão", updateBannerTitle: "Nova versão disponível", seeInSettings: "Ver nos Ajustes", updateFailed: "Não foi possível verificar atualizações.",
 };
 
@@ -244,6 +263,11 @@ const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
+  scanningVault: "Scanning files…",
+  indexingNotes: (cur, tot, pct, file) => `Indexing: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
+  indexingDone: "Indexing complete.",
+  openingFolder: "Opening folder and scanning files…",
+  demoVaultNew: (n) => (n === 1 ? "1 new" : `${n} new`),
   cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.", propChanged: "That property changed in the text since the panel was drawn; nothing was changed — the panel updates on saving, make the edit again.", propFixed: "Edit it in Source mode: this value has a comment, several lines or a shape the panel cannot rewrite without loss.", propExists: "That property is already in the text.", planLeftOut: "Left out (changes that could not be saved):",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
@@ -281,7 +305,7 @@ const en: Strings = {
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the bin (.trash)?`,
   slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", empty: "Nothing by that name." },
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
-  duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copied: "Path copied.",
+  duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copyRelativePath: "Copy relative path", copyFullPath: "Copy full path", openInNewTab: "Open in new tab", copied: "Path copied.",
   moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
   addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions", propertiesTitle: "Properties",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
@@ -292,7 +316,8 @@ const en: Strings = {
   lineNumbersEdit: "Line numbers (Edit mode)", lineNumbersEditDesc: "Show line numbers in the visual editor (Live Preview).", lineNumbersSource: "Line numbers (Source mode)", lineNumbersSourceDesc: "Show line numbers in the plain Markdown source code editor.", lineNumbersPreview: "Line numbers (Reading mode)", lineNumbersPreviewDesc: "Show line numbers on blocks in reading view.", foldAllHeadings: "Collapse all sections", unfoldAllHeadings: "Expand all sections",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
-  remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
+  ignoreBuildDirs: "Ignore build folders", ignoreBuildDirsDesc: "node_modules, target, dist and the like stay out of the index and the search.", respectGitignore: "Respect .gitignore", respectGitignoreDesc: "The .gitignore files inside the open folder (at its root and in each subfolder) apply to the index: what they exclude stays out of search and links, by git's rules (`!` included). With no .gitignore in the folder, nothing changes.",
+  remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", embedRemoteOff: "Remote content is off: this page was not loaded.", embedLoad: "Load", embedLocal: "This page is on the local network (this computer or a device on your network). Allow it only if you trust it; once allowed, it always loads.", embedPublic: "This note wants to embed a web site. Once allowed, it always loads inside notes.", embedApprove: "Always allow", embedAllowed: "Sites allowed in notes", embedAllowedDesc: "One origin per line (https://site.com — with no scheme, https:// is assumed). Deleting a line asks again at the next embed. Type * on a line to allow every site — careful: with *, any note loads any page without asking, your local network's addresses included.", embedAllowedNone: "No site allowed yet; the question appears in the note, on each site\u2019s first embed.", embedRemove: "Remove", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
   errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
@@ -322,7 +347,7 @@ const en: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
-  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!",
+  importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content and were kept as they are, because they were edited:", demoVaultKeptOk: "OK",
   checkUpdates: "Check for updates automatically", checkUpdatesDesc: "Check and notify on startup when a new version of Verso is available.", checkNow: "Check for updates", checkingUpdates: "Checking for updates…", updateUpToDate: "You are running the latest version.", updateAvailable: "New version available", downloadAndUpdate: "Download and update", downloadingUpdate: "Downloading update…", updateReady: "Update ready!", restartNow: "Restart now", viewReleaseNotes: "View release notes", hideReleaseNotes: "Hide release notes", updateBannerTitle: "New version available", seeInSettings: "View in Settings", updateFailed: "Could not check for updates.",
 };
 
@@ -397,7 +422,7 @@ function dirOf(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
 }
 function ext(path: string): string {
-  const base = path.split("/").pop() ?? "";
+  const base = (path.split("/").pop() ?? "").split(/[#?|]/)[0] ?? "";
   const i = base.lastIndexOf(".");
   return i > 0 ? base.slice(i + 1).toLowerCase() : "";
 }
@@ -455,7 +480,58 @@ const ui = {
   treeRoot: el<HTMLElement>("tree-root"),
   spaces: el<HTMLDivElement>("spaces"),
   panes: el<HTMLDivElement>("panes"),
+  topProgress: el<HTMLDivElement>("top-progress"),
+  topProgressFill: el<HTMLDivElement>("top-progress-fill"),
+  indexProgress: el<HTMLDivElement>("index-progress"),
+  indexProgressBar: el<HTMLDivElement>("index-progress-bar"),
+  indexProgressLabel: el<HTMLSpanElement>("index-progress-label"),
 };
+
+let indexProgressTimer: number | null = null;
+function handleIndexProgress(p: IndexProgress): void {
+  if (indexProgressTimer) {
+    clearTimeout(indexProgressTimer);
+    indexProgressTimer = null;
+  }
+
+  ui.topProgress.hidden = false;
+  ui.topProgress.style.opacity = "1";
+  ui.indexProgress.hidden = false;
+
+  if (p.phase === "scanning") {
+    ui.topProgressFill.classList.add("indeterminate");
+    ui.topProgressFill.style.width = "35%";
+    ui.indexProgressBar.classList.add("indeterminate");
+    ui.indexProgressBar.style.width = "40%";
+    ui.indexProgressLabel.textContent = t.scanningVault;
+    ui.status.textContent = t.scanningVault;
+  } else if (p.phase === "indexing") {
+    ui.topProgressFill.classList.remove("indeterminate");
+    ui.indexProgressBar.classList.remove("indeterminate");
+    const pct = p.total > 0 ? Math.min(100, Math.round((p.current / p.total) * 100)) : 0;
+    ui.topProgressFill.style.width = `${pct}%`;
+    ui.indexProgressBar.style.width = `${pct}%`;
+    const fName = p.file ? p.file.split("/").pop() ?? p.file : "";
+    const msg = t.indexingNotes(p.current, p.total, pct, fName);
+    ui.indexProgressLabel.textContent = msg;
+    ui.status.textContent = msg;
+  } else if (p.phase === "done") {
+    ui.topProgressFill.classList.remove("indeterminate");
+    ui.indexProgressBar.classList.remove("indeterminate");
+    ui.topProgressFill.style.width = "100%";
+    ui.indexProgressBar.style.width = "100%";
+    ui.indexProgressLabel.textContent = t.indexingDone;
+    indexProgressTimer = window.setTimeout(() => {
+      ui.topProgress.style.opacity = "0";
+      window.setTimeout(() => {
+        ui.topProgress.hidden = true;
+        ui.topProgressFill.style.width = "0%";
+        ui.indexProgressBar.style.width = "0%";
+        ui.indexProgress.hidden = true;
+      }, 350);
+    }, 600);
+  }
+}
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
 type Settings = {
@@ -477,6 +553,14 @@ type Settings = {
   measure: "normal" | "wide";
   linkFormat: "shortest" | "relative" | "root";
   remoteContent: boolean;
+  /** What the folder scan leaves out (ADR 0044): the well-known build
+   *  directories, and what each `.gitignore` excludes. The host keeps its
+   *  own copy, handed over before a folder opens. */
+  ignoreBuildDirs: boolean;
+  respectGitignore: boolean;
+  /** Origins on the local network whose pages may be embedded, approved
+   *  one by one (`scheme://host[:port]`); the host keeps its own copy. */
+  embedOrigins: string[];
   headingFont?: "serif" | "sans" | "editorial" | "mono" | "system";
   bodyFont?: "sans" | "serif" | "mono" | "system";
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
@@ -500,6 +584,9 @@ const DEFAULTS: Settings = {
   measure: "normal",
   linkFormat: "shortest",
   remoteContent: true,
+  ignoreBuildDirs: true,
+  respectGitignore: true,
+  embedOrigins: [],
   headingFont: "serif",
   bodyFont: "sans",
   headingColor: "brass",
@@ -516,6 +603,7 @@ function loadSettings(): void {
         if (parsed.lineNumbersSource === undefined) parsed.lineNumbersSource = parsed.lineNumbers;
       }
       settings = { ...DEFAULTS, ...parsed };
+      if (!Array.isArray(settings.embedOrigins)) settings.embedOrigins = [];
     }
   } catch {
     settings = { ...DEFAULTS };
@@ -565,9 +653,45 @@ function applySettings(): void {
   document.documentElement.style.setProperty("--ui", bodyFonts[settings.bodyFont ?? "sans"] || bodyFonts.sans!);
   document.documentElement.style.setProperty("--heading-color", headingColors[settings.headingColor ?? "brass"] || headingColors.brass!);
   allowRemoteContent(settings.remoteContent);
+  allowEmbedOrigins(settings.embedOrigins);
   updateLeavesLineNumbers?.();
 }
 loadSettings();
+/** The approved embed origins handed to the host, which refuses a page on
+ *  the local network whose origin it was not given. Awaited before the
+ *  first note is drawn. */
+function pushEmbedOrigins(): Promise<boolean> {
+  return commands.setEmbedOrigins(settings.embedOrigins).then(
+    (r) => r.status === "ok" || (fail(r.error), false),
+    () => false,
+  );
+}
+const embedOriginsPushed = pushEmbedOrigins();
+/** The scan's rules handed to the host, which walks the folder with them.
+ *  Awaited with the embed origins, before any folder opens. */
+function pushWalkRules(): Promise<boolean> {
+  return commands.setWalkRules(settings.ignoreBuildDirs, settings.respectGitignore).then(
+    (r) => r.status === "ok" || (fail(r.error), false),
+    () => false,
+  );
+}
+const walkRulesPushed = pushWalkRules();
+/** The native menu's language ("pt" or "en"): the setting when it names
+ *  one, else the system's, as the interface's. A refusal leaves the menu
+ *  in the language it had. */
+function pushMenuLanguage(): void {
+  const lang = settings.lang === "auto" ? navigator.language : settings.lang;
+  void commands.setMenuLanguage(lang.toLowerCase().startsWith("pt") ? "pt" : "en").catch(() => undefined);
+}
+pushMenuLanguage();
+configureEmbeds({
+  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, publicSite: t.embedPublic, approve: t.embedApprove, cancel: t.cancel },
+  approve: async (origin) => {
+    if (!settings.embedOrigins.includes(origin)) settings.embedOrigins = [...settings.embedOrigins, origin];
+    saveSettings();
+    return pushEmbedOrigins();
+  },
+});
 const LAST_FOLDER = "verso.lastFolder";
 /** This window shows one note popped out of the main window. */
 const popout = getCurrentWindow().label.startsWith("note-");
@@ -1365,10 +1489,106 @@ function syncWebViews(): void {
   for (const l of webLeaves) l.syncWeb();
 }
 window.addEventListener("resize", syncWebViews);
+
+/* Embedded pages inside notes: each `[data-embed-web]` box gets a child
+ * web view of the host overlaid on it (web_open) — a top-level view,
+ * which X-Frame-Options does not bind, unlike an iframe (ADR 0056). The
+ * view follows its box frame by frame while something moves, clipped to
+ * the pane it scrolls in, hidden with the overlays, closed when the box
+ * leaves the DOM. */
+type EmbedView = { label: string | null; opening: boolean; last: string; still: number };
+const embedViews = new Map<HTMLElement, EmbedView>();
+let embedRaf = 0;
+function syncEmbedViews(): void {
+  if (!embedRaf) embedRaf = window.requestAnimationFrame(tickEmbedViews);
+  for (const v of embedViews.values()) v.still = 0;
+}
+function tickEmbedViews(): void {
+  embedRaf = 0;
+  const hosts = Array.from(document.querySelectorAll<HTMLElement>("[data-embed-web]"));
+  for (const [el, v] of embedViews) {
+    if (!el.isConnected || !el.hasAttribute("data-embed-web")) {
+      embedViews.delete(el);
+      if (v.label) void commands.webClose(v.label);
+    }
+  }
+  let busy = false;
+  for (const el of hosts) {
+    let v = embedViews.get(el);
+    if (!v) {
+      v = { label: null, opening: false, last: "", still: 0 };
+      embedViews.set(el, v);
+    }
+    const url = el.dataset["embedWeb"] ?? "";
+    // Clipped to the nearest scrolling ancestor and to the window: a
+    // child view floats over everything, so past an edge it is cut,
+    // not carried over the pane's chrome.
+    let pane: HTMLElement | null = el.parentElement;
+    while (pane && !/(auto|scroll|hidden)/.test(getComputedStyle(pane).overflowY)) pane = pane.parentElement;
+    const r = el.getBoundingClientRect();
+    let left = r.left;
+    let top = r.top;
+    let right = r.right;
+    let bottom = r.bottom;
+    if (pane) {
+      const c = pane.getBoundingClientRect();
+      left = Math.max(left, c.left);
+      top = Math.max(top, c.top);
+      right = Math.min(right, c.right);
+      bottom = Math.min(bottom, c.bottom);
+    }
+    left = Math.max(left, 0);
+    top = Math.max(top, 0);
+    right = Math.min(right, window.innerWidth);
+    bottom = Math.min(bottom, window.innerHeight);
+    const w = right - left;
+    const hgt = bottom - top;
+    const visible = el.isConnected && el.offsetParent !== null && w > 1 && hgt > 1 && !overlayOpen();
+    if (!v.label) {
+      if (visible && !v.opening && url) {
+        v.opening = true;
+        const want = v;
+        void commands.webOpen(url, left, top, Math.max(1, w), Math.max(1, hgt)).then((res) => {
+          want.opening = false;
+          if (res.status !== "ok") {
+            el.removeAttribute("data-embed-web");
+            return;
+          }
+          if (!el.isConnected) {
+            void commands.webClose(res.data);
+            return;
+          }
+          want.label = res.data;
+          want.last = "";
+          syncEmbedViews();
+        });
+      }
+      busy = true;
+    } else {
+      const key = visible ? `1|${Math.round(left)}|${Math.round(top)}|${Math.round(w)}|${Math.round(hgt)}` : "0";
+      if (key !== v.last) {
+        v.last = key;
+        v.still = 0;
+        const label = v.label;
+        if (visible) void commands.webBounds(label, left, top, w, hgt).then(() => commands.webVisible(label, true));
+        else void commands.webVisible(label, false);
+      } else v.still++;
+      if (v.still < 10) busy = true;
+    }
+  }
+  if (busy) embedRaf = window.requestAnimationFrame(tickEmbedViews);
+}
+window.addEventListener("resize", syncEmbedViews);
+document.addEventListener("scroll", syncEmbedViews, { capture: true, passive: true });
+// New boxes appear after async renders; a cheap sweep catches them.
+window.setInterval(syncEmbedViews, 700);
 new MutationObserver((records) => {
-  if (webLeaves.size === 0) return;
+  if (webLeaves.size === 0 && embedViews.size === 0) return;
   // An editor, a PDF or the graph redraws itself: nothing moves outside.
-  if (records.some((r) => !(r.target instanceof Element && r.target.closest(".cm-editor, .pdf, svg.graph")))) syncWebViews();
+  if (records.some((r) => !(r.target instanceof Element && r.target.closest(".cm-editor, .pdf, svg.graph")))) {
+    syncWebViews();
+    syncEmbedViews();
+  }
 }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "class", "style"] });
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
@@ -1512,8 +1732,10 @@ class NoteLeaf extends Leaf {
       frontmatterTitle: (n) => (n === 1 ? t.yamlLine : t.yamlLines).replace("{n}", String(n)),
       noteHtml: (target) => this.embedHtml(target),
       base: (text, embed, mount, edit) => this.liveBase(text, embed, mount, edit),
+      pdf: (target, mount) => this.livePdf(target, mount),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
+    (this.editorHost as any).__cmView = this.editor;
     // Focusable from code, not by Tab: a link followed from the keyboard
     // hands the keyboard to the note that opened (`focusContent`).
     this.preview.tabIndex = -1;
@@ -2291,6 +2513,39 @@ class NoteLeaf extends Leaf {
     }
   }
 
+  private wireMermaidBlocks(root: HTMLElement): void {
+    for (const code of root.querySelectorAll<HTMLElement>("pre > code.language-mermaid")) {
+      const pre = code.parentElement;
+      if (!pre || pre.dataset["mermaidRendered"]) continue;
+      pre.dataset["mermaidRendered"] = "true";
+      const text = code.textContent ?? "";
+      const container = h("div", "mermaid-block");
+      container.style.position = "relative";
+
+      const btn = h("button", "copy-code-btn");
+      btn.type = "button";
+      btn.title = "Copiar código";
+      btn.setAttribute("aria-label", "Copiar código");
+      btn.append(icon("copy"));
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void navigator.clipboard.writeText(text).then(() => {
+          btn.replaceChildren(icon("check"));
+          btn.title = "Copiado!";
+          setTimeout(() => {
+            btn.replaceChildren(icon("copy"));
+            btn.title = "Copiar código";
+          }, 1500);
+        });
+      });
+
+      const wrapper = h("div", "mermaid-svg-container");
+      container.append(btn, wrapper);
+      pre.replaceWith(container);
+      void renderMermaid(text, wrapper);
+    }
+  }
+
   private wireCodeBlocks(root: HTMLElement): void {
     for (const pre of root.querySelectorAll<HTMLPreElement>("pre")) {
       if (pre.querySelector(".copy-code-btn")) continue;
@@ -2629,6 +2884,7 @@ class NoteLeaf extends Leaf {
     this.wireTasks();
     this.dressLinks(note.path);
     this.wireTableResizers(this.preview);
+    this.wireMermaidBlocks(this.preview);
     this.wireCodeBlocks(this.preview);
     this.wirePreviewImages(this.preview);
     this.wireHeadingFolds(this.preview);
@@ -2672,6 +2928,23 @@ class NoteLeaf extends Leaf {
       const raw = span.dataset["target"] ?? "";
       const to = this.resolve(raw);
       if (!to || !to.endsWith(".md") || to === this.path) continue;
+      // A web note embedded is its page, not its (empty) text: the same
+      // direct, sandboxed frame an <iframe> gets, gate included.
+      const webUrl = webNotes.get(to);
+      if (webUrl) {
+        const box = h("section", "embed-note");
+        const head = h("a", "embed-note-title", name(to));
+        head.href = "#";
+        head.addEventListener("click", (e) => {
+          e.preventDefault();
+          openNote(to, false);
+        });
+        const body = h("div", "embed-note-body");
+        body.append(webFrame(webUrl, "", "", ""));
+        box.append(head, body);
+        span.replaceWith(box);
+        continue;
+      }
       const heading = raw.includes("#") && !raw.includes("#^") ? raw.slice(raw.indexOf("#") + 1) : "";
       void commands.readNote(to).then((r) => {
         if (r.status !== "ok" || this.path !== forPath) return;
@@ -2694,6 +2967,7 @@ class NoteLeaf extends Leaf {
         keyLinks(body);
         if (heading) sliceHeading(body, heading);
         typeset(body);
+        this.wireMermaidBlocks(body);
         box.append(head, body);
         span.replaceWith(box);
         void this.embedImages(forPath, body, to);
@@ -2758,6 +3032,49 @@ class NoteLeaf extends Leaf {
       }
     };
   }
+  /** A PDF file embedded on a line of its own in Live Preview. */
+  private livePdf(target: string, mount: HTMLElement): () => void {
+    const spec = parsePdfSpec(target);
+    if (spec.height) mount.style.height = `${spec.height}px`;
+    if (spec.width) mount.style.width = `${spec.width}px`;
+
+    let destroyed = false;
+    let view: PdfView | null = null;
+
+    void commands.resolveAttachment(this.path, spec.file).then((r) => {
+      if (destroyed) return;
+      if (r.status !== "ok" || !r.data) {
+        mount.textContent = `PDF não encontrado: ${spec.file}`;
+        mount.style.display = "flex";
+        mount.style.alignItems = "center";
+        mount.style.justifyContent = "center";
+        mount.style.color = "var(--ink-muted)";
+        mount.style.fontStyle = "italic";
+        mount.style.padding = "2rem";
+        return;
+      }
+      const rel = r.data;
+      view = new PdfView({
+        strings: pdfStrings(),
+        onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${rel.split("/").pop() ?? rel}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
+        onQuote: (fragment, page, text) => void quoteIntoNotes(rel, fragment, page, text),
+        onStatus: (m) => (ui.status.textContent = m),
+        onPage: () => {},
+      });
+      mount.append(view.el);
+      view.container.setAttribute("aria-label", rel.split("/").pop() ?? rel);
+      this.embeds.push(view);
+      void view.load(convertFileSrc(rel, "verso"), spec.page);
+    });
+
+    return () => {
+      destroyed = true;
+      if (view) {
+        this.embeds = this.embeds.filter((e) => e !== view);
+        view.destroy();
+      }
+    };
+  }
   /** Footnote definitions gathered at the end under a hairline, each with
    *  a way back to its mark; the marks get ids for that. */
   private gatherFootnotes(): void {
@@ -2786,6 +3103,10 @@ class NoteLeaf extends Leaf {
     // Tab, a box said only "checkbox".
     for (const box of this.preview.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-task-line]")) {
       const li = box.closest("li");
+      if (li) {
+        li.classList.add("task-item");
+        li.parentElement?.classList.add("contains-task-list");
+      }
       const label = li ? ownText(li) : "";
       if (label) box.setAttribute("aria-label", label);
     }
@@ -2842,7 +3163,7 @@ class NoteLeaf extends Leaf {
    *  own path for what it embeds in turn (spec Q12). */
   private async embedImages(forPath: string, root: HTMLElement = this.preview, source = forPath): Promise<void> {
     const spans = Array.from(root.querySelectorAll<HTMLElement>("span.embed"));
-    const targets = new Set(spans.map((e) => (e.dataset["target"] ?? "").split("#")[0] ?? ""));
+    const targets = new Set(spans.map((e) => parsePdfSpec(e.dataset["target"] ?? "").file));
     const found = new Map<string, string | null>();
     await Promise.all(
       Array.from(targets).map(async (target) => {
@@ -2852,15 +3173,15 @@ class NoteLeaf extends Leaf {
     );
     if (this.path !== forPath) return;
     for (const span of spans) {
-      const target = (span.dataset["target"] ?? "").split("#")[0] ?? "";
-      const rel = found.get(target);
+      const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
+      const rel = found.get(spec.file);
       if (!rel) continue;
       if (kindOf(rel) === "image") {
         const img = h("img");
         img.src = convertFileSrc(rel, "verso");
-        img.alt = target;
+        img.alt = spec.file;
         img.loading = "lazy";
-        const size = sizeOf(span.textContent === target ? null : span.textContent);
+        const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
         if (size) {
           img.style.width = `${size.w}px`;
           if (size.h) img.style.height = `${size.h}px`;
@@ -2886,6 +3207,8 @@ class NoteLeaf extends Leaf {
       } else if (kindOf(rel) === "pdf") {
         // The PDF itself, in a box of its own, at the page the target names.
         const box = h("div", "embed-pdf");
+        if (spec.height) box.style.height = `${spec.height}px`;
+        if (spec.width) box.style.width = `${spec.width}px`;
         const view = new PdfView({
           strings: pdfStrings(),
           onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${rel.split("/").pop() ?? rel}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
@@ -2897,8 +3220,7 @@ class NoteLeaf extends Leaf {
         view.container.setAttribute("aria-label", rel.split("/").pop() ?? rel);
         span.replaceWith(box);
         this.embeds.push(view);
-        const page = Number(/page=(\d+)/.exec(span.dataset["target"] ?? "")?.[1] ?? "1");
-        void view.load(convertFileSrc(rel, "verso"), page);
+        void view.load(convertFileSrc(rel, "verso"), spec.page);
       } else {
         span.classList.add("file");
         span.title = rel;
@@ -4172,6 +4494,17 @@ class Pane {
     this.tabs.addEventListener("dblclick", (e) => {
       if (e.target === this.tabs || e.target === this.tabList) void newUntitled(this);
     });
+    this.tabs.addEventListener("contextmenu", (e) => {
+      if ((e.target as HTMLElement).closest(".tab")) return;
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY, [
+        [t.newNote, () => void newUntitled(this), "plus"],
+        ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        ["—", () => {}],
+        [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
+        [t.hideTabs, () => this.setTabsHidden(true)],
+      ]);
+    });
     this.empty.append(icon("outline"), h("p", "", t.emptyPane));
     this.body.append(this.empty);
     this.el.append(this.tabs, this.tabsDivider, this.body);
@@ -4258,6 +4591,8 @@ class Pane {
         if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
       })(), "maximize"] as MenuItem] : []),
+      ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+      [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
       [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"],
       [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"],
@@ -4272,7 +4607,8 @@ class Pane {
         [t.revealInTree, () => void revealInTree(leaf.path), "folder"] as MenuItem,
         ...(leaf instanceof NoteLeaf ? [[t.rename, () => leaf.renameHere(), "edit"] as MenuItem] : []),
         [`${t.moveTo}…`, () => movePrompt(leaf.path), "folderPlus"] as MenuItem,
-        [t.copyPath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
+        [t.copyRelativePath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
+        [t.copyFullPath, () => void commands.copyFullPath(leaf.path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"] as MenuItem,
         [t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem,
       ] : []),
       ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
@@ -4646,7 +4982,11 @@ class Space {
     });
     this.tab.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      showMenu(e.clientX, e.clientY, [[t.rename, () => this.rename(n)], [t.closeSpace, () => closeSpace(this)]]);
+      showMenu(e.clientX, e.clientY, [
+        [t.rename, () => this.rename(n)],
+        ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        [t.closeSpace, () => closeSpace(this)],
+      ]);
     });
   }
   /** The name in place becomes a field; Enter, Escape or leaving it ends. */
@@ -4792,20 +5132,31 @@ function persistSoon(): void {
   }, 300);
 }
 
+ui.spaces.addEventListener("contextmenu", (e) => {
+  if ((e.target as HTMLElement).closest(".space-tab")) return;
+  e.preventDefault();
+  showMenu(e.clientX, e.clientY, [
+    [t.newSpace, () => newSpace(), "plus"],
+    ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+  ]);
+});
+
 /* ---------- Opening things ---------- */
 function openIn(pane: Pane, path: string): Leaf {
   return pane.open(path, false);
 }
-function openNote(path: string, aside: boolean): Leaf | null {
+function openNote(path: string, aside: boolean, fresh = false): Leaf | null {
+  (window as any).__openNote = openNote;
   document.body.classList.remove("side-open");
   let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
-  return pane.open(path, false);
+  return pane.open(path, false, fresh);
 }
 function openFolder(path: string): void {
   const pane = paneToOpenIn();
   pane.openFolder(path);
 }
+(window as any).__openNote = openNote;
 /** Code blocks colored by their language and math typeset, in rendered
  *  HTML: the parser marks them, the window finishes them. */
 function typeset(root: HTMLElement): void {
@@ -4996,7 +5347,10 @@ async function revealInTree(path: string): Promise<void> {
     const folder = parts.slice(0, i).join("/");
     openFolders.add(folder);
     const d = ui.notes.querySelector<HTMLElement>(`summary[data-folder="${CSS.escape(folder)}"]`)?.parentElement;
-    if (d instanceof HTMLDetailsElement) d.open = true;
+    if (d instanceof HTMLDetailsElement) {
+      d.open = true;
+      (d as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
+    }
   }
   const row = ui.notes.querySelector<HTMLButtonElement>(`li[data-path="${CSS.escape(path)}"] > button`);
   row?.scrollIntoView({ block: "center" });
@@ -5605,32 +5959,104 @@ async function newBase(folder: string): Promise<void> {
   await afterFileChange();
   openNote(r.data, false);
 }
+function b64ToUtf8(b64: string): string {
+  try {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return atob(b64);
+  }
+}
+function showToast(message: string, durationMs = 3500): void {
+  const existing = document.querySelector(".verso-toast");
+  if (existing) existing.remove();
+  const toast = h("div", "verso-update-banner verso-toast");
+  toast.append(icon("sparkles"));
+  const span = h("span", "", message);
+  toast.append(span);
+  document.body.append(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transition = "opacity .3s ease-out";
+    setTimeout(() => toast.remove(), 300);
+  }, durationMs);
+}
+/** Whether the file at `path` holds exactly the demo's content. A note or
+ *  a base is read through the contract, as text; any other file byte for
+ *  byte through the file protocol. Unreadable counts as different: the
+ *  file is kept either way, and then named. */
+async function sameAsDemo(path: string, b64: string): Promise<boolean> {
+  try {
+    if (path.endsWith(".md") || path.endsWith(".base")) {
+      const r = await commands.readText(path);
+      return r.status === "ok" && r.data.text === b64ToUtf8(b64);
+    }
+    const res = await fetch(convertFileSrc(path, "verso"));
+    if (!res.ok) return false;
+    const have = new Uint8Array(await res.arrayBuffer());
+    const want = atob(b64);
+    if (have.length !== want.length) return false;
+    for (let i = 0; i < have.length; i++) if (have[i] !== want.charCodeAt(i)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 /** Populate the current vault with sample notes, bases, and templates. */
 async function importDemoVault(): Promise<void> {
-  if (!currentFolder) {
-    const picked = await openFolderBy(() => commands.pickFolder());
-    if (!picked || !currentFolder) return;
-  }
-  const confirmed = await ask(t.importDemoVaultConfirm, { yes: t.importDemoVault, no: t.cancel });
-  if (!confirmed) return;
-
-  const folders = ["assets", "daily", "projetos", "templates"];
-  for (const f of folders) {
-    openFolders.add(f);
-    void commands.createFolder(f);
-  }
-
-  for (const item of DEMO_VAULT_FILES) {
-    const res = await commands.createFile(item.path, item.b64);
-    if (res.status !== "ok" && res.error.kind !== "exists") {
-      fail(res.error);
+  try {
+    if (!currentFolder) {
+      const picked = await openFolderBy(() => commands.pickFolder());
+      if (!picked || !currentFolder) return;
     }
-  }
+    const confirmed = await ask(t.importDemoVaultConfirm, { yes: t.importDemoVault, no: t.cancel });
+    if (!confirmed) return;
 
-  await afterFileChange();
-  refreshLists();
-  openNote("00 - Bem-vindo ao Verso.md", false);
-  ui.status.textContent = t.demoVaultImported;
+    ui.status.textContent = "…";
+
+    const folders = ["assets", "daily", "projetos", "templates"];
+    for (const f of folders) {
+      openFolders.add(f);
+      try {
+        await commands.createFolder(f);
+      } catch {
+        // folder may already exist
+      }
+    }
+
+    // A file already there is never written over: the same content is
+    // left alone, any other is the user's edit and is kept, and named.
+    let createdCount = 0;
+    const kept: string[] = [];
+    for (const item of DEMO_VAULT_FILES) {
+      try {
+        const res = await commands.createFile(item.path, item.b64);
+        if (res.status === "ok") {
+          createdCount++;
+        } else if (res.error.kind === "exists") {
+          if (!(await sameAsDemo(item.path, item.b64))) kept.push(item.path);
+        } else {
+          console.warn("importDemoVault: could not create file", item.path, res.error);
+        }
+      } catch (e) {
+        console.warn("importDemoVault: error creating file", item.path, e);
+      }
+    }
+
+    await afterFileChange();
+    refreshLists();
+    openNote("00 - Bem-vindo ao Verso.md", false, true);
+    const msg = createdCount > 0 ? `${t.demoVaultImported} (${t.demoVaultNew(createdCount)})` : t.demoVaultImported;
+    ui.status.textContent = msg;
+    showToast(msg);
+    if (kept.length > 0) await tell(`${t.demoVaultKept}\n${kept.join("\n")}`, t.demoVaultKeptOk);
+  } catch (err: unknown) {
+    console.error("importDemoVault failed:", err);
+    ui.status.textContent = "";
+    fail(typeof err === "object" && err !== null && "message" in err ? (err as ContractError) : { kind: "failed", message: String(err) });
+  }
 }
 /** A `base` block at the caret of the note being edited. */
 function insertBase(): void {
@@ -5733,7 +6159,15 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
   const sep: MenuItem = ["—", () => {}];
   const items: MenuItem[] = folder
     ? [[t.openFolder, () => openFolder(path), "folderOpen"]]
-    : [[t.openTab, () => openNote(path, false), "note"], [t.openPane, () => openNote(path, true), "split"]];
+    : [
+        [t.openTab, () => openNote(path, false), "note"],
+        [t.openInNewTab, () => openNote(path, false, true), "tab"],
+        [t.openPane, () => openNote(path, true), "split"],
+        ...(!popout ? [[t.openInWindow, () => void (async () => {
+          const opened = await commands.openWindow(path);
+          if (opened.status !== "ok") return fail(opened.error);
+        })(), "maximize"] as MenuItem] : []),
+      ];
   if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
   items.push(
     sep,
@@ -5742,7 +6176,8 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
     ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
     sep,
     [t.reveal, () => void commands.reveal(path), "search"],
-    [t.copyPath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"],
+    [t.copyRelativePath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"],
+    [t.copyFullPath, () => void commands.copyFullPath(path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"],
     sep,
     ...createMenuItems(here),
     sep,
@@ -6244,7 +6679,8 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
     const full = prefix ? `${prefix}/${folder}` : folder;
     const li = h("li");
     const d = h("details");
-    d.open = openFolders.size === 0 ? depth < 1 : openFolders.has(full);
+    const isOpen = openFolders.size === 0 ? depth < 1 : openFolders.has(full);
+    d.open = isOpen;
     const s = h("summary");
     s.dataset["folder"] = full;
     const chev = h("span", "chev");
@@ -6255,9 +6691,27 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
       e.preventDefault();
       openFolder(full);
     });
+
+    let renderedChild: HTMLUListElement | null = null;
+    const renderSubtree = () => {
+      if (!renderedChild) {
+        renderedChild = renderTree(child, depth + 1, full);
+        d.append(renderedChild);
+      }
+    };
+    (d as unknown as { _ensureRendered?: () => void })._ensureRendered = renderSubtree;
+
+    if (isOpen) {
+      renderSubtree();
+    }
+
     d.addEventListener("toggle", () => {
-      if (d.open) openFolders.add(full);
-      else openFolders.delete(full);
+      if (d.open) {
+        openFolders.add(full);
+        renderSubtree();
+      } else {
+        openFolders.delete(full);
+      }
     });
     s.addEventListener("contextmenu", (e) => {
       e.preventDefault();
@@ -6277,7 +6731,7 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
         s.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.left + 24, clientY: r.bottom, bubbles: true, cancelable: true }));
       }
     });
-    d.append(s, renderTree(child, depth + 1, full));
+    d.prepend(s);
     li.append(d);
     ul.append(li);
   }
@@ -6323,8 +6777,10 @@ ui.notes.addEventListener("keydown", (e) => {
   else if (e.key === "Home") to = rows[0];
   else if (e.key === "End") to = rows[rows.length - 1];
   else if (e.key === "ArrowRight" && folder) {
-    if (!folder.open) folder.open = true;
-    else if (rows[i + 1] && folder.contains(rows[i + 1]!)) to = rows[i + 1];
+    if (!folder.open) {
+      folder.open = true;
+      (folder as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
+    } else if (rows[i + 1] && folder.contains(rows[i + 1]!)) to = rows[i + 1];
   } else if (e.key === "ArrowLeft") {
     if (folder?.open) folder.open = false;
     else to = row.closest("li")?.parentElement?.closest("details")?.querySelector<HTMLElement>(":scope > summary");
@@ -6416,7 +6872,20 @@ async function searchNotes(words: string): Promise<void> {
 let collapsed = false;
 function collapseAll(): void {
   collapsed = !collapsed;
-  for (const d of ui.notes.querySelectorAll("details")) d.open = !collapsed;
+  if (!collapsed) {
+    let details: NodeListOf<HTMLDetailsElement>;
+    while ((details = ui.notes.querySelectorAll("details:not([open])")).length > 0) {
+      let expandedCount = 0;
+      for (const d of details) {
+        d.open = true;
+        (d as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
+        expandedCount++;
+      }
+      if (expandedCount === 0) break;
+    }
+  } else {
+    for (const d of ui.notes.querySelectorAll("details")) d.open = false;
+  }
   ui.collapse.replaceChildren(icon(collapsed ? "expand" : "collapse", collapsed ? t.expandAll : t.collapseAll));
   ui.collapse.title = collapsed ? t.expandAll : t.collapseAll;
 }
@@ -6840,7 +7309,7 @@ const paletteDialog = new Palette();
 /* ---------- ⌘, settings ---------- */
 /* ---------- Find and replace across the vault: a plan, then one atomic write per note ---------- */
 class ReplaceDialog {
-  readonly el = h("div", "quick settings-box");
+  readonly el = h("div", "quick");
   constructor() {
     this.el.hidden = true;
     asDialog(this.el, t.replaceTitle, () => this.hide());
@@ -6850,10 +7319,20 @@ class ReplaceDialog {
   show(): void {
     opened(this.el);
     const box = h("div", "plan-box replace-box");
-    box.append(h("h2", "", t.replaceTitle));
-    const field = (label: string, input: HTMLElement) => {
-      const l = h("label", "field");
-      l.append(h("span", "", label), input);
+    const header = h("div", "replace-header");
+    const titleGroup = h("div", "replace-title-group");
+    titleGroup.append(icon("replace"), h("h2", "", t.replaceTitle));
+    const closeBtn = button("ghost iconic close-btn", t.close, "close");
+    closeBtn.addEventListener("click", () => this.hide());
+    header.append(titleGroup, closeBtn);
+    box.append(header);
+
+    const field = (label: string, input: HTMLElement, iconName: string) => {
+      const l = h("label", "field replace-field");
+      const lbl = h("span", "field-label", label);
+      const inputWrap = h("div", "input-with-icon");
+      inputWrap.append(icon(iconName), input);
+      l.append(lbl, inputWrap);
       box.append(l);
       return l;
     };
@@ -6867,8 +7346,8 @@ class ReplaceDialog {
     matchCase.type = "checkbox";
     const regex = h("input");
     regex.type = "checkbox";
-    field(t.find, find);
-    field(t.replaceWith, repl);
+    field(t.find, find, "search");
+    field(t.replaceWith, repl, "replace");
     const opts = h("div", "replace-opts");
     const opt = (input: HTMLInputElement, label: string) => {
       const l = h("label", "opt");
@@ -6880,8 +7359,8 @@ class ReplaceDialog {
     box.append(opts);
     const note = h("p", "replace-note");
     note.setAttribute("role", "status");
-    const go = button("save", t.previewChanges);
-    const cancel = button("ghost", t.planSkip);
+    const go = button("save iconic", t.previewChanges, "check");
+    const cancel = button("ghost iconic", t.planSkip, "close");
     cancel.addEventListener("click", () => this.hide());
     const actions = h("div", "conflict-actions");
     actions.append(go, cancel);
@@ -7041,10 +7520,10 @@ class UpdateController {
     }
 
     try {
-      const res = await commands.downloadAndInstallUpdate(
-        this._info.download_url ?? "",
-        this._info.asset_url
-      );
+      // The host picks the asset and checks it against the release's
+      // published checksum itself; a release without one comes back as a
+      // refusal whose message is shown on the update card below.
+      const res = await commands.downloadAndInstallUpdate();
       if (res.status === "ok") {
         this._result = res.data;
         this._downloading = false;
@@ -7246,12 +7725,6 @@ class SettingsDialog {
     add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
       const wrap = h("div", "setting-version-wrap");
-      wrap.style.display = "flex";
-      wrap.style.flexDirection = "column";
-      wrap.style.alignItems = "stretch";
-      wrap.style.gap = ".5rem";
-      wrap.style.width = "100%";
-
       const topRow = h("div", "setting-version-row");
       const v = h("span", "setting-value", "…");
       void commands.appInfo().then((r) => {
@@ -7383,12 +7856,44 @@ class SettingsDialog {
       return wrap;
     });
     add("general", t.language, t.languageDesc, () => {
-      const sel = this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); void this.reloadForLanguage(); });
+      const sel = this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); pushMenuLanguage(); void this.reloadForLanguage(); });
       // Each language's name in its own language, said so.
       for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
       return sel;
     });
     add("general", t.remoteContent, t.remoteContentDesc, () => this.toggle(settings.remoteContent, (v) => { settings.remoteContent = v; saveSettings(); remoteContentChanged(); }));
+    add("general", t.embedAllowed, t.embedAllowedDesc, () => {
+      const box = h("textarea", "embed-allowed") as unknown as HTMLTextAreaElement;
+      box.rows = 6;
+      box.spellcheck = false;
+      box.value = settings.embedOrigins.join("\n");
+      box.placeholder = "https://site.com";
+      const normalize = (line: string): string | null => {
+        const t = line.trim();
+        if (!t) return null;
+        if (t === "*") return "*";
+        try {
+          return new URL(t.includes("://") ? t : `https://${t}`).origin;
+        } catch {
+          return null;
+        }
+      };
+      box.addEventListener("change", () => {
+        const seen = new Set<string>();
+        for (const line of box.value.split("\n")) {
+          const o = normalize(line);
+          if (o) seen.add(o);
+        }
+        settings.embedOrigins = [...seen];
+        box.value = settings.embedOrigins.join("\n");
+        saveSettings();
+        allowEmbedOrigins(settings.embedOrigins);
+        void pushEmbedOrigins();
+      });
+      return box;
+    });
+    add("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(settings.ignoreBuildDirs, (v) => { settings.ignoreBuildDirs = v; saveSettings(); void walkRulesChanged(); }));
+    add("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(settings.respectGitignore, (v) => { settings.respectGitignore = v; saveSettings(); void walkRulesChanged(); }));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
       i.type = "number"; i.min = "0.3"; i.step = "0.5"; i.value = String(settings.autosave);
@@ -7780,7 +8285,13 @@ function toggleRight(): void {
 }
 toggleSideButton.addEventListener("click", toggleSide);
 toggleRightButton.addEventListener("click", toggleRight);
-try { if (localStorage.getItem("verso.right") === "false") document.body.classList.add("no-right"); } catch { /* no storage */ }
+try {
+  if (localStorage.getItem("verso.right") === "true") {
+    document.body.classList.remove("no-right");
+  } else {
+    document.body.classList.add("no-right");
+  }
+} catch { /* no storage */ }
 paintToggles();
 const rightDivider = el<HTMLDivElement>("right-divider");
 rightDivider.addEventListener("pointerdown", (e) => {
@@ -7847,7 +8358,7 @@ async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo 
     stopped(unsaved);
     return false;
   }
-  ui.status.textContent = "…";
+  ui.status.textContent = t.openingFolder;
   const r = await run();
   if (r.status !== "ok") {
     ui.status.textContent = "";
@@ -7859,10 +8370,10 @@ async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo 
   }
   ui.status.textContent = "";
   if (!r.data) return false;
-  showFolder(r.data);
+  await showFolder(r.data);
   return true;
 }
-function showFolder(info: FolderInfo): void {
+async function showFolder(info: FolderInfo): Promise<void> {
   currentFolder = info.key;
   folderName = info.name;
   try {
@@ -7888,32 +8399,41 @@ function showFolder(info: FolderInfo): void {
   panel.tagsCache = [];
   void panel.loadTags();
   showOutline(null);
-  void listAll().then(() => {
-    let restored = false;
-    try {
-      const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);
-      if (saved) {
-        const o = JSON.parse(saved) as { current?: number; spaces?: { label?: string; layout?: unknown }[] };
-        for (const sp of o.spaces ?? []) {
-          const s = new Space(sp.label ?? `${t.space} ${spaces.length + 1}`);
-          spaces.push(s);
-          current = s;
-          if (!s.layout.restore(sp.layout)) s.layout.reset();
-        }
-        if (spaces.length > 0) {
-          showSpace(spaces[Math.min(o.current ?? 0, spaces.length - 1)]!);
-          restored = true;
-        }
+  await listAll();
+  let restored = false;
+  try {
+    const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);
+    if (saved) {
+      const o = JSON.parse(saved) as { current?: number; spaces?: { label?: string; layout?: unknown }[] };
+      for (const sp of o.spaces ?? []) {
+        const s = new Space(sp.label ?? `${t.space} ${spaces.length + 1}`);
+        spaces.push(s);
+        current = s;
+        if (!s.layout.restore(sp.layout)) s.layout.reset();
       }
-    } catch {
-      // A layout that does not parse: start with one workspace.
+      if (spaces.length > 0) {
+        showSpace(spaces[Math.min(o.current ?? 0, spaces.length - 1)]!);
+        restored = true;
+      }
     }
-    if (!restored) newSpace();
-    ui.search.focus();
-  });
+  } catch {
+    // A layout that does not parse: start with one workspace.
+  }
+  if (!restored) newSpace();
+  ui.search.focus();
 }
 async function openFolderDialog(): Promise<void> {
   await openFolderBy(() => commands.pickFolder());
+}
+/** A scan rule turned on or off: the host takes the new rules, and the
+ *  folder is indexed again under them — what they now leave out goes from
+ *  the tree, the search, the tags and the bases; what they let in comes. */
+async function walkRulesChanged(): Promise<void> {
+  if (!(await pushWalkRules()) || !currentFolder) return;
+  await reindex();
+  refreshLists();
+  void panel.loadTags();
+  refreshBases();
 }
 async function reindex(): Promise<void> {
   // The tab is read again afterwards: its text is saved first, and a tab
@@ -7948,6 +8468,7 @@ const RIBBON: RibbonItem[] = [
   { id: "replace", icon: "replace", label: () => t.replaceTitle, keys: "replace", needsFolder: true, run: () => replaceDialog.show() },
   { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
+  { id: "new-window", icon: "maximize", label: () => t.newWindow, needsFolder: true, run: () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)) },
   { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "toggle-right", bottom: true, run: () => toggleRight() },
   { id: "settings", icon: "gear", label: () => t.settings, keys: "settings", bottom: true, run: () => settingsDialog.show() },
 ];
@@ -8191,16 +8712,24 @@ if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false
  * terminal reaches the installed app on macOS by an open event): the host
  * keeps it; this window saves its tabs, as for any switch, and opens it. */
 if (!popout) void listen("folder-handed", () => void openFolderBy(() => commands.openInitial()));
+/* The app menu (File › Open Folder…, Settings… ⌘,): the host sends these
+ * to the main window, which answers as its own button and command do. */
+if (!popout && !secondary) {
+  void listen("menu-open-folder", () => void openFolderDialog());
+  void listen("menu-settings", () => settingsDialog.show());
+}
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
+void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
 void (async () => {
+  await Promise.all([embedOriginsPushed, walkRulesPushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
   // window joins it rather than open another.
   const open = await commands.currentFolder();
-  if (open.status === "ok" && open.data) return showFolder(open.data);
+  if (open.status === "ok" && open.data) return void (await showFolder(open.data));
   // `verso <folder>` on the command line wins over the last folder.
   if (await openFolderBy(() => commands.openInitial())) return;
   let last: string | null = null;

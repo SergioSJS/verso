@@ -1,7 +1,17 @@
 # verso-app manages the desktop shell, self-update and OS integration.
-# It only touches temporary files for update downloads and the application bundle itself,
-# never a file of the open folder (ADR 0026, rule 5). Clippy does not merge this
-# file with the workspace one, so test allowances are repeated.
+# Its filesystem work — temporary update downloads, the application
+# bundle, the Downloads folder — never touches a file of the open folder
+# (ADR 0026, rule 5): the folder's files still cross only `verso-core` →
+# `verso-fs`. Clippy's disallowed-methods list is per crate, not per
+# module, so the confinement here is the grep in `scripts/check.sh`:
+# `std::fs` in this crate lives in `src/update.rs` alone, exactly as
+# `verso-core` confines it to `src/sidecar.rs`. Declared for the
+# maintainer's ratification in the PR that adds it (ADR 0029: an
+# exception is the subject of its own declaration, never a silent
+# config change).
+#
+# Clippy does not merge this file with the workspace one, so the test
+# allowances are repeated.
 
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true

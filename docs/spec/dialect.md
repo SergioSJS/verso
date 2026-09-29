@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.19
+# Verso dialect spec — v0.21
 
-- Version: v0.19 · 2026-09-24
+- Version: v0.21 · 2026-09-29
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -397,8 +397,25 @@ headings:
 ```
 
 How the text of `[[nota#seção]]` matches a heading (case, punctuation, inline
-formatting, emoji, duplicate headings, nested path `[[nota#Cap 1#Seção]]`) and
-setext-style heading (`===`/`---`): `[OPEN]` (section 9, Q19).
+formatting, emoji, duplicate headings, nested path `[[nota#Cap 1#Seção]]`):
+`[OPEN]` (section 9, Q19).
+
+A setext-style heading — a line of text underlined with `===` or `---` — is a
+heading, as Obsidian reports it. `DECIDED` on 2026-09-29 by the maintainer,
+who approved the fixture below in session (Q19, setext part). Observed on 2026-09-29 with the Obsidian CLI
+([`docs/reference/obsidian-cli.md`](../reference/obsidian-cli.md), admissible
+by [ADR 0009](../adr/0009-external-constraints.md)), reading
+`app.metadataCache.getCache(...).headings` of a test note in the Sandbox
+vault: `Taverna` over `===` is level 1; `Porão` over `---` is level 2; and a
+`---` directly under a line of text, with no blank line between them, makes
+that line a level-2 heading and is never read as a thematic break. The
+position is the text line's. The fixture `fixtures/heading/setext` records
+this, and `verso-dialect` reports setext headings accordingly. This is the
+setext part of Q19, answered by observation; the maintainer approved that
+fixture on 2026-09-29, in session ("ratifique o que precisar", answering the
+list of what was pending, which named it), and its first line now records
+the approval (section 1; [ADR 0031](../adr/0031-fixtures-as-contract.md)).
+The matching part of Q19 stays `[OPEN]`.
 
 ### 5.13 Markdown links to a local file `PROPOSED`
 
@@ -974,11 +991,20 @@ the parser was chosen.
   ([ADR 0020](../adr/0020-sync-merge-in-core-transports-as-plugins.md)) works
   over byte ranges delimited by parser positions. The base parser chosen under
   this reading is in [ADR 0037](../adr/0037-base-parser.md).
-- **Q19. Heading matching.** `[OPEN]` (section 5.12)
+- **Q19. Heading matching.** `[OPEN]`, the setext part `DECIDED` on
+  2026-09-29 (section 5.12)
   How `[[nota#seção]]` matches a heading: case, punctuation and spaces, emoji,
   inline formatting (`## *Porão*`), duplicate headings, nested path
   `[[nota#Cap 1#Seção]]`, setext heading, and what the `expected.yaml` records
   in `heading` for the nested path.
+  **The setext part is `DECIDED`** (2026-09-29, section 5.12): a line
+  underlined with `===` is a level-1 heading and one underlined with `---` a
+  level-2 heading, the `---` never a thematic break when it sits directly
+  under text, as observed in Obsidian. The answer is the fixture
+  `fixtures/heading/setext`, approved by the maintainer on 2026-09-29, in
+  session; that approval closes the setext sub-question, and only it. The
+  matching part — case, punctuation, emoji, formatting, duplicates, the
+  nested path and its `heading` value — stays `[OPEN]`.
 - **Q20. Markdown links to a local file.** `[OPEN]` (section 5.13)
   Whether they count as a link (proposal: yes); `<...>` with spaces; relative
   path `../`; what separates a local link from an external URL; `![](img.png)`
@@ -1057,6 +1083,11 @@ the parser was chosen.
   `.gitignore` in Phase 1. An ignored note is an unresolved link target and is
   never a backlink source, so a note in `.trash/` that links to another one does
   not count as a backlink in exit criterion 2 of Phase 1.
+  *(Revised in ADR 0044 on 2026-09-29 by the maintainer: beside that list, a
+  built-in list of build directories and each directory's `.gitignore`, with
+  git's semantics, are left out too, each behind a setting that is on by
+  default. An entry left out by either follows the same rule: an unresolved
+  target, never a backlink source.)*
 
 ## 10. History
 
@@ -1082,3 +1113,5 @@ the parser was chosen.
 | v0.17 | 2026-09-24 | Q5: a provisional fact, not an answer — the reading view draws a callout inside a callout, up to 32 deep (branch `feat/nested-callouts`); nesting stays `[OPEN]` |
 | v0.18 | 2026-09-24 | **Q11 closed by the maintainer** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): a schema is a fenced `verso-schema` block, YAML inside, in a note anywhere in the open folder but hidden and ignored paths, named by the `type` inside it; two schemas with one name type nothing, and the conflict is shown; whether a nested block counts is not decided. Section 6: the typed note, schemas and schema i18n `DECIDED`, constraint 1 (ADR 0013) accepted. Q24: its link part is the next decision. No fixture yet: the implementation brings them. Q6: a pointer to `docs/reference/embedded-media-decision.md`, which corrects the claim that Obsidian's documentation shows `<video>` and `<audio>`; Q6 stays open |
 | v0.19 | 2026-09-24 | Q11: **a nested `verso-schema` block does not count**, decided by the maintainer (`docs/reference/views-decision.md` §2, [ADR 0052](../adr/0052-typed-note.md) point 3): only a block at the top level of a note is a schema, and a nested one is shown as not read. Bases (`.base` files and `base` blocks) are [ADR 0053](../adr/0053-views-bases.md)'s, not this spec's, which is the notes' dialect |
+| v0.20 | 2026-09-29 | Q19, setext part: **an observed answer and a drafted fixture** — `Título` over `===` is a level-1 heading, over `---` a level-2 one, and a `---` directly under text is never a thematic break (Obsidian CLI, `docs/reference/obsidian-cli.md`; `fixtures/heading/setext`, AI draft). Section 5.12 updated; the setext sub-question closes with the maintainer's approval of that fixture in its pull request. The matching part of Q19 stays open |
+| v0.21 | 2026-09-29 | **Q19, setext part, closed by the maintainer**: the fixture `fixtures/heading/setext` approved in session ("ratifique o que precisar"); a setext underline is a heading, as observed in Obsidian. Section 5.12 updated. The matching part of Q19 stays `[OPEN]`. Q26: a note pointing to the revision of ADR 0044 of the same day — build directories and `.gitignore` left out, behind settings. One question closed, in part |

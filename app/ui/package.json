@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
+    "test": "node --test test/mermaid.test.mjs test/pdf.test.mjs",
     "build": "esbuild src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/main.js --sourcemap && esbuild src/harness.ts --bundle --format=esm --target=es2022 --outfile=dist/harness.js --sourcemap && cp index.html style.css harness.html dist/ && mkdir -p dist/fonts && cp fonts/*.woff2 dist/fonts/ && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs dist/ && rm -rf dist/cmaps dist/standard_fonts && cp -R node_modules/pdfjs-dist/cmaps dist/cmaps && cp -R node_modules/pdfjs-dist/standard_fonts dist/standard_fonts && cp node_modules/pdfjs-dist/web/pdf_viewer.css dist/ && rm -rf dist/images && cp -R node_modules/pdfjs-dist/web/images dist/images && cp node_modules/katex/dist/katex.min.css dist/ && rm -rf dist/fonts/katex && mkdir -p dist/fonts && cp -R node_modules/katex/dist/fonts/. dist/fonts/"
   },
   "dependencies": {
@@ -21,12 +22,14 @@
     "@tauri-apps/api": "^2.11.1",
     "codemirror": "^6.0.2",
     "katex": "^0.18.7",
+    "mermaid": "^12.0.0",
     "pdfjs-dist": "^6.3.289",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.11.5",
     "esbuild": "^0.28.2",
+    "happy-dom": "^20.14.5",
     "typescript": "^7.0.2"
   }
 }

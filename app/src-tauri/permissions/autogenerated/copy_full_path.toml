@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-copy-full-path"
+description = "Enables the copy_full_path command without any pre-configured scope."
+commands.allow = ["copy_full_path"]
+
+[[permission]]
+identifier = "deny-copy-full-path"
+description = "Denies the copy_full_path command without any pre-configured scope."
+commands.deny = ["copy_full_path"]

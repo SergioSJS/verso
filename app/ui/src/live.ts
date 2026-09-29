@@ -12,15 +12,17 @@
 // dialect's and is found by hand, outside code.
 
 import { syntaxTree } from "@codemirror/language";
-import { EditorSelection, EditorState, RangeSet, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import { EditorSelection, EditorState, Prec, RangeSet, StateEffect, StateField } from "@codemirror/state";
+import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, keymap, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import type { Text } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import katex from "katex";
 import { cells } from "./table";
 import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { heldImage, imageLink, webFrame } from "./sanitize";
+import { smartUnindentList } from "./listKeymap";
+import { renderMermaid } from "./mermaid";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -39,6 +41,8 @@ export type LiveOptions = {
    *  null; `edit` replaces the block's text), or a `.base` file embedded on
    *  a line of its own. Returns what takes it down. */
   base?: (text: string, embed: string | null, mount: HTMLElement, edit: ((next: string) => void) | null) => () => void;
+  /** A PDF file embedded on a line of its own, drawn into `mount`. */
+  pdf?: (text: string, mount: HTMLElement) => () => void;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -151,6 +155,24 @@ class ImageWidget extends WidgetType {
   }
 }
 
+/** A web image while remote content is off: the link the reading view
+ *  draws in its place, nothing fetched. A click opens it in the browser
+ *  (the window's link guard); the source is not revealed. */
+class HeldImageWidget extends WidgetType {
+  constructor(readonly src: string, readonly alt: string) {
+    super();
+  }
+  override eq(other: HeldImageWidget): boolean {
+    return other.src === this.src && other.alt === this.alt;
+  }
+  override toDOM(): HTMLElement {
+    return imageLink(document, this.src, this.alt);
+  }
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
 class TaskCheckboxWidget extends WidgetType {
   constructor(readonly checked: boolean, readonly pos: number) {
     super();
@@ -246,20 +268,10 @@ class IframeWidget extends WidgetType {
   toDOM(): HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "cm-lp-block cm-lp-iframe-wrap";
-    const iframe = document.createElement("iframe");
-    const rawSrc = this.src;
-    if (rawSrc.startsWith("http://") || rawSrc.startsWith("https://")) {
-      iframe.src = convertFileSrc(`__proxy?url=${encodeURIComponent(rawSrc)}`, "verso");
-    } else {
-      iframe.src = rawSrc;
-    }
-    iframe.setAttribute("loading", "lazy");
-    if (this.styleStr) iframe.style.cssText = this.styleStr;
-    if (this.width) iframe.width = this.width;
-    if (this.height) iframe.height = this.height;
-    if (!this.styleStr && !this.height) iframe.style.height = "800px";
-    if (!this.styleStr && !this.width) iframe.style.width = "100%";
-    wrap.append(iframe);
+    // Only web addresses reach here (see the HTMLBlock branch): loaded
+    // directly, sandboxed, and asked first on each origin's first embed
+    // or when remote content is off — as in the reading view.
+    wrap.append(webFrame(this.src, this.width, this.height, this.styleStr));
     return wrap;
   }
   override ignoreEvent(): boolean {
@@ -408,8 +420,9 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base"; text: string; rows?: string[]; embed?: true; nested?: true };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true };
 const BASE_EMBED = /\.base(#[^|]*)?$/i;
+const PDF_EXT = /\.pdf([#|].*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
 export function blocksOf(state: EditorState): Block[] {
   const doc = state.doc;
@@ -424,9 +437,10 @@ export function blocksOf(state: EditorState): Block[] {
   tree.iterate({
     enter: (n) => {
       if (n.name === "FencedCode") {
-        // A `base` block: the view in place of the fence (ADR 0053).
+        // A `base` or `mermaid` block: the view in place of the fence.
         const info = n.node.getChild("CodeInfo");
-        if (info && doc.sliceString(info.from, info.to).trim() === "base") {
+        const infoStr = info ? doc.sliceString(info.from, info.to).trim().toLowerCase() : "";
+        if (infoStr === "base") {
           // Inside a quote, a callout or a list the parser gives the text a
           // line at a time, without the marks: such a block is shown, and
           // its menus do not edit it — they would write it back unmarked.
@@ -435,6 +449,10 @@ export function blocksOf(state: EditorState): Block[] {
           for (let p = n.node.parent; p; p = p.parent) if (p.name === "Blockquote" || p.name === "ListItem") nested = true;
           const at = lines(n.from, n.to);
           if (at) out.push({ ...at, kind: "base", text, ...(nested ? { nested: true as const } : {}) });
+        } else if (infoStr === "mermaid") {
+          const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
+          const at = lines(n.from, n.to);
+          if (at) out.push({ ...at, kind: "mermaid", text });
         }
         return false;
       }
@@ -468,7 +486,16 @@ export function blocksOf(state: EditorState): Block[] {
     if (taken.some((b) => line.from <= b.to && line.to >= b.from)) continue;
     let code = false;
     for (let p: SyntaxNode | null = tree.resolveInner(line.from + line.text.search(/\S/), 1); p; p = p.parent) if (p.name === "FencedCode" || p.name === "CodeBlock") code = true;
-    if (!code) out.push(BASE_EMBED.test(embed[1] ?? "") ? { from: line.from, to: line.to, kind: "base", text: embed[1] ?? "", embed: true } : { from: line.from, to: line.to, kind: "embed", text: embed[1] ?? "" });
+    if (!code) {
+      const raw = embed[1] ?? "";
+      if (BASE_EMBED.test(raw)) {
+        out.push({ from: line.from, to: line.to, kind: "base", text: raw, embed: true });
+      } else if (PDF_EXT.test(raw)) {
+        out.push({ from: line.from, to: line.to, kind: "pdf", text: raw, embed: true });
+      } else {
+        out.push({ from: line.from, to: line.to, kind: "embed", text: raw });
+      }
+    }
   }
   return out.sort((a, b) => a.from - b.from);
 }
@@ -526,6 +553,68 @@ class BlockWidget extends WidgetType {
             view.dispatch({ changes: { from: inside.from, to: inside.to, insert: body } });
           };
       const stop = this.opts.base?.(b.text, isEmbed ? b.text : null, mount, edit);
+      if (stop) bases.set(el, stop);
+      return el;
+    }
+    if (b.kind === "mermaid") {
+      el.className = "cm-lp-block cm-lp-mermaid";
+      el.style.position = "relative";
+      el.title = "Clique para editar o código Mermaid";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "cm-lp-base-source";
+      editBtn.textContent = "</>";
+      editBtn.title = "Editar código Mermaid";
+      editBtn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at + 4, view.state.doc.length) } });
+        view.focus();
+      });
+      el.append(editBtn);
+
+      const mount = document.createElement("div");
+      mount.className = "mermaid-svg-container";
+      el.append(mount);
+
+      el.addEventListener("click", (e) => {
+        if ((e.target as HTMLElement).closest("button")) return;
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at + 4, view.state.doc.length) } });
+        view.focus();
+      });
+
+      void renderMermaid(b.text, mount);
+      return el;
+    }
+    if (b.kind === "pdf") {
+      el.className = "cm-lp-block cm-lp-pdf-wrap";
+      el.style.position = "relative";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "cm-lp-base-source";
+      editBtn.textContent = "</>";
+      editBtn.title = "Editar link do PDF";
+      editBtn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at + 3, view.state.doc.length) } });
+        view.focus();
+      });
+      el.append(editBtn);
+
+      const mount = document.createElement("div");
+      mount.className = "embed-pdf";
+      el.append(mount);
+
+      const stop = this.opts.pdf?.(b.text, mount);
       if (stop) bases.set(el, stop);
       return el;
     }
@@ -690,6 +779,129 @@ export const keepFrontmatter = EditorState.changeFilter.of((tr) => {
   if (!(tr.isUserEvent("input") || tr.isUserEvent("delete") || tr.isUserEvent("move"))) return true;
   const end = frontmatterEnd(tr.startState.doc);
   return end < 0 ? true : [0, end + 1];
+});
+
+function getListPrefix(text: string): { prefix: string; indent: string; contentStart: number } | null {
+  const m = text.match(/^([ \t]*)([-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)/);
+  if (!m) return null;
+  return { prefix: m[0], indent: m[1] ?? "", contentStart: m[0].length };
+}
+
+/** The list prefix of `line`, when the line is a list item and not text
+ *  inside a code block that only looks like one (`- item` in a fenced or
+ *  indented block): the syntax tree decides, as for the embeds above. */
+function listPrefixOf(state: EditorState, line: { from: number; text: string }): ReturnType<typeof getListPrefix> {
+  const info = getListPrefix(line.text);
+  if (!info) return null;
+  for (let p: SyntaxNode | null = syntaxTree(state).resolveInner(line.from + info.indent.length, 1); p; p = p.parent) {
+    if (p.name === "FencedCode" || p.name === "CodeBlock") return null;
+  }
+  return info;
+}
+
+function listCursorLeft(view: EditorView): boolean {
+  const { state } = view;
+  const { doc, selection } = state;
+  if (!selection.main.empty) return false;
+  const pos = selection.main.head;
+  const line = doc.lineAt(pos);
+  const info = listPrefixOf(state, line);
+  if (!info) return false;
+  const contentStart = line.from + info.contentStart;
+  if (pos <= contentStart) {
+    if (line.number > 1) {
+      const prevLine = doc.line(line.number - 1);
+      view.dispatch({ selection: EditorSelection.cursor(prevLine.to), userEvent: "select" });
+      return true;
+    }
+  }
+  return false;
+}
+
+function listCursorRight(view: EditorView): boolean {
+  const { state } = view;
+  const { doc, selection } = state;
+  if (!selection.main.empty) return false;
+  const pos = selection.main.head;
+  const line = doc.lineAt(pos);
+  if (pos === line.to && line.number < doc.lines) {
+    const nextLine = doc.line(line.number + 1);
+    const nextInfo = listPrefixOf(state, nextLine);
+    if (nextInfo) {
+      view.dispatch({ selection: EditorSelection.cursor(nextLine.from + nextInfo.contentStart), userEvent: "select" });
+      return true;
+    }
+  }
+  return false;
+}
+
+function listCursorHome(view: EditorView): boolean {
+  const { state } = view;
+  const { doc, selection } = state;
+  if (!selection.main.empty) return false;
+  const pos = selection.main.head;
+  const line = doc.lineAt(pos);
+  const info = listPrefixOf(state, line);
+  if (!info) return false;
+  const contentStart = line.from + info.contentStart;
+  if (pos > contentStart) {
+    view.dispatch({ selection: EditorSelection.cursor(contentStart), userEvent: "select" });
+    return true;
+  }
+  return false;
+}
+
+function listBackspace(view: EditorView): boolean {
+  const { state } = view;
+  const { doc, selection } = state;
+  if (!selection.main.empty) return false;
+  const pos = selection.main.head;
+  const line = doc.lineAt(pos);
+  const info = listPrefixOf(state, line);
+  if (!info) return false;
+  const contentStart = line.from + info.contentStart;
+  if (pos === contentStart) {
+    if (info.indent.length > 0) {
+      return smartUnindentList(view);
+    }
+    view.dispatch({
+      changes: { from: line.from, to: contentStart, insert: "" },
+      selection: EditorSelection.cursor(line.from),
+      userEvent: "delete.backward",
+    });
+    return true;
+  }
+  return false;
+}
+
+export const liveListNavKeymap = Prec.highest(
+  keymap.of([
+    { key: "ArrowLeft", run: listCursorLeft },
+    { key: "ArrowRight", run: listCursorRight },
+    { key: "Home", run: listCursorHome },
+    { key: "Mod-ArrowLeft", run: listCursorHome },
+    { key: "Backspace", run: listBackspace },
+  ])
+);
+
+export const snapOutOfListPrefix = EditorState.transactionFilter.of((tr) => {
+  if (!tr.selection) return tr;
+  const doc = tr.newDoc;
+  let changed = false;
+  const ranges = tr.newSelection.ranges.map((r) => {
+    if (!r.empty) return r;
+    const line = doc.lineAt(r.head);
+    const info = listPrefixOf(tr.state, line);
+    if (!info) return r;
+    const contentStart = line.from + info.contentStart;
+    if (r.head >= line.from && r.head < contentStart) {
+      changed = true;
+      return EditorSelection.cursor(contentStart, r.assoc, r.bidiLevel ?? undefined, r.goalColumn);
+    }
+    return r;
+  });
+  if (!changed) return tr;
+  return [tr, { selection: EditorSelection.create(ranges, tr.newSelection.mainIndex), sequential: true }];
 });
 
 function linesOfSelection(view: EditorView): Set<number> {
@@ -898,13 +1110,18 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           }
         } else if (name === "ListItem") {
           const line = doc.lineAt(node.from);
-          const isLineActive = active.has(line.number);
           const mark = node.node.getChild("ListMark");
           const taskMarker = node.node.getChild("TaskMarker") ?? node.node.getChild("Task")?.getChild("TaskMarker") ?? null;
           const isTask = taskMarker !== null;
           const markText = mark ? doc.sliceString(mark.from, mark.to) : "";
-          const bullet = !isTask && mark !== null && /^[-*+]$/.test(markText);
-          const isOrdered = !isTask && mark !== null && /^\d+\.$/.test(markText);
+          const hasTrailingSpace = mark !== null && mark.to < line.to && /[ \t]/.test(doc.sliceString(mark.to, mark.to + 1));
+          const bullet = !isTask && mark !== null && hasTrailingSpace && /^[-*+]$/.test(markText);
+          const isOrdered = !isTask && mark !== null && hasTrailingSpace && /^\d+\.$/.test(markText);
+
+          if (!isTask && !bullet && !isOrdered) {
+            // A bare marker without trailing space (e.g. '-' or '1.' while typing) is not decorated
+            return;
+          }
 
           let depth = 0;
           let p = node.node.parent;
@@ -917,30 +1134,31 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           const spaces = indentText.replace(/\t/g, "").length;
           const visualDepth = Math.max(depth, tabs > 0 ? tabs : Math.floor(spaces / (isOrdered ? 4 : 2)));
           const lineAttrs: Record<string, string> = {};
-          if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
 
           if (taskMarker) {
             const taskText = doc.sliceString(taskMarker.from, taskMarker.to);
             const checked = /^\[[xX]\]$/.test(taskText);
+
+            if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
             const cls = checked ? "cm-lp-li cm-lp-task cm-lp-task-done" : "cm-lp-li cm-lp-task";
             out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
-            if (mark && !isLineActive) hide(line.from, Math.min(mark.to + 1, line.to));
-            const touchedTask = view.state.selection.ranges.some((r) => r.from <= taskMarker.to && r.to >= taskMarker.from);
-            if (!touchedTask) {
-              out.push({
-                from: taskMarker.from,
-                to: taskMarker.to,
-                deco: Decoration.replace({ widget: new TaskCheckboxWidget(checked, taskMarker.from) }),
-              });
-            }
+            if (mark) hide(line.from, Math.min(mark.to + 1, line.to));
+
+            out.push({
+              from: taskMarker.from,
+              to: taskMarker.to,
+              deco: Decoration.replace({ widget: new TaskCheckboxWidget(checked, taskMarker.from) }),
+            });
           } else {
-            const showBullet = bullet && !isLineActive;
+            const showBullet = bullet;
+            if (visualDepth > 0) lineAttrs["style"] = `--lp-depth: ${visualDepth};`;
             const cls = showBullet ? "cm-lp-li cm-lp-bullet" : isOrdered ? "cm-lp-li cm-lp-ordered" : "cm-lp-li";
             out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
-            if (bullet && mark && !isLineActive) {
+            if (bullet && mark) {
               hide(line.from, Math.min(mark.to + 1, line.to));
-            } else if (isOrdered && mark && !isLineActive && mark.from > line.from) {
-              hide(line.from, mark.from);
+            } else if (isOrdered && mark) {
+              if (mark.from > line.from) hide(line.from, mark.from);
+              out.push({ from: mark.from, to: mark.to, deco: Decoration.mark({ class: "cm-lp-order-mark" }) });
             }
           }
         } else if (name === "Link" && !shown) {
@@ -966,7 +1184,11 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             if (m0 && m1) alt = doc.sliceString(m0.to, m1.from);
             const size = sizeOf(alt);
             const src = /^https?:\/\//i.test(rawUrl) ? rawUrl : opts.imageUrl(rawUrl);
-            if (src) {
+            if (src && heldImage(src)) {
+              // Remote content off: a link, as in the reading view (the
+              // alt when it is text, not only a size).
+              out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: new HeldImageWidget(src, size ? "" : alt) }) });
+            } else if (src) {
               out.push({
                 from: node.from,
                 to: node.to,
@@ -1152,5 +1374,14 @@ export function livePreview(opts: LiveOptions) {
     return RangeSet.of(markers);
   });
 
-  return [plugin, clicks, frontmatter, outOfFrontmatter, keepFrontmatter, headingGutter];
+  return [
+    plugin,
+    clicks,
+    frontmatter,
+    outOfFrontmatter,
+    keepFrontmatter,
+    headingGutter,
+    liveListNavKeymap,
+    snapOutOfListPrefix,
+  ];
 }

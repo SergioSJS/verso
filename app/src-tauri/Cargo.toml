@@ -33,6 +33,12 @@ specta-typescript = "=0.0.12"
 serde = { version = "1", features = ["derive"] }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "http2", "gzip", "json"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+sha2 = "0.10"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Clearing the download quarantine from the CLI binary and an extracted
+# update, without shelling out to `xattr` (ADR 0029, the subprocess rule).
+xattr = "1.6"
 
 [dev-dependencies]
 # The commands exercised through Tauri's mock runtime, as the UI calls

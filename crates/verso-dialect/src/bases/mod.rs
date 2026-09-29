@@ -261,6 +261,12 @@ fn properties(value: &Value, problems: &mut Vec<BaseProblem>) -> Vec<(String, Pr
 }
 
 fn order(value: &Value) -> Option<Order> {
+    if let Some(property) = scalar_text(value) {
+        return Some(Order {
+            property,
+            descending: false,
+        });
+    }
     let Value::Mapping(map) = value else {
         return None;
     };
@@ -514,6 +520,29 @@ views:
         assert_eq!(
             base.problems,
             vec![BaseProblem::Shape("filters.xor".into())]
+        );
+    }
+
+    #[test]
+    fn group_by_and_sort_accept_scalar_string_or_mapping() {
+        let base = parse_base(
+            "views:\n  - type: kanban\n    name: Status\n    groupBy: status\n    sort:\n      - file.name\n",
+        );
+        assert_eq!(base.problems, vec![]);
+        let v = &base.views[0];
+        assert_eq!(
+            v.group_by,
+            Some(Order {
+                property: "status".to_string(),
+                descending: false,
+            })
+        );
+        assert_eq!(
+            v.sort,
+            vec![Order {
+                property: "file.name".to_string(),
+                descending: false,
+            }]
         );
     }
 }

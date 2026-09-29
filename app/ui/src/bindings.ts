@@ -211,6 +211,31 @@ export const commands = {
 	 *  never crosses back to the UI (ADR 0026 rule 4).
 	 */
 	reveal: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("reveal", { path })),
+	/**
+	 *  Copy the absolute path of an entry to the system clipboard.
+	 *  Formed here at the edge, goes to the operating system's clipboard directly;
+	 *  no absolute path crosses back to the UI (ADR 0026 rule 4).
+	 */
+	copyFullPath: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("copy_full_path", { path })),
+	/**
+	 *  The origins of embedded pages the user approved, replacing the list
+	 *  as a whole. The UI keeps the list with its settings and pushes it
+	 *  here; the navigation guard lets an app view's frames load exactly
+	 *  these (ADR 0056, revised 2026-09-29).
+	 */
+	setEmbedOrigins: (origins: string[]) => typedError<null, ContractError>(__TAURI_INVOKE("set_embed_origins", { origins })),
+	/**
+	 *  The walk's rules, from the settings: whether the well-known build
+	 *  directories and each `.gitignore` are honored (ADR 0044, revised
+	 *  2026-09-29). Applied to the open folder at once; the UI reindexes
+	 *  after a change, so the listing answers to the new rules.
+	 */
+	setWalkRules: (builtinIgnores: boolean, gitignore: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_walk_rules", { builtinIgnores, gitignore })),
+	/**
+	 *  The window's language, for the native menu ("pt" or "en"); pushed at
+	 *  start-up and when the setting changes.
+	 */
+	setMenuLanguage: (language: string) => typedError<null, ContractError>(__TAURI_INVOKE("set_menu_language", { language })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 	/**
@@ -251,8 +276,16 @@ export const commands = {
 	mcpAddClaude: () => typedError<McpAdded, ContractError>(__TAURI_INVOKE("mcp_add_claude")),
 	/**  Checks GitHub releases for a new version of the application. */
 	checkForUpdates: () => typedError<UpdateInfo, ContractError>(__TAURI_INVOKE("check_for_updates")),
-	/**  Downloads and installs an update directly from within the app. */
-	downloadAndInstallUpdate: (downloadUrl: string, assetUrl: string | null) => typedError<InstallResult, ContractError>(__TAURI_INVOKE("download_and_install_update", { downloadUrl, assetUrl })),
+	/**
+	 *  Downloads and installs an update directly from within the app.
+	 * 
+	 *  The command takes no URL: the host asks `UPDATE_REPO`'s API for the
+	 *  releases again, picks the asset for this platform itself, and
+	 *  verifies the download against the `sha256` digest the API reports,
+	 *  before anything is installed. A compromised web view can therefore
+	 *  ask *that* an update run, but never *what* it installs or from where.
+	 */
+	downloadAndInstallUpdate: () => typedError<InstallResult, ContractError>(__TAURI_INVOKE("download_and_install_update")),
 	/**  Restarts the application to apply updates. */
 	restartApp: () => typedError<null, ContractError>(__TAURI_INVOKE("restart_app")),
 };
@@ -547,6 +580,15 @@ export type Heading = {
 export type Hit = {
 	path: string,
 	snippet: string,
+};
+
+/**  Progress payload emitted during vault indexing. */
+export type IndexProgress = {
+	/**  "scanning" | "indexing" | "done" */
+	phase: string,
+	current: number,
+	total: number,
+	file: string | null,
 };
 
 /**

@@ -356,3 +356,7 @@ export class PdfView {
     this.viewer.cleanup();
   }
 }
+
+export { parsePdfSpec, type PdfSpec } from "./pdfSpec";
+
+

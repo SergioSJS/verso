@@ -12,6 +12,11 @@
   [0051](0051-development-flow-and-releases.md) (releases),
   [0026](0026-core-ui-contract-inviolable-rules.md) rule 4
 - Status in the briefing: not present
+- Revisions: 2026-09-29 — the `[OPEN]` on the system's tools closed by the
+  maintainer, in session ("arrume essa parte do cli, tem que ficar 100%"):
+  the link is made through `std::fs` in the shell's `src/update.rs`, with
+  `osascript` kept for the administrator prompt alone
+  ([0029](0029-guardrails-in-ci.md), revision of 2026-09-29).
 
 ## Context
 
@@ -57,7 +62,14 @@ How the author built them (the memo, section 5):
   Whether the host should do this through `std::fs`, with an exception
   declared in its own `clippy.toml`, rather than through the system's
   tools — the reading saw the tools as a way around the guardrail (the
-  memo, section 8): the maintainer's to rule.
+  memo, section 8): the maintainer's to rule. *(Closed on 2026-09-29: the
+  link, its check and its removal go through `std::fs` in
+  `app/src-tauri/src/update.rs`, under the exception
+  [0029](0029-guardrails-in-ci.md) ratified that day, and the quarantine
+  through the `xattr` crate; `test`, `readlink`, `ln`, `rm` and `xattr` are no
+  longer started. `osascript` stays, only when the plain call is refused,
+  for the administrator's password — declared in
+  [0029](0029-guardrails-in-ci.md).)*
 - **The release puts the command line inside the app** and signs the bundle
   again, ad hoc as before; the separate archive stays.
 

@@ -130,7 +130,7 @@ pub fn to_html(source: &str) -> String {
             // The base's own checkbox, plus the line of the marker.
             Event::TaskListMarker(checked) => vec![Event::Html(
                 format!(
-                    "<input disabled=\"\" type=\"checkbox\"{} data-task-line=\"{}\"/>\n",
+                    "<input disabled=\"\" type=\"checkbox\"{} data-task-line=\"{}\"/>",
                     if checked { " checked=\"\"" } else { "" },
                     lines.pos(source, range.start).line
                 )
@@ -615,5 +615,20 @@ mod tasks {
         );
         assert!(html.contains(r#"data-callout="note""#), "{html}");
         assert_eq!(task_lines(&to_html("a\r\n- [ ] b\r\n")), [2]);
+    }
+
+    #[test]
+    fn setext_headings_are_headings_as_in_obsidian() {
+        // Observed 2026-09-29: Obsidian's metadataCache parses
+        // `Texto\n---` as a level-2 heading even with no blank line
+        // before it, and `Texto\n===` as level 1 (fixture
+        // fixtures/heading/setext). Verso never contradicts that
+        // (ADR 0030); the look is the view's business, not the parser's.
+        let html = to_html("Taverna\n===\n\nPorão\n---\nTexto depois.\n");
+        assert!(html.contains("<h1>Taverna</h1>"), "{html}");
+        assert!(html.contains("<h2>Porão</h2>"), "{html}");
+        let html = to_html("Sem linha em branco\n---\n- item\n");
+        assert!(html.contains("<h2>Sem linha em branco</h2>"), "{html}");
+        assert!(html.contains("<li>item</li>"), "{html}");
     }
 }

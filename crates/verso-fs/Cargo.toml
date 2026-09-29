@@ -21,6 +21,11 @@ xattr = "1.6"
 # watching; the alternative, walking the folder on a timer, costs a walk per
 # tick whether anything changed or not (docs/reference/watcher-decision.md).
 notify = "8.2"
+# The `.gitignore` semantics the walk honors (ADR 0044, revised
+# 2026-09-29): negation, `**`, anchoring, dir-only patterns — ripgrep's
+# own engine, instead of a partial matcher of ours that got `!` wrong.
+# Only the `gitignore` module is used; the crate's own walker is not.
+ignore = "0.4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # `statfs` is not in std; the atomic write has to know when the folder is on
