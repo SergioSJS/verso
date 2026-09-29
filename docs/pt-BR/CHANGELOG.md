@@ -14,6 +14,7 @@ versão de teste.
 
 ### Acrescentado
 
+- **Suporte a diagramas Mermaid no modo Leitura e Editar (Live Preview)**: renderização nativa de fluxogramas, diagramas de sequência, classes, git graphs e gráficos de pizza com adaptação automática a temas claro/escuro e segurança estrita com sanitização de SVG. No modo Editar, clicar no diagrama ou no botão `</>` abre o código-fonte para edição imediata.
 - **Barra de progresso de indexação em tempo real**: adicionada barra de progresso no topo da janela e no rodapé indicando a fase de escaneamento e indexação, porcentagem, contagem de notas e arquivo atual ao abrir ou reindexar um cofre.
 - **Ignorar pastas de dependências, builds e regras do .gitignore**: diretórios como `node_modules`, `target`, `dist`, `build`, `.venv` e padrões definidos em arquivos `.gitignore` são agora automaticamente ignorados durante a indexação e vigilância de arquivos, eliminando travamentos em projetos de código.
 - **Renderização preguiçosa da árvore de arquivos**: pastas na barra lateral agora renderizam seus elementos DOM sob demanda ao serem expandidas, eliminando a criação antecipada de milhares de nós e tornando a abertura de grandes projetos instantânea.
