@@ -299,23 +299,30 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
             candidates.push(dir.join("verso-app"));
         }
         #[cfg(unix)]
-        if let Ok(out) = std::process::Command::new("readlink").arg(&me).output() {
-            if out.status.success() {
-                let target = String::from_utf8_lossy(&out.stdout).trim().to_owned();
-                let real_path = PathBuf::from(target);
-                if let Some(dir) = real_path.parent() {
-                    candidates.push(dir.join("verso-app"));
-                }
+        if let Ok(out) = std::process::Command::new("readlink").arg(&me).output()
+            && out.status.success()
+        {
+            let target = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+            let real_path = PathBuf::from(target);
+            if let Some(dir) = real_path.parent() {
+                candidates.push(dir.join("verso-app"));
             }
         }
     }
     #[cfg(target_os = "macos")]
     {
-        candidates.push(PathBuf::from("/Applications/Verso Beta.app/Contents/MacOS/verso-app"));
-        candidates.push(PathBuf::from("/Applications/Verso.app/Contents/MacOS/verso-app"));
+        candidates.push(PathBuf::from(
+            "/Applications/Verso Beta.app/Contents/MacOS/verso-app",
+        ));
+        candidates.push(PathBuf::from(
+            "/Applications/Verso.app/Contents/MacOS/verso-app",
+        ));
         if let Ok(home) = std::env::var("HOME") {
-            candidates.push(PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso-app"));
-            candidates.push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso-app"));
+            candidates.push(
+                PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso-app"),
+            );
+            candidates
+                .push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso-app"));
         }
     }
     for app in candidates {

@@ -385,9 +385,12 @@ async fn pick_folder<R: tauri::Runtime>(
     may_switch(&app, &window)?;
     let (tx, mut rx) = tauri::async_runtime::channel(1);
     let parent = window.clone();
-    app.dialog().file().set_parent(&parent).pick_folder(move |picked| {
-        let _ = tx.try_send(picked);
-    });
+    app.dialog()
+        .file()
+        .set_parent(&parent)
+        .pick_folder(move |picked| {
+            let _ = tx.try_send(picked);
+        });
     let picked = rx.recv().await.flatten();
     let Some(picked) = picked else {
         return Ok(None);
@@ -2296,11 +2299,16 @@ fn bundled_cli() -> Option<PathBuf> {
         }
     }
     if let Ok(home) = std::env::var("HOME") {
-        candidates.push(PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso"));
+        candidates
+            .push(PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso"));
         candidates.push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso"));
     }
-    candidates.push(PathBuf::from("/Applications/Verso Beta.app/Contents/MacOS/verso"));
-    candidates.push(PathBuf::from("/Applications/Verso.app/Contents/MacOS/verso"));
+    candidates.push(PathBuf::from(
+        "/Applications/Verso Beta.app/Contents/MacOS/verso",
+    ));
+    candidates.push(PathBuf::from(
+        "/Applications/Verso.app/Contents/MacOS/verso",
+    ));
 
     for cli in candidates {
         let ok = std::process::Command::new("test")
@@ -2836,40 +2844,75 @@ fn serve_file<R: tauri::Runtime>(
     request: tauri::http::Request<Vec<u8>>,
 ) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
     let relative = percent_decode(request.uri().path().trim_start_matches('/'));
-    if relative == "__proxy" {
-        let query = request.uri().query().unwrap_or("");
+    if relative == "__proxy" || relative.starts_with("__proxy?") {
         let mut target_url = None;
-        for pair in query.split('&') {
-            if let Some(("url", v)) = pair.split_once('=') {
-                target_url = Some(percent_decode(v));
-                break;
+        if let Some(query) = request.uri().query() {
+            for pair in query.split('&') {
+                if let Some(("url", v)) = pair.split_once('=') {
+                    let mut decoded = percent_decode(v);
+                    if decoded.contains("%3A") || decoded.contains("%3a") {
+                        decoded = percent_decode(&decoded);
+                    }
+                    target_url = Some(decoded);
+                    break;
+                }
             }
         }
-        if let Some(target) = target_url.filter(|t| is_safe_proxy_url(t)) {
-            match proxy_web_page(&target) {
-                Ok((status, content_type, body)) => {
-                    return tauri::http::Response::builder()
-                        .status(status)
-                        .header("Content-Type", content_type)
-                        .header("Access-Control-Allow-Origin", "*")
-                        .header("Cache-Control", "no-cache")
-                        .body(std::borrow::Cow::Owned(body))
-                        .unwrap_or_else(|_| {
-                            tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
-                        });
+        if target_url.is_none()
+            && let Some(query_part) = relative.strip_prefix("__proxy?")
+        {
+            for pair in query_part.split('&') {
+                if let Some(("url", v)) = pair.split_once('=') {
+                    let mut decoded = percent_decode(v);
+                    if decoded.contains("%3A") || decoded.contains("%3a") {
+                        decoded = percent_decode(&decoded);
+                    }
+                    target_url = Some(decoded);
+                    break;
                 }
-                Err(err) => {
-                    let html = format!(
-                        "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{err}</p></body></html>"
-                    );
-                    return tauri::http::Response::builder()
-                        .status(502)
-                        .header("Content-Type", "text/html; charset=utf-8")
-                        .body(std::borrow::Cow::Owned(html.into_bytes()))
-                        .unwrap_or_else(|_| {
-                            tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
-                        });
-                }
+            }
+        }
+        let Some(target) = target_url else {
+            return tauri::http::Response::builder()
+                .status(400)
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(std::borrow::Cow::Owned(b"Missing url parameter".to_vec()))
+                .unwrap_or_else(|_| {
+                    tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                });
+        };
+        if !is_safe_proxy_url(&target) {
+            return tauri::http::Response::builder()
+                .status(403)
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(std::borrow::Cow::Owned(b"URL not allowed".to_vec()))
+                .unwrap_or_else(|_| {
+                    tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                });
+        }
+        match proxy_web_page(&target) {
+            Ok((status, content_type, body)) => {
+                return tauri::http::Response::builder()
+                    .status(status)
+                    .header("Content-Type", content_type)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Cache-Control", "no-cache")
+                    .body(std::borrow::Cow::Owned(body))
+                    .unwrap_or_else(|_| {
+                        tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                    });
+            }
+            Err(err) => {
+                let html = format!(
+                    "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{err}</p></body></html>"
+                );
+                return tauri::http::Response::builder()
+                    .status(502)
+                    .header("Content-Type", "text/html; charset=utf-8")
+                    .body(std::borrow::Cow::Owned(html.into_bytes()))
+                    .unwrap_or_else(|_| {
+                        tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
+                    });
             }
         }
     }
@@ -3707,6 +3750,9 @@ mod tests {
     fn safe_proxy_urls_block_ssrf() {
         assert!(is_safe_proxy_url("https://example.com/page"));
         assert!(is_safe_proxy_url("http://public-site.org/index.html"));
+        assert!(is_safe_proxy_url(
+            "https://olddragon.com.br/personagens/f54ec4eb-f3b5-4b93-ac8c-524f102d0ba6"
+        ));
 
         assert!(!is_safe_proxy_url("http://localhost:8080"));
         assert!(!is_safe_proxy_url("http://127.0.0.1:3000"));
