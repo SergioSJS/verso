@@ -22,6 +22,7 @@ import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { smartUnindentList } from "./listKeymap";
+import { renderMermaid } from "./mermaid";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -409,7 +410,7 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base"; text: string; rows?: string[]; embed?: true; nested?: true };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid"; text: string; rows?: string[]; embed?: true; nested?: true };
 const BASE_EMBED = /\.base(#[^|]*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
 export function blocksOf(state: EditorState): Block[] {
@@ -425,9 +426,10 @@ export function blocksOf(state: EditorState): Block[] {
   tree.iterate({
     enter: (n) => {
       if (n.name === "FencedCode") {
-        // A `base` block: the view in place of the fence (ADR 0053).
+        // A `base` or `mermaid` block: the view in place of the fence.
         const info = n.node.getChild("CodeInfo");
-        if (info && doc.sliceString(info.from, info.to).trim() === "base") {
+        const infoStr = info ? doc.sliceString(info.from, info.to).trim().toLowerCase() : "";
+        if (infoStr === "base") {
           // Inside a quote, a callout or a list the parser gives the text a
           // line at a time, without the marks: such a block is shown, and
           // its menus do not edit it — they would write it back unmarked.
@@ -436,6 +438,10 @@ export function blocksOf(state: EditorState): Block[] {
           for (let p = n.node.parent; p; p = p.parent) if (p.name === "Blockquote" || p.name === "ListItem") nested = true;
           const at = lines(n.from, n.to);
           if (at) out.push({ ...at, kind: "base", text, ...(nested ? { nested: true as const } : {}) });
+        } else if (infoStr === "mermaid") {
+          const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
+          const at = lines(n.from, n.to);
+          if (at) out.push({ ...at, kind: "mermaid", text });
         }
         return false;
       }
@@ -528,6 +534,41 @@ class BlockWidget extends WidgetType {
           };
       const stop = this.opts.base?.(b.text, isEmbed ? b.text : null, mount, edit);
       if (stop) bases.set(el, stop);
+      return el;
+    }
+    if (b.kind === "mermaid") {
+      el.className = "cm-lp-block cm-lp-mermaid";
+      el.style.position = "relative";
+      el.title = "Clique para editar o código Mermaid";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "cm-lp-base-source";
+      editBtn.textContent = "</>";
+      editBtn.title = "Editar código Mermaid";
+      editBtn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at + 4, view.state.doc.length) } });
+        view.focus();
+      });
+      el.append(editBtn);
+
+      const mount = document.createElement("div");
+      mount.className = "mermaid-svg-container";
+      el.append(mount);
+
+      el.addEventListener("click", (e) => {
+        if ((e.target as HTMLElement).closest("button")) return;
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at + 4, view.state.doc.length) } });
+        view.focus();
+      });
+
+      void renderMermaid(b.text, mount);
       return el;
     }
     if (b.kind === "math") {

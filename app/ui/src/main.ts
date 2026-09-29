@@ -95,6 +95,7 @@ import { ptPhrases } from "./phrases";
 import { ask } from "./dialog";
 import { allowRemoteContent, cleanHtmlText, setHtml } from "./sanitize";
 import { DEMO_VAULT_FILES } from "./demoVault";
+import { renderMermaid } from "./mermaid";
 
 /* ---------- Strings ---------- */
 type Strings = Record<
@@ -2362,6 +2363,39 @@ class NoteLeaf extends Leaf {
     }
   }
 
+  private wireMermaidBlocks(root: HTMLElement): void {
+    for (const code of root.querySelectorAll<HTMLElement>("pre > code.language-mermaid")) {
+      const pre = code.parentElement;
+      if (!pre || pre.dataset["mermaidRendered"]) continue;
+      pre.dataset["mermaidRendered"] = "true";
+      const text = code.textContent ?? "";
+      const container = h("div", "mermaid-block");
+      container.style.position = "relative";
+
+      const btn = h("button", "copy-code-btn");
+      btn.type = "button";
+      btn.title = "Copiar código";
+      btn.setAttribute("aria-label", "Copiar código");
+      btn.append(icon("copy"));
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void navigator.clipboard.writeText(text).then(() => {
+          btn.replaceChildren(icon("check"));
+          btn.title = "Copiado!";
+          setTimeout(() => {
+            btn.replaceChildren(icon("copy"));
+            btn.title = "Copiar código";
+          }, 1500);
+        });
+      });
+
+      const wrapper = h("div", "mermaid-svg-container");
+      container.append(btn, wrapper);
+      pre.replaceWith(container);
+      void renderMermaid(text, wrapper);
+    }
+  }
+
   private wireCodeBlocks(root: HTMLElement): void {
     for (const pre of root.querySelectorAll<HTMLPreElement>("pre")) {
       if (pre.querySelector(".copy-code-btn")) continue;
@@ -2700,6 +2734,7 @@ class NoteLeaf extends Leaf {
     this.wireTasks();
     this.dressLinks(note.path);
     this.wireTableResizers(this.preview);
+    this.wireMermaidBlocks(this.preview);
     this.wireCodeBlocks(this.preview);
     this.wirePreviewImages(this.preview);
     this.wireHeadingFolds(this.preview);
@@ -2765,6 +2800,7 @@ class NoteLeaf extends Leaf {
         keyLinks(body);
         if (heading) sliceHeading(body, heading);
         typeset(body);
+        this.wireMermaidBlocks(body);
         box.append(head, body);
         span.replaceWith(box);
         void this.embedImages(forPath, body, to);

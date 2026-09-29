@@ -14,6 +14,7 @@ test release.
 
 ### Added
 
+- **Mermaid diagrams support in Reading View and Live Preview**: render flowcharts, sequence diagrams, class diagrams, git graphs, and pie charts with automatic dark/light theme adaptation and strict sandboxed SVG security. Clicking diagrams or the `</>` button in Live Preview reveals the source for inline editing.
 - **Real-time indexing progress bar**: added an animated top progress line and status-bar progress indicator displaying current scanning/indexing phases, percentage, note counts, and current file name when opening or reindexing a folder.
 - **Gitignore and build directory exclusion**: folders like `node_modules`, `target`, `dist`, `build`, `.venv`, and patterns in `.gitignore` are now automatically ignored during vault indexing and file watching, preventing freezes on large projects.
 - **Lazy file tree rendering**: folders in the sidebar tree now render their child DOM nodes on demand when expanded rather than eagerly rendering the full directory tree upfront, dramatically speeding up folder opening in large repositories.
