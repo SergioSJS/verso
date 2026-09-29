@@ -111,8 +111,9 @@ function extraFor(view: Y.ViewConfig): string[] {
     if (str("startDate")) out.push(str("startDate"));
     if (str("endDate")) out.push(str("endDate"));
   }
-  const g = view["groupBy"] as { property?: unknown } | undefined;
-  if (view.type === "kanban" && g && typeof g.property === "string") out.push(g.property);
+  const g = view["groupBy"];
+  const groupProp = typeof g === "string" ? g : (g && typeof g === "object" && typeof (g as { property?: unknown }).property === "string" ? (g as { property: string }).property : "");
+  if (view.type === "kanban" && groupProp) out.push(groupProp);
   return out;
 }
 
@@ -525,14 +526,20 @@ export class BaseView {
     type Rule = { property?: string; direction?: string };
     const sortOf = (t: string, i: number): Rule[] => {
       const v = Y.views(t)[i]?.["sort"];
-      return Array.isArray(v) ? (v as Rule[]) : [];
+      if (!Array.isArray(v)) return [];
+      return (v as unknown[]).map((x) => (typeof x === "string" ? { property: x, direction: "ASC" } : (x as Rule)));
     };
-    const groupOf = (t: string, i: number) => (Y.views(t)[i]?.["groupBy"] ?? null) as Rule | null;
+    const groupOf = (t: string, i: number): Rule | null => {
+      const g = Y.views(t)[i]?.["groupBy"];
+      if (typeof g === "string") return { property: g, direction: "ASC" };
+      return (g ?? null) as Rule | null;
+    };
     const draw = () => {
       const v = this.view;
       pop.el.replaceChildren();
       pop.el.append(h("h3", "", s.sortBy));
-      const rules = Array.isArray(v["sort"]) ? (v["sort"] as { property?: string; direction?: string }[]) : [];
+      const rawRules = Array.isArray(v["sort"]) ? (v["sort"] as unknown[]) : [];
+      const rules: Rule[] = rawRules.map((x) => (typeof x === "string" ? { property: x, direction: "ASC" } : (x as Rule)));
       rules.forEach((rule, k) => {
         const row = h("div", "base-row");
         row.append(
@@ -557,7 +564,8 @@ export class BaseView {
         window.setTimeout(draw, 50);
       });
       pop.el.append(add, h("h3", "", s.groupBy));
-      const g = (v["groupBy"] ?? null) as { property?: string; direction?: string } | null;
+      const gRaw = v["groupBy"];
+      const g: Rule | null = typeof gRaw === "string" ? { property: gRaw, direction: "ASC" } : ((gRaw ?? null) as Rule | null);
       const row = h("div", "base-row");
       row.append(
         select(s.groupBy, [["", s.noGroup], ...options], g?.property ?? "", (p) => this.change((t, i) => Y.setViewKey(t, i, "groupBy", p === "" ? undefined : { property: p, direction: groupOf(t, i)?.direction ?? "ASC" }))),

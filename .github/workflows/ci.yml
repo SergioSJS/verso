@@ -86,6 +86,18 @@ jobs:
             echo 'std::fs outside crates/verso-core/src/sidecar.rs (ADR 0029)'
             exit 1
           fi
+      # verso-app's exception is the OS edge alone — update downloads, the
+      # application bundle, the Downloads folder — confined to src/update.rs
+      # the same way (its clippy.toml carries an empty list, so this grep is
+      # the scope; ADR 0029, revision of 2026-09-29).
+      - name: std::fs in verso-app only in src/update.rs (ADR 0029)
+        run: |
+          if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-tauri/src \
+             | grep -v '^app/src-tauri/src/update.rs:' \
+             | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+            echo 'std::fs outside app/src-tauri/src/update.rs (ADR 0029)'
+            exit 1
+          fi
 
       # --- The toolchain, the WASM target, one cache for everything below. ---
       - name: toolchain from rust-toolchain.toml

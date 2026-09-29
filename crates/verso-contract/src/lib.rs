@@ -269,6 +269,16 @@ pub struct UpdateProgress {
     pub message: Option<String>,
 }
 
+/// Progress payload emitted during vault indexing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct IndexProgress {
+    /// "scanning" | "indexing" | "done"
+    pub phase: String,
+    pub current: u32,
+    pub total: u32,
+    pub file: Option<String>,
+}
+
 /// Result of an in-app update installation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct InstallResult {

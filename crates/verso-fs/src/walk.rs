@@ -108,6 +108,35 @@ compile_error!(
     "verso-fs needs a directory identity for loop detection; only Unix (dev, ino) is implemented — ADR 0022: macOS first"
 );
 
+pub(crate) fn is_default_ignored_dir(name: &str) -> bool {
+    matches!(
+        name,
+        "node_modules"
+            | "target"
+            | "vendor"
+            | "dist"
+            | "build"
+            | "out"
+            | ".next"
+            | ".nuxt"
+            | ".turbo"
+            | ".output"
+            | "__pycache__"
+            | ".venv"
+            | "venv"
+            | "env"
+            | ".pytest_cache"
+            | ".mypy_cache"
+            | ".ruff_cache"
+            | ".terraform"
+            | "test-results"
+            | "coverage"
+            | "bower_components"
+            | ".cache"
+            | ".parcel-cache"
+    )
+}
+
 struct Walker<'a> {
     root: &'a mut Root,
     out: Walk,
@@ -116,6 +145,10 @@ struct Walker<'a> {
     /// Every directory walked so far, with the path it was walked under.
     visited: Vec<(DirId, PathBuf)>,
     visited_ids: HashSet<DirId>,
+    /// One matcher per `.gitignore` on the current path, outermost first —
+    /// git's own semantics through ripgrep's engine (ADR 0044, revised).
+    /// The innermost file that says anything about an entry wins.
+    git_ignores: Vec<ignore::gitignore::Gitignore>,
 }
 
 pub(crate) fn walk(root: &mut Root) -> Walk {
@@ -126,6 +159,7 @@ pub(crate) fn walk(root: &mut Root) -> Walk {
         ancestors: Vec::new(),
         visited: Vec::new(),
         visited_ids: HashSet::new(),
+        git_ignores: Vec::new(),
     };
     match std::fs::metadata(&root_path) {
         Ok(meta) => {
@@ -144,7 +178,47 @@ pub(crate) fn walk(root: &mut Root) -> Walk {
 }
 
 impl Walker<'_> {
+    /// What the `.gitignore` files on the path say about an entry: the
+    /// innermost file with an opinion decides, as in git. A directory
+    /// ignored is pruned whole, so a `!` re-include inside one never
+    /// applies — git's own limitation, kept on purpose.
+    fn gitignored(&self, abs: &Path, is_dir: bool) -> bool {
+        for gi in self.git_ignores.iter().rev() {
+            match gi.matched(abs, is_dir) {
+                ignore::Match::None => continue,
+                ignore::Match::Ignore(_) => return true,
+                ignore::Match::Whitelist(_) => return false,
+            }
+        }
+        false
+    }
+
     fn directory(&mut self, absolute: &Path, relative: &Path, depth: usize) {
+        let rules = self.root.rules();
+        let initial_matchers = self.git_ignores.len();
+        if rules.gitignore {
+            let gitignore_path = absolute.join(".gitignore");
+            if std::fs::symlink_metadata(&gitignore_path).is_ok() {
+                let mut builder = ignore::gitignore::GitignoreBuilder::new(absolute);
+                // A line the engine cannot read comes back from `add`;
+                // it is reported, and the readable lines still apply, as
+                // in git.
+                if let Some(error) = builder.add(&gitignore_path) {
+                    self.out.problems.push(Problem::Io {
+                        relative: relative.join(".gitignore"),
+                        error: std::io::Error::other(error),
+                    });
+                }
+                match builder.build() {
+                    Ok(gi) => self.git_ignores.push(gi),
+                    Err(error) => self.out.problems.push(Problem::Io {
+                        relative: relative.join(".gitignore"),
+                        error: std::io::Error::other(error),
+                    }),
+                }
+            }
+        }
+
         let iter = match std::fs::read_dir(absolute) {
             Ok(iter) => iter,
             Err(error) => {
@@ -152,6 +226,7 @@ impl Walker<'_> {
                     relative: relative.to_path_buf(),
                     error,
                 });
+                self.git_ignores.truncate(initial_matchers);
                 return;
             }
         };
@@ -173,6 +248,7 @@ impl Walker<'_> {
             if self.root.is_ignored(&rel) {
                 continue;
             }
+            let name_str = name.to_string_lossy();
             let placeholder_of = placeholder::icloud_placeholder_of(&name);
             // The iCloud sibling form is recognized before the hidden rule
             // (ADR 0043); any other dot entry is not walked (ADR 0044).
@@ -208,7 +284,14 @@ impl Walker<'_> {
                     continue;
                 }
             };
-            if meta.is_dir() {
+            let is_dir = meta.is_dir();
+            if rules.builtin_ignores && is_dir && is_default_ignored_dir(&name_str) {
+                continue;
+            }
+            if rules.gitignore && self.gitignored(&abs, is_dir) {
+                continue;
+            }
+            if is_dir {
                 // A directory named like a placeholder is a directory.
                 self.subdirectory(&abs, rel, depth, &meta);
             } else {
@@ -235,6 +318,7 @@ impl Walker<'_> {
                 });
             }
         }
+        self.git_ignores.truncate(initial_matchers);
     }
 
     fn subdirectory(&mut self, abs: &Path, rel: PathBuf, depth: usize, meta: &Metadata) {

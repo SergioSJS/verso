@@ -75,14 +75,16 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0026](0026-core-ui-contract-inviolable-rules.md) | Core↔UI contract and inviolable architecture rules | Accepted |
 | [0027](0027-runtime-capabilities.md) | Capabilities queryable at runtime | Proposed |
 | [0028](0028-crate-structure.md) | Crate structure | Accepted |
-| [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted (the setting's default: provisional) |
-| [0054](0054-terminal-and-agents-from-the-app.md) | The command line and agents, set up from the app | Accepted (2026-09-24) |
+| [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted (the setting's default: provisional); revised by 0055 and 0056 (2026-09-29) |
+| [0054](0054-terminal-and-agents-from-the-app.md) | The command line and agents, set up from the app | Accepted (2026-09-24); its `[OPEN]` on the system's tools closed (2026-09-29) |
+| [0055](0055-in-app-updater.md) | The in-app updater | Accepted (2026-09-29) |
+| [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29); revised the same day: no proxy, pages load directly from origins the user approved |
 
 ### Dialect, engineering and roadmap
 
 | # | Title | Status |
 |---|---|---|
-| [0029](0029-guardrails-in-ci.md) | Guardrails in CI before the first line of product logic | Accepted |
+| [0029](0029-guardrails-in-ci.md) | Guardrails in CI before the first line of product logic | Accepted; three `std::fs` exceptions ratified (2026-09-29) |
 | [0030](0030-base-dialect-obsidian-compatible.md) | Base dialect compatible with Obsidian; Verso extends, never contradicts | Accepted |
 | [0031](0031-fixtures-as-contract.md) | Fixtures are the behavior contract between maintainer and AI | Accepted |
 | [0032](0032-author-and-reviewer-roles.md) | Roles: the AI writes, the maintainer reviews behavior | Accepted |
@@ -90,7 +92,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0034](0034-roadmap-in-phases.md) | Roadmap in three phases with verifiable exit gates | Accepted |
 | [0035](0035-cross-cutting-requirements.md) | Cross-cutting requirements: pt-BR and EN, accessibility, benchmark | Accepted |
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted (intent) |
-| [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted |
+| [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted; a custom Dock menu `[OPEN]` (2026-09-29) |
 | [0051](0051-development-flow-and-releases.md) | Development flow, versions and releases | Accepted |
 
 ### Open technical decisions
@@ -110,7 +112,7 @@ says where each stands.
 
 | # | Title | When to decide |
 |---|---|---|
-| [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Symlinks and ignored paths: Accepted (2026-09-22); handles: accepted as built for Phase 2 (2026-09-24), re-opened before anything outside the app's own views gets access to files; the watcher: Accepted (2026-09-24) |
+| [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Symlinks and ignored paths: Accepted (2026-09-22); handles: accepted as built for Phase 2 (2026-09-24), re-opened before anything outside the app's own views gets access to files; the watcher: Accepted (2026-09-24); ignored paths revised on 2026-09-29 — the built-in list and `.gitignore`, behind settings — Accepted |
 | [0045](0045-server-and-mcp-security.md) | Security of the server, the MCP and the contract | MCP: Accepted; contract: accepted as built for Phase 2, `[OPEN]` until a server enters scope; server: before it enters scope |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Index: location, lifecycle and tokenizer | Features 3 and 5 of Phase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Open questions on the plugin API | Before designing the API (after Phase 2) |

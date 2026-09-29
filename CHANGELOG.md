@@ -14,7 +14,23 @@ test release.
 
 ### Added
 
+- **Native PDF embedding with page specification in Reading View and Live Preview**: embed PDF documents with specific page numbers and dimensions (e.g. `![[doc.pdf#page=3]]`, `![[doc.pdf#3]]`, `![[doc.pdf#page=3|600]]`, or `![[doc.pdf|page=5]]`). In Live Preview, PDFs are rendered with an inline viewer and click-to-edit `</>` button.
+- **Mermaid diagrams support in Reading View and Live Preview**: render flowcharts, sequence diagrams, class diagrams, git graphs, and pie charts with automatic dark/light theme adaptation and strict sandboxed SVG security. Clicking diagrams or the `</>` button in Live Preview reveals the source for inline editing.
+- **Real-time indexing progress bar**: added an animated top progress line and status-bar progress indicator displaying current scanning/indexing phases, percentage, note counts, and current file name when opening or reindexing a folder.
+- **Gitignore and build directory exclusion, with two settings**: "Ignore build folders" leaves folders like `node_modules`, `target`, `dist`, `build` and `.venv` out of the index and the search, and "Respect .gitignore" leaves out what each folder's `.gitignore` excludes — by git's own rules, so `!` brings a file back, `/dist` binds to its folder and `logs/` matches folders only. Both are on by default; turn one off and reindex, and what it left out comes back. Opening a code project no longer freezes on its dependencies.
+- **A menu bar on macOS**: File gains New Window (it offers the folder picker when no folder is open), Open Folder… (⌘⇧O) and Open Recent, the folders you opened before; the Verso menu gains Settings… (⌘,). The menu follows the app's language.
+- **Lazy file tree rendering**: folders in the sidebar tree now render their child DOM nodes on demand when expanded rather than eagerly rendering the full directory tree upfront, dramatically speeding up folder opening in large repositories.
+
 ### Fixed
+
+- **Embedded web pages render, with your approval once per site**: a note's `<iframe>`, or an embedded web note (`![[web note]]`), shows its page — a public site or one on this computer or your network (`localhost`, `192.168.x.x`, `.local` names), such as Calibre-Web or a home lab dashboard. The page loads directly, in its own origin, and can never read the folder's files nor take over the window. The first time a note embeds a site, Verso asks before loading anything ("Always allow" or "Cancel"), with a stronger warning for addresses on your network. The sites you allowed are listed under "Sites allowed in notes" in the settings, where you can remove one; it is asked about again next time. A site that forbids being embedded (as many do) shows an empty frame — the site's choice, as it is everywhere else.
+- **Updates are verified before they are installed**: the app downloads an update only from the project's own repository, picking the file itself, and checks it against the SHA-256 checksum GitHub publishes for it. A download that does not match, or a release without a checksum, installs nothing; the releases page is the fallback.
+- **Mermaid diagrams render with Mermaid's strict security level**: text in a diagram is encoded, and `click` directives in it are ignored.
+- **Re-importing the demo content keeps files you edited**: a demo file that already exists with other content is left as it is, and Verso lists the ones it kept.
+- **Setext headings**: a line of text underlined with `===` or `---` is recognized as a heading (level 1 or 2), as in Obsidian.
+- **Installing the command line from Settings needs no shell tools**: Verso makes, checks and removes the `verso` link itself, and takes the download's quarantine off the command line; macOS asks for an administrator's password only when `/usr/local/bin` is not yours.
+- **Web images in Live Preview follow "Load remote content"**: with the setting off, a web image becomes a link to its address, as the reading view already did.
+- **Embedded pages stay inside their pane**: an embedded page whose style asked for a fixed or absolute position can no longer spill over the rest of the window, in Live Preview and in the reading view.
 
 ---
 
@@ -34,7 +50,7 @@ test release.
 - **Tree root context menu**: right-clicking empty space in the file tree opens options to create notes, folders, bases, web pages, or collapse/expand all.
 - **macOS multi-window support in App Exposé**: Tauri window menu registration for native macOS App Exposé / Mission Control window grouping.
 - **Demo and template vault**: integrated sample vault in `demo-vault/` showcasing all Verso features (Markdown syntax, KaTeX, interactive tasks, wikilinks, embeds, YAML properties, bases, graph view, and two-page PDF spread) with one-click import from the command palette, menu, and welcome screen.
-- **In-app update notifications and download**: Verso checks for new versions on GitHub Releases at startup (configurable; on by default) and lets you download and install the update from within the app, with a live progress bar. Supports macOS, Windows, and Linux.
+- **In-app update notifications and download**: Verso checks for new versions on GitHub Releases at startup (configurable; on by default) and lets you download and install the update from within the app, with a live progress bar. Supports macOS, Windows, and Linux. *[Correction, 2026-09-29: releases are built for macOS only (ADR 0022, ADR 0051); the Windows and Linux paths exist in the code, with no release to install from.]*
 - **Redesigned in-text search panel (Ctrl+F)**: modern panel with search icon, match counter ("2 of 7"), previous/next arrow buttons, and a close button; now works in all three modes — Edit, Live Preview, and Reading.
 
 ### Fixed

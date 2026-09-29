@@ -81,6 +81,7 @@ const PATHS: Record<string, string> = {
   terminal: "M2.5 3.5h11v9h-11zM4.5 6.5l2 1.5-2 1.5M8 10h3",
   download: "M3 11.5v1a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5v-1M8 2v7.5M5 6.5 8 9.5 11 6.5",
   sparkles: "M8 2l1.2 3.8L13 7l-3.8 1.2L8 12l-1.2-3.8L3 7l3.8-1.2zM12.5 1.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z",
+  tab: "M2.5 4A1.5 1.5 0 0 1 4 2.5h8A1.5 1.5 0 0 1 13.5 4v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12zM2.5 6h11",
 };
 
 export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGElement {

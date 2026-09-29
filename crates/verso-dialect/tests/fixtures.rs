@@ -51,6 +51,7 @@ fixture_tests! {
     embed_simple => "embed/simple",
     frontmatter_tags_aliases => "frontmatter/tags-aliases",
     heading_atx => "heading/atx",
+    heading_setext => "heading/setext",
     wikilink_accent_space => "wikilink/accent-space",
 }
 

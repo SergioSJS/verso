@@ -4,6 +4,15 @@
 - Source: `docs/review/phase-2.md` §6, item 5;
   [0049](0049-phase-2-scope-widened.md), Consequences
 - Status in the briefing: not present
+- Revisions: 2026-09-29 — revised by two decisions of the maintainer, taken
+  in session, each in an ADR of its own; the text below is kept as it was
+  decided on 2026-09-23. [0055](0055-in-app-updater.md) is the updater's own
+  decision, which the second Consequence asked for: the app checks the
+  project's releases at startup, with a setting to turn it off.
+  [0056](0056-embedded-web-pages.md) adds a fifth way to the four the
+  Decision enumerates: a web page embedded in a note, fetched by the host's
+  proxy. *(0056 was revised the same day: the page loads itself in its
+  frame, from an origin the user approved, and the host fetches nothing.)*
 
 ## Context
 
@@ -72,3 +81,5 @@ Decided on 2026-09-23 by the maintainer, on the author's recommendation
 ## Status
 
 Accepted on 2026-09-23. The setting's default: provisional (Consequences).
+Revised on 2026-09-29 by [0055](0055-in-app-updater.md) (the update check)
+and [0056](0056-embedded-web-pages.md) (embedded web pages).

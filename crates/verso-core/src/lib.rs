@@ -33,7 +33,7 @@ use std::time::UNIX_EPOCH;
 
 use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
-pub use verso_fs::{Changes, ConfinementError, ReadError, Watch, WriteError};
+pub use verso_fs::{Changes, ConfinementError, ReadError, WalkRules, Watch, WriteError};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 pub mod bases;
@@ -321,6 +321,15 @@ pub struct IndexReport {
     /// and times alone do not count: every save changes them, and a note
     /// whose content changed is in `changed` already.
     pub listing_changed: bool,
+}
+
+/// Progress reported while indexing a folder.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IndexProgress {
+    pub phase: String,
+    pub current: usize,
+    pub total: usize,
+    pub file: Option<String>,
 }
 
 /// A note that links to what moved, and its text with the links pointing
@@ -730,6 +739,22 @@ fn joined(dir: &str, target: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
+/// The folders opened before, most recently indexed first, read from the
+/// index sidecars under [`config_dir`] (or the given directory) — for the
+/// window's recent-folders menu. Paths at the edge, on this side: none of
+/// them crosses the contract (ADR 0026 rule 4).
+#[must_use]
+pub fn recent_folders(config: Option<&Path>) -> Vec<PathBuf> {
+    let dir = match config {
+        Some(dir) => dir.to_path_buf(),
+        None => match config_dir() {
+            Ok(dir) => dir,
+            Err(_) => return Vec::new(),
+        },
+    };
+    sidecar::known_folders(&dir.join("index"))
+}
+
 impl Workspace {
     /// Open `folder` with its index under [`config_dir`] (or the given
     /// directory). Nothing is read yet.
@@ -818,12 +843,43 @@ impl Workspace {
     /// graph beneath it. A sidecar that cannot be written is a warning in
     /// the report, not a failure: the index is current either way.
     pub fn index(&mut self) -> Result<IndexReport, CoreError> {
+        self.index_with_progress(|_| {})
+    }
+
+    /// The walk's rules — the user's setting, from outside the tree.
+    /// Takes effect on the next index run; the caller reindexes.
+    pub fn set_walk_rules(&mut self, rules: WalkRules) {
+        self.root.set_rules(rules);
+    }
+
+    pub fn index_with_progress<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
+    where
+        F: FnMut(IndexProgress),
+    {
+        on_progress(IndexProgress {
+            phase: "scanning".to_string(),
+            current: 0,
+            total: 0,
+            file: None,
+        });
         let walk = self.root.walk();
+        let total_notes = walk
+            .entries
+            .iter()
+            .filter(|e| matches!(e.kind, EntryKind::Note))
+            .count();
+        on_progress(IndexProgress {
+            phase: "indexing".to_string(),
+            current: 0,
+            total: total_notes,
+            file: None,
+        });
         let mut report = IndexReport::default();
         let mut present: HashSet<String> = HashSet::new();
         let mut files: HashMap<String, Vec<String>> = HashMap::new();
         let mut dirs: HashSet<String> = HashSet::new();
         let mut entries: Vec<FileEntry> = Vec::with_capacity(walk.entries.len());
+        let mut note_idx = 0;
         for entry in &walk.entries {
             let relative = entry.relative.to_string_lossy().into_owned();
             entries.push(FileEntry {
@@ -840,6 +896,13 @@ impl Workspace {
             });
             match &entry.kind {
                 EntryKind::Note => {
+                    note_idx += 1;
+                    on_progress(IndexProgress {
+                        phase: "indexing".to_string(),
+                        current: note_idx,
+                        total: total_notes,
+                        file: Some(relative.clone()),
+                    });
                     present.insert(relative.clone());
                     match self.root.read(entry.handle) {
                         Ok((bytes, stamp)) => {
@@ -960,6 +1023,12 @@ impl Workspace {
                 .warnings
                 .push(format!("the index sidecar could not be written: {e}"));
         }
+        on_progress(IndexProgress {
+            phase: "done".to_string(),
+            current: total_notes,
+            total: total_notes,
+            file: None,
+        });
         Ok(report)
     }
 

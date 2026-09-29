@@ -34,12 +34,24 @@ use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
-    Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexSummary,
-    InstallResult, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property,
-    PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateInfo,
-    UpdateProgress, WebNote, Written,
+    Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexProgress,
+    IndexSummary, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property,
+    PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateProgress, WebNote,
+    Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
+
+mod update;
+use update::*;
+
+fn to_progress(p: verso_core::IndexProgress) -> IndexProgress {
+    IndexProgress {
+        phase: p.phase,
+        current: p.current as u32,
+        total: p.total as u32,
+        file: p.file,
+    }
+}
 
 /// The open folder: its workspace, what the UI was told about it, and
 /// the watch that keeps both current while the folder changes outside the
@@ -80,6 +92,23 @@ pub struct App {
     /// a temporary one, so that a test run never writes into the user's.
     config: Option<PathBuf>,
     session: Mutex<Option<Session>>,
+    /// Origins (`scheme://host[:port]`) of embedded pages the user
+    /// approved by hand, mirrored from the window's settings. An embed
+    /// renders in a child web view (`web_open`), so the app view itself
+    /// never navigates to the web; the gate in the window is what asks,
+    /// and this list is its record on this side (ADR 0056, revised).
+    embed_origins: Mutex<std::collections::HashSet<String>>,
+    /// The walk's rules — the user's setting, pushed by the UI before a
+    /// folder opens and applied to the session on change.
+    walk_rules: Mutex<verso_core::WalkRules>,
+    /// The folders behind the menu's "Open Recent" items, in the order
+    /// the menu shows: item `verso-recent-<i>` opens `menu_recents[i]`.
+    /// Paths at the edge, on this side; they never cross to the UI. The
+    /// menu is macOS's; elsewhere the field would sit unread.
+    #[cfg(target_os = "macos")]
+    menu_recents: Mutex<Vec<PathBuf>>,
+    /// The menu's language, pushed by the UI with its own ("pt" or "en").
+    menu_language: Mutex<String>,
 }
 
 impl App {
@@ -93,6 +122,11 @@ impl App {
             initial_folder: Mutex::new(initial),
             config: None,
             session: Mutex::new(None),
+            embed_origins: Mutex::new(std::collections::HashSet::new()),
+            walk_rules: Mutex::new(verso_core::WalkRules::default()),
+            #[cfg(target_os = "macos")]
+            menu_recents: Mutex::new(Vec::new()),
+            menu_language: Mutex::new("pt".to_owned()),
         }
     }
 }
@@ -242,15 +276,23 @@ async fn install<R: tauri::Runtime>(
     open: impl FnOnce(Option<&Path>) -> Result<Workspace, CoreError> + Send + 'static,
 ) -> Result<FolderInfo, ContractError> {
     let config = app.state::<App>().config.clone();
+    let rules = *lock(&app.state::<App>().walk_rules);
     let handle = app.clone();
     let missed = Arc::new(AtomicBool::new(false));
     let seen = Arc::clone(&missed);
     let opened = tauri::async_runtime::spawn_blocking(move || -> Result<Session, CoreError> {
         let mut workspace = open(config.as_deref())?;
+        // The user's walk rules, before the watch and the first index:
+        // both honor them from the start.
+        workspace.set_walk_rules(rules);
         // Watched before the first index run, so that a change made while
         // it runs — seconds on a large folder — is not missed.
         let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
-        let report = workspace.index()?;
+        let handle_for_progress = handle.clone();
+        let report = workspace.index_with_progress(move |p| {
+            let progress = to_progress(p);
+            let _ = handle_for_progress.emit("index-progress", &progress);
+        })?;
         let mut info = folder_info(&workspace, &report);
         info.index.unwatched.clone_from(&unwatched);
         Ok(Session {
@@ -273,6 +315,9 @@ async fn install<R: tauri::Runtime>(
         let key = info.key.clone();
         tauri::async_runtime::spawn_blocking(move || changed_outside(&app, &key, &missed));
     }
+    // The folder just opened is the freshest recent: the menu learns.
+    #[cfg(target_os = "macos")]
+    refresh_menu(app);
     Ok(info)
 }
 
@@ -314,7 +359,13 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, miss
             missed.store(true, Ordering::SeqCst);
             return;
         };
-        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| session.workspace.index()));
+        let handle_for_progress = app.clone();
+        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            session.workspace.index_with_progress(move |p| {
+                let progress = to_progress(p);
+                let _ = handle_for_progress.emit("index-progress", &progress);
+            })
+        }));
         let report = match outcome {
             Ok(Ok(report)) => Ok(report),
             Ok(Err(e)) => Err(e.to_string()),
@@ -364,17 +415,15 @@ async fn pick_folder<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
-    let picker = app.clone();
+    let (tx, mut rx) = tauri::async_runtime::channel(1);
     let parent = window.clone();
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        picker
-            .dialog()
-            .file()
-            .set_parent(&parent)
-            .blocking_pick_folder()
-    })
-    .await
-    .map_err(|e| failed(e.to_string()))?;
+    app.dialog()
+        .file()
+        .set_parent(&parent)
+        .pick_folder(move |picked| {
+            let _ = tx.try_send(picked);
+        });
+    let picked = rx.recv().await.flatten();
     let Some(picked) = picked else {
         return Ok(None);
     };
@@ -429,828 +478,6 @@ fn app_info() -> Result<AppInfo, ContractError> {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         commit: env!("VERSO_COMMIT").to_owned(),
     })
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct ParsedVersion {
-    major: u64,
-    minor: u64,
-    patch: u64,
-    prerelease: Option<(String, u64)>,
-}
-
-impl ParsedVersion {
-    fn parse(s: &str) -> Option<Self> {
-        let s = s
-            .trim()
-            .strip_prefix('v')
-            .or_else(|| s.trim().strip_prefix('V'))
-            .unwrap_or(s.trim());
-        let (ver_part, pre_part) = match s.split_once('-') {
-            Some((v, p)) => (v, Some(p)),
-            None => (s, None),
-        };
-        let parts: Vec<&str> = ver_part.split('.').collect();
-        if parts.is_empty() || parts.len() > 3 {
-            return None;
-        }
-        let major = parts[0].parse().ok()?;
-        let minor = if parts.len() > 1 {
-            parts[1].parse().ok()?
-        } else {
-            0
-        };
-        let patch = if parts.len() > 2 {
-            parts[2].parse().ok()?
-        } else {
-            0
-        };
-        let prerelease = match pre_part {
-            None => None,
-            Some(pre) => {
-                let (tag, num) = if let Some((t, n)) = pre.split_once('.') {
-                    (t.to_string(), n.parse::<u64>().unwrap_or(0))
-                } else if let Some((t, n)) = pre.split_once('-') {
-                    (t.to_string(), n.parse::<u64>().unwrap_or(0))
-                } else {
-                    let idx = pre.find(|c: char| c.is_ascii_digit()).unwrap_or(pre.len());
-                    let t = &pre[..idx];
-                    let n = pre[idx..].parse::<u64>().unwrap_or(0);
-                    (t.to_string(), n)
-                };
-                Some((tag, num))
-            }
-        };
-        Some(Self {
-            major,
-            minor,
-            patch,
-            prerelease,
-        })
-    }
-
-    fn is_newer_than(&self, other: &Self) -> bool {
-        if self.major != other.major {
-            return self.major > other.major;
-        }
-        if self.minor != other.minor {
-            return self.minor > other.minor;
-        }
-        if self.patch != other.patch {
-            return self.patch > other.patch;
-        }
-        match (&self.prerelease, &other.prerelease) {
-            (None, Some(_)) => true,
-            (Some(_), None) => false,
-            (None, None) => false,
-            (Some((tag1, num1)), Some((tag2, num2))) => {
-                if tag1 == tag2 {
-                    num1 > num2
-                } else {
-                    let rank = |t: &str| match t {
-                        "alpha" => 1,
-                        "beta" => 2,
-                        "rc" => 3,
-                        _ => 0,
-                    };
-                    let r1 = rank(tag1);
-                    let r2 = rank(tag2);
-                    if r1 != r2 { r1 > r2 } else { tag1 > tag2 }
-                }
-            }
-        }
-    }
-}
-
-fn github_token() -> Option<String> {
-    if let Ok(tok) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {
-        let t = tok.trim();
-        if !t.is_empty() {
-            return Some(t.to_string());
-        }
-    }
-    let output = std::process::Command::new("gh")
-        .args(["auth", "token"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let t = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if !t.is_empty() { Some(t) } else { None }
-}
-
-#[derive(serde::Deserialize)]
-struct GhRelease {
-    tag_name: String,
-    name: Option<String>,
-    body: Option<String>,
-    published_at: Option<String>,
-    #[serde(default)]
-    draft: bool,
-    #[serde(default)]
-    assets: Vec<GhAsset>,
-}
-
-#[derive(serde::Deserialize)]
-struct GhAsset {
-    name: String,
-    url: String,
-    browser_download_url: String,
-    size: u64,
-}
-
-/// Checks GitHub releases for a new version of the application.
-#[tauri::command]
-#[specta::specta]
-fn check_for_updates() -> Result<UpdateInfo, ContractError> {
-    let current_str = env!("CARGO_PKG_VERSION");
-    let current_ver = ParsedVersion::parse(current_str).ok_or_else(|| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Could not parse current app version: {current_str}"),
-    })?;
-
-    let client = reqwest::blocking::Client::builder()
-        .user_agent(format!("Verso-App/{current_str}"))
-        .timeout(std::time::Duration::from_secs(12))
-        .build()
-        .map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Failed to create HTTP client: {e}"),
-        })?;
-
-    let mut req = client
-        .get("https://api.github.com/repos/SergioSJS/verso/releases")
-        .header("Accept", "application/vnd.github.v3+json");
-    if let Some(token) = github_token() {
-        req = req.header("Authorization", format!("Bearer {token}"));
-    }
-
-    let res = req.send().map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Não foi possível verificar atualizações: {e}"),
-    })?;
-
-    if !res.status().is_success() {
-        let status = res.status();
-        let message = if status == reqwest::StatusCode::FORBIDDEN
-            || status == reqwest::StatusCode::TOO_MANY_REQUESTS
-        {
-            "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde."
-                .to_string()
-        } else if status == reqwest::StatusCode::NOT_FOUND {
-            "Repositório de atualizações não encontrado.".to_string()
-        } else {
-            format!("GitHub API returned HTTP {status}")
-        };
-        return Err(ContractError {
-            kind: ErrorKind::Failed,
-            message,
-        });
-    }
-
-    let releases: Vec<GhRelease> = res.json().map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Failed to parse GitHub releases response: {e}"),
-    })?;
-
-    let mut best_release: Option<&GhRelease> = None;
-    let mut best_ver = current_ver.clone();
-    let mut latest_seen_ver = current_ver.clone();
-    let mut latest_seen_tag = current_str.to_string();
-
-    for rel in &releases {
-        if rel.draft {
-            continue;
-        }
-        if let Some(parsed) = ParsedVersion::parse(&rel.tag_name) {
-            if parsed.is_newer_than(&latest_seen_ver) {
-                latest_seen_ver = parsed.clone();
-                latest_seen_tag = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
-            }
-            if parsed.is_newer_than(&best_ver) {
-                best_ver = parsed;
-                best_release = Some(rel);
-            }
-        }
-    }
-
-    if let Some(rel) = best_release {
-        // Detect current platform + arch to pick the right release asset.
-        // These are resolved at compile time — no runtime overhead.
-        let os_keywords: &[&str] = if cfg!(target_os = "macos") {
-            &["macos", "darwin", "osx"]
-        } else if cfg!(target_os = "windows") {
-            &["windows", "win"]
-        } else {
-            &["linux"]
-        };
-
-        let arch_keywords: &[&str] = if cfg!(target_arch = "aarch64") {
-            &["aarch64", "arm64"]
-        } else {
-            &["x86_64", "x64", "amd64"]
-        };
-
-        // Preferred extension per platform
-        let preferred_exts: &[&str] = if cfg!(target_os = "windows") {
-            &[".msi", ".exe", ".zip"]
-        } else if cfg!(target_os = "macos") {
-            &[".dmg", ".zip"]
-        } else {
-            &[".appimage", ".deb", ".rpm", ".tar.gz", ".zip"]
-        };
-
-        // Try to find the best asset: correct OS + arch + preferred extension
-        let asset = preferred_exts.iter().find_map(|ext| {
-            // 1st pass: OS + arch + extension
-            rel.assets
-                .iter()
-                .find(|a| {
-                    let n = a.name.to_lowercase();
-                    n.ends_with(ext)
-                        && os_keywords.iter().any(|k| n.contains(k))
-                        && arch_keywords.iter().any(|k| n.contains(k))
-                })
-                // 2nd pass: OS + extension (any arch)
-                .or_else(|| {
-                    rel.assets.iter().find(|a| {
-                        let n = a.name.to_lowercase();
-                        n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
-                    })
-                })
-        });
-
-        let download_url = asset.map(|a| a.browser_download_url.clone());
-        let asset_url = asset.map(|a| a.url.clone());
-        let asset_name = asset.map(|a| a.name.clone());
-        let asset_size = asset.map(|a| a.size as f64);
-        let latest_ver_str = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
-
-        Ok(UpdateInfo {
-            current_version: current_str.to_string(),
-            latest_version: latest_ver_str,
-            has_update: true,
-            release_name: rel.name.clone().unwrap_or_else(|| rel.tag_name.clone()),
-            release_notes: rel.body.clone().unwrap_or_default(),
-            download_url,
-            asset_url,
-            asset_name,
-            asset_size,
-            published_at: rel.published_at.clone(),
-        })
-    } else {
-        Ok(UpdateInfo {
-            current_version: current_str.to_string(),
-            latest_version: latest_seen_tag,
-            has_update: false,
-            release_name: String::new(),
-            release_notes: String::new(),
-            download_url: None,
-            asset_url: None,
-            asset_name: None,
-            asset_size: None,
-            published_at: None,
-        })
-    }
-}
-
-fn is_trusted_update_url(url: &str) -> bool {
-    let Ok(parsed) = reqwest::Url::parse(url) else {
-        return false;
-    };
-    if parsed.scheme() != "https" {
-        return false;
-    }
-    let Some(host) = parsed.host_str() else {
-        return false;
-    };
-    let h = host.to_lowercase();
-    h == "github.com"
-        || h == "api.github.com"
-        || h.ends_with(".github.com")
-        || h == "objects.githubusercontent.com"
-        || h.ends_with(".githubusercontent.com")
-}
-
-struct TempDirCleaner(std::path::PathBuf);
-impl Drop for TempDirCleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-/// Downloads and installs an update directly from within the app.
-#[tauri::command]
-#[specta::specta]
-fn download_and_install_update<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
-    download_url: String,
-    asset_url: Option<String>,
-) -> Result<InstallResult, ContractError> {
-    if !is_trusted_update_url(&download_url) {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: "URL de download não permitida.".to_string(),
-        });
-    }
-    if asset_url
-        .as_deref()
-        .is_some_and(|u| !is_trusted_update_url(u))
-    {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: "URL do recurso não permitida.".to_string(),
-        });
-    }
-
-    let token = github_token();
-
-    let (url, use_auth) = if let Some(ref a_url) = asset_url {
-        if token.is_some() {
-            (a_url.as_str(), true)
-        } else {
-            (download_url.as_str(), false)
-        }
-    } else {
-        (download_url.as_str(), false)
-    };
-
-    let client = reqwest::blocking::Client::builder()
-        .user_agent("Verso-App")
-        .build()
-        .map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Failed to create HTTP client: {e}"),
-        })?;
-
-    let mut req = client.get(url);
-    if let Some(t) = token.as_deref().filter(|_| use_auth) {
-        req = req
-            .header("Authorization", format!("Bearer {t}"))
-            .header("Accept", "application/octet-stream");
-    }
-
-    let mut res = req.send().map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Erro ao baixar atualização: {e}"),
-    })?;
-
-    if !res.status().is_success() {
-        return Err(ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Erro no download: HTTP {}", res.status()),
-        });
-    }
-
-    let total_bytes = res.content_length();
-    let temp_dir = std::env::temp_dir().join(format!("verso-update-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&temp_dir);
-    std::fs::create_dir_all(&temp_dir).map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Não foi possível criar pasta temporária: {e}"),
-    })?;
-    let _cleaner = TempDirCleaner(temp_dir.clone());
-
-    let zip_path = temp_dir.join("update.zip");
-    let mut file = std::fs::File::create(&zip_path).map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Não foi possível criar arquivo temporário: {e}"),
-    })?;
-
-    let mut buffer = [0u8; 131072]; // 128 KB
-    let mut downloaded: u64 = 0;
-    let mut last_emit = std::time::Instant::now();
-
-    loop {
-        use std::io::Read;
-        let bytes_read = res.read(&mut buffer).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Erro ao ler dados da atualização: {e}"),
-        })?;
-        if bytes_read == 0 {
-            break;
-        }
-        use std::io::Write;
-        file.write_all(&buffer[..bytes_read])
-            .map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Erro ao salvar dados da atualização: {e}"),
-            })?;
-        downloaded += bytes_read as u64;
-
-        if last_emit.elapsed() > std::time::Duration::from_millis(150) {
-            last_emit = std::time::Instant::now();
-            let _ = app.emit(
-                "verso://update-progress",
-                UpdateProgress {
-                    downloaded_bytes: downloaded as f64,
-                    total_bytes: total_bytes.map(|t| t as f64),
-                    percent: total_bytes.map(|t| {
-                        if t > 0 {
-                            (downloaded as f64 / t as f64) * 100.0
-                        } else {
-                            0.0
-                        }
-                    }),
-                    status: "downloading".to_string(),
-                    message: None,
-                },
-            );
-        }
-    }
-    use std::io::Write;
-    let _ = file.flush();
-
-    let _ = app.emit(
-        "verso://update-progress",
-        UpdateProgress {
-            downloaded_bytes: downloaded as f64,
-            total_bytes: Some(downloaded as f64),
-            percent: Some(100.0),
-            status: "extracting".to_string(),
-            message: Some("Descompactando arquivos...".to_string()),
-        },
-    );
-
-    // ── Extract ────────────────────────────────────────────────────────────
-    //
-    // We use the `zip` crate (pure Rust) instead of shelling out to `ditto`
-    // or `unzip`, so this works identically on macOS, Windows, and Linux.
-    let extract_dir = temp_dir.join("extracted");
-    std::fs::create_dir_all(&extract_dir).map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Não foi possível criar pasta de extração: {e}"),
-    })?;
-
-    {
-        let zip_file = std::fs::File::open(&zip_path).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível abrir o arquivo baixado: {e}"),
-        })?;
-        let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Arquivo ZIP inválido: {e}"),
-        })?;
-
-        for i in 0..archive.len() {
-            let mut zf = archive.by_index(i).map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Erro ao ler entrada do ZIP: {e}"),
-            })?;
-
-            // Sanitise path: strip leading `/` or `..` segments to prevent
-            // path-traversal attacks (Zip Slip).
-            let out_path = match zf.enclosed_name() {
-                Some(p) => extract_dir.join(p),
-                None => continue, // skip suspicious entries
-            };
-
-            if zf.is_dir() {
-                std::fs::create_dir_all(&out_path).map_err(|e| ContractError {
-                    kind: ErrorKind::Failed,
-                    message: format!("Erro ao criar diretório: {e}"),
-                })?;
-            } else {
-                if let Some(parent) = out_path.parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| ContractError {
-                        kind: ErrorKind::Failed,
-                        message: format!("Erro ao criar diretório pai: {e}"),
-                    })?;
-                }
-                let mut out_file = std::fs::File::create(&out_path).map_err(|e| ContractError {
-                    kind: ErrorKind::Failed,
-                    message: format!("Erro ao criar arquivo extraído: {e}"),
-                })?;
-                std::io::copy(&mut zf, &mut out_file).map_err(|e| ContractError {
-                    kind: ErrorKind::Failed,
-                    message: format!("Erro ao escrever arquivo extraído: {e}"),
-                })?;
-
-                // Restore Unix permissions (execute bit for binaries)
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    if let Some(mode) = zf.unix_mode() {
-                        let _ = std::fs::set_permissions(
-                            &out_path,
-                            std::fs::Permissions::from_mode(mode),
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    let _ = app.emit(
-        "verso://update-progress",
-        UpdateProgress {
-            downloaded_bytes: downloaded as f64,
-            total_bytes: Some(downloaded as f64),
-            percent: Some(100.0),
-            status: "installing".to_string(),
-            message: Some("Instalando a nova versão...".to_string()),
-        },
-    );
-
-    // ── Install ────────────────────────────────────────────────────────────
-    //
-    // Each platform has a different package format and install strategy.
-    // All branches use only `std::fs` — no platform-specific CLI tools.
-    install_extracted_update(&app, &extract_dir, &temp_dir, downloaded)
-}
-
-/// Locates the extracted payload and installs it in a platform-specific way.
-///
-/// - **macOS**: finds the `.app` bundle, moves the running one aside, copies
-///   the new one in place, and clears the quarantine attribute via
-///   `std::fs` + `xattr` crate (no shell).
-/// - **Windows**: finds the `.msi`/`.exe` installer and launches it.
-/// - **Linux**: finds the `.AppImage` or binary, marks it executable, and
-///   replaces the running one in place.
-fn install_extracted_update<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    extract_dir: &std::path::Path,
-    temp_dir: &std::path::Path,
-    downloaded: u64,
-) -> Result<InstallResult, ContractError> {
-    let emit_done = |msg: &str, path: Option<String>, restart: bool| {
-        let _ = app.emit(
-            "verso://update-progress",
-            UpdateProgress {
-                downloaded_bytes: downloaded as f64,
-                total_bytes: Some(downloaded as f64),
-                percent: Some(100.0),
-                status: "done".to_string(),
-                message: Some(msg.to_string()),
-            },
-        );
-        InstallResult {
-            success: true,
-            message: msg.to_string(),
-            app_path: path,
-            requires_restart: restart,
-        }
-    };
-
-    // ── macOS ──────────────────────────────────────────────────────────────
-    #[cfg(target_os = "macos")]
-    {
-        // Find *.app bundle in the extracted directory (any depth level 1)
-        let extracted_app = std::fs::read_dir(extract_dir)
-            .ok()
-            .and_then(|mut entries| {
-                entries.find_map(|e| {
-                    let p = e.ok()?.path();
-                    if p.is_dir() && p.extension().is_some_and(|x| x == "app") {
-                        Some(p)
-                    } else {
-                        None
-                    }
-                })
-            })
-            .ok_or_else(|| ContractError {
-                kind: ErrorKind::Failed,
-                message: "Nenhum pacote .app encontrado no arquivo baixado.".to_string(),
-            })?;
-
-        // Remove macOS quarantine attribute (Gatekeeper) without shelling
-        // out to `xattr` — walk the directory and remove the xattr directly
-        // using the `std::process::Command` only as a best-effort fallback.
-        // In practice the attr is set by the browser; packages we extract
-        // ourselves in /tmp never have it, so this is truly a no-op on most
-        // runs. We keep it for correctness when moving to ~/Applications.
-        let _ = std::process::Command::new("xattr")
-            .args(["-dr", "com.apple.quarantine"])
-            .arg(&extracted_app)
-            .output();
-
-        // Try to replace the running bundle in-place
-        let current_exe = std::env::current_exe().ok();
-        let running_bundle = current_exe.as_deref().and_then(|exe| {
-            let mut p = exe.parent();
-            loop {
-                match p {
-                    Some(dir) if dir.extension().is_some_and(|x| x == "app") => {
-                        return Some(dir.to_path_buf());
-                    }
-                    Some(dir) => p = dir.parent(),
-                    None => return None,
-                }
-            }
-        });
-
-        if let Some(ref running_app) = running_bundle {
-            let backup = temp_dir.join("running_backup.app");
-            let _ = std::fs::remove_dir_all(&backup);
-
-            if std::fs::rename(running_app, &backup).is_ok() {
-                // Copy with std::fs (recursive) — no ditto needed.
-                if copy_dir_all(&extracted_app, running_app).is_ok() {
-                    let _ = std::fs::remove_dir_all(&backup);
-                    return Ok(emit_done(
-                        "Atualização instalada com sucesso! Reinicie o aplicativo para usar a nova versão.",
-                        Some(running_app.display().to_string()),
-                        true,
-                    ));
-                }
-                // Roll back if copy failed
-                let _ = std::fs::rename(&backup, running_app);
-            }
-        }
-
-        // Fallback: place in ~/Downloads and reveal in Finder
-        let downloads = get_downloads_dir();
-        let dest_name = extracted_app
-            .file_name()
-            .unwrap_or(std::ffi::OsStr::new("Verso.app"));
-        let dest = downloads.join(dest_name);
-        let _ = std::fs::remove_dir_all(&dest);
-        copy_dir_all(&extracted_app, &dest).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível copiar o app para Downloads: {e}"),
-        })?;
-
-        // Reveal in Finder via `open -R` (macOS-specific UI nicety)
-        let _ = std::process::Command::new("open")
-            .arg("-R")
-            .arg(&dest)
-            .spawn();
-
-        return Ok(emit_done(
-            &format!("Nova versão copiada para Downloads: {}", dest.display()),
-            Some(dest.display().to_string()),
-            false,
-        ));
-    }
-
-    // ── Windows ────────────────────────────────────────────────────────────
-    #[cfg(target_os = "windows")]
-    {
-        // Look for installer (.msi preferred, then .exe)
-        let installer =
-            find_file_by_exts(extract_dir, &[".msi", ".exe"]).ok_or_else(|| ContractError {
-                kind: ErrorKind::Failed,
-                message: "Nenhum instalador (.msi/.exe) encontrado no arquivo baixado.".to_string(),
-            })?;
-
-        // Launch the installer — it handles the actual replacement
-        std::process::Command::new(&installer)
-            .spawn()
-            .map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Não foi possível executar o instalador: {e}"),
-            })?;
-
-        return Ok(emit_done(
-            "Instalador iniciado. Siga as instruções na tela para concluir a atualização.",
-            Some(installer.display().to_string()),
-            false,
-        ));
-    }
-
-    // ── Linux ──────────────────────────────────────────────────────────────
-    #[cfg(target_os = "linux")]
-    {
-        use std::os::unix::fs::PermissionsExt;
-
-        // Prefer AppImage, then deb, then any binary
-        let payload = find_file_by_exts(extract_dir, &[".AppImage", ".appimage", ".deb", ".rpm"])
-            .ok_or_else(|| ContractError {
-            kind: ErrorKind::Failed,
-            message: "Nenhum pacote Linux (.AppImage/.deb/.rpm) encontrado.".to_string(),
-        })?;
-
-        // Make it executable
-        let meta = std::fs::metadata(&payload).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível ler metadados: {e}"),
-        })?;
-        let mut perms = meta.permissions();
-        perms.set_mode(perms.mode() | 0o755);
-        let _ = std::fs::set_permissions(&payload, perms);
-
-        if payload
-            .extension()
-            .is_some_and(|x| x.eq_ignore_ascii_case("AppImage"))
-        {
-            // Try to replace the running AppImage
-            if let Ok(current) = std::env::current_exe() {
-                let backup = temp_dir.join("running_backup.AppImage");
-                if std::fs::rename(&current, &backup).is_ok() {
-                    if std::fs::copy(&payload, &current).is_ok() {
-                        let _ = std::fs::remove_file(&backup);
-                        return Ok(emit_done(
-                            "Atualização instalada com sucesso! Reinicie o aplicativo.",
-                            Some(current.display().to_string()),
-                            true,
-                        ));
-                    }
-                    let _ = std::fs::rename(&backup, &current);
-                }
-            }
-        } else {
-            // For .deb/.rpm: copy to Downloads and advise the user
-            let downloads = get_downloads_dir();
-            let dest = downloads.join(
-                payload
-                    .file_name()
-                    .unwrap_or(std::ffi::OsStr::new("verso-update")),
-            );
-            std::fs::copy(&payload, &dest).map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Erro ao copiar pacote para Downloads: {e}"),
-            })?;
-            return Ok(emit_done(
-                &format!(
-                    "Pacote de atualização salvo em Downloads: {}. Instale manualmente com seu gerenciador de pacotes.",
-                    dest.display()
-                ),
-                Some(dest.display().to_string()),
-                false,
-            ));
-        }
-
-        return Ok(emit_done(
-            "Atualização baixada. Reinicie o aplicativo para usar a nova versão.",
-            None,
-            true,
-        ));
-    }
-
-    // Unreachable on supported platforms, but required for compilation
-    #[allow(unreachable_code)]
-    Err(ContractError {
-        kind: ErrorKind::Failed,
-        message: "Plataforma não suportada para atualização automática.".to_string(),
-    })
-}
-
-/// Recursively copies `src` directory into `dst` using only `std::fs`.
-/// Equivalent to `cp -r src dst` — no shell, no platform tools.
-/// Only used on macOS (the other platforms delegate to a system installer).
-#[cfg(target_os = "macos")]
-fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(dst)?;
-    for entry in std::fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        let target = dst.join(entry.file_name());
-        if ty.is_dir() {
-            copy_dir_all(&entry.path(), &target)?;
-        } else if ty.is_symlink() {
-            let link_target = std::fs::read_link(entry.path())?;
-            #[cfg(unix)]
-            std::os::unix::fs::symlink(&link_target, &target)?;
-            #[cfg(windows)]
-            {
-                if link_target.is_dir() {
-                    std::os::windows::fs::symlink_dir(&link_target, &target)?;
-                } else {
-                    std::os::windows::fs::symlink_file(&link_target, &target)?;
-                }
-            }
-        } else {
-            std::fs::copy(entry.path(), &target)?;
-        }
-    }
-    Ok(())
-}
-
-/// Returns the first file found in `dir` (non-recursive) whose name ends
-/// with one of the given `extensions` (case-insensitive).
-#[cfg(any(target_os = "windows", target_os = "linux"))]
-fn find_file_by_exts(dir: &std::path::Path, extensions: &[&str]) -> Option<std::path::PathBuf> {
-    let entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
-    for ext in extensions {
-        if let Some(found) = entries.iter().find(|e| {
-            e.path()
-                .to_string_lossy()
-                .to_lowercase()
-                .ends_with(&ext.to_lowercase())
-        }) {
-            return Some(found.path());
-        }
-    }
-    None
-}
-
-/// Returns the user's Downloads directory in a cross-platform way.
-fn get_downloads_dir() -> std::path::PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        // USERPROFILE\Downloads
-        if let Ok(profile) = std::env::var("USERPROFILE") {
-            let d = std::path::PathBuf::from(profile).join("Downloads");
-            if d.exists() {
-                return d;
-            }
-        }
-    }
-    // macOS + Linux: $HOME/Downloads
-    let home = std::env::var("HOME")
-        .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
-    std::path::PathBuf::from(home).join("Downloads")
 }
 
 /// Restarts the application to apply updates.
@@ -1664,6 +891,130 @@ fn reveal(state: State<'_, App>, path: String) -> Result<(), ContractError> {
         .map_err(|e| failed(e.to_string()))
 }
 
+/// The origins of embedded pages the user approved, replacing the list
+/// as a whole. The UI keeps the list with its settings and pushes it
+/// here; the navigation guard lets an app view's frames load exactly
+/// these (ADR 0056, revised 2026-09-29).
+#[tauri::command]
+#[specta::specta]
+fn set_embed_origins(state: State<'_, App>, origins: Vec<String>) -> Result<(), ContractError> {
+    let normalized: std::collections::HashSet<String> = origins
+        .iter()
+        .filter_map(|o| reqwest::Url::parse(o).ok())
+        .filter(|u| u.scheme() == "http" || u.scheme() == "https")
+        .filter_map(|u| embed_origin_of(&u))
+        .collect();
+    *lock(&state.embed_origins) = normalized;
+    Ok(())
+}
+
+/// The walk's rules, from the settings: whether the well-known build
+/// directories and each `.gitignore` are honored (ADR 0044, revised
+/// 2026-09-29). Applied to the open folder at once; the UI reindexes
+/// after a change, so the listing answers to the new rules.
+#[tauri::command]
+#[specta::specta]
+fn set_walk_rules(
+    state: State<'_, App>,
+    builtin_ignores: bool,
+    gitignore: bool,
+) -> Result<(), ContractError> {
+    let rules = verso_core::WalkRules {
+        builtin_ignores,
+        gitignore,
+    };
+    *lock(&state.walk_rules) = rules;
+    if let Some(session) = lock(&state.session).as_mut() {
+        session.workspace.set_walk_rules(rules);
+    }
+    Ok(())
+}
+
+/// The window's language, for the native menu ("pt" or "en"); pushed at
+/// start-up and when the setting changes.
+#[tauri::command]
+#[specta::specta]
+fn set_menu_language<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+    language: String,
+) -> Result<(), ContractError> {
+    *lock(&state.menu_language) = language;
+    #[cfg(target_os = "macos")]
+    refresh_menu(&app);
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+    Ok(())
+}
+
+/// Copy the absolute path of an entry to the system clipboard.
+/// Formed here at the edge, goes to the operating system's clipboard directly;
+/// no absolute path crosses back to the UI (ADR 0026 rule 4).
+#[tauri::command]
+#[specta::specta]
+fn copy_full_path(state: State<'_, App>, path: String) -> Result<(), ContractError> {
+    let absolute = with(&state, |ws| ws.absolute(&path))?;
+    let text = absolute.to_string_lossy().to_string();
+    #[cfg(target_os = "macos")]
+    {
+        use std::io::Write;
+        let mut child = std::process::Command::new("pbcopy")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| failed(e.to_string()))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(text.as_bytes())
+                .map_err(|e| failed(e.to_string()))?;
+        }
+        child.wait().map_err(|e| failed(e.to_string()))?;
+        Ok(())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::io::Write;
+        let mut child = std::process::Command::new("clip")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| failed(e.to_string()))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(text.as_bytes())
+                .map_err(|e| failed(e.to_string()))?;
+        }
+        child.wait().map_err(|e| failed(e.to_string()))?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        use std::io::Write;
+        let cmd = if std::process::Command::new("which")
+            .arg("wl-copy")
+            .output()
+            .is_ok_and(|o| o.status.success())
+        {
+            "wl-copy"
+        } else {
+            "xclip"
+        };
+        let mut c = std::process::Command::new(cmd);
+        if cmd == "xclip" {
+            c.args(["-selection", "clipboard"]);
+        }
+        let mut child = c
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| failed(e.to_string()))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(text.as_bytes())
+                .map_err(|e| failed(e.to_string()))?;
+        }
+        child.wait().map_err(|e| failed(e.to_string()))?;
+        Ok(())
+    }
+}
+
 fn text_out(t: verso_core::TextFile) -> TextFile {
     TextFile {
         path: t.path,
@@ -1780,6 +1131,7 @@ fn open_url<R: tauri::Runtime>(app: tauri::AppHandle<R>, url: String) -> Result<
     let parsed = http_url(&url)?;
     let title = parsed.host_str().unwrap_or("web").to_owned();
     tauri::WebviewWindowBuilder::new(&app, next_web_label(), tauri::WebviewUrl::External(parsed))
+        .user_agent(WEB_USER_AGENT)
         .title(title)
         .inner_size(1100.0, 800.0)
         .on_navigation(web_only)
@@ -1824,6 +1176,12 @@ fn chrome_offset<R: tauri::Runtime>(window: &tauri::Window<R>) -> f64 {
     }
 }
 
+/// The user agent a web page's view presents: Safari's own, current
+/// form. WKWebView's default carries no browser token, and a site that
+/// sniffs it serves broken pages — YouTube's embed player answers
+/// "configuration error" to it, whole and entire.
+const WEB_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15";
+
 fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
     let parsed: tauri::Url = url.parse().map_err(|e| failed(format!("{e}")))?;
     if !web_only(&parsed) {
@@ -1855,6 +1213,7 @@ fn web_open<R: tauri::Runtime>(
     window
         .add_child(
             tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
+                .user_agent(WEB_USER_AGENT)
                 .on_navigation(web_only)
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
             tauri::LogicalPosition::new(x, y),
@@ -2039,12 +1398,21 @@ fn return_to_main<R: tauri::Runtime>(
 /// Refresh the index from the folder: only what changed is re-read.
 #[tauri::command]
 #[specta::specta]
-fn reindex(state: State<'_, App>) -> Result<IndexSummary, ContractError> {
+fn reindex<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+) -> Result<IndexSummary, ContractError> {
     // One hold of the lock for the run and the summary: a folder switched
     // in between would otherwise get the other folder's summary.
     let mut guard = lock(&state.session);
     let session = guard.as_mut().ok_or_else(no_folder)?;
-    let report = match std::panic::catch_unwind(AssertUnwindSafe(|| session.workspace.index())) {
+    let handle_for_progress = app.clone();
+    let report = match std::panic::catch_unwind(AssertUnwindSafe(|| {
+        session.workspace.index_with_progress(move |p| {
+            let progress = to_progress(p);
+            let _ = handle_for_progress.emit("index-progress", &progress);
+        })
+    })) {
         Ok(result) => result.map_err(convert)?,
         Err(payload) => {
             return Err(failed(format!(
@@ -2193,41 +1561,44 @@ const CLI_LINK: &str = "/usr/local/bin/verso";
 /// A path at the edge, for the operating system's tools only: it never
 /// crosses to the window (ADR 0026 rule 4).
 fn bundled_cli() -> Option<PathBuf> {
-    let cli = std::env::current_exe().ok()?.with_file_name("verso");
-    // Asked of the system's `test`, as `reveal` asks `open`: none of these
-    // files is the folder's, and this crate reads none itself.
-    std::process::Command::new("test")
-        .arg("-x")
-        .arg(&cli)
-        .status()
-        .ok()
-        .filter(std::process::ExitStatus::success)
-        .map(|_| cli)
+    let mut candidates = Vec::new();
+    if let Ok(cli) = std::env::current_exe() {
+        candidates.push(cli.with_file_name("verso"));
+        if let Some(parent) = cli.parent() {
+            candidates.push(parent.join("verso"));
+            if let Some(bundle) = parent.parent() {
+                candidates.push(bundle.join("Resources").join("verso"));
+                candidates.push(bundle.join("MacOS").join("verso"));
+            }
+        }
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        candidates
+            .push(PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso"));
+        candidates.push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso"));
+    }
+    candidates.push(PathBuf::from(
+        "/Applications/Verso Beta.app/Contents/MacOS/verso",
+    ));
+    candidates.push(PathBuf::from(
+        "/Applications/Verso.app/Contents/MacOS/verso",
+    ));
+
+    candidates.into_iter().find(|cli| executable_file(cli))
 }
 
 fn cli_state_now() -> CliState {
     let Some(ours) = bundled_cli() else {
         return CliState::Unbundled;
     };
-    let link = std::process::Command::new("readlink")
-        .arg(CLI_LINK)
-        .output();
-    if let Ok(out) = link
-        && out.status.success()
-    {
-        let target = String::from_utf8_lossy(&out.stdout).trim().to_owned();
-        return if Path::new(&target) == ours {
+    if let Some(target) = link_target(Path::new(CLI_LINK)) {
+        return if target == ours {
             CliState::Ours
         } else {
             CliState::Elsewhere
         };
     }
-    let there = std::process::Command::new("test")
-        .arg("-e")
-        .arg(CLI_LINK)
-        .status()
-        .is_ok_and(|s| s.success());
-    if there {
+    if something_at(Path::new(CLI_LINK)) {
         CliState::Elsewhere
     } else {
         CliState::Missing
@@ -2291,20 +1662,19 @@ fn install_cli(replace: bool) -> Result<CliState, ContractError> {
             message: "another verso is on the PATH".to_owned(),
         });
     }
-    let _ = std::process::Command::new("xattr")
-        .args(["-d", "com.apple.quarantine"])
-        .arg(&ours)
-        .output();
+    #[cfg(target_os = "macos")]
+    clear_quarantine(&ours);
     // Without privileges first: the directory may be the person's own.
-    let plain = std::process::Command::new("ln")
-        .arg("-sfn")
-        .arg(&ours)
-        .arg(CLI_LINK)
-        .output()
-        .map_err(|e| failed(e.to_string()))?;
-    if !plain.status.success() {
+    #[cfg(unix)]
+    let plain = replace_symlink(&ours, Path::new(CLI_LINK));
+    #[cfg(not(unix))]
+    let plain: std::io::Result<()> = Err(std::io::Error::other("no CLI link on this platform"));
+    if let Err(error) = plain {
         #[cfg(target_os = "macos")]
         {
+            // The error itself is not shown here: the administrator
+            // prompt is the answer to it.
+            let _ = error;
             let shell = format!(
                 "mkdir -p /usr/local/bin && ln -sfn {} {CLI_LINK}",
                 shell_word(&ours)
@@ -2314,9 +1684,7 @@ fn install_cli(replace: bool) -> Result<CliState, ContractError> {
             }
         }
         #[cfg(not(target_os = "macos"))]
-        return Err(failed(
-            String::from_utf8_lossy(&plain.stderr).trim().to_owned(),
-        ));
+        return Err(failed(error.to_string()));
     }
     Ok(cli_state_now())
 }
@@ -2328,21 +1696,16 @@ fn uninstall_cli() -> Result<CliState, ContractError> {
     if cli_state_now() != CliState::Ours {
         return Ok(cli_state_now());
     }
-    let plain = std::process::Command::new("rm")
-        .arg(CLI_LINK)
-        .output()
-        .map_err(|e| failed(e.to_string()))?;
-    if !plain.status.success() {
+    if let Err(error) = remove_file_at(Path::new(CLI_LINK)) {
         #[cfg(target_os = "macos")]
         {
+            let _ = error;
             if !as_administrator(&format!("rm {CLI_LINK}"))? {
                 return Err(refused("cancelled"));
             }
         }
         #[cfg(not(target_os = "macos"))]
-        return Err(failed(
-            String::from_utf8_lossy(&plain.stderr).trim().to_owned(),
-        ));
+        return Err(failed(error.to_string()));
     }
     Ok(cli_state_now())
 }
@@ -2453,7 +1816,11 @@ macro_rules! commands_for {
                 rename_entry,
                 delete_entry,
                 reveal,
-                reindex,
+                copy_full_path,
+                set_embed_origins,
+                set_walk_rules,
+                set_menu_language::<$runtime>,
+                reindex::<$runtime>,
                 query_base,
                 new_window::<$runtime>,
                 cli_status,
@@ -2468,6 +1835,7 @@ macro_rules! commands_for {
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
             .typ::<UpdateProgress>()
+            .typ::<IndexProgress>()
     };
 }
 
@@ -2632,85 +2000,14 @@ fn serve(
     }
 }
 
-fn is_safe_proxy_url(url_str: &str) -> bool {
-    if let Ok(parsed) = reqwest::Url::parse(url_str) {
-        if parsed.scheme() != "http" && parsed.scheme() != "https" {
-            return false;
-        }
-        if let Some(host) = parsed.host_str() {
-            let h = host.trim_matches(['[', ']']).to_lowercase();
-            if h == "localhost"
-                || h.ends_with(".localhost")
-                || h == "local"
-                || h.ends_with(".local")
-                || h == "127.0.0.1"
-                || h == "::1"
-                || h == "169.254.169.254"
-            {
-                return false;
-            }
-            if let Ok(ip) = h.parse::<std::net::IpAddr>() {
-                match ip {
-                    std::net::IpAddr::V4(ipv4) => {
-                        if ipv4.is_loopback()
-                            || ipv4.is_private()
-                            || ipv4.is_link_local()
-                            || ipv4.is_broadcast()
-                            || ipv4.is_unspecified()
-                        {
-                            return false;
-                        }
-                    }
-                    std::net::IpAddr::V6(ipv6) => {
-                        if ipv6.is_loopback() || ipv6.is_unspecified() {
-                            return false;
-                        }
-                    }
-                }
-            }
-            return true;
-        }
+/// The origin of a URL, in the form the approval list stores:
+/// `scheme://host` with the port when it is not the scheme's default.
+fn embed_origin_of(url: &reqwest::Url) -> Option<String> {
+    let host = url.host_str()?;
+    match url.port() {
+        Some(p) => Some(format!("{}://{}:{}", url.scheme(), host.to_lowercase(), p)),
+        None => Some(format!("{}://{}", url.scheme(), host.to_lowercase())),
     }
-    false
-}
-
-fn proxy_web_page(url_str: &str) -> Result<(u16, String, Vec<u8>), String> {
-    if !is_safe_proxy_url(url_str) {
-        return Err("Endereço de URL inválido ou não permitido para exibição.".to_string());
-    }
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
-        .build()
-        .map_err(|e| e.to_string())?;
-    let resp = client.get(url_str).send().map_err(|e| e.to_string())?;
-    let status = resp.status().as_u16();
-    let final_url = resp.url().as_str().to_owned();
-    let content_type = resp
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("text/html; charset=utf-8")
-        .to_owned();
-    let mut bytes = resp.bytes().map_err(|e| e.to_string())?.to_vec();
-
-    if let Some(mut html) = (content_type.contains("text/html"))
-        .then(|| String::from_utf8(bytes.clone()).ok())
-        .flatten()
-    {
-        let base_tag = format!("<base href=\"{final_url}\">\n");
-        if let Some(pos) = html.find("<head>") {
-            html.insert_str(pos + 6, &base_tag);
-            bytes = html.into_bytes();
-        } else if let Some(pos) = html.find("<HEAD>") {
-            html.insert_str(pos + 6, &base_tag);
-            bytes = html.into_bytes();
-        } else {
-            html.insert_str(0, &base_tag);
-            bytes = html.into_bytes();
-        }
-    }
-    Ok((status, content_type, bytes))
 }
 
 /// `verso://localhost/<relative path>`: a file of the folder that is not
@@ -2724,43 +2021,6 @@ fn serve_file<R: tauri::Runtime>(
     request: tauri::http::Request<Vec<u8>>,
 ) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
     let relative = percent_decode(request.uri().path().trim_start_matches('/'));
-    if relative == "__proxy" {
-        let query = request.uri().query().unwrap_or("");
-        let mut target_url = None;
-        for pair in query.split('&') {
-            if let Some(("url", v)) = pair.split_once('=') {
-                target_url = Some(percent_decode(v));
-                break;
-            }
-        }
-        if let Some(target) = target_url.filter(|t| is_safe_proxy_url(t)) {
-            match proxy_web_page(&target) {
-                Ok((status, content_type, body)) => {
-                    return tauri::http::Response::builder()
-                        .status(status)
-                        .header("Content-Type", content_type)
-                        .header("Access-Control-Allow-Origin", "*")
-                        .header("Cache-Control", "no-cache")
-                        .body(std::borrow::Cow::Owned(body))
-                        .unwrap_or_else(|_| {
-                            tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
-                        });
-                }
-                Err(err) => {
-                    let html = format!(
-                        "<!DOCTYPE html><html><body style=\"font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;\"><h3>Erro ao carregar página</h3><p>{err}</p></body></html>"
-                    );
-                    return tauri::http::Response::builder()
-                        .status(502)
-                        .header("Content-Type", "text/html; charset=utf-8")
-                        .body(std::borrow::Cow::Owned(html.into_bytes()))
-                        .unwrap_or_else(|_| {
-                            tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new()))
-                        });
-                }
-            }
-        }
-    }
     let origin = request
         .headers()
         .get("Origin")
@@ -2792,10 +2052,27 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     let builder = tauri::Builder::default();
     #[cfg(target_os = "macos")]
     let builder = builder.menu(app_menu).on_menu_event(|app, event| {
-        if event.id() == QUIT {
+        let id = event.id().as_ref();
+        if id == QUIT {
             ask_windows_to_quit(app);
-        } else if event.id() == NEW_WINDOW && lock(&app.state::<App>().session).is_some() {
+        } else if id == NEW_WINDOW {
+            // With no folder open the new window offers the picker — the
+            // blank window the menu promises.
             let _ = open_folder_window(app);
+        } else if id == OPEN_FOLDER {
+            let _ = app.emit_to("main", "menu-open-folder", ());
+        } else if id == SETTINGS {
+            let _ = app.emit_to("main", "menu-settings", ());
+        } else if let Some(index) = id.strip_prefix(RECENT_PREFIX) {
+            // The folder stays on this side; the window is told the same
+            // way an `open -a Verso <folder>` event tells it.
+            let folder = index
+                .parse::<usize>()
+                .ok()
+                .and_then(|i| lock(&app.state::<App>().menu_recents).get(i).cloned());
+            if let Some(folder) = folder {
+                folder_handed(app, folder);
+            }
         }
     });
     builder
@@ -2876,11 +2153,99 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 #[cfg(target_os = "macos")]
 const QUIT: &str = "verso-quit";
 
-/// The id of the Window menu's "New Window" item: another window on the
-/// open folder (`new_window`). No shortcut of its own — ⌘⇧N is the
-/// window's "new note…" — one can be bound in the settings.
+/// The id of the File menu's "New Window" item: another window — on the
+/// open folder, or an empty one that offers the picker when none is
+/// open. No shortcut of its own — ⌘⇧N is the window's "new note…" — one
+/// can be bound in the settings.
 #[cfg(target_os = "macos")]
 const NEW_WINDOW: &str = "verso-new-window";
+
+/// The id of "Open Folder…": the window's own picker flow, asked for
+/// from the menu.
+#[cfg(target_os = "macos")]
+const OPEN_FOLDER: &str = "verso-open-folder";
+
+/// The id of "Settings…" (⌘,), which the main window answers.
+#[cfg(target_os = "macos")]
+const SETTINGS: &str = "verso-settings";
+
+/// The prefix of an "Open Recent" item's id; the rest is the item's
+/// index into `App::menu_recents`.
+#[cfg(target_os = "macos")]
+const RECENT_PREFIX: &str = "verso-recent-";
+
+/// The menu's words in the window's language ("pt" is the default, as
+/// the product's; ADR 0035). Predefined items keep the system's own.
+#[cfg(target_os = "macos")]
+fn menu_label(lang: &str, key: &str) -> &'static str {
+    let pt = lang != "en";
+    match key {
+        "quit" => {
+            if pt {
+                "Encerrar o Verso"
+            } else {
+                "Quit Verso"
+            }
+        }
+        "settings" => {
+            if pt {
+                "Ajustes…"
+            } else {
+                "Settings…"
+            }
+        }
+        "file" => {
+            if pt {
+                "Arquivo"
+            } else {
+                "File"
+            }
+        }
+        "new-window" => {
+            if pt {
+                "Nova janela"
+            } else {
+                "New Window"
+            }
+        }
+        "open-folder" => {
+            if pt {
+                "Abrir pasta…"
+            } else {
+                "Open Folder…"
+            }
+        }
+        "open-recent" => {
+            if pt {
+                "Abrir recente"
+            } else {
+                "Open Recent"
+            }
+        }
+        "edit" => {
+            if pt {
+                "Edição"
+            } else {
+                "Edit"
+            }
+        }
+        "view" => {
+            if pt {
+                "Visualização"
+            } else {
+                "View"
+            }
+        }
+        "window" => {
+            if pt {
+                "Janela"
+            } else {
+                "Window"
+            }
+        }
+        _ => "",
+    }
+}
 
 /// The macOS menu bar: the system's own items, except Quit. The system's
 /// Quit terminates the process without an event the app can answer (the
@@ -2890,7 +2255,21 @@ const NEW_WINDOW: &str = "verso-new-window";
 #[cfg(target_os = "macos")]
 fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-    let quit = MenuItem::with_id(app, QUIT, "Quit Verso", true, Some("CmdOrCtrl+Q"))?;
+    let (lang, recents) = {
+        let state = app.state::<App>();
+        let lang = lock(&state.menu_language).clone();
+        // The menu's recents come from the index sidecars: the folders
+        // opened before, freshest first (verso_core::recent_folders).
+        // What the menu shows and what a click opens are the same list,
+        // kept here so the id `verso-recent-<i>` stays meaningful.
+        let recents = verso_core::recent_folders(state.config.as_deref());
+        let mut keep = lock(&state.menu_recents);
+        keep.clear();
+        keep.extend(recents.iter().take(9).cloned());
+        (lang, keep.clone())
+    };
+    let l = |key: &str| menu_label(&lang, key);
+    let quit = MenuItem::with_id(app, QUIT, l("quit"), true, Some("CmdOrCtrl+Q"))?;
     let verso = Submenu::with_items(
         app,
         "Verso",
@@ -2908,6 +2287,8 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
                 }),
             )?,
             &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, SETTINGS, l("settings"), true, Some("CmdOrCtrl+,"))?,
+            &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, None)?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::hide(app, None)?,
@@ -2917,9 +2298,64 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
             &quit,
         ],
     )?;
+    // Each recent folder by its name, the parent in parentheses to tell
+    // two "Notas" apart; the id carries the index into `menu_recents`.
+    let mut recent_items: Vec<MenuItem<R>> = Vec::new();
+    for (i, folder) in recents.iter().enumerate() {
+        let name = folder
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| folder.to_string_lossy().into_owned());
+        let parent = folder
+            .parent()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let home = std::env::var("HOME").unwrap_or_default();
+        let parent = if !home.is_empty() && parent.starts_with(&home) {
+            parent.replacen(&home, "~", 1)
+        } else {
+            parent
+        };
+        let text = if parent.is_empty() {
+            name
+        } else {
+            format!("{name} ({parent})")
+        };
+        recent_items.push(MenuItem::with_id(
+            app,
+            format!("{RECENT_PREFIX}{i}"),
+            text,
+            true,
+            None::<&str>,
+        )?);
+    }
+    let recent_refs: Vec<&dyn tauri::menu::IsMenuItem<R>> = recent_items
+        .iter()
+        .map(|i| i as &dyn tauri::menu::IsMenuItem<R>)
+        .collect();
+    let open_recent =
+        Submenu::with_items(app, l("open-recent"), !recents.is_empty(), &recent_refs)?;
+    let file = Submenu::with_items(
+        app,
+        l("file"),
+        true,
+        &[
+            &MenuItem::with_id(app, NEW_WINDOW, l("new-window"), true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                OPEN_FOLDER,
+                l("open-folder"),
+                true,
+                Some("CmdOrCtrl+Shift+O"),
+            )?,
+            &open_recent,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+        ],
+    )?;
     let edit = Submenu::with_items(
         app,
-        "Edit",
+        l("edit"),
         true,
         &[
             &PredefinedMenuItem::undo(app, None)?,
@@ -2933,27 +2369,38 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
     )?;
     let view = Submenu::with_items(
         app,
-        "View",
+        l("view"),
         true,
         &[&PredefinedMenuItem::fullscreen(app, None)?],
     )?;
-    let new_window = MenuItem::with_id(app, NEW_WINDOW, "New Window", true, None::<&str>)?;
     let window = Submenu::with_items(
         app,
-        "Window",
+        l("window"),
         true,
         &[
-            &new_window,
-            &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::minimize(app, None)?,
             &PredefinedMenuItem::maximize(app, None)?,
-            &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::close_window(app, None)?,
         ],
     )?;
     #[cfg(target_os = "macos")]
     window.set_as_windows_menu_for_nsapp()?;
-    Menu::with_items(app, &[&verso, &edit, &view, &window])
+    Menu::with_items(app, &[&verso, &file, &edit, &view, &window])
+}
+
+/// Build the menu again — the recents moved, or the language did. Menu
+/// items exist on the main thread only, so the work is sent there; an
+/// app without a menu bar (the tests' mock runtime) is left alone.
+#[cfg(target_os = "macos")]
+fn refresh_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if app.menu().is_none() {
+        return;
+    }
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Ok(menu) = app_menu(&handle) {
+            let _ = handle.set_menu(menu);
+        }
+    });
 }
 
 #[cfg(test)]
@@ -3572,17 +3019,27 @@ mod tests {
     }
 
     #[test]
-    fn trusted_update_urls_allow_github_only() {
+    fn trusted_update_urls_allow_this_repo_only() {
         assert!(is_trusted_update_url(
             "https://github.com/SergioSJS/verso/releases/download/v0.2.0/verso.zip"
         ));
         assert!(is_trusted_update_url(
             "https://api.github.com/repos/SergioSJS/verso/releases/assets/12345"
         ));
-        assert!(is_trusted_update_url(
+
+        // Any other GitHub repository is someone else's code.
+        assert!(!is_trusted_update_url(
+            "https://github.com/attacker/verso/releases/download/v9.9.9/verso.zip"
+        ));
+        assert!(!is_trusted_update_url(
+            "https://api.github.com/repos/attacker/verso/releases/assets/12345"
+        ));
+        assert!(!is_trusted_update_url(
             "https://objects.githubusercontent.com/github-production-release-asset-2e65be/12345"
         ));
-
+        assert!(!is_trusted_update_url(
+            "https://gist.github.com/x/raw/a.zip"
+        ));
         assert!(!is_trusted_update_url("http://github.com/fake.zip")); // HTTP disallowed
         assert!(!is_trusted_update_url("https://malicious.com/virus.zip"));
         assert!(!is_trusted_update_url(
@@ -3592,19 +3049,21 @@ mod tests {
     }
 
     #[test]
-    fn safe_proxy_urls_block_ssrf() {
-        assert!(is_safe_proxy_url("https://example.com/page"));
-        assert!(is_safe_proxy_url("http://public-site.org/index.html"));
-
-        assert!(!is_safe_proxy_url("http://localhost:8080"));
-        assert!(!is_safe_proxy_url("http://127.0.0.1:3000"));
-        assert!(!is_safe_proxy_url("http://[::1]:8080"));
-        assert!(!is_safe_proxy_url(
-            "http://169.254.169.254/latest/meta-data/"
-        ));
-        assert!(!is_safe_proxy_url("http://192.168.1.1/admin"));
-        assert!(!is_safe_proxy_url("http://10.0.0.1/"));
-        assert!(!is_safe_proxy_url("ftp://example.com/file"));
-        assert!(!is_safe_proxy_url("file:///etc/passwd"));
+    fn app_views_never_navigate_to_the_web_even_approved() {
+        // An embed renders in a child web view (`web_open`); the app
+        // view itself has no business on the web, approved origin or
+        // not (ADR 0056, revised 2026-09-29 — the child view is the
+        // page's place, as it always was for web notes).
+        let url = |s: &str| tauri::Url::parse(s).unwrap();
+        for label in ["main", "note-3"] {
+            assert!(!may_navigate(label, &url("https://rolai.app/x"), None));
+            assert!(!may_navigate(
+                label,
+                &url("http://192.168.3.100:8083/category/x"),
+                None
+            ));
+        }
+        // The child web view is where a page loads, any http(s) page.
+        assert!(may_navigate("web-1", &url("https://rolai.app/x"), None));
     }
 }

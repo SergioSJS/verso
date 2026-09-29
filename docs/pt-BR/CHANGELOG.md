@@ -14,7 +14,23 @@ versão de teste.
 
 ### Acrescentado
 
+- **Embutimento nativo de PDFs com especificação de página no modo Leitura e Editar (Live Preview)**: suporte completo a embutir documentos PDF apontando para uma página específica e dimensões personalizadas (ex: `![[doc.pdf#page=3]]`, `![[doc.pdf#3]]`, `![[doc.pdf#page=3|600]]` ou `![[doc.pdf|page=5]]`). No modo Editar, o PDF é exibido com visualizador interativo inline e botão `</>` para editar o link.
+- **Suporte a diagramas Mermaid no modo Leitura e Editar (Live Preview)**: renderização nativa de fluxogramas, diagramas de sequência, classes, git graphs e gráficos de pizza com adaptação automática a temas claro/escuro e segurança estrita com sanitização de SVG. No modo Editar, clicar no diagrama ou no botão `</>` abre o código-fonte para edição imediata.
+- **Barra de progresso de indexação em tempo real**: adicionada barra de progresso no topo da janela e no rodapé indicando a fase de escaneamento e indexação, porcentagem, contagem de notas e arquivo atual ao abrir ou reindexar um cofre.
+- **Ignorar pastas de build e regras do .gitignore, com dois ajustes**: "Ignorar pastas de build" deixa pastas como `node_modules`, `target`, `dist`, `build` e `.venv` fora do índice e da busca, e "Respeitar .gitignore" deixa de fora o que o `.gitignore` de cada pasta exclui — com as regras do próprio git, então `!` traz um arquivo de volta, `/dist` vale só para a pasta dele e `logs/` casa só pastas. Os dois vêm ligados; desligue um e reindexe, e o que ele deixava de fora volta. Abrir um projeto de código não trava mais nas dependências dele.
+- **Uma barra de menus no macOS**: Arquivo ganha Nova janela (que oferece escolher a pasta quando nenhuma está aberta), Abrir pasta… (⌘⇧O) e Abrir recente, as pastas que você abriu antes; o menu Verso ganha Ajustes… (⌘,). O menu segue o idioma do app.
+- **Renderização preguiçosa da árvore de arquivos**: pastas na barra lateral agora renderizam seus elementos DOM sob demanda ao serem expandidas, eliminando a criação antecipada de milhares de nós e tornando a abertura de grandes projetos instantânea.
+
 ### Corrigido
+
+- **Páginas web embutidas aparecem, com a sua aprovação uma vez por site**: o `<iframe>` de uma nota, ou uma nota web embutida (`![[nota web]]`), mostra a página — de um site público ou deste computador ou da sua rede (`localhost`, `192.168.x.x`, nomes `.local`), como o Calibre-Web ou um painel de home lab. A página carrega direto, na própria origem, e nunca consegue ler os arquivos da pasta nem tomar conta da janela. Na primeira vez que uma nota embute um site, o Verso pergunta antes de carregar qualquer coisa ("Permitir sempre" ou "Cancelar"), com um aviso mais forte para endereços da sua rede. Os sites que você permitiu ficam listados em "Sites permitidos nas notas", nos ajustes, onde dá para remover um; ele volta a ser perguntado na próxima vez. Um site que proíbe ser embutido (muitos proíbem) aparece como um frame vazio — escolha do site, como em qualquer outro lugar.
+- **Atualizações conferidas antes de instalar**: o app só baixa uma atualização do repositório do próprio projeto, escolhendo ele mesmo o arquivo, e a confere contra o checksum SHA-256 que o GitHub publica para ela. Um download que não confere, ou um release sem checksum, não instala nada; a página de releases fica como alternativa.
+- **Diagramas Mermaid renderizados com o nível de segurança estrito do Mermaid**: o texto de um diagrama é codificado, e diretivas `click` nele são ignoradas.
+- **Reimportar o conteúdo de demonstração mantém os arquivos que você editou**: um arquivo da demonstração que já existe com outro conteúdo fica como está, e o Verso lista os que manteve.
+- **Headings setext**: uma linha de texto sublinhada com `===` ou `---` é reconhecida como heading (nível 1 ou 2), como no Obsidian.
+- **Instalar a linha de comando pelos Ajustes não precisa mais de ferramentas do shell**: o próprio Verso cria, confere e remove o link `verso`, e tira a quarentena do download da linha de comando; o macOS pede a senha de administrador só quando `/usr/local/bin` não é seu.
+- **Imagens da web no modo Editar (Live Preview) seguem "Carregar conteúdo remoto"**: com o ajuste desligado, uma imagem da web vira um link para o endereço dela, como o modo Leitura já fazia.
+- **Páginas embutidas ficam dentro do painel delas**: uma página embutida cujo estilo pedia posição fixa ou absoluta não consegue mais se espalhar pelo resto da janela, no modo Editar e no modo Leitura.
 
 ---
 
@@ -34,7 +50,7 @@ versão de teste.
 - **Menu de contexto no espaço vazio da árvore**: clicar com o botão direito na árvore de arquivos oferece opções para criar notas, pastas, bases, páginas web e recolher/expandir tudo.
 - **Suporte a múltiplas janelas no App Exposé do macOS**: registro nativo no menu de janelas do macOS para agrupamento no Exposé / Mission Control.
 - **Cofre de exemplo e demonstração**: cofre modelo integrado em `demo-vault/` demonstrando todas as funcionalidades do Verso (sintaxe Markdown, KaTeX, tarefas interativas, wikilinks, notas incorporadas, propriedades YAML, bases, visualização em grafo e leitor de PDF em duas páginas) com importação em um clique pela paleta de comandos, menu e tela inicial.
-- **Notificações de nova versão e download pelo app**: o Verso verifica novas versões no GitHub Releases ao abrir (configurável; ativado por padrão) e permite baixar e instalar a atualização de dentro do app, com barra de progresso em tempo real. Funciona no macOS, Windows e Linux.
+- **Notificações de nova versão e download pelo app**: o Verso verifica novas versões no GitHub Releases ao abrir (configurável; ativado por padrão) e permite baixar e instalar a atualização de dentro do app, com barra de progresso em tempo real. Funciona no macOS, Windows e Linux. *[Correção, 2026-09-29: os releases são gerados só para macOS (ADR 0022, ADR 0051); os caminhos de Windows e Linux existem no código, sem release de onde instalar.]*
 - **Painel de busca no texto redesenhado (Ctrl+F)**: painel moderno com ícone de lupa, contador de correspondências ("2 de 7"), botões de próximo/anterior e botão de fechar; agora funciona nos três modos — Editar, Visualizar e Leitura.
 
 ### Corrigido

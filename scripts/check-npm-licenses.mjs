@@ -38,6 +38,24 @@ const ALLOW = new Set([
   "CC0-1.0",
   "Apache-2.0 WITH LLVM-exception",
   "OFL-1.1",
+  // Unlicense (public domain dedication): robust-predicates, in Mermaid's
+  // tree. deny.toml already takes it on the Rust side through dual
+  // Unlicense/MIT crates; the dedication asks nothing of the shipper.
+  // Entered with Mermaid (2026-09-29), for the maintainer's eye in the PR.
+  "Unlicense",
+  // EPL-2.0 (Eclipse Public License 2.0): elkjs, Mermaid's layout engine.
+  // Weak, file-level copyleft: its obligations reach elkjs itself, whose
+  // source is public and unmodified here; the app around it is untouched.
+  // Entered with Mermaid (2026-09-29), for the maintainer's eye in the PR.
+  "EPL-2.0",
+]);
+
+// A package whose package.json omits the license field, taken by hand: the
+// license was read in its repository instead. Each entry says where.
+const EXCEPTIONS = new Map([
+  // MIT: the `license` file at fabiospampinato/khroma (read 2026-09-29);
+  // the package.json simply lacks the field. In Mermaid's tree.
+  ["khroma", "MIT"],
 ]);
 
 const file = process.argv[2] ?? new URL("../app/ui/package-lock.json", import.meta.url);
@@ -60,8 +78,9 @@ let count = 0;
 for (const [where, pkg] of Object.entries(lock.packages ?? {})) {
   if (where === "") continue; // the window itself
   count += 1;
-  const license = typeof pkg.license === "string" ? pkg.license : "";
-  if (!passes(license)) refused.push(`${where.replace(/^node_modules\//, "")}: ${license || "no license declared"}`);
+  const name = where.replace(/^node_modules\//, "");
+  const license = typeof pkg.license === "string" && pkg.license !== "" ? pkg.license : (EXCEPTIONS.get(name) ?? "");
+  if (!passes(license)) refused.push(`${name}: ${license || "no license declared"}`);
 }
 
 if (refused.length > 0) {

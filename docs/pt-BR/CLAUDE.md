@@ -130,7 +130,12 @@ empacotados só numa tag de versão, nunca numa branch. Antes de qualquer push,
 CI confirma, nunca é o primeiro teste.
 
 Se um guardrail bloquear um trabalho legítimo, isso é assunto de PR próprio, com
-justificativa — não de `#[allow]` no meio do diff. Advisory nova só ganha
+justificativa — não de `#[allow]` no meio do diff. Um subprocesso que faz
+trabalho que uma lista nega (`Command::new("readlink")` onde
+`std::fs::read_link` é negado) é a mesma violação que chamar a API negada, e
+um `clippy.toml` próprio do crate que tira entradas da lista é exceção a
+declarar, não configuração
+([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-29). Advisory nova só ganha
 exceção no `deny.toml` com justificativa, link e data de expiração.
 
 ### Estrutura de crates — [ADR 0028](adr/0028-crate-structure.md)

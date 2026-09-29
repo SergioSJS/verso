@@ -67,8 +67,8 @@ const seen = new Map<string, Map<string, BaseCell | null>>();
 export function renderKanban(ctx: RenderCtx): HTMLElement {
   const { s, view, host } = ctx;
   const wrap = h("div", "base-kanban-wrap");
-  const g = view["groupBy"] as { property?: unknown } | undefined;
-  const property = g && typeof g.property === "string" ? g.property : "";
+  const g = view["groupBy"];
+  const property = typeof g === "string" ? g : (g && typeof g === "object" && typeof (g as { property?: unknown }).property === "string" ? (g as { property: string }).property : "");
   if (!property) {
     wrap.append(h("p", "base-hint", s.chooseGroup));
     return wrap;
