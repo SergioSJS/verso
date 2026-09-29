@@ -710,16 +710,12 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 message: "Nenhum pacote .app encontrado no arquivo baixado.".to_string(),
             })?;
 
-        // Remove macOS quarantine attribute (Gatekeeper) without shelling
-        // out to `xattr` — walk the directory and remove the xattr directly
-        // using the `std::process::Command` only as a best-effort fallback.
-        // In practice the attr is set by the browser; packages we extract
-        // ourselves in /tmp never have it, so this is truly a no-op on most
-        // runs. We keep it for correctness when moving to ~/Applications.
-        let _ = std::process::Command::new("xattr")
-            .args(["-dr", "com.apple.quarantine"])
-            .arg(&extracted_app)
-            .output();
+        // Remove the macOS quarantine attribute (Gatekeeper) from the
+        // bundle, through the xattr crate — no shell (ADR 0029). In
+        // practice the attribute is the browser's; a zip this code
+        // extracted in /tmp rarely has it, so this is mostly a no-op,
+        // kept for correctness when the bundle moves to ~/Applications.
+        clear_quarantine_tree(&extracted_app);
 
         // Try to replace the running bundle in-place
         let current_exe = std::env::current_exe().ok();
@@ -961,4 +957,83 @@ pub(crate) fn get_downloads_dir() -> std::path::PathBuf {
     let home = std::env::var("HOME")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
     std::path::PathBuf::from(home).join("Downloads")
+}
+
+// ── The OS edge the CLI install needs ──────────────────────────────────
+//
+// The settings' CLI link (`install_cli` and friends in lib.rs) checks and
+// makes a symlink in `/usr/local/bin`. Its filesystem work lives here, the
+// one module of this crate allowed `std::fs` (ADR 0029, revision of
+// 2026-09-29: a subprocess doing filesystem work counts as the same
+// violation, so `test`, `readlink`, `ln`, `rm` and `xattr` are gone).
+// The elevated fallback still runs a shell through the system's
+// administrator prompt: privilege, not filesystem dodging.
+
+/// Whether `path` is an executable file (the `test -x` this replaces).
+pub(crate) fn executable_file(path: &std::path::Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::metadata(path).is_ok_and(|m| m.is_file())
+    }
+}
+
+/// Where the symlink at `path` points, if it is one.
+pub(crate) fn link_target(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    std::fs::read_link(path).ok()
+}
+
+/// Whether anything sits at `path` — a file, a directory, or a symlink,
+/// even a broken one (the `test -e` this replaces, without following).
+pub(crate) fn something_at(path: &std::path::Path) -> bool {
+    std::fs::symlink_metadata(path).is_ok()
+}
+
+/// Point `link` at `target`, replacing whatever symlink or file was
+/// there (the `ln -sfn` this replaces). Unix only; the CLI link is not
+/// offered elsewhere yet.
+#[cfg(unix)]
+pub(crate) fn replace_symlink(
+    target: &std::path::Path,
+    link: &std::path::Path,
+) -> std::io::Result<()> {
+    if std::fs::symlink_metadata(link).is_ok() {
+        std::fs::remove_file(link)?;
+    }
+    std::os::unix::fs::symlink(target, link)
+}
+
+/// Take the file or symlink at `path` away (the `rm` this replaces).
+pub(crate) fn remove_file_at(path: &std::path::Path) -> std::io::Result<()> {
+    std::fs::remove_file(path)
+}
+
+/// Clear the download quarantine from one file, through the xattr crate,
+/// not a shell. Nothing to clear is fine.
+#[cfg(target_os = "macos")]
+pub(crate) fn clear_quarantine(path: &std::path::Path) {
+    let _ = xattr::remove(path, "com.apple.quarantine");
+}
+
+/// [`clear_quarantine`] over a whole tree (the `xattr -dr` this
+/// replaces). Best effort, as the shell call was: an entry that cannot
+/// be listed is skipped, not an error.
+#[cfg(target_os = "macos")]
+pub(crate) fn clear_quarantine_tree(path: &std::path::Path) {
+    clear_quarantine(path);
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let child = entry.path();
+        if entry.file_type().is_ok_and(|t| t.is_dir()) {
+            clear_quarantine_tree(&child);
+        } else {
+            clear_quarantine(&child);
+        }
+    }
 }

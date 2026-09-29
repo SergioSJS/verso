@@ -224,6 +224,18 @@ export const commands = {
 	 *  origin is not on it.
 	 */
 	setEmbedOrigins: (origins: string[]) => typedError<null, ContractError>(__TAURI_INVOKE("set_embed_origins", { origins })),
+	/**
+	 *  The walk's rules, from the settings: whether the well-known build
+	 *  directories and each `.gitignore` are honored (ADR 0044, revised
+	 *  2026-09-29). Applied to the open folder at once; the UI reindexes
+	 *  after a change, so the listing answers to the new rules.
+	 */
+	setWalkRules: (builtinIgnores: boolean, gitignore: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_walk_rules", { builtinIgnores, gitignore })),
+	/**
+	 *  The window's language, for the native menu ("pt" or "en"); pushed at
+	 *  start-up and when the setting changes.
+	 */
+	setMenuLanguage: (language: string) => typedError<null, ContractError>(__TAURI_INVOKE("set_menu_language", { language })),
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 	/**

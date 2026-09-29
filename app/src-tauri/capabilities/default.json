@@ -51,6 +51,8 @@
     "allow-reveal",
     "allow-copy-full-path",
     "allow-set-embed-origins",
+    "allow-set-walk-rules",
+    "allow-set-menu-language",
     "allow-reindex",
     "allow-query-base",
     "allow-new-window",
