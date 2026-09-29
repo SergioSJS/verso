@@ -93,7 +93,7 @@ import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
 import { ask, tell } from "./dialog";
-import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml, setProxyBase } from "./sanitize";
+import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml, webFrame } from "./sanitize";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import { renderMermaid } from "./mermaid";
 
@@ -127,7 +127,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "appVersion" | "appVersionDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
-  | "remoteContent" | "remoteContentDesc" | "ignoreBuildDirs" | "ignoreBuildDirsDesc" | "respectGitignore" | "respectGitignoreDesc" | "embedRemoteOff" | "embedLoad" | "embedLocal" | "embedApprove" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
+  | "remoteContent" | "remoteContentDesc" | "ignoreBuildDirs" | "ignoreBuildDirsDesc" | "respectGitignore" | "respectGitignoreDesc" | "embedRemoteOff" | "embedLoad" | "embedLocal" | "embedPublic" | "embedApprove" | "embedAllowed" | "embedAllowedDesc" | "embedAllowedNone" | "embedRemove" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
   | "newBase" | "insertBase" | "calendarTab" | "newWindow"
@@ -225,7 +225,7 @@ const pt: Strings = {
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   ignoreBuildDirs: "Ignorar pastas de build", ignoreBuildDirsDesc: "node_modules, target, dist e semelhantes ficam fora do índice e da busca.", respectGitignore: "Respeitar .gitignore", respectGitignoreDesc: "O que o .gitignore de cada pasta exclui fica fora do índice, com as regras do git (inclusive `!`).",
-  remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", embedRemoteOff: "Conteúdo remoto desligado: esta página não foi carregada.", embedLoad: "Carregar", embedLocal: "Esta página está na rede local (neste computador ou num aparelho da sua rede). Permita só se confiar nela; permitida, ela carrega sempre.", embedApprove: "Permitir sempre", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
+  remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", embedRemoteOff: "Conteúdo remoto desligado: esta página não foi carregada.", embedLoad: "Carregar", embedLocal: "Esta página está na rede local (neste computador ou num aparelho da sua rede). Permita só se confiar nela; permitida, ela carrega sempre.", embedPublic: "Esta nota quer embutir um site. Permitido, ele sempre carrega dentro das notas.", embedApprove: "Permitir sempre", embedAllowed: "Sites permitidos nas notas", embedAllowedDesc: "As origens que você permitiu embutir (\"Permitir sempre\"). Remover uma volta a perguntar na próxima vez.", embedAllowedNone: "Nenhum site permitido ainda; a pergunta aparece na nota, no primeiro embed de cada site.", embedRemove: "Remover", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
   errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
@@ -317,7 +317,7 @@ const en: Strings = {
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   ignoreBuildDirs: "Ignore build folders", ignoreBuildDirsDesc: "node_modules, target, dist and the like stay out of the index and the search.", respectGitignore: "Respect .gitignore", respectGitignoreDesc: "What each folder's .gitignore excludes stays out of the index, by git's rules (`!` included).",
-  remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", embedRemoteOff: "Remote content is off: this page was not loaded.", embedLoad: "Load", embedLocal: "This page is on the local network (this computer or a device on your network). Allow it only if you trust it; once allowed, it always loads.", embedApprove: "Always allow", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
+  remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", embedRemoteOff: "Remote content is off: this page was not loaded.", embedLoad: "Load", embedLocal: "This page is on the local network (this computer or a device on your network). Allow it only if you trust it; once allowed, it always loads.", embedPublic: "This note wants to embed a web site. Once allowed, it always loads inside notes.", embedApprove: "Always allow", embedAllowed: "Sites allowed in notes", embedAllowedDesc: "The origins you allowed to embed (\"Always allow\"). Removing one asks again next time.", embedAllowedNone: "No site allowed yet; the question appears in the note, on each site\u2019s first embed.", embedRemove: "Remove", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
   errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
@@ -667,12 +667,6 @@ function pushEmbedOrigins(): Promise<boolean> {
   );
 }
 const embedOriginsPushed = pushEmbedOrigins();
-/** The embed proxy's base, token included, from the host: without it an
- *  embedded page renders as a link, never a broken frame. */
-const proxyBaseReady = commands
-  .embedProxyBase()
-  .then((r) => setProxyBase(r.status === "ok" ? r.data : null))
-  .catch(() => setProxyBase(null));
 /** The scan's rules handed to the host, which walks the folder with them.
  *  Awaited with the embed origins, before any folder opens. */
 function pushWalkRules(): Promise<boolean> {
@@ -691,7 +685,7 @@ function pushMenuLanguage(): void {
 }
 pushMenuLanguage();
 configureEmbeds({
-  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, approve: t.embedApprove, cancel: t.cancel },
+  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, publicSite: t.embedPublic, approve: t.embedApprove, cancel: t.cancel },
   approve: async (origin) => {
     if (!settings.embedOrigins.includes(origin)) settings.embedOrigins = [...settings.embedOrigins, origin];
     saveSettings();
@@ -2838,6 +2832,23 @@ class NoteLeaf extends Leaf {
       const raw = span.dataset["target"] ?? "";
       const to = this.resolve(raw);
       if (!to || !to.endsWith(".md") || to === this.path) continue;
+      // A web note embedded is its page, not its (empty) text: the same
+      // proxied, sandboxed frame an <iframe> gets, gate included.
+      const webUrl = webNotes.get(to);
+      if (webUrl) {
+        const box = h("section", "embed-note");
+        const head = h("a", "embed-note-title", name(to));
+        head.href = "#";
+        head.addEventListener("click", (e) => {
+          e.preventDefault();
+          openNote(to, false);
+        });
+        const body = h("div", "embed-note-body");
+        body.append(webFrame(webUrl, "", "", ""));
+        box.append(head, body);
+        span.replaceWith(box);
+        continue;
+      }
       const heading = raw.includes("#") && !raw.includes("#^") ? raw.slice(raw.indexOf("#") + 1) : "";
       void commands.readNote(to).then((r) => {
         if (r.status !== "ok" || this.path !== forPath) return;
@@ -7755,6 +7766,32 @@ class SettingsDialog {
       return sel;
     });
     add("general", t.remoteContent, t.remoteContentDesc, () => this.toggle(settings.remoteContent, (v) => { settings.remoteContent = v; saveSettings(); remoteContentChanged(); }));
+    add("general", t.embedAllowed, t.embedAllowedDesc, () => {
+      const wrap = h("div", "embed-allowed");
+      const render = () => {
+        wrap.textContent = "";
+        if (settings.embedOrigins.length === 0) {
+          wrap.append(h("p", "embed-allowed-none", t.embedAllowedNone));
+          return;
+        }
+        for (const origin of [...settings.embedOrigins].sort()) {
+          const row = h("div", "embed-allowed-row");
+          const where = h("code", "embed-allowed-origin", origin);
+          const rm = button("ghost", t.embedRemove);
+          rm.addEventListener("click", () => {
+            settings.embedOrigins = settings.embedOrigins.filter((o) => o !== origin);
+            saveSettings();
+            allowEmbedOrigins(settings.embedOrigins);
+            void pushEmbedOrigins();
+            render();
+          });
+          row.append(where, rm);
+          wrap.append(row);
+        }
+      };
+      render();
+      return wrap;
+    });
     add("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(settings.ignoreBuildDirs, (v) => { settings.ignoreBuildDirs = v; saveSettings(); void walkRulesChanged(); }));
     add("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(settings.respectGitignore, (v) => { settings.respectGitignore = v; saveSettings(); void walkRulesChanged(); }));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
@@ -8587,7 +8624,7 @@ if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
 void (async () => {
-  await Promise.all([embedOriginsPushed, walkRulesPushed, proxyBaseReady]);
+  await Promise.all([embedOriginsPushed, walkRulesPushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
   // window joins it rather than open another.

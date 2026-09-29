@@ -130,19 +130,6 @@ function tameStyle(style: CSSStyleDeclaration): void {
 
 /* ---------- Embedded web pages ---------- */
 
-/** Where the embed proxy serves a web page from: the host's loopback
- *  listener, an origin of its own whose responses may not reach back
- *  into `verso:`. WebKit never navigates an iframe to a custom scheme,
- *  so the base is plain HTTP, handed over by the host with the session's
- *  token in it (`embed_proxy_base`). The address is encoded once; the
- *  host decodes it once. Without a base, an embed becomes a link. */
-let proxyBase: string | null = null;
-export function setProxyBase(base: string | null): void {
-  proxyBase = base;
-}
-function proxied(url: string): string | null {
-  return proxyBase ? `${proxyBase}${encodeURIComponent(url)}` : null;
-}
 /** Every embedded page runs sandboxed: scripts in its own origin (the
  *  proxy's), no navigation of the window around it. */
 const SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups";
@@ -190,6 +177,8 @@ export type EmbedStrings = {
   load: string;
   /** The page is on the local network. */
   local: string;
+  /** The page is on the public web, and not approved yet. */
+  publicSite: string;
   approve: string;
   cancel: string;
 };
@@ -209,14 +198,19 @@ export function configureEmbeds(h: EmbedHooks): void {
 
 /** Why a page is not loaded yet: on the local network and not approved,
  *  or remote content is off; null when it may load. */
-function gateOf(url: string): { kind: "local" | "remote"; origin: string } | null {
+function gateOf(url: string): { kind: "local" | "public" | "remote"; origin: string } | null {
   let u: URL;
   try {
     u = new URL(url);
   } catch {
     return null;
   }
-  if (localHost(u.hostname) && !approved.has(u.origin)) return { kind: "local", origin: u.origin };
+  // Every origin needs the user's one-time approval before an app view
+  // may navigate a frame to it — the host's guard enforces the same
+  // list (the maintainer's decision of 2026-09-29; ADR 0056 revised).
+  if (!approved.has(u.origin)) {
+    return { kind: localHost(u.hostname) ? "local" : "public", origin: u.origin };
+  }
   if (!remote && !clicked.has(url)) return { kind: "remote", origin: u.origin };
   return null;
 }
@@ -226,13 +220,16 @@ function gateOf(url: string): { kind: "local" | "remote"; origin: string } | nul
  *  inside the box in a `template`: inert, nothing is fetched until a
  *  click. Built in `doc`, the inert document of a note or the page. */
 function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElement {
-  const src = proxied(url);
-  frame.setAttribute("src", src ?? "");
+  // The page loads itself, in its own real origin: the browser's
+  // isolation keeps it out of the app and the folder, the sandbox keeps
+  // it from steering the window, and the guard only lets an approved
+  // origin through.
+  frame.setAttribute("src", url);
   frame.setAttribute("sandbox", SANDBOX);
   frame.setAttribute("loading", "lazy");
   const gate = gateOf(url);
-  if (!gate && src) return frame;
-  if (!hooks || !src || !gate) {
+  if (!gate) return frame;
+  if (!hooks) {
     // No window to ask (not configured): a link, never the page.
     const link = doc.createElement("a");
     link.className = "remote-image";
@@ -248,10 +245,10 @@ function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElemen
   box.setAttribute("data-embed-origin", gate.origin);
   const where = doc.createElement("code");
   where.className = "embed-gate-origin";
-  where.textContent = gate.kind === "local" ? gate.origin : url;
+  where.textContent = gate.kind === "remote" ? url : gate.origin;
   const text = doc.createElement("p");
   text.className = "embed-gate-text";
-  text.textContent = gate.kind === "local" ? s.local : s.remoteOff;
+  text.textContent = gate.kind === "local" ? s.local : gate.kind === "public" ? s.publicSite : s.remoteOff;
   const actions = doc.createElement("div");
   actions.className = "embed-gate-actions";
   const button = (action: string, label: string, cls: string) => {
@@ -262,8 +259,8 @@ function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElemen
     b.textContent = label;
     return b;
   };
-  if (gate.kind === "local") actions.append(button("cancel", s.cancel, "ghost"), button("approve", s.approve, "save"));
-  else actions.append(button("load", s.load, "save"));
+  if (gate.kind === "remote") actions.append(button("load", s.load, "save"));
+  else actions.append(button("cancel", s.cancel, "ghost"), button("approve", s.approve, "save"));
   const held = doc.createElement("template");
   held.content.append(frame);
   box.append(where, text, actions, held);
@@ -299,8 +296,8 @@ function onGate(e: MouseEvent): void {
   const origin = box.getAttribute("data-embed-origin") ?? "";
   const load = () => {
     const held = box.querySelector("template")?.content.querySelector("iframe");
-    // Only a frame this module made: through the proxy, sandboxed.
-    if (!held || !proxyBase || !held.getAttribute("src")?.startsWith(proxyBase)) return;
+    // Only a frame this module made: the box's own address, sandboxed.
+    if (!held || held.getAttribute("src") !== url) return;
     held.setAttribute("sandbox", SANDBOX);
     box.replaceWith(document.importNode(held, true));
   };

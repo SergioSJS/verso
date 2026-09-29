@@ -2502,3 +2502,9 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
 }
 
 
+
+/* The allowed-embeds list in the settings: one origin per row, the
+   remove button at its side. */
+.embed-allowed-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.2rem 0; }
+.embed-allowed-origin { overflow-wrap: anywhere; }
+.embed-allowed-none { opacity: 0.7; margin: 0; }
