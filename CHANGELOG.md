@@ -22,7 +22,11 @@ test release.
 
 ### Fixed
 
-- **Web page iframe embedding for local network and home servers**: allowed private local network IP addresses (`192.168.x.x`, `10.x.x.x`, etc.) and `localhost` in the embedded web proxy, enabling embeds of local services such as Calibre-Web, dev servers, and home lab dashboards while maintaining SSRF defense against cloud metadata endpoints.
+- **Web page iframe embedding for local network and home servers, with your approval**: a note can embed a page on this computer or your network (`localhost`, `192.168.x.x`, `10.x.x.x`, `.local` names, etc.) — Calibre-Web, dev servers, home lab dashboards. The first time an origin appears, Verso asks before loading anything ("Always allow"), once per origin; public web pages load as before. Embedded pages now run in an origin of their own and can no longer read the folder's files.
+- **Updates are verified before they are installed**: the app downloads an update only from the project's own repository, picking the file itself, and checks it against the SHA-256 checksum GitHub publishes for it. A download that does not match, or a release without a checksum, installs nothing; the releases page is the fallback.
+- **Mermaid diagrams render with Mermaid's strict security level**: text in a diagram is encoded, and `click` directives in it are ignored.
+- **Re-importing the demo content keeps files you edited**: a demo file that already exists with other content is left as it is, and Verso lists the ones it kept.
+- **Setext headings**: a line of text underlined with `===` or `---` is recognized as a heading (level 1 or 2), as in Obsidian.
 - **Web proxy URL routing and redirect support**: fixed query string parameter handling and added redirect following for external and local iframes.
 
 ---
@@ -43,7 +47,7 @@ test release.
 - **Tree root context menu**: right-clicking empty space in the file tree opens options to create notes, folders, bases, web pages, or collapse/expand all.
 - **macOS multi-window support in App Exposé**: Tauri window menu registration for native macOS App Exposé / Mission Control window grouping.
 - **Demo and template vault**: integrated sample vault in `demo-vault/` showcasing all Verso features (Markdown syntax, KaTeX, interactive tasks, wikilinks, embeds, YAML properties, bases, graph view, and two-page PDF spread) with one-click import from the command palette, menu, and welcome screen.
-- **In-app update notifications and download**: Verso checks for new versions on GitHub Releases at startup (configurable; on by default) and lets you download and install the update from within the app, with a live progress bar. Supports macOS, Windows, and Linux.
+- **In-app update notifications and download**: Verso checks for new versions on GitHub Releases at startup (configurable; on by default) and lets you download and install the update from within the app, with a live progress bar. Supports macOS, Windows, and Linux. *[Correction, 2026-09-29: releases are built for macOS only (ADR 0022, ADR 0051); the Windows and Linux paths exist in the code, with no release to install from.]*
 - **Redesigned in-text search panel (Ctrl+F)**: modern panel with search icon, match counter ("2 of 7"), previous/next arrow buttons, and a close button; now works in all three modes — Edit, Live Preview, and Reading.
 
 ### Fixed

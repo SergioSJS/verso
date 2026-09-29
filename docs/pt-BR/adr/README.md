@@ -75,8 +75,10 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0026](0026-core-ui-contract-inviolable-rules.md) | Contrato core↔UI e regras invioláveis de arquitetura | Aceito |
 | [0027](0027-runtime-capabilities.md) | Capabilities consultáveis em runtime | Proposto |
 | [0028](0028-crate-structure.md) | Estrutura de crates | Aceito |
-| [0050](0050-outbound-network-access.md) | Acesso de saída à rede a partir da janela | Aceito (o padrão do ajuste: provisório) |
+| [0050](0050-outbound-network-access.md) | Acesso de saída à rede a partir da janela | Aceito (o padrão do ajuste: provisório); revisado pela 0055 e pela 0056 (2026-09-29) |
 | [0054](0054-terminal-and-agents-from-the-app.md) | A linha de comando e os agentes, ligados pelo app | Aceito (2026-09-24) |
+| [0055](0055-in-app-updater.md) | O atualizador dentro do app | Aceito (2026-09-29) |
+| [0056](0056-embedded-web-pages.md) | Páginas web embutidas: o proxy, a origem dele e a rede local | Aceito (2026-09-29) |
 
 ### Dialeto, engenharia e roadmap
 
@@ -110,7 +112,7 @@ onde cada uma está.
 
 | # | Título | Quando decidir |
 |---|---|---|
-| [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Symlinks e caminhos ignorados: Aceito (2026-09-22); handles: aceitos como construídos para a Fase 2 (2026-09-24), reabertos antes que qualquer coisa fora das views do próprio app ganhe acesso a arquivos; o watcher: Aceito (2026-09-24) |
+| [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Symlinks e caminhos ignorados: Aceito (2026-09-22); handles: aceitos como construídos para a Fase 2 (2026-09-24), reabertos antes que qualquer coisa fora das views do próprio app ganhe acesso a arquivos; o watcher: Aceito (2026-09-24); uma contradição `[ABERTO]` entre o código e o grupo dos caminhos ignorados registrada em 2026-09-29 |
 | [0045](0045-server-and-mcp-security.md) | Segurança do servidor, do MCP e do contrato | MCP: Aceito; contrato: aceito como foi construído para a Fase 2, `[ABERTO]` até um servidor entrar em escopo; servidor: antes de entrar em escopo |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Índice: localização, ciclo de vida e tokenizador | Features 3 e 5 da Fase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Questões abertas da API de plugin | Antes de desenhar a API (depois da Fase 2) |

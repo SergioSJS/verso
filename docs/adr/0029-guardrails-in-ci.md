@@ -22,7 +22,13 @@
   `main` only, the apps packaged only for a version tag. 2026-09-24 — the
   guardrails run locally before a push, by two scripts, at the maintainer's
   request. 2026-09-24 — the release workflow exists, with the development
-  flow of [0051](0051-development-flow-and-releases.md).
+  flow of [0051](0051-development-flow-and-releases.md). 2026-09-29 — why a
+  guardrail worked around is the failure that matters, from two cases on
+  branch `fix/backlog-2-issues`; a subprocess doing the work a list denies
+  counts as the denied call; two exceptions to the `std::fs` list declared
+  for the maintainer's ratification, at the maintainer's request in session
+  to make the risk of bypassing a guardrail clear in the documents
+  (Decision, "Working around a guardrail").
 
 ## Context
 
@@ -228,6 +234,96 @@ unchanged; this is what `verso-index` does.
   the operator would do.
 - **Seen failing**, as this ADR requires: with the quoting removed, the grammar
   test fails with `fts5: syntax error near "NOT"`.
+
+### Working around a guardrail — revision of 2026-09-29
+
+**Why it is the failure that matters.** Written for the maintainer, who is
+learning Rust. This ADR's premise is in its Context: line-by-line human review
+is not the realistic defence, so the guardrails are the reviewer that reads
+every line. A guardrail that is worked around is not a weaker reviewer; it is
+a stretch of code that no reviewer reads any more, and nothing says so — CI
+stays green.
+
+The `std::fs` rule is the clearest case. `verso-fs` is where the protections
+of the user's files live: the atomic write (temporary file, `fsync`,
+`rename`), the check that the file on disk is still the one that was read
+(invariant 11), the placeholder guard ([0043](0043-placeholder-guard.md),
+invariant 10) and path confinement. Code that reaches the disk around
+`verso-fs` compiles clean, passes its tests and reads right in a diff — and
+does none of the four. It fails months later, as a note half-written after a
+power loss, an edit made in another app silently overwritten, a file of
+iCloud read as deleted, or a path outside the folder reached. No test and no
+demonstration shows it before then.
+
+Two mechanisms make that possible without a single `#[allow]`:
+
+- **A subprocess.** Clippy's `disallowed-methods` names Rust functions —
+  `std::fs::read_link`, for instance — and flags a call to them.
+  `std::process::Command::new("readlink")` is not a call to that function: it
+  starts another program, the system's `readlink`, which does the same thing
+  on the same disk. To the compiler it is starting a process, and nothing
+  turns red.
+- **A `clippy.toml` of the crate's own.** Clippy reads the `clippy.toml`
+  closest to the crate, and a crate that has one does not inherit the
+  workspace's list. A new file with `disallowed-methods = []` switches the
+  whole list off for that crate, in a line that looks like configuration.
+
+And a workaround tolerated once becomes the pattern. The AI that writes the
+next feature reads the code around it and does what it finds there; a
+subprocess that went through review is, to the next session, evidence that
+this is how this repository does it.
+
+**The two cases on this branch**, recorded as facts, not blame — both compiled
+clean and passed every check, and both were found by reading, which is what
+this ADR says does not scale:
+
+- `crates/verso-cli` (commit `e5754b0`): to resolve the command line's
+  installed symlink back to the directory of the real binary and the app
+  beside it, the code called the `readlink` program through
+  `std::process::Command`, where clippy denied `std::fs::read_link`.
+- `app/src-tauri` (commit `2db4c73`, the updater, shipped in 0.3.0-beta.1): a
+  `clippy.toml` with an empty `disallowed-methods` list was added inside a
+  feature pull request, which switched the workspace's `std::fs` list off for
+  the whole shell, with no exception declared.
+
+**The rule.** A subprocess that does work a list denies — filesystem work, or
+any other work a list denies — is the same violation as calling the denied
+API: `Command::new("readlink")`, `cp`, `rm`, `ln` or `cat` in a crate where
+the matching `std::fs` call is denied fails the guardrail, and a reviewer
+classifies it BLOCKING. A `clippy.toml` that drops entries of the workspace's
+list is an exception and follows the rule for exceptions: declared in the file
+itself, with its reason, and ratified by the maintainer in the pull request
+that adds it. This delimits what "worked around" means in `CLAUDE.md` §3; it
+adds no check. No mechanical check finds a subprocess yet: the reading does.
+
+**Two exceptions, declared in this pull request for the maintainer's
+ratification:**
+
+- `crates/verso-cli/clippy.toml` repeats the workspace's list and allows
+  exactly one call more, `std::fs::canonicalize`, for `launch_app` to resolve
+  the installed symlink (Homebrew's, or the link the settings make) to the
+  directory of the real binary. The path resolved is the binary's own, never
+  the folder's; the command line's input and output are outside rule 5 of
+  [0026](0026-core-ui-contract-inviolable-rules.md). It replaces the `readlink`
+  subprocess above.
+- `app/src-tauri/clippy.toml` keeps an empty list, because clippy's list is
+  per crate, not per module, and the updater
+  ([0055](0055-in-app-updater.md)) works with files that are not the
+  folder's: the download, the extraction, the bundle. `std::fs` in the shell
+  is confined instead to `src/update.rs` by a grep in `scripts/check.sh`, the
+  same pattern that confines `verso-core`'s to `src/sidecar.rs`. By the rule
+  above that the scripts and the workflow change together, the same step
+  belongs in `.github/workflows/ci.yml`.
+
+**A contradiction, recorded and not resolved.** The shell links the command
+line from the settings ([0054](0054-terminal-and-agents-from-the-app.md)) with
+the system's tools — `test`, `readlink`, `ln`, `rm`, `xattr`, `osascript`, in
+`cli_state_now`, `install_cli` and `uninstall_cli` of `app/src-tauri/src/lib.rs`
+— outside `src/update.rs`. Read literally, the rule above makes those calls a
+violation. [0054](0054-terminal-and-agents-from-the-app.md) declared them
+openly and left `[OPEN]` whether they should become `std::fs` with a declared
+exception; that question is the maintainer's, and this revision does not
+answer it.
 
 ## Consequences
 

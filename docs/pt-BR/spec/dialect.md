@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.19
+# Spec do dialeto do Verso — v0.20
 
-- Versão: v0.19 · 2026-09-24
+- Versão: v0.20 · 2026-09-29
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -397,8 +397,22 @@ headings:
 
 Como o texto de `[[nota#seção]]` casa com um heading (maiúsculas, pontuação,
 formatação inline, emoji, headings duplicados, caminho aninhado
-`[[nota#Cap 1#Seção]]`) e heading no estilo setext (`===`/`---`): `[ABERTO]`
-(seção 9, Q19).
+`[[nota#Cap 1#Seção]]`): `[ABERTO]` (seção 9, Q19).
+
+Um heading no estilo setext — uma linha de texto sublinhada com `===` ou
+`---` — é heading, como o Obsidian o reporta. Observado em 2026-09-29 com a
+CLI do Obsidian
+([`docs/reference/obsidian-cli.md`](../reference/obsidian-cli.md), admissível
+pelo [ADR 0009](../adr/0009-external-constraints.md)), lendo
+`app.metadataCache.getCache(...).headings` de uma nota de teste no cofre
+Sandbox: `Taverna` sobre `===` é nível 1; `Porão` sobre `---` é nível 2; e um
+`---` logo abaixo de uma linha de texto, sem linha em branco entre os dois,
+faz dessa linha um heading de nível 2 e nunca é lido como quebra temática. A
+posição é a da linha do texto. A fixture `fixtures/heading/setext` registra
+isso como rascunho da IA, e o `verso-dialect` reporta headings setext de
+acordo. Esta é a parte setext da Q19, respondida por observação e pendente da
+aprovação dessa fixture pelo mantenedor no pull request que a acrescenta
+(seção 1; [ADR 0031](../adr/0031-fixtures-as-contract.md)).
 
 ### 5.13 Links Markdown para arquivo local `PROPOSTO`
 
@@ -982,6 +996,14 @@ ser escolhido.
   emoji, formatação inline (`## *Porão*`), headings duplicados, caminho
   aninhado `[[nota#Cap 1#Seção]]`, heading setext, e o que o `expected.yaml`
   registra em `heading` para o caminho aninhado.
+  **A parte setext tem uma resposta observada** (2026-09-29, seção 5.12): uma
+  linha sublinhada com `===` é heading de nível 1 e uma sublinhada com `---`
+  heading de nível 2, e o `---` nunca é quebra temática quando fica logo
+  abaixo de texto. A resposta é a fixture `fixtures/heading/setext`,
+  rascunhada no pull request que a traz; a aprovação dessa fixture pelo
+  mantenedor ali fecha a subquestão setext, e só ela. A parte do casamento —
+  maiúsculas, pontuação, emoji, formatação, duplicados, o caminho aninhado e o
+  valor de `heading` dele — continua `[ABERTO]`.
 - **Q20. Links Markdown para arquivo local.** `[ABERTO]` (seção 5.13)
   Se contam como link (proposta: sim); `<...>` com espaços; caminho relativo
   `../`; o que separa link local de URL externa; `![](img.png)` como embed;
@@ -1087,3 +1109,4 @@ ser escolhido.
 | v0.17 | 2026-09-24 | Q5: um fato provisório, não uma resposta — a visualização de leitura desenha um callout dentro de um callout, até 32 níveis (branch `feat/nested-callouts`); o aninhamento continua `[ABERTO]` |
 | v0.18 | 2026-09-24 | **Q11 fechada pelo mantenedor** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): um schema é um bloco cercado `verso-schema`, com YAML dentro, numa nota em qualquer lugar da pasta aberta menos caminhos ocultos e ignorados, nomeado pelo `type` que traz dentro; dois schemas com o mesmo nome não tipam nada, e o conflito aparece; se um bloco aninhado conta não está decidido. Seção 6: a nota tipada, os schemas e o i18n de schema `DECIDIDOS`, a restrição 1 (ADR 0013) aceita. Q24: a parte dos links é a próxima decisão. Nenhuma fixture ainda: a implementação as traz. Q6: um ponteiro para `docs/reference/embedded-media-decision.md`, que corrige a afirmação de que a documentação do Obsidian mostra `<video>` e `<audio>`; a Q6 continua aberta |
 | v0.19 | 2026-09-24 | Q11: **um bloco `verso-schema` aninhado não conta**, decidido pelo mantenedor (`docs/reference/views-decision.md` §2, [ADR 0052](../adr/0052-typed-note.md) ponto 3): só um bloco no nível de cima de uma nota é schema, e um aninhado é mostrado como não lido. As bases (arquivos `.base` e blocos `base`) são do [ADR 0053](../adr/0053-views-bases.md), não desta spec, que é o dialeto das notas |
+| v0.20 | 2026-09-29 | Q19, parte setext: **uma resposta observada e uma fixture rascunhada** — `Título` sobre `===` é heading de nível 1, sobre `---` de nível 2, e um `---` logo abaixo de texto nunca é quebra temática (CLI do Obsidian, `docs/reference/obsidian-cli.md`; `fixtures/heading/setext`, rascunho da IA). Seção 5.12 atualizada; a subquestão setext fecha com a aprovação dessa fixture pelo mantenedor no pull request dela. A parte do casamento da Q19 continua aberta |

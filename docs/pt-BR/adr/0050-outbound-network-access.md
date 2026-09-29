@@ -4,6 +4,14 @@
 - Fonte: `docs/review/phase-2.md` §6, item 5;
   [0049](0049-phase-2-scope-widened.md), Consequências
 - Status no briefing: não consta
+- Revisões: 2026-09-29 — revisado por duas decisões do mantenedor, tomadas na
+  sessão, cada uma num ADR próprio; o texto abaixo fica como foi decidido em
+  2026-09-23. A [0055](0055-in-app-updater.md) é a decisão própria do
+  atualizador, que a segunda Consequência pedia: o app checa os releases do
+  projeto ao abrir, com um ajuste para desligar.
+  A [0056](0056-embedded-web-pages.md) acrescenta um quinto jeito aos quatro
+  que a Decisão enumera: uma página web embutida numa nota, buscada pelo
+  proxy do host.
 
 ## Contexto
 
@@ -74,3 +82,6 @@ Decidido em 2026-09-23 pelo mantenedor, sobre a recomendação do autor
 ## Status
 
 Aceito em 2026-09-23. O padrão do ajuste: provisório (Consequências).
+Revisado em 2026-09-29 pela [0055](0055-in-app-updater.md) (a checagem de
+atualização) e pela [0056](0056-embedded-web-pages.md) (páginas web
+embutidas).

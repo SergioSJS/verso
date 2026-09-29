@@ -133,7 +133,12 @@ built and packaged only for a version tag, never on a branch. Before any push,
 confirms, it is never the first test.
 
 If a guardrail blocks legitimate work, that is the subject of its own PR, with
-justification — not of an `#[allow]` in the middle of the diff. A new advisory
+justification — not of an `#[allow]` in the middle of the diff. A subprocess
+that does work a list denies (`Command::new("readlink")` where
+`std::fs::read_link` is denied) is the same violation as calling the denied
+API, and a crate's own `clippy.toml` that drops entries of the list is an
+exception to declare, not configuration
+([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 2026-09-29). A new advisory
 only gets an exception in `deny.toml` with justification, link and expiration
 date.
 

@@ -22,7 +22,10 @@
   decidido como construído para a Fase 2 e reaberto antes que qualquer coisa
   fora das views do próprio app ganhe acesso a arquivos. Os dois registrados
   na Decisão; as linhas que diziam o grupo aberto ficam, cada uma com uma
-  nota.
+  nota. 2026-09-29 — uma contradição `[ABERTO]` registrada no grupo dos
+  caminhos ignorados: o commit `e5754b0` implementou uma lista embutida de
+  diretórios ignorados e a leitura do `.gitignore`, as duas descartadas por
+  este ADR. Nada decidido; o status não muda.
 
 ## Contexto
 
@@ -157,6 +160,44 @@ decidido.**
   listou pode ser nomeada de novo depois de um reinício. Handle recusado para
   algo que a varredura acabou de mostrar é a surpresa que isso evita. Todo outro
   componente começando com ponto continua recusado, como acima.
+
+**`[ABERTO]` — o código contradiz este grupo, registrado em 2026-09-29.** O
+commit `e5754b0` ("ignore build dirs") implementou, em
+`crates/verso-fs/src/walk.rs`, as duas coisas que as Alternativas
+descartadas deste ADR deixaram de lado:
+
+- **Uma lista embutida de nomes de diretório ignorados**,
+  `is_default_ignored_dir`: `node_modules`, `target`, `vendor`, `dist`,
+  `build`, `out`, `env`, `venv`, `.venv`, `coverage`, `test-results`,
+  `__pycache__` e mais onze, a maioria já oculta pelo ponto inicial. Um
+  diretório com um desses nomes é pulado em qualquer profundidade, sem ajuste
+  para desligar — contra "uma lista configurável de caminhos relativos, vazia
+  por padrão".
+- **A leitura do `.gitignore`**, `GitIgnorePattern`: todo `.gitignore` da
+  pasta é lido, e as linhas dele são casadas por uma gramática pequena,
+  própria. Uma linha que começa com `!` é pulada, então uma reinclusão
+  (`!README.md` depois de `*.md`) não reinclui: o que ela nomeia continua
+  oculto. Também não há como desligar — contra "`.gitignore` não é lido na
+  Fase 1".
+
+O watcher (`crates/verso-fs/src/watch.rs`) descarta eventos sob os nomes
+embutidos mas não lê os padrões do `.gitignore`, então os dois caminhos até o
+índice já não concordam sobre o que é ignorado.
+
+O risco é o que este ADR previu quando descartou os dois: notas somem em
+silêncio. Uma pasta do cofre chamada `build/`, `out/` ou `env/`, ou uma linha
+ampla num `.gitignore` — um `*.md`, que a alternativa descartada deste grupo
+cita — tira as notas dela do índice, da busca, dos backlinks e da reescrita
+de links numa renomeação, sem nada na tela dizendo por quê. Pela regra única
+deste grupo, uma nota ignorada também é alvo não resolvido e nunca fonte de
+backlink.
+
+O que está aberto, para o mantenedor: **ou** revisar este ADR para aceitar o
+comportamento — aí a lacuna do `!` e a assimetria do watcher viram correções
+a fazer, e vale decidir junto um jeito de desligar — **ou** mandar o código
+voltar ao desenho decidido acima, uma lista de ignorados confinada no
+diretório de configuração, vazia por padrão. Até lá o código e este ADR
+discordam, e este ADR é o que foi decidido.
 
 ### O watcher — depois da feature 2; decidido em 2026-09-24
 
