@@ -20,7 +20,9 @@ export function ensureMermaid(): void {
   if (initializedTheme !== themeKey) {
     mermaid.initialize({
       startOnLoad: false,
-      securityLevel: "loose",
+      // "strict": labels are encoded and `click` directives are ignored; a
+      // note's diagram cannot run code or bind handlers in the window.
+      securityLevel: "strict",
       theme: isDark ? "dark" : "default",
       fontFamily: 'var(--ui, "Instrument Sans", -apple-system, sans-serif)',
       themeVariables: isDark

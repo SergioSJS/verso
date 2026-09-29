@@ -92,8 +92,8 @@ import { listKeymap } from "./listKeymap";
 import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
-import { ask } from "./dialog";
-import { allowRemoteContent, cleanHtmlText, setHtml } from "./sanitize";
+import { ask, tell } from "./dialog";
+import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml } from "./sanitize";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import { renderMermaid } from "./mermaid";
 
@@ -127,7 +127,7 @@ type Strings = Record<
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
   | "openInWindow" | "returnToMain" | "editEmbed" | "folderNote" | "createFolderNote" | "language" | "languageDesc" | "appVersion" | "appVersionDesc" | "graphZoomIn" | "graphZoomOut" | "graphFit"
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
-  | "remoteContent" | "remoteContentDesc" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
+  | "remoteContent" | "remoteContentDesc" | "embedRemoteOff" | "embedLoad" | "embedLocal" | "embedApprove" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
   | "newBase" | "insertBase" | "calendarTab" | "newWindow"
@@ -135,7 +135,7 @@ type Strings = Record<
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
   | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
-  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported"
+  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
 > & {
@@ -164,6 +164,7 @@ type Strings = Record<
   indexingNotes: (cur: number, tot: number, pct: number, file: string) => string;
   indexingDone: string;
   openingFolder: string;
+  demoVaultNew: (n: number) => string;
 };
 
 const pt: Strings = {
@@ -174,6 +175,7 @@ const pt: Strings = {
   indexingNotes: (cur, tot, pct, file) => `Indexando: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
   indexingDone: "Indexação concluída.",
   openingFolder: "Abrindo pasta e escaneando arquivos…",
+  demoVaultNew: (n) => (n === 1 ? "1 novo" : `${n} novos`),
   cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.", propChanged: "Essa propriedade mudou no texto desde que o painel foi desenhado; nada foi alterado — o painel se atualiza ao salvar, repita a edição.", propFixed: "Edite no modo Fonte: este valor tem comentário, várias linhas ou uma forma que o painel não reescreve sem perda.", propExists: "Essa propriedade já está no texto.", planLeftOut: "Deixadas de fora (mudanças que não puderam ser salvas):",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
@@ -222,7 +224,7 @@ const pt: Strings = {
   lineNumbersEdit: "Números de linha (Modo Editar)", lineNumbersEditDesc: "Exibe a numeração de linhas no editor visual (Live Preview).", lineNumbersSource: "Números de linha (Modo Fonte)", lineNumbersSourceDesc: "Exibe a numeração de linhas no editor de código-fonte Markdown puro.", lineNumbersPreview: "Números de linha (Modo Leitura)", lineNumbersPreviewDesc: "Exibe a numeração de linhas nos blocos do modo de leitura.", foldAllHeadings: "Contrair todas as seções", unfoldAllHeadings: "Expandir todas as seções",
   webBack: "Voltar", webForward: "Avançar", webReload: "Recarregar", webShowNote: "Ver nota", webShowPage: "Ver página", htmlPage: "Página", webOpenWindow: "Abrir em janela", saveAsTemplate: "Salvar esta nota como template", templateSaved: "Template salvo na pasta de templates.",
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
-  remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
+  remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", embedRemoteOff: "Conteúdo remoto desligado: esta página não foi carregada.", embedLoad: "Carregar", embedLocal: "Esta página está na rede local (neste computador ou num aparelho da sua rede). Permita só se confiar nela; permitida, ela carrega sempre.", embedApprove: "Permitir sempre", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
   errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
@@ -252,7 +254,7 @@ const pt: Strings = {
   mcpAddAsk: "Isto entra no arquivo de configuração do Claude Desktop; uma cópia do arquivo como está fica ao lado dele:\n\n{entry}\n\nDepois, reinicie o Claude Desktop.", mcpAddYes: "Adicionar", mcpAdded: "Adicionado. Reinicie o Claude Desktop.", mcpBackup: "Cópia do anterior: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
-  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!",
+  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!", demoVaultKept: "Estes arquivos já existiam com outro conteúdo e foram mantidos como estão, porque foram editados:", demoVaultKeptOk: "OK",
   checkUpdates: "Verificar atualizações automaticamente", checkUpdatesDesc: "Verifica e avisa ao abrir o aplicativo quando uma nova versão do Verso estiver disponível.", checkNow: "Verificar atualizações", checkingUpdates: "Verificando atualizações…", updateUpToDate: "Você está usando a versão mais recente.", updateAvailable: "Nova versão disponível", downloadAndUpdate: "Baixar e atualizar", downloadingUpdate: "Baixando atualização…", updateReady: "Atualização pronta!", restartNow: "Reiniciar agora", viewReleaseNotes: "Ver notas da versão", hideReleaseNotes: "Ocultar notas da versão", updateBannerTitle: "Nova versão disponível", seeInSettings: "Ver nos Ajustes", updateFailed: "Não foi possível verificar atualizações.",
 };
 
@@ -264,6 +266,7 @@ const en: Strings = {
   indexingNotes: (cur, tot, pct, file) => `Indexing: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
   indexingDone: "Indexing complete.",
   openingFolder: "Opening folder and scanning files…",
+  demoVaultNew: (n) => (n === 1 ? "1 new" : `${n} new`),
   cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.", propChanged: "That property changed in the text since the panel was drawn; nothing was changed — the panel updates on saving, make the edit again.", propFixed: "Edit it in Source mode: this value has a comment, several lines or a shape the panel cannot rewrite without loss.", propExists: "That property is already in the text.", planLeftOut: "Left out (changes that could not be saved):",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
@@ -312,7 +315,7 @@ const en: Strings = {
   lineNumbersEdit: "Line numbers (Edit mode)", lineNumbersEditDesc: "Show line numbers in the visual editor (Live Preview).", lineNumbersSource: "Line numbers (Source mode)", lineNumbersSourceDesc: "Show line numbers in the plain Markdown source code editor.", lineNumbersPreview: "Line numbers (Reading mode)", lineNumbersPreviewDesc: "Show line numbers on blocks in reading view.", foldAllHeadings: "Collapse all sections", unfoldAllHeadings: "Expand all sections",
   webBack: "Back", webForward: "Forward", webReload: "Reload", webShowNote: "Show note", webShowPage: "Show page", htmlPage: "Page", webOpenWindow: "Open in a window", saveAsTemplate: "Save this note as a template", templateSaved: "Template saved in the templates folder.",
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
-  remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
+  remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", embedRemoteOff: "Remote content is off: this page was not loaded.", embedLoad: "Load", embedLocal: "This page is on the local network (this computer or a device on your network). Allow it only if you trust it; once allowed, it always loads.", embedApprove: "Always allow", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
   errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
@@ -342,7 +345,7 @@ const en: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
-  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!",
+  importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content and were kept as they are, because they were edited:", demoVaultKeptOk: "OK",
   checkUpdates: "Check for updates automatically", checkUpdatesDesc: "Check and notify on startup when a new version of Verso is available.", checkNow: "Check for updates", checkingUpdates: "Checking for updates…", updateUpToDate: "You are running the latest version.", updateAvailable: "New version available", downloadAndUpdate: "Download and update", downloadingUpdate: "Downloading update…", updateReady: "Update ready!", restartNow: "Restart now", viewReleaseNotes: "View release notes", hideReleaseNotes: "Hide release notes", updateBannerTitle: "New version available", seeInSettings: "View in Settings", updateFailed: "Could not check for updates.",
 };
 
@@ -548,6 +551,9 @@ type Settings = {
   measure: "normal" | "wide";
   linkFormat: "shortest" | "relative" | "root";
   remoteContent: boolean;
+  /** Origins on the local network whose pages may be embedded, approved
+   *  one by one (`scheme://host[:port]`); the host keeps its own copy. */
+  embedOrigins: string[];
   headingFont?: "serif" | "sans" | "editorial" | "mono" | "system";
   bodyFont?: "sans" | "serif" | "mono" | "system";
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
@@ -571,6 +577,7 @@ const DEFAULTS: Settings = {
   measure: "normal",
   linkFormat: "shortest",
   remoteContent: true,
+  embedOrigins: [],
   headingFont: "serif",
   bodyFont: "sans",
   headingColor: "brass",
@@ -587,6 +594,7 @@ function loadSettings(): void {
         if (parsed.lineNumbersSource === undefined) parsed.lineNumbersSource = parsed.lineNumbers;
       }
       settings = { ...DEFAULTS, ...parsed };
+      if (!Array.isArray(settings.embedOrigins)) settings.embedOrigins = [];
     }
   } catch {
     settings = { ...DEFAULTS };
@@ -636,9 +644,28 @@ function applySettings(): void {
   document.documentElement.style.setProperty("--ui", bodyFonts[settings.bodyFont ?? "sans"] || bodyFonts.sans!);
   document.documentElement.style.setProperty("--heading-color", headingColors[settings.headingColor ?? "brass"] || headingColors.brass!);
   allowRemoteContent(settings.remoteContent);
+  allowEmbedOrigins(settings.embedOrigins);
   updateLeavesLineNumbers?.();
 }
 loadSettings();
+/** The approved embed origins handed to the host, which refuses a page on
+ *  the local network whose origin it was not given. Awaited before the
+ *  first note is drawn. */
+function pushEmbedOrigins(): Promise<boolean> {
+  return commands.setEmbedOrigins(settings.embedOrigins).then(
+    (r) => r.status === "ok" || (fail(r.error), false),
+    () => false,
+  );
+}
+const embedOriginsPushed = pushEmbedOrigins();
+configureEmbeds({
+  strings: { remoteOff: t.embedRemoteOff, load: t.embedLoad, local: t.embedLocal, approve: t.embedApprove, cancel: t.cancel },
+  approve: async (origin) => {
+    if (!settings.embedOrigins.includes(origin)) settings.embedOrigins = [...settings.embedOrigins, origin];
+    saveSettings();
+    return pushEmbedOrigins();
+  },
+});
 const LAST_FOLDER = "verso.lastFolder";
 /** This window shows one note popped out of the main window. */
 const popout = getCurrentWindow().label.startsWith("note-");
@@ -5817,6 +5844,27 @@ function showToast(message: string, durationMs = 3500): void {
     setTimeout(() => toast.remove(), 300);
   }, durationMs);
 }
+/** Whether the file at `path` holds exactly the demo's content. A note or
+ *  a base is read through the contract, as text; any other file byte for
+ *  byte through the file protocol. Unreadable counts as different: the
+ *  file is kept either way, and then named. */
+async function sameAsDemo(path: string, b64: string): Promise<boolean> {
+  try {
+    if (path.endsWith(".md") || path.endsWith(".base")) {
+      const r = await commands.readText(path);
+      return r.status === "ok" && r.data.text === b64ToUtf8(b64);
+    }
+    const res = await fetch(convertFileSrc(path, "verso"));
+    if (!res.ok) return false;
+    const have = new Uint8Array(await res.arrayBuffer());
+    const want = atob(b64);
+    if (have.length !== want.length) return false;
+    for (let i = 0; i < have.length; i++) if (have[i] !== want.charCodeAt(i)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 /** Populate the current vault with sample notes, bases, and templates. */
 async function importDemoVault(): Promise<void> {
   try {
@@ -5824,11 +5872,7 @@ async function importDemoVault(): Promise<void> {
       const picked = await openFolderBy(() => commands.pickFolder());
       if (!picked || !currentFolder) return;
     }
-    const confirmed = await ask(t.importDemoVaultConfirm, {
-      yes: t.importDemoVault,
-      no: t.cancel,
-      defaultButton: "yes",
-    });
+    const confirmed = await ask(t.importDemoVaultConfirm, { yes: t.importDemoVault, no: t.cancel });
     if (!confirmed) return;
 
     ui.status.textContent = "…";
@@ -5843,23 +5887,17 @@ async function importDemoVault(): Promise<void> {
       }
     }
 
+    // A file already there is never written over: the same content is
+    // left alone, any other is the user's edit and is kept, and named.
     let createdCount = 0;
-    let updatedCount = 0;
+    const kept: string[] = [];
     for (const item of DEMO_VAULT_FILES) {
       try {
         const res = await commands.createFile(item.path, item.b64);
         if (res.status === "ok") {
           createdCount++;
         } else if (res.error.kind === "exists") {
-          if (item.path.endsWith(".md") || item.path.endsWith(".base")) {
-            const existing = await commands.readText(item.path);
-            if (existing.status === "ok") {
-              const writeRes = await commands.writeText(item.path, b64ToUtf8(item.b64), existing.data.revision);
-              if (writeRes.status === "ok") {
-                updatedCount++;
-              }
-            }
-          }
+          if (!(await sameAsDemo(item.path, item.b64))) kept.push(item.path);
         } else {
           console.warn("importDemoVault: could not create file", item.path, res.error);
         }
@@ -5871,11 +5909,10 @@ async function importDemoVault(): Promise<void> {
     await afterFileChange();
     refreshLists();
     openNote("00 - Bem-vindo ao Verso.md", false, true);
-    const msg = createdCount > 0 || updatedCount > 0
-      ? `${t.demoVaultImported} (${createdCount > 0 ? `${createdCount} novos` : ""}${createdCount > 0 && updatedCount > 0 ? ", " : ""}${updatedCount > 0 ? `${updatedCount} atualizados` : ""})`
-      : t.demoVaultImported;
+    const msg = createdCount > 0 ? `${t.demoVaultImported} (${t.demoVaultNew(createdCount)})` : t.demoVaultImported;
     ui.status.textContent = msg;
     showToast(msg);
+    if (kept.length > 0) await tell(`${t.demoVaultKept}\n${kept.join("\n")}`, t.demoVaultKeptOk);
   } catch (err: unknown) {
     console.error("importDemoVault failed:", err);
     ui.status.textContent = "";
@@ -7344,10 +7381,10 @@ class UpdateController {
     }
 
     try {
-      const res = await commands.downloadAndInstallUpdate(
-        this._info.download_url ?? "",
-        this._info.asset_url
-      );
+      // The host picks the asset and checks it against the release's
+      // published checksum itself; a release without one comes back as a
+      // refusal whose message is shown on the update card below.
+      const res = await commands.downloadAndInstallUpdate();
       if (res.status === "ok") {
         this._result = res.data;
         this._downloading = false;
@@ -8500,6 +8537,7 @@ if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
 void (async () => {
+  await embedOriginsPushed;
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
   // window joins it rather than open another.

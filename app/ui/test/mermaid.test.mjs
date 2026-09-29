@@ -16,6 +16,28 @@ win.SVGGraphicsElement.prototype.getBBox = function () {
 global.CSSStyleSheet = win.CSSStyleSheet;
 global.matchMedia = () => ({ matches: false });
 
+// Mermaid's "strict" security level passes its SVG through DOMPurify, which
+// reads a node's name through `Node.prototype`'s own `nodeName` getter — the
+// spec's one getter for every node. happy-dom's returns "" there (its
+// subclasses override it), so every element reads as unknown, is removed,
+// and the diagram comes out empty; WebKit answers as the spec says. Here it
+// answers by node type too. Set before Mermaid (and DOMPurify, which takes
+// the getter when it loads) is imported.
+Object.defineProperty(win.Node.prototype, "nodeName", {
+  configurable: true,
+  get() {
+    switch (this.nodeType) {
+      case 1: return this.tagName;
+      case 3: return "#text";
+      case 4: return "#cdata-section";
+      case 8: return "#comment";
+      case 9: return "#document";
+      case 11: return "#document-fragment";
+      default: return this.name ?? this.target ?? "";
+    }
+  },
+});
+
 // Import our mermaid wrapper module
 const { renderMermaid, ensureMermaid, isDarkMode } = await import("../src/mermaid.js").catch(async () => {
   // If not compiled yet, compile on the fly with esbuild
