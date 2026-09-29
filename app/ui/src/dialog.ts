@@ -13,6 +13,8 @@ export type AskOptions = {
   yes: string;
   /** The button that means no. */
   no: string;
+  /** Which button is focused by default (defaults to "no" for safety on destructive actions). */
+  defaultButton?: "yes" | "no";
 };
 
 let queue: Promise<unknown> = Promise.resolve();
@@ -71,7 +73,7 @@ function show(message: string, opts: AskOptions): Promise<boolean> {
         finish(false);
       } else if (e.key === "Enter") {
         e.preventDefault();
-        finish(document.activeElement === yes);
+        finish(document.activeElement === yes || (opts.defaultButton === "yes" && document.activeElement !== no));
       } else if (e.key === "Tab") {
         e.preventDefault();
         (document.activeElement === yes ? no : yes).focus();
@@ -79,7 +81,7 @@ function show(message: string, opts: AskOptions): Promise<boolean> {
     };
     // Focus stays inside.
     const onFocus = (e: FocusEvent) => {
-      if (!box.contains(e.target as Node)) no.focus();
+      if (!box.contains(e.target as Node)) (opts.defaultButton === "yes" ? yes : no).focus();
     };
     yes.addEventListener("click", () => finish(true));
     no.addEventListener("click", () => finish(false));
@@ -92,6 +94,10 @@ function show(message: string, opts: AskOptions): Promise<boolean> {
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("focusin", onFocus, true);
     document.body.append(shade);
-    no.focus();
+    if (opts.defaultButton === "yes") {
+      yes.focus();
+    } else {
+      no.focus();
+    }
   });
 }

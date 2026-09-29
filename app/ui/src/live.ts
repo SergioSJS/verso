@@ -12,8 +12,8 @@
 // dialect's and is found by hand, outside code.
 
 import { syntaxTree } from "@codemirror/language";
-import { EditorSelection, EditorState, RangeSet, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import { EditorSelection, EditorState, Prec, RangeSet, StateEffect, StateField } from "@codemirror/state";
+import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, keymap, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import type { Text } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import katex from "katex";
@@ -21,6 +21,7 @@ import { cells } from "./table";
 import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { smartUnindentList } from "./listKeymap";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -692,6 +693,117 @@ export const keepFrontmatter = EditorState.changeFilter.of((tr) => {
   return end < 0 ? true : [0, end + 1];
 });
 
+function getListPrefix(text: string): { prefix: string; indent: string; contentStart: number } | null {
+  const m = text.match(/^([ \t]*)([-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)/);
+  if (!m) return null;
+  return { prefix: m[0], indent: m[1] ?? "", contentStart: m[0].length };
+}
+
+function listCursorLeft(view: EditorView): boolean {
+  const { state } = view;
+  const { doc, selection } = state;
+  if (!selection.main.empty) return false;
+  const pos = selection.main.head;
+  const line = doc.lineAt(pos);
+  const info = getListPrefix(line.text);
+  if (!info) return false;
+  const contentStart = line.from + info.contentStart;
+  if (pos <= contentStart) {
+    if (line.number > 1) {
+      const prevLine = doc.line(line.number - 1);
+      view.dispatch({ selection: EditorSelection.cursor(prevLine.to), userEvent: "select" });
+      return true;
+    }
+  }
+  return false;
+}
+
+function listCursorRight(view: EditorView): boolean {
+  const { state } = view;
+  const { doc, selection } = state;
+  if (!selection.main.empty) return false;
+  const pos = selection.main.head;
+  const line = doc.lineAt(pos);
+  if (pos === line.to && line.number < doc.lines) {
+    const nextLine = doc.line(line.number + 1);
+    const nextInfo = getListPrefix(nextLine.text);
+    if (nextInfo) {
+      view.dispatch({ selection: EditorSelection.cursor(nextLine.from + nextInfo.contentStart), userEvent: "select" });
+      return true;
+    }
+  }
+  return false;
+}
+
+function listCursorHome(view: EditorView): boolean {
+  const { state } = view;
+  const { doc, selection } = state;
+  if (!selection.main.empty) return false;
+  const pos = selection.main.head;
+  const line = doc.lineAt(pos);
+  const info = getListPrefix(line.text);
+  if (!info) return false;
+  const contentStart = line.from + info.contentStart;
+  if (pos > contentStart) {
+    view.dispatch({ selection: EditorSelection.cursor(contentStart), userEvent: "select" });
+    return true;
+  }
+  return false;
+}
+
+function listBackspace(view: EditorView): boolean {
+  const { state } = view;
+  const { doc, selection } = state;
+  if (!selection.main.empty) return false;
+  const pos = selection.main.head;
+  const line = doc.lineAt(pos);
+  const info = getListPrefix(line.text);
+  if (!info) return false;
+  const contentStart = line.from + info.contentStart;
+  if (pos === contentStart) {
+    if (info.indent.length > 0) {
+      return smartUnindentList(view);
+    }
+    view.dispatch({
+      changes: { from: line.from, to: contentStart, insert: "" },
+      selection: EditorSelection.cursor(line.from),
+      userEvent: "delete.backward",
+    });
+    return true;
+  }
+  return false;
+}
+
+export const liveListNavKeymap = Prec.highest(
+  keymap.of([
+    { key: "ArrowLeft", run: listCursorLeft },
+    { key: "ArrowRight", run: listCursorRight },
+    { key: "Home", run: listCursorHome },
+    { key: "Mod-ArrowLeft", run: listCursorHome },
+    { key: "Backspace", run: listBackspace },
+  ])
+);
+
+export const snapOutOfListPrefix = EditorState.transactionFilter.of((tr) => {
+  if (!tr.selection) return tr;
+  const doc = tr.newDoc;
+  let changed = false;
+  const ranges = tr.newSelection.ranges.map((r) => {
+    if (!r.empty) return r;
+    const line = doc.lineAt(r.head);
+    const info = getListPrefix(line.text);
+    if (!info) return r;
+    const contentStart = line.from + info.contentStart;
+    if (r.head >= line.from && r.head < contentStart) {
+      changed = true;
+      return EditorSelection.cursor(contentStart, r.assoc, r.bidiLevel ?? undefined, r.goalColumn);
+    }
+    return r;
+  });
+  if (!changed) return tr;
+  return [tr, { selection: EditorSelection.create(ranges, tr.newSelection.mainIndex), sequential: true }];
+});
+
 function linesOfSelection(view: EditorView): Set<number> {
   const lines = new Set<number>();
   for (const r of view.state.selection.ranges) {
@@ -916,8 +1028,14 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           const taskMarker = node.node.getChild("TaskMarker") ?? node.node.getChild("Task")?.getChild("TaskMarker") ?? null;
           const isTask = taskMarker !== null;
           const markText = mark ? doc.sliceString(mark.from, mark.to) : "";
-          const bullet = !isTask && mark !== null && /^[-*+]$/.test(markText);
-          const isOrdered = !isTask && mark !== null && /^\d+\.$/.test(markText);
+          const hasTrailingSpace = mark !== null && mark.to < line.to && /[ \t]/.test(doc.sliceString(mark.to, mark.to + 1));
+          const bullet = !isTask && mark !== null && hasTrailingSpace && /^[-*+]$/.test(markText);
+          const isOrdered = !isTask && mark !== null && hasTrailingSpace && /^\d+\.$/.test(markText);
+
+          if (!isTask && !bullet && !isOrdered) {
+            // A bare marker without trailing space (e.g. '-' or '1.' while typing) is not decorated
+            return;
+          }
 
           let depth = 0;
           let p = node.node.parent;
@@ -952,8 +1070,9 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: cls, attributes: lineAttrs }) });
             if (bullet && mark) {
               hide(line.from, Math.min(mark.to + 1, line.to));
-            } else if (isOrdered && mark && mark.from > line.from) {
-              hide(line.from, mark.from);
+            } else if (isOrdered && mark) {
+              if (mark.from > line.from) hide(line.from, mark.from);
+              out.push({ from: mark.from, to: mark.to, deco: Decoration.mark({ class: "cm-lp-order-mark" }) });
             }
           }
         } else if (name === "Link" && !shown) {
@@ -1165,5 +1284,14 @@ export function livePreview(opts: LiveOptions) {
     return RangeSet.of(markers);
   });
 
-  return [plugin, clicks, frontmatter, outOfFrontmatter, keepFrontmatter, headingGutter];
+  return [
+    plugin,
+    clicks,
+    frontmatter,
+    outOfFrontmatter,
+    keepFrontmatter,
+    headingGutter,
+    liveListNavKeymap,
+    snapOutOfListPrefix,
+  ];
 }

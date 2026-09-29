@@ -388,57 +388,111 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .preview > :first-child { margin-top: 0; }
 .preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.8em 0 .5em; font-variation-settings: "opsz" 48, "SOFT" 30; }
 .preview h1 { font-size: 1.65em; } .preview h2 { font-size: 1.35em; } .preview h3 { font-size: 1.12em; } .preview h4 { font-size: 1em; text-transform: uppercase; letter-spacing: .06em; font-family: var(--ui); color: var(--ink-2); }
-.preview p, .preview ul, .preview ol, .preview blockquote, .preview pre, .preview table { margin: 0 0 1em; }
-.preview ul, .preview ol { padding-left: 1.3em; }
-.preview ol, .preview ol ol, .preview ol ol ol { list-style-type: decimal; }
-.preview li { position: relative; margin: .2em 0; }
-.preview li > p { margin: 0; }
-.preview li > p:not(:last-child) { margin-bottom: 0.4em; }
+.preview p, .preview blockquote, .preview pre, .preview table { margin: 0 0 1em; }
+.preview ul, .preview ol {
+  margin: 0.25em 0 0.75em;
+  padding-left: 1.5em;
+}
 .preview hr + ul, .preview hr + ol { margin-top: -0.4em; }
-.preview li > ul,
-.preview li > ol {
-  margin: 0.15em 0 0.15em -0.65em;
-  padding-left: 1.45em;
-  border-left: 1.5px solid color-mix(in oklch, var(--ink) 22%, transparent);
+
+/* All list items: compact vertical rhythm matching Edit mode */
+.preview li {
+  margin: 0.12em 0;
+  line-height: 1.6;
 }
-.preview li.task-item > ul,
-.preview li.task-item > ol,
-.preview li:has(> input[type="checkbox"]) > ul,
-.preview li:has(> input[type="checkbox"]) > ol,
-.preview li:has(> p > input[type="checkbox"]) > ul,
-.preview li:has(> p > input[type="checkbox"]) > ol,
-.preview li:has(> input[data-task-line]) > ul,
-.preview li:has(> input[data-task-line]) > ol {
-  margin-left: 0.4em;
-  padding-left: 1.25em;
+.preview li > p:first-child,
+.preview li > p:first-of-type {
+  display: inline;
+  margin: 0 !important;
 }
-.preview li::marker { color: var(--brass); }
-.preview li.task-item,
-.preview li:has(> input[type="checkbox"]),
-.preview li:has(> p > input[type="checkbox"]),
-.preview li:has(> .list-fold-btn + input[type="checkbox"]),
-.preview li:has(> .preview-line-num + input[type="checkbox"]),
-.preview li:has(> input[data-task-line]) {
+.preview li > p:not(:first-of-type) {
+  display: block;
+  margin: 0.5em 0 0 !important;
+}
+
+/* Unordered bullet lists: applied per-li so mixed lists and level-1 items never lose their bullet */
+.preview ul > li:not(.task-item):not(:has(> input[type="checkbox"])):not(:has(> p:first-child > input[type="checkbox"])) {
   list-style: none !important;
-  list-style-type: none !important;
-  margin-left: 0;
 }
-.preview li.task-item::marker,
-.preview li:has(> input[type="checkbox"])::marker,
-.preview li:has(> p > input[type="checkbox"])::marker,
-.preview li:has(> .list-fold-btn + input[type="checkbox"])::marker,
-.preview li:has(> .preview-line-num + input[type="checkbox"])::marker,
-.preview li:has(> input[data-task-line])::marker {
+.preview ul > li:not(.task-item):not(:has(> input[type="checkbox"])):not(:has(> p:first-child > input[type="checkbox"]))::marker {
   content: none !important;
   display: none !important;
 }
-.preview ul.contains-task-list,
-.preview ul:has(> li.task-item),
-.preview ul:has(> li > input[type="checkbox"]),
-.preview ul:has(> li > p > input[type="checkbox"]),
-.preview ul:has(> li > input[data-task-line]) {
-  list-style: none;
-  padding-left: 0.35em;
+.preview ul > li:not(.task-item):not(:has(> input[type="checkbox"])):not(:has(> p:first-child > input[type="checkbox"]))::before {
+  content: "";
+  display: inline-block;
+  --lp-bullet-size: 0.38em;
+  width: var(--lp-bullet-size);
+  height: var(--lp-bullet-size);
+  border-radius: 50%;
+  background: var(--brass);
+  margin-left: calc(-0.75em - var(--lp-bullet-size) / 2);
+  margin-right: calc(0.75em - var(--lp-bullet-size) / 2);
+  vertical-align: calc(0.36em - var(--lp-bullet-size) / 2);
+}
+
+/* Ordered lists: decimal numbering at all levels, brass color */
+.preview ol, .preview ol ol, .preview ol ol ol {
+  list-style-type: decimal !important;
+}
+.preview ol > li::marker {
+  color: var(--brass) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Checkbox task lists: centered on the 0.75em guide line column */
+.preview li.task-item,
+.preview li:has(> input[type="checkbox"]),
+.preview li:has(> p:first-child > input[type="checkbox"]) {
+  list-style: none !important;
+  list-style-type: none !important;
+  margin-left: 0 !important;
+}
+.preview li.task-item::marker,
+.preview li:has(> input[type="checkbox"])::marker,
+.preview li:has(> p:first-child > input[type="checkbox"])::marker {
+  content: none !important;
+  display: none !important;
+}
+.preview li.task-item::before,
+.preview li:has(> input[type="checkbox"])::before,
+.preview li:has(> p:first-child > input[type="checkbox"])::before {
+  content: none !important;
+  display: none !important;
+}
+.preview li input[type="checkbox"] {
+  appearance: auto;
+  -webkit-appearance: auto;
+  accent-color: var(--seal);
+  width: 1em !important;
+  height: 1em !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: inline-block !important;
+  margin-left: -1.25em !important;
+  margin-right: 0.25em !important;
+  vertical-align: -0.02em !important;
+  cursor: pointer;
+}
+.preview li:has(> input[type="checkbox"]:checked),
+.preview li:has(> p:first-child > input[type="checkbox"]:checked) {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.preview li:has(> input[type="checkbox"]:checked) > ul,
+.preview li:has(> input[type="checkbox"]:checked) > ol,
+.preview li:has(> p:first-child > input[type="checkbox"]:checked) > ul,
+.preview li:has(> p:first-child > input[type="checkbox"]:checked) > ol {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* Nested lists: unified hierarchy guide line directly under parent marker */
+.preview li > ul,
+.preview li > ol {
+  margin: 0.1em 0 0.1em -0.75em !important;
+  padding-left: 2.25em !important;
+  border-left: 1.5px solid color-mix(in oklch, var(--ink) 22%, transparent) !important;
 }
 .preview strong { font-weight: 600; }
 .preview pre { font-family: var(--mono); font-size: .85em; line-height: 1.55; padding: .8rem 1rem; background: var(--paper-2); border-radius: 4px; overflow: auto; }
@@ -485,20 +539,21 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .preview .embed { display: inline-block; padding: 0 .45em; border: 1px dashed var(--hair); border-radius: 4px; color: var(--ink-3); font-family: var(--ui); font-size: .85em; }
 .preview .embed::before { content: "⧉ "; }
 .preview .embed.file::before { content: "📎 "; }
-.preview input[type="checkbox"] {
-  accent-color: var(--seal);
-  width: 1.05em;
-  height: 1.05em;
-  margin-right: 0.55em;
-  vertical-align: -0.15em;
-  cursor: pointer;
-}
 
 /* Editor — the same page, now writable. No frame. */
 .editor { margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
-.editor .cm-editor { background: none; }
+.editor .cm-editor {
+  height: auto;
+  background: none;
+}
 .editor .cm-editor.cm-focused { outline: none; }
-.editor .cm-scroller { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; min-height: 50vh; }
+.editor .cm-scroller {
+  overflow: visible !important;
+  font-family: var(--book);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  min-height: 50vh;
+}
 .editor .cm-content { padding: 0 .5rem; caret-color: var(--seal); }
 .editor .cm-cursor { border-left: 2px solid var(--seal); }
 .editor .cm-gutters { background: none; border: none; }
@@ -696,11 +751,10 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
   transform: rotate(90deg); /* Unfolded: points DOWN 'v' */
 }
 
-/* List fold button is positioned directly to the left of the item */
+/* List fold button is positioned in the left gutter, identical to headings and blockquotes */
 .preview .list-fold-btn {
   position: absolute;
-  left: -1.25em;
-  top: 0.25em;
+  left: 0.15rem;
   width: 1.1rem;
   height: 1.1rem;
   display: inline-flex;
@@ -714,6 +768,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
   border: none;
   padding: 0;
   z-index: 2;
+  margin-top: 0.22rem;
   transition: opacity .15s, color .15s, transform .2s var(--ease-out);
   transform: rotate(90deg); /* Unfolded: points DOWN 'v' */
 }
@@ -861,8 +916,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-line.cm-lp-fence-last {
   border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px;
-  padding-bottom: .45rem;
-  margin-bottom: .8em;
+  padding-bottom: 1.25rem;
 }
 .editor .cm-line.cm-lp-fence-last.cm-lp-fence-closed {
   min-height: .4em;
@@ -871,8 +925,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-line.cm-lp-fence-single {
   border-radius: 6px;
   padding-top: .35rem;
-  padding-bottom: .35rem;
-  margin-bottom: .8em;
+  padding-bottom: 1.15rem;
 }
 .editor .cm-lp-fence-lang {
   font-family: var(--ui);
@@ -899,8 +952,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
   padding-top: .2rem;
 }
 .editor .cm-line.cm-lp-quote-tail {
-  padding-bottom: .2rem;
-  margin-bottom: .6em;
+  padding-bottom: .8rem;
 }
 
 /* Callouts in Live Preview */
@@ -932,8 +984,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-line.cm-lp-callout-tail {
   border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px;
-  padding-bottom: .5rem;
-  margin-bottom: .8em;
+  padding-bottom: 1.3rem;
 }
 .editor .cm-line.cm-lp-callout-note,
 .editor .cm-line.cm-lp-callout-info,
@@ -976,31 +1027,58 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 /* Lists and Bullets in Live Preview */
 .editor .cm-line.cm-lp-li {
   position: relative;
-  padding-left: calc(1.3em + var(--lp-depth, 0) * 1.5em);
+  padding-left: calc(1.5em + var(--lp-depth, 0) * 1.5em);
 }
 .editor .cm-line.cm-lp-li-raw {
   position: relative;
   padding-left: .5rem;
 }
 .editor .cm-line.cm-lp-bullet::before {
-  content: "•";
+  content: "";
+  display: inline-block;
+  --lp-bullet-size: 0.38em;
+  width: var(--lp-bullet-size);
+  height: var(--lp-bullet-size);
+  border-radius: 50%;
+  background: var(--brass);
+  margin-left: calc(-0.75em - var(--lp-bullet-size) / 2);
+  margin-right: calc(0.75em - var(--lp-bullet-size) / 2);
+  vertical-align: calc(0.36em - var(--lp-bullet-size) / 2);
+}
+.editor .cm-line.cm-lp-ordered .cm-lp-order-mark {
+  display: inline-block;
+  width: 1.5em;
+  margin-left: -1.5em;
+  padding-right: 0.35em;
+  text-align: right;
+  box-sizing: border-box;
   color: var(--brass);
-  margin-left: -1.1em;
-  margin-right: .55em;
-  font-size: 1.1em;
-  line-height: 1;
-  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+  vertical-align: baseline;
 }
-.editor .cm-line.cm-lp-ordered {
-  /* Numbered list item */
+.editor input.cm-lp-task-check {
+  appearance: auto;
+  -webkit-appearance: auto;
+  accent-color: var(--seal);
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  padding: 0;
+  display: inline-block;
+  margin-left: -1.25em;
+  margin-right: 0.25em;
+  vertical-align: -0.02em;
+  cursor: pointer;
 }
-/* Vertical indent guide for bullet lists: aligned with parent bullet (0.45em), stops before child */
-.editor .cm-line.cm-lp-bullet[style*="--lp-depth"]::after {
+.editor .cm-line.cm-lp-task-done { color: var(--ink-3); text-decoration: line-through; }
+
+/* Single unified vertical hierarchy guide line for ALL list types (bullets, tasks, ordered) */
+.editor .cm-line.cm-lp-li[style*="--lp-depth"]::after {
   content: "";
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0.45em;
+  left: 0.75em;
   width: calc((var(--lp-depth, 1) - 1) * 1.5em + 1.5px);
   background-image: repeating-linear-gradient(
     to right,
@@ -1011,27 +1089,6 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
   );
   pointer-events: none;
 }
-/* Vertical indent guide for task checkbox lists: aligned with parent checkbox (1.3em + 0.35em), stops before child */
-.editor .cm-line.cm-lp-task[style*="--lp-depth"]::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 1.3em;
-  width: calc((var(--lp-depth, 1) - 1) * 1.5em + 0.35em + 1.5px);
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent 0.35em,
-    color-mix(in oklch, var(--ink) 22%, transparent) 0.35em,
-    color-mix(in oklch, var(--ink) 22%, transparent) calc(0.35em + 1.5px),
-    transparent calc(0.35em + 1.5px),
-    transparent 1.5em
-  );
-  pointer-events: none;
-}
-.editor input.cm-lp-task-check { accent-color: var(--seal); width: 1.05em; height: 1.05em; margin-right: 0.55em; vertical-align: -0.15em; cursor: pointer; }
-.editor .cm-line.cm-lp-task-done { color: var(--ink-3); text-decoration: line-through; }
 .editor .cm-lp-link { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 40%, transparent); cursor: pointer; text-decoration: none; }
 .editor .cm-lp-hr { color: var(--brass); letter-spacing: .3em; }
 
@@ -1039,9 +1096,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-line.cm-lp-hr-line {
   position: relative;
   text-align: center;
-  height: 1.8em;
-  line-height: 1.8em;
-  margin: .8em 0;
+  padding: .8em 0;
 }
 .editor .cm-line.cm-lp-hr-line::before {
   content: "";
@@ -1064,14 +1119,14 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 }
 .editor .cm-line.cm-lp-table { font-family: var(--mono); font-size: .86em; line-height: 1.6; white-space: pre; }
 /* Blocks shown rendered in Live Preview until the caret enters them */
-.editor .cm-lp-block { cursor: text; margin: .3rem 0; }
+.editor .cm-lp-block { cursor: text; padding: .3rem 0; }
 .editor .cm-lp-math { text-align: center; padding: .4rem 0; }
 .editor .cm-lp-table table { border-collapse: collapse; font-family: var(--book); font-size: .95em; }
 .editor .cm-lp-table th, .editor .cm-lp-table td { padding: .3rem .7rem; border-bottom: 1px solid var(--hair); text-align: left; }
 .editor .cm-lp-table th { font-family: var(--ui); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
 .table-col-grip { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; z-index: 2; }
 .table-col-grip:hover, .table-col-grip:active { background: var(--brass); }
-.cm-lp-iframe-wrap { margin: .8rem 0; width: 100%; }
+.cm-lp-iframe-wrap { padding: .8rem 0; width: 100%; }
 .cm-lp-iframe-wrap iframe, .preview iframe { max-width: 100%; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); }
 .editor .cm-lp-embed { border-left: 2px solid var(--brass); padding: .2rem 0 .2rem .9rem; background: var(--paper-2); border-radius: 0 6px 6px 0; }
 .editor .cm-lp-embed-title { font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--seal); margin-bottom: .2rem; }
@@ -1080,7 +1135,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-lp-imath .katex { font-size: 1em; }
 .editor .cm-lp-wikilink { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); cursor: pointer; }
 .editor .cm-lp-embed { border-bottom-style: dashed; }
-.editor .cm-lp-image { max-width: 100%; max-height: 26rem; border-radius: 3px; display: block; margin: .4em 0; }
+.editor .cm-lp-image { max-width: 100%; max-height: 26rem; border-radius: 3px; display: block; padding: .4em 0; }
 
 /* Conflict: a notice in the margin voice, not a modal. */
 .conflict { margin: 1.2rem 0 0; padding: .9rem 0 .9rem 1.1rem; border-left: 2px solid var(--seal); }
@@ -1119,6 +1174,76 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .status-keys button { font: inherit; color: inherit; padding: .1rem .3rem; border-radius: 4px; display: inline-flex; align-items: center; gap: .3rem; }
 .status-keys button:hover { color: var(--ink); background: var(--paper-3); }
 .status-keys kbd { margin-right: .15em; }
+
+/* Progress bar (top line & status bar) */
+.top-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity .3s ease;
+}
+.top-progress[hidden] { display: none; }
+.top-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--seal);
+  box-shadow: 0 0 8px color-mix(in oklch, var(--seal) 70%, transparent);
+  transition: width .15s ease-out;
+}
+.top-progress-fill.indeterminate {
+  width: 35% !important;
+  animation: verso-indeterminate 1.4s ease-in-out infinite;
+}
+
+.index-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: .75rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+  min-width: 0;
+}
+.index-progress[hidden] { display: none; }
+.index-progress-track {
+  width: 84px;
+  height: 5px;
+  background: color-mix(in oklch, var(--ink-3) 25%, transparent);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+  flex: none;
+}
+.index-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--seal);
+  border-radius: 9999px;
+  transition: width .15s ease-out;
+}
+.index-progress-bar.indeterminate {
+  width: 40% !important;
+  animation: verso-indeterminate 1.4s ease-in-out infinite;
+}
+.index-progress-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes verso-indeterminate {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(120%); }
+  100% { transform: translateX(250%); }
+}
 
 /* Empty state: a short lesson, not a shrug. */
 .work.empty .panes { display: grid; place-content: center; }
@@ -1247,9 +1372,6 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .embed-note-title { display: block; font-family: var(--ui); font-size: .78em; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); text-decoration: none; border: 0; margin-bottom: .3rem; }
 .embed-note-title:hover { color: var(--seal); }
 .embed-note-body > :last-child { margin-bottom: .4em; }
-.preview li:has(> input[type=checkbox]) { list-style: none; margin-left: -1.3em; }
-.preview input[type=checkbox] { margin-right: .45em; cursor: pointer; }
-.preview li:has(> input[type=checkbox]:checked) { color: var(--ink-3); text-decoration: line-through; }
 
 /* ---------- Workspaces bar ---------- */
 .spaces { display: flex; align-items: center; gap: .15rem; padding: .35rem .8rem 0; border-bottom: 1px solid var(--hair); background: var(--paper-2); min-height: 2.1rem; }
@@ -2099,6 +2221,32 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
 }
 
 /* ---------- In-app update notifications & settings card ---------- */
+.setting-version-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .6rem;
+  min-width: 0;
+}
+.setting-version-row {
+  display: inline-flex;
+  align-items: center;
+  gap: .85rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.setting-version-row .setting-value {
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+.setting-version-row .update-btn-secondary {
+  flex-shrink: 0;
+}
+.setting-version-wrap .update-card {
+  width: 100%;
+  max-width: 32rem;
+  box-sizing: border-box;
+}
 .update-card {
   margin-top: .75rem;
   padding: .9rem 1.1rem;
@@ -2280,6 +2428,10 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
 .verso-update-banner-close:hover {
   background: var(--paper-3);
   color: var(--ink);
+}
+.verso-toast {
+  z-index: 2000;
+  pointer-events: none;
 }
 
 

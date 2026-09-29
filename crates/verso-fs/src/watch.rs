@@ -121,6 +121,10 @@ impl Filter {
             let Component::Normal(name) = c else {
                 return None;
             };
+            let name_str = name.to_string_lossy();
+            if crate::walk::is_default_ignored_dir(&name_str) {
+                return None;
+            }
             if name.as_encoded_bytes().starts_with(b".") {
                 // The placeholder form outranks the hidden rule, as in the
                 // walk: `.Name.md.icloud` stands for `Name.md`, and a

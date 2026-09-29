@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="katex.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="no-right">
+  <div id="top-progress" class="top-progress" hidden><div id="top-progress-fill" class="top-progress-fill"></div></div>
   <nav id="ribbon" class="ribbon"></nav>
   <aside class="side">
     <header class="side-head">
@@ -37,6 +38,12 @@
     <footer class="status-bar">
       <button id="toggle-side" type="button" class="ghost iconic bar-toggle"></button>
       <span id="status" class="status" role="status" aria-live="polite"></span>
+      <div id="index-progress" class="index-progress" hidden>
+        <div class="index-progress-track">
+          <div id="index-progress-bar" class="index-progress-bar"></div>
+        </div>
+        <span id="index-progress-label" class="index-progress-label"></span>
+      </div>
       <span id="words" class="status-words"></span>
       <span class="status-keys"><button type="button" data-cmd="new"><kbd>⌘N</kbd> <span id="keys-new"></span></button><button type="button" data-cmd="edit"><kbd>⌘E</kbd> <span id="keys-edit"></span></button><button type="button" data-cmd="split"><kbd>⌘\</kbd> <span id="keys-split"></span></button><button type="button" data-cmd="space"><kbd>⌘T</kbd> <span id="keys-space"></span></button><button type="button" data-cmd="palette"><kbd>⌘⇧P</kbd> <span id="keys-commands"></span></button></span>
       <button id="toggle-right" type="button" class="ghost iconic bar-toggle"></button>

@@ -80,7 +80,7 @@ const baseEditorExtensions: Extension = [
     ...lintKeymap,
   ]),
 ];
-import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
+import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { minimalEdit } from "./edit";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
@@ -159,12 +159,20 @@ type Strings = Record<
   conflictOutside: (names: string) => string;
   goneNamed: (names: string) => string;
   indexProblems: (n: number, first: string) => string;
+  scanningVault: string;
+  indexingNotes: (cur: number, tot: number, pct: number, file: string) => string;
+  indexingDone: string;
+  openingFolder: string;
 };
 
 const pt: Strings = {
   open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
+  scanningVault: "Escaneando arquivos…",
+  indexingNotes: (cur, tot, pct, file) => `Indexando: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
+  indexingDone: "Indexação concluída.",
+  openingFolder: "Abrindo pasta e escaneando arquivos…",
   cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.", propChanged: "Essa propriedade mudou no texto desde que o painel foi desenhado; nada foi alterado — o painel se atualiza ao salvar, repita a edição.", propFixed: "Edite no modo Fonte: este valor tem comentário, várias linhas ou uma forma que o painel não reescreve sem perda.", propExists: "Essa propriedade já está no texto.", planLeftOut: "Deixadas de fora (mudanças que não puderam ser salvas):",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
@@ -251,6 +259,10 @@ const en: Strings = {
   open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
+  scanningVault: "Scanning files…",
+  indexingNotes: (cur, tot, pct, file) => `Indexing: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
+  indexingDone: "Indexing complete.",
+  openingFolder: "Opening folder and scanning files…",
   cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.", propChanged: "That property changed in the text since the panel was drawn; nothing was changed — the panel updates on saving, make the edit again.", propFixed: "Edit it in Source mode: this value has a comment, several lines or a shape the panel cannot rewrite without loss.", propExists: "That property is already in the text.", planLeftOut: "Left out (changes that could not be saved):",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
@@ -462,7 +474,58 @@ const ui = {
   treeRoot: el<HTMLElement>("tree-root"),
   spaces: el<HTMLDivElement>("spaces"),
   panes: el<HTMLDivElement>("panes"),
+  topProgress: el<HTMLDivElement>("top-progress"),
+  topProgressFill: el<HTMLDivElement>("top-progress-fill"),
+  indexProgress: el<HTMLDivElement>("index-progress"),
+  indexProgressBar: el<HTMLDivElement>("index-progress-bar"),
+  indexProgressLabel: el<HTMLSpanElement>("index-progress-label"),
 };
+
+let indexProgressTimer: number | null = null;
+function handleIndexProgress(p: IndexProgress): void {
+  if (indexProgressTimer) {
+    clearTimeout(indexProgressTimer);
+    indexProgressTimer = null;
+  }
+
+  ui.topProgress.hidden = false;
+  ui.topProgress.style.opacity = "1";
+  ui.indexProgress.hidden = false;
+
+  if (p.phase === "scanning") {
+    ui.topProgressFill.classList.add("indeterminate");
+    ui.topProgressFill.style.width = "35%";
+    ui.indexProgressBar.classList.add("indeterminate");
+    ui.indexProgressBar.style.width = "40%";
+    ui.indexProgressLabel.textContent = t.scanningVault;
+    ui.status.textContent = t.scanningVault;
+  } else if (p.phase === "indexing") {
+    ui.topProgressFill.classList.remove("indeterminate");
+    ui.indexProgressBar.classList.remove("indeterminate");
+    const pct = p.total > 0 ? Math.min(100, Math.round((p.current / p.total) * 100)) : 0;
+    ui.topProgressFill.style.width = `${pct}%`;
+    ui.indexProgressBar.style.width = `${pct}%`;
+    const fName = p.file ? p.file.split("/").pop() ?? p.file : "";
+    const msg = t.indexingNotes(p.current, p.total, pct, fName);
+    ui.indexProgressLabel.textContent = msg;
+    ui.status.textContent = msg;
+  } else if (p.phase === "done") {
+    ui.topProgressFill.classList.remove("indeterminate");
+    ui.indexProgressBar.classList.remove("indeterminate");
+    ui.topProgressFill.style.width = "100%";
+    ui.indexProgressBar.style.width = "100%";
+    ui.indexProgressLabel.textContent = t.indexingDone;
+    indexProgressTimer = window.setTimeout(() => {
+      ui.topProgress.style.opacity = "0";
+      window.setTimeout(() => {
+        ui.topProgress.hidden = true;
+        ui.topProgressFill.style.width = "0%";
+        ui.indexProgressBar.style.width = "0%";
+        ui.indexProgress.hidden = true;
+      }, 350);
+    }, 600);
+  }
+}
 const page = document.querySelector<HTMLElement>(".work");
 type Hue = "paper" | "sepia" | "slate" | "moss";
 type Settings = {
@@ -1521,6 +1584,7 @@ class NoteLeaf extends Leaf {
       base: (text, embed, mount, edit) => this.liveBase(text, embed, mount, edit),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
+    (this.editorHost as any).__cmView = this.editor;
     // Focusable from code, not by Tab: a link followed from the keyboard
     // hands the keyboard to the note that opened (`focusContent`).
     this.preview.tabIndex = -1;
@@ -4835,6 +4899,7 @@ function openIn(pane: Pane, path: string): Leaf {
   return pane.open(path, false);
 }
 function openNote(path: string, aside: boolean, fresh = false): Leaf | null {
+  (window as any).__openNote = openNote;
   document.body.classList.remove("side-open");
   let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
@@ -4844,6 +4909,7 @@ function openFolder(path: string): void {
   const pane = paneToOpenIn();
   pane.openFolder(path);
 }
+(window as any).__openNote = openNote;
 /** Code blocks colored by their language and math typeset, in rendered
  *  HTML: the parser marks them, the window finishes them. */
 function typeset(root: HTMLElement): void {
@@ -5034,7 +5100,10 @@ async function revealInTree(path: string): Promise<void> {
     const folder = parts.slice(0, i).join("/");
     openFolders.add(folder);
     const d = ui.notes.querySelector<HTMLElement>(`summary[data-folder="${CSS.escape(folder)}"]`)?.parentElement;
-    if (d instanceof HTMLDetailsElement) d.open = true;
+    if (d instanceof HTMLDetailsElement) {
+      d.open = true;
+      (d as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
+    }
   }
   const row = ui.notes.querySelector<HTMLButtonElement>(`li[data-path="${CSS.escape(path)}"] > button`);
   row?.scrollIntoView({ block: "center" });
@@ -5643,32 +5712,94 @@ async function newBase(folder: string): Promise<void> {
   await afterFileChange();
   openNote(r.data, false);
 }
+function b64ToUtf8(b64: string): string {
+  try {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return atob(b64);
+  }
+}
+function showToast(message: string, durationMs = 3500): void {
+  const existing = document.querySelector(".verso-toast");
+  if (existing) existing.remove();
+  const toast = h("div", "verso-update-banner verso-toast");
+  toast.append(icon("sparkles"));
+  const span = h("span", "", message);
+  toast.append(span);
+  document.body.append(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transition = "opacity .3s ease-out";
+    setTimeout(() => toast.remove(), 300);
+  }, durationMs);
+}
 /** Populate the current vault with sample notes, bases, and templates. */
 async function importDemoVault(): Promise<void> {
-  if (!currentFolder) {
-    const picked = await openFolderBy(() => commands.pickFolder());
-    if (!picked || !currentFolder) return;
-  }
-  const confirmed = await ask(t.importDemoVaultConfirm, { yes: t.importDemoVault, no: t.cancel });
-  if (!confirmed) return;
-
-  const folders = ["assets", "daily", "projetos", "templates"];
-  for (const f of folders) {
-    openFolders.add(f);
-    void commands.createFolder(f);
-  }
-
-  for (const item of DEMO_VAULT_FILES) {
-    const res = await commands.createFile(item.path, item.b64);
-    if (res.status !== "ok" && res.error.kind !== "exists") {
-      fail(res.error);
+  try {
+    if (!currentFolder) {
+      const picked = await openFolderBy(() => commands.pickFolder());
+      if (!picked || !currentFolder) return;
     }
-  }
+    const confirmed = await ask(t.importDemoVaultConfirm, {
+      yes: t.importDemoVault,
+      no: t.cancel,
+      defaultButton: "yes",
+    });
+    if (!confirmed) return;
 
-  await afterFileChange();
-  refreshLists();
-  openNote("00 - Bem-vindo ao Verso.md", false);
-  ui.status.textContent = t.demoVaultImported;
+    ui.status.textContent = "…";
+
+    const folders = ["assets", "daily", "projetos", "templates"];
+    for (const f of folders) {
+      openFolders.add(f);
+      try {
+        await commands.createFolder(f);
+      } catch {
+        // folder may already exist
+      }
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    for (const item of DEMO_VAULT_FILES) {
+      try {
+        const res = await commands.createFile(item.path, item.b64);
+        if (res.status === "ok") {
+          createdCount++;
+        } else if (res.error.kind === "exists") {
+          if (item.path.endsWith(".md") || item.path.endsWith(".base")) {
+            const existing = await commands.readText(item.path);
+            if (existing.status === "ok") {
+              const writeRes = await commands.writeText(item.path, b64ToUtf8(item.b64), existing.data.revision);
+              if (writeRes.status === "ok") {
+                updatedCount++;
+              }
+            }
+          }
+        } else {
+          console.warn("importDemoVault: could not create file", item.path, res.error);
+        }
+      } catch (e) {
+        console.warn("importDemoVault: error creating file", item.path, e);
+      }
+    }
+
+    await afterFileChange();
+    refreshLists();
+    openNote("00 - Bem-vindo ao Verso.md", false, true);
+    const msg = createdCount > 0 || updatedCount > 0
+      ? `${t.demoVaultImported} (${createdCount > 0 ? `${createdCount} novos` : ""}${createdCount > 0 && updatedCount > 0 ? ", " : ""}${updatedCount > 0 ? `${updatedCount} atualizados` : ""})`
+      : t.demoVaultImported;
+    ui.status.textContent = msg;
+    showToast(msg);
+  } catch (err: unknown) {
+    console.error("importDemoVault failed:", err);
+    ui.status.textContent = "";
+    fail(typeof err === "object" && err !== null && "message" in err ? (err as ContractError) : { kind: "failed", message: String(err) });
+  }
 }
 /** A `base` block at the caret of the note being edited. */
 function insertBase(): void {
@@ -6291,7 +6422,8 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
     const full = prefix ? `${prefix}/${folder}` : folder;
     const li = h("li");
     const d = h("details");
-    d.open = openFolders.size === 0 ? depth < 1 : openFolders.has(full);
+    const isOpen = openFolders.size === 0 ? depth < 1 : openFolders.has(full);
+    d.open = isOpen;
     const s = h("summary");
     s.dataset["folder"] = full;
     const chev = h("span", "chev");
@@ -6302,9 +6434,27 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
       e.preventDefault();
       openFolder(full);
     });
+
+    let renderedChild: HTMLUListElement | null = null;
+    const renderSubtree = () => {
+      if (!renderedChild) {
+        renderedChild = renderTree(child, depth + 1, full);
+        d.append(renderedChild);
+      }
+    };
+    (d as unknown as { _ensureRendered?: () => void })._ensureRendered = renderSubtree;
+
+    if (isOpen) {
+      renderSubtree();
+    }
+
     d.addEventListener("toggle", () => {
-      if (d.open) openFolders.add(full);
-      else openFolders.delete(full);
+      if (d.open) {
+        openFolders.add(full);
+        renderSubtree();
+      } else {
+        openFolders.delete(full);
+      }
     });
     s.addEventListener("contextmenu", (e) => {
       e.preventDefault();
@@ -6324,7 +6474,7 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
         s.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.left + 24, clientY: r.bottom, bubbles: true, cancelable: true }));
       }
     });
-    d.append(s, renderTree(child, depth + 1, full));
+    d.prepend(s);
     li.append(d);
     ul.append(li);
   }
@@ -6370,8 +6520,10 @@ ui.notes.addEventListener("keydown", (e) => {
   else if (e.key === "Home") to = rows[0];
   else if (e.key === "End") to = rows[rows.length - 1];
   else if (e.key === "ArrowRight" && folder) {
-    if (!folder.open) folder.open = true;
-    else if (rows[i + 1] && folder.contains(rows[i + 1]!)) to = rows[i + 1];
+    if (!folder.open) {
+      folder.open = true;
+      (folder as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
+    } else if (rows[i + 1] && folder.contains(rows[i + 1]!)) to = rows[i + 1];
   } else if (e.key === "ArrowLeft") {
     if (folder?.open) folder.open = false;
     else to = row.closest("li")?.parentElement?.closest("details")?.querySelector<HTMLElement>(":scope > summary");
@@ -6463,7 +6615,20 @@ async function searchNotes(words: string): Promise<void> {
 let collapsed = false;
 function collapseAll(): void {
   collapsed = !collapsed;
-  for (const d of ui.notes.querySelectorAll("details")) d.open = !collapsed;
+  if (!collapsed) {
+    let details: NodeListOf<HTMLDetailsElement>;
+    while ((details = ui.notes.querySelectorAll("details:not([open])")).length > 0) {
+      let expandedCount = 0;
+      for (const d of details) {
+        d.open = true;
+        (d as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
+        expandedCount++;
+      }
+      if (expandedCount === 0) break;
+    }
+  } else {
+    for (const d of ui.notes.querySelectorAll("details")) d.open = false;
+  }
   ui.collapse.replaceChildren(icon(collapsed ? "expand" : "collapse", collapsed ? t.expandAll : t.collapseAll));
   ui.collapse.title = collapsed ? t.expandAll : t.collapseAll;
 }
@@ -7303,12 +7468,6 @@ class SettingsDialog {
     add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
       const wrap = h("div", "setting-version-wrap");
-      wrap.style.display = "flex";
-      wrap.style.flexDirection = "column";
-      wrap.style.alignItems = "stretch";
-      wrap.style.gap = ".5rem";
-      wrap.style.width = "100%";
-
       const topRow = h("div", "setting-version-row");
       const v = h("span", "setting-value", "…");
       void commands.appInfo().then((r) => {
@@ -7837,7 +7996,13 @@ function toggleRight(): void {
 }
 toggleSideButton.addEventListener("click", toggleSide);
 toggleRightButton.addEventListener("click", toggleRight);
-try { if (localStorage.getItem("verso.right") === "false") document.body.classList.add("no-right"); } catch { /* no storage */ }
+try {
+  if (localStorage.getItem("verso.right") === "true") {
+    document.body.classList.remove("no-right");
+  } else {
+    document.body.classList.add("no-right");
+  }
+} catch { /* no storage */ }
 paintToggles();
 const rightDivider = el<HTMLDivElement>("right-divider");
 rightDivider.addEventListener("pointerdown", (e) => {
@@ -7904,7 +8069,7 @@ async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo 
     stopped(unsaved);
     return false;
   }
-  ui.status.textContent = "…";
+  ui.status.textContent = t.openingFolder;
   const r = await run();
   if (r.status !== "ok") {
     ui.status.textContent = "";
@@ -7916,10 +8081,10 @@ async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo 
   }
   ui.status.textContent = "";
   if (!r.data) return false;
-  showFolder(r.data);
+  await showFolder(r.data);
   return true;
 }
-function showFolder(info: FolderInfo): void {
+async function showFolder(info: FolderInfo): Promise<void> {
   currentFolder = info.key;
   folderName = info.name;
   try {
@@ -7945,29 +8110,28 @@ function showFolder(info: FolderInfo): void {
   panel.tagsCache = [];
   void panel.loadTags();
   showOutline(null);
-  void listAll().then(() => {
-    let restored = false;
-    try {
-      const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);
-      if (saved) {
-        const o = JSON.parse(saved) as { current?: number; spaces?: { label?: string; layout?: unknown }[] };
-        for (const sp of o.spaces ?? []) {
-          const s = new Space(sp.label ?? `${t.space} ${spaces.length + 1}`);
-          spaces.push(s);
-          current = s;
-          if (!s.layout.restore(sp.layout)) s.layout.reset();
-        }
-        if (spaces.length > 0) {
-          showSpace(spaces[Math.min(o.current ?? 0, spaces.length - 1)]!);
-          restored = true;
-        }
+  await listAll();
+  let restored = false;
+  try {
+    const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);
+    if (saved) {
+      const o = JSON.parse(saved) as { current?: number; spaces?: { label?: string; layout?: unknown }[] };
+      for (const sp of o.spaces ?? []) {
+        const s = new Space(sp.label ?? `${t.space} ${spaces.length + 1}`);
+        spaces.push(s);
+        current = s;
+        if (!s.layout.restore(sp.layout)) s.layout.reset();
       }
-    } catch {
-      // A layout that does not parse: start with one workspace.
+      if (spaces.length > 0) {
+        showSpace(spaces[Math.min(o.current ?? 0, spaces.length - 1)]!);
+        restored = true;
+      }
     }
-    if (!restored) newSpace();
-    ui.search.focus();
-  });
+  } catch {
+    // A layout that does not parse: start with one workspace.
+  }
+  if (!restored) newSpace();
+  ui.search.focus();
 }
 async function openFolderDialog(): Promise<void> {
   await openFolderBy(() => commands.pickFolder());
@@ -8250,6 +8414,7 @@ if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false
  * keeps it; this window saves its tabs, as for any switch, and opens it. */
 if (!popout) void listen("folder-handed", () => void openFolderBy(() => commands.openInitial()));
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
+void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
@@ -8258,7 +8423,7 @@ void (async () => {
   // A reload (a language change) finds the host's folder still open: the
   // window joins it rather than open another.
   const open = await commands.currentFolder();
-  if (open.status === "ok" && open.data) return showFolder(open.data);
+  if (open.status === "ok" && open.data) return void (await showFolder(open.data));
   // `verso <folder>` on the command line wins over the last folder.
   if (await openFolderBy(() => commands.openInitial())) return;
   let last: string | null = null;

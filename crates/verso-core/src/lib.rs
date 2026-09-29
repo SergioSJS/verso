@@ -323,6 +323,15 @@ pub struct IndexReport {
     pub listing_changed: bool,
 }
 
+/// Progress reported while indexing a folder.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IndexProgress {
+    pub phase: String,
+    pub current: usize,
+    pub total: usize,
+    pub file: Option<String>,
+}
+
 /// A note that links to what moved, and its text with the links pointing
 /// at the new place — for the user to see, then to apply.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -818,12 +827,37 @@ impl Workspace {
     /// graph beneath it. A sidecar that cannot be written is a warning in
     /// the report, not a failure: the index is current either way.
     pub fn index(&mut self) -> Result<IndexReport, CoreError> {
+        self.index_with_progress(|_| {})
+    }
+
+    pub fn index_with_progress<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
+    where
+        F: FnMut(IndexProgress),
+    {
+        on_progress(IndexProgress {
+            phase: "scanning".to_string(),
+            current: 0,
+            total: 0,
+            file: None,
+        });
         let walk = self.root.walk();
+        let total_notes = walk
+            .entries
+            .iter()
+            .filter(|e| matches!(e.kind, EntryKind::Note))
+            .count();
+        on_progress(IndexProgress {
+            phase: "indexing".to_string(),
+            current: 0,
+            total: total_notes,
+            file: None,
+        });
         let mut report = IndexReport::default();
         let mut present: HashSet<String> = HashSet::new();
         let mut files: HashMap<String, Vec<String>> = HashMap::new();
         let mut dirs: HashSet<String> = HashSet::new();
         let mut entries: Vec<FileEntry> = Vec::with_capacity(walk.entries.len());
+        let mut note_idx = 0;
         for entry in &walk.entries {
             let relative = entry.relative.to_string_lossy().into_owned();
             entries.push(FileEntry {
@@ -840,6 +874,13 @@ impl Workspace {
             });
             match &entry.kind {
                 EntryKind::Note => {
+                    note_idx += 1;
+                    on_progress(IndexProgress {
+                        phase: "indexing".to_string(),
+                        current: note_idx,
+                        total: total_notes,
+                        file: Some(relative.clone()),
+                    });
                     present.insert(relative.clone());
                     match self.root.read(entry.handle) {
                         Ok((bytes, stamp)) => {
@@ -960,6 +1001,12 @@ impl Workspace {
                 .warnings
                 .push(format!("the index sidecar could not be written: {e}"));
         }
+        on_progress(IndexProgress {
+            phase: "done".to_string(),
+            current: total_notes,
+            total: total_notes,
+            file: None,
+        });
         Ok(report)
     }
 

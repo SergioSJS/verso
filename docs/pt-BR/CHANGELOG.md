@@ -14,6 +14,10 @@ versão de teste.
 
 ### Acrescentado
 
+- **Barra de progresso de indexação em tempo real**: adicionada barra de progresso no topo da janela e no rodapé indicando a fase de escaneamento e indexação, porcentagem, contagem de notas e arquivo atual ao abrir ou reindexar um cofre.
+- **Ignorar pastas de dependências, builds e regras do .gitignore**: diretórios como `node_modules`, `target`, `dist`, `build`, `.venv` e padrões definidos em arquivos `.gitignore` são agora automaticamente ignorados durante a indexação e vigilância de arquivos, eliminando travamentos em projetos de código.
+- **Renderização preguiçosa da árvore de arquivos**: pastas na barra lateral agora renderizam seus elementos DOM sob demanda ao serem expandidas, eliminando a criação antecipada de milhares de nós e tornando a abertura de grandes projetos instantânea.
+
 ### Corrigido
 
 ---

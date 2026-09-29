@@ -154,7 +154,7 @@ pub fn to_html(source: &str) -> String {
             // The base's own checkbox, plus the line of the marker.
             Event::TaskListMarker(checked) => vec![Event::Html(
                 format!(
-                    "<input disabled=\"\" type=\"checkbox\"{} data-task-line=\"{}\"/>\n",
+                    "<input disabled=\"\" type=\"checkbox\"{} data-task-line=\"{}\"/>",
                     if checked { " checked=\"\"" } else { "" },
                     lines.pos(source, range.start).line
                 )

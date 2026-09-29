@@ -76,6 +76,28 @@ fn hidden_entries_and_ignored_paths_are_not_walked() {
 }
 
 #[test]
+fn node_modules_and_gitignore_entries_are_not_walked() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("node_modules/pkg/index.js"), "");
+    touch(&dir.path().join("target/debug/app"), "");
+    touch(&dir.path().join("dist/bundle.js"), "");
+    touch(&dir.path().join("notes/hello.md"), "");
+    touch(&dir.path().join(".gitignore"), "custom_ignore\n*.db\n");
+    touch(&dir.path().join("custom_ignore/secret.txt"), "");
+    touch(&dir.path().join("test.db"), "");
+    touch(&dir.path().join("readme.md"), "");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    assert_eq!(
+        relatives(&mut root),
+        vec![
+            ("notes".into(), EntryKind::Directory),
+            ("notes/hello.md".into(), EntryKind::Note),
+            ("readme.md".into(), EntryKind::Note),
+        ]
+    );
+}
+
+#[test]
 fn icloud_placeholder_is_present_and_names_the_real_file() {
     let dir = tempfile::tempdir().unwrap();
     touch(&dir.path().join("img/.Mapa da Taverna.png.icloud"), "");
