@@ -50,6 +50,7 @@ fn main() {
         "delete_entry",
         "reveal",
         "copy_full_path",
+        "set_embed_origins",
         "reindex",
         "app_info",
         "query_base",
