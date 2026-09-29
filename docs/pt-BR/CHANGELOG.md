@@ -22,7 +22,11 @@ versão de teste.
 
 ### Corrigido
 
-- **Embutimento de páginas web e serviços locais via iframe**: permissão para endereços de rede local privada (`192.168.x.x`, `10.x.x.x`, etc.) e `localhost` no proxy de páginas web embutidas, viabilizando o uso de serviços caseiros como Calibre-Web, servidores locais e painéis de home lab mantendo a proteção contra SSRF em instâncias de nuvem.
+- **Embutimento de páginas web e serviços locais via iframe, com a sua aprovação**: uma nota pode embutir uma página deste computador ou da sua rede (`localhost`, `192.168.x.x`, `10.x.x.x`, nomes `.local` etc.) — Calibre-Web, servidores locais, painéis de home lab. Na primeira vez que uma origem aparece, o Verso pergunta antes de carregar qualquer coisa ("Permitir sempre"), uma vez por origem; páginas da web pública carregam como antes. As páginas embutidas agora rodam numa origem própria e não conseguem mais ler os arquivos da pasta.
+- **Atualizações conferidas antes de instalar**: o app só baixa uma atualização do repositório do próprio projeto, escolhendo ele mesmo o arquivo, e a confere contra o checksum SHA-256 que o GitHub publica para ela. Um download que não confere, ou um release sem checksum, não instala nada; a página de releases fica como alternativa.
+- **Diagramas Mermaid renderizados com o nível de segurança estrito do Mermaid**: o texto de um diagrama é codificado, e diretivas `click` nele são ignoradas.
+- **Reimportar o conteúdo de demonstração mantém os arquivos que você editou**: um arquivo da demonstração que já existe com outro conteúdo fica como está, e o Verso lista os que manteve.
+- **Headings setext**: uma linha de texto sublinhada com `===` ou `---` é reconhecida como heading (nível 1 ou 2), como no Obsidian.
 - **Roteamento de parâmetros e redirecionamentos no proxy web**: correção no tratamento de query strings e seguimento automático de redirecionamentos HTTP em iframes.
 
 ---
@@ -43,7 +47,7 @@ versão de teste.
 - **Menu de contexto no espaço vazio da árvore**: clicar com o botão direito na árvore de arquivos oferece opções para criar notas, pastas, bases, páginas web e recolher/expandir tudo.
 - **Suporte a múltiplas janelas no App Exposé do macOS**: registro nativo no menu de janelas do macOS para agrupamento no Exposé / Mission Control.
 - **Cofre de exemplo e demonstração**: cofre modelo integrado em `demo-vault/` demonstrando todas as funcionalidades do Verso (sintaxe Markdown, KaTeX, tarefas interativas, wikilinks, notas incorporadas, propriedades YAML, bases, visualização em grafo e leitor de PDF em duas páginas) com importação em um clique pela paleta de comandos, menu e tela inicial.
-- **Notificações de nova versão e download pelo app**: o Verso verifica novas versões no GitHub Releases ao abrir (configurável; ativado por padrão) e permite baixar e instalar a atualização de dentro do app, com barra de progresso em tempo real. Funciona no macOS, Windows e Linux.
+- **Notificações de nova versão e download pelo app**: o Verso verifica novas versões no GitHub Releases ao abrir (configurável; ativado por padrão) e permite baixar e instalar a atualização de dentro do app, com barra de progresso em tempo real. Funciona no macOS, Windows e Linux. *[Correção, 2026-09-29: os releases são gerados só para macOS (ADR 0022, ADR 0051); os caminhos de Windows e Linux existem no código, sem release de onde instalar.]*
 - **Painel de busca no texto redesenhado (Ctrl+F)**: painel moderno com ícone de lupa, contador de correspondências ("2 de 7"), botões de próximo/anterior e botão de fechar; agora funciona nos três modos — Editar, Visualizar e Leitura.
 
 ### Corrigido

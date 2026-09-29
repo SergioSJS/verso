@@ -21,6 +21,10 @@
   decided as built for Phase 2 and re-opened before anything outside the
   app's own views gets access to files. Both recorded in the Decision; the
   lines that called the group open are kept, each with a note.
+  2026-09-29 — an `[OPEN]` contradiction recorded in the ignored-paths group:
+  commit `e5754b0` implemented a built-in list of ignored directories and the
+  reading of `.gitignore`, both of which this ADR discarded. Nothing decided;
+  the status is unchanged.
 
 ## Context
 
@@ -151,6 +155,43 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   again after a restart. A handle refused for something the walk had just shown
   is the surprise this avoids. Every other dot-leading component stays refused,
   as above.
+
+**`[OPEN]` — the code contradicts this group, recorded on 2026-09-29.**
+Commit `e5754b0` ("ignore build dirs") implemented, in
+`crates/verso-fs/src/walk.rs`, both things this ADR's Discarded alternatives
+set aside:
+
+- **A built-in list of ignored directory names**, `is_default_ignored_dir`:
+  `node_modules`, `target`, `vendor`, `dist`, `build`, `out`, `env`, `venv`,
+  `.venv`, `coverage`, `test-results`, `__pycache__` and eleven more, most of
+  them already hidden by their leading dot. A
+  directory with one of those names is skipped at any depth, with no setting
+  to turn it off — against "a configurable list of relative paths, empty by
+  default".
+- **The reading of `.gitignore`**, `GitIgnorePattern`: every `.gitignore` in
+  the folder is read, and its lines are matched by a small grammar of its
+  own. A line starting with `!` is skipped, so a re-inclusion (`!README.md`
+  after `*.md`) does not re-include: what it names stays hidden. There is
+  no opt-out either — against "`.gitignore` is not read in Phase 1".
+
+The watcher (`crates/verso-fs/src/watch.rs`) drops events under the built-in
+names but does not read the `.gitignore` patterns, so the two paths into the
+index no longer agree on what is ignored.
+
+The risk is the one this ADR foresaw when it discarded both: notes vanish
+quietly. A vault folder named `build/`, `out/` or `env/`, or a broad line in
+a `.gitignore` — a `*.md`, which this group's discarded alternative names —
+takes its notes out of the index, the search, the backlinks and the rewrite
+of links on a rename, with nothing on screen to say why. Under the single
+rule of this group, an ignored note is also an unresolved target and never a
+backlink source.
+
+What is open, for the maintainer: **either** revise this ADR to accept the
+behaviour — then the `!` gap and the watcher's asymmetry become fixes to make,
+and an opt-out is worth deciding with them — **or** have the code reverted to
+the design decided above, a confined ignore list in the configuration
+directory, empty by default. Until then the code and this ADR disagree, and
+this ADR is what was decided.
 
 ### The watcher — after feature 2; decided on 2026-09-24
 
