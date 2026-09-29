@@ -217,22 +217,40 @@ fn embed(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<Embed> 
     })
 }
 
-/// ATX heading. The base's range covers the whole line with its line break
-/// and any indentation; the span reported starts at the first `#` and stops
-/// before the line break. A setext heading (`Title\n=====`) has no `#` and
-/// waits for Q19: it is not reported.
+/// A heading. For ATX the base's range covers the whole line with its line
+/// break and any indentation; the span reported starts at the first `#` and
+/// stops before the line break. A setext heading (`Título\n===`/`---`) is
+/// reported too, as Obsidian's metadataCache reports it — observed on
+/// 2026-09-29, `fixtures/heading/setext` (a draft answering the setext part
+/// of Q19): the text line's position, the underline's level (1 for `===`,
+/// 2 for `---`), even with no blank line before the text.
 fn heading(source: &str, lines: &LineIndex, range: Range<usize>, level: u8) -> Option<Heading> {
     let text = source.get(range.clone())?;
     let line = text.lines().next()?;
     let indent = line.len() - line.trim_start_matches([' ', '\t']).len();
-    let line = &line[indent..];
-    if !line.starts_with('#') {
-        return None;
-    }
+    let first = &line[indent..];
     let start = range.start + indent;
-    let end = start + line.len();
-    let marks = line.len() - line.trim_start_matches('#').len();
-    let content = &line[marks..];
+    if !first.starts_with('#') {
+        // Setext: the range holds the text and, last, the underline. The
+        // span runs from the text's first character to the underline's
+        // end; the position is the text's, as observed. The text is a
+        // slice of the source (line endings included as written), so a
+        // span always slices back to it.
+        let trimmed = text.trim_end_matches(['\n', '\r']);
+        let content = &trimmed[..trimmed.rfind('\n')?];
+        return Some(Heading {
+            level,
+            text: content.trim().to_owned(),
+            span: Span {
+                start,
+                end: range.start + trimmed.len(),
+            },
+            pos: lines.pos(source, start),
+        });
+    }
+    let end = start + first.len();
+    let marks = first.len() - first.trim_start_matches('#').len();
+    let content = &first[marks..];
     Some(Heading {
         level,
         text: strip_closing_sequence(content.trim()).to_owned(),

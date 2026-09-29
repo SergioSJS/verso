@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc b68621c04f6de65b567e88271fb961046fb4e5b3b283e7fbfd30f9675647bc3c # shrinks to source = "[[\n> ---\ntitle: x\ntags: [a, b]\n---\n"
+cc a364cf8898cc631cf910cf03a25f3f0fd99cdf5cb212cc97c44b7971a6974a30 # shrinks to source = "\n```\n\n```\n\n> [!warning] \n> ---\ntitle: x\ntags: [a, b]\n---\n"
+cc cd5a75093e526fcfe62369b963a5dea4c0f690ec621f3789a60c5033e857168a # shrinks to source = "[[\r\na---\ntitle: x\ntags: [a, b]\n---\n[["
