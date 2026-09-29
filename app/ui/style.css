@@ -534,8 +534,8 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .preview a:hover { border-bottom-color: var(--seal); }
 .preview a.wikilink.unresolved { color: var(--ink-3); border-bottom-style: dashed; }
 /* A remote image not loaded (remote content off): a framed link to it. */
-.preview a.remote-image { display: inline-block; padding: .15em .6em; border: 1px dashed var(--hair); border-radius: 4px; color: var(--ink-2); font-size: .88em; }
-.preview a.remote-image:hover { color: var(--seal); border-color: var(--seal); }
+.preview a.remote-image, .editor a.remote-image { display: inline-block; padding: .15em .6em; border: 1px dashed var(--hair); border-radius: 4px; color: var(--ink-2); font-size: .88em; }
+.preview a.remote-image:hover, .editor a.remote-image:hover { color: var(--seal); border-color: var(--seal); }
 .preview .embed { display: inline-block; padding: 0 .45em; border: 1px dashed var(--hair); border-radius: 4px; color: var(--ink-3); font-family: var(--ui); font-size: .85em; }
 .preview .embed::before { content: "⧉ "; }
 .preview .embed.file::before { content: "📎 "; }

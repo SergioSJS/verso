@@ -20,7 +20,7 @@ import katex from "katex";
 import { cells } from "./table";
 import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
-import { webFrame } from "./sanitize";
+import { heldImage, imageLink, webFrame } from "./sanitize";
 import { smartUnindentList } from "./listKeymap";
 import { renderMermaid } from "./mermaid";
 
@@ -150,6 +150,24 @@ class ImageWidget extends WidgetType {
   }
   /** Clicks on the image stay on the image: the source is not revealed
    *  and the caret does not move; the grip handles its own pointer. */
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** A web image while remote content is off: the link the reading view
+ *  draws in its place, nothing fetched. A click opens it in the browser
+ *  (the window's link guard); the source is not revealed. */
+class HeldImageWidget extends WidgetType {
+  constructor(readonly src: string, readonly alt: string) {
+    super();
+  }
+  override eq(other: HeldImageWidget): boolean {
+    return other.src === this.src && other.alt === this.alt;
+  }
+  override toDOM(): HTMLElement {
+    return imageLink(document, this.src, this.alt);
+  }
   override ignoreEvent(): boolean {
     return true;
   }
@@ -1166,7 +1184,11 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             if (m0 && m1) alt = doc.sliceString(m0.to, m1.from);
             const size = sizeOf(alt);
             const src = /^https?:\/\//i.test(rawUrl) ? rawUrl : opts.imageUrl(rawUrl);
-            if (src) {
+            if (src && heldImage(src)) {
+              // Remote content off: a link, as in the reading view (the
+              // alt when it is text, not only a size).
+              out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: new HeldImageWidget(src, size ? "" : alt) }) });
+            } else if (src) {
               out.push({
                 from: node.from,
                 to: node.to,
