@@ -298,15 +298,15 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
         if let Some(dir) = me.parent() {
             candidates.push(dir.join("verso-app"));
         }
-        #[cfg(unix)]
-        if let Ok(out) = std::process::Command::new("readlink").arg(&me).output()
-            && out.status.success()
+        // The installed `verso` is often a symlink (Homebrew); the app
+        // binary sits beside the real file, not beside the link. The
+        // exception for `canonicalize` is declared in this crate's
+        // clippy.toml (ADR 0026 rule 5: the CLI's input and output are
+        // the entry edge, outside the open-folder rule).
+        if let Ok(real) = std::fs::canonicalize(&me)
+            && let Some(dir) = real.parent()
         {
-            let target = String::from_utf8_lossy(&out.stdout).trim().to_owned();
-            let real_path = PathBuf::from(target);
-            if let Some(dir) = real_path.parent() {
-                candidates.push(dir.join("verso-app"));
-            }
+            candidates.push(dir.join("verso-app"));
         }
     }
     #[cfg(target_os = "macos")]
