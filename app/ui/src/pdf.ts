@@ -11,6 +11,7 @@
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from "pdfjs-dist";
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { icon } from "./icons";
+import { note } from "./report";
 
 GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", document.baseURI).href;
 
@@ -219,7 +220,11 @@ export class PdfView {
       this.viewer.setDocument(doc);
       this.linkService.setDocument(doc, null);
     } catch (e) {
-      this.opts.onStatus(`${this.opts.strings.loadFailed} (${e instanceof Error ? e.message : String(e)})`);
+      const said = e instanceof Error ? e.message : String(e);
+      // Told to the user and written down: the viewer answers for its
+      // own exception, and the log keeps it (`report.ts`).
+      note("ERROR", `pdf: ${said}`);
+      this.opts.onStatus(`${this.opts.strings.loadFailed} (${said})`);
     }
   }
 

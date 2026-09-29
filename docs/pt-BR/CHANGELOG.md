@@ -14,6 +14,7 @@ versão de teste.
 
 ### Acrescentado
 
+- **O aplicativo passa a ter log, e um botão para relatar problema**: o Verso não anotava nada — um comando que falhava dizia na barra de status e sumia, e um panic ou um erro de script não deixava rastro nenhum. Agora ele mantém um arquivo pequeno no diretório de configuração (nunca na sua pasta, legível só por você, com rotação e teto de tamanho): com que versão começou, todo comando que falhou, todo panic, todo erro que a janela teria engolido. A barra de status ganha um botão de bug — com um pontinho quando algo foi engolido desde a última olhada — que abre um relatório já preenchido com versão, commit, estado, os erros da sessão e o fim do log. Nada é enviado a lugar nenhum: você lê, edita, e o botão copia.
 - **Voltar e avançar entre notas**: cada área guarda a própria trilha de onde esteve — ‹ e › na barra de abas dela, ⌘[ e ⌘] no teclado, os botões de voltar e avançar do próprio mouse, e os dois na paleta e em Ajustes → Atalhos. Uma área dividida navega sozinha, e uma aba fechada no meio sai da trilha em vez de reabrir pelas suas costas. O editor não toma mais ⌘[ e ⌘] para si: ele indenta com Tab e Shift-Tab.
 
 ### Corrigido

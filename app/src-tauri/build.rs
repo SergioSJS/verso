@@ -52,6 +52,8 @@ fn main() {
         "copy_full_path",
         "set_embed_origins",
         "set_walk_rules",
+        "log_write",
+        "log_read",
         "set_menu_language",
         "reindex",
         "app_info",
