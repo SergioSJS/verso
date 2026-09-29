@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Corrigido
+
+- **"Adicionar propriedade" não pinta mais por cima da nota**: numa nota sem propriedades o botão saía do fluxo e flutuava sobre o que estivesse embaixo — a linha do título e as primeiras linhas da nota. Agora ele tem faixa própria à direita, e continua aparecendo só quando o mouse está sobre a folha.
 
 ## 0.3.0-beta.2 — 2026-09-29
 
