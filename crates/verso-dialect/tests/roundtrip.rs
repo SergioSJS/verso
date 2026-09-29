@@ -117,8 +117,7 @@ fn check_spans(source: &str, document: &Document) -> Result<(), TestCaseError> {
                 .trim_start_matches(['>', ' ', '\t']);
             prop_assert!(
                 !underline.is_empty()
-                    && (underline.chars().all(|c| c == '=')
-                        || underline.chars().all(|c| c == '-')),
+                    && (underline.chars().all(|c| c == '=') || underline.chars().all(|c| c == '-')),
                 "setext heading ends on its underline: {text:?}"
             );
         }

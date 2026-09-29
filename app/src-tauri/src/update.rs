@@ -279,27 +279,27 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
     // Detect current platform + arch to pick the right release asset.
     // These are resolved at compile time — no runtime overhead.
     let os_keywords: &[&str] = if cfg!(target_os = "macos") {
-            &["macos", "darwin", "osx"]
-        } else if cfg!(target_os = "windows") {
-            &["windows", "win"]
-        } else {
-            &["linux"]
-        };
+        &["macos", "darwin", "osx"]
+    } else if cfg!(target_os = "windows") {
+        &["windows", "win"]
+    } else {
+        &["linux"]
+    };
 
-        let arch_keywords: &[&str] = if cfg!(target_arch = "aarch64") {
-            &["aarch64", "arm64"]
-        } else {
-            &["x86_64", "x64", "amd64"]
-        };
+    let arch_keywords: &[&str] = if cfg!(target_arch = "aarch64") {
+        &["aarch64", "arm64"]
+    } else {
+        &["x86_64", "x64", "amd64"]
+    };
 
-        // Preferred extension per platform
-        let preferred_exts: &[&str] = if cfg!(target_os = "windows") {
-            &[".msi", ".exe", ".zip"]
-        } else if cfg!(target_os = "macos") {
-            &[".dmg", ".zip"]
-        } else {
-            &[".appimage", ".deb", ".rpm", ".tar.gz", ".zip"]
-        };
+    // Preferred extension per platform
+    let preferred_exts: &[&str] = if cfg!(target_os = "windows") {
+        &[".msi", ".exe", ".zip"]
+    } else if cfg!(target_os = "macos") {
+        &[".dmg", ".zip"]
+    } else {
+        &[".appimage", ".deb", ".rpm", ".tar.gz", ".zip"]
+    };
 
     // Try to find the best asset: correct OS + arch + preferred extension
     preferred_exts.iter().find_map(|ext| {
@@ -421,7 +421,9 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
         .map(str::to_ascii_lowercase)
         .ok_or_else(|| ContractError {
             kind: ErrorKind::Refused,
-            message: "O pacote não tem checksum publicado; baixe a atualização pela página de releases.".to_string(),
+            message:
+                "O pacote não tem checksum publicado; baixe a atualização pela página de releases."
+                    .to_string(),
         })?;
     if asset.size > UPDATE_MAX_BYTES {
         return Err(ContractError {
@@ -607,11 +609,10 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
                     kind: ErrorKind::Failed,
                     message: format!("Erro ao criar arquivo extraído: {e}"),
                 })?;
-                let written =
-                    std::io::copy(&mut zf, &mut out_file).map_err(|e| ContractError {
-                        kind: ErrorKind::Failed,
-                        message: format!("Erro ao escrever arquivo extraído: {e}"),
-                    })?;
+                let written = std::io::copy(&mut zf, &mut out_file).map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao escrever arquivo extraído: {e}"),
+                })?;
                 extracted_total += written;
                 if extracted_total > UPDATE_MAX_BYTES {
                     return Err(ContractError {
@@ -926,7 +927,10 @@ pub(crate) fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std:
 /// Returns the first file found in `dir` (non-recursive) whose name ends
 /// with one of the given `extensions` (case-insensitive).
 #[cfg(any(target_os = "windows", target_os = "linux"))]
-pub(crate) fn find_file_by_exts(dir: &std::path::Path, extensions: &[&str]) -> Option<std::path::PathBuf> {
+pub(crate) fn find_file_by_exts(
+    dir: &std::path::Path,
+    extensions: &[&str],
+) -> Option<std::path::PathBuf> {
     let entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
     for ext in extensions {
         if let Some(found) = entries.iter().find(|e| {
