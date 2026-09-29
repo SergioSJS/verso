@@ -15,6 +15,10 @@
   are decided in [0053](0053-views-bases.md), and a second window on the same
   folder is built (`docs/reference/views-decision.md` §4); the terminal and
   agents set up from the settings are [0054](0054-terminal-and-agents-from-the-app.md).
+  2026-09-29 — a custom Dock menu recorded in section 3 as not built for a
+  technical reason, and left `[OPEN]`; the macOS menu bar gained File — New
+  Window, Open Folder…, Open Recent — and Settings… the same day
+  (`CHANGELOG.md`).
 
 ## Context
 
@@ -83,6 +87,17 @@ Not built for a technical reason: tearing a tab out of the window by dragging
 it (the web view does not see the pointer outside the window; a note goes to
 its own window from the tab's menu instead), and a second window on the same
 folder.
+
+**`[OPEN]` — a custom Dock menu, recorded on 2026-09-29.** The folders opened
+before, offered on a right-click of the Dock icon, as the menu bar's Open
+Recent offers them. On macOS that menu comes from the application delegate's
+`applicationDockMenu` (`NSApplicationDelegate`), which Tauri v2 does not
+expose. Reaching it would take `unsafe` code in the workspace, which the
+workspace forbids ([0029](0029-guardrails-in-ci.md), `unsafe_code =
+"forbid"`), or a native shim — a dependency or Objective-C code of the
+project's — which nothing has decided. macOS already lists the app's open
+windows in the Dock menu on its own. Left open for a future decision; the
+menu bar carries the feature meanwhile.
 
 ## Consequences
 

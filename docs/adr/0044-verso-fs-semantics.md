@@ -24,7 +24,12 @@
   2026-09-29 — an `[OPEN]` contradiction recorded in the ignored-paths group:
   commit `e5754b0` implemented a built-in list of ignored directories and the
   reading of `.gitignore`, both of which this ADR discarded. Nothing decided;
-  the status is unchanged.
+  the status is unchanged. 2026-09-29 — **that contradiction decided by the
+  maintainer** the same day, in session: both behaviours accepted, done
+  properly and behind settings — git's own `.gitignore` semantics through the
+  `ignore` crate, the built-in list and the `.gitignore` each behind a switch,
+  on by default. Recorded as a section of its own after the ignored-paths
+  group; the lines of 2026-09-22 it revises are kept, each with a note.
 
 ## Context
 
@@ -38,7 +43,7 @@ answer before `verso-fs` exists.
 
 The three groups are decided: symlinks and ignored paths on 2026-09-22, the
 opaque handles on 2026-09-24, as built for Phase 2 and with the moment to
-re-open them. The watcher, which came after feature 2, was decided on
+re-open them; ignored paths were revised on 2026-09-29. The watcher, which came after feature 2, was decided on
 2026-09-24 as well.
 
 ### Symlinks and loops — decided on 2026-09-22
@@ -121,9 +126,14 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   outside the tree ([0011](0011-config-outside-tree-index-as-cache.md)),
   **empty by default**. `node_modules/` is not hidden, so it is walked unless
   the user lists it: the price of a rule with one sentence instead of a
-  blocklist.
+  blocklist. *(Revised on 2026-09-29: the list stays, empty by default, and a
+  built-in list of build directories — `node_modules/` among them — is
+  skipped beside it unless a setting turns it off; see "Ignored paths,
+  revised" below.)*
 - **`.gitignore` is not read in Phase 1.** Its grammar is a project of its own,
-  and its failure mode is notes quietly disappearing.
+  and its failure mode is notes quietly disappearing. *(Revised on
+  2026-09-29: each directory's `.gitignore` is honored, with git's semantics,
+  unless a setting turns it off; see "Ignored paths, revised" below.)*
 - **An ignored note is an unresolved link target and is never a backlink
   source.** A `[[link]]` from a visible note to an ignored one stays unresolved;
   a link written inside an ignored note counts for nothing — not as a backlink,
@@ -191,7 +201,68 @@ behaviour — then the `!` gap and the watcher's asymmetry become fixes to make,
 and an opt-out is worth deciding with them — **or** have the code reverted to
 the design decided above, a confined ignore list in the configuration
 directory, empty by default. Until then the code and this ADR disagree, and
-this ADR is what was decided.
+this ADR is what was decided. *(Decided on 2026-09-29, the first way: the
+next section.)*
+
+### Ignored paths, revised — decided on 2026-09-29
+
+**Decided on 2026-09-29 by the maintainer**, in session, answering the
+`[OPEN]` above: *"refaça a logica desse gitignore pra ficar mais aderente e
+escalável"* (redo the logic of this gitignore so it is more faithful and
+scales) and *"coloque em settings essa opção"* (put this option in the
+settings). Ignoring build directories and honoring `.gitignore` are
+accepted, done properly and behind settings. This revises two lines of the
+group of 2026-09-22 — the configurable list alone, and no `.gitignore` —
+and nothing else in it: hidden entries are still not walked, the placeholder
+pattern still outranks the hidden rule, the configurable list stays confined
+and empty by default, and an ignored note is still an unresolved target and
+never a backlink source, whichever rule left it out.
+
+How the author built it under that decision (`crates/verso-fs`), replacing
+the partial matcher of commit `e5754b0`:
+
+- **Git's own semantics, through ripgrep's engine.** The walk reads each
+  directory's `.gitignore` with the `ignore` crate's gitignore module — the
+  engine of ripgrep; only that module, not the crate's own walker, which
+  stays `verso-fs`'s. It follows git: `!` re-includes (`!keep.md` after
+  `*.md`), `**` reaches any depth, a leading `/` anchors a pattern to its
+  file's directory (`/dist`), a trailing `/` matches directories only
+  (`logs/`), and a deeper `.gitignore` overrides the outer one — the
+  innermost file with an opinion on an entry decides. **A directory ignored
+  is pruned whole**, so a `!` inside one never applies: git's own
+  limitation, kept on purpose rather than improved on, so that the folder
+  looks the same to Verso and to git.
+- **The built-in list** (`is_default_ignored_dir`, in
+  `crates/verso-fs/src/walk.rs`): 23 directory names — `node_modules`,
+  `target`, `vendor`, `dist`, `build`, `out`, `env`, `venv`, `coverage`,
+  `__pycache__` and the like — skipped at any depth. It matches directories
+  only; a file with one of those names is walked.
+- **Both behind a switch.** `WalkRules { builtin_ignores, gitignore }`
+  (`crates/verso-fs/src/lib.rs`), both on by default. The window's settings
+  — "Ignore build folders" and "Respect .gitignore" — set them through the
+  `set_walk_rules` command; turning either off and reindexing brings the
+  entries it had left out back into the index.
+- **Tests**, in `crates/verso-fs/tests/walk.rs`:
+  `gitignore_semantics_are_gits_own` (negation, anchoring, dir-only, `**`,
+  a deeper file overriding the outer one) and
+  `walk_rules_turn_both_ignore_kinds_off`.
+- **A new dependency, `ignore`**, justified in `crates/verso-fs/Cargo.toml`.
+  Its license is dual, Unlicense or MIT; it passes `cargo-deny`'s allowlist
+  through MIT ([0029](0029-guardrails-in-ci.md)).
+
+**A known limit, accepted.** The watcher (`crates/verso-fs/src/watch.rs`)
+drops events under the built-in names when that switch is on, but it does
+not apply the `.gitignore` patterns: an event carries a path without the
+chain of `.gitignore` files above it that the matchers need. An event under
+a gitignored path therefore passes, and the walk that answers it still
+leaves the path out — the index comes out right, at the cost of a reindex
+that changes nothing.
+
+What the risk recorded in the `[OPEN]` above becomes: a note left out by a
+`.gitignore` line or a built-in name is out of the index, the search, the
+backlinks and the rewrite of links on a rename, as before; the settings are
+now the way to bring it back, and git's own `!` works as a git user
+expects.
 
 ### The watcher — after feature 2; decided on 2026-09-24
 
@@ -338,8 +409,12 @@ Considered by the maintainer, on the memo, and set aside:
   closes.
 - **Ignored paths: a curated blocklist of names** (`.obsidian/`, `.git/`,
   `.trash/`, `node_modules/`) — a list that is always one name out of date.
+  *(Taken up on 2026-09-29 for build directories, behind a setting: "Ignored
+  paths, revised".)*
 - **Ignored paths: reading `.gitignore`** — the full grammar is a project of its
   own, and a `*.md` line in a repository's `.gitignore` would empty the vault.
+  *(Taken up on 2026-09-29, through an existing engine of the full grammar and
+  behind a setting: "Ignored paths, revised".)*
 - **An ignored note fully indexed, or a target that resolves** — "ignored" would
   then mean "walked but not counted", and exit criterion 2 would depend on the
   maintainer remembering what is in `.trash/`.
@@ -363,12 +438,22 @@ And on the handles memo:
   lifetime rule, a table in the host — a design with no consumer to test it
   against, before a plugin, a mobile client or a server exists.
 
+Considered by the maintainer on 2026-09-29, on the `[OPEN]` of the
+ignored-paths group, and set aside:
+
+- **Reverting the code to the design of 2026-09-22** — one of the two ways
+  the `[OPEN]` put; the maintainer took the other.
+- **Keeping the matcher of commit `e5754b0` and fixing its `!`** — set aside
+  by *"refaça a logica"*: a grammar of our own was the project this ADR had
+  warned about, and an existing engine of git's semantics replaced it.
+
 ## Status
 
 Symlinks, loops and ignored paths: decided on 2026-09-22 by the maintainer,
-Accepted. Opaque handles: decided on 2026-09-24 by the maintainer, as built
-for Phase 2, Accepted; re-opened before anything outside the app's own views
-gets access to files. The watcher: built after feature 2 and decided on
+Accepted; ignored paths revised on 2026-09-29 by the maintainer — the
+built-in list and `.gitignore`, behind settings — Accepted. Opaque handles:
+decided on 2026-09-24 by the maintainer, as built for Phase 2, Accepted;
+re-opened before anything outside the app's own views gets access to files. The watcher: built after feature 2 and decided on
 2026-09-24 by the maintainer, Accepted. The items marked **provisional** inside
 the two groups decided on 2026-09-22 are not decided: they are what the
 feature 2 code does, recorded so that nothing is settled by silence, and they

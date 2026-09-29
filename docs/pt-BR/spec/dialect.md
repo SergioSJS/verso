@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.20
+# Spec do dialeto do Verso — v0.21
 
-- Versão: v0.20 · 2026-09-29
+- Versão: v0.21 · 2026-09-29
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -400,7 +400,9 @@ formatação inline, emoji, headings duplicados, caminho aninhado
 `[[nota#Cap 1#Seção]]`): `[ABERTO]` (seção 9, Q19).
 
 Um heading no estilo setext — uma linha de texto sublinhada com `===` ou
-`---` — é heading, como o Obsidian o reporta. Observado em 2026-09-29 com a
+`---` — é heading, como o Obsidian o reporta. `DECIDIDO` em 2026-09-29 pelo
+mantenedor, que aprovou na sessão a fixture abaixo (Q19, parte setext).
+Observado em 2026-09-29 com a
 CLI do Obsidian
 ([`docs/reference/obsidian-cli.md`](../reference/obsidian-cli.md), admissível
 pelo [ADR 0009](../adr/0009-external-constraints.md)), lendo
@@ -409,10 +411,12 @@ Sandbox: `Taverna` sobre `===` é nível 1; `Porão` sobre `---` é nível 2; e 
 `---` logo abaixo de uma linha de texto, sem linha em branco entre os dois,
 faz dessa linha um heading de nível 2 e nunca é lido como quebra temática. A
 posição é a da linha do texto. A fixture `fixtures/heading/setext` registra
-isso como rascunho da IA, e o `verso-dialect` reporta headings setext de
-acordo. Esta é a parte setext da Q19, respondida por observação e pendente da
-aprovação dessa fixture pelo mantenedor no pull request que a acrescenta
-(seção 1; [ADR 0031](../adr/0031-fixtures-as-contract.md)).
+isso, e o `verso-dialect` reporta headings setext de acordo. Esta é a parte
+setext da Q19, respondida por observação; o mantenedor aprovou essa fixture
+em 2026-09-29, na sessão ("ratifique o que precisar", respondendo à lista do
+que estava pendente, que a nomeava), e a primeira linha dela agora registra
+a aprovação (seção 1; [ADR 0031](../adr/0031-fixtures-as-contract.md)). A
+parte do casamento da Q19 continua `[ABERTO]`.
 
 ### 5.13 Links Markdown para arquivo local `PROPOSTO`
 
@@ -991,17 +995,18 @@ ser escolhido.
   ([ADR 0020](../adr/0020-sync-merge-in-core-transports-as-plugins.md)) opera
   sobre intervalos de bytes delimitados por posições do parser. O parser base
   escolhido nessa leitura está no [ADR 0037](../adr/0037-base-parser.md).
-- **Q19. Casamento de heading.** `[ABERTO]` (seção 5.12)
+- **Q19. Casamento de heading.** `[ABERTO]`, a parte setext `DECIDIDA` em
+  2026-09-29 (seção 5.12)
   Como `[[nota#seção]]` casa com um heading: maiúsculas, pontuação e espaços,
   emoji, formatação inline (`## *Porão*`), headings duplicados, caminho
   aninhado `[[nota#Cap 1#Seção]]`, heading setext, e o que o `expected.yaml`
   registra em `heading` para o caminho aninhado.
-  **A parte setext tem uma resposta observada** (2026-09-29, seção 5.12): uma
-  linha sublinhada com `===` é heading de nível 1 e uma sublinhada com `---`
+  **A parte setext está `DECIDIDA`** (2026-09-29, seção 5.12): uma linha
+  sublinhada com `===` é heading de nível 1 e uma sublinhada com `---`
   heading de nível 2, e o `---` nunca é quebra temática quando fica logo
-  abaixo de texto. A resposta é a fixture `fixtures/heading/setext`,
-  rascunhada no pull request que a traz; a aprovação dessa fixture pelo
-  mantenedor ali fecha a subquestão setext, e só ela. A parte do casamento —
+  abaixo de texto, como observado no Obsidian. A resposta é a fixture
+  `fixtures/heading/setext`, aprovada pelo mantenedor em 2026-09-29, na
+  sessão; essa aprovação fecha a subquestão setext, e só ela. A parte do casamento —
   maiúsculas, pontuação, emoji, formatação, duplicados, o caminho aninhado e o
   valor de `heading` dele — continua `[ABERTO]`.
 - **Q20. Links Markdown para arquivo local.** `[ABERTO]` (seção 5.13)
@@ -1084,6 +1089,11 @@ ser escolhido.
   `.gitignore` na Fase 1. Nota ignorada é alvo de link não resolvido e nunca é
   fonte de backlink, então nota em `.trash/` que linka para outra não conta como
   backlink no critério de saída 2 da Fase 1.
+  *(Revisto no ADR 0044 em 2026-09-29 pelo mantenedor: ao lado dessa lista,
+  uma lista embutida de diretórios de build e o `.gitignore` de cada
+  diretório, com a semântica do git, também ficam de fora, cada um atrás de
+  um ajuste ligado por padrão. Uma entrada deixada de fora por qualquer um
+  deles segue a mesma regra: alvo não resolvido, nunca fonte de backlink.)*
 
 ## 10. Histórico
 
@@ -1110,3 +1120,4 @@ ser escolhido.
 | v0.18 | 2026-09-24 | **Q11 fechada pelo mantenedor** (`docs/reference/typed-note-decision.md`, [ADR 0052](../adr/0052-typed-note.md)): um schema é um bloco cercado `verso-schema`, com YAML dentro, numa nota em qualquer lugar da pasta aberta menos caminhos ocultos e ignorados, nomeado pelo `type` que traz dentro; dois schemas com o mesmo nome não tipam nada, e o conflito aparece; se um bloco aninhado conta não está decidido. Seção 6: a nota tipada, os schemas e o i18n de schema `DECIDIDOS`, a restrição 1 (ADR 0013) aceita. Q24: a parte dos links é a próxima decisão. Nenhuma fixture ainda: a implementação as traz. Q6: um ponteiro para `docs/reference/embedded-media-decision.md`, que corrige a afirmação de que a documentação do Obsidian mostra `<video>` e `<audio>`; a Q6 continua aberta |
 | v0.19 | 2026-09-24 | Q11: **um bloco `verso-schema` aninhado não conta**, decidido pelo mantenedor (`docs/reference/views-decision.md` §2, [ADR 0052](../adr/0052-typed-note.md) ponto 3): só um bloco no nível de cima de uma nota é schema, e um aninhado é mostrado como não lido. As bases (arquivos `.base` e blocos `base`) são do [ADR 0053](../adr/0053-views-bases.md), não desta spec, que é o dialeto das notas |
 | v0.20 | 2026-09-29 | Q19, parte setext: **uma resposta observada e uma fixture rascunhada** — `Título` sobre `===` é heading de nível 1, sobre `---` de nível 2, e um `---` logo abaixo de texto nunca é quebra temática (CLI do Obsidian, `docs/reference/obsidian-cli.md`; `fixtures/heading/setext`, rascunho da IA). Seção 5.12 atualizada; a subquestão setext fecha com a aprovação dessa fixture pelo mantenedor no pull request dela. A parte do casamento da Q19 continua aberta |
+| v0.21 | 2026-09-29 | **Q19, parte setext, fechada pelo mantenedor**: a fixture `fixtures/heading/setext` aprovada na sessão ("ratifique o que precisar"); um sublinhado setext é heading, como observado no Obsidian. Seção 5.12 atualizada. A parte do casamento da Q19 continua `[ABERTO]`. Q26: uma nota apontando para a revisão do ADR 0044 do mesmo dia — diretórios de build e `.gitignore` de fora, atrás de ajustes. Uma questão fechada, em parte |

@@ -28,7 +28,12 @@
   counts as the denied call; two exceptions to the `std::fs` list declared
   for the maintainer's ratification, at the maintainer's request in session
   to make the risk of bypassing a guardrail clear in the documents
-  (Decision, "Working around a guardrail").
+  (Decision, "Working around a guardrail"). 2026-09-29 — the two exceptions
+  ratified by the maintainer, in session ("Ratifique o que precisar"), and a
+  third one declared and ratified the same day, `std::fs::read_dir` in
+  `verso-core`; the contradiction about the command line's link resolved, the
+  shell's link now made with `std::fs` inside `src/update.rs` and only the
+  administrator prompt left as a subprocess (the same section).
 
 ## Context
 
@@ -315,6 +320,23 @@ ratification:**
   above that the scripts and the workflow change together, the same step
   belongs in `.github/workflows/ci.yml`.
 
+**Ratified on 2026-09-29 by the maintainer**, in session, answering the list
+of what was pending ("Ratifique o que precisar" — ratify what needs it): both
+exceptions above stand as declared. The grep that confines the shell's
+`std::fs` to `src/update.rs` runs in `scripts/check.sh` and in
+`.github/workflows/ci.yml` alike.
+
+**A third exception, declared and ratified the same day.**
+`crates/verso-core/clippy.toml` now also allows `std::fs::read_dir`, confined
+as before to `src/sidecar.rs` by the grep, so that the index's sidecars can
+be listed for the menu's recent folders (`verso_core::recent_folders`). What
+it lists is the configuration directory
+([0011](0011-config-outside-tree-index-as-cache.md)), never the open folder
+(rule 5 of [0026](0026-core-ui-contract-inviolable-rules.md)); and the paths
+it reads stay on the host's side — the menu shows them, the window never
+receives them (rule 4). Everything that inspects or removes a path stays
+denied there. Ratified by the maintainer on 2026-09-29, in the same answer.
+
 **A contradiction, recorded and not resolved.** The shell links the command
 line from the settings ([0054](0054-terminal-and-agents-from-the-app.md)) with
 the system's tools — `test`, `readlink`, `ln`, `rm`, `xattr`, `osascript`, in
@@ -324,6 +346,26 @@ violation. [0054](0054-terminal-and-agents-from-the-app.md) declared them
 openly and left `[OPEN]` whether they should become `std::fs` with a declared
 exception; that question is the maintainer's, and this revision does not
 answer it.
+
+**Resolved on 2026-09-29**, by the maintainer's request in session ("arrume
+essa parte do cli, tem que ficar 100%" — fix that part of the command line,
+it has to be 100%). `install_cli`, `uninstall_cli` and `cli_state_now` no
+longer start `test`, `readlink`, `ln`, `rm` or `xattr`. Their filesystem work
+moved into `src/update.rs`, inside the grep's scope and under the exception
+ratified above: `executable_file`, `link_target`, `something_at`,
+`replace_symlink` and `remove_file_at` use `std::fs`, and `clear_quarantine`
+takes the download's quarantine off through the `xattr` crate, justified in
+`app/src-tauri/Cargo.toml`. The one subprocess left is `osascript`, for the
+administrator prompt. It is privilege, not a way around the list: `std::fs`
+cannot ask for an administrator's password. When the plain `std::fs` call
+fails because `/usr/local/bin` is not the person's, the command macOS runs
+with the administrator's rights is `mkdir -p /usr/local/bin && ln -sfn <the
+bundled command line> /usr/local/bin/verso`, or `rm /usr/local/bin/verso` to
+remove it — fixed commands on that one path, the bundled binary's path
+quoted as one shell word, after macOS asks for the password. Declared here
+and accepted as the one subprocess of the command line's link. The
+`[OPEN]` of [0054](0054-terminal-and-agents-from-the-app.md) on the same
+question is closed by this.
 
 ## Consequences
 

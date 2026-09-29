@@ -14,6 +14,10 @@
   [0053](0053-views-bases.md), e uma segunda janela na mesma pasta está
   construída (`docs/reference/views-decision.md` §4); o terminal e os agentes
   ligados pelos ajustes são o [0054](0054-terminal-and-agents-from-the-app.md).
+  2026-09-29 — um menu próprio do Dock registrado na seção 3 como não
+  construído por motivo técnico, e deixado `[ABERTO]`; a barra de menus do
+  macOS ganhou Arquivo — Nova janela, Abrir pasta…, Abrir recente — e
+  Ajustes… no mesmo dia (`CHANGELOG.md`).
 
 ## Contexto
 
@@ -79,6 +83,17 @@ isso foi dito ao mantenedor quando pediu:
 Não construídos por motivo técnico: tirar uma aba da janela arrastando (a web
 view não enxerga o ponteiro fora da janela; em vez disso, uma nota vai para uma
 janela própria pelo menu da aba), e uma segunda janela sobre a mesma pasta.
+
+**`[ABERTO]` — um menu próprio do Dock, registrado em 2026-09-29.** As pastas
+abertas antes, oferecidas num clique com o botão direito no ícone do Dock,
+como o Abrir recente da barra de menus as oferece. No macOS esse menu vem do
+`applicationDockMenu` do delegate da aplicação (`NSApplicationDelegate`), que
+o Tauri v2 não expõe. Chegar a ele exigiria código `unsafe` no workspace, que
+o workspace proíbe ([0029](0029-guardrails-in-ci.md), `unsafe_code =
+"forbid"`), ou um shim nativo — uma dependência ou código Objective-C do
+projeto —, que nada decidiu. O macOS já lista sozinho as janelas abertas do
+app no menu do Dock. Fica aberto para uma decisão futura; a barra de menus
+leva a funcionalidade enquanto isso.
 
 ## Consequências
 

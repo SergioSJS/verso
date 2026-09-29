@@ -7,6 +7,9 @@
   [0050](0050-outbound-network-access.md) (the window's network paths);
   [0026](0026-core-ui-contract-inviolable-rules.md), rule 5
 - Status in the briefing: not present
+- Revisions: 2026-09-29 — confirmed by the maintainer in session
+  ("Ratifique o que precisar", answering the list of what was pending): the
+  ADR stands Accepted as written.
 
 ## Context
 
@@ -122,4 +125,5 @@ How the author built it under that decision (`app/src-tauri/src/lib.rs`,
 
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the
 Decision. The mechanism under them is the author's, built under that decision
-and labelled as such above.
+and labelled as such above. Confirmed on 2026-09-29 by the maintainer: the
+ADR stands Accepted.
