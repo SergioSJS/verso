@@ -101,6 +101,7 @@ import { ptPhrases } from "./phrases";
 import { ask, tell, promptText } from "./dialog";
 import { boardStrings } from "./board/strings";
 import type { BoardHandle, BoardHost, CardEditing } from "./board/view";
+import { CARD_COMMAND } from "./board/command";
 import { boardPathFor, readDrawing, toBoard } from "./board/convert";
 import { linkTo, withRelation } from "./board/relation";
 import { listedPath } from "./board/model";
@@ -3728,6 +3729,7 @@ class BoardLeaf extends TextLeaf {
       prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
       promote: (from, to, key) => promoteRelation(listed(from), to, key),
       editNote: (el, path, onExit) => cardEditor(el, listed(path), onExit, this.cardHistory),
+      edited: (path) => this.cardHistory.has(listed(path)),
       openUrl: (url) => void commands.openUrl(url),
       status: (text) => (ui.status.textContent = text),
     };
@@ -4004,6 +4006,13 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
       const edit = minimalEdit(view.state.doc.toString(), now);
       if (edit) view.dispatch({ changes: edit, annotations: [fromDisk.of(true), isolateHistory.of("full")] });
       revision = r.data.revision;
+    },
+    run(command) {
+      void ready.then(() => {
+        if (!view || gone) return;
+        view.focus();
+        (command === "undo" ? undo : redo)(view);
+      });
     },
     focusAt(x, y) {
       void ready.then(() => {
@@ -9544,6 +9553,13 @@ void listen<[string, string]>("menu-edit", (e) => {
   if (view) {
     (command === "undo" ? undo : command === "redo" ? redo : selectAll)(view);
     return;
+  }
+  // A note's card entered on a board, its editor left: the card takes an
+  // undo or redo for its note; otherwise the board has it.
+  if (active instanceof HTMLElement && !field && command !== "select-all") {
+    const slot = active.closest<HTMLElement>(".board-card-slot.is-active") ?? active.closest(".excalidraw")?.querySelector<HTMLElement>(".board-card-slot.is-active");
+    const card = slot?.querySelector<HTMLElement>(".board-card");
+    if (card && !card.dispatchEvent(new CustomEvent(CARD_COMMAND, { detail: command, cancelable: true }))) return;
   }
   if (active instanceof HTMLElement && !field && active.closest(".excalidraw")) {
     const key = command === "select-all" ? "a" : "z";

@@ -47,6 +47,7 @@ import {
   type Outline,
 } from "./model";
 import { relationKeyOk } from "./relation";
+import { CARD_COMMAND } from "./command";
 
 /** What the window gives the board: its contract calls and its dialogs. */
 export type BoardHost = {
@@ -77,6 +78,8 @@ export type BoardHost = {
   /** Edit a note inside `el`, in the window's note editor; `onExit` is
    *  asked for by Escape. */
   editNote: (el: HTMLElement, path: string, onExit: () => void) => CardEditing;
+  /** A card's editor was left with a history this board keeps. */
+  edited: (path: string) => boolean;
 };
 
 /** A note being edited in its card. */
@@ -87,6 +90,8 @@ export type CardEditing = {
   recheck: () => Promise<void>;
   /** The caret where the pointer is, and the keyboard in the editor. */
   focusAt: (x: number, y: number) => void;
+  /** Undo or redo in the editor, the keyboard in it. */
+  run: (command: "undo" | "redo") => void;
   destroy: () => void;
 };
 
@@ -152,6 +157,8 @@ function Card({
   const editorEl = useRef<HTMLDivElement>(null);
   const editor = useRef<CardEditing | null>(null);
   const at = useRef<[number, number]>([0, 0]);
+  const command = useRef<"undo" | "redo" | null>(null);
+  const root = useRef<HTMLDivElement>(null);
   // The editor stays until what it holds is saved: leaving the card with a
   // conflict on screen keeps it, and the card entered again shows it.
   const [open, setOpen] = useState(false);
@@ -177,6 +184,9 @@ function Card({
         ed?.destroy();
         editor.current = null;
         setOpen(false);
+        // The keyboard stays with the card: ⌘Z right after leaving the
+        // editor brings it back (CARD_COMMAND).
+        if (root.current?.closest(".board-card-slot.is-active")) root.current.focus({ preventScroll: true });
       });
     }
   }, [editing, note, open, host, s]);
@@ -185,7 +195,10 @@ function Card({
     if (!open || !el) return;
     const ed = host.editNote(el, file, onExit);
     editor.current = ed;
-    ed.focusAt(at.current[0], at.current[1]);
+    const cmd = command.current;
+    command.current = null;
+    if (cmd) ed.run(cmd);
+    else ed.focusAt(at.current[0], at.current[1]);
     return () => {
       // Gone from the board (deleted, or the board closed): what was
       // typed is saved first.
@@ -198,11 +211,34 @@ function Card({
   useEffect(() => {
     if (open) void editor.current?.recheck();
   }, [tick, open]);
+  // Undo or redo while the card is entered and reads its note: the note's
+  // editor comes back, as it was left, and runs it there — on screen.
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const take = (e: Event): void => {
+      const cmd = (e as CustomEvent<"undo" | "redo">).detail;
+      if (!note) return;
+      if (open) {
+        e.preventDefault();
+        editor.current?.run(cmd);
+        return;
+      }
+      if (!host.edited(file)) return;
+      e.preventDefault();
+      command.current = cmd;
+      onEdit();
+    };
+    el.addEventListener(CARD_COMMAND, take);
+    return () => el.removeEventListener(CARD_COMMAND, take);
+  }, [note, open, host, file, onEdit]);
   const kind = node.type === "text" ? s.textCard : node.type === "link" ? s.linkCard : ext(file) || node.type;
   return (
     <div
       className={`board-card board-card-${node.type}${missing ? " board-card-missing" : ""}`}
       aria-label={s.card(kind, nodeName(node, s))}
+      ref={root}
+      tabIndex={-1}
     >
       {node.type === "file" && (
         <div className="board-card-head">
