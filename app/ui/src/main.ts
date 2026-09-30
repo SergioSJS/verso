@@ -3379,6 +3379,10 @@ class ImageLeaf extends Leaf {
   async load(path: string): Promise<void> {
     this.path = path;
     this.setTitle(name(path));
+    // A drawing scales to any size, and one that names only its viewBox
+    // has no size of its own: fitted, it fills the view in its proportions
+    // instead of centring at a width of nothing.
+    this.box.classList.toggle("vector", /\.svg$/i.test(path));
     this.img.src = convertFileSrc(path, "verso");
     this.img.alt = name(path);
     this.box.setAttribute("aria-label", `${t.actualSize}: ${name(path)}`);
