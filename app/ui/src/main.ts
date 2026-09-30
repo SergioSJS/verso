@@ -382,6 +382,8 @@ const boardText = boardStrings(LANG);
 /** Every base on screen — a tab, a block, an embed — drawn again when the
  *  folder changes. */
 const liveBases = new Set<BaseView>();
+/** Every board on screen, told when the folder changes (ADR 0057). */
+const liveBoards = new Set<BoardHandle>();
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
 
 /* ---------- Small helpers ---------- */
@@ -3684,6 +3686,7 @@ class BoardLeaf extends TextLeaf {
       const handle = mod.mountBoard(mount, this.hostApi(), text);
       if (handle) {
         this.board = handle;
+        liveBoards.add(handle);
         this.boardHost.replaceChildren(mount);
         return;
       }
@@ -3803,6 +3806,7 @@ class BoardLeaf extends TextLeaf {
     else this.board?.focus();
   }
   override destroy(): void {
+    if (this.board) liveBoards.delete(this.board);
     this.board?.destroy();
     this.board = null;
     super.destroy();
@@ -6184,6 +6188,7 @@ function refreshBases(): void {
   window.clearTimeout(basesTimer);
   basesTimer = window.setTimeout(() => {
     for (const v of liveBases) void v.refresh();
+    for (const b of liveBoards) b.refresh();
     // A daily note made or gone shows on the month too.
     if (panel.current === "calendar") panel.paint();
   }, 200);
