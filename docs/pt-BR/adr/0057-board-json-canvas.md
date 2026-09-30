@@ -130,7 +130,8 @@ autor, para o mantenedor questionar.
       `verso.background`; nenhuma quer dizer o papel do app.
     - **A cor de um cartão.** O fundo escolhido para um cartão no painel do
       board fica no nó dele, na chave `verso` do próprio nó
-      (`"verso":{"background":"#a5d8ff"}`), como uma relação fica numa
+      (`"verso":{"background":"#a5d8ff","fill":"hachure"}`, o preenchimento
+      como o painel o chama, sólido não escrito), como uma relação fica numa
       aresta: o JSON Canvas não tem campo para isso, e o Obsidian mantém os
       campos desconhecidos de um nó (memo O1). Nenhuma, ou transparente, tira
       a chave. Pedido pelo mantenedor em 2026-09-30 ("tem como respeitar?").

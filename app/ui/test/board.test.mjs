@@ -93,6 +93,15 @@ describe("canvas ↔ elements", () => {
     assert.deepEqual(b.fromElements(restored(OBSIDIAN), OBSIDIAN).nodes, OBSIDIAN.nodes, "untouched cards write nothing new");
   });
 
+  test("a card's fill is kept beside its colour, solid by default", () => {
+    const els = restored(OBSIDIAN).map((e) => (e.id === "a" ? { ...e, backgroundColor: "#a5d8ff", fillStyle: "hachure" } : e));
+    const saved = b.fromElements(els, OBSIDIAN);
+    assert.deepEqual(saved.nodes.find((n) => n.id === "a").verso, { background: "#a5d8ff", fill: "hachure" });
+    assert.equal(restored(saved).find((e) => e.id === "a").fillStyle, "hachure", "read back");
+    const solid = b.fromElements(restored(saved).map((e) => (e.id === "a" ? { ...e, fillStyle: "solid" } : e)), saved);
+    assert.deepEqual(solid.nodes.find((n) => n.id === "a").verso, { background: "#a5d8ff" }, "solid is not written");
+  });
+
   test("groups are frames; a node inside a group is in its frame", () => {
     const els = restored(OBSIDIAN);
     assert.equal(els.find((e) => e.id === "g").type, "frame");

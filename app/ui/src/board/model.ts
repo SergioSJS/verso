@@ -192,6 +192,15 @@ export function cardBackground(node: CanvasNode): string | null {
   return typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v) ? v : null;
 }
 
+/** How a card's colour fills it, as Excalidraw's panel says it; kept
+ *  beside the colour, under `verso`. Solid, the default, is not written. */
+export type CardFill = "hachure" | "cross-hatch" | "zigzag" | "solid";
+const FILLS: readonly string[] = ["hachure", "cross-hatch", "zigzag", "solid"];
+export function cardFill(node: CanvasNode): CardFill | null {
+  const v = isRecord(node["verso"]) ? node["verso"]["fill"] : undefined;
+  return typeof v === "string" && FILLS.includes(v) && v !== "solid" ? (v as CardFill) : null;
+}
+
 export function nodeElement(node: CanvasNode): Partial<El> {
   const base = {
     id: node.id,
@@ -215,7 +224,7 @@ export function nodeElement(node: CanvasNode): Partial<El> {
     // Its own colour, or the paper's: what shows round a card's corners
     // matches the card.
     backgroundColor: cardBackground(node) ?? CARD_PAPER,
-    fillStyle: "solid",
+    fillStyle: cardFill(node) ?? "solid",
     strokeWidth: 1,
     roughness: 0,
     roundness: { type: 3 },
@@ -369,9 +378,12 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     if (e.type === "embeddable") {
       const bg = typeof e.backgroundColor === "string" ? e.backgroundColor.toLowerCase() : "";
       const own = /^#[0-9a-f]{3,8}$/.test(bg) && bg !== CARD_PAPER ? bg : undefined;
-      if (own !== (cardBackground(data) ?? undefined)?.toLowerCase()) {
+      const fs = typeof e.fillStyle === "string" ? e.fillStyle : "solid";
+      const fill = FILLS.includes(fs) && fs !== "solid" ? fs : undefined;
+      if (own !== (cardBackground(data) ?? undefined)?.toLowerCase() || fill !== (cardFill(data) ?? undefined)) {
         const verso = isRecord(node["verso"]) ? { ...node["verso"] } : {};
         put(verso, "background", own);
+        put(verso, "fill", fill);
         put(node, "verso", Object.keys(verso).length > 0 ? verso : undefined);
       }
     }

@@ -193,10 +193,13 @@ function Card({
   onEdit,
   onExit,
   background,
+  fill,
 }: {
   node: CanvasNode;
   host: BoardHost;
   tick: number;
+  /** How the colour fills the card (Excalidraw's fill style). */
+  fill: string;
   /** The colour chosen for the card on the board, if not its paper. */
   background: string | null;
   /** The card is entered and asked to edit its note. */
@@ -288,6 +291,7 @@ function Card({
     <div
       className={`board-card board-card-${node.type}${missing ? " board-card-missing" : ""}`}
       aria-label={s.card(kind, nodeName(node, s))}
+      data-fill={background && fill !== "solid" ? fill : undefined}
       style={background ? ({ "--card-bg": background } as CSSProperties) : undefined}
       ref={root}
       tabIndex={-1}
@@ -442,6 +446,7 @@ function CardLayer({
           >
             <div className="board-card-box" style={box}>
               <MemoCard
+                fill={typeof e.fillStyle === "string" ? e.fillStyle : "solid"}
                 background={typeof e.backgroundColor === "string" && e.backgroundColor !== "transparent" && e.backgroundColor.toLowerCase() !== CARD_PAPER ? e.backgroundColor : null}
                 node={node}
                 host={host}
