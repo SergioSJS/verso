@@ -479,7 +479,7 @@ function fail(e: ContractError | unknown): void {
   const message =
     typeof e === "object" && e !== null && "message" in e ? String((e as ContractError).message) : String(e);
   const kind = typeof e === "object" && e !== null && "kind" in e ? String((e as ContractError).kind) : "";
-  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
+  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
   const said = sentence[kind];
   ui.status.textContent = said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
   note("ERROR", kind ? `${kind}: ${message}` : message);
