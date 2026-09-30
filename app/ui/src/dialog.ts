@@ -109,3 +109,90 @@ function show(message: string, opts: { yes: string; no: string | null }): Promis
     no.focus();
   });
 }
+
+/** Ask for a text, and wait: the text on the yes button (or Enter; ⌘Enter
+ *  in a multi-line box), null for every way out. Queued like `ask`. */
+export function promptText(label: string, initial: string, multiline: boolean, opts: AskOptions): Promise<string | null> {
+  const answer = queue.then(() => showPrompt(label, initial, multiline, opts));
+  queue = answer.catch(() => null);
+  return answer;
+}
+
+function showPrompt(label: string, initial: string, multiline: boolean, opts: AskOptions): Promise<string | null> {
+  return new Promise<string | null>((resolve) => {
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const shade = document.createElement("div");
+    shade.className = "confirm";
+    const box = document.createElement("div");
+    box.className = "confirm-box prompt-box";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    const title = document.createElement("label");
+    title.id = `verso-ask-${++asked}`;
+    title.textContent = label;
+    const field: HTMLInputElement | HTMLTextAreaElement = multiline ? document.createElement("textarea") : document.createElement("input");
+    field.id = `${title.id}-field`;
+    field.className = "prompt-field";
+    field.value = initial;
+    if (field instanceof HTMLTextAreaElement) field.rows = 6;
+    else field.type = "text";
+    title.htmlFor = field.id;
+    box.setAttribute("aria-labelledby", title.id);
+    const yes = document.createElement("button");
+    yes.type = "button";
+    yes.className = "save";
+    yes.textContent = opts.yes;
+    const no = document.createElement("button");
+    no.type = "button";
+    no.className = "ghost";
+    no.textContent = opts.no;
+    const actions = document.createElement("div");
+    actions.className = "confirm-actions";
+    actions.append(no, yes);
+    box.append(title, field, actions);
+    shade.append(box);
+
+    let done = false;
+    const finish = (value: string | null) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("focusin", onFocus, true);
+      shade.remove();
+      if (back?.isConnected) back.focus();
+      resolve(value);
+    };
+    const order = [field, no, yes];
+    const onKey = (e: KeyboardEvent) => {
+      e.stopPropagation();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        finish(null);
+      } else if (e.key === "Enter" && document.activeElement === field && (!multiline || e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        finish(field.value);
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        const at = order.indexOf(document.activeElement as HTMLInputElement);
+        const next = order[(at + (e.shiftKey ? order.length - 1 : 1)) % order.length];
+        next?.focus();
+      }
+    };
+    const onFocus = (e: FocusEvent) => {
+      if (!box.contains(e.target as Node)) field.focus();
+    };
+    yes.addEventListener("click", () => finish(field.value));
+    no.addEventListener("click", () => finish(null));
+    shade.addEventListener("mousedown", (e) => {
+      if (e.target === shade) {
+        e.preventDefault();
+        finish(null);
+      }
+    });
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("focusin", onFocus, true);
+    document.body.append(shade);
+    field.focus();
+    field.select();
+  });
+}

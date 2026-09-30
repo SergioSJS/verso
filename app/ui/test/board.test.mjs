@@ -1,0 +1,145 @@
+// The board's pure parts (ADR 0057): the way between a canvas and
+// Excalidraw's elements, a typed relation written into a note, and the
+// reading of a drawing of the Excalidraw plugin.
+import { test, describe } from "node:test";
+import assert from "node:assert/strict";
+import * as esbuild from "esbuild";
+import LZString from "lz-string";
+
+await esbuild.build({
+  stdin: {
+    contents: 'export * from "./src/board/model"; export * from "./src/board/relation"; export * from "./src/board/convert";',
+    resolveDir: ".",
+    loader: "ts",
+  },
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  outfile: "dist/board.test-bundle.mjs",
+  logLevel: "error",
+});
+const b = await import("../dist/board.test-bundle.mjs");
+
+/** Elements as Excalidraw would hold them after `restoreElements`: the
+ *  partial ones, with what the board reads. */
+const restored = (doc) => b.toElements(doc).map((e) => ({ isDeleted: false, ...e }));
+
+const OBSIDIAN = {
+  nodes: [
+    { id: "a", x: -417, y: -304, width: 400, height: 400, type: "file", file: "Escudo/Painel.md", "verso-extra": 1 },
+    { id: "t", x: 40, y: -304, width: 250, height: 60, type: "text", text: "ver [[Barão]]", color: "4" },
+    { id: "g", x: -500, y: -400, width: 1000, height: 700, type: "group", label: "Mesa" },
+  ],
+  edges: [{ id: "e", fromNode: "a", fromSide: "right", toNode: "t", toSide: "left", label: "liga", "x-extra": true }],
+};
+
+describe("canvas ↔ elements", () => {
+  test("a canvas comes back unchanged when nothing moved", () => {
+    const back = b.fromElements(restored(OBSIDIAN), OBSIDIAN);
+    assert.deepEqual(back.nodes, OBSIDIAN.nodes);
+    assert.deepEqual(back.edges, OBSIDIAN.edges);
+    assert.equal("verso" in back, false, "no key the file did not have");
+  });
+
+  test("a node keeps its unknown fields and its key order when moved", () => {
+    const els = restored(OBSIDIAN).map((e) => (e.id === "a" ? { ...e, x: 10.6, y: 20.2 } : e));
+    const node = b.fromElements(els, OBSIDIAN).nodes[0];
+    assert.deepEqual(Object.keys(node), Object.keys(OBSIDIAN.nodes[0]));
+    assert.equal(node.x, 11);
+    assert.equal(node["verso-extra"], 1);
+  });
+
+  test("groups are frames; a node inside a group is in its frame", () => {
+    const els = restored(OBSIDIAN);
+    assert.equal(els.find((e) => e.id === "g").type, "frame");
+    assert.equal(els.find((e) => e.id === "a").frameId, "g");
+  });
+
+  test("an arrow bound to two nodes is an edge; any other is drawing", () => {
+    const free = { id: "f", type: "arrow", x: 0, y: 0, width: 5, height: 5, points: [[0, 0], [5, 5]], startBinding: null, endBinding: null, strokeColor: "#1e1e1e" };
+    const back = b.fromElements([...restored(OBSIDIAN), free], OBSIDIAN);
+    assert.equal(back.edges.length, 1);
+    assert.deepEqual(back.verso.drawing.map((d) => d.id), ["f"]);
+  });
+
+  test("an edge drawn with Excalidraw's default stroke has no color", () => {
+    const doc = { nodes: OBSIDIAN.nodes, edges: [] };
+    const arrow = { id: "n", type: "arrow", x: -17, y: -104, width: 57, height: 1, points: [[0, 0], [57, 0]], startBinding: { elementId: "a" }, endBinding: { elementId: "t" }, strokeColor: "#1e1e1e", endArrowhead: "arrow" };
+    const edge = b.fromElements([...restored(doc), arrow], doc).edges[0];
+    assert.deepEqual(edge, { id: "n", fromNode: "a", toNode: "t", fromSide: "right", toSide: "left" });
+  });
+
+  test("the outline lists groups, cards, edges and, apart, the drawing's texts", () => {
+    const note = { id: "x", type: "text", x: 900, y: 900, width: 10, height: 10, text: "nota solta" };
+    const o = b.outlineOf([...restored(OBSIDIAN), note], { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo", edge: (a, c, l) => `${a} → ${c} (${l})` });
+    assert.equal(o.groups[0].group.label, "Mesa");
+    assert.deepEqual(o.groups[0].items.map((i) => i.label), ["Painel", "ver [[Barão]]"]);
+    assert.deepEqual(o.edges.map((e) => e.label), ["Painel → ver [[Barão]] (liga)"]);
+    assert.deepEqual(o.annotations.map((e) => e.label), ["nota solta"]);
+  });
+
+  test("an arrow between two notes can be promoted; to a text card it cannot", () => {
+    const els = restored({ nodes: [...OBSIDIAN.nodes, { id: "n2", type: "file", file: "B.md", x: 0, y: 0, width: 1, height: 1 }], edges: [] });
+    const arrow = (to) => ({ id: "r", type: "arrow", startBinding: { elementId: "a" }, endBinding: { elementId: to } });
+    assert.deepEqual(b.relationEnds(arrow("n2"), els), { from: "Escudo/Painel.md", to: "B.md" });
+    assert.equal(b.relationEnds(arrow("t"), els), null);
+  });
+});
+
+describe("a typed relation in the frontmatter (spec Q10)", () => {
+  test("a new key holds one quoted link", () => {
+    assert.equal(b.withRelation("# A\n", "aliado", "[[B]]"), '---\naliado: "[[B]]"\n---\n# A\n');
+  });
+  test("a list gains the link", () => {
+    assert.equal(b.withRelation('---\ninimigos:\n  - "[[A]]"\n---\n', "inimigos", "[[B]]"), '---\ninimigos:\n  - "[[A]]"\n  - "[[B]]"\n---\n');
+  });
+  test("one value becomes a list of the two", () => {
+    assert.equal(b.withRelation('---\naliado: "[[A]]"\nx: 1\n---\n', "aliado", "[[B]]"), '---\nx: 1\naliado:\n  - "[[A]]"\n  - "[[B]]"\n---\n');
+  });
+  test("a relation already there changes nothing", () => {
+    const doc = '---\naliado: "[[B]]"\n---\n';
+    assert.equal(b.withRelation(doc, "aliado", "[[B]]"), doc);
+  });
+  test("the link is the bare name unless another note has it", () => {
+    assert.equal(b.linkTo("npcs/Barão.md", ["npcs/Barão.md", "Taverna.md"]), "[[Barão]]");
+    assert.equal(b.linkTo("npcs/Barão.md", ["npcs/Barão.md", "outros/Barão.md"]), "[[npcs/Barão]]");
+  });
+  test("a key a relation cannot have is refused", () => {
+    for (const bad of ["", "a:b", "#x", "- y"]) assert.equal(b.relationKeyOk(bad), false, bad);
+    assert.equal(b.relationKeyOk("aliado"), true);
+  });
+});
+
+describe("a drawing of the Excalidraw plugin (ADR 0057 point 5)", () => {
+  const scene = {
+    type: "excalidraw",
+    elements: [
+      { id: "r1", type: "rectangle", x: 0, y: 0, width: 10, height: 10 },
+      { id: "i1", type: "image", fileId: "abcdef0123", x: 5.4, y: 6.6, width: 100, height: 50 },
+      { id: "i2", type: "image", fileId: "ffffffffff", x: 0, y: 0, width: 1, height: 1 },
+      { id: "d", type: "text", isDeleted: true },
+    ],
+  };
+  const note = (block) => `---\n\nexcalidraw-plugin: parsed\n---\n# Excalidraw Data\n## Text Elements\nx ^a\n\n## Embedded Files\nabcdef0123: [[mapa.png]]\n\n%%\n## Drawing\n${block}\n%%`;
+
+  test("a compressed drawing: images with a file become file nodes", () => {
+    const text = note("```compressed-json\n" + LZString.compressToBase64(JSON.stringify(scene)).replace(/(.{64})/g, "$1\n") + "\n```");
+    const read = b.readDrawing(text);
+    assert.ok("drawing" in read);
+    const { doc, dropped } = b.toBoard(read.drawing, (t) => (t === "mapa.png" ? "anexos/mapa.png" : null));
+    assert.deepEqual(doc.nodes, [{ id: "i1", type: "file", file: "anexos/mapa.png", x: 5, y: 7, width: 100, height: 50 }]);
+    assert.deepEqual(doc.verso.drawing.map((e) => e.id), ["r1"]);
+    assert.equal(dropped, 1);
+  });
+
+  test("a plain JSON drawing reads too; a note without one does not", () => {
+    assert.ok("drawing" in b.readDrawing(note("```json\n" + JSON.stringify(scene) + "\n```")));
+    assert.deepEqual(b.readDrawing("# Só uma nota\n"), { error: "not-drawing" });
+    assert.deepEqual(b.readDrawing(note("```compressed-json\n!!!\n```")), { error: "unreadable" });
+  });
+
+  test("the board goes beside the drawing", () => {
+    assert.equal(b.boardPathFor("t/Plano.excalidraw.md"), "t/Plano.canvas");
+    assert.equal(b.boardPathFor("t/Plano.md"), "t/Plano.canvas");
+  });
+});

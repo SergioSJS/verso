@@ -98,7 +98,11 @@ import { listKeymap } from "./listKeymap";
 import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
-import { ask, tell } from "./dialog";
+import { ask, tell, promptText } from "./dialog";
+import { boardStrings } from "./board/strings";
+import type { BoardHandle, BoardHost } from "./board/view";
+import { boardPathFor, readDrawing, toBoard } from "./board/convert";
+import { linkTo, withRelation } from "./board/relation";
 import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml, webFrame } from "./sanitize";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import { renderMermaid } from "./mermaid";
@@ -373,6 +377,8 @@ const LANG: string = (() => {
 const t: Strings = LANG.toLowerCase().startsWith("pt") ? pt : en;
 /** What the views of a base say (ADR 0053), in the same language. */
 const baseStrings = stringsFor(LANG);
+/** What the board says (ADR 0057), in the same language. */
+const boardText = boardStrings(LANG);
 /** Every base on screen — a tab, a block, an embed — drawn again when the
  *  folder changes. */
 const liveBases = new Set<BaseView>();
@@ -437,13 +443,15 @@ function ext(path: string): string {
   return i > 0 ? base.slice(i + 1).toLowerCase() : "";
 }
 const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
-const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|css|js|ts|py|rs|sh|log|ini|cfg|canvas)$/;
-type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph" | "base";
+const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|css|js|ts|py|rs|sh|log|ini|cfg)$/;
+type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph" | "base" | "board";
 function kindOf(path: string): Kind {
   const e = ext(path);
   if (e === "md") return "note";
   // A view over the folder (ADR 0053); its YAML is the other mode of the tab.
   if (e === "base") return "base";
+  // A board (ADR 0057); its JSON is the other mode of the tab.
+  if (e === "canvas") return "board";
   if (IMAGE.test(e)) return "image";
   // A page first; its source is a mode of the same tab (htmlModes).
   if (e === "html" || e === "htm") return "frame";
@@ -452,7 +460,7 @@ function kindOf(path: string): Kind {
   return "other";
 }
 function iconFor(kind: Kind): string {
-  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : kind === "base" ? "base" : "text";
+  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : kind === "base" ? "base" : kind === "board" ? "board" : "text";
 }
 let allFolders: string[] = [];
 const recents: string[] = [];
@@ -2333,6 +2341,16 @@ class NoteLeaf extends Leaf {
     if (this.readOnly) flags.push(t.mixedEol);
     if (this.gone) flags.push(t.goneOutside);
     this.flags.textContent = flags.join(" ");
+    // A drawing of the Excalidraw plugin: the way to a board (ADR 0057).
+    // Read from the text, not the properties: the plugin writes a blank
+    // line after the opening fence, which the core does not read as a
+    // frontmatter (spec §5.1).
+    if (note && isExcalidrawDrawing(note.text)) {
+      const convert = button("ghost", boardText.convert);
+      convert.title = boardText.convertTitle;
+      convert.addEventListener("click", () => void convertToBoard(note.path));
+      this.flags.append(convert);
+    }
   }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
@@ -3385,7 +3403,7 @@ class TextLeaf extends Leaf {
   private readOnly = false;
   private saveTimer: number | undefined;
   /** Writes run one at a time, each over the revision the last one left. */
-  private saving: Promise<void> = Promise.resolve();
+  protected saving: Promise<void> = Promise.resolve();
   readonly lineNumbersCompartment = new Compartment();
   applyLineNumbers(): void {
     this.editor.dispatch({
@@ -3406,7 +3424,7 @@ class TextLeaf extends Leaf {
   protected extras(): Extension {
     return [];
   }
-  private state(doc: string, language: Extension[] = []): EditorState {
+  protected state(doc: string, language: Extension[] = []): EditorState {
     return EditorState.create({
       doc,
       extensions: [
@@ -3472,7 +3490,7 @@ class TextLeaf extends Leaf {
     persistSoon();
   }
   /** The editor's text with the file's own line separator. */
-  private text(): string {
+  protected text(): string {
     return this.editor.state.doc.sliceString(0, undefined, this.eol);
   }
   /** Write over the revision that was read, after any write in flight;
@@ -3493,7 +3511,7 @@ class TextLeaf extends Leaf {
     return run;
   }
   /** Over the version the banner shows and no other (see NoteLeaf). */
-  private overwrite(): Promise<void> {
+  protected overwrite(): Promise<void> {
     const run = this.saving.then(async () => {
       const disk = this.conflict.disk;
       if (!disk) return;
@@ -3506,14 +3524,14 @@ class TextLeaf extends Leaf {
     this.saving = run.catch(() => undefined);
     return run;
   }
-  private written(f: TextFile, mine: string): void {
+  protected written(f: TextFile, mine: string): void {
     this.revision = f.revision;
     if (this.text() === mine) this.setDirty(false);
     ui.status.textContent = f.warnings.length > 0 ? f.warnings.join(" · ") : t.saved;
   }
   /** `changed`: nothing was written; the disk's version and the editor's
    *  go on screen until the user decides (invariant 11). */
-  private async refused(e: ContractError): Promise<void> {
+  protected async refused(e: ContractError): Promise<void> {
     if (e.kind !== "changed") return fail(e);
     const fresh = await commands.readText(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
@@ -3613,6 +3631,272 @@ class BaseLeaf extends TextLeaf {
     }
     super.destroy();
   }
+}
+
+/* A board (ADR 0057): a `.canvas` drawn with Excalidraw in its board mode,
+ * over the JSON this tab edits as text in its other mode. The board saves
+ * through the core, which lays the board's canvas over the file as read
+ * (every field the board does not know kept) and writes it in Obsidian's
+ * layout, over the revision read (invariant 11); the text editor then
+ * holds exactly what was written. React and Excalidraw load with the first
+ * board opened, and only then. */
+class BoardLeaf extends TextLeaf {
+  override readonly kind: Kind = "board";
+  readonly boardHost = h("div", "board-host");
+  readonly boardModes = h("div", "modes");
+  private board: BoardHandle | null = null;
+  private showing: "board" | "source" = "board";
+  /** The board's canvas waiting for a write, or refused by one. */
+  private pendingBoard: string | null = null;
+  constructor(pane: Pane) {
+    super(pane);
+    this.boardModes.setAttribute("role", "group");
+    const mode = (face: "board" | "source", ic: string, label: string): HTMLButtonElement => {
+      const b = h("button");
+      b.type = "button";
+      b.dataset["face"] = face;
+      b.append(icon(ic), h("span", "", label));
+      b.addEventListener("click", () => void this.setFace(face));
+      return b;
+    };
+    this.boardModes.append(mode("board", "board", boardText.boardMode), mode("source", "source", boardText.textMode));
+    this.el.querySelector(".leaf-head")?.append(this.boardModes);
+    this.host.before(this.boardHost);
+    this.paintFace();
+  }
+  override async load(path: string, force = false): Promise<void> {
+    await super.load(path, force);
+    if (this.path !== path) return;
+    this.pendingBoard = null;
+    await this.showBoard();
+  }
+  /** Draw the editor's text as the board: a first mount, or the new text
+   *  over the board already there. Not JSON: said, and the text shown. */
+  private async showBoard(): Promise<void> {
+    const text = this.editor.state.doc.toString();
+    if (this.board) {
+      if (this.board.load(text)) return;
+    } else {
+      this.boardHost.replaceChildren(h("p", "board-loading", boardText.loading));
+      const mod = await loadBoardModule();
+      if (this.board) return void this.showBoard();
+      const mount = h("div", "board-mount");
+      const handle = mod.mountBoard(mount, this.hostApi(), text);
+      if (handle) {
+        this.board = handle;
+        this.boardHost.replaceChildren(mount);
+        return;
+      }
+    }
+    this.boardHost.replaceChildren(h("p", "board-loading", boardText.notABoard));
+    ui.status.textContent = boardText.notABoard;
+  }
+  private hostApi(): BoardHost {
+    return {
+      strings: boardText,
+      lang: LANG,
+      dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
+      save: (json) => void this.saveBoard(json),
+      openFile: (path, aside) => void openNote(path, aside),
+      noteHtml: async (path) => {
+        const r = await commands.readNote(path);
+        return r.status === "ok" ? r.data.html : null;
+      },
+      markdownHtml: (text) => commands.renderMarkdown(text),
+      setHtml: (el, html) => setHtml(el, html),
+      fileSrc: (path) => convertFileSrc(path, "verso"),
+      exists: (path) => allNotes.includes(path) || allFiles.includes(path),
+      pickFile: () => quick.pick(),
+      prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
+      promote: (from, to, key) => promoteRelation(from, to, key),
+      openUrl: (url) => void commands.openUrl(url),
+      status: (text) => (ui.status.textContent = text),
+    };
+  }
+  /** Write the board's canvas over the revision read, after any write in
+   *  flight; the text editor takes what was written, as read. */
+  private saveBoard(json: string): Promise<void> {
+    this.pendingBoard = json;
+    this.setDirty(true);
+    const run = this.saving.then(async () => {
+      const mine = this.pendingBoard;
+      if (mine === null) return;
+      if (this.conflict.up) {
+        ui.status.textContent = t.conflictPending;
+        return;
+      }
+      const r = await commands.writeBoard(this.path, mine, this.revision);
+      if (r.status !== "ok") return this.refusedBoard(r.error, mine);
+      this.revision = r.data.revision;
+      this.editor.setState(this.state(r.data.text));
+      if (this.pendingBoard === mine) {
+        this.pendingBoard = null;
+        this.setDirty(false);
+      }
+      ui.status.textContent = r.data.warnings.length > 0 ? r.data.warnings.join(" · ") : t.saved;
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  /** `changed`: the disk's version against the board's, until the user
+   *  decides (invariant 11); anything else, said. */
+  private async refusedBoard(e: ContractError, mine: string): Promise<void> {
+    if (e.kind !== "changed") return fail(e);
+    const fresh = await commands.readText(this.path);
+    if (fresh.status !== "ok") return fail(fresh.error);
+    let shown = mine;
+    try {
+      shown = JSON.stringify(JSON.parse(mine), null, "\t");
+    } catch {
+      // Shown as sent.
+    }
+    this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, shown);
+  }
+  /** Over the disk's version the banner shows: the board's canvas when the
+   *  board was refused, the editor's text otherwise. */
+  protected override overwrite(): Promise<void> {
+    const board = this.pendingBoard;
+    if (board === null) return super.overwrite();
+    const run = this.saving.then(async () => {
+      const disk = this.conflict.disk;
+      if (!disk) return;
+      const r = await commands.writeBoard(this.path, board, disk.revision);
+      if (r.status !== "ok") return this.refusedBoard(r.error, board);
+      this.conflict.hide();
+      this.revision = r.data.revision;
+      this.editor.setState(this.state(r.data.text));
+      this.pendingBoard = null;
+      this.setDirty(false);
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  private async setFace(face: "board" | "source"): Promise<void> {
+    if (face === this.showing) return;
+    if (face === "board") {
+      // What the text says is saved first, then drawn.
+      if (this.dirty && this.pendingBoard === null) await this.save();
+      this.showing = face;
+      this.paintFace();
+      await this.showBoard();
+      this.board?.focus();
+    } else {
+      await this.saving;
+      this.showing = face;
+      this.paintFace();
+      this.editor.focus();
+    }
+  }
+  private paintFace(): void {
+    for (const b of this.boardModes.querySelectorAll<HTMLButtonElement>("button")) b.setAttribute("aria-pressed", String(b.dataset["face"] === this.showing));
+    this.boardHost.hidden = this.showing !== "board";
+    this.host.hidden = this.showing !== "source";
+    this.el.classList.toggle("board-face", this.showing === "board");
+  }
+  override async flush(): Promise<boolean> {
+    if (this.pendingBoard !== null && !this.conflict.up) await this.saveBoard(this.pendingBoard);
+    await this.saving;
+    return super.flush();
+  }
+  override focusContent(): void {
+    if (this.showing === "source") this.editor.focus();
+    else this.board?.focus();
+  }
+  override destroy(): void {
+    this.board?.destroy();
+    this.board = null;
+    super.destroy();
+  }
+}
+
+/** The board's module — React and Excalidraw — loaded once, on the first
+ *  board opened. Its fonts and styles are the app's own (ADR 0050): the
+ *  asset path is set before the module looks for them. */
+let boardModule: Promise<typeof import("./board/view")> | null = null;
+function loadBoardModule(): Promise<typeof import("./board/view")> {
+  if (!boardModule) {
+    (window as unknown as { EXCALIDRAW_ASSET_PATH: string }).EXCALIDRAW_ASSET_PATH = new URL("excalidraw/", document.baseURI).href;
+    if (!document.querySelector("link[data-board-css]")) {
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "excalidraw/index.css";
+      css.dataset["boardCss"] = "";
+      document.head.append(css);
+    }
+    boardModule = import("./board/view");
+  }
+  return boardModule;
+}
+
+/** Write the relation `key` from note `from` to note `to` (spec Q10, ADR
+ *  0057 point 4): the change to `from`'s frontmatter shown as a plan with
+ *  its diff, written on the user's yes. True when it was written. */
+async function promoteRelation(from: string, to: string, key: string): Promise<boolean> {
+  const r = await commands.readNote(from);
+  if (r.status !== "ok") {
+    fail(r.error);
+    return false;
+  }
+  const after = withRelation(r.data.text, key, linkTo(to, allNotes));
+  if (after === null) {
+    ui.status.textContent = t.propFixed;
+    return false;
+  }
+  if (after === r.data.text) return true;
+  return plan.confirm([{ path: from, revision: r.data.revision, before: r.data.text, after }], boardText.promote, boardText.promote);
+}
+
+/** Whether a note is a drawing of the Excalidraw plugin: its marker near
+ *  the top and a `## Drawing` section. */
+function isExcalidrawDrawing(text: string): boolean {
+  return /(^|\n)excalidraw-plugin:\s*\S/.test(text.slice(0, 2000)) && /(^|\n)## Drawing\s*(\n|$)/.test(text);
+}
+
+/** A new board in `folder`, empty, opened. */
+async function newBoard(folder: string): Promise<void> {
+  const path = freeName(folder, t.untitled, ".canvas");
+  const text = await commands.boardText(JSON.stringify({ nodes: [], edges: [] }));
+  if (text.status !== "ok") return fail(text.error);
+  const r = await commands.createFile(path, textBase64(text.data));
+  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  await afterFileChange();
+  openNote(r.data, false);
+}
+
+/** Convert a drawing of the Excalidraw plugin into a board beside it (ADR
+ *  0057 point 5): the new file shown as a plan, created on the user's yes;
+ *  the drawing stays as it was. */
+async function convertToBoard(note: string): Promise<void> {
+  const r = await commands.readText(note);
+  if (r.status !== "ok") return fail(r.error);
+  const read = readDrawing(r.data.text);
+  if ("error" in read) {
+    ui.status.textContent = read.error === "not-drawing" ? boardText.convertNotDrawing : boardText.convertUnreadable;
+    return;
+  }
+  const targets = [...new Set(read.drawing.embedded.values())];
+  const paths = new Map<string, string | null>();
+  for (const target of targets) {
+    const found = await commands.resolveAttachment(note, target);
+    paths.set(target, found.status === "ok" ? found.data : null);
+  }
+  const { doc, dropped } = toBoard(read.drawing, (target) => paths.get(target) ?? null);
+  const text = await commands.boardText(JSON.stringify(doc));
+  if (text.status !== "ok") return fail(text.error);
+  const path = boardPathFor(note);
+  const detail = boardText.convertDetail(note, path) + (dropped > 0 ? ` ${boardText.convertDropped(dropped)}` : "");
+  const yes = await plan.confirm([{ path, revision: "", before: "", after: text.data }], boardText.convertTitle, boardText.convertCreate, detail, async () => {
+    const made = await commands.createFile(path, textBase64(text.data));
+    if (made.status !== "ok") {
+      fail(made.error.kind === "exists" ? { message: t.exists } : made.error);
+      return false;
+    }
+    return true;
+  });
+  if (!yes) return;
+  await afterFileChange();
+  ui.status.textContent = boardText.convertDone(path);
+  openNote(path, false);
 }
 
 type FolderRow = { path: string; kind: Kind; label: string; size: number; modified: number };
@@ -4549,7 +4833,7 @@ class Pane {
     if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
     if (!leaf) {
       const kind = kindOf(path);
-      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : new TextLeaf(this);
+      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
       remember(path);
       this.insert(leaf);
       void leaf.load(path);
@@ -6231,6 +6515,7 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
         })(), "maximize"] as MenuItem] : []),
       ];
   if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
+  if (kind === "note" && /\.excalidraw\.md$/i.test(path)) items.push([boardText.convert, () => void convertToBoard(path), "board"]);
   items.push(
     sep,
     [t.rename, rename, "edit"],
@@ -6399,6 +6684,7 @@ function createMenuItems(folder = ""): MenuItem[] {
     [t.newHere, () => newNotePrompt(folder), "plus"],
     [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
     [t.newBase, () => void newBase(folder), "calendar"],
+    [boardText.newBoard, () => void newBoard(folder), "board"],
     [t.newWebPage, () => newWebPagePrompt(folder), "globe"],
   ];
   if (folder === "") {
@@ -6482,6 +6768,10 @@ function renameInline(li: HTMLElement, path: string, folder = false): void {
 class Plan {
   readonly el = h("div", "plan");
   private rewrites: { path: string; revision: string; before: string; after: string }[] = [];
+  /** The answer a `confirm` waits for, and the write it asked for instead
+   *  of the plan's own. */
+  private answer: ((applied: boolean) => void) | null = null;
+  private custom: (() => Promise<boolean>) | null = null;
   constructor() {
     this.el.hidden = true;
     asDialog(this.el, "", () => this.hide(), "plan-title");
@@ -6513,11 +6803,35 @@ class Plan {
     this.el.hidden = false;
     apply.focus();
   }
+  /** Show the plan and wait: true when it was applied in full. `onApply`
+   *  writes instead of the plan's own writes (a file to create). */
+  confirm(rewrites: Plan["rewrites"], title: string, applyLabel: string, detail = "", onApply?: () => Promise<boolean>): Promise<boolean> {
+    this.settle(false);
+    this.show(rewrites, title, applyLabel, detail);
+    this.custom = onApply ?? null;
+    return new Promise<boolean>((resolve) => (this.answer = resolve));
+  }
+  private settle(applied: boolean): void {
+    const answer = this.answer;
+    this.answer = null;
+    this.custom = null;
+    answer?.(applied);
+  }
   hide(): void {
     this.el.hidden = true;
     closed(this.el);
+    this.settle(false);
   }
   private async apply(): Promise<void> {
+    if (this.custom) {
+      const done = await this.custom();
+      this.custom = null;
+      const answer = this.answer;
+      this.answer = null;
+      this.hide();
+      answer?.(done);
+      return;
+    }
     let ok = 0;
     let failed = 0;
     const left: string[] = [];
@@ -6527,13 +6841,18 @@ class Plan {
         left.push(name(w.path));
         continue;
       }
-      const r = await commands.writeNote(w.path, w.after, w.revision);
+      // `writeText`: a note goes through `write_note`, a board is indexed
+      // as it is written (a canvas's file nodes follow a rename too).
+      const r = await commands.writeText(w.path, w.after, w.revision);
       if (r.status === "ok") {
         ok++;
         for (const l of leavesOf(w.path)) if (!l.dirty) void l.load(w.path, true);
       } else failed++;
     }
+    const answer = this.answer;
+    this.answer = null;
     this.hide();
+    answer?.(failed === 0 && left.length === 0);
     ui.status.textContent = t.planDone(ok, failed) + (left.length > 0 ? ` ${t.planLeftOut} ${left.join(", ")}.` : "");
   }
 }
@@ -7019,6 +7338,8 @@ class QuickSwitcher {
   readonly list = h("ul", "quick-list");
   private items: string[] = [];
   private sel = 0;
+  /** A board asked for a file (`pick`): the choice goes there, nothing opens. */
+  private picking: ((path: string | null) => void) | null = null;
   constructor() {
     this.el.hidden = true;
     this.input.type = "text";
@@ -7059,11 +7380,25 @@ class QuickSwitcher {
   hide(restore = true): void {
     this.el.hidden = true;
     closed(this.el, restore);
+    const picking = this.picking;
+    this.picking = null;
+    picking?.(null);
+  }
+  /** Choose a note or file of the folder, and wait: its path, or null. */
+  pick(): Promise<string | null> {
+    this.hide();
+    return new Promise<string | null>((resolve) => {
+      this.show();
+      this.picking = resolve;
+    });
   }
   private choose(path: string | undefined, aside: boolean): void {
     if (!path) return;
-    this.hide(false);
-    openNote(path, aside);
+    const picking = this.picking;
+    this.picking = null;
+    this.hide(Boolean(picking));
+    if (picking) picking(path);
+    else openNote(path, aside);
   }
   private update(): void {
     const q = this.input.value.trim().toLowerCase();

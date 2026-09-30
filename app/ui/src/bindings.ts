@@ -203,6 +203,18 @@ export const commands = {
 	 */
 	writeBoard: (path: string, json: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_board", { path, json, revision })),
 	/**
+	 *  A canvas's text in Obsidian's layout (ADR 0057 point 2), from the JSON
+	 *  the window built: a new board, or the preview of a conversion, reads
+	 *  exactly as the file will be written. Touches no file.
+	 */
+	boardText: (json: string) => typedError<string, ContractError>(__TAURI_INVOKE("board_text", { json })),
+	/**
+	 *  Markdown rendered as the reading view renders a note, for a text card
+	 *  of a board (spec §5.11: a text node's text is Markdown). The window
+	 *  sanitizes it like any note's HTML.
+	 */
+	renderMarkdown: (text: string) => __TAURI_INVOKE<string>("render_markdown", { text }),
+	/**
 	 *  Rename or move anything of the folder: a note, another file or a
 	 *  folder with everything under it. Links to what moved come back as
 	 *  rewrites, like `rename_note` (ADR 0048, option (b)).

@@ -325,3 +325,4 @@ depois):
 | O10 | Uma nota com `aliado: "[[B]]"` e `inimigos:` listando `"[[B]]"` e `"[[C]]"` | `backlinks` de B: a nota, contagem 2; os `frontmatterLinks` do cache de metadados (API pública) nomeiam as chaves `aliado`, `inimigos.0`, `inimigos.1` |
 | O11 | A mesma nota com `semaspas: [[C]]`, sem aspas | lido como uma lista YAML aninhada (`[["C"]]`); não é link |
 | O12 | Um canvas cujo nó `text` diz `ver [[C]] aqui` | `backlinks` de C lista o canvas, contagem 1 — o ponto não verificado de D5 na seção 8 |
+| O13 | Um nó com os campos desconhecidos `"e":[]` e `"o":{}`, e `"verso":{"version":1,"drawing":[]}` no topo, arrastado (pasta `verso-board-probe3/`, removida) | um array ou objeto vazio é escrito `[]` ou `{}`, e o objeto que contém um é escrito com uma entrada por linha: um contêiner vazio conta como aninhado na regra de layout do Obsidian (seção 3.2), que é como o escritor do core o conta |

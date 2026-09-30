@@ -2216,6 +2216,13 @@ impl Workspace {
     }
 }
 
+/// Markdown as the reading view renders a note (`verso_dialect::to_html`),
+/// for a text that is not a note's: a board's text card (spec §5.11).
+#[must_use]
+pub fn render_markdown(text: &str) -> String {
+    verso_dialect::to_html(text)
+}
+
 /// Whether a confined path names a note: by its `.md`, and by nothing
 /// else. The listing always carries the extension; a `README` beside a
 /// `README.md` is a file of its own, and a file operation on it must not
