@@ -30,7 +30,6 @@ import type { BoardStrings } from "./strings";
 import {
   MARKER,
   fromElements,
-  hexOf,
   isNode,
   newNode,
   nodeData,
@@ -61,6 +60,8 @@ export type BoardHost = {
   renderNote: (el: HTMLElement, path: string) => Promise<void>;
   /** Draw a text card's Markdown the same way, from the board's folder. */
   renderText: (el: HTMLElement, text: string) => Promise<void>;
+  /** A note's text, for the board's search. */
+  noteText: (path: string) => Promise<string>;
   fileSrc: (path: string) => string;
   exists: (path: string) => boolean;
   pickFile: () => Promise<string | null>;
@@ -77,6 +78,8 @@ export type BoardHandle = {
   load: (text: string) => boolean;
   /** The folder changed: every card asks for its note again. */
   refresh: () => void;
+  /** Go to the board's search (⌘F). */
+  find: () => void;
   focus: () => void;
   destroy: () => void;
 };
@@ -97,8 +100,30 @@ function ext(path: string): string {
 
 const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
 
+/** Text as the search compares it: lower case, accents off. */
+function fold(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/** The window's own "open" mark: a box with an arrow leaving it. */
+function OpenIcon(): JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1h2.5" />
+    </svg>
+  );
+}
+
 /** A node drawn by Verso inside its element. */
-function Card({ node, host, tick }: { node: CanvasNode; host: BoardHost; tick: number }): JSX.Element {
+function Card({
+  node,
+  host,
+  tick,
+}: {
+  node: CanvasNode;
+  host: BoardHost;
+  tick: number;
+}): JSX.Element {
   const body = useRef<HTMLDivElement>(null);
   const s = host.strings;
   const file = typeof node.file === "string" ? node.file : "";
@@ -116,15 +141,28 @@ function Card({ node, host, tick }: { node: CanvasNode; host: BoardHost; tick: n
   return (
     <div
       className={`board-card board-card-${node.type}${missing ? " board-card-missing" : ""}`}
-      style={node.color ? { borderColor: hexOf(node.color, "") } : undefined}
       aria-label={s.card(kind, nodeName(node, s))}
     >
-      {node.type === "file" && <div className="board-card-title">{nodeName(node, s)}</div>}
+      {node.type === "file" && (
+        <div className="board-card-head">
+          <span className="board-card-title">{nodeName(node, s)}</span>
+          {!missing && (
+            <button type="button" className="board-card-open" title={s.openTitle} aria-label={`${s.open}: ${nodeName(node, s)}`} onClick={(e) => host.openFile(file, e.metaKey || e.ctrlKey)}>
+              <OpenIcon />
+            </button>
+          )}
+        </div>
+      )}
       {node.type === "file" && missing && <div className="board-card-note">{s.missing}</div>}
       {node.type === "file" && !missing && IMAGE.test(ext(file)) && <img className="board-card-image" src={host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} />}
       {node.type === "link" && (
         <div className="board-card-link">
-          <span className="board-card-title">{s.linkCard}</span>
+          <div className="board-card-head">
+            <span className="board-card-title">{s.linkCard}</span>
+            <button type="button" className="board-card-open" title={url} aria-label={`${s.open}: ${url}`} onClick={() => host.openUrl(url)}>
+              <OpenIcon />
+            </button>
+          </div>
           <span className="board-card-url">{url}</span>
         </div>
       )}
@@ -217,7 +255,7 @@ function Board({
 }: {
   host: BoardHost;
   initial: CanvasDoc;
-  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void) => void;
+  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void) => void;
 }): JSX.Element {
   const s = host.strings;
   const api = useRef<Api | null>(null);
@@ -237,6 +275,12 @@ function Board({
   const [selected, setSelected] = useState<string[]>([]);
   /** Bumped when the folder changes: the cards draw their notes again. */
   const [tick, setTick] = useState(0);
+  const searchBox = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<string[]>([]);
+  const [hit, setHit] = useState(0);
+  /** The notes' text, read once per change of the folder, for the search. */
+  const noteTexts = useRef(new Map<string, string>());
   const outlineTimer = useRef<number | undefined>(undefined);
 
   const restored = useCallback((d: CanvasDoc): ExcalidrawElement[] => {
@@ -263,6 +307,10 @@ function Board({
       },
       () => container.current?.querySelector<HTMLElement>(".excalidraw")?.focus(),
       () => setTick((n) => n + 1),
+      () => {
+        searchBox.current?.focus();
+        searchBox.current?.select();
+      },
     );
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const theme = (): void => setDark(host.dark());
@@ -313,8 +361,30 @@ function Board({
     host.save(json);
   }, [host]);
 
+  // A card's link is the marker Excalidraw validates before it draws the
+  // card, once per element; it also paints a link icon on every element
+  // with a link. Once validated, the marker goes: the card stays drawn, and
+  // no icon, no address in a copy. Not a change of the user's (the file
+  // never held it), so nothing is written for it.
+  const markerTimer = useRef<number | undefined>(undefined);
+  const dropMarkers = useCallback((els: readonly ExcalidrawElement[]) => {
+    if (!els.some((e) => e.type === "embeddable" && e.link === MARKER && !e.isDeleted)) return;
+    window.clearTimeout(markerTimer.current);
+    markerTimer.current = window.setTimeout(() => {
+      const a = api.current;
+      if (!a) return;
+      const now = a.getSceneElementsIncludingDeleted();
+      if (!now.some((e) => e.type === "embeddable" && e.link === MARKER)) return;
+      a.updateScene({
+        elements: now.map((e) => (e.type === "embeddable" && e.link === MARKER ? newElementWith(e, { link: null }) : e)),
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+    }, 300);
+  }, []);
+
   const onChange = useCallback(
     (els: readonly ExcalidrawElement[], state: AppState) => {
+      dropMarkers(els);
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(flush, SAVE_DELAY);
       const ids = Object.keys(state.selectedElementIds).filter((k) => state.selectedElementIds[k]);
@@ -322,7 +392,7 @@ function Board({
       window.clearTimeout(outlineTimer.current);
       outlineTimer.current = window.setTimeout(() => setElements(els as unknown as El[]), 300);
     },
-    [flush],
+    [flush, dropMarkers],
   );
 
   const center = (): [number, number] => {
@@ -478,8 +548,74 @@ function Board({
 
   const outline = useMemo(() => outlineOf(elements, s), [elements, s]);
 
+  useEffect(() => {
+    noteTexts.current.clear();
+  }, [tick]);
+
+  // The board's search: every card by its name, its file's path, its text
+  // or address, and a note's card by the note's own text; the drawing's
+  // texts too. Case and accents do not count. In reading order.
+  useEffect(() => {
+    const q = fold(query.trim());
+    if (q === "") {
+      setHits([]);
+      return;
+    }
+    let live = true;
+    void (async () => {
+      const els = ((api.current?.getSceneElements() ?? []) as unknown as El[]).slice().sort((a, b) => a.y - b.y || a.x - b.x);
+      const found: string[] = [];
+      for (const e of els) {
+        const n = nodeData(e);
+        const parts: string[] = [];
+        if (n) {
+          parts.push(nodeName(n, s));
+          for (const k of ["file", "text", "url", "label"]) if (typeof n[k] === "string") parts.push(n[k] as string);
+          if (n.type === "file" && typeof n.file === "string" && ext(n.file) === "md") {
+            let text = noteTexts.current.get(n.file);
+            if (text === undefined) {
+              text = await host.noteText(n.file);
+              noteTexts.current.set(n.file, text);
+            }
+            parts.push(text);
+          }
+        } else if (e.type === "text" && typeof e.text === "string") {
+          parts.push(e.text);
+        } else continue;
+        if (parts.some((p) => fold(p).includes(q))) found.push(e.id);
+      }
+      if (!live) return;
+      setHits(found);
+      setHit(0);
+      if (found[0]) focusElement(found[0]);
+    })();
+    return () => {
+      live = false;
+    };
+    // `focusElement` and `host` do not change what is found.
+  }, [query, tick, s]);
+
+  const step = (by: number): void => {
+    if (hits.length === 0) return;
+    const next = (hit + by + hits.length) % hits.length;
+    setHit(next);
+    const id = hits[next];
+    if (id) focusElement(id);
+  };
+
   return (
-    <div className="board-root">
+    <div
+      className="board-root"
+      onKeyDownCapture={(e) => {
+        // ⌘F finds on the board, not Excalidraw's search of drawn text only.
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+          e.preventDefault();
+          e.stopPropagation();
+          searchBox.current?.focus();
+          searchBox.current?.select();
+        }
+      }}
+    >
       <div className="board-bar" role="toolbar" aria-label={s.toolbar}>
         <button type="button" title={s.addFileTitle} onClick={() => void addFile()}>
           {s.addFile}
@@ -497,6 +633,33 @@ function Board({
         <button type="button" title={ends ? s.promoteTitle : s.promoteNeedsArrow} disabled={!ends} onClick={() => void promote()}>
           {s.promote}
         </button>
+        <span className="board-search">
+          <input
+            ref={searchBox}
+            type="search"
+            autoComplete="off"
+            placeholder={s.search}
+            aria-label={s.search}
+            title={s.searchTitle}
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                step(e.shiftKey ? -1 : 1);
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setQuery("");
+                container.current?.querySelector<HTMLElement>(".excalidraw")?.focus();
+              }
+            }}
+          />
+          {query.trim() !== "" && (
+            <span className="board-search-count" aria-live="polite">
+              {hits.length > 0 ? s.searchCount(hit + 1, hits.length) : s.noMatches}
+            </span>
+          )}
+        </span>
         <button type="button" title={s.outlineTitle} aria-pressed={showOutline} onClick={() => setShowOutline((v) => !v)}>
           {s.outline}
         </button>
@@ -572,15 +735,17 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
   let load: (doc: CanvasDoc) => void = () => undefined;
   let focus: () => void = () => undefined;
   let refresh: () => void = () => undefined;
+  let find: () => void = () => undefined;
   const root = createRoot(el);
   root.render(
     <Board
       host={host}
       initial={initial}
-      bind={(l, f, r) => {
+      bind={(l, f, r, fd) => {
         load = l;
         focus = f;
         refresh = r;
+        find = fd;
       }}
     />,
   );
@@ -592,6 +757,7 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
       return true;
     },
     refresh: () => refresh(),
+    find: () => find(),
     focus: () => focus(),
     destroy: () => root.unmount(),
   };

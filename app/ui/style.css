@@ -2537,17 +2537,27 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 /* The library browser and its trigger reach excalidraw.com (ADR 0050). */
 .board-canvas .default-sidebar-trigger, .board-canvas .sidebar-trigger { display: none !important; }
 .board-canvas[data-card-selected] .excalidraw-hyperlinkContainer { display: none !important; }
-.board-card { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); border: 1.5px solid var(--hair); border-radius: 6px; font-size: .82rem; line-height: 1.45; }
-.board-card-title { flex: none; padding: .35rem .6rem; font-family: var(--display); font-size: .95rem; color: var(--heading-color); border-bottom: 1px solid var(--hair); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-card { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); border-radius: var(--embeddable-radius, 6px); font-size: .82rem; line-height: 1.45; }
+.board-card-head { flex: none; display: flex; align-items: center; gap: .3rem; padding: .25rem .35rem .25rem .6rem; border-bottom: 1px solid var(--hair); }
+.board-card-title { flex: 1; min-width: 0; font-family: var(--display); font-size: .95rem; color: var(--heading-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Clickable while the card is not entered: Excalidraw leaves a card's
+ * content without the pointer until a double click enters it. */
+.board-card-open { pointer-events: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: 5px; color: var(--ink-3); background: transparent; }
+.board-card-open:hover, .board-card-open:focus-visible { color: var(--seal); background: var(--seal-wash); outline: none; }
 .board-card-note { padding: .4rem .6rem; color: var(--ink-3); }
 .board-card-missing .board-card-title { text-decoration: line-through; }
-.board-card-body { flex: 1; min-height: 0; overflow: auto; padding: .4rem .6rem; }
+.board-card-body { flex: 1; min-height: 0; overflow: hidden; padding: .4rem .6rem; }
+/* A scrolling box is a layer WebKit paints once and then stretches with the
+ * board's zoom: blurred text. A card scrolls only once entered (a double
+ * click; Excalidraw then gives it the pointer), and is painted crisp by the
+ * zoom itself the rest of the time. */
+.excalidraw__embeddable-container__inner[style*="pointer-events: all"] .board-card-body { overflow: auto; }
 .board-card-body:empty { display: none; }
 .board-card-body > :first-child { margin-top: 0; }
 .board-card-image { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
 .board-card-text .board-card-body { font-family: var(--book); }
 .board-card-link { display: flex; flex-direction: column; gap: .15rem; padding: .5rem .6rem; }
-.board-card-link .board-card-title { border: 0; padding: 0; }
+.board-card-link .board-card-head { border: 0; padding: 0; }
 .board-card-url { color: var(--ink-2); overflow-wrap: anywhere; font-family: var(--mono); font-size: .76rem; }
 .board-outline { flex: none; width: min(34ch, 40%); overflow: auto; padding: .7rem .9rem 2rem; border-left: 1px solid var(--hair); background: var(--paper-2); font-size: .85rem; }
 .board-outline-heading { margin: 0 0 .5rem; font-family: var(--display); font-size: 1rem; color: var(--heading-color); }
@@ -2567,3 +2577,52 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 .board-card-body.preview { margin: 0; max-width: none; font-size: .86rem; line-height: 1.5; padding: .45rem .7rem .7rem; }
 .board-card-body.preview img { max-width: 100%; height: auto; }
 .board-card-body.preview .embed-note { margin: .4rem 0; }
+/* The board's search, in its bar. */
+.board-search { display: inline-flex; align-items: center; gap: .4rem; }
+.board-search input { width: 16ch; padding: .22rem .5rem; font: inherit; font-size: .82rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 5px; }
+.board-search input:focus { width: 24ch; outline: 2px solid var(--seal-wash); }
+.board-search-count { color: var(--ink-3); font-size: .78rem; white-space: nowrap; }
+
+/* ---------- Excalidraw in the Verso's own clothes (ADR 0057) ----------
+ * Its menus, toolbar and panels are painted from these variables; pointed
+ * at the window's tokens, which follow the light and dark themes, they read
+ * as the rest of the app. One class more than Excalidraw's own rules, whose
+ * stylesheet loads after this one. */
+.board-root .board-canvas .excalidraw {
+  --ui-font: var(--ui);
+  --island-bg-color: var(--paper);
+  --popup-bg-color: var(--paper);
+  --popup-secondary-bg-color: var(--paper);
+  --popup-text-color: var(--ink);
+  --text-primary-color: var(--ink);
+  --color-on-surface: var(--ink);
+  --icon-fill-color: var(--ink-2);
+  --color-primary: var(--seal);
+  --color-primary-darker: var(--seal);
+  --color-primary-darkest: var(--seal);
+  --color-primary-light: var(--seal-wash);
+  --color-primary-light-darker: var(--seal-wash);
+  --color-surface-primary-container: var(--seal-wash);
+  --color-surface-high: var(--paper-3);
+  --color-surface-mid: var(--paper-2);
+  --color-surface-low: var(--paper-2);
+  --color-surface-lowest: var(--paper);
+  --button-hover-bg: var(--paper-3);
+  --button-gray-1: var(--paper-2);
+  --button-gray-2: var(--paper-3);
+  --button-gray-3: var(--hair);
+  --default-border-color: var(--hair);
+  --input-bg-color: var(--paper);
+  --input-border-color: var(--hair);
+  --input-hover-bg-color: var(--paper-2);
+  --overlay-bg-color: transparent;
+  --border-radius-lg: 8px;
+  --shadow-island: 0 10px 30px -10px oklch(0% 0 0 / .35), 0 0 0 1px var(--hair);
+  font-family: var(--ui);
+}
+.board-root .board-canvas .excalidraw .context-menu { padding: .3rem; min-width: 14rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-family: var(--ui); font-size: .88rem; color: var(--ink); }
+.board-root .board-canvas .excalidraw .context-menu-item { padding: .35rem .6rem; border-radius: 5px; color: var(--ink); font-family: var(--ui); }
+.board-root .board-canvas .excalidraw .context-menu-item:hover { background: var(--seal-wash); color: var(--seal); }
+.board-root .board-canvas .excalidraw .context-menu-item:hover .context-menu-item__label { color: var(--seal); }
+.board-root .board-canvas .excalidraw .context-menu-item.dangerous .context-menu-item__label { color: var(--seal); }
+.board-root .board-canvas .excalidraw .context-menu-item-separator { margin: .25rem .4rem; border: 0; border-top: 1px solid var(--hair); }

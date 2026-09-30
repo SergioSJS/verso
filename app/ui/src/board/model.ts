@@ -200,7 +200,8 @@ export function nodeElement(node: CanvasNode): Partial<El> {
     // Solid, so the whole card takes the pointer (Excalidraw hits a
     // transparent shape on its outline only); the card drawn over it hides
     // it, and the canvas file never holds it.
-    backgroundColor: "#ffffff",
+    // The paper's colour: what shows round a card's corners matches it.
+    backgroundColor: "#f7f1e8",
     fillStyle: "solid",
     strokeWidth: 1,
     roughness: 0,
