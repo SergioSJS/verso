@@ -2195,6 +2195,26 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
 /// lost what was typed since the last autosave. A window whose text could
 /// not be saved stays open if the user keeps it.
 fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
+    // Why the app goes, in the log: a quit asked for, each window that
+    // closes, and the exit itself — an app that vanished otherwise leaves
+    // no trace of which of them it was.
+    match &event {
+        tauri::RunEvent::ExitRequested { code, .. } => log::write(
+            "INFO",
+            "host",
+            &format!(
+                "exit requested (code {code:?}, {} window(s) open)",
+                app.webview_windows().len()
+            ),
+        ),
+        tauri::RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::Destroyed,
+            ..
+        } => log::write("INFO", "host", &format!("window closed: {label}")),
+        tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
+        _ => {}
+    }
     match event {
         tauri::RunEvent::ExitRequested {
             api, code: None, ..
