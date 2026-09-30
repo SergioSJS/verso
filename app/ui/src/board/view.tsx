@@ -276,24 +276,27 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
     // Once: `initial` is the document the pane was mounted with.
   }, []);
 
-  // A board drawn while its tab was hidden has no size, and Excalidraw
-  // centred it on nothing: once it has a size again, and the user has not
-  // moved the view, it is centred on the board's content.
+  // Until the user touches the board, it follows the size of its pane —
+  // a tab shown after being hidden, a window resized or maximized — with
+  // its whole content in view.
   useEffect(() => {
     const el = container.current;
     if (!el) return;
-    let empty = el.clientWidth === 0 || el.clientHeight === 0;
+    let wait: number | undefined;
     const watch = new ResizeObserver(() => {
-      const nowEmpty = el.clientWidth === 0 || el.clientHeight === 0;
-      const a = api.current;
-      if (empty && !nowEmpty && a && !touched.current) {
+      window.clearTimeout(wait);
+      wait = window.setTimeout(() => {
+        const a = api.current;
+        if (!a || touched.current || el.clientWidth === 0 || el.clientHeight === 0) return;
         a.refresh();
         fit(a);
-      }
-      empty = nowEmpty;
+      }, 150);
     });
     watch.observe(el);
-    return () => watch.disconnect();
+    return () => {
+      window.clearTimeout(wait);
+      watch.disconnect();
+    };
   }, []);
 
   const flush = useCallback(() => {
