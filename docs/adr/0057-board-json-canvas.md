@@ -124,7 +124,8 @@ author's choice, for the maintainer to question.
       `verso.background`; none means the app's paper.
     - **A card's colour.** The background chosen for a card from the
       board's panel is kept on its node, under the node's own `verso` key
-      (`"verso":{"background":"#a5d8ff"}`), as a relation is on an edge:
+      (`"verso":{"background":"#a5d8ff","fill":"hachure"}`, the fill as the
+      panel names it, solid not written), as a relation is on an edge:
       JSON Canvas has no field for it, and Obsidian keeps a node's unknown
       fields (memo O1). None, or transparent, takes the key off. Asked for
       by the maintainer on 2026-09-30 ("tem como respeitar?").

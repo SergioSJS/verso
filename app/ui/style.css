@@ -2547,6 +2547,13 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
    colours; a card keeps the hue over the dark paper, so its text stays
    readable. */
 .excalidraw.theme--dark .board-card[style*="--card-bg"] { background: color-mix(in oklch, var(--card-bg) 28%, var(--paper)); }
+/* The fills of Excalidraw's panel, over the paper, as its own shapes
+   draw them: lines of the colour, one way, both ways, or zigzag. */
+.board-card[data-fill] { --fill-ink: var(--card-bg); }
+.excalidraw.theme--dark .board-card[data-fill] { --fill-ink: color-mix(in oklch, var(--card-bg) 45%, var(--paper)); }
+.board-card[data-fill="hachure"] { background: repeating-linear-gradient(-45deg, var(--fill-ink) 0 2px, var(--paper) 2px 10px); }
+.board-card[data-fill="cross-hatch"] { background: repeating-linear-gradient(-45deg, var(--fill-ink) 0 2px, transparent 2px 10px), repeating-linear-gradient(45deg, var(--fill-ink) 0 2px, var(--paper) 2px 10px); }
+.board-card[data-fill="zigzag"] { background: linear-gradient(135deg, var(--paper) 25%, transparent 25%) -6px 0 / 12px 12px, linear-gradient(225deg, var(--paper) 25%, transparent 25%) -6px 0 / 12px 12px, linear-gradient(315deg, var(--paper) 25%, transparent 25%) 0 0 / 12px 12px, linear-gradient(45deg, var(--paper) 25%, var(--fill-ink) 25%) 0 0 / 12px 12px; }
 .board-card-head { flex: none; display: flex; align-items: center; gap: .3rem; padding: .25rem .35rem .25rem .6rem; border-bottom: 1px solid var(--hair); }
 .board-card-title { flex: 1; min-width: 0; font-family: var(--display); font-size: .95rem; color: var(--heading-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Clickable while the card is not entered: Excalidraw leaves a card's
