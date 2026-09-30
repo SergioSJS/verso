@@ -1108,6 +1108,29 @@ fn write_board(
     with(&state, |ws| ws.write_board(&path, &json, &revision)).map(text_out)
 }
 
+/// A canvas's text in Obsidian's layout (ADR 0057 point 2), from the JSON
+/// the window built: a new board, or the preview of a conversion, reads
+/// exactly as the file will be written. Touches no file.
+#[tauri::command]
+#[specta::specta]
+fn board_text(json: String) -> Result<String, ContractError> {
+    verso_core::canvas::Canvas::parse(&json)
+        .map(|c| c.write())
+        .map_err(|e| ContractError {
+            kind: ErrorKind::NotCanvas,
+            message: e.to_string(),
+        })
+}
+
+/// Markdown rendered as the reading view renders a note, for a text card
+/// of a board (spec §5.11: a text node's text is Markdown). The window
+/// sanitizes it like any note's HTML.
+#[tauri::command]
+#[specta::specta]
+fn render_markdown(text: String) -> String {
+    verso_core::render_markdown(&text)
+}
+
 /// Every web view and web window gets its label here, from one counter,
 /// so two windows never hand out the same label.
 static WEB_SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -1876,6 +1899,8 @@ macro_rules! commands_for {
                 read_text,
                 write_text,
                 write_board,
+                board_text,
+                render_markdown,
                 rename_entry,
                 delete_entry,
                 reveal,

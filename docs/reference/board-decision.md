@@ -321,3 +321,4 @@ afterwards):
 | O10 | A note with `aliado: "[[B]]"` and `inimigos:` listing `"[[B]]"` and `"[[C]]"` | `backlinks` of B: the note, count 2; the metadata cache's `frontmatterLinks` (public API) name the keys `aliado`, `inimigos.0`, `inimigos.1` |
 | O11 | The same note with `semaspas: [[C]]`, unquoted | read as a nested YAML list (`[["C"]]`); not a link |
 | O12 | A canvas whose `text` node says `ver [[C]] aqui` | `backlinks` of C lists the canvas, count 1 — the unverified point of D5 in section 8 |
+| O13 | A node with the unknown fields `"e":[]` and `"o":{}`, and `"verso":{"version":1,"drawing":[]}` at the top level, dragged (folder `verso-board-probe3/`, removed) | an empty array or object is written `[]` or `{}`, and the object that holds one is written one entry per line: an empty container counts as nested for Obsidian's layout rule (section 3.2), which is how the core's writer counts it |
