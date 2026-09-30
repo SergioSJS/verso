@@ -2626,3 +2626,4 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 .board-root .board-canvas .excalidraw .context-menu-item:hover .context-menu-item__label { color: var(--seal); }
 .board-root .board-canvas .excalidraw .context-menu-item.dangerous .context-menu-item__label { color: var(--seal); }
 .board-root .board-canvas .excalidraw .context-menu-item-separator { margin: .25rem .4rem; border: 0; border-top: 1px solid var(--hair); }
+.board-canvas.board-repaint .excalidraw__embeddable-container { display: none !important; }
