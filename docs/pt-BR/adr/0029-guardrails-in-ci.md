@@ -29,7 +29,9 @@
   faz o trabalho que uma lista nega conta como a chamada negada; duas exceções
   à lista de `std::fs` declaradas para a ratificação do mantenedor, a pedido
   do mantenedor na sessão para deixar claro nos documentos o risco de
-  contornar um guardrail (Decisão, "Contornar um guardrail"). 2026-09-29 —
+  contornar um guardrail (Decisão, "Contornar um guardrail"). 2026-09-29 — o
+  aplicativo mantém um log de diagnóstico, e `src/log.rs` é a quarta exceção
+  declarada de `std::fs` (Decisão, "Uma quarta exceção"). 2026-09-29 —
   as duas exceções ratificadas pelo mantenedor, na sessão ("Ratifique o que
   precisar"), e uma terceira declarada e ratificada no mesmo dia,
   `std::fs::read_dir` no `verso-core`; a contradição sobre o link da linha de
@@ -343,6 +345,46 @@ confinado como antes a `src/sidecar.rs` pelo grep, para que os sidecars do
 que ele lê ficam do lado do host — o menu os mostra, a janela nunca os recebe
 (regra 4). Tudo o que inspeciona ou remove um caminho continua negado ali.
 Ratificada pelo mantenedor em 2026-09-29, na mesma resposta.
+
+**Uma quarta exceção, e a decisão sob ela — 2026-09-29.** O Verso não anotava
+nada. Um comando que falhava dizia na barra de status e sumia; um panic, uma
+promessa rejeitada e um erro de script não deixavam rastro nenhum, então um bug
+que o usuário encontrasse só podia ser achado rodando o binário pelo terminal e
+olhando o `stderr`. O mantenedor, ao saber que não havia log: *"se der algum
+erro, a gente reza pra tentar achar?"*. Os guardrails são parte do motivo de
+ter ficado assim — escrever em disco aqui exige exceção declarada e confinada —
+e nenhum ADR jamais tratou de diagnóstico.
+
+**Decidido pelo mantenedor em 2026-09-29**, em sessão: o aplicativo mantém um
+log. Como o autor construiu:
+
+- Um arquivo, `<configuração>/logs/verso.log`, no diretório de configuração
+  ([0011](0011-config-outside-tree-index-as-cache.md)) — **nunca a pasta
+  aberta** (regra 5 do [0026](0026-core-ui-contract-inviolable-rules.md)). É
+  `0600`, como o índice e seu sidecar ([0046](0046-index-location-lifecycle-tokenizer.md)), uma
+  rotação em 512 KiB, e nunca é enviado a lugar nenhum: é o arquivo do
+  usuário, na máquina do usuário.
+- O que entra: a versão e o commit com que o app começou, toda falha que cruza
+  para a janela (`failed`), todo panic (um hook, onde antes sumiam) e todo erro
+  que a janela teria engolido — os erros de contrato que ela mostra, um script
+  que lançou, uma promessa que ninguém pegou, um `console.error`, e as exceções
+  que o visualizador de PDF e os diagramas capturam e respondem sozinhos.
+- O destino é fixado uma vez, no arranque (`log::open`). Uma rodada de testes
+  exercita justamente esses erros; antes disso ela escrevia no log do próprio
+  usuário, e foi assim que a falha apareceu.
+- `app/src-tauri/src/log.rs` é o segundo módulo do `verso-app` com `std::fs`
+  permitido, ao lado de `src/update.rs`. O grep do `scripts/check.sh` e do
+  `.github/workflows/ci.yml` agora confina o acesso a disco a esses dois, e o
+  `clippy.toml` do crate diz por quê.
+- O lado da janela é `app/ui/src/report.ts`, para que as partes que capturam as
+  próprias exceções alcancem o log sem alcançar o arquivo da janela. O botão de
+  bug na barra de status monta um relatório com o build, o estado, os erros da
+  sessão e o fim do log, mostra tudo editável e copia. Nada sai da máquina.
+
+Verificado no aplicativo com falhas reais — uma nota que não é UTF-8 e um
+diagrama Mermaid que não compila chegaram ambos ao arquivo. O erro de script não
+capturado, a promessa rejeitada e o panic seguem o mesmo caminho e não foram
+exercitados.
 
 **Uma contradição, registrada e não resolvida.** O shell liga a linha de
 comando pelos ajustes ([0054](0054-terminal-and-agents-from-the-app.md)) com

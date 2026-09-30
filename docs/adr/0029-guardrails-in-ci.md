@@ -28,7 +28,9 @@
   counts as the denied call; two exceptions to the `std::fs` list declared
   for the maintainer's ratification, at the maintainer's request in session
   to make the risk of bypassing a guardrail clear in the documents
-  (Decision, "Working around a guardrail"). 2026-09-29 — the two exceptions
+  (Decision, "Working around a guardrail"). 2026-09-29 — the app keeps a
+  diagnostic log, and `src/log.rs` is the fourth declared `std::fs` exception
+  (Decision, "A fourth exception"). 2026-09-29 — the two exceptions
   ratified by the maintainer, in session ("Ratifique o que precisar"), and a
   third one declared and ratified the same day, `std::fs::read_dir` in
   `verso-core`; the contradiction about the command line's link resolved, the
@@ -336,6 +338,47 @@ it lists is the configuration directory
 it reads stay on the host's side — the menu shows them, the window never
 receives them (rule 4). Everything that inspects or removes a path stays
 denied there. Ratified by the maintainer on 2026-09-29, in the same answer.
+
+**A fourth exception, and the decision under it — 2026-09-29.** Verso wrote
+nothing down. A command that failed said so in the status bar and was gone; a
+panic, a rejected promise and a script error left no trace at all, so a bug a
+user met could only be found by running the binary from a terminal and watching
+its `stderr`. The maintainer, on being told there was no log: *"se der algum
+erro, a gente reza pra tentar achar?"*. The guardrails are part of why it
+happened — writing to disk needs a declared, confined exception here — and no
+ADR had ever covered diagnostics.
+
+**Decided by the maintainer on 2026-09-29**, in session: the app keeps a log.
+How the author built it:
+
+- One file, `<config>/logs/verso.log`, in the configuration directory
+  ([0011](0011-config-outside-tree-index-as-cache.md)) — **never the open
+  folder** (rule 5 of [0026](0026-core-ui-contract-inviolable-rules.md)). It is
+  `0600`, as the index and its sidecar are ([0046](0046-index-location-lifecycle-tokenizer.md)),
+  one rotation at 512 KiB, and it is never sent anywhere: it is the user's
+  file, on the user's machine.
+- What goes in: the version and commit the app started with, every failure that
+  crosses to the window (`failed`), every panic (a hook, where they vanished
+  before), and every error the window would have swallowed — the contract
+  errors it shows, a script that threw, a promise nobody caught, a
+  `console.error`, and the exceptions the PDF viewer and the diagrams catch
+  and answer for themselves.
+- The destination is fixed once, at start-up (`log::open`). A test run
+  exercises these very errors; before this it wrote them into the user's own
+  log, which is how the fault was found.
+- `app/src-tauri/src/log.rs` is `verso-app`'s second module allowed `std::fs`,
+  beside `src/update.rs`. The grep in `scripts/check.sh` and in
+  `.github/workflows/ci.yml` now holds disk access to those two alone, and the
+  crate's `clippy.toml` says why.
+- The window's side is `app/ui/src/report.ts`, so the parts that catch their
+  own exceptions reach the log without reaching into the window's own file.
+  The status bar's bug button fills a report with the build, the state, the
+  session's errors and the end of the log, shows it whole and editable, and
+  copies it. Nothing leaves the machine.
+
+Verified in the app with real failures — a note that is not UTF-8 and a Mermaid
+diagram that does not parse both reached the file. The uncaught script error,
+the rejected promise and the panic take the same path and were not exercised.
 
 **A contradiction, recorded and not resolved.** The shell links the command
 line from the settings ([0054](0054-terminal-and-agents-from-the-app.md)) with
