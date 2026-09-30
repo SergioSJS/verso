@@ -841,7 +841,14 @@ ui.searchLabel.textContent = t.search;
 ui.notesHeading.textContent = t.notes;
 ui.folder.dataset["empty"] = t.noFolder;
 el("keys-new").textContent = t.keysNew;
-el("keys-commands").textContent = t.commands;
+// The palette's button is its mark alone; its name and key are its tip.
+{
+  const b = el<HTMLButtonElement>("keys-commands");
+  b.replaceChildren(icon("command"));
+  b.setAttribute("aria-label", t.commands);
+  // The keys are known once the module has run (DEFAULT_KEYS is below).
+  queueMicrotask(() => (b.title = `${t.commands} (${prettyKeys(keyOf("palette"))})`));
+}
 document.querySelector(".status-keys")?.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cmd]");
   if (!b || ui.search.disabled) return;
