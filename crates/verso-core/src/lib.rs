@@ -37,6 +37,7 @@ pub use verso_fs::{Changes, ConfinementError, ReadError, WalkRules, Watch, Write
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 pub mod bases;
+pub mod canvas;
 pub mod clients;
 mod sidecar;
 pub use sidecar::Sidecar;
@@ -112,6 +113,8 @@ pub enum CoreError {
     /// The file's bytes are not UTF-8: there is no text to edit without
     /// losing what was written (spec Q25).
     NotText,
+    /// The file is not a board: not a `.canvas`, or not JSON (ADR 0057).
+    NotCanvas,
     /// The index was refreshed but its sidecar could not be written.
     Sidecar(std::io::Error),
     /// The note could not be written; `WriteError::Changed` is invariant
@@ -144,6 +147,7 @@ impl std::fmt::Display for CoreError {
             Self::Confined(e) => write!(f, "{e}"),
             Self::Read(e) => write!(f, "read: {e}"),
             Self::NotText => write!(f, "the file is not UTF-8 text"),
+            Self::NotCanvas => write!(f, "the file is not a JSON Canvas board"),
             Self::Sidecar(e) => write!(f, "index sidecar: {e}"),
             Self::Write(e) => write!(f, "write: {e}"),
             Self::InvalidKey => write!(f, "the folder key is not one this core issued"),
@@ -549,6 +553,17 @@ struct Seen {
     end: usize,
     target: String,
     reached: Reached,
+    place: SeenPlace,
+}
+
+/// Where a link read for a plan is written: in a note's text (at
+/// `start..end`), or in a canvas — a file node's `file` field, or inside a
+/// text node's `text` (at `start..end` of that field's text).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SeenPlace {
+    Note,
+    FileNode(usize),
+    TextNode(usize),
 }
 
 /// A note read for a plan, before the move, with the links that reached
@@ -587,9 +602,18 @@ impl Move {
     /// Where what a link reached is after the move.
     fn after(&self, reached: &Reached) -> Reached {
         match reached {
-            Reached::Note(p) => {
-                Reached::Note(self.note_after(p).map_or_else(|| p.clone(), str::to_owned))
-            }
+            // A canvas reaches as a note (the index holds it) and moves as
+            // a file.
+            Reached::Note(p) => Reached::Note(
+                self.note_after(p)
+                    .or_else(|| {
+                        self.files
+                            .iter()
+                            .find(|(old, _)| old == p)
+                            .map(|(_, new)| new.as_str())
+                    })
+                    .map_or_else(|| p.clone(), str::to_owned),
+            ),
             Reached::File(p) => Reached::File(
                 self.files
                     .iter()
@@ -967,6 +991,26 @@ impl Workspace {
                         .entry(verso_index::file_key(name_of(&relative)))
                         .or_default()
                         .push(relative.clone());
+                    if is_canvas(&relative) {
+                        present.insert(relative.clone());
+                        match self.root.read(entry.handle) {
+                            Ok((bytes, stamp)) => {
+                                let stamp = note_stamp(&stamp);
+                                if self.index.stamp_of(&relative).map_err(CoreError::Index)?
+                                    == Some(stamp)
+                                {
+                                    continue;
+                                }
+                                self.index_canvas(&relative, &bytes, stamp)?;
+                                report.changed.push(relative.clone());
+                            }
+                            // Unavailable: what the index had stays (ADR
+                            // 0043); a canvas is a file, never a note to
+                            // mark.
+                            Err(verso_fs::ReadError::Unavailable) => {}
+                            Err(e) => report.unreadable.push((relative, e.to_string())),
+                        }
+                    }
                 }
                 EntryKind::Directory => {
                     dirs.insert(relative.clone());
@@ -995,7 +1039,7 @@ impl Workspace {
                         .is_some_and(|rest| rest.starts_with('/'))
             })
         };
-        for known in self.index.notes().map_err(CoreError::Index)? {
+        for known in self.index.sources().map_err(CoreError::Index)? {
             if !present.contains(&known)
                 && !under_problem(&known)
                 && self.index.remove(&known).map_err(CoreError::Index)?
@@ -1282,7 +1326,7 @@ impl Workspace {
     /// refused when something stands there. Listed at once.
     pub fn create_file(&mut self, relative: &str, bytes: &[u8]) -> Result<String, CoreError> {
         let key = self.entry_key(relative)?;
-        let _ = self
+        let (handle, report) = self
             .root
             .create(Path::new(&key), bytes)
             .map_err(CoreError::Write)?;
@@ -1290,6 +1334,10 @@ impl Workspace {
             .entry(verso_index::file_key(name_of(&key)))
             .or_default()
             .push(key.clone());
+        if is_canvas(&key) {
+            let stamp = self.stamp_of_written(handle, report.stamp, bytes);
+            self.index_canvas(&key, bytes, note_stamp(&stamp))?;
+        }
         Ok(key)
     }
 
@@ -1385,13 +1433,54 @@ impl Workspace {
                 });
                 continue;
             };
+            if is_canvas(&path) {
+                let Ok(board) = canvas::Canvas::parse(&text) else {
+                    warnings.push(format!("{path}: not JSON, its links were not followed"));
+                    skipped.push(Skipped {
+                        path,
+                        reason: SkipReason::Failed,
+                    });
+                    continue;
+                };
+                let mut links = Vec::new();
+                for l in board.links() {
+                    if let Some(reached) = self.reach(&path, &l.target)? {
+                        let (start, end, place) = match l.place {
+                            canvas::Place::FileNode => (0, 0, SeenPlace::FileNode(l.node)),
+                            canvas::Place::Text { start, end } => {
+                                (start, end, SeenPlace::TextNode(l.node))
+                            }
+                        };
+                        links.push(Seen {
+                            start,
+                            end,
+                            target: l.target,
+                            reached,
+                            place,
+                        });
+                    }
+                }
+                examined.push(Examined {
+                    path,
+                    text,
+                    revision: revision::encode(&stamp),
+                    links,
+                });
+                continue;
+            }
             let parsed = verso_dialect::parse(&text);
             let mut links = Vec::new();
             let spans = parsed
                 .links
                 .iter()
                 .map(|l| (l.span, l.target.as_str()))
-                .chain(parsed.embeds.iter().map(|e| (e.span, e.target.as_str())));
+                .chain(parsed.embeds.iter().map(|e| (e.span, e.target.as_str())))
+                .chain(
+                    parsed
+                        .property_links
+                        .iter()
+                        .map(|p| (p.span, p.target.as_str())),
+                );
             for (span, target) in spans {
                 if let Some(reached) = self.reach(&path, target)? {
                     links.push(Seen {
@@ -1399,6 +1488,7 @@ impl Workspace {
                         end: span.end,
                         target: target.to_owned(),
                         reached,
+                        place: SeenPlace::Note,
                     });
                 }
             }
@@ -1520,6 +1610,10 @@ impl Workspace {
     ) -> Vec<LinkRewrite> {
         let mut rewrites = Vec::new();
         for note in examined {
+            if is_canvas(&note.path) {
+                rewrites.extend(self.plan_canvas(note, mv, warnings));
+                continue;
+            }
             let path_now = mv
                 .note_after(&note.path)
                 .map_or_else(|| note.path.clone(), str::to_owned);
@@ -1558,6 +1652,80 @@ impl Workspace {
         // new one.
         rewrites.sort_by(|a, b| a.path.cmp(&b.path));
         rewrites
+    }
+
+    /// The rewrite of one canvas a move calls for: a file node that
+    /// pointed at what moved points at its new path, as Obsidian writes it
+    /// (the whole path from the root); a link inside a text node is
+    /// pointed as a note's link would be. The rest of the file keeps its
+    /// bytes (`canvas::Canvas::write`).
+    fn plan_canvas(
+        &self,
+        note: Examined,
+        mv: &Move,
+        warnings: &mut Vec<String>,
+    ) -> Option<LinkRewrite> {
+        // A canvas moves as a file: its own path after the move.
+        let path_now = match mv.after(&Reached::File(note.path.clone())) {
+            Reached::File(p) | Reached::Note(p) => p,
+        };
+        let mut board = canvas::Canvas::parse(&note.text).ok()?;
+        let mut files: Vec<(usize, String)> = Vec::new();
+        let mut texts: HashMap<usize, Vec<(usize, usize, String)>> = HashMap::new();
+        for seen in &note.links {
+            let wanted = mv.after(&seen.reached);
+            let now = match self.reach(&path_now, &seen.target) {
+                Ok(now) => now,
+                Err(e) => {
+                    warnings.push(format!("{path_now}: {e}"));
+                    continue;
+                }
+            };
+            if now.as_ref() == Some(&wanted) {
+                continue;
+            }
+            match seen.place {
+                SeenPlace::FileNode(node) => files.push((node, wanted.path().to_owned())),
+                SeenPlace::TextNode(node) => {
+                    match self.retarget(&path_now, &seen.target, &wanted) {
+                        Some(target) => texts
+                            .entry(node)
+                            .or_default()
+                            .push((seen.start, seen.end, target)),
+                        None => warnings.push(format!(
+                            "{path_now}: the link [[{}]] could not be pointed at {}",
+                            seen.target,
+                            wanted.path()
+                        )),
+                    }
+                }
+                SeenPlace::Note => {}
+            }
+        }
+        for (node, path) in files {
+            board.set_node_string(node, "file", path);
+        }
+        for (node, edits) in texts {
+            let Some(text) = board
+                .nodes()
+                .get(node)
+                .and_then(|n| n.get("text"))
+                .and_then(canvas::Json::as_str)
+                .map(str::to_owned)
+            else {
+                continue;
+            };
+            if let Some(after) = retargeted(&text, &edits) {
+                board.set_node_string(node, "text", after);
+            }
+        }
+        let after = board.write();
+        (after != note.text).then_some(LinkRewrite {
+            path: path_now,
+            revision: note.revision,
+            before: note.text,
+            after,
+        })
     }
 
     /// Rename or move a note, and say which notes link to it and how
@@ -1743,12 +1911,85 @@ impl Workspace {
             .write(handle, text.as_bytes(), &expected)
             .map_err(CoreError::Write)?;
         let stamp = self.stamp_of_written(handle, report.stamp, text.as_bytes());
+        let mut warnings = self.write_warnings(&report);
+        if is_canvas(&key)
+            && let Err(e) = self.index_canvas(&key, text.as_bytes(), note_stamp(&stamp))
+        {
+            warnings.push(format!("the index could not follow {key}: {e}"));
+        }
         Ok(TextFile {
             path: key,
             text: text.to_owned(),
             revision: revision::encode(&stamp),
-            warnings: self.write_warnings(&report),
+            warnings,
         })
+    }
+
+    /// Put a canvas into the index as a link source (ADR 0057 point 6):
+    /// its file nodes and the links of its text nodes, found where they
+    /// are written. A file that is not JSON is still a canvas the index
+    /// knows — a link target — with no links and nothing to search.
+    fn index_canvas(
+        &mut self,
+        relative: &str,
+        bytes: &[u8],
+        stamp: NoteStamp,
+    ) -> Result<(), CoreError> {
+        let text = String::from_utf8_lossy(bytes);
+        let (content, links) = match canvas::Canvas::parse(&text) {
+            Ok(board) => {
+                let links = board
+                    .links()
+                    .into_iter()
+                    .map(|l| {
+                        let (line, col) = line_col(&text, l.at);
+                        verso_index::SourceLink {
+                            embed: l.embed,
+                            target: l.target,
+                            heading: l.heading,
+                            block: l.block,
+                            alias: l.alias,
+                            line,
+                            col,
+                            start: l.at,
+                            end: l.at,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                (board.searchable_text(), links)
+            }
+            Err(_) => (String::new(), Vec::new()),
+        };
+        self.index
+            .upsert_canvas(relative, stamp, &content, &links)
+            .map_err(CoreError::Index)
+    }
+
+    /// Save a board (ADR 0057 point 2): `json` is the canvas as the window
+    /// holds it, laid over the file as read — every value unchanged keeps
+    /// its token, every object its key order, every field the window does
+    /// not know stays — and written in Obsidian's layout, atomically, over
+    /// the file `revision` describes (invariant 11 refuses a changed one).
+    /// A file on disk that is not JSON is refused: the text view is where
+    /// it gets fixed.
+    pub fn write_board(
+        &mut self,
+        relative: &str,
+        json: &str,
+        revision: &str,
+    ) -> Result<TextFile, CoreError> {
+        let key = self.entry_key(relative)?;
+        if !is_canvas(&key) {
+            return Err(CoreError::NotCanvas);
+        }
+        let now = self.read_text(&key)?;
+        let old = canvas::Canvas::parse(&now.text).map_err(|_| CoreError::NotCanvas)?;
+        let new = canvas::Canvas::parse(json).map_err(|_| CoreError::NotCanvas)?;
+        let text = old.merged(new.root).write();
+        if text == now.text && now.revision == revision {
+            return Ok(now);
+        }
+        self.write_text(&key, &text, revision)
     }
 
     /// Every entry of the folder as the last walk saw it — notes, other
@@ -1842,7 +2083,7 @@ impl Workspace {
         let mut warnings = report.warnings();
         if folder {
             let prefix = format!("{key}/");
-            match self.index.notes() {
+            match self.index.sources() {
                 Ok(notes) => {
                     for note in notes.iter().filter(|n| n.starts_with(&prefix)) {
                         if let Err(e) = self.index.remove(note) {
@@ -1981,6 +2222,23 @@ impl Workspace {
 /// reach the note.
 fn is_note(key: &str) -> bool {
     key.ends_with(".md")
+}
+
+/// Whether a confined path names a board (ADR 0057): by its `.canvas`.
+fn is_canvas(key: &str) -> bool {
+    key.ends_with(".canvas")
+}
+
+/// Line and column (both from 1, the column in characters) of a byte
+/// offset, for a link the index keeps from a file that is not Markdown.
+fn line_col(text: &str, offset: usize) -> (u32, u32) {
+    let before = text.get(..offset).unwrap_or(text);
+    let line = before.matches('\n').count() + 1;
+    let col = before.rsplit('\n').next().unwrap_or("").chars().count() + 1;
+    (
+        u32::try_from(line).unwrap_or(u32::MAX),
+        u32::try_from(col).unwrap_or(u32::MAX),
+    )
 }
 
 /// `text` with the target of each link at `(start, end)` — the span of

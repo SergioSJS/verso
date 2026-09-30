@@ -384,6 +384,9 @@ pub enum ErrorKind {
     /// The file's bytes are not UTF-8: no text to edit (spec Q25 is
     /// `[OPEN]`; this is the least that keeps the file safe).
     NotText,
+    /// The file is not a board: not a `.canvas`, or not JSON (ADR 0057);
+    /// the text view is where it gets fixed.
+    NotCanvas,
     /// The file on disk is not the one that was read: nothing was
     /// written; read again and show both versions (invariant 11).
     Changed,

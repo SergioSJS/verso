@@ -195,6 +195,14 @@ export const commands = {
 	 */
 	writeText: (path: string, text: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_text", { path, text, revision })),
 	/**
+	 *  Save a board (ADR 0057 point 2): `json` is the canvas as the window
+	 *  holds it; the core lays it over the file as read, keeping every field
+	 *  the window does not know and every value's token, and writes it in
+	 *  Obsidian's layout over the revision that was read (invariant 11).
+	 *  `not_canvas` when the file on disk is not JSON.
+	 */
+	writeBoard: (path: string, json: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_board", { path, json, revision })),
+	/**
 	 *  Rename or move anything of the folder: a note, another file or a
 	 *  folder with everything under it. Links to what moved come back as
 	 *  rewrites, like `rename_note` (ADR 0048, option (b)).
@@ -510,6 +518,11 @@ export type ErrorKind =
  *  `[OPEN]`; this is the least that keeps the file safe).
  */
 "not_text" | 
+/**
+ *  The file is not a board: not a `.canvas`, or not JSON (ADR 0057);
+ *  the text view is where it gets fixed.
+ */
+"not_canvas" | 
 /**
  *  The file on disk is not the one that was read: nothing was
  *  written; read again and show both versions (invariant 11).
