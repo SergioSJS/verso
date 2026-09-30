@@ -212,11 +212,23 @@ function OutlinePanel({
 
 type Api = ExcalidrawImperativeAPI;
 
+/** The whole board in view, as a canvas opens in Obsidian — never zoomed
+ *  in past 100 %. */
+function fit(a: Api): void {
+  const elements = a.getSceneElements();
+  if (elements.length > 0) a.scrollToContent(elements, { fitToViewport: true, viewportZoomFactor: 0.9, minZoom: 0.1, maxZoom: 1 });
+}
+
 function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; bind: (load: (doc: CanvasDoc) => void, focus: () => void) => void }): JSX.Element {
   const s = host.strings;
   const api = useRef<Api | null>(null);
   const doc = useRef<CanvasDoc>(initial);
   const sent = useRef<string>("");
+  /** Whether the user has done anything since the board was drawn from the
+   *  file: only then is a change theirs. What Excalidraw adjusts by itself
+   *  — a text measured again once its font loads — is not written back
+   *  (invariant 7: opening never rewrites). */
+  const touched = useRef(false);
   const timer = useRef<number | undefined>(undefined);
   const container = useRef<HTMLDivElement>(null);
   const [dark, setDark] = useState(host.dark());
@@ -243,6 +255,7 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
       (d) => {
         const els = restored(d);
         window.clearTimeout(timer.current);
+        touched.current = false;
         baseline(els, d);
         api.current?.updateScene({ elements: els, captureUpdate: CaptureUpdateAction.NEVER });
         setElements(els as unknown as El[]);
@@ -263,6 +276,26 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
     // Once: `initial` is the document the pane was mounted with.
   }, []);
 
+  // A board drawn while its tab was hidden has no size, and Excalidraw
+  // centred it on nothing: once it has a size again, and the user has not
+  // moved the view, it is centred on the board's content.
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    let empty = el.clientWidth === 0 || el.clientHeight === 0;
+    const watch = new ResizeObserver(() => {
+      const nowEmpty = el.clientWidth === 0 || el.clientHeight === 0;
+      const a = api.current;
+      if (empty && !nowEmpty && a && !touched.current) {
+        a.refresh();
+        fit(a);
+      }
+      empty = nowEmpty;
+    });
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
+
   const flush = useCallback(() => {
     const a = api.current;
     if (!a) return;
@@ -270,6 +303,7 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
     const json = JSON.stringify(next);
     if (json === sent.current) return;
     sent.current = json;
+    if (!touched.current) return;
     doc.current = next;
     host.save(json);
   }, [host]);
@@ -297,6 +331,7 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
   const add = (node: CanvasNode): void => {
     const a = api.current;
     if (!a) return;
+    touched.current = true;
     const [el] = restoreElements(toElements({ nodes: [node], edges: [] }) as never, null, { refreshDimensions: false });
     if (!el) return;
     a.updateScene({
@@ -336,6 +371,7 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
     if (!a) return;
     const next = await host.prompt(s.editText, typeof n.text === "string" ? n.text : "", true);
     if (next === null) return;
+    touched.current = true;
     const now = a.getSceneElementsIncludingDeleted();
     a.updateScene({
       elements: now.map((x) => (x.id === e.id ? newElementWith(x, { customData: { ...(x.customData ?? {}), canvas: { ...n, text: next } } }) : x)),
@@ -361,6 +397,7 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
       return;
     }
     if (!(await host.promote(ends.from, ends.to, key))) return;
+    touched.current = true;
     const arrow = a.getSceneElementsIncludingDeleted().find((x) => x.id === selectedArrow.id);
     if (!arrow) return;
     const canvas = (arrow.customData?.["canvas"] as Record<string, unknown> | undefined) ?? { id: arrow.id };
@@ -419,6 +456,7 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
   // Images are files of the folder on a board (ADR 0057 point 2): a pasted
   // or dropped image is refused, and the user told where they go.
   const refuseFiles = (ev: DragEvent | ClipboardEvent): void => {
+    touched.current = true;
     const files = "dataTransfer" in ev ? ev.dataTransfer?.files : ev.clipboardData?.files;
     if (files && files.length > 0) {
       ev.stopPropagation();
@@ -457,12 +495,18 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
           className="board-canvas"
           ref={container}
           onDoubleClickCapture={onDoubleClick}
+          onPointerDownCapture={() => (touched.current = true)}
+          onKeyDownCapture={() => (touched.current = true)}
           onDropCapture={refuseFiles}
           onPasteCapture={refuseFiles}
         >
           <Excalidraw
             excalidrawAPI={(a) => {
               api.current = a;
+              window.requestAnimationFrame(() => {
+                const el = container.current;
+                if (el && el.clientWidth > 0 && el.clientHeight > 0) fit(a);
+              });
             }}
             initialData={{ elements: initialElements, appState: { viewBackgroundColor: "transparent" }, scrollToContent: true }}
             onChange={onChange}
