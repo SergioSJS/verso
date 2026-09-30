@@ -78,6 +78,12 @@ describe("canvas ↔ elements", () => {
     assert.deepEqual(o.annotations.map((e) => e.label), ["nota solta"]);
   });
 
+  test("a text card is named by its first line, without Markdown marks", () => {
+    const s = { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo" };
+    assert.equal(b.nodeName({ id: "t", type: "text", text: "\n## **Gancho**\nmais", x: 0, y: 0, width: 1, height: 1 }, s), "Gancho");
+    assert.equal(b.nodeName({ id: "t", type: "text", text: "", x: 0, y: 0, width: 1, height: 1 }, s), "Texto");
+  });
+
   test("an arrow between two notes can be promoted; to a text card it cannot", () => {
     const els = restored({ nodes: [...OBSIDIAN.nodes, { id: "n2", type: "file", file: "B.md", x: 0, y: 0, width: 1, height: 1 }], edges: [] });
     const arrow = (to) => ({ id: "r", type: "arrow", startBinding: { elementId: "a" }, endBinding: { elementId: to } });

@@ -389,7 +389,13 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc): CanvasDoc
 /** What a node's card shows as its name. */
 export function nodeName(n: CanvasNode, strings: { textCard: string; linkCard: string; untitledGroup: string }): string {
   if (n.type === "file" && typeof n.file === "string") return (n.file.split("/").pop() ?? n.file).replace(/\.md$/, "");
-  if (n.type === "text" && typeof n.text === "string") return n.text.split("\n")[0]?.slice(0, 80) || strings.textCard;
+  if (n.type === "text" && typeof n.text === "string") {
+    // The first line with words, read as a reader reads it: no heading
+    // marks, no emphasis marks.
+    const line = n.text.split("\n").find((l) => l.trim() !== "") ?? "";
+    const plain = line.replace(/^\s*#{1,6}\s+/, "").replace(/[*_`]/g, "").trim();
+    return plain.slice(0, 80) || strings.textCard;
+  }
   if (n.type === "link" && typeof n.url === "string") return n.url;
   if (n.type === "group") return typeof n.label === "string" && n.label !== "" ? n.label : strings.untitledGroup;
   return n.id;
