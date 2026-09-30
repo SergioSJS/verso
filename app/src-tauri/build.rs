@@ -38,6 +38,7 @@ fn main() {
         "popout_target",
         "return_to_main",
         "open_url",
+        "open_devtools",
         "web_open",
         "web_bounds",
         "web_visible",

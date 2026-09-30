@@ -38,6 +38,7 @@
     "allow-popout-target",
     "allow-return-to-main",
     "allow-open-url",
+    "allow-open-devtools",
     "allow-web-open",
     "allow-web-bounds",
     "allow-web-visible",

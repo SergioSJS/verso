@@ -166,6 +166,13 @@ export const commands = {
 	 */
 	openUrl: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("open_url", { url })),
 	/**
+	 *  Open the web inspector — console, elements, network — of the window
+	 *  that asks: View › Open console (⌥⌘I), in the installed app as in
+	 *  development (ADR 0051, 2026-09-30). The window asks only when its
+	 *  setting allows it.
+	 */
+	openDevtools: () => __TAURI_INVOKE<void>("open_devtools"),
+	/**
 	 *  A web page inside the window, as a child web view over the area the
 	 *  UI names (logical pixels from the window's top-left): the browser
 	 *  behind a tab whose note holds the address. Only `http(s)`; the page

@@ -1207,6 +1207,16 @@ fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .build()
 }
 
+/// Open the web inspector — console, elements, network — of the window
+/// that asks: View › Open console (⌥⌘I), in the installed app as in
+/// development (ADR 0051, 2026-09-30). The window asks only when its
+/// setting allows it.
+#[tauri::command]
+#[specta::specta]
+fn open_devtools<R: tauri::Runtime>(window: tauri::WebviewWindow<R>) {
+    window.open_devtools();
+}
+
 /// Open a web page in a window of its own inside the app: a note with a
 /// `url` property is the bookmark, this is the browser. Only `http(s)`;
 /// the page cannot navigate anywhere else, nor open windows.
@@ -1890,6 +1900,7 @@ macro_rules! commands_for {
                 popout_target::<$runtime>,
                 return_to_main::<$runtime>,
                 open_url::<$runtime>,
+                open_devtools::<$runtime>,
                 web_open::<$runtime>,
                 web_bounds::<$runtime>,
                 web_visible::<$runtime>,
@@ -2156,12 +2167,12 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         } else if let Some(command) = id.strip_prefix(EDIT_PREFIX) {
             // Every window hears an event (see `folder-changed`): the label
             // says which one runs it.
-            let focused = app
-                .webview_windows()
-                .into_values()
-                .find(|w| w.is_focused().unwrap_or(false));
-            if let Some(w) = focused {
+            if let Some(w) = focused_window(app) {
                 let _ = app.emit("menu-edit", (w.label().to_owned(), command.to_owned()));
+            }
+        } else if id == DEVTOOLS {
+            if let Some(w) = focused_window(app) {
+                let _ = app.emit("menu-devtools", w.label().to_owned());
             }
         } else if let Some(index) = id.strip_prefix(RECENT_PREFIX) {
             // The folder stays on this side; the window is told the same
@@ -2309,6 +2320,19 @@ const SETTINGS: &str = "verso-settings";
 #[cfg(target_os = "macos")]
 const EDIT_PREFIX: &str = "verso-edit-";
 
+/// The window that has the focus, if one of the app's has it.
+#[cfg(target_os = "macos")]
+fn focused_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<tauri::WebviewWindow<R>> {
+    app.webview_windows()
+        .into_values()
+        .find(|w| w.is_focused().unwrap_or(false))
+}
+
+/// The id of View › Open console (⌥⌘I): the focused window is told
+/// (`menu-devtools`), and opens its inspector if its setting allows it.
+#[cfg(target_os = "macos")]
+const DEVTOOLS: &str = "verso-devtools";
+
 /// The prefix of an "Open Recent" item's id; the rest is the item's
 /// index into `App::menu_recents`.
 #[cfg(target_os = "macos")]
@@ -2388,6 +2412,13 @@ fn menu_label(lang: &str, key: &str) -> &'static str {
                 "Selecionar tudo"
             } else {
                 "Select All"
+            }
+        }
+        "devtools" => {
+            if pt {
+                "Abrir console"
+            } else {
+                "Open Console"
             }
         }
         "view" => {
@@ -2551,7 +2582,11 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
         app,
         l("view"),
         true,
-        &[&PredefinedMenuItem::fullscreen(app, None)?],
+        &[
+            &PredefinedMenuItem::fullscreen(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, DEVTOOLS, l("devtools"), true, Some("CmdOrCtrl+Alt+I"))?,
+        ],
     )?;
     let window = Submenu::with_items(
         app,

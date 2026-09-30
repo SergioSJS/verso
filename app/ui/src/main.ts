@@ -134,6 +134,7 @@ type Strings = Record<
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage" | "spreadSingle" | "spreadOdd" | "spreadEven" | "spreadToggle" | "lineNumbers" | "lineNumbersDesc"
   | "lineNumbersEdit" | "lineNumbersEditDesc" | "lineNumbersSource" | "lineNumbersSourceDesc" | "lineNumbersPreview" | "lineNumbersPreviewDesc" | "foldAllHeadings" | "unfoldAllHeadings"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "htmlPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
+  | "devtools" | "devtoolsDesc" | "openConsole" | "devtoolsOff"
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
@@ -270,6 +271,7 @@ const pt: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
   importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!", demoVaultKept: "Estes arquivos já existiam com outro conteúdo e foram mantidos como estão, porque foram editados:", demoVaultKeptOk: "OK",
+  devtools: "Console do desenvolvedor", devtoolsDesc: "Visualização › Abrir console (⌥⌘I) abre o inspetor da janela: console, elementos e rede.", openConsole: "Abrir console", devtoolsOff: "O console está desligado em Ajustes › Geral.",
   checkUpdates: "Verificar atualizações automaticamente", checkUpdatesDesc: "Verifica e avisa ao abrir o aplicativo quando uma nova versão do Verso estiver disponível.", checkNow: "Verificar atualizações", checkingUpdates: "Verificando atualizações…", updateUpToDate: "Você está usando a versão mais recente.", updateAvailable: "Nova versão disponível", downloadAndUpdate: "Baixar e atualizar", downloadingUpdate: "Baixando atualização…", updateReady: "Atualização pronta!", restartNow: "Reiniciar agora", viewReleaseNotes: "Ver notas da versão", hideReleaseNotes: "Ocultar notas da versão", updateBannerTitle: "Nova versão disponível", seeInSettings: "Ver nos Ajustes", updateFailed: "Não foi possível verificar atualizações.",
 };
 
@@ -364,6 +366,7 @@ const en: Strings = {
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
   importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content and were kept as they are, because they were edited:", demoVaultKeptOk: "OK",
+  devtools: "Developer console", devtoolsDesc: "View › Open Console (⌥⌘I) opens the window's inspector: console, elements and network.", openConsole: "Open console", devtoolsOff: "The console is turned off in Settings › General.",
   checkUpdates: "Check for updates automatically", checkUpdatesDesc: "Check and notify on startup when a new version of Verso is available.", checkNow: "Check for updates", checkingUpdates: "Checking for updates…", updateUpToDate: "You are running the latest version.", updateAvailable: "New version available", downloadAndUpdate: "Download and update", downloadingUpdate: "Downloading update…", updateReady: "Update ready!", restartNow: "Restart now", viewReleaseNotes: "View release notes", hideReleaseNotes: "Hide release notes", updateBannerTitle: "New version available", seeInSettings: "View in Settings", updateFailed: "Could not check for updates.",
 };
 
@@ -598,6 +601,8 @@ type Settings = {
   boardStroke: "clean" | "hand";
   boardFont: "hand" | "sans" | "mono";
   boardGrid: boolean;
+  /** View › Open console, the window's inspector (ADR 0051, 2026-09-30). */
+  devtools: boolean;
 };
 const DEFAULTS: Settings = {
   lang: "auto",
@@ -630,6 +635,7 @@ const DEFAULTS: Settings = {
   boardStroke: "hand",
   boardFont: "hand",
   boardGrid: false,
+  devtools: true,
 };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
@@ -7963,6 +7969,7 @@ function allCommands(all = false): Command[] {
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "open-console", label: t.openConsole, run: () => openConsole() },
     { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
     { id: "new-base", label: t.newBase, need: hasFolder, run: () => void newBase(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "insert-base", label: t.insertBase, need: Boolean(note), run: () => insertBase() },
@@ -8587,6 +8594,7 @@ class SettingsDialog {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
+    add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
     add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
       const wrap = h("div", "setting-version-wrap");
@@ -9605,6 +9613,15 @@ if (!popout && !secondary) {
   void listen("menu-open-folder", () => void openFolderDialog());
   void listen("menu-settings", () => settingsDialog.show());
 }
+/** The window's inspector (View › Open console, ⌥⌘I, the palette), when
+ *  the setting allows it; otherwise said where to turn it on. */
+function openConsole(): void {
+  if (settings.devtools) void commands.openDevtools();
+  else ui.status.textContent = t.devtoolsOff;
+}
+void listen<string>("menu-devtools", (e) => {
+  if (e.payload === getCurrentWindow().label) openConsole();
+});
 /* Edit › Undo, Redo, Select All (⌘Z, ⌘⇧Z, ⌘A) come from the host's own
  * menu items, to the focused window. An editor runs its own command; on a
  * board the key goes to Excalidraw, which hears only keys; anywhere else
