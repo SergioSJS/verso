@@ -3707,6 +3707,10 @@ class BoardLeaf extends TextLeaf {
         else el.replaceChildren();
       },
       renderText: async (el, text) => renderReading(el, await commands.renderMarkdown(text), this.path),
+      noteText: async (path) => {
+        const r = await commands.readNote(path);
+        return r.status === "ok" ? r.data.text : "";
+      },
       fileSrc: (path) => convertFileSrc(path, "verso"),
       exists: (path) => allNotes.includes(path) || allFiles.includes(path),
       pickFile: () => quick.pick(),
@@ -3804,6 +3808,13 @@ class BoardLeaf extends TextLeaf {
   override focusContent(): void {
     if (this.showing === "source") this.editor.focus();
     else this.board?.focus();
+  }
+  /** ⌘F on the board face goes to the board's search; false on the text
+   *  face, which searches as any text tab does. */
+  find(): boolean {
+    if (this.showing !== "board" || !this.board) return false;
+    this.board.find();
+    return true;
   }
   override destroy(): void {
     if (this.board) liveBoards.delete(this.board);
@@ -7614,6 +7625,8 @@ function openFindInActiveLeaf(): void {
     } else {
       openSearchPanel(leaf.editor);
     }
+  } else if (leaf instanceof BoardLeaf && leaf.find()) {
+    // The board's own search (ADR 0057).
   } else if (leaf instanceof TextLeaf) {
     openSearchPanel(leaf.editor);
   } else if (leaf instanceof PdfLeaf) {
