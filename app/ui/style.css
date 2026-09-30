@@ -2537,13 +2537,13 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 /* The library browser and its trigger reach excalidraw.com (ADR 0050). */
 .board-canvas .default-sidebar-trigger, .board-canvas .sidebar-trigger { display: none !important; }
 .board-canvas[data-card-selected] .excalidraw-hyperlinkContainer { display: none !important; }
-.board-card { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); border-radius: var(--embeddable-radius, 6px); font-size: .82rem; line-height: 1.45; }
+.board-card { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); font-size: .82rem; line-height: 1.45; }
 .board-card-head { flex: none; display: flex; align-items: center; gap: .3rem; padding: .25rem .35rem .25rem .6rem; border-bottom: 1px solid var(--hair); }
 .board-card-title { flex: 1; min-width: 0; font-family: var(--display); font-size: .95rem; color: var(--heading-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Clickable while the card is not entered: Excalidraw leaves a card's
  * content without the pointer until a double click enters it. */
 .board-card-open { pointer-events: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: 5px; color: var(--ink-3); background: transparent; }
-.board-card-open:hover, .board-card-open:focus-visible { color: var(--seal); background: var(--seal-wash); outline: none; }
+.board-card-open:hover, .board-card-open.is-hover, .board-card-open:focus-visible { color: var(--seal); background: var(--seal-wash); outline: none; }
 .board-card-note { padding: .4rem .6rem; color: var(--ink-3); }
 .board-card-missing .board-card-title { text-decoration: line-through; }
 .board-card-body { flex: 1; min-height: 0; overflow: hidden; padding: .4rem .6rem; }
@@ -2627,9 +2627,15 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 .board-canvas[data-card-selected] .excalidraw .App-menu__left button[title$="+K"] { display: none; }
 /* The cards, drawn over Excalidraw's canvas by the board (CardLayer):
  * placed in screen pixels, laid out at the zoom, no transform at rest. */
-.board-cards { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
-.board-card-slot { position: absolute; left: 0; top: 0; }
+/* Above Excalidraw's drawing (z 1, earlier in the page), below its
+   selection canvas (z 2); above both while a card is entered. */
+.board-cards { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.board-cards.has-active { z-index: 3; }
+.board-card-slot { position: absolute; left: 0; top: 0; overflow: hidden; }
 .board-card-box { position: relative; }
+.board-canvas.is-over-open .excalidraw canvas.interactive { cursor: pointer !important; }
+.board-card-over { position: absolute; pointer-events: none; line-height: 0; }
+.board-card-over > svg { display: block; overflow: visible; }
 .board-card-slot.is-active { pointer-events: auto; }
 .board-card-slot.is-active .board-card-body { overflow: auto; }
 .board-card-placeholder { width: 100%; height: 100%; }

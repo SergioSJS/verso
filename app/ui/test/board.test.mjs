@@ -49,6 +49,14 @@ describe("canvas ↔ elements", () => {
     assert.equal(node["verso-extra"], 1);
   });
 
+  test("edges pass under the cards, the drawing over them", () => {
+    const doc = { ...OBSIDIAN, verso: { version: 1, drawing: [{ id: "d", type: "ellipse", x: 0, y: 0, width: 9, height: 9 }] } };
+    const ids = restored(doc).map((e) => e.id);
+    assert.ok(ids.indexOf("e") < ids.indexOf("a") && ids.indexOf("e-label") < ids.indexOf("a"), "edge and label first");
+    assert.deepEqual(ids.filter((id) => ["a", "t", "g"].includes(id)), ["a", "t", "g"], "nodes in the file's order");
+    assert.equal(ids.at(-1), "d", "drawing last");
+  });
+
   test("groups are frames; a node inside a group is in its frame", () => {
     const els = restored(OBSIDIAN);
     assert.equal(els.find((e) => e.id === "g").type, "frame");
