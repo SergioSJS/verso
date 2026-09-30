@@ -3701,12 +3701,12 @@ class BoardLeaf extends TextLeaf {
       dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
       save: (json) => void this.saveBoard(json),
       openFile: (path, aside) => void openNote(path, aside),
-      noteHtml: async (path) => {
+      renderNote: async (el, path) => {
         const r = await commands.readNote(path);
-        return r.status === "ok" ? r.data.html : null;
+        if (r.status === "ok") await renderReading(el, r.data.html, path);
+        else el.replaceChildren();
       },
-      markdownHtml: (text) => commands.renderMarkdown(text),
-      setHtml: (el, html) => setHtml(el, html),
+      renderText: async (el, text) => renderReading(el, await commands.renderMarkdown(text), this.path),
       fileSrc: (path) => convertFileSrc(path, "verso"),
       exists: (path) => allNotes.includes(path) || allFiles.includes(path),
       pickFile: () => quick.pick(),
@@ -3811,6 +3811,88 @@ class BoardLeaf extends TextLeaf {
     this.board = null;
     super.destroy();
   }
+}
+
+/** HTML the core rendered — a note's, or a board's text card — drawn as
+ *  the reading view draws a note, outside a note's tab (a board's card,
+ *  ADR 0057): callouts, math, diagrams; images and files resolved from
+ *  `source` as the note's own embeds are, sized as written; embedded notes
+ *  one level deep; links that open what they name. */
+async function renderReading(el: HTMLElement, html: string, source: string, depth = 0): Promise<void> {
+  setHtml(el, html);
+  wireCallouts(el);
+  keyLinks(el);
+  typeset(el);
+  if (!el.dataset["reading"]) {
+    el.dataset["reading"] = "";
+    el.addEventListener("click", (ev) => {
+      const a = (ev.target as HTMLElement).closest("a");
+      if (!a || !el.contains(a)) return;
+      if (a.classList.contains("wikilink")) {
+        ev.preventDefault();
+        const to = resolveNoteByName((a.dataset["target"] ?? "").split(/[#^]/)[0] ?? "", el.dataset["source"] ?? source);
+        if (to) openNote(to, ev.metaKey || ev.ctrlKey);
+        else ui.status.textContent = t.unresolved(a.dataset["target"] ?? "");
+      } else if (a.classList.contains("tag")) {
+        ev.preventDefault();
+        ui.search.value = `tag:${a.dataset["tag"] ?? ""}`;
+        void searchNotes(ui.search.value);
+      }
+      // A web address goes to the browser window (guardLink).
+    });
+  }
+  el.dataset["source"] = source;
+  for (const code of el.querySelectorAll<HTMLElement>("pre > code.language-mermaid")) {
+    const box = h("div", "mermaid-block");
+    code.parentElement?.replaceWith(box);
+    void renderMermaid(code.textContent ?? "", box);
+  }
+  const spans = Array.from(el.querySelectorAll<HTMLElement>("span.embed"));
+  await Promise.all(
+    spans.map(async (span) => {
+      const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
+      const note = resolveNoteByName(spec.file, source);
+      if (note && note.endsWith(".md") && depth < 1) {
+        const r = await commands.readNote(note);
+        if (r.status !== "ok") return;
+        const box = h("section", "embed-note");
+        const head = h("a", "embed-note-title", name(note));
+        head.href = "#";
+        head.addEventListener("click", (e) => {
+          e.preventDefault();
+          openNote(note, false);
+        });
+        const body = h("div", "embed-note-body");
+        box.append(head, body);
+        span.replaceWith(box);
+        await renderReading(body, r.data.html, note, depth + 1);
+        return;
+      }
+      const found = await commands.resolveAttachment(source, spec.file);
+      const rel = found.status === "ok" ? found.data : null;
+      if (!rel) return;
+      if (kindOf(rel) === "image") {
+        const img = h("img");
+        img.src = convertFileSrc(rel, "verso");
+        img.alt = spec.file;
+        img.loading = "lazy";
+        const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
+        if (size) {
+          img.style.width = `${size.w}px`;
+          if (size.h) img.style.height = `${size.h}px`;
+        }
+        const p = span.parentElement;
+        span.replaceWith(img);
+        if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
+      } else {
+        span.classList.add("file");
+        span.title = rel;
+        span.tabIndex = 0;
+        span.setAttribute("role", "link");
+        span.addEventListener("click", () => openNote(rel, false));
+      }
+    }),
+  );
 }
 
 /** The board's module — React and Excalidraw — loaded once, on the first

@@ -56,10 +56,11 @@ export type BoardHost = {
    *  the file as read). */
   save: (json: string) => void;
   openFile: (path: string, aside: boolean) => void;
-  noteHtml: (path: string) => Promise<string | null>;
-  markdownHtml: (text: string) => Promise<string>;
-  /** Sanitized, as every note's HTML is. */
-  setHtml: (el: HTMLElement, html: string) => void;
+  /** Draw a note into `el` as the reading view draws it (sanitized, its
+   *  images and embeds resolved, its links live). */
+  renderNote: (el: HTMLElement, path: string) => Promise<void>;
+  /** Draw a text card's Markdown the same way, from the board's folder. */
+  renderText: (el: HTMLElement, text: string) => Promise<void>;
   fileSrc: (path: string) => string;
   exists: (path: string) => boolean;
   pickFile: () => Promise<string | null>;
@@ -107,21 +108,9 @@ function Card({ node, host, tick }: { node: CanvasNode; host: BoardHost; tick: n
   useEffect(() => {
     const el = body.current;
     if (!el) return;
-    let live = true;
-    if (node.type === "file" && !missing && ext(file) === "md") {
-      void host.noteHtml(file).then((html) => {
-        if (live) host.setHtml(el, html ?? "");
-      });
-    } else if (node.type === "text") {
-      void host.markdownHtml(text).then((html) => {
-        if (live) host.setHtml(el, html);
-      });
-    } else {
-      el.replaceChildren();
-    }
-    return () => {
-      live = false;
-    };
+    if (node.type === "file" && !missing && ext(file) === "md") void host.renderNote(el, file);
+    else if (node.type === "text") void host.renderText(el, text);
+    else el.replaceChildren();
   }, [node.type, file, text, missing, host, tick]);
   const kind = node.type === "text" ? s.textCard : node.type === "link" ? s.linkCard : ext(file) || node.type;
   return (
@@ -139,7 +128,7 @@ function Card({ node, host, tick }: { node: CanvasNode; host: BoardHost; tick: n
           <span className="board-card-url">{url}</span>
         </div>
       )}
-      <div className="board-card-body reading" ref={body} />
+      <div className="board-card-body preview" ref={body} />
     </div>
   );
 }
@@ -463,7 +452,13 @@ function Board({
     const hit = [...(a.getSceneElements() as unknown as El[])]
       .reverse()
       .find((e) => e.type === "embeddable" && isNode(e) && p.x >= e.x && p.x <= e.x + e.width && p.y >= e.y && p.y <= e.y + e.height);
-    if (hit && openNode(hit, ev.metaKey || ev.ctrlKey)) {
+    if (!hit) return;
+    // A note's card is entered, as Excalidraw enters any embeddable on a
+    // double click: its text scrolls, selects, and its links open. ⌘ opens
+    // the note itself; a text card is edited, a link card opened.
+    const kind = nodeData(hit)?.type;
+    if (kind === "file" && !(ev.metaKey || ev.ctrlKey)) return;
+    if (openNode(hit, ev.metaKey || ev.ctrlKey)) {
       ev.stopPropagation();
       ev.preventDefault();
     }
