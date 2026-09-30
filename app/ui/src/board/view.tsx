@@ -74,6 +74,8 @@ export type BoardHost = {
 export type BoardHandle = {
   /** Show a canvas's text; false when it is not JSON. */
   load: (text: string) => boolean;
+  /** The folder changed: every card asks for its note again. */
+  refresh: () => void;
   focus: () => void;
   destroy: () => void;
 };
@@ -95,7 +97,7 @@ function ext(path: string): string {
 const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
 
 /** A node drawn by Verso inside its element. */
-function Card({ node, host }: { node: CanvasNode; host: BoardHost }): JSX.Element {
+function Card({ node, host, tick }: { node: CanvasNode; host: BoardHost; tick: number }): JSX.Element {
   const body = useRef<HTMLDivElement>(null);
   const s = host.strings;
   const file = typeof node.file === "string" ? node.file : "";
@@ -120,7 +122,7 @@ function Card({ node, host }: { node: CanvasNode; host: BoardHost }): JSX.Elemen
     return () => {
       live = false;
     };
-  }, [node.type, file, text, missing, host]);
+  }, [node.type, file, text, missing, host, tick]);
   const kind = node.type === "text" ? s.textCard : node.type === "link" ? s.linkCard : ext(file) || node.type;
   return (
     <div
@@ -219,7 +221,15 @@ function fit(a: Api): void {
   if (elements.length > 0) a.scrollToContent(elements, { fitToViewport: true, viewportZoomFactor: 0.9, minZoom: 0.1, maxZoom: 1 });
 }
 
-function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; bind: (load: (doc: CanvasDoc) => void, focus: () => void) => void }): JSX.Element {
+function Board({
+  host,
+  initial,
+  bind,
+}: {
+  host: BoardHost;
+  initial: CanvasDoc;
+  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void) => void;
+}): JSX.Element {
   const s = host.strings;
   const api = useRef<Api | null>(null);
   const doc = useRef<CanvasDoc>(initial);
@@ -236,6 +246,8 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
   const [annotations, setAnnotations] = useState(false);
   const [elements, setElements] = useState<readonly El[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  /** Bumped when the folder changes: the cards draw their notes again. */
+  const [tick, setTick] = useState(0);
   const outlineTimer = useRef<number | undefined>(undefined);
 
   const restored = useCallback((d: CanvasDoc): ExcalidrawElement[] => {
@@ -261,6 +273,7 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
         setElements(els as unknown as El[]);
       },
       () => container.current?.querySelector<HTMLElement>(".excalidraw")?.focus(),
+      () => setTick((n) => n + 1),
     );
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const theme = (): void => setDark(host.dark());
@@ -496,6 +509,10 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
       <div className="board-main">
         <div
           className="board-canvas"
+          // Excalidraw offers a link editor for any embeddable selected; a
+          // card's link is only the marker that lets it be drawn, and
+          // editing it would break the card: hidden while a card is selected.
+          data-card-selected={selectedNode && isNode(selectedNode) ? "" : undefined}
           ref={container}
           onDoubleClickCapture={onDoubleClick}
           onPointerDownCapture={() => (touched.current = true)}
@@ -530,7 +547,7 @@ function Board({ host, initial, bind }: { host: BoardHost; initial: CanvasDoc; b
             }}
             renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>) => {
               const node = nodeData(element as unknown as El);
-              return node ? <Card node={node} host={host} /> : null;
+              return node ? <Card node={node} host={host} tick={tick} /> : null;
             }}
             UIOptions={{
               canvasActions: { loadScene: false, saveToActiveFile: false, export: false, clearCanvas: false, toggleTheme: false, changeViewBackgroundColor: true, saveAsImage: true },
@@ -559,14 +576,16 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
   if (!initial) return null;
   let load: (doc: CanvasDoc) => void = () => undefined;
   let focus: () => void = () => undefined;
+  let refresh: () => void = () => undefined;
   const root = createRoot(el);
   root.render(
     <Board
       host={host}
       initial={initial}
-      bind={(l, f) => {
+      bind={(l, f, r) => {
         load = l;
         focus = f;
+        refresh = r;
       }}
     />,
   );
@@ -577,6 +596,7 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
       load(doc);
       return true;
     },
+    refresh: () => refresh(),
     focus: () => focus(),
     destroy: () => root.unmount(),
   };
