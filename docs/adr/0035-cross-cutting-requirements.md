@@ -53,6 +53,7 @@ precisa"*. What follows from it:
   pt-BR as the mirror ([0008](0008-documentation-language.md)).
 - The board needs an equivalent accessible view — a list or table of the same
   notes and relations (`PROPOSED`, [0024](0024-board-excalidraw.md)).
+  Decided on 2026-09-30 as an outline beside the board, [0057](0057-board-json-canvas.md) point 7.
 - The benchmark goes in as a guardrail in Phase 1
   ([0029](0029-guardrails-in-ci.md)), but with no target: performance targets
   are `[OPEN]` ([0039](0039-performance-targets.md)).

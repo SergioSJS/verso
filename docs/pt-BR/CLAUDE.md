@@ -89,8 +89,9 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
 
 ### 2.5 Escopo — [ADR 0034](adr/0034-roadmap-in-phases.md)
 
-18. Fora de escopo até o fim da Fase 2: sync, mobile, plugins, board e shim de
-    compatibilidade. Não implementar "já que é barato".
+18. Fora de escopo até o fim da Fase 2: sync, mobile, plugins e shim de
+    compatibilidade. Não implementar "já que é barato". O board entrou na
+    Fase 2 em 2026-09-30 ([ADR 0057](adr/0057-board-json-canvas.md)).
 19. Fase 1 não tem UI. Fase 0 não tem feature nenhuma.
 
 ---

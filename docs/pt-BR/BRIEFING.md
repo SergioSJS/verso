@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.9 · 2026-09-24
+> Versão 0.11 · 2026-09-30
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -115,7 +115,7 @@ Cada gambiarra comum no Obsidian é sintoma de uma primitiva ausente. O Verso im
 |---|---|---|
 | Nota tipada: `type:` no frontmatter + schema em arquivo de texto na pasta; sem schema, é Markdown comum | Dataview, Templater, statblocks | `DECIDIDO` (promovido na v0.9, ADR 0052) |
 | ID estável de bloco, com backlinks e presença no grafo | pedido aberto no fórum do Obsidian desde 2020 | `PROPOSTO` |
-| Relação tipada: aresta com tipo e direção; várias relações entre os mesmos dois nós | links sem semântica | `PROPOSTO` |
+| Relação tipada: aresta com tipo e direção; várias relações entre os mesmos dois nós | links sem semântica | `DECIDIDO` (promovido na v0.11, ADR 0057: propriedade do frontmatter cujo valor é wikilink) |
 | Tempo como primeira classe: diário e notas periódicas | Periodic Notes, Calendar | `PROPOSTO` |
 | Views estruturadas que podem materializar a saída como Markdown real no arquivo | resultado de consulta invisível a git, busca e agente | `PROPOSTO` |
 | Proveniência de escrita no frontmatter: autor, modelo, quando | sem equivalente | `PROPOSTO` |
@@ -176,8 +176,8 @@ Requisito: um agente deve navegar e aproveitar o conteúdo da pasta tão bem qua
 | Shell | Tauri v2 (desktop e mobile) | `DECIDIDO` |
 | Editor | CodeMirror 6 com Live Preview | `DECIDIDO` |
 | Board | Excalidraw (MIT) como camada de anotação livre | `DECIDIDO` |
-| Board — camada semântica | nós são notas, arestas são relações tipadas; seta livre pode ser promovida a relação tipada | `PROPOSTO` |
-| Persistência do board | sidecar em JSON Canvas, com ou sem extensões | `ABERTO` |
+| Board — camada semântica | nós são notas, arestas são relações tipadas; seta livre pode ser promovida a relação tipada | `DECIDIDO` (promovido na v0.11, ADR 0057) |
+| Persistência do board | sidecar em JSON Canvas, com ou sem extensões | `DECIDIDO` (v0.11, ADR 0057): o próprio `.canvas`, com o desenho sob uma chave de topo `verso` no mesmo arquivo |
 | Índice | SQLite com FTS5 | `DECIDIDO` |
 | Geração de tipos TS a partir do Rust | ts-rs ou specta | `ABERTO` |
 | Parser base | pulldown-cmark, comrak ou próprio | `DECIDIDO`: pulldown-cmark (v0.8, ADR 0037) |
@@ -258,7 +258,7 @@ O Verso estende esse dialeto; nunca o contradiz.
 
 ### 11.3 Itens de dialeto
 
-- Sintaxe de relação tipada. `ABERTO`
+- Sintaxe de relação tipada. `DECIDIDO` (v0.11: propriedade do frontmatter cujo valor é wikilink entre aspas, Q10 da spec, ADR 0057)
 - Formato e localização dos schemas. `DECIDIDO` (v0.9: um bloco `verso-schema` numa nota da pasta; Q11 da spec, ADR 0052)
 - Sintaxe de visibilidade por bloco (segredo do mestre). `ABERTO`
 - i18n de schema: chave neutra de idioma com rótulo traduzido (ex.: `type: npc` exibido como "PdM" ou "NPC"). `DECIDIDO` (promovido na v0.9, ADR 0052)
@@ -331,7 +331,7 @@ Suporte especial a quem joga e mestra é intenção declarada. `DECIDIDO` para a
 |---|---|
 | pt-BR e EN desde o primeiro commit | `DECIDIDO` |
 | Acessibilidade desde o início | `DECIDIDO` |
-| Board com vista equivalente acessível (lista ou tabela das mesmas notas e relações) | `PROPOSTO` |
+| Board com vista equivalente acessível (lista ou tabela das mesmas notas e relações) | `DECIDIDO` (v0.11, ADR 0057: um sumário ao lado do board) |
 | Metas de performance | `ABERTO` — sem metas por ora |
 | Benchmark com vault sintético registrando linha de base | `DECIDIDO` |
 
@@ -415,7 +415,7 @@ Tauri + CM6: abrir pasta, árvore de arquivos, editor, backlinks e busca vindos 
 
 ### Fora de escopo até o fim da Fase 2
 
-Sync, mobile, plugins, board, shim de compatibilidade.
+Sync, mobile, plugins, ~~board~~, shim de compatibilidade. O board entrou na Fase 2 em 2026-09-30 (v0.11, ADR 0057).
 
 ---
 
@@ -456,10 +456,10 @@ Sync, mobile, plugins, board, shim de compatibilidade.
 | 3 | ~~Idioma da documentação do repositório~~ | decidido: inglês fonte, pt-BR espelho (v0.5, ADR 0008) |
 | 4 | ~~Parser base: pulldown-cmark, comrak ou próprio~~ | decidido: pulldown-cmark (v0.8, ADR 0037; leitura de round-trip na spec Q18) |
 | 5 | Geração de tipos TS: ts-rs ou specta | início da Fase 2 |
-| 6 | Sintaxe de relação tipada | antes de implementar relações |
+| 6 | ~~Sintaxe de relação tipada~~ | decidido: propriedade do frontmatter cujo valor é wikilink (v0.11, Q10 da spec, ADR 0057) |
 | 7 | ~~Formato e localização dos schemas~~ | decidido: um bloco `verso-schema` numa nota da pasta (v0.9, Q11 da spec, ADR 0052) |
 | 8 | Sintaxe de visibilidade por bloco | antes de compartilhamento e exportação |
-| 9 | Persistência do board | antes do board |
+| 9 | ~~Persistência do board~~ | decidido: o próprio `.canvas`, com o desenho sob uma chave `verso` (v0.11, ADR 0057) |
 | 10 | Metas de performance | após a primeira linha de base |
 
 Itens abertos levantados depois do briefing vivem nos ADRs 0044–0048 e na
@@ -481,3 +481,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.7 | 2026-09-21 | §14.3: ponteiro para a leitura em dois grupos dos guardrails no ADR 0029, após a leitura independente da revisão da Fase 0 (docs/review/phase-0.md §7). Nenhuma decisão alterada. |
 | 0.8 | 2026-09-21 | §9 e §17 item 4: parser base decidido pelo mantenedor — pulldown-cmark, com comrak como fallback, na leitura somente leitura de round-trip (spec Q18). Comparação em docs/reference/parser-decision.md (ADR 0037). |
 | 0.9 | 2026-09-24 | §5.2, §5.3, §11.3 e §17 item 7: decididos pelo mantenedor, sobre o memo docs/reference/typed-note-decision.md — a degradação para Markdown (ADR 0013, aceito como está escrito, com "views" e "dado estruturado" delimitados), a nota tipada e o i18n de schema (ADR 0052), e o formato e a localização dos schemas: um bloco `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados (Q11 da spec). A localização é a escolha do mantenedor entre a §5.3 (arquivo de texto na pasta) e a §8 (schemas na camada compartilhada da config), que fica como está, `PROPOSTO`, e agora discorda sobre schemas. |
+| 0.11 | 2026-09-30 | §5.3, §9, §11.3, §13, §15 e §17 itens 6 e 9: decididos pelo mantenedor, sobre o memo docs/reference/board-decision.md — o board entra na Fase 2; a persistência é o próprio `.canvas`, com o desenho do Excalidraw sob uma chave de topo `verso`; a camada semântica e a relação tipada, cuja sintaxe é uma propriedade do frontmatter da nota de origem com wikilink entre aspas (Q10 da spec); a vista acessível do board, um sumário ao lado dele (ADR 0057). A versão 0.10 está na branch do domínio, ainda não mesclada. |

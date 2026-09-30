@@ -53,6 +53,7 @@ precisa"*. O que decorre disso:
   ([0008](0008-documentation-language.md)).
 - O board precisa de vista equivalente acessível — lista ou tabela das mesmas
   notas e relações (`PROPOSTO`, [0024](0024-board-excalidraw.md)).
+  Decidida em 2026-09-30 como um sumário ao lado do board, [0057](0057-board-json-canvas.md) ponto 7.
 - O benchmark entra como guardrail na Fase 1
   ([0029](0029-guardrails-in-ci.md)), mas sem meta: metas de performance são
   `[ABERTO]` ([0039](0039-performance-targets.md)).

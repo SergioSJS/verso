@@ -1,12 +1,12 @@
 # Memo de decisão: o board — Excalidraw sobre JSON Canvas
 
 - Data: 2026-09-29
-- Status: **não decidido**, exceto o escopo (seção 6, D1), que o mantenedor
-  definiu em sessão em 2026-09-29 e que este memo só propõe como registrar.
-  Opções e recomendações estão identificadas como tais; o mantenedor decide
-  (`CLAUDE.md` §1). Nenhum código segue este memo até existirem as respostas
-  da seção 9: o [ADR 0040](../adr/0040-board-persistence.md) manda decidir a
-  persistência "antes do board".
+- Status: **decidido pelo mantenedor em 2026-09-30**, em sessão; as
+  respostas estão na seção 10 e registradas no
+  [ADR 0057](../adr/0057-board-json-canvas.md). As seções 1 a 9 são o memo
+  como o mantenedor o leu, opções e recomendações identificadas como tais (o
+  [ADR 0040](../adr/0040-board-persistence.md) mandava decidir a persistência
+  "antes do board").
 - Autor: Opus 5.5 — dos documentos, o papel que o
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá ao "Opus 5"; e, por
   decisão do mantenedor de 2026-09-29, de toda a sequência do board, Rust
@@ -290,3 +290,38 @@ Cada item é um pull request de um assunto (ADR 0051), nesta ordem.
 7. D6, a vista acessível: a lista, uma tabela, ou depois.
 8. Xiaolai, os recursos online, a duplicata do Mermaid: como recomendado, ou
    de outro jeito.
+
+## 10. As respostas
+
+Dadas em sessão em 2026-09-30, numeradas como a seção 9:
+
+| # | Resposta | Registrada como |
+|---|---|---|
+| 1 | "sim" | ADR 0057 ponto 1 |
+| 2 | "a" — o desenho no `.canvas`, sob uma chave de topo | ADR 0057 ponto 2 |
+| 3 | "r1" — o Excalidraw desenha tudo | ADR 0057 ponto 3 |
+| 4 | "dentro" — a camada semântica na primeira versão | ADR 0057 ponto 4 |
+| 5 | "agora" — a conversão nesta sequência | ADR 0057 ponto 5 |
+| 6 | "como obsidian" | ADR 0057 ponto 6 |
+| 7 | "Pode seguir a melhor escolha para nossa aplicação se baseando no mercado" | ADR 0057 ponto 7, escolha do autor |
+| 8 | "Pode adicionar, tem problema não" | ADR 0057 ponto 8 |
+
+A resposta 4 precisava da Q10 da spec, que estava `[ABERTO]` e que a spec
+manda decidir "antes de implementar relações"; a resposta 8 dava duas
+leituras. As duas voltaram ao mantenedor como múltipla escolha na mesma noite,
+a recomendação do autor primeiro:
+
+| Pergunta | Opções | Resposta |
+|---|---|---|
+| Onde mora uma relação promovida no board? | no frontmatter da nota de origem, `aliado: "[[B]]"` (recomendado); só na aresta do board; camada semântica adiada | **o frontmatter da nota de origem** |
+| "Pode adicionar": a Xiaolai vai, o recurso "Mermaid to Excalidraw" fica com a sua cópia do Mermaid, e os recursos online ficam escondidos pelo ADR 0050? | correto (recomendado); ligar os recursos online também, com o ADR 0050 emendado | **correto** |
+
+Mais três sondagens, feitas antes de escrever o ADR 0057 no mesmo Sandbox,
+pelo método da seção 3 (uma pasta descartável `verso-rel-probe/`, removida
+depois):
+
+| # | O que foi feito | Resultado |
+|---|---|---|
+| O10 | Uma nota com `aliado: "[[B]]"` e `inimigos:` listando `"[[B]]"` e `"[[C]]"` | `backlinks` de B: a nota, contagem 2; os `frontmatterLinks` do cache de metadados (API pública) nomeiam as chaves `aliado`, `inimigos.0`, `inimigos.1` |
+| O11 | A mesma nota com `semaspas: [[C]]`, sem aspas | lido como uma lista YAML aninhada (`[["C"]]`); não é link |
+| O12 | Um canvas cujo nó `text` diz `ver [[C]] aqui` | `backlinks` de C lista o canvas, contagem 1 — o ponto não verificado de D5 na seção 8 |

@@ -92,8 +92,10 @@ Violating an invariant is BLOCKING by definition, with no discussion of merit.
 
 ### 2.5 Scope — [ADR 0034](docs/adr/0034-roadmap-in-phases.md)
 
-18. Out of scope until the end of Phase 2: sync, mobile, plugins, board and the
-    compatibility shim. Do not implement "since it is cheap".
+18. Out of scope until the end of Phase 2: sync, mobile, plugins and the
+    compatibility shim. Do not implement "since it is cheap". The board
+    entered Phase 2 on 2026-09-30
+    ([ADR 0057](docs/adr/0057-board-json-canvas.md)).
 19. Phase 1 has no UI. Phase 0 has no feature at all.
 
 ---

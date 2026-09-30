@@ -4,6 +4,9 @@
 - Fonte: `docs/BRIEFING.md` §4, §9
 - Status no briefing: `DECIDIDO` (Excalidraw); `PROPOSTO` (camada semântica);
   `ABERTO` (persistência)
+- Revisões: 2026-09-30 — a camada semântica, a persistência, a vista
+  acessível, a conversão do `.excalidraw.md` e o escopo decididos no [0057](0057-board-json-canvas.md);
+  as Consequências abaixo estão como escritas em 2026-09-21.
 
 ## Contexto
 
@@ -35,4 +38,5 @@ O board usa Excalidraw (MIT) como camada de anotação livre.
 
 ## Status
 
-Aceito para o Excalidraw. Camada semântica: Proposto. Persistência: `[ABERTO]`.
+Aceito para o Excalidraw. Camada semântica e persistência: Aceito
+(2026-09-30), pelo [0057](0057-board-json-canvas.md).
