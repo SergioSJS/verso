@@ -795,6 +795,40 @@ function Board({
   // goes to the top of its frame's range instead, as a shape drawn
   // anywhere else goes to the top.
   const seen = useRef<Set<string> | null>(null);
+  // An arrow between two cards is a canvas edge: it belongs to no group
+  // and passes under the cards, as the board reads it from the file.
+  // Excalidraw puts an arrow begun inside a frame in that frame and clips it
+  // to the frame's box, so an edge to a card of another group was cut at the
+  // group's border until the board was opened again.
+  const freeEdges = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
+    if (state.newElement || state.multiElement || state.editingTextElement || state.editingLinearElement || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
+    const byId = new Map(els.map((e) => [e.id, e] as const));
+    const node = (id: string | undefined): boolean => {
+      const e = id ? byId.get(id) : undefined;
+      return !!e && !e.isDeleted && isNode(e as unknown as El);
+    };
+    const edge = (e: ExcalidrawElement): boolean => {
+      const a = e as unknown as El;
+      return e.type === "arrow" && !e.isDeleted && node(a.startBinding?.elementId) && node(a.endBinding?.elementId);
+    };
+    const firstNode = els.findIndex((e) => !e.isDeleted && isNode(e as unknown as El));
+    const wrong = els.filter((e, i) => edge(e) && (e.frameId || (firstNode >= 0 && i > firstNode)));
+    if (wrong.length === 0) return false;
+    const moving = new Set<string>();
+    for (const e of wrong) {
+      moving.add(e.id);
+      for (const b of e.boundElements ?? []) if (b.type === "text") moving.add(b.id);
+    }
+    const lifted = els
+      .filter((e) => moving.has(e.id))
+      .map((e) => (e.frameId ? newElementWith(e as never, { frameId: null } as never) : e) as ExcalidrawElement);
+    const rest = els.filter((e) => !moving.has(e.id));
+    const at = rest.findIndex((e) => !e.isDeleted && isNode(e as unknown as El));
+    const list = at < 0 ? [...rest, ...lifted] : [...rest.slice(0, at), ...lifted, ...rest.slice(at)];
+    api.current?.updateScene({ elements: list, captureUpdate: CaptureUpdateAction.NEVER });
+    return true;
+  }, []);
+
   const liftDrawn = useCallback((els: readonly ExcalidrawElement[], state: AppState): void => {
     const known = seen.current;
     if (!known) {
@@ -838,7 +872,7 @@ function Board({
       dropMarkers(els);
       syncCards(els);
       scheduleOverlays(els);
-      liftDrawn(els, state);
+      if (!freeEdges(els, state)) liftDrawn(els, state);
       // The view: while it moves, the card layer follows with one transform
       // from where it last settled; once it settles, the cards are drawn
       // again where they are, at the zoom they are shown at.
@@ -867,7 +901,7 @@ function Board({
       window.clearTimeout(outlineTimer.current);
       outlineTimer.current = window.setTimeout(() => setElements(els as unknown as El[]), 300);
     },
-    [flush, dropMarkers, syncCards, scheduleOverlays, liftDrawn],
+    [flush, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges],
   );
 
   const center = (): [number, number] => {
