@@ -14,7 +14,8 @@
 // online features — sharing, collaboration, the library browser — are not
 // offered.
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type JSX, type MouseEvent } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type DragEvent, type JSX, type MouseEvent, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import {
   CaptureUpdateAction,
@@ -171,6 +172,89 @@ function Card({
   );
 }
 
+const MemoCard = memo(Card);
+
+/** Where the board is looking: Excalidraw's scroll and zoom, and its size. */
+type View = { scrollX: number; scrollY: number; zoom: number; width: number; height: number };
+
+/** The corner Excalidraw draws a card's shape with (its adaptive radius). */
+function cornerRadius(w: number, h: number): number {
+  const x = Math.min(w, h);
+  return x <= 128 ? x * 0.25 : 32;
+}
+
+/** Below this zoom a card is scaled down, not laid out at the zoom:
+ *  WebKit keeps a minimum font size, and a picture shrunk does not blur. */
+const LAYOUT_ZOOM = 0.75;
+
+/** The cards, drawn by Verso over Excalidraw's canvas — not inside
+ * Excalidraw's own embeddable boxes. Those are scaled with a CSS transform,
+ * and WebKit paints a transformed layer once and then stretches the
+ * picture: text read like a blurred screenshot. Here a card at rest is
+ * placed in screen pixels and laid out at the zoom itself (CSS `zoom`),
+ * with no transform at all: its text is drawn at the size it is seen.
+ * While the view moves, the whole layer follows with one transform (see
+ * `Board`), and is drawn again, sharp, once the view settles. */
+function CardLayer({
+  cards,
+  view,
+  active,
+  host,
+  tick,
+  plane,
+}: {
+  cards: readonly El[];
+  view: View;
+  active: string | null;
+  host: BoardHost;
+  tick: number;
+  plane: RefObject<HTMLDivElement | null>;
+}): JSX.Element {
+  const z = view.zoom;
+  const laidOut = z >= LAYOUT_ZOOM;
+  // Only what is near the view is drawn: a board of hundreds of notes
+  // lays out the few it shows.
+  const x0 = -view.scrollX - view.width / z;
+  const y0 = -view.scrollY - view.height / z;
+  const x1 = -view.scrollX + (2 * view.width) / z;
+  const y1 = -view.scrollY + (2 * view.height) / z;
+  return (
+    <div className="board-cards" ref={plane}>
+      {cards.map((e) => {
+        const node = nodeData(e);
+        if (!node) return null;
+        if (e.x > x1 || e.y > y1 || e.x + e.width < x0 || e.y + e.height < y0) return null;
+        const sw = typeof e["strokeWidth"] === "number" ? (e["strokeWidth"] as number) : 1;
+        const w = Math.max(1, e.width - 2 * sw);
+        const h = Math.max(1, e.height - 2 * sw);
+        const radius = Math.max(0, cornerRadius(e.width, e.height) - sw);
+        const box = {
+          width: `${w}px`,
+          height: `${h}px`,
+          ["--embeddable-radius" as string]: `${radius}px`,
+          ...(laidOut ? { zoom: z } : { transform: `scale(${z})`, transformOrigin: "0 0" }),
+        } as CSSProperties;
+        const angle = typeof e.angle === "number" && e.angle !== 0 ? e.angle : 0;
+        return (
+          <div
+            key={e.id}
+            className={`board-card-slot${active === e.id ? " is-active" : ""}`}
+            style={{
+              left: `${(e.x + sw + view.scrollX) * z}px`,
+              top: `${(e.y + sw + view.scrollY) * z}px`,
+              ...(angle ? { transform: `rotate(${angle}rad)`, transformOrigin: `${(w * z) / 2}px ${(h * z) / 2}px` } : {}),
+            }}
+          >
+            <div className="board-card-box" style={box}>
+              <MemoCard node={node} host={host} tick={tick} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function OutlinePanel({
   outline,
   strings,
@@ -276,9 +360,16 @@ function Board({
   /** Bumped when the folder changes: the cards draw their notes again. */
   const [tick, setTick] = useState(0);
   const searchBox = useRef<HTMLInputElement>(null);
-  /** The zoom the cards were last painted at, and the wait for it to settle. */
-  const paintedZoom = useRef(0);
-  const zoomTimer = useRef<number | undefined>(undefined);
+  // The cards Verso draws over the canvas (CardLayer): which, where the
+  // view is when it last settled, which one is entered.
+  const [cards, setCards] = useState<readonly El[]>([]);
+  const cardsKey = useRef("");
+  const settledRef = useRef<View>({ scrollX: 0, scrollY: 0, zoom: 1, width: 0, height: 0 });
+  const [settled, setSettled] = useState<View>(settledRef.current);
+  const settleTimer = useRef<number | undefined>(undefined);
+  const plane = useRef<HTMLDivElement | null>(null);
+  const [active, setActive] = useState<string | null>(null);
+  const [layerHost, setLayerHost] = useState<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<string[]>([]);
   const [hit, setHit] = useState(0);
@@ -307,6 +398,7 @@ function Board({
         baseline(els, d);
         api.current?.updateScene({ elements: els, captureUpdate: CaptureUpdateAction.NEVER });
         setElements(els as unknown as El[]);
+        syncCards(els);
       },
       () => container.current?.querySelector<HTMLElement>(".excalidraw")?.focus(),
       () => setTick((n) => n + 1),
@@ -385,27 +477,50 @@ function Board({
     }, 300);
   }, []);
 
+  const syncCards = useCallback((els: readonly ExcalidrawElement[]) => {
+    const list = (els as unknown as El[]).filter((e) => e.type === "embeddable" && !e.isDeleted && isNode(e));
+    const key = list.map((e) => `${e.id}:${String(e["version"])}`).join("|");
+    if (key === cardsKey.current) return;
+    cardsKey.current = key;
+    setCards(list);
+  }, []);
+
+  // The layer lives inside Excalidraw's own root, beside its canvases, so
+  // that its menus and toolbar stay above the cards.
+  useEffect(() => {
+    setLayerHost(container.current?.querySelector<HTMLElement>(".excalidraw") ?? null);
+  }, []);
+  // The cards drawn at the settled view replace the moving layer's
+  // transform in the same frame.
+  useLayoutEffect(() => {
+    if (plane.current) plane.current.style.transform = "";
+  }, [settled]);
+
   const onChange = useCallback(
     (els: readonly ExcalidrawElement[], state: AppState) => {
       dropMarkers(els);
-      // WebKit paints each card into a layer, once, at the zoom of that
-      // moment, and afterwards stretches the picture with Excalidraw's scale:
-      // zoomed in from afar, a card reads as a blurred photograph of itself.
-      // A layer made again is painted at the zoom of then — which is why a
-      // card that left the view and came back looked sharp. Once a zoom
-      // settles, every card is hidden for one frame and shown again: each
-      // layer is made anew, at the zoom the board is now at.
-      const z = state.zoom.value;
-      if (z !== paintedZoom.current) {
-        window.clearTimeout(zoomTimer.current);
-        zoomTimer.current = window.setTimeout(() => {
-          paintedZoom.current = z;
-          const el = container.current;
-          if (!el) return;
-          el.classList.add("board-repaint");
-          window.requestAnimationFrame(() => window.requestAnimationFrame(() => el.classList.remove("board-repaint")));
-        }, 150);
+      syncCards(els);
+      // The view: while it moves, the card layer follows with one transform
+      // from where it last settled; once it settles, the cards are drawn
+      // again where they are, at the zoom they are shown at.
+      const v: View = { scrollX: state.scrollX, scrollY: state.scrollY, zoom: state.zoom.value, width: state.width, height: state.height };
+      const s0 = settledRef.current;
+      if (v.scrollX !== s0.scrollX || v.scrollY !== s0.scrollY || v.zoom !== s0.zoom || v.width !== s0.width || v.height !== s0.height) {
+        const k = v.zoom / s0.zoom;
+        if (plane.current && s0.width > 0) {
+          plane.current.style.transformOrigin = "0 0";
+          plane.current.style.transform = `translate(${(v.scrollX - s0.scrollX) * v.zoom}px, ${(v.scrollY - s0.scrollY) * v.zoom}px) scale(${k})`;
+        }
+        window.clearTimeout(settleTimer.current);
+        const settle = (): void => {
+          settledRef.current = v;
+          setSettled(v);
+        };
+        if (s0.width === 0) settle();
+        else settleTimer.current = window.setTimeout(settle, 150);
       }
+      const entered = state.activeEmbeddable?.state === "active" ? state.activeEmbeddable.element.id : null;
+      setActive((was) => (was === entered ? was : entered));
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(flush, SAVE_DELAY);
       const ids = Object.keys(state.selectedElementIds).filter((k) => state.selectedElementIds[k]);
@@ -413,7 +528,7 @@ function Board({
       window.clearTimeout(outlineTimer.current);
       outlineTimer.current = window.setTimeout(() => setElements(els as unknown as El[]), 300);
     },
-    [flush, dropMarkers],
+    [flush, dropMarkers, syncCards],
   );
 
   const center = (): [number, number] => {
@@ -705,6 +820,14 @@ function Board({
               window.requestAnimationFrame(() => {
                 const el = container.current;
                 if (el && el.clientWidth > 0 && el.clientHeight > 0) fit(a);
+                // The card layer starts from the scene and the view as they
+                // are: Excalidraw says nothing until something changes.
+                setLayerHost(container.current?.querySelector<HTMLElement>(".excalidraw") ?? null);
+                syncCards(a.getSceneElements());
+                const st = a.getAppState();
+                const v: View = { scrollX: st.scrollX, scrollY: st.scrollY, zoom: st.zoom.value, width: st.width, height: st.height };
+                settledRef.current = v;
+                setSettled(v);
               });
             }}
             initialData={{ elements: initialElements, appState: { viewBackgroundColor: "transparent" }, scrollToContent: true }}
@@ -726,7 +849,8 @@ function Board({
             }}
             renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>) => {
               const node = nodeData(element as unknown as El);
-              return node ? <Card node={node} host={host} tick={tick} /> : null;
+              // Drawn by the card layer; Excalidraw's own box stays empty.
+              return node ? <div className="board-card-placeholder" /> : null;
             }}
             UIOptions={{
               canvasActions: { loadScene: false, saveToActiveFile: false, export: false, clearCanvas: false, toggleTheme: false, changeViewBackgroundColor: true, saveAsImage: true },
@@ -739,6 +863,8 @@ function Board({
               <MainMenu.DefaultItems.Help />
             </MainMenu>
           </Excalidraw>
+          {layerHost &&
+            createPortal(<CardLayer cards={cards} view={settled} active={active} host={host} tick={tick} plane={plane} />, layerHost)}
         </div>
         {showOutline && (
           <OutlinePanel outline={outline} strings={s} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} />
