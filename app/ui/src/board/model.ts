@@ -324,10 +324,17 @@ function endPoint(arrow: El, last: boolean): [number, number] {
   return [arrow.x + p[0], arrow.y + p[1]];
 }
 
+/** The board's own background colour (ADR 0057, 2026-09-30), kept under
+ *  `verso`; none means the app's paper. */
+export function backgroundOf(doc: CanvasDoc): string | null {
+  const b = isRecord(doc.verso) ? doc.verso["background"] : undefined;
+  return typeof b === "string" && /^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(b) && b !== "transparent" ? b : null;
+}
+
 /** The canvas the board shows, laid over `doc` (its other top-level keys
  *  and `verso`'s other keys kept): nodes in the board's stacking order,
- *  edges, and the drawing. */
-export function fromElements(elements: readonly El[], doc: CanvasDoc): CanvasDoc {
+ *  edges, the drawing, and the board's background (`null`: none). */
+export function fromElements(elements: readonly El[], doc: CanvasDoc, background: string | null = backgroundOf(doc)): CanvasDoc {
   const live = elements.filter((e) => !e.isDeleted);
   const byId = new Map(live.map((e) => [e.id, e] as const));
   const nodeIds = new Set(live.filter(isNode).map((e) => e.id));
@@ -382,10 +389,12 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc): CanvasDoc
   // A key the file did not have comes only when there is something to put
   // in it: opening a canvas and saving it unchanged writes nothing new.
   if (edges.length > 0 || "edges" in doc) out.edges = edges;
-  if (drawing.length > 0 || isRecord(doc.verso)) {
+  const bg = background && background !== "transparent" ? background : null;
+  if (drawing.length > 0 || isRecord(doc.verso) || bg) {
     const verso = isRecord(doc.verso) ? { ...doc.verso } : {};
     verso.version = 1;
     verso.drawing = drawing;
+    put(verso, "background", bg ?? undefined);
     out.verso = verso;
   }
   return out;

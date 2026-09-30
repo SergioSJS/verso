@@ -8,7 +8,7 @@ import LZString from "lz-string";
 
 await esbuild.build({
   stdin: {
-    contents: 'export * from "./src/board/model"; export * from "./src/board/relation"; export * from "./src/board/convert";',
+    contents: 'export * from "./src/board/model"; export * from "./src/board/relation"; export * from "./src/board/convert"; export * from "./src/board/export";',
     resolveDir: ".",
     loader: "ts",
   },
@@ -65,6 +65,18 @@ describe("canvas ↔ elements", () => {
     assert.equal(b.listedPath("Outra.md", [["Outra.md"]]), "Outra.md");
     assert.equal(b.listedPath("Nada.md", [["Outra.md"], ["img.png"]]), undefined);
     assert.equal(b.linkTo(nfc, [nfd, "Outro/" + nfc]), `[[${nfc.replace(/\.md$/, "")}]]`, "two of one name are two, in any form");
+  });
+
+  test("the board's background is kept under verso, and only when it has one", () => {
+    assert.equal(b.backgroundOf(OBSIDIAN), null);
+    const none = b.fromElements(restored(OBSIDIAN), OBSIDIAN, "transparent");
+    assert.equal("verso" in none, false, "no background, no key");
+    const set = b.fromElements(restored(OBSIDIAN), OBSIDIAN, "#ffec99");
+    assert.equal(set.verso.background, "#ffec99");
+    assert.equal(b.backgroundOf(set), "#ffec99");
+    const back = b.fromElements(restored(set), set, "transparent");
+    assert.equal("background" in back.verso, false, "taken off when set back to none");
+    assert.equal(b.backgroundOf({ verso: { background: "url(x)" } }), null, "only a colour");
   });
 
   test("groups are frames; a node inside a group is in its frame", () => {
@@ -165,5 +177,23 @@ describe("a drawing of the Excalidraw plugin (ADR 0057 point 5)", () => {
   test("the board goes beside the drawing", () => {
     assert.equal(b.boardPathFor("t/Plano.excalidraw.md"), "t/Plano.canvas");
     assert.equal(b.boardPathFor("t/Plano.md"), "t/Plano.canvas");
+  });
+});
+
+describe("the board as a picture", () => {
+  test("a note reads as plain lines", () => {
+    const md = "---\ntipo: pdm\n---\n# Barão\nVive no **castelo**, ver [[Lugares/Castelo|o castelo]] e [[Zefa]].\n![[mapa.png]]\n- [ ] investigar\n- item\n\n\n\n| a | b |\n|---|---|\n| 1 | 2 |";
+    assert.equal(b.plainOf(md), "Barão\nVive no castelo, ver o castelo e Zefa.\n\n☐ investigar\n• item\n\na   b\n1   2");
+  });
+
+  test("a callout reads by its title, without its mark", () => {
+    assert.equal(b.plainOf("> [!warning] Segredo do mestre\n> O barão está nas catacumbas."), "Segredo do mestre\nO barão está nas catacumbas.");
+  });
+
+  test("lines wrap to the width and end in an ellipsis when cut", () => {
+    const m = (s) => s.length;
+    assert.deepEqual(b.wrapLines("um dois tres quatro", 8, 5, m), ["um dois", "tres", "quatro"]);
+    assert.deepEqual(b.wrapLines("um dois tres quatro", 8, 2, m), ["um dois", "tres…"]);
+    assert.deepEqual(b.wrapLines("abcdefghijkl", 5, 5, m), ["abcde", "fghij", "kl"]);
   });
 });

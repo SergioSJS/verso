@@ -21,6 +21,8 @@ import {
   CaptureUpdateAction,
   Excalidraw,
   MainMenu,
+  convertToExcalidrawElements,
+  exportToBlob,
   exportToSvg,
   getCommonBounds,
   newElementWith,
@@ -32,6 +34,7 @@ import type { ExcalidrawElement, NonDeleted, ExcalidrawEmbeddableElement } from 
 import type { BoardStrings } from "./strings";
 import {
   MARKER,
+  backgroundOf,
   fromElements,
   isNode,
   newNode,
@@ -48,6 +51,8 @@ import {
 } from "./model";
 import { relationKeyOk } from "./relation";
 import { CARD_COMMAND } from "./command";
+import { plainOf, wrapLines } from "./export";
+import { PT_BR } from "./ptBR";
 
 /** What the window gives the board: its contract calls and its dialogs. */
 export type BoardHost = {
@@ -80,7 +85,33 @@ export type BoardHost = {
   editNote: (el: HTMLElement, path: string, onExit: () => void) => CardEditing;
   /** A card's editor was left with a history this board keeps. */
   edited: (path: string) => boolean;
+  /** The board's settings (ADR 0057, 2026-09-30). */
+  prefs: BoardPrefs;
+  /** Where this board was last looked at, kept in this window's storage. */
+  lastView: () => SavedView | null;
+  rememberView: (v: SavedView) => void;
+  /** The board's name, for an exported picture's. */
+  name: () => string;
+  /** Write a picture of the board into the folder, beside the board; the
+   *  path written, or null (said). */
+  saveImage: (name: string, base64: string) => Promise<string | null>;
 };
+
+/** What the settings say of boards. */
+export type BoardPrefs = {
+  /** The stroke a new shape takes: clean lines or hand-drawn. */
+  stroke: "clean" | "hand";
+  /** The font of new text drawn on the board. */
+  font: "hand" | "sans" | "mono";
+  /** The grid, and snapping to it, when a board opens. */
+  grid: boolean;
+  /** A board opens with all of it in view, or where it was left. */
+  open: "fit" | "last";
+};
+
+export type SavedView = { scrollX: number; scrollY: number; zoom: number };
+
+const FONT_ID: Record<BoardPrefs["font"], number> = { hand: 5, sans: 6, mono: 3 };
 
 /** A note being edited in its card. */
 export type CardEditing = {
@@ -107,6 +138,22 @@ export type BoardHandle = {
 };
 
 const SAVE_DELAY = 700;
+
+/** With the window in Portuguese, the words Excalidraw's pt-BR leaves out
+ *  (`ptBR.ts`) take the place of the English it falls back to. Excalidraw
+ *  pinned at 0.18.1: its English is this module. */
+export async function completeLocale(lang: string): Promise<void> {
+  if (!lang.toLowerCase().startsWith("pt")) return;
+  // @ts-expect-error — a module of the package's build, without types.
+  const en = (await import("../../node_modules/@excalidraw/excalidraw/dist/prod/locales/en-B4ZKOASM.js")) as Record<string, unknown>;
+  for (const [path, text] of Object.entries(PT_BR)) {
+    const parts = path.split(".");
+    let at: Record<string, unknown> | undefined = en[parts[0] ?? ""] as Record<string, unknown> | undefined;
+    for (const part of parts.slice(1, -1)) at = at?.[part] as Record<string, unknown> | undefined;
+    const last = parts[parts.length - 1];
+    if (at && typeof at === "object" && last) at[last] = text;
+  }
+}
 
 function randomId(): string {
   const bytes = new Uint8Array(8);
@@ -482,6 +529,292 @@ function OutlinePanel({
 
 type Api = ExcalidrawImperativeAPI;
 
+/** The colours a card is drawn in on a picture: the app's light paper, as
+ *  an exported picture is light unless asked dark (Excalidraw inverts it). */
+const PICTURE = { paper: "#f7f1e8", ink: "#2b2622", title: "#8a5a24", hair: "#d9cfc2", page: "#fbf7f0" };
+const CARD_FONT = 6;
+const CARD_LINE = 1.35;
+
+function dataUrlOf(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+function sizeOf(url: string): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+/** The board's elements with each card turned into shapes Excalidraw
+ *  draws — its box, its name, a line, its text or picture — in its place in
+ *  the order; `only`: the selection and what belongs to it. */
+async function pictureScene(api: Api, host: BoardHost, only: readonly string[] | null): Promise<{ elements: ExcalidrawElement[]; files: Record<string, unknown> }> {
+  const s = host.strings;
+  let all = api.getSceneElements() as readonly ExcalidrawElement[];
+  if (only && only.length > 0) {
+    const keep = new Set(only);
+    all = all.filter((e) => keep.has(e.id) || (e.frameId && keep.has(e.frameId)) || ("containerId" in e && e.containerId && keep.has(e.containerId as string)));
+  }
+  try {
+    await document.fonts.load("16px Nunito");
+  } catch {
+    // Measured with the fallback font.
+  }
+  const ctx = document.createElement("canvas").getContext("2d");
+  const measure = (size: number) => (text: string): number => {
+    if (!ctx) return text.length * size * 0.55;
+    ctx.font = `${size}px Nunito, sans-serif`;
+    return ctx.measureText(text).width;
+  };
+  const files: Record<string, unknown> = { ...api.getFiles() };
+  const out: ExcalidrawElement[] = [];
+  for (const e of all) {
+    const node = e.type === "embeddable" && isNode(e as unknown as El) ? nodeData(e as unknown as El) : null;
+    if (!node) {
+      out.push(e);
+      continue;
+    }
+    const { x, y, width: w, height: h } = e;
+    const pad = 12;
+    const file = typeof node.file === "string" ? node.file : "";
+    const missing = node.type === "file" && !host.exists(file);
+    const skels: unknown[] = [
+      {
+        type: "rectangle",
+        x,
+        y,
+        width: w,
+        height: h,
+        strokeColor: e.strokeColor,
+        backgroundColor: e.backgroundColor && e.backgroundColor !== "transparent" ? e.backgroundColor : PICTURE.paper,
+        fillStyle: "solid",
+        strokeWidth: e.strokeWidth,
+        roughness: 0,
+        roundness: e.roundness,
+      },
+    ];
+    let top = y + 10;
+    const title = node.type === "file" ? nodeName(node, s) : node.type === "link" ? s.linkCard : "";
+    if (title) {
+      const line = wrapLines(title, w - 2 * pad, 1, measure(16));
+      skels.push({ type: "text", x: x + pad, y: top, text: line.join("\n"), fontSize: 16, fontFamily: CARD_FONT, strokeColor: PICTURE.title });
+      top += 16 * CARD_LINE + 6;
+      skels.push({ type: "line", x, y: top, width: w, height: 0, points: [[0, 0], [w, 0]], strokeColor: PICTURE.hair, strokeWidth: 1, roughness: 0 });
+      top += 8;
+    }
+    const room = y + h - pad - top;
+    let body = "";
+    if (missing) body = s.missing;
+    else if (node.type === "file" && ext(file) === "md") {
+      // The note's own first heading repeats the card's name: said once.
+      const lines = plainOf(await host.noteText(file)).split("\n");
+      if ((lines[0] ?? "").trim().toLowerCase() === title.trim().toLowerCase()) lines.shift();
+      body = lines.join("\n").trim();
+    }
+    else if (node.type === "text" && typeof node.text === "string") body = plainOf(node.text);
+    else if (node.type === "link" && typeof node.url === "string") body = node.url;
+    else if (node.type === "file" && IMAGE.test(ext(file)) && room > 8) {
+      try {
+        const blob = await (await fetch(host.fileSrc(file))).blob();
+        const dataURL = await dataUrlOf(blob);
+        const size = await sizeOf(dataURL);
+        if (size) {
+          const k = Math.min((w - 2 * pad) / size.w, room / size.h);
+          const iw = size.w * k;
+          const ih = size.h * k;
+          const id = `picture-${e.id}`;
+          files[id] = { id, dataURL, mimeType: blob.type || (ext(file) === "svg" ? "image/svg+xml" : `image/${ext(file)}`), created: Date.now() };
+          skels.push({ type: "image", fileId: id, x: x + (w - iw) / 2, y: top + (room - ih) / 2, width: iw, height: ih });
+        }
+      } catch {
+        body = nodeName(node, s);
+      }
+    }
+    if (body) {
+      const lines = wrapLines(body, w - 2 * pad, Math.floor(room / (13 * CARD_LINE)), measure(13));
+      if (lines.length > 0) skels.push({ type: "text", x: x + pad, y: top, text: lines.join("\n"), fontSize: 13, fontFamily: CARD_FONT, strokeColor: PICTURE.ink });
+    }
+    out.push(...(convertToExcalidrawElements(skels as never, { regenerateIds: true }) as unknown as ExcalidrawElement[]));
+  }
+  return { elements: out, files };
+}
+
+/** Excalidraw's export dialog drew each card as an empty web embed; this
+ *  one draws the board as it reads (`pictureScene`), and saves the picture
+ *  in the folder, in Downloads, or copies it. */
+function ExportDialog({ api, host, selected, onClose }: { api: Api; host: BoardHost; selected: readonly string[]; onClose: () => void }): JSX.Element {
+  const s = host.strings;
+  const [format, setFormat] = useState<"png" | "svg">("png");
+  const [scale, setScale] = useState(2);
+  const [background, setBackground] = useState(true);
+  const [dark, setDark] = useState(false);
+  const [only, setOnly] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const hasSelection = selected.length > 0;
+
+  const render = useCallback(
+    async (fmt: "png" | "svg", k: number): Promise<Blob> => {
+      const { elements, files } = await pictureScene(api, host, only && hasSelection ? selected : null);
+      const bg = api.getAppState().viewBackgroundColor;
+      const appState = {
+        exportBackground: background,
+        viewBackgroundColor: bg && bg !== "transparent" ? bg : PICTURE.page,
+        exportWithDarkMode: dark,
+        exportEmbedScene: false,
+      };
+      if (fmt === "svg") {
+        const svg = await exportToSvg({ elements: elements as never, appState: appState as never, files: files as never, exportPadding: 24 });
+        return new Blob([svg.outerHTML], { type: "image/svg+xml" });
+      }
+      return exportToBlob({
+        elements: elements as never,
+        appState: appState as never,
+        files: files as never,
+        mimeType: "image/png",
+        exportPadding: 24,
+        getDimensions: (w: number, h: number) => ({ width: w * k, height: h * k, scale: k }),
+      });
+    },
+    [api, host, only, hasSelection, selected, background, dark],
+  );
+
+  useEffect(() => {
+    let gone = false;
+    let url: string | null = null;
+    void render("png", 1).then(
+      (blob) => {
+        if (gone) return;
+        url = URL.createObjectURL(blob);
+        setPreview(url);
+      },
+      () => !gone && host.status(s.exportFailed),
+    );
+    return () => {
+      gone = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [render, host, s]);
+
+  useEffect(() => {
+    box.current?.querySelector<HTMLElement>("button, input")?.focus();
+  }, []);
+
+  const name = `${host.name()}.${format}`;
+  const run = (task: () => Promise<void>): void => {
+    setBusy(true);
+    void task()
+      .catch(() => host.status(s.exportFailed))
+      .finally(() => setBusy(false));
+  };
+  const toFolder = (): void =>
+    run(async () => {
+      const blob = await render(format, scale);
+      const url = await dataUrlOf(blob);
+      const path = await host.saveImage(name, url.split(",")[1] ?? "");
+      if (path) {
+        host.status(s.exportSavedTo(path));
+        onClose();
+      }
+    });
+  const toDownloads = (): void =>
+    run(async () => {
+      const blob = await render(format, scale);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+      host.status(s.exportDownloaded(name));
+      onClose();
+    });
+  const copy = (): void =>
+    run(async () => {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": render("png", scale) })]);
+        host.status(s.exportCopied);
+        onClose();
+      } catch {
+        host.status(s.exportCopyFailed);
+      }
+    });
+
+  return (
+    <div
+      className="board-export"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div className="board-export-box" role="dialog" aria-modal="true" aria-label={s.exportTitle} ref={box}>
+        <h2>{s.exportTitle}</h2>
+        <div className="board-export-preview" aria-hidden="true">
+          {preview ? <img src={preview} alt="" /> : <span>{s.exportRendering}</span>}
+        </div>
+        <div className="board-export-options">
+          <div className="board-export-row" role="radiogroup" aria-label={s.exportFormat}>
+            <span>{s.exportFormat}</span>
+            {(["png", "svg"] as const).map((f) => (
+              <button key={f} type="button" role="radio" aria-checked={format === f} onClick={() => setFormat(f)}>
+                {f.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {format === "png" && (
+            <div className="board-export-row" role="radiogroup" aria-label={s.exportScale}>
+              <span>{s.exportScale}</span>
+              {[1, 2, 3].map((k) => (
+                <button key={k} type="button" role="radio" aria-checked={scale === k} onClick={() => setScale(k)}>
+                  {k}×
+                </button>
+              ))}
+            </div>
+          )}
+          <label>
+            <input type="checkbox" checked={background} onChange={(e) => setBackground(e.currentTarget.checked)} /> {s.exportBackground}
+          </label>
+          <label>
+            <input type="checkbox" checked={dark} onChange={(e) => setDark(e.currentTarget.checked)} /> {s.exportDark}
+          </label>
+          <label className={hasSelection ? "" : "is-off"}>
+            <input type="checkbox" disabled={!hasSelection} checked={only && hasSelection} onChange={(e) => setOnly(e.currentTarget.checked)} /> {s.exportSelection}
+          </label>
+        </div>
+        <div className="board-export-actions">
+          <button type="button" className="primary" disabled={busy} title={s.exportToFolderTitle} onClick={toFolder}>
+            {s.exportToFolder}
+          </button>
+          <button type="button" disabled={busy} onClick={toDownloads}>
+            {s.exportToDownloads}
+          </button>
+          {format === "png" && (
+            <button type="button" disabled={busy} onClick={copy}>
+              {s.exportCopy}
+            </button>
+          )}
+          <span className="board-export-gap" />
+          <button type="button" onClick={onClose}>
+            {s.cancel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The whole board in view, as a canvas opens in Obsidian — never zoomed
  *  in past 100 %. */
 function fit(a: Api): void {
@@ -507,6 +840,12 @@ function Board({
    *  — a text measured again once its font loads — is not written back
    *  (invariant 7: opening never rewrites). */
   const touched = useRef(false);
+  /** The board opened where it was left (the setting): the pane's size no
+   *  longer brings the whole board back into view. */
+  const restoredView = useRef(false);
+  /** The view is the user's from the first frame on: only then is it kept. */
+  const viewReady = useRef(false);
+  const [exporting, setExporting] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   const container = useRef<HTMLDivElement>(null);
   const [dark, setDark] = useState(host.dark());
@@ -558,7 +897,7 @@ function Board({
         window.clearTimeout(timer.current);
         touched.current = false;
         baseline(els, d);
-        api.current?.updateScene({ elements: els, captureUpdate: CaptureUpdateAction.NEVER });
+        api.current?.updateScene({ elements: els, appState: { viewBackgroundColor: backgroundOf(d) ?? "transparent" } as never, captureUpdate: CaptureUpdateAction.NEVER });
         setElements(els as unknown as El[]);
         syncCards(els);
       },
@@ -594,7 +933,7 @@ function Board({
       window.clearTimeout(wait);
       wait = window.setTimeout(() => {
         const a = api.current;
-        if (!a || touched.current || el.clientWidth === 0 || el.clientHeight === 0) return;
+        if (!a || touched.current || restoredView.current || el.clientWidth === 0 || el.clientHeight === 0) return;
         a.refresh();
         fit(a);
       }, 150);
@@ -609,7 +948,7 @@ function Board({
   const flush = useCallback(() => {
     const a = api.current;
     if (!a) return;
-    const next = fromElements(a.getSceneElementsIncludingDeleted() as unknown as El[], doc.current);
+    const next = fromElements(a.getSceneElementsIncludingDeleted() as unknown as El[], doc.current, a.getAppState().viewBackgroundColor);
     const json = JSON.stringify(next);
     if (json === sent.current) return;
     sent.current = json;
@@ -888,6 +1227,7 @@ function Board({
         const settle = (): void => {
           settledRef.current = v;
           setSettled(v);
+          if (viewReady.current) host.rememberView({ scrollX: v.scrollX, scrollY: v.scrollY, zoom: v.zoom });
         };
         if (s0.width === 0) settle();
         else settleTimer.current = window.setTimeout(settle, 150);
@@ -901,7 +1241,7 @@ function Board({
       window.clearTimeout(outlineTimer.current);
       outlineTimer.current = window.setTimeout(() => setElements(els as unknown as El[]), 300);
     },
-    [flush, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges],
+    [flush, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, host],
   );
 
   const center = (): [number, number] => {
@@ -1128,7 +1468,16 @@ function Board({
   return (
     <div
       className="board-root"
+      data-lang={host.lang.toLowerCase().startsWith("pt") ? "pt" : "en"}
       onKeyDownCapture={(e) => {
+        // ⌘⇧E exports the board with its cards drawn (Excalidraw's own
+        // export draws a card as an empty web embed).
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "e") {
+          e.preventDefault();
+          e.stopPropagation();
+          setExporting(true);
+          return;
+        }
         // ⌘F finds on the board, not Excalidraw's search of drawn text only.
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
           e.preventDefault();
@@ -1208,7 +1557,12 @@ function Board({
               api.current = a;
               window.requestAnimationFrame(() => {
                 const el = container.current;
-                if (el && el.clientWidth > 0 && el.clientHeight > 0) fit(a);
+                const last = host.prefs.open === "last" ? host.lastView() : null;
+                if (last) {
+                  restoredView.current = true;
+                  a.updateScene({ appState: { scrollX: last.scrollX, scrollY: last.scrollY, zoom: { value: last.zoom } } as never, captureUpdate: CaptureUpdateAction.NEVER });
+                } else if (el && el.clientWidth > 0 && el.clientHeight > 0) fit(a);
+                viewReady.current = true;
                 // The card layer starts from the scene and the view as they
                 // are: Excalidraw says nothing until something changes.
                 setLayerHost(container.current?.querySelector<HTMLElement>(".excalidraw") ?? null);
@@ -1220,7 +1574,17 @@ function Board({
                 setSettled(v);
               });
             }}
-            initialData={{ elements: initialElements, appState: { viewBackgroundColor: "transparent" }, scrollToContent: true }}
+            initialData={{
+              elements: initialElements,
+              appState: {
+                viewBackgroundColor: backgroundOf(initial) ?? "transparent",
+                currentItemRoughness: host.prefs.stroke === "clean" ? 0 : 1,
+                currentItemFontFamily: FONT_ID[host.prefs.font],
+                gridModeEnabled: host.prefs.grid,
+              } as never,
+              scrollToContent: host.prefs.open !== "last" || host.lastView() === null,
+            }}
+            aiEnabled={false}
             onChange={onChange}
             theme={dark ? "dark" : "light"}
             langCode={host.lang.toLowerCase().startsWith("pt") ? "pt-BR" : "en"}
@@ -1243,12 +1607,14 @@ function Board({
               return node ? <div className="board-card-placeholder" /> : null;
             }}
             UIOptions={{
-              canvasActions: { loadScene: false, saveToActiveFile: false, export: false, clearCanvas: false, toggleTheme: false, changeViewBackgroundColor: true, saveAsImage: true },
+              canvasActions: { loadScene: false, saveToActiveFile: false, export: false, clearCanvas: false, toggleTheme: false, changeViewBackgroundColor: true, saveAsImage: false },
               tools: { image: false },
             }}
           >
             <MainMenu>
-              <MainMenu.DefaultItems.SaveAsImage />
+              <MainMenu.Item onSelect={() => setExporting(true)} shortcut="⌘⇧E">
+                {s.exportImage}
+              </MainMenu.Item>
               <MainMenu.DefaultItems.ChangeCanvasBackground />
               <MainMenu.DefaultItems.Help />
             </MainMenu>
@@ -1256,6 +1622,7 @@ function Board({
           {layerHost &&
             createPortal(<CardLayer editing={editing} setEditing={setEditing} cards={cards} overlays={overlays} view={settled} active={active} host={host} tick={tick} plane={plane} />, layerHost)}
         </div>
+        {exporting && api.current && <ExportDialog api={api.current} host={host} selected={selected} onClose={() => setExporting(false)} />}
         {showOutline && (
           <OutlinePanel outline={outline} strings={s} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} />
         )}

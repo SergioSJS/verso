@@ -108,6 +108,32 @@ author's choice, for the maintainer to question.
    (`LICENSE-MIT` in the package).
 9. **The text view stays**: a `.canvas` opens as a board, and "open as text"
    keeps the raw JSON one click away — the author's choice.
+10. **The board's finish and its settings** *(added on 2026-09-30 by the
+    maintainer, in session: "pode fazer, deixa tudo redondinho", on the
+    author's review of Excalidraw's features on the board).*
+    - **Export.** The board has its own "Export image" (⌘⇧E, and the main
+      menu), in place of Excalidraw's, which drew each card as an empty web
+      embed: each card is drawn as its box, its name and its text as it
+      reads (a picture card as its picture). PNG or SVG, at 1×–3×, with or
+      without background, light or dark, the whole board or the selection;
+      saved beside the board in the attachments folder, saved to Downloads,
+      or copied. Excalidraw's own copies as PNG or SVG are hidden.
+    - **Web embed** is hidden: the board draws only its own cards, and the
+      tool ended in an error. Embedding a page on a board is not decided.
+    - **Background.** A board's background colour is kept in the file, under
+      `verso.background`; none means the app's paper.
+    - **Words.** Excalidraw's own words its pt-BR translation lacks are given
+      in Portuguese when the window is; its "click to interact" band is
+      hidden (a card is entered by a double click).
+    - **Fonts.** Excalidraw's fallback font address (`esm.sh`) is dropped:
+      every font is the app's, as point 8 says.
+    - **Settings**, a "Board" section: open a `.canvas` as board or as text
+      (point 9's default becomes a setting); when a board opens, show all of
+      it or go back to where it was left in that window (kept in the
+      window's storage, never in the file); the stroke of new shapes (clean
+      or hand-drawn) and the font of new text (handwritten, plain or code);
+      the grid on or off when a board opens; the folder "New board" uses
+      when it is not asked from a folder.
 
 ## Consequences
 

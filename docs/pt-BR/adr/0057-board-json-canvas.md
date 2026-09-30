@@ -111,6 +111,35 @@ autor, para o mantenedor questionar.
    no pacote).
 9. **A vista de texto fica**: um `.canvas` abre como board, e "abrir como
    texto" mantém o JSON cru a um clique — escolha do autor.
+10. **O acabamento do board e as suas configurações** *(acrescentado em
+    2026-09-30 pelo mantenedor, em sessão: "pode fazer, deixa tudo
+    redondinho", sobre a revisão do autor das funções do Excalidraw no
+    board).*
+    - **Exportar.** O board tem o seu próprio "Exportar imagem" (⌘⇧E, e o
+      menu principal), no lugar do do Excalidraw, que desenhava cada cartão
+      como uma incorporação web vazia: cada cartão sai como a sua caixa, o seu
+      nome e o seu texto como se lê (um cartão de imagem, como a imagem). PNG
+      ou SVG, de 1× a 3×, com ou sem fundo, claro ou escuro, o board inteiro
+      ou a seleção; salvo ao lado do board na pasta de anexos, salvo em
+      Downloads, ou copiado. As cópias como PNG ou SVG do próprio Excalidraw
+      ficam escondidas.
+    - **Incorporação web** fica escondida: o board desenha só os seus
+      cartões, e a ferramenta terminava num erro. Incorporar uma página num
+      board não está decidido.
+    - **Fundo.** A cor de fundo de um board fica no arquivo, em
+      `verso.background`; nenhuma quer dizer o papel do app.
+    - **Palavras.** As palavras do Excalidraw que a sua tradução pt-BR não tem
+      aparecem em português quando a janela está em português; a faixa
+      "clique para interagir" some (entra-se num cartão com clique duplo).
+    - **Fontes.** O endereço reserva das fontes do Excalidraw (`esm.sh`) sai:
+      toda fonte é a do app, como diz o ponto 8.
+    - **Configurações**, numa seção "Board": abrir um `.canvas` como board ou
+      como texto (o padrão do ponto 9 vira configuração); ao abrir um board,
+      mostrar tudo ou voltar onde ele ficou naquela janela (guardado no
+      armazenamento da janela, nunca no arquivo); o traço das formas novas
+      (limpo ou à mão livre) e a fonte do texto novo (manuscrita, comum ou de
+      código); a grade ligada ou não ao abrir um board; a pasta que "Novo
+      board" usa quando não é chamado de uma pasta.
 
 ## Consequências
 
