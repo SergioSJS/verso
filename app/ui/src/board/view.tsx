@@ -21,6 +21,8 @@ import {
   CaptureUpdateAction,
   Excalidraw,
   MainMenu,
+  exportToSvg,
+  getCommonBounds,
   newElementWith,
   restoreElements,
   viewportCoordsToSceneCoords,
@@ -177,15 +179,32 @@ const MemoCard = memo(Card);
 /** Where the board is looking: Excalidraw's scroll and zoom, and its size. */
 type View = { scrollX: number; scrollY: number; zoom: number; width: number; height: number };
 
-/** The corner Excalidraw draws a card's shape with (its adaptive radius). */
-function cornerRadius(w: number, h: number): number {
-  const x = Math.min(w, h);
-  return x <= 128 ? x * 0.25 : 32;
+/** The corner Excalidraw draws a shape with, for its roundness. */
+function cornerRadius(e: El): number {
+  const round = e["roundness"] as { type?: number; value?: number } | null | undefined;
+  const x = Math.min(e.width, e.height);
+  if (!round) return 0;
+  if (round.type === 1 || round.type === 2) return x * 0.25;
+  const fixed = typeof round.value === "number" ? round.value : 32;
+  return x <= fixed / 0.25 ? x * 0.25 : fixed;
+}
+
+/** The outline of a card as Excalidraw strokes it — straight sides joined
+ *  by quadratic curves whose control point is the corner, not circular
+ *  arcs, so no `border-radius` meets it — for a box `w` × `h` with corner
+ *  `r`, in the unit the numbers are given in. */
+function cardPath(w: number, h: number, r: number): string {
+  const f = (n: number): string => String(Math.round(n * 100) / 100);
+  return `M ${f(r)} 0 L ${f(w - r)} 0 Q ${f(w)} 0 ${f(w)} ${f(r)} L ${f(w)} ${f(h - r)} Q ${f(w)} ${f(h)} ${f(w - r)} ${f(h)} L ${f(r)} ${f(h)} Q 0 ${f(h)} 0 ${f(h - r)} L 0 ${f(r)} Q 0 0 ${f(r)} 0 Z`;
 }
 
 /** Below this zoom a card is scaled down, not laid out at the zoom:
  *  WebKit keeps a minimum font size, and a picture shrunk does not blur. */
 const LAYOUT_ZOOM = 0.75;
+
+/** What is drawn above a card: the elements above it in the board's order
+ *  that reach into it, as one vector picture placed in scene units. */
+type Overlay = { x: number; y: number; svg: string };
 
 /** The cards, drawn by Verso over Excalidraw's canvas — not inside
  * Excalidraw's own embeddable boxes. Those are scaled with a CSS transform,
@@ -194,9 +213,14 @@ const LAYOUT_ZOOM = 0.75;
  * placed in screen pixels and laid out at the zoom itself (CSS `zoom`),
  * with no transform at all: its text is drawn at the size it is seen.
  * While the view moves, the whole layer follows with one transform (see
- * `Board`), and is drawn again, sharp, once the view settles. */
+ * `Board`), and is drawn again, sharp, once the view settles.
+ *
+ * The layer sits above Excalidraw's drawing and below its selection, so a
+ * shape selected over a card shows its handles. What is drawn above a card
+ * in the board's order is drawn again over it, cut to the card's shape. */
 function CardLayer({
   cards,
+  overlays,
   view,
   active,
   host,
@@ -204,6 +228,7 @@ function CardLayer({
   plane,
 }: {
   cards: readonly El[];
+  overlays: ReadonlyMap<string, Overlay>;
   view: View;
   active: string | null;
   host: BoardHost;
@@ -219,34 +244,47 @@ function CardLayer({
   const x1 = -view.scrollX + (2 * view.width) / z;
   const y1 = -view.scrollY + (2 * view.height) / z;
   return (
-    <div className="board-cards" ref={plane}>
+    <div className={`board-cards${active ? " has-active" : ""}`} ref={plane}>
       {cards.map((e) => {
         const node = nodeData(e);
         if (!node) return null;
         if (e.x > x1 || e.y > y1 || e.x + e.width < x0 || e.y + e.height < y0) return null;
+        // The card fills the shape up to the inner edge of its stroke: the
+        // stroke is centred on the shape's edge.
         const sw = typeof e["strokeWidth"] === "number" ? (e["strokeWidth"] as number) : 1;
-        const w = Math.max(1, e.width - 2 * sw);
-        const h = Math.max(1, e.height - 2 * sw);
-        const radius = Math.max(0, cornerRadius(e.width, e.height) - sw);
+        const inset = sw / 2;
+        const w = Math.max(1, e.width - sw);
+        const h = Math.max(1, e.height - sw);
+        const r = Math.max(0, Math.min(cornerRadius(e) - inset, w / 2, h / 2));
         const box = {
           width: `${w}px`,
           height: `${h}px`,
-          ["--embeddable-radius" as string]: `${radius}px`,
           ...(laidOut ? { zoom: z } : { transform: `scale(${z})`, transformOrigin: "0 0" }),
         } as CSSProperties;
         const angle = typeof e.angle === "number" && e.angle !== 0 ? e.angle : 0;
+        const over = angle ? undefined : overlays.get(e.id);
         return (
           <div
             key={e.id}
             className={`board-card-slot${active === e.id ? " is-active" : ""}`}
             style={{
-              left: `${(e.x + sw + view.scrollX) * z}px`,
-              top: `${(e.y + sw + view.scrollY) * z}px`,
-              ...(angle ? { transform: `rotate(${angle}rad)`, transformOrigin: `${(w * z) / 2}px ${(h * z) / 2}px` } : {}),
+              left: `${(e.x + inset + view.scrollX) * z}px`,
+              top: `${(e.y + inset + view.scrollY) * z}px`,
+              width: `${w * z}px`,
+              height: `${h * z}px`,
+              clipPath: `path("${cardPath(w * z, h * z, r * z)}")`,
+              ...(angle ? { transform: `rotate(${angle}rad)`, transformOrigin: "50% 50%" } : {}),
             }}
           >
             <div className="board-card-box" style={box}>
               <MemoCard node={node} host={host} tick={tick} />
+              {over && (
+                <div
+                  className="board-card-over"
+                  style={{ left: `${over.x - e.x - inset}px`, top: `${over.y - e.y - inset}px` }}
+                  dangerouslySetInnerHTML={{ __html: over.svg }}
+                />
+              )}
             </div>
           </div>
         );
@@ -485,6 +523,181 @@ function Board({
     setCards(list);
   }, []);
 
+  // What is drawn above each card, in the board's order, drawn again over
+  // it. Worked out one frame after a change, and only for a card whose
+  // elements above changed: moving a card alone keeps its picture.
+  const [overlays, setOverlays] = useState<ReadonlyMap<string, Overlay>>(new Map());
+  const overlaysRef = useRef<{ map: ReadonlyMap<string, Overlay>; keys: Map<string, string> }>({ map: new Map(), keys: new Map() });
+  const sceneRef = useRef<readonly ExcalidrawElement[]>([]);
+  const overlayFrame = useRef(0);
+  const overlayBusy = useRef(false);
+  const overlayAgain = useRef(false);
+  const darkRef = useRef(dark);
+  darkRef.current = dark;
+  const runOverlays = useCallback(async (): Promise<void> => {
+    if (overlayBusy.current) {
+      overlayAgain.current = true;
+      return;
+    }
+    overlayBusy.current = true;
+    try {
+      const els = (sceneRef.current as unknown as El[]).filter((e) => !e.isDeleted);
+      const bounds = els.map((e) => getCommonBounds([e as unknown as ExcalidrawElement]));
+      const prev = overlaysRef.current;
+      const map = new Map<string, Overlay>();
+      const keys = new Map<string, string>();
+      const jobs: Promise<void>[] = [];
+      els.forEach((card, i) => {
+        if (card.type !== "embeddable" || !isNode(card)) return;
+        const [cx0, cy0, cx1, cy1] = bounds[i]!;
+        const above: El[] = [];
+        let aboveBounds: [number, number, number, number] | null = null;
+        for (let j = i + 1; j < els.length; j++) {
+          const o = els[j]!;
+          if (o.type === "embeddable" || o.type === "iframe" || o.type === "frame" || o.type === "magicframe") continue;
+          const [ox0, oy0, ox1, oy1] = bounds[j]!;
+          if (ox1 < cx0 || ox0 > cx1 || oy1 < cy0 || oy0 > cy1) continue;
+          above.push(o);
+          aboveBounds = aboveBounds
+            ? [Math.min(aboveBounds[0], ox0), Math.min(aboveBounds[1], oy0), Math.max(aboveBounds[2], ox1), Math.max(aboveBounds[3], oy1)]
+            : [ox0, oy0, ox1, oy1];
+        }
+        if (!above.length || !aboveBounds) return;
+        const key = `${darkRef.current ? "d" : "l"}|${above.map((o) => `${o.id}:${String(o["version"])}`).join("|")}`;
+        keys.set(card.id, key);
+        const kept = prev.map.get(card.id);
+        if (kept && prev.keys.get(card.id) === key) {
+          map.set(card.id, kept);
+          return;
+        }
+        const [minX, minY] = getCommonBounds(above as unknown as ExcalidrawElement[]);
+        jobs.push(
+          exportToSvg({
+            elements: above as unknown as ExcalidrawElement[],
+            appState: { exportBackground: false, exportWithDarkMode: darkRef.current, viewBackgroundColor: "transparent" },
+            files: api.current?.getFiles() ?? null,
+            exportPadding: 0,
+            skipInliningFonts: true,
+          }).then(
+            (svg: SVGSVGElement) => void map.set(card.id, { x: minX, y: minY, svg: svg.outerHTML }),
+            () => keys.delete(card.id),
+          ),
+        );
+      });
+      await Promise.all(jobs);
+      const same = map.size === prev.map.size && [...map].every(([k, v]) => prev.map.get(k) === v);
+      overlaysRef.current = { map, keys };
+      if (!same) setOverlays(map);
+    } finally {
+      overlayBusy.current = false;
+      if (overlayAgain.current) {
+        overlayAgain.current = false;
+        void runOverlays();
+      }
+    }
+  }, []);
+  const scheduleOverlays = useCallback(
+    (els: readonly ExcalidrawElement[]) => {
+      sceneRef.current = els;
+      if (overlayFrame.current) return;
+      overlayFrame.current = window.requestAnimationFrame(() => {
+        overlayFrame.current = 0;
+        void runOverlays();
+      });
+    },
+    [runOverlays],
+  );
+  useEffect(() => {
+    overlaysRef.current = { map: overlaysRef.current.map, keys: new Map() };
+    scheduleOverlays(sceneRef.current);
+  }, [dark, scheduleOverlays]);
+  useEffect(() => () => window.cancelAnimationFrame(overlayFrame.current), []);
+
+  // A card's open button, under Excalidraw's selection canvas, is pressed
+  // here: the topmost card under the pointer decides, as the eye does.
+  useEffect(() => {
+    const root = container.current;
+    if (!root) return;
+    let pressed: HTMLElement | null = null;
+    let hover: HTMLElement | null = null;
+    const inside = (r: DOMRect, x: number, y: number): boolean => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    const buttonAt = (x: number, y: number): HTMLElement | null => {
+      const slots = root.querySelectorAll<HTMLElement>(".board-card-slot");
+      for (let i = slots.length - 1; i >= 0; i--) {
+        const slot = slots[i]!;
+        if (!inside(slot.getBoundingClientRect(), x, y)) continue;
+        if (slot.classList.contains("is-active")) return null;
+        const b = slot.querySelector<HTMLElement>(".board-card-open");
+        return b && inside(b.getBoundingClientRect(), x, y) ? b : null;
+      }
+      return null;
+    };
+    const down = (e: PointerEvent): void => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const b = buttonAt(e.clientX, e.clientY);
+      if (!b) return;
+      pressed = b;
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    const up = (e: PointerEvent): void => {
+      if (!pressed) return;
+      const b = pressed;
+      pressed = null;
+      e.stopPropagation();
+      if (buttonAt(e.clientX, e.clientY) === b) b.click();
+    };
+    const move = (e: PointerEvent): void => {
+      const b = e.buttons ? null : buttonAt(e.clientX, e.clientY);
+      if (b === hover) return;
+      hover?.classList.remove("is-hover");
+      b?.classList.add("is-hover");
+      root.classList.toggle("is-over-open", !!b);
+      hover = b;
+    };
+    root.addEventListener("pointerdown", down, true);
+    root.addEventListener("pointerup", up, true);
+    root.addEventListener("pointermove", move, true);
+    return () => {
+      root.removeEventListener("pointerdown", down, true);
+      root.removeEventListener("pointerup", up, true);
+      root.removeEventListener("pointermove", move, true);
+    };
+  }, []);
+
+  // Excalidraw puts a shape drawn inside a frame just under the frame, and
+  // a group's frame sits under its cards (the canvas's order): a shape
+  // drawn on a card in a group would land under the card. Once drawn, it
+  // goes to the top of its frame's range instead, as a shape drawn
+  // anywhere else goes to the top.
+  const seen = useRef<Set<string> | null>(null);
+  const liftDrawn = useCallback((els: readonly ExcalidrawElement[], state: AppState): void => {
+    const known = seen.current;
+    if (!known) {
+      seen.current = new Set(els.map((e) => e.id));
+      return;
+    }
+    if (state.newElement || state.multiElement || state.editingTextElement || state.resizingElement || state.selectedElementsAreBeingDragged) return;
+    const fresh = els.filter((e) => !known.has(e.id));
+    if (fresh.length === 0) return;
+    for (const e of fresh) known.add(e.id);
+    const list = [...els];
+    let moved = false;
+    for (const e of fresh) {
+      if (!e.frameId || e.isDeleted || isNode(e as unknown as El)) continue;
+      const at = list.indexOf(e);
+      let last = -1;
+      list.forEach((o, k) => {
+        if (o !== e && !o.isDeleted && (o.frameId === e.frameId || o.id === e.frameId)) last = k;
+      });
+      if (last <= at) continue;
+      list.splice(at, 1);
+      list.splice(last, 0, e);
+      moved = true;
+    }
+    if (moved) api.current?.updateScene({ elements: list, captureUpdate: CaptureUpdateAction.NEVER });
+  }, []);
+
   // The layer lives inside Excalidraw's own root, beside its canvases, so
   // that its menus and toolbar stay above the cards.
   useEffect(() => {
@@ -500,6 +713,8 @@ function Board({
     (els: readonly ExcalidrawElement[], state: AppState) => {
       dropMarkers(els);
       syncCards(els);
+      scheduleOverlays(els);
+      liftDrawn(els, state);
       // The view: while it moves, the card layer follows with one transform
       // from where it last settled; once it settles, the cards are drawn
       // again where they are, at the zoom they are shown at.
@@ -528,7 +743,7 @@ function Board({
       window.clearTimeout(outlineTimer.current);
       outlineTimer.current = window.setTimeout(() => setElements(els as unknown as El[]), 300);
     },
-    [flush, dropMarkers, syncCards],
+    [flush, dropMarkers, syncCards, scheduleOverlays, liftDrawn],
   );
 
   const center = (): [number, number] => {
@@ -824,6 +1039,7 @@ function Board({
                 // are: Excalidraw says nothing until something changes.
                 setLayerHost(container.current?.querySelector<HTMLElement>(".excalidraw") ?? null);
                 syncCards(a.getSceneElements());
+                scheduleOverlays(a.getSceneElements());
                 const st = a.getAppState();
                 const v: View = { scrollX: st.scrollX, scrollY: st.scrollY, zoom: st.zoom.value, width: st.width, height: st.height };
                 settledRef.current = v;
@@ -864,7 +1080,7 @@ function Board({
             </MainMenu>
           </Excalidraw>
           {layerHost &&
-            createPortal(<CardLayer cards={cards} view={settled} active={active} host={host} tick={tick} plane={plane} />, layerHost)}
+            createPortal(<CardLayer cards={cards} overlays={overlays} view={settled} active={active} host={host} tick={tick} plane={plane} />, layerHost)}
         </div>
         {showOutline && (
           <OutlinePanel outline={outline} strings={s} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} />

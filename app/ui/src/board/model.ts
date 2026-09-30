@@ -220,10 +220,12 @@ export function newNode(kind: "file" | "text" | "link", value: string, at: [numb
   return node;
 }
 
-/** The elements of a canvas, partial, in the file's order: nodes, their
- *  edges and labels, then the drawing. A node inside a group's box goes in
- *  that group's frame (the innermost one), as moving a group moves what is
- *  in it on Obsidian's canvas. */
+/** The elements of a canvas, partial, bottom first: the edges and their
+ *  labels, the nodes in the file's order, then the drawing. An edge runs
+ *  between two cards and passes under them, so a card's text stays
+ *  readable; what is drawn keeps its own order, above. A node inside a
+ *  group's box goes in that group's frame (the innermost one), as moving a
+ *  group moves what is in it on Obsidian's canvas. */
 export function toElements(doc: CanvasDoc): Partial<El>[] {
   const nodes = (Array.isArray(doc.nodes) ? doc.nodes : []).filter((n): n is CanvasNode => isRecord(n) && typeof n.id === "string" && typeof n.type === "string");
   const byId = new Map(nodes.map((n) => [n.id, n] as const));
@@ -231,6 +233,7 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
   const inside = (n: CanvasNode, g: CanvasNode): boolean =>
     n !== g && n.x >= g.x && n.y >= g.y && n.x + n.width <= g.x + g.width && n.y + n.height <= g.y + g.height;
   const out: Partial<El>[] = [];
+  const cards: Partial<El>[] = [];
   const bound = new Map<string, { id: string; type: string }[]>();
   const edges = (Array.isArray(doc.edges) ? doc.edges : []).filter(
     (e): e is CanvasEdge => isRecord(e) && typeof e.id === "string" && byId.has(e.fromNode) && byId.has(e.toNode),
@@ -244,7 +247,7 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
     if (home && n.type !== "group") el.frameId = home.id;
     const arrows = bound.get(n.id);
     if (arrows) el.boundElements = arrows;
-    out.push(el);
+    cards.push(el);
   }
   for (const e of edges) {
     const from = byId.get(e.fromNode);
@@ -292,6 +295,7 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
       });
     }
   }
+  out.push(...cards);
   const drawing = isRecord(doc.verso) && Array.isArray(doc.verso.drawing) ? doc.verso.drawing : [];
   for (const d of drawing) if (isRecord(d) && typeof d["id"] === "string" && typeof d["type"] === "string") out.push(d as Partial<El>);
   return out;
