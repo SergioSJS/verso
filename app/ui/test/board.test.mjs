@@ -79,6 +79,20 @@ describe("canvas ↔ elements", () => {
     assert.equal(b.backgroundOf({ verso: { background: "url(x)" } }), null, "only a colour");
   });
 
+  test("a card's own background is kept on its node, under verso", () => {
+    const els = restored(OBSIDIAN);
+    assert.equal(els.find((e) => e.id === "a").backgroundColor, b.CARD_PAPER, "none: the paper");
+    const coloured = els.map((e) => (e.id === "a" ? { ...e, backgroundColor: "#ffc9c9" } : e));
+    const saved = b.fromElements(coloured, OBSIDIAN);
+    const node = saved.nodes.find((n) => n.id === "a");
+    assert.deepEqual(node.verso, { background: "#ffc9c9" });
+    assert.equal(node["verso-extra"], 1, "its other fields kept");
+    assert.equal(restored(saved).find((e) => e.id === "a").backgroundColor, "#ffc9c9", "read back");
+    const back = b.fromElements(restored(saved).map((e) => (e.id === "a" ? { ...e, backgroundColor: "transparent" } : e)), saved);
+    assert.equal("verso" in back.nodes.find((n) => n.id === "a"), false, "taken off when set back to none");
+    assert.deepEqual(b.fromElements(restored(OBSIDIAN), OBSIDIAN).nodes, OBSIDIAN.nodes, "untouched cards write nothing new");
+  });
+
   test("groups are frames; a node inside a group is in its frame", () => {
     const els = restored(OBSIDIAN);
     assert.equal(els.find((e) => e.id === "g").type, "frame");

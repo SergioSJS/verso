@@ -122,6 +122,12 @@ author's choice, for the maintainer to question.
       tool ended in an error. Embedding a page on a board is not decided.
     - **Background.** A board's background colour is kept in the file, under
       `verso.background`; none means the app's paper.
+    - **A card's colour.** The background chosen for a card from the
+      board's panel is kept on its node, under the node's own `verso` key
+      (`"verso":{"background":"#a5d8ff"}`), as a relation is on an edge:
+      JSON Canvas has no field for it, and Obsidian keeps a node's unknown
+      fields (memo O1). None, or transparent, takes the key off. Asked for
+      by the maintainer on 2026-09-30 ("tem como respeitar?").
     - **Words.** Excalidraw's own words its pt-BR translation lacks are given
       in Portuguese when the window is; its "click to interact" band is
       hidden (a card is entered by a double click).

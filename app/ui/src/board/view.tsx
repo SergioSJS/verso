@@ -33,6 +33,7 @@ import type { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/t
 import type { ExcalidrawElement, NonDeleted, ExcalidrawEmbeddableElement } from "@excalidraw/excalidraw/element/types";
 import type { BoardStrings } from "./strings";
 import {
+  CARD_PAPER,
   MARKER,
   backgroundOf,
   fromElements,
@@ -191,10 +192,13 @@ function Card({
   editing,
   onEdit,
   onExit,
+  background,
 }: {
   node: CanvasNode;
   host: BoardHost;
   tick: number;
+  /** The colour chosen for the card on the board, if not its paper. */
+  background: string | null;
   /** The card is entered and asked to edit its note. */
   editing: boolean;
   onEdit: () => void;
@@ -284,6 +288,7 @@ function Card({
     <div
       className={`board-card board-card-${node.type}${missing ? " board-card-missing" : ""}`}
       aria-label={s.card(kind, nodeName(node, s))}
+      style={background ? ({ "--card-bg": background } as CSSProperties) : undefined}
       ref={root}
       tabIndex={-1}
     >
@@ -437,6 +442,7 @@ function CardLayer({
           >
             <div className="board-card-box" style={box}>
               <MemoCard
+                background={typeof e.backgroundColor === "string" && e.backgroundColor !== "transparent" && e.backgroundColor.toLowerCase() !== CARD_PAPER ? e.backgroundColor : null}
                 node={node}
                 host={host}
                 tick={tick}
