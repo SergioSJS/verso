@@ -3279,17 +3279,16 @@ class NoteLeaf extends Leaf {
       const rel = found.get(spec.file);
       if (!rel) continue;
       if (kindOf(rel) === "image") {
-        const img = h("img");
-        img.src = convertFileSrc(rel, "verso");
-        img.alt = spec.file;
-        img.loading = "lazy";
+        const pic = await cardPicture(convertFileSrc(rel, "verso"), spec.file);
+        const img = pic instanceof HTMLImageElement ? pic : (pic.firstElementChild as HTMLImageElement);
         const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
         if (size) {
           img.style.width = `${size.w}px`;
           if (size.h) img.style.height = `${size.h}px`;
         }
         const p = span.parentElement;
-        span.replaceWith(img);
+        if (!span.isConnected && !p) return;
+        span.replaceWith(pic);
         if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
       } else if (kindOf(rel) === "base") {
         // A base's view (ADR 0053), the one `#Name` names if any.
@@ -3781,15 +3780,16 @@ class BoardLeaf extends TextLeaf {
       openFile: (path, aside) => void openNote(listed(path), aside),
       renderNote: async (el, path) => {
         const r = await commands.readNote(listed(path));
-        if (r.status === "ok") await renderReading(el, r.data.html, listed(path));
+        if (r.status === "ok") await drawCard(el, r.data.html, listed(path));
         else el.replaceChildren();
       },
-      renderText: async (el, text) => renderReading(el, await commands.renderMarkdown(text), this.path),
+      renderText: async (el, text) => drawCard(el, await commands.renderMarkdown(text), this.path),
       noteText: async (path) => {
         const r = await commands.readNote(listed(path));
         return r.status === "ok" ? r.data.text : "";
       },
       fileSrc: (path) => convertFileSrc(listed(path), "verso"),
+      pictureCopy: (src) => pictureCopy(src),
       exists: (path) => listedPath(path, [allNotes, allFiles]) !== undefined,
       pickFile: () => quick.pick(),
       prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
@@ -4141,30 +4141,135 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
  *  ADR 0057): callouts, math, diagrams; images and files resolved from
  *  `source` as the note's own embeds are, sized as written; embedded notes
  *  one level deep; links that open what they name. */
+/* Pictures on a board are drawn from copies the size a card shows them
+ * (ADR 0057): a photograph of 1920 px drawn into a card of 400 cost a frame
+ * each time the view moved over it, and was decoded again and again. The
+ * copy is made once per picture, off the main thread; the original is laid
+ * over it when the board is zoomed in close (`.is-close`). */
+const PICTURE_COPY = 800;
+const pictureWorker = ((): Worker | null => {
+  try {
+    const code = `self.onmessage = async (e) => {
+      const { id, blob, width } = e.data;
+      try {
+        const full = await createImageBitmap(blob);
+        if (full.width <= width) { full.close(); self.postMessage({ id, out: null }); return; }
+        const small = await createImageBitmap(full, { resizeWidth: width, resizeHeight: Math.max(1, Math.round(full.height * width / full.width)), resizeQuality: "high" });
+        full.close();
+        const c = new OffscreenCanvas(small.width, small.height);
+        c.getContext("2d").drawImage(small, 0, 0);
+        small.close();
+        const out = await c.convertToBlob({ type: blob.type === "image/png" ? "image/png" : "image/jpeg", quality: 0.92 });
+        self.postMessage({ id, out });
+      } catch { self.postMessage({ id, out: null }); }
+    };`;
+    return new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+  } catch {
+    return null;
+  }
+})();
+const pictureCopies = new Map<string, Promise<string | null>>();
+const pictureWaiting = new Map<number, (out: Blob | null) => void>();
+let pictureIds = 0;
+pictureWorker?.addEventListener("message", (e: MessageEvent<{ id: number; out: Blob | null }>) => {
+  pictureWaiting.get(e.data.id)?.(e.data.out);
+  pictureWaiting.delete(e.data.id);
+});
+/** The copy of the picture at `src` for a card, as an address; null when
+ *  the picture is small enough, or not one a copy is made of (a drawing, an
+ *  animation), and the original is drawn. */
+function pictureCopy(src: string): Promise<string | null> {
+  let made = pictureCopies.get(src);
+  if (!made) {
+    made = (async () => {
+      if (!pictureWorker) return null;
+      try {
+        const blob = await (await fetch(src)).blob();
+        if (!/^image\/(jpeg|png|webp|bmp|avif)$/.test(blob.type)) return null;
+        const id = ++pictureIds;
+        const out = await new Promise<Blob | null>((resolve) => {
+          pictureWaiting.set(id, resolve);
+          pictureWorker.postMessage({ id, blob, width: PICTURE_COPY });
+        });
+        return out ? URL.createObjectURL(out) : null;
+      } catch {
+        return null;
+      }
+    })();
+    pictureCopies.set(src, made);
+  }
+  return made;
+}
+/** A picture of a card: its copy, and the original over it for a close
+ *  view; the original alone when there is no copy. */
+async function cardPicture(src: string, alt: string): Promise<HTMLElement> {
+  const copy = await pictureCopy(src);
+  const img = h("img");
+  img.alt = alt;
+  img.decoding = "async";
+  img.src = copy ?? src;
+  if (!copy) return img;
+  const full = h("img", "pic-full");
+  full.alt = "";
+  full.decoding = "async";
+  full.loading = "lazy";
+  full.src = src;
+  const pic = h("span", "pic");
+  pic.append(img, full);
+  return pic;
+}
+
+/** What each card last drew: its note's HTML, and where it read from. */
+const cardDrawn = new WeakMap<HTMLElement, string>();
+/** A board's card drawn again (the folder changed, ADR 0057): not at all
+ *  when its note says the same and embeds nothing, and otherwise drawn
+ *  aside and swapped in once its pictures are decoded — the card never
+ *  shows blank while it is redrawn. */
+async function drawCard(el: HTMLElement, html: string, source: string): Promise<void> {
+  const key = `${source}\n${html}`;
+  // A note it embeds may have changed while it did not; a picture it
+  // embeds is the same address, served as it was.
+  const embedsNote = Array.from(html.matchAll(/<span class="embed" data-target="([^"]*)"/g)).some((m) => !/\.(png|jpe?g|gif|webp|svg|bmp|avif|pdf)(#[^"]*)?$/i.test(m[1] ?? ""));
+  if (cardDrawn.get(el) === key && !embedsNote) return;
+  cardDrawn.set(el, key);
+  if (!el.firstChild) return renderReading(el, html, source);
+  const fresh = h("div");
+  await renderReading(fresh, html, source);
+  await Promise.all(Array.from(fresh.querySelectorAll("img"), (img) => img.decode().catch(() => undefined)));
+  if (cardDrawn.get(el) !== key) return;
+  el.replaceChildren(...Array.from(fresh.childNodes));
+  readingClicks(el, source);
+}
+
+/** The links of a card's reading, followed as the reading view follows
+ *  them: a note in a tab (⌘ beside), a tag searched. */
+function readingClicks(el: HTMLElement, source: string): void {
+  el.dataset["source"] = source;
+  if (el.dataset["reading"] !== undefined) return;
+  el.dataset["reading"] = "";
+  el.addEventListener("click", (ev) => {
+    const a = (ev.target as HTMLElement).closest("a");
+    if (!a || !el.contains(a)) return;
+    if (a.classList.contains("wikilink")) {
+      ev.preventDefault();
+      const to = resolveNoteByName((a.dataset["target"] ?? "").split(/[#^]/)[0] ?? "", el.dataset["source"] ?? source);
+      if (to) openNote(to, ev.metaKey || ev.ctrlKey);
+      else ui.status.textContent = t.unresolved(a.dataset["target"] ?? "");
+    } else if (a.classList.contains("tag")) {
+      ev.preventDefault();
+      ui.search.value = `tag:${a.dataset["tag"] ?? ""}`;
+      void searchNotes(ui.search.value);
+    }
+    // A web address goes to the browser window (guardLink).
+  });
+}
+
 async function renderReading(el: HTMLElement, html: string, source: string, depth = 0): Promise<void> {
   setHtml(el, html);
   wireCallouts(el);
   keyLinks(el);
   typeset(el);
-  if (!el.dataset["reading"]) {
-    el.dataset["reading"] = "";
-    el.addEventListener("click", (ev) => {
-      const a = (ev.target as HTMLElement).closest("a");
-      if (!a || !el.contains(a)) return;
-      if (a.classList.contains("wikilink")) {
-        ev.preventDefault();
-        const to = resolveNoteByName((a.dataset["target"] ?? "").split(/[#^]/)[0] ?? "", el.dataset["source"] ?? source);
-        if (to) openNote(to, ev.metaKey || ev.ctrlKey);
-        else ui.status.textContent = t.unresolved(a.dataset["target"] ?? "");
-      } else if (a.classList.contains("tag")) {
-        ev.preventDefault();
-        ui.search.value = `tag:${a.dataset["tag"] ?? ""}`;
-        void searchNotes(ui.search.value);
-      }
-      // A web address goes to the browser window (guardLink).
-    });
-  }
-  el.dataset["source"] = source;
+  readingClicks(el, source);
   for (const code of el.querySelectorAll<HTMLElement>("pre > code.language-mermaid")) {
     const box = h("div", "mermaid-block");
     code.parentElement?.replaceWith(box);

@@ -2578,7 +2578,14 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 
 .board-card-body:empty { display: none; }
 .board-card-body > :first-child { margin-top: 0; }
-.board-card-image { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+.board-card-image { position: relative; flex: 1; min-height: 0; width: 100%; }
+.board-card-image > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+/* A picture on a card: its copy at the card's size, and the original laid
+   over it only when the board is zoomed in close. */
+.board-card .pic { position: relative; display: block; width: fit-content; max-width: 100%; margin: .4em 0; }
+.board-card .pic > img { margin: 0; }
+.board-card .pic > .pic-full { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; }
+.board-cards-plane:not(.is-close) .pic-full { display: none; }
 .board-card-text .board-card-body { font-family: var(--book); }
 .board-card-link { display: flex; flex-direction: column; gap: .15rem; padding: .5rem .6rem; }
 .board-card-link .board-card-head { border: 0; padding: 0; }
@@ -2694,7 +2701,20 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
    selection canvas (z 2); above both while a card is entered. */
 .board-cards { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
 .board-cards.has-active { z-index: 3; }
-.board-card-slot { position: absolute; left: 0; top: 0; overflow: hidden; }
+/* The plane the cards sit on: not cut to the view (the layer above cuts
+   it), so what lies past the view's edge slides in drawn as the view
+   moves. The plane and each card are layers of the compositor: a view
+   that moves only moves them, and nothing is painted again (measured on a
+   board of 40 cards with photographs: no frame over 33 ms, where a single
+   layer for the plane repainted every card and dropped frames). A card is
+   painted again at its size when the cards are laid out after a zoom. */
+.board-cards-plane { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; transform-origin: 0 0; will-change: transform; }
+.board-card-slot { position: absolute; left: 0; top: 0; overflow: hidden; will-change: transform; }
+/* Far from the view: kept, with what it drew, and not laid out. */
+.board-card-slot.is-far { display: none; }
+/* Excalidraw's own boxes for the cards are empty (the layer draws the
+   cards): not laid out, nor moved on every frame. */
+.board-canvas .excalidraw__embeddable-container { display: none !important; }
 .board-card-box { position: relative; }
 .board-canvas.is-over-open .excalidraw canvas.interactive { cursor: pointer !important; }
 .board-card-over { position: absolute; pointer-events: none; line-height: 0; }
