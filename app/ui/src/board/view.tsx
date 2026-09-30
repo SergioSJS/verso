@@ -276,6 +276,9 @@ function Board({
   /** Bumped when the folder changes: the cards draw their notes again. */
   const [tick, setTick] = useState(0);
   const searchBox = useRef<HTMLInputElement>(null);
+  /** The zoom the cards were last painted at, and the wait for it to settle. */
+  const paintedZoom = useRef(0);
+  const zoomTimer = useRef<number | undefined>(undefined);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<string[]>([]);
   const [hit, setHit] = useState(0);
@@ -385,6 +388,24 @@ function Board({
   const onChange = useCallback(
     (els: readonly ExcalidrawElement[], state: AppState) => {
       dropMarkers(els);
+      // WebKit paints each card into a layer, once, at the zoom of that
+      // moment, and afterwards stretches the picture with Excalidraw's scale:
+      // zoomed in from afar, a card reads as a blurred photograph of itself.
+      // A layer made again is painted at the zoom of then — which is why a
+      // card that left the view and came back looked sharp. Once a zoom
+      // settles, every card is hidden for one frame and shown again: each
+      // layer is made anew, at the zoom the board is now at.
+      const z = state.zoom.value;
+      if (z !== paintedZoom.current) {
+        window.clearTimeout(zoomTimer.current);
+        zoomTimer.current = window.setTimeout(() => {
+          paintedZoom.current = z;
+          const el = container.current;
+          if (!el) return;
+          el.classList.add("board-repaint");
+          window.requestAnimationFrame(() => window.requestAnimationFrame(() => el.classList.remove("board-repaint")));
+        }, 150);
+      }
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(flush, SAVE_DELAY);
       const ids = Object.keys(state.selectedElementIds).filter((k) => state.selectedElementIds[k]);
