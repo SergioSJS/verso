@@ -69,6 +69,7 @@ export function withRelation(doc: string, key: string, link: string): string | n
  *  hand would have to be to reach the same note (spec Q12). */
 export function linkTo(target: string, notes: readonly string[]): string {
   const bare = (target.split("/").pop() ?? target).replace(/\.md$/, "");
-  const same = notes.filter((n) => (n.split("/").pop() ?? n).replace(/\.md$/, "").toLowerCase() === bare.toLowerCase());
+  const key = (name: string): string => name.normalize("NFC").toLowerCase();
+  const same = notes.filter((n) => key((n.split("/").pop() ?? n).replace(/\.md$/, "")) === key(bare));
   return same.length > 1 ? `[[${target.replace(/\.md$/, "")}]]` : `[[${bare}]]`;
 }

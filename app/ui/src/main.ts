@@ -103,6 +103,7 @@ import { boardStrings } from "./board/strings";
 import type { BoardHandle, BoardHost } from "./board/view";
 import { boardPathFor, readDrawing, toBoard } from "./board/convert";
 import { linkTo, withRelation } from "./board/relation";
+import { listedPath } from "./board/model";
 import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml, webFrame } from "./sanitize";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import { renderMermaid } from "./mermaid";
@@ -3695,27 +3696,30 @@ class BoardLeaf extends TextLeaf {
     ui.status.textContent = boardText.notABoard;
   }
   private hostApi(): BoardHost {
+    // A node names its file as the canvas wrote it; the folder is read by
+    // the name it lists (see `listedPath`).
+    const listed = (path: string): string => listedPath(path, [allNotes, allFiles]) ?? path;
     return {
       strings: boardText,
       lang: LANG,
       dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
       save: (json) => void this.saveBoard(json),
-      openFile: (path, aside) => void openNote(path, aside),
+      openFile: (path, aside) => void openNote(listed(path), aside),
       renderNote: async (el, path) => {
-        const r = await commands.readNote(path);
-        if (r.status === "ok") await renderReading(el, r.data.html, path);
+        const r = await commands.readNote(listed(path));
+        if (r.status === "ok") await renderReading(el, r.data.html, listed(path));
         else el.replaceChildren();
       },
       renderText: async (el, text) => renderReading(el, await commands.renderMarkdown(text), this.path),
       noteText: async (path) => {
-        const r = await commands.readNote(path);
+        const r = await commands.readNote(listed(path));
         return r.status === "ok" ? r.data.text : "";
       },
-      fileSrc: (path) => convertFileSrc(path, "verso"),
-      exists: (path) => allNotes.includes(path) || allFiles.includes(path),
+      fileSrc: (path) => convertFileSrc(listed(path), "verso"),
+      exists: (path) => listedPath(path, [allNotes, allFiles]) !== undefined,
       pickFile: () => quick.pick(),
       prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
-      promote: (from, to, key) => promoteRelation(from, to, key),
+      promote: (from, to, key) => promoteRelation(listed(from), to, key),
       openUrl: (url) => void commands.openUrl(url),
       status: (text) => (ui.status.textContent = text),
     };

@@ -57,6 +57,16 @@ describe("canvas ↔ elements", () => {
     assert.equal(ids.at(-1), "d", "drawing last");
   });
 
+  test("a node's file is found in the folder whatever the Unicode form", () => {
+    const nfd = "Escudo/Caça\u0303o.md".normalize("NFD");
+    const nfc = nfd.normalize("NFC");
+    assert.notEqual(nfc, nfd);
+    assert.equal(b.listedPath(nfc, [[nfd, "Outra.md"], []]), nfd, "the name the folder lists");
+    assert.equal(b.listedPath("Outra.md", [["Outra.md"]]), "Outra.md");
+    assert.equal(b.listedPath("Nada.md", [["Outra.md"], ["img.png"]]), undefined);
+    assert.equal(b.linkTo(nfc, [nfd, "Outro/" + nfc]), `[[${nfc.replace(/\.md$/, "")}]]`, "two of one name are two, in any form");
+  });
+
   test("groups are frames; a node inside a group is in its frame", () => {
     const els = restored(OBSIDIAN);
     assert.equal(els.find((e) => e.id === "g").type, "frame");

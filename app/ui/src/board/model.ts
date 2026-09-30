@@ -391,6 +391,21 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc): CanvasDoc
   return out;
 }
 
+/** The path the folder lists for a node's `file`, found as the index
+ *  finds a name (spec Q7, provisional fact): after NFC on both sides. A
+ *  canvas writes names in NFC, and a disk keeps what it was given — a
+ *  folder that came through a zip or a sync holds them in NFD — so the
+ *  same name in two forms is one file. `undefined` when none is listed. */
+export function listedPath(path: string, lists: readonly (readonly string[])[]): string | undefined {
+  for (const list of lists) if (list.includes(path)) return path;
+  const key = path.normalize("NFC");
+  for (const list of lists) {
+    const hit = list.find((p) => p.normalize("NFC") === key);
+    if (hit !== undefined) return hit;
+  }
+  return undefined;
+}
+
 /** What a node's card shows as its name. */
 export function nodeName(n: CanvasNode, strings: { textCard: string; linkCard: string; untitledGroup: string }): string {
   if (n.type === "file" && typeof n.file === "string") return (n.file.split("/").pop() ?? n.file).replace(/\.md$/, "");
