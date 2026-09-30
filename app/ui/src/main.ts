@@ -9323,6 +9323,28 @@ if (!popout && !secondary) {
   void listen("menu-open-folder", () => void openFolderDialog());
   void listen("menu-settings", () => settingsDialog.show());
 }
+/* Edit › Undo, Redo, Select All (⌘Z, ⌘⇧Z, ⌘A) come from the host's own
+ * menu items, to the focused window. On a board the key goes to Excalidraw,
+ * which hears only keys; anywhere else the web view's editing command runs,
+ * as the system's items ran it — a field's and the editor's own undo. */
+void listen<[string, string]>("menu-edit", (e) => {
+  const [label, command] = e.payload;
+  if (label !== getCurrentWindow().label) return;
+  const active = document.activeElement;
+  const field =
+    active instanceof HTMLElement && (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
+  // The editor selects the whole note by its own command: the web view's
+  // selects only the lines it has drawn.
+  const editor = command === "select-all" && active instanceof HTMLElement && active.closest(".cm-editor");
+  if (active instanceof HTMLElement && ((!field && active.closest(".excalidraw")) || editor)) {
+    const key = command === "select-all" ? "a" : "z";
+    active.dispatchEvent(
+      new KeyboardEvent("keydown", { key, code: `Key${key.toUpperCase()}`, metaKey: true, shiftKey: command === "redo", bubbles: true, cancelable: true }),
+    );
+    return;
+  }
+  document.execCommand(command === "select-all" ? "selectAll" : command);
+});
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
 if (!popout && settings.checkUpdates) {

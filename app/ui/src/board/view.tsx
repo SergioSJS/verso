@@ -754,10 +754,23 @@ function Board({
     return [p.x, p.y];
   };
 
+  // Excalidraw hears the keyboard only while focus is inside it — a key
+  // pressed in another pane must not delete what the board has selected —
+  // and a press on its canvas does not move focus there by itself: it stays
+  // where it was, in the file list's search or on a toolbar button, and
+  // ⌘Z, Delete and the tools' keys went nowhere.
+  const focusBoard = (): void => {
+    const root = container.current?.querySelector<HTMLElement>(".excalidraw");
+    if (root && !root.contains(document.activeElement)) root.focus({ preventScroll: true });
+  };
+  const writable = (t: EventTarget | null): boolean =>
+    t instanceof HTMLElement && (t.isContentEditable || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || (t instanceof HTMLInputElement && !["checkbox", "radio", "button", "range"].includes(t.type)));
+
   const add = (node: CanvasNode): void => {
     const a = api.current;
     if (!a) return;
     touched.current = true;
+    focusBoard();
     const [el] = restoreElements(toElements({ nodes: [node], edges: [] }) as never, null, { refreshDimensions: false });
     if (!el) return;
     a.updateScene({
@@ -1024,7 +1037,10 @@ function Board({
           data-card-selected={selectedNode && isNode(selectedNode) ? "" : undefined}
           ref={container}
           onDoubleClickCapture={onDoubleClick}
-          onPointerDownCapture={() => (touched.current = true)}
+          onPointerDownCapture={(e) => {
+            touched.current = true;
+            if (!writable(e.target)) focusBoard();
+          }}
           onKeyDownCapture={() => (touched.current = true)}
           onDropCapture={refuseFiles}
           onPasteCapture={refuseFiles}

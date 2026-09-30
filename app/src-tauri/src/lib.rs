@@ -2153,6 +2153,16 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             let _ = app.emit_to("main", "menu-open-folder", ());
         } else if id == SETTINGS {
             let _ = app.emit_to("main", "menu-settings", ());
+        } else if let Some(command) = id.strip_prefix(EDIT_PREFIX) {
+            // Every window hears an event (see `folder-changed`): the label
+            // says which one runs it.
+            let focused = app
+                .webview_windows()
+                .into_values()
+                .find(|w| w.is_focused().unwrap_or(false));
+            if let Some(w) = focused {
+                let _ = app.emit("menu-edit", (w.label().to_owned(), command.to_owned()));
+            }
         } else if let Some(index) = id.strip_prefix(RECENT_PREFIX) {
             // The folder stays on this side; the window is told the same
             // way an `open -a Verso <folder>` event tells it.
@@ -2291,6 +2301,14 @@ const OPEN_FOLDER: &str = "verso-open-folder";
 #[cfg(target_os = "macos")]
 const SETTINGS: &str = "verso-settings";
 
+/// The prefix of the Edit menu's Undo, Redo and Select All: the system's
+/// own items run the web view's editing command, which does nothing on a
+/// board, and they take ⌘Z, ⌘⇧Z and ⌘A before the page sees the key. These
+/// tell the focused window instead (`menu-edit`), which runs the editing
+/// command where the focus is, or hands the key to the board.
+#[cfg(target_os = "macos")]
+const EDIT_PREFIX: &str = "verso-edit-";
+
 /// The prefix of an "Open Recent" item's id; the rest is the item's
 /// index into `App::menu_recents`.
 #[cfg(target_os = "macos")]
@@ -2351,6 +2369,27 @@ fn menu_label(lang: &str, key: &str) -> &'static str {
                 "Edit"
             }
         }
+        "undo" => {
+            if pt {
+                "Desfazer"
+            } else {
+                "Undo"
+            }
+        }
+        "redo" => {
+            if pt {
+                "Refazer"
+            } else {
+                "Redo"
+            }
+        }
+        "select-all" => {
+            if pt {
+                "Selecionar tudo"
+            } else {
+                "Select All"
+            }
+        }
         "view" => {
             if pt {
                 "Visualização"
@@ -2369,9 +2408,10 @@ fn menu_label(lang: &str, key: &str) -> &'static str {
     }
 }
 
-/// The macOS menu bar: the system's own items, except Quit. The system's
-/// Quit terminates the process without an event the app can answer (the
-/// run loop goes from ready to exit), so what was typed since the last
+/// The macOS menu bar: the system's own items, except Quit and the Edit
+/// menu's Undo, Redo and Select All (`EDIT_PREFIX`). The system's Quit
+/// terminates the process without an event the app can answer (the run
+/// loop goes from ready to exit), so what was typed since the last
 /// autosave was lost; this Quit, on the same ⌘Q, asks the windows to save
 /// first (`on_event`).
 #[cfg(target_os = "macos")]
@@ -2480,13 +2520,31 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
         l("edit"),
         true,
         &[
-            &PredefinedMenuItem::undo(app, None)?,
-            &PredefinedMenuItem::redo(app, None)?,
+            &MenuItem::with_id(
+                app,
+                format!("{EDIT_PREFIX}undo"),
+                l("undo"),
+                true,
+                Some("CmdOrCtrl+Z"),
+            )?,
+            &MenuItem::with_id(
+                app,
+                format!("{EDIT_PREFIX}redo"),
+                l("redo"),
+                true,
+                Some("CmdOrCtrl+Shift+Z"),
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::cut(app, None)?,
             &PredefinedMenuItem::copy(app, None)?,
             &PredefinedMenuItem::paste(app, None)?,
-            &PredefinedMenuItem::select_all(app, None)?,
+            &MenuItem::with_id(
+                app,
+                format!("{EDIT_PREFIX}select-all"),
+                l("select-all"),
+                true,
+                Some("CmdOrCtrl+A"),
+            )?,
         ],
     )?;
     let view = Submenu::with_items(
