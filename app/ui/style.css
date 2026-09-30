@@ -1183,6 +1183,8 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .status-keys button { font: inherit; color: inherit; padding: .1rem .3rem; border-radius: 4px; display: inline-flex; align-items: center; gap: .3rem; }
 .status-keys button:hover { color: var(--ink); background: var(--paper-3); }
 .status-keys kbd { margin-right: .15em; }
+.status-keys button.status-icon { padding: .15rem .3rem; }
+.status-keys button.status-icon svg { width: 14px; height: 14px; }
 
 /* Progress bar (top line & status bar) */
 .top-progress {
