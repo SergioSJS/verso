@@ -134,7 +134,7 @@ type Strings = Record<
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage" | "spreadSingle" | "spreadOdd" | "spreadEven" | "spreadToggle" | "lineNumbers" | "lineNumbersDesc"
   | "lineNumbersEdit" | "lineNumbersEditDesc" | "lineNumbersSource" | "lineNumbersSourceDesc" | "lineNumbersPreview" | "lineNumbersPreviewDesc" | "foldAllHeadings" | "unfoldAllHeadings"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "htmlPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
-  | "devtools" | "devtoolsDesc" | "openConsole" | "devtoolsOff"
+  | "devtools" | "devtoolsDesc" | "openConsole" | "devtoolsOff" | "previewTab" | "previewTabs" | "previewTabsDesc"
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
@@ -239,7 +239,7 @@ const pt: Strings = {
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   ignoreBuildDirs: "Ignorar pastas de build", ignoreBuildDirsDesc: "node_modules, target, dist e semelhantes ficam fora do índice e da busca.", respectGitignore: "Respeitar .gitignore", respectGitignoreDesc: "Os arquivos .gitignore de dentro da pasta aberta (na raiz e em cada subpasta) valem para o índice: o que eles excluem fica fora da busca e dos links, com as regras do git (inclusive `!`). Sem .gitignore na pasta, nada muda.",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", embedRemoteOff: "Conteúdo remoto desligado: esta página não foi carregada.", embedLoad: "Carregar", embedLocal: "Esta página está na rede local (neste computador ou num aparelho da sua rede). Permita só se confiar nela; permitida, ela carrega sempre.", embedPublic: "Esta nota quer embutir um site. Permitido, ele sempre carrega dentro das notas.", embedApprove: "Permitir sempre", embedAllowed: "Sites permitidos nas notas", embedAllowedDesc: "Uma origem por linha (https://site.com — sem esquema, https:// é assumido). Apagar uma linha volta a perguntar no próximo embed. Digite * numa linha para liberar todos os sites — atenção: com *, qualquer nota carrega qualquer página sem perguntar, inclusive endereços da sua rede local.", embedAllowedNone: "Nenhum site permitido ainda; a pergunta aparece na nota, no primeiro embed de cada site.", embedRemove: "Remover", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
-  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
+  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", previewTab: "pré-visualização", previewTabs: "Abas de pré-visualização", previewTabsDesc: "Um clique abre o arquivo numa aba temporária (nome em itálico), que o próximo clique substitui; dois cliques, editar ou fixar a mantêm. Desligado, cada clique abre uma aba nova.", foldCallout: "Recolher ou abrir o callout",
   hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
@@ -334,7 +334,7 @@ const en: Strings = {
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   ignoreBuildDirs: "Ignore build folders", ignoreBuildDirsDesc: "node_modules, target, dist and the like stay out of the index and the search.", respectGitignore: "Respect .gitignore", respectGitignoreDesc: "The .gitignore files inside the open folder (at its root and in each subfolder) apply to the index: what they exclude stays out of search and links, by git's rules (`!` included). With no .gitignore in the folder, nothing changes.",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", embedRemoteOff: "Remote content is off: this page was not loaded.", embedLoad: "Load", embedLocal: "This page is on the local network (this computer or a device on your network). Allow it only if you trust it; once allowed, it always loads.", embedPublic: "This note wants to embed a web site. Once allowed, it always loads inside notes.", embedApprove: "Always allow", embedAllowed: "Sites allowed in notes", embedAllowedDesc: "One origin per line (https://site.com — with no scheme, https:// is assumed). Deleting a line asks again at the next embed. Type * on a line to allow every site — careful: with *, any note loads any page without asking, your local network's addresses included.", embedAllowedNone: "No site allowed yet; the question appears in the note, on each site\u2019s first embed.", embedRemove: "Remove", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
-  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
+  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", previewTab: "preview", previewTabs: "Preview tabs", previewTabsDesc: "A click opens the file in a temporary tab (name in italics), which the next click replaces; a double click, an edit or a pin keeps it. Off, every click opens a new tab.", foldCallout: "Fold or unfold the callout",
   hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
@@ -603,6 +603,8 @@ type Settings = {
   boardGrid: boolean;
   /** View › Open console, the window's inspector (ADR 0051, 2026-09-30). */
   devtools: boolean;
+  /** A single click in a list opens a preview tab (2026-09-30). */
+  previewTabs: boolean;
 };
 const DEFAULTS: Settings = {
   lang: "auto",
@@ -636,6 +638,7 @@ const DEFAULTS: Settings = {
   boardFont: "hand",
   boardGrid: false,
   devtools: true,
+  previewTabs: true,
 };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
@@ -1051,7 +1054,8 @@ function clearDropHints(): void {
 }
 function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
   handle.addEventListener("pointerdown", (down) => {
-    if (down.button !== 0) return;
+    // ⌃-click is the Mac's right click: it opens a menu, never a drag.
+    if (down.button !== 0 || down.ctrlKey) return;
     const x0 = down.clientX;
     const y0 = down.clientY;
     let started = false;
@@ -1072,6 +1076,7 @@ function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string):
     const up = (e: PointerEvent) => {
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
+      document.removeEventListener("contextmenu", cancel, true);
       if (!started) return;
       const target = dropTargetAt(e.clientX, e.clientY);
       const d = drag;
@@ -1081,8 +1086,21 @@ function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string):
       clearDropHints();
       if (d && target) drop(d, target, e.clientX, e.clientY);
     };
+    // A menu opened meanwhile takes the release: the drag is dropped,
+    // or the next click, on the menu, would drop the tab where it lands.
+    const cancel = (): void => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      if (started) {
+        drag = null;
+        ghost.hidden = true;
+        document.body.classList.remove("dragging");
+        clearDropHints();
+      }
+    };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", up);
+    document.addEventListener("contextmenu", cancel, { once: true, capture: true });
   });
 }
 type DropTarget = { tabs: HTMLElement } | { body: HTMLElement } | { folder: string; el: HTMLElement } | { space: Space; el: HTMLElement } | { insert: NoteLeaf };
@@ -1334,10 +1352,16 @@ abstract class Leaf {
   /** Said, not shown: the name crossed out shows it (a note deleted or
    *  moved outside the app, `markGone`). */
   readonly tabGone = h("span", "sr-only", `, ${t.goneTab}`);
+  /** Said, not shown: the name in italics shows it. */
+  readonly tabPreview = h("span", "sr-only", `, ${t.previewTab}`);
   abstract readonly kind: Kind;
   path = "";
   dirty = false;
   pinned = false;
+  /** A preview tab (settings.previewTabs): what a single click opened. The
+   *  next single click in its pane opens in its place; a double click, an
+   *  edit or a pin keeps it. */
+  transient = false;
   loading: Promise<void> = Promise.resolve();
 
   constructor(public pane: Pane) {
@@ -1363,7 +1387,8 @@ abstract class Leaf {
     pin.append(icon("pin"));
     this.tabUnsaved.hidden = true;
     this.tabGone.hidden = true;
-    this.tab.append(this.tabIcon, this.tabName, this.tabUnsaved, this.tabGone, pin, close);
+    this.tabPreview.hidden = true;
+    this.tab.append(this.tabIcon, this.tabName, this.tabUnsaved, this.tabGone, this.tabPreview, pin, close);
     this.tab.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) void this.close();
       else this.pane.activate(this, true);
@@ -1371,6 +1396,7 @@ abstract class Leaf {
     this.tab.addEventListener("auxclick", (e) => {
       if (e.button === 1) void this.close();
     });
+    this.tab.addEventListener("dblclick", () => this.keep());
     this.tab.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       this.pane.tabMenu(this, e.clientX, e.clientY);
@@ -1388,10 +1414,12 @@ abstract class Leaf {
 
   setTitle(title: string): void {
     this.tabName.textContent = title;
-    this.tab.title = this.path;
+    // A pinned tab shows its icon alone: the tip names it.
+    this.tab.title = this.path && this.path !== title ? `${title}\n${this.path}` : title;
     this.tabIcon.replaceChildren(this.kind === "graph" ? icon("graph") : iconOfPath(this.path, this.kind));
   }
   setDirty(d: boolean): void {
+    if (d) this.keep();
     this.dirty = d;
     this.tab.classList.toggle("dirty", d);
     this.tabUnsaved.hidden = !d;
@@ -1430,7 +1458,19 @@ abstract class Leaf {
     pane.remove(this);
     if (had) landIn(pane);
   }
+  setPreview(p: boolean): void {
+    this.transient = p;
+    this.tab.classList.toggle("preview", p);
+    this.tabPreview.hidden = !p;
+  }
+  /** A preview tab becomes a tab of its own. */
+  keep(): void {
+    if (!this.transient) return;
+    this.setPreview(false);
+    persistSoon();
+  }
   setPinned(p: boolean): void {
+    if (p) this.keep();
     this.pinned = p;
     this.tab.classList.toggle("pinned", p);
     persistSoon();
@@ -4455,8 +4495,9 @@ class FolderLeaf extends Leaf {
     b.append(main, h("span", "col col-kind", kindLabel(r.path, r.kind)), h("span", "col col-size", r.kind === "folder" && r.size === 0 ? "—" : humanSize(r.size)), h("span", "col col-modified", humanDate(r.modified)));
     b.title = r.path;
     b.dataset["path"] = r.path;
-    const open = (pane: boolean) => (r.kind === "folder" ? openFolder(r.path) : openNote(r.path, pane));
-    b.addEventListener("click", (e) => open(e.metaKey || e.ctrlKey));
+    const open = (pane: boolean, preview: boolean) => (r.kind === "folder" ? openFolder(r.path, preview) : openNote(r.path, pane, false, preview));
+    b.addEventListener("click", (e) => open(e.metaKey || e.ctrlKey, true));
+    b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || open(false, false)));
     b.addEventListener("mousedown", () => b.focus());
     if (r.kind === "folder") b.dataset["folder"] = r.path;
     armDrag(b, () => ({ kind: "file", path: r.path }), () => r.label);
@@ -5209,8 +5250,21 @@ class Pane {
     this.el.classList.toggle("tabs-hidden", hidden);
     persistSoon();
   }
-  open(path: string, focus = false, fresh = false): Leaf {
+  /** Put a new `leaf` in the pane: as a preview, in the place of the
+   *  pane's preview tab when there is one and nothing is unsaved in it. */
+  private place(leaf: Leaf, preview: boolean): void {
+    const wanted = preview && settings.previewTabs;
+    const old = wanted ? this.leaves.find((l) => l.transient && !l.dirty && !l.pinned) : undefined;
+    if (old) {
+      this.insert(leaf, this.leaves.indexOf(old));
+      old.destroy();
+      this.remove(old, true);
+    } else this.insert(leaf);
+    leaf.setPreview(wanted);
+  }
+  open(path: string, focus = false, fresh = false, preview = false): Leaf {
     let leaf = fresh ? undefined : this.leaves.find((l) => l.path === path);
+    if (leaf && !preview) leaf.keep();
     // A tab of a note that went away outside, reused for a note of that
     // name again: read the new one, unless text was typed in the old.
     if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
@@ -5218,7 +5272,7 @@ class Pane {
       const kind = kindOf(path);
       leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
       remember(path);
-      this.insert(leaf);
+      this.place(leaf, preview);
       void leaf.load(path);
     }
     this.activate(leaf, focus);
@@ -5234,11 +5288,12 @@ class Pane {
     this.activate(leaf, false);
     return leaf;
   }
-  openFolder(path: string): Leaf {
+  openFolder(path: string, preview = false): Leaf {
     let leaf = this.leaves.find((l) => l.kind === "folder" && l.path === path);
+    if (leaf && !preview) leaf.keep();
     if (!leaf) {
       leaf = new FolderLeaf(this);
-      this.insert(leaf);
+      this.place(leaf, preview);
       void leaf.load(path);
     }
     this.activate(leaf, false);
@@ -5874,16 +5929,18 @@ ui.spaces.addEventListener("contextmenu", (e) => {
 function openIn(pane: Pane, path: string): Leaf {
   return pane.open(path, false);
 }
-function openNote(path: string, aside: boolean, fresh = false): Leaf | null {
+/** `preview`: a single click in a list (the tree, a folder, the search,
+ *  the quick switcher) — a preview tab, when the setting has them. */
+function openNote(path: string, aside: boolean, fresh = false, preview = false): Leaf | null {
   (window as any).__openNote = openNote;
   document.body.classList.remove("side-open");
   let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
-  return pane.open(path, false, fresh);
+  return pane.open(path, false, fresh, preview && !aside && !fresh);
 }
-function openFolder(path: string): void {
+function openFolder(path: string, preview = false): void {
   const pane = paneToOpenIn();
-  pane.openFolder(path);
+  pane.openFolder(path, preview);
 }
 (window as any).__openNote = openNote;
 /** Code blocks colored by their language and math typeset, in rendered
@@ -6243,7 +6300,8 @@ class Panel {
     const head = h("h3", "panel-sub", `${t.mentions} · ${hits.length}`);
     const ul = h("ul", "panel-list");
     ul.append(...hits.map((hit) => {
-      const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false), "search");
+      const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false, false, true), "search");
+      li.querySelector("button")?.addEventListener("dblclick", () => void openNote(hit.path, false));
       li.querySelector("button")?.append(snippetNode(hit.snippet));
       return li;
     }));
@@ -7250,7 +7308,8 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   const b = h("button", `row kind-${kind}`);
   b.type = "button";
   b.append(iconOfPath(path, kind), h("span", "row-name", path.split("/").pop() ?? path));
-  b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey));
+  b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey, false, true));
+  b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || openNote(path, false)));
   b.addEventListener("mousedown", () => b.focus());
   armDrag(b, () => ({ kind: "file", path }), () => name(path));
   b.addEventListener("contextmenu", (e) => {
@@ -7782,7 +7841,7 @@ class QuickSwitcher {
     this.picking = null;
     this.hide(Boolean(picking));
     if (picking) picking(path);
-    else openNote(path, aside);
+    else openNote(path, aside, false, true);
   }
   private update(): void {
     const q = this.input.value.trim().toLowerCase();
@@ -8823,6 +8882,11 @@ class SettingsDialog {
     add("board", b.prefFont, b.prefFontDesc, () => this.select([["hand", b.prefFontHand], ["sans", b.prefFontSans], ["mono", b.prefFontMono]], settings.boardFont, (v) => { settings.boardFont = v; saveSettings(); }));
     add("board", b.prefGrid, b.prefGridDesc, () => this.toggle(settings.boardGrid, (v) => { settings.boardGrid = v; saveSettings(); }));
     add("board", b.prefFolder, b.prefFolderDesc, () => this.text(settings.boardFolder, (v) => { settings.boardFolder = v.replace(/^\/+|\/+$/g, ""); saveSettings(); }));
+    add("editor", t.previewTabs, t.previewTabsDesc, () => this.toggle(settings.previewTabs, (v) => {
+      settings.previewTabs = v;
+      saveSettings();
+      if (!v) for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) l.keep();
+    }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:

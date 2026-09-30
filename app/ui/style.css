@@ -218,7 +218,10 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   gap: .5rem;
   padding: .35rem .6rem 0;
   background: var(--paper-2);
-  border-bottom: 1px solid var(--hair);
+  /* The line under the bar is painted beneath the tabs, so the chosen tab,
+     on the page's paper, runs into its page without it (a border would be
+     drawn over the tab, and the tab list's scrolling clips any overlap). */
+  box-shadow: inset 0 -1px 0 var(--hair);
   height: 2.45rem;
   min-height: 2.45rem;
   max-height: 2.45rem;
@@ -253,7 +256,6 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   border: 1px solid transparent;
   border-bottom: 1px solid var(--hair);
   border-radius: 6px 6px 0 0;
-  margin-bottom: -1px;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
@@ -278,7 +280,15 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .pane:not(.focused) .tab[aria-selected="true"] {
   box-shadow: inset 0 2px 0 var(--ink-3);
 }
-.tab.pinned { flex: 0 0 auto; max-width: 9rem; padding: 0 .5rem; }
+/* A pinned tab is its icon, as a browser's: the tip names it. */
+.pane:not(.vertical) .tab.pinned { flex: 0 0 auto; gap: 0; padding: 0 .6rem; }
+.pane:not(.vertical) .tab.pinned .tab-name, .pane:not(.vertical) .tab.pinned .tab-pin { display: none; }
+.pane.vertical .tab.pinned { max-width: none; }
+.tab.pinned .tab-icon .icon { width: 14px; height: 14px; }
+.pane:not(.vertical) .tab.pinned.dirty .tab-icon { position: relative; }
+.pane:not(.vertical) .tab.pinned.dirty .tab-icon::after { content: ""; position: absolute; right: -4px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--seal); }
+/* A preview tab: its name in italics until it is kept. */
+.tab.preview .tab-name { font-style: italic; }
 /* The dot is drawn, not said: the tab's name says "unsaved" (a browser
    without alternative text for `content` keeps the first line). */
 .tab.dirty .tab-name::after { content: " •"; content: " •" / ""; color: var(--seal); font-weight: 700; }
@@ -301,6 +311,8 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .tab:hover .tab-close, .tab[aria-selected="true"] .tab-close { opacity: 0.65; }
 .tab-close:hover { opacity: 1 !important; background: var(--paper-3); color: var(--seal); }
 .tab .icon { width: 12px; height: 12px; }
+/* Inside the tab: the tab list clips what goes past it. */
+.tab:focus-visible { outline-offset: -2px; border-radius: 6px 6px 0 0; }
 
 .pane-body { flex: 1; min-height: 0; display: flex; position: relative; }
 .leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
