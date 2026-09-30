@@ -180,6 +180,18 @@ export function nodeData(e: El): CanvasNode | null {
 }
 
 /** An element for a node, partial: the pane restores it. */
+/** A card's own paper: what it is drawn on when it has no colour of its
+ *  own, and what shows round its corners. */
+export const CARD_PAPER = "#f7f1e8";
+
+/** A card's own background colour (ADR 0057, 2026-09-30): JSON Canvas has
+ *  no field for it, so it is kept on the node under `verso`, as a
+ *  relation is on an edge; none means the card's paper. */
+export function cardBackground(node: CanvasNode): string | null {
+  const v = isRecord(node["verso"]) ? node["verso"]["background"] : undefined;
+  return typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v) ? v : null;
+}
+
 export function nodeElement(node: CanvasNode): Partial<El> {
   const base = {
     id: node.id,
@@ -200,8 +212,9 @@ export function nodeElement(node: CanvasNode): Partial<El> {
     // Solid, so the whole card takes the pointer (Excalidraw hits a
     // transparent shape on its outline only); the card drawn over it hides
     // it, and the canvas file never holds it.
-    // The paper's colour: what shows round a card's corners matches it.
-    backgroundColor: "#f7f1e8",
+    // Its own colour, or the paper's: what shows round a card's corners
+    // matches the card.
+    backgroundColor: cardBackground(node) ?? CARD_PAPER,
     fillStyle: "solid",
     strokeWidth: 1,
     roughness: 0,
@@ -353,6 +366,15 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     const was = hexOf(data.color, fallback).toLowerCase();
     if ((e.strokeColor ?? fallback).toLowerCase() !== was) put(node, "color", colorOf(e.strokeColor, fallback));
     if (e.type === "frame") put(node, "label", typeof e.name === "string" && e.name !== "" ? e.name : undefined);
+    if (e.type === "embeddable") {
+      const bg = typeof e.backgroundColor === "string" ? e.backgroundColor.toLowerCase() : "";
+      const own = /^#[0-9a-f]{3,8}$/.test(bg) && bg !== CARD_PAPER ? bg : undefined;
+      if (own !== (cardBackground(data) ?? undefined)?.toLowerCase()) {
+        const verso = isRecord(node["verso"]) ? { ...node["verso"] } : {};
+        put(verso, "background", own);
+        put(node, "verso", Object.keys(verso).length > 0 ? verso : undefined);
+      }
+    }
     nodes.push(node);
   }
   const edges: CanvasEdge[] = [];

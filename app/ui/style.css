@@ -2542,7 +2542,11 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 /* The library browser and its trigger reach excalidraw.com (ADR 0050). */
 .board-canvas .default-sidebar-trigger, .board-canvas .sidebar-trigger { display: none !important; }
 .board-canvas[data-card-selected] .excalidraw-hyperlinkContainer { display: none !important; }
-.board-card { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); font-size: .82rem; line-height: 1.45; }
+.board-card { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--card-bg, var(--paper)); color: var(--ink); font-size: .82rem; line-height: 1.45; }
+/* A card's own colour in the dark: Excalidraw darkens its canvas's
+   colours; a card keeps the hue over the dark paper, so its text stays
+   readable. */
+.excalidraw.theme--dark .board-card[style*="--card-bg"] { background: color-mix(in oklch, var(--card-bg) 28%, var(--paper)); }
 .board-card-head { flex: none; display: flex; align-items: center; gap: .3rem; padding: .25rem .35rem .25rem .6rem; border-bottom: 1px solid var(--hair); }
 .board-card-title { flex: 1; min-width: 0; font-family: var(--display); font-size: .95rem; color: var(--heading-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Clickable while the card is not entered: Excalidraw leaves a card's
