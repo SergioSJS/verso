@@ -18,7 +18,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView } from "codemirror";
 import { Annotation, Compartment, EditorState, Prec, Transaction, type Extension } from "@codemirror/state";
 import { keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, type KeyBinding } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory } from "@codemirror/commands";
+import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, selectAll, undo } from "@codemirror/commands";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { LanguageDescription, bracketMatching, defaultHighlightStyle, foldAll, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting, unfoldAll } from "@codemirror/language";
@@ -3652,6 +3652,9 @@ class BoardLeaf extends TextLeaf {
   readonly boardHost = h("div", "board-host");
   readonly boardModes = h("div", "modes");
   private board: BoardHandle | null = null;
+  /** What each card's editor held when it was left, for as long as this
+   *  tab lives: entered again, a card's ⌘Z goes on where it stopped. */
+  readonly cardHistory = new Map<string, KeptCard>();
   private showing: "board" | "source" = "board";
   /** The board's canvas waiting for a write, or refused by one. */
   private pendingBoard: string | null = null;
@@ -3724,7 +3727,7 @@ class BoardLeaf extends TextLeaf {
       pickFile: () => quick.pick(),
       prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
       promote: (from, to, key) => promoteRelation(listed(from), to, key),
-      editNote: (el, path, onExit) => cardEditor(el, listed(path), onExit),
+      editNote: (el, path, onExit) => cardEditor(el, listed(path), onExit, this.cardHistory),
       openUrl: (url) => void commands.openUrl(url),
       status: (text) => (ui.status.textContent = text),
     };
@@ -3839,7 +3842,10 @@ class BoardLeaf extends TextLeaf {
  * in the card until the user decides (invariant 11). Keys, and the
  * clipboard, stay in the card: Excalidraw takes a text box that is not an
  * <input> for the board, and would read Delete or a letter as its own. */
-function cardEditor(host: HTMLElement, path: string, onExit: () => void): CardEditing {
+/** A card's editor as it was left: its text, selection and undo history,
+ *  and the revision and line separator that text stands on. */
+type KeptCard = { json: unknown; revision: string; eol: string };
+function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: Map<string, KeptCard>): CardEditing {
   const editorHost = h("div", "editor card-editor");
   const conflict = new ConflictBanner(() => void reload(), () => void overwrite());
   host.replaceChildren(conflict.el, editorHost);
@@ -3852,7 +3858,8 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void): CardEd
   let saving: Promise<void> = Promise.resolve();
   let gone = false;
   const text = (): string => view?.state.doc.sliceString(0, undefined, eol) ?? "";
-  const state = (doc: string, readOnly: boolean): EditorState => {
+  let readOnly = false;
+  const extensions = (): Extension[] => {
     const md = markdown({ codeLanguages: languages, extensions: [Table, TaskList, Strikethrough] });
     const live = livePreview({
       imageUrl: (target) => imageUrl(path, target, () => view?.dispatch({ effects: redraw.of(null) })),
@@ -3866,9 +3873,7 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void): CardEd
       { key: "Mod-s", run: () => (void save(), true) },
       { key: "Escape", run: () => (onExit(), true) },
     ];
-    return EditorState.create({
-      doc,
-      extensions: [
+    return [
         baseEditorExtensions,
         md.language.data.of({ autocomplete: completeWikilinks }),
         md,
@@ -3889,22 +3894,47 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void): CardEd
             if (dirty && !conflict.up) void save();
           }, Math.max(0.3, settings.autosave) * 1000);
         }),
-      ],
-    });
+      ];
   };
   const show = (note: NoteText): void => {
     revision = note.revision;
     const sep = lineSeparator(note.text);
     eol = sep ?? "\n";
-    if (view) view.setState(state(note.text, sep === null));
-    else view = new EditorView({ parent: editorHost, state: state(note.text, sep === null) });
+    readOnly = sep === null;
+    const st = EditorState.create({ doc: note.text, extensions: extensions() });
+    if (view) view.setState(st);
+    else view = new EditorView({ parent: editorHost, state: st });
     dirty = false;
     conflict.hide();
+  };
+  // The card entered again takes up where it was left, ⌘Z included: the
+  // disk's text, if it moved on meanwhile, comes in as one edit of its own.
+  const resume = (note: NoteText, k: KeptCard): boolean => {
+    const sep = lineSeparator(note.text);
+    if (sep === null || sep !== k.eol) return false;
+    let st: EditorState;
+    try {
+      st = EditorState.fromJSON(k.json, { extensions: extensions() }, { history: historyField });
+    } catch {
+      return false;
+    }
+    eol = sep;
+    revision = k.revision;
+    view = new EditorView({ parent: editorHost, state: st });
+    if (note.revision !== k.revision) {
+      const now = sep === "\n" ? note.text : note.text.split(sep).join("\n");
+      const edit = minimalEdit(st.doc.toString(), now);
+      if (edit) view.dispatch({ changes: edit, annotations: [fromDisk.of(true), isolateHistory.of("full")] });
+      revision = note.revision;
+    }
+    dirty = false;
+    return true;
   };
   const ready = commands.readNote(path).then((r) => {
     if (gone) return;
     if (r.status !== "ok") return fail(r.error);
-    show(r.data);
+    const k = kept.get(path);
+    if (!k || !resume(r.data, k)) show(r.data);
   });
   const written = (w: Written, mine: string): void => {
     revision = w.note.revision;
@@ -3986,6 +4016,10 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void): CardEd
     destroy() {
       gone = true;
       window.clearTimeout(timer);
+      // Kept only when all of it is on disk: a text not saved (a conflict
+      // left open) would come back over the file.
+      if (view && !dirty && !conflict.up && !readOnly) kept.set(path, { json: view.state.toJSON({ history: historyField }), revision, eol });
+      else kept.delete(path);
       view?.destroy();
       host.replaceChildren();
     },
@@ -9492,19 +9526,26 @@ if (!popout && !secondary) {
   void listen("menu-settings", () => settingsDialog.show());
 }
 /* Edit › Undo, Redo, Select All (⌘Z, ⌘⇧Z, ⌘A) come from the host's own
- * menu items, to the focused window. On a board the key goes to Excalidraw,
- * which hears only keys; anywhere else the web view's editing command runs,
- * as the system's items ran it — a field's and the editor's own undo. */
+ * menu items, to the focused window. An editor runs its own command; on a
+ * board the key goes to Excalidraw, which hears only keys; anywhere else
+ * the web view's editing command runs, as the system's items ran it. */
 void listen<[string, string]>("menu-edit", (e) => {
   const [label, command] = e.payload;
   if (label !== getCurrentWindow().label) return;
   const active = document.activeElement;
   const field =
     active instanceof HTMLElement && (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
-  // The editor selects the whole note by its own command: the web view's
-  // selects only the lines it has drawn.
-  const editor = command === "select-all" && active instanceof HTMLElement && active.closest(".cm-editor");
-  if (active instanceof HTMLElement && ((!field && active.closest(".excalidraw")) || editor)) {
+  // An editor runs its own commands: the web view's Select All selects
+  // only the lines it has drawn, and its Undo knows only what was typed in
+  // that very element — not an editor's history carried over (a card
+  // entered again, ADR 0057) nor a change that came from the disk.
+  const cm = active instanceof HTMLElement ? active.closest<HTMLElement>(".cm-editor") : null;
+  const view = cm ? EditorView.findFromDOM(cm) : null;
+  if (view) {
+    (command === "undo" ? undo : command === "redo" ? redo : selectAll)(view);
+    return;
+  }
+  if (active instanceof HTMLElement && !field && active.closest(".excalidraw")) {
     const key = command === "select-all" ? "a" : "z";
     active.dispatchEvent(
       new KeyboardEvent("keydown", { key, code: `Key${key.toUpperCase()}`, metaKey: true, shiftKey: command === "redo", bubbles: true, cancelable: true }),
