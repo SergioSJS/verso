@@ -25,6 +25,7 @@ import {
   exportToBlob,
   exportToSvg,
   getCommonBounds,
+  getSceneVersion,
   newElementWith,
   restoreElements,
   viewportCoordsToSceneCoords,
@@ -73,6 +74,8 @@ export type BoardHost = {
   /** A note's text, for the board's search. */
   noteText: (path: string) => Promise<string>;
   fileSrc: (path: string) => string;
+  /** A copy of a picture at the size a card shows it (null: none made). */
+  pictureCopy: (src: string) => Promise<string | null>;
   exists: (path: string) => boolean;
   pickFile: () => Promise<string | null>;
   prompt: (label: string, initial: string, multiline: boolean) => Promise<string | null>;
@@ -186,27 +189,33 @@ function OpenIcon(): JSX.Element {
 
 /** A node drawn by Verso inside its element. */
 function Card({
+  id,
   node,
   host,
   tick,
   editing,
-  onEdit,
-  onExit,
+  setEditing,
+  draw,
   background,
   fill,
 }: {
+  id: string;
   node: CanvasNode;
   host: BoardHost;
   tick: number;
+  /** Enter a card's editor (its id), or leave it (null). */
+  setEditing: (id: string | null) => void;
+  /** Draw the card's note or text, in its turn (`drawQueue`). */
+  draw: Draw;
   /** How the colour fills the card (Excalidraw's fill style). */
   fill: string;
   /** The colour chosen for the card on the board, if not its paper. */
   background: string | null;
   /** The card is entered and asked to edit its note. */
   editing: boolean;
-  onEdit: () => void;
-  onExit: () => void;
 }): JSX.Element {
+  const onEdit = useCallback(() => setEditing(id), [id, setEditing]);
+  const onExit = useCallback(() => setEditing(null), [setEditing]);
   const body = useRef<HTMLDivElement>(null);
   const editorEl = useRef<HTMLDivElement>(null);
   const editor = useRef<CardEditing | null>(null);
@@ -222,13 +231,33 @@ function Card({
   const url = typeof node.url === "string" ? node.url : "";
   const missing = node.type === "file" && !host.exists(file);
   const note = node.type === "file" && !missing && ext(file) === "md";
+  const picture = node.type === "file" && !missing && IMAGE.test(ext(file));
+  // A picture card draws the picture's copy, in its turn, and the original
+  // over it for a close view (`cardPicture`): undefined while it waits.
+  const [copy, setCopy] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!picture) return;
+    let gone = false;
+    const cancel = draw(id, async () => {
+      const made = await host.pictureCopy(host.fileSrc(file));
+      if (!gone) setCopy(made);
+    });
+    return () => {
+      gone = true;
+      cancel();
+    };
+  }, [picture, id, file, host, draw]);
+  // Drawn once, in its turn, and kept wherever the view goes: only a
+  // change of the note, or of the folder, draws it again.
   useEffect(() => {
     const el = body.current;
     if (!el || open) return;
-    if (note) void host.renderNote(el, file);
-    else if (node.type === "text") void host.renderText(el, text);
-    else el.replaceChildren();
-  }, [node.type, note, file, text, host, tick, open]);
+    if (!note && node.type !== "text") {
+      el.replaceChildren();
+      return;
+    }
+    return draw(id, () => (note ? host.renderNote(el, file) : host.renderText(el, text)));
+  }, [id, node.type, note, file, text, host, tick, open, draw]);
   useEffect(() => {
     if (editing && note && !open) setOpen(true);
     if (!editing && open) {
@@ -307,7 +336,12 @@ function Card({
         </div>
       )}
       {node.type === "file" && missing && <div className="board-card-note">{s.missing}</div>}
-      {node.type === "file" && !missing && IMAGE.test(ext(file)) && <img className="board-card-image" src={host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} />}
+      {picture && copy !== undefined && (
+        <div className="board-card-image">
+          <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" />
+          {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
+        </div>
+      )}
       {node.type === "link" && (
         <div className="board-card-link">
           <div className="board-card-head">
@@ -338,6 +372,56 @@ function Card({
 
 const MemoCard = memo(Card);
 
+/** Queue a card's drawing; the function returned takes it back if it has
+ *  not started. */
+type Draw = (id: string, run: () => Promise<void>) => () => void;
+
+/** Cards draw their notes a few at a time, the nearest to the view first
+ *  (`rank`, lowest first): a board of many notes shows what is on screen at
+ *  once, and the rest follows while it is looked at. */
+function drawQueue(rank: (id: string) => number, limit = 3): Draw {
+  const waiting: { id: string; run: () => Promise<void> }[] = [];
+  let running = 0;
+  let queued = false;
+  const pump = (): void => {
+    queued = false;
+    while (running < limit && waiting.length > 0) {
+      let best = 0;
+      let bestRank = rank(waiting[0]!.id);
+      for (let i = 1; i < waiting.length; i++) {
+        const r = rank(waiting[i]!.id);
+        if (r < bestRank) {
+          best = i;
+          bestRank = r;
+        }
+      }
+      const [job] = waiting.splice(best, 1);
+      if (!job) break;
+      running++;
+      void job
+        .run()
+        .catch(() => undefined)
+        .finally(() => {
+          running--;
+          pump();
+        });
+    }
+  };
+  return (id, run) => {
+    const job = { id, run };
+    waiting.push(job);
+    // The cards mounted in one render all join before the nearest is picked.
+    if (!queued) {
+      queued = true;
+      queueMicrotask(pump);
+    }
+    return () => {
+      const i = waiting.indexOf(job);
+      if (i >= 0) waiting.splice(i, 1);
+    };
+  };
+}
+
 /** Where the board is looking: Excalidraw's scroll and zoom, and its size. */
 type View = { scrollX: number; scrollY: number; zoom: number; width: number; height: number };
 
@@ -360,6 +444,12 @@ function cardPath(w: number, h: number, r: number): string {
   return `M ${f(r)} 0 L ${f(w - r)} 0 Q ${f(w)} 0 ${f(w)} ${f(r)} L ${f(w)} ${f(h - r)} Q ${f(w)} ${f(h)} ${f(w - r)} ${f(h)} L ${f(r)} ${f(h)} Q 0 ${f(h)} 0 ${f(h - r)} L 0 ${f(r)} Q 0 0 ${f(r)} 0 Z`;
 }
 
+/** A picture's copy is this wide (`pictureCopy` in the window), and a
+ *  card shows a picture about this wide at 100 %: past the zoom where the
+ *  copy would be stretched, the originals are laid over the copies. */
+const PICTURE_COPY = 800;
+const CARD_PICTURE_WIDTH = 420;
+
 /** Below this zoom a card is scaled down, not laid out at the zoom:
  *  WebKit keeps a minimum font size, and a picture shrunk does not blur. */
 const LAYOUT_ZOOM = 0.75;
@@ -374,8 +464,13 @@ type Overlay = { x: number; y: number; svg: string };
  * picture: text read like a blurred screenshot. Here a card at rest is
  * placed in screen pixels and laid out at the zoom itself (CSS `zoom`),
  * with no transform at all: its text is drawn at the size it is seen.
- * While the view moves, the whole layer follows with one transform (see
- * `Board`), and is drawn again, sharp, once the view settles.
+ *
+ * Every card is mounted once and keeps what it drew: a card far from the
+ * view is only hidden (`cull`), so coming back to it shows it at once, as
+ * it was. The cards sit on a plane that is not cut to the view: while the
+ * view moves, the plane follows with one transform (see `Board`), and what
+ * was just outside the view slides in already drawn. Only a change of zoom
+ * lays the cards out again, sharp, once the view settles.
  *
  * The layer sits above Excalidraw's drawing and below its selection, so a
  * shape selected over a card shows its handles. What is drawn above a card
@@ -384,88 +479,127 @@ function CardLayer({
   cards,
   overlays,
   view,
+  live,
+  cullRef,
+  laidOut: onLaidOut,
   active,
   host,
   tick,
   plane,
   editing,
   setEditing,
+  draw,
 }: {
   cards: readonly El[];
   overlays: ReadonlyMap<string, Overlay>;
+  /** The view the cards are placed for. */
   view: View;
+  /** The view as it is now, which may have moved on since. */
+  live: RefObject<View>;
+  /** Where the layer leaves the function that shows and hides its cards. */
+  cullRef: RefObject<((v: View) => void) | null>;
+  /** Told, before paint, that the cards are placed for `view`. */
+  laidOut: (view: View) => void;
   active: string | null;
   host: BoardHost;
   tick: number;
   plane: RefObject<HTMLDivElement | null>;
   editing: string | null;
   setEditing: (id: string | null) => void;
+  draw: Draw;
 }): JSX.Element {
   const z = view.zoom;
   const laidOut = z >= LAYOUT_ZOOM;
-  // Only what is near the view is drawn: a board of hundreds of notes
-  // lays out the few it shows.
-  const x0 = -view.scrollX - view.width / z;
-  const y0 = -view.scrollY - view.height / z;
-  const x1 = -view.scrollX + (2 * view.width) / z;
-  const y1 = -view.scrollY + (2 * view.height) / z;
+  const keep = useRef({ editing, active });
+  keep.current = { editing, active };
+  // Shown within a screen of the view, hidden past two: a card at the edge
+  // does not come and go as the view trembles. The one entered or edited is
+  // always shown.
+  useLayoutEffect(() => {
+    const rects = new Map(cards.map((e) => [e.id, [e.x, e.y, e.x + e.width, e.y + e.height] as const]));
+    const slots = Array.from(plane.current?.children ?? []) as HTMLElement[];
+    const cull = (v: View): void => {
+      if (v.width === 0 || v.zoom <= 0) return;
+      const mx = v.width / v.zoom;
+      const my = v.height / v.zoom;
+      const vx0 = -v.scrollX;
+      const vy0 = -v.scrollY;
+      for (const el of slots) {
+        const id = el.dataset["card"] ?? "";
+        const r = rects.get(id);
+        if (!r) continue;
+        const far = el.classList.contains("is-far");
+        if (id === keep.current.editing || id === keep.current.active) {
+          if (far) el.classList.remove("is-far");
+          continue;
+        }
+        const m = far ? 1 : 2;
+        const out = r[2] < vx0 - m * mx || r[0] > vx0 + (m + 1) * mx || r[3] < vy0 - m * my || r[1] > vy0 + (m + 1) * my;
+        if (out !== far) el.classList.toggle("is-far", out);
+      }
+    };
+    cullRef.current = cull;
+    cull(live.current ?? view);
+    onLaidOut(view);
+  });
   return (
-    <div className={`board-cards${active ? " has-active" : ""}`} ref={plane}>
-      {cards.map((e) => {
-        const node = nodeData(e);
-        if (!node) return null;
-        // A card being edited stays, wherever the view goes: its editor
-        // holds what was typed.
-        if (e.id !== editing && (e.x > x1 || e.y > y1 || e.x + e.width < x0 || e.y + e.height < y0)) return null;
-        // The card fills the shape up to the inner edge of its stroke: the
-        // stroke is centred on the shape's edge.
-        const sw = typeof e["strokeWidth"] === "number" ? (e["strokeWidth"] as number) : 1;
-        const inset = sw / 2;
-        const w = Math.max(1, e.width - sw);
-        const h = Math.max(1, e.height - sw);
-        const r = Math.max(0, Math.min(cornerRadius(e) - inset, w / 2, h / 2));
-        const box = {
-          width: `${w}px`,
-          height: `${h}px`,
-          ...(laidOut ? { zoom: z } : { transform: `scale(${z})`, transformOrigin: "0 0" }),
-        } as CSSProperties;
-        const angle = typeof e.angle === "number" && e.angle !== 0 ? e.angle : 0;
-        const over = angle ? undefined : overlays.get(e.id);
-        return (
-          <div
-            key={e.id}
-            className={`board-card-slot${active === e.id ? " is-active" : ""}`}
-            style={{
-              left: `${(e.x + inset + view.scrollX) * z}px`,
-              top: `${(e.y + inset + view.scrollY) * z}px`,
-              width: `${w * z}px`,
-              height: `${h * z}px`,
-              clipPath: `path("${cardPath(w * z, h * z, r * z)}")`,
-              ...(angle ? { transform: `rotate(${angle}rad)`, transformOrigin: "50% 50%" } : {}),
-            }}
-          >
-            <div className="board-card-box" style={box}>
-              <MemoCard
-                fill={typeof e.fillStyle === "string" ? e.fillStyle : "solid"}
-                background={typeof e.backgroundColor === "string" && e.backgroundColor !== "transparent" && e.backgroundColor.toLowerCase() !== CARD_PAPER ? e.backgroundColor : null}
-                node={node}
-                host={host}
-                tick={tick}
-                editing={editing === e.id}
-                onEdit={() => setEditing(e.id)}
-                onExit={() => setEditing(null)}
-              />
-              {over && (
-                <div
-                  className="board-card-over"
-                  style={{ left: `${over.x - e.x - inset}px`, top: `${over.y - e.y - inset}px` }}
-                  dangerouslySetInnerHTML={{ __html: over.svg }}
+    <div className={`board-cards${active ? " has-active" : ""}`}>
+      <div className={`board-cards-plane${z * (window.devicePixelRatio || 1) * CARD_PICTURE_WIDTH > PICTURE_COPY ? " is-close" : ""}`} ref={plane}>
+        {cards.map((e) => {
+          const node = nodeData(e);
+          if (!node) return null;
+          // The card fills the shape up to the inner edge of its stroke: the
+          // stroke is centred on the shape's edge.
+          const sw = typeof e["strokeWidth"] === "number" ? (e["strokeWidth"] as number) : 1;
+          const inset = sw / 2;
+          const w = Math.max(1, e.width - sw);
+          const h = Math.max(1, e.height - sw);
+          const r = Math.max(0, Math.min(cornerRadius(e) - inset, w / 2, h / 2));
+          const box = {
+            width: `${w}px`,
+            height: `${h}px`,
+            ...(laidOut ? { zoom: z } : { transform: `scale(${z})`, transformOrigin: "0 0" }),
+          } as CSSProperties;
+          const angle = typeof e.angle === "number" && e.angle !== 0 ? e.angle : 0;
+          const over = angle ? undefined : overlays.get(e.id);
+          return (
+            <div
+              key={e.id}
+              data-card={e.id}
+              className={`board-card-slot${active === e.id ? " is-active" : ""}`}
+              style={{
+                left: `${(e.x + inset + view.scrollX) * z}px`,
+                top: `${(e.y + inset + view.scrollY) * z}px`,
+                width: `${w * z}px`,
+                height: `${h * z}px`,
+                clipPath: `path("${cardPath(w * z, h * z, r * z)}")`,
+                ...(angle ? { transform: `rotate(${angle}rad)`, transformOrigin: "50% 50%" } : {}),
+              }}
+            >
+              <div className="board-card-box" style={box}>
+                <MemoCard
+                  id={e.id}
+                  fill={typeof e.fillStyle === "string" ? e.fillStyle : "solid"}
+                  background={typeof e.backgroundColor === "string" && e.backgroundColor !== "transparent" && e.backgroundColor.toLowerCase() !== CARD_PAPER ? e.backgroundColor : null}
+                  node={node}
+                  host={host}
+                  tick={tick}
+                  editing={editing === e.id}
+                  setEditing={setEditing}
+                  draw={draw}
                 />
-              )}
+                {over && (
+                  <div
+                    className="board-card-over"
+                    style={{ left: `${over.x - e.x - inset}px`, top: `${over.y - e.y - inset}px` }}
+                    dangerouslySetInnerHTML={{ __html: over.svg }}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -875,6 +1009,37 @@ function Board({
   const [settled, setSettled] = useState<View>(settledRef.current);
   const settleTimer = useRef<number | undefined>(undefined);
   const plane = useRef<HTMLDivElement | null>(null);
+  /** The view as it is now; the view the cards are placed for (`base`). */
+  const liveRef = useRef<View>(settledRef.current);
+  const baseRef = useRef<View>(settledRef.current);
+  const cullRef = useRef<((v: View) => void) | null>(null);
+  const rememberTimer = useRef<number | undefined>(undefined);
+  /** What the elements are, and what an edit under way is, when the work
+   *  that reads them last ran (`onChange`). */
+  const workKey = useRef("");
+  const cardById = useRef(new Map<string, El>());
+  // The plane follows the view from where its cards are placed: a
+  // translation snapped to the screen's pixels (text stays crisp), and a
+  // scale while a zoom is under way, until the cards are laid out again.
+  const place = useCallback(() => {
+    const p = plane.current;
+    const base = baseRef.current;
+    const v = liveRef.current;
+    if (!p || base.width === 0 || base.zoom <= 0) return;
+    const k = v.zoom / base.zoom;
+    const dpr = window.devicePixelRatio || 1;
+    const snap = (n: number): number => Math.round(n * dpr) / dpr;
+    const dx = (v.scrollX - base.scrollX) * v.zoom;
+    const dy = (v.scrollY - base.scrollY) * v.zoom;
+    p.style.transform = k === 1 ? (dx === 0 && dy === 0 ? "" : `translate(${snap(dx)}px, ${snap(dy)}px)`) : `translate(${dx}px, ${dy}px) scale(${k})`;
+  }, []);
+  const laidOut = useCallback(
+    (v: View) => {
+      baseRef.current = v;
+      place();
+    },
+    [place],
+  );
   const [active, setActive] = useState<string | null>(null);
   // The card whose note is edited in it; leaving the card leaves the editor.
   const [editing, setEditing] = useState<string | null>(null);
@@ -991,6 +1156,7 @@ function Board({
 
   const syncCards = useCallback((els: readonly ExcalidrawElement[]) => {
     const list = (els as unknown as El[]).filter((e) => e.type === "embeddable" && !e.isDeleted && isNode(e));
+    cardById.current = new Map(list.map((e) => [e.id, e]));
     const key = list.map((e) => `${e.id}:${String(e["version"])}`).join("|");
     if (key === cardsKey.current) return;
     cardsKey.current = key;
@@ -1096,7 +1262,7 @@ function Board({
     let hover: HTMLElement | null = null;
     const inside = (r: DOMRect, x: number, y: number): boolean => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
     const buttonAt = (x: number, y: number): HTMLElement | null => {
-      const slots = root.querySelectorAll<HTMLElement>(".board-card-slot");
+      const slots = root.querySelectorAll<HTMLElement>(".board-card-slot:not(.is-far)");
       for (let i = slots.length - 1; i >= 0; i--) {
         const slot = slots[i]!;
         if (!inside(slot.getBoundingClientRect(), x, y)) continue;
@@ -1211,48 +1377,80 @@ function Board({
   useEffect(() => {
     setLayerHost(container.current?.querySelector<HTMLElement>(".excalidraw") ?? null);
   }, []);
-  // The cards drawn at the settled view replace the moving layer's
-  // transform in the same frame.
-  useLayoutEffect(() => {
-    if (plane.current) plane.current.style.transform = "";
-  }, [settled]);
+  // Nearest the view first: the distance from a card's centre to the
+  // view's, in the board's units.
+  const draw = useMemo(
+    () =>
+      drawQueue((id) => {
+        const e = cardById.current.get(id);
+        const v = liveRef.current;
+        if (!e || v.width === 0 || v.zoom <= 0) return Number.MAX_VALUE;
+        const dx = e.x + e.width / 2 - (-v.scrollX + v.width / (2 * v.zoom));
+        const dy = e.y + e.height / 2 - (-v.scrollY + v.height / (2 * v.zoom));
+        return dx * dx + dy * dy;
+      }),
+    [],
+  );
 
   const onChange = useCallback(
     (els: readonly ExcalidrawElement[], state: AppState) => {
-      dropMarkers(els);
-      syncCards(els);
-      scheduleOverlays(els);
-      if (!freeEdges(els, state)) liftDrawn(els, state);
-      // The view: while it moves, the card layer follows with one transform
-      // from where it last settled; once it settles, the cards are drawn
-      // again where they are, at the zoom they are shown at.
+      // Excalidraw calls this on every frame the view moves. What reads the
+      // elements — the cards, the overlays, the edges, the save, the
+      // outline — runs only when they, an edit under way, or the background
+      // changed: a view that moves changes none of them.
+      const key = [
+        getSceneVersion(els as never),
+        state.newElement?.id ?? "",
+        state.multiElement?.id ?? "",
+        state.editingTextElement?.id ?? "",
+        state.resizingElement?.id ?? "",
+        state.selectedElementsAreBeingDragged ? 1 : 0,
+        state.editingLinearElement ? 1 : 0,
+        state.viewBackgroundColor,
+      ].join("|");
+      if (key !== workKey.current) {
+        workKey.current = key;
+        dropMarkers(els);
+        syncCards(els);
+        scheduleOverlays(els);
+        if (!freeEdges(els, state)) liftDrawn(els, state);
+        window.clearTimeout(timer.current);
+        timer.current = window.setTimeout(flush, SAVE_DELAY);
+        window.clearTimeout(outlineTimer.current);
+        outlineTimer.current = window.setTimeout(() => setElements(els as unknown as El[]), 300);
+      }
+      // The view: the cards follow it at once, with one transform of their
+      // plane; cards near it are shown, far ones hidden. A change of zoom
+      // or size lays them out again once the view settles; a view that only
+      // moves never does.
       const v: View = { scrollX: state.scrollX, scrollY: state.scrollY, zoom: state.zoom.value, width: state.width, height: state.height };
-      const s0 = settledRef.current;
-      if (v.scrollX !== s0.scrollX || v.scrollY !== s0.scrollY || v.zoom !== s0.zoom || v.width !== s0.width || v.height !== s0.height) {
-        const k = v.zoom / s0.zoom;
-        if (plane.current && s0.width > 0) {
-          plane.current.style.transformOrigin = "0 0";
-          plane.current.style.transform = `translate(${(v.scrollX - s0.scrollX) * v.zoom}px, ${(v.scrollY - s0.scrollY) * v.zoom}px) scale(${k})`;
-        }
-        window.clearTimeout(settleTimer.current);
+      const was = liveRef.current;
+      if (v.scrollX !== was.scrollX || v.scrollY !== was.scrollY || v.zoom !== was.zoom || v.width !== was.width || v.height !== was.height) {
+        liveRef.current = v;
+        place();
+        cullRef.current?.(v);
+        const s0 = settledRef.current;
         const settle = (): void => {
-          settledRef.current = v;
-          setSettled(v);
-          if (viewReady.current) host.rememberView({ scrollX: v.scrollX, scrollY: v.scrollY, zoom: v.zoom });
+          settledRef.current = liveRef.current;
+          setSettled(liveRef.current);
         };
         if (s0.width === 0) settle();
-        else settleTimer.current = window.setTimeout(settle, 150);
+        else if (v.zoom !== s0.zoom || v.width !== s0.width || v.height !== s0.height) {
+          window.clearTimeout(settleTimer.current);
+          settleTimer.current = window.setTimeout(settle, 150);
+        }
+        window.clearTimeout(rememberTimer.current);
+        rememberTimer.current = window.setTimeout(() => {
+          const r = liveRef.current;
+          if (viewReady.current) host.rememberView({ scrollX: r.scrollX, scrollY: r.scrollY, zoom: r.zoom });
+        }, 400);
       }
       const entered = state.activeEmbeddable?.state === "active" ? state.activeEmbeddable.element.id : null;
       setActive((was) => (was === entered ? was : entered));
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(flush, SAVE_DELAY);
       const ids = Object.keys(state.selectedElementIds).filter((k) => state.selectedElementIds[k]);
       setSelected((was) => (was.length === ids.length && was.every((v, i) => v === ids[i]) ? was : ids));
-      window.clearTimeout(outlineTimer.current);
-      outlineTimer.current = window.setTimeout(() => setElements(els as unknown as El[]), 300);
     },
-    [flush, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, host],
+    [flush, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, host, place],
   );
 
   const center = (): [number, number] => {
@@ -1582,6 +1780,7 @@ function Board({
                 const st = a.getAppState();
                 const v: View = { scrollX: st.scrollX, scrollY: st.scrollY, zoom: st.zoom.value, width: st.width, height: st.height };
                 settledRef.current = v;
+                liveRef.current = v;
                 setSettled(v);
               });
             }}
@@ -1631,7 +1830,24 @@ function Board({
             </MainMenu>
           </Excalidraw>
           {layerHost &&
-            createPortal(<CardLayer editing={editing} setEditing={setEditing} cards={cards} overlays={overlays} view={settled} active={active} host={host} tick={tick} plane={plane} />, layerHost)}
+            createPortal(
+              <CardLayer
+                editing={editing}
+                setEditing={setEditing}
+                draw={draw}
+                cards={cards}
+                overlays={overlays}
+                view={settled}
+                live={liveRef}
+                cullRef={cullRef}
+                laidOut={laidOut}
+                active={active}
+                host={host}
+                tick={tick}
+                plane={plane}
+              />,
+              layerHost,
+            )}
         </div>
         {exporting && api.current && <ExportDialog api={api.current} host={host} selected={selected} onClose={() => setExporting(false)} />}
         {showOutline && (
