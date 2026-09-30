@@ -57,6 +57,16 @@ autor, para o mantenedor questionar.
    desenhados pelo Verso dentro de elementos `embeddable` do Excalidraw;
    grupos são frames; arestas são setas ligadas. O que não tem forma em JSON
    Canvas fica em `drawing`.
+   *(Acrescentado em 2026-09-30 pelo mantenedor, em sessão: "no hexcalidraw,
+   se eu clico duas vezes ele faz o que vc falou, se eu clico mais uma vez
+   entre em modo de edição daquela nota sem sair da tela do board".)* Entra-se
+   no cartão de uma nota com um clique duplo, como o Excalidraw entra em
+   qualquer embeddable, e ele mostra a nota para leitura; mais um clique no
+   texto edita a nota ali, no editor de notas da janela (Live Preview), salva
+   como a aba de uma nota salva — de forma atômica, sobre a revisão lida, e
+   uma escrita recusada mostra as duas versões no cartão (invariantes 9 e
+   11). Esc, ou sair do cartão, volta à leitura; ⌘ com clique duplo, ou o
+   botão de abrir do cartão, abre a nota numa aba.
 4. **A camada semântica entra**, e a Q10 da spec é decidida com ela. **Uma
    relação tipada é uma propriedade do frontmatter da nota de origem cujo
    valor é um wikilink entre aspas, ou uma lista deles**:

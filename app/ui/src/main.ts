@@ -100,7 +100,7 @@ import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
 import { ask, tell, promptText } from "./dialog";
 import { boardStrings } from "./board/strings";
-import type { BoardHandle, BoardHost } from "./board/view";
+import type { BoardHandle, BoardHost, CardEditing } from "./board/view";
 import { boardPathFor, readDrawing, toBoard } from "./board/convert";
 import { linkTo, withRelation } from "./board/relation";
 import { listedPath } from "./board/model";
@@ -3724,6 +3724,7 @@ class BoardLeaf extends TextLeaf {
       pickFile: () => quick.pick(),
       prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
       promote: (from, to, key) => promoteRelation(listed(from), to, key),
+      editNote: (el, path, onExit) => cardEditor(el, listed(path), onExit),
       openUrl: (url) => void commands.openUrl(url),
       status: (text) => (ui.status.textContent = text),
     };
@@ -3830,6 +3831,165 @@ class BoardLeaf extends TextLeaf {
     this.board = null;
     super.destroy();
   }
+}
+
+/* A note edited inside its card on a board (ADR 0057): the note editor
+ * in Live Preview, saved as a note's tab saves it — after a pause, over
+ * the revision read, atomically — and a refused write shows both versions
+ * in the card until the user decides (invariant 11). Keys, and the
+ * clipboard, stay in the card: Excalidraw takes a text box that is not an
+ * <input> for the board, and would read Delete or a letter as its own. */
+function cardEditor(host: HTMLElement, path: string, onExit: () => void): CardEditing {
+  const editorHost = h("div", "editor card-editor");
+  const conflict = new ConflictBanner(() => void reload(), () => void overwrite());
+  host.replaceChildren(conflict.el, editorHost);
+  for (const type of ["keydown", "keyup", "keypress", "paste", "copy", "cut"]) host.addEventListener(type, (e) => e.stopPropagation());
+  let view: EditorView | null = null;
+  let revision = "";
+  let eol = "\n";
+  let dirty = false;
+  let timer: number | undefined;
+  let saving: Promise<void> = Promise.resolve();
+  let gone = false;
+  const text = (): string => view?.state.doc.sliceString(0, undefined, eol) ?? "";
+  const state = (doc: string, readOnly: boolean): EditorState => {
+    const md = markdown({ codeLanguages: languages, extensions: [Table, TaskList, Strikethrough] });
+    const live = livePreview({
+      imageUrl: (target) => imageUrl(path, target, () => view?.dispatch({ effects: redraw.of(null) })),
+      navigate: (target) => {
+        const to = resolveNoteByName(target.split(/[#^]/)[0] ?? "", path);
+        if (to) openNote(to, false);
+        else ui.status.textContent = t.unresolved(target);
+      },
+    });
+    const keys: KeyBinding[] = [
+      { key: "Mod-s", run: () => (void save(), true) },
+      { key: "Escape", run: () => (onExit(), true) },
+    ];
+    return EditorState.create({
+      doc,
+      extensions: [
+        baseEditorExtensions,
+        md.language.data.of({ autocomplete: completeWikilinks }),
+        md,
+        syntaxHighlighting(classHighlighter),
+        EditorView.contentAttributes.of({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off", "aria-label": name(path) }),
+        tableKeymap,
+        listKeymap,
+        keymap.of(markdownKeymap),
+        EditorView.lineWrapping,
+        live,
+        readOnly ? readOnlyText : [],
+        Prec.high(keymap.of(keys)),
+        EditorView.updateListener.of((u) => {
+          if (!u.docChanged || u.transactions.some((tr) => tr.annotation(fromDisk))) return;
+          dirty = true;
+          window.clearTimeout(timer);
+          timer = window.setTimeout(() => {
+            if (dirty && !conflict.up) void save();
+          }, Math.max(0.3, settings.autosave) * 1000);
+        }),
+      ],
+    });
+  };
+  const show = (note: NoteText): void => {
+    revision = note.revision;
+    const sep = lineSeparator(note.text);
+    eol = sep ?? "\n";
+    if (view) view.setState(state(note.text, sep === null));
+    else view = new EditorView({ parent: editorHost, state: state(note.text, sep === null) });
+    dirty = false;
+    conflict.hide();
+  };
+  const ready = commands.readNote(path).then((r) => {
+    if (gone) return;
+    if (r.status !== "ok") return fail(r.error);
+    show(r.data);
+  });
+  const written = (w: Written, mine: string): void => {
+    revision = w.note.revision;
+    if (text() === mine) dirty = false;
+    ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
+  };
+  const refused = async (e: ContractError): Promise<void> => {
+    if (e.kind !== "changed") return fail(e);
+    const fresh = await commands.readNote(path);
+    if (fresh.status !== "ok") return fail(fresh.error);
+    conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, text());
+  };
+  const save = (): Promise<void> => {
+    const run = saving.then(async () => {
+      if (!view || !dirty) return;
+      if (conflict.up) {
+        ui.status.textContent = t.conflictPending;
+        return;
+      }
+      const mine = text();
+      const r = await commands.writeNote(path, mine, revision);
+      if (r.status === "ok") written(r.data, mine);
+      else await refused(r.error);
+    });
+    saving = run.catch(() => undefined);
+    return run;
+  };
+  const overwrite = (): Promise<void> => {
+    const run = saving.then(async () => {
+      const disk = conflict.disk;
+      if (!view || !disk) return;
+      const mine = text();
+      const r = await commands.writeNote(path, mine, disk.revision);
+      if (r.status !== "ok") return refused(r.error);
+      conflict.hide();
+      written(r.data, mine);
+    });
+    saving = run.catch(() => undefined);
+    return run;
+  };
+  const reload = async (): Promise<void> => {
+    await saving;
+    const r = await commands.readNote(path);
+    if (r.status !== "ok") return fail(r.error);
+    show(r.data);
+  };
+  return {
+    async flush() {
+      await ready;
+      window.clearTimeout(timer);
+      if (conflict.up) return false;
+      if (dirty) await save();
+      return !dirty && !conflict.up;
+    },
+    // The folder changed: text typed here is saved, which meets any
+    // difference; with nothing typed, the disk's text comes in as one edit.
+    async recheck() {
+      await ready;
+      await saving;
+      if (!view || gone || conflict.up) return;
+      if (dirty) return void (await save());
+      const r = await commands.readNote(path);
+      if (gone || r.status !== "ok" || r.data.revision === revision || !view) return;
+      const sep = lineSeparator(r.data.text);
+      if (sep === null || sep !== eol) return show(r.data);
+      const now = sep === "\n" ? r.data.text : r.data.text.split(sep).join("\n");
+      const edit = minimalEdit(view.state.doc.toString(), now);
+      if (edit) view.dispatch({ changes: edit, annotations: [fromDisk.of(true), isolateHistory.of("full")] });
+      revision = r.data.revision;
+    },
+    focusAt(x, y) {
+      void ready.then(() => {
+        if (!view || gone) return;
+        view.focus();
+        const at = view.posAtCoords({ x, y });
+        view.dispatch({ selection: { anchor: at ?? view.state.doc.length } });
+      });
+    },
+    destroy() {
+      gone = true;
+      window.clearTimeout(timer);
+      view?.destroy();
+      host.replaceChildren();
+    },
+  };
 }
 
 /** HTML the core rendered — a note's, or a board's text card — drawn as

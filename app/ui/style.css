@@ -2573,6 +2573,10 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 /* A card draws its note as the reading view does, at a card's size. */
 .board-card-body.preview { margin: 0; max-width: none; font-size: .86rem; line-height: 1.5; padding: .45rem .7rem .7rem; }
+.board-card-editor { overflow: auto; padding: .35rem .2rem .7rem; font-size: .86rem; line-height: 1.5; cursor: text; }
+.board-card-editor .card-editor { margin: 0; max-width: none; }
+.board-card-editor .card-editor .cm-scroller { font-size: .86rem; line-height: 1.5; min-height: 0; }
+.board-card-editor .conflict { margin: 0 .5rem .5rem; }
 .board-card-body.preview img { max-width: 100%; height: auto; }
 .board-card-body.preview .embed-note { margin: .4rem 0; }
 /* The board's search, in its bar. */

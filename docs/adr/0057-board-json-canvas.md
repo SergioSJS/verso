@@ -54,6 +54,16 @@ author's choice, for the maintainer to question.
    the memo's section 5; notes, texts, links, images and PDFs are drawn by
    Verso inside Excalidraw's `embeddable` elements; groups are frames; edges
    are bound arrows. What has no JSON Canvas form stays in `drawing`.
+   *(Added on 2026-09-30 by the maintainer, in session: "no hexcalidraw, se
+   eu clico duas vezes ele faz o que vc falou, se eu clico mais uma vez
+   entre em modo de edição daquela nota sem sair da tela do board".)* A
+   note's card is entered by a double click, as Excalidraw enters any
+   embeddable, and reads the note; a further click on its text edits the
+   note there, in the window's note editor (Live Preview), saved as a
+   note's tab saves it — atomically, over the revision read, a refused
+   write showing both versions in the card (invariants 9 and 11). Escape,
+   or leaving the card, goes back to reading; ⌘ and a double click, or the
+   card's open button, opens the note in a tab.
 4. **The semantic layer is in**, and spec Q10 is decided with it. **A typed
    relation is a frontmatter property of the source note whose value is a
    quoted wikilink, or a list of them**: `aliado: "[[Barão]]"`,

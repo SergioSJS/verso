@@ -74,6 +74,20 @@ export type BoardHost = {
   promote: (from: string, to: string, key: string) => Promise<boolean>;
   openUrl: (url: string) => void;
   status: (text: string) => void;
+  /** Edit a note inside `el`, in the window's note editor; `onExit` is
+   *  asked for by Escape. */
+  editNote: (el: HTMLElement, path: string, onExit: () => void) => CardEditing;
+};
+
+/** A note being edited in its card. */
+export type CardEditing = {
+  /** Save now; true when nothing is left unsaved (false: a conflict waits). */
+  flush: () => Promise<boolean>;
+  /** The folder changed: meet the note on disk. */
+  recheck: () => Promise<void>;
+  /** The caret where the pointer is, and the keyboard in the editor. */
+  focusAt: (x: number, y: number) => void;
+  destroy: () => void;
 };
 
 export type BoardHandle = {
@@ -122,24 +136,68 @@ function Card({
   node,
   host,
   tick,
+  editing,
+  onEdit,
+  onExit,
 }: {
   node: CanvasNode;
   host: BoardHost;
   tick: number;
+  /** The card is entered and asked to edit its note. */
+  editing: boolean;
+  onEdit: () => void;
+  onExit: () => void;
 }): JSX.Element {
   const body = useRef<HTMLDivElement>(null);
+  const editorEl = useRef<HTMLDivElement>(null);
+  const editor = useRef<CardEditing | null>(null);
+  const at = useRef<[number, number]>([0, 0]);
+  // The editor stays until what it holds is saved: leaving the card with a
+  // conflict on screen keeps it, and the card entered again shows it.
+  const [open, setOpen] = useState(false);
   const s = host.strings;
   const file = typeof node.file === "string" ? node.file : "";
   const text = typeof node.text === "string" ? node.text : "";
   const url = typeof node.url === "string" ? node.url : "";
   const missing = node.type === "file" && !host.exists(file);
+  const note = node.type === "file" && !missing && ext(file) === "md";
   useEffect(() => {
     const el = body.current;
-    if (!el) return;
-    if (node.type === "file" && !missing && ext(file) === "md") void host.renderNote(el, file);
+    if (!el || open) return;
+    if (note) void host.renderNote(el, file);
     else if (node.type === "text") void host.renderText(el, text);
     else el.replaceChildren();
-  }, [node.type, file, text, missing, host, tick]);
+  }, [node.type, note, file, text, host, tick, open]);
+  useEffect(() => {
+    if (editing && note && !open) setOpen(true);
+    if (!editing && open) {
+      const ed = editor.current;
+      void (ed ? ed.flush() : Promise.resolve(true)).then((clean) => {
+        if (!clean) return host.status(s.conflictInCard);
+        ed?.destroy();
+        editor.current = null;
+        setOpen(false);
+      });
+    }
+  }, [editing, note, open, host, s]);
+  useEffect(() => {
+    const el = editorEl.current;
+    if (!open || !el) return;
+    const ed = host.editNote(el, file, onExit);
+    editor.current = ed;
+    ed.focusAt(at.current[0], at.current[1]);
+    return () => {
+      // Gone from the board (deleted, or the board closed): what was
+      // typed is saved first.
+      if (editor.current !== ed) return;
+      editor.current = null;
+      void ed.flush().finally(() => ed.destroy());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, file]);
+  useEffect(() => {
+    if (open) void editor.current?.recheck();
+  }, [tick, open]);
   const kind = node.type === "text" ? s.textCard : node.type === "link" ? s.linkCard : ext(file) || node.type;
   return (
     <div
@@ -169,7 +227,19 @@ function Card({
           <span className="board-card-url">{url}</span>
         </div>
       )}
-      <div className="board-card-body preview" ref={body} />
+      <div
+        className="board-card-body preview"
+        ref={body}
+        hidden={open}
+        // Entered, a click on the note's text (not on a link) edits it
+        // there, as a second click does on Obsidian's canvas.
+        onClick={(e) => {
+          if (!note || (e.target as HTMLElement).closest("a, button, input, summary, .embed-note, .embed-pdf")) return;
+          at.current = [e.clientX, e.clientY];
+          onEdit();
+        }}
+      />
+      {open && <div className="board-card-body board-card-editor" ref={editorEl} />}
     </div>
   );
 }
@@ -226,6 +296,8 @@ function CardLayer({
   host,
   tick,
   plane,
+  editing,
+  setEditing,
 }: {
   cards: readonly El[];
   overlays: ReadonlyMap<string, Overlay>;
@@ -234,6 +306,8 @@ function CardLayer({
   host: BoardHost;
   tick: number;
   plane: RefObject<HTMLDivElement | null>;
+  editing: string | null;
+  setEditing: (id: string | null) => void;
 }): JSX.Element {
   const z = view.zoom;
   const laidOut = z >= LAYOUT_ZOOM;
@@ -248,7 +322,9 @@ function CardLayer({
       {cards.map((e) => {
         const node = nodeData(e);
         if (!node) return null;
-        if (e.x > x1 || e.y > y1 || e.x + e.width < x0 || e.y + e.height < y0) return null;
+        // A card being edited stays, wherever the view goes: its editor
+        // holds what was typed.
+        if (e.id !== editing && (e.x > x1 || e.y > y1 || e.x + e.width < x0 || e.y + e.height < y0)) return null;
         // The card fills the shape up to the inner edge of its stroke: the
         // stroke is centred on the shape's edge.
         const sw = typeof e["strokeWidth"] === "number" ? (e["strokeWidth"] as number) : 1;
@@ -277,7 +353,14 @@ function CardLayer({
             }}
           >
             <div className="board-card-box" style={box}>
-              <MemoCard node={node} host={host} tick={tick} />
+              <MemoCard
+                node={node}
+                host={host}
+                tick={tick}
+                editing={editing === e.id}
+                onEdit={() => setEditing(e.id)}
+                onExit={() => setEditing(null)}
+              />
               {over && (
                 <div
                   className="board-card-over"
@@ -407,6 +490,11 @@ function Board({
   const settleTimer = useRef<number | undefined>(undefined);
   const plane = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState<string | null>(null);
+  // The card whose note is edited in it; leaving the card leaves the editor.
+  const [editing, setEditing] = useState<string | null>(null);
+  useEffect(() => {
+    if (editing && active !== editing) setEditing(null);
+  }, [active, editing]);
   const [layerHost, setLayerHost] = useState<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<string[]>([]);
@@ -764,7 +852,7 @@ function Board({
     if (root && !root.contains(document.activeElement)) root.focus({ preventScroll: true });
   };
   const writable = (t: EventTarget | null): boolean =>
-    t instanceof HTMLElement && (t.isContentEditable || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || (t instanceof HTMLInputElement && !["checkbox", "radio", "button", "range"].includes(t.type)));
+    t instanceof HTMLElement && (t.isContentEditable || !!t.closest(".board-card-editor") || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || (t instanceof HTMLInputElement && !["checkbox", "radio", "button", "range"].includes(t.type)));
 
   const add = (node: CanvasNode): void => {
     const a = api.current;
@@ -1096,7 +1184,7 @@ function Board({
             </MainMenu>
           </Excalidraw>
           {layerHost &&
-            createPortal(<CardLayer cards={cards} overlays={overlays} view={settled} active={active} host={host} tick={tick} plane={plane} />, layerHost)}
+            createPortal(<CardLayer editing={editing} setEditing={setEditing} cards={cards} overlays={overlays} view={settled} active={active} host={host} tick={tick} plane={plane} />, layerHost)}
         </div>
         {showOutline && (
           <OutlinePanel outline={outline} strings={s} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} />
