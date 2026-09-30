@@ -100,7 +100,7 @@ import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
 import { ask, tell, promptText } from "./dialog";
 import { boardStrings } from "./board/strings";
-import type { BoardHandle, BoardHost, CardEditing } from "./board/view";
+import type { BoardHandle, BoardHost, CardEditing, SavedView } from "./board/view";
 import { CARD_COMMAND } from "./board/command";
 import { boardPathFor, readDrawing, toBoard } from "./board/convert";
 import { linkTo, withRelation } from "./board/relation";
@@ -591,6 +591,13 @@ type Settings = {
   bodyFont?: "sans" | "serif" | "mono" | "system";
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
   hotkeys: Record<string, string>;
+  /** Boards (ADR 0057, 2026-09-30). */
+  boardFolder: string;
+  boardOpenAs: "board" | "source";
+  boardOpen: "fit" | "last";
+  boardStroke: "clean" | "hand";
+  boardFont: "hand" | "sans" | "mono";
+  boardGrid: boolean;
 };
 const DEFAULTS: Settings = {
   lang: "auto",
@@ -617,6 +624,12 @@ const DEFAULTS: Settings = {
   bodyFont: "sans",
   headingColor: "brass",
   hotkeys: {},
+  boardFolder: "",
+  boardOpenAs: "board",
+  boardOpen: "fit",
+  boardStroke: "hand",
+  boardFont: "hand",
+  boardGrid: false,
 };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
@@ -3656,7 +3669,7 @@ class BoardLeaf extends TextLeaf {
   /** What each card's editor held when it was left, for as long as this
    *  tab lives: entered again, a card's ⌘Z goes on where it stopped. */
   readonly cardHistory = new Map<string, KeptCard>();
-  private showing: "board" | "source" = "board";
+  private showing: "board" | "source" = settings.boardOpenAs;
   /** The board's canvas waiting for a write, or refused by one. */
   private pendingBoard: string | null = null;
   constructor(pane: Pane) {
@@ -3679,7 +3692,7 @@ class BoardLeaf extends TextLeaf {
     await super.load(path, force);
     if (this.path !== path) return;
     this.pendingBoard = null;
-    await this.showBoard();
+    if (this.showing === "board") await this.showBoard();
   }
   /** Draw the editor's text as the board: a first mount, or the new text
    *  over the board already there. Not JSON: said, and the text shown. */
@@ -3732,7 +3745,42 @@ class BoardLeaf extends TextLeaf {
       edited: (path) => this.cardHistory.has(listed(path)),
       openUrl: (url) => void commands.openUrl(url),
       status: (text) => (ui.status.textContent = text),
+      prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
+      lastView: () => {
+        try {
+          const v = JSON.parse(localStorage.getItem(this.viewKey()) ?? "null") as SavedView | null;
+          return v && [v.scrollX, v.scrollY, v.zoom].every((n) => typeof n === "number" && Number.isFinite(n)) && v.zoom > 0 ? v : null;
+        } catch {
+          return null;
+        }
+      },
+      rememberView: (v) => {
+        try {
+          localStorage.setItem(this.viewKey(), JSON.stringify(v));
+        } catch {
+          // No storage: the board opens with all of it in view.
+        }
+      },
+      name: () => name(this.path).replace(/\.canvas$/i, ""),
+      saveImage: async (file, base64) => {
+        const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
+        const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
+        const dot = file.lastIndexOf(".");
+        const r = await commands.createFile(freeName(folder, file.slice(0, dot), file.slice(dot)), base64);
+        if (r.status !== "ok") {
+          fail(r.error);
+          return null;
+        }
+        allFiles.push(r.data);
+        await afterFileChange();
+        return r.data;
+      },
     };
+  }
+  /** Where this board's last view is kept: per folder and board, in this
+   *  window's storage — never in the file (opening writes nothing). */
+  private viewKey(): string {
+    return `verso.boardView:${currentFolder}:${this.path}`;
   }
   /** Write the board's canvas over the revision read, after any write in
    *  flight; the text editor takes what was written, as read. */
@@ -4123,6 +4171,17 @@ async function renderReading(el: HTMLElement, html: string, source: string, dept
 let boardModule: Promise<typeof import("./board/view")> | null = null;
 function loadBoardModule(): Promise<typeof import("./board/view")> {
   if (!boardModule) {
+    // Excalidraw lists esm.sh after the app's own copy of every font it
+    // uses; the window's policy refuses the address, but WebKit still
+    // asks and the console fills with refusals. The app's fonts are all
+    // there (ADR 0057 point 8): the fallback address is dropped.
+    const Face = window.FontFace;
+    const local = function (this: unknown, family: string, source: string | BufferSource, descriptors?: FontFaceDescriptors): FontFace {
+      const kept = typeof source === "string" ? source.split(/,\s*(?=url\()/).filter((s) => !s.includes("esm.sh")).join(", ") : source;
+      return new Face(family, kept === "" ? source : kept, descriptors);
+    } as unknown as typeof FontFace;
+    local.prototype = Face.prototype;
+    window.FontFace = local;
     (window as unknown as { EXCALIDRAW_ASSET_PATH: string }).EXCALIDRAW_ASSET_PATH = new URL("excalidraw/", document.baseURI).href;
     if (!document.querySelector("link[data-board-css]")) {
       const css = document.createElement("link");
@@ -4131,7 +4190,10 @@ function loadBoardModule(): Promise<typeof import("./board/view")> {
       css.dataset["boardCss"] = "";
       document.head.append(css);
     }
-    boardModule = import("./board/view");
+    boardModule = import("./board/view").then(async (mod) => {
+      await mod.completeLocale(LANG);
+      return mod;
+    });
   }
   return boardModule;
 }
@@ -6993,7 +7055,7 @@ function createMenuItems(folder = ""): MenuItem[] {
     [t.newHere, () => newNotePrompt(folder), "plus"],
     [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
     [t.newBase, () => void newBase(folder), "calendar"],
-    [boardText.newBoard, () => void newBoard(folder), "board"],
+    [boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"],
     [t.newWebPage, () => newWebPagePrompt(folder), "globe"],
   ];
   if (folder === "") {
@@ -7901,6 +7963,7 @@ function allCommands(all = false): Command[] {
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
     { id: "new-base", label: t.newBase, need: hasFolder, run: () => void newBase(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "insert-base", label: t.insertBase, need: Boolean(note), run: () => insertBase() },
     { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
@@ -8465,6 +8528,7 @@ class SettingsDialog {
       { id: "appearance", label: t.sAppearance, icon: "palette" },
       { id: "editor", label: t.sEditor, icon: "edit" },
       { id: "files", label: t.sFiles, icon: "folder" },
+      { id: "board", label: boardText.sBoard, icon: "board" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
       { id: "cli", label: t.sCli, icon: "terminal" },
     ];
@@ -8735,6 +8799,13 @@ class SettingsDialog {
       ["amethyst", t.colorAmethyst],
     ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
+    const b = boardText;
+    add("board", b.prefOpenAs, b.prefOpenAsDesc, () => this.select([["board", b.prefOpenAsBoard], ["source", b.prefOpenAsText]], settings.boardOpenAs, (v) => { settings.boardOpenAs = v; saveSettings(); }));
+    add("board", b.prefOpen, b.prefOpenDesc, () => this.select([["fit", b.prefOpenFit], ["last", b.prefOpenLast]], settings.boardOpen, (v) => { settings.boardOpen = v; saveSettings(); }));
+    add("board", b.prefStroke, b.prefStrokeDesc, () => this.select([["hand", b.prefStrokeHand], ["clean", b.prefStrokeClean]], settings.boardStroke, (v) => { settings.boardStroke = v; saveSettings(); }));
+    add("board", b.prefFont, b.prefFontDesc, () => this.select([["hand", b.prefFontHand], ["sans", b.prefFontSans], ["mono", b.prefFontMono]], settings.boardFont, (v) => { settings.boardFont = v; saveSettings(); }));
+    add("board", b.prefGrid, b.prefGridDesc, () => this.toggle(settings.boardGrid, (v) => { settings.boardGrid = v; saveSettings(); }));
+    add("board", b.prefFolder, b.prefFolderDesc, () => this.text(settings.boardFolder, (v) => { settings.boardFolder = v.replace(/^\/+|\/+$/g, ""); saveSettings(); }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
