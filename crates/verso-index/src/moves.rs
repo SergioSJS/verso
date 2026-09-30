@@ -49,7 +49,12 @@ impl Index {
         )?;
         let new_title = if named_by_file {
             let name = to.rsplit('/').next().unwrap_or(to);
-            Some(name.strip_suffix(".md").unwrap_or(name).to_owned())
+            Some(
+                name.strip_suffix(".md")
+                    .or_else(|| name.strip_suffix(".canvas"))
+                    .unwrap_or(name)
+                    .to_owned(),
+            )
         } else {
             title.clone()
         };

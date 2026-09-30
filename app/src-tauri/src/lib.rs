@@ -151,6 +151,7 @@ fn convert(e: CoreError) -> ContractError {
         CoreError::Folder(io) if io.kind() == std::io::ErrorKind::NotFound => ErrorKind::NotFound,
         CoreError::UnknownFolder => ErrorKind::NotFound,
         CoreError::NotText => ErrorKind::NotText,
+        CoreError::NotCanvas => ErrorKind::NotCanvas,
         CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
         CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
         CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
@@ -1091,6 +1092,22 @@ fn write_text(
     with(&state, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
 }
 
+/// Save a board (ADR 0057 point 2): `json` is the canvas as the window
+/// holds it; the core lays it over the file as read, keeping every field
+/// the window does not know and every value's token, and writes it in
+/// Obsidian's layout over the revision that was read (invariant 11).
+/// `not_canvas` when the file on disk is not JSON.
+#[tauri::command]
+#[specta::specta]
+fn write_board(
+    state: State<'_, App>,
+    path: String,
+    json: String,
+    revision: String,
+) -> Result<TextFile, ContractError> {
+    with(&state, |ws| ws.write_board(&path, &json, &revision)).map(text_out)
+}
+
 /// Every web view and web window gets its label here, from one counter,
 /// so two windows never hand out the same label.
 static WEB_SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -1858,6 +1875,7 @@ macro_rules! commands_for {
                 web_url::<$runtime>,
                 read_text,
                 write_text,
+                write_board,
                 rename_entry,
                 delete_entry,
                 reveal,

@@ -90,6 +90,8 @@ pub fn parse(source: &str) -> Document {
         }
     }
 
+    document.property_links =
+        crate::properties::property_links(source, &lines, document.frontmatter.as_ref());
     document
 }
 

@@ -62,6 +62,22 @@ pub struct Block {
     pub col: u32,
 }
 
+/// A link of a source that is not parsed as Markdown — a canvas's file
+/// node, or a link inside one of its text nodes — with where it is written
+/// in the file (ADR 0057 point 6).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceLink {
+    pub embed: bool,
+    pub target: String,
+    pub heading: Option<String>,
+    pub block: Option<String>,
+    pub alias: Option<String>,
+    pub line: u32,
+    pub col: u32,
+    pub start: usize,
+    pub end: usize,
+}
+
 /// A target no note answers to, with how many links name it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unresolved {
@@ -248,11 +264,95 @@ impl Index {
                     relative_key(relative, &e.target)
                 ])?;
             }
+            // Typed relations (spec Q10): a link a frontmatter property
+            // holds, with the property's key.
+            let mut rel = tx.prepare(
+                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end, relation)
+                 VALUES (?1, 'link', ?2, ?3, ?11, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?12)",
+            )?;
+            for p in &report.property_links {
+                rel.execute(params![
+                    note,
+                    p.target,
+                    target_key(&p.target),
+                    p.heading,
+                    p.block,
+                    p.alias,
+                    p.pos.line,
+                    p.pos.col,
+                    offset(p.span.start),
+                    offset(p.span.end),
+                    relative_key(relative, &p.target),
+                    p.key
+                ])?;
+            }
         }
         // External content: the row id ties the tokens to `notes.id`.
         tx.execute(
             "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, ?4)",
             params![note, relative, title, content],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Store a canvas (ADR 0057 point 6): a row that is a link source and
+    /// a link target by its full name — `[[Quadro.canvas]]`, never
+    /// `[[Quadro]]`, since only `.md` is dropped from a key — searchable by
+    /// `content`, and never a note (`notes`, `tags`).
+    pub fn upsert_canvas(
+        &mut self,
+        relative: &str,
+        stamp: NoteStamp,
+        content: &str,
+        links: &[SourceLink],
+    ) -> Result<(), IndexError> {
+        let (path_key, name_key) = note_keys(relative);
+        let name = relative.rsplit('/').next().unwrap_or(relative);
+        let title = name.strip_suffix(".canvas").unwrap_or(name);
+        let tx = self.conn.transaction()?;
+        forget(&tx, relative)?;
+        tx.execute(
+            "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content)
+             VALUES (?1, 'canvas', ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9)",
+            params![
+                relative,
+                path_key,
+                name_key,
+                dir_of(relative),
+                title,
+                stamp.modified,
+                i64::try_from(stamp.len).unwrap_or(i64::MAX),
+                i64::from_le_bytes(stamp.hash.to_le_bytes()),
+                content,
+            ],
+        )?;
+        let source = tx.last_insert_rowid();
+        {
+            let mut ins = tx.prepare(
+                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end)
+                 VALUES (?1, ?2, ?3, ?4, ?12, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            )?;
+            for l in links {
+                ins.execute(params![
+                    source,
+                    if l.embed { "embed" } else { "link" },
+                    l.target,
+                    target_key(&l.target),
+                    l.heading,
+                    l.block,
+                    l.alias,
+                    l.line,
+                    l.col,
+                    offset(l.start),
+                    offset(l.end),
+                    relative_key(relative, &l.target)
+                ])?;
+            }
+        }
+        tx.execute(
+            "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, ?4)",
+            params![source, relative, title, content],
         )?;
         tx.commit()?;
         Ok(())
@@ -381,7 +481,7 @@ impl Index {
     pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, IndexError> {
         let mut st = self
             .conn
-            .prepare("SELECT path, tags, content FROM notes ORDER BY path")?;
+            .prepare("SELECT path, tags, content FROM notes WHERE kind = 'note' ORDER BY path")?;
         let rows = st.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,
@@ -459,8 +559,18 @@ impl Index {
             .optional()?)
     }
 
-    /// Every note path, in path order.
+    /// Every note path, in path order. A canvas is not a note.
     pub fn notes(&self) -> Result<Vec<String>, IndexError> {
+        let mut st = self
+            .conn
+            .prepare("SELECT path FROM notes WHERE kind = 'note' ORDER BY path")?;
+        let rows = st.query_map([], |r| r.get(0))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Every path the index holds — notes and canvases — in path order:
+    /// what a walk compares against to know what is gone.
+    pub fn sources(&self) -> Result<Vec<String>, IndexError> {
         let mut st = self.conn.prepare("SELECT path FROM notes ORDER BY path")?;
         let rows = st.query_map([], |r| r.get(0))?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -471,7 +581,7 @@ impl Index {
     pub fn note_hashes(&self) -> Result<Vec<(String, u64)>, IndexError> {
         let mut st = self
             .conn
-            .prepare("SELECT path, hash FROM notes ORDER BY path")?;
+            .prepare("SELECT path, hash FROM notes WHERE kind = 'note' ORDER BY path")?;
         let rows = st.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,

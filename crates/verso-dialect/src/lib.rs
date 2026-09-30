@@ -35,6 +35,7 @@ mod footnotes;
 mod frontmatter;
 mod parse;
 mod position;
+mod properties;
 mod render;
 mod tags;
 mod wikilink;
@@ -65,6 +66,28 @@ pub struct Document {
     pub blocks: Vec<BlockId>,
     /// Callouts: blockquotes whose first line starts with `[!kind]` (spec §5.8).
     pub callouts: Vec<Callout>,
+    /// Wikilinks held by frontmatter properties — typed relations (spec
+    /// Q10, ADR 0057). Kept apart from [`Self::links`], which are the body's
+    /// and which the fixtures assert.
+    pub property_links: Vec<PropertyLink>,
+}
+
+/// A frontmatter property whose value is a quoted wikilink, or an item of
+/// a list of them: a typed relation named by `key` (spec Q10).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PropertyLink {
+    /// The top-level key, as written: the relation's type.
+    pub key: String,
+    /// The position in the list, when the value is a list.
+    pub item: Option<usize>,
+    pub target: String,
+    pub heading: Option<String>,
+    pub block: Option<String>,
+    pub alias: Option<String>,
+    /// Byte range of the `[[…]]`, quotes excluded.
+    pub span: Span,
+    /// Position of the first `[`.
+    pub pos: Pos,
 }
 
 /// A wikilink `[[target#heading|alias]]`, with every part as written.

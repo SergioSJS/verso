@@ -11,7 +11,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 6;
+pub(crate) const VERSION: i64 = 7;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -23,6 +23,7 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE notes (
     id        INTEGER PRIMARY KEY,
     path      TEXT NOT NULL UNIQUE,
+    kind      TEXT NOT NULL DEFAULT 'note', -- 'note' | 'canvas' (ADR 0057): a canvas is a link source
     path_key  TEXT NOT NULL,
     name_key  TEXT NOT NULL,
     dir       TEXT NOT NULL DEFAULT '',  -- folder of the note, '' at the root (keys.rs)
@@ -63,6 +64,7 @@ CREATE TABLE links (
     target_key TEXT,                     -- folded (keys.rs); NULL: not a name, never resolves
     rel_key    TEXT,                     -- the target read from the source's folder, or NULL
     heading    TEXT, block TEXT, alias TEXT,
+    relation   TEXT,                     -- the property's key, for a link a frontmatter property holds (spec Q10)
     line  INTEGER NOT NULL, col INTEGER NOT NULL,
     start INTEGER NOT NULL, end INTEGER NOT NULL
 );

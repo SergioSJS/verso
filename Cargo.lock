@@ -4941,6 +4941,7 @@ dependencies = [
 name = "verso-core"
 version = "0.3.0-beta.2"
 dependencies = [
+ "proptest",
  "serde",
  "serde_json",
  "tempfile",
