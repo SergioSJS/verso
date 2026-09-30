@@ -11,9 +11,10 @@ pass" without judging merit.
 A phase does not start before the previous one closes. A scope item that is not
 listed here does not enter the phase without becoming a recorded decision.
 
-**Out of scope until the end of Phase 2:** sync, mobile, plugins, board and the
+**Out of scope until the end of Phase 2:** sync, mobile, plugins and the
 compatibility shim (§15). That holds even if the implementation looks cheap at
-the time.
+the time. The board was on this list until 2026-09-30, when the maintainer
+pulled it into Phase 2 ([ADR 0057](adr/0057-board-json-canvas.md)).
 
 ---
 
@@ -191,7 +192,10 @@ tables, cards, lists, kanbans and calendars, as Obsidian's bases
 ([ADR 0053](adr/0053-views-bases.md)) — a second window on the same folder,
 and the terminal and agents set up from the settings
 ([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)); the memo is
-`docs/reference/views-decision.md`.
+`docs/reference/views-decision.md`. On 2026-09-30 the maintainer pulled the
+board in as well — a `.canvas` drawn with Excalidraw, typed relations in the
+frontmatter, the conversion of the Excalidraw plugin's drawings
+([ADR 0057](adr/0057-board-json-canvas.md)); the memo is `docs/reference/board-decision.md`.
 
 ### Decisions that have to come out during the phase
 
@@ -234,7 +238,7 @@ when Phase 2 closes: sync ([0020](adr/0020-sync-merge-in-core-transports-as-plug
 mobile ([0025](adr/0025-own-server-and-mobile-pwa.md)), plugins
 ([0016](adr/0016-plugins-execution-and-capabilities.md), with the questions in
 [0047](adr/0047-plugin-api-open-questions.md) answered before the API is
-designed), board ([0024](adr/0024-board-excalidraw.md)), compatibility shim
+designed), compatibility shim
 ([0017](adr/0017-plugins-format-shim-loading.md)), the primitives that are still
 proposed ([0014](adr/0014-primitives-catalog.md)) and **agent writing with a
 diff** ([0018](adr/0018-llm-native-mcp-in-core.md), `DECIDED`, with no phase

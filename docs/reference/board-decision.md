@@ -1,12 +1,12 @@
 # Decision memo: the board — Excalidraw over JSON Canvas
 
 - Date: 2026-09-29
-- Status: **not decided**, except the scope (section 6, D1), which the
-  maintainer set in session on 2026-09-29 and this memo only proposes how to
-  record. Options and recommendations are labelled as such; the maintainer
-  decides (`CLAUDE.md` §1). No code follows this memo until the answers of
-  section 9 exist: [ADR 0040](../adr/0040-board-persistence.md) says to decide
-  persistence "before the board".
+- Status: **decided by the maintainer on 2026-09-30**, in session; the
+  answers are in section 10 and recorded in
+  [ADR 0057](../adr/0057-board-json-canvas.md). Sections 1 to 9 are the memo
+  as the maintainer read it, options and recommendations labelled as such
+  ([ADR 0040](../adr/0040-board-persistence.md) said to decide persistence
+  "before the board").
 - Author: Opus 5.5 — of the documents, the role
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) gives "Opus 5"; and, by
   the maintainer's decision of 2026-09-29, of the whole board sequence,
@@ -286,3 +286,38 @@ Each item is a pull request of one subject (ADR 0051), in this order.
 7. D6, the accessible view: the list, a table, or later.
 8. Xiaolai, the online features, the Mermaid duplicate: as recommended, or
    otherwise.
+
+## 10. The answers
+
+Given in session on 2026-09-30, numbered as section 9:
+
+| # | Answer | Recorded as |
+|---|---|---|
+| 1 | "sim" | ADR 0057 point 1 |
+| 2 | "a" — the drawing in the `.canvas`, under a top-level key | ADR 0057 point 2 |
+| 3 | "r1" — Excalidraw draws everything | ADR 0057 point 3 |
+| 4 | "dentro" — the semantic layer in the first version | ADR 0057 point 4 |
+| 5 | "agora" — the conversion in this sequence | ADR 0057 point 5 |
+| 6 | "como obsidian" | ADR 0057 point 6 |
+| 7 | "Pode seguir a melhor escolha para nossa aplicação se baseando no mercado" | ADR 0057 point 7, the author's choice |
+| 8 | "Pode adicionar, tem problema não" | ADR 0057 point 8 |
+
+Answer 4 needed spec Q10, which was `[OPEN]` and which the spec says to decide
+"before implementing relations"; answer 8 could be read two ways. Both were
+put back to the maintainer as multiple choice the same night, the author's
+recommendation first:
+
+| Question | Options | Answer |
+|---|---|---|
+| Where does a relation promoted on the board live? | in the source note's frontmatter, `aliado: "[[B]]"` (recommended); only on the board's edge; the semantic layer deferred | **the source note's frontmatter** |
+| "Pode adicionar": Xiaolai ships, the "Mermaid to Excalidraw" feature stays with its copy of Mermaid, and the online features stay hidden under ADR 0050? | correct (recommended); turn the online features on too, with ADR 0050 amended | **correct** |
+
+Three more probes, run before writing ADR 0057 on the same Sandbox, by the
+method of section 3 (a throwaway folder `verso-rel-probe/`, removed
+afterwards):
+
+| # | What was done | Result |
+|---|---|---|
+| O10 | A note with `aliado: "[[B]]"` and `inimigos:` listing `"[[B]]"` and `"[[C]]"` | `backlinks` of B: the note, count 2; the metadata cache's `frontmatterLinks` (public API) name the keys `aliado`, `inimigos.0`, `inimigos.1` |
+| O11 | The same note with `semaspas: [[C]]`, unquoted | read as a nested YAML list (`[["C"]]`); not a link |
+| O12 | A canvas whose `text` node says `ver [[C]] aqui` | `backlinks` of C lists the canvas, count 1 — the unverified point of D5 in section 8 |

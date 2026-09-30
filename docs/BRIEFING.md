@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Version 0.9 · 2026-09-24
+> Version 0.11 · 2026-09-30
 > Single source of the decisions made before the repository existed.
 > Changes after the repository: only status changes and factual corrections,
 > recorded in the History at the end. New boundaries and consequences live in
@@ -115,7 +115,7 @@ Every common workaround in Obsidian is a symptom of a missing primitive. Verso i
 |---|---|---|
 | Typed note: `type:` in the frontmatter + schema in a text file in the folder; with no schema, it is plain Markdown | Dataview, Templater, statblocks | `DECIDED` (promoted in v0.9, ADR 0052) |
 | Stable block ID, with backlinks and presence in the graph | an open request in the Obsidian forum since 2020 | `PROPOSED` |
-| Typed relation: an edge with a type and a direction; several relations between the same two nodes | links without semantics | `PROPOSED` |
+| Typed relation: an edge with a type and a direction; several relations between the same two nodes | links without semantics | `DECIDED` (promoted in v0.11, ADR 0057: a frontmatter property whose value is a wikilink) |
 | Time as first class: journal and periodic notes | Periodic Notes, Calendar | `PROPOSED` |
 | Structured views that can materialize the output as real Markdown in the file | query results invisible to git, search and agent | `PROPOSED` |
 | Write provenance in the frontmatter: author, model, when | no equivalent | `PROPOSED` |
@@ -176,8 +176,8 @@ Requirement: an agent must navigate and make use of the folder's content as well
 | Shell | Tauri v2 (desktop and mobile) | `DECIDED` |
 | Editor | CodeMirror 6 with Live Preview | `DECIDED` |
 | Board | Excalidraw (MIT) as a free annotation layer | `DECIDED` |
-| Board — semantic layer | nodes are notes, edges are typed relations; a free arrow can be promoted to a typed relation | `PROPOSED` |
-| Board persistence | sidecar in JSON Canvas, with or without extensions | `OPEN` |
+| Board — semantic layer | nodes are notes, edges are typed relations; a free arrow can be promoted to a typed relation | `DECIDED` (promoted in v0.11, ADR 0057) |
+| Board persistence | sidecar in JSON Canvas, with or without extensions | `DECIDED` (v0.11, ADR 0057): the `.canvas` itself, with the drawing under a top-level `verso` key in the same file |
 | Index | SQLite with FTS5 | `DECIDED` |
 | TS type generation from Rust | ts-rs or specta | `OPEN` |
 | Base parser | pulldown-cmark, comrak or our own | `DECIDED`: pulldown-cmark (v0.8, ADR 0037) |
@@ -258,7 +258,7 @@ Verso extends this dialect; it never contradicts it.
 
 ### 11.3 Dialect items
 
-- Typed relation syntax. `OPEN`
+- Typed relation syntax. `DECIDED` (v0.11: a frontmatter property whose value is a quoted wikilink, spec Q10, ADR 0057)
 - Schema format and location. `DECIDED` (v0.9: a `verso-schema` block in a note of the folder; spec Q11, ADR 0052)
 - Per-block visibility syntax (game master's secret). `OPEN`
 - Schema i18n: language-neutral key with a translated label (e.g. `type: npc` displayed as "PdM" or "NPC"). `DECIDED` (promoted in v0.9, ADR 0052)
@@ -331,7 +331,7 @@ Special support for people who play and run games is a declared intention. `DECI
 |---|---|
 | pt-BR and EN from the first commit | `DECIDED` |
 | Accessibility from the start | `DECIDED` |
-| Board with an equivalent accessible view (a list or table of the same notes and relations) | `PROPOSED` |
+| Board with an equivalent accessible view (a list or table of the same notes and relations) | `DECIDED` (v0.11, ADR 0057: an outline beside the board) |
 | Performance targets | `OPEN` — no targets for now |
 | Benchmark with a synthetic vault recording a baseline | `DECIDED` |
 
@@ -415,7 +415,7 @@ Tauri + CM6: open a folder, file tree, editor, backlinks and search coming from 
 
 ### Out of scope until the end of Phase 2
 
-Sync, mobile, plugins, board, compatibility shim.
+Sync, mobile, plugins, ~~board~~, compatibility shim. The board entered Phase 2 on 2026-09-30 (v0.11, ADR 0057).
 
 ---
 
@@ -456,10 +456,10 @@ Sync, mobile, plugins, board, compatibility shim.
 | 3 | ~~Language of the repository documentation~~ | decided: English source, pt-BR mirror (v0.5, ADR 0008) |
 | 4 | ~~Base parser: pulldown-cmark, comrak or our own~~ | decided: pulldown-cmark (v0.8, ADR 0037; round-trip reading in spec Q18) |
 | 5 | TS type generation: ts-rs or specta | start of Phase 2 |
-| 6 | Typed relation syntax | before implementing relations |
+| 6 | ~~Typed relation syntax~~ | decided: a frontmatter property whose value is a wikilink (v0.11, spec Q10, ADR 0057) |
 | 7 | ~~Schema format and location~~ | decided: a `verso-schema` block in a note of the folder (v0.9, spec Q11, ADR 0052) |
 | 8 | Per-block visibility syntax | before sharing and export |
-| 9 | Board persistence | before the board |
+| 9 | ~~Board persistence~~ | decided: the `.canvas` itself, with the drawing under a `verso` key (v0.11, ADR 0057) |
 | 10 | Performance targets | after the first baseline |
 
 Open items raised after the briefing live in ADRs 0044–0048 and in section 9
@@ -481,3 +481,4 @@ of the dialect spec, not here.
 | 0.7 | 2026-09-21 | §14.3: pointer to the two-group reading of the guardrails in ADR 0029, after the independent reading of the Phase 0 review (docs/review/phase-0.md §7). No decision changed. |
 | 0.8 | 2026-09-21 | §9 and §17 item 4: base parser decided by the maintainer — pulldown-cmark, with comrak as the fallback, under the read-only reading of round-trip (spec Q18). Comparison in docs/reference/parser-decision.md (ADR 0037). |
 | 0.9 | 2026-09-24 | §5.2, §5.3, §11.3 and §17 item 7: decided by the maintainer, on the memo docs/reference/typed-note-decision.md — degradation to Markdown (ADR 0013, accepted as written, with "views" and "structured data" delimited), the typed note and schema i18n (ADR 0052), and the format and location of the schemas: a `verso-schema` block in a note, anywhere in the folder except hidden and ignored paths (spec Q11). The location is the maintainer's choice between §5.3 (a text file in the folder) and §8 (schemas in the shared layer of the config), which stays as it is, `PROPOSED`, and now disagrees on schemas. |
+| 0.11 | 2026-09-30 | §5.3, §9, §11.3, §13, §15 and §17 items 6 and 9: decided by the maintainer, on the memo docs/reference/board-decision.md — the board enters Phase 2; persistence is the `.canvas` itself, with the Excalidraw drawing under a top-level `verso` key; the semantic layer and the typed relation, whose syntax is a frontmatter property of the source note holding a quoted wikilink (spec Q10); the board's accessible view, an outline beside it (ADR 0057). Version 0.10 is on the domain branch, not yet merged. |

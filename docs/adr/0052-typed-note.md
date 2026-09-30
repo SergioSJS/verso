@@ -154,7 +154,9 @@ is the memo's option (ii) of section 4.4.
   ([0047](0047-plugin-api-open-questions.md)); under point 3 a pack is a
   folder of notes.
 - **Typed relations stay Q10**, `[OPEN]`: a property's key is not a relation
-  type.
+  type. **Amended on 2026-09-30** by [0057](0057-board-json-canvas.md), point 4: Q10 is
+  decided, and a property whose value is a quoted wikilink, or a list of
+  them, is a relation named by its key.
 - **Fixtures.** Q11 closed without one — none existed, as Q12 and Q26 closed
   on the maintainer's answer. The schema fixtures come with the
   implementation: the parser's report of a `verso-schema` block, with a key

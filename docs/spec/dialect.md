@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.21
+# Verso dialect spec — v0.22
 
-- Version: v0.21 · 2026-09-29
+- Version: v0.22 · 2026-09-30
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -369,8 +369,23 @@ receives and does a normalization-insensitive lookup) and case sensitivity:
 `.canvas` files in the JSON Canvas format are read and written without breaking.
 The format is third-party and is not redefined here.
 
-Whether Verso extends JSON Canvas and how it persists the board:
-`[OPEN]` ([ADR 0040](../adr/0040-board-persistence.md)).
+How Verso extends JSON Canvas and persists the board: `DECIDED` on
+2026-09-30 ([ADR 0057](../adr/0057-board-json-canvas.md), closing [ADR 0040](../adr/0040-board-persistence.md)).
+
+1. A board is a `.canvas`. Verso's free drawing lives in the same file under
+   the top-level key `verso`: `{"version": 1, "drawing": [ … ]}`, whose
+   `drawing` is a list of Excalidraw elements. No node or edge type of Verso's
+   own exists: Obsidian deletes a node of a type it does not know
+   (`docs/reference/board-decision.md` §3.2, O5).
+2. An edge promoted to a typed relation (Q10) carries
+   `"verso": {"relation": "<key>"}` and the key as its `label`.
+3. Opening a `.canvas` writes nothing. Writing one keeps every field Verso does
+   not know, the key order read, and Obsidian's layout: an object or array
+   whose values are all scalars on one line, any other one entry per line,
+   tab indentation, and the final newline as the file had it (none in a file
+   Verso creates). Integer coordinates stay integers.
+4. For the index, a canvas's `file` nodes and the links in its `text` nodes
+   are links from the canvas (Q16).
 
 ### 5.12 Headings
 
@@ -459,7 +474,7 @@ decided the typed note, its schemas and their labels per language
 | Write provenance | author, model and when, in the frontmatter | `PROPOSED` ([ADR 0014](../adr/0014-primitives-catalog.md)) |
 | Materializable views | query output written as real Markdown in the file | `PROPOSED` ([ADR 0014](../adr/0014-primitives-catalog.md)) |
 | Schema i18n | language-neutral key with a translated label (`type: npc` displayed as "PdM" or "NPC") | `DECIDED` on 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md): a `label` per interface language) |
-| Typed relation | edge with type and direction; several relations between the same two nodes | `[OPEN]` (Q10) |
+| Typed relation | a frontmatter property of the source note whose value is a quoted wikilink or a list of them; the key is the type | `DECIDED` on 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | a fenced `verso-schema` block in a note, anywhere in the folder but hidden and ignored paths | `DECIDED` on 2026-09-24 (Q11) |
 | Per-block visibility | game master's secret | `[OPEN]` (Q9) |
 
@@ -514,7 +529,7 @@ recorded. None of them changes how an existing file is interpreted.
 | D1 | Unit of work | vault, created explicitly | any folder that is opened, with no vault | `DECIDED` ([0010](../adr/0010-folder-is-the-unit-no-vault.md)) | None in the file. The vault still opens |
 | D2 | Configuration | `.obsidian/` inside the tree | outside the tree, indexed by the folder path | `DECIDED` ([0011](../adr/0011-config-outside-tree-index-as-cache.md)) | `.obsidian/` is ignored, not deleted; explicit conversion, with a diff |
 | D3 | Dataview inline field | `chave:: valor` in the body | frontmatter | `PROPOSED` (§11.2) | Explicit conversion, with a diff. Verso does not interpret `chave:: valor` natively |
-| D4 | Excalidraw drawing | the plugin's `.excalidraw.md` | Verso's board format | `PROPOSED` (§11.2) | Explicit conversion, with a diff |
+| D4 | Excalidraw drawing | the plugin's `.excalidraw.md` | Verso's board format, a `.canvas` (§5.11) | `DECIDED` on 2026-09-30 ([ADR 0057](../adr/0057-board-json-canvas.md)) | Explicit conversion, with a diff; the drawing is left as it was |
 | D5 | Block ID | used for reference | beyond that, generates a backlink and appears in the graph | `PROPOSED` ([0014](../adr/0014-primitives-catalog.md)) | A gain, not a loss: the syntax is the same |
 | D6 | Query | third-party plugin (Dataview) | native query by type, property and relation; a view can materialize into Markdown | `PROPOSED` ([0014](../adr/0014-primitives-catalog.md)) | Notes with `dataview` blocks are not executed by Verso |
 | D7 | Plugins | synchronous API, disk access | TypeScript in a Web Worker, no disk, declared capabilities | Execution: `DECIDED` ([0016](../adr/0016-plugins-execution-and-capabilities.md)). Shim: `PROPOSED` ([0017](../adr/0017-plugins-format-shim-loading.md)) | An Obsidian plugin does not run. If the proposed shim exists, it covers only the public API, with a declared table |
@@ -584,11 +599,22 @@ behavior is implemented. None of them has an answer in the briefing.
   file in Obsidian without leaking the secret and without breaking the text. The
   player view and the mapping to journal permission in Foundry depend on it
   ([ADR 0036](../adr/0036-tabletop-rpg-support.md)).
-- **Q10. Typed relation syntax.** `[OPEN]`
+- **Q10. Typed relation syntax.** `DECIDED` on 2026-09-30.
   Decide before implementing relations (§17 item 6). Requirements already fixed:
   type and direction, several relations between the same two nodes
   ([ADR 0014](../adr/0014-primitives-catalog.md)), and degrading to readable
   Markdown ([ADR 0013](../adr/0013-degrades-to-markdown.md)).
+
+  **Decided on 2026-09-30 by the maintainer**, in session, on the memo
+  `docs/reference/board-decision.md` (section 10; [ADR 0057](../adr/0057-board-json-canvas.md), point 4):
+  a typed relation is a frontmatter property of the source note whose value
+  is a quoted wikilink (`aliado: "[[Barão]]"`) or a list of quoted wikilinks
+  (`inimigos: ["[[A]]", "[[B]]"]`). The key is the type; the direction goes
+  from the note holding it to the target; several relations between two
+  notes are the same target under several keys. An unquoted `[[x]]` is a YAML
+  flow sequence and not a link. As observed in Obsidian 1.13.7 (memo, O10 and
+  O11), which lists such values as links of the note, keyed `aliado`,
+  `inimigos.0`, `inimigos.1`.
 - **Q11. Format and location of the schemas.** `DECIDED` on 2026-09-24.
   Decide before the typed note, in Phase 2 (§17 item 7). "A text file in the
   folder" is the briefing's only clue. It is in tension with D2: schema inside
@@ -907,6 +933,12 @@ Raised while writing this spec. All of them need an answer before
   Which ones enter the index as a link target (images, PDF, `.canvas`) and which
   ones are ignored.
 
+  **`.canvas` decided on 2026-09-30 by the maintainer** ([ADR 0057](../adr/0057-board-json-canvas.md),
+  point 6), as Obsidian 1.13.7 does (`docs/reference/board-decision.md`, O7,
+  O8, O12): a canvas's `file` nodes and the wikilinks inside its `text` nodes
+  are backlink sources; a `.canvas` is a link target by its full name with
+  the extension, never by its bare name. The other files keep the question.
+
   **Provisional fact from `verso-core` and the window, recorded on 2026-09-23,
   not an answer to this question.** The walk lists every regular file that is
   not hidden or ignored; only notes enter the index as link targets and
@@ -1058,6 +1090,11 @@ the parser was chosen.
   ([ADR 0052](../adr/0052-typed-note.md), point 9): properties that hold links
   are out of the typed note's first slice, and "wikilinks inside values" is the
   next part of this question to decide. It stays `[OPEN]` until then.
+
+  **The link part decided on 2026-09-30 by the maintainer**, with Q10
+  ([ADR 0057](../adr/0057-board-json-canvas.md), point 4): a quoted wikilink that is a property's
+  value, or an item of a list that is a property's value, is a link, and the
+  property is a typed relation named by its key; an unquoted `[[x]]` is YAML.
 - **Q25. Encoding.** `DECIDED` on 2026-09-23.
   A `.md` file that is not valid UTF-8 (Latin-1 from an old vault, UTF-16 with a
   BOM from Windows): error, text with replacement, or ignored. Separate from
@@ -1115,3 +1152,4 @@ the parser was chosen.
 | v0.19 | 2026-09-24 | Q11: **a nested `verso-schema` block does not count**, decided by the maintainer (`docs/reference/views-decision.md` §2, [ADR 0052](../adr/0052-typed-note.md) point 3): only a block at the top level of a note is a schema, and a nested one is shown as not read. Bases (`.base` files and `base` blocks) are [ADR 0053](../adr/0053-views-bases.md)'s, not this spec's, which is the notes' dialect |
 | v0.20 | 2026-09-29 | Q19, setext part: **an observed answer and a drafted fixture** — `Título` over `===` is a level-1 heading, over `---` a level-2 one, and a `---` directly under text is never a thematic break (Obsidian CLI, `docs/reference/obsidian-cli.md`; `fixtures/heading/setext`, AI draft). Section 5.12 updated; the setext sub-question closes with the maintainer's approval of that fixture in its pull request. The matching part of Q19 stays open |
 | v0.21 | 2026-09-29 | **Q19, setext part, closed by the maintainer**: the fixture `fixtures/heading/setext` approved in session ("ratifique o que precisar"); a setext underline is a heading, as observed in Obsidian. Section 5.12 updated. The matching part of Q19 stays `[OPEN]`. Q26: a note pointing to the revision of ADR 0044 of the same day — build directories and `.gitignore` left out, behind settings. One question closed, in part |
+| v0.22 | 2026-09-30 | **Q10 closed by the maintainer** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): a typed relation is a frontmatter property of the source note whose value is a quoted wikilink or a list of them, the key its type; with it, **Q24's link part**. **Q16 decided for `.canvas`** as Obsidian does: `file` nodes and the links of `text` nodes are backlink sources, a canvas is a link target by its full name. §5.11: the board's format — the drawing under a top-level `verso` key, no type of Verso's own, Obsidian's layout kept on write. Section 6: the typed relation `DECIDED`; the conversion table's D4 `DECIDED`. One question closed, two in part |

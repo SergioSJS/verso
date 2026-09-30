@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.21
+# Spec do dialeto do Verso — v0.22
 
-- Versão: v0.21 · 2026-09-29
+- Versão: v0.22 · 2026-09-30
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -368,8 +368,24 @@ maiúsculas: `[ABERTO]` (seção 9, Q7 e Q8).
 Arquivos `.canvas` no formato JSON Canvas são lidos e escritos sem quebrar. O
 formato é de terceiros e não é redefinido aqui.
 
-Se o Verso estende o JSON Canvas e como persiste o board:
-`[ABERTO]` ([ADR 0040](../adr/0040-board-persistence.md)).
+Como o Verso estende o JSON Canvas e persiste o board: `DECIDIDO` em
+2026-09-30 ([ADR 0057](../adr/0057-board-json-canvas.md), fechando o [ADR 0040](../adr/0040-board-persistence.md)).
+
+1. Um board é um `.canvas`. O desenho livre do Verso mora no mesmo arquivo sob
+   a chave de topo `verso`: `{"version": 1, "drawing": [ … ]}`, cujo
+   `drawing` é uma lista de elementos do Excalidraw. Não existe tipo de nó ou
+   de aresta do próprio Verso: o Obsidian apaga um nó de tipo que não conhece
+   (`docs/reference/board-decision.md` §3.2, O5).
+2. Uma aresta promovida a relação tipada (Q10) leva
+   `"verso": {"relation": "<chave>"}` e a chave como `label`.
+3. Abrir um `.canvas` não escreve nada. Escrever um mantém todo campo que o
+   Verso não conhece, a ordem de chaves lida e o layout do Obsidian: um objeto
+   ou array cujos valores são todos escalares numa linha, qualquer outro com
+   uma entrada por linha, indentação com tab, e a quebra de linha final como o
+   arquivo a tinha (nenhuma num arquivo que o Verso cria). Coordenadas
+   inteiras continuam inteiras.
+4. Para o índice, os nós `file` de um canvas e os links dos seus nós `text`
+   são links a partir do canvas (Q16).
 
 ### 5.12 Headings
 
@@ -460,7 +476,7 @@ a nota tipada, os schemas dela e os rótulos deles por idioma
 | Proveniência de escrita | autor, modelo e quando, no frontmatter | `PROPOSTO` ([ADR 0014](../adr/0014-primitives-catalog.md)) |
 | Views materializáveis | saída de consulta escrita como Markdown real no arquivo | `PROPOSTO` ([ADR 0014](../adr/0014-primitives-catalog.md)) |
 | i18n de schema | chave neutra de idioma com rótulo traduzido (`type: npc` exibido como "PdM" ou "NPC") | `DECIDIDO` em 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md): um `label` por idioma da interface) |
-| Relação tipada | aresta com tipo e direção; várias relações entre os mesmos dois nós | `[ABERTO]` (Q10) |
+| Relação tipada | uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles; a chave é o tipo | `DECIDIDO` em 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados | `DECIDIDO` em 2026-09-24 (Q11) |
 | Visibilidade por bloco | segredo do mestre | `[ABERTO]` (Q9) |
 
@@ -514,7 +530,7 @@ registrado. Nenhuma delas muda como um arquivo existente é interpretado.
 | D1 | Unidade de trabalho | vault, criado explicitamente | qualquer pasta aberta, sem vault | `DECIDIDO` ([0010](../adr/0010-folder-is-the-unit-no-vault.md)) | Nenhum no arquivo. O vault continua abrindo |
 | D2 | Configuração | `.obsidian/` dentro da árvore | fora da árvore, indexada pelo caminho da pasta | `DECIDIDO` ([0011](../adr/0011-config-outside-tree-index-as-cache.md)) | `.obsidian/` é ignorado, não apagado; conversão explícita, com diff |
 | D3 | Campo inline do Dataview | `chave:: valor` no corpo | frontmatter | `PROPOSTO` (§11.2) | Conversão explícita, com diff. O Verso não interpreta `chave:: valor` nativamente |
-| D4 | Desenho do Excalidraw | `.excalidraw.md` do plugin | formato do board do Verso | `PROPOSTO` (§11.2) | Conversão explícita, com diff |
+| D4 | Desenho do Excalidraw | `.excalidraw.md` do plugin | formato do board do Verso, um `.canvas` (§5.11) | `DECIDIDO` em 2026-09-30 ([ADR 0057](../adr/0057-board-json-canvas.md)) | Conversão explícita, com diff; o desenho fica como estava |
 | D5 | ID de bloco | usado para referência | além disso, gera backlink e aparece no grafo | `PROPOSTO` ([0014](../adr/0014-primitives-catalog.md)) | Ganho, não perda: a sintaxe é a mesma |
 | D6 | Consulta | plugin de terceiro (Dataview) | consulta nativa por tipo, propriedade e relação; view pode materializar em Markdown | `PROPOSTO` ([0014](../adr/0014-primitives-catalog.md)) | Notas com blocos `dataview` não são executadas pelo Verso |
 | D7 | Plugins | API síncrona, acesso a disco | TypeScript em Web Worker, sem disco, capabilities declaradas | Execução: `DECIDIDO` ([0016](../adr/0016-plugins-execution-and-capabilities.md)). Shim: `PROPOSTO` ([0017](../adr/0017-plugins-format-shim-loading.md)) | Plugin de Obsidian não roda. Se o shim proposto existir, cobre só a API pública, com tabela declarada |
@@ -584,11 +600,22 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
   sobreviver a abrir o arquivo no Obsidian sem vazar o segredo nem quebrar o
   texto. Depende disso a visão de jogador e o mapeamento para permissão de
   journal no Foundry ([ADR 0036](../adr/0036-tabletop-rpg-support.md)).
-- **Q10. Sintaxe de relação tipada.** `[ABERTO]`
+- **Q10. Sintaxe de relação tipada.** `DECIDIDA` em 2026-09-30.
   Decidir antes de implementar relações (§17 item 6). Requisitos já fixados:
   tipo e direção, várias relações entre os mesmos dois nós
   ([ADR 0014](../adr/0014-primitives-catalog.md)), e degradar para Markdown
   legível ([ADR 0013](../adr/0013-degrades-to-markdown.md)).
+
+  **Decidida em 2026-09-30 pelo mantenedor**, em sessão, sobre o memo
+  `docs/reference/board-decision.md` (seção 10; [ADR 0057](../adr/0057-board-json-canvas.md), ponto 4):
+  uma relação tipada é uma propriedade do frontmatter da nota de origem cujo
+  valor é um wikilink entre aspas (`aliado: "[[Barão]]"`) ou uma lista de
+  wikilinks entre aspas (`inimigos: ["[[A]]", "[[B]]"]`). A chave é o tipo; a
+  direção vai da nota que a guarda para o alvo; várias relações entre duas
+  notas são o mesmo alvo sob várias chaves. Um `[[x]]` sem aspas é uma
+  sequência YAML e não um link. Como observado no Obsidian 1.13.7 (memo, O10
+  e O11), que lista esses valores como links da nota, com as chaves `aliado`,
+  `inimigos.0`, `inimigos.1`.
 - **Q11. Formato e localização dos schemas.** `DECIDIDA` em 2026-09-24.
   Decidir antes da nota tipada, na Fase 2 (§17 item 7). "Arquivo de texto na
   pasta" é a única pista do briefing. Tensiona com D2: schema dentro da pasta,
@@ -910,6 +937,13 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   Quais entram no índice como alvo de link (imagens, PDF, `.canvas`) e quais são
   ignorados.
 
+  **`.canvas` decidido em 2026-09-30 pelo mantenedor** ([ADR 0057](../adr/0057-board-json-canvas.md),
+  ponto 6), como o Obsidian 1.13.7 faz (`docs/reference/board-decision.md`,
+  O7, O8, O12): os nós `file` de um canvas e os wikilinks dentro dos seus nós
+  `text` são fontes de backlink; um `.canvas` é alvo de link pelo nome
+  completo com a extensão, nunca pelo nome sem ela. Os outros arquivos
+  continuam com a pergunta.
+
   **Fato provisório vindo do `verso-core` e da janela, registrado em
   2026-09-23, que não responde a esta questão.** O walk lista todo arquivo comum
   que não esteja oculto nem ignorado; só notas entram no índice como alvo de
@@ -1063,6 +1097,12 @@ ser escolhido.
   que guardam links ficam fora da primeira fatia da nota tipada, e "wikilinks
   dentro de valores" é a próxima parte desta questão a decidir. Continua
   `[ABERTO]` até lá.
+
+  **A parte dos links decidida em 2026-09-30 pelo mantenedor**, com a Q10
+  ([ADR 0057](../adr/0057-board-json-canvas.md), ponto 4): um wikilink entre aspas que é o valor de uma
+  propriedade, ou um item de uma lista que é o valor de uma propriedade, é um
+  link, e a propriedade é uma relação tipada nomeada pela chave; um `[[x]]`
+  sem aspas é YAML.
 - **Q25. Codificação.** `DECIDIDA` em 2026-09-23.
   Arquivo `.md` que não é UTF-8 válido (Latin-1 de vault antigo, UTF-16 com BOM
   do Windows): erro, texto com substituição, ou ignorado. Separado de Q17
@@ -1121,3 +1161,4 @@ ser escolhido.
 | v0.19 | 2026-09-24 | Q11: **um bloco `verso-schema` aninhado não conta**, decidido pelo mantenedor (`docs/reference/views-decision.md` §2, [ADR 0052](../adr/0052-typed-note.md) ponto 3): só um bloco no nível de cima de uma nota é schema, e um aninhado é mostrado como não lido. As bases (arquivos `.base` e blocos `base`) são do [ADR 0053](../adr/0053-views-bases.md), não desta spec, que é o dialeto das notas |
 | v0.20 | 2026-09-29 | Q19, parte setext: **uma resposta observada e uma fixture rascunhada** — `Título` sobre `===` é heading de nível 1, sobre `---` de nível 2, e um `---` logo abaixo de texto nunca é quebra temática (CLI do Obsidian, `docs/reference/obsidian-cli.md`; `fixtures/heading/setext`, rascunho da IA). Seção 5.12 atualizada; a subquestão setext fecha com a aprovação dessa fixture pelo mantenedor no pull request dela. A parte do casamento da Q19 continua aberta |
 | v0.21 | 2026-09-29 | **Q19, parte setext, fechada pelo mantenedor**: a fixture `fixtures/heading/setext` aprovada na sessão ("ratifique o que precisar"); um sublinhado setext é heading, como observado no Obsidian. Seção 5.12 atualizada. A parte do casamento da Q19 continua `[ABERTO]`. Q26: uma nota apontando para a revisão do ADR 0044 do mesmo dia — diretórios de build e `.gitignore` de fora, atrás de ajustes. Uma questão fechada, em parte |
+| v0.22 | 2026-09-30 | **Q10 fechada pelo mantenedor** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): uma relação tipada é uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles, a chave o seu tipo; com ela, **a parte de links da Q24**. **Q16 decidida para `.canvas`** como o Obsidian faz: nós `file` e os links dos nós `text` são fontes de backlink, um canvas é alvo de link pelo nome completo. §5.11: o formato do board — o desenho sob uma chave de topo `verso`, nenhum tipo do próprio Verso, o layout do Obsidian mantido na escrita. Seção 6: a relação tipada `DECIDIDA`; o D4 da tabela de conversão `DECIDIDO`. Uma questão fechada, duas em parte |
