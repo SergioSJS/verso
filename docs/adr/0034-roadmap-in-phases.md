@@ -3,6 +3,11 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §15, §10.3
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-10-01 — the board left point 4's list on 2026-09-30, by the
+  maintainer's decision recorded in [0057](0057-board-json-canvas.md),
+  point 1; this ADR points there since the maintainer's decision of
+  2026-10-01 on the critical review
+  [`docs/review/board.md`](../review/board.md), §6 item 16.
 
 ## Context
 
@@ -19,7 +24,8 @@ features as plugins and a gate of one month of real use before moving on.
 3. **Phase 2 — Walking skeleton on macOS**: Tauri + CM6, contract with
    generated types, one note type end to end.
 4. Out of scope until the end of Phase 2: sync, mobile, plugins, board and the
-   compatibility shim.
+   compatibility shim. *(The board left this list on 2026-09-30:
+   [0057](0057-board-json-canvas.md), point 1.)*
 
 The exit criteria are in `docs/roadmap.md`.
 
@@ -42,4 +48,5 @@ The exit criteria are in `docs/roadmap.md`.
 
 ## Status
 
-Accepted.
+Accepted. Point 4 narrowed by [0057](0057-board-json-canvas.md) on 2026-09-30:
+the board is in Phase 2.

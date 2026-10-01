@@ -54,13 +54,16 @@ repository.
    ([0051](0051-development-flow-and-releases.md)): a note that teaches it, a
    card or a line on the tour, and, for the board, a lesson or a step of one.
 
-How it is kept is the author's, for the maintainer to question:
+How it is kept was the author's, for the maintainer to question; accepted by
+the maintainer on 2026-10-01 (point 14):
 
-4. **The boards are built from code.** `scripts/demo-vault/tour.mjs` and
-   `scripts/demo-vault/treino.mjs` are their source;
-   `node scripts/demo-vault.mjs build` writes them in the layout Verso writes
-   (opening one writes nothing) and embeds the folder in the app. A board is
-   never edited in the app and committed: the next build would undo it.
+4. **The tutorial's two boards are built from code.**
+   `scripts/demo-vault/tour.mjs` and `scripts/demo-vault/treino.mjs` are their
+   source; `node scripts/demo-vault.mjs build` writes them in the layout Verso
+   writes (opening one writes nothing) and embeds the folder — the files git
+   tracks — in the app. Neither is ever edited in the app and committed: the
+   next build would undo it. The vault's third board, "Board de
+   Demonstração", is kept by hand.
 5. **What a board teaches is read as drawn text**, legible at the zoom a
    whole stop or lesson is seen at; a text card's Markdown is too small there.
    The notes stay notes, as cards.
@@ -95,16 +98,22 @@ behaviour:
    keyboard; it grows with the app, and no one follows the walk by hand to
    know that it still works.
 
-How it is kept is the author's, for the maintainer to question:
+How it is kept was the author's, for the maintainer to question; accepted by
+the maintainer on 2026-10-01 (point 14):
 
 9. **The harness** (`app/ui/src/harness.ts` and `app/ui/src/harness/`) is
    the window over a core written in TypeScript: the demo vault in memory, or
    an empty folder (`?vault=empty`); every command of the contract answered
    with the contract's shapes and errors, through Tauri's own IPC mock, and
    later, as the real IPC answers; the `verso:` protocol served from the same
-   memory; the app's log kept. It is not the core: links, search and bases are
-   answered roughly, enough for the window to behave. What the core does is
-   its Rust tests'.
+   memory; the app's log kept; the page under the app's own
+   Content-Security-Policy. It is not the core: links, search and bases are
+   answered roughly, enough for the window to behave; its writes are confined
+   as the core's are, but a board's write lays the window's canvas out without
+   the core's merge, it never holds a placeholder, and it sends no folder
+   event after the window's own writes. What the core does is its Rust
+   tests'. It is built apart from the app (`app/ui/e2e/build.mjs`, into
+   `app/ui/e2e/.site/`) and never packaged.
 10. **Every command of the contract has an answer in the harness.**
     `app/ui/e2e/harness.spec.mjs` reads `bindings.ts` and fails on a command
     the harness does not know: a new command arrives with its answer.
@@ -121,8 +130,19 @@ How it is kept is the author's, for the maintainer to question:
     harness cannot reach stays by hand, and the walk says which: the real
     core, the app's `verso:` protocol, the Mac's menus and keys as the system
     delivers them (a menu's event is sent as the host sends it), files dropped
-    from Finder, the updater, and where WKWebView differs from Playwright's
-    WebKit.
+    from Finder, the updater, a file iCloud keeps in the cloud, and where
+    WKWebView differs from Playwright's WebKit.
+
+**Decided on 2026-10-01 by the maintainer**, in session, on the critical
+review [`docs/review/board.md`](../review/board.md), section 6, items 12
+and 13: "Aceito todas (Recomendado)".
+
+14. **Points 4 to 7 and 9 to 13 are accepted** as written above. The window's
+    unit tests (`npm test` in `app/ui`) run in `scripts/check.sh` and in the
+    pull request's job of CI ([0029](0029-guardrails-in-ci.md)); the
+    end-to-end tests stay on the author's machine.
+15. **The harness is never part of the app**: it is built outside `dist/`,
+    which the app packages.
 
 ## Consequences
 
@@ -139,9 +159,12 @@ How it is kept is the author's, for the maintainer to question:
 - `@playwright/test` (Apache-2.0) is a new development dependency of the
   window, never shipped; its WebKit is downloaded on the first run of
   `scripts/check.sh`.
-- `npm run build` writes `dist/harness.html` beside the window's page, as it
-  already built the harness's script there; the app never opens it.
-- The CI's minutes do not grow: the tests run on the author's machine.
+- `npm run build` writes the app alone; the harness's page and script are
+  built by Playwright's server into `app/ui/e2e/.site/` (point 15), and the
+  unit tests' bundles go to `app/ui/test/.bundles/`, both outside what the
+  app packages.
+- The CI's minutes grow by the unit tests alone, seconds; the end-to-end
+  tests run on the author's machine.
 
 ## Discarded alternatives
 
@@ -159,3 +182,9 @@ How it is kept is the author's, for the maintainer to question:
   while it runs, finds things on the screen by position, and needs an agent
   to read what it sees. Put to the maintainer on 2026-10-01, who chose the
   harness.
+
+## Status
+
+Accepted (2026-10-01): points 1 to 3 and 8 decided by the maintainer; points 4
+to 7 and 9 to 13 accepted by the maintainer the same day, with points 14 and
+15. `[OPEN]`: the demo vault in English.

@@ -316,7 +316,7 @@ a recomendação do autor primeiro:
 | Onde mora uma relação promovida no board? | no frontmatter da nota de origem, `aliado: "[[B]]"` (recomendado); só na aresta do board; camada semântica adiada | **o frontmatter da nota de origem** |
 | "Pode adicionar": a Xiaolai vai, o recurso "Mermaid to Excalidraw" fica com a sua cópia do Mermaid, e os recursos online ficam escondidos pelo ADR 0050? | correto (recomendado); ligar os recursos online também, com o ADR 0050 emendado | **correto** |
 
-Mais três sondagens, feitas antes de escrever o ADR 0057 no mesmo Sandbox,
+Mais quatro sondagens, feitas antes de escrever o ADR 0057 no mesmo Sandbox,
 pelo método da seção 3 (uma pasta descartável `verso-rel-probe/`, removida
 depois):
 

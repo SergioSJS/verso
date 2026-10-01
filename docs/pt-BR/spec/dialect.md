@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.22
+# Spec do dialeto do Verso — v0.23
 
-- Versão: v0.22 · 2026-09-30
+- Versão: v0.23 · 2026-10-01
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -66,6 +66,7 @@ fixtures). Fixture que não segue o schema é inválida.
 | `embeds` | lista de embeds, em ordem de documento | não afirmado |
 | `blocks` | lista de definições `^id`, em ordem de documento | não afirmado |
 | `callouts` | lista, em ordem de documento | não afirmado |
+| `property_links` | lista dos links que as propriedades do frontmatter guardam (Q10), na ordem escrita (§4.7) | não afirmado |
 | `observed` | como o comportamento foi verificado no Obsidian | ver 4.5 |
 | `source` | ADR ou questão que autoriza um comportamento próprio do Verso | ver 4.5 |
 
@@ -148,9 +149,26 @@ cita o ADR ou a questão que a autoriza em `source:`.
 
 ### 4.6 Fora do schema
 
-Não existe campo para relação tipada, visibilidade por bloco, tags inline nem
-resolução de link: cada um entra no schema quando a questão correspondente
-fechar, com PR que atualiza esta seção.
+Não existe campo para visibilidade por bloco, tags inline nem resolução de
+link: cada um entra no schema quando a questão correspondente fechar, com PR
+que atualiza esta seção. A relação tipada entrou com a Q10, como
+`property_links` (§4.7, v0.23).
+
+### 4.7 Itens de `property_links`
+
+Um link que uma propriedade do frontmatter guarda — a relação tipada da Q10:
+um wikilink entre aspas como valor, ou como item de uma lista.
+
+| Campo | Significado | Obrigatório |
+|---|---|---|
+| `property` | a chave de topo que o guarda, como escrita (uma chave entre aspas sem as aspas) | sim |
+| `item` | a posição na lista, a partir de 0, quando o valor é uma lista | quando o valor é uma lista |
+| `target`, `heading`, `block`, `alias` | como na §4.2 | como na §4.2 |
+| `pos` | posição do primeiro `[` do link (4.4) | quando a fixture testa posição |
+
+Acrescentado em 2026-10-01 pela decisão do mantenedor sobre a revisão crítica
+[`../review/board.md`](../review/board.md), §6 item 2, com a fixture
+rascunhada `fixtures/frontmatter/property-links`.
 
 ---
 
@@ -382,10 +400,30 @@ Como o Verso estende o JSON Canvas e persiste o board: `DECIDIDO` em
    Verso não conhece, a ordem de chaves lida e o layout do Obsidian: um objeto
    ou array cujos valores são todos escalares numa linha, qualquer outro com
    uma entrada por linha, indentação com tab, e a quebra de linha final como o
-   arquivo a tinha (nenhuma num arquivo que o Verso cria). Coordenadas
-   inteiras continuam inteiras.
+   arquivo a tinha (nenhuma num arquivo que o Verso cria). Um valor que o
+   usuário não mudou é escrito como foi lido, fração inclusive; a geometria
+   que o usuário mudou é escrita em números inteiros. Um arquivo em outro
+   layout só é reescrito neste depois de o usuário ver o diff (ADR 0057
+   ponto 13).
 4. Para o índice, os nós `file` de um canvas e os links dos seus nós `text`
-   são links a partir do canvas (Q16).
+   são links a partir do canvas (Q16). Um nó `file` nomeia um caminho a partir
+   da raiz da pasta, nunca um nome procurado em outro lugar (ADR 0057
+   ponto 11).
+5. Os campos próprios do Verso num canvas (ADR 0057 pontos 10 e 17), cada um
+   escrito só quando não é o padrão do board:
+   - o `verso` de topo: `version` (1), `drawing`, `background`;
+   - um elemento de `verso.drawing`: `under`, o id do nó sob o qual ele
+     fica;
+   - o `verso` próprio de um nó: `background`, `fill`, `corners`,
+     `strokeWidth`, `roughness`, `angle`, `strokeStyle`, `opacity`,
+     `locked`, `groups`;
+   - o `verso` próprio de uma aresta: `relation`, `line` (`curved` ou
+     `elbow`), `strokeWidth`, `roughness`, `startHead`, `endHead`, `bends`,
+     `labelSize`, `labelFont`, `strokeStyle`, `opacity`, `locked`,
+     `groups`.
+
+   Um `verso.version` acima do que um build escreve é um board de um Verso
+   mais novo: mostrado, nunca escrito.
 
 ### 5.12 Headings
 
@@ -1162,3 +1200,4 @@ ser escolhido.
 | v0.20 | 2026-09-29 | Q19, parte setext: **uma resposta observada e uma fixture rascunhada** — `Título` sobre `===` é heading de nível 1, sobre `---` de nível 2, e um `---` logo abaixo de texto nunca é quebra temática (CLI do Obsidian, `docs/reference/obsidian-cli.md`; `fixtures/heading/setext`, rascunho da IA). Seção 5.12 atualizada; a subquestão setext fecha com a aprovação dessa fixture pelo mantenedor no pull request dela. A parte do casamento da Q19 continua aberta |
 | v0.21 | 2026-09-29 | **Q19, parte setext, fechada pelo mantenedor**: a fixture `fixtures/heading/setext` aprovada na sessão ("ratifique o que precisar"); um sublinhado setext é heading, como observado no Obsidian. Seção 5.12 atualizada. A parte do casamento da Q19 continua `[ABERTO]`. Q26: uma nota apontando para a revisão do ADR 0044 do mesmo dia — diretórios de build e `.gitignore` de fora, atrás de ajustes. Uma questão fechada, em parte |
 | v0.22 | 2026-09-30 | **Q10 fechada pelo mantenedor** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): uma relação tipada é uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles, a chave o seu tipo; com ela, **a parte de links da Q24**. **Q16 decidida para `.canvas`** como o Obsidian faz: nós `file` e os links dos nós `text` são fontes de backlink, um canvas é alvo de link pelo nome completo. §5.11: o formato do board — o desenho sob uma chave de topo `verso`, nenhum tipo do próprio Verso, o layout do Obsidian mantido na escrita. Seção 6: a relação tipada `DECIDIDA`; o D4 da tabela de conversão `DECIDIDO`. Uma questão fechada, duas em parte |
+| v0.23 | 2026-10-01 | Sobre a revisão crítica `docs/review/board.md`, §6, aceita pelo mantenedor: **`property_links`** entra no schema do `expected.yaml` (§4.1, §4.7, §4.6), com a fixture rascunhada `fixtures/frontmatter/property-links` (rascunho de IA, observada no Obsidian 1.13.7); a §5.11 registra os campos próprios do Verso num canvas, que um nó `file` é um caminho a partir da raiz, e que um salvamento escreve o que o usuário não mudou como foi lido. Nenhuma questão fechada |

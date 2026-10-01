@@ -37,7 +37,14 @@
   `std::fs::read_dir` no `verso-core`; a contradição sobre o link da linha de
   comando resolvida, o link do shell agora feito com `std::fs` dentro de
   `src/update.rs` e só o pedido de administrador restando como subprocesso (a
-  mesma seção).
+  mesma seção). 2026-10-01 — sobre a revisão crítica
+  [`docs/review/board.md`](../review/board.md), §6 itens 9 a 12, o mantenedor
+  aceitando as recomendações do autor: o leitor de canvas do `verso-core`
+  passa por fuzzing ao lado do parser do dialeto; a quarta exceção,
+  `src/log.rs`, ratificada, e o log uma decisão; `0BSD` na allowlist npm e
+  `fuzzy` aceito à mão como MIT; os testes unitários da janela no
+  `scripts/check.sh` e no job do pull request; a checagem do cofre de exemplo
+  nomeada entre os guardrails.
 
 ## Contexto
 
@@ -68,7 +75,7 @@ com ela. Os dois grupos estão separados abaixo.
 
 | Guardrail | Evita | Entra com |
 |---|---|---|
-| Fuzzing do parser com `cargo-fuzz` | arquivo malformado travando o app | Fase 1, feature 1 |
+| Fuzzing do parser com `cargo-fuzz`, e do leitor de canvas do `verso-core` ao lado dele (alvo `canvas`) | arquivo malformado travando o app | Fase 1, feature 1; o leitor de canvas com o board, 2026-10-01 |
 | Property test de round-trip (definição em `docs/spec/dialect.md`, Q18) | abrir reescrevendo arquivo | Fase 1, feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | parser deixar de compilar para WASM e perder a suíte de conformidade com o editor | Fase 1, feature 1 |
 | Escrita atômica (ver requisitos abaixo) | corrupção em queda de energia | Fase 1, feature 2 |
@@ -76,7 +83,9 @@ com ela. Os dois grupos estão separados abaixo.
 | Queries parametrizadas + escape da sintaxe FTS5 | busca quebrando com aspas e operadores | Fase 1, feature 3 |
 | Benchmark com vault sintético | regressão de performance | Fase 1, feature 5 |
 | Verificação de que os tipos TS gerados estão atualizados | regra 3 do contrato virar convenção ([0038](0038-ts-type-generation.md)) | Fase 2, item 2.1 |
-| Allowlist de licenças npm sobre o lockfile da janela (`scripts/check-npm-licenses.mjs`): a lista do `deny.toml` mais OFL-1.1, a licença das fontes | um pacote que a janela empacota sob uma licença que o projeto não pode distribuir | Fase 2, a pedido do mantenedor em 2026-09-23 |
+| Allowlist de licenças npm sobre o lockfile da janela (`scripts/check-npm-licenses.mjs`): a lista do `deny.toml` mais OFL-1.1 (as fontes), Unlicense e EPL-2.0 (a árvore do Mermaid, 2026-09-29) e 0BSD (a árvore do Excalidraw, 2026-10-01); um pacote sem o campo de licença aceito à mão só onde o script o nomeia e diz por quê | um pacote que a janela empacota sob uma licença que o projeto não pode distribuir | Fase 2, a pedido do mantenedor em 2026-09-23 |
+| Os testes unitários da janela (`npm test` em `app/ui`): o modelo do board, a spec de PDF, o Mermaid | o modelo do board mudar o que grava, ou um auxiliar da janela quebrar, sem ninguém ver | o board, 2026-10-01 |
+| O cofre de exemplo construído das suas fontes e se sustentando (`node scripts/demo-vault.mjs check`, [0058](0058-demo-vault-as-tutorial.md)) | uma cópia embutida velha, um board editado à mão, um tutorial cujos links ou passos não se sustentam | o tutorial, 2026-10-01 |
 
 CI em macOS e Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, mais os comandos dos guardrails de feature conforme entram.
@@ -99,9 +108,12 @@ conta cada um como dez.
 
 - **Um pull request** roda todo guardrail menos o fuzzing em **um job de
   Linux**, dos mais baratos primeiro, sobre um cache só: o espelho dos
-  documentos, as fixtures, as licenças npm, o grep de `std::fs`,
-  `cargo fmt --check`, `cargo deny check`, clippy, os testes, os tipos gerados,
-  a checagem de tipos e o bundle da UI, a checagem de WASM.
+  documentos, as fixtures, as licenças npm, a checagem do cofre de exemplo, o
+  grep de `std::fs`, `cargo fmt --check`, `cargo deny check`, clippy, os
+  testes, os tipos gerados, a checagem de tipos, o bundle e os testes
+  unitários da UI, a checagem de WASM. Os testes de ponta a ponta da janela
+  rodam só na máquina do autor ([0058](0058-demo-vault-as-tutorial.md),
+  ponto 13).
 - **O `main`**, depois de cada merge, roda esse job de novo, e mais três:
   **clippy e os testes no macOS** — as checagens cuja resposta pode depender
   da plataforma (o sistema de arquivos, atributos estendidos, o WebKit); fmt,
@@ -380,6 +392,16 @@ log. Como o autor construiu:
   próprias exceções alcancem o log sem alcançar o arquivo da janela. O botão de
   bug na barra de status monta um relatório com o build, o estado, os erros da
   sessão e o fim do log, mostra tudo editável e copia. Nada sai da máquina.
+
+**Ratificado pelo mantenedor em 2026-10-01** (revisão
+[`docs/review/board.md`](../review/board.md), §6 item 10, "Aceito todas
+(Recomendado)"): `src/log.rs` como a quarta exceção, e o próprio log uma
+decisão. Com ele, o que o log entrega a um relato: a pasta pessoal mostrada
+como `~` onde quer que apareça nas linhas do log, o log nomeado só pelo
+arquivo quando nenhuma pasta pessoal é conhecida (regra 4 do
+[0026](0026-core-ui-contract-inviolable-rules.md)), uma mensagem limitada a
+4 KiB; um erro que o próprio conteúdo de uma nota causa — um diagrama
+digitado pela metade — é aviso, não erro.
 
 Verificado no aplicativo com falhas reais — uma nota que não é UTF-8 e um
 diagrama Mermaid que não compila chegaram ambos ao arquivo. O erro de script não

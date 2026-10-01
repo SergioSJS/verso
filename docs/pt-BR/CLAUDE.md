@@ -113,7 +113,7 @@ mudando o teste.
 | clippy `disallowed_methods` negando `std::fs` fora de `verso-fs` (exceções: índice, config) | acesso à pasta aberta fora de `verso-fs` | workspace |
 | `cargo-deny`: allowlist de licenças, advisories negadas | dependência incompatível ou vulnerável | workspace |
 | Espelho da documentação: cada `.md` canônico tem gêmeo em `docs/pt-BR/` com os mesmos títulos | documento mudado num idioma só | workspace |
-| Fuzzing do parser com `cargo-fuzz` | arquivo malformado travando o app | feature 1 |
+| Fuzzing do parser com `cargo-fuzz`, e do leitor de canvas ao lado dele | arquivo malformado travando o app | feature 1; o leitor de canvas com o board |
 | Property test de round-trip (leitura decidida em Q18) | abrir reescrevendo arquivo | feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | parser deixar de compilar para WASM | feature 1 |
 | Escrita atômica (temporário + `fsync` do arquivo e do diretório + `rename`, mais os requisitos do ADR) | corrupção em queda de energia | feature 2 |
@@ -122,10 +122,14 @@ mudando o teste.
 | Benchmark com vault sintético | regressão de performance | feature 5 |
 | Tipos TS gerados conferidos no CI | regra 3 do contrato virar convenção | Fase 2, 2.1 |
 | Allowlist de licenças npm sobre o lockfile da janela | pacote npm sob licença que o projeto não pode distribuir | Fase 2 |
+| Os testes unitários da janela (`npm test` em `app/ui`) | o modelo do board mudar o que grava sem ninguém ver | o board |
+| O cofre de exemplo construído das suas fontes e se sustentando | um embutido velho, um board editado à mão, um tutorial que não se sustenta | o tutorial |
 
 CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
 roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
-clippy e os testes no macOS, o fuzzing e o benchmark; os apps são compilados e
+clippy e os testes no macOS, o fuzzing e o benchmark; os testes de ponta a
+ponta da janela rodam só localmente, no `scripts/check.sh`
+([ADR 0058](adr/0058-demo-vault-as-tutorial.md)); os apps são compilados e
 empacotados só numa tag de versão, nunca numa branch. Antes de qualquer push,
 `scripts/check.sh` e `scripts/check-linux.sh` passam localmente (README.md): o
 CI confirma, nunca é o primeiro teste.
@@ -198,7 +202,7 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
 - Uma mudança que o usuário vê também atualiza o tutorial, o cofre de
   exemplo ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)): uma nota que a
   ensina, um cartão ou uma linha no "Tour do Verso" e, para o board, uma
-  lição ou um passo do "Treino do Board". Os boards são construídos a partir
+  lição ou um passo do "Treino do Board". Os dois boards do tutorial são construídos a partir
   de `scripts/demo-vault/` com `node scripts/demo-vault.mjs build`, nunca
   editados no app; uma tecla que o tutorial ensina é conferida contra os
   testes de tecla do Excalidraw e os atalhos da janela; e o tutorial é

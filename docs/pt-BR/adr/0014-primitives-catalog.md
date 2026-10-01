@@ -11,7 +11,10 @@
   linha dela aqui aponta para lá. 2026-09-24 — as visões estruturadas aceitas
   pelo mantenedor num ADR próprio, o [0053](0053-views-bases.md): bases, no
   formato do Obsidian; e o mês das notas diárias no painel lateral, parte da
-  linha da nota do dia.
+  linha da nota do dia. 2026-10-01 — a relação tipada, decidida em
+  2026-09-30 no [0057](0057-board-json-canvas.md) (ponto 4, Q10 da spec), é
+  apontada aqui, pela decisão do mantenedor sobre a revisão crítica
+  [`docs/review/board.md`](../review/board.md), §6 item 16.
 
 ## Contexto
 
@@ -71,7 +74,8 @@ decisão.
 - Três itens dependem de sintaxe ainda `[ABERTO]`: relação tipada, formato e
   localização dos schemas, e visibilidade por bloco (`docs/spec/dialect.md`).
   *(O formato e a localização dos schemas decididos em 2026-09-24: a Q11 da
-  spec.)*
+  spec. A relação tipada decidida em 2026-09-30: o
+  [0057](0057-board-json-canvas.md), ponto 4, Q10 da spec.)*
 - "Sem schema, é Markdown comum" é o que mantém a compatibilidade com vaults do
   Obsidian ([0012](0012-files-are-source-of-truth.md)).
 - ID de bloco com backlinks e presença no grafo é pré-requisito da citação
@@ -98,4 +102,5 @@ decisão.
 ## Status
 
 Proposto. A nota do dia e os templates: aceitos em 2026-09-23 (Decisão). A
-nota tipada: aceita em 2026-09-24, no [0052](0052-typed-note.md).
+nota tipada: aceita em 2026-09-24, no [0052](0052-typed-note.md). A relação
+tipada: decidida em 2026-09-30, no [0057](0057-board-json-canvas.md).

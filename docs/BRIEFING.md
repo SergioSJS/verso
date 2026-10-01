@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Version 0.11 · 2026-09-30
+> Version 0.12 · 2026-10-01
 > Single source of the decisions made before the repository existed.
 > Changes after the repository: only status changes and factual corrections,
 > recorded in the History at the end. New boundaries and consequences live in
@@ -331,7 +331,7 @@ Special support for people who play and run games is a declared intention. `DECI
 |---|---|
 | pt-BR and EN from the first commit | `DECIDED` |
 | Accessibility from the start | `DECIDED` |
-| Board with an equivalent accessible view (a list or table of the same notes and relations) | `DECIDED` (v0.11, ADR 0057: an outline beside the board) |
+| Board with an equivalent accessible view (a list or table of the same notes and relations) | `DECIDED` (v0.11, ADR 0057: an outline beside the board; decided by the maintainer on 2026-10-01, v0.12) |
 | Performance targets | `OPEN` — no targets for now |
 | Benchmark with a synthetic vault recording a baseline | `DECIDED` |
 
@@ -483,3 +483,4 @@ of the dialect spec, not here.
 | 0.9 | 2026-09-24 | §5.2, §5.3, §11.3 and §17 item 7: decided by the maintainer, on the memo docs/reference/typed-note-decision.md — degradation to Markdown (ADR 0013, accepted as written, with "views" and "structured data" delimited), the typed note and schema i18n (ADR 0052), and the format and location of the schemas: a `verso-schema` block in a note, anywhere in the folder except hidden and ignored paths (spec Q11). The location is the maintainer's choice between §5.3 (a text file in the folder) and §8 (schemas in the shared layer of the config), which stays as it is, `PROPOSED`, and now disagrees on schemas. |
 | 0.10 | 2026-09-24 | §2 and §17 item 2: domain decided by the maintainer — they bought `versomd.com`, the closest to `verso.md` they could get (ADR 0004). Availability on crates.io, npm and the GitHub org remains open. |
 | 0.11 | 2026-09-30 | §5.3, §9, §11.3, §13, §15 and §17 items 6 and 9: decided by the maintainer, on the memo docs/reference/board-decision.md — the board enters Phase 2; persistence is the `.canvas` itself, with the Excalidraw drawing under a top-level `verso` key; the semantic layer and the typed relation, whose syntax is a frontmatter property of the source note holding a quoted wikilink (spec Q10); the board's accessible view, an outline beside it (ADR 0057). |
+| 0.12 | 2026-10-01 | §13: the board's accessible view, an outline beside it — written as `DECIDED` in v0.11 while ADR 0057 left it the author's choice — decided by the maintainer on 2026-10-01, on the critical review docs/review/board.md (§6 item 15). No other change. |

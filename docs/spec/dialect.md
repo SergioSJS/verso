@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.22
+# Verso dialect spec — v0.23
 
-- Version: v0.22 · 2026-09-30
+- Version: v0.23 · 2026-10-01
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -67,6 +67,7 @@ does not follow the schema is invalid.
 | `embeds` | list of embeds, in document order | not asserted |
 | `blocks` | list of `^id` definitions, in document order | not asserted |
 | `callouts` | list, in document order | not asserted |
+| `property_links` | list of the links frontmatter properties hold (Q10), in the order written (§4.7) | not asserted |
 | `observed` | how the behavior was verified in Obsidian | see 4.5 |
 | `source` | ADR or question that authorizes a behavior that is Verso's own | see 4.5 |
 
@@ -150,9 +151,26 @@ cites the ADR or the question that authorizes it in `source:`.
 
 ### 4.6 Outside the schema
 
-There is no field for typed relation, per-block visibility, inline tags or link
-resolution: each one enters the schema when the corresponding question closes,
-with a PR that updates this section.
+There is no field for per-block visibility, inline tags or link resolution:
+each one enters the schema when the corresponding question closes, with a PR
+that updates this section. The typed relation entered with Q10, as
+`property_links` (§4.7, v0.23).
+
+### 4.7 Items of `property_links`
+
+A link a frontmatter property holds — the typed relation of Q10: a quoted
+wikilink as the value, or as an item of a list.
+
+| Field | Meaning | Required |
+|---|---|---|
+| `property` | the top-level key that holds it, as written (a quoted key without its quotes) | yes |
+| `item` | its position in the list, from 0, when the value is a list | when the value is a list |
+| `target`, `heading`, `block`, `alias` | as in §4.2 | as in §4.2 |
+| `pos` | position of the first `[` of the link (4.4) | when the fixture tests position |
+
+Added on 2026-10-01 by the maintainer's decision on the critical review
+[`../review/board.md`](../review/board.md), §6 item 2, with the drafted
+fixture `fixtures/frontmatter/property-links`.
 
 ---
 
@@ -383,9 +401,27 @@ How Verso extends JSON Canvas and persists the board: `DECIDED` on
    not know, the key order read, and Obsidian's layout: an object or array
    whose values are all scalars on one line, any other one entry per line,
    tab indentation, and the final newline as the file had it (none in a file
-   Verso creates). Integer coordinates stay integers.
+   Verso creates). A value the user did not change is written as read, a
+   fraction included; geometry the user changed is written in whole numbers.
+   A file in another layout is rewritten in this one only after the user
+   sees the diff (ADR 0057 point 13).
 4. For the index, a canvas's `file` nodes and the links in its `text` nodes
-   are links from the canvas (Q16).
+   are links from the canvas (Q16). A `file` node names a path from the root
+   of the folder, never a name looked up elsewhere (ADR 0057 point 11).
+5. The fields of Verso's own on a canvas (ADR 0057 points 10 and 17), each
+   written only when it is not the board's default:
+   - top-level `verso`: `version` (1), `drawing`, `background`;
+   - an element of `verso.drawing`: `under`, the id of the node it lies
+     under;
+   - a node's own `verso`: `background`, `fill`, `corners`, `strokeWidth`,
+     `roughness`, `angle`, `strokeStyle`, `opacity`, `locked`, `groups`;
+   - an edge's own `verso`: `relation`, `line` (`curved` or `elbow`),
+     `strokeWidth`, `roughness`, `startHead`, `endHead`, `bends`,
+     `labelSize`, `labelFont`, `strokeStyle`, `opacity`, `locked`,
+     `groups`.
+
+   A `verso.version` above the one a build writes is a board of a later
+   Verso: shown, never written.
 
 ### 5.12 Headings
 
@@ -1153,3 +1189,4 @@ the parser was chosen.
 | v0.20 | 2026-09-29 | Q19, setext part: **an observed answer and a drafted fixture** — `Título` over `===` is a level-1 heading, over `---` a level-2 one, and a `---` directly under text is never a thematic break (Obsidian CLI, `docs/reference/obsidian-cli.md`; `fixtures/heading/setext`, AI draft). Section 5.12 updated; the setext sub-question closes with the maintainer's approval of that fixture in its pull request. The matching part of Q19 stays open |
 | v0.21 | 2026-09-29 | **Q19, setext part, closed by the maintainer**: the fixture `fixtures/heading/setext` approved in session ("ratifique o que precisar"); a setext underline is a heading, as observed in Obsidian. Section 5.12 updated. The matching part of Q19 stays `[OPEN]`. Q26: a note pointing to the revision of ADR 0044 of the same day — build directories and `.gitignore` left out, behind settings. One question closed, in part |
 | v0.22 | 2026-09-30 | **Q10 closed by the maintainer** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): a typed relation is a frontmatter property of the source note whose value is a quoted wikilink or a list of them, the key its type; with it, **Q24's link part**. **Q16 decided for `.canvas`** as Obsidian does: `file` nodes and the links of `text` nodes are backlink sources, a canvas is a link target by its full name. §5.11: the board's format — the drawing under a top-level `verso` key, no type of Verso's own, Obsidian's layout kept on write. Section 6: the typed relation `DECIDED`; the conversion table's D4 `DECIDED`. One question closed, two in part |
+| v0.23 | 2026-10-01 | On the critical review `docs/review/board.md`, §6, accepted by the maintainer: **`property_links`** joins the `expected.yaml` schema (§4.1, §4.7, §4.6), with the drafted fixture `fixtures/frontmatter/property-links` (AI draft, observed in Obsidian 1.13.7); §5.11 records the fields of Verso's own on a canvas, that a `file` node is a path from the root, and that a save writes what the user did not change as it was read. No question closed |
