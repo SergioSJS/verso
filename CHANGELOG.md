@@ -41,6 +41,7 @@ test release.
 
 ### Fixed
 
+- **A board edit undone before it is saved leaves nothing to save**: the tab closes clean and writes nothing. Tabs brought back behind others no longer download pictures or PDFs from iCloud until they are shown; back and forward follow a note renamed meanwhile; a note named like `Plano.canvas.md` is found by the command line and the MCP without its `.md`.
 - **The updater finds `gh` when the app is opened from the Dock**, whose PATH does not reach Homebrew's folder, and says why a 404 came back.
 - **An SVG opens fitted to the view**, where it opened as an empty tab.
 - **The status bar's palette button is an icon.**

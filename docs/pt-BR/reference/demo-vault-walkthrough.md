@@ -182,8 +182,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `tabs.spec.mjs`.
 5. ‹ e ⌘[ voltam pelas notas clicadas na árvore, mesmo que uma só aba de
    pré-visualização tenha mostrado todas; ⌘] avança. Nível: H; E:
-   `tabs.spec.mjs`. Pegou: a trilha guardava abas, e uma aba de
-   pré-visualização substituída não deixava caminho de volta (2026-10-01).
+   `tabs.spec.mjs`. Uma nota renomeada no meio do caminho é alcançada pelo
+   nome novo; uma apagada sai da trilha. Pegou: a trilha guardava abas, e
+   uma aba de pré-visualização substituída não deixava caminho de volta
+   (2026-10-01).
 6. Com uma pergunta na tela (Ajustes, um plano), o ⌘W do menu não fecha
    nada por trás dela; sem aba nenhuma, o ⌘W fecha a janela. Nível: H (a
    pergunta); E: `tabs.spec.mjs`; A (a janela).
@@ -198,6 +200,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 3. "Desenho do Excalidraw": "Converter em board" mostra o board que vai ser
    criado, e "Criar o board" cria `Desenho do Excalidraw.canvas` ao lado.
    Nível: A.
+4. Na página do `Web/jsoncanvas.org.md`, e num link aberto na janela dele:
+   digite num campo do site, e então ⌘A, ⌘Z e ⌘⇧Z agem nesse campo, uma vez
+   cada, e nada na nota atrás muda. Nível: A (a web view do site é do host;
+   revisão `board.md`, segunda leitura, achado 1).
 
 ## 8. O arquivo do board
 
@@ -223,6 +229,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    "Deixar como está" não grava nada. Nível: H; E: `board-file.spec.mjs`.
 7. Um canvas salvo por um Verso mais novo (`verso.version` 2) abre só para
    ver: um arrasto não grava nada. Nível: H; E: `board-file.spec.mjs`.
+8. Um cartão movido e o movimento desfeito (⌘Z) antes do salvamento: a aba
+   fecha limpa, nada gravado. Nível: H; E: `board-file.spec.mjs`.
 
 ## 9. O treino do board
 

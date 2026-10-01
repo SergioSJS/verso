@@ -42,7 +42,10 @@
   fourth exception, `src/log.rs`, ratified, and the log a decision; `0BSD`
   on the npm allowlist and `fuzzy` taken by hand as MIT; the window's unit
   tests in `scripts/check.sh` and in the pull request's job; the demo vault's
-  check named among the guardrails.
+  check named among the guardrails. The canvas target seen failing the same
+  day, as a feature guardrail must be: with a planted fault — a backslash in
+  a key written unescaped — it stopped on the versioned seeds alone, "what is
+  written parses again: expected ':'"; the code was put back.
 
 ## Context
 
