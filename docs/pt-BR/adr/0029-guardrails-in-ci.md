@@ -44,7 +44,11 @@
   `src/log.rs`, ratificada, e o log uma decisão; `0BSD` na allowlist npm e
   `fuzzy` aceito à mão como MIT; os testes unitários da janela no
   `scripts/check.sh` e no job do pull request; a checagem do cofre de exemplo
-  nomeada entre os guardrails.
+  nomeada entre os guardrails. O alvo do canvas visto falhando no mesmo dia,
+  como um guardrail de feature tem de ser: com um defeito plantado — uma barra
+  invertida numa chave escrita sem escape — ele parou só com as sementes
+  versionadas, "what is written parses again: expected ':'"; o código voltou
+  ao que era.
 
 ## Contexto
 

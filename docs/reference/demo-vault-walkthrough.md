@@ -182,8 +182,9 @@ point 13).
    `tabs.spec.mjs`.
 5. ‹ and ⌘[ step back through the notes clicked in the tree, though one
    preview tab showed them all; ⌘] steps forward. Level: H; E:
-   `tabs.spec.mjs`. Caught: the trail held tabs, and a replaced preview
-   tab left no way back (2026-10-01).
+   `tabs.spec.mjs`. A note renamed meanwhile is stepped back to by its new
+   name; one deleted leaves the trail. Caught: the trail held tabs, and a
+   replaced preview tab left no way back (2026-10-01).
 6. With a question on screen (Settings, a plan), the menu's ⌘W closes
    nothing behind it; with no tab left, ⌘W closes the window. Level: H (the
    question); E: `tabs.spec.mjs`; A (the window).
@@ -198,6 +199,11 @@ point 13).
 3. "Desenho do Excalidraw": "Converter em board" shows the board to be made,
    and "Criar o board" makes `Desenho do Excalidraw.canvas` beside it.
    Level: A.
+4. In `Web/jsoncanvas.org.md`'s page, and in a link opened in its own
+   window: type in a field of the site, then ⌘A, ⌘Z and ⌘⇧Z act in that
+   field, once each, and nothing in the note behind changes. Level: A (the
+   site's web view is the host's; review `board.md`, second reading,
+   finding 1).
 
 ## 8. The board's file
 
@@ -223,6 +229,8 @@ point 13).
    writes nothing. Level: H; E: `board-file.spec.mjs`.
 7. A canvas saved by a later Verso (`verso.version` 2) opens to look at only:
    a drag writes nothing. Level: H; E: `board-file.spec.mjs`.
+8. A card moved and the move undone (⌘Z) before the save: the tab closes
+   clean, nothing written. Level: H; E: `board-file.spec.mjs`.
 
 ## 9. The practice board
 
