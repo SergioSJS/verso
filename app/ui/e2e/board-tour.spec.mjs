@@ -23,6 +23,9 @@ test("the tour opens with its stops in order, each shown whole from the outline"
   expect(Math.abs(c.x - (chosen.left + chosen.width / 2))).toBeLessThan(40);
   expect(Math.abs(c.y - (chosen.top + chosen.height / 2))).toBeLessThan(40);
   expect(fourth.width * chosen.zoom).toBeLessThanOrEqual(chosen.width);
+  // Shown whole and as close as it fits: not centred at a distance, as
+  // before a147e8e (review `board.md`, reading 4, finding 3).
+  expect(Math.max((fourth.width * chosen.zoom) / chosen.width, (fourth.height * chosen.zoom) / chosen.height)).toBeGreaterThan(0.6);
   // Closing the outline (the pane grows) keeps the stop chosen: the whole
   // board came back over it once.
   await app.page.getByRole("button", { name: "Sumário", exact: true }).click();

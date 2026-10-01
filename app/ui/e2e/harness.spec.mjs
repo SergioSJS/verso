@@ -11,6 +11,15 @@ test("every command of the contract has an answer in the harness", async ({ app 
   const answered = await app.page.evaluate(() => window.__harness.commands);
   expect(contract.length).toBeGreaterThan(50);
   expect(contract.filter((c) => !answered.includes(c)), "commands with no answer in src/harness/core.ts").toEqual([]);
+  // And by the names the window sends: an argument renamed in the core
+  // reaches a handler that reads the old name as `undefined`.
+  const args = Object.fromEntries(
+    [...bindings.matchAll(/__TAURI_INVOKE(?:<[^>]*>)?\("([a-z_]+)"(?:, \{ ([^}]*) \})?\)/g)].map((m) => [m[1], (m[2] ?? "").split(",").map((a) => a.trim().split(":")[0].trim()).filter(Boolean)]),
+  );
+  const sources = await app.page.evaluate(() => Object.fromEntries(Object.entries(window.__harness.core.handlers).map(([k, f]) => [k, String(f)])));
+  const unused = await app.page.evaluate(() => window.__harness.unusedArgs);
+  const unread = Object.entries(args).flatMap(([cmd, names]) => names.filter((n) => !sources[cmd]?.includes(`"${n}"`) && !unused[cmd]?.includes(n)).map((n) => `${cmd}(${n})`));
+  expect(unread, "arguments of the contract a handler never reads").toEqual([]);
 });
 
 test("the window opens on the demo vault", async ({ app }) => {

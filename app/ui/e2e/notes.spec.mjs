@@ -77,8 +77,9 @@ test("a renamed note shows who links to it at once", async ({ app }) => {
   await expect.poll(() => app.files()).toContain("projetos/Projeto Gama.md");
   // Pointed at the new name, the notes and the boards — and listed now,
   // without opening the note again (a51aab2).
-  expect(await app.file("projetos/Projeto Alpha.md")).toContain("[[Projeto Gama]]");
-  expect(await app.file("Board de Demonstração.canvas")).toContain('"file":"projetos/Projeto Gama.md"');
+  // The plan writes note by note: waited for, not read once.
+  await expect.poll(() => app.file("projetos/Projeto Alpha.md")).toContain("[[Projeto Gama]]");
+  await expect.poll(() => app.file("Board de Demonstração.canvas")).toContain('"file":"projetos/Projeto Gama.md"');
   await expect(panel).toContainText("Projeto Alpha");
   await expect(panel).toContainText("Pesquisa e Descobertas");
 });
@@ -95,7 +96,43 @@ test("⌘D makes today's note from the Diário template, and the calendar marks 
   await app.page.locator('#right-tabs button[data-tab="calendar"]').click();
   const cal = app.page.locator(".daily-cal");
   await expect(cal.locator(`.daily-day.has[data-day="${day}"]`)).toBeVisible();
-  for (let i = 0; i < 36 && (await cal.locator('[data-day="2026-09-24"]').count()) === 0; i++) await cal.getByRole("button", { name: "Anterior" }).click();
+  // Back to September 2026 by its date: as many months as lie between.
+  const months = await app.page.evaluate(() => {
+    const d = new Date();
+    return d.getFullYear() * 12 + d.getMonth() - (2026 * 12 + 8);
+  });
+  for (let i = 0; i < months; i++) await cal.getByRole("button", { name: "Anterior" }).click();
   await expect(cal.locator('.daily-day.has[data-day="2026-09-24"]')).toBeVisible();
   await expect(cal.locator('.daily-day.has[data-day="2026-09-25"]')).toBeVisible();
+});
+
+test("a note changed on disk while text typed here is unsaved shows both, and the disk's stays", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("11 - Escrevendo");
+  const note = "11 - Escrevendo no Editor.md";
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await page.locator(".cm-content").first().click();
+  await app.key("Mod+End");
+  await page.keyboard.type(" digitado aqui");
+  // Another app writes the note before this tab saves (invariant 11).
+  const outside = (await app.file(note)) + "\nescrito lá fora\n";
+  await app.writeOutside(note, outside);
+  await app.folderChanged([note]);
+  await expect(page.locator(".conflict:visible")).toBeVisible();
+  expect(await app.file(note)).toBe(outside);
+});
+
+test("a picture whose name has an accent is shown from the folder", async ({ app, page }) => {
+  await app.open();
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="#c33"/></svg>';
+  await app.writeOutside("assets/gráfico.svg", svg);
+  await app.writeOutside("Nota do Gráfico.md", "# Nota do Gráfico\n\n![g|120](assets/gráfico.svg)\n");
+  await app.folderChanged(["assets/gráfico.svg", "Nota do Gráfico.md"], true);
+  await expect(page.locator("#notes")).toContainText("Nota do Gráfico");
+  await app.quickOpen("Nota do Gráfico");
+  // The renderer writes `gr%C3%A1fico`; the folder names the file `gráfico`
+  // (review `board.md`, reading 3, finding 6).
+  const img = page.locator('.preview img[alt="g|120"]');
+  await expect(img).toHaveAttribute("src", /^\/__vault\/assets\//);
+  await expect.poll(() => img.evaluate((i) => i.naturalWidth)).toBeGreaterThan(0);
 });

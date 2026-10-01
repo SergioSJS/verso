@@ -130,6 +130,49 @@ fn a_rename_points_the_canvas_at_the_new_path() {
 }
 
 #[test]
+fn a_move_under_the_same_name_points_the_card_at_the_new_path() {
+    // A card's `file` is a path from the root (ADR 0057, decided on
+    // 2026-10-01): moved into a folder under the same name, the note is no
+    // longer where the card says, so the card is pointed at it. The text
+    // card's `[[Barão]]` still reaches it by name and stays as written.
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _n = file(vault.path(), "Barão.md", "# Barão\n");
+    let _b = file(vault.path(), "Quadro.canvas", BOARD);
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let moved = ws.rename_note("Barão", "npcs/Barão").unwrap();
+    assert_eq!(moved.rewrites.len(), 1);
+    let w = &moved.rewrites[0];
+    assert_eq!(
+        w.after,
+        BOARD.replace("\"file\":\"Barão.md\"", "\"file\":\"npcs/Barão.md\"")
+    );
+    ws.write_text(&w.path, &w.after, &w.revision).unwrap();
+    assert_eq!(ws.backlinks("npcs/Barão").unwrap().unwrap().len(), 2);
+}
+
+#[test]
+fn a_card_whose_path_is_gone_links_to_nothing() {
+    // The card says `Barão.md`, at the root; the only Barão is in `npcs/`.
+    // The text card's `[[Barão]]` reaches it by name; the card does not.
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let npcs = Builder::new()
+        .prefix("npcs")
+        .rand_bytes(0)
+        .tempdir_in(vault.path())
+        .unwrap();
+    let _n = file(npcs.path(), "Barão.md", "# Barão\n");
+    let _b = file(vault.path(), "Quadro.canvas", BOARD);
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let back = ws.backlinks("npcs/Barão").unwrap().unwrap();
+    assert_eq!(back.len(), 1);
+    assert!(!back[0].embed);
+}
+
+#[test]
 fn moving_the_canvas_keeps_links_to_it() {
     let vault = tempfile::tempdir().unwrap();
     let config = tempfile::tempdir().unwrap();

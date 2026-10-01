@@ -25,9 +25,13 @@ test("lesson 7: ⌘⌥] brings a drawing to the front and ⌘⌥[ sends one to t
   await app.select("d-cam-circulo");
   await page.keyboard.press(FRONT);
   await expect.poll(async () => (await order(app)).indexOf("d-cam-circulo")).toBeGreaterThan((await order(app)).indexOf("d-cam-losango"));
-  await app.select("d-cam-quadrado");
+  // The diamond lies over the square: sent to the back, it goes under it
+  // (the square is under it already, and proves nothing — review
+  // `board.md`, reading 4, finding 7).
+  expect((await order(app)).indexOf("d-cam-losango")).toBeGreaterThan((await order(app)).indexOf("d-cam-quadrado"));
+  await app.select("d-cam-losango");
   await page.keyboard.press(BACK);
-  await expect.poll(async () => (await order(app)).indexOf("d-cam-quadrado")).toBeLessThan((await order(app)).indexOf("d-cam-losango"));
+  await expect.poll(async () => (await order(app)).indexOf("d-cam-losango")).toBeLessThan((await order(app)).indexOf("d-cam-quadrado"));
   // Four actions matched ⌘⌥] on a Mac, and Excalidraw ran none (a51aab2).
   expect(warnings.filter((w) => /multiple actions match/i.test(w))).toEqual([]);
 });
@@ -119,12 +123,22 @@ test("lesson 11: the board's search finds the word as typed, and stays put while
   await expect(field).toHaveValue("tesouro");
   await expect(field).toHaveAttribute("spellcheck", "false");
   await expect(page.locator(".board-search-count")).toHaveText(/^1 de \d+$/);
-  await page.waitForTimeout(800);
-  const before = await app.view();
+  // On a match other than the first, which is where the old bug sent the
+  // view back to (review `board.md`, reading 4, finding 2).
+  await field.press("Enter");
+  await expect(page.locator(".board-search-count")).toHaveText(/^2 de \d+$/);
+  const before = await app.settledView();
+  // A real change, so that the board saves: a drawn element nudged with
+  // the keyboard, as a user does.
+  const writes = (await app.calls("write_board")).length;
+  await app.select("d-lig-w");
+  await page.locator(".excalidraw").first().focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(async () => (await app.calls("write_board")).length).toBeGreaterThan(writes);
   // The folder changed — the board's own save, as the watcher reports it:
   // the view stays where the user is (a51aab2).
-  await app.emit("folder-changed", { key: "harness", changed: [BOARD], removed: [], listing: false, index: { indexed: 0, unchanged: 0, removed: 0, placeholders: 0, problems: [], unwatched: null, unindexed: null } });
+  await app.folderChanged([BOARD]);
   await page.waitForTimeout(800);
-  const after = await app.view();
+  const after = await app.settledView();
   expect([after.scrollX, after.scrollY, after.zoom]).toEqual([before.scrollX, before.scrollY, before.zoom]);
 });

@@ -60,6 +60,28 @@ const strict = new TextDecoder("utf-8", { fatal: true });
 const lossy = new TextDecoder("utf-8");
 
 /** A contract error, thrown: the window's typed command answers it as one. */
+/** Arguments a handler takes and has no use for: windows, web views, the
+ *  menu and the system are the host's, and do nothing in a browser. Named,
+ *  so that `e2e/harness.spec.mjs` tells them from an argument the core
+ *  renamed, which a handler would read as `undefined`. */
+export const UNUSED_ARGS: Record<string, string[]> = {
+  reopen_folder: ["key"],
+  open_window: ["path"],
+  return_to_main: ["path"],
+  open_url: ["url"],
+  fetch_file: ["path"],
+  web_open: ["x", "y", "w", "h"],
+  web_bounds: ["label", "x", "y", "w", "h"],
+  web_visible: ["label", "visible"],
+  web_nav: ["action"],
+  reveal: ["path"],
+  copy_full_path: ["path"],
+  set_embed_origins: ["origins"],
+  set_walk_rules: ["builtinIgnores", "gitignore"],
+  set_menu_language: ["language"],
+  install_cli: ["replace"],
+};
+
 function refuse(kind: ErrorKind, message: string): never {
   const error: ContractError = { kind, message };
   throw error;
@@ -161,6 +183,15 @@ export class Core {
     const p = path.trim().replace(/^\.\//, "").replace(/\/+$/, "");
     if (p === "" || p.startsWith("/") || p.split("/").some((s) => s === ".." || s === "") || hidden(p)) refuse("refused", `not a path of the folder: ${path}`);
     return p;
+  }
+
+  /** The canvas the window sent, or `not_canvas`. */
+  private boardJson(path: string, json: string): unknown {
+    try {
+      return JSON.parse(json);
+    } catch {
+      return refuse("not_canvas", `not JSON: ${path}`);
+    }
   }
 
   private stored(path: string): Stored {
@@ -492,7 +523,7 @@ export class Core {
     },
     backlinks: (a) => this.backlinksOf(String(a["path"])),
     write_note: (a): Written => {
-      const path = String(a["path"]);
+      const path = this.confine(String(a["path"]));
       this.writeOver(path, String(a["text"]), String(a["revision"]));
       return { note: this.noteText(path), warnings: [] };
     },
@@ -575,20 +606,23 @@ export class Core {
     web_url: (a) => this.webViews.get(String(a["label"])) ?? "",
     read_text: (a) => this.textFile(this.confine(String(a["path"]))),
     write_text: (a): TextFile => {
-      const path = String(a["path"]);
+      const path = this.confine(String(a["path"]));
       this.writeOver(path, String(a["text"]), String(a["revision"]));
       return this.textFile(path);
     },
     write_board: (a): TextFile => {
-      const path = String(a["path"]);
-      let doc: unknown;
-      try {
-        doc = JSON.parse(String(a["json"]));
-      } catch {
-        refuse("not_canvas", `not JSON: ${path}`);
-      }
-      this.writeOver(path, canvasLayout(doc), String(a["revision"]));
+      const path = this.confine(String(a["path"]));
+      this.writeOver(path, canvasLayout(this.boardJson(path, String(a["json"]))), String(a["revision"]));
       return this.textFile(path);
+    },
+    // What `write_board` would write, writing nothing. The core lays the
+    // window's canvas over the file as read, keeping each unchanged
+    // value's token; the window sends back every value it read, so the
+    // layout alone gives the same text but for how a number was written.
+    board_preview: (a) => {
+      const path = this.confine(String(a["path"]));
+      this.text(path);
+      return canvasLayout(this.boardJson(path, String(a["json"])));
     },
     board_text: (a) => canvasLayout(JSON.parse(String(a["json"]))),
     render_markdown: (a) => renderMarkdown(String(a["text"])),

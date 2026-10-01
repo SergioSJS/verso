@@ -1,6 +1,7 @@
 // The window's end-to-end tests (ADR 0058): the browser harness
 // (src/harness.ts) in WebKit — the engine of the app's web view — headless,
-// served by e2e/serve.mjs. `npm run e2e` builds, then runs them;
+// served by e2e/serve.mjs from e2e/.site (e2e/build.mjs), never from the
+// app's dist/. `npm run e2e` builds, then runs them;
 // scripts/check.sh runs them before every push.
 
 import { defineConfig, devices } from "@playwright/test";
@@ -29,9 +30,10 @@ export default defineConfig({
   },
   projects: [{ name: "webkit", use: { browserName: "webkit" } }],
   webServer: {
-    command: "node e2e/serve.mjs",
+    command: "node e2e/build.mjs && node e2e/serve.mjs",
     url: `http://127.0.0.1:${port}/harness.html`,
-    reuseExistingServer: !process.env.CI,
+    // Never another checkout's server on the same port: a busy port fails.
+    reuseExistingServer: false,
     env: { PORT: String(port) },
   },
 });

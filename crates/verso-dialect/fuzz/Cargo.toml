@@ -36,6 +36,16 @@ test = false
 doc = false
 bench = false
 
+# The canvas reader of verso-core, compiled from its own source file
+# (fuzz_targets/canvas.rs): decided on 2026-10-01, review `board.md` §6
+# item 9.
+[[bin]]
+name = "canvas"
+path = "fuzz_targets/canvas.rs"
+test = false
+doc = false
+bench = false
+
 # Same patch as the workspace Cargo.toml: this harness is its own package,
 # so the patch has to be repeated here. Remove together (ADR 0037).
 [patch.crates-io]

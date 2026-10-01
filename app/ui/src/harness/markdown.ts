@@ -86,6 +86,13 @@ export function blocksOf(text: string): Block[] {
   return out;
 }
 
+/** An address as the core's renderer writes it (pulldown-cmark's
+ *  `escape_href`): what is not safe in a URL percent-encoded, as UTF-8 —
+ *  `gráfico` is `gr%C3%A1fico`, a space `%20` — and `%` left alone. */
+function escapeHref(src: string): string {
+  return src.replace(/[^A-Za-z0-9\-_.!~*'();/?:@&=+$,#%]/gu, (c) => encodeURIComponent(c));
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -108,7 +115,7 @@ function formatMarks(text: string): string {
     const [to = "", label] = inner.split("|");
     return `<span class="embed" data-target="${to.trim()}">${(label ?? to).trim()}</span>`;
   });
-  s = s.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1">');
+  s = s.replace(/!\[(.*?)\]\((.*?)\)/g, (_, alt: string, src: string) => `<img src="${escapeHref(src)}" alt="${alt}">`);
   s = s.replace(/\[\[(.*?)\]\]/g, (_, target: string) => {
     const [to = "", label] = target.split("|");
     return `<a class="wikilink" data-target="${to.trim()}">${(label ?? to).trim()}</a>`;

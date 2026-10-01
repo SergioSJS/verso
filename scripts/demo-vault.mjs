@@ -46,15 +46,20 @@ const TOUR = "Tour do Verso.canvas";
  *  creates its note when it is followed. */
 const MEANT_MISSING = new Set(["nova ideia de projeto"]);
 
-/** The folder's files, as git sees them, relative to it. */
-function vaultFiles() {
-  const out = execFileSync("git", ["-c", "core.quotepath=off", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "demo-vault"], { cwd: root });
+/** The folder's files git tracks, relative to it: what the app embeds. A
+ *  file left in the folder by a test (a daily note made in the app) is not
+ *  the tutorial until it is added (review `board.md`, reading 5,
+ *  finding 16); `untracked` names those. */
+function vaultFiles(which = "--cached") {
+  const flags = which === "--cached" ? ["--cached"] : ["--others", "--exclude-standard"];
+  const out = execFileSync("git", ["-c", "core.quotepath=off", "ls-files", "-z", ...flags, "--", "demo-vault"], { cwd: root });
   return out
     .toString("utf8")
     .split("\0")
     .filter(Boolean)
     .map((p) => p.slice("demo-vault/".length));
 }
+const untracked = () => vaultFiles("--others");
 
 /** The embed for the folder as it is now. */
 function embedText() {
@@ -212,6 +217,8 @@ if (command === "build") {
   for (const [name, make] of Object.entries(boards)) writeFileSync(join(vault, name), boardText(make));
   writeFileSync(embedPath, embedText());
   console.log(`demo vault: ${Object.keys(boards).length} boards written, ${vaultFiles().length} files embedded`);
+  const left = untracked();
+  if (left.length > 0) console.error(`Not embedded, not tracked by git (add them to make them part of the tutorial): ${left.join(", ")}`);
   const said = problems();
   if (said.length > 0) console.error(`The vault does not hold together yet (check will refuse it):\n  ${said.join("\n  ")}`);
 } else if (command === "check") {

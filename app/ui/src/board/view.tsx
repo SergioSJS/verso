@@ -35,6 +35,7 @@ import type { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/t
 import type { ExcalidrawElement, NonDeleted, ExcalidrawEmbeddableElement } from "@excalidraw/excalidraw/element/types";
 import type { BoardStrings } from "./strings";
 import {
+  BOARD_VERSION,
   CARD_PAPER,
   MARKER,
   backgroundOf,
@@ -65,7 +66,10 @@ export type BoardHost = {
   dark: () => boolean;
   /** The canvas as the board holds it, to be saved (the core lays it over
    *  the file as read). */
-  save: (json: string) => void;
+  save: (json: string) => Promise<void> | void;
+  /** The user changed the board: the tab has unsaved work from now on,
+   *  before the save's delay runs out. */
+  changed?: () => void;
   openFile: (path: string, aside: boolean) => void;
   /** Draw a note into `el` as the reading view draws it (sanitized, its
    *  images and embeds resolved, its links live). */
@@ -164,6 +168,9 @@ export type BoardHandle = {
   /** Go to the board's search (⌘F). */
   find: () => void;
   focus: () => void;
+  /** Save now what the board holds and has not saved: before its tab
+   *  closes, the window quits or the folder changes. */
+  flush: () => Promise<void>;
   destroy: () => void;
 };
 
@@ -171,7 +178,8 @@ const SAVE_DELAY = 700;
 
 /** With the window in Portuguese, the words Excalidraw's pt-BR leaves out
  *  (`ptBR.ts`) take the place of the English it falls back to. Excalidraw
- *  pinned at 0.18.1: its English is this module. */
+ *  is pinned at exactly 0.18.1 in package.json: its English is this
+ *  module, a hashed file of its build. */
 export async function completeLocale(lang: string): Promise<void> {
   if (!lang.toLowerCase().startsWith("pt")) return;
   // @ts-expect-error — a module of the package's build, without types.
@@ -1067,17 +1075,36 @@ function Board({
 }: {
   host: BoardHost;
   initial: CanvasDoc;
-  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void) => void;
+  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>) => void;
 }): JSX.Element {
   const s = host.strings;
   const api = useRef<Api | null>(null);
   const doc = useRef<CanvasDoc>(initial);
   const sent = useRef<string>("");
-  /** Whether the user has done anything since the board was drawn from the
-   *  file: only then is a change theirs. What Excalidraw adjusts by itself
-   *  — a text measured again once its font loads — is not written back
-   *  (invariant 7: opening never rewrites). */
+  /** Whether the user has acted on the board or its view since it was
+   *  drawn: from then on the view is theirs, and the pane's size no longer
+   *  brings the whole board back. A press is not an edit (`edited`). */
   const touched = useRef(false);
+  /** Whether the user changed the board since it was drawn from the file:
+   *  only then is anything written (invariant 7; decided on 2026-10-01,
+   *  review `board.md` §6 item 3). A change is the user's when the scene
+   *  moved past what the board itself last made of it (`own`): a text
+   *  measured again once its font is in, a marker dropped, an edge lifted
+   *  out of a group. A press, a selection, a pan or a zoom changes no
+   *  element and writes nothing; what the board adjusted rides along with
+   *  the first real edit. */
+  const edited = useRef(false);
+  /** The scene's signature — the sum of its elements' versions and the
+   *  background — as the board itself last left it; null until the first
+   *  change Excalidraw reports. */
+  const ownSig = useRef<string | null>(null);
+  /** False once the board is unmounting: nothing is read from Excalidraw
+   *  after that. */
+  const alive = useRef(true);
+  /** A board of a later Verso (`verso.version` above the one this build
+   *  writes) is shown and never written (review `board.md`, reading 2,
+   *  finding 8). */
+  const readOnly = typeof initial.verso?.version === "number" && initial.verso.version > BOARD_VERSION;
   /** The board opened where it was left (the setting): the pane's size no
    *  longer brings the whole board back into view. */
   const restoredView = useRef(false);
@@ -1159,6 +1186,40 @@ function Board({
     sent.current = JSON.stringify(fromElements(els as unknown as El[], d));
   }, []);
 
+  /** The scene's signature: what an edit, the user's or the board's, moves. */
+  const sigOf = (a: Api): string => `${getSceneVersion(a.getSceneElementsIncludingDeleted() as never)}|${a.getAppState().viewBackgroundColor}`;
+  /** A change past what the board itself made is the user's (`edited`). The
+   *  first signature seen is the board as drawn. */
+  const noteUser = useCallback((): void => {
+    const a = api.current;
+    if (!a) return;
+    const sig = sigOf(a);
+    if (ownSig.current === null) {
+      ownSig.current = sig;
+      return;
+    }
+    if (sig === ownSig.current) return;
+    ownSig.current = sig;
+    if (!edited.current) {
+      edited.current = true;
+      host.changed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host]);
+  /** A change the board makes by itself: whatever the user changed before
+   *  it is counted first, and the change itself is not theirs. */
+  const own = useCallback(
+    (update: (a: Api) => void): void => {
+      const a = api.current;
+      if (!a) return;
+      noteUser();
+      update(a);
+      ownSig.current = sigOf(a);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [noteUser],
+  );
+
   // Text is measured with the fonts the window has when the board opens:
   // before a font arrives, with a fallback, narrower or wider. Excalidraw
   // 0.18 draws the text again once its font is in but keeps the box it
@@ -1189,8 +1250,8 @@ function Board({
       changed = true;
       return newElementWith(e, { width: f.width, height: f.height, x: f.x, y: f.y, text: f.text });
     });
-    if (changed) a.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER });
-  }, []);
+    if (changed) own((b) => b.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER }));
+  }, [own]);
   useEffect(() => {
     const fonts = document.fonts;
     fonts.addEventListener("loadingdone", remeasure);
@@ -1211,7 +1272,9 @@ function Board({
         window.clearTimeout(timer.current);
         touched.current = false;
         baseline(els, d);
-        api.current?.updateScene({ elements: els, appState: { viewBackgroundColor: backgroundOf(d) ?? "transparent" } as never, captureUpdate: CaptureUpdateAction.NEVER });
+        own((a) => a.updateScene({ elements: els, appState: { viewBackgroundColor: backgroundOf(d) ?? "transparent" } as never, captureUpdate: CaptureUpdateAction.NEVER }));
+        // The file as it is now: nothing of the user's is left over.
+        edited.current = false;
         setElements(els as unknown as El[]);
         syncCards(els);
       },
@@ -1220,6 +1283,10 @@ function Board({
       () => {
         searchBox.current?.focus();
         searchBox.current?.select();
+      },
+      () => {
+        window.clearTimeout(timer.current);
+        return flushRef.current();
       },
     );
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -1230,6 +1297,10 @@ function Board({
     return () => {
       media.removeEventListener("change", theme);
       watch.disconnect();
+      // The tab saves what is left before it lets the board go (its
+      // `flush`); once Excalidraw has unmounted, its scene is empty, and a
+      // save from here would write an empty board.
+      alive.current = false;
       window.clearTimeout(timer.current);
       window.clearTimeout(outlineTimer.current);
     };
@@ -1259,17 +1330,24 @@ function Board({
     };
   }, []);
 
-  const flush = useCallback(() => {
+  const flush = useCallback((): Promise<void> => {
     const a = api.current;
-    if (!a) return;
+    if (!a || readOnly || !alive.current) return Promise.resolve();
+    noteUser();
     const next = fromElements(a.getSceneElementsIncludingDeleted() as unknown as El[], doc.current, a.getAppState().viewBackgroundColor);
     const json = JSON.stringify(next);
-    if (json === sent.current) return;
+    if (json === sent.current) return Promise.resolve();
     sent.current = json;
-    if (!touched.current) return;
+    if (!edited.current) return Promise.resolve();
     doc.current = next;
-    host.save(json);
-  }, [host]);
+    return Promise.resolve(host.save(json));
+  }, [host, noteUser, readOnly]);
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => {
+    if (readOnly) host.status(s.newerBoard);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A card's link is the marker Excalidraw validates before it draws the
   // card, once per element; it also paints a link icon on every element
@@ -1285,12 +1363,14 @@ function Board({
       if (!a) return;
       const now = a.getSceneElementsIncludingDeleted();
       if (!now.some((e) => e.type === "embeddable" && e.link === MARKER)) return;
-      a.updateScene({
-        elements: now.map((e) => (e.type === "embeddable" && e.link === MARKER ? newElementWith(e, { link: null }) : e)),
-        captureUpdate: CaptureUpdateAction.NEVER,
-      });
+      own((b) =>
+        b.updateScene({
+          elements: now.map((e) => (e.type === "embeddable" && e.link === MARKER ? newElementWith(e, { link: null }) : e)),
+          captureUpdate: CaptureUpdateAction.NEVER,
+        }),
+      );
     }, 300);
-  }, []);
+  }, [own]);
 
   const syncCards = useCallback((els: readonly ExcalidrawElement[]) => {
     const list = (els as unknown as El[]).filter((e) => e.type === "embeddable" && !e.isDeleted && isNode(e));
@@ -1483,9 +1563,9 @@ function Board({
     const rest = els.filter((e) => !moving.has(e.id));
     const at = rest.findIndex((e) => !e.isDeleted && isNode(e as unknown as El));
     const list = at < 0 ? [...rest, ...lifted] : [...rest.slice(0, at), ...lifted, ...rest.slice(at)];
-    api.current?.updateScene({ elements: list, captureUpdate: CaptureUpdateAction.NEVER });
+    own((a) => a.updateScene({ elements: list, captureUpdate: CaptureUpdateAction.NEVER }));
     return true;
-  }, []);
+  }, [own]);
 
   const liftDrawn = useCallback((els: readonly ExcalidrawElement[], state: AppState): void => {
     const known = seen.current;
@@ -1511,8 +1591,8 @@ function Board({
       list.splice(last, 0, e);
       moved = true;
     }
-    if (moved) api.current?.updateScene({ elements: list, captureUpdate: CaptureUpdateAction.NEVER });
-  }, []);
+    if (moved) own((a) => a.updateScene({ elements: list, captureUpdate: CaptureUpdateAction.NEVER }));
+  }, [own]);
 
   // The layer lives inside Excalidraw's own root, beside its canvases, so
   // that its menus and toolbar stay above the cards.
@@ -1552,6 +1632,7 @@ function Board({
       ].join("|");
       if (key !== workKey.current) {
         workKey.current = key;
+        noteUser();
         dropMarkers(els);
         syncCards(els);
         scheduleOverlays(els);
@@ -1595,7 +1676,7 @@ function Board({
       const ids = Object.keys(state.selectedElementIds).filter((k) => state.selectedElementIds[k]);
       setSelected((was) => (was.length === ids.length && was.every((v, i) => v === ids[i]) ? was : ids));
     },
-    [flush, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, host, place],
+    [flush, noteUser, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, host, place],
   );
 
   const center = (): [number, number] => {
@@ -2042,6 +2123,7 @@ function Board({
             aiEnabled={false}
             onChange={onChange}
             theme={dark ? "dark" : "light"}
+            viewModeEnabled={readOnly}
             langCode={host.lang.toLowerCase().startsWith("pt") ? "pt-BR" : "en"}
             validateEmbeddable={(link: string) => link === MARKER}
             onLinkOpen={(element, event) => {
@@ -2113,16 +2195,18 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
   let focus: () => void = () => undefined;
   let refresh: () => void = () => undefined;
   let find: () => void = () => undefined;
+  let flush: () => Promise<void> = () => Promise.resolve();
   const root = createRoot(el);
   root.render(
     <Board
       host={host}
       initial={initial}
-      bind={(l, f, r, fd) => {
+      bind={(l, f, r, fd, fl) => {
         load = l;
         focus = f;
         refresh = r;
         find = fd;
+        flush = fl;
       }}
     />,
   );
@@ -2136,6 +2220,7 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
     refresh: () => refresh(),
     find: () => find(),
     focus: () => focus(),
+    flush: () => flush(),
     destroy: () => root.unmount(),
   };
 }

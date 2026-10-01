@@ -5,8 +5,9 @@
 
 import { test as base, expect } from "@playwright/test";
 
-/** Console lines that are not the window's errors. */
-const NOISE = [/^Failed to load resource/];
+/** Console lines that are not the window's errors: WebKit's line for a
+ *  response that failed, which the fixture reports itself, by address. */
+const NOISE = [/^Failed to load resource: the server responded with a status of \d+/];
 
 const TYPES = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", html: "text/html; charset=utf-8" };
 
@@ -64,6 +65,17 @@ export class App {
   /** An event from the host, as the app's host sends one. */
   emit(event, payload) {
     return this.page.evaluate(([e, p]) => window.__harness.emit(e, p), [event, payload]);
+  }
+
+  /** The watcher's word that `paths` changed in the harness's folder;
+   *  `listing` when files came or went. */
+  folderChanged(paths, listing = false) {
+    return this.emit("folder-changed", { key: "harness", changed: paths, removed: [], listing, index: { indexed: 0, unchanged: 0, removed: 0, placeholders: 0, problems: [], unwatched: null, unindexed: null } });
+  }
+
+  /** Write a file of the folder as another app would: no event. */
+  writeOutside(path, text) {
+    return this.page.evaluate(([p, t]) => window.__harness.writeOutside(p, t), [path, text]);
   }
 
   // ---- The board ---------------------------------------------------------
@@ -172,6 +184,9 @@ export const test = base.extend({
     // A resource the window asked for and did not get, by its address (the
     // console says only "Failed to load resource").
     page.on("response", (r) => r.status() >= 400 && problems.push(`HTTP ${r.status()}: ${decodeURIComponent(new URL(r.url()).pathname)}`));
+    // And one that got no answer at all: a refused address, a blocked
+    // request (ADR 0058 point 11; review `board.md`, reading 4, finding 6).
+    page.on("requestfailed", (r) => problems.push(`request failed: ${decodeURIComponent(new URL(r.url()).pathname)} (${r.failure()?.errorText ?? "?"})`));
     // The `verso:` protocol of the harness, from the folder in memory: what
     // a test wrote is what the window reads.
     await page.route("**/__vault/**", async (route) => {
@@ -182,6 +197,9 @@ export const test = base.extend({
       await route.fulfill({ status: 200, body: Buffer.from(b64, "base64"), contentType: TYPES[ext] ?? "application/octet-stream" });
     });
     await use(new App(page));
+    // The harness still there: a test that left it reports nothing.
+    const there = await page.evaluate(() => window.__harness !== undefined).catch(() => false);
+    if (!there) problems.push("the harness is gone at the end of the test: its log and console were not read");
     const logged = await page.evaluate(() => window.__harness?.log.filter((l) => l.level === "ERROR").map((l) => l.message) ?? []).catch(() => []);
     for (const l of logged) problems.push(`app log: ${l}`);
     const jumps = await page.evaluate(() => window.__shellJumps ?? []).catch(() => []);

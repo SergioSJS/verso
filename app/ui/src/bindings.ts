@@ -211,8 +211,9 @@ export const commands = {
 	writeText: (path: string, text: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_text", { path, text, revision })),
 	/**
 	 *  Save a board (ADR 0057 point 2): `json` is the canvas as the window
-	 *  holds it; the core lays it over the file as read, keeping every field
-	 *  the window does not know and every value's token, and writes it in
+	 *  holds it — the window sends back every field it read, the ones it does
+	 *  not know included; the core lays it over the file as read, keeping every
+	 *  unchanged value's token and every object's key order, and writes it in
 	 *  Obsidian's layout over the revision that was read (invariant 11).
 	 *  `not_canvas` when the file on disk is not JSON.
 	 */
@@ -223,6 +224,13 @@ export const commands = {
 	 *  exactly as the file will be written. Touches no file.
 	 */
 	boardText: (json: string) => typedError<string, ContractError>(__TAURI_INVOKE("board_text", { json })),
+	/**
+	 *  What `write_board` would write for `json` over the canvas at `path` as
+	 *  it is on disk now, writing nothing: the board's side of a conflict, and
+	 *  the diff the first save of a canvas in another layout shows (review
+	 *  `board.md` §6 item 4).
+	 */
+	boardPreview: (path: string, json: string) => typedError<string, ContractError>(__TAURI_INVOKE("board_preview", { path, json })),
 	/**
 	 *  Markdown rendered as the reading view renders a note, for a text card
 	 *  of a board (spec §5.11: a text node's text is Markdown). The window

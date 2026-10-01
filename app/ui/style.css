@@ -2730,3 +2730,11 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 .board-card-slot.is-active { pointer-events: auto; }
 .board-card-slot.is-active .board-card-body { overflow: auto; }
 .board-card-placeholder { width: 100%; height: 100%; }
+
+/* A tab whose file could not be read: the reason and a way to try again,
+   in place of an editor nothing could be saved from (review board.md,
+   reading 3, finding 4). */
+.leaf.failed > :not(.leaf-head):not(header):not(.load-failure) { display: none !important; }
+.load-failure { margin: 3rem auto; max-width: 34rem; padding: 0 1.5rem; color: var(--ink-2); }
+.load-failure-title { font-family: var(--display); font-size: 1.2rem; color: var(--ink); }
+.load-failure button { margin-top: .6rem; }

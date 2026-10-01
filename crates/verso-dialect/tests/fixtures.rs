@@ -50,6 +50,9 @@ fixture_tests! {
     callout_simple => "callout/simple",
     embed_simple => "embed/simple",
     frontmatter_tags_aliases => "frontmatter/tags-aliases",
+    // AI draft of the board's PR, awaiting approval (first line of its
+    // expected.yaml).
+    frontmatter_property_links => "frontmatter/property-links",
     heading_atx => "heading/atx",
     heading_setext => "heading/setext",
     wikilink_accent_space => "wikilink/accent-space",
@@ -80,6 +83,12 @@ fn check(name: &str, input: &str, expected: &str) {
             "embeds" => check_list(&mut ctx, value, &document.embeds, check_embed),
             "blocks" => check_list(&mut ctx, value, &document.blocks, check_block),
             "callouts" => check_list(&mut ctx, value, &document.callouts, check_callout),
+            "property_links" => check_list(
+                &mut ctx,
+                value,
+                &document.property_links,
+                check_property_link,
+            ),
             // Provenance, not behavior (spec §4.5); the lint script checks them.
             "observed" | "source" => {}
             other => ctx.fail(format!("unknown top-level key `{other}` (spec §4.1)")),
@@ -280,6 +289,31 @@ fn check_link(ctx: &mut Ctx<'_>, item: &Yaml<'_>, link: &verso_dialect::Link) {
     fields.optional_text("block", link.block.as_deref());
     fields.optional_text("alias", link.alias.as_deref());
     fields.syntax();
+    fields.pos(link.pos);
+    fields.finish();
+}
+
+/// A link a frontmatter property holds (spec §4.1, `property_links`).
+fn check_property_link(ctx: &mut Ctx<'_>, item: &Yaml<'_>, link: &verso_dialect::PropertyLink) {
+    let Some(mut fields) = Fields::new(ctx, item) else {
+        return;
+    };
+    fields.text("property", &link.key);
+    match (fields.get("item").map(as_int), link.item) {
+        (None, None) => {}
+        (Some(Some(expected)), Some(actual)) if usize::try_from(expected).ok() == Some(actual) => {}
+        (Some(Some(expected)), actual) => fields
+            .ctx
+            .fail(format!("item: expected {expected}, got {actual:?}")),
+        (Some(None), _) => fields.ctx.fail("item: must be an integer".to_owned()),
+        (None, Some(actual)) => fields.ctx.fail(format!(
+            "item: fixture asserts none, the parser found {actual}"
+        )),
+    }
+    fields.text("target", &link.target);
+    fields.optional_text("heading", link.heading.as_deref());
+    fields.optional_text("block", link.block.as_deref());
+    fields.optional_text("alias", link.alias.as_deref());
     fields.pos(link.pos);
     fields.finish();
 }

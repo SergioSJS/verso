@@ -437,7 +437,9 @@ impl Server {
         Parameters(p): Parameters<ReadParams>,
     ) -> Result<Json<ReadResult>, CallToolResult> {
         self.guarded(|ws| {
-            let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
+            let key = ws
+                .source_key(&p.path)
+                .map_err(|e| fail(&e, Some(&p.path)))?;
             let text = ws.read_note(&key).map_err(|e| fail(&e, Some(&key)))?;
             let line_count = text.lines.len();
             // The window as asked is checked before it is clamped, so an
@@ -520,7 +522,9 @@ impl Server {
         Parameters(p): Parameters<NoteParams>,
     ) -> Result<Json<LinksResult>, CallToolResult> {
         self.guarded(|ws| {
-            let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
+            let key = ws
+                .source_key(&p.path)
+                .map_err(|e| fail(&e, Some(&p.path)))?;
             let links = ws
                 .links(&key)
                 .map_err(|e| fail(&e, Some(&key)))?
@@ -553,7 +557,9 @@ impl Server {
         Parameters(p): Parameters<NoteParams>,
     ) -> Result<Json<BacklinksResult>, CallToolResult> {
         self.guarded(|ws| {
-            let key = ws.note_key(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
+            let key = ws
+                .source_key(&p.path)
+                .map_err(|e| fail(&e, Some(&p.path)))?;
             let back = ws
                 .backlinks(&key)
                 .map_err(|e| fail(&e, Some(&key)))?

@@ -30,6 +30,7 @@ mod support {
     pub fn link(target: &str, embed: bool) -> SourceLink {
         SourceLink {
             embed,
+            exact: false,
             target: target.to_owned(),
             heading: None,
             block: None,

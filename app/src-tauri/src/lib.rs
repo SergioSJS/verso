@@ -935,18 +935,28 @@ fn log_write(level: String, message: String) -> Result<(), ContractError> {
 #[tauri::command]
 #[specta::specta]
 fn log_read() -> Result<String, ContractError> {
+    // The report may be pasted somewhere public: the home directory is
+    // the user's name, more often than not. It is `~` wherever it appears,
+    // the log's own lines included; with no home known, the log is named
+    // by its file alone, never by an absolute path (ADR 0026 rule 4).
     let home = std::env::var("HOME").unwrap_or_default();
+    let hidden = |text: &str| {
+        if home.len() > 1 {
+            text.replace(&home, "~")
+        } else {
+            text.to_owned()
+        }
+    };
     let where_ = log::path().map_or_else(String::new, |p| {
-        let shown = p.display().to_string();
-        // The report may be pasted somewhere public: the home directory
-        // is the user's name, more often than not.
-        if home.is_empty() {
+        let shown = hidden(&p.display().to_string());
+        if shown.starts_with('~') {
             shown
         } else {
-            shown.replacen(&home, "~", 1)
+            p.file_name()
+                .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
         }
     });
-    let tail = log::tail(16 * 1024);
+    let tail = hidden(&log::tail(16 * 1024));
     Ok(if where_.is_empty() {
         tail
     } else {
@@ -1115,8 +1125,9 @@ fn write_text(
 }
 
 /// Save a board (ADR 0057 point 2): `json` is the canvas as the window
-/// holds it; the core lays it over the file as read, keeping every field
-/// the window does not know and every value's token, and writes it in
+/// holds it — the window sends back every field it read, the ones it does
+/// not know included; the core lays it over the file as read, keeping every
+/// unchanged value's token and every object's key order, and writes it in
 /// Obsidian's layout over the revision that was read (invariant 11).
 /// `not_canvas` when the file on disk is not JSON.
 #[tauri::command]
@@ -1128,6 +1139,20 @@ fn write_board(
     revision: String,
 ) -> Result<TextFile, ContractError> {
     with(&state, |ws| ws.write_board(&path, &json, &revision)).map(text_out)
+}
+
+/// What `write_board` would write for `json` over the canvas at `path` as
+/// it is on disk now, writing nothing: the board's side of a conflict, and
+/// the diff the first save of a canvas in another layout shows (review
+/// `board.md` §6 item 4).
+#[tauri::command]
+#[specta::specta]
+fn board_preview(
+    state: State<'_, App>,
+    path: String,
+    json: String,
+) -> Result<String, ContractError> {
+    with(&state, |ws| ws.board_preview(&path, &json))
 }
 
 /// A canvas's text in Obsidian's layout (ADR 0057 point 2), from the JSON
@@ -1934,6 +1959,7 @@ macro_rules! commands_for {
                 write_text,
                 write_board,
                 board_text,
+                board_preview,
                 render_markdown,
                 rename_entry,
                 delete_entry,
@@ -2232,9 +2258,23 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             let _ = app.emit_to("main", "menu-settings", ());
         } else if let Some(command) = id.strip_prefix(EDIT_PREFIX) {
             // Every window hears an event (see `folder-changed`): the label
-            // says which one runs it.
+            // says which one runs it. A web page — a window of its own, or
+            // a site shown inside a window of the app — has none of the
+            // app's script: the one with the focus runs the system's own
+            // editing command, as the system's menu item ran it (decided on
+            // 2026-10-01, review `board.md` §6 item 20).
             if let Some(w) = focused_window(app) {
-                let _ = app.emit("menu-edit", (w.label().to_owned(), command.to_owned()));
+                let edit = page_edit(command);
+                if is_app_view(w.label()) {
+                    let _ = app.emit("menu-edit", (w.label().to_owned(), command.to_owned()));
+                    for view in app.webviews().into_values() {
+                        if view.label() != w.label() && view.window().label() == w.label() {
+                            let _ = view.eval(&edit);
+                        }
+                    }
+                } else {
+                    let _ = w.eval(&edit);
+                }
             }
         } else if id == DEVTOOLS {
             if let Some(w) = focused_window(app) {
@@ -2400,6 +2440,19 @@ const SETTINGS: &str = "verso-settings";
 /// command where the focus is, or hands the key to the board.
 #[cfg(target_os = "macos")]
 const EDIT_PREFIX: &str = "verso-edit-";
+
+/// The script that runs an Edit menu command in a web page, where the
+/// page has the focus and only there: the web view's own `undo`, `redo` or
+/// `selectAll`, as the system's item would have run it.
+#[cfg(target_os = "macos")]
+fn page_edit(command: &str) -> String {
+    let name = match command {
+        "redo" => "redo",
+        "select-all" => "selectAll",
+        _ => "undo",
+    };
+    format!("document.hasFocus() && document.execCommand('{name}')")
+}
 
 /// The window that has the focus, if one of the app's has it.
 #[cfg(target_os = "macos")]
