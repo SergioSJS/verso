@@ -70,6 +70,9 @@ export type BoardHost = {
   /** The user changed the board: the tab has unsaved work from now on,
    *  before the save's delay runs out. */
   changed?: () => void;
+  /** The change was undone before it was saved: the board holds what was
+   *  last sent, and the tab has nothing unsaved of the board's. */
+  settled?: () => void;
   openFile: (path: string, aside: boolean) => void;
   /** Draw a note into `el` as the reading view draws it (sanitized, its
    *  images and embeds resolved, its links live). */
@@ -1336,10 +1339,24 @@ function Board({
     noteUser();
     const next = fromElements(a.getSceneElementsIncludingDeleted() as unknown as El[], doc.current, a.getAppState().viewBackgroundColor);
     const json = JSON.stringify(next);
-    if (json === sent.current) return Promise.resolve();
+    if (json === sent.current) {
+      // An edit undone before its save: nothing is left to write, and the
+      // tab is told so (review `board.md`, second reading, finding 3).
+      if (edited.current) {
+        edited.current = false;
+        host.settled?.();
+      }
+      return Promise.resolve();
+    }
     sent.current = json;
     if (!edited.current) return Promise.resolve();
     doc.current = next;
+    // What follows this save is the user's again only when they act again:
+    // a font that arrives later is measured, and rides with the next edit,
+    // never written on its own (second reading, finding 4). The scene as
+    // saved is the board's own from here.
+    edited.current = false;
+    ownSig.current = sigOf(a);
     return Promise.resolve(host.save(json));
   }, [host, noteUser, readOnly]);
   const flushRef = useRef(flush);

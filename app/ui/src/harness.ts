@@ -61,6 +61,11 @@ const harness = {
 };
 Object.assign(window as unknown as Record<string, unknown>, { __harness: harness, __VERSO_TEST__: {} });
 
-void import("./main").then(() => {
-  harness.ready = true;
-});
+// Ready once the window's start is over — the folder shown, its tabs
+// back — not when its script has loaded: keys typed before that land
+// wherever the start leaves the focus.
+void import("./main")
+  .then((m) => m.started)
+  .then(() => {
+    harness.ready = true;
+  });

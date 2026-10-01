@@ -551,20 +551,21 @@ async function fetchFirst(path: string): Promise<boolean> {
   if (ui.status.textContent === said) ui.status.textContent = was === said ? "" : was;
   return r.data;
 }
-/** Paths whose next read must not download from iCloud: the tabs a
- *  workspace brings back, all but the one in front (decided on
- *  2026-10-01, review `board.md` §6 item 8). Such a tab says the file is
- *  in the cloud, and downloads it when it is shown. */
+/** The paths of the tabs a workspace is bringing back, for as long as it
+ *  does: a tab of one of them, not in front of its pane, reads without
+ *  downloading from iCloud (decided on 2026-10-01, review `board.md` §6
+ *  item 8), and comes down when it is shown. Per tab, not per path: the
+ *  same note in two panes is quiet where it is behind (second reading,
+ *  finding 5). */
 const quietPaths = new Set<string>();
-async function fetched<T extends { status: "ok" } | { status: "error"; error: ContractError }>(path: string, read: () => Promise<T>): Promise<T> {
-  const quiet = quietPaths.delete(path);
+async function fetched<T extends { status: "ok" } | { status: "error"; error: ContractError }>(path: string, read: () => Promise<T>, quiet = false): Promise<T> {
   const r = await read();
   if (r.status !== "error" || r.error.kind !== "unavailable" || quiet) return r;
   return (await fetchFirst(path)) ? read() : r;
 }
 const opening = {
-  readNote: (path: string) => fetched(path, () => commands.readNote(path)),
-  readText: (path: string) => fetched(path, () => commands.readText(path)),
+  readNote: (path: string, quiet = false) => fetched(path, () => commands.readNote(path), quiet),
+  readText: (path: string, quiet = false) => fetched(path, () => commands.readText(path), quiet),
 };
 
 let indexProgressTimer: number | null = null;
@@ -1555,6 +1556,16 @@ abstract class Leaf {
   }
   /** Why the last read of this tab's file failed, or null. */
   failed: ContractError["kind"] | null = null;
+  /** A tab brought back behind another, whose file waits to be shown
+   *  before it is read (pictures and PDFs, which the file protocol would
+   *  download). */
+  deferred = false;
+  /** Whether this tab is being brought back behind another of its pane:
+   *  its reads do not download. Asked after the restore has placed every
+   *  tab. */
+  protected quiet(path: string): boolean {
+    return quietPaths.has(path) && this.pane.active !== this;
+  }
   private failure: HTMLElement | null = null;
   /** A read that failed is said in the page, with a way to try again; the
    *  tab shows no editor, so nothing can be typed into it and lost (review
@@ -2619,14 +2630,11 @@ class NoteLeaf extends Leaf {
     // A write in flight lands first: the read comes after it.
     await this.saving;
     const load = ++this.loads;
-    const quiet = quietPaths.has(path);
-    const note = await opening.readNote(path);
+    const note = await opening.readNote(path, this.quiet(path));
     if (this.destroyed || load !== this.loads) return;
     if (note.status !== "ok") {
       this.path = path;
       this.setTitle(name(path));
-      // Brought back in front of its pane: it is on screen, so it comes down.
-      if (quiet && note.error.kind === "unavailable" && this.pane.active === this) return this.doLoad(path, true);
       // A tab brought back with its file in the cloud waits to be shown.
       if (note.error.kind !== "unavailable" || this.pane.active === this) fail(note.error);
       return this.showFailure(path, note.error, () => void this.load(path, true));
@@ -3593,6 +3601,9 @@ class ImageLeaf extends Leaf {
     // has no size of its own: fitted, it fills the view in its proportions
     // instead of centring at a width of nothing.
     this.box.classList.toggle("vector", /\.svg$/i.test(path));
+    // Brought back behind another tab: shown first, then read.
+    await Promise.resolve();
+    if (this.quiet(path)) return void (this.deferred = true);
     await fetchFirst(path);
     if (this.path !== path) return;
     this.img.src = convertFileSrc(path, "verso");
@@ -3680,10 +3691,8 @@ class TextLeaf extends Leaf {
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     this.modes.hidden = kindOf(path) !== "frame";
-    const quiet = quietPaths.has(path);
-    const r = await opening.readText(path);
+    const r = await opening.readText(path, this.quiet(path));
     if (r.status !== "ok") {
-      if (quiet && r.error.kind === "unavailable" && this.pane.active === this) return this.load(path, true);
       if (r.error.kind !== "unavailable" || this.pane.active === this) fail(r.error);
       return this.showFailure(path, r.error, () => void this.load(path, true));
     }
@@ -3939,6 +3948,9 @@ class BoardLeaf extends TextLeaf {
       dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
       save: (json) => this.saveBoard(json),
       changed: () => this.setDirty(true),
+      settled: () => {
+        if (this.pendingBoard === null && this.cards.size === 0) this.setDirty(false);
+      },
       openFile: (path, aside) => void openNote(listed(path), aside),
       renderNote: async (el, path) => {
         const r = await opening.readNote(listed(path));
@@ -4903,6 +4915,8 @@ class PdfLeaf extends Leaf {
     this.setTitle(path.split("/").pop() ?? path);
     this.view.container.setAttribute("aria-label", path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
+    await Promise.resolve();
+    if (this.quiet(path)) return void (this.deferred = true);
     void this.loadPassages();
     await fetchFirst(path);
     if (this.path !== path) return;
@@ -5765,7 +5779,10 @@ class Pane {
     if (leaving && leaving !== leaf && leaving.dirty) void leaving.flush();
     this.active = leaf;
     // Shown: a file left in the cloud by a quiet read comes down now.
-    if (leaf !== leaving && leaf.failed === "unavailable" && leaf.path) void leaf.load(leaf.path, true);
+    if (leaf !== leaving && (leaf.failed === "unavailable" || leaf.deferred) && leaf.path) {
+      leaf.deferred = false;
+      void leaf.load(leaf.path, true);
+    }
     for (const l of this.leaves) {
       l.el.hidden = l !== leaf;
       l.tab.setAttribute("aria-selected", String(l === leaf));
@@ -5791,6 +5808,18 @@ class Pane {
       if (this.trail.length > 60) this.trail.shift();
       this.trailAt = this.trail.length - 1;
     }
+    this.refreshNav();
+  }
+  /** A place renamed or moved follows in the trail; one deleted leaves it,
+   *  the cursor keeping its place (review `board.md`, second reading,
+   *  finding 6). */
+  trailMoved(follow: (path: string) => string): void {
+    for (const step of this.trail) step.path = follow(step.path);
+  }
+  trailRemoved(gone: (path: string) => boolean): void {
+    const before = this.trail.slice(0, this.trailAt + 1).filter((st) => gone(st.path)).length;
+    this.trail = this.trail.filter((st) => !gone(st.path));
+    this.trailAt = Math.max(-1, Math.min(this.trailAt - before, this.trail.length - 1));
     this.refreshNav();
   }
   /** The trail starts over at what the pane shows: a workspace brought
@@ -6101,6 +6130,8 @@ class Layout {
     this.render();
     // Tabs brought back are not places this session went to.
     for (const p of this.panes()) p.resetTrail();
+    // Every tab has asked for its file by now: the restore is over.
+    window.setTimeout(() => quietPaths.clear(), 0);
     this.focus(this.panes()[0] ?? null);
     return true;
   }
@@ -6558,6 +6589,7 @@ function pathsMoved(from: string, to: string): void {
   bookmarks = bookmarks.map(follow);
   saveBookmarks();
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.map(follow));
+  for (const sp of spaces) for (const p of sp.layout.panes()) p.trailMoved(follow);
   panel.refresh();
 }
 /** A deletion: those lists forget the file, or a folder's contents. */
@@ -6566,6 +6598,7 @@ function pathsRemoved(path: string): void {
   bookmarks = bookmarks.filter((p) => !gone(p));
   saveBookmarks();
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.filter((p) => !gone(p)));
+  for (const sp of spaces) for (const p of sp.layout.panes()) p.trailRemoved(gone);
   panel.refresh();
 }
 /** The folder's files changed: images asked for before — found or not —
@@ -10174,7 +10207,10 @@ void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payloa
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
-void (async () => {
+/** The window's start: the folder it opens shown, its tabs brought back.
+ *  The browser harness waits for it before a test types (review
+ *  `board.md`, second reading, finding 9). */
+export const started: Promise<void> = (async () => {
   await Promise.all([embedOriginsPushed, walkRulesPushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the

@@ -98,3 +98,17 @@ test("a canvas saved by a later Verso opens to look at only, and nothing is writ
   expect(await app.calls("write_board")).toEqual([]);
   expect(await app.file("Futuro.canvas")).toBe(later);
 });
+
+test("a move undone before its save leaves nothing to write, and the tab closes clean", async ({ app }) => {
+  await openBoard(app, "Mesa.canvas", TWO);
+  await drag(app, "b", 80, 40);
+  await app.key("Mod+z");
+  await app.page.waitForTimeout(1200);
+  await app.key("Mod+w");
+  await expect(app.page.locator(".tab", { hasText: "Mesa" })).toHaveCount(0);
+  // Neither the board nor its text written again (review `board.md`,
+  // second reading, finding 3).
+  expect(await app.calls("write_board")).toEqual([]);
+  expect(await app.calls("write_text")).toEqual([]);
+  expect(await app.file("Mesa.canvas")).toBe(TWO);
+});
