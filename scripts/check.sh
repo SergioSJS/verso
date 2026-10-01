@@ -8,6 +8,9 @@
 # Needs the Rust toolchain of rust-toolchain.toml, Node 22 for the UI and
 # cargo-deny (`cargo install cargo-deny --locked`); the wasm32 target is added
 # here if missing. The fuzzing and the benchmark are not run (see README.md).
+# One step CI does not run: the window's end-to-end tests in WebKit over the
+# browser harness (ADR 0058), local only; Playwright's WebKit is downloaded
+# on the first run.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -52,6 +55,12 @@ step "UI: type check and bundle"
   [ node_modules/.package-lock.json -nt package-lock.json ] || npm ci
   npm run check
   npm run build
+)
+step "UI: end-to-end tests in the browser harness (ADR 0058, local only)"
+(
+  cd app/ui
+  npx playwright install webkit >/dev/null
+  npx playwright test
 )
 step "cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings

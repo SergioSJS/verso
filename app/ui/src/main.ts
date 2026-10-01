@@ -21,7 +21,7 @@ import { keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, 
 import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, selectAll, undo } from "@codemirror/commands";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
-import { LanguageDescription, bracketMatching, defaultHighlightStyle, foldAll, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting, unfoldAll } from "@codemirror/language";
+import { LanguageDescription, bracketMatching, defaultHighlightStyle, ensureSyntaxTree, foldAll, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting, syntaxTree, unfoldAll } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import {
@@ -916,6 +916,28 @@ function imageUrl(source: string, target: string, onKnown: () => void): string |
     onKnown();
   });
   return undefined;
+}
+/** A note's own pictures, `![alt](assets/x.png)`: the sanitizer holds
+ *  their address in `data-src`, relative to the note, and it stays there
+ *  as written (a picture resized writes its size beside it); each is asked
+ *  of the core and shown from the folder. One that names nothing stays
+ *  empty. */
+async function noteImages(root: ParentNode, source: string): Promise<void> {
+  await Promise.all(
+    Array.from(root.querySelectorAll<HTMLImageElement>("img[data-src]"), async (img) => {
+      const target = img.dataset["src"] ?? "";
+      const r = await commands.resolveAttachment(source, target);
+      if (r.status === "ok" && r.data) img.src = convertFileSrc(r.data, "verso");
+    }),
+  );
+}
+/** The same for HTML as text (Live Preview's embeds), resolved in a
+ *  template, where nothing loads. */
+async function withNoteImages(html: string, source: string): Promise<string> {
+  const t = document.createElement("template");
+  t.innerHTML = html;
+  await noteImages(t.content, source);
+  return t.innerHTML;
 }
 
 /* ---------- A line diff for conflicts and plans ---------- */
@@ -2219,8 +2241,8 @@ class NoteLeaf extends Leaf {
       this.embedCache.set(target, null);
       return null;
     }
-    void opening.readNote(to).then((r) => {
-      this.embedCache.set(target, r.status === "ok" ? cleanHtmlText(r.data.html) : null);
+    void opening.readNote(to).then(async (r) => {
+      this.embedCache.set(target, r.status === "ok" ? await withNoteImages(cleanHtmlText(r.data.html), to) : null);
       this.editor.dispatch({ effects: redraw.of(null) });
     });
     return undefined;
@@ -2725,16 +2747,8 @@ class NoteLeaf extends Leaf {
       const size = sizeOf(alt);
       if (size?.w) img.style.width = `${size.w}px`;
       if (size?.h) img.style.height = `${size.h}px`;
-      const rawSrc = img.getAttribute("src") ?? "";
-      if (rawSrc && !rawSrc.startsWith("http://") && !rawSrc.startsWith("https://") && !rawSrc.startsWith("data:") && !rawSrc.startsWith("verso:") && !rawSrc.startsWith("tauri:")) {
-        if (this.note) {
-          void commands.resolveAttachment(this.note.path, rawSrc).then((r) => {
-            if (r.status === "ok" && r.data) {
-              img.src = convertFileSrc(r.data, "verso");
-            }
-          });
-        }
-      }
+      // The address as the note writes it (noteImages).
+      const rawSrc = img.dataset["src"] ?? img.getAttribute("src") ?? "";
 
       // Corner resize grip in Reading mode
       const parent = img.parentElement;
@@ -2783,9 +2797,30 @@ class NoteLeaf extends Leaf {
     }
   }
 
+  /** The `n`-th place `re` finds in the note outside code, as the editor's
+   *  Markdown tree reads it: an example in a code span or block is text,
+   *  not the picture shown. */
+  private imageSource(re: RegExp, n: number): RegExpExecArray | null {
+    const state = this.editor.state;
+    const tree = ensureSyntaxTree(state, state.doc.length, 500) ?? syntaxTree(state);
+    const text = state.doc.toString();
+    const all = new RegExp(re.source, "g");
+    let seen = 0;
+    for (let m = all.exec(text); m; m = all.exec(text)) {
+      let code = false;
+      for (let node: { name: string; parent: unknown } | null = tree.resolveInner(m.index, 1); node; node = node.parent as typeof node) {
+        if (/Code|Comment/.test(node.name)) code = true;
+      }
+      if (!code && seen++ === n) return m;
+    }
+    return null;
+  }
+  /** Which of the note's pictures that `same` picks out `img` is, in order. */
+  private imageOrder(img: HTMLImageElement, same: (other: HTMLImageElement) => boolean): number {
+    const shown = Array.from(this.preview.querySelectorAll<HTMLImageElement>("img")).filter((o) => !o.closest(".embed-note") && same(o));
+    return Math.max(0, shown.indexOf(img));
+  }
   private persistImageSize(img: HTMLImageElement, rawSrc: string, alt: string, w: number, h: number): void {
-    const doc = this.editor.state.doc;
-    const fullText = doc.toString();
     const target = alt.split("|")[0] ?? "";
     const sizeStr = `${w}x${h}`;
 
@@ -2793,7 +2828,7 @@ class NoteLeaf extends Leaf {
     if (target) {
       const escTarget = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const reWiki = new RegExp(`!\\[\\[(${escTarget})(?:\\|[^\\]\\n]*)?\\]\\]`);
-      const m = reWiki.exec(fullText);
+      const m = this.imageSource(reWiki, this.imageOrder(img, (o) => (o.getAttribute("alt") ?? "").split("|")[0] === target));
       if (m && m.index !== undefined) {
         const from = m.index;
         const to = from + m[0].length;
@@ -2809,7 +2844,7 @@ class NoteLeaf extends Leaf {
     if (rawSrc) {
       const escUrl = rawSrc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const reMd = new RegExp(`!\\[([^\\]\\n]*)\\]\\((${escUrl})\\)`);
-      const m = reMd.exec(fullText);
+      const m = this.imageSource(reMd, this.imageOrder(img, (o) => (o.dataset["src"] ?? o.getAttribute("src") ?? "") === rawSrc));
       if (m && m.index !== undefined) {
         const from = m.index;
         const to = from + m[0].length;
@@ -3024,6 +3059,7 @@ class NoteLeaf extends Leaf {
     typeset(this.preview);
     this.mountBases(note.path);
     void this.embedImages(note.path);
+    void noteImages(this.preview, note.path);
     this.wireTasks();
     this.dressLinks(note.path);
     this.wireTableResizers(this.preview);
@@ -3114,6 +3150,7 @@ class NoteLeaf extends Leaf {
         box.append(head, body);
         span.replaceWith(box);
         void this.embedImages(forPath, body, to);
+        void noteImages(body, to);
       });
     }
   }
@@ -4332,6 +4369,7 @@ async function renderReading(el: HTMLElement, html: string, source: string, dept
   keyLinks(el);
   typeset(el);
   readingClicks(el, source);
+  const pictures = noteImages(el, source);
   for (const code of el.querySelectorAll<HTMLElement>("pre > code.language-mermaid")) {
     const box = h("div", "mermaid-block");
     code.parentElement?.replaceWith(box);
@@ -4384,6 +4422,7 @@ async function renderReading(el: HTMLElement, html: string, source: string, dept
       }
     }),
   );
+  await pictures;
 }
 
 /** The board's module — React and Excalidraw — loaded once, on the first
@@ -4605,6 +4644,7 @@ class FolderLeaf extends Leaf {
     setHtml(body, r.data.html);
     wireCallouts(body);
     typeset(body);
+    void noteImages(body, notePath);
     const edit = button("ghost iconic embed-edit", t.edit, "edit");
     edit.addEventListener("click", () => openNote(notePath, false));
     body.addEventListener("dblclick", () => {

@@ -68,8 +68,17 @@ export async function renderMermaid(
   }
 
   const id = `verso-mermaid-${Date.now()}-${++idCounter}`;
+  // Mermaid lays the diagram out in a draft to measure it. Left to itself
+  // it puts the draft in the body — a grid here — where it became a row of
+  // its own and the whole window shrank while diagrams were drawn. Its own
+  // room instead: out of the flow and out of sight, as wide as the place
+  // the diagram goes (some diagrams take their width from it).
+  const room = document.createElement("div");
+  room.setAttribute("aria-hidden", "true");
+  room.style.cssText = `position: fixed; left: -100000px; top: 0; width: ${container.clientWidth || 800}px; visibility: hidden; pointer-events: none;`;
+  document.body.append(room);
   try {
-    const { svg } = await mermaid.render(id, trimmed);
+    const { svg } = await mermaid.render(id, trimmed, room);
     const parser = new DOMParser();
     const doc = parser.parseFromString(svg, "image/svg+xml");
     const svgEl = doc.querySelector("svg");
@@ -90,17 +99,9 @@ export async function renderMermaid(
     svgEl.style.display = "block";
     svgEl.style.margin = "0 auto";
 
-    // Clean up temporary dummy elements mermaid might leave in document.body
-    const dummy = document.getElementById(id) ?? document.getElementById(`d${id}`);
-    dummy?.remove();
-
     container.replaceChildren(svgEl);
     return true;
   } catch (err: unknown) {
-    // Clean up any temporary elements created by mermaid on error
-    const dummy = document.getElementById(id) ?? document.getElementById(`d${id}`);
-    dummy?.remove();
-
     const message = err instanceof Error ? err.message : String(err);
     // Shown in the note, and written down: a diagram that fails is a
     // bug report's evidence too (`report.ts`).
@@ -123,5 +124,8 @@ export async function renderMermaid(
     errorBox.append(title, pre, source);
     container.replaceChildren(errorBox);
     return false;
+  } finally {
+    // With the draft, whatever mermaid left in it.
+    room.remove();
   }
 }

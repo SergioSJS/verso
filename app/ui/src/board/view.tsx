@@ -1559,7 +1559,10 @@ function Board({
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(flush, SAVE_DELAY);
         window.clearTimeout(outlineTimer.current);
-        outlineTimer.current = window.setTimeout(() => setElements(els as unknown as El[]), 300);
+        // A copy: Excalidraw changes some elements in place (a frame's name
+        // typed over it) and hands back the same list, which React would
+        // take for no change at all.
+        outlineTimer.current = window.setTimeout(() => setElements([...els] as unknown as El[]), 300);
       }
       // The view: the cards follow it at once, with one transform of their
       // plane; cards near it are shown, far ones hidden. A change of zoom
@@ -1756,6 +1759,10 @@ function Board({
     const a = api.current;
     const el = a?.getSceneElements().find((e) => e.id === id);
     if (!a || !el) return;
+    // Chosen in the outline or the search, outside the canvas: the view is
+    // the user's now, and the outline closing (the pane grows) must not
+    // bring the whole board back over it.
+    touched.current = true;
     // A group is a part of the board to look at: shown whole, as near as
     // it fits, with nothing selected over it. Anything else is selected
     // and brought to the middle at the zoom it is seen at.
@@ -1998,6 +2005,10 @@ function Board({
           <Excalidraw
             excalidrawAPI={(a) => {
               api.current = a;
+              // The browser harness's tests read the scene (e2e/): only when the
+              // harness asks for it (`__VERSO_TEST__`); the app never does.
+              const test = (window as unknown as { __VERSO_TEST__?: { board?: unknown } }).__VERSO_TEST__;
+              if (test) test.board = a;
               window.requestAnimationFrame(() => {
                 const el = container.current;
                 const last = host.prefs.open === "last" ? host.lastView() : null;
