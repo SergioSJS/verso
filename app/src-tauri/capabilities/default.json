@@ -39,6 +39,7 @@
     "allow-return-to-main",
     "allow-open-url",
     "allow-open-devtools",
+    "allow-fetch-file",
     "allow-web-open",
     "allow-web-bounds",
     "allow-web-visible",

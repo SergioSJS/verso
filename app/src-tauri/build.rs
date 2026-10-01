@@ -39,6 +39,7 @@ fn main() {
         "return_to_main",
         "open_url",
         "open_devtools",
+        "fetch_file",
         "web_open",
         "web_bounds",
         "web_visible",

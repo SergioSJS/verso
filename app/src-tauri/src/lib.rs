@@ -1070,6 +1070,28 @@ fn text_out(t: verso_core::TextFile) -> TextFile {
     }
 }
 
+/// Bring down a file of the folder whose content is only in the cloud,
+/// because the user opened it (ADR 0043, amended on 2026-09-30): true when
+/// it was fetched, false when there was nothing to fetch; the window then
+/// reads it again. Off the main thread and outside the folder's lock — a
+/// download takes seconds, and the rest of the window goes on meanwhile.
+#[tauri::command]
+#[specta::specta]
+async fn fetch_file<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    path: String,
+) -> Result<bool, ContractError> {
+    let state = app.state::<App>();
+    let Some(placeholder) = with(&state, |ws| ws.placeholder(&path))? else {
+        return Ok(false);
+    };
+    tauri::async_runtime::spawn_blocking(move || placeholder.fetch())
+        .await
+        .map_err(|e| failed(format!("fetching {path}: {e}")))?
+        .map_err(|e| failed(format!("fetching {path} from the cloud: {e}")))?;
+    Ok(true)
+}
+
 /// Any file as text with its revision, for the editor of files that are
 /// not notes; `not_text` when its bytes are not UTF-8.
 #[tauri::command]
@@ -1900,6 +1922,7 @@ macro_rules! commands_for {
                 popout_target::<$runtime>,
                 return_to_main::<$runtime>,
                 open_url::<$runtime>,
+                fetch_file::<$runtime>,
                 open_devtools::<$runtime>,
                 web_open::<$runtime>,
                 web_bounds::<$runtime>,
@@ -2120,30 +2143,69 @@ fn embed_origin_of(url: &reqwest::Url) -> Option<String> {
 fn serve_file<R: tauri::Runtime>(
     ctx: tauri::UriSchemeContext<'_, R>,
     request: tauri::http::Request<Vec<u8>>,
-) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
+    responder: tauri::UriSchemeResponder,
+) {
     let relative = percent_decode(request.uri().path().trim_start_matches('/'));
     let origin = request
         .headers()
         .get("Origin")
         .and_then(|v| v.to_str().ok())
         .map(str::to_owned);
-    let state = ctx.app_handle().state::<App>();
-    let served = {
-        let mut guard = lock(&state.session);
-        serve(
-            guard.as_mut().map(|s| &mut s.workspace),
-            ctx.webview_label(),
-            &relative,
-            origin.as_deref(),
-        )
-    };
-    let mut response = tauri::http::Response::builder().status(served.status);
-    for (name, value) in &served.headers {
-        response = response.header(*name, value);
-    }
-    response
-        .body(std::borrow::Cow::Owned(served.body))
-        .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())))
+    let label = ctx.webview_label().to_owned();
+    // A picture the window shows is the user opening it: one only in the
+    // cloud is brought down first (ADR 0043, amended on 2026-09-30). A
+    // thumbnail in a folder's view is not (`?thumb`): opening a folder
+    // never pulls it from the cloud.
+    let fetch = !request
+        .uri()
+        .query()
+        .is_some_and(|q| q.split('&').any(|p| p == "thumb"));
+    let app = ctx.app_handle().clone();
+    // Off the main thread: a file is read, and may be downloaded.
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<App>();
+        if fetch && is_app_view(&label) && !relative.to_lowercase().ends_with(".md") {
+            let placeholder = {
+                let mut guard = lock(&state.session);
+                guard.as_mut().and_then(|s| {
+                    let note = s
+                        .workspace
+                        .confined(&relative)
+                        .is_ok_and(|key| key.to_lowercase().ends_with(".md"));
+                    if note {
+                        None
+                    } else {
+                        s.workspace.placeholder(&relative).ok().flatten()
+                    }
+                })
+            };
+            if let Some(Err(e)) = placeholder.map(|p| p.fetch()) {
+                log::write(
+                    "ERROR",
+                    "host",
+                    &format!("fetching {relative} from the cloud: {e}"),
+                );
+            }
+        }
+        let served = {
+            let mut guard = lock(&state.session);
+            serve(
+                guard.as_mut().map(|s| &mut s.workspace),
+                &label,
+                &relative,
+                origin.as_deref(),
+            )
+        };
+        let mut response = tauri::http::Response::builder().status(served.status);
+        for (name, value) in &served.headers {
+            response = response.header(*name, value);
+        }
+        responder.respond(
+            response
+                .body(served.body)
+                .unwrap_or_else(|_| tauri::http::Response::new(Vec::new())),
+        );
+    });
 }
 
 /// Open the window and serve it until it closes.
@@ -2201,7 +2263,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(navigation_guard())
-        .register_uri_scheme_protocol("verso", serve_file)
+        .register_asynchronous_uri_scheme_protocol("verso", serve_file)
         .manage(App::new(initial_folder))
         .invoke_handler(commands.invoke_handler())
         .build(context())?
