@@ -124,6 +124,9 @@ export type SavedView = { scrollX: number; scrollY: number; zoom: number };
 
 const FONT_ID: Record<BoardPrefs["font"], number> = { hand: 5, sans: 6, mono: 3 };
 
+/** A Mac, as Excalidraw tells one: its keys differ there (⌘⌥ for ⌃⇧). */
+const MAC = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
 /** The name of each font Excalidraw ships, by its number. */
 const FONT_NAME = new Map<number, string>(Object.entries(FONT_FAMILY).map(([name, id]) => [id, name]));
 
@@ -1140,6 +1143,8 @@ function Board({
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<string[]>([]);
   const [hit, setHit] = useState(0);
+  /** The search the view last went to the first match of. */
+  const searched = useRef("");
   /** The notes' text, read once per change of the folder, for the search. */
   const noteTexts = useRef(new Map<string, string>());
   const outlineTimer = useRef<number | undefined>(undefined);
@@ -1461,7 +1466,11 @@ function Board({
       return e.type === "arrow" && !e.isDeleted && node(a.startBinding?.elementId) && node(a.endBinding?.elementId);
     };
     const firstNode = els.findIndex((e) => !e.isDeleted && isNode(e as unknown as El));
-    const wrong = els.filter((e, i) => edge(e) && (e.frameId || (firstNode >= 0 && i > firstNode)));
+    // An edge in a group, above the first card, or with its label in a
+    // group (a label typed on the edge later is put in the edge's group,
+    // and a text in a frame is drawn only inside the frame's box).
+    const labelInFrame = (e: ExcalidrawElement): boolean => (e.boundElements ?? []).some((b) => b.type === "text" && !!byId.get(b.id)?.frameId);
+    const wrong = els.filter((e, i) => edge(e) && (e.frameId || (firstNode >= 0 && i > firstNode) || labelInFrame(e)));
     if (wrong.length === 0) return false;
     const moving = new Set<string>();
     for (const e of wrong) {
@@ -1717,14 +1726,26 @@ function Board({
     });
     if (!labelId) {
       const id = `${arrow.id}-label`;
-      const [text] = restoreElements(
-        [{ type: "text", id, x: arrow.x, y: arrow.y, text: key, originalText: key, containerId: arrow.id, textAlign: "center", verticalAlign: "middle", fontSize: 16 }] as never,
-        null,
-        { refreshDimensions: true },
-      );
-      if (text) {
+      // Made as an edge's label is made when the board opens (`toElements`,
+      // then `restored`): in the board's font, measured — Excalidraw
+      // measures a text only while it repairs bindings, and only with its
+      // container beside it (alone, the label lost its arrow). Unmeasured,
+      // it was 0 × 0, and invisible until the board was opened again.
+      const label = { type: "text", id, x: arrow.x, y: arrow.y, width: 10, height: 10, text: key, originalText: key, containerId: arrow.id, textAlign: "center", verticalAlign: "middle", fontSize: 16, fontFamily: FONT_FAMILY.Excalifont, lineHeight: 1.25 };
+      const text = restoreElements([arrow, label] as never, null, { refreshDimensions: true, repairBindings: true }).find((x) => x.id === id);
+      if (text && arrow.type === "arrow") {
+        // At the arrow's middle, where Excalidraw keeps an arrow's label
+        // (the middle point, or the middle of the middle segment) — not
+        // at its start, under the card it leaves.
+        const pts = arrow.points;
+        const n = pts.length;
+        const p = n % 2 === 1 ? pts[(n - 1) / 2] : pts[n / 2 - 1] && pts[n / 2] ? [(pts[n / 2 - 1]![0] + pts[n / 2]![0]) / 2, (pts[n / 2 - 1]![1] + pts[n / 2]![1]) / 2] : undefined;
+        const mid = p ? [arrow.x + p[0]!, arrow.y + p[1]!] : [arrow.x, arrow.y];
+        // In no group, as the edge it labels (`freeEdges`): a text in a
+        // frame is drawn only inside the frame's box.
+        const placed = newElementWith(text, { x: mid[0]! - text.width / 2, y: mid[1]! - text.height / 2, strokeColor: arrow.strokeColor, frameId: null });
         elements = elements.map((x) => (x.id === arrow.id ? newElementWith(x, { boundElements: [...(x.boundElements ?? []), { id, type: "text" }] }) : x));
-        elements.push(text);
+        elements.push(placed);
       }
     }
     a.updateScene({ elements, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
@@ -1807,6 +1828,7 @@ function Board({
   useEffect(() => {
     const q = fold(query.trim());
     if (q === "") {
+      searched.current = "";
       setHits([]);
       return;
     }
@@ -1835,8 +1857,14 @@ function Board({
       }
       if (!live) return;
       setHits(found);
-      setHit(0);
-      if (found[0]) focusElement(found[0]);
+      // The view goes to the first match when the search changes. The
+      // board saving, or a note changing, finds again where the user is:
+      // the view stays, and so does the match they had stepped to.
+      if (searched.current !== q) {
+        searched.current = q;
+        setHit(0);
+        if (found[0]) focusElement(found[0]);
+      } else setHit((at) => Math.min(at, Math.max(0, found.length - 1)));
     })();
     return () => {
       live = false;
@@ -1871,6 +1899,16 @@ function Board({
           e.stopPropagation();
           searchBox.current?.focus();
           searchBox.current?.select();
+          return;
+        }
+        // ⌘⌥] and ⌘⌥[ — to the front, to the back, on a Mac — matched
+        // "forward" and "backward" too in Excalidraw 0.18 (their test does
+        // not look at ⌥), which then runs neither of two matches. Asked
+        // again with ⇧, which only "to the front" and "to the back" accept.
+        if (MAC && e.metaKey && e.altKey && !e.shiftKey && (e.code === "BracketRight" || e.code === "BracketLeft")) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.target.dispatchEvent(new KeyboardEvent("keydown", { key: e.key, code: e.code, metaKey: true, altKey: true, shiftKey: true, bubbles: true, cancelable: true }));
           return;
         }
         // ⌘P is the window's: Excalidraw only answers it with a hint about
@@ -1910,6 +1948,10 @@ function Board({
             ref={searchBox}
             type="search"
             autoComplete="off"
+            // As the window's own search field: what is typed is searched,
+            // never corrected into another word.
+            spellCheck={false}
+            autoCorrect="off"
             placeholder={s.search}
             aria-label={s.search}
             title={s.searchTitle}
