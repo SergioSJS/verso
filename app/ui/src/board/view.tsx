@@ -191,6 +191,15 @@ function OpenIcon(): JSX.Element {
   );
 }
 
+/** Two arrows passing each other: the card points at another file. */
+function SwapIcon(): JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13" />
+    </svg>
+  );
+}
+
 /** A node drawn by Verso inside its element. */
 function Card({
   id,
@@ -199,11 +208,14 @@ function Card({
   tick,
   editing,
   setEditing,
+  swap,
   draw,
   background,
   fill,
   zoom,
 }: {
+  /** Point the card at another file of the folder (its id). */
+  swap: (id: string) => void;
   /** The CSS zoom the card is laid out at (1 when it is scaled instead). */
   zoom: number;
   id: string;
@@ -352,6 +364,9 @@ function Card({
       {node.type === "file" && (
         <div className="board-card-head">
           <span className="board-card-title">{nodeName(node, s)}</span>
+          <button type="button" className="board-card-open board-card-swap" title={s.swapTitle} aria-label={`${s.swap}: ${nodeName(node, s)}`} onClick={() => swap(id)}>
+            <SwapIcon />
+          </button>
           {!missing && (
             <button type="button" className="board-card-open" title={s.openTitle} aria-label={`${s.open}: ${nodeName(node, s)}`} onClick={(e) => host.openFile(file, e.metaKey || e.ctrlKey)}>
               <OpenIcon />
@@ -525,8 +540,10 @@ function CardLayer({
   plane,
   editing,
   setEditing,
+  swap,
   draw,
 }: {
+  swap: (id: string) => void;
   cards: readonly El[];
   overlays: ReadonlyMap<string, Overlay>;
   /** The view the cards are placed for. */
@@ -639,6 +656,7 @@ function CardLayer({
                   tick={tick}
                   editing={editing === e.id}
                   setEditing={setEditing}
+                  swap={swap}
                   draw={draw}
                 />
                 {over && (
@@ -1306,7 +1324,7 @@ function Board({
   }, [dark, scheduleOverlays]);
   useEffect(() => () => window.cancelAnimationFrame(overlayFrame.current), []);
 
-  // A card's open button, under Excalidraw's selection canvas, is pressed
+  // A card's buttons (open, swap), under Excalidraw's selection canvas, are pressed
   // here: the topmost card under the pointer decides, as the eye does.
   useEffect(() => {
     const root = container.current;
@@ -1320,8 +1338,8 @@ function Board({
         const slot = slots[i]!;
         if (!inside(slot.getBoundingClientRect(), x, y)) continue;
         if (slot.classList.contains("is-active")) return null;
-        const b = slot.querySelector<HTMLElement>(".board-card-open");
-        return b && inside(b.getBoundingClientRect(), x, y) ? b : null;
+        for (const b of slot.querySelectorAll<HTMLElement>("button.board-card-open")) if (inside(b.getBoundingClientRect(), x, y)) return b;
+        return null;
       }
       return null;
     };
@@ -1583,6 +1601,14 @@ function Board({
     host.status(s.relinked(chosen));
   };
 
+  const relinkRef = useRef(relink);
+  relinkRef.current = relink;
+  const swapCard = useCallback((id: string): void => {
+    const e = (api.current?.getSceneElements() as unknown as El[] | undefined)?.find((x) => x.id === id);
+    const n = e ? nodeData(e) : null;
+    if (e && n && n.type === "file") void relinkRef.current(e, n);
+  }, []);
+
   const editText = async (e: El, n: CanvasNode): Promise<void> => {
     const a = api.current;
     if (!a) return;
@@ -1789,9 +1815,9 @@ function Board({
           {s.addLink}
         </button>
         <span className="board-bar-gap" />
-        {lost && selectedNode && selectedData && (
-          <button type="button" title={s.relinkTitle} onClick={() => void relink(selectedNode, selectedData)}>
-            {s.relink}
+        {selectedNode && selectedData?.type === "file" && (
+          <button type="button" title={s.swapTitle} onClick={() => void relink(selectedNode, selectedData)}>
+            {s.swap}
           </button>
         )}
         <button type="button" title={s.openTitle} disabled={!openable} onClick={() => selectedNode && openNode(selectedNode, false)}>
@@ -1921,6 +1947,7 @@ function Board({
               <CardLayer
                 editing={editing}
                 setEditing={setEditing}
+                swap={swapCard}
                 draw={draw}
                 cards={cards}
                 overlays={overlays}
