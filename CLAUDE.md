@@ -198,6 +198,14 @@ through `verso-core`) — ADR 0028, Consequences.
   to it ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)).
 - A change a user can see adds its line under "Unreleased" in `CHANGELOG.md`
   and in `docs/pt-BR/CHANGELOG.md`.
+- A change a user can see also updates the tutorial, the demo vault
+  ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)): a note that teaches
+  it, a card or a line on "Tour do Verso", and, for the board, a lesson or a
+  step of "Treino do Board". The boards are built from `scripts/demo-vault/`
+  with `node scripts/demo-vault.mjs build`, never edited in the app; a key
+  the tutorial teaches is checked against Excalidraw's key tests and the
+  window's bindings; and the tutorial is followed in the app, with the app's
+  log open, before the PR.
 
 ### Review
 
@@ -302,6 +310,7 @@ Stopping is the correct behavior, not a failure:
 | `fixtures/` | Behavior contract. `expected.yaml` is untouchable without approval; schema in `docs/spec/dialect.md` §4 |
 | `crates/` | The five crates of the core, plus the contract's types and the benchmark |
 | `app/` | The Phase 2 window: the Tauri host (`app/src-tauri`) and the UI (`app/ui`) |
+| `demo-vault/` | The demo vault, the product's tutorial ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)); its boards are built by `scripts/demo-vault.mjs` |
 | `.github/pull_request_template.md` | The five mandatory sections of the PR |
 
 ## 8. Language

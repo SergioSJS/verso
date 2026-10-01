@@ -7,7 +7,6 @@ tags:
   - template
   - guia
 status: ativo
-versao: 0.2.0
 autor: Sérgio J. Sousa
 fixado: true
 ---
@@ -20,7 +19,9 @@ O **Verso** é um ambiente de anotações e gestão de conhecimento focado em si
 > Este é um **Vault de Teste e Demonstração**. Você pode explorar livremente as notas, modificar conteúdos, testar recursos e usar esta estrutura como modelo para seus próprios projetos.
 
 > [!TIP] Comece pelo tour
-> Abra o [[Tour do Verso.canvas|Tour do Verso]]: um board com as funções do Verso em seis paradas, com as notas deste cofre dentro dos cartões. Para aprender a desenhar nos boards, siga o [[Treino do Board.canvas|Treino do Board]].
+> Abra o [[Tour do Verso.canvas|Tour do Verso]]: um board com as funções do Verso, parada por parada, com as notas deste cofre dentro dos cartões. Para aprender a desenhar nos boards, siga o [[Treino do Board.canvas|Treino do Board]].
+>
+> Para seguir um link: um clique no modo **Leitura**, ou `⌘` + clique no modo **Editar**.
 
 ---
 
@@ -58,6 +59,14 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 8. [[08 - Diagramas Mermaid]] — Fluxogramas, sequências e outros diagramas escritos em texto e desenhados na nota.
 9. [[09 - Board e Relações]] — Boards (`.canvas`) desenhados com o Excalidraw, com as notas da pasta como cartões, e relações tipadas no frontmatter.
 10. [[10 - Desenhando no Board]] — A cola do Excalidraw: ferramentas, grupos, setas, camadas e atalhos.
+11. [[11 - Escrevendo no Editor]] — Os modos Leitura, Editar e Fonte, a barra de formatação, o menu `/` e o salvamento.
+12. [[12 - Busca e Navegação]] — Buscar, abrir pelo nome, trocar texto em todas as notas, backlinks e favoritos.
+13. [[13 - Abas, Painéis, Áreas e Janelas]] — Abas fixas e de pré-visualização, painéis lado a lado, áreas e janelas.
+14. [[14 - Arquivos e Pastas]] — Criar, renomear sem quebrar links, mover, anexar imagens e a lixeira.
+15. [[15 - Ajustes, Aparência e Atalhos]] — Tema, paleta, fontes, idioma e os seus próprios atalhos.
+16. [[16 - Páginas Web e HTML]] — Páginas da web guardadas como notas e arquivos HTML.
+17. [[17 - Terminal, CLI e Agentes]] — O comando `verso` e o cofre nos agentes de IA.
+18. [[18 - Ajuda, Atualizações e Diagnóstico]] — Atualizações, relatar um problema e o console.
 
 ---
 
@@ -66,14 +75,18 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 | Ação | Atalho macOS | Atalho Linux / Windows |
 | :--- | :--- | :--- |
 | **Paleta de Comandos** | `⌘ ⇧ P` | `Ctrl + Shift + P` |
+| **Abrir… (pelo nome)** | `⌘ P` | `Ctrl + P` |
 | **Abrir Pasta / Vault** | `⌘ O` | `Ctrl + O` |
 | **Nova Nota** | `⌘ N` | `Ctrl + N` |
-| **Nota de Hoje (Daily)** | `⌘ D` | `Ctrl + D` |
+| **Nota de Hoje** | `⌘ D` | `Ctrl + D` |
 | **Busca Global** | `⌘ K` | `Ctrl + K` |
 | **Alternar Barra Esquerda** | `⌘ ⌥ ←` | `Ctrl + Alt + ←` |
 | **Alternar Barra Direita** | `⌘ ⌥ →` | `Ctrl + Alt + →` |
 | **Dividir Painel (Lado a Lado)** | `⌘ \` | `Ctrl + \` |
 | **Alternar Leitura / Edição** | `⌘ E` | `Ctrl + E` |
+| **Nova Área de Trabalho** | `⌘ T` | `Ctrl + T` |
+| **Localizar e Substituir no Cofre** | `⌘ ⇧ H` | `Ctrl + Shift + H` |
+| **Ajustes** | `⌘ ,` | `Ctrl + ,` |
 
 > [!IMPORTANT]
 > Seus arquivos pertencem a você. O Verso salva todas as alterações diretamente em arquivos `.md` e arquivos de mídia na pasta local do seu computador, garantindo compatibilidade total com o Git e qualquer outro editor de texto.

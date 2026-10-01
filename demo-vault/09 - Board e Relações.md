@@ -25,7 +25,11 @@ Um **board** é um arquivo `.canvas` — o mesmo formato do canvas do Obsidian �
 - **Ler e editar num cartão**: duplo clique num cartão de nota entra nele — dá para ler e rolar a nota ali — e mais um clique no texto edita, sem sair do board; `Esc` sai. O ↗ no canto do cartão (ou `⌘` + duplo clique) abre a nota numa aba, e o ⇄ troca o arquivo do cartão. Num cartão de texto, o duplo clique edita o texto.
 - **Ver como lista**: o botão *Sumário* mostra grupos, cartões e conexões numa lista que dá para percorrer pelo teclado.
 - **Ver o JSON**: o modo *Texto*, no canto da aba, mostra o arquivo como ele é.
-- **Aprender a desenhar**: o [[Treino do Board.canvas|Treino do Board]] ensina o Excalidraw em nove lições, e [[10 - Desenhando no Board]] reúne as ferramentas e os atalhos.
+- **Aprender a desenhar**: o [[Treino do Board.canvas|Treino do Board]] ensina o Excalidraw lição por lição, e [[10 - Desenhando no Board]] reúne as ferramentas e os atalhos.
+- **Criar um board**: **Novo board** na paleta, no menu **Nova…** do botão `+` da faixa da esquerda, ou no menu de uma pasta da árvore. Ele nasce como `Sem título.canvas`, na pasta de **Ajustes › Board › Pasta para boards novos** (vazia: a raiz).
+- **Exportar**: **Exportar imagem** (`⌘⇧E`, ou o menu ☰ do board) — **Formato** PNG ou SVG, **Escala** de 1× a 3×, **Fundo**, **Escuro** e **Só a seleção**; depois **Salvar na pasta**, **Salvar em Downloads** ou **Copiar**.
+- **Cartão perdido**: se o arquivo de um cartão some ou muda de nome fora do Verso, o cartão mostra *Não encontrado na pasta*; um duplo clique nele, ou **Trocar arquivo…**, aponta o cartão para o arquivo certo.
+- **Ajustes › Board**: abrir um `.canvas` como board ou como texto, abrir mostrando tudo ou onde você parou, o traço das formas novas (à mão livre ou limpo), a fonte do texto desenhado, a grade e a pasta dos boards novos.
 
 > [!NOTE]
 > Abrir um board nunca reescreve o arquivo. Ao salvar, o Verso muda só o que você mudou e mantém o layout em que o Obsidian escreve — um `git diff` mostra só a linha do cartão que você arrastou.
@@ -46,6 +50,6 @@ Esta própria nota tem uma: a propriedade `relacionado` no topo aponta para [[pr
 
 ## Desenhos do plugin Excalidraw
 
-Uma nota desenhada com o plugin Excalidraw do Obsidian mostra, abaixo do título, o botão **Converter em board**. Ele mostra o `.canvas` novo e o cria ao lado do desenho quando você confirmar; o desenho original fica como estava.
+Uma nota desenhada com o plugin Excalidraw do Obsidian mostra, abaixo do título, o botão **Converter em board**. Ele mostra o `.canvas` novo e o cria ao lado do desenho quando você confirmar; o desenho original fica como estava. Experimente com [[Desenho do Excalidraw.excalidraw|o desenho deste cofre]].
 
 Voltar para [[00 - Bem-vindo ao Verso|Início]].

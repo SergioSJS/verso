@@ -195,6 +195,14 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
   ([ADR 0051](adr/0051-development-flow-and-releases.md)).
 - Uma mudança que o usuário vê acrescenta a sua linha em "Não lançado" no
   `CHANGELOG.md` e no `docs/pt-BR/CHANGELOG.md`.
+- Uma mudança que o usuário vê também atualiza o tutorial, o cofre de
+  exemplo ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)): uma nota que a
+  ensina, um cartão ou uma linha no "Tour do Verso" e, para o board, uma
+  lição ou um passo do "Treino do Board". Os boards são construídos a partir
+  de `scripts/demo-vault/` com `node scripts/demo-vault.mjs build`, nunca
+  editados no app; uma tecla que o tutorial ensina é conferida contra os
+  testes de tecla do Excalidraw e os atalhos da janela; e o tutorial é
+  seguido no app, com o log do app aberto, antes do PR.
 
 ### Revisão
 
@@ -298,6 +306,7 @@ Parar é o comportamento correto, não uma falha:
 | `fixtures/` | Contrato de comportamento. `expected.yaml` é intocável sem aprovação; schema em `spec/dialect.md` §4 |
 | `crates/` | Os cinco crates do core, mais os tipos do contrato e o benchmark |
 | `app/` | A janela da Fase 2: o host Tauri (`app/src-tauri`) e a UI (`app/ui`) |
+| `demo-vault/` | O cofre de exemplo, o tutorial do produto ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)); os boards dele são construídos por `scripts/demo-vault.mjs` |
 | `.github/pull_request_template.md` | As cinco seções obrigatórias do PR |
 
 ## 8. Idioma

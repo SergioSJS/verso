@@ -23,4 +23,4 @@ O **Projeto Beta** foca no polimento estético e ergonômico da interface gráfi
 ## Conexões
 - Referência: [[Projeto Alpha]]
 - Pesquisas relacionadas: [[Pesquisa e Descobertas]]
-- Guia de estilo: [[../01 - Guia de Markdown e Sintaxe|Sintaxe Markdown]]
+- Guia de estilo: [[01 - Guia de Markdown e Sintaxe|Sintaxe Markdown]]

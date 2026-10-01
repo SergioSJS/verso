@@ -53,7 +53,7 @@ Uma seta entre dois cartões é uma conexão do canvas, que o Obsidian também m
 
 ## Grupos
 
-- **Quadro**: é o grupo do canvas, e o Obsidian o mostra como grupo. A **Ferramenta de quadro** (`F`, em **Mais ferramentas**) cerca o que você arrastar em volta; ou selecione as coisas e, no botão direito, **Envolver a seleção num quadro**. Um duplo clique no nome do quadro o renomeia.
+- **Quadro**: é o grupo do canvas, e o Obsidian o mostra como grupo. A **Ferramenta de quadro** (`F`, em **Mais ferramentas**) cerca o que você arrastar em volta; ou selecione as coisas e, no botão direito, **Envolver a seleção num quadro**. O quadro novo se chama *Frame*: um duplo clique no nome o renomeia.
 - **Agrupar** (`⌘ G`): junta desenhos para que se movam juntos. `⌘ ⇧ G` separa; um duplo clique entra no grupo para mexer numa peça só.
 
 ## Camadas
@@ -87,4 +87,4 @@ Com algo selecionado, o painel da esquerda mostra **Contorno**, **Fundo**, **Pre
 > [!NOTE]
 > Com o board em foco, alguns atalhos do Verso dão lugar aos do Excalidraw: `⌘ D` duplica, `⌘ K` cria um link no que estiver selecionado, `⌘ [` e `⌘ ]` mudam a camada. Clique fora do board — na lista de arquivos, por exemplo — para usá-los no Verso. `⌘ P`, `⌘ F` e `⌘ ⇧ E` funcionam também no board.
 
-Voltar para [[00 - Bem-vindo ao Verso|Início]] · Veja também o [[Tour do Verso.canvas|Tour do Verso]].
+Siga para [[11 - Escrevendo no Editor]] ou volte para [[00 - Bem-vindo ao Verso|Início]] · Veja também o [[Tour do Verso.canvas|Tour do Verso]].

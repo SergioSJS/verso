@@ -95,6 +95,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted (intent) |
 | [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted; a custom Dock menu `[OPEN]` (2026-09-29) |
 | [0051](0051-development-flow-and-releases.md) | Development flow, versions and releases | Accepted |
+| [0058](0058-demo-vault-as-tutorial.md) | The demo vault is the product's tutorial, kept with every feature | Accepted (2026-10-01); the demo vault in English `[OPEN]` |
 
 ### Open technical decisions
 
