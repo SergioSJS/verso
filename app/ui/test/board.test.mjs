@@ -15,10 +15,10 @@ await esbuild.build({
   bundle: true,
   format: "esm",
   platform: "node",
-  outfile: "dist/board.test-bundle.mjs",
+  outfile: "test/.bundles/board.test-bundle.mjs",
   logLevel: "error",
 });
-const b = await import("../dist/board.test-bundle.mjs");
+const b = await import("./.bundles/board.test-bundle.mjs");
 
 /** Elements as Excalidraw would hold them after `restoreElements`: the
  *  partial ones, with what the board reads. */
@@ -47,6 +47,37 @@ describe("canvas ↔ elements", () => {
     assert.deepEqual(Object.keys(node), Object.keys(OBSIDIAN.nodes[0]));
     assert.equal(node.x, 11);
     assert.equal(node["verso-extra"], 1);
+  });
+
+  // Decided on 2026-10-01, review `board.md` §6 item 5: a save changes only
+  // what the user changed.
+  test("a fraction where the file put it stays; a card moved is written whole", () => {
+    const doc = { nodes: [{ id: "a", x: -417.5, y: 10.25, width: 250.5, height: 60, type: "text", text: "a" }, { id: "b", x: 0, y: 0, width: 9, height: 9, type: "text", text: "b" }] };
+    const els = restored(doc).map((e) => (e.id === "b" ? { ...e, x: 30.4 } : e));
+    const back = b.fromElements(els, doc).nodes;
+    assert.deepEqual([back[0].x, back[0].y, back[0].width], [-417.5, 10.25, 250.5]);
+    assert.equal(back[1].x, 30);
+  });
+
+  test("an edge keeps its sides while its ends stay on their cards, and gains none", () => {
+    const doc = {
+      nodes: [{ id: "t", x: 0, y: 0, width: 100, height: 50, type: "text", text: "t" }, { id: "o", x: 0, y: 300, width: 100, height: 50, type: "text", text: "o" }],
+      edges: [{ id: "e2", fromNode: "t", fromSide: "bottom", toNode: "o", toSide: "top" }, { id: "e3", fromNode: "t", toNode: "o" }],
+    };
+    const els = restored(doc).map((e) => (e.id === "o" ? { ...e, x: 400, y: 0 } : e));
+    const edges = b.fromElements(els, doc).edges;
+    assert.deepEqual([edges[0].fromSide, edges[0].toSide], ["bottom", "top"]);
+    assert.equal("fromSide" in edges[1] || "toSide" in edges[1], false);
+  });
+
+  test("what the board cannot draw goes back where it was", () => {
+    const doc = {
+      nodes: [{ id: "a", x: 0, y: 0, width: 9, height: 9, type: "text", text: "a" }, { type: "text", text: "no id" }],
+      edges: [{ id: "x", fromNode: "a", toNode: "nobody" }, { id: "y", fromNode: "a", toNode: "a", label: "" }],
+    };
+    const back = b.fromElements(restored(doc), doc);
+    assert.deepEqual(back.nodes, doc.nodes);
+    assert.deepEqual(back.edges, doc.edges);
   });
 
   test("edges pass under the cards, the drawing over them", () => {
@@ -248,7 +279,10 @@ describe("a typed relation in the frontmatter (spec Q10)", () => {
     assert.equal(b.withRelation('---\ninimigos:\n  - "[[A]]"\n---\n', "inimigos", "[[B]]"), '---\ninimigos:\n  - "[[A]]"\n  - "[[B]]"\n---\n');
   });
   test("one value becomes a list of the two", () => {
-    assert.equal(b.withRelation('---\naliado: "[[A]]"\nx: 1\n---\n', "aliado", "[[B]]"), '---\nx: 1\naliado:\n  - "[[A]]"\n  - "[[B]]"\n---\n');
+    // In its place: the key no longer moves to the end of the frontmatter.
+    assert.equal(b.withRelation('---\naliado: "[[A]]"\nx: 1\n---\n', "aliado", "[[B]]"), '---\naliado:\n  - "[[A]]"\n  - "[[B]]"\nx: 1\n---\n');
+    // A note whose only property it is.
+    assert.equal(b.withRelation('---\naliado: "[[A]]"\n---\n', "aliado", "[[B]]"), '---\naliado:\n  - "[[A]]"\n  - "[[B]]"\n---\n');
   });
   test("a relation already there changes nothing", () => {
     const doc = '---\naliado: "[[B]]"\n---\n';
@@ -257,6 +291,17 @@ describe("a typed relation in the frontmatter (spec Q10)", () => {
   test("the link is the bare name unless another note has it", () => {
     assert.equal(b.linkTo("npcs/Barão.md", ["npcs/Barão.md", "Taverna.md"]), "[[Barão]]");
     assert.equal(b.linkTo("npcs/Barão.md", ["npcs/Barão.md", "outros/Barão.md"]), "[[npcs/Barão]]");
+  });
+  test("a name no link can reach gives no link (review board.md, reading 2, finding 9)", () => {
+    assert.equal(b.linkTo("A|B.md", ["A|B.md"]), null);
+    assert.equal(b.linkTo("C#1.md", ["C#1.md"]), null);
+  });
+  test("a key written in another case is the same key", () => {
+    const doc = '---\nAliado: "[[A]]"\n---\n';
+    const after = b.withRelation(doc, "aliado", "[[B]]");
+    assert.ok(after.includes("Aliado:"), after);
+    assert.ok(!/^aliado:/m.test(after), after);
+    assert.ok(after.includes("[[B]]"), after);
   });
   test("a key a relation cannot have is refused", () => {
     for (const bad of ["", "a:b", "#x", "- y"]) assert.equal(b.relationKeyOk(bad), false, bad);

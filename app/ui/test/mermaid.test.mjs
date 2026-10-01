@@ -51,9 +51,9 @@ const { renderMermaid, ensureMermaid, isDarkMode } = await import("../src/mermai
     external: ["mermaid"],
     platform: "browser",
     format: "esm",
-    outfile: "dist/mermaid.test-bundle.mjs",
+    outfile: "test/.bundles/mermaid.test-bundle.mjs",
   });
-  return import("../dist/mermaid.test-bundle.mjs");
+  return import("./.bundles/mermaid.test-bundle.mjs");
 });
 
 describe("Mermaid diagrams integration", () => {

@@ -116,6 +116,16 @@ fn top_level_key(line: &str) -> Option<String> {
     if first.is_whitespace() || first == '-' || first == '#' {
         return None;
     }
+    // A quoted key may hold a colon (`"a:b": …`): it ends at its quote.
+    if first == '"' || first == '\'' {
+        let rest = line.get(1..)?;
+        let end = rest.find(first)?;
+        let after = rest.get(end + 1..)?.trim_start_matches([' ', '\t']);
+        return after
+            .starts_with(':')
+            .then(|| rest.get(..end).map(str::to_owned))
+            .flatten();
+    }
     let (key, _) = line.split_once(':')?;
     let key = key.trim_end();
     let key = key
@@ -217,6 +227,14 @@ mod tests {
     #[test]
     fn invalid_yaml_has_no_links() {
         assert!(keys("---\na: \"[[C]]\n  : :\n---\n").is_empty());
+    }
+
+    #[test]
+    fn a_quoted_key_may_hold_a_colon() {
+        assert_eq!(
+            keys("---\n\"a:b\": \"[[X]]\"\n---\n"),
+            vec![("a:b".to_owned(), None, "X".to_owned())]
+        );
     }
 
     #[test]

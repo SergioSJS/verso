@@ -1126,6 +1126,25 @@ impl Workspace {
         Ok(key)
     }
 
+    /// What a reader names — a note, by [`Self::note_key`], or a board: a
+    /// `.canvas` path stays as given. A canvas is a link source and target
+    /// of the index like a note, so `backlinks`, `links` and `read_note`
+    /// answer for one (review `board.md`, reading 1, finding 9). Writing a
+    /// note never goes through here: a note named `Plano.canvas` is
+    /// `Plano.canvas.md`.
+    pub fn source_key(&self, note: &str) -> Result<String, CoreError> {
+        let confined = self
+            .root
+            .confine(Path::new(note))
+            .map_err(CoreError::Confined)?
+            .to_string_lossy()
+            .into_owned();
+        if is_canvas(&confined) {
+            return Ok(confined);
+        }
+        self.note_key(note)
+    }
+
     /// [`Self::note_key`] and the handle to read the file.
     fn note_path(&mut self, note: &str) -> Result<(String, verso_fs::Handle), CoreError> {
         let key = self.note_key(note)?;
@@ -1148,7 +1167,7 @@ impl Workspace {
     /// or without `.md`, or by its name as a link names it; `None` when
     /// the index does not know the note.
     pub fn backlinks(&mut self, note: &str) -> Result<Option<Vec<Backlink>>, CoreError> {
-        let mut path = self.note_key(note)?;
+        let mut path = self.source_key(note)?;
         if !self.known(&path)? {
             // Named as a link names it: `Barão` for `npcs/Barão.md`.
             match self.index.note_named(note).map_err(CoreError::Index)? {
@@ -1165,7 +1184,7 @@ impl Workspace {
     /// The links a note makes, with what each resolves to; `None` when the
     /// index does not know the note.
     pub fn links(&mut self, note: &str) -> Result<Option<Vec<Link>>, CoreError> {
-        let path = self.note_key(note)?;
+        let path = self.source_key(note)?;
         if !self.known(&path)? {
             return Ok(None);
         }
@@ -1178,7 +1197,7 @@ impl Workspace {
     /// Whether the index holds the note only as an unverified last version
     /// (ADR 0043); `None` when it does not know the note.
     pub fn is_unverified(&mut self, note: &str) -> Result<Option<bool>, CoreError> {
-        let path = self.note_key(note)?;
+        let path = self.source_key(note)?;
         self.index.is_unverified(&path).map_err(CoreError::Index)
     }
 
@@ -1212,7 +1231,11 @@ impl Workspace {
     /// positions the index has for it and whether the index is behind
     /// the file.
     pub fn read_note(&mut self, note: &str) -> Result<NoteText, CoreError> {
-        let (path, handle) = self.note_path(note)?;
+        let path = self.source_key(note)?;
+        let handle = self
+            .root
+            .handle(Path::new(&path))
+            .map_err(CoreError::Confined)?;
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
         let known = self.index.stamp_of(&path).map_err(CoreError::Index)?;
@@ -1449,7 +1472,11 @@ impl Workspace {
                 };
                 let mut links = Vec::new();
                 for l in board.links() {
-                    if let Some(reached) = self.reach(&path, &l.target)? {
+                    let reached = match l.place {
+                        canvas::Place::FileNode => self.reach_exact(&l.target)?,
+                        canvas::Place::Text { .. } => self.reach(&path, &l.target)?,
+                    };
+                    if let Some(reached) = reached {
                         let (start, end, place) = match l.place {
                             canvas::Place::FileNode => (0, 0, SeenPlace::FileNode(l.node)),
                             canvas::Place::Text { start, end } => {
@@ -1524,6 +1551,25 @@ impl Workspace {
         Ok(self.resolve_file(source, target).map(Reached::File))
     }
 
+    /// What a canvas's `file` node reaches: the note or the file at that
+    /// path from the root, as JSON Canvas writes it and the window reads
+    /// it — never one found by name in another folder (ADR 0057, decided
+    /// on 2026-10-01). A card left pointing at a path that is gone reaches
+    /// nothing, so a move plans its rewrite.
+    fn reach_exact(&self, target: &str) -> Result<Option<Reached>, CoreError> {
+        if let Some(note) = self.index.resolve_exact(target).map_err(CoreError::Index)? {
+            return Ok(Some(Reached::Note(note)));
+        }
+        let wanted = verso_index::file_key(target);
+        Ok(self
+            .files
+            .values()
+            .flatten()
+            .find(|p| verso_index::file_key(p) == wanted)
+            .cloned()
+            .map(Reached::File))
+    }
+
     /// Make the index and the listing follow a move that has happened:
     /// each moved note's row is re-keyed with everything it knows — a
     /// placeholder's last known version included (ADR 0043) — then the
@@ -1538,6 +1584,15 @@ impl Workspace {
             }
         }
         for (old, new) in &mv.files {
+            // A canvas is a row of the index too, with its links: it follows
+            // the move as a note's row does, a placeholder's included.
+            if is_canvas(old)
+                && let Err(e) = self.index.rekey(old, new)
+            {
+                warnings.push(format!(
+                    "the index could not follow {old} to {new}: {e}; reindex to repair"
+                ));
+            }
             if let Some(paths) = self.files.get_mut(&verso_index::file_key(name_of(old))) {
                 paths.retain(|p| p != old);
             }
@@ -1679,7 +1734,11 @@ impl Workspace {
         let mut texts: HashMap<usize, Vec<(usize, usize, String)>> = HashMap::new();
         for seen in &note.links {
             let wanted = mv.after(&seen.reached);
-            let now = match self.reach(&path_now, &seen.target) {
+            let now = match seen.place {
+                SeenPlace::FileNode(_) => self.reach_exact(&seen.target),
+                SeenPlace::TextNode(_) | SeenPlace::Note => self.reach(&path_now, &seen.target),
+            };
+            let now = match now {
                 Ok(now) => now,
                 Err(e) => {
                     warnings.push(format!("{path_now}: {e}"));
@@ -1943,13 +2002,15 @@ impl Workspace {
         let text = String::from_utf8_lossy(bytes);
         let (content, links) = match canvas::Canvas::parse(&text) {
             Ok(board) => {
+                let lines = LineStarts::of(&text);
                 let links = board
                     .links()
                     .into_iter()
                     .map(|l| {
-                        let (line, col) = line_col(&text, l.at);
+                        let (line, col) = lines.line_col(&text, l.at);
                         verso_index::SourceLink {
                             embed: l.embed,
+                            exact: l.place == canvas::Place::FileNode,
                             target: l.target,
                             heading: l.heading,
                             block: l.block,
@@ -1972,8 +2033,8 @@ impl Workspace {
 
     /// Save a board (ADR 0057 point 2): `json` is the canvas as the window
     /// holds it, laid over the file as read — every value unchanged keeps
-    /// its token, every object its key order, every field the window does
-    /// not know stays — and written in Obsidian's layout, atomically, over
+    /// its token, every object its key order — and written in Obsidian's
+    /// layout, atomically, over
     /// the file `revision` describes (invariant 11 refuses a changed one).
     /// A file on disk that is not JSON is refused: the text view is where
     /// it gets fixed.
@@ -1983,6 +2044,29 @@ impl Workspace {
         json: &str,
         revision: &str,
     ) -> Result<TextFile, CoreError> {
+        let (key, now, text) = self.board_over_disk(relative, json)?;
+        if text == now.text && now.revision == revision {
+            return Ok(now);
+        }
+        self.write_text(&key, &text, revision)
+    }
+
+    /// The text [`Workspace::write_board`] would write for `json` over the
+    /// file as it is on disk now, writing nothing: the board's side of a
+    /// conflict, and what the first save of a canvas in another layout
+    /// shows before it rewrites the file (review `board.md` §6 item 4).
+    pub fn board_preview(&mut self, relative: &str, json: &str) -> Result<String, CoreError> {
+        self.board_over_disk(relative, json)
+            .map(|(_, _, text)| text)
+    }
+
+    /// The board's path, the file as read now, and `json` laid over it in
+    /// Obsidian's layout.
+    fn board_over_disk(
+        &mut self,
+        relative: &str,
+        json: &str,
+    ) -> Result<(String, TextFile, String), CoreError> {
         let key = self.entry_key(relative)?;
         if !is_canvas(&key) {
             return Err(CoreError::NotCanvas);
@@ -1991,10 +2075,7 @@ impl Workspace {
         let old = canvas::Canvas::parse(&now.text).map_err(|_| CoreError::NotCanvas)?;
         let new = canvas::Canvas::parse(json).map_err(|_| CoreError::NotCanvas)?;
         let text = old.merged(new.root).write();
-        if text == now.text && now.revision == revision {
-            return Ok(now);
-        }
-        self.write_text(&key, &text, revision)
+        Ok((key, now, text))
     }
 
     /// Every entry of the folder as the last walk saw it — notes, other
@@ -2260,14 +2341,29 @@ fn is_canvas(key: &str) -> bool {
 
 /// Line and column (both from 1, the column in characters) of a byte
 /// offset, for a link the index keeps from a file that is not Markdown.
-fn line_col(text: &str, offset: usize) -> (u32, u32) {
-    let before = text.get(..offset).unwrap_or(text);
-    let line = before.matches('\n').count() + 1;
-    let col = before.rsplit('\n').next().unwrap_or("").chars().count() + 1;
-    (
-        u32::try_from(line).unwrap_or(u32::MAX),
-        u32::try_from(col).unwrap_or(u32::MAX),
-    )
+/// Where each line of a text starts, found once: a canvas of thousands of
+/// cards asks for the line and column of each link.
+struct LineStarts(Vec<usize>);
+
+impl LineStarts {
+    fn of(text: &str) -> Self {
+        let mut starts = vec![0];
+        starts.extend(text.match_indices('\n').map(|(i, _)| i + 1));
+        Self(starts)
+    }
+
+    /// The line and column (both from 1, the column in characters) of the
+    /// byte `offset`.
+    fn line_col(&self, text: &str, offset: usize) -> (u32, u32) {
+        let offset = offset.min(text.len());
+        let line = self.0.partition_point(|&s| s <= offset);
+        let start = self.0.get(line.saturating_sub(1)).copied().unwrap_or(0);
+        let col = text.get(start..offset).map_or(0, |s| s.chars().count()) + 1;
+        (
+            u32::try_from(line).unwrap_or(u32::MAX),
+            u32::try_from(col).unwrap_or(u32::MAX),
+        )
+    }
 }
 
 /// `text` with the target of each link at `(start, end)` — the span of

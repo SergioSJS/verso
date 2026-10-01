@@ -9,9 +9,9 @@ const { parsePdfSpec } = await import("../src/pdfSpec.js").catch(async () => {
     entryPoints: ["src/pdfSpec.ts"],
     bundle: false,
     format: "esm",
-    outfile: "dist/pdfSpec.test-bundle.mjs",
+    outfile: "test/.bundles/pdfSpec.test-bundle.mjs",
   });
-  return import("../dist/pdfSpec.test-bundle.mjs");
+  return import("./.bundles/pdfSpec.test-bundle.mjs");
 });
 
 describe("PDF Embed specification parser (parsePdfSpec)", () => {

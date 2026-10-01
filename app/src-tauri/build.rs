@@ -50,6 +50,7 @@ fn main() {
         "write_text",
         "write_board",
         "board_text",
+        "board_preview",
         "render_markdown",
         "rename_entry",
         "delete_entry",

@@ -74,6 +74,9 @@ fn stamp(secs: i64) -> String {
     format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
 }
 
+/// The most a message takes of its line, in bytes.
+const MAX_LINE: usize = 4 * 1024;
+
 /// One line: when, how bad, where from, and what happened. A message of
 /// several lines is flattened, so one entry is always one line and the
 /// file stays readable by eye and by `tail`.
@@ -95,7 +98,17 @@ pub(crate) fn write(level: &str, source: &str, message: &str) {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs() as i64);
-    let flat = message.replace(['\n', '\r'], " · ");
+    let mut flat = message.replace(['\n', '\r'], " · ");
+    // One runaway message is one line of the log, not the whole log.
+    if flat.len() > MAX_LINE {
+        let mut cut = MAX_LINE;
+        while !flat.is_char_boundary(cut) {
+            cut -= 1;
+        }
+        let more = flat.len() - cut;
+        flat.truncate(cut);
+        flat.push_str(&format!(" … ({more} bytes more)"));
+    }
     let Ok(mut out) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)

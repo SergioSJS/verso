@@ -45,5 +45,29 @@ test("F2 renames the open note, right after a click on its row", async ({ app })
   // The notes that point to it are rewritten, after the plan is shown.
   await app.page.locator(".plan button.save").click();
   await expect.poll(() => app.files()).toContain("18 - Ajuda.md");
-  expect(await app.file("00 - Bem-vindo ao Verso.md")).toContain("[[18 - Ajuda]]");
+  await expect.poll(() => app.file("00 - Bem-vindo ao Verso.md")).toContain("[[18 - Ajuda]]");
+});
+
+test("back steps through the notes clicked in the tree, though one preview tab showed them all", async ({ app }) => {
+  await app.open();
+  for (const p of ["01 - Guia de Markdown e Sintaxe.md", "02 - Links, Âncoras e Notas Incorporadas.md", "03 - Propriedades e Metadados.md"]) await row(app, p).click();
+  await expect(app.page.locator(".tab.preview")).toContainText("03 - Propriedades");
+  // The trail is of notes, not tabs (review `board.md` §6 item 18).
+  await app.key("Mod+[");
+  await expect(app.page.locator(".tab.preview")).toContainText("02 - Links");
+  await app.key("Mod+[");
+  await expect(app.page.locator(".tab.preview")).toContainText("01 - Guia");
+  await app.key("Mod+]");
+  await expect(app.page.locator(".tab.preview")).toContainText("02 - Links");
+});
+
+test("a question on screen is answered before the menu's ⌘W closes anything", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("03 - Propriedades");
+  const tab = page.locator(".tab", { hasText: "03 - Propriedades" });
+  await app.key("Mod+,");
+  await expect(page.locator(".settings-nav-item").first()).toBeVisible();
+  await app.emit("menu-close-tab", "main");
+  await page.waitForTimeout(300);
+  await expect(tab).toHaveCount(1);
 });

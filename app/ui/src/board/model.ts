@@ -49,6 +49,10 @@ export type CanvasEdge = {
   [key: string]: unknown;
 };
 
+/** The version of the `verso` key this build reads and writes. A canvas
+ *  with a later one comes from a newer Verso: shown, never written. */
+export const BOARD_VERSION = 1;
+
 export type CanvasDoc = {
   nodes?: CanvasNode[];
   edges?: CanvasEdge[];
@@ -581,10 +585,11 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     if (!data) continue;
     const node: CanvasNode = { ...data };
     node.id = e.id;
-    node.x = Math.round(e.x);
-    node.y = Math.round(e.y);
-    node.width = Math.round(e.width);
-    node.height = Math.round(e.height);
+    // What the user moved or resized is written in whole numbers; what is
+    // where the file put it keeps the file's value, a fraction included
+    // (decided on 2026-10-01, review `board.md` §6 item 5).
+    const drawn = nodeElement(data);
+    for (const k of ["x", "y", "width", "height"] as const) if (e[k] !== drawn[k]) node[k] = Math.round(e[k]);
     const fallback = NODE_STROKE;
     const was = hexOf(data.color, fallback).toLowerCase();
     if ((e.strokeColor ?? fallback).toLowerCase() !== was) put(node, "color", colorOf(e.strokeColor, fallback));
@@ -617,13 +622,17 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     if (!fromEl || !toEl) continue;
     const data = isRecord(e.customData?.canvas) ? (e.customData?.canvas as CanvasEdge) : ({ id: e.id } as CanvasEdge);
     const edge: CanvasEdge = { ...data, id: e.id, fromNode: from, toNode: to };
-    edge.fromSide = sideOf(fromEl, endPoint(e, false));
-    edge.toSide = sideOf(toEl, endPoint(e, true));
+    // A side is the file's while its end stays on the same card: moving a
+    // card does not turn the edge round, and an edge with no side gains
+    // none. An end attached anew takes the side it meets.
+    if (data.fromNode !== from) edge.fromSide = sideOf(fromEl, endPoint(e, false));
+    if (data.toNode !== to) edge.toSide = sideOf(toEl, endPoint(e, true));
     put(edge, "fromEnd", e.startArrowhead ? "arrow" : data.fromEnd !== undefined ? "none" : undefined);
     put(edge, "toEnd", e.endArrowhead ? (data.toEnd !== undefined ? "arrow" : undefined) : "none");
     const wasColor = hexOf(data.color, EDGE_STROKE).toLowerCase();
     if ((e.strokeColor ?? EDGE_STROKE).toLowerCase() !== wasColor) put(edge, "color", colorOf(e.strokeColor, EDGE_STROKE));
-    put(edge, "label", labelOf(e, byId));
+    const label = labelOf(e, byId);
+    if (!(label === undefined && data.label === "")) put(edge, "label", label);
     const style = styleOf(e, EDGE_STYLE);
     const labelEl = (e.boundElements ?? []).map((b) => (b.type === "text" ? byId.get(b.id) : undefined)).find((t) => t && !t.isDeleted);
     if (labelEl) Object.assign(style, styleOf(labelEl, LABEL_STYLE));
@@ -648,18 +657,36 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     drawing.push(under === undefined ? e : { ...e, [UNDER]: under });
   }
   const out: CanvasDoc = { ...doc };
-  out.nodes = nodes;
+  // What the board could not draw — an entry with no id or type, an edge
+  // whose end names no node — goes back where it was, untouched.
+  const readNodes = Array.isArray(doc.nodes) ? doc.nodes : [];
+  const drawable = new Set(readNodes.filter((n) => isRecord(n) && typeof n.id === "string" && typeof n.type === "string").map((n) => n.id));
+  out.nodes = keepUndrawn(readNodes, (n) => isRecord(n) && typeof n["id"] === "string" && typeof n["type"] === "string", nodes) as CanvasNode[];
+  const readEdges = Array.isArray(doc.edges) ? doc.edges : [];
+  const keptEdges = keepUndrawn(readEdges, (e) => isRecord(e) && typeof e["id"] === "string" && drawable.has(e["fromNode"] as string) && drawable.has(e["toNode"] as string), edges) as CanvasEdge[];
   // A key the file did not have comes only when there is something to put
   // in it: opening a canvas and saving it unchanged writes nothing new.
-  if (edges.length > 0 || "edges" in doc) out.edges = edges;
+  if (keptEdges.length > 0 || "edges" in doc) out.edges = keptEdges;
   const bg = background && background !== "transparent" ? background : null;
   if (drawing.length > 0 || isRecord(doc.verso) || bg) {
     const verso = isRecord(doc.verso) ? { ...doc.verso } : {};
-    verso.version = 1;
-    verso.drawing = drawing;
+    verso.version = BOARD_VERSION;
+    const readDrawing = isRecord(doc.verso) && Array.isArray(doc.verso.drawing) ? doc.verso.drawing : [];
+    verso.drawing = keepUndrawn(readDrawing, (d) => isRecord(d) && typeof d["id"] === "string" && typeof d["type"] === "string", drawing);
     put(verso, "background", bg ?? undefined);
     out.verso = verso;
   }
+  return out;
+}
+
+/** `rebuilt` with each entry of `read` the board did not draw put back at
+ *  its place in the file's list. */
+function keepUndrawn(read: readonly unknown[], drew: (x: Record<string, unknown>) => boolean, rebuilt: readonly unknown[]): unknown[] {
+  const out = [...rebuilt];
+  read.forEach((x, i) => {
+    if (isRecord(x) && drew(x)) return;
+    out.splice(Math.min(i, out.length), 0, x);
+  });
   return out;
 }
 

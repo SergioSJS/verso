@@ -5,15 +5,15 @@
 // The browser harness (ADR 0058): the window as the app runs it, in a plain
 // browser, with the Rust core answered by `harness/core.ts` from a folder
 // held in memory — the demo vault, or an empty folder with `?vault=empty`.
-// `npm run build` writes it beside the app as `dist/harness.html` (the
-// app's own page, this script in place of main.js); `npm run e2e` serves it
-// (`e2e/serve.mjs`) and drives it with Playwright (`e2e/*.spec.mjs`). The
-// app never opens it.
+// `e2e/build.mjs` builds it into `e2e/.site/` beside a copy of the window's
+// build, as `harness.html` (the app's own page, this script in place of
+// main.js), never into `dist/`, which the app packages; `npm run e2e` serves
+// it (`e2e/serve.mjs`) and drives it with Playwright (`e2e/*.spec.mjs`).
 
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
-import { Core } from "./harness/core";
+import { Core, UNUSED_ARGS } from "./harness/core";
 
 const empty = new URLSearchParams(location.search).get("vault") === "empty";
 const core = new Core(empty ? [] : DEMO_VAULT_FILES, empty ? "pasta-vazia" : "demo-vault");
@@ -55,6 +55,7 @@ const harness = {
   calls: core.calls,
   log: core.log,
   commands: Object.keys(core.handlers),
+  unusedArgs: UNUSED_ARGS,
   writeOutside: (path: string, text: string) => core.writeOutside(path, text),
   emit: (event: string, payload: unknown) => emit(event, payload),
 };

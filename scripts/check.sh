@@ -49,12 +49,13 @@ fi
 cargo deny check
 # The UI before any Rust build: the Tauri shell embeds app/ui/dist when it
 # compiles. `npm ci` only when the lockfile is newer than the installed tree.
-step "UI: type check and bundle"
+step "UI: type check, bundle and unit tests"
 (
   cd app/ui
   [ node_modules/.package-lock.json -nt package-lock.json ] || npm ci
   npm run check
   npm run build
+  npm test
 )
 step "UI: end-to-end tests in the browser harness (ADR 0058, local only)"
 (

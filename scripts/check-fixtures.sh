@@ -39,8 +39,9 @@ problem() { fail=1; printf 'FIXTURE: %s\n' "$*" >&2; }
 # not checked. `pos` is an inline map with line and col.
 allowed_under() {
   case "$1" in
-    top)       echo 'frontmatter|headings|links|embeds|blocks|callouts|observed|source' ;;
+    top)       echo 'frontmatter|headings|links|embeds|blocks|callouts|property_links|observed|source' ;;
     links|embeds) echo 'target|heading|block|alias|syntax|pos' ;;
+    property_links) echo 'property|item|target|heading|block|alias|pos' ;;
     headings)  echo 'level|text|pos' ;;
     blocks)    echo 'id|pos' ;;
     callouts)  echo 'kind|title|fold|pos' ;;
@@ -58,11 +59,12 @@ check_keys() {
   awk -v file="$1" '
     function report(msg) { print "FIXTURE: " file ": " msg; bad = 1 }
     function allowed(parent, key,   list) {
-      if (parent == "top") list = "frontmatter|headings|links|embeds|blocks|callouts|observed|source"
+      if (parent == "top") list = "frontmatter|headings|links|embeds|blocks|callouts|property_links|observed|source"
       else if (parent == "links" || parent == "embeds") list = "target|heading|block|alias|syntax|pos"
       else if (parent == "headings") list = "level|text|pos"
       else if (parent == "blocks") list = "id|pos"
       else if (parent == "callouts") list = "kind|title|fold|pos"
+      else if (parent == "property_links") list = "property|item|target|heading|block|alias|pos"
       else if (parent == "observed") list = "app|version|how"
       else if (parent == "pos") list = "line|col"
       else if (parent == "frontmatter") return 1

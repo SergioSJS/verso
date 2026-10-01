@@ -68,6 +68,10 @@ pub struct Block {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceLink {
     pub embed: bool,
+    /// A canvas's `file` node: the path from the root, as JSON Canvas
+    /// writes it, never a name looked up in other folders (ADR 0057,
+    /// decided on 2026-10-01).
+    pub exact: bool,
     pub target: String,
     pub heading: Option<String>,
     pub block: Option<String>,
@@ -106,6 +110,7 @@ pub struct VaultLink {
 const RESOLVE: &str = "CASE
     WHEN l.target_key IS NULL THEN NULL
     WHEN l.target_key = '' THEN l.note
+    WHEN l.kind = 'file' THEN (SELECT id FROM notes WHERE path_key = l.target_key ORDER BY path LIMIT 1)
     ELSE COALESCE(
         (SELECT id FROM notes WHERE path_key = l.target_key ORDER BY path LIMIT 1),
         (SELECT id FROM notes WHERE path_key = l.rel_key ORDER BY path LIMIT 1),
@@ -117,6 +122,12 @@ const RESOLVE: &str = "CASE
                   n.path
          LIMIT 1)
     ) END";
+
+/// Whether a link row of `kind` shows its target in place: an embed, or a
+/// canvas's file node.
+fn embeds(kind: &str) -> bool {
+    matches!(kind, "embed" | "file")
+}
 
 /// Remove a note's row from `notes_fts` (external content: FTS5 needs the
 /// old values to drop its tokens) and from `notes`. Returns whether there
@@ -336,7 +347,13 @@ impl Index {
             for l in links {
                 ins.execute(params![
                     source,
-                    if l.embed { "embed" } else { "link" },
+                    if l.exact {
+                        "file"
+                    } else if l.embed {
+                        "embed"
+                    } else {
+                        "link"
+                    },
                     l.target,
                     target_key(&l.target),
                     l.heading,
@@ -650,7 +667,7 @@ impl Index {
         let rows = st.query_map([], |r| {
             Ok(VaultLink {
                 from: r.get(0)?,
-                embed: r.get::<_, String>(1)? == "embed",
+                embed: embeds(&r.get::<_, String>(1)?),
                 target: r.get(2)?,
                 alias: r.get(3)?,
                 resolved: r.get(4)?,
@@ -704,7 +721,7 @@ impl Index {
         let mut st = self.conn.prepare(&sql)?;
         let rows = st.query_map(params![relative], |r| {
             Ok(Link {
-                embed: r.get::<_, String>(0)? == "embed",
+                embed: embeds(&r.get::<_, String>(0)?),
                 target: r.get(1)?,
                 heading: r.get(2)?,
                 block: r.get(3)?,
@@ -736,7 +753,7 @@ impl Index {
             Ok(Backlink {
                 from: r.get(0)?,
                 target: r.get(1)?,
-                embed: r.get::<_, String>(2)? == "embed",
+                embed: embeds(&r.get::<_, String>(2)?),
                 line: r.get(3)?,
                 col: r.get(4)?,
             })

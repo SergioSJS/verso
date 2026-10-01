@@ -142,7 +142,7 @@ type Strings = Record<
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
   | "remoteContent" | "remoteContentDesc" | "ignoreBuildDirs" | "ignoreBuildDirsDesc" | "respectGitignore" | "respectGitignoreDesc" | "embedRemoteOff" | "embedLoad" | "embedLocal" | "embedPublic" | "embedApprove" | "embedAllowed" | "embedAllowedDesc" | "embedAllowedNone" | "embedRemove" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
-  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
+  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys" | "loadFailed" | "tryAgain"
   | "newBase" | "insertBase" | "calendarTab" | "newWindow"
   | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
@@ -244,7 +244,7 @@ const pt: Strings = {
   ignoreBuildDirs: "Ignorar pastas de build", ignoreBuildDirsDesc: "node_modules, target, dist e semelhantes ficam fora do índice e da busca.", respectGitignore: "Respeitar .gitignore", respectGitignoreDesc: "Os arquivos .gitignore de dentro da pasta aberta (na raiz e em cada subpasta) valem para o índice: o que eles excluem fica fora da busca e dos links, com as regras do git (inclusive `!`). Sem .gitignore na pasta, nada muda.",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", embedRemoteOff: "Conteúdo remoto desligado: esta página não foi carregada.", embedLoad: "Carregar", embedLocal: "Esta página está na rede local (neste computador ou num aparelho da sua rede). Permita só se confiar nela; permitida, ela carrega sempre.", embedPublic: "Esta nota quer embutir um site. Permitido, ele sempre carrega dentro das notas.", embedApprove: "Permitir sempre", embedAllowed: "Sites permitidos nas notas", embedAllowedDesc: "Uma origem por linha (https://site.com — sem esquema, https:// é assumido). Apagar uma linha volta a perguntar no próximo embed. Digite * numa linha para liberar todos os sites — atenção: com *, qualquer nota carrega qualquer página sem perguntar, inclusive endereços da sua rede local.", embedAllowedNone: "Nenhum site permitido ainda; a pergunta aparece na nota, no primeiro embed de cada site.", embedRemove: "Remover", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
   errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", previewTab: "pré-visualização", previewTabs: "Abas de pré-visualização", previewTabsDesc: "Um clique abre o arquivo numa aba temporária (nome em itálico), que o próximo clique substitui; dois cliques, editar ou fixar a mantêm. Desligado, cada clique abre uma aba nova.", foldCallout: "Recolher ou abrir o callout",
-  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
+  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", loadFailed: "Não foi possível abrir {name}.", tryAgain: "Tentar de novo", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
@@ -341,7 +341,7 @@ const en: Strings = {
   ignoreBuildDirs: "Ignore build folders", ignoreBuildDirsDesc: "node_modules, target, dist and the like stay out of the index and the search.", respectGitignore: "Respect .gitignore", respectGitignoreDesc: "The .gitignore files inside the open folder (at its root and in each subfolder) apply to the index: what they exclude stays out of search and links, by git's rules (`!` included). With no .gitignore in the folder, nothing changes.",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", embedRemoteOff: "Remote content is off: this page was not loaded.", embedLoad: "Load", embedLocal: "This page is on the local network (this computer or a device on your network). Allow it only if you trust it; once allowed, it always loads.", embedPublic: "This note wants to embed a web site. Once allowed, it always loads inside notes.", embedApprove: "Always allow", embedAllowed: "Sites allowed in notes", embedAllowedDesc: "One origin per line (https://site.com — with no scheme, https:// is assumed). Deleting a line asks again at the next embed. Type * on a line to allow every site — careful: with *, any note loads any page without asking, your local network's addresses included.", embedAllowedNone: "No site allowed yet; the question appears in the note, on each site\u2019s first embed.", embedRemove: "Remove", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
   errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", previewTab: "preview", previewTabs: "Preview tabs", previewTabsDesc: "A click opens the file in a temporary tab (name in italics), which the next click replaces; a double click, an edit or a pin keeps it. Off, every click opens a new tab.", foldCallout: "Fold or unfold the callout",
-  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
+  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", loadFailed: "{name} could not be opened.", tryAgain: "Try again", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
@@ -489,13 +489,22 @@ function remember(path: string): void {
  *  detail (English: its language is `[OPEN]` under ADR 0035); a message of
  *  ours, as it is. */
 function fail(e: ContractError | unknown): void {
+  const { kind, message } = errorParts(e);
+  ui.status.textContent = errorSentence(e);
+  note("ERROR", kind ? `${kind}: ${message}` : message);
+}
+function errorParts(e: ContractError | unknown): { kind: string; message: string } {
   const message =
     typeof e === "object" && e !== null && "message" in e ? String((e as ContractError).message) : String(e);
   const kind = typeof e === "object" && e !== null && "kind" in e ? String((e as ContractError).kind) : "";
+  return { kind, message };
+}
+/** An error of the core said in the interface's language. */
+function errorSentence(e: ContractError | unknown): string {
+  const { kind, message } = errorParts(e);
   const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
   const said = sentence[kind];
-  ui.status.textContent = said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
-  note("ERROR", kind ? `${kind}: ${message}` : message);
+  return said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
 }
 
 watchWindow();
@@ -534,15 +543,23 @@ async function fetchFirst(path: string): Promise<boolean> {
   const r = await commands.fetchFile(path);
   window.clearTimeout(timer);
   if (r.status !== "ok") {
-    ui.status.textContent = t.fetchFailed(name(path));
+    // iCloud's failure is said as one; any other is said as what it is.
+    if (r.error.kind === "unavailable") ui.status.textContent = t.fetchFailed(name(path));
+    else fail(r.error);
     return false;
   }
   if (ui.status.textContent === said) ui.status.textContent = was === said ? "" : was;
   return r.data;
 }
+/** Paths whose next read must not download from iCloud: the tabs a
+ *  workspace brings back, all but the one in front (decided on
+ *  2026-10-01, review `board.md` §6 item 8). Such a tab says the file is
+ *  in the cloud, and downloads it when it is shown. */
+const quietPaths = new Set<string>();
 async function fetched<T extends { status: "ok" } | { status: "error"; error: ContractError }>(path: string, read: () => Promise<T>): Promise<T> {
+  const quiet = quietPaths.delete(path);
   const r = await read();
-  if (r.status !== "error" || r.error.kind !== "unavailable") return r;
+  if (r.status !== "error" || r.error.kind !== "unavailable" || quiet) return r;
   return (await fetchFirst(path)) ? read() : r;
 }
 const opening = {
@@ -925,11 +942,22 @@ function imageUrl(source: string, target: string, onKnown: () => void): string |
 async function noteImages(root: ParentNode, source: string): Promise<void> {
   await Promise.all(
     Array.from(root.querySelectorAll<HTMLImageElement>("img[data-src]"), async (img) => {
-      const target = img.dataset["src"] ?? "";
+      // The renderer percent-encodes the address (`gr%C3%A1fico.png`,
+      // `Pasted%20image.png`); the folder names the file as the note does.
+      const target = decodedAddress(img.dataset["src"] ?? "");
       const r = await commands.resolveAttachment(source, target);
       if (r.status === "ok" && r.data) img.src = convertFileSrc(r.data, "verso");
     }),
   );
+}
+/** A picture's address as the folder names the file: percent escapes
+ *  undone, or the address as it is when they do not decode. */
+function decodedAddress(src: string): string {
+  try {
+    return decodeURIComponent(src);
+  } catch {
+    return src;
+  }
 }
 /** The same for HTML as text (Live Preview's embeds), resolved in a
  *  template, where nothing loads. */
@@ -1524,6 +1552,31 @@ abstract class Leaf {
     if (!this.transient) return;
     this.setPreview(false);
     persistSoon();
+  }
+  /** Why the last read of this tab's file failed, or null. */
+  failed: ContractError["kind"] | null = null;
+  private failure: HTMLElement | null = null;
+  /** A read that failed is said in the page, with a way to try again; the
+   *  tab shows no editor, so nothing can be typed into it and lost (review
+   *  `board.md`, reading 3, finding 4). */
+  protected showFailure(path: string, error: ContractError, retry: () => void): void {
+    this.failure?.remove();
+    const box = h("div", "load-failure");
+    box.setAttribute("role", "alert");
+    box.append(h("p", "load-failure-title", t.loadFailed.replace("{name}", name(path))), h("p", "", errorSentence(error)));
+    const again = button("ghost", t.tryAgain);
+    again.addEventListener("click", retry);
+    box.append(again);
+    this.failure = box;
+    this.failed = error.kind;
+    this.el.classList.add("failed");
+    this.el.append(box);
+  }
+  protected clearFailure(): void {
+    this.failure?.remove();
+    this.failure = null;
+    this.failed = null;
+    this.el.classList.remove("failed");
   }
   setPinned(p: boolean): void {
     if (p) this.keep();
@@ -2510,7 +2563,9 @@ class NoteLeaf extends Leaf {
     await this.saving;
     const load = this.loads;
     const check = ++this.checks;
-    const note = await opening.readNote(path);
+    // Never a download: a note macOS sent back to the cloud stays as the
+    // tab holds it (decided on 2026-10-01, review `board.md` §6 item 8).
+    const note = await commands.readNote(path);
     if (this.destroyed || load !== this.loads || check !== this.checks || path !== this.path) return "same";
     if (note.status !== "ok") {
       if (note.error.kind !== "not_found" || this.gone) return "same";
@@ -2564,9 +2619,19 @@ class NoteLeaf extends Leaf {
     // A write in flight lands first: the read comes after it.
     await this.saving;
     const load = ++this.loads;
+    const quiet = quietPaths.has(path);
     const note = await opening.readNote(path);
     if (this.destroyed || load !== this.loads) return;
-    if (note.status !== "ok") return fail(note.error);
+    if (note.status !== "ok") {
+      this.path = path;
+      this.setTitle(name(path));
+      // Brought back in front of its pane: it is on screen, so it comes down.
+      if (quiet && note.error.kind === "unavailable" && this.pane.active === this) return this.doLoad(path, true);
+      // A tab brought back with its file in the cloud waits to be shown.
+      if (note.error.kind !== "unavailable" || this.pane.active === this) fail(note.error);
+      return this.showFailure(path, note.error, () => void this.load(path, true));
+    }
+    this.clearFailure();
     this.show(note.data);
   }
   /** `note` in the editor from scratch: a new state, a new history. */
@@ -2800,62 +2865,60 @@ class NoteLeaf extends Leaf {
   /** The `n`-th place `re` finds in the note outside code, as the editor's
    *  Markdown tree reads it: an example in a code span or block is text,
    *  not the picture shown. */
-  private imageSource(re: RegExp, n: number): RegExpExecArray | null {
+  /** Every place `re` finds in the note outside code, as the editor's
+   *  Markdown tree reads it: an example in a code span or block is text,
+   *  not the picture shown. */
+  private imageSources(re: RegExp): RegExpExecArray[] {
     const state = this.editor.state;
     const tree = ensureSyntaxTree(state, state.doc.length, 500) ?? syntaxTree(state);
     const text = state.doc.toString();
     const all = new RegExp(re.source, "g");
-    let seen = 0;
+    const out: RegExpExecArray[] = [];
     for (let m = all.exec(text); m; m = all.exec(text)) {
       let code = false;
       for (let node: { name: string; parent: unknown } | null = tree.resolveInner(m.index, 1); node; node = node.parent as typeof node) {
         if (/Code|Comment/.test(node.name)) code = true;
       }
-      if (!code && seen++ === n) return m;
+      if (!code) out.push(m);
     }
-    return null;
+    return out;
   }
-  /** Which of the note's pictures that `same` picks out `img` is, in order. */
-  private imageOrder(img: HTMLImageElement, same: (other: HTMLImageElement) => boolean): number {
-    const shown = Array.from(this.preview.querySelectorAll<HTMLImageElement>("img")).filter((o) => !o.closest(".embed-note") && same(o));
-    return Math.max(0, shown.indexOf(img));
+  /** The note's own pictures on screen that `same` picks out, in order. */
+  private shownImages(same: (other: HTMLImageElement) => boolean): HTMLImageElement[] {
+    return Array.from(this.preview.querySelectorAll<HTMLImageElement>("img")).filter((o) => !o.closest(".embed-note") && same(o));
   }
+  /** A picture resized by its corner: its size written on it, as the kind
+   *  it was written — an embed only as `![[…]]`, a Markdown picture only as
+   *  `![…](…)`. The n-th shown is the n-th written; when the page and the
+   *  text do not count the same (a raw `<img>`, say), nothing is written
+   *  (review `board.md`, reading 3, finding 2). */
   private persistImageSize(img: HTMLImageElement, rawSrc: string, alt: string, w: number, h: number): void {
-    const target = alt.split("|")[0] ?? "";
     const sizeStr = `${w}x${h}`;
-
-    // 1. Wikilink embed: ![[target]] or ![[target|...]]
-    if (target) {
-      const escTarget = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const reWiki = new RegExp(`!\\[\\[(${escTarget})(?:\\|[^\\]\\n]*)?\\]\\]`);
-      const m = this.imageSource(reWiki, this.imageOrder(img, (o) => (o.getAttribute("alt") ?? "").split("|")[0] === target));
-      if (m && m.index !== undefined) {
-        const from = m.index;
-        const to = from + m[0].length;
-        const insert = `![[${target}|${sizeStr}]]`;
-        this.editor.dispatch({ changes: { from, to, insert } });
-        void this.save();
-        img.setAttribute("alt", `${target}|${sizeStr}`);
-        return;
-      }
+    const esc = (x: string): string => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const write = (m: RegExpExecArray, insert: string, newAlt: string): void => {
+      this.editor.dispatch({ changes: { from: m.index, to: m.index + m[0].length, insert } });
+      void this.save();
+      img.setAttribute("alt", newAlt);
+    };
+    const embed = img.dataset["embed"];
+    if (embed !== undefined) {
+      const found = this.imageSources(new RegExp(`!\\[\\[(${esc(embed)})(?:\\|[^\\]\\n]*)?\\]\\]`));
+      const shown = this.shownImages((o) => o.dataset["embed"] === embed);
+      const m = found.length === shown.length ? found[shown.indexOf(img)] : undefined;
+      if (m) write(m, `![[${m[1]}|${sizeStr}]]`, `${embed}|${sizeStr}`);
+      return;
     }
-
-    // 2. Markdown image: ![alt](url)
-    if (rawSrc) {
-      const escUrl = rawSrc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const reMd = new RegExp(`!\\[([^\\]\\n]*)\\]\\((${escUrl})\\)`);
-      const m = this.imageSource(reMd, this.imageOrder(img, (o) => (o.dataset["src"] ?? o.getAttribute("src") ?? "") === rawSrc));
-      if (m && m.index !== undefined) {
-        const from = m.index;
-        const to = from + m[0].length;
-        const baseAlt = (m[1] ?? "").split("|")[0] ?? "";
-        const newAlt = baseAlt ? `${baseAlt}|${sizeStr}` : sizeStr;
-        const insert = `![${newAlt}](${rawSrc})`;
-        this.editor.dispatch({ changes: { from, to, insert } });
-        void this.save();
-        img.setAttribute("alt", newAlt);
-      }
-    }
+    if (!rawSrc) return;
+    // The address as the page has it, and as the note may write it: the
+    // renderer percent-encodes what the note writes as is (`gráfico`).
+    const forms = [...new Set([rawSrc, decodedAddress(rawSrc)])].map(esc).join("|");
+    const found = this.imageSources(new RegExp(`!\\[([^\\]\\n]*)\\]\\((${forms})\\)`));
+    const shown = this.shownImages((o) => o.dataset["embed"] === undefined && (o.dataset["src"] ?? o.getAttribute("src") ?? "") === rawSrc);
+    const m = found.length === shown.length ? found[shown.indexOf(img)] : undefined;
+    if (!m) return;
+    const baseAlt = (m[1] ?? "").split("|")[0] ?? "";
+    const newAlt = baseAlt ? `${baseAlt}|${sizeStr}` : sizeStr;
+    write(m, `![${newAlt}](${m[2]})`, newAlt);
   }
 
   private wireHeadingFolds(root: HTMLElement): void {
@@ -3360,6 +3423,8 @@ class NoteLeaf extends Leaf {
         const img = h("img");
         img.src = convertFileSrc(rel, "verso");
         img.alt = spec.file;
+        // An embed, resized, is written back as one (persistImageSize).
+        img.dataset["embed"] = spec.file;
         img.loading = "lazy";
         const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
         if (size) {
@@ -3615,8 +3680,14 @@ class TextLeaf extends Leaf {
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     this.modes.hidden = kindOf(path) !== "frame";
+    const quiet = quietPaths.has(path);
     const r = await opening.readText(path);
-    if (r.status !== "ok") return fail(r.error);
+    if (r.status !== "ok") {
+      if (quiet && r.error.kind === "unavailable" && this.pane.active === this) return this.load(path, true);
+      if (r.error.kind !== "unavailable" || this.pane.active === this) fail(r.error);
+      return this.showFailure(path, r.error, () => void this.load(path, true));
+    }
+    this.clearFailure();
     // The language by the file's name: highlighted, and folded, as an editor does.
     const desc = LanguageDescription.matchFilename(languages, path);
     const support = desc ? await desc.load().catch(() => null) : null;
@@ -3805,6 +3876,12 @@ class BoardLeaf extends TextLeaf {
   private showing: "board" | "source" = settings.boardOpenAs;
   /** The board's canvas waiting for a write, or refused by one. */
   private pendingBoard: string | null = null;
+  /** The notes being edited in cards of this board: saved with it. */
+  private readonly cards = new Set<CardEditing>();
+  /** Whether the file is in Obsidian's layout, as read; a file in another
+   *  layout is rewritten whole by its first save, shown first as a diff
+   *  (decided on 2026-10-01, review `board.md` §6 item 4). */
+  private layoutKept = true;
   constructor(pane: Pane) {
     super(pane);
     this.boardModes.setAttribute("role", "group");
@@ -3825,6 +3902,9 @@ class BoardLeaf extends TextLeaf {
     await super.load(path, force);
     if (this.path !== path) return;
     this.pendingBoard = null;
+    const text = this.editor.state.doc.toString();
+    const laid = await commands.boardText(text);
+    this.layoutKept = laid.status !== "ok" || laid.data === text;
     if (this.showing === "board") await this.showBoard();
   }
   /** Draw the editor's text as the board: a first mount, or the new text
@@ -3857,7 +3937,8 @@ class BoardLeaf extends TextLeaf {
       strings: boardText,
       lang: LANG,
       dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
-      save: (json) => void this.saveBoard(json),
+      save: (json) => this.saveBoard(json),
+      changed: () => this.setDirty(true),
       openFile: (path, aside) => void openNote(listed(path), aside),
       renderNote: async (el, path) => {
         const r = await opening.readNote(listed(path));
@@ -3892,7 +3973,16 @@ class BoardLeaf extends TextLeaf {
       },
       prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
       promote: (from, to, key) => promoteRelation(listed(from), to, key),
-      editNote: (el, path, onExit) => cardEditor(el, listed(path), onExit, this.cardHistory),
+      editNote: (el, path, onExit) => {
+        const card = cardEditor(el, listed(path), onExit, this.cardHistory, () => this.keep());
+        this.cards.add(card);
+        const destroy = card.destroy;
+        card.destroy = () => {
+          this.cards.delete(card);
+          destroy();
+        };
+        return card;
+      },
       edited: (path) => this.cardHistory.has(listed(path)),
       openUrl: (url) => void commands.openUrl(url),
       appKey: (e) => runHotkey(e),
@@ -3946,6 +4036,10 @@ class BoardLeaf extends TextLeaf {
         ui.status.textContent = t.conflictPending;
         return;
       }
+      if (!this.layoutKept && !(await this.agreeRelayout(mine))) {
+        ui.status.textContent = boardText.relayoutDeclined;
+        return;
+      }
       const r = await commands.writeBoard(this.path, mine, this.revision);
       if (r.status !== "ok") return this.refusedBoard(r.error, mine);
       this.revision = r.data.revision;
@@ -3959,19 +4053,31 @@ class BoardLeaf extends TextLeaf {
     this.saving = run.catch(() => undefined);
     return run;
   }
-  /** `changed`: the disk's version against the board's, until the user
-   *  decides (invariant 11); anything else, said. */
+  /** The diff of rewriting a canvas in another layout, and the user's
+   *  answer: true once, for this tab, when they agree. */
+  private async agreeRelayout(mine: string): Promise<boolean> {
+    const after = await commands.boardPreview(this.path, mine);
+    const now = await opening.readText(this.path);
+    if (after.status !== "ok" || now.status !== "ok") return false;
+    const yes = await plan.confirm(
+      [{ path: this.path, revision: now.data.revision, before: now.data.text, after: after.data }],
+      boardText.relayoutTitle,
+      boardText.relayoutApply,
+      boardText.relayoutDetail,
+      async () => true,
+    );
+    if (yes) this.layoutKept = true;
+    return yes;
+  }
+  /** `changed`: the disk's version against the board's — as it would be
+   *  written over it, so the diff is of contents, not of layouts — until
+   *  the user decides (invariant 11); anything else, said. */
   private async refusedBoard(e: ContractError, mine: string): Promise<void> {
     if (e.kind !== "changed") return fail(e);
     const fresh = await opening.readText(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
-    let shown = mine;
-    try {
-      shown = JSON.stringify(JSON.parse(mine), null, "\t");
-    } catch {
-      // Shown as sent.
-    }
-    this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, shown);
+    const laid = await commands.boardPreview(this.path, mine);
+    this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, laid.status === "ok" ? laid.data : mine);
   }
   /** Over the disk's version the banner shows: the board's canvas when the
    *  board was refused, the editor's text otherwise. */
@@ -4014,10 +4120,34 @@ class BoardLeaf extends TextLeaf {
     this.host.hidden = this.showing !== "source";
     this.el.classList.toggle("board-face", this.showing === "board");
   }
+  /** The file changed on disk (the watcher): read again, never with a
+   *  download. The same revision: nothing. Nothing unsaved here: the board
+   *  is drawn again from the file, as a note's tab takes the disk's text.
+   *  Something unsaved: its save meets the difference and shows both
+   *  (invariant 11). Decided on 2026-10-01, review `board.md` §6 item 6. */
+  async recheck(): Promise<void> {
+    const path = this.path;
+    if (!path || this.conflict.up) return;
+    await this.saving;
+    const r = await commands.readText(path);
+    if (r.status !== "ok" || path !== this.path || r.data.revision === this.revision) return;
+    if (this.dirty || this.pendingBoard !== null) {
+      await this.flush();
+      return;
+    }
+    await this.load(path, true);
+  }
   override async flush(): Promise<boolean> {
+    // What the cards hold, and what the board holds in its save's delay,
+    // goes out first (review `board.md`, reading 2, finding 2).
+    const cards = await Promise.all([...this.cards].map((c) => c.flush()));
+    await this.board?.flush();
     if (this.pendingBoard !== null && !this.conflict.up) await this.saveBoard(this.pendingBoard);
     await this.saving;
-    return super.flush();
+    // A board write refused or declined leaves the board unsaved: the text
+    // face holds the old text, and saving it would put the old board back.
+    if (this.pendingBoard !== null) return false;
+    return cards.every(Boolean) && (await super.flush());
   }
   override focusContent(): void {
     if (this.showing === "source") this.editor.focus();
@@ -4047,7 +4177,7 @@ class BoardLeaf extends TextLeaf {
 /** A card's editor as it was left: its text, selection and undo history,
  *  and the revision and line separator that text stands on. */
 type KeptCard = { json: unknown; revision: string; eol: string };
-function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: Map<string, KeptCard>): CardEditing {
+function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: Map<string, KeptCard>, onEdit?: () => void): CardEditing {
   const editorHost = h("div", "editor card-editor");
   const conflict = new ConflictBanner(() => void reload(), () => void overwrite());
   host.replaceChildren(conflict.el, editorHost);
@@ -4091,6 +4221,8 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
         EditorView.updateListener.of((u) => {
           if (!u.docChanged || u.transactions.some((tr) => tr.annotation(fromDisk))) return;
           dirty = true;
+          // An edit keeps the board's tab, as an edit keeps a note's (ADR 0059).
+          onEdit?.();
           window.clearTimeout(timer);
           timer = window.setTimeout(() => {
             if (dirty && !conflict.up) void save();
@@ -4467,9 +4599,14 @@ async function promoteRelation(from: string, to: string, key: string): Promise<b
     fail(r.error);
     return false;
   }
-  const after = withRelation(r.data.text, key, linkTo(to, allNotes));
+  const link = linkTo(to, allNotes);
+  if (link === null) {
+    ui.status.textContent = boardText.relationBadTarget(name(to));
+    return false;
+  }
+  const after = withRelation(r.data.text, key, link);
   if (after === null) {
-    ui.status.textContent = t.propFixed;
+    ui.status.textContent = boardText.relationKeyShape(key, name(from));
     return false;
   }
   if (after === r.data.text) return true;
@@ -4514,6 +4651,9 @@ async function convertToBoard(note: string): Promise<void> {
   const text = await commands.boardText(JSON.stringify(doc));
   if (text.status !== "ok") return fail(text.error);
   const path = boardPathFor(note);
+  // A board already there is said before the plan, not after the yes
+  // (review `board.md`, reading 2, finding 10).
+  if (listedPath(path, [allNotes, allFiles]) !== undefined) return fail({ message: t.exists });
   const detail = boardText.convertDetail(note, path) + (dropped > 0 ? ` ${boardText.convertDropped(dropped)}` : "");
   const yes = await plan.confirm([{ path, revision: "", before: "", after: text.data }], boardText.convertTitle, boardText.convertCreate, detail, async () => {
     const made = await commands.createFile(path, textBase64(text.data));
@@ -5369,11 +5509,14 @@ class Pane {
   active: Leaf | null = null;
   vertical = false;
   tabsHidden = false;
-  /** Where this pane has been, in the order it showed them, and where in
-   *  that trail it stands: a browser's back and forward, one trail per
-   *  pane, so a split navigates on its own. A tab closed meanwhile leaves
-   *  the trail — nothing is reopened behind the user's back. */
-  private trail: Leaf[] = [];
+  /** Where this pane has been — the notes, files, folders and graphs it
+   *  showed, in that order — and where in that trail it stands: a
+   *  browser's back and forward, one trail per pane, so a split navigates
+   *  on its own. A step is a place, not a tab: a preview tab replaced by
+   *  the next click, or a tab closed, leaves its place in the trail, and a
+   *  step back opens it again, in the preview tab (decided on 2026-10-01,
+   *  review `board.md` §6 item 18). */
+  private trail: { path: string; kind: Kind }[] = [];
   private trailAt = -1;
   /** The trail itself is moving the pane: what follows is not recorded. */
   private navigating = false;
@@ -5489,6 +5632,9 @@ class Pane {
       void leaf.load(path);
     }
     this.activate(leaf, focus);
+    // A new tab names its file only once it is read: the trail takes the
+    // place asked for.
+    this.mark(path, leaf.kind);
     return leaf;
   }
   openGraph(path: string): Leaf {
@@ -5618,6 +5764,8 @@ class Pane {
     const leaving = this.active;
     if (leaving && leaving !== leaf && leaving.dirty) void leaving.flush();
     this.active = leaf;
+    // Shown: a file left in the cloud by a quiet read comes down now.
+    if (leaf !== leaving && leaf.failed === "unavailable" && leaf.path) void leaf.load(leaf.path, true);
     for (const l of this.leaves) {
       l.el.hidden = l !== leaf;
       l.tab.setAttribute("aria-selected", String(l === leaf));
@@ -5628,19 +5776,28 @@ class Pane {
     markCurrent();
     leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (focus) leaf.focusContent();
-    this.mark(leaf);
+    this.mark(leaf.path, leaf.kind);
     persistSoon();
   }
   /** The trail learns where the pane went — unless it was the trail that
    *  took it there. A step away from the middle of the trail drops what
    *  lay ahead, as a browser does. */
-  private mark(leaf: Leaf): void {
-    if (!this.navigating && this.trail[this.trailAt] !== leaf) {
+  private mark(path: string, kind: Kind): void {
+    const here = this.trail[this.trailAt];
+    const named = path !== "" || kind === "folder" || kind === "graph";
+    if (!this.navigating && named && !(here && here.path === path && here.kind === kind)) {
       this.trail.length = this.trailAt + 1;
-      this.trail.push(leaf);
+      this.trail.push({ path, kind });
       if (this.trail.length > 60) this.trail.shift();
       this.trailAt = this.trail.length - 1;
     }
+    this.refreshNav();
+  }
+  /** The trail starts over at what the pane shows: a workspace brought
+   *  back has no history of this session. */
+  resetTrail(): void {
+    this.trail = this.active ? [{ path: this.active.path, kind: this.active.kind }] : [];
+    this.trailAt = this.trail.length - 1;
     this.refreshNav();
   }
   private refreshNav(): void {
@@ -5651,24 +5808,26 @@ class Pane {
   canGo(d: -1 | 1): boolean {
     return this.trail[this.trailAt + d] !== undefined;
   }
-  /** Take that step: the tab it names comes to the front, with the focus. */
+  /** Take that step: its tab comes to the front, with the focus, or the
+   *  place opens again in the preview tab. */
   go(d: -1 | 1): void {
-    const leaf = this.trail[this.trailAt + d];
-    if (!leaf) return;
+    const step = this.trail[this.trailAt + d];
+    if (!step) return;
     this.trailAt += d;
     this.navigating = true;
-    this.activate(leaf, true);
+    const leaf = this.leaves.find((l) => l.path === step.path && l.kind === step.kind);
+    if (leaf) this.activate(leaf, true);
+    else if (step.kind === "folder") this.openFolder(step.path, true);
+    else if (step.kind === "graph") this.openGraph(step.path);
+    else this.open(step.path, true, false, true);
     this.navigating = false;
+    this.refreshNav();
   }
   remove(leaf: Leaf, moving = false): void {
     const i = this.leaves.indexOf(leaf);
     if (i < 0) return;
     if (!moving && leaf.path && leaf.kind !== "folder" && leaf.kind !== "graph") closedTabs.push(leaf.path);
     this.leaves.splice(i, 1);
-    // The trail forgets the tab that closed; the cursor keeps its place.
-    const goneBefore = this.trail.slice(0, this.trailAt + 1).filter((l) => l === leaf).length;
-    this.trail = this.trail.filter((l) => l !== leaf);
-    this.trailAt = Math.max(-1, Math.min(this.trailAt - goneBefore, this.trail.length - 1));
     this.refreshNav();
     leaf.tab.remove();
     leaf.el.remove();
@@ -5916,7 +6075,10 @@ class Layout {
           let made: Leaf | null = null;
           if (tt.kind === "folder") made = tt.path === "" || allFolders.includes(tt.path) ? pane.openFolder(tt.path) : null;
           else if (tt.kind === "graph") made = tt.path === "" || allNotes.includes(tt.path) ? pane.openGraph(tt.path) : null;
-          else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) made = pane.open(tt.path, false);
+          else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) {
+            quietPaths.add(tt.path);
+            made = pane.open(tt.path, false);
+          }
           if (made && tt.pinned === true) made.setPinned(true);
           if (made && (i <= wanted || !active)) active = made;
         }
@@ -5937,6 +6099,8 @@ class Layout {
     if (!root) return false;
     this.root = root.kind === "split" ? root : { kind: "split", dir: "row", children: [root], el: h("div", "split row") };
     this.render();
+    // Tabs brought back are not places this session went to.
+    for (const p of this.panes()) p.resetTrail();
     this.focus(this.panes()[0] ?? null);
     return true;
   }
@@ -6662,6 +6826,7 @@ async function changedOutside(change: FolderChanged): Promise<void> {
   if (changed.size > 0) void panel.loadTags();
   const outcomes = await recheckAll(changed.size > 0 ? changed : null);
   if (change.key !== currentFolder) return;
+  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof BoardLeaf && changed.has(l.path)) void l.recheck();
   tellOutcomes(outcomes);
   showProblems(change.index);
   // A note this app wrote (another window's view, a card moved) is current
@@ -8288,7 +8453,7 @@ function allCommands(all = false): Command[] {
     { id: "new-window", label: t.newWindow, need: hasFolder && !popout, run: () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)) },
     { id: "maximize", label: t.maximize, need: Boolean(pane), run: () => pane && layout().toggleMaximize(pane) },
     { id: "close-pane", label: t.closePane, need: Boolean(pane), run: () => pane && void pane.closeAll() },
-    { id: "close-tab", label: t.close, need: Boolean(leaf), run: () => leaf && void leaf.close() },
+    { id: "close-tab", label: t.close, run: () => (leaf ? void leaf.close() : closeWhereNoTab(pane ?? null)) },
     { id: "next-tab", label: t.nextTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, 1) },
     { id: "prev-tab", label: t.prevTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
     // Dragging a tab or a file, without the pointer; no default keys,
@@ -8577,6 +8742,7 @@ class BugDialog {
     const hint = h("p", "settings-hint", t.reportHint);
     const field = h("textarea", "report-text") as unknown as HTMLTextAreaElement;
     field.spellcheck = false;
+    field.setAttribute("aria-label", t.reportBug);
     const head = `## ${t.reportWhat}\n\n`;
     field.value = `${head}${t.reportHere}\n\n`;
     const actions = h("div", "confirm-actions");
@@ -9809,6 +9975,8 @@ document.addEventListener("keydown", (e) => {
   // hotkey holds Mod (`runHotkey`).
   if (e.key === "F2" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
     const at = e.target;
+    // A dialog's keys are the dialog's: nothing is renamed behind it.
+    if (at instanceof Element && at.closest('[role="dialog"]')) return;
     const field = at instanceof HTMLElement && (at.isContentEditable || at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement || at instanceof HTMLSelectElement);
     const rename = field ? undefined : allCommands().find((c) => c.id === "rename");
     if (rename) {
@@ -9825,10 +9993,15 @@ document.addEventListener("keydown", (e) => {
  * heard: `mousedown` is where the button is stopped before anything else
  * reads it as a click, and `auxclick` is what a non-primary button
  * reports when the view does not send the first. */
+let navPress = { button: -1, at: -Infinity };
 function mouseNav(e: MouseEvent): boolean {
   if (e.button !== 3 && e.button !== 4) return false;
   e.preventDefault();
   e.stopPropagation();
+  // One step per press: a view that sends both events steps on the first
+  // (review `board.md`, reading 3, finding 10).
+  if (e.type === "auxclick" && navPress.button === e.button && e.timeStamp - navPress.at < 1500) return true;
+  if (e.type === "mousedown") navPress = { button: e.button, at: e.timeStamp };
   (layout().focused ?? layout().panes()[0])?.go(e.button === 3 ? -1 : 1);
   return true;
 }
@@ -9935,12 +10108,26 @@ function openConsole(): void {
 void listen<string>("menu-devtools", (e) => {
   if (e.payload === getCurrentWindow().label) openConsole();
 });
+/** ⌘W with no tab where the focus is (decided on 2026-10-01, review
+ *  `board.md` §6 item 19): an empty pane beside others goes; with no tab
+ *  left anywhere in the window, the window closes, as Obsidian does. */
+function closeWhereNoTab(pane: Pane | null): void {
+  if (pane && layout().paneCount() > 1) return layout().remove(pane);
+  if (spaces.some((sp) => sp.layout.panes().some((p) => p.leaves.length > 0))) return;
+  void getCurrentWindow().close();
+}
 /* File › Close Tab (⌘W) comes from the host's menu, to the focused window:
  * the system's Close Window took ⌘W before the page saw it. The window
  * runs what ⌘W is bound to — "close tab" unless the user bound it to
  * another command. */
+/** Whether a dialog of the window is on screen. */
+function dialogUp(): boolean {
+  return Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).some((d) => !d.hidden && d.getClientRects().length > 0);
+}
 void listen<string>("menu-close-tab", (e) => {
   if (e.payload !== getCurrentWindow().label) return;
+  // A question on screen is answered first: nothing closes behind it.
+  if (dialogUp()) return;
   runHotkey(new KeyboardEvent("keydown", { key: "w", code: "KeyW", metaKey: MAC, ctrlKey: !MAC, cancelable: true }));
 });
 /* Edit › Undo, Redo, Select All (⌘Z, ⌘⇧Z, ⌘A) come from the host's own
@@ -9950,6 +10137,9 @@ void listen<string>("menu-close-tab", (e) => {
 void listen<[string, string]>("menu-edit", (e) => {
   const [label, command] = e.payload;
   if (label !== getCurrentWindow().label) return;
+  // A site shown in this window has the focus: the host runs the command
+  // there, and nothing here acts behind it.
+  if (!document.hasFocus()) return;
   const active = document.activeElement;
   const field =
     active instanceof HTMLElement && (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);

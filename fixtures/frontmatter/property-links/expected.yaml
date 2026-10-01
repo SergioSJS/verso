@@ -1,0 +1,40 @@
+# AI draft (Opus 5.5, 2026-10-01), awaiting the maintainer's approval (ADR 0031).
+# Construct: links held by frontmatter properties — the typed relation.
+# Spec: docs/spec/dialect.md §4.1 (`property_links`), §5.1, Q10 and the link
+# part of Q24. A property holds a link when its value, or an item of its
+# list, is a quoted wikilink and nothing else; an unquoted `[[Rei]]` is a
+# YAML list inside a list, and a string holding more than the link is text.
+# A quoted key keeps its colon.
+property_links:
+  - property: aliado
+    target: Barão
+    pos: { line: 2, col: 10 }
+  - property: inimigos
+    item: 0
+    target: Duque
+    heading: Torre
+    pos: { line: 4, col: 6 }
+  - property: inimigos
+    item: 1
+    target: Cardeal
+    alias: o cardeal
+    pos: { line: 5, col: 6 }
+  - property: "rival:antigo"
+    target: Conde
+    pos: { line: 6, col: 18 }
+links:
+  - target: Castelo
+    pos: { line: 11, col: 14 }
+observed:
+  app: Obsidian
+  version: "1.13.7 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-01, the input copied into a throwaway folder of
+    the Sandbox vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)`: `frontmatterLinks`
+    lists, in this order, key "aliado" link "Barão"; key "inimigos.0" link
+    "Duque#Torre"; key "inimigos.1" link "Cardeal", displayText "o cardeal";
+    key "rival:antigo" link "Conde". `frontmatter.semaspas` is [["Rei"]] and
+    `frontmatter.nota` is the string "ver [[Rainha]] no salão", neither a
+    link. `links` holds only "Castelo", at line 10 col 13 (0-based). The
+    folder was removed afterwards.

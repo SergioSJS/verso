@@ -1,0 +1,9 @@
+{
+	"nodes":[
+		{"id":"a","x":0,"y":0,"width":400,"height":400,"type":"file","file":"Barão.md"},
+		{"id":"b","x":500,"y":0,"width":250,"height":60,"type":"text","text":"ver [[Barão]] no porão"}
+	],
+	"edges":[
+		{"id":"e","fromNode":"a","toNode":"b"}
+	]
+}

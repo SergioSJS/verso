@@ -124,6 +124,22 @@ impl Index {
             .optional()?)
     }
 
+    /// What a canvas's `file` node names: the note at that path from the
+    /// root, never one found by name elsewhere (ADR 0057).
+    pub fn resolve_exact(&self, target: &str) -> Result<Option<String>, IndexError> {
+        let Some(key) = target_key(target).filter(|k| !k.is_empty()) else {
+            return Ok(None);
+        };
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT path FROM notes WHERE path_key = ?1 ORDER BY path LIMIT 1",
+                params![key],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
     /// The notes holding a link whose target, folded as the index keys it
     /// — as written or read from the note's folder — is one of `keys`:
     /// every note that could name a given note or file, by path or by

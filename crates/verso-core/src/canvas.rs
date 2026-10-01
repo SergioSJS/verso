@@ -74,11 +74,12 @@ impl PartialEq for Json {
 }
 
 impl Json {
-    /// The value under `key` of an object.
+    /// The value under `key` of an object; of a key written twice, the
+    /// last, as `JSON.parse` — the window's and Obsidian's — reads it.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<&Json> {
         match self {
-            Self::Object(entries) => entries.iter().find(|(k, _)| k == key).map(|(_, v)| v),
+            Self::Object(entries) => entries.iter().rev().find(|(k, _)| k == key).map(|(_, v)| v),
             _ => None,
         }
     }
@@ -277,12 +278,13 @@ impl Canvas {
     /// value equal to the one read keeps its token and every object its key
     /// order, so a save changes only what changed (ADR 0057 point 2). The
     /// window's tree decides which keys and which nodes exist; nodes and
-    /// edges are matched by `id`. Node geometry is rounded to integers, as
-    /// JSON Canvas asks.
+    /// edges are matched by `id`. Node geometry the window changed is
+    /// rounded to integers, as JSON Canvas asks; what it sent back as read
+    /// keeps its token.
     #[must_use]
     pub fn merged(&self, new: Json) -> Self {
         let mut root = merge(Some(&self.root), new);
-        round_geometry(&mut root);
+        round_geometry(&mut root, &self.root);
         Self {
             root,
             trailing: self.trailing.clone(),
@@ -357,25 +359,49 @@ fn merge(old: Option<&Json>, new: Json) -> Json {
     }
 }
 
-fn round_geometry(root: &mut Json) {
+/// Whole numbers for the geometry the window changed, as Obsidian writes
+/// it; a value the file already had is kept as written, a fraction
+/// included: a save changes only what the user changed (decided on
+/// 2026-10-01, review `board.md` §6 item 5). `-0` is written `0`.
+fn round_geometry(root: &mut Json, old: &Json) {
+    let id = |v: &Json| v.get("id").and_then(Json::as_str).map(str::to_owned);
+    let old_nodes: Vec<&Json> = match old.get("nodes") {
+        Some(Json::Array(items)) => items.iter().collect(),
+        _ => Vec::new(),
+    };
     let Json::Object(entries) = root else {
         return;
     };
-    let Some((_, Json::Array(nodes))) = entries.iter_mut().find(|(k, _)| k == "nodes") else {
+    let Some((_, Json::Array(nodes))) = entries.iter_mut().rev().find(|(k, _)| k == "nodes") else {
         return;
     };
     for node in nodes {
+        let before = id(node).and_then(|i| {
+            old_nodes
+                .iter()
+                .find(|o| id(o).as_deref() == Some(&i))
+                .copied()
+        });
         let Json::Object(fields) = node else {
             continue;
         };
         for (key, value) in fields.iter_mut() {
-            if matches!(key.as_str(), "x" | "y" | "width" | "height")
+            if !matches!(key.as_str(), "x" | "y" | "width" | "height") {
+                continue;
+            }
+            let kept = before.and_then(|b| b.get(key)).is_some_and(|b| b == value);
+            if !kept
                 && let Json::Number(n) = value
                 && let Ok(f) = n.parse::<f64>()
-                && f.fract() != 0.0
                 && f.is_finite()
+                && (f.fract() != 0.0 || n.starts_with("-0"))
             {
-                *n = format!("{}", f.round());
+                let r = f.round();
+                *n = if r == 0.0 {
+                    "0".to_owned()
+                } else {
+                    format!("{r}")
+                };
             }
         }
     }
@@ -617,6 +643,11 @@ impl Parser<'_> {
             .src
             .get(self.pos..self.pos + 4)
             .ok_or_else(|| self.error("short \\u escape"))?;
+        // Four hex digits, nothing else: `from_str_radix` alone takes a
+        // sign (`\\u+123`), which no JSON reader accepts.
+        if !digits.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(self.error("bad \\u escape"));
+        }
         let n = u32::from_str_radix(digits, 16).map_err(|_| self.error("bad \\u escape"))?;
         self.pos += 4;
         Ok(n)
@@ -824,5 +855,32 @@ mod tests {
         let parsed = Canvas::parse(lone).unwrap();
         assert_eq!(parsed.root.as_str(), Some("\u{FFFD}x"));
         assert_eq!(parsed.write(), lone);
+    }
+
+    #[test]
+    fn a_signed_unicode_escape_is_not_json() {
+        assert!(Canvas::parse(r#""\u+123""#).is_err());
+        assert!(Canvas::parse(r#""é""#).is_ok());
+    }
+
+    #[test]
+    fn a_key_written_twice_is_read_as_its_last() {
+        let c = Canvas::parse(r#"{"nodes":[{"id":"a"}],"nodes":[{"id":"b"}]}"#).unwrap();
+        assert_eq!(c.nodes()[0].get("id").and_then(Json::as_str), Some("b"));
+    }
+
+    #[test]
+    fn a_save_rounds_only_the_geometry_that_changed() {
+        let read = "{\n\t\"nodes\":[\n\t\t{\"id\":\"a\",\"x\":10.5,\"y\":-0.4,\"width\":250.5,\"height\":60},\n\t\t{\"id\":\"b\",\"x\":0,\"y\":0,\"width\":10,\"height\":10}\n\t],\n\t\"edges\":[]\n}";
+        let old = Canvas::parse(read).unwrap();
+        let sent = r#"{"nodes":[{"id":"a","x":10.5,"y":-0.4,"width":250.5,"height":60},{"id":"b","x":12.6,"y":-0.3,"width":10,"height":10}],"edges":[]}"#;
+        let written = old.merged(Canvas::parse(sent).unwrap().root).write();
+        assert_eq!(
+            written,
+            read.replace(
+                "\"x\":0,\"y\":0,\"width\":10",
+                "\"x\":13,\"y\":0,\"width\":10"
+            )
+        );
     }
 }
