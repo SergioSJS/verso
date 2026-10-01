@@ -15,6 +15,12 @@
   [0029](0029-guardrails-in-ci.md) (guardrails);
   [0035](0035-cross-cutting-requirements.md) (pt-BR and EN)
 - Status in the briefing: not present
+- Revisions: 2026-10-01 — the maintainer, the same day, in session: "registre
+  os passos a passos de testes realizados para serem automatizados de alguma
+  forma pra rodar localmente quando fizer sentido" (write down the tests'
+  steps, to be automated somehow and run locally when it makes sense). The
+  walk is written down (point 6), `check` also holds the vault together
+  (point 7), and how the walk runs by machine is `[OPEN]`.
 
 ## Context
 
@@ -55,9 +61,16 @@ How it is kept is the author's, for the maintainer to question:
    tests and the window's bindings before it is written, and the tutorial is
    followed in the app before the pull request, with the app's log open: a
    step that does not work is a bug of the app or of the tutorial, fixed in
-   the same pull request.
+   the same pull request. The walk is written down in
+   [`demo-vault-walkthrough.md`](../reference/demo-vault-walkthrough.md):
+   what to do, what must happen, how it is checked, and how far it runs by
+   machine; a feature adds its own steps.
 7. **`node scripts/demo-vault.mjs check`** — the boards are their modules'
-   and the embed is the folder's — runs in `scripts/check.sh` and in CI's
+   and the embed is the folder's, and the vault holds together: every link
+   of a note or a board leads to a file of the vault and a `#heading` to one
+   of its note's; the daily notes and the templates sit where the app looks
+   by default; every numbered note is in the welcome note's map, on the tour,
+   and links to the next one — runs in `scripts/check.sh` and in CI's
    pull-request job, as the generated bindings are checked
    ([0026](0026-core-ui-contract-inviolable-rules.md), rule 3).
 
@@ -65,6 +78,24 @@ How it is kept is the author's, for the maintainer to question:
 ([0035](0035-cross-cutting-requirements.md)); the demo vault has only ever
 been in Portuguese, and nothing decided that. Until the maintainer decides,
 it stays pt-BR.
+
+`[OPEN]` **The walk, run by machine.** What `check` and the unit tests do not
+cover — the window's own behaviour and the real app's — is followed by hand.
+The ways seen on 2026-10-01, for the maintainer to choose among:
+
+- **The browser harness** (`app/ui/harness.html`, the core mocked) driven by
+  a browser automation tool, Playwright's WebKit for one: headless, local,
+  never takes the mouse. The window's behaviour only; the harness must answer
+  more of the core's commands (a board's save among them); a new development
+  dependency.
+- **The real app on Linux**, in the container `scripts/check-linux.sh`
+  already uses, driven by WebDriver (`tauri-driver` and WebKitWebDriver): the
+  whole app, the core and the `verso:` protocol included; not the Mac's menus
+  and keys; new tools in the image.
+- **The real app on the Mac**, driven by the system's input events and
+  screen captures, as on 2026-10-01: everything, the Mac's menus and keys
+  included; it takes the mouse and the keyboard while it runs, and finds
+  things on the screen by position.
 
 ## Consequences
 
@@ -76,6 +107,8 @@ it stays pt-BR.
   embed or a hand-edited board fails before review, not in a user's folder.
 - The Python script that generated the boards on 2026-09-30 is replaced by
   the Node one in the repository (Node already builds the window).
+- `docs/reference/demo-vault-walkthrough.md` is the walk: a feature's pull
+  request adds its steps, each with the level it can run at by machine.
 
 ## Discarded alternatives
 

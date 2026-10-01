@@ -202,7 +202,9 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
   de `scripts/demo-vault/` com `node scripts/demo-vault.mjs build`, nunca
   editados no app; uma tecla que o tutorial ensina é conferida contra os
   testes de tecla do Excalidraw e os atalhos da janela; e o tutorial é
-  seguido no app, com o log do app aberto, antes do PR.
+  seguido no app, com o log do app aberto, antes do PR — os passos de
+  [`docs/reference/demo-vault-walkthrough.md`](reference/demo-vault-walkthrough.md),
+  aos quais a feature acrescenta os seus.
 
 ### Revisão
 
