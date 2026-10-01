@@ -201,6 +201,188 @@ export function cardFill(node: CanvasNode): CardFill | null {
   return typeof v === "string" && FILLS.includes(v) && v !== "solid" ? (v as CardFill) : null;
 }
 
+/** What Excalidraw's panel sets on a card or an edge that JSON Canvas has
+ *  no field for (ADR 0057 point 10), kept under the item's own `verso`
+ *  key: the key, the element's value when it is not how the board draws
+ *  the item by default (undefined: the default, nothing written — a canvas
+ *  opened and saved untouched is written as it was read), and how a kept
+ *  value goes back on the element, checked. */
+type StyleRule = { key: string; read: (e: El) => unknown; apply: (v: unknown, out: Partial<El>) => void };
+const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const round4 = (n: number): number => Math.round(n * 1e4) / 1e4;
+const LINE_STYLES = ["dashed", "dotted"];
+const COMMON_STYLE: StyleRule[] = [
+  {
+    key: "strokeStyle",
+    read: (e) => (typeof e["strokeStyle"] === "string" && LINE_STYLES.includes(e["strokeStyle"]) ? e["strokeStyle"] : undefined),
+    apply: (v, out) => void (typeof v === "string" && LINE_STYLES.includes(v) && (out["strokeStyle"] = v)),
+  },
+  {
+    key: "opacity",
+    read: (e) => (finite(e["opacity"]) && e["opacity"] !== 100 ? Math.round(e["opacity"]) : undefined),
+    apply: (v, out) => void (finite(v) && v >= 0 && v <= 100 && (out["opacity"] = v)),
+  },
+  {
+    key: "locked",
+    read: (e) => (e["locked"] === true ? true : undefined),
+    apply: (v, out) => void (v === true && (out["locked"] = true)),
+  },
+  {
+    key: "groups",
+    read: (e) => (Array.isArray(e["groupIds"]) && e["groupIds"].length > 0 ? [...(e["groupIds"] as string[])] : undefined),
+    apply: (v, out) => void (Array.isArray(v) && v.every((g) => typeof g === "string") && (out["groupIds"] = [...v])),
+  },
+];
+/** A card is drawn with round corners, a 1 px clean stroke, unrotated. */
+const CARD_STYLE: StyleRule[] = [
+  {
+    key: "corners",
+    read: (e) => ("roundness" in e && e["roundness"] === null ? "sharp" : undefined),
+    apply: (v, out) => void (v === "sharp" && (out["roundness"] = null)),
+  },
+  {
+    key: "strokeWidth",
+    read: (e) => (finite(e["strokeWidth"]) && e["strokeWidth"] !== 1 ? e["strokeWidth"] : undefined),
+    apply: (v, out) => void (finite(v) && v > 0 && v <= 32 && (out["strokeWidth"] = v)),
+  },
+  {
+    key: "roughness",
+    read: (e) => (e["roughness"] === 1 || e["roughness"] === 2 ? e["roughness"] : undefined),
+    apply: (v, out) => void ((v === 1 || v === 2) && (out["roughness"] = v)),
+  },
+  {
+    key: "angle",
+    read: (e) => (finite(e.angle) && e.angle !== 0 ? round4(e.angle) : undefined),
+    apply: (v, out) => void (finite(v) && (out.angle = v)),
+  },
+  ...COMMON_STYLE,
+];
+/** An edge is drawn straight, 2 px, clean; its bends and its kind of
+ *  line are its own. */
+const ARROW_HEADS = ["arrow", "bar", "dot", "circle", "circle_outline", "triangle", "triangle_outline", "diamond", "diamond_outline", "crowfoot_one", "crowfoot_many", "crowfoot_one_or_many"];
+const EDGE_STYLE: StyleRule[] = [
+  {
+    key: "line",
+    read: (e) => (e["elbowed"] === true ? "elbow" : "roundness" in e && e["roundness"] ? "curved" : undefined),
+    apply: (v, out) => {
+      if (v === "curved") out["roundness"] = { type: 2 };
+      else if (v === "elbow") {
+        out["elbowed"] = true;
+        out["roundness"] = null;
+      }
+    },
+  },
+  {
+    key: "strokeWidth",
+    read: (e) => (finite(e["strokeWidth"]) && e["strokeWidth"] !== 2 ? e["strokeWidth"] : undefined),
+    apply: (v, out) => void (finite(v) && v > 0 && v <= 32 && (out["strokeWidth"] = v)),
+  },
+  {
+    key: "roughness",
+    read: (e) => (e["roughness"] === 1 || e["roughness"] === 2 ? e["roughness"] : undefined),
+    apply: (v, out) => void ((v === 1 || v === 2) && (out["roughness"] = v)),
+  },
+  {
+    key: "startHead",
+    read: (e) => (typeof e.startArrowhead === "string" && e.startArrowhead !== "arrow" ? e.startArrowhead : undefined),
+    apply: (v, out) => void (typeof v === "string" && ARROW_HEADS.includes(v) && out.startArrowhead && (out.startArrowhead = v)),
+  },
+  {
+    key: "endHead",
+    read: (e) => (typeof e.endArrowhead === "string" && e.endArrowhead !== "arrow" ? e.endArrowhead : undefined),
+    apply: (v, out) => void (typeof v === "string" && ARROW_HEADS.includes(v) && out.endArrowhead && (out.endArrowhead = v)),
+  },
+  {
+    key: "bends",
+    read: (e) =>
+      e["elbowed"] !== true && Array.isArray(e.points) && e.points.length > 2
+        ? e.points.slice(1, -1).map((p) => [Math.round(p[0] ?? 0), Math.round(p[1] ?? 0)])
+        : undefined,
+    apply: (v, out) => {
+      if (!Array.isArray(v) || !v.every((p) => Array.isArray(p) && p.length === 2 && finite(p[0]) && finite(p[1]))) return;
+      const pts = out.points ?? [];
+      const first = pts[0];
+      const last = pts[pts.length - 1];
+      if (first && last) out.points = [first, ...(v as [number, number][]), last];
+    },
+  },
+  ...COMMON_STYLE,
+];
+/** An edge's label, drawn at 16 px in the board's default font. */
+const LABEL_STYLE: StyleRule[] = [
+  {
+    key: "labelSize",
+    read: (e) => (finite(e["fontSize"]) && e["fontSize"] !== 16 ? e["fontSize"] : undefined),
+    apply: (v, out) => void (finite(v) && v > 0 && v <= 400 && (out["fontSize"] = v)),
+  },
+  {
+    key: "labelFont",
+    read: (e) => (finite(e["fontFamily"]) && e["fontFamily"] !== 5 ? e["fontFamily"] : undefined),
+    apply: (v, out) => void (finite(v) && (out["fontFamily"] = v)),
+  },
+];
+
+/** Where an elbow arrow meets a card, as Excalidraw keeps it: a point of
+ *  the card's box in fractions of its size (0.5001 for the middle, as
+ *  Excalidraw itself normalizes it). */
+const FIXED_POINT: Record<Side, [number, number]> = { left: [0, 0.5001], right: [1, 0.5001], top: [0.5001, 0], bottom: [0.5001, 1] };
+
+/** An elbow edge laid out again from its two sides (ADR 0057 point 10):
+ *  Excalidraw draws an elbow arrow only along right angles and binds it to
+ *  points of the cards — without them it would drop the arrow's bindings,
+ *  and the edge would leave the canvas on the next save. The route is the
+ *  plainest one; Excalidraw routes it its own way once a card moves. */
+function elbowRoute(arrow: Partial<El>, fromSide: Side | undefined, toSide: Side | undefined, dx: number, dy: number): void {
+  const along = (side: Side | undefined, x: number, y: number, start: boolean): Side =>
+    side ?? (Math.abs(x) >= Math.abs(y) ? ((x >= 0) === start ? "right" : "left") : (y >= 0) === start ? "bottom" : "top");
+  const from = along(fromSide, dx, dy, true);
+  const to = along(toSide, dx, dy, false);
+  const hFrom = from === "left" || from === "right";
+  const hTo = to === "left" || to === "right";
+  const raw: [number, number][] = hFrom && hTo
+    ? [[0, 0], [dx / 2, 0], [dx / 2, dy], [dx, dy]]
+    : !hFrom && !hTo
+      ? [[0, 0], [0, dy / 2], [dx, dy / 2], [dx, dy]]
+      : hFrom
+        ? [[0, 0], [dx, 0], [dx, dy]]
+        : [[0, 0], [0, dy], [dx, dy]];
+  const points = raw.filter((p, i) => i === 0 || p[0] !== raw[i - 1]![0] || p[1] !== raw[i - 1]![1]);
+  arrow.points = points.length > 1 ? points : [[0, 0], [dx, dy]];
+  if (arrow.startBinding) arrow.startBinding = { ...arrow.startBinding, fixedPoint: FIXED_POINT[from] } as El["startBinding"];
+  if (arrow.endBinding) arrow.endBinding = { ...arrow.endBinding, fixedPoint: FIXED_POINT[to] } as El["endBinding"];
+  arrow["fixedSegments"] = null;
+  arrow["startIsSpecial"] = null;
+  arrow["endIsSpecial"] = null;
+}
+
+/** What `rules` read from `e`, as `verso` keys. */
+function styleOf(e: El, rules: StyleRule[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const r of rules) {
+    const v = r.read(e);
+    if (v !== undefined) out[r.key] = v;
+  }
+  return out;
+}
+
+/** Put back on `out` what an item's `verso` keeps for `rules`. */
+function applyStyle(verso: unknown, rules: StyleRule[], out: Partial<El>): void {
+  if (!isRecord(verso)) return;
+  for (const r of rules) if (r.key in verso) r.apply(verso[r.key], out);
+}
+
+/** `item.verso` with `style` laid over the keys `rules` own (other keys,
+ *  such as a relation or a colour, kept), or nothing changed when the file
+ *  already says the same. */
+function keepStyle(item: Record<string, unknown>, style: Record<string, unknown>, rules: StyleRule[]): void {
+  const was = isRecord(item["verso"]) ? (item["verso"] as Record<string, unknown>) : {};
+  const same = rules.every((r) => JSON.stringify(was[r.key]) === JSON.stringify(style[r.key]));
+  if (same) return;
+  const verso = { ...was };
+  for (const r of rules) put(verso, r.key, style[r.key]);
+  put(item, "verso", Object.keys(verso).length > 0 ? verso : undefined);
+}
+
 export function nodeElement(node: CanvasNode): Partial<El> {
   const base = {
     id: node.id,
@@ -213,7 +395,7 @@ export function nodeElement(node: CanvasNode): Partial<El> {
   if (node.type === "group") {
     return { ...base, type: "frame", name: typeof node.label === "string" ? node.label : null, strokeColor: hexOf(node.color, NODE_STROKE) };
   }
-  return {
+  const card: Partial<El> = {
     ...base,
     type: "embeddable",
     link: MARKER,
@@ -229,6 +411,8 @@ export function nodeElement(node: CanvasNode): Partial<El> {
     roughness: 0,
     roundness: { type: 3 },
   };
+  applyStyle(node["verso"], CARD_STYLE, card);
+  return card;
 }
 
 /** A new node's canvas data, at a point: a card the board makes. */
@@ -279,7 +463,7 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
     const b = anchor(to, e.toSide);
     const labelId = `${e.id}-label`;
     const label = typeof e.label === "string" && e.label !== "" ? e.label : null;
-    out.push({
+    const arrow: Partial<El> = {
       type: "arrow",
       id: e.id,
       x: a[0],
@@ -298,9 +482,12 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
       roughness: 0,
       boundElements: label ? [{ id: labelId, type: "text" }] : null,
       customData: { canvas: e },
-    });
+    };
+    applyStyle(e["verso"], EDGE_STYLE, arrow);
+    if (arrow["elbowed"] === true) elbowRoute(arrow, e.fromSide, e.toSide, b[0] - a[0], b[1] - a[1]);
+    out.push(arrow);
     if (label) {
-      out.push({
+      const text: Partial<El> = {
         type: "text",
         id: labelId,
         x: (a[0] + b[0]) / 2,
@@ -314,7 +501,9 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
         verticalAlign: "middle",
         fontSize: 16,
         strokeColor: hexOf(e.color, EDGE_STROKE),
-      });
+      };
+      applyStyle(e["verso"], LABEL_STYLE, text);
+      out.push(text);
     }
   }
   out.push(...cards);
@@ -386,6 +575,7 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
         put(verso, "fill", fill);
         put(node, "verso", Object.keys(verso).length > 0 ? verso : undefined);
       }
+      keepStyle(node, styleOf(e, CARD_STYLE), CARD_STYLE);
     }
     nodes.push(node);
   }
@@ -409,6 +599,10 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     const wasColor = hexOf(data.color, EDGE_STROKE).toLowerCase();
     if ((e.strokeColor ?? EDGE_STROKE).toLowerCase() !== wasColor) put(edge, "color", colorOf(e.strokeColor, EDGE_STROKE));
     put(edge, "label", labelOf(e, byId));
+    const style = styleOf(e, EDGE_STYLE);
+    const labelEl = (e.boundElements ?? []).map((b) => (b.type === "text" ? byId.get(b.id) : undefined)).find((t) => t && !t.isDeleted);
+    if (labelEl) Object.assign(style, styleOf(labelEl, LABEL_STYLE));
+    keepStyle(edge, style, [...EDGE_STYLE, ...LABEL_STYLE]);
     for (const b of e.boundElements ?? []) if (b.type === "text") labels.add(b.id);
     edges.push(edge);
     edgeIds.add(e.id);

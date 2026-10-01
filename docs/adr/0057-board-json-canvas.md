@@ -129,6 +129,19 @@ author's choice, for the maintainer to question.
       JSON Canvas has no field for it, and Obsidian keeps a node's unknown
       fields (memo O1). None, or transparent, takes the key off. Asked for
       by the maintainer on 2026-09-30 ("tem como respeitar?").
+    - **A card's and an edge's style.** What else the panel sets that JSON
+      Canvas has no field for is kept the same way, under the item's own
+      `verso` key, and only when it is not how the board draws the item by
+      default: on a card, `corners` (`"sharp"`), `strokeWidth`, `roughness`
+      and `angle`; on an edge, `line` (`"curved"` or `"elbow"`),
+      `strokeWidth`, `roughness`, `startHead` and `endHead` (the kind of
+      head, where the edge has one), `bends` (the points a straight edge
+      bends at, from its start) and its label's `labelSize` and `labelFont`;
+      on both, `strokeStyle`, `opacity`, `locked` and `groups`. Obsidian
+      draws none of them and keeps them all (memo O1). An elbow edge is laid
+      out again along right angles when the board opens. Asked for by the
+      maintainer on 2026-09-30 ("coloquei porta reta, ele aplica mas nao
+      salva, se fecho e abro volta arredondada").
     - **Words.** Excalidraw's own words its pt-BR translation lacks are given
       in Portuguese when the window is; its "click to interact" band is
       hidden (a card is entered by a double click).

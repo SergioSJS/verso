@@ -135,6 +135,19 @@ autor, para o mantenedor questionar.
       aresta: o JSON Canvas não tem campo para isso, e o Obsidian mantém os
       campos desconhecidos de um nó (memo O1). Nenhuma, ou transparente, tira
       a chave. Pedido pelo mantenedor em 2026-09-30 ("tem como respeitar?").
+    - **O estilo de um cartão e de uma aresta.** O mais que o painel define e
+      o JSON Canvas não tem campo para guardar fica do mesmo jeito, na chave
+      `verso` do próprio item, e só quando não é como o board desenha o item
+      por padrão: num cartão, `corners` (`"sharp"`), `strokeWidth`,
+      `roughness` e `angle`; numa aresta, `line` (`"curved"` ou `"elbow"`),
+      `strokeWidth`, `roughness`, `startHead` e `endHead` (o tipo de ponta,
+      onde a aresta tem uma), `bends` (os pontos onde uma aresta reta dobra, a
+      partir do início dela) e, do rótulo, `labelSize` e `labelFont`; nos
+      dois, `strokeStyle`, `opacity`, `locked` e `groups`. O Obsidian não
+      desenha nenhum deles e mantém todos (memo O1). Uma aresta em cotovelo é
+      traçada de novo em ângulos retos quando o board abre. Pedido pelo
+      mantenedor em 2026-09-30 ("coloquei porta reta, ele aplica mas nao
+      salva, se fecho e abro volta arredondada").
     - **Palavras.** As palavras do Excalidraw que a sua tradução pt-BR não tem
       aparecem em português quando a janela está em português; a faixa
       "clique para interagir" some (entra-se num cartão com clique duplo).
