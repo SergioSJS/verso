@@ -183,6 +183,39 @@ describe("canvas ↔ elements", () => {
     assert.deepEqual(o.annotations.map((e) => e.label), ["nota solta"]);
   });
 
+  test("a drawn element under a card keeps its place when the board opens again", () => {
+    const doc = {
+      nodes: [
+        { id: "a", type: "text", text: "A", x: 0, y: 0, width: 100, height: 50 },
+        { id: "b", type: "text", text: "B", x: 200, y: 0, width: 100, height: 50 },
+      ],
+      edges: [],
+      verso: {
+        version: 1,
+        drawing: [
+          { id: "low", type: "rectangle", x: 10, y: 10, width: 20, height: 20, under: "b" },
+          { id: "top", type: "ellipse", x: 10, y: 10, width: 20, height: 20 },
+          { id: "lost", type: "line", x: 0, y: 0, width: 5, height: 5, under: "gone" },
+        ],
+      },
+    };
+    const els = restored(doc);
+    // Just under its card; over every card without one, or when its card is gone.
+    assert.deepEqual(els.map((e) => e.id), ["a", "low", "b", "top", "lost"]);
+    assert.equal("under" in els[1], false);
+    const saved = b.fromElements(els, doc).verso.drawing;
+    assert.deepEqual(saved.map((d) => [d.id, d.under]), [["low", "b"], ["top", undefined], ["lost", undefined]]);
+    // Sent to the back of the board: under the first card.
+    const back = [els[1], els[0], els[2], els[3], els[4]];
+    assert.equal(b.fromElements(back, doc).verso.drawing[0].under, "a");
+  });
+
+  test("a drawing over every card is written as it was read", () => {
+    const doc = { nodes: [{ id: "a", type: "text", text: "A", x: 0, y: 0, width: 100, height: 50 }], edges: [], verso: { version: 1, drawing: [{ id: "d", type: "ellipse", x: 1, y: 1, width: 2, height: 2 }] } };
+    const saved = b.fromElements(restored(doc), doc).verso.drawing;
+    assert.equal("under" in saved[0], false);
+  });
+
   test("a group renamed on the board is listed by its new name", () => {
     const els = restored(OBSIDIAN).map((e) => (e.type === "frame" ? { ...e, name: "Bancada" } : e));
     const o = b.outlineOf(els, { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo", edge: (a, c, l) => `${a} → ${c} (${l})` });

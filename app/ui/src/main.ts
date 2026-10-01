@@ -6105,7 +6105,6 @@ function openIn(pane: Pane, path: string): Leaf {
 /** `preview`: a single click in a list (the tree, a folder, the search,
  *  the quick switcher) — a preview tab, when the setting has them. */
 function openNote(path: string, aside: boolean, fresh = false, preview = false): Leaf | null {
-  (window as any).__openNote = openNote;
   document.body.classList.remove("side-open");
   let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
@@ -6115,7 +6114,6 @@ function openFolder(path: string, preview = false): void {
   const pane = paneToOpenIn();
   pane.openFolder(path, preview);
 }
-(window as any).__openNote = openNote;
 /** Code blocks colored by their language and math typeset, in rendered
  *  HTML: the parser marks them, the window finishes them. */
 function typeset(root: HTMLElement): void {
@@ -9765,6 +9763,20 @@ document.addEventListener("keydown", (e) => {
   // What had the focus handled it (an editor's key, a field, a dialog): it
   // does not run a second time here.
   if (hotkeyRecorder || e.defaultPrevented) return;
+  // F2 renames the open note, as it renames a row of the tree, unless the
+  // keys belong to a field (an editor, an input). A click on a row opens
+  // the note and takes the focus there: F2 still renames it. Every other
+  // hotkey holds Mod (`runHotkey`).
+  if (e.key === "F2" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+    const at = e.target;
+    const field = at instanceof HTMLElement && (at.isContentEditable || at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement || at instanceof HTMLSelectElement);
+    const rename = field ? undefined : allCommands().find((c) => c.id === "rename");
+    if (rename) {
+      e.preventDefault();
+      rename.run();
+    }
+    return;
+  }
   runHotkey(e);
 });
 

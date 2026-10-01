@@ -142,6 +142,14 @@ author's choice, for the maintainer to question.
       out again along right angles when the board opens. Asked for by the
       maintainer on 2026-09-30 ("coloquei porta reta, ele aplica mas nao
       salva, se fecho e abro volta arredondada").
+    - **A drawing's place among the cards** *(added on 2026-10-01: the
+      maintainer, "Corrija qualquer pendência que tenha ficado", the pending
+      item being that a drawing sent behind a card came back over it).* A
+      drawn element that lies under a card keeps, in the file, the card it
+      lies under (`"under":"<node id>"` on the element in `verso.drawing`);
+      none means over every card, as before, so a board whose drawing is all
+      over its cards is written as it was read. The board puts it back just
+      under that card when it opens; a card that is gone puts it on top.
     - **Words.** Excalidraw's own words its pt-BR translation lacks are given
       in Portuguese when the window is; its "click to interact" band is
       hidden (a card is entered by a double click).

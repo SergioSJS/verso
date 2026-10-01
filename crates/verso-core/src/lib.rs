@@ -1145,11 +1145,16 @@ impl Workspace {
     }
 
     /// Backlinks of a note given by its path relative to the folder, with
-    /// or without `.md`; `None` when the index does not know the note.
+    /// or without `.md`, or by its name as a link names it; `None` when
+    /// the index does not know the note.
     pub fn backlinks(&mut self, note: &str) -> Result<Option<Vec<Backlink>>, CoreError> {
-        let path = self.note_key(note)?;
+        let mut path = self.note_key(note)?;
         if !self.known(&path)? {
-            return Ok(None);
+            // Named as a link names it: `Barão` for `npcs/Barão.md`.
+            match self.index.note_named(note).map_err(CoreError::Index)? {
+                Some(found) => path = found,
+                None => return Ok(None),
+            }
         }
         self.index
             .backlinks(&path)

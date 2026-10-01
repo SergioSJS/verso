@@ -46,6 +46,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0015](0015-schema-packs.md) | Packs de schema distribuíveis como conteúdo | Proposto |
 | [0052](0052-typed-note.md) | Nota tipada: `type:` no frontmatter e um schema | Aceito (2026-09-24); uma propriedade com valor de link é relação tipada a partir do 0057 (2026-09-30) |
 | [0053](0053-views-bases.md) | Visões sobre a pasta: bases, no formato do Obsidian | Aceito (2026-09-24) |
+| [0059](0059-tabs-preview-pinned.md) | Abas: uma aba de pré-visualização por padrão, abas fixas compactas, a aba escolhida emenda na página | Aceito (2026-09-30) |
 
 ### Plugins e LLM
 

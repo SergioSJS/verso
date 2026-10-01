@@ -148,6 +148,16 @@ autor, para o mantenedor questionar.
       traçada de novo em ângulos retos quando o board abre. Pedido pelo
       mantenedor em 2026-09-30 ("coloquei porta reta, ele aplica mas nao
       salva, se fecho e abro volta arredondada").
+    - **O lugar de um desenho entre os cartões** *(acrescentado em
+      2026-10-01: o mantenedor, "Corrija qualquer pendência que tenha
+      ficado", sendo a pendência que um desenho mandado para trás de um
+      cartão voltava por cima dele).* Um elemento desenhado que fica por
+      baixo de um cartão guarda, no arquivo, o cartão sob o qual está
+      (`"under":"<id do nó>"` no elemento, em `verso.drawing`); nenhum quer
+      dizer por cima de todos os cartões, como antes, então um board cujo
+      desenho está todo por cima dos cartões é escrito como foi lido. O board
+      o põe de volta logo abaixo daquele cartão quando abre; um cartão que
+      sumiu o põe por cima.
     - **Palavras.** As palavras do Excalidraw que a sua tradução pt-BR não tem
       aparecem em português quando a janela está em português; a faixa
       "clique para interagir" some (entra-se num cartão com clique duplo).
