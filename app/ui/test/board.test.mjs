@@ -183,6 +183,16 @@ describe("canvas ↔ elements", () => {
     assert.deepEqual(o.annotations.map((e) => e.label), ["nota solta"]);
   });
 
+  test("a group renamed on the board is listed by its new name", () => {
+    const els = restored(OBSIDIAN).map((e) => (e.type === "frame" ? { ...e, name: "Bancada" } : e));
+    const o = b.outlineOf(els, { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo", edge: (a, c, l) => `${a} → ${c} (${l})` });
+    assert.equal(o.groups[0].group.label, "Bancada");
+    // A frame made on the board, never in the file: its name too, or none.
+    const fresh = { id: "f2", type: "frame", x: 0, y: 0, width: 10, height: 10, name: null, isDeleted: false };
+    assert.equal(b.outlineOf([fresh], { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo", edge: () => "" }).groups[0].group.label, "Grupo");
+    assert.equal(b.outlineOf([{ ...fresh, name: "Frutas" }], { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo", edge: () => "" }).groups[0].group.label, "Frutas");
+  });
+
   test("a text card is named by its first line, without Markdown marks", () => {
     const s = { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo" };
     assert.equal(b.nodeName({ id: "t", type: "text", text: "\n## **Gancho**\nmais", x: 0, y: 0, width: 1, height: 1 }, s), "Gancho");

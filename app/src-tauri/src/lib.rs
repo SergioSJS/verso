@@ -2018,6 +2018,10 @@ fn mime_of(path: &str) -> &'static str {
         Some("svg") => "image/svg+xml",
         Some("bmp") => "image/bmp",
         Some("avif") => "image/avif",
+        // The HTML-file viewer's page (review phase-2, reading 1, finding
+        // 1): as a document, under `FILE_CSP`'s sandbox. Served as bytes,
+        // `nosniff` kept the frame from showing it at all.
+        Some("html" | "htm") => "text/html; charset=utf-8",
         Some("pdf") => "application/pdf",
         Some("mp3") => "audio/mpeg",
         Some("m4a") => "audio/mp4",
@@ -2236,6 +2240,21 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             if let Some(w) = focused_window(app) {
                 let _ = app.emit("menu-devtools", w.label().to_owned());
             }
+        } else if id == CLOSE_TAB {
+            // A window of the app runs what ⌘W is bound to there (its
+            // "close tab"); a window that is only a web page has no tab,
+            // and closes.
+            if let Some(w) = focused_window(app) {
+                if is_app_view(w.label()) {
+                    let _ = app.emit("menu-close-tab", w.label().to_owned());
+                } else {
+                    let _ = w.close();
+                }
+            }
+        } else if id == CLOSE_WINDOW {
+            if let Some(w) = focused_window(app) {
+                let _ = w.close();
+            }
         } else if let Some(index) = id.strip_prefix(RECENT_PREFIX) {
             // The folder stays on this side; the window is told the same
             // way an `open -a Verso <folder>` event tells it.
@@ -2395,6 +2414,17 @@ fn focused_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<tauri:
 #[cfg(target_os = "macos")]
 const DEVTOOLS: &str = "verso-devtools";
 
+/// The id of File › Close Tab (⌘W). The system's Close Window took ⌘W
+/// before the page saw it, so the window's "close tab" never ran, and with
+/// one window open ⌘W quit the app; the focused window is told instead
+/// (`menu-close-tab`).
+#[cfg(target_os = "macos")]
+const CLOSE_TAB: &str = "verso-close-tab";
+
+/// The id of File › Close Window, with no key of its own: ⌘W closes a tab.
+#[cfg(target_os = "macos")]
+const CLOSE_WINDOW: &str = "verso-close-window";
+
 /// The prefix of an "Open Recent" item's id; the rest is the item's
 /// index into `App::menu_recents`.
 #[cfg(target_os = "macos")]
@@ -2446,6 +2476,20 @@ fn menu_label(lang: &str, key: &str) -> &'static str {
                 "Abrir recente"
             } else {
                 "Open Recent"
+            }
+        }
+        "close-tab" => {
+            if pt {
+                "Fechar aba"
+            } else {
+                "Close Tab"
+            }
+        }
+        "close-window" => {
+            if pt {
+                "Fechar janela"
+            } else {
+                "Close Window"
             }
         }
         "edit" => {
@@ -2605,7 +2649,8 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
             )?,
             &open_recent,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::close_window(app, None)?,
+            &MenuItem::with_id(app, CLOSE_TAB, l("close-tab"), true, Some("CmdOrCtrl+W"))?,
+            &MenuItem::with_id(app, CLOSE_WINDOW, l("close-window"), true, None::<&str>)?,
         ],
     )?;
     let edit = Submenu::with_items(
@@ -3225,6 +3270,18 @@ mod tests {
         let ok = serve(Some(&mut ws), "main", "mapa.svg", Some("tauri://localhost"));
         assert_eq!(ok.status, 200);
         assert!(header(&ok, "Content-Security-Policy").is_some_and(|v| v.starts_with("sandbox;")));
+
+        // An HTML file is a page for its viewer, sandboxed as every file.
+        let _page = note(vault.path(), "pagina.html", "<h1>ola</h1>");
+        let page = serve(Some(&mut ws), "main", "pagina.html", None);
+        assert_eq!(page.status, 200);
+        assert_eq!(
+            header(&page, "Content-Type"),
+            Some("text/html; charset=utf-8")
+        );
+        assert!(
+            header(&page, "Content-Security-Policy").is_some_and(|v| v.starts_with("sandbox;"))
+        );
         assert_eq!(
             header(&ok, "Access-Control-Allow-Origin"),
             Some("tauri://localhost")

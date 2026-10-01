@@ -6465,8 +6465,9 @@ class Panel {
     const path = leaf.path;
     const words = name(path);
     if (!words.trim()) return;
+    const paint = this.painted;
     const r = await commands.search(words, 40);
-    if (r.status !== "ok" || this.leaf !== leaf || this.current !== "backlinks") return;
+    if (r.status !== "ok" || this.leaf !== leaf || this.current !== "backlinks" || this.painted !== paint) return;
     const linked = new Set(leaf.backlinksData.map((b) => b.from));
     const hits = r.data.filter((hit) => hit.path !== path && !linked.has(hit.path));
     if (hits.length === 0) return;
@@ -6504,8 +6505,12 @@ class Panel {
     has: (day) => allNotes.includes(dailyPath(day)),
     open: (day) => void dailyNote(day),
   });
+  /** Counts the paints: a search for mentions that comes back after a
+   *  newer paint has nothing to add (two in flight drew the list twice). */
+  private painted = 0;
   paint(): void {
     const leaf = this.leaf;
+    this.painted++;
     switch (this.current) {
       case "calendar": {
         this.daily.render();
@@ -6977,7 +6982,10 @@ async function importDemoVault(): Promise<void> {
 
     ui.status.textContent = "…";
 
-    const folders = ["assets", "daily", "projetos", "templates"];
+    // The demo's own folders, from its files' paths (a parent before its
+    // children): a name written here once did not follow a rename of the
+    // demo's folder, and a case-insensitive disk then put the files in it.
+    const folders = [...new Set(DEMO_VAULT_FILES.flatMap((f) => f.path.split("/").slice(0, -1).map((_, i, parts) => parts.slice(0, i + 1).join("/"))))];
     for (const f of folders) {
       openFolders.add(f);
       try {
@@ -7464,6 +7472,9 @@ class Plan {
         for (const l of leavesOf(w.path)) if (!l.dirty) void l.load(w.path, true);
       } else failed++;
     }
+    // The other open notes look their links up again: a note renamed has
+    // its backlinks only once the notes that point at it are rewritten.
+    if (ok > 0) void recheckAll(new Set(this.rewrites.map((w) => w.path)));
     const answer = this.answer;
     this.answer = null;
     this.hide();
@@ -9871,6 +9882,14 @@ function openConsole(): void {
 }
 void listen<string>("menu-devtools", (e) => {
   if (e.payload === getCurrentWindow().label) openConsole();
+});
+/* File › Close Tab (⌘W) comes from the host's menu, to the focused window:
+ * the system's Close Window took ⌘W before the page saw it. The window
+ * runs what ⌘W is bound to — "close tab" unless the user bound it to
+ * another command. */
+void listen<string>("menu-close-tab", (e) => {
+  if (e.payload !== getCurrentWindow().label) return;
+  runHotkey(new KeyboardEvent("keydown", { key: "w", code: "KeyW", metaKey: MAC, ctrlKey: !MAC, cancelable: true }));
 });
 /* Edit › Undo, Redo, Select All (⌘Z, ⌘⇧Z, ⌘A) come from the host's own
  * menu items, to the focused window. An editor runs its own command; on a

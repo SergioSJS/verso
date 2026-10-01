@@ -174,8 +174,17 @@ export function isNode(e: El): boolean {
 /** The canvas node an element carries (a new frame: a new group). */
 export function nodeData(e: El): CanvasNode | null {
   const c = e.customData?.canvas;
-  if (isRecord(c) && typeof c["type"] === "string") return c as CanvasNode;
-  if (e.type === "frame") return { id: e.id, type: "group", x: e.x, y: e.y, width: e.width, height: e.height };
+  // A group's label is its frame's name as it is now: renamed on the
+  // board, the canvas data it was read with still holds the old one.
+  const name = e.type === "frame" ? (typeof e.name === "string" && e.name !== "" ? e.name : undefined) : undefined;
+  if (isRecord(c) && typeof c["type"] === "string") {
+    if (e.type !== "frame") return c as CanvasNode;
+    const node = { ...(c as CanvasNode) };
+    if (name === undefined) delete node.label;
+    else node.label = name;
+    return node;
+  }
+  if (e.type === "frame") return { id: e.id, type: "group", x: e.x, y: e.y, width: e.width, height: e.height, ...(name !== undefined ? { label: name } : {}) };
   return null;
 }
 
