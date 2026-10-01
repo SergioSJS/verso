@@ -19,6 +19,9 @@ O **Verso** é um ambiente de anotações e gestão de conhecimento focado em si
 > [!NOTE]
 > Este é um **Vault de Teste e Demonstração**. Você pode explorar livremente as notas, modificar conteúdos, testar recursos e usar esta estrutura como modelo para seus próprios projetos.
 
+> [!TIP] Comece pelo tour
+> Abra o [[Tour do Verso.canvas|Tour do Verso]]: um board com as funções do Verso em seis paradas, com as notas deste cofre dentro dos cartões. Para aprender a desenhar nos boards, siga o [[Treino do Board.canvas|Treino do Board]].
+
 ---
 
 ## 🚀 Recursos em Destaque
@@ -52,6 +55,9 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 5. [[05 - Visualização de Grafo e Conexões]] — Como explorar a teia de relações entre suas anotações com zoom e pan intuitivos.
 6. [[06 - Documentos e Mídia]] — Visualização de PDFs com modo de 2 páginas, redimensionamento de imagens e incorporação de páginas web seguras via iframes.
 7. [[07 - Notas Diárias, Calendário e Templates]] — Registro cronológico diário, navegação mensal pelo calendário e automação de notas com templates.
+8. [[08 - Diagramas Mermaid]] — Fluxogramas, sequências e outros diagramas escritos em texto e desenhados na nota.
+9. [[09 - Board e Relações]] — Boards (`.canvas`) desenhados com o Excalidraw, com as notas da pasta como cartões, e relações tipadas no frontmatter.
+10. [[10 - Desenhando no Board]] — A cola do Excalidraw: ferramentas, grupos, setas, camadas e atalhos.
 
 ---
 
