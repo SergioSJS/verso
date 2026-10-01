@@ -652,3 +652,75 @@ briefing v0.12; item 16 in [ADR 0034](../adr/0034-roadmap-in-phases.md) and
 [ADR 0014](../adr/0014-primitives-catalog.md); items 17 to 19 in
 [ADR 0059](../adr/0059-tabs-preview-pinned.md), points 5 to 7. Item 21
 closes nothing.
+
+## 9. Second reading
+
+- Date: 2026-10-01. Reviewer: Fable 5.1, one session, no access to the
+  author's.
+- Input: `git diff 36ef863..8cbeff4` — `2c91553` (the code) and `8cbeff4`
+  (the documents, section 8 and the "Resolution" column).
+- State: `scripts/check.sh` exit 0 (290 Rust tests, 52 unit tests of the
+  window, 32 end-to-end tests, none failed); `scripts/check-linux.sh` exit 0
+  (289 Rust tests). The new canvas fuzz target, 61 s: 3 261 957 runs, no
+  crash; the parser's, 46 s: 77 057 runs, no crash. Throwaway Playwright
+  probes of the reviewer's own, in the harness, deleted afterwards.
+- **This reading is partial.** It was cut short by the session's usage limit,
+  at the maintainer's word. What it did not reach is listed at the end; none
+  of it is judged here.
+
+No new BLOCKING. The four BLOCKING defects of the first reading hold as
+resolved, each seen by running.
+
+New findings, same columns:
+
+| # | Level | Where | Finding | What goes wrong | Suggested resolution | Resolution |
+|---|---|---|---|---|---|---|
+| 1 | IMPORTANT | `app/src-tauri/src/lib.rs` (`page_edit`, the Edit menu handler); `app/ui/src/main.ts` (`menu-edit`) | The fix of reading 1, finding 5 and reading 3, finding 5 was never run: the author says "read, not run", the harness has no child web view, and this reading did not start the app either. It rests on `document.hasFocus()` telling a site's view from the app's page inside one window. No step of the walkthrough covers it (searched, not read in full) | If the test does not behave so in the app's web view, ⌘Z, ⌘⇧Z and ⌘A either stay dead in a web note's form or act twice, in the page and in the site. Nobody has seen either way. **Read** | Follow it once in the app — a web note, a link's own window — and add the step to the walkthrough as a hand step | |
+| 2 | IMPORTANT | `crates/verso-dialect/fuzz/fuzz_targets/canvas.rs`; `CLAUDE.md` §3 | The canvas fuzz target enters as a guardrail; §3 asks that each feature guardrail be "seen failing before the PR is merged". This reading ran it clean and found no record of it failing on a planted fault (searched ADR 0029, not read in full) | A target that cannot fail guards nothing; here it is only unproven. **Ran** (clean) | Plant a fault, see it fail, record it; or point at the record | |
+| 3 | MINOR | `app/ui/src/board/view.tsx` (`noteUser`, `flush`); `app/ui/src/main.ts` (`BoardLeaf.flush`) | A change undone before the save's delay leaves the tab marked unsaved for good, and closing it writes the file's text again | Drag a card, ⌘Z at once, ⌘W: no board write, one text write of the same content, tab closed. The file's content is the same; its date is not. **Ran** | Clear the mark when the board's canvas equals what was last sent | |
+| 4 | MINOR | `app/ui/src/board/view.tsx` (`edited`) | `edited` is never set back after a save. From the first real edit on, an adjustment the board makes by itself — a font arriving late — is written with no act of the user | One card moved and saved; a minute later a font loads and the texts are measured again: the file is written. Item 3 lets the adjustments ride with the first real edit, not write alone after it. **Read** | Set it back once a save lands and nothing differs | |
+| 5 | MINOR | `app/ui/src/main.ts` (`quietPaths`, `fetched`, the restore) | The quiet read is keyed by path, for the whole window, and only note and text tabs honour it. The same note brought back in two panes downloads on the second read; a path a PDF or picture tab never reads through it stays quiet for a later open | A note open in two panes at start: one download nobody asked for. Whether restored PDF and picture tabs in the background download through the file protocol was not settled. **Read** | Key by tab; settle the PDF and picture tabs | |
+| 6 | MINOR | `app/ui/src/main.ts` (`Pane.go`, `mark`) | The trail keeps a place whose file was renamed or deleted | A step back opens a "could not open" page for a path that is gone. **Read** | Follow a rename; drop a deleted place | |
+| 7 | MINOR | `crates/verso-dialect/fuzz/fuzz_targets/canvas.rs` | The merge is fuzzed only as a canvas laid over itself, where every value is "kept": the rounding and the matching by `id` of a different tree are never reached | A panic in the merge of a changed canvas would not be found by this target. **Read** | Merge a second fuzzed tree over the first | |
+| 8 | MINOR | `crates/verso-core/src/lib.rs` (`source_key`) | A name ending in `.canvas` is now always a board's path for `read_note`, `links` and the MCP: a note `Plano.canvas.md` named without `.md` is no longer found by them | An agent asks for `Plano.canvas` meaning the note and gets "not found". **Read** | Fall back to the note when no such canvas exists | |
+
+Resolutions seen holding, by running:
+
+- Reading 2, finding 1: both tutorial boards — a press at once, ⌘+, wheel,
+  zoom, the hand tool, a card selected, select all — and the second board of
+  a session pressed at once: no board write, file unchanged, tab not marked.
+- Reading 2, finding 2 and reading 3, finding 1: a card dragged and the app
+  quit at once — the board's write comes before the window goes; text typed
+  in a note's card and the app quit at once — the note's write comes first; a
+  board in the preview tab, edited, then another file clicked — saved, and
+  its tab kept.
+- Reading 2, finding 3: with the board's write failing, ⌘W writes no text,
+  keeps the tab and asks.
+- Reading 2, finding 5: the open board takes a card moved on disk.
+- Reading 3, finding 2: the picture takes its size
+  (`![Projeto Alpha|253x136](…)`) and the embed of the same name is left
+  alone. Finding 3: at start only the tab in front is fetched, a folder event
+  fetches nothing, a tab chosen later is fetched then. Finding 4: a failed
+  download shows its page, ⌘E and typing reach no editor, nothing is written.
+  Finding 7: after three single clicks ‹ is live, and back, back, forward
+  land on the second, first and second note, in the one preview tab.
+- Reading 1, findings 1, 2, 7 and 14, reading 2, findings 4, 7 and 8, and
+  reading 4, findings 1 to 6: by the author's tests, which pass in
+  `check.sh`. For finding 2 of reading 1 the test makes its version 6 by
+  dropping two columns; `git diff main` of the schema shows those two columns
+  are the whole difference, so the test's file is a faithful one.
+- Reading 1, finding 4 and reading 5, finding 1: the fixture is there, marked
+  as an AI draft awaiting the maintainer; it is not judged here.
+
+Read, not run: reading 1, findings 3 (the window asks; the core itself still
+rewrites a canvas in another layout for any caller), 6, 9, 10 and 13;
+reading 2, findings 6 and 9 to 11; reading 3, findings 6 and 9 to 11. The
+reviewer's own probe of an edge's sides through Excalidraw stopped at the new
+"rewrite in Obsidian's layout?" question, so reading 2, findings 4 and 7 are
+seen at the model's level only.
+
+Not reached, and not judged: the documents of `8cbeff4` beyond section 8 and
+the mirror check — the ADRs, the spec, the briefing, the changelogs and their
+pt-BR twins; every resolution of reading 5 but finding 1; reading 4, findings
+7 to 17; the harness's own changes; a repeat run for flakiness; the installed
+app.

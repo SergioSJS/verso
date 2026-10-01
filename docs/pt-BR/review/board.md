@@ -646,3 +646,77 @@ v0.12; o item 16 no [ADR 0034](../adr/0034-roadmap-in-phases.md) e no
 [ADR 0014](../adr/0014-primitives-catalog.md); os itens 17 a 19 no
 [ADR 0059](../adr/0059-tabs-preview-pinned.md), pontos 5 a 7. O item 21 não
 fecha nada.
+
+## 9. Segunda leitura
+
+- Data: 2026-10-01. Revisor: Fable 5.1, uma sessão, sem acesso à do autor.
+- Entrada: `git diff 36ef863..8cbeff4` — `2c91553` (o código) e `8cbeff4`
+  (os documentos, a seção 8 e a coluna "Resolução").
+- Estado: `scripts/check.sh` saiu com 0 (290 testes Rust, 52 testes
+  unitários da janela, 32 testes de ponta a ponta, nenhum falhou);
+  `scripts/check-linux.sh` saiu com 0 (289 testes Rust). O novo alvo de fuzz
+  do canvas, 61 s: 3 261 957 rodadas, sem falha; o do parser, 46 s: 77 057
+  rodadas, sem falha. Sondas descartáveis de Playwright do próprio revisor,
+  no harness, apagadas depois.
+- **Esta leitura é parcial.** Foi encurtada pelo limite de uso da sessão, por
+  palavra do mantenedor. O que ela não alcançou está listado no fim; nada
+  disso é julgado aqui.
+
+Nenhum BLOQUEANTE novo. Os quatro defeitos BLOQUEANTES da primeira leitura
+se mantêm resolvidos, cada um visto rodando.
+
+Achados novos, mesmas colunas:
+
+| # | Nível | Onde | Achado | O que dá errado | Resolução sugerida | Resolução |
+|---|---|---|---|---|---|---|
+| 1 | IMPORTANTE | `app/src-tauri/src/lib.rs` (`page_edit`, o tratador do menu Editar); `app/ui/src/main.ts` (`menu-edit`) | A correção do achado 5 da leitura 1 e do achado 5 da leitura 3 nunca foi rodada: o autor diz "lido, não rodado", o harness não tem web view filha, e esta leitura também não abriu o app. Ela se apoia em o `document.hasFocus()` distinguir a vista de um site da página do app dentro de uma mesma janela. Nenhum passo do percurso a cobre (procurado, não lido por inteiro) | Se o teste não se comportar assim na web view do app, ⌘Z, ⌘⇧Z e ⌘A ou continuam mortos no formulário de uma nota web ou agem duas vezes, na página e no site. Ninguém viu nem uma coisa nem outra. **Lido** | Seguir uma vez no app — uma nota web, a janela própria de um link — e acrescentar o passo ao percurso como passo à mão | |
+| 2 | IMPORTANTE | `crates/verso-dialect/fuzz/fuzz_targets/canvas.rs`; `CLAUDE.md` §3 | O alvo de fuzz do canvas entra como guardrail; o §3 pede que cada guardrail de funcionalidade seja "visto falhando antes do merge do PR". Esta leitura o rodou sem falha e não achou registro de ele falhar com um defeito plantado (procurado na ADR 0029, não lida por inteiro) | Um alvo que não consegue falhar não guarda nada; aqui ele só não está provado. **Rodado** (sem falha) | Plantar um defeito, vê-lo falhar, registrar; ou apontar o registro | |
+| 3 | MENOR | `app/ui/src/board/view.tsx` (`noteUser`, `flush`); `app/ui/src/main.ts` (`BoardLeaf.flush`) | Uma mudança desfeita antes do prazo da gravação deixa a aba marcada como não salva para sempre, e fechá-la grava de novo o texto do arquivo | Arraste um cartão, ⌘Z em seguida, ⌘W: nenhuma gravação de board, uma gravação de texto com o mesmo conteúdo, aba fechada. O conteúdo do arquivo é o mesmo; a data dele não. **Rodado** | Tirar a marca quando o canvas do board é igual ao último enviado | |
+| 4 | MENOR | `app/ui/src/board/view.tsx` (`edited`) | `edited` nunca volta atrás depois de uma gravação. Da primeira edição real em diante, um ajuste que o board faz sozinho — uma fonte que chega tarde — é gravado sem ato do usuário | Um cartão movido e gravado; um minuto depois uma fonte carrega e os textos são medidos de novo: o arquivo é gravado. O item 3 deixa os ajustes irem junto com a primeira edição real, não gravarem sozinhos depois dela. **Lido** | Voltá-lo atrás quando uma gravação termina e nada difere | |
+| 5 | MENOR | `app/ui/src/main.ts` (`quietPaths`, `fetched`, a restauração) | A leitura silenciosa é chaveada pelo caminho, para a janela inteira, e só abas de nota e de texto a respeitam. A mesma nota trazida de volta em dois painéis baixa na segunda leitura; um caminho que uma aba de PDF ou de imagem nunca lê por ela fica silencioso para uma abertura posterior | Uma nota aberta em dois painéis na partida: um download que ninguém pediu. Se abas restauradas de PDF e de imagem, em segundo plano, baixam pelo protocolo de arquivos, não ficou resolvido. **Lido** | Chavear pela aba; resolver as abas de PDF e de imagem | |
+| 6 | MENOR | `app/ui/src/main.ts` (`Pane.go`, `mark`) | A trilha guarda um lugar cujo arquivo foi renomeado ou apagado | Um passo atrás abre uma página "não foi possível abrir" para um caminho que não existe mais. **Lido** | Acompanhar um renomear; tirar um lugar apagado | |
+| 7 | MENOR | `crates/verso-dialect/fuzz/fuzz_targets/canvas.rs` | A mescla só é fuzzada como um canvas posto sobre ele mesmo, onde todo valor é "mantido": o arredondamento e o casamento por `id` de uma árvore diferente nunca são alcançados | Um pânico na mescla de um canvas mudado não seria achado por este alvo. **Lido** | Mesclar uma segunda árvore fuzzada sobre a primeira | |
+| 8 | MENOR | `crates/verso-core/src/lib.rs` (`source_key`) | Um nome terminado em `.canvas` agora é sempre o caminho de um board para `read_note`, `links` e o MCP: uma nota `Plano.canvas.md` nomeada sem o `.md` não é mais achada por eles | Um agente pede `Plano.canvas` querendo a nota e recebe "não encontrado". **Lido** | Cair para a nota quando não existe tal canvas | |
+
+Resoluções vistas valendo, rodando:
+
+- Leitura 2, achado 1: os dois boards do tutorial — um clique na hora, ⌘+,
+  roda, zoom, a ferramenta de mão, um cartão selecionado, selecionar tudo — e
+  o segundo board da sessão clicado na hora: nenhuma gravação de board,
+  arquivo igual, aba sem marca.
+- Leitura 2, achado 2, e leitura 3, achado 1: um cartão arrastado e o app
+  encerrado em seguida — a gravação do board vem antes de a janela ir; texto
+  digitado no cartão de uma nota e o app encerrado em seguida — a gravação da
+  nota vem primeiro; um board na aba de pré-visualização, editado, e outro
+  arquivo clicado — gravado, e a aba dele mantida.
+- Leitura 2, achado 3: com a gravação do board falhando, ⌘W não grava texto,
+  mantém a aba e pergunta.
+- Leitura 2, achado 5: o board aberto recebe um cartão movido no disco.
+- Leitura 3, achado 2: a imagem recebe o tamanho
+  (`![Projeto Alpha|253x136](…)`) e o embed de mesmo nome fica intacto.
+  Achado 3: na partida só a aba da frente é baixada, um evento da pasta não
+  baixa nada, uma aba escolhida depois é baixada nessa hora. Achado 4: um
+  download que falha mostra a página dele, ⌘E e a digitação não alcançam
+  editor nenhum, nada é gravado. Achado 7: depois de três cliques simples o ‹
+  está ativo, e voltar, voltar, avançar caem na segunda, na primeira e na
+  segunda nota, na única aba de pré-visualização.
+- Leitura 1, achados 1, 2, 7 e 14, leitura 2, achados 4, 7 e 8, e leitura 4,
+  achados 1 a 6: pelos testes do autor, que passam no `check.sh`. Para o
+  achado 2 da leitura 1, o teste faz a versão 6 dele tirando duas colunas; o
+  `git diff main` do esquema mostra que essas duas colunas são a diferença
+  inteira, então o arquivo do teste é fiel.
+- Leitura 1, achado 4, e leitura 5, achado 1: a fixture está lá, marcada como
+  rascunho de IA à espera do mantenedor; não é julgada aqui.
+
+Lido, não rodado: leitura 1, achados 3 (a janela pergunta; o core em si
+continua reescrevendo um canvas em outro layout para qualquer chamador), 6,
+9, 10 e 13; leitura 2, achados 6 e 9 a 11; leitura 3, achados 6 e 9 a 11. A
+sonda do próprio revisor sobre os lados de uma aresta pelo Excalidraw parou
+na nova pergunta "reescrever no layout do Obsidian?", então os achados 4 e 7
+da leitura 2 só foram vistos no nível do modelo.
+
+Não alcançado, e não julgado: os documentos do `8cbeff4` além da seção 8 e
+da conferência do espelho — as ADRs, a spec, o briefing, os changelogs e os
+gêmeos pt-BR; toda resolução da leitura 5 menos o achado 1; leitura 4,
+achados 7 a 17; as mudanças do próprio harness; uma rodada repetida para
+instabilidade; o app instalado.
