@@ -2,8 +2,11 @@
 
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §2, §17 item 2
-- Status in the briefing: `DECIDED` (name); `PROPOSED` (domain and package
-  name); `OPEN` (availability)
+- Status in the briefing: `DECIDED` (name; the domain since v0.10);
+  `PROPOSED` (package name); `OPEN` (availability on crates.io, npm and the
+  GitHub org)
+- Revisions: 2026-09-24 — the domain decided by the maintainer, in session:
+  `versomd.com`
 
 ## Context
 
@@ -20,11 +23,22 @@ an image metadata editor in Perl.
 
 ## Consequences
 
-- Domain `verso.md`: `PROPOSED`, availability not verified.
+- Domain: **`versomd.com`**, `DECIDED` — bought by the maintainer on
+  2026-09-24, the closest to `verso.md`, the proposal, they could get (in
+  session: "eu comprei o domínio versomd.com, foi o mais próximo que
+  consegui").
 - Package/org name in case `verso` is taken: `verso-md`, `PROPOSED`.
-- Availability on crates.io, npm, the GitHub org and the domain is `[OPEN]` and
-  has to be verified before making the repository public
+- Availability on crates.io, npm and the GitHub org is `[OPEN]` and has to be
+  verified before making the repository public
   ([0007](0007-private-repo-until-license.md)).
+- `[OPEN]` The app's bundle identifier, `dev.verso.app` (`dev.verso.app.beta`
+  for the betas: `app/src-tauri/tauri.conf.json`, the release workflow), is
+  written as a reversed domain the project does not hold; `com.versomd.app`
+  would follow the one it holds. Changing it leaves behind what macOS and the
+  web view keep per app — permissions granted, the window's own storage —
+  while the settings, in the configuration directory
+  ([0011](0011-config-outside-tree-index-as-cache.md)), stay. The
+  maintainer's to decide.
 - The known collisions are outside the category and do not block use of the
   name; they may require disambiguation in searches.
 
@@ -35,5 +49,6 @@ an image metadata editor in Perl.
 
 ## Status
 
-Accepted for the name. Domain and alternative package name: Proposed.
-Availability check: `[OPEN]`.
+Accepted for the name; for the domain, `versomd.com`, on 2026-09-24 by the
+maintainer. Alternative package name: Proposed. Availability on crates.io, npm
+and the GitHub org: `[OPEN]`.
