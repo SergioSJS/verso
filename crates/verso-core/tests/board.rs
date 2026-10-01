@@ -173,6 +173,24 @@ fn a_card_whose_path_is_gone_links_to_nothing() {
 }
 
 #[test]
+fn a_note_named_like_a_board_is_found_without_its_md() {
+    // `Plano.canvas.md` is a note; with no board `Plano.canvas`, a reader
+    // asking for `Plano.canvas` means the note.
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _n = file(vault.path(), "Plano.canvas.md", "# Plano\n[[Barão]]\n");
+    let _b = file(vault.path(), "Barão.md", "# Barão\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(ws.source_key("Plano.canvas").unwrap(), "Plano.canvas.md");
+    assert_eq!(ws.links("Plano.canvas").unwrap().unwrap().len(), 1);
+    // A board of that path wins.
+    let _c = file(vault.path(), "Quadro.canvas", BOARD);
+    ws.index().unwrap();
+    assert_eq!(ws.source_key("Quadro.canvas").unwrap(), "Quadro.canvas");
+}
+
+#[test]
 fn moving_the_canvas_keeps_links_to_it() {
     let vault = tempfile::tempdir().unwrap();
     let config = tempfile::tempdir().unwrap();

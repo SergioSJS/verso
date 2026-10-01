@@ -28,11 +28,15 @@ export class App {
     await this.page.keyboard.press(combo.replace(/\bMod\b/g, "ControlOrMeta"));
   }
 
-  /** Open a file by name with the quick switcher (⌘P). */
+  /** Open a file by name with the quick switcher (⌘P): the name typed
+   *  into its field, and Enter only once the list answers it. */
   async quickOpen(name) {
     await this.key("Mod+p");
-    await this.page.keyboard.type(name);
-    await this.page.keyboard.press("Enter");
+    const field = this.page.getByRole("combobox", { name: "Abrir…" });
+    await expect(field).toBeFocused();
+    await field.fill(name);
+    await expect(this.page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);
+    await field.press("Enter");
   }
 
   /** Run a command of the palette (⌘⇧P) by its label. */

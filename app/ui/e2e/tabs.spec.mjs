@@ -71,3 +71,23 @@ test("a question on screen is answered before the menu's ⌘W closes anything", 
   await page.waitForTimeout(300);
   await expect(tab).toHaveCount(1);
 });
+
+test("back follows a note renamed meanwhile", async ({ app }) => {
+  await app.open();
+  await row(app, "01 - Guia de Markdown e Sintaxe.md").click();
+  await row(app, "02 - Links, Âncoras e Notas Incorporadas.md").click();
+  // The first note, no longer in a tab, is renamed from its row.
+  await row(app, "01 - Guia de Markdown e Sintaxe.md").focus();
+  await app.page.keyboard.press("F2");
+  const field = app.page.locator("#notes input");
+  await expect(field).toBeVisible();
+  await field.fill("01 - Guia");
+  await field.press("Enter");
+  const save = app.page.locator(".plan:visible button.save");
+  if (await save.isVisible().catch(() => false)) await save.click();
+  await expect.poll(() => app.files()).toContain("01 - Guia.md");
+  await app.key("Mod+[");
+  // The trail follows the rename (review `board.md`, second reading, finding 6).
+  await expect(app.page.locator(".tab.preview")).toContainText("01 - Guia");
+  await expect(app.page.locator(".load-failure")).toHaveCount(0);
+});

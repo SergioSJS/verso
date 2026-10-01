@@ -27,7 +27,8 @@ fuzz_target!(|data: &[u8]| {
     let Ok(source) = std::str::from_utf8(data) else {
         return;
     };
-    let Ok(board) = canvas::Canvas::parse(source) else {
+    let whole = source.split_once('\0').map_or(source, |(first, _)| first);
+    let Ok(board) = canvas::Canvas::parse(whole) else {
         return;
     };
     let written = board.write();
@@ -36,9 +37,20 @@ fuzz_target!(|data: &[u8]| {
     let over_itself = board.merged(board.root.clone()).write();
     let reread = canvas::Canvas::parse(&over_itself).expect("a merge parses");
     assert_eq!(reread.write(), over_itself);
+    // A second canvas laid over the first, as a save lays the window's over
+    // the file: the input split at its first NUL byte. Rounding, matching by
+    // `id` and new keys are reached only by a tree that differs (review
+    // `board.md`, second reading, finding 7).
+    if let Some((first, second)) = source.split_once('\0')
+        && let (Ok(old), Ok(new)) = (canvas::Canvas::parse(first), canvas::Canvas::parse(second))
+    {
+        let merged = old.merged(new.root).write();
+        let again = canvas::Canvas::parse(&merged).expect("a merge parses again");
+        assert_eq!(again.write(), merged, "a merge's layout is stable");
+    }
     for link in board.links() {
-        assert!(source.is_char_boundary(link.at.min(source.len())), "{link:?}");
-        assert!(link.at <= source.len(), "{link:?}");
+        assert!(whole.is_char_boundary(link.at.min(whole.len())), "{link:?}");
+        assert!(link.at <= whole.len(), "{link:?}");
     }
     let _ = board.searchable_text();
 });

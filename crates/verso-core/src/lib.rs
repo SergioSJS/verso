@@ -1139,10 +1139,17 @@ impl Workspace {
             .map_err(CoreError::Confined)?
             .to_string_lossy()
             .into_owned();
-        if is_canvas(&confined) {
-            return Ok(confined);
+        if !is_canvas(&confined) {
+            return self.note_key(note);
         }
-        self.note_key(note)
+        // A note named `Plano.canvas.md` asked for without its `.md`: the
+        // note, when no board of that path is known and the note is
+        // (review `board.md`, second reading, finding 8).
+        let as_note = self.note_key(note)?;
+        if !self.known(&confined)? && self.known(&as_note)? {
+            return Ok(as_note);
+        }
+        Ok(confined)
     }
 
     /// [`Self::note_key`] and the handle to read the file.
