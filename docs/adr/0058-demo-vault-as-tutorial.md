@@ -20,7 +20,14 @@
   forma pra rodar localmente quando fizer sentido" (write down the tests'
   steps, to be automated somehow and run locally when it makes sense). The
   walk is written down (point 6), `check` also holds the vault together
-  (point 7), and how the walk runs by machine is `[OPEN]`.
+  (point 7), and how the walk runs by machine is `[OPEN]`. 2026-10-01 — the
+  maintainer, later the same day, in session, choosing among the ways below:
+  "1. topo ampliar o harness, acho que vai se um ganho a medida que a
+  aplicação cresce. quero algo que automatize de fato esses testes para não
+  precisar gastar token de llm pra isso" (option 1, extend the harness; a
+  gain as the application grows; something that really automates these
+  tests, so that no LLM tokens are spent on them). The walk runs in the
+  browser harness (points 8 to 13); the `[OPEN]` is closed.
 
 ## Context
 
@@ -79,23 +86,43 @@ How it is kept is the author's, for the maintainer to question:
 been in Portuguese, and nothing decided that. Until the maintainer decides,
 it stays pt-BR.
 
-`[OPEN]` **The walk, run by machine.** What `check` and the unit tests do not
-cover — the window's own behaviour and the real app's — is followed by hand.
-The ways seen on 2026-10-01, for the maintainer to choose among:
+**Decided on 2026-10-01 by the maintainer**, in session, on the walk run by
+machine — what `check` and the unit tests do not cover, the window's own
+behaviour:
 
-- **The browser harness** (`app/ui/harness.html`, the core mocked) driven by
-  a browser automation tool, Playwright's WebKit for one: headless, local,
-  never takes the mouse. The window's behaviour only; the harness must answer
-  more of the core's commands (a board's save among them); a new development
-  dependency.
-- **The real app on Linux**, in the container `scripts/check-linux.sh`
-  already uses, driven by WebDriver (`tauri-driver` and WebKitWebDriver): the
-  whole app, the core and the `verso:` protocol included; not the Mac's menus
-  and keys; new tools in the image.
-- **The real app on the Mac**, driven by the system's input events and
-  screen captures, as on 2026-10-01: everything, the Mac's menus and keys
-  included; it takes the mouse and the keyboard while it runs, and finds
-  things on the screen by position.
+8. **The walk runs by machine in the browser harness**, driven by
+   Playwright's WebKit: headless, local, never takes the mouse or the
+   keyboard; it grows with the app, and no one follows the walk by hand to
+   know that it still works.
+
+How it is kept is the author's, for the maintainer to question:
+
+9. **The harness** (`app/ui/src/harness.ts` and `app/ui/src/harness/`) is
+   the window over a core written in TypeScript: the demo vault in memory, or
+   an empty folder (`?vault=empty`); every command of the contract answered
+   with the contract's shapes and errors, through Tauri's own IPC mock, and
+   later, as the real IPC answers; the `verso:` protocol served from the same
+   memory; the app's log kept. It is not the core: links, search and bases are
+   answered roughly, enough for the window to behave. What the core does is
+   its Rust tests'.
+10. **Every command of the contract has an answer in the harness.**
+    `app/ui/e2e/harness.spec.mjs` reads `bindings.ts` and fails on a command
+    the harness does not know: a new command arrives with its answer.
+11. **A test fails on any trace of a fault**, besides what it asserts: an
+    error on the console or of the page, a request that failed, an `ERROR` in
+    the app's log, the window's work area not filling the window
+    (`app/ui/e2e/fixtures.mjs`).
+12. **The tests follow the walk**, one file of `app/ui/e2e/` per part of it;
+    a step of [`demo-vault-walkthrough.md`](../reference/demo-vault-walkthrough.md)
+    that runs by machine names its test, and a feature's pull request adds its
+    steps with their tests.
+13. **They run locally, not in CI**: `npm run e2e` in `app/ui`, and
+    `scripts/check.sh` after the window's build, before every push. What the
+    harness cannot reach stays by hand, and the walk says which: the real
+    core, the app's `verso:` protocol, the Mac's menus and keys as the system
+    delivers them (a menu's event is sent as the host sends it), files dropped
+    from Finder, the updater, and where WKWebView differs from Playwright's
+    WebKit.
 
 ## Consequences
 
@@ -109,9 +136,26 @@ The ways seen on 2026-10-01, for the maintainer to choose among:
   the Node one in the repository (Node already builds the window).
 - `docs/reference/demo-vault-walkthrough.md` is the walk: a feature's pull
   request adds its steps, each with the level it can run at by machine.
+- `@playwright/test` (Apache-2.0) is a new development dependency of the
+  window, never shipped; its WebKit is downloaded on the first run of
+  `scripts/check.sh`.
+- `npm run build` writes `dist/harness.html` beside the window's page, as it
+  already built the harness's script there; the app never opens it.
+- The CI's minutes do not grow: the tests run on the author's machine.
 
 ## Discarded alternatives
 
 - **Boards kept by hand, edited in the app.** Considered by the author: an
   agent cannot edit a board in the app, and a hand-edited JSON of a hundred
   drawn elements is no place to add a lesson.
+- **The real app on Linux**, in the container `scripts/check-linux.sh`
+  already uses, driven by WebDriver (`tauri-driver` and WebKitWebDriver): the
+  whole app, the core and the `verso:` protocol included, but not the Mac's
+  menus and keys, and new tools in the image. Put to the maintainer on
+  2026-10-01, who chose the harness.
+- **The real app on the Mac**, driven by the system's input events and
+  screen captures, as the walk was followed on 2026-10-01: everything, the
+  Mac's menus and keys included, but it takes the mouse and the keyboard
+  while it runs, finds things on the screen by position, and needs an agent
+  to read what it sees. Put to the maintainer on 2026-10-01, who chose the
+  harness.

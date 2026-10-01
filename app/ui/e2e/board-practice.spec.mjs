@@ -1,0 +1,130 @@
+// Walkthrough, sections 8 and 9: the practice board, lesson by lesson, and
+// the board's file — what the bugs of 2026-09-30 and 2026-10-01 broke.
+
+import { test, expect } from "./fixtures.mjs";
+
+const MAC = process.platform === "darwin";
+const FRONT = MAC ? "Meta+Alt+BracketRight" : "Control+Shift+BracketRight";
+const BACK = MAC ? "Meta+Alt+BracketLeft" : "Control+Shift+BracketLeft";
+const BOARD = "Treino do Board.canvas";
+
+async function openPractice(app, lesson) {
+  await app.open();
+  await app.quickOpen("Treino do Board");
+  await app.boardReady();
+  if (lesson) await app.show(lesson);
+  await app.page.locator(".excalidraw").first().focus();
+}
+
+const order = async (app) => (await app.scene()).map((e) => e.id);
+
+test("lesson 7: ⌘⌥] brings a drawing to the front and ⌘⌥[ sends one to the back", async ({ app, page }) => {
+  const warnings = [];
+  page.on("console", (m) => m.type() === "warning" && warnings.push(m.text()));
+  await openPractice(app, "l-camadas");
+  await app.select("d-cam-circulo");
+  await page.keyboard.press(FRONT);
+  await expect.poll(async () => (await order(app)).indexOf("d-cam-circulo")).toBeGreaterThan((await order(app)).indexOf("d-cam-losango"));
+  await app.select("d-cam-quadrado");
+  await page.keyboard.press(BACK);
+  await expect.poll(async () => (await order(app)).indexOf("d-cam-quadrado")).toBeLessThan((await order(app)).indexOf("d-cam-losango"));
+  // Four actions matched ⌘⌥] on a Mac, and Excalidraw ran none (a51aab2).
+  expect(warnings.filter((w) => /multiple actions match/i.test(w))).toEqual([]);
+});
+
+test("a drawing sent behind a card stays behind it when the board opens again", async ({ app, page }) => {
+  await openPractice(app, "l-ligar");
+  await app.select("d-lig-w");
+  await page.keyboard.press(BACK);
+  await expect.poll(async () => JSON.parse(await app.file(BOARD)).verso.drawing.find((d) => d.id === "d-lig-w")?.under, { timeout: 10_000 }).toBeTruthy();
+  const under = JSON.parse(await app.file(BOARD)).verso.drawing.find((d) => d.id === "d-lig-w").under;
+  await app.key("Mod+w");
+  await app.quickOpen("Treino do Board");
+  await app.boardReady();
+  const ids = await order(app);
+  expect(ids.indexOf("d-lig-w")).toBeGreaterThanOrEqual(0);
+  expect(ids.indexOf("d-lig-w")).toBeLessThan(ids.indexOf(under));
+});
+
+test("lesson 10: an arrow between two notes, promoted to a relation, shows its name at once", async ({ app, page }) => {
+  await openPractice(app, "l-relacoes");
+  await page.keyboard.press("a");
+  const from = await app.centerOf("n-alpha");
+  const to = await app.centerOf("n-beta-2");
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 25 });
+  await page.mouse.up();
+  const arrow = (await app.scene()).find((e) => e.type === "arrow" && e.startBinding === "n-alpha" && e.endBinding === "n-beta-2");
+  expect(arrow, "the arrow binds both cards").toBeTruthy();
+  await page.locator(".board-bar").getByRole("button", { name: "Promover a relação" }).click();
+  await page.locator(".prompt-field").fill("inspira");
+  await page.locator(".prompt-field").press("Enter");
+  await page.locator(".plan:visible button.save").click();
+  await expect.poll(() => app.file("projetos/Projeto Alpha.md")).toContain('inspira: "[[Projeto Beta]]"');
+  // The label: on the arrow, measured, in no group — not invisible until the
+  // board opens again (a51aab2).
+  await expect
+    .poll(async () => {
+      const label = (await app.scene()).find((e) => e.type === "text" && e.containerId === arrow.id);
+      return label ? { text: label.text, frame: label.frameId ?? null, sized: label.width > 0 && label.height > 0 } : null;
+    })
+    .toEqual({ text: "inspira", frame: null, sized: true });
+  await expect
+    .poll(async () => {
+      const edge = JSON.parse(await app.file(BOARD)).edges.find((e) => e.id === arrow.id);
+      return edge ? [edge.label, edge.verso?.relation] : null;
+    })
+    .toEqual(["inspira", "inspira"]);
+});
+
+test("lesson 6: a group made and renamed on the board is listed and saved by its name", async ({ app, page }) => {
+  await openPractice(app, "l-grupos");
+  const before = new Set(await order(app));
+  await app.select("n-maca", "n-banana", "n-uva");
+  const at = await app.centerOf("n-maca");
+  await page.mouse.click(at.x, at.y, { button: "right" });
+  await page.getByText("Envolver a seleção num quadro", { exact: true }).click();
+  const frame = (await app.scene()).find((e) => e.type === "frame" && !before.has(e.id));
+  expect(frame, "a new frame round the fruit").toBeTruthy();
+  // Its name, above its top left corner: Excalidraw draws it as an element
+  // of the page, and a double click on it opens the field.
+  await page.locator(`[id$="-frame-name-${frame.id}"]`).dblclick();
+  const field = page.locator(".excalidraw input:focus");
+  await expect(field).toBeVisible();
+  await field.fill("Frutas");
+  await field.press("Enter");
+  await page.getByRole("button", { name: "Sumário", exact: true }).click();
+  await expect(page.locator(".board-outline-group", { hasText: "Frutas" })).toBeVisible();
+  await expect.poll(async () => JSON.parse(await app.file(BOARD)).nodes.find((n) => n.id === frame.id)?.label).toBe("Frutas");
+});
+
+test("lesson 8: a text card is edited from a double click", async ({ app, page }) => {
+  await openPractice(app, "l-cartoes");
+  const at = await app.centerOf("n-editavel");
+  await page.mouse.dblclick(at.x, at.y);
+  const field = page.locator(".prompt-field");
+  await expect(field).toBeVisible();
+  await field.fill("**Editado!** Funcionou.");
+  await page.locator(".prompt-box button.save").click();
+  await expect.poll(async () => JSON.parse(await app.file(BOARD)).nodes.find((n) => n.id === "n-editavel")?.text).toBe("**Editado!** Funcionou.");
+});
+
+test("lesson 11: the board's search finds the word as typed, and stays put while the board saves", async ({ app, page }) => {
+  await openPractice(app);
+  await app.key("Mod+f");
+  const field = page.locator(".board-search input");
+  await expect(field).toBeFocused();
+  await page.keyboard.type("tesouro");
+  await expect(field).toHaveValue("tesouro");
+  await expect(field).toHaveAttribute("spellcheck", "false");
+  await expect(page.locator(".board-search-count")).toHaveText(/^1 de \d+$/);
+  await page.waitForTimeout(800);
+  const before = await app.view();
+  // The folder changed — the board's own save, as the watcher reports it:
+  // the view stays where the user is (a51aab2).
+  await app.emit("folder-changed", { key: "harness", changed: [BOARD], removed: [], listing: false, index: { indexed: 0, unchanged: 0, removed: 0, placeholders: 0, problems: [], unwatched: null, unindexed: null } });
+  await page.waitForTimeout(800);
+  const after = await app.view();
+  expect([after.scrollX, after.scrollY, after.zoom]).toEqual([before.scrollX, before.scrollY, before.zoom]);
+});

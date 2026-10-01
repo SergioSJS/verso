@@ -204,10 +204,14 @@ through `verso-core`) — ADR 0028, Consequences.
   step of "Treino do Board". The boards are built from `scripts/demo-vault/`
   with `node scripts/demo-vault.mjs build`, never edited in the app; a key
   the tutorial teaches is checked against Excalidraw's key tests and the
-  window's bindings; and the tutorial is followed in the app, with the app's
-  log open, before the PR — the steps of
+  window's bindings; and the tutorial is followed before the PR — the steps
+  of
   [`docs/reference/demo-vault-walkthrough.md`](docs/reference/demo-vault-walkthrough.md),
-  to which the feature adds its own.
+  to which the feature adds its own. A step runs by machine in the browser
+  harness when it can (`npm run e2e` in `app/ui`; `scripts/check.sh` runs it
+  too), with its test in `app/ui/e2e/`; a new command of the contract gets
+  its answer in the harness (`app/ui/src/harness/`); what the harness cannot
+  reach is followed in the app, with the app's log open.
 
 ### Review
 

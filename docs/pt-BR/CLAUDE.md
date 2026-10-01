@@ -202,9 +202,14 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
   de `scripts/demo-vault/` com `node scripts/demo-vault.mjs build`, nunca
   editados no app; uma tecla que o tutorial ensina é conferida contra os
   testes de tecla do Excalidraw e os atalhos da janela; e o tutorial é
-  seguido no app, com o log do app aberto, antes do PR — os passos de
+  seguido antes do PR — os passos de
   [`docs/reference/demo-vault-walkthrough.md`](reference/demo-vault-walkthrough.md),
-  aos quais a feature acrescenta os seus.
+  aos quais a feature acrescenta os seus. Um passo roda por máquina no
+  harness do navegador quando pode (`npm run e2e` em `app/ui`; o
+  `scripts/check.sh` também o roda), com o seu teste em `app/ui/e2e/`; um
+  comando novo do contrato ganha a sua resposta no harness
+  (`app/ui/src/harness/`); o que o harness não alcança é seguido no app, com
+  o log do app aberto.
 
 ### Revisão
 
