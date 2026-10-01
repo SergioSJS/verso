@@ -19,6 +19,9 @@ step "fixtures (ADR 0031)"
 bash scripts/check-fixtures.sh
 step "npm licenses (ADR 0029)"
 node scripts/check-npm-licenses.mjs
+
+step "demo vault built from its sources (ADR 0058)"
+node scripts/demo-vault.mjs check
 step "std::fs in verso-core only in src/sidecar.rs (ADR 0029)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-core/src \
    | grep -v '^crates/verso-core/src/sidecar.rs:' \

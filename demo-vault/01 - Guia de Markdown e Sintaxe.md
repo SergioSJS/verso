@@ -17,7 +17,7 @@ Este documento demonstra os elementos visuais e de edição do Markdown suportad
 
 ## Títulos e Recolhimento de Seções
 
-O Verso suporta calha de dobra de código e títulos (`foldGutter`). Ao passar o mouse pela margem esquerda ao lado dos títulos abaixo, clique no ícone da seta para recolher ou expandir a seção correspondente:
+Ao passar o mouse pela margem esquerda, ao lado dos títulos abaixo, clique na seta para recolher ou expandir a seção. Na paleta (`⌘⇧P`), **Contrair todas as seções** e **Expandir todas as seções** fazem isso com a nota inteira.
 
 ### Subtítulo H3: Exemplo de Seção
 Esta seção pode ser recolhida usando a seta na margem esquerda. O conteúdo abaixo ficará oculto até que a seção seja expandida novamente.
@@ -29,10 +29,11 @@ Texto detalhado de apoio para testar a hierarquia visual.
 
 ## Formatação de Texto
 
-Você pode formatar texto usando sintaxe Markdown padrão ou através da barra flutuante de formatação:
-- **Negrito** com `**texto**`
-- *Itálico* com `*texto*`
+Você pode formatar texto com a sintaxe do Markdown ou com a barra de formatação que fica acima da nota nos modos **Editar** e **Fonte** (veja [[11 - Escrevendo no Editor]]):
+- **Negrito** com `**texto**` (`⌘B`)
+- *Itálico* com `*texto*` (`⌘I`)
 - ~~Tachado~~ com `~~texto~~`
+- ==Destaque== com `==texto==` (`⌘⇧H` enquanto escreve)
 - `Código inline` com `` `código` ``
 - Citação em bloco:
 > O conhecimento estruturado em texto puro sobrevive ao tempo e aos formatos transitórios de aplicativos proprietários.
@@ -124,5 +125,40 @@ No modo de Leitura (`Cmd+E`), passe o mouse sobre a linha divisória entre os ca
 | **Bases de Dados** | Visualização de dados tipo Obsidian Bases | Suportado |
 | **PDF Spread Mode** | Visualização em página dupla lado a lado | Suportado |
 | **Fórmulas KaTeX** | Expressões matemáticas inline e em bloco | Suportado |
+
+---
+
+## Destaques (Callouts)
+
+Um destaque é uma citação que começa com `> [!tipo]`. O tipo dá a cor e o ícone; o texto depois dele vira o título:
+
+> [!tip] Dica com título próprio
+> Escreva `> [!tip] Seu título` na primeira linha.
+
+> [!warning]- Clique no título para abrir
+> Com um `-` depois do tipo, o destaque começa **fechado** no modo Leitura; com `+`, começa aberto e também pode ser fechado.
+
+> [!note] Destaques podem ser aninhados
+> Um `>` a mais por nível:
+> > [!quote] Um destaque dentro de outro
+> > Até 32 níveis.
+
+No menu `/`, **Destaque: nota**, **Destaque: dica** e **Destaque: aviso** escrevem o começo para você.
+
+---
+
+## Notas de Rodapé, Comentários e Tags
+
+- Uma nota de rodapé se escreve `[^1]` no texto e `[^1]: explicação` em qualquer linha.[^1] As notas aparecem no fim, no modo Leitura, com um ↩ para voltar ao texto.
+- Um comentário entre `%%` some no modo Leitura: %%este trecho só aparece no Editar e no Fonte%% — mude de modo com `⌘E` para ver.
+- Uma #tag no texto vira um link no modo Leitura: o clique busca `tag:` com o nome dela.
+
+[^1]: Esta é a nota de rodapé do exemplo acima.
+
+---
+
+## Tabelas no Editor
+
+No modo Editar, com o cursor numa tabela, `Tab` e `⇧Tab` andam pelas células, `Tab` na última célula cria uma linha, e `Enter` cria uma linha abaixo. A cada passo as barras `|` se alinham sozinhas. O botão **Tabela** da barra (ou `⌘⌥T`) insere uma tabela nova, ou alinha a tabela em que o cursor está.
 
 Voltar para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou continuar para [[02 - Links, Âncoras e Notas Incorporadas]].

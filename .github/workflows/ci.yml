@@ -72,6 +72,10 @@ jobs:
       # the lockfile only, with the runner's own Node.
       - name: npm licenses on the allowlist (ADR 0029)
         run: node scripts/check-npm-licenses.mjs
+      # The demo vault's boards are their modules' and the app's embedded
+      # copy is the folder's: built, never edited by hand. Node and git only.
+      - name: demo vault built from its sources (ADR 0058)
+        run: node scripts/demo-vault.mjs check
       # verso-core's std::fs exception is the configuration directory alone,
       # written by src/sidecar.rs. Its clippy.toml has to allow the four
       # calls crate-wide (clippy cannot scope a list to one file), so this
