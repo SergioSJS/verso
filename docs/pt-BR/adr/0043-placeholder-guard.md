@@ -104,7 +104,10 @@ decide ao acordar.**
 - **O índice carrega a marca.** A versão 2 do esquema do `verso-index`
   acrescenta `notes.unverified`; um índice em qualquer outra versão é destruído
   e reconstruído, o que custa só tempo porque o índice é cache
-  ([0011](0011-config-outside-tree-index-as-cache.md)).
+  ([0011](0011-config-outside-tree-index-as-cache.md)) — menos para as notas
+  que o iCloud tirou do disco, cujo último texto e links conhecidos só o índice
+  guarda. A partir da versão 7, a versão anterior é levada no lugar, não
+  reconstruída (decidido em 2026-10-01, abaixo).
 - **Uma nota que a varredura reporta como placeholder mantém a última versão
   conhecida, marcada como não verificada** (`Index::mark_placeholder`, chamada
   pela execução de indexação do `verso-core` nas duas formas: uma entrada do
@@ -176,6 +179,26 @@ como erro.
   depois da leitura: o download diz que falhou, e a leitura continua
   recusando-o.
 
+**O que abrir cobre, e o índice entre versões. Decidido pelo mantenedor em
+2026-10-01**, em sessão, sobre a revisão crítica
+[`docs/review/board.md`](../review/board.md), seção 6, itens 7 e 8: "Aceito
+todas (Recomendado)", aceitando a recomendação do autor para cada um.
+
+- **Aberto é o arquivo da frente.** Uma nota ou um arquivo que o usuário abre,
+  e o que ele mostra — os seus embeds, os cartões de um board, as suas
+  imagens — descem. Um espaço de trabalho trazido de volta na abertura lê
+  toda aba sem baixar, e só a aba da frente de cada área desce; outra aba
+  desce quando é mostrada. Uma mudança que o vigia relata nunca baixa: uma
+  nota aberta que o macOS mandou de volta para a nuvem fica como a aba a
+  guarda. A linha de comando e o servidor MCP nunca baixam.
+- **Uma aba cujo arquivo não pôde ser lido diz isso**, na página, com um jeito
+  de tentar de novo; ela não mostra editor, então nada pode ser digitado nela
+  e perdido.
+- **O índice mantém as notas tiradas do disco entre versões.** A versão 6 do
+  esquema é levada à versão 7 no lugar: uma nota tirada do disco mantém o seu
+  último texto e links conhecidos, e toda nota lida do disco é lida de novo na
+  próxima varredura.
+
 ## Alternativas descartadas
 
 - Tratar arquivo não legível como ausente — é o comportamento que causa a perda
@@ -186,4 +209,5 @@ como erro.
 Aceito. Mecanismo de detecção: decidido para o iCloud Drive em 2026-09-22 (as
 duas formas, verificadas antes de o arquivo ser aberto); `[ABERTO]` para os
 demais provedores, cada um quando a plataforma chegar ou um usuário precisar.
-Abrir um arquivo na janela o baixa: decidido em 2026-09-30.
+Abrir um arquivo na janela o baixa: decidido em 2026-09-30; o que abrir cobre,
+e o índice entre versões: decidido em 2026-10-01.

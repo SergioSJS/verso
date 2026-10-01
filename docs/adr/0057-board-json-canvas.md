@@ -32,9 +32,10 @@ in a frontmatter value is a link, and an unquoted one is YAML.
 ## Decision
 
 **Decided on 2026-09-30 by the maintainer**, in session, choosing among the
-options of the memo. Points 7 and 9 were delegated to the author ("pode seguir
-a melhor escolha para nossa aplicação se baseando no mercado") and are the
-author's choice, for the maintainer to question.
+options of the memo. Point 7 was delegated to the author ("pode seguir a
+melhor escolha para nossa aplicação se baseando no mercado", the answer to the
+memo's question 7); point 9 is the author's choice, not asked. Both were
+decided by the maintainer on 2026-10-01 (point 18).
 
 1. **Scope.** The board enters now, recorded as the views were: this ADR, a
    revision of 0049 §3, and the roadmap and `CLAUDE.md` no longer listing the
@@ -105,7 +106,8 @@ author's choice, for the maintainer to question.
    under [0050](0050-outbound-network-access.md). The "Mermaid to
    Excalidraw" feature stays, with the second copy of Mermaid it brings.
    `0BSD` joins the npm license allowlist and `fuzzy` is taken by hand as MIT
-   (`LICENSE-MIT` in the package).
+   (`LICENSE-MIT` in the package) — confirmed by the maintainer on 2026-10-01
+   (review [`board.md`](../review/board.md) §6 item 11).
 9. **The text view stays**: a `.canvas` opens as a board, and "open as text"
    keeps the raw JSON one click away — the author's choice.
 10. **The board's finish and its settings** *(added on 2026-09-30 by the
@@ -163,6 +165,50 @@ author's choice, for the maintainer to question.
       the grid on or off when a board opens; the folder "New board" uses
       when it is not asked from a folder.
 
+**Decided on 2026-10-01 by the maintainer**, in session, on the critical
+review [`docs/review/board.md`](../review/board.md), section 6: "Aceito todas
+(Recomendado)", accepting the author's recommendation written under each item
+of that section (the review's section 8 holds the list as it was put).
+
+11. **A card's `file` is a path from the root** (item 1), as JSON Canvas words
+    it and the window reads it: the core resolves it by that path only, never
+    by a name found in another folder, so a card left at a path that is gone
+    links to nothing, and a move of its note rewrites it (point 6).
+12. **Only the user's change to the board is written** (item 3): a change to
+    a card, an edge, the drawing or the background, made with the board's
+    tools. A press, a selection, a pan or a zoom writes nothing. What the
+    board adjusts by itself — a text measured again once its font is in, a
+    marker dropped, an edge lifted out of a group — is not written on its
+    own, and rides along with the first real edit.
+13. **A canvas in another layout** (item 4) — written by another tool, or with
+    Windows line endings — is rewritten in Obsidian's layout by its first
+    save in a tab only after the rewrite is shown as a diff and accepted;
+    declined, nothing is written.
+14. **A save changes only what the user changed** (item 5). An edge keeps its
+    sides while each end stays on the card it was on, and one with no side
+    gains none; an end attached anew takes the side it meets. Geometry where
+    the file put it keeps the file's value, a fraction included; what the
+    user moved or resized is written in whole numbers. What the board cannot
+    draw — an entry with no id or type, an edge whose end names no node, an
+    empty label — goes back where it was.
+15. **An open board follows its file** (item 6): changed on disk while the
+    board holds nothing unsaved, it is drawn again from the file, as a
+    note's tab takes the disk's text; with something unsaved, its save meets
+    the difference and shows both (invariant 11).
+16. **The canvas reader is fuzzed** (item 9), beside the dialect's parser and
+    under the same guardrail (ADR 0029): a hand-written parser of files of
+    the folder.
+17. **The fields of point 10 are the format** (item 14), as named there; spec
+    §5.11 records them. For an arrow with bends, point 10 stands over the
+    memo's section 5.
+18. **Points 7 and 9 are decided** (item 15): the outline beside the board,
+    and the text view one click away.
+19. **A web page keeps the system's editing commands** (item 20). The Edit
+    menu's Undo, Redo and Select All tell the app's windows (so that ⌘Z
+    reaches a board); in a web page — a window of its own, or a site shown in
+    a window of the app — the page's own command runs, as the system's item
+    ran it.
+
 ## Consequences
 
 - ADR 0040 is decided by point 2; ADR 0024's semantic layer by point 4; ADR
@@ -205,4 +251,4 @@ section 3.2, O5).
 
 ## Status
 
-Accepted (2026-09-30).
+Accepted (2026-09-30); points 11 to 19 on 2026-10-01.

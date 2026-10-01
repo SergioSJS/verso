@@ -118,7 +118,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
   on macOS the feature goes through a private API, which only an App Store
   build would be refused for; and whoever has the app open on the machine
   can read what the window holds, the notes included — no more than access
-  to the folder already gives.
+  to the folder already gives. Confirmed by the maintainer on 2026-10-01
+  (critical review [`docs/review/board.md`](../review/board.md), §6 item 15).
+  The setting hides the menu item, the key and the palette's command; the
+  web views are built with the inspector enabled all the same, so the web
+  view's own "Inspect Element", where a menu shows it, still opens it.
 
 ## Discarded alternatives
 

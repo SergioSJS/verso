@@ -105,7 +105,10 @@ on waking.**
 - **The index carries the mark.** Schema version 2 of `verso-index` adds
   `notes.unverified`; an index at any other version is dropped and rebuilt,
   which costs nothing but time because the index is a cache
-  ([0011](0011-config-outside-tree-index-as-cache.md)).
+  ([0011](0011-config-outside-tree-index-as-cache.md)) — except for the notes
+  iCloud has evicted, whose last known text and links the index alone holds.
+  From version 7, the version before is carried over in place, not rebuilt
+  (decided on 2026-10-01, below).
 - **A note the walk reports as a placeholder keeps its last known version,
   marked unverified** (`Index::mark_placeholder`, called from `verso-core`'s
   index run for both forms: an entry of kind placeholder, and a note whose read
@@ -174,6 +177,25 @@ with the disk at 99 %, and the window showing them as errors.
   item was observed that reads as zero bytes and stays dataless after the
   read: the fetch says it failed, and the read still refuses it.
 
+**What opening covers, and the index across a version. Decided by the
+maintainer on 2026-10-01**, in session, on the critical review
+[`docs/review/board.md`](../review/board.md), section 6, items 7 and 8: "Aceito
+todas (Recomendado)", accepting the author's recommendation for each.
+
+- **Opened is the file in front.** A note or file the user opens, and what it
+  shows — its embeds, the cards of a board, its pictures — come down. A
+  workspace brought back at start reads every tab without fetching, and only
+  the tab in front of each pane comes down; another tab comes down when it is
+  shown. A change the watcher reports never fetches: an open note that macOS
+  sent back to the cloud stays as its tab holds it. The command line and the
+  MCP server never fetch.
+- **A tab whose file could not be read says so**, in the page, with a way to
+  try again; it shows no editor, so nothing can be typed into it and lost.
+- **The index keeps evicted notes across a version.** Version 6 of the schema
+  is carried over to version 7 in place: an evicted note keeps its last known
+  text and links, and every note read from disk is read again on the next
+  walk.
+
 ## Discarded alternatives
 
 - Treating an unreadable file as absent — that is the behavior that causes the
@@ -184,4 +206,5 @@ with the disk at 99 %, and the window showing them as errors.
 Accepted. Detection mechanism: decided for iCloud Drive on 2026-09-22 (both
 forms, checked before the file is opened); `[OPEN]` for the other providers,
 each one when its platform arrives or a user needs it. Opening a file in the
-window fetches it: decided on 2026-09-30.
+window fetches it: decided on 2026-09-30; what opening covers, and the index
+across a version: decided on 2026-10-01.

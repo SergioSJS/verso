@@ -123,6 +123,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
   macOS a opção passa por uma API privada, o que só faria um build da App
   Store ser recusado; e quem tem o app aberto na máquina pode ler o que a
   janela guarda, notas incluídas — nada além do que o acesso à pasta já dá.
+  Confirmado pelo mantenedor em 2026-10-01 (revisão crítica
+  [`docs/review/board.md`](../review/board.md), §6 item 15). A configuração
+  esconde o item de menu, a tecla e o comando da paleta; as web views são
+  construídas com o inspetor ligado do mesmo jeito, então o "Inspecionar
+  elemento" da própria web view, onde um menu o mostra, ainda o abre.
 
 ## Alternativas descartadas
 

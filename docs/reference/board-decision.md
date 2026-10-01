@@ -312,7 +312,7 @@ recommendation first:
 | Where does a relation promoted on the board live? | in the source note's frontmatter, `aliado: "[[B]]"` (recommended); only on the board's edge; the semantic layer deferred | **the source note's frontmatter** |
 | "Pode adicionar": Xiaolai ships, the "Mermaid to Excalidraw" feature stays with its copy of Mermaid, and the online features stay hidden under ADR 0050? | correct (recommended); turn the online features on too, with ADR 0050 amended | **correct** |
 
-Three more probes, run before writing ADR 0057 on the same Sandbox, by the
+Four more probes, run before writing ADR 0057 on the same Sandbox, by the
 method of section 3 (a throwaway folder `verso-rel-probe/`, removed
 afterwards):
 

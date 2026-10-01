@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.11 · 2026-09-30
+> Versão 0.12 · 2026-10-01
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -331,7 +331,7 @@ Suporte especial a quem joga e mestra é intenção declarada. `DECIDIDO` para a
 |---|---|
 | pt-BR e EN desde o primeiro commit | `DECIDIDO` |
 | Acessibilidade desde o início | `DECIDIDO` |
-| Board com vista equivalente acessível (lista ou tabela das mesmas notas e relações) | `DECIDIDO` (v0.11, ADR 0057: um sumário ao lado do board) |
+| Board com vista equivalente acessível (lista ou tabela das mesmas notas e relações) | `DECIDIDO` (v0.11, ADR 0057: um sumário ao lado do board; decidido pelo mantenedor em 2026-10-01, v0.12) |
 | Metas de performance | `ABERTO` — sem metas por ora |
 | Benchmark com vault sintético registrando linha de base | `DECIDIDO` |
 
@@ -483,3 +483,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.9 | 2026-09-24 | §5.2, §5.3, §11.3 e §17 item 7: decididos pelo mantenedor, sobre o memo docs/reference/typed-note-decision.md — a degradação para Markdown (ADR 0013, aceito como está escrito, com "views" e "dado estruturado" delimitados), a nota tipada e o i18n de schema (ADR 0052), e o formato e a localização dos schemas: um bloco `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados (Q11 da spec). A localização é a escolha do mantenedor entre a §5.3 (arquivo de texto na pasta) e a §8 (schemas na camada compartilhada da config), que fica como está, `PROPOSTO`, e agora discorda sobre schemas. |
 | 0.10 | 2026-09-24 | §2 e §17 item 2: domínio decidido pelo mantenedor — comprou `versomd.com`, o mais próximo de `verso.md` que conseguiu (ADR 0004). A disponibilidade em crates.io, npm e org do GitHub segue em aberto. |
 | 0.11 | 2026-09-30 | §5.3, §9, §11.3, §13, §15 e §17 itens 6 e 9: decididos pelo mantenedor, sobre o memo docs/reference/board-decision.md — o board entra na Fase 2; a persistência é o próprio `.canvas`, com o desenho do Excalidraw sob uma chave de topo `verso`; a camada semântica e a relação tipada, cuja sintaxe é uma propriedade do frontmatter da nota de origem com wikilink entre aspas (Q10 da spec); a vista acessível do board, um sumário ao lado dele (ADR 0057). |
+| 0.12 | 2026-10-01 | §13: a vista acessível do board, um sumário ao lado dele — escrita como `DECIDIDO` na v0.11 enquanto o ADR 0057 a deixava como escolha do autor — decidida pelo mantenedor em 2026-10-01, sobre a revisão crítica docs/review/board.md (§6 item 15). Nenhuma outra mudança. |

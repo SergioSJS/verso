@@ -52,7 +52,8 @@ Each step ends with its level:
   a `#heading` to one of its note's; the daily notes and the templates sit
   where the app looks by default; every numbered note is in the welcome note's
   map, on the tour, and links to the next one.
-- **U** — a unit test, runs now: `npm test` in `app/ui`, `cargo test`.
+- **U** — a unit test, runs now: `npm test` in `app/ui` and `cargo test`,
+  both in `scripts/check.sh` and in CI.
 - **H** — the window's own behaviour, the core aside: it runs in the browser
   harness (`app/ui/src/harness.ts`, a core in TypeScript over the demo vault
   in memory).
@@ -86,8 +87,11 @@ point 13).
    puts the caret in the link). Expect: the board opens with every stop in
    rows of three, numbered at their top right, a dashed trail joining them in
    order; every drawn text whole. The file is unchanged. Check: the screen;
-   `cmp` of the file before and after. Level: H; E: `board-tour.spec.mjs`.
-   Caught: drawn text cut while its font loaded (`a147e8e`).
+   `cmp` of the file before and after. Level: H; E: `board-tour.spec.mjs`
+   (no board written, the text measured with its font) and
+   `board-file.spec.mjs` (no board written after a press, a pan and a zoom
+   right after opening). Caught: drawn text cut while its font loaded
+   (`a147e8e`); a press right after opening wrote the board (2026-10-01).
 2. Sumário: the stops are listed in their numbers' order; a click on each
    shows it whole and legible, its notes live on their cards; closing the
    Sumário keeps the stop in view. Level: H; E: `board-tour.spec.mjs`.
@@ -111,7 +115,7 @@ point 13).
 2. Note 11 in Editar: on an empty line, `/` opens the menu with Básico,
    Listas, Destaques and Inserir; typing `data` leaves "Data de hoje", and
    Enter writes today's date; ⌘Z takes it back. Level: H; E:
-   `notes.spec.mjs`.
+   `notes.spec.mjs` (the date written at the end, and gone after ⌘Z).
 3. Note 02: every link leads to its note, a `#heading` to its heading; the
    embed shows "Editar ao lado". Level: S (the links), H.
 4. Note 06 in Leitura: `![Diagrama|320](assets/diagrama.svg)` is shown
@@ -121,6 +125,13 @@ point 13).
    window's own address before the folder's, drawn 0 px wide (the size after
    an alt text was not read), and its resize rewrote the example
    (2026-10-01).
+5. A picture whose file name has an accent (`assets/gráfico.svg`) shows from
+   the folder. Level: H; E: `notes.spec.mjs`. Caught: the renderer
+   percent-encodes the address, and the window asked the core for
+   `gr%C3%A1fico` (2026-10-01).
+6. A note changed on disk while text typed in its tab is unsaved: both
+   versions are shown, and the disk's stays (invariant 11). Level: H; E:
+   `notes.spec.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 
@@ -140,7 +151,8 @@ point 13).
 
 ## 5. Finding
 
-1. ⌘K `tag:projeto`: the three projects. Level: A (the core's search).
+1. ⌘K `tag:projeto`: the two projects with the tag, and the template
+   `Novo Projeto`, which carries it too. Level: A (the core's search).
 2. With the focus outside the editor, ⌘⇧H: "Localizar e substituir no
    cofre…"; ✓ shows the plan, note by note; "Deixar como está" writes
    nothing. Level: A.
@@ -153,19 +165,28 @@ point 13).
    and board that points to it; "Atualizar links" rewrites them — the boards'
    cards and a relation in a frontmatter included — and the backlinks panel
    shows them at once. Level: A (the core's rewrite); E: `notes.spec.mjs`,
-   the window's side. Caught: the renamed note showed no backlinks until
-   reopened (`a51aab2`).
+   the window's side — the notes and the board rewritten, the panel at once;
+   the relation in a frontmatter is followed by hand. Caught: the renamed
+   note showed no backlinks until reopened (`a51aab2`).
 2. The PDF: its bar as note 06 names it; select a line, "Citar seleção nas
    anotações": `assets/manual-verso — Anotações.md` holds the quote, linked
    to its page. Level: A.
 3. F2 renames the open note — right after a click on its row in the tree
    too — and the row of the tree that has the keyboard focus; in an editor or
-   a field, F2 is theirs. Level: H; E: `tabs.spec.mjs`. Caught: after a
-   click, F2 did nothing (2026-10-01).
+   a field, F2 is theirs. Level: H; E: `tabs.spec.mjs`, the open note after
+   a click on its row; the row with the keyboard focus and a field by hand.
+   Caught: after a click, F2 did nothing (2026-10-01).
 4. A click on a file of the tree opens it in a preview tab, its title in
    italics, which the next click replaces; a double click keeps it
    ([ADR 0059](../adr/0059-tabs-preview-pinned.md)). Level: H; E:
    `tabs.spec.mjs`.
+5. ‹ and ⌘[ step back through the notes clicked in the tree, though one
+   preview tab showed them all; ⌘] steps forward. Level: H; E:
+   `tabs.spec.mjs`. Caught: the trail held tabs, and a replaced preview
+   tab left no way back (2026-10-01).
+6. With a question on screen (Settings, a plan), the menu's ⌘W closes
+   nothing behind it; with no tab left, ⌘W closes the window. Level: H (the
+   question); E: `tabs.spec.mjs`; A (the window).
 
 ## 7. The web
 
@@ -189,6 +210,19 @@ point 13).
    opened again: the file keeps its place among the cards (`under`).
    Level: U (the model), H; E: `board-practice.spec.mjs`. Caught: it came
    back over the cards (2026-10-01).
+4. A card moved and the tab closed at once: the move is saved, not lost.
+   Level: H; E: `board-file.spec.mjs`. Caught: the save waiting in its delay
+   was dropped with the tab (2026-10-01).
+5. The board's file changed on disk (by Obsidian) while nothing is unsaved:
+   the board is drawn again from it; changed here too, both versions are
+   shown and nothing is written over the disk. Level: H; E:
+   `board-file.spec.mjs`. Caught: an open board never followed its file
+   (2026-10-01).
+6. A canvas written in another layout (one line, or Windows line endings):
+   the first edit shows the rewrite as a diff and asks; "Deixar como está"
+   writes nothing. Level: H; E: `board-file.spec.mjs`.
+7. A canvas saved by a later Verso (`verso.version` 2) opens to look at only:
+   a drag writes nothing. Level: H; E: `board-file.spec.mjs`.
 
 ## 9. The practice board
 

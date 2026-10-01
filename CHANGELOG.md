@@ -41,6 +41,22 @@ test release.
 
 ### Fixed
 
+- **The updater finds `gh` when the app is opened from the Dock**, whose PATH does not reach Homebrew's folder, and says why a 404 came back.
+- **An SVG opens fitted to the view**, where it opened as an empty tab.
+- **The status bar's palette button is an icon.**
+- **A PDF in a background tab fits its pane when it is shown**, and "Move to Trash" is said in English in the English interface.
+- **The log says why the app quit.**
+- **A board writes only what you change on it**: opening a board and clicking, panning or zooming right away no longer writes the file; what the board adjusts by itself goes in only with your first edit. A save keeps what you did not touch — an edge's sides, positions that are not whole numbers, entries the board cannot draw — and a board saved by a newer Verso opens to look at only.
+- **Closing a board right after an edit keeps the edit**: a card moved, or a note typed into inside its card, and the tab closed or the app quit within the save's delay, was lost; it is saved first now.
+- **An open board follows its file**: changed on disk by Obsidian while nothing is unsaved here, the board is drawn again from it; changed on both sides, the two versions are shown as the canvas would be written, so the difference is the content and not the layout.
+- **A canvas in another layout asks before it is rewritten**: one written by another tool, or with Windows line endings, shows the rewrite in Obsidian's layout as a diff on its first save, and nothing is written on a no.
+- **A note moved into a folder keeps its cards**: the boards' cards follow it to its new path; a card whose path is gone no longer counts as a link to a note of the same name elsewhere. `verso backlinks`, `links` and the MCP's `read_note` take a board too.
+- **Typed relations**: a key written in another case (`Aliado:`) gains the link instead of a second key, a note whose only property is the relation can gain another, and a note whose name a link cannot hold (`|`, `#`, `^`) is refused in a sentence of the board's own.
+- **Files left in iCloud**: tabs brought back at start no longer download until they are shown, and a change seen in the folder never downloads; a file that could not be read opens as a page that says why, with "Try again", instead of an empty tab that took typing it never saved. Updating keeps the last known text of notes iCloud took off the disk, where the index used to be rebuilt.
+- **Pictures**: a picture whose file name has an accent or a space shows in every view, and resizing one by its corner writes on that picture and no other.
+- **Back and forward step through the notes you visited**, also when one preview tab showed them all; ⌘W with no tab left closes the pane or the window; F2 and the menu's ⌘W no longer act behind a dialog; the mouse's side button takes one step per press.
+- **⌘Z, ⌘⇧Z and ⌘A work in web pages again**, in a page's own window and in a site shown inside a note.
+- **The bug report hides your home folder in the log's lines too**, a long message no longer fills the log, and a diagram half typed is a warning, not an error.
 - **"Add property" no longer paints over the note**: on a note with no properties the button was taken out of the flow and floated over whatever was under it — the title's rule and the first lines of the note. It keeps its own band at the right now, and still appears only when the sheet is hovered.
 
 ## 0.3.0-beta.2 — 2026-09-29

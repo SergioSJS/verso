@@ -33,9 +33,10 @@ entre aspas num valor do frontmatter é link, e um sem aspas é YAML.
 ## Decisão
 
 **Decidido em 2026-09-30 pelo mantenedor**, em sessão, escolhendo entre as
-opções do memo. Os pontos 7 e 9 foram delegados ao autor ("pode seguir a
-melhor escolha para nossa aplicação se baseando no mercado") e são escolha do
-autor, para o mantenedor questionar.
+opções do memo. O ponto 7 foi delegado ao autor ("pode seguir a melhor
+escolha para nossa aplicação se baseando no mercado", a resposta à pergunta 7
+do memo); o ponto 9 é escolha do autor, não perguntada. Os dois foram
+decididos pelo mantenedor em 2026-10-01 (ponto 18).
 
 1. **Escopo.** O board entra agora, registrado como foram as vistas: este
    ADR, uma revisão do 0049 §3, e o roadmap e o `CLAUDE.md` deixando de listar
@@ -108,7 +109,8 @@ autor, para o mantenedor questionar.
    [0050](0050-outbound-network-access.md). O recurso "Mermaid to Excalidraw"
    fica, com a segunda cópia do Mermaid que ele traz. `0BSD` entra na
    allowlist de licenças npm e `fuzzy` é aceito à mão como MIT (`LICENSE-MIT`
-   no pacote).
+   no pacote) — confirmado pelo mantenedor em 2026-10-01 (revisão
+   [`board.md`](../review/board.md) §6 item 11).
 9. **A vista de texto fica**: um `.canvas` abre como board, e "abrir como
    texto" mantém o JSON cru a um clique — escolha do autor.
 10. **O acabamento do board e as suas configurações** *(acrescentado em
@@ -171,6 +173,53 @@ autor, para o mantenedor questionar.
       código); a grade ligada ou não ao abrir um board; a pasta que "Novo
       board" usa quando não é chamado de uma pasta.
 
+**Decidido em 2026-10-01 pelo mantenedor**, em sessão, sobre a revisão
+crítica [`docs/review/board.md`](../review/board.md), seção 6: "Aceito todas
+(Recomendado)", aceitando a recomendação do autor escrita sob cada item dessa
+seção (a seção 8 da revisão guarda a lista como foi apresentada).
+
+11. **O `file` de um cartão é um caminho a partir da raiz** (item 1), como o
+    JSON Canvas o descreve e a janela o lê: o core o resolve só por esse
+    caminho, nunca por um nome achado em outra pasta, então um cartão
+    deixado num caminho que sumiu não liga a nada, e mover a nota dele o
+    reescreve (ponto 6).
+12. **Só a mudança do usuário no board é gravada** (item 3): uma mudança num
+    cartão, numa aresta, no desenho ou no fundo, feita com as ferramentas do
+    board. Um clique, uma seleção, um arrasto da vista ou um zoom não gravam
+    nada. O que o board ajusta sozinho — um texto medido de novo quando a
+    fonte chega, um marcador tirado, uma aresta tirada de um grupo — não é
+    gravado por si, e vai junto com a primeira edição de verdade.
+13. **Um canvas em outro layout** (item 4) — escrito por outra ferramenta, ou
+    com fins de linha do Windows — só é reescrito no layout do Obsidian pelo
+    primeiro salvamento numa aba depois de a reescrita aparecer como diff e
+    ser aceita; recusada, nada é gravado.
+14. **Um salvamento muda só o que o usuário mudou** (item 5). Uma aresta
+    mantém os seus lados enquanto cada ponta fica no cartão em que estava, e
+    uma sem lado não ganha nenhum; uma ponta presa de novo toma o lado que
+    encontra. A geometria onde o arquivo a pôs mantém o valor do arquivo,
+    fração inclusive; o que o usuário moveu ou redimensionou é gravado em
+    números inteiros. O que o board não consegue desenhar — uma entrada sem
+    id ou tipo, uma aresta cuja ponta não nomeia nó, um rótulo vazio — volta
+    para onde estava.
+15. **Um board aberto segue o seu arquivo** (item 6): mudado em disco
+    enquanto o board não guarda nada não salvo, ele é desenhado de novo a
+    partir do arquivo, como a aba de uma nota toma o texto do disco; com algo
+    não salvo, o salvamento encontra a diferença e mostra as duas versões
+    (invariante 11).
+16. **O leitor de canvas passa por fuzzing** (item 9), ao lado do parser do
+    dialeto e sob o mesmo guardrail (ADR 0029): um parser escrito à mão de
+    arquivos da pasta.
+17. **Os campos do ponto 10 são o formato** (item 14), com os nomes de lá; a
+    §5.11 da spec os registra. Para uma seta com dobras, o ponto 10 vale
+    sobre a seção 5 do memo.
+18. **Os pontos 7 e 9 estão decididos** (item 15): o sumário ao lado do board,
+    e a vista de texto a um clique.
+19. **Uma página web mantém os comandos de edição do sistema** (item 20).
+    Desfazer, Refazer e Selecionar tudo do menu Edição avisam as janelas do
+    app (para que o ⌘Z chegue a um board); numa página web — uma janela só
+    dela, ou um site mostrado numa janela do app — roda o comando da própria
+    página, como o item do sistema rodava.
+
 ## Consequências
 
 - O ADR 0040 é decidido pelo ponto 2; a camada semântica do ADR 0024 pelo
@@ -214,4 +263,4 @@ seguinte (memo, seção 3.2, O5).
 
 ## Status
 
-Aceito (2026-09-30).
+Aceito (2026-09-30); os pontos 11 a 19 em 2026-10-01.

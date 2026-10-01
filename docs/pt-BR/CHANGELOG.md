@@ -41,6 +41,22 @@ versão de teste.
 
 ### Corrigido
 
+- **O atualizador acha o `gh` quando o app é aberto pelo Dock**, cujo PATH não alcança a pasta do Homebrew, e diz por que veio um 404.
+- **Um SVG abre ajustado à vista**, onde abria como uma aba vazia.
+- **O botão da paleta na barra de status é um ícone.**
+- **Um PDF numa aba de fundo se ajusta à área quando aparece**, e "Mover para a Lixeira" fala inglês na interface em inglês.
+- **O log diz por que o app fechou.**
+- **Um board grava só o que você muda nele**: abrir um board e clicar, arrastar a vista ou dar zoom logo em seguida não grava mais o arquivo; o que o board ajusta sozinho só entra com a sua primeira edição. Um salvamento mantém o que você não tocou — os lados de uma aresta, posições que não são números inteiros, entradas que o board não consegue desenhar — e um board salvo por um Verso mais novo abre só para ver.
+- **Fechar um board logo depois de uma edição mantém a edição**: um cartão movido, ou uma nota digitada dentro do cartão, e a aba fechada ou o app encerrado dentro do atraso do salvamento, se perdia; agora é salvo antes.
+- **Um board aberto segue o seu arquivo**: mudado em disco pelo Obsidian sem nada não salvo aqui, o board é desenhado de novo a partir dele; mudado dos dois lados, as duas versões aparecem como o canvas seria gravado, então a diferença é o conteúdo, não o layout.
+- **Um canvas em outro layout pergunta antes de ser reescrito**: um escrito por outra ferramenta, ou com fins de linha do Windows, mostra a reescrita no layout do Obsidian como diff no primeiro salvamento, e nada é gravado num não.
+- **Uma nota movida para uma pasta mantém os seus cartões**: os cartões dos boards a seguem até o caminho novo; um cartão cujo caminho sumiu não conta mais como link para uma nota de mesmo nome em outro lugar. `verso backlinks`, `links` e o `read_note` do MCP aceitam um board também.
+- **Relações tipadas**: uma chave escrita em outra caixa (`Aliado:`) ganha o link em vez de uma segunda chave, uma nota cuja única propriedade é a relação pode ganhar outra, e uma nota cujo nome um link não comporta (`|`, `#`, `^`) é recusada com uma frase do próprio board.
+- **Arquivos deixados no iCloud**: as abas trazidas de volta na abertura não baixam mais até aparecerem, e uma mudança vista na pasta nunca baixa; um arquivo que não pôde ser lido abre como uma página que diz por quê, com "Tentar de novo", em vez de uma aba vazia que aceitava texto que nunca salvava. Atualizar mantém o último texto conhecido das notas que o iCloud tirou do disco, onde o índice era reconstruído.
+- **Imagens**: uma imagem cujo nome de arquivo tem acento ou espaço aparece em toda vista, e redimensionar uma pelo canto grava nessa imagem e em nenhuma outra.
+- **Voltar e avançar passam pelas notas que você visitou**, também quando uma só aba de pré-visualização mostrou todas; ⌘W sem aba nenhuma fecha a área ou a janela; F2 e o ⌘W do menu não agem mais por trás de um diálogo; o botão lateral do mouse dá um passo por clique.
+- **⌘Z, ⌘⇧Z e ⌘A voltam a funcionar em páginas web**, na janela própria de uma página e num site mostrado dentro de uma nota.
+- **O relato de problema esconde a sua pasta pessoal também nas linhas do log**, uma mensagem longa não enche mais o log, e um diagrama digitado pela metade é aviso, não erro.
 - **"Adicionar propriedade" não pinta mais por cima da nota**: numa nota sem propriedades o botão saía do fluxo e flutuava sobre o que estivesse embaixo — a linha do título e as primeiras linhas da nota. Agora ele tem faixa própria à direita, e continua aparecendo só quando o mouse está sobre a folha.
 
 ## 0.3.0-beta.2 — 2026-09-29

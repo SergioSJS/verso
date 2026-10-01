@@ -35,7 +35,14 @@
   third one declared and ratified the same day, `std::fs::read_dir` in
   `verso-core`; the contradiction about the command line's link resolved, the
   shell's link now made with `std::fs` inside `src/update.rs` and only the
-  administrator prompt left as a subprocess (the same section).
+  administrator prompt left as a subprocess (the same section). 2026-10-01 —
+  on the critical review [`docs/review/board.md`](../review/board.md), §6
+  items 9 to 12, the maintainer accepting the author's recommendations: the
+  canvas reader of `verso-core` fuzzed beside the dialect's parser; the
+  fourth exception, `src/log.rs`, ratified, and the log a decision; `0BSD`
+  on the npm allowlist and `fuzzy` taken by hand as MIT; the window's unit
+  tests in `scripts/check.sh` and in the pull request's job; the demo vault's
+  check named among the guardrails.
 
 ## Context
 
@@ -66,7 +73,7 @@ it. The two groups are separated below.
 
 | Guardrail | Prevents | Goes in with |
 |---|---|---|
-| Fuzzing the parser with `cargo-fuzz` | a malformed file freezing the app | Phase 1, feature 1 |
+| Fuzzing the parser with `cargo-fuzz`, and the canvas reader of `verso-core` beside it (target `canvas`) | a malformed file freezing the app | Phase 1, feature 1; the canvas reader with the board, 2026-10-01 |
 | Round-trip property test (definition in `docs/spec/dialect.md`, Q18) | opening rewriting the file | Phase 1, feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | the parser ceasing to compile to WASM and losing the conformance suite with the editor | Phase 1, feature 1 |
 | Atomic write (see requirements below) | corruption on power loss | Phase 1, feature 2 |
@@ -74,7 +81,9 @@ it. The two groups are separated below.
 | Parameterized queries + escaping of the FTS5 syntax | search breaking with quotes and operators | Phase 1, feature 3 |
 | Benchmark with a synthetic vault | performance regression | Phase 1, feature 5 |
 | Check that the generated TS types are up to date | rule 3 of the contract turning into a convention ([0038](0038-ts-type-generation.md)) | Phase 2, item 2.1 |
-| npm license allowlist over the window's lockfile (`scripts/check-npm-licenses.mjs`): `deny.toml`'s list plus OFL-1.1, the fonts' license | a package the window bundles under a license the project cannot ship | Phase 2, at the maintainer's request of 2026-09-23 |
+| npm license allowlist over the window's lockfile (`scripts/check-npm-licenses.mjs`): `deny.toml`'s list plus OFL-1.1 (the fonts), Unlicense and EPL-2.0 (Mermaid's tree, 2026-09-29) and 0BSD (Excalidraw's tree, 2026-10-01); a package with no license field taken by hand only where the script names it and why | a package the window bundles under a license the project cannot ship | Phase 2, at the maintainer's request of 2026-09-23 |
+| The window's unit tests (`npm test` in `app/ui`): the board's model, the PDF spec, Mermaid | the board's model changing what it writes, or a helper of the window breaking, unnoticed | the board, 2026-10-01 |
+| The demo vault built from its sources and holding together (`node scripts/demo-vault.mjs check`, [0058](0058-demo-vault-as-tutorial.md)) | a stale embedded copy, a board edited by hand, a tutorial whose links or steps no longer hold | the tutorial, 2026-10-01 |
 
 CI on macOS and Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, plus the commands of the feature guardrails as they come in.
@@ -96,9 +105,11 @@ the billing page showed for the cycle, in a quota that counts each as ten.
 
 - **A pull request** runs every guardrail but the fuzzing in **one Linux
   job**, cheapest first, over one cache: the documents' mirror, the fixtures,
-  the npm licenses, the `std::fs` grep, `cargo fmt --check`, `cargo deny
-  check`, clippy, the tests, the generated types, the UI's type check and
-  bundle, the WASM check.
+  the npm licenses, the demo vault's check, the `std::fs` grep, `cargo fmt
+  --check`, `cargo deny check`, clippy, the tests, the generated types, the
+  UI's type check, bundle and unit tests, the WASM check. The window's
+  end-to-end tests run on the author's machine only
+  ([0058](0058-demo-vault-as-tutorial.md), point 13).
 - **`main`**, after each merge, runs that job again, and three more: **clippy
   and the tests on macOS** — the checks whose answer can depend on the
   platform (the file system, extended attributes, WebKit); fmt, `cargo deny`
@@ -375,6 +386,16 @@ How the author built it:
   The status bar's bug button fills a report with the build, the state, the
   session's errors and the end of the log, shows it whole and editable, and
   copies it. Nothing leaves the machine.
+
+**Ratified by the maintainer on 2026-10-01** (review
+[`docs/review/board.md`](../review/board.md), §6 item 10, "Aceito todas
+(Recomendado)"): `src/log.rs` as the fourth exception, and the log itself a
+decision. With it, what the log hands to a report: the home directory shown as
+`~` wherever it appears in the log's lines, the log named by its file alone
+when no home is known (rule 4 of
+[0026](0026-core-ui-contract-inviolable-rules.md)), one message capped at
+4 KiB; an error a note's own content causes — a diagram half typed — is a
+warning, not an error.
 
 Verified in the app with real failures — a note that is not UTF-8 and a Mermaid
 diagram that does not parse both reached the file. The uncaught script error,

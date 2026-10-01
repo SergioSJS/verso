@@ -48,13 +48,16 @@ repositório.
    ([0051](0051-development-flow-and-releases.md)): uma nota que a ensina, um
    cartão ou uma linha no tour e, para o board, uma lição ou um passo de uma.
 
-Como ele é mantido é do autor, para o mantenedor questionar:
+Como ele é mantido era do autor, para o mantenedor questionar; aceito pelo
+mantenedor em 2026-10-01 (ponto 14):
 
-4. **Os boards são construídos por código.** `scripts/demo-vault/tour.mjs` e
-   `scripts/demo-vault/treino.mjs` são a fonte deles;
-   `node scripts/demo-vault.mjs build` os escreve no layout em que o Verso
-   escreve (abrir um não escreve nada) e embute a pasta no app. Um board nunca
-   é editado no app e commitado: o build seguinte desfaria a edição.
+4. **Os dois boards do tutorial são construídos por código.**
+   `scripts/demo-vault/tour.mjs` e `scripts/demo-vault/treino.mjs` são a fonte
+   deles; `node scripts/demo-vault.mjs build` os escreve no layout em que o
+   Verso escreve (abrir um não escreve nada) e embute a pasta — os arquivos que
+   o git acompanha — no app. Nenhum dos dois é editado no app e commitado: o
+   build seguinte desfaria a edição. O terceiro board do cofre, "Board de
+   Demonstração", é mantido à mão.
 5. **O que um board ensina é lido como texto desenhado**, legível no zoom em
    que uma parada ou uma lição inteira aparece; o Markdown de um cartão de
    texto fica pequeno demais ali. As notas continuam notas, como cartões.
@@ -89,16 +92,22 @@ comportamento da própria janela:
    cresce com o app, e ninguém segue o percurso à mão para saber que ele
    ainda funciona.
 
-Como ele é mantido é do autor, para o mantenedor questionar:
+Como ele é mantido era do autor, para o mantenedor questionar; aceito pelo
+mantenedor em 2026-10-01 (ponto 14):
 
 9. **O harness** (`app/ui/src/harness.ts` e `app/ui/src/harness/`) é a
    janela sobre um core escrito em TypeScript: o cofre de exemplo em memória,
    ou uma pasta vazia (`?vault=empty`); todo comando do contrato respondido
    com as formas e os erros do contrato, pelo próprio mock de IPC do Tauri, e
    depois, como o IPC de verdade responde; o protocolo `verso:` servido da
-   mesma memória; o log do app guardado. Ele não é o core: links, busca e
-   bases são respondidos por alto, o bastante para a janela se comportar. O
-   que o core faz é dos testes em Rust.
+   mesma memória; o log do app guardado; a página sob a própria
+   Content-Security-Policy do app. Ele não é o core: links, busca e bases são
+   respondidos por alto, o bastante para a janela se comportar; as suas
+   escritas são confinadas como as do core, mas a escrita de um board dispõe
+   o canvas da janela sem o merge do core, ele nunca guarda um placeholder, e
+   não manda evento de pasta depois das escritas da própria janela. O que o
+   core faz é dos testes em Rust. Ele é construído à parte do app
+   (`app/ui/e2e/build.mjs`, em `app/ui/e2e/.site/`) e nunca empacotado.
 10. **Todo comando do contrato tem resposta no harness.**
     `app/ui/e2e/harness.spec.mjs` lê o `bindings.ts` e falha num comando que
     o harness não conhece: um comando novo chega com a sua resposta.
@@ -116,8 +125,20 @@ Como ele é mantido é do autor, para o mantenedor questionar:
     harness não alcança fica à mão, e o percurso diz o quê: o core de
     verdade, o protocolo `verso:` do app, os menus e as teclas do Mac como o
     sistema os entrega (o evento de um menu é enviado como o host o envia),
-    arquivos soltos a partir do Finder, o atualizador, e onde o WKWebView
-    difere do WebKit do Playwright.
+    arquivos soltos a partir do Finder, o atualizador, um arquivo que o
+    iCloud guarda na nuvem, e onde o WKWebView difere do WebKit do
+    Playwright.
+
+**Decidido em 2026-10-01 pelo mantenedor**, em sessão, sobre a revisão crítica
+[`docs/review/board.md`](../review/board.md), seção 6, itens 12 e 13:
+"Aceito todas (Recomendado)".
+
+14. **Os pontos 4 a 7 e 9 a 13 estão aceitos** como escritos acima. Os testes
+    unitários da janela (`npm test` em `app/ui`) rodam no `scripts/check.sh` e
+    no job do pull request do CI ([0029](0029-guardrails-in-ci.md)); os
+    testes de ponta a ponta ficam na máquina do autor.
+15. **O harness nunca faz parte do app**: é construído fora do `dist/`, que o
+    app empacota.
 
 ## Consequências
 
@@ -136,9 +157,12 @@ Como ele é mantido é do autor, para o mantenedor questionar:
 - O `@playwright/test` (Apache-2.0) é uma dependência nova de
   desenvolvimento da janela, nunca distribuída; o WebKit dele é baixado na
   primeira execução do `scripts/check.sh`.
-- O `npm run build` escreve o `dist/harness.html` ao lado da página da
-  janela, como já construía ali o script do harness; o app nunca o abre.
-- Os minutos do CI não crescem: os testes rodam na máquina do autor.
+- O `npm run build` escreve só o app; a página e o script do harness são
+  construídos pelo servidor do Playwright em `app/ui/e2e/.site/` (ponto 15), e
+  os bundles dos testes unitários vão para `app/ui/test/.bundles/`, os dois
+  fora do que o app empacota.
+- Os minutos do CI crescem só pelos testes unitários, segundos; os testes de
+  ponta a ponta rodam na máquina do autor.
 
 ## Alternativas descartadas
 
@@ -155,3 +179,9 @@ Como ele é mantido é do autor, para o mantenedor questionar:
   e as teclas do Mac incluídos, mas toma o mouse e o teclado enquanto roda,
   acha as coisas na tela pela posição, e precisa de um agente para ler o que
   vê. Apresentada ao mantenedor em 2026-10-01, que escolheu o harness.
+
+## Status
+
+Aceito (2026-10-01): os pontos 1 a 3 e 8 decididos pelo mantenedor; os pontos
+4 a 7 e 9 a 13 aceitos pelo mantenedor no mesmo dia, com os pontos 14 e 15.
+`[ABERTO]`: o cofre de exemplo em inglês.

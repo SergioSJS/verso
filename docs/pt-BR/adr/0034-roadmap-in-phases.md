@@ -3,6 +3,11 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §15, §10.3
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-10-01 — o board saiu da lista do ponto 4 em 2026-09-30, pela
+  decisão do mantenedor registrada no [0057](0057-board-json-canvas.md),
+  ponto 1; este ADR aponta para lá desde a decisão do mantenedor de
+  2026-10-01 sobre a revisão crítica
+  [`docs/review/board.md`](../review/board.md), §6 item 16.
 
 ## Contexto
 
@@ -19,7 +24,8 @@ features como plugins e um portão de um mês de uso real antes de seguir.
 3. **Fase 2 — Esqueleto andante no macOS**: Tauri + CM6, contrato com tipos
    gerados, um tipo de nota ponta a ponta.
 4. Fora de escopo até o fim da Fase 2: sync, mobile, plugins, board e shim de
-   compatibilidade.
+   compatibilidade. *(O board saiu desta lista em 2026-09-30:
+   [0057](0057-board-json-canvas.md), ponto 1.)*
 
 Os critérios de saída estão em `docs/roadmap.md`.
 
@@ -42,4 +48,5 @@ Os critérios de saída estão em `docs/roadmap.md`.
 
 ## Status
 
-Aceito.
+Aceito. O ponto 4 estreitado pelo [0057](0057-board-json-canvas.md) em
+2026-09-30: o board está na Fase 2.

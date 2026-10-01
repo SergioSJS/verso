@@ -50,8 +50,8 @@ Cada passo termina com o seu nível:
   um `#título` a um título da sua nota; as notas diárias e os templates ficam
   onde o app procura por padrão; toda nota numerada está no mapa da nota de
   boas-vindas, no tour, e aponta para a seguinte.
-- **U** — um teste unitário, roda agora: `npm test` em `app/ui`,
-  `cargo test`.
+- **U** — um teste unitário, roda agora: `npm test` em `app/ui` e
+  `cargo test`, os dois no `scripts/check.sh` e no CI.
 - **H** — o comportamento da própria janela, sem o core: roda no harness do
   navegador (`app/ui/src/harness.ts`, um core em TypeScript sobre o cofre de
   exemplo em memória).
@@ -85,8 +85,11 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    paradas em linhas de três, numeradas no canto de cima à direita, uma
    trilha tracejada ligando-as em ordem; todo texto desenhado inteiro. O
    arquivo fica igual. Conferir: a tela; `cmp` do arquivo antes e depois.
-   Nível: H; E: `board-tour.spec.mjs`. Pegou: texto desenhado cortado
-   enquanto a fonte carregava (`a147e8e`).
+   Nível: H; E: `board-tour.spec.mjs` (nenhum board gravado, o texto medido
+   com a sua fonte) e `board-file.spec.mjs` (nenhum board gravado depois de
+   um clique, um arrasto da vista e um zoom logo ao abrir). Pegou: texto
+   desenhado cortado enquanto a fonte carregava (`a147e8e`); um clique logo
+   ao abrir gravava o board (2026-10-01).
 2. Sumário: as paradas aparecem na ordem dos números; um clique em cada uma
    a mostra inteira e legível, com as notas vivas nos cartões; fechar o
    Sumário mantém a parada à vista. Nível: H; E: `board-tour.spec.mjs`.
@@ -110,7 +113,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `%%` escondido, a tag como pílula, KaTeX, a tabela. Nível: H.
 2. Nota 11 no Editar: numa linha vazia, `/` abre o menu com Básico, Listas,
    Destaques e Inserir; digitar `data` deixa "Data de hoje", e Enter escreve
-   a data de hoje; ⌘Z desfaz. Nível: H; E: `notes.spec.mjs`.
+   a data de hoje; ⌘Z desfaz. Nível: H; E: `notes.spec.mjs` (a data
+   escrita no fim, e sumida depois do ⌘Z).
 3. Nota 02: todo link leva à sua nota, um `#título` ao seu título; o embed
    mostra "Editar ao lado". Nível: S (os links), H.
 4. Nota 06 no Leitura: `![Diagrama|320](assets/diagrama.svg)` aparece com
@@ -120,6 +124,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    própria janela antes do da pasta, desenhada com 0 px de largura (o tamanho
    depois de um texto alternativo não era lido), e redimensioná-la
    reescrevia o exemplo (2026-10-01).
+5. Uma imagem cujo nome de arquivo tem acento (`assets/gráfico.svg`) aparece
+   vinda da pasta. Nível: H; E: `notes.spec.mjs`. Pegou: o renderizador
+   codifica o endereço em porcentagem, e a janela pedia ao core
+   `gr%C3%A1fico` (2026-10-01).
+6. Uma nota mudada em disco enquanto o texto digitado na aba dela não foi
+   salvo: as duas versões aparecem, e a do disco fica (invariante 11).
+   Nível: H; E: `notes.spec.mjs`.
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
@@ -139,7 +150,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 
 ## 5. Encontrar
 
-1. ⌘K `tag:projeto`: os três projetos. Nível: A (a busca do core).
+1. ⌘K `tag:projeto`: os dois projetos com a tag, e o template
+   `Novo Projeto`, que também a tem. Nível: A (a busca do core).
 2. Com o foco fora do editor, ⌘⇧H: "Localizar e substituir no cofre…"; ✓
    mostra o plano, nota por nota; "Deixar como está" não grava nada.
    Nível: A.
@@ -152,19 +164,29 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    todo board que apontam para ela; "Atualizar links" os reescreve — os
    cartões dos boards e uma relação num frontmatter também — e o painel de
    backlinks os mostra na hora. Nível: A (a reescrita do core); E:
-   `notes.spec.mjs`, o lado da janela. Pegou: a nota renomeada ficava sem
-   backlinks até ser reaberta (`a51aab2`).
+   `notes.spec.mjs`, o lado da janela — as notas e o board reescritos, o
+   painel na hora; a relação num frontmatter é seguida à mão. Pegou: a nota
+   renomeada ficava sem backlinks até ser reaberta (`a51aab2`).
 2. O PDF: a barra como a nota 06 a nomeia; selecione uma linha, "Citar
    seleção nas anotações": `assets/manual-verso — Anotações.md` guarda a
    citação, com link para a página. Nível: A.
 3. F2 renomeia a nota aberta — também logo depois de um clique na linha dela
    na árvore — e a linha da árvore que tem o foco do teclado; num editor ou
-   num campo, o F2 é deles. Nível: H; E: `tabs.spec.mjs`. Pegou: depois de
-   um clique, o F2 não fazia nada (2026-10-01).
+   num campo, o F2 é deles. Nível: H; E: `tabs.spec.mjs`, a nota aberta
+   depois de um clique na linha dela; a linha com o foco do teclado e um
+   campo à mão. Pegou: depois de um clique, o F2 não fazia nada
+   (2026-10-01).
 4. Um clique num arquivo da árvore o abre numa aba de pré-visualização, com
    o título em itálico, que o próximo clique substitui; um duplo clique a
    mantém ([ADR 0059](../adr/0059-tabs-preview-pinned.md)). Nível: H; E:
    `tabs.spec.mjs`.
+5. ‹ e ⌘[ voltam pelas notas clicadas na árvore, mesmo que uma só aba de
+   pré-visualização tenha mostrado todas; ⌘] avança. Nível: H; E:
+   `tabs.spec.mjs`. Pegou: a trilha guardava abas, e uma aba de
+   pré-visualização substituída não deixava caminho de volta (2026-10-01).
+6. Com uma pergunta na tela (Ajustes, um plano), o ⌘W do menu não fecha
+   nada por trás dela; sem aba nenhuma, o ⌘W fecha a janela. Nível: H (a
+   pergunta); E: `tabs.spec.mjs`; A (a janela).
 
 ## 7. A web
 
@@ -188,6 +210,19 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    quando o board abre de novo: o arquivo guarda o lugar dele entre os
    cartões (`under`). Nível: U (o modelo), H; E: `board-practice.spec.mjs`.
    Pegou: ele voltava por cima dos cartões (2026-10-01).
+4. Um cartão movido e a aba fechada na hora: o movimento é salvo, não
+   perdido. Nível: H; E: `board-file.spec.mjs`. Pegou: o salvamento que
+   esperava o seu atraso era descartado com a aba (2026-10-01).
+5. O arquivo do board mudado em disco (pelo Obsidian) sem nada não salvo:
+   o board é desenhado de novo a partir dele; mudado aqui também, as duas
+   versões aparecem e nada é gravado por cima do disco. Nível: H; E:
+   `board-file.spec.mjs`. Pegou: um board aberto nunca seguia o seu arquivo
+   (2026-10-01).
+6. Um canvas escrito em outro layout (uma linha só, ou fins de linha do
+   Windows): a primeira edição mostra a reescrita como diff e pergunta;
+   "Deixar como está" não grava nada. Nível: H; E: `board-file.spec.mjs`.
+7. Um canvas salvo por um Verso mais novo (`verso.version` 2) abre só para
+   ver: um arrasto não grava nada. Nível: H; E: `board-file.spec.mjs`.
 
 ## 9. O treino do board
 
