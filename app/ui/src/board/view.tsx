@@ -20,6 +20,7 @@ import { createRoot } from "react-dom/client";
 import {
   CaptureUpdateAction,
   Excalidraw,
+  FONT_FAMILY,
   MainMenu,
   convertToExcalidrawElements,
   exportToBlob,
@@ -87,6 +88,8 @@ export type BoardHost = {
    *  true when it was written. */
   promote: (from: string, to: string, key: string) => Promise<boolean>;
   openUrl: (url: string) => void;
+  /** Run the window's command a key is bound to; true when one ran. */
+  appKey: (e: KeyboardEvent) => boolean;
   status: (text: string) => void;
   /** Edit a note inside `el`, in the window's note editor; `onExit` is
    *  asked for by Escape. */
@@ -120,6 +123,22 @@ export type BoardPrefs = {
 export type SavedView = { scrollX: number; scrollY: number; zoom: number };
 
 const FONT_ID: Record<BoardPrefs["font"], number> = { hand: 5, sans: 6, mono: 3 };
+
+/** The name of each font Excalidraw ships, by its number. */
+const FONT_NAME = new Map<number, string>(Object.entries(FONT_FAMILY).map(([name, id]) => [id, name]));
+
+/** Whether a text's font is in the window: registered, and every face its
+ *  characters need loaded. A font with no face of its own (a system font)
+ *  is measured right from the start and never needs it. */
+function fontReady(t: { fontFamily: number; fontSize: number; text: string }): boolean {
+  const name = FONT_NAME.get(t.fontFamily);
+  if (!name) return false;
+  let registered = false;
+  document.fonts.forEach((f) => {
+    if (f.family.replace(/^["']|["']$/g, "") === name) registered = true;
+  });
+  return registered && document.fonts.check(`${t.fontSize}px "${name}"`, t.text);
+}
 
 /** A note being edited in its card. */
 export type CardEditing = {
@@ -1135,6 +1154,49 @@ function Board({
     sent.current = JSON.stringify(fromElements(els as unknown as El[], d));
   }, []);
 
+  // Text is measured with the fonts the window has when the board opens:
+  // before a font arrives, with a fallback, narrower or wider. Excalidraw
+  // 0.18 draws the text again once its font is in but keeps the box it
+  // measured, and the text comes out cut. Once the fonts of a board's text
+  // are in, that text is measured again — not a change of the user's: no
+  // history, and nothing written until the user changes something.
+  const remeasure = useCallback(() => {
+    const a = api.current;
+    if (!a) return;
+    // A text being typed or drawn is Excalidraw's to measure.
+    const st = a.getAppState();
+    if (st.editingTextElement || st.newElement || st.resizingElement) return;
+    const els = a.getSceneElements();
+    const ready = new Set(els.filter((e) => e.type === "text" && fontReady(e)).map((e) => e.id));
+    if (ready.size === 0) return;
+    // Excalidraw measures text again only while it repairs bindings (on
+    // copies: the scene's elements are not touched), and from the text as
+    // typed, as it lays a text out when its box changes: a line broken at a
+    // fallback's widths is laid out again, not broken once more.
+    const input = els.map((e) => (e.type === "text" && ready.has(e.id) ? { ...e, text: e.originalText } : e));
+    const fresh = new Map(restoreElements(input, null, { refreshDimensions: true, repairBindings: true }).map((e) => [e.id, e] as const));
+    const near = (p: number, q: number): boolean => Math.abs(p - q) < 0.5;
+    let changed = false;
+    const next = els.map((e) => {
+      const f = ready.has(e.id) ? fresh.get(e.id) : undefined;
+      if (!f || e.type !== "text" || f.type !== "text") return e;
+      if (near(f.width, e.width) && near(f.height, e.height) && near(f.x, e.x) && near(f.y, e.y) && f.text === e.text) return e;
+      changed = true;
+      return newElementWith(e, { width: f.width, height: f.height, x: f.x, y: f.y, text: f.text });
+    });
+    if (changed) a.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER });
+  }, []);
+  useEffect(() => {
+    const fonts = document.fonts;
+    fonts.addEventListener("loadingdone", remeasure);
+    // WebKit does not always say when a font is in: asked again later.
+    const timers = [400, 1500, 4000].map((ms) => window.setTimeout(remeasure, ms));
+    return () => {
+      fonts.removeEventListener("loadingdone", remeasure);
+      for (const t of timers) window.clearTimeout(t);
+    };
+  }, [remeasure]);
+
   useEffect(() => {
     baseline(initialElements, initial);
     setElements(initialElements as unknown as El[]);
@@ -1673,6 +1735,14 @@ function Board({
     const a = api.current;
     const el = a?.getSceneElements().find((e) => e.id === id);
     if (!a || !el) return;
+    // A group is a part of the board to look at: shown whole, as near as
+    // it fits, with nothing selected over it. Anything else is selected
+    // and brought to the middle at the zoom it is seen at.
+    if (el.type === "frame") {
+      a.updateScene({ appState: { selectedElementIds: {} } as never, captureUpdate: CaptureUpdateAction.NEVER });
+      a.scrollToContent(el, { fitToViewport: true, viewportZoomFactor: 0.9, maxZoom: 1, animate: true });
+      return;
+    }
     a.updateScene({ appState: { selectedElementIds: { [id]: true } } as never, captureUpdate: CaptureUpdateAction.NEVER });
     a.scrollToContent(el, { fitToContent: false, animate: true });
   };
@@ -1801,6 +1871,15 @@ function Board({
           e.stopPropagation();
           searchBox.current?.focus();
           searchBox.current?.select();
+          return;
+        }
+        // ⌘P is the window's: Excalidraw only answers it with a hint about
+        // a palette of its own the board does not have, and keeps the
+        // window from seeing the key.
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "p") {
+          e.preventDefault();
+          e.stopPropagation();
+          host.appKey(e.nativeEvent);
         }
       }}
     >

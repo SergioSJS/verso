@@ -3858,6 +3858,7 @@ class BoardLeaf extends TextLeaf {
       editNote: (el, path, onExit) => cardEditor(el, listed(path), onExit, this.cardHistory),
       edited: (path) => this.cardHistory.has(listed(path)),
       openUrl: (url) => void commands.openUrl(url),
+      appKey: (e) => runHotkey(e),
       status: (text) => (ui.status.textContent = text),
       prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
       lastView: () => {
