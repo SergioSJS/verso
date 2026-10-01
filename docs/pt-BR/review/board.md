@@ -720,3 +720,53 @@ da conferência do espelho — as ADRs, a spec, o briefing, os changelogs e os
 gêmeos pt-BR; toda resolução da leitura 5 menos o achado 1; leitura 4,
 achados 7 a 17; as mudanças do próprio harness; uma rodada repetida para
 instabilidade; o app instalado.
+
+### A segunda leitura, continuada
+
+No mesmo dia, na mesma sessão, por palavra do mantenedor para seguir. Esta
+parte leu os documentos do `8cbeff4`, as mudanças nos testes e no harness, e
+rodou o que a primeira parte deixou: todo teste de ponta a ponta commitado
+cinco vezes, e os lados da aresta pelo Excalidraw. Com ela a leitura fica
+inteira, menos o que o último parágrafo nomeia. Nenhum BLOQUEANTE novo.
+
+Um achado novo, numerado depois dos oito acima:
+
+| # | Nível | Onde | Achado | O que dá errado | Resolução sugerida | Resolução |
+|---|---|---|---|---|---|---|
+| 9 | IMPORTANTE | `app/ui/e2e/fixtures.mjs:21-25` (`open`), `:32-36` (`quickOpen`); `app/ui/src/harness.ts:63-65` (`ready`) | Os testes de ponta a ponta falham ao acaso desde a resolução. Em `04b12ff` passaram 105 de 105 repetidos cinco vezes, e 90 de 90. Em `8cbeff4`: 5 de 160 falharam repetidos cinco vezes; em três arquivos repetidos dez vezes, 15 de 170; com dois workers, 1 de 110. As falhas têm o mesmo retrato: depois do `quickOpen`, o arquivo pedido não está aberto, `assets/diagrama.svg` está aberto na aba de pré-visualização, e o seletor rápido está na tela sem nada digitado. As teclas digitadas logo depois de a página dizer que está pronta parecem cair fora do seletor; `ready` é marcado quando o script da janela carregou, não quando a partida dela terminou. A causa é leitura dos retratos, não provada | O `scripts/check.sh` roda esses testes antes de todo push: uma rodada de 32 falha de vez em quando sem nada quebrado, e um check vermelho que fica verde na segunda tentativa não ensina ninguém a acreditar nele. Qual mudança do `2c91553` mexeu no tempo não foi achado. **Rodado** | Marcar `ready` quando a partida da janela terminou, ou fazer o `quickOpen` esperar o campo do seletor ter o nome antes do Enter; depois repetir a suíte | |
+
+Achados 1 e 2 acima, confirmados pela leitura: o diff do percurso não
+acrescenta passo para as teclas de Editar numa página web, enquanto o
+changelog diz que elas "voltam a funcionar em páginas web"; o diff da ADR 0029
+registra o alvo de fuzz do canvas e nada sobre ele ter sido visto falhando.
+
+Visto valendo nesta parte:
+
+- Leitura 2, achados 4 e 7, e leitura 1, achado 7, pelo Excalidraw, num
+  canvas no layout do Obsidian: dois cartões arrastados, e só os quatro
+  números deles mudaram. Uma aresta com os dois lados os manteve, embora um
+  dos cartões dela tenha se movido; uma aresta sem lados não ganhou nenhum;
+  um rótulo vazio, uma aresta para um nó que não existe, um cartão em
+  `600.5`, um cartão de largura 0 e um nó de tipo desconhecido voltaram como
+  escritos, nos lugares deles. **Rodado**.
+- Leitura 4, achados 7 a 12 e 14 a 17: cada mudança está no diff como a
+  Resolução dela diz. Achado 13, **rodado**: depois do build, o `dist/` não
+  tem harness nem bundle de teste, e `e2e/.site/` e `test/.bundles/` são
+  ignorados pelo git.
+- Leitura 5, achados 2 a 21: cada Resolução bate com o documento que nomeia.
+  As cinco linhas do changelog estão lá nas duas línguas; as ADRs 0014 e 0034
+  apontam para a 0057; as ADRs 0058 e 0059 têm o Status delas; a §5.11 da
+  spec lista os campos do ponto 10; o tutorial diz "doze"; as contagens da
+  descrição fecham.
+- Os documentos: todo "decidido em 2026-10-01" cita a seção 8, cujas vinte e
+  uma recomendações o mantenedor aceitou numa resposta só, "Aceito todas
+  (Recomendado)" — o mantenedor disse o mesmo a esta leitura. Os gêmeos pt-BR
+  batem por estrutura, datas e números (um script sobre todo par mudado; as
+  diferenças que ele mostrou são traduções e quebras de linha). O autor não
+  mudou nada nos achados da revisão além das células "Resolução" e de uma
+  quebra de linha.
+
+Ainda não alcançado: o app instalado; os gêmeos pt-BR frase a frase; o
+renderizador do harness (`harness/markdown.ts`). Ainda lido e não rodado:
+leitura 1, achados 3, 6, 9, 10 e 13; leitura 2, achados 6 e 9 a 11; leitura
+3, achados 9 a 11.

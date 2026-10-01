@@ -724,3 +724,52 @@ the mirror check — the ADRs, the spec, the briefing, the changelogs and their
 pt-BR twins; every resolution of reading 5 but finding 1; reading 4, findings
 7 to 17; the harness's own changes; a repeat run for flakiness; the installed
 app.
+
+### The second reading, continued
+
+The same day, the same session, at the maintainer's word to go on. This part
+read the documents of `8cbeff4`, the changes to the tests and the harness, and
+ran what the first part left: every committed end-to-end test five times, and
+the edge's sides through Excalidraw. With it the reading is whole but for
+what its last paragraph names. No new BLOCKING.
+
+One new finding, numbered after the eight above:
+
+| # | Level | Where | Finding | What goes wrong | Suggested resolution | Resolution |
+|---|---|---|---|---|---|---|
+| 9 | IMPORTANT | `app/ui/e2e/fixtures.mjs:21-25` (`open`), `:32-36` (`quickOpen`); `app/ui/src/harness.ts:63-65` (`ready`) | The end-to-end tests fail at random since the resolution. At `04b12ff` they passed 105 of 105 repeated five times, and 90 of 90. At `8cbeff4`: 5 of 160 failed repeated five times; in three files repeated ten times, 15 of 170; with two workers, 1 of 110. The failures share one picture: after `quickOpen`, the file asked for is not open, `assets/diagrama.svg` is open in the preview tab, and the quick switcher is on screen with nothing typed. The keys typed right after the page says it is ready seem to land outside the switcher; `ready` is set when the window's script has loaded, not when its start has finished. The cause is a reading of the snapshots, not proven | `scripts/check.sh` runs these tests before every push: a run of 32 fails now and then with nothing broken, and a red check that goes green on a second try teaches nobody to believe it. Which change of `2c91553` moved the timing was not found. **Ran** | Set `ready` when the window's start has finished, or have `quickOpen` wait for the switcher's field to hold the name before Enter; then repeat the suite | |
+
+Findings 1 and 2 above, confirmed by reading: the diff of the walkthrough adds
+no step for the Edit keys in a web page, while the changelog says they "work
+in web pages again"; the diff of ADR 0029 records the canvas fuzz target and
+nothing of it having been seen failing.
+
+Seen holding in this part:
+
+- Reading 2, findings 4 and 7, and reading 1, finding 7, through Excalidraw,
+  on a canvas in Obsidian's layout: two cards dragged, and only their four
+  numbers changed. An edge with both sides kept them though one of its cards
+  moved; an edge with no sides gained none; an empty label, an edge to a
+  missing node, a card at `600.5`, a card of width 0 and a node of an unknown
+  type came back as written, in their places. **Ran**.
+- Reading 4, findings 7 to 12 and 14 to 17: each change is in the diff as its
+  Resolution says. Finding 13, **ran**: after the build, `dist/` holds no
+  harness and no test bundle, and `e2e/.site/` and `test/.bundles/` are
+  ignored by git.
+- Reading 5, findings 2 to 21: each Resolution matches the document it names.
+  The five changelog lines are there in both languages; ADRs 0014 and 0034
+  point at 0057; ADRs 0058 and 0059 have their Status; spec §5.11 lists the
+  fields of point 10; the tutorial says "doze"; the description's counts add
+  up.
+- The documents: every "decided on 2026-10-01" cites section 8, whose
+  twenty-one recommendations the maintainer accepted in one answer, "Aceito
+  todas (Recomendado)" — the maintainer said the same to this reading. The
+  pt-BR twins match by structure, dates and numbers (a script over every
+  changed pair; the differences it showed are translations and line wraps).
+  The author changed nothing in the review's findings but the "Resolution"
+  cells and one line wrap.
+
+Still not reached: the installed app; the pt-BR twins sentence by sentence;
+the harness's renderer (`harness/markdown.ts`). Still read and not run:
+reading 1, findings 3, 6, 9, 10 and 13; reading 2, findings 6 and 9 to 11;
+reading 3, findings 9 to 11.
