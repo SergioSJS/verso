@@ -541,6 +541,39 @@ impl Index {
         Ok(())
     }
 
+    /// The note `target` names as a link written at the folder's root names
+    /// it: a path from the root first, then a name — of several notes of
+    /// that name the shallowest, then by path, as [`RESOLVE`] orders them
+    /// for a note at the root. `None` when no note answers. For a command
+    /// line that names a note as a link would (`verso backlinks <folder>
+    /// Barão` for `npcs/Barão.md`).
+    pub fn note_named(&self, target: &str) -> Result<Option<String>, IndexError> {
+        let Some(key) = target_key(target).filter(|k| !k.is_empty()) else {
+            return Ok(None);
+        };
+        let by_path: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT path FROM notes WHERE path_key = ?1 ORDER BY path LIMIT 1",
+                params![key],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if by_path.is_some() {
+            return Ok(by_path);
+        }
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT path FROM notes WHERE name_key = ?1
+                 ORDER BY length(path) - length(replace(path, '/', '')), path
+                 LIMIT 1",
+                params![key],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
     /// The stamp the index has for a note, to skip an unchanged file.
     pub fn stamp_of(&self, relative: &str) -> Result<Option<NoteStamp>, IndexError> {
         Ok(self

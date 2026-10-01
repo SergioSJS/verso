@@ -27,7 +27,7 @@ Em **Ajustes › Terminal e agentes › Comando verso no terminal**, clique em *
 | :--- | :--- |
 | `verso index ~/Notas` | indexa a pasta |
 | `verso search ~/Notas reunião` | busca nas notas (`--limit 50` para mais resultados) |
-| `verso backlinks ~/Notas "projetos/Projeto Alpha"` | quem aponta para uma nota (o caminho dela dentro da pasta) |
+| `verso backlinks ~/Notas "Projeto Alpha"` | quem aponta para uma nota (pelo nome, como num link, ou pelo caminho dentro da pasta) |
 | `verso backlinks ~/Notas --unresolved` | os links que não levam a nenhuma nota: notas que ainda não existem, e anexos |
 | `verso ~/Notas` | abre a pasta no app |
 | `verso help` | a ajuda completa |

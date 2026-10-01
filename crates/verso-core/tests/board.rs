@@ -123,6 +123,10 @@ fn a_rename_points_the_canvas_at_the_new_path() {
     ws.write_text(&w.path, &w.after, &w.revision).unwrap();
     let back = ws.backlinks("npcs/Barão Vermelho").unwrap().unwrap();
     assert_eq!(back.len(), 2);
+    // By its name too, as a link names it: the command line's `backlinks`.
+    assert_eq!(ws.backlinks("Barão Vermelho").unwrap().unwrap().len(), 2);
+    assert_eq!(ws.backlinks("barão vermelho.md").unwrap().unwrap().len(), 2);
+    assert_eq!(ws.backlinks("Ninguém").unwrap(), None);
 }
 
 #[test]

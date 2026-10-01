@@ -163,7 +163,7 @@ const LESSONS = [
       "O que foi desenhado por último fica por cima. Para mudar a ordem, use Camadas no painel, o botão direito, ou:\n" +
       "• ⌘] traz para a frente; ⌘[ manda para trás.\n" +
       "• ⌘⌥] traz para o primeiro plano; ⌘⌥[ manda para o fundo.\n" +
-      "Um desenho pode ficar por cima de um cartão: bom para destacar um trecho de uma nota.",
+      "Um desenho pode ficar por cima de um cartão (bom para destacar um trecho de uma nota) ou atrás dele, e a ordem fica salva no board.",
     challenge: "Desafio: ponha o círculo vermelho na frente de tudo e mande o quadrado azul para o fundo.",
     practice(b, x, y, f) {
       b.write("d-cam-w", x + 20, y + 20, "quem está por cima?", { size: 34, color: GREY, frame: f });

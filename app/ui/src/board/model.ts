@@ -515,11 +515,27 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
       out.push(text);
     }
   }
-  out.push(...cards);
+  // The drawing over the cards, but a drawn element the file keeps under a
+  // card (`under`, ADR 0057 point 10) goes just under that card, in its
+  // order among the others there.
   const drawing = isRecord(doc.verso) && Array.isArray(doc.verso.drawing) ? doc.verso.drawing : [];
-  for (const d of drawing) if (isRecord(d) && typeof d["id"] === "string" && typeof d["type"] === "string") out.push(d as Partial<El>);
+  const below = new Map<string, Partial<El>[]>();
+  const above: Partial<El>[] = [];
+  const cardIds = new Set(cards.map((c) => c.id));
+  for (const d of drawing) {
+    if (!isRecord(d) || typeof d["id"] !== "string" || typeof d["type"] !== "string") continue;
+    const { [UNDER]: under, ...el } = d;
+    if (typeof under === "string" && cardIds.has(under)) below.set(under, [...(below.get(under) ?? []), el as Partial<El>]);
+    else above.push(el as Partial<El>);
+  }
+  for (const c of cards) out.push(...(below.get(c.id ?? "") ?? []), c);
+  out.push(...above);
   return out;
 }
+
+/** The key of a drawn element, in the file, that names the card it lies
+ *  under; none: over every card. */
+const UNDER = "under";
 
 /** The label an arrow's bound text gives it, if any. */
 function labelOf(arrow: El, byId: Map<string, El>): string | undefined {
@@ -616,10 +632,20 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     edges.push(edge);
     edgeIds.add(e.id);
   }
+  // A drawn element's place among the cards: the first card above it in
+  // the board's order, kept as `under` (none: over every card).
   const drawing: unknown[] = [];
+  const cardAbove = new Map<string, string>();
+  let next: string | undefined;
+  for (let i = live.length - 1; i >= 0; i--) {
+    const e = live[i]!;
+    if (nodeIds.has(e.id)) next = e.id;
+    else if (next !== undefined) cardAbove.set(e.id, next);
+  }
   for (const e of live) {
     if (nodeIds.has(e.id) || edgeIds.has(e.id) || labels.has(e.id)) continue;
-    drawing.push(e);
+    const under = cardAbove.get(e.id);
+    drawing.push(under === undefined ? e : { ...e, [UNDER]: under });
   }
   const out: CanvasDoc = { ...doc };
   out.nodes = nodes;
