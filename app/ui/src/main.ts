@@ -157,6 +157,8 @@ type Strings = Record<
   hits: (n: number) => string;
   unresolved: (t: string) => string;
   confirmDelete: (n: string) => string;
+  fetching: (n: string) => string;
+  fetchFailed: (n: string) => string;
   deleted: (where: string) => string;
   planTitle: (n: number) => string;
   planDone: (ok: number, failed: number) => string;
@@ -219,6 +221,8 @@ const pt: Strings = {
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
   confirmDelete: (n) => `Apagar "${n}"? Vai para .trash/ na pasta, como no Obsidian.`,
+  fetching: (n) => `Baixando do iCloud: ${n}…`,
+  fetchFailed: (n) => `Não foi possível baixar do iCloud: ${n}. Sem conexão, ou o iCloud não tem o conteúdo do arquivo.`,
   deleted: (where) => `Movida para ${where}.`,
   planTitle: (n) => `${n} nota${n === 1 ? "" : "s"} aponta${n === 1 ? "" : "m"} para o nome antigo. Atualizar os links?`,
   planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
@@ -314,6 +318,8 @@ const en: Strings = {
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
   confirmDelete: (n) => `Delete "${n}"? It goes to .trash/ in the folder, as in Obsidian.`,
+  fetching: (n) => `Downloading from iCloud: ${n}…`,
+  fetchFailed: (n) => `Could not download from iCloud: ${n}. No connection, or iCloud does not have the file’s content.`,
   deleted: (where) => `Moved to ${where}.`,
   planTitle: (n) => `${n} note${n === 1 ? "" : "s"} link${n === 1 ? "s" : ""} to the old name. Update the links?`,
   planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
@@ -514,6 +520,34 @@ const ui = {
   indexProgress: el<HTMLDivElement>("index-progress"),
   indexProgressBar: el<HTMLDivElement>("index-progress-bar"),
   indexProgressLabel: el<HTMLSpanElement>("index-progress-label"),
+};
+
+/* Opening a file is the user asking for it (ADR 0043, amended on
+ * 2026-09-30): a file whose content is only in iCloud is brought down
+ * first, the status line saying so, and read again. The index, the
+ * watcher and a scan of every note read through `commands` and never
+ * download anything. */
+async function fetchFirst(path: string): Promise<boolean> {
+  const said = t.fetching(name(path));
+  const was = ui.status.textContent;
+  const timer = window.setTimeout(() => (ui.status.textContent = said), 150);
+  const r = await commands.fetchFile(path);
+  window.clearTimeout(timer);
+  if (r.status !== "ok") {
+    ui.status.textContent = t.fetchFailed(name(path));
+    return false;
+  }
+  if (ui.status.textContent === said) ui.status.textContent = was === said ? "" : was;
+  return r.data;
+}
+async function fetched<T extends { status: "ok" } | { status: "error"; error: ContractError }>(path: string, read: () => Promise<T>): Promise<T> {
+  const r = await read();
+  if (r.status !== "error" || r.error.kind !== "unavailable") return r;
+  return (await fetchFirst(path)) ? read() : r;
+}
+const opening = {
+  readNote: (path: string) => fetched(path, () => commands.readNote(path)),
+  readText: (path: string) => fetched(path, () => commands.readText(path)),
 };
 
 let indexProgressTimer: number | null = null;
@@ -969,7 +1003,7 @@ async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResu
     if (!path) return null;
     let heads = headingsCache.get(path);
     if (!heads) {
-      const r = await commands.readNote(path);
+      const r = await opening.readNote(path);
       heads = r.status === "ok" ? r.data.headings.map((hd) => ({ level: hd.level, text: hd.text })) : [];
       headingsCache.set(path, heads);
       setTimeout(() => headingsCache.delete(path), 5000);
@@ -2185,7 +2219,7 @@ class NoteLeaf extends Leaf {
       this.embedCache.set(target, null);
       return null;
     }
-    void commands.readNote(to).then((r) => {
+    void opening.readNote(to).then((r) => {
       this.embedCache.set(target, r.status === "ok" ? cleanHtmlText(r.data.html) : null);
       this.editor.dispatch({ effects: redraw.of(null) });
     });
@@ -2454,7 +2488,7 @@ class NoteLeaf extends Leaf {
     await this.saving;
     const load = this.loads;
     const check = ++this.checks;
-    const note = await commands.readNote(path);
+    const note = await opening.readNote(path);
     if (this.destroyed || load !== this.loads || check !== this.checks || path !== this.path) return "same";
     if (note.status !== "ok") {
       if (note.error.kind !== "not_found" || this.gone) return "same";
@@ -2498,10 +2532,17 @@ class NoteLeaf extends Leaf {
    *  user chose to discard it) or on a yes. */
   private async doLoad(path: string, force: boolean): Promise<void> {
     if (this.dirty && !force && !(await askDiscard())) return;
+    // The tab names its note from the start: a read that waits on a
+    // download from the cloud takes seconds, and a second click on the
+    // same note meanwhile finds this tab instead of opening another.
+    if (!this.note) {
+      this.path = path;
+      this.setTitle(name(path));
+    }
     // A write in flight lands first: the read comes after it.
     await this.saving;
     const load = ++this.loads;
-    const note = await commands.readNote(path);
+    const note = await opening.readNote(path);
     if (this.destroyed || load !== this.loads) return;
     if (note.status !== "ok") return fail(note.error);
     this.show(note.data);
@@ -3048,7 +3089,7 @@ class NoteLeaf extends Leaf {
         continue;
       }
       const heading = raw.includes("#") && !raw.includes("#^") ? raw.slice(raw.indexOf("#") + 1) : "";
-      void commands.readNote(to).then((r) => {
+      void opening.readNote(to).then((r) => {
         if (r.status !== "ok" || this.path !== forPath) return;
         const box = h("section", "embed-note");
         const head = h("a", "embed-note-title", heading ? `${name(to)} › ${heading}` : name(to));
@@ -3117,7 +3158,7 @@ class NoteLeaf extends Leaf {
           return;
         }
         const rel = r.data;
-        const f = await commands.readText(rel);
+        const f = await opening.readText(rel);
         if (f.status !== "ok") {
           mount.textContent = baseStrings.baseEmbedFailed;
           return;
@@ -3279,16 +3320,17 @@ class NoteLeaf extends Leaf {
       const rel = found.get(spec.file);
       if (!rel) continue;
       if (kindOf(rel) === "image") {
-        const pic = await cardPicture(convertFileSrc(rel, "verso"), spec.file);
-        const img = pic instanceof HTMLImageElement ? pic : (pic.firstElementChild as HTMLImageElement);
+        const img = h("img");
+        img.src = convertFileSrc(rel, "verso");
+        img.alt = spec.file;
+        img.loading = "lazy";
         const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
         if (size) {
           img.style.width = `${size.w}px`;
           if (size.h) img.style.height = `${size.h}px`;
         }
         const p = span.parentElement;
-        if (!span.isConnected && !p) return;
-        span.replaceWith(pic);
+        span.replaceWith(img);
         if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
       } else if (kindOf(rel) === "base") {
         // A base's view (ADR 0053), the one `#Name` names if any.
@@ -3296,7 +3338,7 @@ class NoteLeaf extends Leaf {
         const raw = span.dataset["target"] ?? "";
         const viewName = raw.includes("#") ? raw.slice(raw.indexOf("#") + 1) : null;
         span.replaceWith(box);
-        void commands.readText(rel).then((f) => {
+        void opening.readText(rel).then((f) => {
           if (f.status !== "ok" || this.path !== forPath || this.destroyed) return;
           const text = f.data.text;
           const view = new BaseView(baseHost(), { path: rel, thisPath: source, folder: dirOf(rel), text: () => text, edit: null, viewName, key: rel });
@@ -3381,7 +3423,7 @@ class NoteLeaf extends Leaf {
   private async refused(e: ContractError): Promise<void> {
     if (e.kind !== "changed") return fail(e);
     ui.status.textContent = "";
-    const fresh = await commands.readNote(this.path);
+    const fresh = await opening.readNote(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
     this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.editorText());
   }
@@ -3449,6 +3491,8 @@ class ImageLeaf extends Leaf {
     // has no size of its own: fitted, it fills the view in its proportions
     // instead of centring at a width of nothing.
     this.box.classList.toggle("vector", /\.svg$/i.test(path));
+    await fetchFirst(path);
+    if (this.path !== path) return;
     this.img.src = convertFileSrc(path, "verso");
     this.img.alt = name(path);
     this.box.setAttribute("aria-label", `${t.actualSize}: ${name(path)}`);
@@ -3534,7 +3578,7 @@ class TextLeaf extends Leaf {
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     this.modes.hidden = kindOf(path) !== "frame";
-    const r = await commands.readText(path);
+    const r = await opening.readText(path);
     if (r.status !== "ok") return fail(r.error);
     // The language by the file's name: highlighted, and folded, as an editor does.
     const desc = LanguageDescription.matchFilename(languages, path);
@@ -3606,7 +3650,7 @@ class TextLeaf extends Leaf {
    *  go on screen until the user decides (invariant 11). */
   protected async refused(e: ContractError): Promise<void> {
     if (e.kind !== "changed") return fail(e);
-    const fresh = await commands.readText(this.path);
+    const fresh = await opening.readText(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
     this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.text());
   }
@@ -3779,13 +3823,13 @@ class BoardLeaf extends TextLeaf {
       save: (json) => void this.saveBoard(json),
       openFile: (path, aside) => void openNote(listed(path), aside),
       renderNote: async (el, path) => {
-        const r = await commands.readNote(listed(path));
+        const r = await opening.readNote(listed(path));
         if (r.status === "ok") await drawCard(el, r.data.html, listed(path));
         else el.replaceChildren();
       },
       renderText: async (el, text) => drawCard(el, await commands.renderMarkdown(text), this.path),
       noteText: async (path) => {
-        const r = await commands.readNote(listed(path));
+        const r = await opening.readNote(listed(path));
         return r.status === "ok" ? r.data.text : "";
       },
       fileSrc: (path) => convertFileSrc(listed(path), "verso"),
@@ -3864,7 +3908,7 @@ class BoardLeaf extends TextLeaf {
    *  decides (invariant 11); anything else, said. */
   private async refusedBoard(e: ContractError, mine: string): Promise<void> {
     if (e.kind !== "changed") return fail(e);
-    const fresh = await commands.readText(this.path);
+    const fresh = await opening.readText(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
     let shown = mine;
     try {
@@ -4033,7 +4077,7 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
     dirty = false;
     return true;
   };
-  const ready = commands.readNote(path).then((r) => {
+  const ready = opening.readNote(path).then((r) => {
     if (gone) return;
     if (r.status !== "ok") return fail(r.error);
     const k = kept.get(path);
@@ -4046,7 +4090,7 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
   };
   const refused = async (e: ContractError): Promise<void> => {
     if (e.kind !== "changed") return fail(e);
-    const fresh = await commands.readNote(path);
+    const fresh = await opening.readNote(path);
     if (fresh.status !== "ok") return fail(fresh.error);
     conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, text());
   };
@@ -4080,7 +4124,7 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
   };
   const reload = async (): Promise<void> => {
     await saving;
-    const r = await commands.readNote(path);
+    const r = await opening.readNote(path);
     if (r.status !== "ok") return fail(r.error);
     show(r.data);
   };
@@ -4099,7 +4143,7 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
       await saving;
       if (!view || gone || conflict.up) return;
       if (dirty) return void (await save());
-      const r = await commands.readNote(path);
+      const r = await opening.readNote(path);
       if (gone || r.status !== "ok" || r.data.revision === revision || !view) return;
       const sep = lineSeparator(r.data.text);
       if (sep === null || sep !== eol) return show(r.data);
@@ -4281,7 +4325,7 @@ async function renderReading(el: HTMLElement, html: string, source: string, dept
       const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
       const note = resolveNoteByName(spec.file, source);
       if (note && note.endsWith(".md") && depth < 1) {
-        const r = await commands.readNote(note);
+        const r = await opening.readNote(note);
         if (r.status !== "ok") return;
         const box = h("section", "embed-note");
         const head = h("a", "embed-note-title", name(note));
@@ -4300,17 +4344,18 @@ async function renderReading(el: HTMLElement, html: string, source: string, dept
       const rel = found.status === "ok" ? found.data : null;
       if (!rel) return;
       if (kindOf(rel) === "image") {
-        const img = h("img");
-        img.src = convertFileSrc(rel, "verso");
-        img.alt = spec.file;
-        img.loading = "lazy";
+        // On a board a card far from the view is only hidden and slides in
+        // as the view moves: its pictures are drawn from copies the size a
+        // card shows them, the original over them only when zoomed in close.
+        const pic = await cardPicture(convertFileSrc(rel, "verso"), spec.file);
+        const img = pic instanceof HTMLImageElement ? pic : (pic.firstElementChild as HTMLImageElement);
         const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
         if (size) {
           img.style.width = `${size.w}px`;
           if (size.h) img.style.height = `${size.h}px`;
         }
         const p = span.parentElement;
-        span.replaceWith(img);
+        span.replaceWith(pic);
         if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
       } else {
         span.classList.add("file");
@@ -4360,7 +4405,7 @@ function loadBoardModule(): Promise<typeof import("./board/view")> {
  *  0057 point 4): the change to `from`'s frontmatter shown as a plan with
  *  its diff, written on the user's yes. True when it was written. */
 async function promoteRelation(from: string, to: string, key: string): Promise<boolean> {
-  const r = await commands.readNote(from);
+  const r = await opening.readNote(from);
   if (r.status !== "ok") {
     fail(r.error);
     return false;
@@ -4395,7 +4440,7 @@ async function newBoard(folder: string): Promise<void> {
  *  0057 point 5): the new file shown as a plan, created on the user's yes;
  *  the drawing stays as it was. */
 async function convertToBoard(note: string): Promise<void> {
-  const r = await commands.readText(note);
+  const r = await opening.readText(note);
   if (r.status !== "ok") return fail(r.error);
   const read = readDrawing(r.data.text);
   if ("error" in read) {
@@ -4536,7 +4581,7 @@ class FolderLeaf extends Leaf {
       }
       return;
     }
-    const r = await commands.readNote(notePath);
+    const r = await opening.readNote(notePath);
     if (r.status !== "ok" || this.path !== folder) return;
     const body = h("div", "folder-note-body");
     setHtml(body, r.data.html);
@@ -4590,8 +4635,11 @@ class FolderLeaf extends Leaf {
     const thumb = h("span", "thumb");
     if (r.kind === "image") {
       const img = h("img");
-      img.src = convertFileSrc(r.path, "verso");
+      // A thumbnail never brings a picture down from the cloud (`?thumb`):
+      // one that is only there shows the kind's mark instead.
+      img.src = `${convertFileSrc(r.path, "verso")}?thumb`;
       img.loading = "lazy";
+      img.addEventListener("error", () => img.replaceWith(iconOfPath(r.path, r.kind)), { once: true });
       img.alt = "";
       thumb.append(img);
     } else thumb.append(iconOfPath(r.path, r.kind));
@@ -4658,13 +4706,15 @@ class PdfLeaf extends Leaf {
     this.view.container.setAttribute("aria-label", path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     void this.loadPassages();
+    await fetchFirst(path);
+    if (this.path !== path) return;
     await this.view.load(convertFileSrc(path, "verso"), page);
     markCurrent();
     persistSoon();
   }
   /** The passages the companion note quotes, painted on the pages. */
   async loadPassages(): Promise<void> {
-    const r = await commands.readNote(companionOf(this.path));
+    const r = await opening.readNote(companionOf(this.path));
     if (r.status !== "ok") return this.view.setPassages([]);
     const base = this.path.split("/").pop() ?? this.path;
     // The link may carry a path before the name (`./`, `../`, from the
@@ -6781,7 +6831,7 @@ async function setNoteProperty(path: string, key: string, value: PropertyValue |
     stopped(left);
     return false;
   }
-  const r = await commands.readNote(path);
+  const r = await opening.readNote(path);
   if (r.status !== "ok") {
     fail(r.error);
     return false;
@@ -6883,7 +6933,7 @@ function showToast(message: string, durationMs = 3500): void {
 async function sameAsDemo(path: string, b64: string): Promise<boolean> {
   try {
     if (path.endsWith(".md") || path.endsWith(".base")) {
-      const r = await commands.readText(path);
+      const r = await opening.readText(path);
       return r.status === "ok" && r.data.text === b64ToUtf8(b64);
     }
     const res = await fetch(convertFileSrc(path, "verso"));
@@ -7140,7 +7190,7 @@ async function quoteIntoNotes(pdf: string, fragment: string, page: number, text:
   // The companion open in a tab: its text saved first, or nothing is written.
   const unsaved = await flushed(leavesOf(notePath));
   if (unsaved.length > 0) return stopped(unsaved);
-  const existing = await commands.readNote(notePath);
+  const existing = await opening.readNote(notePath);
   let r;
   if (existing.status === "ok") {
     // Appended as the note ends its lines, after a blank line; nothing of
@@ -7186,7 +7236,7 @@ async function duplicateEntry(path: string, kind: Kind): Promise<void> {
   if (kind === "note") {
     const unsaved = await flushed(leavesUnder(path));
     if (unsaved.length > 0) return stopped(unsaved);
-    const read = await commands.readText(path);
+    const read = await opening.readText(path);
     if (read.status !== "ok") return fail(read.error);
     bytes = new TextEncoder().encode(read.data.text);
   } else {
@@ -8364,6 +8414,8 @@ class ReplaceDialog {
     const worker = async () => {
       while (next < notes.length && scan === this.scan) {
         const path = notes[next++]!;
+        // Every note of the folder: read as it is, never fetched from the
+        // cloud — a scan does not pull a vault down (ADR 0043).
         const r = await commands.readText(path);
         read++;
         if (read % 20 === 0 || read === notes.length) note.textContent = t.replaceScanning.replace("{done}", String(read)).replace("{n}", String(notes.length));
@@ -9222,7 +9274,7 @@ async function templateText(nameWanted: string): Promise<string | null> {
   const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "");
   const path = allNotes.find((p) => p.toLowerCase() === `${folder}/${nameWanted}.md`.toLowerCase());
   if (!path) return null;
-  const r = await commands.readNote(path);
+  const r = await opening.readNote(path);
   return r.status === "ok" ? r.data.text : null;
 }
 /** Where the daily note of `day` (`YYYY-MM-DD`) is, or would be. */
@@ -9268,7 +9320,7 @@ function insertTemplate(): void {
   if (tpls.length === 0) { ui.status.textContent = t.noTemplates; return; }
   const r = leaf.el.getBoundingClientRect();
   showMenu(r.left + 40, r.top + 60, tpls.map((p) => [name(p), () => void (async () => {
-    const rr = await commands.readNote(p);
+    const rr = await opening.readNote(p);
     if (rr.status !== "ok") return fail(rr.error);
     const text = rr.data.text.replaceAll("{{date}}", today()).replaceAll("{{title}}", name(leaf.path));
     const pos = leaf.editor.state.selection.main.to;

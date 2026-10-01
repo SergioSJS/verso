@@ -2194,6 +2194,23 @@ impl Workspace {
         candidates.first().map(|p| (*p).clone())
     }
 
+    /// The file `relative` names, when its content is only in the cloud,
+    /// for the window to fetch when the user opens it (ADR 0043, amended
+    /// on 2026-09-30); `None` otherwise. Every read here still refuses a
+    /// placeholder: fetching is a separate step, taken only for an opening,
+    /// never by the index, the watcher or a scan of every note.
+    pub fn placeholder(
+        &mut self,
+        relative: &str,
+    ) -> Result<Option<verso_fs::Placeholder>, CoreError> {
+        let confined = self
+            .root
+            .confine(Path::new(relative))
+            .map_err(CoreError::Confined)?;
+        let handle = self.root.handle(&confined).map_err(CoreError::Confined)?;
+        self.root.placeholder(handle).map_err(CoreError::Read)
+    }
+
     /// The bytes of a file of the folder that is not a note (an image,
     /// an attachment), confined like every path (ADR 0044), read through
     /// `verso-fs`. A placeholder answers `Read(Unavailable)`.

@@ -147,6 +147,33 @@ and re-reads a note the index holds as unverified even when its stamp matches,
 because reading the note is what verifies it. The `unverified` column that
 carries this is in the schema already; no further bump is owed.
 
+**Opening a file fetches it. Decided by the maintainer on 2026-09-30**, in
+session, choosing "Baixar ao abrir" among three options (fetch on opening; a
+"Download" button; never fetch), after every vault under
+`~/Documents/obsidian` was found evicted by iCloud's "Optimize Mac Storage"
+with the disk at 99 %, and the window showing them as errors.
+
+- **What the user opens in the window is brought down first**: a note or a
+  file opened in a tab, an embed of an open note, a card of an open board, a
+  picture or a PDF shown (the `verso:` protocol), a template, a property or a
+  relation written. The status line says "Downloading from iCloud…" while it
+  waits.
+- **Nothing else fetches.** The walk, the index, the watcher and a scan of
+  every note (find and replace) read as before and never download: opening a
+  folder still pulls nothing down, the reason the guard is checked before
+  anything is opened. A thumbnail in a folder's view is not fetched either.
+  The CLI and the MCP server keep reading without fetching — the author's
+  reading of the decision, which names only the window.
+- **Fetching is a step of its own.** Every read still refuses a placeholder,
+  so nothing ever reads one as text: the core names the placeholder, the host
+  fetches it off the main thread and outside the folder's lock, and the
+  window reads again.
+- **The dataless form only.** The older `.Name.ext.icloud` form cannot be
+  brought down by reading it, and stays "content unavailable".
+- **A file the provider cannot serve is an error, never an empty file.** One
+  item was observed that reads as zero bytes and stays dataless after the
+  read: the fetch says it failed, and the read still refuses it.
+
 ## Discarded alternatives
 
 - Treating an unreadable file as absent — that is the behavior that causes the
@@ -156,4 +183,5 @@ carries this is in the schema already; no further bump is owed.
 
 Accepted. Detection mechanism: decided for iCloud Drive on 2026-09-22 (both
 forms, checked before the file is opened); `[OPEN]` for the other providers,
-each one when its platform arrives or a user needs it.
+each one when its platform arrives or a user needs it. Opening a file in the
+window fetches it: decided on 2026-09-30.

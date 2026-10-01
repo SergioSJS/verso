@@ -147,6 +147,35 @@ nota que o índice guarda como não verificada mesmo quando o carimbo bate,
 porque ler a nota é o que a verifica. A coluna `unverified` que carrega isso já
 está no schema; não se deve outro bump.
 
+**Abrir um arquivo o baixa. Decidido pelo mantenedor em 2026-09-30**, em
+sessão, escolhendo "Baixar ao abrir" entre três opções (baixar ao abrir; um
+botão "Baixar"; nunca baixar), depois que todos os cofres de
+`~/Documents/obsidian` foram encontrados removidos do disco pelo "Otimizar
+armazenamento do Mac" do iCloud, com o disco a 99 %, e a janela mostrando-os
+como erro.
+
+- **O que o usuário abre na janela é baixado antes**: uma nota ou um arquivo
+  aberto numa aba, um embed de uma nota aberta, um cartão de um board aberto,
+  uma imagem ou um PDF mostrado (o protocolo `verso:`), um template, uma
+  propriedade ou uma relação escrita. A barra de status diz "Baixando do
+  iCloud…" enquanto espera.
+- **Nada mais baixa.** A varredura, o índice, o vigia e a leitura de todas as
+  notas (localizar e substituir) leem como antes e nunca baixam: abrir uma
+  pasta continua não puxando nada, a razão de a guarda ser checada antes de
+  qualquer abertura. Uma miniatura na visão de uma pasta também não é baixada.
+  A CLI e o servidor MCP continuam lendo sem baixar — leitura do autor sobre a
+  decisão, que nomeia só a janela.
+- **Baixar é um passo à parte.** Toda leitura continua recusando um
+  placeholder, então nada nunca lê um como texto: o core nomeia o placeholder,
+  o host o baixa fora da thread principal e fora da trava da pasta, e a janela
+  lê de novo.
+- **Só a forma dataless.** A forma antiga `.Nome.ext.icloud` não pode ser
+  baixada lendo-a, e continua "conteúdo indisponível".
+- **Um arquivo que o provedor não consegue servir é erro, nunca arquivo
+  vazio.** Foi observado um item que lê como zero bytes e continua dataless
+  depois da leitura: o download diz que falhou, e a leitura continua
+  recusando-o.
+
 ## Alternativas descartadas
 
 - Tratar arquivo não legível como ausente — é o comportamento que causa a perda
@@ -157,3 +186,4 @@ está no schema; não se deve outro bump.
 Aceito. Mecanismo de detecção: decidido para o iCloud Drive em 2026-09-22 (as
 duas formas, verificadas antes de o arquivo ser aberto); `[ABERTO]` para os
 demais provedores, cada um quando a plataforma chegar ou um usuário precisar.
+Abrir um arquivo na janela o baixa: decidido em 2026-09-30.

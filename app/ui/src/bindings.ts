@@ -166,6 +166,14 @@ export const commands = {
 	 */
 	openUrl: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("open_url", { url })),
 	/**
+	 *  Bring down a file of the folder whose content is only in the cloud,
+	 *  because the user opened it (ADR 0043, amended on 2026-09-30): true when
+	 *  it was fetched, false when there was nothing to fetch; the window then
+	 *  reads it again. Off the main thread and outside the folder's lock — a
+	 *  download takes seconds, and the rest of the window goes on meanwhile.
+	 */
+	fetchFile: (path: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("fetch_file", { path })),
+	/**
 	 *  Open the web inspector — console, elements, network — of the window
 	 *  that asks: View › Open console (⌥⌘I), in the installed app as in
 	 *  development (ADR 0051, 2026-09-30). The window asks only when its
