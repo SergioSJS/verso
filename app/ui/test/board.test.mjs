@@ -102,6 +102,58 @@ describe("canvas ↔ elements", () => {
     assert.deepEqual(solid.nodes.find((n) => n.id === "a").verso, { background: "#a5d8ff" }, "solid is not written");
   });
 
+  test("a card's style from the panel is kept under its verso, and only what is not the default", () => {
+    const styled = restored(OBSIDIAN).map((e) =>
+      e.id === "a"
+        ? { ...e, roundness: null, strokeWidth: 4, strokeStyle: "dashed", roughness: 2, opacity: 60, angle: 0.5, locked: true, groupIds: ["g1"] }
+        : e,
+    );
+    const saved = b.fromElements(styled, OBSIDIAN);
+    const node = saved.nodes.find((n) => n.id === "a");
+    assert.deepEqual(node.verso, { corners: "sharp", strokeWidth: 4, roughness: 2, angle: 0.5, strokeStyle: "dashed", opacity: 60, locked: true, groups: ["g1"] });
+    const back = restored(saved).find((e) => e.id === "a");
+    for (const [k, v] of Object.entries({ roundness: null, strokeWidth: 4, strokeStyle: "dashed", roughness: 2, opacity: 60, angle: 0.5, locked: true })) assert.deepEqual(back[k], v, k);
+    assert.deepEqual(back.groupIds, ["g1"]);
+    // The defaults as Excalidraw's restore fills them in write nothing.
+    const plain = restored(OBSIDIAN).map((e) => (e.id === "a" ? { ...e, strokeStyle: "solid", opacity: 100, angle: 0, locked: false, groupIds: [] } : e));
+    assert.deepEqual(b.fromElements(plain, OBSIDIAN).nodes, OBSIDIAN.nodes);
+  });
+
+  test("an edge keeps its kind of line, heads, bends and label size", () => {
+    const doc = { ...OBSIDIAN, edges: [{ ...OBSIDIAN.edges[0], fromEnd: "arrow" }] };
+    const els = restored(doc).map((e) => {
+      if (e.id === "e") return { ...e, roundness: { type: 2 }, startArrowhead: "dot", endArrowhead: "triangle", strokeWidth: 2, roughness: 0, points: [[0, 0], [100, 40], [240, 10]] };
+      if (e.id === "e-label") return { ...e, fontSize: 24, fontFamily: 5 };
+      return e;
+    });
+    const edge = b.fromElements(els, doc).edges[0];
+    assert.deepEqual(edge.verso, { line: "curved", startHead: "dot", endHead: "triangle", bends: [[100, 40]], labelSize: 24 });
+    assert.equal(edge.fromEnd, "arrow");
+    assert.equal(edge["x-extra"], true, "its other fields kept");
+    const back = restored(b.fromElements(els, doc));
+    const arrow = back.find((e) => e.id === "e");
+    assert.deepEqual(arrow.roundness, { type: 2 });
+    assert.equal(arrow.startArrowhead, "dot");
+    assert.equal(arrow.endArrowhead, "triangle");
+    assert.deepEqual(arrow.points[1], [100, 40]);
+    assert.equal(back.find((e) => e.id === "e-label").fontSize, 24);
+  });
+
+  test("an elbow edge comes back bound to points of its cards, along right angles", () => {
+    const els = restored(OBSIDIAN).map((e) => (e.id === "e" ? { ...e, elbowed: true, roundness: null } : e));
+    const saved = b.fromElements(els, OBSIDIAN);
+    assert.deepEqual(saved.edges[0].verso, { line: "elbow" });
+    const arrow = restored(saved).find((e) => e.id === "e");
+    assert.equal(arrow.elbowed, true);
+    assert.deepEqual(arrow.startBinding.fixedPoint, [1, 0.5001], "from the right side");
+    assert.deepEqual(arrow.endBinding.fixedPoint, [0, 0.5001], "to the left side");
+    for (let i = 1; i < arrow.points.length; i++) {
+      const [p, q] = [arrow.points[i - 1], arrow.points[i]];
+      assert.ok(p[0] === q[0] || p[1] === q[1], `segment ${i} is straight across or down`);
+    }
+    assert.deepEqual(b.fromElements(restored(saved), saved).edges[0].verso, { line: "elbow" }, "and stays an edge");
+  });
+
   test("groups are frames; a node inside a group is in its frame", () => {
     const els = restored(OBSIDIAN);
     assert.equal(els.find((e) => e.id === "g").type, "frame");
