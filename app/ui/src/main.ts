@@ -7991,6 +7991,8 @@ class QuickSwitcher {
     this.input.value = query;
     this.update();
     this.input.focus();
+    // A name filled in is selected: typing replaces it.
+    if (query) this.input.select();
   }
   hide(restore = true): void {
     this.el.hidden = true;
