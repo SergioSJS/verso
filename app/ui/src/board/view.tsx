@@ -77,7 +77,11 @@ export type BoardHost = {
   /** A copy of a picture at the size a card shows it (null: none made). */
   pictureCopy: (src: string) => Promise<string | null>;
   exists: (path: string) => boolean;
-  pickFile: () => Promise<string | null>;
+  /** Choose a file of the folder; `query` fills the search first. */
+  pickFile: (query?: string) => Promise<string | null>;
+  /** Show the PDF at `path` inside `el` (ADR 0057 point 3); the function
+   *  returned takes it down. */
+  renderPdf: (el: HTMLElement, path: string) => () => void;
   prompt: (label: string, initial: string, multiline: boolean) => Promise<string | null>;
   /** Write the relation into the source note, after showing the diff;
    *  true when it was written. */
@@ -198,7 +202,10 @@ function Card({
   draw,
   background,
   fill,
+  zoom,
 }: {
+  /** The CSS zoom the card is laid out at (1 when it is scaled instead). */
+  zoom: number;
   id: string;
   node: CanvasNode;
   host: BoardHost;
@@ -232,6 +239,23 @@ function Card({
   const missing = node.type === "file" && !host.exists(file);
   const note = node.type === "file" && !missing && ext(file) === "md";
   const picture = node.type === "file" && !missing && IMAGE.test(ext(file));
+  const pdf = node.type === "file" && !missing && ext(file) === "pdf";
+  const pdfEl = useRef<HTMLDivElement>(null);
+  // A PDF card shows the PDF, in its turn, as a note shows an embedded one.
+  useEffect(() => {
+    const el = pdfEl.current;
+    if (!pdf || !el) return;
+    let stop: (() => void) | null = null;
+    let gone = false;
+    const cancel = draw(id, async () => {
+      if (!gone) stop = host.renderPdf(el, file);
+    });
+    return () => {
+      gone = true;
+      cancel();
+      stop?.();
+    };
+  }, [pdf, id, file, host, draw]);
   // A picture card draws the picture's copy, in its turn, and the original
   // over it for a close view (`cardPicture`): undefined while it waits.
   const [copy, setCopy] = useState<string | null | undefined>(undefined);
@@ -335,7 +359,20 @@ function Card({
           )}
         </div>
       )}
-      {node.type === "file" && missing && <div className="board-card-note">{s.missing}</div>}
+      {node.type === "file" && missing && (
+        <div className="board-card-note">
+          <p>{s.missing}</p>
+          <p className="board-card-path">{file}</p>
+          <p>{s.relinkHint}</p>
+        </div>
+      )}
+      {pdf && (
+        // Laid out at the zoom the card is shown at, not scaled with it:
+        // pdf.js draws its pages at the size they are seen.
+        <div className="board-card-pdf" style={{ zoom: 1 / zoom } as CSSProperties}>
+          <div ref={pdfEl} className="board-card-pdf-view" />
+        </div>
+      )}
       {picture && copy !== undefined && (
         <div className="board-card-image">
           <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" />
@@ -512,6 +549,21 @@ function CardLayer({
   const laidOut = z >= LAYOUT_ZOOM;
   const keep = useRef({ editing, active });
   keep.current = { editing, active };
+  // The wheel inside an entered card scrolls the card. Excalidraw pans the
+  // board for a wheel on any <canvas>, and a PDF's pages are canvases: the
+  // event stops at the layer, before Excalidraw's own listener on its root.
+  // With ⌘ or ⌃ it is a zoom, and the board still takes it.
+  const layer = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = layer.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent): void => {
+      if (e.metaKey || e.ctrlKey) return;
+      if ((e.target as Element | null)?.closest?.(".board-card-slot.is-active")) e.stopPropagation();
+    };
+    el.addEventListener("wheel", wheel, { passive: true });
+    return () => el.removeEventListener("wheel", wheel);
+  }, []);
   // Shown within a screen of the view, hidden past two: a card at the edge
   // does not come and go as the view trembles. The one entered or edited is
   // always shown.
@@ -543,7 +595,7 @@ function CardLayer({
     onLaidOut(view);
   });
   return (
-    <div className={`board-cards${active ? " has-active" : ""}`}>
+    <div className={`board-cards${active ? " has-active" : ""}`} ref={layer}>
       <div className={`board-cards-plane${z * (window.devicePixelRatio || 1) * CARD_PICTURE_WIDTH > PICTURE_COPY ? " is-close" : ""}`} ref={plane}>
         {cards.map((e) => {
           const node = nodeData(e);
@@ -578,6 +630,7 @@ function CardLayer({
             >
               <div className="board-card-box" style={box}>
                 <MemoCard
+                  zoom={laidOut ? z : 1}
                   id={e.id}
                   fill={typeof e.fillStyle === "string" ? e.fillStyle : "solid"}
                   background={typeof e.backgroundColor === "string" && e.backgroundColor !== "transparent" && e.backgroundColor.toLowerCase() !== CARD_PAPER ? e.backgroundColor : null}
@@ -1512,6 +1565,24 @@ function Board({
     return true;
   };
 
+  // A file card whose file is not in the folder (renamed or moved outside
+  // the app, or written by another app from another root): pointed at a
+  // file of the folder again, the search filled with the name it had.
+  const relink = async (e: El, n: CanvasNode): Promise<void> => {
+    const a = api.current;
+    if (!a) return;
+    const was = typeof n.file === "string" ? n.file : "";
+    const chosen = await host.pickFile(was.split("/").pop() ?? was);
+    if (!chosen || chosen === was) return;
+    touched.current = true;
+    const now = a.getSceneElementsIncludingDeleted();
+    a.updateScene({
+      elements: now.map((x) => (x.id === e.id ? newElementWith(x, { customData: { ...(x.customData ?? {}), canvas: { ...n, file: chosen } } }) : x)),
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    host.status(s.relinked(chosen));
+  };
+
   const editText = async (e: El, n: CanvasNode): Promise<void> => {
     const a = api.current;
     if (!a) return;
@@ -1528,7 +1599,9 @@ function Board({
   const selectedArrow = selected.length === 1 ? byId(selected[0] ?? "") : undefined;
   const ends = selectedArrow ? relationEnds(selectedArrow, (api.current?.getSceneElements() ?? []) as unknown as El[]) : null;
   const selectedNode = selected.length === 1 ? byId(selected[0] ?? "") : undefined;
-  const openable = selectedNode && isNode(selectedNode) && ["file", "link"].includes(nodeData(selectedNode)?.type ?? "");
+  const selectedData = selectedNode && isNode(selectedNode) ? nodeData(selectedNode) : null;
+  const lost = selectedData?.type === "file" && typeof selectedData.file === "string" && !host.exists(selectedData.file);
+  const openable = !lost && selectedNode && isNode(selectedNode) && ["file", "link"].includes(nodeData(selectedNode)?.type ?? "");
 
   const promote = async (): Promise<void> => {
     const a = api.current;
@@ -1597,7 +1670,16 @@ function Board({
     // A note's card is entered, as Excalidraw enters any embeddable on a
     // double click: its text scrolls, selects, and its links open. ⌘ opens
     // the note itself; a text card is edited, a link card opened.
-    const kind = nodeData(hit)?.type;
+    const data = nodeData(hit);
+    const kind = data?.type;
+    // A card whose file is not found has nothing to enter: a double click
+    // points it at a file again.
+    if (data && kind === "file" && typeof data.file === "string" && !host.exists(data.file)) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      void relink(hit, data);
+      return;
+    }
     if (kind === "file" && !(ev.metaKey || ev.ctrlKey)) return;
     if (openNode(hit, ev.metaKey || ev.ctrlKey)) {
       ev.stopPropagation();
@@ -1707,6 +1789,11 @@ function Board({
           {s.addLink}
         </button>
         <span className="board-bar-gap" />
+        {lost && selectedNode && selectedData && (
+          <button type="button" title={s.relinkTitle} onClick={() => void relink(selectedNode, selectedData)}>
+            {s.relink}
+          </button>
+        )}
         <button type="button" title={s.openTitle} disabled={!openable} onClick={() => selectedNode && openNode(selectedNode, false)}>
           {s.open}
         </button>

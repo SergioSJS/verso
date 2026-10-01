@@ -2573,6 +2573,14 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 .board-card-open { pointer-events: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: 5px; color: var(--ink-3); background: transparent; }
 .board-card-open:hover, .board-card-open.is-hover, .board-card-open:focus-visible { color: var(--seal); background: var(--seal-wash); outline: none; }
 .board-card-note { padding: .4rem .6rem; color: var(--ink-3); }
+.board-card-note p { margin: 0 0 .35rem; }
+.board-card-path { font-family: var(--mono); font-size: .78rem; color: var(--ink-2); overflow-wrap: anywhere; }
+/* A PDF card: the reader fills the card under its head, counter-zoomed so
+   it lays out at the size it is seen (`zoom: 1 / zoom` in Card). */
+.board-card-pdf { position: relative; flex: 1; min-height: 0; }
+.board-card-pdf-view { position: absolute; inset: 0; display: flex; }
+.board-card-pdf-view .pdf { flex: 1; }
+.board-card-slot:not(.is-active) .board-card-pdf .pdf-bar { display: none; }
 .board-card-missing .board-card-title { text-decoration: line-through; }
 .board-card-body { flex: 1; min-height: 0; overflow: hidden; padding: .4rem .6rem; }
 

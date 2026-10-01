@@ -3835,7 +3835,24 @@ class BoardLeaf extends TextLeaf {
       fileSrc: (path) => convertFileSrc(listed(path), "verso"),
       pictureCopy: (src) => pictureCopy(src),
       exists: (path) => listedPath(path, [allNotes, allFiles]) !== undefined,
-      pickFile: () => quick.pick(),
+      pickFile: (query) => quick.pick(query),
+      renderPdf: (el, path) => {
+        const rel = listed(path);
+        const view = new PdfView({
+          strings: pdfStrings(),
+          onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${name(rel)}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
+          onQuote: (fragment, page, text) => void quoteIntoNotes(rel, fragment, page, text),
+          onStatus: (m) => (ui.status.textContent = m),
+          onPage: () => {},
+        });
+        view.container.setAttribute("aria-label", name(rel));
+        el.replaceChildren(view.el);
+        void fetchFirst(rel).then(() => view.load(convertFileSrc(rel, "verso")));
+        return () => {
+          view.destroy();
+          el.replaceChildren();
+        };
+      },
       prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
       promote: (from, to, key) => promoteRelation(listed(from), to, key),
       editNote: (el, path, onExit) => cardEditor(el, listed(path), onExit, this.cardHistory),
@@ -7968,10 +7985,10 @@ class QuickSwitcher {
       if (e.target === this.el) this.hide();
     });
   }
-  show(): void {
+  show(query = ""): void {
     opened(this.el);
     this.el.hidden = false;
-    this.input.value = "";
+    this.input.value = query;
     this.update();
     this.input.focus();
   }
@@ -7983,10 +8000,10 @@ class QuickSwitcher {
     picking?.(null);
   }
   /** Choose a note or file of the folder, and wait: its path, or null. */
-  pick(): Promise<string | null> {
+  pick(query = ""): Promise<string | null> {
     this.hide();
     return new Promise<string | null>((resolve) => {
-      this.show();
+      this.show(query);
       this.picking = resolve;
     });
   }
