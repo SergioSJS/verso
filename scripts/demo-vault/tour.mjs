@@ -170,12 +170,13 @@ const STOPS = [
       "• ⌘F busca no board\n" +
       "• Texto, no canto da aba, mostra o JSON",
     tipX: 760,
-    tipY: 340,
+    tipY: 430,
     tipWidth: 600,
     extra(b, x, y) {
       b.file("n-board-nota", "09 - Board e Relações.md", x + 40, y + 130, 600, 820);
       b.file("n-treino", "Treino do Board.canvas", x + 760, y + 130, 600, 64, "1");
-      b.file("n-demo", "Board de Demonstração.canvas", x + 760, y + 230, 600, 64);
+      b.file("n-demo", "Board de Demonstração.canvas", x + 760, y + 220, 600, 64);
+      b.file("n-desenhando", "10 - Desenhando no Board.md", x + 760, y + 310, 600, 64);
       b.edge("e-nota-treino", "n-board-nota", "right", "n-treino", "left", "pratique", "1");
       b.write("d-treino-nota", x + 900, y - 130, "aprenda a desenhar aqui!", { size: 36, color: RED });
       b.path("arrow", "d-treino-seta", x + 1150, y - 80, [[0, 0], [10, 90], [-20, 200]], { stroke: RED, sw: 3 });

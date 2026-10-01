@@ -205,7 +205,9 @@ through `verso-core`) — ADR 0028, Consequences.
   with `node scripts/demo-vault.mjs build`, never edited in the app; a key
   the tutorial teaches is checked against Excalidraw's key tests and the
   window's bindings; and the tutorial is followed in the app, with the app's
-  log open, before the PR.
+  log open, before the PR — the steps of
+  [`docs/reference/demo-vault-walkthrough.md`](docs/reference/demo-vault-walkthrough.md),
+  to which the feature adds its own.
 
 ### Review
 

@@ -11,6 +11,11 @@
   [0029](0029-guardrails-in-ci.md) (guardrails);
   [0035](0035-cross-cutting-requirements.md) (pt-BR e EN)
 - Status no briefing: ausente
+- Revisões: 2026-10-01 — o mantenedor, no mesmo dia, em sessão: "registre os
+  passos a passos de testes realizados para serem automatizados de alguma
+  forma pra rodar localmente quando fizer sentido". O percurso está escrito
+  (ponto 6), o `check` também confere que o cofre se sustenta (ponto 7), e
+  como o percurso roda por máquina está `[ABERTO]`.
 
 ## Contexto
 
@@ -52,16 +57,42 @@ Como ele é mantido é do autor, para o mantenedor questionar:
    do próprio Excalidraw e os atalhos da janela antes de ser escrita, e o
    tutorial é seguido no app antes do pull request, com o log do app aberto:
    um passo que não funciona é um bug do app ou do tutorial, corrigido no
-   mesmo pull request.
+   mesmo pull request. O percurso está escrito em
+   [`demo-vault-walkthrough.md`](../reference/demo-vault-walkthrough.md): o
+   que fazer, o que tem de acontecer, como se confere e até onde roda por
+   máquina; uma feature acrescenta os seus passos.
 7. **`node scripts/demo-vault.mjs check`** — os boards são os dos seus módulos
-   e o embutido é o da pasta — roda no `scripts/check.sh` e no job de pull
-   request da CI, como os bindings gerados são conferidos
+   e o embutido é o da pasta, e o cofre se sustenta: todo link de uma nota ou
+   de um board leva a um arquivo do cofre, e um `#título` a um título da sua
+   nota; as notas diárias e os templates ficam onde o app procura por padrão;
+   toda nota numerada está no mapa da nota de boas-vindas, no tour, e aponta
+   para a seguinte — roda no `scripts/check.sh` e no job de pull request da
+   CI, como os bindings gerados são conferidos
    ([0026](0026-core-ui-contract-inviolable-rules.md), regra 3).
 
 `[ABERTO]` **O cofre de exemplo em inglês.** O produto é pt-BR e EN
 ([0035](0035-cross-cutting-requirements.md)); o cofre de exemplo sempre foi só
 em português, e nada decidiu isso. Até o mantenedor decidir, ele fica em
 pt-BR.
+
+`[ABERTO]` **O percurso, rodado por máquina.** O que o `check` e os testes
+unitários não cobrem — o comportamento da própria janela e o do app de
+verdade — é seguido à mão. Os caminhos vistos em 2026-10-01, para o
+mantenedor escolher:
+
+- **O harness de navegador** (`app/ui/harness.html`, com o core simulado)
+  guiado por uma ferramenta de automação de navegador, o WebKit do Playwright
+  por exemplo: sem janela, local, nunca toma o mouse. Só o comportamento da
+  janela; o harness precisa responder a mais comandos do core (o salvamento
+  de um board entre eles); uma dependência nova de desenvolvimento.
+- **O app de verdade no Linux**, no contêiner que o `scripts/check-linux.sh`
+  já usa, guiado por WebDriver (`tauri-driver` e WebKitWebDriver): o app
+  inteiro, o core e o protocolo `verso:` incluídos; não os menus e as teclas
+  do Mac; ferramentas novas na imagem.
+- **O app de verdade no Mac**, guiado por eventos de entrada do sistema e
+  capturas de tela, como em 2026-10-01: tudo, os menus e as teclas do Mac
+  incluídos; toma o mouse e o teclado enquanto roda, e acha as coisas na tela
+  pela posição.
 
 ## Consequências
 
@@ -74,6 +105,9 @@ pt-BR.
   usuário.
 - O script em Python que gerou os boards em 2026-09-30 é substituído pelo em
   Node no repositório (o Node já constrói a janela).
+- `docs/reference/demo-vault-walkthrough.md` é o percurso: o pull request de
+  uma feature acrescenta os seus passos, cada um com o nível em que pode rodar
+  por máquina.
 
 ## Alternativas descartadas
 
