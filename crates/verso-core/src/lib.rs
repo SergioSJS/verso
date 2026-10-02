@@ -1737,15 +1737,15 @@ impl Workspace {
             if let Some(order_after) = rewrite_order(text_to_check, &note.path, mv) {
                 after = Some(order_after);
             }
-            if let Some(after) = after {
-                if after != note.text {
-                    rewrites.push(LinkRewrite {
-                        path: path_now,
-                        revision: note.revision,
-                        before: note.text,
-                        after,
-                    });
-                }
+            if let Some(after) = after
+                && after != note.text
+            {
+                rewrites.push(LinkRewrite {
+                    path: path_now,
+                    revision: note.revision,
+                    before: note.text,
+                    after,
+                });
             }
         }
         // In the order of the paths shown, which for a moved note is its
@@ -2601,11 +2601,11 @@ fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
                 order_end = Some(line_offset);
                 break;
             }
-        } else if let Some(k) = top_level_key(line) {
-            if k.eq_ignore_ascii_case("order") {
-                in_order = true;
-                order_start = Some(line_offset);
-            }
+        } else if let Some(k) = top_level_key(line)
+            && k.eq_ignore_ascii_case("order")
+        {
+            in_order = true;
+            order_start = Some(line_offset);
         }
         line_offset += line_len;
     }

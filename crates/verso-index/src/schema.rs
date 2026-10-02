@@ -113,7 +113,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     if has_meta
         && matches!(
             meta("schema").and_then(|v| v.parse::<i64>().ok()),
-            Some(6 | 7 | 8)
+            Some(6..=8)
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
