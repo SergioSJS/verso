@@ -1,8 +1,13 @@
-# Releases (ADR 0051, ADR 0029): the apps are built and packaged here and
-# nowhere else, only for a version tag — `vX.Y.Z` for production,
-# `vX.Y.Z-beta.N` for a test release. `node scripts/release.mjs tag X.Y.Z`
-# pushes the tag, when the maintainer asks for a version; branches and pull
-# requests never build or package the app.
+# Releases (ADR 0051 as revised on 2026-10-02, ADR 0029): the apps are built
+# and packaged here and nowhere else, only for a version — `vX.Y.Z` for
+# production, `vX.Y.Z-beta.N` for a test release. A version reaches main in
+# the pull request that carries it (`node scripts/release.mjs prepare` on
+# its branch); on that push to main, `decide` sees a version with no tag
+# yet, and the macOS job builds it and publishes the release, which creates
+# the tag on the merge. Every other push to main stops at `decide`, a few
+# seconds of Linux. A tag pushed by hand (`release.mjs tag`, when the
+# automatic path could not tag) still releases. Branches and pull requests
+# never build or package the app.
 #
 # A rehearsal (Actions → release → Run workflow) builds the same files from
 # `main` without publishing anything and keeps them as run artifacts: the
@@ -23,9 +28,12 @@ name: release
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
+# Two merges in a row wait for each other: the second one's `decide` then
+# sees the tag the first one created.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -37,8 +45,47 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Is there a version to release? On main: the workspace's version, unless
+  # its tag exists already. On a tag: that tag. By hand: a rehearsal.
+  decide:
+    name: a version to release?
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.decide.outputs.tag }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          case "$EVENT:$REF_TYPE" in
+            push:tag) tag="$GITHUB_REF_NAME" ;;
+            push:branch)
+              version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
+              if [ -z "$version" ] || [ "$version" = 0.0.0 ]; then
+                echo "main carries no version to release"; tag=""
+              elif out="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$version" 2>&1)"; then
+                echo "v$version is released already: nothing to do"; tag=""
+              elif printf '%s' "$out" | grep -q "HTTP 404"; then
+                echo "v$version has no tag yet: releasing it"; tag="v$version"
+              else
+                echo "::error::could not ask GitHub for v$version: $out"; exit 1
+              fi ;;
+            *) tag="rehearsal" ;;
+          esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
   macos:
-    name: Verso for macOS (${{ github.ref_name }})
+    name: Verso for macOS (${{ needs.decide.outputs.tag }})
+    needs: decide
+    if: needs.decide.outputs.tag != ''
     runs-on: macos-latest
     steps:
       # The whole history, for the check that a tag sits on main; and no
@@ -58,14 +105,15 @@ jobs:
         id: version
         env:
           EVENT: ${{ github.event_name }}
+          TAG: ${{ needs.decide.outputs.tag }}
         run: |
           if [ "$EVENT" = push ]; then
-            node scripts/release.mjs verify "$GITHUB_REF_NAME"
+            node scripts/release.mjs verify "$TAG"
             if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-              echo "::error::$GITHUB_REF_NAME is not on main"
+              echo "::error::$TAG is not on main"
               exit 1
             fi
-            version="${GITHUB_REF_NAME#v}"
+            version="${TAG#v}"
             node scripts/release.mjs notes "$version" > notes.md
           else
             version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
@@ -123,21 +171,25 @@ jobs:
             ./*-macos-arm64.zip
             ./verso-cli-*-macos-arm64.tar.gz
       # A run again after a partial publish replaces the files and the notes
-      # instead of failing on a release that already exists.
+      # instead of failing on a release that already exists. On a push to
+      # main the tag does not exist yet: creating the release creates it, on
+      # the commit this run built (`--target`). A tag made with the
+      # workflow's token starts no other workflow, so nothing runs twice.
       - name: publish the release
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.decide.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
           NAME: ${{ steps.version.outputs.name }}
           BETA: ${{ steps.version.outputs.beta }}
         run: |
           files=(./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz)
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
-            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber
+            gh release edit "$TAG" --notes-file notes.md
           else
             pre=()
             if [ "$BETA" = true ]; then pre=(--prerelease); fi
-            gh release create "$GITHUB_REF_NAME" --title "$NAME $VERSION" --notes-file notes.md "${pre[@]}" "${files[@]}"
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --notes-file notes.md "${pre[@]}" "${files[@]}"
           fi

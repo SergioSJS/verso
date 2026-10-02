@@ -134,7 +134,7 @@ request runs every guardrail but the fuzzing in one Linux job; `main` adds
 clippy and the tests on macOS, the fuzzing and the benchmark; the window's
 end-to-end tests run only locally, in `scripts/check.sh`
 ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)); the apps are
-built and packaged only for a version tag, never on a branch. Before any push,
+built and packaged only for a new version reaching `main`, never on a branch. Before any push,
 `scripts/check.sh` and `scripts/check-linux.sh` pass locally (README.md): CI
 confirms, it is never the first test.
 
@@ -248,11 +248,13 @@ documents cite commits by hash ([ADR 0051](docs/adr/0051-development-flow-and-re
 ### Versions
 
 A version is cut **only when the maintainer asks**, and then an agent may cut
-it: `node scripts/release.mjs prepare X.Y.Z[-beta.N]` opens the release pull
-request; after its merge, `node scripts/release.mjs tag X.Y.Z[-beta.N]` tags
-the commit that brought the version, and the tag builds and publishes the
-release. `-beta.N` is a test release. Never push a version tag by hand;
-version tags are permanent — no one can move or delete one.
+it: `node scripts/release.mjs prepare X.Y.Z[-beta.N]`, on the branch of the
+pull request that releases, sets the version and moves the changelog in one
+commit of that pull request; its merge into `main` builds, publishes and tags
+the release ([ADR 0051](docs/adr/0051-development-flow-and-releases.md),
+revised 2026-10-02). `-beta.N` is a test release. A version tag is pushed by
+hand (`release.mjs tag`) only when that path could not tag; version tags are
+permanent — no one can move or delete one.
 
 ---
 
