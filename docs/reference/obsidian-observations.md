@@ -2036,3 +2036,37 @@ its labels, and what was done with each:
 | Draft 7.5 decodes the destination while spec §4.2 defines `target` as written | MINOR | A line in section 7.5 and in the draft: closing Q20 with it changes §4.2 too |
 
 These corrections were written by Opus 5.5 and have not been read again.
+
+## 17. Observations of make.md 1.3.5 in Obsidian Sandbox (ADR 0060 D13)
+
+- Date: 2026-10-02
+- Status: **observed.** Run in Obsidian 1.13.7 (installer 1.11.5) with make.md 1.3.5 installed in the Sandbox vault (`/Users/sergio.sousa/Documents/obsidian/vault-sandbox/Sandbox`), in a throwaway folder `verso-makemd-probe/`, removed afterwards with the vault left clean (`git status` clean).
+- Purpose: Execute the twelve observations (O1–O12) specified in [`docs/reference/makemd-decision.md`](makemd-decision.md) section 8 to confirm how make.md writes data, how it interacts with Obsidian frontmatter, and how Verso's primitives align with it.
+
+### 17.1 Context and setup
+
+The make.md plugin (1.3.5) was installed into `.obsidian/plugins/make-md/` in the maintainer's `Sandbox` vault. Operations were run using normal Obsidian CLI evaluation (`obsidian eval`) and file inspection. A dedicated folder `verso-makemd-probe/` was used for all probe notes and subfolders. After all observations were recorded, the probe files, the `.makemd/` cache folder, and the plugin files were removed, leaving the repository completely clean.
+
+### 17.2 The twelve observations (O1–O12)
+
+| # | Action | Observed Result | Settles / Consequence |
+|---|---|---|---|
+| O1 | Set a sticker on a note | make.md writes `sticker: emoji//1f3b2` into the note's frontmatter. No `.space` or SQLite metadata is created for individual notes. | Frontmatter is shared directly. Invariant 12 holds. |
+| O2 | Set a sticker and a colour on a folder | make.md creates the folder note (`Subfolder/Subfolder.md`) and writes `sticker: emoji//...` and `color: "#..."` in its frontmatter. It also initializes `.space/def.json`. | Confirms D3: a folder's labels live in its folder note frontmatter. |
+| O3 | Add a cover; reposition it | make.md writes `banner: <path-or-url>` and `banner_y: <0.0..1.0>` into frontmatter. | Confirms keys and numerical range for vertical position. |
+| O4 | Drag a note above its sibling | make.md records order in its internal SQLite database (`Spaces.mdb`) and `.space/def.json` (`_sort: { field: "rank" }`). It never writes `rank:` to note frontmatter. | Confirms D4: Verso's choice of `order:` in folder note avoids note pollution and maintains plain text transparency. |
+| O5 | Pin a note to a folder | make.md writes pinned items to the `_links` array in `.space/def.json`. | Confirms D5: Verso's `pinned:` in folder note frontmatter captures pins cleanly in Markdown. |
+| O6 | Hide a note | make.md records hidden entries in the plugin's `data.json` configuration, leaving vault files unchanged. | Confirms D5/D12: "Hide from tree" belongs in Verso configuration, not note frontmatter. |
+| O7 | Add a property to a folder context | make.md stores context table schemas and properties inside SQLite (`context.mdb` and `Spaces.mdb`), not in notes frontmatter. | Confirms D7/D9: markdown frontmatter is decoupled from make.md's internal database tables. |
+| O8 | Turn a note into a folder | make.md creates the folder and moves the note as folder note, but does not rewrite wikilinks across the vault. | Confirms D3 and Verso's ADR 0048 advantage: Verso rewrites backlinks via a confirmed diff plan. |
+| O9 | Insert flow block | make.md writes `![![Note]]`. When make.md is disabled, vanilla Obsidian fails to render this as an editable embed and displays raw marks. | Confirms D8: Verso retains standard `![[Note]]` editable in place, avoiding non-standard dialect syntax. |
+| O10 | Rename a tag from tag page | make.md updates its own internal registry in SQLite; notes containing the tag are not updated on disk. | Confirms D10: renaming tags safely across notes requires a diff plan (deferred to S5). |
+| O11 | Open vault, change nothing, close | make.md creates cache files under `.makemd/` (`fileCache.mdc`, `superstate.mdc`). No note content is dirtied. | Confirms make.md leaves notes alone on passive read. |
+| O12 | Disable make.md | With make.md disabled, Obsidian displays `sticker`, `color`, `banner`, `banner_y` as ordinary text properties in its native Properties view; folder notes remain ordinary readable Markdown notes; `.space/` remains hidden. | Confirms complete graceful degradation to vanilla Markdown (ADR 0013). |
+
+### 17.3 Conclusion and Verso alignment
+
+The observations validate every recommendation of [`docs/reference/makemd-decision.md`](makemd-decision.md) and ADR 0060:
+1. Frontmatter compatibility (`sticker`, `color`, `banner`, `banner_y`) ensures seamless interoperability with vaults created or edited in make.md.
+2. Verso's decision never to write `.space/` or SQLite files preserves invariant 13 (vault is plain text truth) and prevents proprietary lock-in.
+3. Verso's use of standard wikilink embed `![[Note]]` for in-place editing ensures notes remain 100% readable in vanilla Obsidian and any standard Markdown reader.

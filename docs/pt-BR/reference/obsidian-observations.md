@@ -2038,3 +2038,38 @@ rótulos dela, e o que foi feito com cada um:
 | O rascunho 7.5 decodifica o destino enquanto a §4.2 da spec define o `target` como escrito | MENOR | Uma linha na seção 7.5 e no rascunho: fechar a Q20 com ele muda a §4.2 também |
 
 Estas correções foram escritas pelo Opus 5.5 e ainda não foram lidas de novo.
+
+## 17. Observações do make.md 1.3.5 no Sandbox do Obsidian (ADR 0060 D13)
+
+- Data: 2026-10-02
+- Status: **observado.** Executado no Obsidian 1.13.7 (instalador 1.11.5) com o make.md 1.3.5 instalado no vault Sandbox (`/Users/sergio.sousa/Documents/obsidian/vault-sandbox/Sandbox`), em uma pasta descartável `verso-makemd-probe/`, removida ao final deixando o vault limpo (`git status` limpo).
+- Objetivo: Executar as doze observações (O1–O12) especificadas na seção 8 de [`docs/pt-BR/reference/makemd-decision.md`](makemd-decision.md) para confirmar como o make.md grava dados, como interage com o frontmatter do Obsidian, e como as primitivas do Verso se alinham a ele.
+
+### 17.1 Contexto e configuração
+
+O plugin make.md (1.3.5) foi instalado em `.obsidian/plugins/make-md/` no vault `Sandbox` do mantenedor. As operações foram executadas usando a avaliação normal do Obsidian CLI (`obsidian eval`) e inspeção de arquivos. Uma pasta dedicada `verso-makemd-probe/` foi usada para todas as notas de teste e subpastas. Após o registro de todas as observações, os arquivos de teste, a pasta de cache `.makemd/` e os arquivos do plugin foram removidos, deixando o repositório completamente limpo.
+
+### 17.2 As doze observações (O1–O12)
+
+| # | Ação | Resultado Observado | Conclusão / Consequência |
+|---|---|---|---|
+| O1 | Definir figurinha em uma nota | O make.md grava `sticker: emoji//1f3b2` no frontmatter da nota. Nenhum metadado em `.space` ou SQLite é criado para notas individuais. | O frontmatter é compartilhado diretamente. O invariante 12 se mantém. |
+| O2 | Definir figurinha e cor em uma pasta | O make.md cria a nota de pasta (`Subpasta/Subpasta.md`) e grava `sticker: emoji//...` e `color: "#..."` no seu frontmatter. Também inicializa `.space/def.json`. | Confirma D3: os rótulos de uma pasta residem no frontmatter da sua nota de pasta. |
+| O3 | Adicionar uma capa; reposicioná-la | O make.md grava `banner: <caminho-ou-url>` e `banner_y: <0.0..1.0>` no frontmatter. | Confirma as chaves e o intervalo numérico para a posição vertical. |
+| O4 | Arrastar uma nota acima de sua irmã | O make.md registra a ordem em seu banco de dados SQLite interno (`Spaces.mdb`) e em `.space/def.json` (`_sort: { field: "rank" }`). Ele nunca grava `rank:` no frontmatter da nota. | Confirma D4: a escolha do Verso por `order:` na nota de pasta evita poluição de notas e preserva a transparência do texto puro. |
+| O5 | Fixar uma nota a uma pasta | O make.md grava itens fixados no array `_links` em `.space/def.json`. | Confirma D5: o `pinned:` do Verso no frontmatter da nota de pasta captura fixações de forma limpa em Markdown. |
+| O6 | Ocultar uma nota | O make.md registra entradas ocultas na configuração `data.json` do plugin, deixando os arquivos do vault inalterados. | Confirma D5/D12: "Ocultar da árvore" pertence à configuração do Verso, não ao frontmatter da nota. |
+| O7 | Adicionar uma propriedade a um contexto de pasta | O make.md armazena esquemas de tabelas de contexto e propriedades dentro do SQLite (`context.mdb` e `Spaces.mdb`), não no frontmatter das notas. | Confirma D7/D9: o frontmatter markdown é desacoplado das tabelas de banco de dados internas do make.md. |
+| O8 | Transformar uma nota em pasta | O make.md cria a pasta e move a nota como nota de pasta, mas não reescreve wikilinks pelo vault. | Confirma D3 e a vantagem do ADR 0048 do Verso: o Verso reescreve backlinks por meio de um plano de diff confirmado. |
+| O9 | Inserir bloco de fluxo | O make.md grava `![![Nota]]`. Quando o make.md é desativado, o Obsidian puro falha ao renderizar isso como um embed editável e exibe as marcas brutas. | Confirma D8: o Verso mantém o `![[Nota]]` padrão editável no local, evitando sintaxe de dialeto não padronizada. |
+| O10 | Renomear uma tag a partir da página de tag | O make.md atualiza seu próprio registro interno no SQLite; notas que contêm a tag não são atualizadas no disco. | Confirma D10: renomear tags com segurança entre notas requer um plano de diff (adiado para S5). |
+| O11 | Abrir o vault, não alterar nada, fechar | O make.md cria arquivos de cache sob `.makemd/` (`fileCache.mdc`, `superstate.mdc`). Nenhum conteúdo de nota é alterado. | Confirma que o make.md deixa as notas intocadas em leitura passiva. |
+| O12 | Desativar o make.md | Com o make.md desativado, o Obsidian exibe `sticker`, `color`, `banner`, `banner_y` como propriedades de texto comuns em sua visualização nativa de Propriedades; notas de pasta permanecem notas Markdown legíveis comuns; `.space/` permanece oculto. | Confirma degradação graciosa completa para Markdown puro (ADR 0013). |
+
+### 17.3 Conclusão e alinhamento do Verso
+
+As observações validam cada recomendação de [`docs/pt-BR/reference/makemd-decision.md`](makemd-decision.md) e do ADR 0060:
+1. Compatibilidade de frontmatter (`sticker`, `color`, `banner`, `banner_y`) garante interoperabilidade transparente com vaults criados ou editados no make.md.
+2. A decisão do Verso de nunca gravar arquivos `.space/` ou SQLite preserva o invariante 13 (vault é verdade em texto puro) e evita aprisionamento proprietário.
+3. O uso do Verso do embed wikilink padrão `![[Nota]]` para edição no local garante que as notas permaneçam 100% legíveis no Obsidian puro e em qualquer leitor de Markdown padrão.
+
