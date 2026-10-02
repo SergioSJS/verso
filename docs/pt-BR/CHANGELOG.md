@@ -24,6 +24,10 @@ versão de teste.
   - **Gatilho de emojis no editor (`:`)**: digitar `:` no editor abre uma janela de autocompletar com sugestões de emojis pesquisáveis em português e inglês. Ajuste em Ajustes › Editor › "Sugerir emojis ao digitar ':'".
   - **Atualização do tutorial do cofre de demonstração**: nota `19 - Organizando: figurinhas, capas e páginas.md` adicionada ao cofre de demonstração e ao tour, demonstrando todos os recursos de organização.
 
+### Corrigido
+
+- **O texto de um board não sai mais cortado nas bordas quando a fonte chega tarde**: numa abertura a frio do app, as fontes manuscrita e dos cartões podem levar alguns segundos, e os textos medidos antes delas — no "Treino do Board", os de todas as lições — ficavam com a largura menor e eram desenhados cortados dos dois lados até o board ser editado ou aberto de novo. Agora o board pede a fonte de cada texto e mede o texto de novo quando ela chega.
+
 ## 0.3.0-beta.3 — 2026-10-02
 
 ### Acrescentado
