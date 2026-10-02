@@ -2636,4 +2636,3 @@ fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
     out.replace_range(start..end, &replacement);
     Some(out)
 }
-
