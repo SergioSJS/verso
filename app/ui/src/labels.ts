@@ -16,7 +16,8 @@ export type EmojiEntry = {
   kw: string; // search keywords
 };
 
-const emojis = emojiList as EmojiEntry[];
+export const allEmojis = emojiList as EmojiEntry[];
+const emojis = allEmojis;
 const nodesMap = lucideNodes as unknown as Record<string, [string, Record<string, string>][]>;
 
 const LUCIDE_ALIASES: Record<string, string> = {

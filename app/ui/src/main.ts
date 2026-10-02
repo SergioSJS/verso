@@ -62,6 +62,12 @@ const baseEditorExtensions: Extension = [
   bracketMatching(),
   closeBrackets(),
   autocompletion(),
+  EditorView.inputHandler.of((view, from, to, text) => {
+    if (text === ":" && settings.emojiTrigger) {
+      setTimeout(() => startCompletion(view), 0);
+    }
+    return false;
+  }),
   rectangularSelection(),
   crosshairCursor(),
   highlightActiveLine(),
@@ -91,7 +97,7 @@ import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
 import { frontmatterClose } from "./frontmatter";
-import { renderSticker, resolveColor, showStickerPicker } from "./labels";
+import { allEmojis, renderSticker, resolveColor, showStickerPicker } from "./labels";
 import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
 import { stringsFor } from "./bases/strings";
 import { DailyCalendar } from "./bases/daily";
@@ -760,7 +766,7 @@ const DEFAULTS: Settings = {
   folderPageTable: true,
   manualOrder: true,
   inlineEmbedEdit: true,
-  emojiTrigger: false,
+  emojiTrigger: true,
   hiddenFromTree: [],
 };
 let settings: Settings = { ...DEFAULTS };
@@ -1150,6 +1156,47 @@ async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResu
       return { label: o.label, detail: dirOf(o.path) || "/", type: o.kind === "note" ? "note" : o.kind === "image" ? "image" : "file", apply: target + closing, boost: o.kind === "note" ? 1 : 0 };
     });
   return { from: before.from + (embed ? 3 : 2), options, filter: false };
+}
+
+function completeEmoji(ctx: CompletionContext): CompletionResult | null {
+  if (!settings.emojiTrigger) return null;
+  const fm = frontmatterEnd(ctx.state.doc);
+  if (fm >= 0 && ctx.pos <= fm) return null;
+  const tree = ensureSyntaxTree(ctx.state, ctx.pos, 50) ?? syntaxTree(ctx.state);
+  for (let n: import("@lezer/common").SyntaxNode | null = tree.resolveInner(ctx.pos - 1, 1); n; n = n.parent) {
+    if (/^(FencedCode|CodeBlock|InlineCode|CodeText|HTMLBlock|CommentBlock)$/.test(n.name)) return null;
+  }
+  const before = ctx.matchBefore(/(?:^|\s):([a-zA-Z0-9_\u00C0-\u024F-]*)$/);
+  if (!before) return null;
+  const colonIndex = before.text.lastIndexOf(":");
+  const typed = before.text.slice(colonIndex + 1).toLowerCase();
+  const lang = LOCALE.startsWith("pt") ? "pt" : "en";
+  let matches = allEmojis;
+  if (typed.length > 0) {
+    matches = allEmojis.filter((e) =>
+      e.kw.includes(typed) ||
+      e.pt.toLowerCase().includes(typed) ||
+      e.en.toLowerCase().includes(typed)
+    );
+  }
+  const options: Completion[] = matches.slice(0, 50).map((e) => ({
+    label: `${e.c}  ${lang === "pt" ? e.pt : e.en}`,
+    detail: lang === "pt" ? e.en : e.pt,
+    apply: e.c,
+    type: "emoji",
+  }));
+  return {
+    from: before.from + colonIndex,
+    options,
+    filter: false,
+    validFor: /^:[a-zA-Z0-9_\u00C0-\u024F-]*$/,
+  };
+}
+
+async function completeMarkdown(ctx: CompletionContext): Promise<CompletionResult | null> {
+  const wiki = await completeWikilinks(ctx);
+  if (wiki) return wiki;
+  return completeEmoji(ctx);
 }
 
 /** What the `/` menu offers, in sections, with a line of explanation each. */
@@ -2038,6 +2085,8 @@ class NoteLeaf extends Leaf {
   /** PDF readers and bases embedded in the preview, closed when it is
    *  redrawn. */
   embeds: (PdfView | BaseView)[] = [];
+  readonly cardHistory = new Map<string, KeptCard>();
+  readonly cards = new Set<CardEditing>();
   readonly readingSearch: ReadingSearch;
 
   constructor(pane: Pane) {
@@ -2086,6 +2135,7 @@ class NoteLeaf extends Leaf {
       noteHtml: (target) => this.embedHtml(target),
       base: (text, embed, mount, edit) => this.liveBase(text, embed, mount, edit),
       pdf: (target, mount) => this.livePdf(target, mount),
+      editEmbed: (target, mount, onExit) => this.liveEmbed(target, mount, onExit),
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
     (this.editorHost as any).__cmView = this.editor;
@@ -2180,7 +2230,7 @@ class NoteLeaf extends Leaf {
       extensions: [
         baseEditorExtensions,
         this.lineNumbersCompartment.of(this.shouldShowLineNumbers() ? lineNumbers() : []),
-        md.language.data.of({ autocomplete: completeWikilinks }),
+        md.language.data.of({ autocomplete: completeMarkdown }),
         md,
         syntaxHighlighting(classHighlighter),
         // The system's spell checker, in the languages it is set to.
@@ -2230,6 +2280,7 @@ class NoteLeaf extends Leaf {
   /** Save now if there is anything to save; true when clean afterwards. */
   override async flush(): Promise<boolean> {
     window.clearTimeout(this.saveTimer);
+    for (const card of this.cards) await card.flush();
     if (this.conflict.up) return false;
     if (this.dirty) await this.save();
     return !this.dirty && !this.conflict.up;
@@ -2373,6 +2424,13 @@ class NoteLeaf extends Leaf {
   }
   setMode(mode: Mode): void {
     const prevMode = this.mode;
+    if (mode !== prevMode) {
+      for (const card of this.cards) {
+        void card.flush();
+        card.destroy();
+      }
+      this.cards.clear();
+    }
     // The two modes draw the note at different heights: the same scroll
     // offset shows another part of it. What was at the top stays there; a
     // note at its start stays at its start.
@@ -2517,6 +2575,42 @@ class NoteLeaf extends Leaf {
     const doc = this.editor.state.doc;
     const body = doc.sliceString(Math.min(frontmatterEnd(doc) + 1, doc.length)).trim();
     this.setWebShown(body === "" || this.webShown);
+  }
+  private liveEmbed(target: string, mount: HTMLElement, onExit: () => void): (() => void) | undefined {
+    if (!settings.inlineEmbedEdit) return undefined;
+    const to = this.resolve(target);
+    if (!to || !to.endsWith(".md") || to === this.path) return undefined;
+
+    let destroyed = false;
+    const card = cardEditor(
+      mount,
+      to,
+      () => void exit(),
+      this.cardHistory,
+      () => this.keep(),
+      true,
+    );
+    this.cards.add(card);
+
+    const exit = async () => {
+      if (destroyed) return;
+      destroyed = true;
+      this.cards.delete(card);
+      await card.flush();
+      card.destroy();
+      const fresh = await opening.readNote(to);
+      if (fresh.status === "ok") {
+        const clean = await withNoteImages(cleanHtmlText(fresh.data.html), to);
+        this.embedCache.set(target, clean);
+        mount.innerHTML = clean;
+      }
+      this.editor.dispatch({ effects: redraw.of(null) });
+      onExit();
+    };
+
+    return () => {
+      void exit();
+    };
   }
   private setWebShown(on: boolean): void {
     this.webShown = on;
@@ -2895,6 +2989,7 @@ class NoteLeaf extends Leaf {
    *  difference (invariant 11). Gone: said, and the text stays. An edit
    *  under way in the properties panel is waited for. */
   async recheck(): Promise<"same" | "read" | "conflict" | "gone" | "back"> {
+    for (const card of this.cards) await card.recheck();
     const path = this.path;
     if (!path || !this.note || this.conflict.up) return "same";
     if (this.props.el.contains(document.activeElement)) {
@@ -3455,6 +3550,11 @@ class NoteLeaf extends Leaf {
     // The same note drawn again keeps its callouts as the user left them.
     const open = this.shownPath === note.path ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
     this.shownPath = note.path;
+    for (const card of this.cards) {
+      void card.flush();
+      card.destroy();
+    }
+    this.cards.clear();
     for (const e of this.embeds) {
       e.destroy();
       if (e instanceof BaseView) liveBases.delete(e);
@@ -3554,12 +3654,7 @@ class NoteLeaf extends Leaf {
           e.preventDefault();
           openNote(to, false);
         });
-        const edit = button("ghost iconic embed-edit", t.editEmbed, "edit");
-        edit.addEventListener("click", () => {
-          const leaf = openIn(layout().split(this.pane, "row"), to);
-          if (leaf instanceof NoteLeaf) void leaf.loading.then(() => leaf.setMode("live"));
-        });
-        head.after(edit);
+        const edit = button("ghost iconic embed-edit", settings.inlineEmbedEdit ? (LOCALE.startsWith("pt") ? "Editar no local" : "Edit in place") : t.editEmbed, "edit");
         const body = h("div", "embed-note-body");
         setHtml(body, r.data.html);
         wireCallouts(body);
@@ -3567,10 +3662,63 @@ class NoteLeaf extends Leaf {
         if (heading) sliceHeading(body, heading);
         typeset(body);
         this.wireMermaidBlocks(body);
-        box.append(head, body);
+        box.append(head, edit, body);
         span.replaceWith(box);
         void this.embedImages(forPath, body, to);
         void noteImages(body, to);
+
+        let activeCard: CardEditing | null = null;
+        let destroyed = false;
+        const exitEdit = async () => {
+          if (!activeCard || destroyed) return;
+          destroyed = true;
+          const c = activeCard;
+          activeCard = null;
+          this.cards.delete(c);
+          await c.flush();
+          c.destroy();
+          box.classList.remove("editing");
+          edit.replaceChildren(icon("edit"));
+          edit.title = settings.inlineEmbedEdit ? (LOCALE.startsWith("pt") ? "Editar no local" : "Edit in place") : t.editEmbed;
+          const fresh = await opening.readNote(to);
+          if (fresh.status === "ok" && this.path === forPath) {
+            setHtml(body, fresh.data.html);
+            wireCallouts(body);
+            keyLinks(body);
+            if (heading) sliceHeading(body, heading);
+            typeset(body);
+            this.wireMermaidBlocks(body);
+            void this.embedImages(forPath, body, to);
+            void noteImages(body, to);
+          }
+          destroyed = false;
+        };
+
+        const startEdit = () => {
+          if (activeCard || !settings.inlineEmbedEdit) return;
+          box.classList.add("editing");
+          edit.replaceChildren(icon("check"));
+          edit.title = LOCALE.startsWith("pt") ? "Concluir" : "Done";
+          activeCard = cardEditor(body, to, () => void exitEdit(), this.cardHistory, () => this.keep(), true);
+          this.cards.add(activeCard);
+        };
+
+        edit.addEventListener("click", () => {
+          if (activeCard) {
+            void exitEdit();
+          } else if (settings.inlineEmbedEdit) {
+            startEdit();
+          } else {
+            const leaf = openIn(layout().split(this.pane, "row"), to);
+            if (leaf instanceof NoteLeaf) void leaf.loading.then(() => leaf.setMode("live"));
+          }
+        });
+
+        body.addEventListener("click", (e) => {
+          if (!settings.inlineEmbedEdit || activeCard) return;
+          if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) return;
+          startEdit();
+        });
       });
     }
   }
@@ -3906,6 +4054,11 @@ class NoteLeaf extends Leaf {
     this.destroyed = true;
     window.clearTimeout(this.saveTimer);
     this.readingSearch?.close();
+    for (const card of this.cards) {
+      void card.flush();
+      card.destroy();
+    }
+    this.cards.clear();
     for (const e of this.embeds) {
       e.destroy();
       if (e instanceof BaseView) liveBases.delete(e);
@@ -4538,11 +4691,18 @@ class BoardLeaf extends TextLeaf {
 /** A card's editor as it was left: its text, selection and undo history,
  *  and the revision and line separator that text stands on. */
 type KeptCard = { json: unknown; revision: string; eol: string };
-function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: Map<string, KeptCard>, onEdit?: () => void): CardEditing {
+function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: Map<string, KeptCard>, onEdit?: () => void, autoFocus = false): CardEditing {
   const editorHost = h("div", "editor card-editor");
   const conflict = new ConflictBanner(() => void reload(), () => void overwrite());
   host.replaceChildren(conflict.el, editorHost);
-  for (const type of ["keydown", "keyup", "keypress", "paste", "copy", "cut"]) host.addEventListener(type, (e) => e.stopPropagation());
+  for (const type of ["keyup", "keypress", "paste", "copy", "cut"]) host.addEventListener(type, (e) => e.stopPropagation());
+  host.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onExit();
+    }
+  });
   let view: EditorView | null = null;
   let revision = "";
   let eol = "\n";
@@ -4568,7 +4728,7 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
     ];
     return [
         baseEditorExtensions,
-        md.language.data.of({ autocomplete: completeWikilinks }),
+        md.language.data.of({ autocomplete: completeMarkdown }),
         md,
         syntaxHighlighting(classHighlighter),
         EditorView.contentAttributes.of({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off", "aria-label": name(path) }),
@@ -4630,6 +4790,7 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
     if (r.status !== "ok") return fail(r.error);
     const k = kept.get(path);
     if (!k || !resume(r.data, k)) show(r.data);
+    if (autoFocus && view) view.focus();
   });
   const written = (w: Written, mine: string): void => {
     revision = w.note.revision;

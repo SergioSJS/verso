@@ -43,6 +43,9 @@ export type LiveOptions = {
   base?: (text: string, embed: string | null, mount: HTMLElement, edit: ((next: string) => void) | null) => () => void;
   /** A PDF file embedded on a line of its own, drawn into `mount`. */
   pdf?: (text: string, mount: HTMLElement) => () => void;
+  /** An embedded note edited in place inside `mount` (ADR 0060 S4).
+   *  Called when the embed is clicked to edit. Returns what takes it down. */
+  editEmbed?: (target: string, mount: HTMLElement, onExit: () => void) => (() => void) | undefined;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -693,10 +696,48 @@ class BlockWidget extends WidgetType {
       else body.innerHTML = this.html;
       frame.append(body);
       el.append(frame);
+
+      if (this.opts.editEmbed) {
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "ghost iconic embed-edit";
+        edit.title = "Edit in place";
+        edit.append(icon("edit"));
+        frame.append(edit);
+
+        let teardown: (() => void) | undefined;
+        const exit = () => {
+          frame.classList.remove("editing");
+          edit.replaceChildren(icon("edit"));
+          edit.title = "Edit in place";
+          teardown = undefined;
+        };
+        const start = (e?: Event) => {
+          if (teardown) {
+            teardown();
+            exit();
+            return;
+          }
+          e?.stopPropagation();
+          frame.classList.add("editing");
+          edit.replaceChildren(icon("check"));
+          edit.title = "Done";
+          teardown = this.opts.editEmbed!(b.text, body, exit);
+        };
+        edit.addEventListener("click", start);
+        body.addEventListener("click", (e) => {
+          if ((e.target as HTMLElement).closest("a, button, input, select, textarea, .card-editor")) return;
+          if (teardown) return;
+          start(e);
+        });
+        bases.set(el, () => {
+          teardown?.();
+        });
+      }
     }
     // A click puts the caret at the block, which opens it as text.
     el.addEventListener("mousedown", (e) => {
-      if ((e.target as HTMLElement).closest("a")) return;
+      if ((e.target as HTMLElement).closest("a, .embed-edit, .embed-note-body")) return;
       e.preventDefault();
       const at = startOf(view, el);
       if (at === null) return;
