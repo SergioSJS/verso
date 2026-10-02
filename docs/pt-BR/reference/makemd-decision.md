@@ -1,12 +1,11 @@
 # Memo de decisão: o que o make.md faz, e como o Verso faria
 
 - Data: 2026-10-02
-- Status: **para o mantenedor decidir.** Nada aqui está decidido. As seções
-  1 a 5 são pesquisa; a seção 6 traz as decisões, cada uma com as opções e
-  uma recomendação marcada como tal; a seção 7 é o plano que segue as
-  respostas recomendadas, fatia por fatia, para que o trabalho comece na
-  manhã em que as respostas chegarem. A seção 8 lista o que não foi
-  verificado, e por quê.
+- Status: **decidido pelo mantenedor em 2026-10-02**, em sessão: toda
+  recomendação aceita; as respostas estão na seção 10 e registradas no
+  [ADR 0060](../adr/0060-makemd-organizing-features.md). As seções 1 a 9 são
+  o memo como o mantenedor o leu: pesquisa (1 a 5), as decisões com as
+  opções (6), o plano (7), o que não foi verificado (8).
 - Autor: Opus 5.5, no lugar do Opus 5 no papel de documentos do
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md). Leitor: Fable 5.1,
   cujos achados de 2026-10-02 estão incorporados a este texto.
@@ -469,6 +468,17 @@ As perguntas, na ordem em que o trabalho precisa delas:
 6. **D9** — o compositor de blocos depois?
 7. **D11, D12** — emoji e Lucide; as dez configurações?
 8. **D13** — executar a seção 8, ou permitir que a próxima sessão execute?
+
+## 10. As respostas
+
+O mantenedor, 2026-10-02, perguntado sobre D1–D13 de uma vez, com a
+recomendação como primeira opção: **"Aceito todas (Recomendado)"** — toda
+recomendação da seção 6 aceita. Sobre a D13, perguntado se o próximo agente
+pode instalar o make.md no cofre Sandbox para executar a seção 8: **"Pode,
+no Sandbox (Recomendado)"**. No mesmo dia o mantenedor delegou a
+implementação ao Antigravity ("vou delegar para o antigravity implementar
+o make md"). Registrado no [ADR 0060](../adr/0060-makemd-organizing-features.md),
+que também revê o ADR 0049 §3.
 
 ## Apêndice A — as configurações do make.md (1.3.5)
 
