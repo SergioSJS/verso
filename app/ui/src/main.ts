@@ -90,6 +90,7 @@ import { minimalEdit } from "./edit";
 import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
+import { frontmatterClose } from "./frontmatter";
 import { renderSticker, resolveColor, showStickerPicker } from "./labels";
 import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
 import { stringsFor } from "./bases/strings";
@@ -151,7 +152,8 @@ type Strings = Record<
   | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reloadWindow" | "reloadNotDone" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed"
-  | "sOrganizing" | "stickers" | "stickersDesc" | "stickerInLinks" | "stickerInLinksDesc" | "covers" | "coversDesc" | "coverHeight" | "coverHeightDesc" | "aliasInTree" | "aliasInTreeDesc" | "folderNoteName" | "folderNoteNameDesc" | "folderNoteInside" | "folderNoteBeside" | "folderNoteNone" | "folderPageTable" | "folderPageTableDesc" | "manualOrder" | "manualOrderDesc" | "inlineEmbedEdit" | "inlineEmbedEditDesc" | "emojiTrigger" | "emojiTriggerDesc" | "changeSticker" | "changeColor" | "removeSticker" | "removeColor" | "addCover" | "changeCover" | "repositionCover" | "removeCover" | "savePosition" | "cancelPosition" | "turnIntoFolder" | "turnIntoFolderDesc" | "createFolderNoteAsk" | "coverUrlPrompt",
+  | "sOrganizing" | "stickers" | "stickersDesc" | "stickerInLinks" | "stickerInLinksDesc" | "covers" | "coversDesc" | "coverHeight" | "coverHeightDesc" | "aliasInTree" | "aliasInTreeDesc" | "folderNoteName" | "folderNoteNameDesc" | "folderNoteInside" | "folderNoteBeside" | "folderNoteNone" | "folderPageTable" | "folderPageTableDesc" | "manualOrder" | "manualOrderDesc" | "inlineEmbedEdit" | "inlineEmbedEditDesc" | "emojiTrigger" | "emojiTriggerDesc" | "changeSticker" | "changeColor" | "removeSticker" | "removeColor" | "addCover" | "changeCover" | "repositionCover" | "removeCover" | "savePosition" | "cancelPosition" | "turnIntoFolder" | "turnIntoFolderDesc" | "createFolderNoteAsk" | "coverUrlPrompt"
+  | "pinToFolder" | "unpinFromFolder" | "hideFromTree" | "hiddenFromTree" | "hiddenFromTreeDesc" | "unhide" | "noHiddenItems",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -297,6 +299,10 @@ const pt: Strings = {
   turnIntoFolder: "Transformar em pasta", turnIntoFolderDesc: "Cria uma pasta com este nome e move a nota para dentro dela.",
   createFolderNoteAsk: "A pasta \"{name}\" ainda não tem uma nota de pasta. Deseja criar \"{path}\" para configurá-la?",
   coverUrlPrompt: "URL da imagem de capa ou caminho de imagem:",
+  pinToFolder: "Fixar na pasta", unpinFromFolder: "Desafixar da pasta",
+  hideFromTree: "Ocultar da árvore", hiddenFromTree: "Itens ocultos da árvore",
+  hiddenFromTreeDesc: "Itens que não aparecem na árvore de arquivos, mas continuam pesquisáveis.",
+  unhide: "Mostrar", noHiddenItems: "Nenhum item oculto",
 };
 
 const en: Strings = {
@@ -412,6 +418,10 @@ const en: Strings = {
   turnIntoFolder: "Turn into folder", turnIntoFolderDesc: "Create a folder with this name and move note inside as folder note.",
   createFolderNoteAsk: "Folder \"{name}\" has no folder note yet. Create \"{path}\" to organize it?",
   coverUrlPrompt: "Cover image URL or vault image path:",
+  pinToFolder: "Pin to folder", unpinFromFolder: "Unpin from folder",
+  hideFromTree: "Hide from tree", hiddenFromTree: "Hidden from tree",
+  hiddenFromTreeDesc: "Items hidden from the file tree, but still searchable.",
+  unhide: "Unhide", noHiddenItems: "No hidden items",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -706,6 +716,7 @@ type Settings = {
   manualOrder: boolean;
   inlineEmbedEdit: boolean;
   emojiTrigger: boolean;
+  hiddenFromTree: string[];
 };
 const DEFAULTS: Settings = {
   lang: "auto",
@@ -750,6 +761,7 @@ const DEFAULTS: Settings = {
   manualOrder: true,
   inlineEmbedEdit: true,
   emojiTrigger: false,
+  hiddenFromTree: [],
 };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
@@ -763,6 +775,7 @@ function loadSettings(): void {
       }
       settings = { ...DEFAULTS, ...parsed };
       if (!Array.isArray(settings.embedOrigins)) settings.embedOrigins = [];
+      if (!Array.isArray(settings.hiddenFromTree)) settings.hiddenFromTree = [];
     }
   } catch {
     settings = { ...DEFAULTS };
@@ -1192,8 +1205,8 @@ const ghost = h("div", "drag-ghost");
 ghost.hidden = true;
 document.body.append(ghost);
 function clearDropHints(): void {
-  for (const e of document.querySelectorAll(".drop-hint, .drop")) {
-    e.classList.remove("drop-hint", "drop", "left", "right", "top", "bottom", "center", "drop-left", "drop-right", "drop-top", "drop-bottom", "drop-center");
+  for (const e of document.querySelectorAll(".drop-hint, .drop, .drop-before, .drop-after, .drop-pin")) {
+    e.classList.remove("drop-hint", "drop", "drop-before", "drop-after", "drop-pin", "left", "right", "top", "bottom", "center", "drop-left", "drop-right", "drop-top", "drop-bottom", "drop-center");
   }
 }
 function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
@@ -1215,7 +1228,7 @@ function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string):
       ghost.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 12}px)`;
       clearDropHints();
       const target = dropTargetAt(e.clientX, e.clientY);
-      if (target) hint(target, e.clientX, e.clientY);
+      if (target) hint(target, e.clientX, e.clientY, e.shiftKey);
     };
     const up = (e: PointerEvent) => {
       document.removeEventListener("pointermove", move);
@@ -1228,7 +1241,7 @@ function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string):
       ghost.hidden = true;
       document.body.classList.remove("dragging");
       clearDropHints();
-      if (d && target) drop(d, target, e.clientX, e.clientY);
+      if (d && target) drop(d, target, e.clientX, e.clientY, e.shiftKey);
     };
     // A menu opened meanwhile takes the release: the drag is dropped,
     // or the next click, on the menu, would drop the tab where it lands.
@@ -1247,7 +1260,13 @@ function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string):
     document.addEventListener("contextmenu", cancel, { once: true, capture: true });
   });
 }
-type DropTarget = { tabs: HTMLElement } | { body: HTMLElement } | { folder: string; el: HTMLElement } | { space: Space; el: HTMLElement } | { insert: NoteLeaf };
+type DropTarget =
+  | { tabs: HTMLElement }
+  | { body: HTMLElement }
+  | { folder: string; el: HTMLElement }
+  | { treeItem: string; folder: string; el: HTMLElement }
+  | { space: Space; el: HTMLElement }
+  | { insert: NoteLeaf };
 function dropTargetAt(x: number, y: number): DropTarget | null {
   ghost.hidden = true;
   const at = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -1283,6 +1302,19 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     return null;
   }
   if (drag?.kind === "file") {
+    const treeRow = at.closest<HTMLElement>(".tree li[data-path], .tree summary[data-folder]");
+    if (treeRow) {
+      if (treeRow.tagName === "SUMMARY") {
+        const targetFolder = treeRow.dataset["folder"] ?? "";
+        if (targetFolder !== drag.path) return { folder: targetFolder, el: treeRow };
+      } else {
+        const targetPath = treeRow.dataset["path"] ?? "";
+        if (targetPath !== drag.path) {
+          const targetFolder = dirOf(targetPath);
+          return { treeItem: targetPath, folder: targetFolder, el: treeRow };
+        }
+      }
+    }
     const folderEl = at.closest<HTMLElement>("[data-folder]");
     if (folderEl && folderEl.dataset["folder"] !== drag.path) return { folder: folderEl.dataset["folder"] ?? "", el: folderEl };
     if (at.closest("#tree-root")) return { folder: "", el: ui.treeRoot };
@@ -1320,16 +1352,34 @@ function zoneOf(body: HTMLElement, x: number, y: number): "left" | "right" | "to
   if (min === dTop) return "top";
   return "bottom";
 }
-function hint(target: DropTarget, x: number, y: number): void {
+function hint(target: DropTarget, x: number, y: number, shiftKey = false): void {
   if ("tabs" in target) target.tabs.classList.add("drop");
   else if ("body" in target) {
     const zone = zoneOf(target.body, x, y);
     target.body.classList.add("drop-hint", zone, "drop-" + zone);
   }
   else if ("insert" in target) target.insert.el.classList.add("drop");
-  else target.el.classList.add("drop");
+  else if ("treeItem" in target) {
+    if (shiftKey) {
+      target.el.classList.add("drop-pin");
+    } else {
+      const r = target.el.getBoundingClientRect();
+      if (y > r.top + r.height / 2) {
+        target.el.classList.add("drop-after");
+      } else {
+        target.el.classList.add("drop-before");
+      }
+    }
+  }
+  else {
+    if (shiftKey && "folder" in target) {
+      target.el.classList.add("drop-pin");
+    } else {
+      target.el.classList.add("drop");
+    }
+  }
 }
-function drop(d: Drag, target: DropTarget, x: number, y: number): void {
+function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey = false): void {
   if (d.kind === "tab") {
     const leaf = d.leaf;
     if ("tabs" in target) {
@@ -1355,8 +1405,23 @@ function drop(d: Drag, target: DropTarget, x: number, y: number): void {
     return;
   }
   // A file from the tree.
-  if ("folder" in target) {
-    void moveFile(d.path, target.folder);
+  if ("treeItem" in target) {
+    const draggedFolder = dirOf(d.path);
+    if (shiftKey) {
+      void pinItemToFolder(target.folder, d.path);
+    } else if (draggedFolder === target.folder) {
+      const r = target.el.getBoundingClientRect();
+      const placeAfter = y > r.top + r.height / 2;
+      void reorderInFolder(target.folder, d.path, target.treeItem, placeAfter);
+    } else {
+      void moveFile(d.path, target.folder);
+    }
+  } else if ("folder" in target) {
+    if (shiftKey) {
+      void pinItemToFolder(target.folder, d.path);
+    } else {
+      void moveFile(d.path, target.folder);
+    }
   } else if ("insert" in target) {
     target.insert.insertReference(d.path, x, y);
   } else if ("body" in target || "tabs" in target) {
@@ -5354,12 +5419,31 @@ class FolderLeaf extends Leaf {
   render(): void {
     const { key, desc } = folderSort;
     const dir = desc ? -1 : 1;
+    const fn = folderNoteOf(this.path);
+    const fnEntry = fn ? allEntries.get(fn) : null;
+    const pinned = fnEntry?.label?.pinned ?? [];
+    const order = fnEntry?.label?.order ?? [];
+
     const cmp = (a: FolderRow, b: FolderRow): number => {
+      const aPinned = isItemPinned(a.path, this.path, pinned);
+      const bPinned = isItemPinned(b.path, this.path, pinned);
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+
       if ((a.kind === "folder") !== (b.kind === "folder")) return a.kind === "folder" ? -1 : 1;
       let d = 0;
       if (key === "size") d = a.size - b.size;
       else if (key === "modified") d = a.modified - b.modified;
       else if (key === "kind") d = kindLabel(a.path, a.kind).localeCompare(kindLabel(b.path, b.kind), LOCALE);
+      else if (key === "name" && settings.manualOrder && order.length > 0) {
+        const prefix = this.path ? `${this.path}/` : "";
+        const aRel = this.path ? (a.path.startsWith(prefix) ? a.path.slice(prefix.length) : a.path) : a.path;
+        const bRel = this.path ? (b.path.startsWith(prefix) ? b.path.slice(prefix.length) : b.path) : b.path;
+        const aIdx = order.findIndex((o) => o === aRel || withoutMd(o) === withoutMd(aRel));
+        const bIdx = order.findIndex((o) => o === bRel || withoutMd(o) === withoutMd(bRel));
+        if (aIdx >= 0 && bIdx >= 0) return (aIdx - bIdx) * dir;
+        if (aIdx >= 0) return -1 * dir;
+        if (bIdx >= 0) return 1 * dir;
+      }
       return (d || a.label.localeCompare(b.label, LOCALE, { numeric: true })) * (key === "name" || d === 0 ? dir : dir);
     };
     // The sort the arrow shows is said in the column's name: `aria-sort`
@@ -5399,6 +5483,13 @@ class FolderLeaf extends Leaf {
     } else thumb.append(iconOfPath(r.path, r.kind));
     const main = h("span", "main");
     main.append(thumb, h("span", "label", r.label));
+    const fn = folderNoteOf(this.path);
+    const fnEntry = fn ? allEntries.get(fn) : null;
+    const pinned = fnEntry?.label?.pinned ?? [];
+    if (isItemPinned(r.path, this.path, pinned)) {
+      b.classList.add("pinned");
+      main.append(pinBadge());
+    }
     b.append(main, h("span", "col col-kind", kindLabel(r.path, r.kind)), h("span", "col col-size", r.kind === "folder" && r.size === 0 ? "—" : humanSize(r.size)), h("span", "col col-modified", humanDate(r.modified)));
     b.title = r.path;
     b.dataset["path"] = r.path;
@@ -6978,25 +7069,141 @@ function activeLeafForPath(path: string): NoteLeaf | null {
   return null;
 }
 
+function pinBadge(): HTMLElement {
+  const s = h("span", "pin-badge");
+  s.append(icon("pin", t.pinToFolder));
+  return s;
+}
+
+function withoutMd(s: string): string {
+  return s.toLowerCase().endsWith(".md") ? s.slice(0, -3) : s;
+}
+
+function cleanPinTarget(target: string): string {
+  let s = target.trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  if (s.startsWith("[[") && s.endsWith("]]")) {
+    s = s.slice(2, -2).trim();
+  }
+  if (s.toLowerCase().endsWith(".md")) {
+    s = s.slice(0, -3);
+  }
+  return s.toLowerCase();
+}
+
+function isItemPinned(itemPath: string, folder: string, pinnedList: string[]): boolean {
+  if (!pinnedList || pinnedList.length === 0) return false;
+  const prefix = folder ? `${folder}/` : "";
+  const rel = folder ? (itemPath.startsWith(prefix) ? itemPath.slice(prefix.length) : itemPath) : itemPath;
+  const bareName = itemPath.split("/").pop() ?? itemPath;
+  const cleanBare = withoutMd(bareName).toLowerCase();
+  const cleanRel = withoutMd(rel).toLowerCase();
+  const cleanFull = withoutMd(itemPath).toLowerCase();
+
+  return pinnedList.some((p) => {
+    const cp = cleanPinTarget(p);
+    return cp === cleanBare || cp === cleanRel || cp === cleanFull;
+  });
+}
+
+function setFrontmatterListProp(doc: string, key: string, values: string[]): string {
+  const eol = doc.includes("\r\n") ? "\r\n" : "\n";
+  const lines = doc.split(/\r?\n/);
+  const end = frontmatterClose((i) => lines[i]);
+
+  const newLines: string[] = [];
+  if (values.length > 0) {
+    newLines.push(`${key}:`);
+    for (const v of values) {
+      if (key === "pinned") {
+        let raw = v.trim();
+        if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+          raw = raw.slice(1, -1).trim();
+        }
+        if (!raw.startsWith("[[") || !raw.endsWith("]]")) {
+          raw = `[[${raw}]]`;
+        }
+        newLines.push(`  - "${raw}"`);
+      } else {
+        const clean = v.trim();
+        const needsQuote = /[:#\[\]\{\},\&\*\?\|\>\<\=\!\%\@\`]/.test(clean) || clean.startsWith("-");
+        newLines.push(needsQuote ? `  - ${JSON.stringify(clean)}` : `  - ${clean}`);
+      }
+    }
+  }
+
+  if (end >= 0) {
+    let keyStart = -1;
+    let keyStop = -1;
+    for (let i = 1; i < end; i++) {
+      const line = lines[i] ?? "";
+      const m = /^([^\s#:][^:]*?)\s*:(?=\s|$)/.exec(line);
+      if (m && m[1]?.trim() === key) {
+        keyStart = i;
+        keyStop = i + 1;
+        for (let j = i + 1; j < end; j++) {
+          const l = lines[j] ?? "";
+          if (/^\s*(#.*)?$/.test(l)) {
+            keyStop = j + 1;
+            continue;
+          }
+          if (/^[ \t]/.test(l) || /^-(\s|$)/.test(l)) {
+            keyStop = j + 1;
+            continue;
+          }
+          break;
+        }
+        break;
+      }
+    }
+
+    if (keyStart >= 0) {
+      const before = lines.slice(0, keyStart);
+      const after = lines.slice(keyStop);
+      const combined = [...before, ...newLines, ...after];
+      return combined.join(eol);
+    } else if (newLines.length > 0) {
+      const before = lines.slice(0, end);
+      const after = lines.slice(end);
+      const combined = [...before, ...newLines, ...after];
+      return combined.join(eol);
+    } else {
+      return doc;
+    }
+  } else {
+    if (newLines.length > 0) {
+      const block = ["---", ...newLines, "---", ""].join(eol);
+      return block + doc;
+    }
+    return doc;
+  }
+}
+
+async function ensureFolderNote(folder: string): Promise<string | null> {
+  const fn = folderNoteOf(folder);
+  if (fn) return fn;
+  if (folder === "" || settings.folderNoteName === "none") return null;
+  const folderShort = folder.split("/").pop() ?? folder;
+  const insidePath = settings.folderNoteName === "outside" ? `${folder}.md` : `${folder}/${folderShort}.md`;
+  const ask = t.createFolderNoteAsk.replace("{name}", folderShort).replace("{path}", insidePath);
+  if (!confirm(ask)) return null;
+  const created = await commands.createNote(insidePath.endsWith(".md") ? insidePath.slice(0, -3) : insidePath, `# ${folderShort}\n\n`);
+  if (created.status !== "ok") {
+    fail(created.error);
+    return null;
+  }
+  await afterFileChange();
+  return created.data.path;
+}
+
 async function updateEntryProperties(path: string, kind: Kind, updates: Record<string, string | null>): Promise<void> {
   let targetNote = path;
   if (kind === "folder") {
-    let fn = folderNoteOf(path);
-    if (!fn) {
-      const folderShort = path.split("/").pop() ?? path;
-      const insidePath = settings.folderNoteName === "outside" ? `${path}.md` : `${path}/${folderShort}.md`;
-      const ask = t.createFolderNoteAsk.replace("{name}", folderShort).replace("{path}", insidePath);
-      if (!confirm(ask)) return;
-      const created = await commands.createNote(insidePath.endsWith(".md") ? insidePath.slice(0, -3) : insidePath, `# ${folderShort}\n\n`);
-      if (created.status !== "ok") {
-        fail(created.error);
-        return;
-      }
-      targetNote = created.data.path;
-      await afterFileChange();
-    } else {
-      targetNote = fn;
-    }
+    const fn = await ensureFolderNote(path);
+    if (!fn) return;
+    targetNote = fn;
   }
   const leaf = activeLeafForPath(targetNote);
   if (leaf) {
@@ -7008,6 +7215,7 @@ async function updateEntryProperties(path: string, kind: Kind, updates: Record<s
     leaf.editor.dispatch({ changes: { from: 0, to: curLen, insert: doc }, annotations: Transaction.userEvent.of("input") });
     await leaf.save();
     await afterFileChange();
+    await listAll();
   } else {
     const read = await commands.readNote(targetNote);
     if (read.status !== "ok") {
@@ -7024,7 +7232,93 @@ async function updateEntryProperties(path: string, kind: Kind, updates: Record<s
       return;
     }
     await afterFileChange();
+    await listAll();
   }
+}
+
+async function updateEntryListProperty(path: string, kind: Kind, key: "order" | "pinned", values: string[]): Promise<void> {
+  let targetNote = path;
+  if (kind === "folder") {
+    const fn = await ensureFolderNote(path);
+    if (!fn) return;
+    targetNote = fn;
+  }
+  const leaf = activeLeafForPath(targetNote);
+  if (leaf) {
+    let doc = leaf.editor.state.doc.toString();
+    doc = setFrontmatterListProp(doc, key, values);
+    const curLen = leaf.editor.state.doc.length;
+    leaf.editor.dispatch({ changes: { from: 0, to: curLen, insert: doc }, annotations: Transaction.userEvent.of("input") });
+    await leaf.save();
+    await afterFileChange();
+    await listAll();
+  } else {
+    const read = await commands.readNote(targetNote);
+    if (read.status !== "ok") {
+      fail(read.error);
+      return;
+    }
+    const text = setFrontmatterListProp(read.data.text, key, values);
+    const written = await commands.writeNote(targetNote, text, read.data.revision);
+    if (written.status !== "ok") {
+      fail(written.error);
+      return;
+    }
+    await afterFileChange();
+    await listAll();
+  }
+}
+
+async function reorderInFolder(folder: string, draggedPath: string, targetPath: string, placeAfter: boolean): Promise<void> {
+  const fn = await ensureFolderNote(folder);
+  if (!fn) return;
+  const entry = allEntries.get(fn);
+  const currentOrder = entry?.label?.order ? [...entry.label.order] : [];
+
+  const prefix = folder ? `${folder}/` : "";
+  const directFiles = [...allNotes, ...allFiles]
+    .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && p !== fn)
+    .map((p) => (folder ? p.slice(folder.length + 1) : p));
+  const directFolders = allFolders
+    .filter((f) => f.startsWith(prefix) && !f.slice(prefix.length).includes("/"))
+    .map((f) => (folder ? f.slice(folder.length + 1) : f));
+
+  const allCurrent = [...directFolders, ...directFiles];
+  let orderedList: string[] = [];
+  if (currentOrder.length > 0) {
+    const matched = currentOrder.filter((o) => allCurrent.some((c) => c === o || withoutMd(c) === withoutMd(o)));
+    const remaining = allCurrent.filter((c) => !matched.some((m) => m === c || withoutMd(m) === withoutMd(c)));
+    remaining.sort((a, b) => a.localeCompare(b, LOCALE, { numeric: true }));
+    orderedList = [...matched, ...remaining];
+  } else {
+    directFolders.sort((a, b) => a.localeCompare(b, LOCALE, { numeric: true }));
+    directFiles.sort((a, b) => a.localeCompare(b, LOCALE, { numeric: true }));
+    orderedList = [...directFolders, ...directFiles];
+  }
+
+  const draggedRel = folder ? (draggedPath.startsWith(prefix) ? draggedPath.slice(prefix.length) : draggedPath) : draggedPath;
+  const targetRel = folder ? (targetPath.startsWith(prefix) ? targetPath.slice(prefix.length) : targetPath) : targetPath;
+
+  const filtered = orderedList.filter((x) => x !== draggedRel && withoutMd(x) !== withoutMd(draggedRel));
+  const targetIdx = filtered.findIndex((x) => x === targetRel || withoutMd(x) === withoutMd(targetRel));
+  const insertAt = targetIdx >= 0 ? (placeAfter ? targetIdx + 1 : targetIdx) : filtered.length;
+  filtered.splice(insertAt, 0, draggedRel);
+
+  await updateEntryListProperty(folder, "folder", "order", filtered);
+}
+
+async function pinItemToFolder(folder: string, itemPath: string): Promise<void> {
+  const fn = await ensureFolderNote(folder);
+  if (!fn) return;
+  const entry = allEntries.get(fn);
+  const currentPinned = entry?.label?.pinned ? [...entry.label.pinned] : [];
+  if (isItemPinned(itemPath, folder, currentPinned)) return;
+  const prefix = folder ? `${folder}/` : "";
+  const rel = folder ? (itemPath.startsWith(prefix) ? itemPath.slice(prefix.length) : itemPath) : itemPath;
+  const linkTarget = rel.endsWith(".md") ? rel.slice(0, -3) : rel;
+  const quoted = `"[[${linkTarget}]]"`;
+  currentPinned.push(quoted);
+  await updateEntryListProperty(folder, "folder", "pinned", currentPinned);
 }
 /** The note a link target names, for a link typed a moment ago and not
  *  indexed yet: the index's own order (verso-index, `RESOLVE` in store.rs
@@ -8084,6 +8378,29 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
     });
   };
 
+  const parentFolder = dirOf(path);
+  const parentFn = folderNoteOf(parentFolder);
+  const parentEntry = parentFn ? allEntries.get(parentFn) : null;
+  const parentPinned = parentEntry?.label?.pinned ?? [];
+  const isPinned = isItemPinned(path, parentFolder, parentPinned);
+
+  const pinItem: MenuItem = isPinned
+    ? [t.unpinFromFolder, () => void (async () => {
+        const newPinned = parentPinned.filter((p) => !isItemPinned(path, parentFolder, [p]));
+        await updateEntryListProperty(parentFolder, "folder", "pinned", newPinned);
+      })(), "pin"]
+    : [t.pinToFolder, () => void (async () => {
+        await pinItemToFolder(parentFolder, path);
+      })(), "pin"];
+
+  const hideItem: MenuItem = [t.hideFromTree, () => {
+    if (!settings.hiddenFromTree.includes(path)) {
+      settings.hiddenFromTree = [...settings.hiddenFromTree, path];
+      saveSettings();
+      void listAll();
+    }
+  }, "close"];
+
   items.push(
     sep,
     [t.changeSticker, openPicker, "star"],
@@ -8091,6 +8408,9 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
     ...(currentSticker ? [[t.removeSticker, () => void updateEntryProperties(path, kind, { sticker: null }), "close"] as MenuItem] : []),
     ...(currentColor ? [[t.removeColor, () => void updateEntryProperties(path, kind, { color: null }), "close"] as MenuItem] : []),
     ...(kind === "note" ? [[t.turnIntoFolder, () => void turnNoteIntoFolder(path), "folder"] as MenuItem] : []),
+    sep,
+    ...(parentFolder !== "" || parentFn ? [pinItem] : []),
+    hideItem,
     sep,
     [t.rename, rename, "edit"],
     [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
@@ -8647,79 +8967,135 @@ function tree(paths: string[], folders: string[]): Folder {
 const openFolders = new Set<string>();
 function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement {
   const ul = h("ul", depth === 0 ? "tree" : "");
-  for (const [folder, child] of Array.from(node.folders.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+  const fn = folderNoteOf(prefix);
+  const fnEntry = fn ? allEntries.get(fn) : null;
+  const pinnedList = fnEntry?.label?.pinned ?? [];
+  const orderList = fnEntry?.label?.order ?? [];
+
+  type TreeItem =
+    | { kind: "folder"; name: string; full: string; child: Folder }
+    | { kind: "file"; path: string };
+
+  const items: TreeItem[] = [];
+  for (const [folder, child] of node.folders.entries()) {
     const full = prefix ? `${prefix}/${folder}` : folder;
-    const li = h("li");
-    const d = h("details");
-    const isOpen = openFolders.size === 0 ? depth < 1 : openFolders.has(full);
-    d.open = isOpen;
-    const s = h("summary");
-    s.dataset["folder"] = full;
-    const chev = h("span", "chev");
-    const entry = allEntries.get(full);
-    const labelData = entry?.label;
-    const stickerNode = settings.stickers && labelData?.sticker ? renderSticker(labelData.sticker, 14) : null;
-    const label = h("span", "folder-label", folder);
-    if (labelData?.color) {
-      const c = resolveColor(labelData.color);
-      if (c) {
-        s.classList.add("colored");
-        s.style.setProperty("--row-color", c);
-      }
+    if (!settings.hiddenFromTree.includes(full)) {
+      items.push({ kind: "folder", name: folder, full, child });
     }
-    s.append(chev);
-    if (stickerNode) s.append(stickerNode);
-    s.append(label);
-    if (folderNoteOf(full)) s.classList.add("has-note");
-    label.addEventListener("click", (e) => {
-      e.preventDefault();
-      openFolder(full);
-    });
-
-    let renderedChild: HTMLUListElement | null = null;
-    const renderSubtree = () => {
-      if (!renderedChild) {
-        renderedChild = renderTree(child, depth + 1, full);
-        d.append(renderedChild);
-      }
-    };
-    (d as unknown as { _ensureRendered?: () => void })._ensureRendered = renderSubtree;
-
-    if (isOpen) {
-      renderSubtree();
-    }
-
-    d.addEventListener("toggle", () => {
-      if (d.open) {
-        openFolders.add(full);
-        renderSubtree();
-      } else {
-        openFolders.delete(full);
-      }
-    });
-    s.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      entryMenu(e.clientX, e.clientY, full, "folder", () => renameInline(s, full, true));
-    });
-    s.addEventListener("keydown", (e) => {
-      if (e.key === "F2") {
-        e.preventDefault();
-        renameInline(s, full, true);
-      } else if (e.key === "Delete" || (e.key === "Backspace" && e.metaKey)) {
-        e.preventDefault();
-        void deleteEntry(full, "folder");
-      } else if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
-        // The folder's menu (open, move, new note here…), as a file's row has it.
-        e.preventDefault();
-        const r = s.getBoundingClientRect();
-        s.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.left + 24, clientY: r.bottom, bubbles: true, cancelable: true }));
-      }
-    });
-    d.prepend(s);
-    li.append(d);
-    ul.append(li);
   }
-  for (const p of node.files.sort((a, b) => name(a).localeCompare(name(b)))) ul.append(fileRow(p));
+  for (const p of node.files) {
+    if (!settings.hiddenFromTree.includes(p)) {
+      items.push({ kind: "file", path: p });
+    }
+  }
+
+  items.sort((a, b) => {
+    const aPath = a.kind === "folder" ? a.full : a.path;
+    const bPath = b.kind === "folder" ? b.full : b.path;
+    const aPinned = isItemPinned(aPath, prefix, pinnedList);
+    const bPinned = isItemPinned(bPath, prefix, pinnedList);
+    if (aPinned !== bPinned) return aPinned ? -1 : 1;
+
+    if (settings.manualOrder && orderList.length > 0) {
+      const aRel = a.kind === "folder" ? a.name : (prefix ? a.path.slice(prefix.length + 1) : a.path);
+      const bRel = b.kind === "folder" ? b.name : (prefix ? b.path.slice(prefix.length + 1) : b.path);
+      const aIdx = orderList.findIndex((o) => o === aRel || withoutMd(o) === withoutMd(aRel));
+      const bIdx = orderList.findIndex((o) => o === bRel || withoutMd(o) === withoutMd(bRel));
+      if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
+      if (aIdx >= 0) return -1;
+      if (bIdx >= 0) return 1;
+    }
+
+    if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
+    const aName = a.kind === "folder" ? a.name : name(a.path);
+    const bName = b.kind === "folder" ? b.name : name(b.path);
+    return aName.localeCompare(bName, LOCALE, { numeric: true });
+  });
+
+  for (const item of items) {
+    if (item.kind === "folder") {
+      const { name: folder, full, child } = item;
+      const li = h("li");
+      const d = h("details");
+      const isOpen = openFolders.size === 0 ? depth < 1 : openFolders.has(full);
+      d.open = isOpen;
+      const s = h("summary");
+      s.dataset["folder"] = full;
+      const chev = h("span", "chev");
+      const entry = allEntries.get(full);
+      const labelData = entry?.label;
+      const stickerNode = settings.stickers && labelData?.sticker ? renderSticker(labelData.sticker, 14) : null;
+      const label = h("span", "folder-label", folder);
+      if (labelData?.color) {
+        const c = resolveColor(labelData.color);
+        if (c) {
+          s.classList.add("colored");
+          s.style.setProperty("--row-color", c);
+        }
+      }
+      s.append(chev);
+      if (stickerNode) s.append(stickerNode);
+      s.append(label);
+      if (folderNoteOf(full)) s.classList.add("has-note");
+      if (isItemPinned(full, prefix, pinnedList)) {
+        s.append(pinBadge());
+      }
+      label.addEventListener("click", (e) => {
+        e.preventDefault();
+        openFolder(full);
+      });
+      armDrag(s, () => ({ kind: "file", path: full }), () => folder);
+
+      let renderedChild: HTMLUListElement | null = null;
+      const renderSubtree = () => {
+        if (!renderedChild) {
+          renderedChild = renderTree(child, depth + 1, full);
+          d.append(renderedChild);
+        }
+      };
+      (d as unknown as { _ensureRendered?: () => void })._ensureRendered = renderSubtree;
+
+      if (isOpen) {
+        renderSubtree();
+      }
+
+      d.addEventListener("toggle", () => {
+        if (d.open) {
+          openFolders.add(full);
+          renderSubtree();
+        } else {
+          openFolders.delete(full);
+        }
+      });
+      s.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        entryMenu(e.clientX, e.clientY, full, "folder", () => renameInline(s, full, true));
+      });
+      s.addEventListener("keydown", (e) => {
+        if (e.key === "F2") {
+          e.preventDefault();
+          renameInline(s, full, true);
+        } else if (e.key === "Delete" || (e.key === "Backspace" && e.metaKey)) {
+          e.preventDefault();
+          void deleteEntry(full, "folder");
+        } else if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+          // The folder's menu (open, move, new note here…), as a file's row has it.
+          e.preventDefault();
+          const r = s.getBoundingClientRect();
+          s.dispatchEvent(new MouseEvent("contextmenu", { clientX: r.left + 24, clientY: r.bottom, bubbles: true, cancelable: true }));
+        }
+      });
+      d.prepend(s);
+      li.append(d);
+      ul.append(li);
+    } else {
+      const rowLi = fileRow(item.path);
+      if (isItemPinned(item.path, prefix, pinnedList)) {
+        rowLi.querySelector("button")?.append(pinBadge());
+      }
+      ul.append(rowLi);
+    }
+  }
   return ul;
 }
 async function listAll(): Promise<void> {
@@ -10070,6 +10446,28 @@ class SettingsDialog {
     add("organizing", t.manualOrder, t.manualOrderDesc, () => this.toggle(settings.manualOrder, (v) => { settings.manualOrder = v; saveSettings(); }));
     add("organizing", t.inlineEmbedEdit, t.inlineEmbedEditDesc, () => this.toggle(settings.inlineEmbedEdit, (v) => { settings.inlineEmbedEdit = v; saveSettings(); }));
     add("organizing", t.emojiTrigger, t.emojiTriggerDesc, () => this.toggle(settings.emojiTrigger, (v) => { settings.emojiTrigger = v; saveSettings(); }));
+    add("organizing", t.hiddenFromTree, t.hiddenFromTreeDesc, () => {
+      const container = h("div", "hidden-items-list");
+      if (settings.hiddenFromTree.length === 0) {
+        container.append(h("span", "ghost-text", t.noHiddenItems));
+        return container;
+      }
+      for (const item of settings.hiddenFromTree) {
+        const row = h("div", "hidden-item-row");
+        const label = h("span", "hidden-item-name", item);
+        const unhideBtn = button("ghost", t.unhide);
+        unhideBtn.textContent = t.unhide;
+        unhideBtn.addEventListener("click", () => {
+          settings.hiddenFromTree = settings.hiddenFromTree.filter((x) => x !== item);
+          saveSettings();
+          void listAll();
+          this.paint();
+        });
+        row.append(label, unhideBtn);
+        container.append(row);
+      }
+      return container;
+    });
     const b = boardText;
     add("board", b.prefOpenAs, b.prefOpenAsDesc, () => this.select([["board", b.prefOpenAsBoard], ["source", b.prefOpenAsText]], settings.boardOpenAs, (v) => { settings.boardOpenAs = v; saveSettings(); }));
     add("board", b.prefOpen, b.prefOpenDesc, () => this.select([["fit", b.prefOpenFit], ["last", b.prefOpenLast]], settings.boardOpen, (v) => { settings.boardOpen = v; saveSettings(); }));

@@ -1426,3 +1426,90 @@ fn a_save_is_not_a_listing_change() {
         "{r:?}"
     );
 }
+
+/// Renaming a note inside a folder rewrites `order:` in the folder note
+/// (ADR 0060, D4).
+#[test]
+fn a_rename_in_verso_rewrites_order_in_folder_note() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let pasta = subdir(vault.path(), "pasta");
+    let _a = note(pasta.path(), "A.md", "# A\n");
+    let _b = note(pasta.path(), "B.md", "# B\n");
+    let _fn = note(
+        pasta.path(),
+        "pasta.md",
+        "---\norder:\n  - A.md\n  - B.md\npinned:\n  - \"[[A]]\"\n---\n# Pasta\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_note("pasta/A.md", "pasta/C.md").unwrap();
+    assert_eq!(renamed.path, "pasta/C.md");
+    let rewrite = renamed
+        .rewrites
+        .iter()
+        .find(|rw| rw.path == "pasta/pasta.md")
+        .expect("folder note should be rewritten");
+    assert!(
+        rewrite.after.contains("- C.md"),
+        "rewritten text should contain C.md: {}",
+        rewrite.after
+    );
+    assert!(
+        !rewrite.after.contains("- A.md"),
+        "rewritten text should not contain - A.md: {}",
+        rewrite.after
+    );
+
+    apply(&mut ws, &renamed);
+    let read = ws.read_note("pasta/pasta.md").unwrap();
+    assert!(read.text.contains("- C.md"));
+    assert!(!read.text.contains("- A.md"));
+}
+
+/// A rename made outside reaches the index through the watcher.
+#[test]
+fn a_rename_made_outside_reaches_the_index_through_the_watch() {
+    use std::time::{Duration, Instant};
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let pasta = subdir(vault.path(), "pasta");
+    let _a = note(pasta.path(), "A.md", "# A\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let _watch = ws
+        .watch(move |changes| {
+            let _ = tx.send(changes);
+        })
+        .unwrap();
+    while rx.recv_timeout(Duration::from_millis(700)).is_ok() {}
+
+    let from = pasta.path().join("A.md");
+    let to = pasta.path().join("B.md");
+    std::fs::rename(&from, &to).unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let seen = loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        match rx.recv_timeout(left) {
+            Ok(c)
+                if c.rescan
+                    || c.paths.iter().any(|p| p.ends_with("B.md") || p.ends_with("A.md")) =>
+            {
+                break true;
+            }
+            Ok(_) => {}
+            Err(_) => break false,
+        }
+    };
+    assert!(seen, "the watch never reported the renamed note");
+    let r = ws.index().unwrap();
+    assert!(r.listing_changed);
+    assert!(r.changed.contains(&"pasta/B.md".to_string()));
+    assert!(r.gone.contains(&"pasta/A.md".to_string()));
+}
+
+

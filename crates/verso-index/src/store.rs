@@ -89,12 +89,14 @@ pub struct Unresolved {
     pub count: u64,
 }
 
-/// Sticker, color and first alias of an entry (note or folder) (ADR 0060, S1).
+/// Sticker, color and first alias of an entry (note or folder), plus order and pinned lists (ADR 0060, S1, S3).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntryLabel {
     pub sticker: Option<String>,
     pub color: Option<String>,
     pub alias: Option<String>,
+    pub order: Option<Vec<String>>,
+    pub pinned: Option<Vec<String>>,
 }
 
 /// A link or an embed of some note, with what it resolves to among the
@@ -178,7 +180,7 @@ impl Index {
                 let name = relative.rsplit('/').next().unwrap_or(relative);
                 name.strip_suffix(".md").unwrap_or(name).to_owned()
             });
-        let (tags, aliases, frontmatter_ok, url, sticker, color, banner, banner_y) =
+        let (tags, aliases, frontmatter_ok, url, sticker, color, banner, banner_y, order_items, pinned_items) =
             match report.frontmatter.as_ref().map(|f| &f.values) {
                 Some(Ok(Value::Mapping(map))) => (
                     strings_of(map, "tags"),
@@ -191,15 +193,23 @@ impl Index {
                     string_of(map, "color"),
                     string_of(map, "banner"),
                     f64_of(map, "banner_y"),
+                    {
+                        let o = strings_of(map, "order");
+                        if o.is_empty() { None } else { Some(json_list(&o)) }
+                    },
+                    {
+                        let p = strings_of(map, "pinned");
+                        if p.is_empty() { None } else { Some(json_list(&p)) }
+                    },
                 ),
-                Some(Ok(_)) | None => (Vec::new(), Vec::new(), true, None, None, None, None, None),
-                Some(Err(_)) => (Vec::new(), Vec::new(), false, None, None, None, None, None),
+                Some(Ok(_)) | None => (Vec::new(), Vec::new(), true, None, None, None, None, None, None, None),
+                Some(Err(_)) => (Vec::new(), Vec::new(), false, None, None, None, None, None, None, None),
             };
         let tx = self.conn.transaction()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
             params![
                 relative,
                 path_key,
@@ -220,6 +230,8 @@ impl Index {
                 color,
                 banner,
                 banner_y,
+                order_items,
+                pinned_items,
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -797,11 +809,11 @@ impl Index {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
-    /// Every label (sticker, color, first alias) known to the index.
+    /// Every label (sticker, color, first alias, order, pinned) known to the index.
     pub fn labels(&self) -> Result<std::collections::HashMap<String, EntryLabel>, IndexError> {
         let mut st = self.conn.prepare(
-            "SELECT path, sticker, color, aliases FROM notes
-             WHERE sticker IS NOT NULL OR color IS NOT NULL OR aliases != '[]'",
+            "SELECT path, sticker, color, aliases, order_items, pinned_items FROM notes
+             WHERE sticker IS NOT NULL OR color IS NOT NULL OR aliases != '[]' OR order_items IS NOT NULL OR pinned_items IS NOT NULL",
         )?;
         let rows = st.query_map([], |r| {
             let path: String = r.get(0)?;
@@ -809,19 +821,30 @@ impl Index {
             let color: Option<String> = r.get(2)?;
             let aliases_json: String = r.get(3)?;
             let alias = json_strings(&aliases_json).into_iter().next();
+            let order_json: Option<String> = r.get(4)?;
+            let order = order_json.map(|j| json_strings(&j)).filter(|v| !v.is_empty());
+            let pinned_json: Option<String> = r.get(5)?;
+            let pinned = pinned_json.map(|j| json_strings(&j)).filter(|v| !v.is_empty());
             Ok((
                 path,
                 EntryLabel {
                     sticker,
                     color,
                     alias,
+                    order,
+                    pinned,
                 },
             ))
         })?;
         let mut map = std::collections::HashMap::new();
         for item in rows {
             let (path, label) = item?;
-            if label.sticker.is_some() || label.color.is_some() || label.alias.is_some() {
+            if label.sticker.is_some()
+                || label.color.is_some()
+                || label.alias.is_some()
+                || label.order.is_some()
+                || label.pinned.is_some()
+            {
                 map.insert(path, label);
             }
         }
@@ -832,21 +855,32 @@ impl Index {
     pub fn label_of(&self, path: &str) -> Result<Option<EntryLabel>, IndexError> {
         let mut st = self
             .conn
-            .prepare("SELECT sticker, color, aliases FROM notes WHERE path = ?1")?;
+            .prepare("SELECT sticker, color, aliases, order_items, pinned_items FROM notes WHERE path = ?1")?;
         let mut rows = st.query_map(params![path], |r| {
             let sticker: Option<String> = r.get(0)?;
             let color: Option<String> = r.get(1)?;
             let aliases_json: String = r.get(2)?;
             let alias = json_strings(&aliases_json).into_iter().next();
+            let order_json: Option<String> = r.get(3)?;
+            let order = order_json.map(|j| json_strings(&j)).filter(|v| !v.is_empty());
+            let pinned_json: Option<String> = r.get(4)?;
+            let pinned = pinned_json.map(|j| json_strings(&j)).filter(|v| !v.is_empty());
             Ok(EntryLabel {
                 sticker,
                 color,
                 alias,
+                order,
+                pinned,
             })
         })?;
         if let Some(res) = rows.next() {
             let label = res?;
-            if label.sticker.is_some() || label.color.is_some() || label.alias.is_some() {
+            if label.sticker.is_some()
+                || label.color.is_some()
+                || label.alias.is_some()
+                || label.order.is_some()
+                || label.pinned.is_some()
+            {
                 return Ok(Some(label));
             }
         }

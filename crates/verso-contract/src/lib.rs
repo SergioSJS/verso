@@ -100,13 +100,18 @@ pub enum FileKind {
 }
 
 /// Sticker and color of an entry (note or folder), plus its first alias
-/// when one exists (ADR 0060, S1).
+/// when one exists, and manual order and pinned lists (ADR 0060, S1, S3).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct EntryLabel {
     pub sticker: Option<String>,
     pub color: Option<String>,
     pub alias: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pinned: Option<Vec<String>>,
 }
+
 
 /// One entry of the open folder as the last walk saw it: what a folder
 /// listing shows and sorts by. `size` and `modified` are `f64` because

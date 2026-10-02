@@ -576,8 +576,18 @@ export class Core {
           } else if (Array.isArray(props["aliases"]) && props["aliases"].length > 0 && typeof props["aliases"][0] === "string" && props["aliases"][0].trim()) {
             alias = props["aliases"][0].trim();
           }
-          if (!sticker && !color && !alias) return null;
-          return { sticker, color, alias };
+          let order: string[] | null = null;
+          if (Array.isArray(props["order"])) {
+            const list = props["order"].filter((x): x is string => typeof x === "string");
+            if (list.length > 0) order = list;
+          }
+          let pinned: string[] | null = null;
+          if (Array.isArray(props["pinned"])) {
+            const list = props["pinned"].filter((x): x is string => typeof x === "string");
+            if (list.length > 0) pinned = list;
+          }
+          if (!sticker && !color && !alias && !order && !pinned) return null;
+          return { sticker, color, alias, order, pinned };
         } catch {
           return null;
         }
