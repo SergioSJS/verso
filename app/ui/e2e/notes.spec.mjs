@@ -1,6 +1,8 @@
 // Walkthrough, sections 3, 4 and 6: writing in a note, a note renamed with
 // its backlinks, the daily note and its calendar.
 
+import { crc32, deflateSync } from "node:zlib";
+
 import { test, expect } from "./fixtures.mjs";
 
 /** Today in the window's clock, as the app names a daily note. */
@@ -135,4 +137,56 @@ test("a picture whose name has an accent is shown from the folder", async ({ app
   const img = page.locator('.preview img[alt="g|120"]');
   await expect(img).toHaveAttribute("src", /^\/__vault\/assets\//);
   await expect.poll(() => img.evaluate((i) => i.naturalWidth)).toBeGreaterThan(0);
+});
+
+/** A PNG of `w`×`h` pixels, one colour: a picture whose natural size is
+ *  larger than the pane, written without any file on disk. */
+const widePng = (w, h) => {
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(w * 3, 0x88)]);
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", deflateSync(Buffer.concat(Array.from({ length: h }, () => row)))),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+  return `data:image/png;base64,${png.toString("base64")}`;
+};
+
+test("a wide picture inside an embedded note does not rewrap the whole note", async ({ app, page }) => {
+  await app.open();
+  // The note embedded holds a picture 1600 px wide — wider than the pane.
+  await app.writeOutside("Ficha.md", `# Ficha\n\n![](${widePng(1600, 400)})\n`);
+  await app.writeOutside("Com Embute.md", "Um parágrafo de prosa que tem de quebrar na largura do painel, e nunca passar da borda direita da janela.\n\n![[Ficha]]\n\nOutro parágrafo, o mesmo caso.\n");
+  await app.folderChanged(["Ficha.md", "Com Embute.md"], true);
+  await app.quickOpen("Com Embute");
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  // The caret away from the embed's line: the live preview draws it.
+  await page.locator(".cm-content").first().click();
+  await expect(page.locator(".cm-lp-embed-body img")).toBeVisible();
+  const box = () =>
+    page.evaluate(() => {
+      const content = document.querySelector(".cm-content");
+      const sheet = content.closest(".sheet");
+      return {
+        content: Math.round(content.getBoundingClientRect().width),
+        scroller: Math.round(content.closest(".cm-scroller").getBoundingClientRect().width),
+        over: sheet.scrollWidth - sheet.clientWidth,
+      };
+    });
+  await expect.poll(async () => (await box()).over).toBeLessThanOrEqual(0);
+  const { content, scroller } = await box();
+  expect(content).toBeLessThanOrEqual(scroller + 1);
 });

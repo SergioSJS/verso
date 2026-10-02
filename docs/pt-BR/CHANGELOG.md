@@ -42,6 +42,7 @@ versão de teste.
 ### Corrigido
 
 - **Uma edição do board desfeita antes de salvar não deixa nada para salvar**: a aba fecha limpa e não grava nada. Abas trazidas de volta atrás de outras não baixam mais imagens nem PDFs do iCloud até aparecerem; voltar e avançar seguem uma nota renomeada no meio do caminho; uma nota com nome como `Plano.canvas.md` é achada pela linha de comando e pelo MCP sem o `.md`.
+- **Uma imagem larga numa nota embutida não empurra mais a nota inteira para fora do painel**: no editor, uma nota embutida com `![[Nota]]` desenhava as imagens dela no tamanho natural, e uma imagem mais larga que o painel fazia toda linha da nota quebrar naquela largura — o texto passava por baixo da borda direita e a nota rolava para o lado. A imagem agora é limitada pelo painel, como a visão de leitura já a limitava, e nada dentro de uma nota alarga o texto de novo.
 - **O atualizador acha o `gh` quando o app é aberto pelo Dock**, cujo PATH não alcança a pasta do Homebrew, e diz por que veio um 404.
 - **Um SVG abre ajustado à vista**, onde abria como uma aba vazia.
 - **O botão da paleta na barra de status é um ícone.**

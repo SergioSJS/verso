@@ -42,6 +42,7 @@ test release.
 ### Fixed
 
 - **A board edit undone before it is saved leaves nothing to save**: the tab closes clean and writes nothing. Tabs brought back behind others no longer download pictures or PDFs from iCloud until they are shown; back and forward follow a note renamed meanwhile; a note named like `Plano.canvas.md` is found by the command line and the MCP without its `.md`.
+- **A wide picture in an embedded note no longer pushes the whole note past the pane**: in the editor, a note embedded with `![[Note]]` drew its pictures at their own size, and a picture wider than the pane rewrapped every line of the note at that width — the text ran under the right edge and the note scrolled sideways. The picture is now bounded by the pane, as the reading view already bounded it, and nothing inside a note widens the text again.
 - **The updater finds `gh` when the app is opened from the Dock**, whose PATH does not reach Homebrew's folder, and says why a 404 came back.
 - **An SVG opens fitted to the view**, where it opened as an empty tab.
 - **The status bar's palette button is an icon.**

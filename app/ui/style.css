@@ -569,7 +569,11 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   line-height: 1.7;
   min-height: 50vh;
 }
-.editor .cm-content { padding: 0 .5rem; caret-color: var(--seal); }
+/* `min-width: 0`: the text box is a flex item of the scroller, and without
+   it its smallest size is the widest thing inside (a picture of an
+   embedded note, a table). One wide child then rewraps the whole note at
+   its width, past the edge of the pane. */
+.editor .cm-content { padding: 0 .5rem; caret-color: var(--seal); min-width: 0; }
 .editor .cm-cursor { border-left: 2px solid var(--seal); }
 .editor .cm-gutters { background: none; border: none; }
 .editor .cm-lineNumbers {
@@ -1153,6 +1157,9 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-lp-embed-title { font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--seal); margin-bottom: .2rem; }
 .editor .cm-lp-embed-body { font-family: var(--book); }
 .editor .cm-lp-embed-body > :first-child { margin-top: 0; }
+/* A picture of the embedded note is bounded like the note's own
+   (`.cm-lp-image`): the reading view bounds it with `.preview img`. */
+.editor .cm-lp-embed-body img { max-width: 100%; max-height: 26rem; height: auto; }
 .editor .cm-lp-imath .katex { font-size: 1em; }
 .editor .cm-lp-wikilink { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); cursor: pointer; }
 .editor .cm-lp-embed { border-bottom-style: dashed; }
