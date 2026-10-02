@@ -11,6 +11,7 @@
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from "pdfjs-dist";
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { icon } from "./icons";
+import { note } from "./report";
 
 GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", document.baseURI).href;
 
@@ -179,9 +180,9 @@ export class PdfView {
     });
     this.linkService.setViewer(this.viewer);
     this.eventBus.on("pagesinit", () => {
-      this.viewer.currentScaleValue = this.fitMode ?? "page-width";
-      if (this.pendingPage > 1) this.viewer.currentPageNumber = this.pendingPage;
-      this.setCurrent(this.viewer.currentPageNumber);
+      this.laidOut = false;
+      this.fitWidth = -1;
+      this.layOut();
     });
     this.eventBus.on("pagechanging", (e: { pageNumber: number }) => this.setCurrent(e.pageNumber));
     this.eventBus.on("textlayerrendered", (e: { pageNumber: number }) => this.paintPassages(e.pageNumber));
@@ -193,9 +194,40 @@ export class PdfView {
       if (e.state === 1) this.searchInfo.textContent = s.noHits;
       else if (e.state !== 3) this.searchInfo.textContent = e.matchesCount.total === 0 ? "" : s.hits(e.matchesCount.total, e.matchesCount.current);
     });
+    // Fitted again when the width changes, a frame later: scaling inside
+    // the observer resizes what it observes (a loop WebKit reports).
     new ResizeObserver(() => {
-      if (this.doc && this.fitMode) this.viewer.currentScaleValue = this.fitMode;
+      window.cancelAnimationFrame(this.fitFrame);
+      this.fitFrame = window.requestAnimationFrame(() => this.layOut());
     }).observe(this.container);
+  }
+
+  private laidOut = false;
+  private fitWidth = -1;
+  private fitFrame = 0;
+  /** Whether the reader is on screen: pdf.js scrolls to a page when it
+   *  scales, and cannot scroll what is not shown (a tab in the background,
+   *  an embed off screen) — it says so in the console. */
+  private shown(): boolean {
+    return this.container.offsetParent !== null && this.container.clientWidth > 0;
+  }
+  /** The first fit and page once shown, and a fit again when the width
+   *  changed. */
+  private layOut(): void {
+    if (!this.doc || !this.shown()) return;
+    const width = this.container.clientWidth;
+    if (!this.laidOut) {
+      this.laidOut = true;
+      this.fitWidth = width;
+      this.viewer.currentScaleValue = this.fitMode ?? "page-width";
+      if (this.pendingPage > 1) this.viewer.currentPageNumber = this.pendingPage;
+      this.setCurrent(this.viewer.currentPageNumber);
+      return;
+    }
+    if (this.fitMode && width !== this.fitWidth) {
+      this.fitWidth = width;
+      this.viewer.currentScaleValue = this.fitMode;
+    }
   }
 
   async load(url: string, page = 1): Promise<void> {
@@ -219,7 +251,11 @@ export class PdfView {
       this.viewer.setDocument(doc);
       this.linkService.setDocument(doc, null);
     } catch (e) {
-      this.opts.onStatus(`${this.opts.strings.loadFailed} (${e instanceof Error ? e.message : String(e)})`);
+      const said = e instanceof Error ? e.message : String(e);
+      // Told to the user and written down: the viewer answers for its
+      // own exception, and the log keeps it (`report.ts`).
+      note("ERROR", `pdf: ${said}`);
+      this.opts.onStatus(`${this.opts.strings.loadFailed} (${said})`);
     }
   }
 
@@ -241,7 +277,10 @@ export class PdfView {
 
   goTo(n: number): void {
     if (!this.doc) return;
-    this.viewer.currentPageNumber = Math.max(1, Math.min(this.doc.numPages, Math.round(n)));
+    const page = Math.max(1, Math.min(this.doc.numPages, Math.round(n)));
+    // Not shown yet: the page is where it opens once it is.
+    if (!this.laidOut) this.pendingPage = page;
+    else this.viewer.currentPageNumber = page;
   }
 
   private zoom(factor: number): void {
@@ -252,7 +291,7 @@ export class PdfView {
 
   private fit(mode: "page-width" | "page-fit"): void {
     this.fitMode = mode;
-    if (this.doc) this.viewer.currentScaleValue = mode;
+    if (this.doc && this.shown()) this.viewer.currentScaleValue = mode;
   }
 
   find(query: string, previous: boolean): void {

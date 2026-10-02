@@ -48,6 +48,11 @@ const ALLOW = new Set([
   // source is public and unmodified here; the app around it is untouched.
   // Entered with Mermaid (2026-09-29), for the maintainer's eye in the PR.
   "EPL-2.0",
+  // 0BSD (Zero-Clause BSD): tslib, in the tree of Excalidraw's Radix UI
+  // popover. A public-domain-like permissive license: no notice required.
+  // Entered with the board (ADR 0057 point 8, 2026-09-30); accepted by the
+  // maintainer on 2026-10-01 (review `docs/review/board.md` §6 item 11).
+  "0BSD",
 ]);
 
 // A package whose package.json omits the license field, taken by hand: the
@@ -56,6 +61,11 @@ const EXCEPTIONS = new Map([
   // MIT: the `license` file at fabiospampinato/khroma (read 2026-09-29);
   // the package.json simply lacks the field. In Mermaid's tree.
   ["khroma", "MIT"],
+  // MIT: the `LICENSE-MIT` file inside the package (mattyork/fuzzy, read
+  // 2026-09-30); the package.json has only the old `licenses` array. In
+  // Excalidraw's tree (ADR 0057 point 8); accepted by the maintainer on
+  // 2026-10-01 (review `docs/review/board.md` §6 item 11).
+  ["fuzzy", "MIT"],
 ]);
 
 const file = process.argv[2] ?? new URL("../app/ui/package-lock.json", import.meta.url);

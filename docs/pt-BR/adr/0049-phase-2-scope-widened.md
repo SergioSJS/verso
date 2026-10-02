@@ -17,7 +17,9 @@
   2026-09-29 — um menu próprio do Dock registrado na seção 3 como não
   construído por motivo técnico, e deixado `[ABERTO]`; a barra de menus do
   macOS ganhou Arquivo — Nova janela, Abrir pasta…, Abrir recente — e
-  Ajustes… no mesmo dia (`CHANGELOG.md`).
+  Ajustes… no mesmo dia (`CHANGELOG.md`). 2026-09-30 — a linha do board na
+  seção 3 deixa de valer, pelo pedido do mantenedor de 2026-09-29 ("vamos
+  puxar a demanda do canvas hexcalidraw etc agora"): o board é o [0057](0057-board-json-canvas.md).
 
 ## Contexto
 
@@ -76,7 +78,8 @@ topo da visão da pasta e "editar ao lado" para uma nota embutida.
 Mantidos fora pela [0034](0034-roadmap-in-phases.md) até a Fase 2 terminar, e
 isso foi dito ao mantenedor quando pediu:
 
-- Excalidraw ou o canvas do Obsidian — o board ([0024](0024-board-excalidraw.md)).
+- ~~Excalidraw ou o canvas do Obsidian — o board ([0024](0024-board-excalidraw.md)).~~
+  Decidido em 2026-09-30: [0057](0057-board-json-canvas.md).
 - Visões de kanban, calendário e tabela de dados sobre notas — os "Contexts" do
   make.md.
 

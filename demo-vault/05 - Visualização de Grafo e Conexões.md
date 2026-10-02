@@ -17,8 +17,18 @@ O **Grafo de Conhecimento** do Verso mapeia as conexões entre todas as suas not
 
 ## 🕸️ Como Abrir o Grafo
 
-- **Grafo Geral do Cofre**: Clique no ícone de Grafo na faixa lateral esquerda (Ribbon) ou use a Paleta de Comandos (`Cmd+Shift+P`) → "Grafo geral".
-- **Grafo da Nota Atual**: Clique no menu de contexto da nota ou execute "Grafo da nota" para ver a rede local conectada a este documento.
+- **Grafo do cofre**: todas as notas. Botão **Grafo do cofre** na faixa da esquerda, ou a paleta (`⌘⇧P`).
+- **Relações** (`⌘⇧G`): o grafo em volta da nota aberta — a nota, as que ela cita e as que a citam. Também no menu de uma aba e no menu de uma nota na árvore de arquivos.
+
+---
+
+## 🎛️ Os Controles
+
+- **Filtrar**: escreva parte de um nome, ou `tag:` e uma tag, para ver só essas notas; **Tags** escolhe uma tag da lista.
+- **Profundidade** (em **Relações**): 1, 2 ou 3 passos a partir da nota.
+- **Mostrar notas sem links**, **Nomes** e **Cor por pasta** ligam e desligam o que se vê.
+- **Repulsão**, **Distância** e **Tamanho** ajustam o desenho.
+- **Afastar**, **Aproximar** e **Ver tudo**; em **Relações**, o botão **Grafo do cofre** volta para o grafo inteiro.
 
 ---
 

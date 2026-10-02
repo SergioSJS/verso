@@ -2,7 +2,7 @@
 title: Notas Diárias, Calendário e Templates
 date: 2026-09-25
 tags:
-  - daily
+  - diario
   - calendario
   - templates
   - produtividade
@@ -11,61 +11,49 @@ status: ativo
 
 # Notas Diárias, Calendário e Templates
 
-O Verso possui um ecossistema completo para produtividade pessoal e registro contínuo, unindo **Notas Diárias (Daily Notes)**, navegação temporal via **Painel de Calendário** e automação com **Templates**.
+Uma nota por dia, um calendário que mostra os dias com nota, e templates que preenchem as notas novas.
 
 ---
 
-## 📅 Notas Diárias (Daily Notes)
+## 📅 A Nota de Hoje
 
-As Notas Diárias funcionam como um registro cronológico do seu dia a dia (diário, registro de tarefas, reuniões e ideias rápidas).
+- **`⌘D`**, o botão **Nota de hoje** na faixa da esquerda, ou **Nota de hoje** na paleta (`⌘⇧P`).
+- A nota se chama `AAAA-MM-DD.md` e fica na pasta **Diário** — o padrão de **Ajustes › Arquivos e links › Pasta das notas diárias**.
+- Se a nota do dia ainda não existe, o Verso a cria a partir do template com o mesmo nome da pasta — aqui, [[Templates/Diário|Templates/Diário]] — e põe o cursor no fim.
 
-### Como Acessar a Nota de Hoje
-1. **Pela Ribbon Lateral**: Clique no ícone de calendário na barra vertical à esquerda.
-2. **Por Atalho**: Pressione `⌘D` (ou `Ctrl+D`).
-3. **Pela Paleta de Comandos**: Pressione `⌘P` (ou `Ctrl+P`) e digite `Hoje` ou `Daily`.
-
-Se a nota do dia atual ainda não existir, o Verso a cria automaticamente na pasta configurada (por padrão, `daily/`).
-
-### Formato e Organização
-- As notas recebem automaticamente o nome no padrão `YYYY-MM-DD.md` (por exemplo: `2026-09-25.md`).
-- Você pode navegar entre os dias anteriores e seguintes facilmente pelos links ou pelo painel de calendário.
-- Exemplos já disponíveis neste vault:
-  - [[daily/2026-09-24|Nota de Ontem (2026-09-24)]]
-  - [[daily/2026-09-25|Nota de Hoje (2026-09-25)]]
+Notas deste cofre: [[Diário/2026-09-24|24 de setembro]] e [[Diário/2026-09-25|25 de setembro]].
 
 ---
 
-## 🗓️ Painel de Calendário na Barra Direita
+## 🗓️ O Calendário
 
-Na barra lateral direita do Verso, você encontra a aba com ícone de calendário:
+Abra o painel da direita (`⌘⌥→`) e escolha a aba **Calendário**:
 
-### Funcionalidades do Calendário:
-- **Visão Mensal**: Navegue entre os meses pelas setas de navegação.
-- **Indicadores de Notas**: Os dias que já possuem uma nota registrada exibem um ponto indicador logo abaixo do número do dia.
-- **Abertura com 1 Clique**: Clique em qualquer dia para abrir instantaneamente a nota daquela data (ou criá-la se ainda não existir).
-- **Retorno ao Dia Atual**: Clique no botão "Hoje" no topo do calendário para voltar imediatamente à data de hoje.
+- Um ponto embaixo do número marca os dias que têm nota na pasta **Diário** — volte até **setembro de 2026** com **Anterior** para ver os dois dias deste cofre.
+- Um clique num dia abre a nota daquele dia, ou a cria.
+- **Hoje** volta para o mês atual.
 
 ---
 
-## 📋 Uso e Criação de Templates
+## 📋 Templates
 
-Templates no Verso são arquivos Markdown normais armazenados na pasta designada como pasta de templates (configurada em **Ajustes › Arquivos e links › Pasta de templates**, por padrão `templates/`).
+Um template é uma nota qualquer da pasta **Templates** (**Ajustes › Arquivos e links › Pasta de templates**). Os deste cofre:
 
-### Templates Inclusos no Vault de Teste:
-- [[templates/Nota Diária|Template de Nota Diária]]: Estrutura com prioridades, tarefas do dia e notas soltas.
-- [[templates/Nota de Reunião|Template de Nota de Reunião]]: Pauta, participantes, decisões e plano de ação.
-- [[templates/Novo Projeto|Template de Novo Projeto]]: Metadados de projeto, escopo, entregáveis e cronograma.
+- [[Templates/Diário|Diário]]: o modelo das notas diárias — foco, tarefas, ideias e reflexão.
+- [[Templates/Nota de Reunião|Nota de Reunião]]: pauta, participantes, decisões e próximos passos.
+- [[Templates/Novo Projeto|Novo Projeto]]: propriedades de projeto, escopo e cronograma.
 
-### Como Inserir um Template em Qualquer Nota:
-1. Em qualquer linha vazia da sua nota, digite `/template` (ou apenas `/`).
-2. Selecione a opção **Inserir template** no menu de contexto.
-3. Escolha o template desejado e pressione `Enter`. O conteúdo do template será inserido na posição do cursor.
-4. Alternativamente, use a Paleta de Comandos (`⌘P`) e selecione **Inserir template…**.
+Ao ser usado, um template troca `{{date}}` pela data de hoje (`AAAA-MM-DD`) e `{{title}}` pelo nome da nota.
 
-### Como Salvar a Nota Atual como um Template:
-- Abra o menu de comandos (`⌘P`) e selecione **Salvar esta nota como template**, ou acesse pelo menu de contexto da aba. A nota será copiada imediatamente para a pasta de templates.
+### Inserir um template numa nota
+
+1. Numa linha vazia, digite `/` e escolha **Inserir template…** (ou use **Inserir template…** na paleta, ou o botão da faixa da esquerda).
+2. Escolha o template: o texto entra onde está o cursor.
+
+### Transformar uma nota em template
+
+Na paleta (`⌘⇧P`), **Salvar esta nota como template** copia a nota aberta para a pasta **Templates**.
 
 ---
 
-Parabéns! Você concluiu todos os guias fundamentais do Verso.
-Retorne para a [[00 - Bem-vindo ao Verso|Página Inicial]] para explorar e personalizar seu vault!
+Siga para [[08 - Diagramas Mermaid]] ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]].

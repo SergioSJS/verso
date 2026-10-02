@@ -125,7 +125,7 @@ uso: verso <comando> <pasta> [...]
 
   verso index <pasta>                  indexa a pasta (de novo: só o que mudou)
   verso search <pasta> <palavras...>   busca no texto das notas
-  verso backlinks <pasta> <nota>       quem linka para a nota
+  verso backlinks <pasta> <nota>       quem linka para a nota ou o board (caminho ou nome)
   verso backlinks <pasta> --unresolved alvos que nenhuma nota responde
   verso mcp <pasta>                    servidor MCP (stdio) só de leitura para um agente
   verso mcp --key <chave>              o mesmo, com a pasta pela chave que o app dá a ela
@@ -210,7 +210,7 @@ usage: verso <command> <folder> [...]
 
   verso index <folder>                 index the folder (again: only what changed)
   verso search <folder> <words...>     search the notes' text
-  verso backlinks <folder> <note>      who links to the note
+  verso backlinks <folder> <note>      who links to the note or board (path or name)
   verso backlinks <folder> --unresolved targets no note answers to
   verso mcp <folder>                   read-only MCP server (stdio) for an agent
   verso mcp --key <key>                the same, the folder named by the key the app gives it

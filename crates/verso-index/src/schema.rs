@@ -3,7 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! The tables. A version and the tokenizer in `meta`; a different version
-//! or tokenizer means "rebuild": the index is a cache (ADR 0011).
+//! or tokenizer means "rebuild": the index is a cache (ADR 0011) — but for
+//! version 6, which is carried over in place (`ensure`).
 //! Positions are stored next to every construct because a block without
 //! a `^id` is cited by line and column (ADR 0018). The full text lives
 //! once, in `notes.content`; `notes_fts` is an external-content FTS5
@@ -11,7 +12,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 6;
+pub(crate) const VERSION: i64 = 7;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -23,6 +24,7 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE notes (
     id        INTEGER PRIMARY KEY,
     path      TEXT NOT NULL UNIQUE,
+    kind      TEXT NOT NULL DEFAULT 'note', -- 'note' | 'canvas' (ADR 0057): a canvas is a link source
     path_key  TEXT NOT NULL,
     name_key  TEXT NOT NULL,
     dir       TEXT NOT NULL DEFAULT '',  -- folder of the note, '' at the root (keys.rs)
@@ -58,11 +60,12 @@ CREATE TABLE blocks (
 CREATE INDEX blocks_note ON blocks(note);
 CREATE TABLE links (
     note       INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
-    kind       TEXT NOT NULL,            -- 'link' | 'embed'
+    kind       TEXT NOT NULL,            -- 'link' | 'embed' | 'file' (a canvas's file node: a path from the root, ADR 0057)
     target     TEXT NOT NULL,            -- as written
     target_key TEXT,                     -- folded (keys.rs); NULL: not a name, never resolves
     rel_key    TEXT,                     -- the target read from the source's folder, or NULL
     heading    TEXT, block TEXT, alias TEXT,
+    relation   TEXT,                     -- the property's key, for a link a frontmatter property holds (spec Q10)
     line  INTEGER NOT NULL, col INTEGER NOT NULL,
     start INTEGER NOT NULL, end INTEGER NOT NULL
 );
@@ -86,6 +89,26 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
         && meta("schema").and_then(|v| v.parse().ok()) == Some(VERSION)
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
+        return Ok(());
+    }
+    // Version 6, the one before the board, is carried over in place, not
+    // rebuilt: for a note iCloud has evicted, its row is the only local
+    // copy of its text and links (ADR 0043), and a rebuild would lose it
+    // (decided by the maintainer on 2026-10-01, review `board.md` §6 item
+    // 7). Every note read from disk is read again on the next walk, for
+    // the links its properties hold; a placeholder keeps what it had.
+    if has_meta
+        && meta("schema").and_then(|v| v.parse::<i64>().ok()) == Some(6)
+        && meta("tokenizer").as_deref() == Some(TOKENIZER)
+    {
+        conn.execute_batch(
+            "BEGIN;
+             ALTER TABLE notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'note';
+             ALTER TABLE links ADD COLUMN relation TEXT;
+             UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;
+             UPDATE meta SET value = '7' WHERE key = 'schema';
+             COMMIT;",
+        )?;
         return Ok(());
     }
     // Another version, another tokenizer, or a SQLite file that is not

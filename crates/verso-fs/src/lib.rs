@@ -48,6 +48,7 @@ use std::time::SystemTime;
 
 pub use confine::ConfinementError;
 pub use ops::OpReport;
+pub use placeholder::Placeholder;
 pub use walk::{Entry, EntryKind, Problem, Walk};
 pub use watch::{Changes, MAX_WAIT, Watch};
 pub use write::{WriteError, WriteReport};
@@ -289,6 +290,26 @@ impl Root {
         let meta = std::fs::metadata(&target).map_err(ReadError::Io)?;
         let stamp = Stamp::of(&meta, &bytes).map_err(ReadError::Io)?;
         Ok((bytes, stamp))
+    }
+
+    /// The file `handle` names, when its content is only in the cloud in
+    /// the dataless form, so the user's opening of it can fetch it (ADR
+    /// 0043, amended on 2026-09-30); `None` for a file on disk, an absent
+    /// one, and the older `.Name.ext.icloud` form, which reading cannot
+    /// bring down. A symlink is followed, as `read` follows it.
+    pub fn placeholder(&self, handle: Handle) -> Result<Option<Placeholder>, ReadError> {
+        let path = self
+            .path_of(handle)
+            .ok_or(ReadError::UnknownHandle(handle))?;
+        let target = placeholder::follow(&path).map_err(ReadError::Io)?;
+        match std::fs::metadata(&target) {
+            Ok(meta) if !meta.is_dir() && placeholder::is_dataless(&meta) => {
+                Ok(Some(Placeholder::new(target)))
+            }
+            Ok(_) => Ok(None),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(ReadError::Io(e)),
+        }
     }
 
     /// Replace a file's content atomically (ADR 0029): temporary file in the

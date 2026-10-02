@@ -51,10 +51,11 @@ export const redraw = StateEffect.define<null>();
 const WIKILINK = /(!?)\[\[([^\]\n]+)\]\]/g;
 const IMAGE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
 
-/** `![[img.png|300]]` or `|300x200` or `![|60](url)`: Obsidian's size after the pipe. */
+/** `![[img.png|300]]` or `|300x200` or `![|60](url)` or, after an alt
+ *  text, `![Diagrama|320](url)`: Obsidian's size after the last pipe. */
 export function sizeOf(alias: string | null): { w: number; h: number | null } | null {
   if (!alias) return null;
-  const clean = alias.replace(/^\|/, "").trim();
+  const clean = alias.slice(alias.lastIndexOf("|") + 1).trim();
   const m = /^(\d+)(?:x(\d+))?$/.exec(clean);
   return m ? { w: Number(m[1]), h: m[2] ? Number(m[2]) : null } : null;
 }
@@ -675,16 +676,23 @@ class BlockWidget extends WidgetType {
       table.append(tbody);
       el.append(table);
     } else {
+      // Drawn as the reading view draws an embedded note: its frame
+      // (`.embed-note`) inside the block, which takes the frame's margins
+      // as padding — CodeMirror measures a block without its margins.
+      const frame = document.createElement("div");
+      frame.className = "embed-note";
       const title = document.createElement("div");
-      title.className = "cm-lp-embed-title";
+      title.className = "embed-note-title";
       title.textContent = b.text;
-      el.append(title);
+      frame.append(title);
       const body = document.createElement("div");
-      body.className = "cm-lp-embed-body";
+      // And its text as the reading view's (`.preview`), not the editor's.
+      body.className = "cm-lp-embed-body embed-note-body preview";
       if (this.html === undefined) body.textContent = "…";
       else if (this.html === null) body.textContent = `![[${b.text}]]`;
       else body.innerHTML = this.html;
-      el.append(body);
+      frame.append(body);
+      el.append(frame);
     }
     // A click puts the caret at the block, which opens it as text.
     el.addEventListener("mousedown", (e) => {
@@ -1186,8 +1194,10 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const src = /^https?:\/\//i.test(rawUrl) ? rawUrl : opts.imageUrl(rawUrl);
             if (src && heldImage(src)) {
               // Remote content off: a link, as in the reading view (the
-              // alt when it is text, not only a size).
-              out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: new HeldImageWidget(src, size ? "" : alt) }) });
+              // alt when it is text, not only a size: `Diagrama|320` reads
+              // "Diagrama").
+              const words = alt.includes("|") ? alt.slice(0, alt.lastIndexOf("|")).trim() : size ? "" : alt;
+              out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: new HeldImageWidget(src, words) }) });
             } else if (src) {
               out.push({
                 from: node.from,

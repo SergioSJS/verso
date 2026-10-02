@@ -130,9 +130,55 @@ pub(crate) fn follow(path: &Path) -> Result<std::path::PathBuf, std::io::Error> 
     Err(std::io::Error::other("too many levels of symbolic links"))
 }
 
+/// A file of the folder whose content is only in the cloud, named so the
+/// user's own opening of it can bring it down (ADR 0043, amended on
+/// 2026-09-30): what the window opens is fetched; the walk, the index and
+/// the watcher never do. It holds the confined path alone, so it can be
+/// fetched away from the lock the folder is read under.
+#[derive(Debug, Clone)]
+pub struct Placeholder {
+    path: std::path::PathBuf,
+}
+
+impl Placeholder {
+    pub(crate) fn new(path: std::path::PathBuf) -> Self {
+        Self { path }
+    }
+
+    /// Bring the content down: reading a dataless file is what makes the
+    /// operating system download it, so the file is read to its end and the
+    /// bytes dropped. Blocks until the download is over or fails (offline);
+    /// the caller runs it off any thread the user is waiting on.
+    pub fn fetch(&self) -> Result<(), std::io::Error> {
+        let mut file = std::fs::File::open(&self.path)?;
+        std::io::copy(&mut file, &mut std::io::sink())?;
+        // Read to its end and still in the cloud: the provider gave nothing
+        // (an item it cannot serve reads as zero bytes) — an error, never
+        // an empty file.
+        if is_dataless(&std::fs::metadata(&self.path)?) {
+            return Err(std::io::Error::other(
+                "the cloud did not give the file's content",
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fetching_a_file_on_disk_reads_it_and_changes_nothing() {
+        let dir = std::env::temp_dir().join(format!("verso-fetch-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("nota.md");
+        std::fs::write(&path, b"texto").unwrap();
+        Placeholder::new(path.clone()).fetch().unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"texto");
+        assert!(Placeholder::new(dir.join("absent.md")).fetch().is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn dataless_flag() {

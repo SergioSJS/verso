@@ -4,6 +4,9 @@
 - Source: `docs/BRIEFING.md` §4, §9
 - Status in the briefing: `DECIDED` (Excalidraw); `PROPOSED` (semantic layer);
   `OPEN` (persistence)
+- Revisions: 2026-09-30 — the semantic layer, persistence, the accessible
+  view, the conversion of `.excalidraw.md` and the scope decided in [0057](0057-board-json-canvas.md);
+  the Consequences below are as written on 2026-09-21.
 
 ## Context
 
@@ -36,4 +39,5 @@ The board uses Excalidraw (MIT) as a free annotation layer.
 
 ## Status
 
-Accepted for Excalidraw. Semantic layer: Proposed. Persistence: `[OPEN]`.
+Accepted for Excalidraw. Semantic layer and persistence: Accepted
+(2026-09-30), by [0057](0057-board-json-canvas.md).

@@ -3,6 +3,7 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §9, §17 item 9
 - Status no briefing: `ABERTO`
+- Revisões: 2026-09-30 — decidido no [0057](0057-board-json-canvas.md).
 
 ## Contexto
 
@@ -13,7 +14,9 @@ extensões, sem decidir.
 
 ## Decisão
 
-Nenhuma. Decidir antes do board, que está fora de escopo até o fim da Fase 2.
+**Decidido em 2026-09-30 pelo mantenedor**, no [0057](0057-board-json-canvas.md): o board é um
+`.canvas`, com o desenho livre no mesmo arquivo sob uma chave de topo do
+próprio Verso (`"verso"`). Até esse dia: nenhuma.
 
 ## Consequências
 
@@ -36,4 +39,4 @@ escolha.
 
 ## Status
 
-`[ABERTO]`. Decidir antes do board.
+Aceito (2026-09-30), pelo [0057](0057-board-json-canvas.md).

@@ -110,6 +110,19 @@ modificações até gerar versão, considerando changelog inclusive"*.
   rebuilds. Decided by the maintainer on 2026-09-24, in session, keeping
   option (a) of `docs/reference/beta-config-decision.md`, which lays out the
   costs and the two other options.
+- **Every build carries the window's inspector** — Tauri's `devtools`
+  feature: View › Open console (⌥⌘I), and the palette, open the console,
+  elements and network of the focused window in the installed app too; a
+  setting in General turns it off. Decided by the maintainer on 2026-09-30,
+  in session ("quero isso tudo ai"), on the author's note of the two costs:
+  on macOS the feature goes through a private API, which only an App Store
+  build would be refused for; and whoever has the app open on the machine
+  can read what the window holds, the notes included — no more than access
+  to the folder already gives. Confirmed by the maintainer on 2026-10-01
+  (critical review [`docs/review/board.md`](../review/board.md), §6 item 15).
+  The setting hides the menu item, the key and the palette's command; the
+  web views are built with the inspector enabled all the same, so the web
+  view's own "Inspect Element", where a menu shows it, still opens it.
 
 ## Discarded alternatives
 

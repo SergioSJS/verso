@@ -1,10 +1,33 @@
+filters:
+  and:
+    - file.inFolder("projetos")
+formulas:
+  orcamento_mil: "(orcamento / 1000).toFixed(1)"
+properties:
+  formula.orcamento_mil:
+    displayName: Orçamento (mil)
 views:
   - type: table
     name: Todos os Projetos
     order:
       - file.name
+      - status
+      - prioridade
+      - responsavel
+      - orcamento
+      - formula.orcamento_mil
+    sort:
+      - property: date
+        direction: DESC
+    summaries:
+      orcamento: Sum
   - type: kanban
     name: Por Status
     groupBy: status
+  - type: cards
+    name: Fichas
+  - type: calendar
+    name: Calendário
+    startDate: date
   - type: list
     name: Lista de Projetos

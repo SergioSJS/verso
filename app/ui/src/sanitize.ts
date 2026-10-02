@@ -430,7 +430,20 @@ function clean(body: HTMLElement): void {
     }
     const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";
     if (heldImage(src)) el.replaceWith(imageLink(doc, src, el.getAttribute("alt") ?? ""));
+    else if (relativeImage(src)) {
+      // `![](assets/x.png)` names a file beside the note: as a `src`, the
+      // page would ask its own origin for it before the window asks the
+      // core where it is. It waits here (main.ts, noteImages).
+      el.setAttribute("data-src", src);
+      el.removeAttribute("src");
+    }
   }
+}
+
+/** Whether image `src`, as `address` kept it, names a file relative to
+ *  the note rather than an address. */
+function relativeImage(src: string): boolean {
+  return src.trim() !== "" && !src.includes(":") && !src.startsWith("//");
 }
 
 function cleaned(html: string): HTMLElement {

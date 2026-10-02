@@ -102,3 +102,7 @@ pie title Distribuição de Notas do Cofre
     "Notas Diárias" : 18
     "Leituras e Livros" : 12
 ```
+
+---
+
+Siga para [[09 - Board e Relações]] ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]].

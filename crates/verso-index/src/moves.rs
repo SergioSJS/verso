@@ -49,7 +49,12 @@ impl Index {
         )?;
         let new_title = if named_by_file {
             let name = to.rsplit('/').next().unwrap_or(to);
-            Some(name.strip_suffix(".md").unwrap_or(name).to_owned())
+            Some(
+                name.strip_suffix(".md")
+                    .or_else(|| name.strip_suffix(".canvas"))
+                    .unwrap_or(name)
+                    .to_owned(),
+            )
         } else {
             title.clone()
         };
@@ -114,6 +119,22 @@ impl Index {
                               n.path
                      LIMIT 1))",
                 params![key, rel, dir],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// What a canvas's `file` node names: the note at that path from the
+    /// root, never one found by name elsewhere (ADR 0057).
+    pub fn resolve_exact(&self, target: &str) -> Result<Option<String>, IndexError> {
+        let Some(key) = target_key(target).filter(|k| !k.is_empty()) else {
+            return Ok(None);
+        };
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT path FROM notes WHERE path_key = ?1 ORDER BY path LIMIT 1",
+                params![key],
                 |r| r.get(0),
             )
             .optional()?)

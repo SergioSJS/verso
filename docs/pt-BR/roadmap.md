@@ -11,9 +11,10 @@ participou do trabalho consegue executar a verificação e concluir "passou" ou
 Uma fase não começa antes de a anterior fechar. Um item de escopo que não estiver
 listado aqui não entra na fase sem virar decisão registrada.
 
-**Fora de escopo até o fim da Fase 2:** sync, mobile, plugins, board e shim de
+**Fora de escopo até o fim da Fase 2:** sync, mobile, plugins e shim de
 compatibilidade (§15). Isso vale mesmo que a implementação pareça barata no
-momento.
+momento. O board esteve nesta lista até 2026-09-30, quando o mantenedor o
+puxou para a Fase 2 ([ADR 0057](adr/0057-board-json-canvas.md)).
 
 ---
 
@@ -191,7 +192,10 @@ dia: visões sobre a pasta — tabelas, cards, listas, kanbans e calendários,
 como as bases do Obsidian ([ADR 0053](adr/0053-views-bases.md)) — uma segunda
 janela na mesma pasta, e o terminal e os agentes ligados pelos ajustes
 ([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)); o memo é
-`docs/reference/views-decision.md`.
+`docs/reference/views-decision.md`. Em 2026-09-30 o mantenedor puxou também o
+board — um `.canvas` desenhado com o Excalidraw, relações tipadas no
+frontmatter, a conversão dos desenhos do plugin Excalidraw
+([ADR 0057](adr/0057-board-json-canvas.md)); o memo é `docs/reference/board-decision.md`.
 
 ### Decisões que precisam sair durante a fase
 
@@ -233,7 +237,7 @@ fechar: sync ([0020](adr/0020-sync-merge-in-core-transports-as-plugins.md)),
 mobile ([0025](adr/0025-own-server-and-mobile-pwa.md)), plugins
 ([0016](adr/0016-plugins-execution-and-capabilities.md), com as questões de
 [0047](adr/0047-plugin-api-open-questions.md) respondidas antes do
-desenho da API), board ([0024](adr/0024-board-excalidraw.md)), shim de
+desenho da API), shim de
 compatibilidade ([0017](adr/0017-plugins-format-shim-loading.md)), as
 primitivas ainda propostas ([0014](adr/0014-primitives-catalog.md)) e a
 **escrita por agente com diff** ([0018](adr/0018-llm-native-mcp-in-core.md),

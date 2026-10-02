@@ -89,8 +89,9 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
 
 ### 2.5 Escopo — [ADR 0034](adr/0034-roadmap-in-phases.md)
 
-18. Fora de escopo até o fim da Fase 2: sync, mobile, plugins, board e shim de
-    compatibilidade. Não implementar "já que é barato".
+18. Fora de escopo até o fim da Fase 2: sync, mobile, plugins e shim de
+    compatibilidade. Não implementar "já que é barato". O board entrou na
+    Fase 2 em 2026-09-30 ([ADR 0057](adr/0057-board-json-canvas.md)).
 19. Fase 1 não tem UI. Fase 0 não tem feature nenhuma.
 
 ---
@@ -112,7 +113,7 @@ mudando o teste.
 | clippy `disallowed_methods` negando `std::fs` fora de `verso-fs` (exceções: índice, config) | acesso à pasta aberta fora de `verso-fs` | workspace |
 | `cargo-deny`: allowlist de licenças, advisories negadas | dependência incompatível ou vulnerável | workspace |
 | Espelho da documentação: cada `.md` canônico tem gêmeo em `docs/pt-BR/` com os mesmos títulos | documento mudado num idioma só | workspace |
-| Fuzzing do parser com `cargo-fuzz` | arquivo malformado travando o app | feature 1 |
+| Fuzzing do parser com `cargo-fuzz`, e do leitor de canvas ao lado dele | arquivo malformado travando o app | feature 1; o leitor de canvas com o board |
 | Property test de round-trip (leitura decidida em Q18) | abrir reescrevendo arquivo | feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | parser deixar de compilar para WASM | feature 1 |
 | Escrita atômica (temporário + `fsync` do arquivo e do diretório + `rename`, mais os requisitos do ADR) | corrupção em queda de energia | feature 2 |
@@ -121,10 +122,14 @@ mudando o teste.
 | Benchmark com vault sintético | regressão de performance | feature 5 |
 | Tipos TS gerados conferidos no CI | regra 3 do contrato virar convenção | Fase 2, 2.1 |
 | Allowlist de licenças npm sobre o lockfile da janela | pacote npm sob licença que o projeto não pode distribuir | Fase 2 |
+| Os testes unitários da janela (`npm test` em `app/ui`) | o modelo do board mudar o que grava sem ninguém ver | o board |
+| O cofre de exemplo construído das suas fontes e se sustentando | um embutido velho, um board editado à mão, um tutorial que não se sustenta | o tutorial |
 
 CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
 roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
-clippy e os testes no macOS, o fuzzing e o benchmark; os apps são compilados e
+clippy e os testes no macOS, o fuzzing e o benchmark; os testes de ponta a
+ponta da janela rodam só localmente, no `scripts/check.sh`
+([ADR 0058](adr/0058-demo-vault-as-tutorial.md)); os apps são compilados e
 empacotados só numa tag de versão, nunca numa branch. Antes de qualquer push,
 `scripts/check.sh` e `scripts/check-linux.sh` passam localmente (README.md): o
 CI confirma, nunca é o primeiro teste.
@@ -194,6 +199,21 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
   ([ADR 0051](adr/0051-development-flow-and-releases.md)).
 - Uma mudança que o usuário vê acrescenta a sua linha em "Não lançado" no
   `CHANGELOG.md` e no `docs/pt-BR/CHANGELOG.md`.
+- Uma mudança que o usuário vê também atualiza o tutorial, o cofre de
+  exemplo ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)): uma nota que a
+  ensina, um cartão ou uma linha no "Tour do Verso" e, para o board, uma
+  lição ou um passo do "Treino do Board". Os dois boards do tutorial são construídos a partir
+  de `scripts/demo-vault/` com `node scripts/demo-vault.mjs build`, nunca
+  editados no app; uma tecla que o tutorial ensina é conferida contra os
+  testes de tecla do Excalidraw e os atalhos da janela; e o tutorial é
+  seguido antes do PR — os passos de
+  [`docs/reference/demo-vault-walkthrough.md`](reference/demo-vault-walkthrough.md),
+  aos quais a feature acrescenta os seus. Um passo roda por máquina no
+  harness do navegador quando pode (`npm run e2e` em `app/ui`; o
+  `scripts/check.sh` também o roda), com o seu teste em `app/ui/e2e/`; um
+  comando novo do contrato ganha a sua resposta no harness
+  (`app/ui/src/harness/`); o que o harness não alcança é seguido no app, com
+  o log do app aberto.
 
 ### Revisão
 
@@ -297,6 +317,7 @@ Parar é o comportamento correto, não uma falha:
 | `fixtures/` | Contrato de comportamento. `expected.yaml` é intocável sem aprovação; schema em `spec/dialect.md` §4 |
 | `crates/` | Os cinco crates do core, mais os tipos do contrato e o benchmark |
 | `app/` | A janela da Fase 2: o host Tauri (`app/src-tauri`) e a UI (`app/ui`) |
+| `demo-vault/` | O cofre de exemplo, o tutorial do produto ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)); os boards dele são construídos por `scripts/demo-vault.mjs` |
 | `.github/pull_request_template.md` | As cinco seções obrigatórias do PR |
 
 ## 8. Idioma

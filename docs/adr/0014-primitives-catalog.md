@@ -11,7 +11,10 @@
   row here points there. 2026-09-24 — the structured views accepted by the
   maintainer in an ADR of their own, [0053](0053-views-bases.md): bases, in
   Obsidian's format; and the month of the daily notes in the side panel, part
-  of the daily note's row.
+  of the daily note's row. 2026-10-01 — the typed relation, decided on
+  2026-09-30 in [0057](0057-board-json-canvas.md) (point 4, spec Q10), is
+  pointed at here, by the maintainer's decision on the critical review
+  [`docs/review/board.md`](../review/board.md), §6 item 16.
 
 ## Context
 
@@ -70,7 +73,9 @@ schema, the note is plain Markdown. The row above keeps the briefing's words;
   records the catalog.
 - Three items depend on syntax that is still `[OPEN]`: typed relation, format
   and location of schemas, and per-block visibility (`docs/spec/dialect.md`).
-  *(The format and location of schemas decided on 2026-09-24: spec Q11.)*
+  *(The format and location of schemas decided on 2026-09-24: spec Q11. The
+  typed relation decided on 2026-09-30: [0057](0057-board-json-canvas.md),
+  point 4, spec Q10.)*
 - "With no schema, it is plain Markdown" is what keeps compatibility with
   Obsidian vaults ([0012](0012-files-are-source-of-truth.md)).
 - A block ID with backlinks and presence in the graph is a prerequisite for
@@ -100,4 +105,5 @@ schema, the note is plain Markdown. The row above keeps the briefing's words;
 ## Status
 
 Proposed. The daily note and templates: accepted on 2026-09-23 (Decision).
-The typed note: accepted on 2026-09-24, in [0052](0052-typed-note.md).
+The typed note: accepted on 2026-09-24, in [0052](0052-typed-note.md). The
+typed relation: decided on 2026-09-30, in [0057](0057-board-json-canvas.md).

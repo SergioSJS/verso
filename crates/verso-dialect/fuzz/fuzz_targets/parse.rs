@@ -71,6 +71,15 @@ fuzz_target!(|data: &[u8]| {
     for callout in &document.callouts {
         check(source, callout.span, callout.pos);
     }
+    // A link a property holds (spec Q10): its span is the `[[…]]` itself,
+    // inside the frontmatter.
+    for link in &document.property_links {
+        check(source, link.span, link.pos);
+        let text = link.span.slice(source).unwrap_or_default();
+        assert!(text.starts_with("[[") && text.ends_with("]]"), "{text:?}");
+        let fm = document.frontmatter.as_ref().map(|f| f.span);
+        assert!(fm.is_some_and(|f| f.start <= link.span.start && link.span.end <= f.end));
+    }
     if let Some(frontmatter) = &document.frontmatter {
         assert!(frontmatter.span.slice(source).is_some());
         assert_eq!(frontmatter.span.start, 0);

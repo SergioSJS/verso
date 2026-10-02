@@ -3,6 +3,7 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §9, §17 item 9
 - Status in the briefing: `OPEN`
+- Revisions: 2026-09-30 — decided in [0057](0057-board-json-canvas.md).
 
 ## Context
 
@@ -13,7 +14,9 @@ Canvas sidecar as a candidate, with or without extensions, without deciding.
 
 ## Decision
 
-None. Decide before the board, which is out of scope until the end of Phase 2.
+**Decided on 2026-09-30 by the maintainer**, in [0057](0057-board-json-canvas.md): the board is a
+`.canvas`, with the free drawing in the same file under a top-level key of
+Verso's own (`"verso"`). Until that day: none.
 
 ## Consequences
 
@@ -37,4 +40,4 @@ choice.
 
 ## Status
 
-`[OPEN]`. Decide before the board.
+Accepted (2026-09-30), by [0057](0057-board-json-canvas.md).
