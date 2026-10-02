@@ -118,7 +118,7 @@ export const commands = {
 	 *  Every entry of the folder as the last walk saw it, with kind, size
 	 *  and date: what a folder view lists and sorts.
 	 */
-	listEntries: () => typedError<FileEntry[], ContractError>(__TAURI_INVOKE("list_entries")),
+	listEntries: () => typedError<FileEntry_Serialize[], ContractError>(__TAURI_INVOKE("list_entries")),
 	/**  The notes that are web pages, with their addresses (an icon, a tab). */
 	listWebNotes: () => typedError<WebNote[], ContractError>(__TAURI_INVOKE("list_web_notes")),
 	/**  Every resolved link of the vault: the graph of the whole folder. */
@@ -539,9 +539,27 @@ export type Edge = {
 
 /**
  *  Sticker and color of an entry (note or folder), plus its first alias
- *  when one exists (ADR 0060, S1).
+ *  when one exists, and manual order and pinned lists (ADR 0060, S1, S3).
  */
-export type EntryLabel = {
+export type EntryLabel = EntryLabel_Serialize | EntryLabel_Deserialize;
+
+/**
+ *  Sticker and color of an entry (note or folder), plus its first alias
+ *  when one exists, and manual order and pinned lists (ADR 0060, S1, S3).
+ */
+export type EntryLabel_Deserialize = {
+	sticker: string | null,
+	color: string | null,
+	alias: string | null,
+	order?: string[] | null,
+	pinned?: string[] | null,
+};
+
+/**
+ *  Sticker and color of an entry (note or folder), plus its first alias
+ *  when one exists, and manual order and pinned lists (ADR 0060, S1, S3).
+ */
+export type EntryLabel_Serialize = {
 	sticker: string | null,
 	color: string | null,
 	alias: string | null,
@@ -589,14 +607,38 @@ export type ErrorKind =
  *  the TypeScript side has no 64-bit integer without `bigint`: bytes are
  *  exact up to 2^53, seconds since the epoch far beyond any date.
  */
-export type FileEntry = {
+export type FileEntry = FileEntry_Serialize | FileEntry_Deserialize;
+
+/**
+ *  One entry of the open folder as the last walk saw it: what a folder
+ *  listing shows and sorts by. `size` and `modified` are `f64` because
+ *  the TypeScript side has no 64-bit integer without `bigint`: bytes are
+ *  exact up to 2^53, seconds since the epoch far beyond any date.
+ */
+export type FileEntry_Deserialize = {
 	path: string,
 	kind: FileKind,
 	/**  Bytes; 0 for a folder or an unread placeholder. */
 	size: number | null,
 	/**  Seconds since the Unix epoch; 0 when the file system gave none. */
 	modified: number | null,
-	label: EntryLabel | null,
+	label: EntryLabel_Deserialize | null,
+};
+
+/**
+ *  One entry of the open folder as the last walk saw it: what a folder
+ *  listing shows and sorts by. `size` and `modified` are `f64` because
+ *  the TypeScript side has no 64-bit integer without `bigint`: bytes are
+ *  exact up to 2^53, seconds since the epoch far beyond any date.
+ */
+export type FileEntry_Serialize = {
+	path: string,
+	kind: FileKind,
+	/**  Bytes; 0 for a folder or an unread placeholder. */
+	size: number | null,
+	/**  Seconds since the Unix epoch; 0 when the file system gave none. */
+	modified: number | null,
+	label: EntryLabel_Serialize | null,
 };
 
 /**  What one entry of the open folder is. */
