@@ -12,7 +12,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 8;
+pub(crate) const VERSION: i64 = 9;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -43,7 +43,9 @@ CREATE TABLE notes (
     sticker   TEXT,
     color     TEXT,
     banner    TEXT,
-    banner_y  REAL
+    banner_y  REAL,
+    order_items TEXT,
+    pinned_items TEXT
 );
 CREATE INDEX notes_path_key ON notes(path_key);
 CREATE INDEX notes_name_key ON notes(name_key);
@@ -103,13 +105,15 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
         )
         .unwrap_or(false)
     };
-    // Version 6 and 7 are carried over in place:
+    // Version 6, 7 and 8 are carried over in place:
     // Version 6 had no kind on notes and no relation on links.
     // Version 7 added kind and relation, but had no label columns (sticker, color, banner, banner_y).
+    // Version 8 added sticker, color, banner, banner_y.
+    // Version 9 added order_items and pinned_items.
     if has_meta
         && matches!(
             meta("schema").and_then(|v| v.parse::<i64>().ok()),
-            Some(6 | 7)
+            Some(6 | 7 | 8)
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
@@ -133,10 +137,16 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
         if !has_column("notes", "banner_y") {
             conn.execute_batch("ALTER TABLE notes ADD COLUMN banner_y REAL;")?;
         }
+        if !has_column("notes", "order_items") {
+            conn.execute_batch("ALTER TABLE notes ADD COLUMN order_items TEXT;")?;
+        }
+        if !has_column("notes", "pinned_items") {
+            conn.execute_batch("ALTER TABLE notes ADD COLUMN pinned_items TEXT;")?;
+        }
         if is_v6 {
             conn.execute_batch("UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;")?;
         }
-        conn.execute_batch("UPDATE meta SET value = '8' WHERE key = 'schema'; COMMIT;")?;
+        conn.execute_batch("UPDATE meta SET value = '9' WHERE key = 'schema'; COMMIT;")?;
         return Ok(());
     }
     // Another version, another tokenizer, or a SQLite file that is not

@@ -1426,6 +1426,32 @@ impl Workspace {
             .links_naming(&mv.keys())
             .map_err(CoreError::Index)?;
         paths.extend(mv.notes.iter().map(|(old, _)| old.clone()));
+        if let Ok(notes) = self.index.notes() {
+            let note_set: HashSet<String> = notes.into_iter().collect();
+            for (old, new) in mv.notes.iter().chain(mv.files.iter()) {
+                let dir_old = old.rsplit_once('/').map_or("", |(d, _)| d);
+                let dir_new = new.rsplit_once('/').map_or("", |(d, _)| d);
+                for dir in [dir_old, dir_new] {
+                    if !dir.is_empty() {
+                        let name = name_of(dir);
+                        let inside = format!("{dir}/{name}.md");
+                        let beside = format!("{dir}.md");
+                        if note_set.contains(&inside) {
+                            paths.push(inside);
+                        }
+                        if note_set.contains(&beside) {
+                            paths.push(beside);
+                        }
+                    } else {
+                        for n in &note_set {
+                            if !n.contains('/') {
+                                paths.push(n.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
         paths.sort();
         paths.dedup();
         let mut examined = Vec::new();
@@ -1706,13 +1732,20 @@ impl Workspace {
                     )),
                 }
             }
-            if let Some(after) = retargeted(&note.text, &edits) {
-                rewrites.push(LinkRewrite {
-                    path: path_now,
-                    revision: note.revision,
-                    before: note.text,
-                    after,
-                });
+            let mut after = retargeted(&note.text, &edits);
+            let text_to_check = after.as_deref().unwrap_or(&note.text);
+            if let Some(order_after) = rewrite_order(text_to_check, &note.path, mv) {
+                after = Some(order_after);
+            }
+            if let Some(after) = after {
+                if after != note.text {
+                    rewrites.push(LinkRewrite {
+                        path: path_now,
+                        revision: note.revision,
+                        before: note.text,
+                        after,
+                    });
+                }
             }
         }
         // In the order of the paths shown, which for a moved note is its
@@ -2412,3 +2445,195 @@ fn retargeted(text: &str, edits: &[(usize, usize, String)]) -> Option<String> {
     }
     Some(out)
 }
+
+/// The key a line opens at the top level of a frontmatter mapping.
+fn top_level_key(line: &str) -> Option<String> {
+    let first = line.chars().next()?;
+    if first.is_whitespace() || first == '-' || first == '#' {
+        return None;
+    }
+    if first == '"' || first == '\'' {
+        let rest = line.get(1..)?;
+        let end = rest.find(first)?;
+        let after = rest.get(end + 1..)?.trim_start_matches([' ', '\t']);
+        return after
+            .starts_with(':')
+            .then(|| rest.get(..end).map(str::to_owned))
+            .flatten();
+    }
+    let (key, _) = line.split_once(':')?;
+    let key = key.trim_end();
+    let key = key
+        .strip_prefix('"')
+        .and_then(|k| k.strip_suffix('"'))
+        .or_else(|| key.strip_prefix('\'').and_then(|k| k.strip_suffix('\'')))
+        .unwrap_or(key);
+    Some(key.to_owned())
+}
+
+/// Rewrite the `order:` list in a folder note's frontmatter when items move (ADR 0060, D4).
+fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
+    let parsed = verso_dialect::parse(text);
+    let fm = parsed.frontmatter.as_ref()?;
+    let verso_dialect::Value::Mapping(map) = fm.values.as_ref().ok()? else {
+        return None;
+    };
+    let (_, order_val) = map.iter().find(|(k, _)| k.eq_ignore_ascii_case("order"))?;
+    let verso_dialect::Value::Sequence(seq) = order_val else {
+        return None;
+    };
+    let order_items: Vec<String> = seq
+        .iter()
+        .filter_map(|v| match v {
+            verso_dialect::Value::String(s) => Some(s.clone()),
+            _ => None,
+        })
+        .collect();
+    if order_items.is_empty() {
+        return None;
+    }
+
+    let dir = note_path.rsplit_once('/').map_or("", |(d, _)| d);
+    let stem = without_md(name_of(note_path));
+    let mut candidate_folders = Vec::new();
+    if !dir.is_empty() && name_of(dir) == stem {
+        candidate_folders.push(dir.to_owned());
+    }
+    if !dir.is_empty() {
+        candidate_folders.push(format!("{dir}/{stem}"));
+    } else {
+        candidate_folders.push(stem.to_owned());
+        candidate_folders.push(String::new());
+    }
+    candidate_folders.push(dir.to_owned());
+
+    let mut matched_folder = None;
+    for f in &candidate_folders {
+        for (old, _) in mv.notes.iter().chain(mv.files.iter()) {
+            let rel = if f.is_empty() {
+                if !old.contains('/') {
+                    Some(old.as_str())
+                } else {
+                    None
+                }
+            } else if old.starts_with(&format!("{f}/")) {
+                Some(&old[f.len() + 1..])
+            } else if old == f {
+                Some(name_of(old))
+            } else {
+                None
+            };
+            if let Some(r) = rel
+                && order_items.iter().any(|item| item == r)
+            {
+                matched_folder = Some(f.clone());
+                break;
+            }
+        }
+        if matched_folder.is_some() {
+            break;
+        }
+    }
+
+    let folder = matched_folder?;
+    let mut new_items = order_items.clone();
+    let mut changed = false;
+
+    for (old, new) in mv.notes.iter().chain(mv.files.iter()) {
+        let old_rel = if folder.is_empty() {
+            if !old.contains('/') {
+                Some(old.as_str())
+            } else {
+                None
+            }
+        } else if old.starts_with(&format!("{folder}/")) {
+            Some(&old[folder.len() + 1..])
+        } else if old == &folder {
+            Some(name_of(old))
+        } else {
+            None
+        };
+        let Some(old_rel) = old_rel else {
+            continue;
+        };
+
+        let new_rel = if folder.is_empty() {
+            if !new.contains('/') {
+                Some(new.clone())
+            } else {
+                None
+            }
+        } else if new.starts_with(&format!("{folder}/")) {
+            Some(new[folder.len() + 1..].to_owned())
+        } else {
+            None
+        };
+
+        if let Some(pos) = new_items.iter().position(|it| it == old_rel) {
+            match new_rel {
+                Some(n) => {
+                    new_items[pos] = n;
+                    changed = true;
+                }
+                None => {
+                    new_items.remove(pos);
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    if !changed {
+        return None;
+    }
+
+    // Find the order property block in frontmatter text
+    let fm_text = text.get(fm.span.start..fm.span.end)?;
+    let mut order_start = None;
+    let mut order_end = None;
+    let mut in_order = false;
+    let mut line_offset = fm.span.start;
+
+    for line in fm_text.split_inclusive('\n') {
+        let line_len = line.len();
+        if in_order {
+            if top_level_key(line).is_some() || line.starts_with("---") {
+                order_end = Some(line_offset);
+                break;
+            }
+        } else if let Some(k) = top_level_key(line) {
+            if k.eq_ignore_ascii_case("order") {
+                in_order = true;
+                order_start = Some(line_offset);
+            }
+        }
+        line_offset += line_len;
+    }
+
+    if in_order && order_end.is_none() {
+        order_end = Some(line_offset);
+    }
+
+    let start = order_start?;
+    let end = order_end?;
+
+    let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut replacement = String::new();
+    if new_items.is_empty() {
+        replacement = format!("order: []{eol}");
+    } else {
+        replacement.push_str(&format!("order:{eol}"));
+        for item in &new_items {
+            if item.contains(' ') || item.contains(':') || item.contains('#') {
+                replacement.push_str(&format!("  - \"{item}\"{eol}"));
+            } else {
+                replacement.push_str(&format!("  - {item}{eol}"));
+            }
+        }
+    }
+
+    let mut out = text.to_owned();
+    out.replace_range(start..end, &replacement);
+    Some(out)
+}
+

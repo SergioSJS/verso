@@ -545,6 +545,8 @@ export type EntryLabel = {
 	sticker: string | null,
 	color: string | null,
 	alias: string | null,
+	order?: string[] | null,
+	pinned?: string[] | null,
 };
 
 /**  Why a command could not answer, by what the UI can do about it. */

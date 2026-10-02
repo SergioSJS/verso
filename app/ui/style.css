@@ -1452,6 +1452,14 @@ body.dragging { cursor: grabbing; user-select: none; }
 body.dragging * { cursor: grabbing !important; }
 .tree summary.drop, #tree-root.drop { background: var(--brass-wash); border-radius: 5px; }
 #tree-root.drop { box-shadow: inset 0 0 0 2px var(--brass); }
+.tree li.drop-before > button.row, .tree summary.drop-before { border-top: 2px solid var(--brass); }
+.tree li.drop-after > button.row, .tree summary.drop-after { border-bottom: 2px solid var(--brass); }
+.tree li.drop-pin > button.row, .tree summary.drop-pin { outline: 2px dashed var(--brass); background: var(--brass-wash); border-radius: 4px; }
+.tree .pin-badge, .folder-items .pin-badge { margin-left: auto; display: inline-flex; align-items: center; opacity: 0.65; color: var(--brass); }
+.tree .pin-badge .icon, .folder-items .pin-badge .icon { width: 12px; height: 12px; }
+.hidden-items-list { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; max-width: 320px; }
+.hidden-item-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.2rem 0.4rem; background: var(--paper-2); border-radius: 4px; font-size: 0.85rem; }
+.hidden-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Tree rows with icons */
 .tree li > button.row, .list li > button.row { display: flex; align-items: center; gap: .45rem; }

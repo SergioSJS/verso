@@ -855,6 +855,8 @@ fn list_entries(state: State<'_, App>) -> Result<Vec<FileEntry>, ContractError> 
                     sticker: l.sticker.clone(),
                     color: l.color.clone(),
                     alias: l.alias.clone(),
+                    order: l.order.clone(),
+                    pinned: l.pinned.clone(),
                 });
                 FileEntry {
                     path: e.path.clone(),
