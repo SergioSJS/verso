@@ -23,3 +23,20 @@ test("the demo content goes into an empty folder whole, in its own folders", asy
   }
   await expect(app.page.locator(".tab", { hasText: "00 - Bem-vindo ao Verso" }).first()).toBeVisible();
 });
+
+test("importing again over an earlier version's demo adds what is missing and names what it kept", async ({ app }) => {
+  await app.open("?vault=empty");
+  // The demo of an earlier version: an older welcome note, and nothing else.
+  await app.writeOutside("00 - Bem-vindo ao Verso.md", "# Bem-vindo\n\nA versão antiga.\n");
+  await app.folderChanged(["00 - Bem-vindo ao Verso.md"], true);
+  await app.command("Importar cofre de exemplo");
+  await app.page.locator(".confirm-box button.save").click();
+  await expect(app.page.locator(".confirm-box")).toContainText("foram mantidos como estão");
+  await expect(app.page.locator(".confirm-box")).toContainText("00 - Bem-vindo ao Verso.md");
+  expect(await app.files()).toEqual(DEMO_FILES);
+  expect(await app.file("00 - Bem-vindo ao Verso.md")).toBe("# Bem-vindo\n\nA versão antiga.\n");
+  await app.page.locator(".confirm-box button.save").click();
+  // What happened is in the app's log, for a report.
+  const log = await app.page.evaluate(() => window.__harness.log.filter((l) => l.message.startsWith("import demo:")).map((l) => l.message));
+  expect(log).toEqual(["import demo: asked", `import demo: ${DEMO_FILES.length} files`, `import demo: ${DEMO_FILES.length - 1} created, 1 kept, 0 failed`]);
+});
