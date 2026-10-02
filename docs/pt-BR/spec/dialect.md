@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.23
+# Spec do dialeto do Verso — v0.24
 
-- Versão: v0.23 · 2026-10-01
+- Versão: v0.24 · 2026-10-02
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -168,7 +168,7 @@ um wikilink entre aspas como valor, ou como item de uma lista.
 
 Acrescentado em 2026-10-01 pela decisão do mantenedor sobre a revisão crítica
 [`../review/board.md`](../review/board.md), §6 item 2, com a fixture
-rascunhada `fixtures/frontmatter/property-links`.
+rascunhada `fixtures/frontmatter/property-links`, aprovada em 2026-10-02.
 
 ---
 
@@ -1201,3 +1201,4 @@ ser escolhido.
 | v0.21 | 2026-09-29 | **Q19, parte setext, fechada pelo mantenedor**: a fixture `fixtures/heading/setext` aprovada na sessão ("ratifique o que precisar"); um sublinhado setext é heading, como observado no Obsidian. Seção 5.12 atualizada. A parte do casamento da Q19 continua `[ABERTO]`. Q26: uma nota apontando para a revisão do ADR 0044 do mesmo dia — diretórios de build e `.gitignore` de fora, atrás de ajustes. Uma questão fechada, em parte |
 | v0.22 | 2026-09-30 | **Q10 fechada pelo mantenedor** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): uma relação tipada é uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles, a chave o seu tipo; com ela, **a parte de links da Q24**. **Q16 decidida para `.canvas`** como o Obsidian faz: nós `file` e os links dos nós `text` são fontes de backlink, um canvas é alvo de link pelo nome completo. §5.11: o formato do board — o desenho sob uma chave de topo `verso`, nenhum tipo do próprio Verso, o layout do Obsidian mantido na escrita. Seção 6: a relação tipada `DECIDIDA`; o D4 da tabela de conversão `DECIDIDO`. Uma questão fechada, duas em parte |
 | v0.23 | 2026-10-01 | Sobre a revisão crítica `docs/review/board.md`, §6, aceita pelo mantenedor: **`property_links`** entra no schema do `expected.yaml` (§4.1, §4.7, §4.6), com a fixture rascunhada `fixtures/frontmatter/property-links` (rascunho de IA, observada no Obsidian 1.13.7); a §5.11 registra os campos próprios do Verso num canvas, que um nó `file` é um caminho a partir da raiz, e que um salvamento escreve o que o usuário não mudou como foi lido. Nenhuma questão fechada |
+| v0.24 | 2026-10-02 | A fixture `fixtures/frontmatter/property-links` **aprovada pelo mantenedor** em sessão ("Já aprovo agora"), antes da 0.3.0-beta.3; a marca de rascunho removida. Nada mais muda. |

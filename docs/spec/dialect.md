@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.23
+# Verso dialect spec — v0.24
 
-- Version: v0.23 · 2026-10-01
+- Version: v0.24 · 2026-10-02
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -170,7 +170,7 @@ wikilink as the value, or as an item of a list.
 
 Added on 2026-10-01 by the maintainer's decision on the critical review
 [`../review/board.md`](../review/board.md), §6 item 2, with the drafted
-fixture `fixtures/frontmatter/property-links`.
+fixture `fixtures/frontmatter/property-links`, approved on 2026-10-02.
 
 ---
 
@@ -1190,3 +1190,4 @@ the parser was chosen.
 | v0.21 | 2026-09-29 | **Q19, setext part, closed by the maintainer**: the fixture `fixtures/heading/setext` approved in session ("ratifique o que precisar"); a setext underline is a heading, as observed in Obsidian. Section 5.12 updated. The matching part of Q19 stays `[OPEN]`. Q26: a note pointing to the revision of ADR 0044 of the same day — build directories and `.gitignore` left out, behind settings. One question closed, in part |
 | v0.22 | 2026-09-30 | **Q10 closed by the maintainer** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): a typed relation is a frontmatter property of the source note whose value is a quoted wikilink or a list of them, the key its type; with it, **Q24's link part**. **Q16 decided for `.canvas`** as Obsidian does: `file` nodes and the links of `text` nodes are backlink sources, a canvas is a link target by its full name. §5.11: the board's format — the drawing under a top-level `verso` key, no type of Verso's own, Obsidian's layout kept on write. Section 6: the typed relation `DECIDED`; the conversion table's D4 `DECIDED`. One question closed, two in part |
 | v0.23 | 2026-10-01 | On the critical review `docs/review/board.md`, §6, accepted by the maintainer: **`property_links`** joins the `expected.yaml` schema (§4.1, §4.7, §4.6), with the drafted fixture `fixtures/frontmatter/property-links` (AI draft, observed in Obsidian 1.13.7); §5.11 records the fields of Verso's own on a canvas, that a `file` node is a path from the root, and that a save writes what the user did not change as it was read. No question closed |
+| v0.24 | 2026-10-02 | The fixture `fixtures/frontmatter/property-links` **approved by the maintainer** in session ("Já aprovo agora"), before 0.3.0-beta.3; its draft mark removed. Nothing else changes. |

@@ -32,7 +32,8 @@
 - Resolvido em 2026-10-01 pelo autor, Opus 5.5: o mantenedor respondeu à
   seção 6 (seção 8), e a "Resolução" de cada achado diz o que foi feito. O
   código está em `2c91553`; a fixture rascunhada
-  `fixtures/frontmatter/property-links` espera a aprovação do mantenedor.
+  `fixtures/frontmatter/property-links` esperava a aprovação do mantenedor,
+  dada em 2026-10-02 (spec v0.24).
 
 ## Como ler
 
