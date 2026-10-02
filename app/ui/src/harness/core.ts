@@ -28,6 +28,7 @@ import type {
   CliState,
   ContractError,
   Edge,
+  EntryLabel,
   ErrorKind,
   FileEntry,
   FolderInfo,
@@ -562,10 +563,38 @@ export class Core {
       return [...by].sort(([a], [b]) => (a < b ? -1 : 1)).map(([name, notes]) => ({ name, notes }));
     },
     read_file_text: (a) => lossy.decode(this.stored(this.confine(String(a["path"]))).bytes),
-    list_entries: (): FileEntry[] => [
-      ...[...this.folders].filter((d) => !hidden(d)).map((d): FileEntry => ({ path: d, kind: "folder", size: 0, modified: this.clock })),
-      ...[...this.files].filter(([p]) => !hidden(p)).map(([p, f]): FileEntry => ({ path: p, kind: isNote(p) ? "note" : "file", size: f.bytes.length, modified: f.modified })),
-    ],
+    list_entries: (): FileEntry[] => {
+      const labelFor = (p: string): EntryLabel | null => {
+        if (!isNote(p)) return null;
+        try {
+          const props = propertiesOf(this.text(p));
+          const sticker = typeof props["sticker"] === "string" && props["sticker"].trim() ? props["sticker"].trim() : null;
+          const color = typeof props["color"] === "string" && props["color"].trim() ? props["color"].trim() : null;
+          let alias: string | null = null;
+          if (typeof props["alias"] === "string" && props["alias"].trim()) {
+            alias = props["alias"].trim();
+          } else if (Array.isArray(props["aliases"]) && props["aliases"].length > 0 && typeof props["aliases"][0] === "string" && props["aliases"][0].trim()) {
+            alias = props["aliases"][0].trim();
+          }
+          if (!sticker && !color && !alias) return null;
+          return { sticker, color, alias };
+        } catch {
+          return null;
+        }
+      };
+      const folderLabel = (d: string): EntryLabel | null => {
+        const seg = d.split("/").filter(Boolean).pop();
+        const cand1 = seg ? `${d}/${seg}.md` : "";
+        const cand2 = `${d}.md`;
+        if (cand1 && this.files.has(cand1)) return labelFor(cand1);
+        if (this.files.has(cand2)) return labelFor(cand2);
+        return null;
+      };
+      return [
+        ...[...this.folders].filter((d) => !hidden(d)).map((d): FileEntry => ({ path: d, kind: "folder", size: 0, modified: this.clock, label: folderLabel(d) })),
+        ...[...this.files].filter(([p]) => !hidden(p)).map(([p, f]): FileEntry => ({ path: p, kind: isNote(p) ? "note" : "file", size: f.bytes.length, modified: f.modified, label: labelFor(p) })),
+      ];
+    },
     list_web_notes: (): WebNote[] =>
       this.notes().flatMap((p) => {
         const url = propertiesOf(this.text(p))["url"];

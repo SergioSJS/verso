@@ -34,10 +34,10 @@ use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
-    Edge, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit, IndexProgress,
-    IndexSummary, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText, Property,
-    PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateProgress, WebNote,
-    Written,
+    Edge, EntryLabel, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit,
+    IndexProgress, IndexSummary, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText,
+    Property, PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateProgress,
+    WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -837,19 +837,37 @@ fn renamed_out(r: verso_core::Renamed) -> Renamed {
 #[specta::specta]
 fn list_entries(state: State<'_, App>) -> Result<Vec<FileEntry>, ContractError> {
     with(&state, |ws| {
+        let labels = ws.labels()?;
         Ok(ws
             .entries()
             .iter()
-            .map(|e| FileEntry {
-                path: e.path.clone(),
-                kind: match e.kind {
-                    verso_core::FileKind::Note => FileKind::Note,
-                    verso_core::FileKind::File => FileKind::File,
-                    verso_core::FileKind::Folder => FileKind::Folder,
-                    verso_core::FileKind::Placeholder => FileKind::Placeholder,
-                },
-                size: e.len as f64,
-                modified: e.modified as f64,
+            .map(|e| {
+                let label = match e.kind {
+                    verso_core::FileKind::Folder => {
+                        let name = e.path.rsplit('/').next().unwrap_or(&e.path);
+                        let inside = format!("{}/{}.md", e.path, name);
+                        let beside = format!("{}.md", e.path);
+                        labels.get(&inside).or_else(|| labels.get(&beside))
+                    }
+                    _ => labels.get(&e.path),
+                }
+                .map(|l| EntryLabel {
+                    sticker: l.sticker.clone(),
+                    color: l.color.clone(),
+                    alias: l.alias.clone(),
+                });
+                FileEntry {
+                    path: e.path.clone(),
+                    kind: match e.kind {
+                        verso_core::FileKind::Note => FileKind::Note,
+                        verso_core::FileKind::File => FileKind::File,
+                        verso_core::FileKind::Folder => FileKind::Folder,
+                        verso_core::FileKind::Placeholder => FileKind::Placeholder,
+                    },
+                    size: e.len as f64,
+                    modified: e.modified as f64,
+                    label,
+                }
             })
             .collect())
     })

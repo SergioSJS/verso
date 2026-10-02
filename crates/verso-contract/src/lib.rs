@@ -99,6 +99,15 @@ pub enum FileKind {
     Placeholder,
 }
 
+/// Sticker and color of an entry (note or folder), plus its first alias
+/// when one exists (ADR 0060, S1).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct EntryLabel {
+    pub sticker: Option<String>,
+    pub color: Option<String>,
+    pub alias: Option<String>,
+}
+
 /// One entry of the open folder as the last walk saw it: what a folder
 /// listing shows and sorts by. `size` and `modified` are `f64` because
 /// the TypeScript side has no 64-bit integer without `bigint`: bytes are
@@ -111,6 +120,7 @@ pub struct FileEntry {
     pub size: f64,
     /// Seconds since the Unix epoch; 0 when the file system gave none.
     pub modified: f64,
+    pub label: Option<EntryLabel>,
 }
 
 /// A heading of a note, for citing and for the outline.

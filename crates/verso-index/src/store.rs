@@ -89,6 +89,14 @@ pub struct Unresolved {
     pub count: u64,
 }
 
+/// Sticker, color and first alias of an entry (note or folder) (ADR 0060, S1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntryLabel {
+    pub sticker: Option<String>,
+    pub color: Option<String>,
+    pub alias: Option<String>,
+}
+
 /// A link or an embed of some note, with what it resolves to among the
 /// notes ([`Index::all_links`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -170,7 +178,7 @@ impl Index {
                 let name = relative.rsplit('/').next().unwrap_or(relative);
                 name.strip_suffix(".md").unwrap_or(name).to_owned()
             });
-        let (tags, aliases, frontmatter_ok, url) =
+        let (tags, aliases, frontmatter_ok, url, sticker, color, banner, banner_y) =
             match report.frontmatter.as_ref().map(|f| &f.values) {
                 Some(Ok(Value::Mapping(map))) => (
                     strings_of(map, "tags"),
@@ -179,15 +187,19 @@ impl Index {
                     strings_of(map, "url")
                         .into_iter()
                         .find(|u| u.starts_with("http://") || u.starts_with("https://")),
+                    string_of(map, "sticker"),
+                    string_of(map, "color"),
+                    string_of(map, "banner"),
+                    f64_of(map, "banner_y"),
                 ),
-                Some(Ok(_)) | None => (Vec::new(), Vec::new(), true, None),
-                Some(Err(_)) => (Vec::new(), Vec::new(), false, None),
+                Some(Ok(_)) | None => (Vec::new(), Vec::new(), true, None, None, None, None, None),
+                Some(Err(_)) => (Vec::new(), Vec::new(), false, None, None, None, None, None),
             };
         let tx = self.conn.transaction()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17)",
             params![
                 relative,
                 path_key,
@@ -204,6 +216,10 @@ impl Index {
                 content,
                 dir_of(relative),
                 url,
+                sticker,
+                color,
+                banner,
+                banner_y,
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -780,6 +796,81 @@ impl Index {
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
+
+    /// Every label (sticker, color, first alias) known to the index.
+    pub fn labels(&self) -> Result<std::collections::HashMap<String, EntryLabel>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT path, sticker, color, aliases FROM notes
+             WHERE sticker IS NOT NULL OR color IS NOT NULL OR aliases != '[]'",
+        )?;
+        let rows = st.query_map([], |r| {
+            let path: String = r.get(0)?;
+            let sticker: Option<String> = r.get(1)?;
+            let color: Option<String> = r.get(2)?;
+            let aliases_json: String = r.get(3)?;
+            let alias = json_strings(&aliases_json).into_iter().next();
+            Ok((
+                path,
+                EntryLabel {
+                    sticker,
+                    color,
+                    alias,
+                },
+            ))
+        })?;
+        let mut map = std::collections::HashMap::new();
+        for item in rows {
+            let (path, label) = item?;
+            if label.sticker.is_some() || label.color.is_some() || label.alias.is_some() {
+                map.insert(path, label);
+            }
+        }
+        Ok(map)
+    }
+
+    /// The label of one note, or none.
+    pub fn label_of(&self, path: &str) -> Result<Option<EntryLabel>, IndexError> {
+        let mut st = self
+            .conn
+            .prepare("SELECT sticker, color, aliases FROM notes WHERE path = ?1")?;
+        let mut rows = st.query_map(params![path], |r| {
+            let sticker: Option<String> = r.get(0)?;
+            let color: Option<String> = r.get(1)?;
+            let aliases_json: String = r.get(2)?;
+            let alias = json_strings(&aliases_json).into_iter().next();
+            Ok(EntryLabel {
+                sticker,
+                color,
+                alias,
+            })
+        })?;
+        if let Some(res) = rows.next() {
+            let label = res?;
+            if label.sticker.is_some() || label.color.is_some() || label.alias.is_some() {
+                return Ok(Some(label));
+            }
+        }
+        Ok(None)
+    }
+
+    /// The cover (banner path/URL and banner_y) of a note, or none.
+    pub fn banner_of(&self, path: &str) -> Result<Option<(String, Option<f64>)>, IndexError> {
+        let mut st = self
+            .conn
+            .prepare("SELECT banner, banner_y FROM notes WHERE path = ?1")?;
+        let mut rows = st.query_map(params![path], |r| {
+            let banner: Option<String> = r.get(0)?;
+            let banner_y: Option<f64> = r.get(1)?;
+            Ok((banner, banner_y))
+        })?;
+        if let Some(res) = rows.next() {
+            let (banner, banner_y) = res?;
+            if let Some(b) = banner {
+                return Ok(Some((b, banner_y)));
+            }
+        }
+        Ok(None)
+    }
 }
 
 /// A byte offset as SQLite stores it.
@@ -805,6 +896,23 @@ fn scalar_text(v: &Value) -> Option<String> {
         Value::Bool(b) => Some(b.to_string()),
         Value::Null | Value::Sequence(_) | Value::Mapping(_) => None,
     }
+}
+
+fn string_of(map: &[(String, Value)], key: &str) -> Option<String> {
+    map.iter()
+        .find(|(k, _)| k == key)
+        .and_then(|(_, v)| scalar_text(v))
+}
+
+fn f64_of(map: &[(String, Value)], key: &str) -> Option<f64> {
+    map.iter()
+        .find(|(k, _)| k == key)
+        .and_then(|(_, v)| match v {
+            Value::Float(f) => Some(*f),
+            Value::Integer(i) => Some(*i as f64),
+            Value::String(s) => s.parse().ok(),
+            _ => None,
+        })
 }
 
 /// A JSON array of strings, quoted by hand: no JSON dependency for a list
