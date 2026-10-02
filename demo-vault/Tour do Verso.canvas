@@ -470,6 +470,49 @@
 			},
 			{"id":"d-abas-k31-t","type":"text","x":2503,"y":1793.5,"width":54,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-abas","text":"W","originalText":"W","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-abas-k31","lineHeight":1.25},
 			{"id":"d-abas-w3","type":"text","x":2596,"y":1795,"width":198,"height":37.5,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-abas","text":"fechar a aba","originalText":"fechar a aba","fontSize":30,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{
+				"id":"d-abas-k40",
+				"type":"rectangle",
+				"x":2390,
+				"y":1880,
+				"width":84,
+				"height":72,
+				"strokeColor":"#495057",
+				"backgroundColor":"#f1f3f5",
+				"fillStyle":"solid",
+				"strokeWidth":2,
+				"strokeStyle":"solid",
+				"roughness":0,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"g-abas",
+				"boundElements":[
+					{"id":"d-abas-k40-t","type":"text"}
+				]
+			},
+			{"id":"d-abas-k40-t","type":"text","x":2405,"y":1898.5,"width":54,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-abas","text":"⌘","originalText":"⌘","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-abas-k40","lineHeight":1.25},
+			{
+				"id":"d-abas-k41",
+				"type":"rectangle",
+				"x":2488,
+				"y":1880,
+				"width":84,
+				"height":72,
+				"strokeColor":"#495057",
+				"backgroundColor":"#f1f3f5",
+				"fillStyle":"solid",
+				"strokeWidth":2,
+				"strokeStyle":"solid",
+				"roughness":0,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"g-abas",
+				"boundElements":[
+					{"id":"d-abas-k41-t","type":"text"}
+				]
+			},
+			{"id":"d-abas-k41-t","type":"text","x":2503,"y":1898.5,"width":54,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-abas","text":"R","originalText":"R","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-abas-k41","lineHeight":1.25},
+			{"id":"d-abas-w4","type":"text","x":2596,"y":1900,"width":313.5,"height":37.5,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-abas","text":"recarregar a janela","originalText":"recarregar a janela","fontSize":30,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-arquivos-dica","type":"text","x":3340,"y":2030,"width":1320,"height":105.3,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-arquivos","text":"Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; arrastar uma nota da árvore para o texto cria um link; a lixeira é a pasta .trash, como no Obsidian.","originalText":"Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; arrastar uma nota da árvore para o texto cria um link; a lixeira é a pasta .trash, como no Obsidian.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{
 				"id":"d-arq-k00",

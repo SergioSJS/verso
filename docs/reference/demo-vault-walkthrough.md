@@ -111,6 +111,9 @@ point 13).
    quit the app (`a51aab2`).
 4. On a board, ⌘P opens "Abrir…". Level: H; E: `board-tour.spec.mjs`.
    Caught: Excalidraw kept the key (`a147e8e`).
+5. Note 13: ⌘R reloads the window with the note typed in saved first; with a
+   note that cannot be saved (a conflict waiting), the window stays and says
+   why. Level: H; E: `notes.spec.mjs`.
 
 ## 3. Writing and reading notes
 
@@ -137,6 +140,21 @@ point 13).
 6. A note changed on disk while text typed in its tab is unsaved: both
    versions are shown, and the disk's stays (invariant 11). Level: H; E:
    `notes.spec.mjs`.
+7. A note embedded with `![[Note]]`, in Editar, looks as it does in Leitura:
+   its headings, its paragraphs one step apart, its pictures within the
+   pane, and the text around it wrapped at the pane. Level: H; E:
+   `notes.spec.mjs`. Caught: the embed's line breaks drawn as empty lines,
+   its headings in the editor's type, and a picture wider than the pane
+   pushing every line of the note past the right edge (2026-10-02).
+8. A long note scrolled in Leitura to a heading, then Editar, then Leitura:
+   the heading stays at the top. Level: H; E: `notes.spec.mjs`. Caught: the
+   switch kept the scroll offset, and the editor showed another part of the
+   note (2026-10-02).
+9. A note with a paragraph and a list, in Leitura and in Editar: the text
+   starts and ends at the same place and the list has the same line height.
+   Level: H; E: `notes.spec.mjs`. Caught: Editar's text 7.5 px further right,
+   its lines 113 px longer in a wide window (`100ch` in the interface's
+   font), its list looser (2026-10-02).
 
 ## 4. Organizing: properties, bases, daily notes
 
