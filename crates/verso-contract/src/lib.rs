@@ -112,7 +112,6 @@ pub struct EntryLabel {
     pub pinned: Option<Vec<String>>,
 }
 
-
 /// One entry of the open folder as the last walk saw it: what a folder
 /// listing shows and sorts by. `size` and `modified` are `f64` because
 /// the TypeScript side has no 64-bit integer without `bigint`: bytes are

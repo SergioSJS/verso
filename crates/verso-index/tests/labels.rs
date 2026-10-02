@@ -53,7 +53,12 @@ fn labels_indexed_and_queried() {
     // Note with order and pinned
     let ordered = "---\norder:\n  - a.md\n  - b.md\npinned:\n  - \"[[a]]\"\n---\n# Folder Note\n";
     index
-        .upsert("Folder/Folder.md", stamp(3), ordered, &verso_dialect::parse(ordered))
+        .upsert(
+            "Folder/Folder.md",
+            stamp(3),
+            ordered,
+            &verso_dialect::parse(ordered),
+        )
         .unwrap();
     assert_eq!(
         index.label_of("Folder/Folder.md").unwrap(),

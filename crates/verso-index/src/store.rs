@@ -180,31 +180,71 @@ impl Index {
                 let name = relative.rsplit('/').next().unwrap_or(relative);
                 name.strip_suffix(".md").unwrap_or(name).to_owned()
             });
-        let (tags, aliases, frontmatter_ok, url, sticker, color, banner, banner_y, order_items, pinned_items) =
-            match report.frontmatter.as_ref().map(|f| &f.values) {
-                Some(Ok(Value::Mapping(map))) => (
-                    strings_of(map, "tags"),
-                    strings_of(map, "aliases"),
-                    true,
-                    strings_of(map, "url")
-                        .into_iter()
-                        .find(|u| u.starts_with("http://") || u.starts_with("https://")),
-                    string_of(map, "sticker"),
-                    string_of(map, "color"),
-                    string_of(map, "banner"),
-                    f64_of(map, "banner_y"),
-                    {
-                        let o = strings_of(map, "order");
-                        if o.is_empty() { None } else { Some(json_list(&o)) }
-                    },
-                    {
-                        let p = strings_of(map, "pinned");
-                        if p.is_empty() { None } else { Some(json_list(&p)) }
-                    },
-                ),
-                Some(Ok(_)) | None => (Vec::new(), Vec::new(), true, None, None, None, None, None, None, None),
-                Some(Err(_)) => (Vec::new(), Vec::new(), false, None, None, None, None, None, None, None),
-            };
+        let (
+            tags,
+            aliases,
+            frontmatter_ok,
+            url,
+            sticker,
+            color,
+            banner,
+            banner_y,
+            order_items,
+            pinned_items,
+        ) = match report.frontmatter.as_ref().map(|f| &f.values) {
+            Some(Ok(Value::Mapping(map))) => (
+                strings_of(map, "tags"),
+                strings_of(map, "aliases"),
+                true,
+                strings_of(map, "url")
+                    .into_iter()
+                    .find(|u| u.starts_with("http://") || u.starts_with("https://")),
+                string_of(map, "sticker"),
+                string_of(map, "color"),
+                string_of(map, "banner"),
+                f64_of(map, "banner_y"),
+                {
+                    let o = strings_of(map, "order");
+                    if o.is_empty() {
+                        None
+                    } else {
+                        Some(json_list(&o))
+                    }
+                },
+                {
+                    let p = strings_of(map, "pinned");
+                    if p.is_empty() {
+                        None
+                    } else {
+                        Some(json_list(&p))
+                    }
+                },
+            ),
+            Some(Ok(_)) | None => (
+                Vec::new(),
+                Vec::new(),
+                true,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
+            Some(Err(_)) => (
+                Vec::new(),
+                Vec::new(),
+                false,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
+        };
         let tx = self.conn.transaction()?;
         forget(&tx, relative)?;
         tx.execute(
@@ -822,9 +862,13 @@ impl Index {
             let aliases_json: String = r.get(3)?;
             let alias = json_strings(&aliases_json).into_iter().next();
             let order_json: Option<String> = r.get(4)?;
-            let order = order_json.map(|j| json_strings(&j)).filter(|v| !v.is_empty());
+            let order = order_json
+                .map(|j| json_strings(&j))
+                .filter(|v| !v.is_empty());
             let pinned_json: Option<String> = r.get(5)?;
-            let pinned = pinned_json.map(|j| json_strings(&j)).filter(|v| !v.is_empty());
+            let pinned = pinned_json
+                .map(|j| json_strings(&j))
+                .filter(|v| !v.is_empty());
             Ok((
                 path,
                 EntryLabel {
@@ -853,18 +897,22 @@ impl Index {
 
     /// The label of one note, or none.
     pub fn label_of(&self, path: &str) -> Result<Option<EntryLabel>, IndexError> {
-        let mut st = self
-            .conn
-            .prepare("SELECT sticker, color, aliases, order_items, pinned_items FROM notes WHERE path = ?1")?;
+        let mut st = self.conn.prepare(
+            "SELECT sticker, color, aliases, order_items, pinned_items FROM notes WHERE path = ?1",
+        )?;
         let mut rows = st.query_map(params![path], |r| {
             let sticker: Option<String> = r.get(0)?;
             let color: Option<String> = r.get(1)?;
             let aliases_json: String = r.get(2)?;
             let alias = json_strings(&aliases_json).into_iter().next();
             let order_json: Option<String> = r.get(3)?;
-            let order = order_json.map(|j| json_strings(&j)).filter(|v| !v.is_empty());
+            let order = order_json
+                .map(|j| json_strings(&j))
+                .filter(|v| !v.is_empty());
             let pinned_json: Option<String> = r.get(4)?;
-            let pinned = pinned_json.map(|j| json_strings(&j)).filter(|v| !v.is_empty());
+            let pinned = pinned_json
+                .map(|j| json_strings(&j))
+                .filter(|v| !v.is_empty());
             Ok(EntryLabel {
                 sticker,
                 color,

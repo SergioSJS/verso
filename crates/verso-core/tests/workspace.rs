@@ -1497,7 +1497,9 @@ fn a_rename_made_outside_reaches_the_index_through_the_watch() {
         match rx.recv_timeout(left) {
             Ok(c)
                 if c.rescan
-                    || c.paths.iter().any(|p| p.ends_with("B.md") || p.ends_with("A.md")) =>
+                    || c.paths
+                        .iter()
+                        .any(|p| p.ends_with("B.md") || p.ends_with("A.md")) =>
             {
                 break true;
             }
@@ -1511,5 +1513,3 @@ fn a_rename_made_outside_reaches_the_index_through_the_watch() {
     assert!(r.changed.contains(&"pasta/B.md".to_string()));
     assert!(r.gone.contains(&"pasta/A.md".to_string()));
 }
-
-
