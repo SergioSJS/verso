@@ -196,6 +196,10 @@ janela na mesma pasta, e o terminal e os agentes ligados pelos ajustes
 board — um `.canvas` desenhado com o Excalidraw, relações tipadas no
 frontmatter, a conversão dos desenhos do plugin Excalidraw
 ([ADR 0057](adr/0057-board-json-canvas.md)); o memo é `docs/reference/board-decision.md`.
+Em 2026-10-02 o mantenedor puxou as funcionalidades de organização do
+make.md — rótulos, páginas de pasta, ordem manual e fixados, editar uma nota
+embutida no lugar ([ADR 0060](adr/0060-makemd-organizing-features.md)); o
+memo é `docs/reference/makemd-decision.md`.
 
 ### Decisões que precisam sair durante a fase
 

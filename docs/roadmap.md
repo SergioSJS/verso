@@ -196,6 +196,10 @@ and the terminal and agents set up from the settings
 board in as well — a `.canvas` drawn with Excalidraw, typed relations in the
 frontmatter, the conversion of the Excalidraw plugin's drawings
 ([ADR 0057](adr/0057-board-json-canvas.md)); the memo is `docs/reference/board-decision.md`.
+On 2026-10-02 the maintainer pulled in make.md's organizing features —
+labels, folder pages, manual order and pins, editing an embedded note in
+place ([ADR 0060](adr/0060-makemd-organizing-features.md)); the memo is
+`docs/reference/makemd-decision.md`.
 
 ### Decisions that have to come out during the phase
 
