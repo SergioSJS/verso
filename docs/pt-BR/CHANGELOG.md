@@ -12,7 +12,17 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Acrescentado
+
+- **Recursos de organização: compatibilidade com make.md como primitivas do Verso** ([ADR 0060](adr/0060-makemd-organizing-features.md)):
+  - **Figurinhas e cores**: notas e pastas podem ter uma figurinha (`sticker:` emoji ou `lucide:nome`) e uma cor de destaque (`color:` hex ou cor CSS), visíveis na árvore de arquivos, no cabeçalho das abas e no banner da nota. O menu de contexto "Alterar figurinha e cor…" ou um clique no ícone do banner abre o seletor. Compatível com os valores de frontmatter do make.md (`emoji//`, `lucide//`, `ui//`).
+  - **Capas com reposicionamento**: notas podem exibir um banner de capa (`cover:` caminho da imagem ou URL) com percentual de alinhamento vertical (`cover_y:` 0–100). Passar o cursor sobre a capa revela controles para reposicionar arrastando verticalmente ou remover o banner.
+  - **Páginas de pasta e templates padrão de itens**: pastas podem ter uma página de pasta (`Pasta/Pasta.md` ou `.folder.md`) servindo como central com visão geral em tabela. Páginas de pasta podem definir padrões para novos itens criados dentro da pasta via `items_sticker:`, `items_color:` e `items_template:`.
+  - **Ordem manual e itens fixados**: arraste e solte itens na árvore de arquivos para definir uma ordem manual personalizada (`order: 1`, `order: 2`). Shift+arrastar ou menu de contexto "Fixar no topo" fixa itens no início da pasta (`pinned: true`, formando a relação tipada `pinned`).
+  - **Ocultar da árvore**: menu de contexto "Ocultar da árvore" oculta arquivos auxiliares da barra lateral. Itens ocultos são gerenciados e podem ser desocultados em Ajustes › Arquivos e links › Itens ocultos da árvore.
+  - **Edição direta de notas incorporadas (Flow)**: notas incorporadas (`![[Nota]]`) no modo Leitura e no Live Preview podem ser editadas diretamente no local com um clique no conteúdo ou pelo botão de editar. Cada arquivo preserva seu próprio histórico independente de desfazer/refazer. Ajuste em Ajustes › Editor › "Edição direta de notas incorporadas".
+  - **Gatilho de emojis no editor (`:`)**: digitar `:` no editor abre uma janela de autocompletar com sugestões de emojis pesquisáveis em português e inglês. Ajuste em Ajustes › Editor › "Sugerir emojis ao digitar ':'".
+  - **Atualização do tutorial do cofre de demonstração**: nota `19 - Organizando: figurinhas, capas e páginas.md` adicionada ao cofre de demonstração e ao tour, demonstrando todos os recursos de organização.
 
 ## 0.3.0-beta.3 — 2026-10-02
 
