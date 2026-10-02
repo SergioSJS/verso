@@ -72,11 +72,11 @@ beside the production app with its own window settings
 - **Which one is running**: Settings → General → Version, the About panel, or
   `verso --version`.
 - **Cutting one** happens only when the maintainer asks:
-  `node scripts/release.mjs prepare X.Y.Z[-beta.N]` opens the release pull
-  request, and after its merge `node scripts/release.mjs tag X.Y.Z[-beta.N]`
-  tags the commit that brought the version; the tag builds and publishes the
-  release. Before the first tag, a rehearsal — Actions → release → Run
-  workflow — builds the same files and publishes nothing.
+  `node scripts/release.mjs prepare X.Y.Z[-beta.N]`, on the branch of the
+  pull request that releases, sets the version and moves the changelog in one
+  commit; merging that pull request into `main` builds, publishes and tags
+  the release. A rehearsal — Actions → release → Run workflow — builds the
+  same files and publishes nothing.
 
 ## Documents
 

@@ -13,7 +13,11 @@
   palavras do mantenedor). 2026-09-24 — Decisão 6: a linha de comando vai
   também dentro do app, que os ajustes ligam no `PATH`
   ([0054](0054-terminal-and-agents-from-the-app.md)); o arquivo separado
-  continua.
+  continua. 2026-10-02 — Decisões 5 e 6: um merge só lança. Depois de a
+  0.3.0-beta.3 pedir um pull request da feature, um pull request da release
+  e uma tag, o mantenedor: "esse processo de gerar versao ta ruim de mais", e depois "ta, melhore o fluxo de deploy entao, ai testamos na próxma versao". A versão agora vai no pull
+  request que lança, e o merge dele na `main` compila, publica e cria a
+  tag.
 
 ## Contexto
 
@@ -58,16 +62,21 @@ modificações até gerar versão, considerando changelog inclusive"*.
    ADR achar isso registrado sem a palavra dele, o mantenedor respondeu
    *"Manter"* (2026-09-24).
 5. **Uma versão só é gerada quando o mantenedor pede** — pelo mantenedor, ou
-   por um agente a pedido dele — com o `scripts/release.mjs`:
-   `prepare X.Y.Z[-beta.N]` define a versão e move as entradas não lançadas do
-   changelog para ela, num pull request; depois do merge, `tag
-   X.Y.Z[-beta.N]` marca o commit da `main` que trouxe a versão — o merge do
-   pull request da release, não o que foi mesclado depois dele — e envia a
-   tag.
-6. **A tag compila e publica a release** (`.github/workflows/release.yml`), e
-   nada mais o faz: o app de macOS (arm64) num zip e a linha de comando num
-   arquivo, o changelog da versão como notas, uma pré-release para
-   `-beta.N`. Antes de compilar, ele confere que a tag nomeia a versão que as
+   por um agente a pedido dele — com o `scripts/release.mjs prepare
+   X.Y.Z[-beta.N]`, **na branch do pull request que lança**: ele define a
+   versão e move as entradas não lançadas do changelog para ela, num commit
+   desse pull request. Não há pull request de release próprio. *(Até
+   2026-10-02, o `prepare` abria um a partir da `main`, e o `tag` marcava o
+   merge dele à mão.)*
+6. **O merge que traz uma versão nova à `main` compila e publica a
+   release** (`.github/workflows/release.yml`), e nada mais o faz: a cada
+   push na `main`, um job curto de Linux lê a versão do workspace e para se
+   a tag dela existe; senão o job de macOS compila o app (arm64) num zip e a
+   linha de comando num arquivo, e os publica com o changelog da versão como
+   notas, uma pré-release para `-beta.N` — publicar cria a tag
+   `vX.Y.Z[-beta.N]` nesse merge. Uma tag enviada à mão (`release.mjs tag`,
+   para quando o caminho automático não conseguiu criar a tag) ainda lança.
+   Antes de compilar, o workflow confere que a tag nomeia a versão que as
    fontes carregam, no formato de uma versão, com o changelog dela nas duas
    línguas, num commit que está na `main`. Uma release de teste é o "Verso
    Beta", com um identificador próprio, para ser instalado ao lado do app de
@@ -85,7 +94,8 @@ modificações até gerar versão, considerando changelog inclusive"*.
   `main` como uma release de teste e os guarda como artefatos da execução,
   sem publicar nada.
 - **Uma release que falha**: rode de novo — o passo de publicação substitui
-  os arquivos e as notas de uma release parcial. Se as fontes causam a
+  os arquivos e as notas de uma release parcial; se falhou antes de criar a
+  tag, o `release.mjs tag` marca o merge à mão e a dispara de novo. Se as fontes causam a
   falha, a versão não pode sair: corrija num pull request, devolva as linhas
   do changelog da versão que falhou para "Não lançado" no mesmo pull request,
   e gere o próximo `-beta.N` (ou o próximo patch).
@@ -145,6 +155,12 @@ modificações até gerar versão, considerando changelog inclusive"*.
   próprio pull request, e o merge do mantenedor é a aprovação.
 - Um `.dmg` — montar um usa o Finder e falha em máquinas sem tela com
   frequência suficiente; um zip feito pelo `ditto` guarda a assinatura.
+- *(2026-10-02)* Um pull request de release mantido aberto por um robô
+  (release-please, changesets) — ainda dois merges, e uma dependência de
+  uma action de terceiros.
+- *(2026-10-02)* Compilar a release no Mac do mantenedor e subi-la com o
+  `gh release create` — de graça e rápido, mas preso a uma máquina e não
+  reproduzível.
 
 ## Status
 
