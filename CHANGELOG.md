@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.3.0-beta.3 — 2026-10-02
+
 ### Added
 
 - **Boards: a `.canvas` drawn with Excalidraw** ([ADR 0057](docs/adr/0057-board-json-canvas.md)): a `.canvas` file opens as a board instead of raw JSON, still one click from its text. Notes, images and files of the folder, text cards (Markdown) and web links sit on it as cards Verso draws; groups are frames; arrows between two cards are the canvas's edges; everything else you draw — shapes, freehand, free text, free arrows — is kept in the same file. It stays an ordinary JSON Canvas: Obsidian opens it and keeps what it does not know, and Verso writes it back in Obsidian's own layout, changing only what you changed. A board's cards and the links in its text cards count as backlinks, `![[Board.canvas]]` embeds link to it, and renaming a note points the boards at its new path. An outline beside the board lists its groups, cards, connections and (on request) the drawing's texts, for the keyboard and screen readers. Fonts come from the app; Excalidraw's online features are not offered. The demo content gains a board and a note that walks through it.
