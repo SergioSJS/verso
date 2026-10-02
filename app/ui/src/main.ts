@@ -147,7 +147,7 @@ type Strings = Record<
   | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
-  | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
+  | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reloadWindow" | "reloadNotDone" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
@@ -262,7 +262,7 @@ const pt: Strings = {
   colorBrass: "Âmbar / Brass (Acolhedor)", colorDefault: "Tinta natural (Neutro)", colorSeal: "Rubi / Selo (Vibrante)", colorMoss: "Esmeralda / Musgo (Natural)", colorSlate: "Ardósia / Índigo (Frio)", colorRoyal: "Safira Real (Azul)", colorAmethyst: "Ametista Real (Roxo)",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
-  reportBug: "Relatar problema", reportHint: "Tudo abaixo fica no seu computador: o botão copia, nada é enviado. Leia e edite à vontade antes de colar onde quiser.", reportWhat: "O que aconteceu", reportHere: "(conte aqui o que você fez e o que esperava)", reportContext: "Contexto", reportErrors: "Erros desta sessão", reportNoErrors: "nenhum", reportLog: "Registro do aplicativo",
+  reportBug: "Relatar problema", reloadWindow: "Recarregar janela", reloadNotDone: "A janela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).", reportHint: "Tudo abaixo fica no seu computador: o botão copia, nada é enviado. Leia e edite à vontade antes de colar onde quiser.", reportWhat: "O que aconteceu", reportHere: "(conte aqui o que você fez e o que esperava)", reportContext: "Contexto", reportErrors: "Erros desta sessão", reportNoErrors: "nenhum", reportLog: "Registro do aplicativo",
   navBack: "Voltar", navForward: "Avançar",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
   newBase: "Nova base", insertBase: "Inserir base", calendarTab: "Calendário", newWindow: "Nova janela",
@@ -359,7 +359,7 @@ const en: Strings = {
   colorBrass: "Warm Brass (Amber)", colorDefault: "Natural Ink (Neutral)", colorSeal: "Ruby Seal (Vibrant)", colorMoss: "Emerald Moss (Natural)", colorSlate: "Slate Indigo (Cool)", colorRoyal: "Royal Sapphire (Blue)", colorAmethyst: "Royal Amethyst (Purple)",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
-  reportBug: "Report a problem", reportHint: "Everything below stays on your computer: the button copies it, nothing is sent. Read it and edit it as you like before pasting it anywhere.", reportWhat: "What happened", reportHere: "(say here what you did and what you expected)", reportContext: "Context", reportErrors: "Errors this session", reportNoErrors: "none", reportLog: "The app's log",
+  reportBug: "Report a problem", reloadWindow: "Reload window", reloadNotDone: "The window did not reload: some changes could not be written (see the open notes).", reportHint: "Everything below stays on your computer: the button copies it, nothing is sent. Read it and edit it as you like before pasting it anywhere.", reportWhat: "What happened", reportHere: "(say here what you did and what you expected)", reportContext: "Context", reportErrors: "Errors this session", reportNoErrors: "none", reportLog: "The app's log",
   navBack: "Back", navForward: "Forward",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
   sCli: "Terminal and agents", cliTitle: "The verso command in the terminal", cliDesc: "Installs the verso command in /usr/local/bin: verso . opens the folder in the app, verso search <folder> <words> searches, verso mcp serves an agent. macOS asks for your password once.",
@@ -2232,6 +2232,10 @@ class NoteLeaf extends Leaf {
   }
   setMode(mode: Mode): void {
     const prevMode = this.mode;
+    // The two modes draw the note at different heights: the same scroll
+    // offset shows another part of it. What was at the top stays there; a
+    // note at its start stays at its start.
+    const top = this.note && mode !== prevMode && this.sheet.scrollTop > 0 ? this.topLine() : null;
     this.mode = mode;
     this.applyMode();
     if (mode === "preview") {
@@ -2251,6 +2255,47 @@ class NoteLeaf extends Leaf {
       }
       if (this.note) this.editor.focus();
     }
+    if (top) this.keepLine(top);
+  }
+  /** The first line whose block starts in view, and how far below the
+   *  sheet's top: by its block in the reading view (`data-line`, matched by
+   *  text), by its line in the editor. */
+  private topLine(): { line: number; offset: number } | null {
+    const top = this.sheet.getBoundingClientRect().top;
+    if (this.mode === "preview") {
+      for (const el of this.preview.querySelectorAll<HTMLElement>("[data-line]")) {
+        const r = el.getBoundingClientRect();
+        // A block scrolled exactly to the top sits a fraction above it.
+        if (r.height === 0 || r.top < top - 1) continue;
+        return { line: Number(el.dataset["line"]), offset: Math.max(0, r.top - top) };
+      }
+      return null;
+    }
+    const view = this.editor;
+    const doc = view.state.doc;
+    let block = view.lineBlockAtHeight(top - view.documentTop);
+    if (block.top + view.documentTop < top - 1 && block.to < doc.length) block = view.lineBlockAt(block.to + 1);
+    return { line: doc.lineAt(block.from).number, offset: Math.max(0, block.top + view.documentTop - top) };
+  }
+  /** Put `line` back at `offset` below the sheet's top, in the mode shown. */
+  private keepLine({ line, offset }: { line: number; offset: number }): void {
+    if (this.mode === "preview") {
+      // The last block that starts at or before the line: a line inside a
+      // paragraph or a list lands on its block.
+      let at: HTMLElement | null = null;
+      for (const el of this.preview.querySelectorAll<HTMLElement>("[data-line]")) {
+        if (Number(el.dataset["line"]) > line) break;
+        if (el.getBoundingClientRect().height > 0) at = el;
+      }
+      if (!at) return void (this.sheet.scrollTop = 0);
+      this.sheet.scrollTop += at.getBoundingClientRect().top - this.sheet.getBoundingClientRect().top - offset;
+      return;
+    }
+    const doc = this.editor.state.doc;
+    const pos = doc.line(Math.min(Math.max(line, 1), doc.lines)).from;
+    // CodeMirror's own scroll: a scroll set by hand is undone by its scroll
+    // anchor once it measures the lines it had only estimated (it was hidden).
+    this.editor.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: offset }) });
   }
   openReadingSearch(initialQuery?: string): void {
     this.readingSearch.open(initialQuery);
@@ -3075,6 +3120,8 @@ class NoteLeaf extends Leaf {
         }
       }
       if (matchedLine > 0) {
+        // Also what a change of mode keeps in view (`topLine`).
+        el.dataset["line"] = String(matchedLine);
         const num = h("span", "preview-line-num", String(matchedLine));
         num.setAttribute("aria-hidden", "true");
         el.prepend(num);
@@ -8337,9 +8384,22 @@ const DEFAULT_KEYS: Record<string, string> = {
   reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[", "nav-back": "Mod-[", "nav-forward": "Mod-]",
   // Also View › Open Console's own key (the host's menu), shown here.
   "open-console": "Mod-Alt-i",
+  "reload-window": "Mod-r",
 };
 function keyOf(id: string): string {
   return settings.hotkeys[id] ?? DEFAULT_KEYS[id] ?? "";
+}
+
+/** Reload the window once every open note and file of it is saved. False
+ *  when one could not be (a conflict waits for a decision, a write
+ *  failed): the window stays as it is, and nothing typed is lost. */
+async function reloadWindow(): Promise<boolean> {
+  const leaves = spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves));
+  const saved = await Promise.all(leaves.map((l) => l.flush()));
+  // A key typed in one note while another was still being written.
+  if (!saved.every(Boolean) || leaves.some((l) => l.dirty)) return false;
+  window.location.reload();
+  return true;
 }
 const UNSHIFT: Record<string, string> = { "{": "[", "}": "]", "|": "\\", "<": ",", ">": ".", "?": "/", ":": ";", '"': "'", "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=" };
 const MAC = /mac/i.test(navigator.platform);
@@ -8489,6 +8549,7 @@ function allCommands(all = false): Command[] {
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
     { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
+    { id: "reload-window", label: t.reloadWindow, run: () => void reloadWindow().then((ok) => ok || (ui.status.textContent = t.reloadNotDone)) },
     { id: "nav-back", label: t.navBack, need: Boolean(pane?.canGo(-1)), run: () => pane?.go(-1) },
     { id: "nav-forward", label: t.navForward, need: Boolean(pane?.canGo(1)), run: () => pane?.go(1) },
     { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
@@ -9026,9 +9087,7 @@ class SettingsDialog {
    *  failed), the window stays as it is and says why — the language
    *  applies at the next start. */
   private async reloadForLanguage(): Promise<void> {
-    const leaves = spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves));
-    const saved = await Promise.all(leaves.map((l) => l.flush()));
-    if (saved.every(Boolean)) return window.location.reload();
+    if (await reloadWindow()) return;
     this.notice.textContent = t.languageNotReloaded;
     this.notice.hidden = false;
     ui.status.textContent = t.languageNotReloaded;

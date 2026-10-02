@@ -556,7 +556,12 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .preview .embed.file::before { content: "📎 "; }
 
 /* Editor — the same page, now writable. No frame. */
+/* The reading view's font, for its `100ch`: `ch` is the width of a digit
+   in the element's own font, and the editor's was the interface's — its
+   lines ran longer than the reading view's in a wide window. Its panels and
+   tooltips set their own. Source and code keep theirs. */
 .editor { margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
+.editor.live { font-family: var(--book); font-size: 1.02rem; }
 .editor .cm-editor {
   height: auto;
   background: none;
@@ -574,6 +579,11 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
    embedded note, a table). One wide child then rewraps the whole note at
    its width, past the edge of the pane. */
 .editor .cm-content { padding: 0 .5rem; caret-color: var(--seal); min-width: 0; }
+/* Live Preview sets its text where the reading view does: the line's own
+   6 px moved into the text box, which keeps the caret off the edge. Lines
+   with an indent of their own (lists, quotes) set theirs below. */
+.editor.live .cm-content { padding-left: 6px; padding-right: 0; }
+.editor.live .cm-line { padding-left: 0; padding-right: 0; }
 .editor .cm-cursor { border-left: 2px solid var(--seal); }
 .editor .cm-gutters { background: none; border: none; }
 .editor .cm-lineNumbers {
@@ -903,7 +913,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 
 
 /* Live preview marks */
-.editor .cm-line.cm-lp-h { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; line-height: 1.25; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
+.editor .cm-line.cm-lp-h { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; line-height: 1.2; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
 .editor .cm-line.cm-lp-h1 { font-size: 1.65em; }
 .editor .cm-line.cm-lp-h2 { font-size: 1.35em; }
 .editor .cm-line.cm-lp-h3 { font-size: 1.12em; }
@@ -1047,6 +1057,10 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-line.cm-lp-li {
   position: relative;
   padding-left: calc(1.5em + var(--lp-depth, 0) * 1.5em);
+  /* The reading view's list rhythm (`.preview li`). */
+  line-height: 1.6;
+  padding-top: .12em;
+  padding-bottom: .12em;
 }
 .editor .cm-line.cm-lp-li-raw {
   position: relative;
@@ -1153,9 +1167,19 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .embed-gate-origin { align-self: flex-start; overflow-wrap: anywhere; }
 .embed-gate-text { margin: 0; line-height: 1.5; }
 .embed-gate-actions { display: flex; gap: .5rem; }
-.editor .cm-lp-embed { border-left: 2px solid var(--brass); padding: .2rem 0 .2rem .9rem; background: var(--paper-2); border-radius: 0 6px 6px 0; }
-.editor .cm-lp-embed-title { font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--seal); margin-bottom: .2rem; }
-.editor .cm-lp-embed-body { font-family: var(--book); }
+/* An embedded note's block: the reading view's frame (`.embed-note`) inside
+   it, its margins as the block's padding. */
+.editor .cm-lp-block.cm-lp-embed { padding: .6em 0 1em; }
+.editor .cm-lp-block.cm-lp-embed > .embed-note { margin: 0; }
+/* The reading view's title is a link, and draws as one (`.preview a`). */
+.editor .embed-note-title { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); }
+/* The body is a `.preview`, for the reading view's type; not its place in
+   the page (its gutter and offsets), and not the editor's own spacing:
+   inside `.cm-lineWrapping`, `white-space: break-spaces` drew every line
+   break between the rendered blocks as an empty line. `.preview` twice in
+   the selector: the reading view's line-number gutter
+   (`html.show-line-numbers-preview .preview`) must not reach it. */
+.editor .cm-lp-embed-body.preview { font-family: var(--book); white-space: normal; margin: 0; padding-left: 0; max-width: none; }
 .editor .cm-lp-embed-body > :first-child { margin-top: 0; }
 /* A picture of the embedded note is bounded like the note's own
    (`.cm-lp-image`): the reading view bounds it with `.preview img`. */

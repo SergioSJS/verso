@@ -190,3 +190,136 @@ test("a wide picture inside an embedded note does not rewrap the whole note", as
   const { content, scroller } = await box();
   expect(content).toBeLessThanOrEqual(scroller + 1);
 });
+
+test("an embedded note is drawn in the editor as the reading view draws it", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Ficha.md", "## Ideais\n\nPrimeiro parágrafo da ficha.\n\nSegundo parágrafo da ficha.\n");
+  await app.writeOutside("Com Ficha.md", "Antes do embute.\n\n![[Ficha]]\n\nDepois do embute.\n");
+  await app.folderChanged(["Ficha.md", "Com Ficha.md"], true);
+  await app.quickOpen("Com Ficha");
+  // The reading view's line numbers on: their gutter is the reading view's
+  // own, and never reaches into an embed.
+  await page.evaluate(() => document.documentElement.classList.add("show-line-numbers-preview"));
+  /** The step from one paragraph to the next, the heading's colour, and
+   *  how far the text sits inside the embed's frame. */
+  const look = (body) =>
+    page.evaluate((sel) => {
+      const [a, b] = document.querySelectorAll(`${sel} p`);
+      const frame = a.closest(".embed-note");
+      return {
+        step: Math.round(b.getBoundingClientRect().top - a.getBoundingClientRect().top),
+        heading: getComputedStyle(document.querySelector(`${sel} h2`)).color,
+        inset: Math.round(a.getBoundingClientRect().left - frame.getBoundingClientRect().left),
+      };
+    }, body);
+  await expect(page.locator(".embed-note-body h2")).toBeVisible();
+  const reading = await look(".embed-note-body");
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  // The caret away from the embed's line: the live preview draws it.
+  await page.locator(".cm-content").first().click();
+  await expect(page.locator(".cm-lp-embed-body h2")).toBeVisible();
+  // Each line break between the rendered blocks was drawn as an empty
+  // line (the editor's `white-space: break-spaces`), and the headings in
+  // the editor's default type.
+  expect(await look(".cm-lp-embed-body")).toEqual(reading);
+});
+
+test("⌘R saves the note typed in, then reloads the window", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("11 - Escrevendo");
+  const note = "11 - Escrevendo no Editor.md";
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await page.locator(".cm-content").first().click();
+  await app.key("Mod+End");
+  await page.keyboard.type(" digitado aqui");
+  // What the folder holds as the page goes (the folder in memory goes
+  // with it), and when: before the autosave's 1.5 s, so ⌘R wrote it.
+  await page.evaluate((n) => {
+    sessionStorage.setItem("typedAt", String(Date.now()));
+    addEventListener("beforeunload", () => {
+      sessionStorage.setItem("atUnload", window.__harness.read(n));
+      sessionStorage.setItem("unloadAt", String(Date.now()));
+    });
+  }, note);
+  // The new page, not the old one between its unload and the navigation.
+  await Promise.all([page.waitForEvent("load"), app.key("Mod+r")]);
+  await page.waitForFunction(() => window.__harness?.ready === true);
+  const at = await page.evaluate(() => ({ text: sessionStorage.getItem("atUnload"), typed: Number(sessionStorage.getItem("typedAt")), gone: Number(sessionStorage.getItem("unloadAt")) }));
+  expect(at.gone - at.typed, "unloaded before the autosave could write").toBeLessThan(1500);
+  expect(at.text).toContain("digitado aqui");
+});
+
+test("⌘R does not reload over a note that cannot be saved", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("11 - Escrevendo");
+  const note = "11 - Escrevendo no Editor.md";
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await page.locator(".cm-content").first().click();
+  await app.key("Mod+End");
+  await page.keyboard.type(" digitado aqui");
+  // The note changed on disk meanwhile: it is not saved without a choice.
+  await app.writeOutside(note, (await app.file(note)) + "\nescrito lá fora\n");
+  await app.folderChanged([note]);
+  await expect(page.locator(".conflict:visible")).toBeVisible();
+  await page.evaluate(() => (window.__notReloaded = true));
+  await app.key("Mod+r");
+  await expect(page.locator("#status")).toContainText("A janela não recarregou");
+  expect(await page.evaluate(() => window.__notReloaded)).toBe(true);
+  await expect(page.locator(".cm-content").first()).toContainText("digitado aqui");
+});
+
+test("changing between Leitura and Editar keeps in view what was at the top", async ({ app, page }) => {
+  await app.open();
+  const sections = Array.from({ length: 40 }, (_, i) => `## Seção ${i + 1}\n\n- Um item de lista da seção ${i + 1}, comprido o bastante para quebrar em duas linhas no painel.\n- Outro item.\n\nUm parágrafo da seção ${i + 1}.\n`);
+  await app.writeOutside("Longa.md", `# Longa\n\n${sections.join("\n")}`);
+  await app.folderChanged(["Longa.md"], true);
+  await app.quickOpen("Longa");
+  /** The first heading or line whose text starts in view: by its text,
+   *  not its box (a heading's line in the editor has padding above it). */
+  const atTop = () =>
+    page.evaluate(() => {
+      const sheet = [...document.querySelectorAll(".sheet")].find((s) => s.offsetParent !== null);
+      const top = sheet.getBoundingClientRect().top;
+      const textTop = (e) => {
+        const r = document.createRange();
+        r.selectNodeContents(e);
+        return r.getClientRects()[0]?.top ?? -Infinity;
+      };
+      const shown = [...sheet.querySelectorAll(".preview:not([hidden]) h2, .cm-line")].filter((e) => e.offsetParent !== null && e.textContent.trim());
+      return shown.find((e) => textTop(e) >= top - 1)?.textContent.replace(/^#+\s*/, "").trim();
+    });
+  await page.locator(".preview h2", { hasText: /Seção 20$/ }).evaluate((h) => h.scrollIntoView({ block: "start" }));
+  await expect.poll(atTop).toMatch(/^(\d+)?Seção 20$/);
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await expect.poll(atTop).toBe("Seção 20");
+  await page.getByRole("button", { name: "Leitura", exact: true }).click();
+  await expect.poll(atTop).toMatch(/^(\d+)?Seção 20$/);
+});
+
+test("Editar sets the text where Leitura does: same column, width and line height", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Coluna.md", "# Coluna\n\nUm parágrafo de texto corrido, comprido o bastante para quebrar em mais de uma linha no painel do teste, e mais um pouco.\n\n- Um item de lista, comprido o bastante para quebrar em mais de uma linha no painel do teste, e mais um pouco.\n- Outro item.\n");
+  await app.folderChanged(["Coluna.md"], true);
+  await app.quickOpen("Coluna");
+  /** Where the text of a block starts and ends, and its line height. */
+  const measure = (sel, text) =>
+    page.evaluate(([s, t]) => {
+      const el = [...document.querySelectorAll(s)].find((e) => e.offsetParent !== null && e.textContent.includes(t));
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.textContent.includes(t.slice(0, 6)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP) });
+      const range = document.createRange();
+      range.selectNodeContents(walker.nextNode());
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      return { left: range.getClientRects()[0].left, right: box.right - parseFloat(style.paddingRight), lineHeight: style.lineHeight };
+    }, [sel, text]);
+  const reading = { para: await measure(".preview p", "Um parágrafo"), item: await measure(".preview li", "Um item") };
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await page.locator(".cm-content").first().click();
+  await app.key("Mod+End");
+  const editing = { para: await measure(".cm-line", "Um parágrafo"), item: await measure(".cm-line", "Um item") };
+  for (const block of ["para", "item"]) {
+    expect(Math.abs(editing[block].left - reading[block].left), `${block}: where its text starts`).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(editing[block].right - reading[block].right), `${block}: where its lines end`).toBeLessThanOrEqual(1.5);
+  }
+  expect(editing.item.lineHeight).toBe(reading.item.lineHeight);
+});

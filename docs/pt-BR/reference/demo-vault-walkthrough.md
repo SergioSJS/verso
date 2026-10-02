@@ -111,6 +111,9 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    (`a51aab2`).
 4. Num board, ⌘P abre "Abrir…". Nível: H; E: `board-tour.spec.mjs`. Pegou:
    o Excalidraw ficava com a tecla (`a147e8e`).
+5. Nota 13: ⌘R recarrega a janela com a nota digitada salva antes; com uma
+   nota que não pode ser salva (um conflito esperando), a janela fica e diz
+   por quê. Nível: H; E: `notes.spec.mjs`.
 
 ## 3. Escrever e ler notas
 
@@ -137,6 +140,22 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 6. Uma nota mudada em disco enquanto o texto digitado na aba dela não foi
    salvo: as duas versões aparecem, e a do disco fica (invariante 11).
    Nível: H; E: `notes.spec.mjs`.
+7. Uma nota embutida com `![[Nota]]`, no Editar, fica como no Leitura: os
+   títulos, os parágrafos a um passo um do outro, as imagens dentro do
+   painel, e o texto em volta quebrado na largura do painel. Nível: H; E:
+   `notes.spec.mjs`. Pego: as quebras de linha do embute desenhadas como
+   linhas vazias, os títulos dele na letra do editor, e uma imagem mais
+   larga que o painel empurrando toda linha da nota para além da borda
+   direita (2026-10-02).
+8. Uma nota longa rolada no Leitura até um título, depois Editar, depois
+   Leitura: o título fica no topo. Nível: H; E: `notes.spec.mjs`. Pego: a
+   troca mantinha o deslocamento da rolagem, e o editor mostrava outra parte
+   da nota (2026-10-02).
+9. Uma nota com um parágrafo e uma lista, no Leitura e no Editar: o texto
+   começa e termina no mesmo lugar e a lista tem a mesma altura de linha.
+   Nível: H; E: `notes.spec.mjs`. Pego: o texto do Editar 7,5 px mais à
+   direita, as linhas 113 px mais longas numa janela larga (`100ch` na
+   fonte da interface), a lista mais solta (2026-10-02).
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
