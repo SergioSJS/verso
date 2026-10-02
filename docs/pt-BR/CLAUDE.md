@@ -130,7 +130,7 @@ roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
 clippy e os testes no macOS, o fuzzing e o benchmark; os testes de ponta a
 ponta da janela rodam só localmente, no `scripts/check.sh`
 ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)); os apps são compilados e
-empacotados só numa tag de versão, nunca numa branch. Antes de qualquer push,
+empacotados só quando uma versão nova chega à `main`, nunca numa branch. Antes de qualquer push,
 `scripts/check.sh` e `scripts/check-linux.sh` passam localmente (README.md): o
 CI confirma, nunca é o primeiro teste.
 
@@ -247,11 +247,13 @@ documentos citam commits por hash
 ### Versões
 
 Uma versão só é gerada **quando o mantenedor pede**, e então um agente pode
-gerá-la: `node scripts/release.mjs prepare X.Y.Z[-beta.N]` abre o pull request
-da release; depois do merge dele, `node scripts/release.mjs tag
-X.Y.Z[-beta.N]` marca o commit que trouxe a versão, e a tag compila e publica a
-release. `-beta.N` é uma release de teste. Nunca enviar uma tag de versão à
-mão; tags de versão são permanentes — ninguém consegue mover ou apagar uma.
+gerá-la: `node scripts/release.mjs prepare X.Y.Z[-beta.N]`, na branch do pull
+request que lança, define a versão e move o changelog num commit desse pull
+request; o merge dele na `main` compila, publica e cria a tag da release
+([ADR 0051](adr/0051-development-flow-and-releases.md), revista em
+2026-10-02). `-beta.N` é uma release de teste. Uma tag de versão só é enviada
+à mão (`release.mjs tag`) quando esse caminho não conseguiu criá-la; tags de
+versão são permanentes — ninguém consegue mover ou apagar uma.
 
 ---
 

@@ -119,8 +119,10 @@ the billing page showed for the cycle, in a quota that counts each as ten.
   (whose graph covers every target), the WASM check and the documents' checks
   answer the same on any OS —, the **60-second fuzzing**, on Linux, and the
   benchmark.
-- **The apps are built and packaged only for a version tag**, in a workflow of
-  its own; branches test, they never package. That workflow,
+- **The apps are built and packaged only for a version** — the merge that
+  brings a new one into `main` (ADR 0051, revised 2026-10-02), or a version
+  tag pushed by hand — in a workflow of its own; branches test, they never
+  package. That workflow,
   `.github/workflows/release.yml`, came with the development flow of
   [0051](0051-development-flow-and-releases.md) on 2026-09-24, macOS first;
   its bundle was built and checked on the Mac before it was written. Windows, then Linux, join the platform checks
