@@ -124,8 +124,10 @@ conta cada um como dez.
   `cargo deny` (cujo grafo cobre todos os alvos), a checagem de WASM e as dos
   documentos respondem igual em qualquer sistema —, o **fuzzing de 60
   segundos**, em Linux, e o benchmark.
-- **Os apps são compilados e empacotados só numa tag de versão**, num
-  workflow próprio; branches testam, nunca empacotam. Esse workflow, o
+- **Os apps são compilados e empacotados só para uma versão** — o merge que
+  traz uma nova à `main` (ADR 0051, revista em 2026-10-02), ou uma tag de
+  versão enviada à mão — num workflow próprio; branches testam, nunca
+  empacotam. Esse workflow, o
   `.github/workflows/release.yml`, veio com o fluxo de desenvolvimento da
   [0051](0051-development-flow-and-releases.md) em 2026-09-24, macOS
   primeiro; o bundle dele foi compilado e conferido no Mac antes de ele ser
