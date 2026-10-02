@@ -11,7 +11,7 @@ test("the settings have the sections the tutorial names", async ({ app }) => {
     await expect(app.page.getByText(label, { exact: true }).first()).toBeVisible();
   }
   await app.page.locator(".settings-nav-item", { hasText: "Organização" }).click();
-  for (const label of ["Figurinhas", "Capas", "Nota da pasta", "Ordem manual"]) {
+  for (const label of ["Figurinhas", "Capas", "Nome da nota da pasta (vazio: o nome da pasta)", "Ordenar arrastando na árvore"]) {
     await expect(app.page.getByText(label, { exact: true }).first()).toBeVisible();
   }
 });

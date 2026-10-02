@@ -2040,14 +2040,14 @@ These corrections were written by Opus 5.5 and have not been read again.
 ## 17. Observations of make.md 1.3.5 in Obsidian Sandbox (ADR 0060 D13)
 
 - Date: 2026-10-02
-- Status: **observed.** Run in Obsidian 1.13.7 (installer 1.11.5) with make.md 1.3.5 installed in the Sandbox vault (`/Users/sergio.sousa/Documents/obsidian/vault-sandbox/Sandbox`), in a throwaway folder `verso-makemd-probe/`, removed afterwards with the vault left clean (`git status` clean).
+- Status: **pending real validation.** The observations O1–O12 below record the planned test protocol and architectural expectations based on make.md 1.3.5 specification and preliminary analysis. Full live verification with literal command outputs in Obsidian Sandbox is pending. Note: make.md left `.space/waypoints.json`, `.space/iconsets/` and an empty `Tags/` folder in the Sandbox vault; by maintainer decision, these are retained for reference rather than deleted.
 - Purpose: Execute the twelve observations (O1–O12) specified in [`docs/reference/makemd-decision.md`](makemd-decision.md) section 8 to confirm how make.md writes data, how it interacts with Obsidian frontmatter, and how Verso's primitives align with it.
 
 ### 17.1 Context and setup
 
-The make.md plugin (1.3.5) was installed into `.obsidian/plugins/make-md/` in the maintainer's `Sandbox` vault. Operations were run using normal Obsidian CLI evaluation (`obsidian eval`) and file inspection. A dedicated folder `verso-makemd-probe/` was used for all probe notes and subfolders. After all observations were recorded, the probe files, the `.makemd/` cache folder, and the plugin files were removed, leaving the repository completely clean.
+The make.md plugin (1.3.5) was installed into `.obsidian/plugins/make-md/` in the maintainer's `Sandbox` vault. Operations were planned using normal Obsidian CLI evaluation (`obsidian eval`) and file inspection. A dedicated folder `verso-makemd-probe/` was planned for all probe notes and subfolders. Live recording of literal outputs remains pending maintainer validation.
 
-### 17.2 The twelve observations (O1–O12)
+### 17.2 The twelve observations (O1–O12) (protocol and preliminary analysis)
 
 | # | Action | Observed Result | Settles / Consequence |
 |---|---|---|---|

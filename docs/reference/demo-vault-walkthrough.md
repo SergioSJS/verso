@@ -308,7 +308,37 @@ point 13).
    it, or its path); `--unresolved`; `--json`. Level: A. Caught: only a path
    was found (2026-10-01).
 
-## 11. The end
+## 11. Organizing: stickers, covers, folder pages, manual order
+
+1. Note 19: sticker and color appear on the tree row, in the tab, and above
+   the note title; clicking the sticker opens the picker dialog (`role="dialog"`)
+   with accessible search, emoji grid, Lucide icons, and color palette. Level: H;
+   E: `labels.spec.mjs`.
+2. Note banner and vertical repositioning: "Adicionar capa" sets `banner:`;
+   "Reposicionar" shows the position slider and keyboard controls (↑ / ↓,
+   Enter to save, Esc to cancel); remote web banners respect the network
+   permission setting. Level: H; E: `labels.spec.mjs`.
+3. Folder pages and folder item defaults: clicking a folder row opens the
+   folder page; a homonymous note (`Projetos/Projetos.md`) renders the overview,
+   and its items table acts as a base over the folder; newly created items
+   inherit `items_sticker:`, `items_color:`, and `items_template:`. Level: H;
+   E: `folder-pages.spec.mjs`.
+4. Manual order and pins: dragging a tree row or using the context menu
+   ("Mover para cima" / "Mover para baixo") reorders items; "Fixar no topo da
+   pasta" / "Desafixar da pasta" pins items at the top; order and pins are saved
+   to the folder note's `order:` and `pinned:` frontmatter lists. Level: H;
+   E: `order-pins.spec.mjs`.
+5. Hide from tree: context menu "Ocultar da árvore" hides the item;
+   Ajustes › Organização › "Itens ocultos da árvore" lists hidden items per vault
+   and allows restoring them. Level: H; E: `order-pins.spec.mjs`.
+6. Inline embed editing (Flow): clicking an embedded note `![[Note]]` in reading
+   or edit mode allows editing it in place with isolated undo/redo history;
+   flushing saves cleanly or asks on conflict. Level: H; E: `flow.spec.mjs`.
+7. Emoji trigger: typing `:` in the editor opens the emoji autocomplete popup;
+   ↑ and ↓ navigate, Enter inserts the emoji, Esc dismisses. Level: H;
+   E: `flow.spec.mjs`.
+
+## 12. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.

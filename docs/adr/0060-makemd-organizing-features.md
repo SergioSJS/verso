@@ -97,6 +97,7 @@ spec in the slice that brings it.
 - [ADR 0049](0049-phase-2-scope-widened.md) §3: its line "make.md's
   Contexts" no longer holds — the views were [0053](0053-views-bases.md),
   this ADR the rest.
+- **Dependencies:** `cldr-annotations-modern` is added to `devDependencies` (Unicode-3.0 license) solely for the offline build script `scripts/build-emoji-data.mjs` that generates `app/ui/src/emoji-data.json`; it is not bundled into the runtime distribution.
 - **Authorship.** The maintainer delegated the implementation to
   Antigravity on 2026-10-02 ("vou delegar para o antigravity implementar o
   make md"): a deviation from [ADR 0032](0032-author-and-reviewer-roles.md)'s
@@ -125,4 +126,4 @@ From the memo, each weighed by the maintainer:
 
 ## Status
 
-Accepted (2026-10-02); slices S1–S4 implemented and verified (2026-10-02).
+In progress / review (2026-10-02); slices S1–S4 implemented, awaiting final review and verification.

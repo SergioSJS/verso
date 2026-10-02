@@ -517,8 +517,8 @@ a nota tipada, os schemas dela e os rótulos deles por idioma
 | Relação tipada | uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles; a chave é o tipo | `DECIDIDO` em 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados | `DECIDIDO` em 2026-09-24 (Q11) |
 | Visibilidade por bloco | segredo do mestre | `[ABERTO]` (Q9) |
-| Figurinha e cor | `sticker:` (emoji ou `lucide:nome`) e `color:` (hex ou cor CSS) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
-| Capa com reposicionamento | `cover:` (caminho ou URL) e `cover_y:` (percentual de alinhamento vertical, 0–100) no frontmatter de uma nota | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Figurinha e cor | `sticker:` (emoji ou `lucide//<nome>`) e `color:` (hex ou cor CSS) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Capa com reposicionamento | `banner:` (caminho ou URL) e `banner_y:` (percentual de alinhamento vertical, 0–100) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Ordem manual na pasta | `order:` no frontmatter da nota de pasta, uma lista de nomes relativos definindo a ordem | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Itens fixados na pasta | `pinned:` no frontmatter da nota de pasta, uma lista de wikilinks entre aspas formando a relação tipada `pinned` | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Padrões de itens da pasta | `items_sticker:`, `items_color:` e `items_template:` no frontmatter da nota de pasta, herdados por novos itens criados na pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
@@ -558,8 +558,8 @@ Exemplo de frontmatter de organização em uma nota:
 ---
 sticker: "🚀"
 color: "#e8590c"
-cover: assets/diagrama.svg
-cover_y: 42
+banner: assets/diagrama.svg
+banner_y: 42
 ---
 ```
 
@@ -1233,4 +1233,4 @@ ser escolhido.
 | v0.22 | 2026-09-30 | **Q10 fechada pelo mantenedor** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): uma relação tipada é uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles, a chave o seu tipo; com ela, **a parte de links da Q24**. **Q16 decidida para `.canvas`** como o Obsidian faz: nós `file` e os links dos nós `text` são fontes de backlink, um canvas é alvo de link pelo nome completo. §5.11: o formato do board — o desenho sob uma chave de topo `verso`, nenhum tipo do próprio Verso, o layout do Obsidian mantido na escrita. Seção 6: a relação tipada `DECIDIDA`; o D4 da tabela de conversão `DECIDIDO`. Uma questão fechada, duas em parte |
 | v0.23 | 2026-10-01 | Sobre a revisão crítica `docs/review/board.md`, §6, aceita pelo mantenedor: **`property_links`** entra no schema do `expected.yaml` (§4.1, §4.7, §4.6), com a fixture rascunhada `fixtures/frontmatter/property-links` (rascunho de IA, observada no Obsidian 1.13.7); a §5.11 registra os campos próprios do Verso num canvas, que um nó `file` é um caminho a partir da raiz, e que um salvamento escreve o que o usuário não mudou como foi lido. Nenhuma questão fechada |
 | v0.24 | 2026-10-02 | A fixture `fixtures/frontmatter/property-links` **aprovada pelo mantenedor** em sessão ("Já aprovo agora"), antes da 0.3.0-beta.3; a marca de rascunho removida. Nada mais muda. |
-| v0.25 | 2026-10-02 | Propriedades de organização ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `cover`, `cover_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDIDAS` na seção 6. |
+| v0.25 | 2026-10-02 | Propriedades de organização ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDIDAS` na seção 6. |

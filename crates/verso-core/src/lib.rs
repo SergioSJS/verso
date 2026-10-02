@@ -589,6 +589,7 @@ struct Examination {
 struct Move {
     notes: Vec<(String, String)>,
     files: Vec<(String, String)>,
+    folders: Vec<(String, String)>,
 }
 
 impl Move {
@@ -1428,16 +1429,25 @@ impl Workspace {
         paths.extend(mv.notes.iter().map(|(old, _)| old.clone()));
         if let Ok(notes) = self.index.notes() {
             let note_set: HashSet<String> = notes.into_iter().collect();
-            for (old, new) in mv.notes.iter().chain(mv.files.iter()) {
+            for (old, new) in mv
+                .notes
+                .iter()
+                .chain(mv.files.iter())
+                .chain(mv.folders.iter())
+            {
                 let dir_old = old.rsplit_once('/').map_or("", |(d, _)| d);
                 let dir_new = new.rsplit_once('/').map_or("", |(d, _)| d);
                 for dir in [dir_old, dir_new] {
                     if !dir.is_empty() {
                         let name = name_of(dir);
                         let inside = format!("{dir}/{name}.md");
+                        let index_note = format!("{dir}/index.md");
                         let beside = format!("{dir}.md");
                         if note_set.contains(&inside) {
                             paths.push(inside);
+                        }
+                        if note_set.contains(&index_note) {
+                            paths.push(index_note);
                         }
                         if note_set.contains(&beside) {
                             paths.push(beside);
@@ -1849,6 +1859,7 @@ impl Workspace {
         let mv = Move {
             notes: vec![(old.clone(), new.clone())],
             files: Vec::new(),
+            folders: Vec::new(),
         };
         self.perform(mv, &old, &new)
     }
@@ -2180,6 +2191,7 @@ impl Workspace {
         let mv = Move {
             notes: Vec::new(),
             files: vec![(old.clone(), new.clone())],
+            folders: Vec::new(),
         };
         self.perform(mv, &old, &new)
     }
@@ -2199,7 +2211,21 @@ impl Workspace {
             .collect();
         let files: Vec<(String, String)> =
             self.files.values().flatten().filter_map(moved).collect();
-        self.perform(Move { notes, files }, old, new)
+        let mut folders = vec![(old.to_owned(), new.to_owned())];
+        for d in &self.dirs {
+            if let Some(rest) = d.strip_prefix(&prefix) {
+                folders.push((d.clone(), format!("{new}/{rest}")));
+            }
+        }
+        self.perform(
+            Move {
+                notes,
+                files,
+                folders,
+            },
+            old,
+            new,
+        )
     }
 
     /// Move anything of the folder — a note, another file or a whole
@@ -2486,6 +2512,9 @@ fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
         .iter()
         .filter_map(|v| match v {
             verso_dialect::Value::String(s) => Some(s.clone()),
+            verso_dialect::Value::Integer(i) => Some(i.to_string()),
+            verso_dialect::Value::Float(f) => Some(f.to_string()),
+            verso_dialect::Value::Bool(b) => Some(b.to_string()),
             _ => None,
         })
         .collect();
@@ -2493,31 +2522,53 @@ fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
         return None;
     }
 
-    let dir = note_path.rsplit_once('/').map_or("", |(d, _)| d);
-    let stem = without_md(name_of(note_path));
+    let (parent_dir, filename) = note_path.rsplit_once('/').unwrap_or(("", note_path));
+    let stem = without_md(filename);
     let mut candidate_folders = Vec::new();
-    if !dir.is_empty() && name_of(dir) == stem {
-        candidate_folders.push(dir.to_owned());
+    if !parent_dir.is_empty() && name_of(parent_dir) == stem {
+        candidate_folders.push(parent_dir.to_owned());
     }
-    if !dir.is_empty() {
-        candidate_folders.push(format!("{dir}/{stem}"));
+    if !parent_dir.is_empty() && stem == "index" {
+        candidate_folders.push(parent_dir.to_owned());
+    }
+    if !parent_dir.is_empty() {
+        candidate_folders.push(format!("{parent_dir}/{stem}"));
     } else {
         candidate_folders.push(stem.to_owned());
         candidate_folders.push(String::new());
     }
-    candidate_folders.push(dir.to_owned());
+    if !parent_dir.is_empty() {
+        candidate_folders.push(parent_dir.to_owned());
+    }
 
     let mut matched_folder = None;
     for f in &candidate_folders {
-        for (old, _) in mv.notes.iter().chain(mv.files.iter()) {
+        if mv.folders.iter().any(|(old, _)| old == f) {
+            matched_folder = Some(f.clone());
+            break;
+        }
+        for (old, _) in mv
+            .notes
+            .iter()
+            .chain(mv.files.iter())
+            .chain(mv.folders.iter())
+        {
             let rel = if f.is_empty() {
                 if !old.contains('/') {
                     Some(old.as_str())
                 } else {
                     None
                 }
-            } else if old.starts_with(&format!("{f}/")) {
-                Some(&old[f.len() + 1..])
+            } else if let Some(rest) = old.strip_prefix(&format!("{f}/")) {
+                let first_seg = rest.split('/').next().unwrap_or(rest);
+                if order_items
+                    .iter()
+                    .any(|item| item == rest || item == first_seg)
+                {
+                    Some(first_seg)
+                } else {
+                    None
+                }
             } else if old == f {
                 Some(name_of(old))
             } else {
@@ -2536,50 +2587,111 @@ fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
     }
 
     let folder = matched_folder?;
+    let new_folder = mv
+        .folders
+        .iter()
+        .find(|(old, _)| old == &folder)
+        .map(|(_, new)| new.clone())
+        .or_else(|| {
+            mv.note_after(note_path).and_then(|new_note| {
+                let (new_p, new_file) = new_note.rsplit_once('/').unwrap_or(("", new_note));
+                let new_stem = without_md(new_file);
+                if !new_p.is_empty() && (name_of(new_p) == new_stem || new_stem == "index") {
+                    Some(new_p.to_owned())
+                } else if new_p.is_empty() && folder.is_empty() {
+                    Some(String::new())
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or_else(|| folder.clone());
+
     let mut new_items = order_items.clone();
     let mut changed = false;
 
-    for (old, new) in mv.notes.iter().chain(mv.files.iter()) {
-        let old_rel = if folder.is_empty() {
-            if !old.contains('/') {
-                Some(old.as_str())
+    for item in &order_items {
+        let old_item_path = if folder.is_empty() {
+            item.clone()
+        } else {
+            format!("{folder}/{item}")
+        };
+
+        // Check if old_item_path moved in folders
+        let moved_folder = mv.folders.iter().find(|(old, _)| old == &old_item_path);
+        if let Some((_, new_dir)) = moved_folder {
+            let new_rel = if new_folder.is_empty() {
+                if !new_dir.contains('/') {
+                    Some(new_dir.clone())
+                } else {
+                    None
+                }
+            } else if let Some(rest) = new_dir.strip_prefix(&format!("{new_folder}/")) {
+                if !rest.contains('/') {
+                    Some(rest.to_owned())
+                } else {
+                    None
+                }
             } else {
                 None
+            };
+            if let Some(pos) = new_items.iter().position(|it| it == item) {
+                match new_rel {
+                    Some(n) => {
+                        if new_items[pos] != n {
+                            new_items[pos] = n;
+                            changed = true;
+                        }
+                    }
+                    None => {
+                        new_items.remove(pos);
+                        changed = true;
+                    }
+                }
             }
-        } else if old.starts_with(&format!("{folder}/")) {
-            Some(&old[folder.len() + 1..])
-        } else if old == &folder {
-            Some(name_of(old))
-        } else {
-            None
-        };
-        let Some(old_rel) = old_rel else {
             continue;
-        };
+        }
 
-        let new_rel = if folder.is_empty() {
-            if !new.contains('/') {
-                Some(new.clone())
+        // Check if old_item_path moved in notes or files
+        let moved_note = mv.notes.iter().chain(mv.files.iter()).find(|(old, _)| {
+            old == &old_item_path || without_md(old) == without_md(&old_item_path)
+        });
+        if let Some((_, new_file)) = moved_note {
+            let new_rel = if new_folder.is_empty() {
+                if !new_file.contains('/') {
+                    Some(new_file.clone())
+                } else {
+                    None
+                }
+            } else if let Some(rest) = new_file.strip_prefix(&format!("{new_folder}/")) {
+                if !rest.contains('/') {
+                    Some(rest.to_owned())
+                } else {
+                    None
+                }
             } else {
                 None
-            }
-        } else if new.starts_with(&format!("{folder}/")) {
-            Some(new[folder.len() + 1..].to_owned())
-        } else {
-            None
-        };
-
-        if let Some(pos) = new_items.iter().position(|it| it == old_rel) {
-            match new_rel {
-                Some(n) => {
-                    new_items[pos] = n;
-                    changed = true;
+            };
+            if let Some(pos) = new_items.iter().position(|it| it == item) {
+                match new_rel {
+                    Some(n) => {
+                        let final_name = if !item.ends_with(".md") && n.ends_with(".md") {
+                            without_md(&n).to_owned()
+                        } else {
+                            n
+                        };
+                        if new_items[pos] != final_name {
+                            new_items[pos] = final_name;
+                            changed = true;
+                        }
+                    }
+                    None => {
+                        new_items.remove(pos);
+                        changed = true;
+                    }
                 }
-                None => {
-                    new_items.remove(pos);
-                    changed = true;
-                }
             }
+            continue;
         }
     }
 
@@ -2587,7 +2699,6 @@ fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
         return None;
     }
 
-    // Find the order property block in frontmatter text
     let fm_text = text.get(fm.span.start..fm.span.end)?;
     let mut order_start = None;
     let mut order_end = None;
@@ -2624,8 +2735,21 @@ fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
     } else {
         replacement.push_str(&format!("order:{eol}"));
         for item in &new_items {
-            if item.contains(' ') || item.contains(':') || item.contains('#') {
-                replacement.push_str(&format!("  - \"{item}\"{eol}"));
+            let needs_quote = item.is_empty()
+                || item.contains(' ')
+                || item.contains(':')
+                || item.contains('#')
+                || item.contains('"')
+                || item.contains('\'')
+                || item.chars().all(|c| c.is_ascii_digit())
+                || item.eq_ignore_ascii_case("true")
+                || item.eq_ignore_ascii_case("false")
+                || item.eq_ignore_ascii_case("null")
+                || item.eq_ignore_ascii_case("yes")
+                || item.eq_ignore_ascii_case("no");
+            if needs_quote {
+                let escaped = item.replace('\\', "\\\\").replace('"', "\\\"");
+                replacement.push_str(&format!("  - \"{escaped}\"{eol}"));
             } else {
                 replacement.push_str(&format!("  - {item}{eol}"));
             }

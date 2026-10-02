@@ -117,7 +117,9 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
-        let is_v6 = meta("schema").and_then(|v| v.parse::<i64>().ok()) == Some(6);
+        let old_schema = meta("schema")
+            .and_then(|v| v.parse::<i64>().ok())
+            .unwrap_or(0);
         conn.execute_batch("BEGIN;")?;
         if !has_column("notes", "kind") {
             conn.execute_batch("ALTER TABLE notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'note';")?;
@@ -143,7 +145,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
         if !has_column("notes", "pinned_items") {
             conn.execute_batch("ALTER TABLE notes ADD COLUMN pinned_items TEXT;")?;
         }
-        if is_v6 {
+        if old_schema < 9 {
             conn.execute_batch("UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;")?;
         }
         conn.execute_batch("UPDATE meta SET value = '9' WHERE key = 'schema'; COMMIT;")?;
