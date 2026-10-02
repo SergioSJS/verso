@@ -150,6 +150,21 @@ function fontReady(t: { fontFamily: number; fontSize: number; text: string }): b
   return registered && document.fonts.check(`${t.fontSize}px "${name}"`, t.text);
 }
 
+/** Settles once the faces the texts need are in, each asked for. WebKit
+ *  does not always fire `loadingdone`, and a font that arrives late — a
+ *  cold start of the app — would leave its texts cut for good. */
+function fontsOf(els: readonly ExcalidrawElement[]): Promise<unknown> {
+  const wanted = new Map<string, string>();
+  for (const e of els) {
+    if (e.type !== "text") continue;
+    const name = FONT_NAME.get(e.fontFamily);
+    if (!name) continue;
+    const font = `${e.fontSize}px "${name}"`;
+    wanted.set(font, (wanted.get(font) ?? "") + e.text);
+  }
+  return Promise.allSettled([...wanted].map(([font, text]) => document.fonts.load(font, text)));
+}
+
 /** A note being edited in its card. */
 export type CardEditing = {
   /** Save now; true when nothing is left unsaved (false: a conflict waits). */
@@ -1258,13 +1273,13 @@ function Board({
   useEffect(() => {
     const fonts = document.fonts;
     fonts.addEventListener("loadingdone", remeasure);
-    // WebKit does not always say when a font is in: asked again later.
-    const timers = [400, 1500, 4000].map((ms) => window.setTimeout(remeasure, ms));
-    return () => {
-      fonts.removeEventListener("loadingdone", remeasure);
-      for (const t of timers) window.clearTimeout(t);
-    };
+    return () => fonts.removeEventListener("loadingdone", remeasure);
   }, [remeasure]);
+  /** Measure the texts of `els` again once their fonts are in (`fontsOf`). */
+  const remeasureWhenFontsIn = useCallback(
+    (els: readonly ExcalidrawElement[]) => void fontsOf(els).then(() => alive.current && remeasure()),
+    [remeasure],
+  );
 
   useEffect(() => {
     baseline(initialElements, initial);
@@ -1276,6 +1291,7 @@ function Board({
         touched.current = false;
         baseline(els, d);
         own((a) => a.updateScene({ elements: els, appState: { viewBackgroundColor: backgroundOf(d) ?? "transparent" } as never, captureUpdate: CaptureUpdateAction.NEVER }));
+        remeasureWhenFontsIn(els);
         // The file as it is now: nothing of the user's is left over.
         edited.current = false;
         setElements(els as unknown as El[]);
@@ -2120,6 +2136,7 @@ function Board({
                 setLayerHost(container.current?.querySelector<HTMLElement>(".excalidraw") ?? null);
                 syncCards(a.getSceneElements());
                 scheduleOverlays(a.getSceneElements());
+                remeasureWhenFontsIn(a.getSceneElements());
                 const st = a.getAppState();
                 const v: View = { scrollX: st.scrollX, scrollY: st.scrollY, zoom: st.zoom.value, width: st.width, height: st.height };
                 settledRef.current = v;

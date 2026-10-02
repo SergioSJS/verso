@@ -142,3 +142,37 @@ test("lesson 11: the board's search finds the word as typed, and stays put while
   const after = await app.settledView();
   expect([after.scrollX, after.scrollY, after.zoom]).toEqual([before.scrollX, before.scrollY, before.zoom]);
 });
+
+test("text whose font arrives late is measured again, not left cut at its edges", async ({ app, page }) => {
+  // The fonts held back past the board's last scheduled look (4 s): a cold
+  // start of the app, where WebKit loads them late and does not say so.
+  await page.route(/\.(woff2?|ttf)(\?|$)/, async (route) => {
+    await new Promise((r) => setTimeout(r, 6000));
+    await route.continue();
+  });
+  await openPractice(app);
+  // Each text as Excalidraw lays it out, its fallbacks included: the widest
+  // line wider than the box it keeps is drawn cut.
+  const cut = () =>
+    page.evaluate(() => {
+      const fonts = { 5: "Excalifont, Xiaolai, Segoe UI Emoji", 6: "Nunito, Segoe UI Emoji" };
+      const ctx = document.createElement("canvas").getContext("2d");
+      return window.__VERSO_TEST__.board
+        .getSceneElements()
+        .filter((e) => e.type === "text" && fonts[e.fontFamily])
+        .filter((e) => {
+          ctx.font = `${e.fontSize}px ${fonts[e.fontFamily]}`;
+          return Math.max(...e.text.split("\n").map((l) => ctx.measureText(l).width)) > e.width + 1;
+        })
+        .map((e) => e.id);
+    });
+  // Waited for, not asked for: asking would load them on the test's behalf.
+  const arrived = () =>
+    page.evaluate(() => {
+      const loaded = new Set();
+      document.fonts.forEach((f) => f.status === "loaded" && loaded.add(f.family.replace(/^["']|["']$/g, "")));
+      return loaded.has("Excalifont") && loaded.has("Nunito");
+    });
+  await expect.poll(arrived, { timeout: 20_000 }).toBe(true);
+  await expect.poll(cut, { timeout: 5_000 }).toEqual([]);
+});

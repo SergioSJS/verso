@@ -24,6 +24,10 @@ test release.
   - **Emoji autocomplete trigger (`:`)**: typing `:` in the editor triggers an autocomplete popup with emoji suggestions searchable in Portuguese and English. Setting in Settings › Editor › "Suggest emojis when typing ':'".
   - **Demo vault tutorial update**: note `19 - Organizando: figurinhas, capas e páginas.md` added to the demo vault and tour, walking through all organizing capabilities.
 
+### Fixed
+
+- **A board's text no longer comes out cut at its edges when its font arrives late**: on a cold start of the app, the hand-drawn and card fonts can take a few seconds, and the texts measured before them — on "Treino do Board", every lesson's — kept the narrower width and were drawn cut on both sides until the board was edited or opened again. The board now asks for each text's font and measures the text again once it is in.
+
 ## 0.3.0-beta.3 — 2026-10-02
 
 ### Added
