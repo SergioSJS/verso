@@ -157,7 +157,10 @@ opção A); a forma — um ADR novo para a nota tipada, o 0013 aceito no lugar �
   ([0047](0047-plugin-api-open-questions.md)); pelo ponto 3, um pack é uma
   pasta de notas.
 - **Relações tipadas continuam na Q10**, `[ABERTO]`: a chave de uma
-  propriedade não é um tipo de relação.
+  propriedade não é um tipo de relação. **Emendado em 2026-09-30** pelo
+  [0057](0057-board-json-canvas.md), ponto 4: a Q10 está decidida, e uma propriedade cujo valor é
+  um wikilink entre aspas, ou uma lista deles, é uma relação nomeada pela
+  chave.
 - **Fixtures.** A Q11 fechou sem nenhuma — não existia nenhuma —, como a Q12
   e a Q26 fecharam pela resposta do mantenedor. As fixtures de schema vêm com
   a implementação: o relato, pelo parser, de um bloco `verso-schema`, com uma

@@ -18,7 +18,9 @@
   2026-09-29 — a custom Dock menu recorded in section 3 as not built for a
   technical reason, and left `[OPEN]`; the macOS menu bar gained File — New
   Window, Open Folder…, Open Recent — and Settings… the same day
-  (`CHANGELOG.md`).
+  (`CHANGELOG.md`). 2026-09-30 — the board's line of section 3 no longer
+  holds, by the maintainer's request of 2026-09-29 ("vamos puxar a demanda
+  do canvas hexcalidraw etc agora"): the board is [0057](0057-board-json-canvas.md).
 
 ## Context
 
@@ -80,7 +82,8 @@ embedded note.
 Kept out by [0034](0034-roadmap-in-phases.md) until Phase 2 ends, and told to
 the maintainer when asked:
 
-- Excalidraw or the Obsidian canvas — the board ([0024](0024-board-excalidraw.md)).
+- ~~Excalidraw or the Obsidian canvas — the board ([0024](0024-board-excalidraw.md)).~~
+  Decided on 2026-09-30: [0057](0057-board-json-canvas.md).
 - Kanban, calendar and data-table views over notes — make.md's "Contexts".
 
 Not built for a technical reason: tearing a tab out of the window by dragging

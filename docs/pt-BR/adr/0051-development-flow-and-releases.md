@@ -115,6 +115,19 @@ modificações até gerar versão, considerando changelog inclusive"*.
   2026-09-24, na sessão, mantendo a opção (a) de
   `docs/reference/beta-config-decision.md`, que expõe os custos e as duas
   outras opções.
+- **Todo build leva o inspetor da janela** — a opção `devtools` do Tauri:
+  Visualização › Abrir console (⌥⌘I), e a paleta, abrem o console, os
+  elementos e a rede da janela em foco também no app instalado; uma
+  configuração em Geral desliga. Decidido pelo mantenedor em 2026-09-30, em
+  sessão ("quero isso tudo ai"), sobre a nota do autor dos dois custos: no
+  macOS a opção passa por uma API privada, o que só faria um build da App
+  Store ser recusado; e quem tem o app aberto na máquina pode ler o que a
+  janela guarda, notas incluídas — nada além do que o acesso à pasta já dá.
+  Confirmado pelo mantenedor em 2026-10-01 (revisão crítica
+  [`docs/review/board.md`](../review/board.md), §6 item 15). A configuração
+  esconde o item de menu, a tecla e o comando da paleta; as web views são
+  construídas com o inspetor ligado do mesmo jeito, então o "Inspecionar
+  elemento" da própria web view, onde um menu o mostra, ainda o abre.
 
 ## Alternativas descartadas
 

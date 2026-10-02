@@ -41,6 +41,7 @@ use verso_contract::{
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
+mod log;
 mod update;
 use update::*;
 
@@ -150,6 +151,7 @@ fn convert(e: CoreError) -> ContractError {
         CoreError::Folder(io) if io.kind() == std::io::ErrorKind::NotFound => ErrorKind::NotFound,
         CoreError::UnknownFolder => ErrorKind::NotFound,
         CoreError::NotText => ErrorKind::NotText,
+        CoreError::NotCanvas => ErrorKind::NotCanvas,
         CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
         CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
         CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
@@ -162,9 +164,13 @@ fn convert(e: CoreError) -> ContractError {
 }
 
 fn failed(message: impl Into<String>) -> ContractError {
+    let message = message.into();
+    // The funnel for the host's own failures: what the window is about
+    // to show for a moment, the log keeps (`log.rs`).
+    log::write("ERROR", "host", &message);
     ContractError {
         kind: ErrorKind::Failed,
-        message: message.into(),
+        message,
     }
 }
 
@@ -256,7 +262,7 @@ fn may_switch<R: tauri::Runtime>(
     if me != "main" && !me.starts_with("window-") {
         return Err(refused("only a window of the folder opens a folder"));
     }
-    if app.webview_windows().keys().any(|label| {
+    if app.windows().keys().any(|label| {
         label != me
             && (label.starts_with("note-") || label.starts_with("window-") || label == "main")
     }) {
@@ -908,6 +914,56 @@ fn set_embed_origins(state: State<'_, App>, origins: Vec<String>) -> Result<(), 
     Ok(())
 }
 
+/// A line from the window into the app's log: what `fail()` shows for a
+/// moment there, and what the browser would otherwise swallow — a
+/// script error, a rejected promise. The source is the window's, the
+/// text is the window's; nothing else is added and nothing is sent
+/// anywhere (`log.rs`).
+#[tauri::command]
+#[specta::specta]
+fn log_write(level: String, message: String) -> Result<(), ContractError> {
+    let level = match level.as_str() {
+        "PANIC" | "ERROR" | "WARN" | "INFO" => level,
+        _ => "ERROR".to_owned(),
+    };
+    log::write(&level, "window", &message);
+    Ok(())
+}
+
+/// The end of the log and where it lives: what a bug report carries, so
+/// the user can read it before it goes anywhere.
+#[tauri::command]
+#[specta::specta]
+fn log_read() -> Result<String, ContractError> {
+    // The report may be pasted somewhere public: the home directory is
+    // the user's name, more often than not. It is `~` wherever it appears,
+    // the log's own lines included; with no home known, the log is named
+    // by its file alone, never by an absolute path (ADR 0026 rule 4).
+    let home = std::env::var("HOME").unwrap_or_default();
+    let hidden = |text: &str| {
+        if home.len() > 1 {
+            text.replace(&home, "~")
+        } else {
+            text.to_owned()
+        }
+    };
+    let where_ = log::path().map_or_else(String::new, |p| {
+        let shown = hidden(&p.display().to_string());
+        if shown.starts_with('~') {
+            shown
+        } else {
+            p.file_name()
+                .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+        }
+    });
+    let tail = hidden(&log::tail(16 * 1024));
+    Ok(if where_.is_empty() {
+        tail
+    } else {
+        format!("{where_}\n\n{tail}")
+    })
+}
+
 /// The walk's rules, from the settings: whether the well-known build
 /// directories and each `.gitignore` are honored (ADR 0044, revised
 /// 2026-09-29). Applied to the open folder at once; the UI reindexes
@@ -1024,6 +1080,28 @@ fn text_out(t: verso_core::TextFile) -> TextFile {
     }
 }
 
+/// Bring down a file of the folder whose content is only in the cloud,
+/// because the user opened it (ADR 0043, amended on 2026-09-30): true when
+/// it was fetched, false when there was nothing to fetch; the window then
+/// reads it again. Off the main thread and outside the folder's lock — a
+/// download takes seconds, and the rest of the window goes on meanwhile.
+#[tauri::command]
+#[specta::specta]
+async fn fetch_file<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    path: String,
+) -> Result<bool, ContractError> {
+    let state = app.state::<App>();
+    let Some(placeholder) = with(&state, |ws| ws.placeholder(&path))? else {
+        return Ok(false);
+    };
+    tauri::async_runtime::spawn_blocking(move || placeholder.fetch())
+        .await
+        .map_err(|e| failed(format!("fetching {path}: {e}")))?
+        .map_err(|e| failed(format!("fetching {path} from the cloud: {e}")))?;
+    Ok(true)
+}
+
 /// Any file as text with its revision, for the editor of files that are
 /// not notes; `not_text` when its bytes are not UTF-8.
 #[tauri::command]
@@ -1044,6 +1122,60 @@ fn write_text(
     revision: String,
 ) -> Result<TextFile, ContractError> {
     with(&state, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
+}
+
+/// Save a board (ADR 0057 point 2): `json` is the canvas as the window
+/// holds it — the window sends back every field it read, the ones it does
+/// not know included; the core lays it over the file as read, keeping every
+/// unchanged value's token and every object's key order, and writes it in
+/// Obsidian's layout over the revision that was read (invariant 11).
+/// `not_canvas` when the file on disk is not JSON.
+#[tauri::command]
+#[specta::specta]
+fn write_board(
+    state: State<'_, App>,
+    path: String,
+    json: String,
+    revision: String,
+) -> Result<TextFile, ContractError> {
+    with(&state, |ws| ws.write_board(&path, &json, &revision)).map(text_out)
+}
+
+/// What `write_board` would write for `json` over the canvas at `path` as
+/// it is on disk now, writing nothing: the board's side of a conflict, and
+/// the diff the first save of a canvas in another layout shows (review
+/// `board.md` §6 item 4).
+#[tauri::command]
+#[specta::specta]
+fn board_preview(
+    state: State<'_, App>,
+    path: String,
+    json: String,
+) -> Result<String, ContractError> {
+    with(&state, |ws| ws.board_preview(&path, &json))
+}
+
+/// A canvas's text in Obsidian's layout (ADR 0057 point 2), from the JSON
+/// the window built: a new board, or the preview of a conversion, reads
+/// exactly as the file will be written. Touches no file.
+#[tauri::command]
+#[specta::specta]
+fn board_text(json: String) -> Result<String, ContractError> {
+    verso_core::canvas::Canvas::parse(&json)
+        .map(|c| c.write())
+        .map_err(|e| ContractError {
+            kind: ErrorKind::NotCanvas,
+            message: e.to_string(),
+        })
+}
+
+/// Markdown rendered as the reading view renders a note, for a text card
+/// of a board (spec §5.11: a text node's text is Markdown). The window
+/// sanitizes it like any note's HTML.
+#[tauri::command]
+#[specta::specta]
+fn render_markdown(text: String) -> String {
+    verso_core::render_markdown(&text)
 }
 
 /// Every web view and web window gets its label here, from one counter,
@@ -1120,6 +1252,19 @@ fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             may_navigate(webview.label(), url, dev_url.as_ref())
         })
         .build()
+}
+
+/// Open the web inspector — console, elements, network — of the window
+/// that asks: View › Open console (⌥⌘I), in the installed app as in
+/// development (ADR 0051, 2026-09-30). The window asks only when its
+/// setting allows it. The web view, not a `WebviewWindow`: a window
+/// that shows a site inside it (a web note, an embed) holds child web
+/// views, and Tauri no longer counts it as one — the command failed
+/// there with "current webview is not a WebviewWindow".
+#[tauri::command]
+#[specta::specta]
+fn open_devtools<R: tauri::Runtime>(webview: tauri::Webview<R>) {
+    webview.open_devtools();
 }
 
 /// Open a web page in a window of its own inside the app: a note with a
@@ -1805,6 +1950,8 @@ macro_rules! commands_for {
                 popout_target::<$runtime>,
                 return_to_main::<$runtime>,
                 open_url::<$runtime>,
+                fetch_file::<$runtime>,
+                open_devtools::<$runtime>,
                 web_open::<$runtime>,
                 web_bounds::<$runtime>,
                 web_visible::<$runtime>,
@@ -1813,12 +1960,18 @@ macro_rules! commands_for {
                 web_url::<$runtime>,
                 read_text,
                 write_text,
+                write_board,
+                board_text,
+                board_preview,
+                render_markdown,
                 rename_entry,
                 delete_entry,
                 reveal,
                 copy_full_path,
                 set_embed_origins,
                 set_walk_rules,
+                log_write,
+                log_read,
                 set_menu_language::<$runtime>,
                 reindex::<$runtime>,
                 query_base,
@@ -1894,6 +2047,10 @@ fn mime_of(path: &str) -> &'static str {
         Some("svg") => "image/svg+xml",
         Some("bmp") => "image/bmp",
         Some("avif") => "image/avif",
+        // The HTML-file viewer's page (review phase-2, reading 1, finding
+        // 1): as a document, under `FILE_CSP`'s sandbox. Served as bytes,
+        // `nosniff` kept the frame from showing it at all.
+        Some("html" | "htm") => "text/html; charset=utf-8",
         Some("pdf") => "application/pdf",
         Some("mp3") => "audio/mpeg",
         Some("m4a") => "audio/mp4",
@@ -2019,30 +2176,69 @@ fn embed_origin_of(url: &reqwest::Url) -> Option<String> {
 fn serve_file<R: tauri::Runtime>(
     ctx: tauri::UriSchemeContext<'_, R>,
     request: tauri::http::Request<Vec<u8>>,
-) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
+    responder: tauri::UriSchemeResponder,
+) {
     let relative = percent_decode(request.uri().path().trim_start_matches('/'));
     let origin = request
         .headers()
         .get("Origin")
         .and_then(|v| v.to_str().ok())
         .map(str::to_owned);
-    let state = ctx.app_handle().state::<App>();
-    let served = {
-        let mut guard = lock(&state.session);
-        serve(
-            guard.as_mut().map(|s| &mut s.workspace),
-            ctx.webview_label(),
-            &relative,
-            origin.as_deref(),
-        )
-    };
-    let mut response = tauri::http::Response::builder().status(served.status);
-    for (name, value) in &served.headers {
-        response = response.header(*name, value);
-    }
-    response
-        .body(std::borrow::Cow::Owned(served.body))
-        .unwrap_or_else(|_| tauri::http::Response::new(std::borrow::Cow::Owned(Vec::new())))
+    let label = ctx.webview_label().to_owned();
+    // A picture the window shows is the user opening it: one only in the
+    // cloud is brought down first (ADR 0043, amended on 2026-09-30). A
+    // thumbnail in a folder's view is not (`?thumb`): opening a folder
+    // never pulls it from the cloud.
+    let fetch = !request
+        .uri()
+        .query()
+        .is_some_and(|q| q.split('&').any(|p| p == "thumb"));
+    let app = ctx.app_handle().clone();
+    // Off the main thread: a file is read, and may be downloaded.
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<App>();
+        if fetch && is_app_view(&label) && !relative.to_lowercase().ends_with(".md") {
+            let placeholder = {
+                let mut guard = lock(&state.session);
+                guard.as_mut().and_then(|s| {
+                    let note = s
+                        .workspace
+                        .confined(&relative)
+                        .is_ok_and(|key| key.to_lowercase().ends_with(".md"));
+                    if note {
+                        None
+                    } else {
+                        s.workspace.placeholder(&relative).ok().flatten()
+                    }
+                })
+            };
+            if let Some(Err(e)) = placeholder.map(|p| p.fetch()) {
+                log::write(
+                    "ERROR",
+                    "host",
+                    &format!("fetching {relative} from the cloud: {e}"),
+                );
+            }
+        }
+        let served = {
+            let mut guard = lock(&state.session);
+            serve(
+                guard.as_mut().map(|s| &mut s.workspace),
+                &label,
+                &relative,
+                origin.as_deref(),
+            )
+        };
+        let mut response = tauri::http::Response::builder().status(served.status);
+        for (name, value) in &served.headers {
+            response = response.header(*name, value);
+        }
+        responder.respond(
+            response
+                .body(served.body)
+                .unwrap_or_else(|_| tauri::http::Response::new(Vec::new())),
+        );
+    });
 }
 
 /// Open the window and serve it until it closes.
@@ -2063,6 +2259,44 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             let _ = app.emit_to("main", "menu-open-folder", ());
         } else if id == SETTINGS {
             let _ = app.emit_to("main", "menu-settings", ());
+        } else if let Some(command) = id.strip_prefix(EDIT_PREFIX) {
+            // Every window hears an event (see `folder-changed`): the label
+            // says which one runs it. A web page — a window of its own, or
+            // a site shown inside a window of the app — has none of the
+            // app's script: the one with the focus runs the system's own
+            // editing command, as the system's menu item ran it (decided on
+            // 2026-10-01, review `board.md` §6 item 20).
+            if let Some(w) = focused_window(app) {
+                let edit = page_edit(command);
+                let app_view = is_app_view(w.label());
+                if app_view {
+                    let _ = app.emit("menu-edit", (w.label().to_owned(), command.to_owned()));
+                }
+                for view in w.webviews() {
+                    if !app_view || view.label() != w.label() {
+                        let _ = view.eval(&edit);
+                    }
+                }
+            }
+        } else if id == DEVTOOLS {
+            if let Some(w) = focused_window(app) {
+                let _ = app.emit("menu-devtools", w.label().to_owned());
+            }
+        } else if id == CLOSE_TAB {
+            // A window of the app runs what ⌘W is bound to there (its
+            // "close tab"); a window that is only a web page has no tab,
+            // and closes.
+            if let Some(w) = focused_window(app) {
+                if is_app_view(w.label()) {
+                    let _ = app.emit("menu-close-tab", w.label().to_owned());
+                } else {
+                    let _ = w.close();
+                }
+            }
+        } else if id == CLOSE_WINDOW {
+            if let Some(w) = focused_window(app) {
+                let _ = w.close();
+            }
         } else if let Some(index) = id.strip_prefix(RECENT_PREFIX) {
             // The folder stays on this side; the window is told the same
             // way an `open -a Verso <folder>` event tells it.
@@ -2075,10 +2309,22 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             }
         }
     });
+    log::open();
+    log::install_panic_hook();
+    log::write(
+        "INFO",
+        "host",
+        &format!(
+            "started {} ({}) on {}",
+            env!("CARGO_PKG_VERSION"),
+            env!("VERSO_COMMIT"),
+            std::env::consts::OS
+        ),
+    );
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(navigation_guard())
-        .register_uri_scheme_protocol("verso", serve_file)
+        .register_asynchronous_uri_scheme_protocol("verso", serve_file)
         .manage(App::new(initial_folder))
         .invoke_handler(commands.invoke_handler())
         .build(context())?
@@ -2093,10 +2339,30 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
 /// lost what was typed since the last autosave. A window whose text could
 /// not be saved stays open if the user keeps it.
 fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
+    // Why the app goes, in the log: a quit asked for, each window that
+    // closes, and the exit itself — an app that vanished otherwise leaves
+    // no trace of which of them it was.
+    match &event {
+        tauri::RunEvent::ExitRequested { code, .. } => log::write(
+            "INFO",
+            "host",
+            &format!(
+                "exit requested (code {code:?}, {} window(s) open)",
+                app.windows().len()
+            ),
+        ),
+        tauri::RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::Destroyed,
+            ..
+        } => log::write("INFO", "host", &format!("window closed: {label}")),
+        tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
+        _ => {}
+    }
     match event {
         tauri::RunEvent::ExitRequested {
             api, code: None, ..
-        } if !app.webview_windows().is_empty() => {
+        } if !app.windows().is_empty() => {
             api.prevent_exit();
             ask_windows_to_quit(app);
         }
@@ -2123,7 +2389,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 #[cfg(any(target_os = "macos", test))]
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
     *lock(&app.state::<App>().initial_folder) = Some(folder);
-    if let Some(main) = app.get_webview_window("main") {
+    if let Some(main) = app.get_window("main") {
         let _ = main.set_focus();
     }
     let _ = app.emit_to("main", "folder-handed", ());
@@ -2135,7 +2401,7 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
 /// the app alive after its windows had gone.
 fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let mut ours = false;
-    for (label, window) in app.webview_windows() {
+    for (label, window) in app.windows() {
         if is_app_view(&label) {
             ours = true;
         } else {
@@ -2168,6 +2434,54 @@ const OPEN_FOLDER: &str = "verso-open-folder";
 /// The id of "Settings…" (⌘,), which the main window answers.
 #[cfg(target_os = "macos")]
 const SETTINGS: &str = "verso-settings";
+
+/// The prefix of the Edit menu's Undo, Redo and Select All: the system's
+/// own items run the web view's editing command, which does nothing on a
+/// board, and they take ⌘Z, ⌘⇧Z and ⌘A before the page sees the key. These
+/// tell the focused window instead (`menu-edit`), which runs the editing
+/// command where the focus is, or hands the key to the board.
+#[cfg(target_os = "macos")]
+const EDIT_PREFIX: &str = "verso-edit-";
+
+/// The script that runs an Edit menu command in a web page, where the
+/// page has the focus and only there: the web view's own `undo`, `redo` or
+/// `selectAll`, as the system's item would have run it.
+#[cfg(target_os = "macos")]
+fn page_edit(command: &str) -> String {
+    let name = match command {
+        "redo" => "redo",
+        "select-all" => "selectAll",
+        _ => "undo",
+    };
+    format!("document.hasFocus() && document.execCommand('{name}')")
+}
+
+/// The window that has the focus, if one of the app's has it. Every
+/// window, not only the `WebviewWindow`s: one that shows a site inside it
+/// holds child web views and is no longer counted as one, and the menu
+/// went deaf in it — no ⌘W, ⌘Z or console.
+#[cfg(target_os = "macos")]
+fn focused_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<tauri::Window<R>> {
+    app.windows()
+        .into_values()
+        .find(|w| w.is_focused().unwrap_or(false))
+}
+
+/// The id of View › Open console (⌥⌘I): the focused window is told
+/// (`menu-devtools`), and opens its inspector if its setting allows it.
+#[cfg(target_os = "macos")]
+const DEVTOOLS: &str = "verso-devtools";
+
+/// The id of File › Close Tab (⌘W). The system's Close Window took ⌘W
+/// before the page saw it, so the window's "close tab" never ran, and with
+/// one window open ⌘W quit the app; the focused window is told instead
+/// (`menu-close-tab`).
+#[cfg(target_os = "macos")]
+const CLOSE_TAB: &str = "verso-close-tab";
+
+/// The id of File › Close Window, with no key of its own: ⌘W closes a tab.
+#[cfg(target_os = "macos")]
+const CLOSE_WINDOW: &str = "verso-close-window";
 
 /// The prefix of an "Open Recent" item's id; the rest is the item's
 /// index into `App::menu_recents`.
@@ -2222,11 +2536,53 @@ fn menu_label(lang: &str, key: &str) -> &'static str {
                 "Open Recent"
             }
         }
+        "close-tab" => {
+            if pt {
+                "Fechar aba"
+            } else {
+                "Close Tab"
+            }
+        }
+        "close-window" => {
+            if pt {
+                "Fechar janela"
+            } else {
+                "Close Window"
+            }
+        }
         "edit" => {
             if pt {
                 "Edição"
             } else {
                 "Edit"
+            }
+        }
+        "undo" => {
+            if pt {
+                "Desfazer"
+            } else {
+                "Undo"
+            }
+        }
+        "redo" => {
+            if pt {
+                "Refazer"
+            } else {
+                "Redo"
+            }
+        }
+        "select-all" => {
+            if pt {
+                "Selecionar tudo"
+            } else {
+                "Select All"
+            }
+        }
+        "devtools" => {
+            if pt {
+                "Abrir console"
+            } else {
+                "Open Console"
             }
         }
         "view" => {
@@ -2247,9 +2603,10 @@ fn menu_label(lang: &str, key: &str) -> &'static str {
     }
 }
 
-/// The macOS menu bar: the system's own items, except Quit. The system's
-/// Quit terminates the process without an event the app can answer (the
-/// run loop goes from ready to exit), so what was typed since the last
+/// The macOS menu bar: the system's own items, except Quit and the Edit
+/// menu's Undo, Redo and Select All (`EDIT_PREFIX`). The system's Quit
+/// terminates the process without an event the app can answer (the run
+/// loop goes from ready to exit), so what was typed since the last
 /// autosave was lost; this Quit, on the same ⌘Q, asks the windows to save
 /// first (`on_event`).
 #[cfg(target_os = "macos")]
@@ -2350,7 +2707,8 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
             )?,
             &open_recent,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::close_window(app, None)?,
+            &MenuItem::with_id(app, CLOSE_TAB, l("close-tab"), true, Some("CmdOrCtrl+W"))?,
+            &MenuItem::with_id(app, CLOSE_WINDOW, l("close-window"), true, None::<&str>)?,
         ],
     )?;
     let edit = Submenu::with_items(
@@ -2358,20 +2716,42 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
         l("edit"),
         true,
         &[
-            &PredefinedMenuItem::undo(app, None)?,
-            &PredefinedMenuItem::redo(app, None)?,
+            &MenuItem::with_id(
+                app,
+                format!("{EDIT_PREFIX}undo"),
+                l("undo"),
+                true,
+                Some("CmdOrCtrl+Z"),
+            )?,
+            &MenuItem::with_id(
+                app,
+                format!("{EDIT_PREFIX}redo"),
+                l("redo"),
+                true,
+                Some("CmdOrCtrl+Shift+Z"),
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::cut(app, None)?,
             &PredefinedMenuItem::copy(app, None)?,
             &PredefinedMenuItem::paste(app, None)?,
-            &PredefinedMenuItem::select_all(app, None)?,
+            &MenuItem::with_id(
+                app,
+                format!("{EDIT_PREFIX}select-all"),
+                l("select-all"),
+                true,
+                Some("CmdOrCtrl+A"),
+            )?,
         ],
     )?;
     let view = Submenu::with_items(
         app,
         l("view"),
         true,
-        &[&PredefinedMenuItem::fullscreen(app, None)?],
+        &[
+            &PredefinedMenuItem::fullscreen(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, DEVTOOLS, l("devtools"), true, Some("CmdOrCtrl+Alt+I"))?,
+        ],
     )?;
     let window = Submenu::with_items(
         app,
@@ -2831,6 +3211,47 @@ mod tests {
         assert_eq!(e["kind"], "refused", "{e}");
     }
 
+    /// A window that shows a site inside it (a web note, an embed) holds
+    /// child web views, and Tauri stops counting it as a `WebviewWindow`:
+    /// the console still opens there, a quit still asks it to save, and a
+    /// folder switch still sees it (the console failed with "current
+    /// webview is not a WebviewWindow", 2026-10-01).
+    #[test]
+    fn a_window_showing_a_site_inside_it_is_still_one_of_the_apps_windows() {
+        use tauri::Listener;
+        let (app, main) = app();
+        main.as_ref()
+            .window()
+            .add_child(
+                tauri::webview::WebviewBuilder::new(
+                    "web-1",
+                    tauri::WebviewUrl::External("https://example.com".parse().unwrap()),
+                ),
+                tauri::LogicalPosition::new(0.0, 0.0),
+                tauri::LogicalSize::new(10.0, 10.0),
+            )
+            .unwrap();
+        assert!(
+            app.get_webview_window("main").is_none(),
+            "Tauri's rule changed"
+        );
+        assert!(call(&main, "open_devtools", json!({})).is_ok());
+
+        let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = told.clone();
+        app.listen_any("quit-requested", move |_| {
+            seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        });
+        ask_windows_to_quit(app.handle());
+        assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        let other = tauri::WebviewWindowBuilder::new(&app, "window-1", Default::default())
+            .build()
+            .unwrap();
+        let e = may_switch(app.handle(), &other.as_ref().window()).unwrap_err();
+        assert_eq!(e.kind, ErrorKind::Refused, "{}", e.message);
+    }
+
     /// A panic inside a core call is answered as `failed` and leaves the
     /// session usable; so does a lock poisoned by a panic elsewhere.
     #[test]
@@ -2948,6 +3369,18 @@ mod tests {
         let ok = serve(Some(&mut ws), "main", "mapa.svg", Some("tauri://localhost"));
         assert_eq!(ok.status, 200);
         assert!(header(&ok, "Content-Security-Policy").is_some_and(|v| v.starts_with("sandbox;")));
+
+        // An HTML file is a page for its viewer, sandboxed as every file.
+        let _page = note(vault.path(), "pagina.html", "<h1>ola</h1>");
+        let page = serve(Some(&mut ws), "main", "pagina.html", None);
+        assert_eq!(page.status, 200);
+        assert_eq!(
+            header(&page, "Content-Type"),
+            Some("text/html; charset=utf-8")
+        );
+        assert!(
+            header(&page, "Content-Security-Policy").is_some_and(|v| v.starts_with("sandbox;"))
+        );
         assert_eq!(
             header(&ok, "Access-Control-Allow-Origin"),
             Some("tauri://localhost")

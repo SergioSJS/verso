@@ -11,43 +11,59 @@ status: ativo
 
 # Documentos e Mídia
 
-O Verso é muito mais do que um leitor de texto: ele integra imagens com redimensionamento dinâmico, leitor profissional de documentos PDF e suporte a iframes interativos.
+Imagens, PDFs e páginas da web moram nas notas como o texto: num link, num embed ou numa aba só deles.
 
 ---
 
 ## 🖼️ Imagens com Controle de Escala
 
-Você pode incluir imagens com sintaxe padrão Markdown ou com anotação de tamanho via wikilink:
+Inclua uma imagem com wikilink (`![[arquivo]]`) ou com Markdown, e dê a largura depois de `|`:
 
-### Imagem via Wikilink com Largura Definida (`![[assets/diagrama.svg|320]]`)
+### Wikilink com largura (`![[assets/diagrama.svg|320]]`)
 ![[assets/diagrama.svg|320]]
 
-### Imagem via Markdown Padrão (`![Diagrama|320](assets/diagrama.svg)`)
+### Markdown com largura (`![Diagrama|320](assets/diagrama.svg)`)
 ![Diagrama|320](assets/diagrama.svg)
 
----
-
-## 📑 Leitor de PDF com Spread Mode (Páginas Duplas)
-
-O Verso inclui um visualizador completo de arquivos PDF baseado em PDF.js, com suporte a busca de texto, controle de zoom e **Spread Mode**:
-
-- [[assets/manual-verso.pdf|Abrir o Manual do Verso (PDF)]]
-
-### Como Usar o Modo de Páginas Duplas
-Ao abrir um arquivo PDF no Verso:
-1. Localize o botão com ícone de livro na barra superior de ferramentas do leitor.
-2. Clique no botão para alternar entre:
-   - **Página Única**: Exibição vertical contínua tradicional.
-   - **Páginas Duplas (com Capa)**: A primeira página fica isolada à direita (capa), e as páginas subsequentes aparecem em pares lado a lado como em um livro físico.
-   - **Páginas Duplas (sem Capa)**: Todas as páginas são exibidas em pares lado a lado desde a primeira página.
+- Arraste o **canto** de uma imagem para mudar o tamanho: o Verso escreve a medida no embed.
+- **Cole** ou **arraste** uma imagem para dentro de uma nota (modo Editar): ela é salva na pasta `assets` ao lado da nota, e o embed é inserido onde está o cursor.
+- Numa aba de imagem, um clique alterna entre caber na tela e o tamanho real.
 
 ---
 
-## 🌐 Incorporação de Páginas Web e Iframes Seguros
+## 📑 Leitor de PDF
 
-O Verso permite incorporar páginas da web de forma segura dentro de um sandbox isolado, tanto no modo de Leitura quanto no modo de Edição (Live Preview):
+Abra o [[assets/manual-verso.pdf|Manual do Verso (PDF)]]. A barra do leitor tem, em ordem:
+
+- **Página anterior**, o número da página e **Próxima página**.
+- **Afastar**, **Aproximar**, **Ajustar à largura** e **Página inteira**.
+- **Modo de exibição de páginas**: cada clique passa por **Página única**, **Duas páginas (com capa)** e **Duas páginas (sem capa)**, como um livro.
+- **Buscar no PDF** (também `⌘F` com o PDF aberto).
+- **Copiar link desta página**: copia `[[arquivo.pdf#page=N]]` — com o trecho, se houver texto selecionado.
+- **Citar seleção nas anotações**: selecione um trecho e clique. O Verso cria, ao lado do PDF, a nota `Nome do PDF — Anotações.md`, e acrescenta nela o trecho como uma citação com link para a página.
+
+### Um PDF dentro da nota
+
+`![[assets/manual-verso.pdf#page=2]]` abre o PDF na página 2:
+
+![[assets/manual-verso.pdf#page=2]]
+
+Também valem `#2`, `|page=5`, `|600` (a altura, em pixels) e `|800x600` (largura e altura). O que vem depois de `|` vale no modo Leitura.
+
+---
+
+## 🌐 Páginas da Web Dentro da Nota
+
+Um `<iframe>` mostra uma página da web no meio da nota:
 
 <iframe src="https://www.openstreetmap.org/export/embed.html?bbox=-46.66%2C-23.57%2C-46.63%2C-23.54&amp;layer=mapnik" style="width: 100%; height: 320px; border-radius: 8px;"></iframe>
+
+Na primeira vez que um site aparece numa nota, o Verso pergunta antes de carregar: **Permitir sempre** libera aquele site em todas as notas; **Cancelar** troca a página por um link. Uma página da sua rede local (deste computador ou de um aparelho da rede) vem com um aviso a mais.
+
+- Os sites liberados ficam em **Ajustes › Geral › Sites permitidos nas notas**, um por linha.
+- **Ajustes › Geral › Carregar conteúdo remoto** desligado não carrega nada de fora: a nota mostra um botão **Carregar**.
+
+Uma página inteira também pode ser uma nota sua — veja [[16 - Páginas Web e HTML]].
 
 ---
 

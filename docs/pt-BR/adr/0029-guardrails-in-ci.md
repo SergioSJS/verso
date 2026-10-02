@@ -29,13 +29,26 @@
   faz o trabalho que uma lista nega conta como a chamada negada; duas exceções
   à lista de `std::fs` declaradas para a ratificação do mantenedor, a pedido
   do mantenedor na sessão para deixar claro nos documentos o risco de
-  contornar um guardrail (Decisão, "Contornar um guardrail"). 2026-09-29 —
+  contornar um guardrail (Decisão, "Contornar um guardrail"). 2026-09-29 — o
+  aplicativo mantém um log de diagnóstico, e `src/log.rs` é a quarta exceção
+  declarada de `std::fs` (Decisão, "Uma quarta exceção"). 2026-09-29 —
   as duas exceções ratificadas pelo mantenedor, na sessão ("Ratifique o que
   precisar"), e uma terceira declarada e ratificada no mesmo dia,
   `std::fs::read_dir` no `verso-core`; a contradição sobre o link da linha de
   comando resolvida, o link do shell agora feito com `std::fs` dentro de
   `src/update.rs` e só o pedido de administrador restando como subprocesso (a
-  mesma seção).
+  mesma seção). 2026-10-01 — sobre a revisão crítica
+  [`docs/review/board.md`](../review/board.md), §6 itens 9 a 12, o mantenedor
+  aceitando as recomendações do autor: o leitor de canvas do `verso-core`
+  passa por fuzzing ao lado do parser do dialeto; a quarta exceção,
+  `src/log.rs`, ratificada, e o log uma decisão; `0BSD` na allowlist npm e
+  `fuzzy` aceito à mão como MIT; os testes unitários da janela no
+  `scripts/check.sh` e no job do pull request; a checagem do cofre de exemplo
+  nomeada entre os guardrails. O alvo do canvas visto falhando no mesmo dia,
+  como um guardrail de feature tem de ser: com um defeito plantado — uma barra
+  invertida numa chave escrita sem escape — ele parou só com as sementes
+  versionadas, "what is written parses again: expected ':'"; o código voltou
+  ao que era.
 
 ## Contexto
 
@@ -66,7 +79,7 @@ com ela. Os dois grupos estão separados abaixo.
 
 | Guardrail | Evita | Entra com |
 |---|---|---|
-| Fuzzing do parser com `cargo-fuzz` | arquivo malformado travando o app | Fase 1, feature 1 |
+| Fuzzing do parser com `cargo-fuzz`, e do leitor de canvas do `verso-core` ao lado dele (alvo `canvas`) | arquivo malformado travando o app | Fase 1, feature 1; o leitor de canvas com o board, 2026-10-01 |
 | Property test de round-trip (definição em `docs/spec/dialect.md`, Q18) | abrir reescrevendo arquivo | Fase 1, feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | parser deixar de compilar para WASM e perder a suíte de conformidade com o editor | Fase 1, feature 1 |
 | Escrita atômica (ver requisitos abaixo) | corrupção em queda de energia | Fase 1, feature 2 |
@@ -74,7 +87,9 @@ com ela. Os dois grupos estão separados abaixo.
 | Queries parametrizadas + escape da sintaxe FTS5 | busca quebrando com aspas e operadores | Fase 1, feature 3 |
 | Benchmark com vault sintético | regressão de performance | Fase 1, feature 5 |
 | Verificação de que os tipos TS gerados estão atualizados | regra 3 do contrato virar convenção ([0038](0038-ts-type-generation.md)) | Fase 2, item 2.1 |
-| Allowlist de licenças npm sobre o lockfile da janela (`scripts/check-npm-licenses.mjs`): a lista do `deny.toml` mais OFL-1.1, a licença das fontes | um pacote que a janela empacota sob uma licença que o projeto não pode distribuir | Fase 2, a pedido do mantenedor em 2026-09-23 |
+| Allowlist de licenças npm sobre o lockfile da janela (`scripts/check-npm-licenses.mjs`): a lista do `deny.toml` mais OFL-1.1 (as fontes), Unlicense e EPL-2.0 (a árvore do Mermaid, 2026-09-29) e 0BSD (a árvore do Excalidraw, 2026-10-01); um pacote sem o campo de licença aceito à mão só onde o script o nomeia e diz por quê | um pacote que a janela empacota sob uma licença que o projeto não pode distribuir | Fase 2, a pedido do mantenedor em 2026-09-23 |
+| Os testes unitários da janela (`npm test` em `app/ui`): o modelo do board, a spec de PDF, o Mermaid | o modelo do board mudar o que grava, ou um auxiliar da janela quebrar, sem ninguém ver | o board, 2026-10-01 |
+| O cofre de exemplo construído das suas fontes e se sustentando (`node scripts/demo-vault.mjs check`, [0058](0058-demo-vault-as-tutorial.md)) | uma cópia embutida velha, um board editado à mão, um tutorial cujos links ou passos não se sustentam | o tutorial, 2026-10-01 |
 
 CI em macOS e Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, mais os comandos dos guardrails de feature conforme entram.
@@ -97,9 +112,12 @@ conta cada um como dez.
 
 - **Um pull request** roda todo guardrail menos o fuzzing em **um job de
   Linux**, dos mais baratos primeiro, sobre um cache só: o espelho dos
-  documentos, as fixtures, as licenças npm, o grep de `std::fs`,
-  `cargo fmt --check`, `cargo deny check`, clippy, os testes, os tipos gerados,
-  a checagem de tipos e o bundle da UI, a checagem de WASM.
+  documentos, as fixtures, as licenças npm, a checagem do cofre de exemplo, o
+  grep de `std::fs`, `cargo fmt --check`, `cargo deny check`, clippy, os
+  testes, os tipos gerados, a checagem de tipos, o bundle e os testes
+  unitários da UI, a checagem de WASM. Os testes de ponta a ponta da janela
+  rodam só na máquina do autor ([0058](0058-demo-vault-as-tutorial.md),
+  ponto 13).
 - **O `main`**, depois de cada merge, roda esse job de novo, e mais três:
   **clippy e os testes no macOS** — as checagens cuja resposta pode depender
   da plataforma (o sistema de arquivos, atributos estendidos, o WebKit); fmt,
@@ -343,6 +361,56 @@ confinado como antes a `src/sidecar.rs` pelo grep, para que os sidecars do
 que ele lê ficam do lado do host — o menu os mostra, a janela nunca os recebe
 (regra 4). Tudo o que inspeciona ou remove um caminho continua negado ali.
 Ratificada pelo mantenedor em 2026-09-29, na mesma resposta.
+
+**Uma quarta exceção, e a decisão sob ela — 2026-09-29.** O Verso não anotava
+nada. Um comando que falhava dizia na barra de status e sumia; um panic, uma
+promessa rejeitada e um erro de script não deixavam rastro nenhum, então um bug
+que o usuário encontrasse só podia ser achado rodando o binário pelo terminal e
+olhando o `stderr`. O mantenedor, ao saber que não havia log: *"se der algum
+erro, a gente reza pra tentar achar?"*. Os guardrails são parte do motivo de
+ter ficado assim — escrever em disco aqui exige exceção declarada e confinada —
+e nenhum ADR jamais tratou de diagnóstico.
+
+**Decidido pelo mantenedor em 2026-09-29**, em sessão: o aplicativo mantém um
+log. Como o autor construiu:
+
+- Um arquivo, `<configuração>/logs/verso.log`, no diretório de configuração
+  ([0011](0011-config-outside-tree-index-as-cache.md)) — **nunca a pasta
+  aberta** (regra 5 do [0026](0026-core-ui-contract-inviolable-rules.md)). É
+  `0600`, como o índice e seu sidecar ([0046](0046-index-location-lifecycle-tokenizer.md)), uma
+  rotação em 512 KiB, e nunca é enviado a lugar nenhum: é o arquivo do
+  usuário, na máquina do usuário.
+- O que entra: a versão e o commit com que o app começou, toda falha que cruza
+  para a janela (`failed`), todo panic (um hook, onde antes sumiam) e todo erro
+  que a janela teria engolido — os erros de contrato que ela mostra, um script
+  que lançou, uma promessa que ninguém pegou, um `console.error`, e as exceções
+  que o visualizador de PDF e os diagramas capturam e respondem sozinhos.
+- O destino é fixado uma vez, no arranque (`log::open`). Uma rodada de testes
+  exercita justamente esses erros; antes disso ela escrevia no log do próprio
+  usuário, e foi assim que a falha apareceu.
+- `app/src-tauri/src/log.rs` é o segundo módulo do `verso-app` com `std::fs`
+  permitido, ao lado de `src/update.rs`. O grep do `scripts/check.sh` e do
+  `.github/workflows/ci.yml` agora confina o acesso a disco a esses dois, e o
+  `clippy.toml` do crate diz por quê.
+- O lado da janela é `app/ui/src/report.ts`, para que as partes que capturam as
+  próprias exceções alcancem o log sem alcançar o arquivo da janela. O botão de
+  bug na barra de status monta um relatório com o build, o estado, os erros da
+  sessão e o fim do log, mostra tudo editável e copia. Nada sai da máquina.
+
+**Ratificado pelo mantenedor em 2026-10-01** (revisão
+[`docs/review/board.md`](../review/board.md), §6 item 10, "Aceito todas
+(Recomendado)"): `src/log.rs` como a quarta exceção, e o próprio log uma
+decisão. Com ele, o que o log entrega a um relato: a pasta pessoal mostrada
+como `~` onde quer que apareça nas linhas do log, o log nomeado só pelo
+arquivo quando nenhuma pasta pessoal é conhecida (regra 4 do
+[0026](0026-core-ui-contract-inviolable-rules.md)), uma mensagem limitada a
+4 KiB; um erro que o próprio conteúdo de uma nota causa — um diagrama
+digitado pela metade — é aviso, não erro.
+
+Verificado no aplicativo com falhas reais — uma nota que não é UTF-8 e um
+diagrama Mermaid que não compila chegaram ambos ao arquivo. O erro de script não
+capturado, a promessa rejeitada e o panic seguem o mesmo caminho e não foram
+exercitados.
 
 **Uma contradição, registrada e não resolvida.** O shell liga a linha de
 comando pelos ajustes ([0054](0054-terminal-and-agents-from-the-app.md)) com

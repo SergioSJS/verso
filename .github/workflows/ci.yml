@@ -72,6 +72,10 @@ jobs:
       # the lockfile only, with the runner's own Node.
       - name: npm licenses on the allowlist (ADR 0029)
         run: node scripts/check-npm-licenses.mjs
+      # The demo vault's boards are their modules' and the app's embedded
+      # copy is the folder's: built, never edited by hand. Node and git only.
+      - name: demo vault built from its sources (ADR 0058)
+        run: node scripts/demo-vault.mjs check
       # verso-core's std::fs exception is the configuration directory alone,
       # written by src/sidecar.rs. Its clippy.toml has to allow the four
       # calls crate-wide (clippy cannot scope a list to one file), so this
@@ -86,16 +90,17 @@ jobs:
             echo 'std::fs outside crates/verso-core/src/sidecar.rs (ADR 0029)'
             exit 1
           fi
-      # verso-app's exception is the OS edge alone — update downloads, the
-      # application bundle, the Downloads folder — confined to src/update.rs
-      # the same way (its clippy.toml carries an empty list, so this grep is
-      # the scope; ADR 0029, revision of 2026-09-29).
-      - name: std::fs in verso-app only in src/update.rs (ADR 0029)
+      # verso-app's exceptions are the OS edge — update downloads, the
+      # application bundle, the Downloads folder — in src/update.rs, and the
+      # app's diagnostic log in src/log.rs, confined the same way (its
+      # clippy.toml carries an empty list, so this grep is the scope; ADR
+      # 0029, revisions of 2026-09-29 and 2026-10-01).
+      - name: std::fs in verso-app only in src/update.rs and src/log.rs (ADR 0029)
         run: |
           if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-tauri/src \
-             | grep -v '^app/src-tauri/src/update.rs:' \
+             | grep -vE '^app/src-tauri/src/(update|log)\.rs:' \
              | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
-            echo 'std::fs outside app/src-tauri/src/update.rs (ADR 0029)'
+            echo 'std::fs outside app/src-tauri/src/update.rs and src/log.rs (ADR 0029)'
             exit 1
           fi
 
@@ -121,9 +126,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: UI type-checks and bundles
+      # The window's unit tests too (decided on 2026-10-01, review
+      # `board.md` §6 item 12); its end-to-end tests stay local (ADR 0058).
+      - name: UI type-checks, bundles and unit tests
         working-directory: app/ui
-        run: npm ci && npm run check && npm run build
+        run: npm ci && npm run check && npm run build && npm test
 
       # --- The workspace, the Tauri shell with it. ---
       # The workspace includes the Tauri shell (app/src-tauri, Phase 2), which
@@ -184,7 +191,7 @@ jobs:
     # name. Inputs up to 64 KiB: the 8 KB frontmatter that overflowed the
     # stack was out of reach of the 4 KiB default (review of PR #7,
     # finding 2).
-    name: verso-dialect fuzz, 60s (main, ADR 0029)
+    name: verso-dialect and canvas fuzz, 60s each (main, ADR 0029)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
@@ -204,6 +211,13 @@ jobs:
         run: |
           mkdir -p fuzz/corpus/parse
           cargo +nightly fuzz run --target x86_64-unknown-linux-gnu parse fuzz/corpus/parse fuzz/seeds -- -max_total_time=60 -max_len=65536 -timeout=20
+      # The canvas reader of verso-core, compiled from its own source in the
+      # same harness (decided on 2026-10-01, review `board.md` §6 item 9).
+      - name: fuzz canvas for 60 seconds
+        working-directory: crates/verso-dialect
+        run: |
+          mkdir -p fuzz/corpus/canvas
+          cargo +nightly fuzz run --target x86_64-unknown-linux-gnu canvas fuzz/corpus/canvas fuzz/seeds-canvas -- -max_total_time=60 -max_len=65536 -timeout=20
       - name: keep a crash, if any, as an artifact
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

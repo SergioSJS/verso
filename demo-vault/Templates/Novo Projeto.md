@@ -1,6 +1,6 @@
 ---
-title: {{title}}
-date: {{date}}
+title: "{{title}}"
+date: "{{date}}"
 status: planejado
 prioridade: media
 responsavel: ""

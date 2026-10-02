@@ -29,7 +29,7 @@ máquina:
 
 | Script | Roda | Precisa de |
 |---|---|---|
-| `scripts/check.sh` | todo guardrail do job de Linux do CI, nativo — num Mac, é a checagem de macOS | o toolchain, o Node 22, `cargo install cargo-deny --locked` |
+| `scripts/check.sh` | todo guardrail do job de Linux do CI, nativo — num Mac, é a checagem de macOS; e, o que o CI não roda, os testes de ponta a ponta da janela no WebKit sobre o harness do navegador ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)) | o toolchain, o Node 22, `cargo install cargo-deny --locked`; o WebKit do Playwright, baixado na primeira execução |
 | `scripts/check-linux.sh` | fmt, clippy, os testes e os bindings gerados num container Linux, como usuário comum | Docker; o bundle da UI que o primeiro script gera |
 
 ```

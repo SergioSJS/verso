@@ -8,6 +8,9 @@
 # Needs the Rust toolchain of rust-toolchain.toml, Node 22 for the UI and
 # cargo-deny (`cargo install cargo-deny --locked`); the wasm32 target is added
 # here if missing. The fuzzing and the benchmark are not run (see README.md).
+# One step CI does not run: the window's end-to-end tests in WebKit over the
+# browser harness (ADR 0058), local only; Playwright's WebKit is downloaded
+# on the first run.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,6 +22,9 @@ step "fixtures (ADR 0031)"
 bash scripts/check-fixtures.sh
 step "npm licenses (ADR 0029)"
 node scripts/check-npm-licenses.mjs
+
+step "demo vault built from its sources (ADR 0058)"
+node scripts/demo-vault.mjs check
 step "std::fs in verso-core only in src/sidecar.rs (ADR 0029)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-core/src \
    | grep -v '^crates/verso-core/src/sidecar.rs:' \
@@ -26,11 +32,11 @@ if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso
   echo 'std::fs outside crates/verso-core/src/sidecar.rs (ADR 0029)'
   exit 1
 fi
-step "std::fs in verso-app only in src/update.rs (ADR 0029)"
+step "std::fs in verso-app only in src/update.rs and src/log.rs (ADR 0029)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-tauri/src \
-   | grep -v '^app/src-tauri/src/update.rs:' \
+   | grep -vE '^app/src-tauri/src/(update|log)\.rs:' \
    | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
-  echo 'std::fs outside app/src-tauri/src/update.rs (ADR 0029)'
+  echo 'std::fs outside app/src-tauri/src/update.rs and src/log.rs (ADR 0029)'
   exit 1
 fi
 step "cargo fmt --check"
@@ -43,12 +49,19 @@ fi
 cargo deny check
 # The UI before any Rust build: the Tauri shell embeds app/ui/dist when it
 # compiles. `npm ci` only when the lockfile is newer than the installed tree.
-step "UI: type check and bundle"
+step "UI: type check, bundle and unit tests"
 (
   cd app/ui
   [ node_modules/.package-lock.json -nt package-lock.json ] || npm ci
   npm run check
   npm run build
+  npm test
+)
+step "UI: end-to-end tests in the browser harness (ADR 0058, local only)"
+(
+  cd app/ui
+  npx playwright install webkit >/dev/null
+  npx playwright test
 )
 step "cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings

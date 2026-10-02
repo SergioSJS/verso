@@ -44,8 +44,9 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0013](0013-degrades-to-markdown.md) | Todo dado estruturado degrada para Markdown legível | Aceito (2026-09-24) |
 | [0014](0014-primitives-catalog.md) | Catálogo de primitivas do Verso | Proposto (a nota do dia e os templates: Aceito; a nota tipada: Aceito no 0052; as visões estruturadas: Aceito no 0053) |
 | [0015](0015-schema-packs.md) | Packs de schema distribuíveis como conteúdo | Proposto |
-| [0052](0052-typed-note.md) | Nota tipada: `type:` no frontmatter e um schema | Aceito (2026-09-24) |
+| [0052](0052-typed-note.md) | Nota tipada: `type:` no frontmatter e um schema | Aceito (2026-09-24); uma propriedade com valor de link é relação tipada a partir do 0057 (2026-09-30) |
 | [0053](0053-views-bases.md) | Visões sobre a pasta: bases, no formato do Obsidian | Aceito (2026-09-24) |
+| [0059](0059-tabs-preview-pinned.md) | Abas: uma aba de pré-visualização por padrão, abas fixas compactas, a aba escolhida emenda na página | Aceito (2026-09-30) |
 
 ### Plugins e LLM
 
@@ -70,7 +71,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 |---|---|---|
 | [0022](0022-target-platforms-macos-first.md) | Plataformas-alvo e macOS primeiro | Aceito |
 | [0023](0023-stack-core-and-editor.md) | Stack: Rust, Tauri v2, CodeMirror 6, SQLite com FTS5 | Aceito |
-| [0024](0024-board-excalidraw.md) | Board: Excalidraw como camada de anotação livre | Aceito |
+| [0024](0024-board-excalidraw.md) | Board: Excalidraw como camada de anotação livre | Aceito; camada semântica e persistência decididas no 0057 (2026-09-30) |
 | [0025](0025-own-server-and-mobile-pwa.md) | Servidor próprio (`verso serve`) e mobile inicial como cliente web | Proposto |
 | [0026](0026-core-ui-contract-inviolable-rules.md) | Contrato core↔UI e regras invioláveis de arquitetura | Aceito |
 | [0027](0027-runtime-capabilities.md) | Capabilities consultáveis em runtime | Proposto |
@@ -79,6 +80,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0054](0054-terminal-and-agents-from-the-app.md) | A linha de comando e os agentes, ligados pelo app | Aceito (2026-09-24); o `[ABERTO]` sobre as ferramentas do sistema fechado (2026-09-29) |
 | [0055](0055-in-app-updater.md) | O atualizador dentro do app | Aceito (2026-09-29) |
 | [0056](0056-embedded-web-pages.md) | Páginas web embutidas: o proxy, a origem dele e a rede local | Aceito (2026-09-29); revisto no mesmo dia: sem proxy, as páginas carregam direto das origens que o usuário aprovou |
+| [0057](0057-board-json-canvas.md) | O board: um arquivo JSON Canvas, o Excalidraw como superfície, relações tipadas no frontmatter | Aceito (2026-09-30) |
 
 ### Dialeto, engenharia e roadmap
 
@@ -94,6 +96,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0036](0036-tabletop-rpg-support.md) | Suporte especial a RPG de mesa | Aceito (intenção) |
 | [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito; um menu próprio do Dock `[ABERTO]` (2026-09-29) |
 | [0051](0051-development-flow-and-releases.md) | Fluxo de desenvolvimento, versões e releases | Aceito |
+| [0058](0058-demo-vault-as-tutorial.md) | O cofre de exemplo é o tutorial do produto, mantido a cada feature | Aceito (2026-10-01; revisado no mesmo dia: o roteiro roda por máquina no harness do navegador); o cofre de exemplo em inglês `[ABERTO]` |
 
 ### Decisões técnicas em aberto
 
@@ -102,7 +105,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0037](0037-base-parser.md) | Parser base do `verso-dialect`: `pulldown-cmark`, `comrak` como fallback | Aceito |
 | [0038](0038-ts-type-generation.md) | Geração de tipos TypeScript a partir do Rust: `specta` com `tauri-specta` | Aceito |
 | [0039](0039-performance-targets.md) | Metas de performance | Após a primeira linha de base |
-| [0040](0040-board-persistence.md) | Persistência do board | Antes do board |
+| [0040](0040-board-persistence.md) | Persistência do board | Aceito (2026-09-30), pelo 0057 |
 
 ### Questões abertas levantadas na revisão da Fase 0
 
@@ -121,7 +124,8 @@ onde cada uma está.
 ## Itens em aberto que não viraram ADR
 
 Três itens de dialeto do §17 vivem em [`../spec/dialect.md`](../spec/dialect.md),
-onde o comportamento é especificado: sintaxe de relação tipada (item 6), formato
+onde o comportamento é especificado: sintaxe de relação tipada (item 6, decidida
+em 2026-09-30 como a Q10, com o [0057](0057-board-json-canvas.md)), formato
 e localização dos schemas (item 7, decidido em 2026-09-24 como a Q11, com o
 [0052](0052-typed-note.md)) e sintaxe de visibilidade por bloco (item 8).
 As lacunas de parsing (Q1–Q8, Q12–Q26) também vivem lá.

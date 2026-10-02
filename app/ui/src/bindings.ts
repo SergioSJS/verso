@@ -166,6 +166,24 @@ export const commands = {
 	 */
 	openUrl: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("open_url", { url })),
 	/**
+	 *  Bring down a file of the folder whose content is only in the cloud,
+	 *  because the user opened it (ADR 0043, amended on 2026-09-30): true when
+	 *  it was fetched, false when there was nothing to fetch; the window then
+	 *  reads it again. Off the main thread and outside the folder's lock — a
+	 *  download takes seconds, and the rest of the window goes on meanwhile.
+	 */
+	fetchFile: (path: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("fetch_file", { path })),
+	/**
+	 *  Open the web inspector — console, elements, network — of the window
+	 *  that asks: View › Open console (⌥⌘I), in the installed app as in
+	 *  development (ADR 0051, 2026-09-30). The window asks only when its
+	 *  setting allows it. The web view, not a `WebviewWindow`: a window
+	 *  that shows a site inside it (a web note, an embed) holds child web
+	 *  views, and Tauri no longer counts it as one — the command failed
+	 *  there with "current webview is not a WebviewWindow".
+	 */
+	openDevtools: () => __TAURI_INVOKE<void>("open_devtools"),
+	/**
 	 *  A web page inside the window, as a child web view over the area the
 	 *  UI names (logical pixels from the window's top-left): the browser
 	 *  behind a tab whose note holds the address. Only `http(s)`; the page
@@ -194,6 +212,34 @@ export const commands = {
 	 *  is the text that was sent, with the revision of those bytes.
 	 */
 	writeText: (path: string, text: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_text", { path, text, revision })),
+	/**
+	 *  Save a board (ADR 0057 point 2): `json` is the canvas as the window
+	 *  holds it — the window sends back every field it read, the ones it does
+	 *  not know included; the core lays it over the file as read, keeping every
+	 *  unchanged value's token and every object's key order, and writes it in
+	 *  Obsidian's layout over the revision that was read (invariant 11).
+	 *  `not_canvas` when the file on disk is not JSON.
+	 */
+	writeBoard: (path: string, json: string, revision: string) => typedError<TextFile, ContractError>(__TAURI_INVOKE("write_board", { path, json, revision })),
+	/**
+	 *  A canvas's text in Obsidian's layout (ADR 0057 point 2), from the JSON
+	 *  the window built: a new board, or the preview of a conversion, reads
+	 *  exactly as the file will be written. Touches no file.
+	 */
+	boardText: (json: string) => typedError<string, ContractError>(__TAURI_INVOKE("board_text", { json })),
+	/**
+	 *  What `write_board` would write for `json` over the canvas at `path` as
+	 *  it is on disk now, writing nothing: the board's side of a conflict, and
+	 *  the diff the first save of a canvas in another layout shows (review
+	 *  `board.md` §6 item 4).
+	 */
+	boardPreview: (path: string, json: string) => typedError<string, ContractError>(__TAURI_INVOKE("board_preview", { path, json })),
+	/**
+	 *  Markdown rendered as the reading view renders a note, for a text card
+	 *  of a board (spec §5.11: a text node's text is Markdown). The window
+	 *  sanitizes it like any note's HTML.
+	 */
+	renderMarkdown: (text: string) => __TAURI_INVOKE<string>("render_markdown", { text }),
 	/**
 	 *  Rename or move anything of the folder: a note, another file or a
 	 *  folder with everything under it. Links to what moved come back as
@@ -231,6 +277,19 @@ export const commands = {
 	 *  after a change, so the listing answers to the new rules.
 	 */
 	setWalkRules: (builtinIgnores: boolean, gitignore: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_walk_rules", { builtinIgnores, gitignore })),
+	/**
+	 *  A line from the window into the app's log: what `fail()` shows for a
+	 *  moment there, and what the browser would otherwise swallow — a
+	 *  script error, a rejected promise. The source is the window's, the
+	 *  text is the window's; nothing else is added and nothing is sent
+	 *  anywhere (`log.rs`).
+	 */
+	logWrite: (level: string, message: string) => typedError<null, ContractError>(__TAURI_INVOKE("log_write", { level, message })),
+	/**
+	 *  The end of the log and where it lives: what a bug report carries, so
+	 *  the user can read it before it goes anywhere.
+	 */
+	logRead: () => typedError<string, ContractError>(__TAURI_INVOKE("log_read")),
 	/**
 	 *  The window's language, for the native menu ("pt" or "en"); pushed at
 	 *  start-up and when the setting changes.
@@ -497,6 +556,11 @@ export type ErrorKind =
  *  `[OPEN]`; this is the least that keeps the file safe).
  */
 "not_text" | 
+/**
+ *  The file is not a board: not a `.canvas`, or not JSON (ADR 0057);
+ *  the text view is where it gets fixed.
+ */
+"not_canvas" | 
 /**
  *  The file on disk is not the one that was read: nothing was
  *  written; read again and show both versions (invariant 11).

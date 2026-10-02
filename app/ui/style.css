@@ -218,7 +218,10 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   gap: .5rem;
   padding: .35rem .6rem 0;
   background: var(--paper-2);
-  border-bottom: 1px solid var(--hair);
+  /* The line under the bar is painted beneath the tabs, so the chosen tab,
+     on the page's paper, runs into its page without it (a border would be
+     drawn over the tab, and the tab list's scrolling clips any overlap). */
+  box-shadow: inset 0 -1px 0 var(--hair);
   height: 2.45rem;
   min-height: 2.45rem;
   max-height: 2.45rem;
@@ -253,7 +256,6 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   border: 1px solid transparent;
   border-bottom: 1px solid var(--hair);
   border-radius: 6px 6px 0 0;
-  margin-bottom: -1px;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
@@ -278,7 +280,15 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .pane:not(.focused) .tab[aria-selected="true"] {
   box-shadow: inset 0 2px 0 var(--ink-3);
 }
-.tab.pinned { flex: 0 0 auto; max-width: 9rem; padding: 0 .5rem; }
+/* A pinned tab is its icon, as a browser's: the tip names it. */
+.pane:not(.vertical) .tab.pinned { flex: 0 0 auto; gap: 0; padding: 0 .6rem; }
+.pane:not(.vertical) .tab.pinned .tab-name, .pane:not(.vertical) .tab.pinned .tab-pin { display: none; }
+.pane.vertical .tab.pinned { max-width: none; }
+.tab.pinned .tab-icon .icon { width: 14px; height: 14px; }
+.pane:not(.vertical) .tab.pinned.dirty .tab-icon { position: relative; }
+.pane:not(.vertical) .tab.pinned.dirty .tab-icon::after { content: ""; position: absolute; right: -4px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--seal); }
+/* A preview tab: its name in italics until it is kept. */
+.tab.preview .tab-name { font-style: italic; }
 /* The dot is drawn, not said: the tab's name says "unsaved" (a browser
    without alternative text for `content` keeps the first line). */
 .tab.dirty .tab-name::after { content: " •"; content: " •" / ""; color: var(--seal); font-weight: 700; }
@@ -301,6 +311,8 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .tab:hover .tab-close, .tab[aria-selected="true"] .tab-close { opacity: 0.65; }
 .tab-close:hover { opacity: 1 !important; background: var(--paper-3); color: var(--seal); }
 .tab .icon { width: 12px; height: 12px; }
+/* Inside the tab: the tab list clips what goes past it. */
+.tab:focus-visible { outline-offset: -2px; border-radius: 6px 6px 0 0; }
 
 .pane-body { flex: 1; min-height: 0; display: flex; position: relative; }
 .leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
@@ -368,8 +380,11 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .prop-remove:hover { color: var(--seal); background: var(--paper-3); }
 .prop-remove .icon { width: 12px; height: 12px; }
 /* No properties: a hairline under the title, the add button a ghost at its right end. */
-.props.empty { position: relative; height: 0; margin: .5rem 0 .9rem; padding: 0; border-bottom: 0; }
-.props.empty .prop-new { position: absolute; right: 0; top: -.1rem; margin: 0; padding: .15rem .4rem; background: var(--paper); opacity: 0; transition: opacity .15s; }
+/* No properties: the rule under the title stays, and the button keeps
+   its own band at the right — in the flow, so it is never painted over
+   the title above it or the note below. Shown on hovering the sheet. */
+.props.empty { display: flex; justify-content: flex-end; height: auto; margin: .5rem 0 .3rem; padding: 0; border-bottom: 0; }
+.props.empty .prop-new { margin: 0; padding: .1rem .4rem; opacity: 0; transition: opacity .15s; }
 .sheet:hover .props.empty .prop-new, .props.empty .prop-new:focus-visible { opacity: 1; }
 .props.adding { position: relative; height: auto; margin: .5rem 0 .9rem; padding: .1rem 0; border-bottom: 1px solid var(--hair); }
 .props.adding .prop-new { display: none; }
@@ -541,7 +556,12 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .preview .embed.file::before { content: "📎 "; }
 
 /* Editor — the same page, now writable. No frame. */
+/* The reading view's font, for its `100ch`: `ch` is the width of a digit
+   in the element's own font, and the editor's was the interface's — its
+   lines ran longer than the reading view's in a wide window. Its panels and
+   tooltips set their own. Source and code keep theirs. */
 .editor { margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
+.editor.live { font-family: var(--book); font-size: 1.02rem; }
 .editor .cm-editor {
   height: auto;
   background: none;
@@ -554,7 +574,16 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
   line-height: 1.7;
   min-height: 50vh;
 }
-.editor .cm-content { padding: 0 .5rem; caret-color: var(--seal); }
+/* `min-width: 0`: the text box is a flex item of the scroller, and without
+   it its smallest size is the widest thing inside (a picture of an
+   embedded note, a table). One wide child then rewraps the whole note at
+   its width, past the edge of the pane. */
+.editor .cm-content { padding: 0 .5rem; caret-color: var(--seal); min-width: 0; }
+/* Live Preview sets its text where the reading view does: the line's own
+   6 px moved into the text box, which keeps the caret off the edge. Lines
+   with an indent of their own (lists, quotes) set theirs below. */
+.editor.live .cm-content { padding-left: 6px; padding-right: 0; }
+.editor.live .cm-line { padding-left: 0; padding-right: 0; }
 .editor .cm-cursor { border-left: 2px solid var(--seal); }
 .editor .cm-gutters { background: none; border: none; }
 .editor .cm-lineNumbers {
@@ -884,7 +913,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 
 
 /* Live preview marks */
-.editor .cm-line.cm-lp-h { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; line-height: 1.25; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
+.editor .cm-line.cm-lp-h { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; line-height: 1.2; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
 .editor .cm-line.cm-lp-h1 { font-size: 1.65em; }
 .editor .cm-line.cm-lp-h2 { font-size: 1.35em; }
 .editor .cm-line.cm-lp-h3 { font-size: 1.12em; }
@@ -1028,6 +1057,10 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .editor .cm-line.cm-lp-li {
   position: relative;
   padding-left: calc(1.5em + var(--lp-depth, 0) * 1.5em);
+  /* The reading view's list rhythm (`.preview li`). */
+  line-height: 1.6;
+  padding-top: .12em;
+  padding-bottom: .12em;
 }
 .editor .cm-line.cm-lp-li-raw {
   position: relative;
@@ -1134,10 +1167,23 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .embed-gate-origin { align-self: flex-start; overflow-wrap: anywhere; }
 .embed-gate-text { margin: 0; line-height: 1.5; }
 .embed-gate-actions { display: flex; gap: .5rem; }
-.editor .cm-lp-embed { border-left: 2px solid var(--brass); padding: .2rem 0 .2rem .9rem; background: var(--paper-2); border-radius: 0 6px 6px 0; }
-.editor .cm-lp-embed-title { font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--seal); margin-bottom: .2rem; }
-.editor .cm-lp-embed-body { font-family: var(--book); }
+/* An embedded note's block: the reading view's frame (`.embed-note`) inside
+   it, its margins as the block's padding. */
+.editor .cm-lp-block.cm-lp-embed { padding: .6em 0 1em; }
+.editor .cm-lp-block.cm-lp-embed > .embed-note { margin: 0; }
+/* The reading view's title is a link, and draws as one (`.preview a`). */
+.editor .embed-note-title { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); }
+/* The body is a `.preview`, for the reading view's type; not its place in
+   the page (its gutter and offsets), and not the editor's own spacing:
+   inside `.cm-lineWrapping`, `white-space: break-spaces` drew every line
+   break between the rendered blocks as an empty line. `.preview` twice in
+   the selector: the reading view's line-number gutter
+   (`html.show-line-numbers-preview .preview`) must not reach it. */
+.editor .cm-lp-embed-body.preview { font-family: var(--book); white-space: normal; margin: 0; padding-left: 0; max-width: none; }
 .editor .cm-lp-embed-body > :first-child { margin-top: 0; }
+/* A picture of the embedded note is bounded like the note's own
+   (`.cm-lp-image`): the reading view bounds it with `.preview img`. */
+.editor .cm-lp-embed-body img { max-width: 100%; max-height: 26rem; height: auto; }
 .editor .cm-lp-imath .katex { font-size: 1em; }
 .editor .cm-lp-wikilink { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); cursor: pointer; }
 .editor .cm-lp-embed { border-bottom-style: dashed; }
@@ -1180,6 +1226,8 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 .status-keys button { font: inherit; color: inherit; padding: .1rem .3rem; border-radius: 4px; display: inline-flex; align-items: center; gap: .3rem; }
 .status-keys button:hover { color: var(--ink); background: var(--paper-3); }
 .status-keys kbd { margin-right: .15em; }
+.status-keys button.status-icon { padding: .15rem .3rem; }
+.status-keys button.status-icon svg { width: 14px; height: 14px; }
 
 /* Progress bar (top line & status bar) */
 .top-progress {
@@ -1431,6 +1479,8 @@ body.dragging * { cursor: grabbing !important; }
 .image-box:focus-visible { outline-offset: -2px; }
 .image-view { max-width: 100%; max-height: calc(100vh - 8rem); border-radius: 4px; }
 .image-box.actual .image-view { max-width: none; max-height: none; }
+.image-box.vector:not(.actual) { place-content: stretch; }
+.image-box.vector:not(.actual) .image-view { width: 100%; height: 100%; max-height: none; object-fit: contain; }
 
 /* Folder view */
 .folder-head { display: flex; align-items: baseline; gap: 1rem; }
@@ -2508,3 +2558,214 @@ textarea.embed-allowed { width: 100%; min-width: 16rem; font-family: var(--mono)
 
 /* The embedded page's box: the child web view is overlaid exactly on it. */
 .embed-web { border: 1px solid var(--line, #d8cfc2); border-radius: 8px; background: var(--panel, #f7f1e8); }
+
+/* The bug button, and the dot it wears when the window swallowed an
+   error since it was last opened. */
+#report-bug { position: relative; }
+#report-bug.has-news::after { content: ""; position: absolute; top: .25rem; right: .25rem; width: 6px; height: 6px; border-radius: 50%; background: var(--danger, #b91c1c); }
+textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono); font-size: .8rem; line-height: 1.5; resize: vertical; }
+
+/* ---------- A board (ADR 0057): Excalidraw fills the tab; Verso draws each node inside it ---------- */
+.leaf.board-face .sheet { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.leaf.board-face .flags:empty { display: none; }
+.board-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.board-host[hidden] { display: none; }
+.board-mount, .board-root { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.board-root { position: relative; }
+.board-loading { margin: 2rem auto; color: var(--ink-2); font-size: .9rem; }
+.board-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; padding: .35rem clamp(.7rem, 1.5vw, 1.2rem); border-bottom: 1px solid var(--hair); font-size: .82rem; }
+.board-bar button { padding: .25rem .6rem; border-radius: 5px; color: var(--ink-2); border: 1px solid var(--hair); background: var(--paper); }
+.board-bar button:hover:not(:disabled) { color: var(--ink); background: var(--paper-3); }
+.board-bar button:disabled { opacity: .45; }
+.board-bar button[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
+.board-bar-gap { flex: 1; }
+.board-main { flex: 1; min-height: 0; display: flex; }
+.board-canvas { flex: 1; min-width: 0; position: relative; }
+.board-canvas .excalidraw { --color-primary: var(--seal); font-family: var(--ui); }
+/* The library browser and its trigger reach excalidraw.com (ADR 0050). */
+.board-canvas .default-sidebar-trigger, .board-canvas .sidebar-trigger { display: none !important; }
+.board-canvas[data-card-selected] .excalidraw-hyperlinkContainer { display: none !important; }
+.board-card { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--card-bg, var(--paper)); color: var(--ink); font-size: .82rem; line-height: 1.45; }
+/* A card's own colour in the dark: Excalidraw darkens its canvas's
+   colours; a card keeps the hue over the dark paper, so its text stays
+   readable. */
+.excalidraw.theme--dark .board-card[style*="--card-bg"] { background: color-mix(in oklch, var(--card-bg) 28%, var(--paper)); }
+/* The fills of Excalidraw's panel, over the paper, as its own shapes
+   draw them: lines of the colour, one way, both ways, or zigzag. */
+.board-card[data-fill] { --fill-ink: var(--card-bg); }
+.excalidraw.theme--dark .board-card[data-fill] { --fill-ink: color-mix(in oklch, var(--card-bg) 45%, var(--paper)); }
+.board-card[data-fill="hachure"] { background: repeating-linear-gradient(-45deg, var(--fill-ink) 0 2px, var(--paper) 2px 10px); }
+.board-card[data-fill="cross-hatch"] { background: repeating-linear-gradient(-45deg, var(--fill-ink) 0 2px, transparent 2px 10px), repeating-linear-gradient(45deg, var(--fill-ink) 0 2px, var(--paper) 2px 10px); }
+.board-card[data-fill="zigzag"] { background: linear-gradient(135deg, var(--paper) 25%, transparent 25%) -6px 0 / 12px 12px, linear-gradient(225deg, var(--paper) 25%, transparent 25%) -6px 0 / 12px 12px, linear-gradient(315deg, var(--paper) 25%, transparent 25%) 0 0 / 12px 12px, linear-gradient(45deg, var(--paper) 25%, var(--fill-ink) 25%) 0 0 / 12px 12px; }
+.board-card-head { flex: none; display: flex; align-items: center; gap: .3rem; padding: .25rem .35rem .25rem .6rem; border-bottom: 1px solid var(--hair); }
+.board-card-title { flex: 1; min-width: 0; font-family: var(--display); font-size: .95rem; color: var(--heading-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Clickable while the card is not entered: Excalidraw leaves a card's
+ * content without the pointer until a double click enters it. */
+.board-card-open { pointer-events: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: 5px; color: var(--ink-3); background: transparent; }
+.board-card-open:hover, .board-card-open.is-hover, .board-card-open:focus-visible { color: var(--seal); background: var(--seal-wash); outline: none; }
+.board-card-note { padding: .4rem .6rem; color: var(--ink-3); }
+.board-card-note p { margin: 0 0 .35rem; }
+.board-card-path { font-family: var(--mono); font-size: .78rem; color: var(--ink-2); overflow-wrap: anywhere; }
+/* A PDF card: the reader fills the card under its head, counter-zoomed so
+   it lays out at the size it is seen (`zoom: 1 / zoom` in Card). */
+.board-card-pdf { position: relative; flex: 1; min-height: 0; }
+.board-card-pdf-view { position: absolute; inset: 0; display: flex; }
+.board-card-pdf-view .pdf { flex: 1; }
+.board-card-slot:not(.is-active) .board-card-pdf .pdf-bar { display: none; }
+.board-card-missing .board-card-title { text-decoration: line-through; }
+.board-card-body { flex: 1; min-height: 0; overflow: hidden; padding: .4rem .6rem; }
+
+.board-card-body:empty { display: none; }
+.board-card-body > :first-child { margin-top: 0; }
+.board-card-image { position: relative; flex: 1; min-height: 0; width: 100%; }
+.board-card-image > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+/* A picture on a card: its copy at the card's size, and the original laid
+   over it only when the board is zoomed in close. */
+.board-card .pic { position: relative; display: block; width: fit-content; max-width: 100%; margin: .4em 0; }
+.board-card .pic > img { margin: 0; }
+.board-card .pic > .pic-full { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; }
+.board-cards-plane:not(.is-close) .pic-full { display: none; }
+.board-card-text .board-card-body { font-family: var(--book); }
+.board-card-link { display: flex; flex-direction: column; gap: .15rem; padding: .5rem .6rem; }
+.board-card-link .board-card-head { border: 0; padding: 0; }
+.board-card-url { color: var(--ink-2); overflow-wrap: anywhere; font-family: var(--mono); font-size: .76rem; }
+.board-outline { flex: none; width: min(34ch, 40%); overflow: auto; padding: .7rem .9rem 2rem; border-left: 1px solid var(--hair); background: var(--paper-2); font-size: .85rem; }
+.board-outline-heading { margin: 0 0 .5rem; font-family: var(--display); font-size: 1rem; color: var(--heading-color); }
+.board-outline h3 { margin: .9rem 0 .3rem; font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.board-outline ul { margin: 0; padding: 0; list-style: none; }
+.board-outline ul ul { padding-left: .9rem; }
+.board-outline-item { display: block; width: 100%; text-align: left; padding: .2rem .35rem; border-radius: 4px; color: var(--ink); overflow-wrap: anywhere; }
+.board-outline-item:hover, .board-outline-item:focus-visible { background: var(--paper-3); }
+.board-outline-group { font-weight: 600; }
+.board-outline-empty { color: var(--ink-2); }
+.board-outline-toggle { display: flex; align-items: center; gap: .4rem; margin-top: 1rem; color: var(--ink-2); }
+/* A text asked for (dialog.ts, promptText). */
+.prompt-box label { display: block; margin: 0 0 .6rem; font-size: .93rem; line-height: 1.5; }
+.prompt-field { display: block; width: 100%; margin: 0 0 1rem; padding: .45rem .55rem; font: inherit; font-size: .9rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--hair); border-radius: 6px; resize: vertical; }
+textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
+/* A card draws its note as the reading view does, at a card's size. */
+.board-card-body.preview { margin: 0; max-width: none; font-size: .86rem; line-height: 1.5; padding: .45rem .7rem .7rem; }
+.board-card:focus { outline: none; }
+.board-card-editor { overflow: auto; padding: .35rem .2rem .7rem; font-size: .86rem; line-height: 1.5; cursor: text; }
+.board-card-editor .card-editor { margin: 0; max-width: none; }
+.board-card-editor .card-editor .cm-scroller { font-size: .86rem; line-height: 1.5; min-height: 0; }
+.board-card-editor .conflict { margin: 0 .5rem .5rem; }
+.board-card-body.preview img { max-width: 100%; height: auto; }
+.board-card-body.preview .embed-note { margin: .4rem 0; }
+/* The board's search, in its bar. */
+.board-search { display: inline-flex; align-items: center; gap: .4rem; }
+.board-search input { width: 16ch; padding: .22rem .5rem; font: inherit; font-size: .82rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 5px; }
+.board-search input:focus { width: 24ch; outline: 2px solid var(--seal-wash); }
+.board-search-count { color: var(--ink-3); font-size: .78rem; white-space: nowrap; }
+
+/* ---------- Excalidraw in the Verso's own clothes (ADR 0057) ----------
+ * Its menus, toolbar and panels are painted from these variables; pointed
+ * at the window's tokens, which follow the light and dark themes, they read
+ * as the rest of the app. One class more than Excalidraw's own rules, whose
+ * stylesheet loads after this one. */
+.board-root .board-canvas .excalidraw {
+  --ui-font: var(--ui);
+  --island-bg-color: var(--paper);
+  --popup-bg-color: var(--paper);
+  --popup-secondary-bg-color: var(--paper);
+  --popup-text-color: var(--ink);
+  --text-primary-color: var(--ink);
+  --color-on-surface: var(--ink);
+  --icon-fill-color: var(--ink-2);
+  --color-primary: var(--seal);
+  --color-primary-darker: var(--seal);
+  --color-primary-darkest: var(--seal);
+  --color-primary-light: var(--seal-wash);
+  --color-primary-light-darker: var(--seal-wash);
+  --color-surface-primary-container: var(--seal-wash);
+  --color-surface-high: var(--paper-3);
+  --color-surface-mid: var(--paper-2);
+  --color-surface-low: var(--paper-2);
+  --color-surface-lowest: var(--paper);
+  --button-hover-bg: var(--paper-3);
+  --button-gray-1: var(--paper-2);
+  --button-gray-2: var(--paper-3);
+  --button-gray-3: var(--hair);
+  --default-border-color: var(--hair);
+  --input-bg-color: var(--paper);
+  --input-border-color: var(--hair);
+  --input-hover-bg-color: var(--paper-2);
+  --overlay-bg-color: transparent;
+  --border-radius-lg: 8px;
+  --shadow-island: 0 10px 30px -10px oklch(0% 0 0 / .35), 0 0 0 1px var(--hair);
+  font-family: var(--ui);
+}
+.board-root .board-canvas .excalidraw .context-menu { padding: .3rem; min-width: 14rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-family: var(--ui); font-size: .88rem; color: var(--ink); }
+.board-root .board-canvas .excalidraw .context-menu-item { padding: .35rem .6rem; border-radius: 5px; color: var(--ink); font-family: var(--ui); }
+.board-root .board-canvas .excalidraw .context-menu-item:hover { background: var(--seal-wash); color: var(--seal); }
+.board-root .board-canvas .excalidraw .context-menu-item:hover .context-menu-item__label { color: var(--seal); }
+.board-root .board-canvas .excalidraw .context-menu-item.dangerous .context-menu-item__label { color: var(--seal); }
+.board-root .board-canvas .excalidraw .context-menu-item-separator { margin: .25rem .4rem; border: 0; border-top: 1px solid var(--hair); }
+/* Excalidraw's web embed is refused on a board (the embed tool shows only
+   an error), its "click to interact" band is the card's double click, and
+   its copies as PNG or SVG draw a card as an empty web embed: the board's
+   own export (⌘⇧E) copies it as it reads. */
+.board-canvas .excalidraw [data-testid="toolbar-embeddable"]:has(+ [data-testid="toolbar-laser"]),
+.board-canvas .excalidraw .excalidraw__embeddable-hint,
+.board-canvas .excalidraw .context-menu li[data-testid="copyAsPng"],
+.board-canvas .excalidraw .context-menu li[data-testid="copyAsSvg"] { display: none !important; }
+/* The one word of Excalidraw's tools menu no locale carries. */
+.board-root[data-lang="pt"] .board-canvas .excalidraw div:not([class]):has(+ [data-testid="toolbar-embeddable"]) { font-size: 0 !important; }
+.board-root[data-lang="pt"] .board-canvas .excalidraw div:not([class]):has(+ [data-testid="toolbar-embeddable"])::after { content: "Gerar"; font-size: 14px; }
+/* The board's picture (ExportDialog). */
+.board-export { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 1rem; background: color-mix(in oklch, var(--paper) 55%, transparent); }
+.board-export-box { width: min(46rem, 100%); max-height: 100%; overflow: auto; padding: 1.1rem 1.2rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 18px 50px -18px oklch(0% 0 0 / .45); color: var(--ink); font-family: var(--ui); }
+.board-export-box h2 { margin: 0 0 .8rem; font-family: var(--display); font-size: 1.15rem; color: var(--heading-color); }
+.board-export-preview { display: flex; align-items: center; justify-content: center; height: 16rem; margin-bottom: .9rem; border: 1px solid var(--hair); border-radius: 8px; background: repeating-conic-gradient(var(--paper-2) 0 25%, var(--paper) 0 50%) 0 0 / 16px 16px; color: var(--ink-3); overflow: hidden; }
+.board-export-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.board-export-options { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; margin-bottom: 1rem; font-size: .9rem; }
+.board-export-options label { display: inline-flex; align-items: center; gap: .35rem; }
+.board-export-options label.is-off { opacity: .5; }
+.board-export-row { display: inline-flex; align-items: center; gap: .3rem; }
+.board-export-row > span { margin-right: .2rem; color: var(--ink-2); }
+.board-export-row button, .board-export-actions button { padding: .3rem .7rem; border-radius: 5px; color: var(--ink-2); border: 1px solid var(--hair); background: var(--paper); font-size: .88rem; }
+.board-export-row button[aria-checked="true"] { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
+.board-export-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.board-export-actions button:hover:not(:disabled), .board-export-row button:hover { color: var(--ink); background: var(--paper-3); }
+.board-export-actions button.primary { color: var(--paper); background: var(--seal); border-color: var(--seal); }
+.board-export-actions button.primary:hover:not(:disabled) { color: var(--paper); background: var(--seal); filter: brightness(1.08); }
+.board-export-actions button:disabled { opacity: .5; }
+.board-export-gap { flex: 1; }
+.board-root .board-canvas .excalidraw .context-menu li[data-testid="copyElementLink"],
+.board-canvas[data-card-selected] .excalidraw .context-menu li[data-testid="hyperlink"],
+.board-canvas[data-card-selected] .excalidraw .App-menu__left button[title$="+K"] { display: none; }
+/* The cards, drawn over Excalidraw's canvas by the board (CardLayer):
+ * placed in screen pixels, laid out at the zoom, no transform at rest. */
+/* Above Excalidraw's drawing (z 1, earlier in the page), below its
+   selection canvas (z 2); above both while a card is entered. */
+.board-cards { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.board-cards.has-active { z-index: 3; }
+/* The plane the cards sit on: not cut to the view (the layer above cuts
+   it), so what lies past the view's edge slides in drawn as the view
+   moves. The plane and each card are layers of the compositor: a view
+   that moves only moves them, and nothing is painted again (measured on a
+   board of 40 cards with photographs: no frame over 33 ms, where a single
+   layer for the plane repainted every card and dropped frames). A card is
+   painted again at its size when the cards are laid out after a zoom. */
+.board-cards-plane { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; transform-origin: 0 0; will-change: transform; }
+.board-card-slot { position: absolute; left: 0; top: 0; overflow: hidden; will-change: transform; }
+/* Far from the view: kept, with what it drew, and not laid out. */
+.board-card-slot.is-far { display: none; }
+/* Excalidraw's own boxes for the cards are empty (the layer draws the
+   cards): not laid out, nor moved on every frame. */
+.board-canvas .excalidraw__embeddable-container { display: none !important; }
+.board-card-box { position: relative; }
+.board-canvas.is-over-open .excalidraw canvas.interactive { cursor: pointer !important; }
+.board-card-over { position: absolute; pointer-events: none; line-height: 0; }
+.board-card-over > svg { display: block; overflow: visible; }
+.board-card-slot.is-active { pointer-events: auto; }
+.board-card-slot.is-active .board-card-body { overflow: auto; }
+.board-card-placeholder { width: 100%; height: 100%; }
+
+/* A tab whose file could not be read: the reason and a way to try again,
+   in place of an editor nothing could be saved from (review board.md,
+   reading 3, finding 4). */
+.leaf.failed > :not(.leaf-head):not(header):not(.load-failure) { display: none !important; }
+.load-failure { margin: 3rem auto; max-width: 34rem; padding: 0 1.5rem; color: var(--ink-2); }
+.load-failure-title { font-family: var(--display); font-size: 1.2rem; color: var(--ink); }
+.load-failure button { margin-top: .6rem; }

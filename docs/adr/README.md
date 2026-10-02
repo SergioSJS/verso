@@ -44,8 +44,9 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0013](0013-degrades-to-markdown.md) | All structured data degrades to readable Markdown | Accepted (2026-09-24) |
 | [0014](0014-primitives-catalog.md) | Catalog of Verso primitives | Proposed (the daily note and templates: Accepted; the typed note: Accepted in 0052; the structured views: Accepted in 0053) |
 | [0015](0015-schema-packs.md) | Schema packs distributable as content | Proposed |
-| [0052](0052-typed-note.md) | Typed note: `type:` in the frontmatter and a schema | Accepted (2026-09-24) |
+| [0052](0052-typed-note.md) | Typed note: `type:` in the frontmatter and a schema | Accepted (2026-09-24); a link-valued property is a typed relation from 0057 (2026-09-30) |
 | [0053](0053-views-bases.md) | Views over the folder: bases, in Obsidian's format | Accepted (2026-09-24) |
+| [0059](0059-tabs-preview-pinned.md) | Tabs: a preview tab by default, compact pinned tabs, the chosen tab joins its page | Accepted (2026-09-30) |
 
 ### Plugins and LLM
 
@@ -70,7 +71,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 |---|---|---|
 | [0022](0022-target-platforms-macos-first.md) | Target platforms and macOS first | Accepted |
 | [0023](0023-stack-core-and-editor.md) | Stack: Rust, Tauri v2, CodeMirror 6, SQLite with FTS5 | Accepted |
-| [0024](0024-board-excalidraw.md) | Board: Excalidraw as a free annotation layer | Accepted |
+| [0024](0024-board-excalidraw.md) | Board: Excalidraw as a free annotation layer | Accepted; semantic layer and persistence decided in 0057 (2026-09-30) |
 | [0025](0025-own-server-and-mobile-pwa.md) | Own server (`verso serve`) and initial mobile as a web client | Proposed |
 | [0026](0026-core-ui-contract-inviolable-rules.md) | Core↔UI contract and inviolable architecture rules | Accepted |
 | [0027](0027-runtime-capabilities.md) | Capabilities queryable at runtime | Proposed |
@@ -79,6 +80,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0054](0054-terminal-and-agents-from-the-app.md) | The command line and agents, set up from the app | Accepted (2026-09-24); its `[OPEN]` on the system's tools closed (2026-09-29) |
 | [0055](0055-in-app-updater.md) | The in-app updater | Accepted (2026-09-29) |
 | [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29); revised the same day: no proxy, pages load directly from origins the user approved |
+| [0057](0057-board-json-canvas.md) | The board: a JSON Canvas file, Excalidraw as its surface, typed relations in the frontmatter | Accepted (2026-09-30) |
 
 ### Dialect, engineering and roadmap
 
@@ -94,6 +96,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted (intent) |
 | [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted; a custom Dock menu `[OPEN]` (2026-09-29) |
 | [0051](0051-development-flow-and-releases.md) | Development flow, versions and releases | Accepted |
+| [0058](0058-demo-vault-as-tutorial.md) | The demo vault is the product's tutorial, kept with every feature | Accepted (2026-10-01; revised the same day: the walkthrough runs by machine in the browser harness); the demo vault in English `[OPEN]` |
 
 ### Open technical decisions
 
@@ -102,7 +105,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0037](0037-base-parser.md) | Base parser for `verso-dialect`: `pulldown-cmark`, `comrak` as the fallback | Accepted |
 | [0038](0038-ts-type-generation.md) | TypeScript type generation from Rust: `specta` with `tauri-specta` | Accepted |
 | [0039](0039-performance-targets.md) | Performance targets | After the first baseline |
-| [0040](0040-board-persistence.md) | Board persistence | Before the board |
+| [0040](0040-board-persistence.md) | Board persistence | Accepted (2026-09-30), by 0057 |
 
 ### Open questions raised in the Phase 0 review
 
@@ -121,7 +124,8 @@ says where each stands.
 ## Open items that did not become ADRs
 
 Three dialect items from §17 live in [`../spec/dialect.md`](../spec/dialect.md),
-where the behavior is specified: typed relation syntax (item 6), format and
+where the behavior is specified: typed relation syntax (item 6, decided on
+2026-09-30 as Q10, with [0057](0057-board-json-canvas.md)), format and
 location of the schemas (item 7, decided on 2026-09-24 as Q11, with
 [0052](0052-typed-note.md)) and per-block visibility syntax (item 8). The
 parsing gaps (Q1–Q8, Q12–Q26) also live there.

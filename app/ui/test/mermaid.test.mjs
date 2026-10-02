@@ -44,11 +44,16 @@ const { renderMermaid, ensureMermaid, isDarkMode } = await import("../src/mermai
   const esbuild = await import("esbuild");
   await esbuild.build({
     entryPoints: ["src/mermaid.ts"],
-    bundle: false,
+    // Bundled, so the module's own imports (the error reporter, and the
+    // bindings it writes the log through) resolve; mermaid itself stays
+    // external, so the test exercises the real library.
+    bundle: true,
+    external: ["mermaid"],
+    platform: "browser",
     format: "esm",
-    outfile: "dist/mermaid.test-bundle.mjs",
+    outfile: "test/.bundles/mermaid.test-bundle.mjs",
   });
-  return import("../dist/mermaid.test-bundle.mjs");
+  return import("./.bundles/mermaid.test-bundle.mjs");
 });
 
 describe("Mermaid diagrams integration", () => {

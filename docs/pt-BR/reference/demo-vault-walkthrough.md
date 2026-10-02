@@ -1,0 +1,317 @@
+# O roteiro do cofre de exemplo
+
+- Data: 2026-10-01
+- Fonte: [ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 6; o
+  mantenedor, em sessão, em 2026-10-01: "registre os passos a passos de
+  testes realizados para serem automatizados de alguma forma pra rodar
+  localmente quando fizer sentido"; e, no mesmo dia, a escolha de como: o
+  harness do navegador, guiado pelo Playwright (ADR 0058, pontos 8 a 13).
+- Status: os passos como seguidos em 2026-10-01, os marcados E rodam por
+  máquina; cada feature que muda o que o usuário vê acrescenta os seus.
+
+O tutorial é seguido no app antes de um pull request que muda o que o usuário
+vê, como um usuário novo o seguiria: a partir de uma pasta vazia, com o log do
+app e o console da janela abertos. Esta página é esse percurso, passo a passo:
+o que fazer, o que tem de acontecer, como se confere e até onde roda por
+máquina. Um passo que falha é bug do app ou do tutorial, corrigido no mesmo
+pull request; a última linha de um passo diz o bug que ele pegou da primeira
+vez.
+
+## Como rodar
+
+Por máquina primeiro: `npm run e2e` em `app/ui` constrói a janela e roda todo
+passo marcado E, no WebKit, sem janela, em uns vinte segundos; o
+`scripts/check.sh` também os roda. Um arquivo: `npx playwright test
+e2e/notes.spec.mjs`; para assistir: `--headed`; para ir passo a passo:
+`--debug`. Uma falha deixa uma captura de tela e um trace em
+`app/ui/e2e/results/` (`npx playwright show-trace <trace.zip>`).
+
+Depois à mão, no app, os passos sem E:
+
+1. Compile: `npm run build` em `app/ui`, depois `cargo build -p verso-app`
+   (um `tauri build` não refaz o pacote da janela).
+2. Crie uma pasta vazia e abra o app nela: `target/debug/verso-app <pasta>`.
+3. Anote onde o log termina: `wc -l` de
+   `~/Library/Application Support/verso/logs/verso.log`.
+4. Abra o console: ⌥⌘I (Visualização › Abrir console).
+5. Siga as seções abaixo em ordem. O app de debug divide os ajustes e o
+   armazenamento da janela com um Verso instalado (o mesmo bundle id): o que
+   um passo muda ali — a aba de um painel, a paleta — volta no fim.
+6. No fim: nenhuma linha `ERROR` no log depois da linha anotada, nada no
+   stderr do app, nada vermelho no console.
+
+## Até onde cada passo roda por máquina
+
+Cada passo termina com o seu nível:
+
+- **S** — estático, roda agora: `node scripts/demo-vault.mjs check`, no
+  `scripts/check.sh` e na CI. Os boards são os dos seus módulos, o embutido é
+  a pasta; todo link de uma nota ou de um board leva a um arquivo do cofre, e
+  um `#título` a um título da sua nota; as notas diárias e os templates ficam
+  onde o app procura por padrão; toda nota numerada está no mapa da nota de
+  boas-vindas, no tour, e aponta para a seguinte.
+- **U** — um teste unitário, roda agora: `npm test` em `app/ui` e
+  `cargo test`, os dois no `scripts/check.sh` e no CI.
+- **H** — o comportamento da própria janela, sem o core: roda no harness do
+  navegador (`app/ui/src/harness.ts`, um core em TypeScript sobre o cofre de
+  exemplo em memória).
+- **E** — um passo H que já roda por máquina: o teste nomeado, em
+  `app/ui/e2e/`. Todo teste também falha diante de um erro no console ou da
+  página, uma requisição que falhou, um `ERROR` no log do app, ou a área de
+  trabalho da janela sem ocupar a janela.
+- **A** — precisa do app de verdade: o menu nativo, o protocolo `verso:`,
+  os arquivos em disco, a linha de comando.
+
+Um passo H sem E é seguido à mão até o seu teste ser escrito; um passo A é
+seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
+
+## 1. Importar numa pasta vazia
+
+1. Paleta (⌘⇧P) › "Importar cofre de exemplo" › confirmar. Esperado: todos
+   os arquivos de `demo-vault/`, byte a byte, em `Diário/`, `Templates/`,
+   `Web/`, `assets/` e `projetos/` — sem `daily/`, sem `templates/`; a nota de
+   boas-vindas abre. Conferir: comparar a lista e os bytes dos arquivos da
+   pasta com `demo-vault/`. Nível: S (o embutido é a pasta), H (a importação);
+   E: `import.spec.mjs`. Pegou: a importação criava as pastas que o exemplo não tem mais e, num
+   disco que não diferencia maiúsculas, punha `Templates/` em `templates/`
+   (`a51aab2`).
+2. A nota de boas-vindas mostra o destaque "Comece pelo tour" com os dois
+   links. Nível: S (os links), H.
+3. Importe de novo numa pasta que tem o exemplo de uma versão anterior.
+   Esperado: o que falta é criado, um arquivo com outro conteúdo fica como
+   está e é nomeado, e o log do app tem linhas `import demo:` dizendo
+   quantos foram criados, mantidos e falharam. Nível: H; E:
+   `import.spec.mjs`. Pegou: uma importação que não escrevia nada dizia
+   "importado" e não deixava rastro.
+
+## 2. O tour
+
+1. Na nota de boas-vindas, no Editar, ⌘ + clique em "Tour do Verso" (um
+   clique simples põe o cursor no link). Esperado: o board abre com todas as
+   paradas em linhas de três, numeradas no canto de cima à direita, uma
+   trilha tracejada ligando-as em ordem; todo texto desenhado inteiro. O
+   arquivo fica igual. Conferir: a tela; `cmp` do arquivo antes e depois.
+   Nível: H; E: `board-tour.spec.mjs` (nenhum board gravado, o texto medido
+   com a sua fonte) e `board-file.spec.mjs` (nenhum board gravado depois de
+   um clique, um arrasto da vista e um zoom logo ao abrir). Pegou: texto
+   desenhado cortado enquanto a fonte carregava (`a147e8e`); um clique logo
+   ao abrir gravava o board (2026-10-01).
+2. Sumário: as paradas aparecem na ordem dos números; um clique em cada uma
+   a mostra inteira e legível, com as notas vivas nos cartões; fechar o
+   Sumário mantém a parada à vista. Nível: H; E: `board-tour.spec.mjs`.
+   Pegou: um grupo só vinha para o meio, a 10% (`a147e8e`); as paradas
+   estavam em zigue-zague, e o sumário as lista linha por linha (`26c3b06`);
+   fechar o Sumário trazia o board inteiro de volta por cima da parada, e a
+   janela encolhia enquanto os diagramas Mermaid das notas eram desenhados,
+   então uma parada escolhida nesse meio-tempo ficava fora do centro
+   (2026-10-01).
+3. ⌘W fecha a aba e o app continua aberto; ⌘⇧T a reabre. Nível: A (o menu
+   nativo); E: `tabs.spec.mjs`, as teclas e o evento do menu como o host o
+   envia. Pegou: ⌘W fechava a janela e, com uma janela só, encerrava o app
+   (`a51aab2`).
+4. Num board, ⌘P abre "Abrir…". Nível: H; E: `board-tour.spec.mjs`. Pegou:
+   o Excalidraw ficava com a tecla (`a147e8e`).
+5. Nota 13: ⌘R recarrega a janela com a nota digitada salva antes; com uma
+   nota que não pode ser salva (um conflito esperando), a janela fica e diz
+   por quê. Nível: H; E: `notes.spec.mjs`.
+
+## 3. Escrever e ler notas
+
+1. Nota 01 no Leitura: o destaque com título próprio, o destaque recolhido
+   que abre com um clique, o destaque aninhado, a nota de rodapé, o comentário
+   `%%` escondido, a tag como pílula, KaTeX, a tabela. Nível: H.
+2. Nota 11 no Editar: numa linha vazia, `/` abre o menu com Básico, Listas,
+   Destaques e Inserir; digitar `data` deixa "Data de hoje", e Enter escreve
+   a data de hoje; ⌘Z desfaz. Nível: H; E: `notes.spec.mjs` (a data
+   escrita no fim, e sumida depois do ⌘Z).
+3. Nota 02: todo link leva à sua nota, um `#título` ao seu título; o embed
+   mostra "Editar ao lado". Nível: S (os links), H.
+4. Nota 06 no Leitura: `![Diagrama|320](assets/diagrama.svg)` aparece com
+   320 px de largura, vindo da pasta; arrastar o canto grava o tamanho novo
+   nessa imagem, e o exemplo dela no código do título fica como está.
+   Nível: H; E: `notes.spec.mjs`. Pegou: a imagem era pedida ao endereço da
+   própria janela antes do da pasta, desenhada com 0 px de largura (o tamanho
+   depois de um texto alternativo não era lido), e redimensioná-la
+   reescrevia o exemplo (2026-10-01).
+5. Uma imagem cujo nome de arquivo tem acento (`assets/gráfico.svg`) aparece
+   vinda da pasta. Nível: H; E: `notes.spec.mjs`. Pegou: o renderizador
+   codifica o endereço em porcentagem, e a janela pedia ao core
+   `gr%C3%A1fico` (2026-10-01).
+6. Uma nota mudada em disco enquanto o texto digitado na aba dela não foi
+   salvo: as duas versões aparecem, e a do disco fica (invariante 11).
+   Nível: H; E: `notes.spec.mjs`.
+7. Uma nota embutida com `![[Nota]]`, no Editar, fica como no Leitura: os
+   títulos, os parágrafos a um passo um do outro, as imagens dentro do
+   painel, e o texto em volta quebrado na largura do painel. Nível: H; E:
+   `notes.spec.mjs`. Pego: as quebras de linha do embute desenhadas como
+   linhas vazias, os títulos dele na letra do editor, e uma imagem mais
+   larga que o painel empurrando toda linha da nota para além da borda
+   direita (2026-10-02).
+8. Uma nota longa rolada no Leitura até um título, depois Editar, depois
+   Leitura: o título fica no topo. Nível: H; E: `notes.spec.mjs`. Pego: a
+   troca mantinha o deslocamento da rolagem, e o editor mostrava outra parte
+   da nota (2026-10-02).
+9. Uma nota com um parágrafo e uma lista, no Leitura e no Editar: o texto
+   começa e termina no mesmo lugar e a lista tem a mesma altura de linha.
+   Nível: H; E: `notes.spec.mjs`. Pego: o texto do Editar 7,5 px mais à
+   direita, as linhas 113 px mais longas numa janela larga (`100ch` na
+   fonte da interface), a lista mais solta (2026-10-02).
+
+## 4. Organizar: propriedades, bases, notas diárias
+
+1. `Projetos.base`: as cinco visões (tabela, kanban, Cards, lista,
+   calendário); só as notas de `projetos/`; a coluna da fórmula e a soma do
+   orçamento; o kanban com uma coluna por status; o calendário, voltado a
+   setembro de 2026, mostra os três projetos. Nível: H. Pegou: sem filtro, a
+   base listava o cofre inteiro (`26c3b06`).
+2. Nota 04: a visão incorporada e o bloco `base` que lista as notas diárias.
+   Nível: H.
+3. ⌘D: `Diário/<hoje>.md` é feita do `Templates/Diário.md`, com `{{title}}`
+   e `{{date}}` preenchidos. Nível: S (as pastas), H; E: `notes.spec.mjs`.
+   Pegou: as notas diziam `daily/` e `templates/`, que o app não usa por
+   padrão (`26c3b06`).
+4. Painel da direita (⌘⌥→) › Calendário: pontos em 24 e 25 de setembro e
+   hoje. Nível: H; E: `notes.spec.mjs`.
+
+## 5. Encontrar
+
+1. ⌘K `tag:projeto`: os dois projetos com a tag, e o template
+   `Novo Projeto`, que também a tem. Nível: A (a busca do core).
+2. Com o foco fora do editor, ⌘⇧H: "Localizar e substituir no cofre…"; ✓
+   mostra o plano, nota por nota; "Deixar como está" não grava nada.
+   Nível: A.
+3. "Grafo do cofre": o grafo e os controles como a nota 05 os nomeia.
+   Nível: H.
+
+## 6. Arquivos
+
+1. Clique no título de uma nota aberta e renomeie: o plano lista toda nota e
+   todo board que apontam para ela; "Atualizar links" os reescreve — os
+   cartões dos boards e uma relação num frontmatter também — e o painel de
+   backlinks os mostra na hora. Nível: A (a reescrita do core); E:
+   `notes.spec.mjs`, o lado da janela — as notas e o board reescritos, o
+   painel na hora; a relação num frontmatter é seguida à mão. Pegou: a nota
+   renomeada ficava sem backlinks até ser reaberta (`a51aab2`).
+2. O PDF: a barra como a nota 06 a nomeia; selecione uma linha, "Citar
+   seleção nas anotações": `assets/manual-verso — Anotações.md` guarda a
+   citação, com link para a página. Nível: A.
+3. F2 renomeia a nota aberta — também logo depois de um clique na linha dela
+   na árvore — e a linha da árvore que tem o foco do teclado; num editor ou
+   num campo, o F2 é deles. Nível: H; E: `tabs.spec.mjs`, a nota aberta
+   depois de um clique na linha dela; a linha com o foco do teclado e um
+   campo à mão. Pegou: depois de um clique, o F2 não fazia nada
+   (2026-10-01).
+4. Um clique num arquivo da árvore o abre numa aba de pré-visualização, com
+   o título em itálico, que o próximo clique substitui; um duplo clique a
+   mantém ([ADR 0059](../adr/0059-tabs-preview-pinned.md)). Nível: H; E:
+   `tabs.spec.mjs`.
+5. ‹ e ⌘[ voltam pelas notas clicadas na árvore, mesmo que uma só aba de
+   pré-visualização tenha mostrado todas; ⌘] avança. Nível: H; E:
+   `tabs.spec.mjs`. Uma nota renomeada no meio do caminho é alcançada pelo
+   nome novo; uma apagada sai da trilha. Pegou: a trilha guardava abas, e
+   uma aba de pré-visualização substituída não deixava caminho de volta
+   (2026-10-01).
+6. Com uma pergunta na tela (Ajustes, um plano), o ⌘W do menu não fecha
+   nada por trás dela; sem aba nenhuma, o ⌘W fecha a janela. Nível: H (a
+   pergunta); E: `tabs.spec.mjs`; A (a janela).
+
+## 7. A web
+
+1. `Web/jsoncanvas.org.md`: a barra (voltar, avançar, recarregar, o
+   endereço); "Ver página" e "Ver nota" alternam. Nível: A.
+2. `Web/Cartão de visita.html`: a página com o próprio estilo, em Página; o
+   código em Fonte. Nível: A. Pegou: a página ficava em branco — servida como
+   bytes, que o `nosniff` impedia o quadro de mostrar (`a51aab2`).
+3. "Desenho do Excalidraw": "Converter em board" mostra o board que vai ser
+   criado, e "Criar o board" cria `Desenho do Excalidraw.canvas` ao lado.
+   Nível: A.
+4. Na página do `Web/jsoncanvas.org.md`, e num link aberto na janela dele:
+   digite num campo do site, e então ⌘A, ⌘Z e ⌘⇧Z agem nesse campo, uma vez
+   cada, e nada na nota atrás muda. Nível: A (a web view do site é do host;
+   revisão `board.md`, segunda leitura, achado 1).
+5. Com uma nota cujo site incorporado está na tela: ⌥⌘I abre o console, ⌘W
+   fecha a aba, e sair do app pede à janela que salve antes. Nível: A (as
+   web views filhas da janela são do host), U (`cargo test -p verso-app`).
+   Pegou: uma janela com um site dentro deixava de contar como uma janela
+   do app — "current webview is not a WebviewWindow" — e o menu dela
+   ficava surdo.
+
+## 8. O arquivo do board
+
+1. Abrir um board não grava nada; mover um cartão muda só o `x` e o `y`
+   dele. Nível: U (o modelo), A.
+2. As arestas pontudas de um cartão e uma seta em cotovelo voltam como
+   estavam quando o board abre de novo, a seta presa aos cartões. Nível: U.
+   Pegou: o estilo do painel não era salvo (`c1a754b`).
+3. Um desenho mandado para trás de um cartão (⌘⌥[) continua atrás dele
+   quando o board abre de novo: o arquivo guarda o lugar dele entre os
+   cartões (`under`). Nível: U (o modelo), H; E: `board-practice.spec.mjs`.
+   Pegou: ele voltava por cima dos cartões (2026-10-01).
+4. Um cartão movido e a aba fechada na hora: o movimento é salvo, não
+   perdido. Nível: H; E: `board-file.spec.mjs`. Pegou: o salvamento que
+   esperava o seu atraso era descartado com a aba (2026-10-01).
+5. O arquivo do board mudado em disco (pelo Obsidian) sem nada não salvo:
+   o board é desenhado de novo a partir dele; mudado aqui também, as duas
+   versões aparecem e nada é gravado por cima do disco. Nível: H; E:
+   `board-file.spec.mjs`. Pegou: um board aberto nunca seguia o seu arquivo
+   (2026-10-01).
+6. Um canvas escrito em outro layout (uma linha só, ou fins de linha do
+   Windows): a primeira edição mostra a reescrita como diff e pergunta;
+   "Deixar como está" não grava nada. Nível: H; E: `board-file.spec.mjs`.
+7. Um canvas salvo por um Verso mais novo (`verso.version` 2) abre só para
+   ver: um arrasto não grava nada. Nível: H; E: `board-file.spec.mjs`.
+8. Um cartão movido e o movimento desfeito (⌘Z) antes do salvamento: a aba
+   fecha limpa, nada gravado. Nível: H; E: `board-file.spec.mjs`.
+
+## 9. O treino do board
+
+1. O sumário lista as lições em ordem; cada uma fica legível vista inteira.
+   Nível: H.
+2. Lição 4: ⌘⌥C no balão vermelho, ⌘⌥V em outro: o estilo é colado.
+   Nível: H.
+3. Lição 6: ⌘ + arrastar em volta do robô, ⌘G, arrastar: ele anda inteiro.
+   Selecione as frutas, botão direito › "Envolver a seleção num quadro": um
+   quadro "Frame"; duplo clique no nome, renomeie: o sumário mostra o nome
+   novo; o arquivo guarda o grupo com ele. Nível: U (o sumário), H; E:
+   `board-practice.spec.mjs`, o quadro e o nome dele. Pegou: o sumário
+   ficava com o nome antigo (`a51aab2`), e de novo para um nome digitado
+   sobre o quadro, que o Excalidraw muda no lugar (2026-10-01).
+4. Lição 7: ⌘⌥] traz o círculo para o primeiro plano, ⌘⌥[ manda o quadrado
+   para o fundo; ⌘] e ⌘[ um passo. Nível: H; E: `board-practice.spec.mjs`,
+   ⌘⌥] e ⌘⌥[. Pegou: ⌘⌥] e ⌘⌥[ não faziam nada no Mac (`a51aab2`).
+5. Lição 8: "Nota ou arquivo" › a nota de boas-vindas: o cartão dela,
+   pintado com Fundo; duplo clique no cartão de texto: "Texto do cartão
+   (Markdown)"; a edição fica no arquivo. Nível: H; E:
+   `board-practice.spec.mjs`, o cartão de texto.
+6. Lição 9: ⌘⇧L trava o vaso (arrastar não o move); ⌘' mostra a grade.
+   Nível: H.
+7. Lição 10: a Flecha de Alpha para Beta se prende aos dois; "Promover a
+   relação" › `inspira` › a diferença › confirmar: a seta mostra `inspira` na
+   hora; o Projeto Alpha guarda `inspira: "[[Projeto Beta]]"`; a aresta
+   guarda o rótulo e a relação. Nível: H (o board), A (a nota gravada); E:
+   `board-practice.spec.mjs`. Pegou: o rótulo ficava invisível até o board
+   ser reaberto (`a51aab2`).
+8. Lição 11: ⌘F `tesouro` o acha, como digitado; a vista fica parada
+   enquanto o board salva. Nível: H; E: `board-practice.spec.mjs`. Pegou: o
+   campo corrigia a palavra, e cada salvamento voltava a vista para o
+   primeiro resultado (`a51aab2`).
+9. Lição 12: "Fundo da tela" no menu ☰; o JSON do board em Texto. Nível: H.
+
+## 10. Ajustes, ajuda, a linha de comando
+
+1. ⌘,: as seções como a nota 15 as nomeia; as opções de Aparência; Terminal
+   e agentes: o botão do comando (Instalar ou Substituir) e os trechos do MCP.
+   Nível: H; E: `settings.spec.mjs`, as seções e a Aparência.
+2. "Relatar problema", na barra de status: o relato, "Erros desta sessão:
+   nenhum". Nível: H; E: `settings.spec.mjs`.
+3. A linha de comando na pasta: `verso search <pasta> reunião`;
+   `verso backlinks <pasta> "Projeto Alpha"` (o nome, como num link, ou o
+   caminho); `--unresolved`; `--json`. Nível: A. Pegou: só um caminho era
+   achado (2026-10-01).
+
+## 11. O fim
+
+1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
+   console: nada vermelho. Nível: A; E: todo teste, no harness.
+2. Volte o que um passo mudou nos ajustes divididos (a aba do painel da
+   direita, a paleta, o tema).

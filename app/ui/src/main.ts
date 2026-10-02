@@ -18,10 +18,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorView } from "codemirror";
 import { Annotation, Compartment, EditorState, Prec, Transaction, type Extension } from "@codemirror/state";
 import { keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, type KeyBinding } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory } from "@codemirror/commands";
+import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, selectAll, undo } from "@codemirror/commands";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
-import { LanguageDescription, bracketMatching, defaultHighlightStyle, foldAll, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting, unfoldAll } from "@codemirror/language";
+import { LanguageDescription, bracketMatching, defaultHighlightStyle, ensureSyntaxTree, foldAll, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting, syntaxTree, unfoldAll } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import {
@@ -72,7 +72,12 @@ const baseEditorExtensions: Extension = [
   }),
   keymap.of([
     ...closeBracketsKeymap,
-    ...defaultKeymap,
+    // Mod-[ and Mod-] are the window's back and forward (DEFAULT_KEYS).
+    // CodeMirror binds them to indenting, which Tab and Shift-Tab already
+    // do here (`indentWithTab`), and an editor that answers a key stops
+    // the window from seeing it at all (the handler skips a key whose
+    // default was prevented).
+    ...defaultKeymap.filter((b) => b.key !== "Mod-[" && b.key !== "Mod-]"),
     ...searchKeymap,
     ...historyKeymap,
     ...foldKeymap,
@@ -82,6 +87,7 @@ const baseEditorExtensions: Extension = [
 ];
 import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { minimalEdit } from "./edit";
+import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
 import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
@@ -92,7 +98,13 @@ import { listKeymap } from "./listKeymap";
 import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
 import { ptPhrases } from "./phrases";
-import { ask, tell } from "./dialog";
+import { ask, tell, promptText } from "./dialog";
+import { boardStrings } from "./board/strings";
+import type { BoardHandle, BoardHost, CardEditing, SavedView } from "./board/view";
+import { CARD_COMMAND } from "./board/command";
+import { boardPathFor, readDrawing, toBoard } from "./board/convert";
+import { linkTo, withRelation } from "./board/relation";
+import { listedPath } from "./board/model";
 import { allowEmbedOrigins, allowRemoteContent, cleanHtmlText, configureEmbeds, setHtml, webFrame } from "./sanitize";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import { renderMermaid } from "./mermaid";
@@ -122,6 +134,7 @@ type Strings = Record<
   | "pdfPage" | "pdfOf" | "zoomIn" | "zoomOut" | "fitWidth" | "pdfSearch" | "pdfNoHits" | "copyPageLink" | "quoteSelection" | "selectFirst" | "pdfNotes" | "quoted" | "pageLinkCopied" | "fitPage" | "spreadSingle" | "spreadOdd" | "spreadEven" | "spreadToggle" | "lineNumbers" | "lineNumbersDesc"
   | "lineNumbersEdit" | "lineNumbersEditDesc" | "lineNumbersSource" | "lineNumbersSourceDesc" | "lineNumbersPreview" | "lineNumbersPreviewDesc" | "foldAllHeadings" | "unfoldAllHeadings"
   | "webBack" | "webForward" | "webReload" | "webShowNote" | "webShowPage" | "htmlPage" | "webOpenWindow" | "saveAsTemplate" | "templateSaved"
+  | "devtools" | "devtoolsDesc" | "openConsole" | "devtoolsOff" | "previewTab" | "previewTabs" | "previewTabsDesc"
   | "ribbonFiles" | "ribbonHide" | "ribbonShowAll" | "ribbonReset" | "ribbonDragHint"
   | "sGeneral" | "sAppearance" | "sEditor" | "sFiles" | "sHotkeys" | "searchSettings" | "languageFollows" | "spellcheck" | "spellcheckDesc" | "defaultMode" | "defaultModeDesc" | "measure" | "measureNormal" | "measureWide" | "measureDesc"
   | "hotkeyChange" | "hotkeyPress" | "hotkeyReset" | "hotkeysHint" | "hotkeyNone" | "themeDesc" | "hueDesc" | "fontSizeDesc" | "attachmentsDesc" | "dailyDesc" | "templatesDesc" | "autosaveDesc"
@@ -129,13 +142,13 @@ type Strings = Record<
   | "graphWhole" | "graphFilter" | "graphOrphans" | "graphDepth" | "graphRepel" | "graphDistance" | "graphSize" | "graphColors" | "graphAllTags" | "graphHint" | "graphLabels"
   | "remoteContent" | "remoteContentDesc" | "ignoreBuildDirs" | "ignoreBuildDirsDesc" | "respectGitignore" | "respectGitignoreDesc" | "embedRemoteOff" | "embedLoad" | "embedLocal" | "embedPublic" | "embedApprove" | "embedAllowed" | "embedAllowedDesc" | "embedAllowedNone" | "embedRemove" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
-  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys"
+  | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys" | "loadFailed" | "tryAgain"
   | "newBase" | "insertBase" | "calendarTab" | "newWindow"
   | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
-  | "tabs" | "unsaved" | "rightPanel" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
-  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk"
+  | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reloadWindow" | "reloadNotDone" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
+  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
 > & {
@@ -144,6 +157,8 @@ type Strings = Record<
   hits: (n: number) => string;
   unresolved: (t: string) => string;
   confirmDelete: (n: string) => string;
+  fetching: (n: string) => string;
+  fetchFailed: (n: string) => string;
   deleted: (where: string) => string;
   planTitle: (n: number) => string;
   planDone: (ok: number, failed: number) => string;
@@ -206,6 +221,8 @@ const pt: Strings = {
   hits: (n) => `${n} resultado${n === 1 ? "" : "s"}`,
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
   confirmDelete: (n) => `Apagar "${n}"? Vai para .trash/ na pasta, como no Obsidian.`,
+  fetching: (n) => `Baixando do iCloud: ${n}…`,
+  fetchFailed: (n) => `Não foi possível baixar do iCloud: ${n}. Sem conexão, ou o iCloud não tem o conteúdo do arquivo.`,
   deleted: (where) => `Movida para ${where}.`,
   planTitle: (n) => `${n} nota${n === 1 ? "" : "s"} aponta${n === 1 ? "" : "m"} para o nome antigo. Atualizar os links?`,
   planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
@@ -226,8 +243,8 @@ const pt: Strings = {
   editEmbed: "Editar ao lado", folderNote: "Nota da pasta", createFolderNote: "Criar nota da pasta",
   ignoreBuildDirs: "Ignorar pastas de build", ignoreBuildDirsDesc: "node_modules, target, dist e semelhantes ficam fora do índice e da busca.", respectGitignore: "Respeitar .gitignore", respectGitignoreDesc: "Os arquivos .gitignore de dentro da pasta aberta (na raiz e em cada subpasta) valem para o índice: o que eles excluem fica fora da busca e dos links, com as regras do git (inclusive `!`). Sem .gitignore na pasta, nada muda.",
   remoteContent: "Carregar conteúdo remoto", remoteContentDesc: "Imagens da web nas notas e os ícones dos sites das notas web. Desligado, nada é pedido à rede até um clique: a imagem vira um link para ela.", embedRemoteOff: "Conteúdo remoto desligado: esta página não foi carregada.", embedLoad: "Carregar", embedLocal: "Esta página está na rede local (neste computador ou num aparelho da sua rede). Permita só se confiar nela; permitida, ela carrega sempre.", embedPublic: "Esta nota quer embutir um site. Permitido, ele sempre carrega dentro das notas.", embedApprove: "Permitir sempre", embedAllowed: "Sites permitidos nas notas", embedAllowedDesc: "Uma origem por linha (https://site.com — sem esquema, https:// é assumido). Apagar uma linha volta a perguntar no próximo embed. Digite * numa linha para liberar todos os sites — atenção: com *, qualquer nota carrega qualquer página sem perguntar, inclusive endereços da sua rede local.", embedAllowedNone: "Nenhum site permitido ainda; a pergunta aparece na nota, no primeiro embed de cada site.", embedRemove: "Remover", linkFormat: "Formato de novo link", linkFormatDesc: "Como o Verso escreve um link que ele cria (ao completar [[, ao arrastar da árvore, ao colar uma imagem). O mais curto usa só o nome quando ele leva à nota certa; relativo e a partir da raiz nunca são ambíguos.", linkShortest: "Mais curto quando possível", linkRelative: "Relativo à nota", linkRoot: "A partir da raiz da pasta",
-  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", foldCallout: "Recolher ou abrir o callout",
-  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
+  errNotText: "O arquivo não é texto UTF-8: o Verso não o abre para edição, para não convertê-lo.", closeNoteWindows: "Feche as outras janelas (de nota e da pasta) antes de abrir outra pasta.", planSkipped: "{n} nota(s) que linkam para cá ficaram fora do plano: {names}.", skipUnavailable: "na nuvem", skipNotText: "não é UTF-8", skipFailed: "não pôde ser lida", goneOutside: "Apagada ou movida fora do Verso. O texto fica nesta aba até você fechá-la.", goneTab: "apagada ou movida fora do Verso", previewTab: "pré-visualização", previewTabs: "Abas de pré-visualização", previewTabsDesc: "Um clique abre o arquivo numa aba temporária (nome em itálico), que o próximo clique substitui; dois cliques, editar ou fixar a mantêm. Desligado, cada clique abre uma aba nova.", foldCallout: "Recolher ou abrir o callout",
+  hotkeyNeedsMod: "Segure {mod} com outra tecla.", hotkeyReserved: "reservado ao sistema (copiar, colar, desfazer…)", errNoFolder: "Nenhuma pasta aberta.", errRefused: "Esse caminho não pode nomear um arquivo da pasta.", errNotFound: "Arquivo não encontrado.", errUnavailable: "O arquivo está na nuvem e ainda não foi baixado.", errChanged: "O arquivo mudou em disco desde que foi lido; nada foi gravado.", errFailed: "A operação não pôde ser concluída.", yamlLine: "{n} linha de propriedades — clique para editar o YAML", yamlLines: "{n} linhas de propriedades — clique para editar o YAML", pdfLoadFailed: "Não foi possível abrir o PDF.", pdfPrev: "Página anterior", pdfNext: "Próxima página", tableColumn: "Coluna", dailyName: "Diário", templatesName: "Templates", calloutNoteTitle: "Destaque: nota", calloutTipTitle: "Destaque: dica", calloutWarningTitle: "Destaque: aviso", nextTab: "Próxima aba", prevTab: "Aba anterior", replaceScanning: "Lendo {done} de {n} notas…", replaceSearched: "Procurado em todas as {n} notas.", replaceUnread: "{n} não puderam ser lidas e ficaram de fora: {names}.", resizeKeys: "Redimensionar (setas)", loadFailed: "Não foi possível abrir {name}.", tryAgain: "Tentar de novo", languageNotReloaded: "O idioma muda quando a janela recarrega, e ela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).",
   openInWindow: "Abrir em nova janela", returnToMain: "Devolver à janela principal", language: "Idioma", languageDesc: "Da interface; a troca recarrega a janela.", appVersion: "Versão", appVersionDesc: "Deste Verso, e o commit de onde ele foi compilado.", graphZoomIn: "Aproximar", graphZoomOut: "Afastar", graphFit: "Ver tudo",
   sGeneral: "Geral", sAppearance: "Aparência", sEditor: "Editor", sFiles: "Arquivos e links", sHotkeys: "Atalhos", searchSettings: "Buscar nos ajustes…", languageFollows: "Idioma da interface: segue o sistema (pt-BR ou inglês).",
   spellcheck: "Correção ortográfica", spellcheckDesc: "Sublinha e sugere pelo corretor do sistema; os idiomas vêm de Ajustes do Sistema › Teclado › Texto.", defaultMode: "Abrir notas em", defaultModeDesc: "Modo em que uma nota abre.", measure: "Largura do texto", measureNormal: "Confortável (100 caracteres)", measureWide: "Toda a área", measureDesc: "Até onde as linhas vão.",
@@ -245,6 +262,8 @@ const pt: Strings = {
   colorBrass: "Âmbar / Brass (Acolhedor)", colorDefault: "Tinta natural (Neutro)", colorSeal: "Rubi / Selo (Vibrante)", colorMoss: "Esmeralda / Musgo (Natural)", colorSlate: "Ardósia / Índigo (Frio)", colorRoyal: "Safira Real (Azul)", colorAmethyst: "Ametista Real (Roxo)",
   table: "Tabela", formatTable: "Alinhar tabela", slashHint: "Digite / no início da linha para inserir blocos", copiedFiles: "Copiado para a pasta.", newWebPage: "Nova página web…", webUrl: "Endereço (https://…) — Enter cria a nota", openPage: "Abrir página", callout: "Destaque", codeBlock: "Bloco de código", today: "Data de hoje", now: "Hora agora", divider: "Divisória", embedNote: "Embutir nota", image: "Imagem", headingN: "Título", webNoteCreated: "Página guardada como nota; a estrela a favorita.",
   tabs: "Abas", unsaved: "alterações não salvas", rightPanel: "Painel lateral",
+  reportBug: "Relatar problema", reloadWindow: "Recarregar janela", reloadNotDone: "A janela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).", reportHint: "Tudo abaixo fica no seu computador: o botão copia, nada é enviado. Leia e edite à vontade antes de colar onde quiser.", reportWhat: "O que aconteceu", reportHere: "(conte aqui o que você fez e o que esperava)", reportContext: "Contexto", reportErrors: "Erros desta sessão", reportNoErrors: "nenhum", reportLog: "Registro do aplicativo",
+  navBack: "Voltar", navForward: "Avançar",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
   newBase: "Nova base", insertBase: "Inserir base", calendarTab: "Calendário", newWindow: "Nova janela",
   sCli: "Terminal e agentes", cliTitle: "Comando verso no terminal", cliDesc: "Instala o comando verso em /usr/local/bin: verso . abre a pasta no app, verso search <pasta> <palavras> busca, verso mcp atende um agente. O macOS pede a sua senha uma vez.",
@@ -255,7 +274,8 @@ const pt: Strings = {
   mcpAddAsk: "Isto entra no arquivo de configuração do Claude Desktop; uma cópia do arquivo como está fica ao lado dele:\n\n{entry}\n\nDepois, reinicie o Claude Desktop.", mcpAddYes: "Adicionar", mcpAdded: "Adicionado. Reinicie o Claude Desktop.", mcpBackup: "Cópia do anterior: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
-  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!", demoVaultKept: "Estes arquivos já existiam com outro conteúdo e foram mantidos como estão, porque foram editados:", demoVaultKeptOk: "OK",
+  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!", demoVaultKept: "Estes arquivos já existiam com outro conteúdo — uma edição sua, ou o exemplo de uma versão anterior — e foram mantidos como estão:", demoVaultKeptOk: "OK", demoVaultFailed: "Estes arquivos não puderam ser criados; o log do app diz por quê:",
+  devtools: "Console do desenvolvedor", devtoolsDesc: "Visualização › Abrir console (⌥⌘I) abre o inspetor da janela: console, elementos e rede.", openConsole: "Abrir console (dev tools)", devtoolsOff: "O console está desligado em Ajustes › Geral.",
   checkUpdates: "Verificar atualizações automaticamente", checkUpdatesDesc: "Verifica e avisa ao abrir o aplicativo quando uma nova versão do Verso estiver disponível.", checkNow: "Verificar atualizações", checkingUpdates: "Verificando atualizações…", updateUpToDate: "Você está usando a versão mais recente.", updateAvailable: "Nova versão disponível", downloadAndUpdate: "Baixar e atualizar", downloadingUpdate: "Baixando atualização…", updateReady: "Atualização pronta!", restartNow: "Reiniciar agora", viewReleaseNotes: "Ver notas da versão", hideReleaseNotes: "Ocultar notas da versão", updateBannerTitle: "Nova versão disponível", seeInSettings: "Ver nos Ajustes", updateFailed: "Não foi possível verificar atualizações.",
 };
 
@@ -298,15 +318,17 @@ const en: Strings = {
   hits: (n) => `${n} hit${n === 1 ? "" : "s"}`,
   unresolved: (t) => `No note answers to [[${t}]].`,
   confirmDelete: (n) => `Delete "${n}"? It goes to .trash/ in the folder, as in Obsidian.`,
+  fetching: (n) => `Downloading from iCloud: ${n}…`,
+  fetchFailed: (n) => `Could not download from iCloud: ${n}. No connection, or iCloud does not have the file’s content.`,
   deleted: (where) => `Moved to ${where}.`,
   planTitle: (n) => `${n} note${n === 1 ? "" : "s"} link${n === 1 ? "s" : ""} to the old name. Update the links?`,
   planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
   counts: (notes, files, folders) => `${notes} note${notes === 1 ? "" : "s"} · ${files} file${files === 1 ? "" : "s"} · ${folders} folder${folders === 1 ? "" : "s"}`,
-  confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the bin (.trash)?`,
+  confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the Trash (.trash)?`,
   slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", empty: "Nothing by that name." },
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
   duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copyRelativePath: "Copy relative path", copyFullPath: "Copy full path", openInNewTab: "Open in new tab", copied: "Path copied.",
-  moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to bin", moveToRoot: "(root)", openFolder: "Open folder",
+  moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to Trash", moveToRoot: "(root)", openFolder: "Open folder",
   addProperty: "Add property", keyPlaceholder: "Property name", emptyValue: "Empty", addItem: "Add…", remove: "Remove", mentions: "Unlinked mentions", propertiesTitle: "Properties",
   words: (w, c) => `${w.toLocaleString("en")} word${w === 1 ? "" : "s"} · ${c.toLocaleString("en")} character${c === 1 ? "" : "s"}`,
   replaceCount: (n) => `${n} note${n === 1 ? "" : "s"} change${n === 1 ? "s" : ""}. Review and apply.`,
@@ -318,8 +340,8 @@ const en: Strings = {
   editEmbed: "Edit beside", folderNote: "Folder note", createFolderNote: "Create the folder note",
   ignoreBuildDirs: "Ignore build folders", ignoreBuildDirsDesc: "node_modules, target, dist and the like stay out of the index and the search.", respectGitignore: "Respect .gitignore", respectGitignoreDesc: "The .gitignore files inside the open folder (at its root and in each subfolder) apply to the index: what they exclude stays out of search and links, by git's rules (`!` included). With no .gitignore in the folder, nothing changes.",
   remoteContent: "Load remote content", remoteContentDesc: "Web images in notes and the site icons of web notes. Off, nothing is asked of the network until a click: an image becomes a link to it.", embedRemoteOff: "Remote content is off: this page was not loaded.", embedLoad: "Load", embedLocal: "This page is on the local network (this computer or a device on your network). Allow it only if you trust it; once allowed, it always loads.", embedPublic: "This note wants to embed a web site. Once allowed, it always loads inside notes.", embedApprove: "Always allow", embedAllowed: "Sites allowed in notes", embedAllowedDesc: "One origin per line (https://site.com — with no scheme, https:// is assumed). Deleting a line asks again at the next embed. Type * on a line to allow every site — careful: with *, any note loads any page without asking, your local network's addresses included.", embedAllowedNone: "No site allowed yet; the question appears in the note, on each site\u2019s first embed.", embedRemove: "Remove", linkFormat: "New link format", linkFormatDesc: "How Verso writes a link it makes (completing [[, dragging from the tree, pasting an image). Shortest uses the name alone when it reaches the right note; relative and from the root are never ambiguous.", linkShortest: "Shortest when possible", linkRelative: "Relative to the note", linkRoot: "From the folder's root",
-  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", foldCallout: "Fold or unfold the callout",
-  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
+  errNotText: "The file is not UTF-8 text: Verso does not open it for editing, so as not to convert it.", closeNoteWindows: "Close the other windows (notes and the folder's) before opening another folder.", planSkipped: "{n} note(s) that link here are not in the plan: {names}.", skipUnavailable: "in the cloud", skipNotText: "not UTF-8", skipFailed: "could not be read", goneOutside: "Deleted or moved outside Verso. The text stays in this tab until you close it.", goneTab: "deleted or moved outside Verso", previewTab: "preview", previewTabs: "Preview tabs", previewTabsDesc: "A click opens the file in a temporary tab (name in italics), which the next click replaces; a double click, an edit or a pin keeps it. Off, every click opens a new tab.", foldCallout: "Fold or unfold the callout",
+  hotkeyNeedsMod: "Hold {mod} with another key.", hotkeyReserved: "kept for the system (copy, paste, undo…)", errNoFolder: "No folder is open.", errRefused: "That path cannot name a file of the folder.", errNotFound: "File not found.", errUnavailable: "The file is in the cloud and not downloaded yet.", errChanged: "The file changed on disk since it was read; nothing was written.", errFailed: "It could not be done.", yamlLine: "{n} line of properties — click to edit the YAML", yamlLines: "{n} lines of properties — click to edit the YAML", pdfLoadFailed: "The PDF could not be opened.", pdfPrev: "Previous page", pdfNext: "Next page", tableColumn: "Column", dailyName: "Daily", templatesName: "Templates", calloutNoteTitle: "Callout: note", calloutTipTitle: "Callout: tip", calloutWarningTitle: "Callout: warning", nextTab: "Next tab", prevTab: "Previous tab", replaceScanning: "Reading {done} of {n} notes…", replaceSearched: "Searched all {n} notes.", replaceUnread: "{n} could not be read and were left out: {names}.", resizeKeys: "Resize (arrow keys)", loadFailed: "{name} could not be opened.", tryAgain: "Try again", languageNotReloaded: "The language changes when the window reloads, and it did not reload: some changes could not be written (see the open notes).",
   openInWindow: "Open in a new window", returnToMain: "Return to the main window", language: "Language", languageDesc: "Of the interface; changing it reloads the window.", appVersion: "Version", appVersionDesc: "Of this Verso, and the commit it was built from.", graphZoomIn: "Zoom in", graphZoomOut: "Zoom out", graphFit: "See everything",
   sGeneral: "General", sAppearance: "Appearance", sEditor: "Editor", sFiles: "Files and links", sHotkeys: "Hotkeys", searchSettings: "Search settings…", languageFollows: "Interface language: follows the system (pt-BR or English).",
   spellcheck: "Spell check", spellcheckDesc: "Underlines and suggests through the system's checker; the languages come from System Settings › Keyboard › Text.", defaultMode: "Open notes in", defaultModeDesc: "The mode a note opens in.", measure: "Text width", measureNormal: "Comfortable (100 characters)", measureWide: "The whole area", measureDesc: "How far the lines run.",
@@ -337,6 +359,8 @@ const en: Strings = {
   colorBrass: "Warm Brass (Amber)", colorDefault: "Natural Ink (Neutral)", colorSeal: "Ruby Seal (Vibrant)", colorMoss: "Emerald Moss (Natural)", colorSlate: "Slate Indigo (Cool)", colorRoyal: "Royal Sapphire (Blue)", colorAmethyst: "Royal Amethyst (Purple)",
   table: "Table", formatTable: "Align table", slashHint: "Type / at the start of a line to insert blocks", copiedFiles: "Copied into the folder.", newWebPage: "New web page…", webUrl: "Address (https://…) — Enter creates the note", openPage: "Open page", callout: "Callout", codeBlock: "Code block", today: "Today's date", now: "Time now", divider: "Divider", embedNote: "Embed note", image: "Image", headingN: "Heading", webNoteCreated: "Page kept as a note; star it to bookmark.",
   tabs: "Tabs", unsaved: "unsaved changes", rightPanel: "Side panel",
+  reportBug: "Report a problem", reloadWindow: "Reload window", reloadNotDone: "The window did not reload: some changes could not be written (see the open notes).", reportHint: "Everything below stays on your computer: the button copies it, nothing is sent. Read it and edit it as you like before pasting it anywhere.", reportWhat: "What happened", reportHere: "(say here what you did and what you expected)", reportContext: "Context", reportErrors: "Errors this session", reportNoErrors: "none", reportLog: "The app's log",
+  navBack: "Back", navForward: "Forward",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
   sCli: "Terminal and agents", cliTitle: "The verso command in the terminal", cliDesc: "Installs the verso command in /usr/local/bin: verso . opens the folder in the app, verso search <folder> <words> searches, verso mcp serves an agent. macOS asks for your password once.",
   cliOurs: "Installed.", cliMissing: "Not installed.", cliElsewhere: "Another verso is in /usr/local/bin.", cliUnbundled: "This build of the app carries no command.",
@@ -347,7 +371,8 @@ const en: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
-  importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content and were kept as they are, because they were edited:", demoVaultKeptOk: "OK",
+  importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content — an edit of yours, or the demo of an earlier version — and were kept as they are:", demoVaultKeptOk: "OK", demoVaultFailed: "These files could not be created; the app's log says why:",
+  devtools: "Developer console", devtoolsDesc: "View › Open Console (⌥⌘I) opens the window's inspector: console, elements and network.", openConsole: "Open console (dev tools)", devtoolsOff: "The console is turned off in Settings › General.",
   checkUpdates: "Check for updates automatically", checkUpdatesDesc: "Check and notify on startup when a new version of Verso is available.", checkNow: "Check for updates", checkingUpdates: "Checking for updates…", updateUpToDate: "You are running the latest version.", updateAvailable: "New version available", downloadAndUpdate: "Download and update", downloadingUpdate: "Downloading update…", updateReady: "Update ready!", restartNow: "Restart now", viewReleaseNotes: "View release notes", hideReleaseNotes: "Hide release notes", updateBannerTitle: "New version available", seeInSettings: "View in Settings", updateFailed: "Could not check for updates.",
 };
 
@@ -363,9 +388,13 @@ const LANG: string = (() => {
 const t: Strings = LANG.toLowerCase().startsWith("pt") ? pt : en;
 /** What the views of a base say (ADR 0053), in the same language. */
 const baseStrings = stringsFor(LANG);
+/** What the board says (ADR 0057), in the same language. */
+const boardText = boardStrings(LANG);
 /** Every base on screen — a tab, a block, an embed — drawn again when the
  *  folder changes. */
 const liveBases = new Set<BaseView>();
+/** Every board on screen, told when the folder changes (ADR 0057). */
+const liveBoards = new Set<BoardHandle>();
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
 
 /* ---------- Small helpers ---------- */
@@ -427,13 +456,15 @@ function ext(path: string): string {
   return i > 0 ? base.slice(i + 1).toLowerCase() : "";
 }
 const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
-const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|css|js|ts|py|rs|sh|log|ini|cfg|canvas)$/;
-type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph" | "base";
+const TEXT = /^(txt|json|csv|tsv|yaml|yml|toml|xml|css|js|ts|py|rs|sh|log|ini|cfg)$/;
+type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph" | "base" | "board";
 function kindOf(path: string): Kind {
   const e = ext(path);
   if (e === "md") return "note";
   // A view over the folder (ADR 0053); its YAML is the other mode of the tab.
   if (e === "base") return "base";
+  // A board (ADR 0057); its JSON is the other mode of the tab.
+  if (e === "canvas") return "board";
   if (IMAGE.test(e)) return "image";
   // A page first; its source is a mode of the same tab (htmlModes).
   if (e === "html" || e === "htm") return "frame";
@@ -442,7 +473,7 @@ function kindOf(path: string): Kind {
   return "other";
 }
 function iconFor(kind: Kind): string {
-  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : kind === "base" ? "base" : "text";
+  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : kind === "base" ? "base" : kind === "board" ? "board" : "text";
 }
 let allFolders: string[] = [];
 const recents: string[] = [];
@@ -458,13 +489,25 @@ function remember(path: string): void {
  *  detail (English: its language is `[OPEN]` under ADR 0035); a message of
  *  ours, as it is. */
 function fail(e: ContractError | unknown): void {
+  const { kind, message } = errorParts(e);
+  ui.status.textContent = errorSentence(e);
+  note("ERROR", kind ? `${kind}: ${message}` : message);
+}
+function errorParts(e: ContractError | unknown): { kind: string; message: string } {
   const message =
     typeof e === "object" && e !== null && "message" in e ? String((e as ContractError).message) : String(e);
   const kind = typeof e === "object" && e !== null && "kind" in e ? String((e as ContractError).kind) : "";
-  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
-  const said = sentence[kind];
-  ui.status.textContent = said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
+  return { kind, message };
 }
+/** An error of the core said in the interface's language. */
+function errorSentence(e: ContractError | unknown): string {
+  const { kind, message } = errorParts(e);
+  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
+  const said = sentence[kind];
+  return said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
+}
+
+watchWindow();
 
 const ui = {
   open: el<HTMLButtonElement>("open"),
@@ -474,6 +517,7 @@ const ui = {
   search: el<HTMLInputElement>("search"),
   searchLabel: el<HTMLSpanElement>("search-label"),
   status: el<HTMLSpanElement>("status"),
+  reportBug: el<HTMLButtonElement>("report-bug"),
   words: el<HTMLSpanElement>("words"),
   notesHeading: el<HTMLHeadingElement>("notes-heading"),
   notes: el<HTMLUListElement>("notes"),
@@ -485,6 +529,43 @@ const ui = {
   indexProgress: el<HTMLDivElement>("index-progress"),
   indexProgressBar: el<HTMLDivElement>("index-progress-bar"),
   indexProgressLabel: el<HTMLSpanElement>("index-progress-label"),
+};
+
+/* Opening a file is the user asking for it (ADR 0043, amended on
+ * 2026-09-30): a file whose content is only in iCloud is brought down
+ * first, the status line saying so, and read again. The index, the
+ * watcher and a scan of every note read through `commands` and never
+ * download anything. */
+async function fetchFirst(path: string): Promise<boolean> {
+  const said = t.fetching(name(path));
+  const was = ui.status.textContent;
+  const timer = window.setTimeout(() => (ui.status.textContent = said), 150);
+  const r = await commands.fetchFile(path);
+  window.clearTimeout(timer);
+  if (r.status !== "ok") {
+    // iCloud's failure is said as one; any other is said as what it is.
+    if (r.error.kind === "unavailable") ui.status.textContent = t.fetchFailed(name(path));
+    else fail(r.error);
+    return false;
+  }
+  if (ui.status.textContent === said) ui.status.textContent = was === said ? "" : was;
+  return r.data;
+}
+/** The paths of the tabs a workspace is bringing back, for as long as it
+ *  does: a tab of one of them, not in front of its pane, reads without
+ *  downloading from iCloud (decided on 2026-10-01, review `board.md` §6
+ *  item 8), and comes down when it is shown. Per tab, not per path: the
+ *  same note in two panes is quiet where it is behind (second reading,
+ *  finding 5). */
+const quietPaths = new Set<string>();
+async function fetched<T extends { status: "ok" } | { status: "error"; error: ContractError }>(path: string, read: () => Promise<T>, quiet = false): Promise<T> {
+  const r = await read();
+  if (r.status !== "error" || r.error.kind !== "unavailable" || quiet) return r;
+  return (await fetchFirst(path)) ? read() : r;
+}
+const opening = {
+  readNote: (path: string, quiet = false) => fetched(path, () => commands.readNote(path), quiet),
+  readText: (path: string, quiet = false) => fetched(path, () => commands.readText(path), quiet),
 };
 
 let indexProgressTimer: number | null = null;
@@ -565,6 +646,17 @@ type Settings = {
   bodyFont?: "sans" | "serif" | "mono" | "system";
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
   hotkeys: Record<string, string>;
+  /** Boards (ADR 0057, 2026-09-30). */
+  boardFolder: string;
+  boardOpenAs: "board" | "source";
+  boardOpen: "fit" | "last";
+  boardStroke: "clean" | "hand";
+  boardFont: "hand" | "sans" | "mono";
+  boardGrid: boolean;
+  /** View › Open console, the window's inspector (ADR 0051, 2026-09-30). */
+  devtools: boolean;
+  /** A single click in a list opens a preview tab (2026-09-30). */
+  previewTabs: boolean;
 };
 const DEFAULTS: Settings = {
   lang: "auto",
@@ -591,6 +683,14 @@ const DEFAULTS: Settings = {
   bodyFont: "sans",
   headingColor: "brass",
   hotkeys: {},
+  boardFolder: "",
+  boardOpenAs: "board",
+  boardOpen: "fit",
+  boardStroke: "hand",
+  boardFont: "hand",
+  boardGrid: false,
+  devtools: true,
+  previewTabs: true,
 };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
@@ -796,7 +896,14 @@ ui.searchLabel.textContent = t.search;
 ui.notesHeading.textContent = t.notes;
 ui.folder.dataset["empty"] = t.noFolder;
 el("keys-new").textContent = t.keysNew;
-el("keys-commands").textContent = t.commands;
+// The palette's button is its mark alone; its name and key are its tip.
+{
+  const b = el<HTMLButtonElement>("keys-commands");
+  b.replaceChildren(icon("command"));
+  b.setAttribute("aria-label", t.commands);
+  // The keys are known once the module has run (DEFAULT_KEYS is below).
+  queueMicrotask(() => (b.title = `${t.commands} (${prettyKeys(keyOf("palette"))})`));
+}
 document.querySelector(".status-keys")?.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cmd]");
   if (!b || ui.search.disabled) return;
@@ -827,6 +934,39 @@ function imageUrl(source: string, target: string, onKnown: () => void): string |
     onKnown();
   });
   return undefined;
+}
+/** A note's own pictures, `![alt](assets/x.png)`: the sanitizer holds
+ *  their address in `data-src`, relative to the note, and it stays there
+ *  as written (a picture resized writes its size beside it); each is asked
+ *  of the core and shown from the folder. One that names nothing stays
+ *  empty. */
+async function noteImages(root: ParentNode, source: string): Promise<void> {
+  await Promise.all(
+    Array.from(root.querySelectorAll<HTMLImageElement>("img[data-src]"), async (img) => {
+      // The renderer percent-encodes the address (`gr%C3%A1fico.png`,
+      // `Pasted%20image.png`); the folder names the file as the note does.
+      const target = decodedAddress(img.dataset["src"] ?? "");
+      const r = await commands.resolveAttachment(source, target);
+      if (r.status === "ok" && r.data) img.src = convertFileSrc(r.data, "verso");
+    }),
+  );
+}
+/** A picture's address as the folder names the file: percent escapes
+ *  undone, or the address as it is when they do not decode. */
+function decodedAddress(src: string): string {
+  try {
+    return decodeURIComponent(src);
+  } catch {
+    return src;
+  }
+}
+/** The same for HTML as text (Live Preview's embeds), resolved in a
+ *  template, where nothing loads. */
+async function withNoteImages(html: string, source: string): Promise<string> {
+  const t = document.createElement("template");
+  t.innerHTML = html;
+  await noteImages(t.content, source);
+  return t.innerHTML;
 }
 
 /* ---------- A line diff for conflicts and plans ---------- */
@@ -914,7 +1054,7 @@ async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResu
     if (!path) return null;
     let heads = headingsCache.get(path);
     if (!heads) {
-      const r = await commands.readNote(path);
+      const r = await opening.readNote(path);
       heads = r.status === "ok" ? r.data.headings.map((hd) => ({ level: hd.level, text: hd.text })) : [];
       headingsCache.set(path, heads);
       setTimeout(() => headingsCache.delete(path), 5000);
@@ -999,7 +1139,8 @@ function clearDropHints(): void {
 }
 function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
   handle.addEventListener("pointerdown", (down) => {
-    if (down.button !== 0) return;
+    // ⌃-click is the Mac's right click: it opens a menu, never a drag.
+    if (down.button !== 0 || down.ctrlKey) return;
     const x0 = down.clientX;
     const y0 = down.clientY;
     let started = false;
@@ -1020,6 +1161,7 @@ function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string):
     const up = (e: PointerEvent) => {
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
+      document.removeEventListener("contextmenu", cancel, true);
       if (!started) return;
       const target = dropTargetAt(e.clientX, e.clientY);
       const d = drag;
@@ -1029,8 +1171,21 @@ function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string):
       clearDropHints();
       if (d && target) drop(d, target, e.clientX, e.clientY);
     };
+    // A menu opened meanwhile takes the release: the drag is dropped,
+    // or the next click, on the menu, would drop the tab where it lands.
+    const cancel = (): void => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      if (started) {
+        drag = null;
+        ghost.hidden = true;
+        document.body.classList.remove("dragging");
+        clearDropHints();
+      }
+    };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", up);
+    document.addEventListener("contextmenu", cancel, { once: true, capture: true });
   });
 }
 type DropTarget = { tabs: HTMLElement } | { body: HTMLElement } | { folder: string; el: HTMLElement } | { space: Space; el: HTMLElement } | { insert: NoteLeaf };
@@ -1282,10 +1437,16 @@ abstract class Leaf {
   /** Said, not shown: the name crossed out shows it (a note deleted or
    *  moved outside the app, `markGone`). */
   readonly tabGone = h("span", "sr-only", `, ${t.goneTab}`);
+  /** Said, not shown: the name in italics shows it. */
+  readonly tabPreview = h("span", "sr-only", `, ${t.previewTab}`);
   abstract readonly kind: Kind;
   path = "";
   dirty = false;
   pinned = false;
+  /** A preview tab (settings.previewTabs): what a single click opened. The
+   *  next single click in its pane opens in its place; a double click, an
+   *  edit or a pin keeps it. */
+  transient = false;
   loading: Promise<void> = Promise.resolve();
 
   constructor(public pane: Pane) {
@@ -1311,7 +1472,8 @@ abstract class Leaf {
     pin.append(icon("pin"));
     this.tabUnsaved.hidden = true;
     this.tabGone.hidden = true;
-    this.tab.append(this.tabIcon, this.tabName, this.tabUnsaved, this.tabGone, pin, close);
+    this.tabPreview.hidden = true;
+    this.tab.append(this.tabIcon, this.tabName, this.tabUnsaved, this.tabGone, this.tabPreview, pin, close);
     this.tab.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".tab-close")) void this.close();
       else this.pane.activate(this, true);
@@ -1319,6 +1481,7 @@ abstract class Leaf {
     this.tab.addEventListener("auxclick", (e) => {
       if (e.button === 1) void this.close();
     });
+    this.tab.addEventListener("dblclick", () => this.keep());
     this.tab.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       this.pane.tabMenu(this, e.clientX, e.clientY);
@@ -1336,10 +1499,12 @@ abstract class Leaf {
 
   setTitle(title: string): void {
     this.tabName.textContent = title;
-    this.tab.title = this.path;
+    // A pinned tab shows its icon alone: the tip names it.
+    this.tab.title = this.path && this.path !== title ? `${title}\n${this.path}` : title;
     this.tabIcon.replaceChildren(this.kind === "graph" ? icon("graph") : iconOfPath(this.path, this.kind));
   }
   setDirty(d: boolean): void {
+    if (d) this.keep();
     this.dirty = d;
     this.tab.classList.toggle("dirty", d);
     this.tabUnsaved.hidden = !d;
@@ -1378,7 +1543,54 @@ abstract class Leaf {
     pane.remove(this);
     if (had) landIn(pane);
   }
+  setPreview(p: boolean): void {
+    this.transient = p;
+    this.tab.classList.toggle("preview", p);
+    this.tabPreview.hidden = !p;
+  }
+  /** A preview tab becomes a tab of its own. */
+  keep(): void {
+    if (!this.transient) return;
+    this.setPreview(false);
+    persistSoon();
+  }
+  /** Why the last read of this tab's file failed, or null. */
+  failed: ContractError["kind"] | null = null;
+  /** A tab brought back behind another, whose file waits to be shown
+   *  before it is read (pictures and PDFs, which the file protocol would
+   *  download). */
+  deferred = false;
+  /** Whether this tab is being brought back behind another of its pane:
+   *  its reads do not download. Asked after the restore has placed every
+   *  tab. */
+  protected quiet(path: string): boolean {
+    return quietPaths.has(path) && this.pane.active !== this;
+  }
+  private failure: HTMLElement | null = null;
+  /** A read that failed is said in the page, with a way to try again; the
+   *  tab shows no editor, so nothing can be typed into it and lost (review
+   *  `board.md`, reading 3, finding 4). */
+  protected showFailure(path: string, error: ContractError, retry: () => void): void {
+    this.failure?.remove();
+    const box = h("div", "load-failure");
+    box.setAttribute("role", "alert");
+    box.append(h("p", "load-failure-title", t.loadFailed.replace("{name}", name(path))), h("p", "", errorSentence(error)));
+    const again = button("ghost", t.tryAgain);
+    again.addEventListener("click", retry);
+    box.append(again);
+    this.failure = box;
+    this.failed = error.kind;
+    this.el.classList.add("failed");
+    this.el.append(box);
+  }
+  protected clearFailure(): void {
+    this.failure?.remove();
+    this.failure = null;
+    this.failed = null;
+    this.el.classList.remove("failed");
+  }
   setPinned(p: boolean): void {
+    if (p) this.keep();
     this.pinned = p;
     this.tab.classList.toggle("pinned", p);
     persistSoon();
@@ -2020,6 +2232,10 @@ class NoteLeaf extends Leaf {
   }
   setMode(mode: Mode): void {
     const prevMode = this.mode;
+    // The two modes draw the note at different heights: the same scroll
+    // offset shows another part of it. What was at the top stays there; a
+    // note at its start stays at its start.
+    const top = this.note && mode !== prevMode && this.sheet.scrollTop > 0 ? this.topLine() : null;
     this.mode = mode;
     this.applyMode();
     if (mode === "preview") {
@@ -2039,6 +2255,47 @@ class NoteLeaf extends Leaf {
       }
       if (this.note) this.editor.focus();
     }
+    if (top) this.keepLine(top);
+  }
+  /** The first line whose block starts in view, and how far below the
+   *  sheet's top: by its block in the reading view (`data-line`, matched by
+   *  text), by its line in the editor. */
+  private topLine(): { line: number; offset: number } | null {
+    const top = this.sheet.getBoundingClientRect().top;
+    if (this.mode === "preview") {
+      for (const el of this.preview.querySelectorAll<HTMLElement>("[data-line]")) {
+        const r = el.getBoundingClientRect();
+        // A block scrolled exactly to the top sits a fraction above it.
+        if (r.height === 0 || r.top < top - 1) continue;
+        return { line: Number(el.dataset["line"]), offset: Math.max(0, r.top - top) };
+      }
+      return null;
+    }
+    const view = this.editor;
+    const doc = view.state.doc;
+    let block = view.lineBlockAtHeight(top - view.documentTop);
+    if (block.top + view.documentTop < top - 1 && block.to < doc.length) block = view.lineBlockAt(block.to + 1);
+    return { line: doc.lineAt(block.from).number, offset: Math.max(0, block.top + view.documentTop - top) };
+  }
+  /** Put `line` back at `offset` below the sheet's top, in the mode shown. */
+  private keepLine({ line, offset }: { line: number; offset: number }): void {
+    if (this.mode === "preview") {
+      // The last block that starts at or before the line: a line inside a
+      // paragraph or a list lands on its block.
+      let at: HTMLElement | null = null;
+      for (const el of this.preview.querySelectorAll<HTMLElement>("[data-line]")) {
+        if (Number(el.dataset["line"]) > line) break;
+        if (el.getBoundingClientRect().height > 0) at = el;
+      }
+      if (!at) return void (this.sheet.scrollTop = 0);
+      this.sheet.scrollTop += at.getBoundingClientRect().top - this.sheet.getBoundingClientRect().top - offset;
+      return;
+    }
+    const doc = this.editor.state.doc;
+    const pos = doc.line(Math.min(Math.max(line, 1), doc.lines)).from;
+    // CodeMirror's own scroll: a scroll set by hand is undone by its scroll
+    // anchor once it measures the lines it had only estimated (it was hidden).
+    this.editor.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: offset }) });
   }
   openReadingSearch(initialQuery?: string): void {
     this.readingSearch.open(initialQuery);
@@ -2093,8 +2350,8 @@ class NoteLeaf extends Leaf {
       this.embedCache.set(target, null);
       return null;
     }
-    void commands.readNote(to).then((r) => {
-      this.embedCache.set(target, r.status === "ok" ? cleanHtmlText(r.data.html) : null);
+    void opening.readNote(to).then(async (r) => {
+      this.embedCache.set(target, r.status === "ok" ? await withNoteImages(cleanHtmlText(r.data.html), to) : null);
       this.editor.dispatch({ effects: redraw.of(null) });
     });
     return undefined;
@@ -2319,6 +2576,16 @@ class NoteLeaf extends Leaf {
     if (this.readOnly) flags.push(t.mixedEol);
     if (this.gone) flags.push(t.goneOutside);
     this.flags.textContent = flags.join(" ");
+    // A drawing of the Excalidraw plugin: the way to a board (ADR 0057).
+    // Read from the text, not the properties: the plugin writes a blank
+    // line after the opening fence, which the core does not read as a
+    // frontmatter (spec §5.1).
+    if (note && isExcalidrawDrawing(note.text)) {
+      const convert = button("ghost", boardText.convert);
+      convert.title = boardText.convertTitle;
+      convert.addEventListener("click", () => void convertToBoard(note.path));
+      this.flags.append(convert);
+    }
   }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
@@ -2352,6 +2619,8 @@ class NoteLeaf extends Leaf {
     await this.saving;
     const load = this.loads;
     const check = ++this.checks;
+    // Never a download: a note macOS sent back to the cloud stays as the
+    // tab holds it (decided on 2026-10-01, review `board.md` §6 item 8).
     const note = await commands.readNote(path);
     if (this.destroyed || load !== this.loads || check !== this.checks || path !== this.path) return "same";
     if (note.status !== "ok") {
@@ -2396,12 +2665,26 @@ class NoteLeaf extends Leaf {
    *  user chose to discard it) or on a yes. */
   private async doLoad(path: string, force: boolean): Promise<void> {
     if (this.dirty && !force && !(await askDiscard())) return;
+    // The tab names its note from the start: a read that waits on a
+    // download from the cloud takes seconds, and a second click on the
+    // same note meanwhile finds this tab instead of opening another.
+    if (!this.note) {
+      this.path = path;
+      this.setTitle(name(path));
+    }
     // A write in flight lands first: the read comes after it.
     await this.saving;
     const load = ++this.loads;
-    const note = await commands.readNote(path);
+    const note = await opening.readNote(path, this.quiet(path));
     if (this.destroyed || load !== this.loads) return;
-    if (note.status !== "ok") return fail(note.error);
+    if (note.status !== "ok") {
+      this.path = path;
+      this.setTitle(name(path));
+      // A tab brought back with its file in the cloud waits to be shown.
+      if (note.error.kind !== "unavailable" || this.pane.active === this) fail(note.error);
+      return this.showFailure(path, note.error, () => void this.load(path, true));
+    }
+    this.clearFailure();
     this.show(note.data);
   }
   /** `note` in the editor from scratch: a new state, a new history. */
@@ -2582,16 +2865,8 @@ class NoteLeaf extends Leaf {
       const size = sizeOf(alt);
       if (size?.w) img.style.width = `${size.w}px`;
       if (size?.h) img.style.height = `${size.h}px`;
-      const rawSrc = img.getAttribute("src") ?? "";
-      if (rawSrc && !rawSrc.startsWith("http://") && !rawSrc.startsWith("https://") && !rawSrc.startsWith("data:") && !rawSrc.startsWith("verso:") && !rawSrc.startsWith("tauri:")) {
-        if (this.note) {
-          void commands.resolveAttachment(this.note.path, rawSrc).then((r) => {
-            if (r.status === "ok" && r.data) {
-              img.src = convertFileSrc(r.data, "verso");
-            }
-          });
-        }
-      }
+      // The address as the note writes it (noteImages).
+      const rawSrc = img.dataset["src"] ?? img.getAttribute("src") ?? "";
 
       // Corner resize grip in Reading mode
       const parent = img.parentElement;
@@ -2640,44 +2915,63 @@ class NoteLeaf extends Leaf {
     }
   }
 
+  /** The `n`-th place `re` finds in the note outside code, as the editor's
+   *  Markdown tree reads it: an example in a code span or block is text,
+   *  not the picture shown. */
+  /** Every place `re` finds in the note outside code, as the editor's
+   *  Markdown tree reads it: an example in a code span or block is text,
+   *  not the picture shown. */
+  private imageSources(re: RegExp): RegExpExecArray[] {
+    const state = this.editor.state;
+    const tree = ensureSyntaxTree(state, state.doc.length, 500) ?? syntaxTree(state);
+    const text = state.doc.toString();
+    const all = new RegExp(re.source, "g");
+    const out: RegExpExecArray[] = [];
+    for (let m = all.exec(text); m; m = all.exec(text)) {
+      let code = false;
+      for (let node: { name: string; parent: unknown } | null = tree.resolveInner(m.index, 1); node; node = node.parent as typeof node) {
+        if (/Code|Comment/.test(node.name)) code = true;
+      }
+      if (!code) out.push(m);
+    }
+    return out;
+  }
+  /** The note's own pictures on screen that `same` picks out, in order. */
+  private shownImages(same: (other: HTMLImageElement) => boolean): HTMLImageElement[] {
+    return Array.from(this.preview.querySelectorAll<HTMLImageElement>("img")).filter((o) => !o.closest(".embed-note") && same(o));
+  }
+  /** A picture resized by its corner: its size written on it, as the kind
+   *  it was written — an embed only as `![[…]]`, a Markdown picture only as
+   *  `![…](…)`. The n-th shown is the n-th written; when the page and the
+   *  text do not count the same (a raw `<img>`, say), nothing is written
+   *  (review `board.md`, reading 3, finding 2). */
   private persistImageSize(img: HTMLImageElement, rawSrc: string, alt: string, w: number, h: number): void {
-    const doc = this.editor.state.doc;
-    const fullText = doc.toString();
-    const target = alt.split("|")[0] ?? "";
     const sizeStr = `${w}x${h}`;
-
-    // 1. Wikilink embed: ![[target]] or ![[target|...]]
-    if (target) {
-      const escTarget = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const reWiki = new RegExp(`!\\[\\[(${escTarget})(?:\\|[^\\]\\n]*)?\\]\\]`);
-      const m = reWiki.exec(fullText);
-      if (m && m.index !== undefined) {
-        const from = m.index;
-        const to = from + m[0].length;
-        const insert = `![[${target}|${sizeStr}]]`;
-        this.editor.dispatch({ changes: { from, to, insert } });
-        void this.save();
-        img.setAttribute("alt", `${target}|${sizeStr}`);
-        return;
-      }
+    const esc = (x: string): string => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const write = (m: RegExpExecArray, insert: string, newAlt: string): void => {
+      this.editor.dispatch({ changes: { from: m.index, to: m.index + m[0].length, insert } });
+      void this.save();
+      img.setAttribute("alt", newAlt);
+    };
+    const embed = img.dataset["embed"];
+    if (embed !== undefined) {
+      const found = this.imageSources(new RegExp(`!\\[\\[(${esc(embed)})(?:\\|[^\\]\\n]*)?\\]\\]`));
+      const shown = this.shownImages((o) => o.dataset["embed"] === embed);
+      const m = found.length === shown.length ? found[shown.indexOf(img)] : undefined;
+      if (m) write(m, `![[${m[1]}|${sizeStr}]]`, `${embed}|${sizeStr}`);
+      return;
     }
-
-    // 2. Markdown image: ![alt](url)
-    if (rawSrc) {
-      const escUrl = rawSrc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const reMd = new RegExp(`!\\[([^\\]\\n]*)\\]\\((${escUrl})\\)`);
-      const m = reMd.exec(fullText);
-      if (m && m.index !== undefined) {
-        const from = m.index;
-        const to = from + m[0].length;
-        const baseAlt = (m[1] ?? "").split("|")[0] ?? "";
-        const newAlt = baseAlt ? `${baseAlt}|${sizeStr}` : sizeStr;
-        const insert = `![${newAlt}](${rawSrc})`;
-        this.editor.dispatch({ changes: { from, to, insert } });
-        void this.save();
-        img.setAttribute("alt", newAlt);
-      }
-    }
+    if (!rawSrc) return;
+    // The address as the page has it, and as the note may write it: the
+    // renderer percent-encodes what the note writes as is (`gráfico`).
+    const forms = [...new Set([rawSrc, decodedAddress(rawSrc)])].map(esc).join("|");
+    const found = this.imageSources(new RegExp(`!\\[([^\\]\\n]*)\\]\\((${forms})\\)`));
+    const shown = this.shownImages((o) => o.dataset["embed"] === undefined && (o.dataset["src"] ?? o.getAttribute("src") ?? "") === rawSrc);
+    const m = found.length === shown.length ? found[shown.indexOf(img)] : undefined;
+    if (!m) return;
+    const baseAlt = (m[1] ?? "").split("|")[0] ?? "";
+    const newAlt = baseAlt ? `${baseAlt}|${sizeStr}` : sizeStr;
+    write(m, `![${newAlt}](${m[2]})`, newAlt);
   }
 
   private wireHeadingFolds(root: HTMLElement): void {
@@ -2826,6 +3120,8 @@ class NoteLeaf extends Leaf {
         }
       }
       if (matchedLine > 0) {
+        // Also what a change of mode keeps in view (`topLine`).
+        el.dataset["line"] = String(matchedLine);
         const num = h("span", "preview-line-num", String(matchedLine));
         num.setAttribute("aria-hidden", "true");
         el.prepend(num);
@@ -2881,6 +3177,7 @@ class NoteLeaf extends Leaf {
     typeset(this.preview);
     this.mountBases(note.path);
     void this.embedImages(note.path);
+    void noteImages(this.preview, note.path);
     this.wireTasks();
     this.dressLinks(note.path);
     this.wireTableResizers(this.preview);
@@ -2946,7 +3243,7 @@ class NoteLeaf extends Leaf {
         continue;
       }
       const heading = raw.includes("#") && !raw.includes("#^") ? raw.slice(raw.indexOf("#") + 1) : "";
-      void commands.readNote(to).then((r) => {
+      void opening.readNote(to).then((r) => {
         if (r.status !== "ok" || this.path !== forPath) return;
         const box = h("section", "embed-note");
         const head = h("a", "embed-note-title", heading ? `${name(to)} › ${heading}` : name(to));
@@ -2971,6 +3268,7 @@ class NoteLeaf extends Leaf {
         box.append(head, body);
         span.replaceWith(box);
         void this.embedImages(forPath, body, to);
+        void noteImages(body, to);
       });
     }
   }
@@ -3015,7 +3313,7 @@ class NoteLeaf extends Leaf {
           return;
         }
         const rel = r.data;
-        const f = await commands.readText(rel);
+        const f = await opening.readText(rel);
         if (f.status !== "ok") {
           mount.textContent = baseStrings.baseEmbedFailed;
           return;
@@ -3180,6 +3478,8 @@ class NoteLeaf extends Leaf {
         const img = h("img");
         img.src = convertFileSrc(rel, "verso");
         img.alt = spec.file;
+        // An embed, resized, is written back as one (persistImageSize).
+        img.dataset["embed"] = spec.file;
         img.loading = "lazy";
         const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
         if (size) {
@@ -3195,7 +3495,7 @@ class NoteLeaf extends Leaf {
         const raw = span.dataset["target"] ?? "";
         const viewName = raw.includes("#") ? raw.slice(raw.indexOf("#") + 1) : null;
         span.replaceWith(box);
-        void commands.readText(rel).then((f) => {
+        void opening.readText(rel).then((f) => {
           if (f.status !== "ok" || this.path !== forPath || this.destroyed) return;
           const text = f.data.text;
           const view = new BaseView(baseHost(), { path: rel, thisPath: source, folder: dirOf(rel), text: () => text, edit: null, viewName, key: rel });
@@ -3280,7 +3580,7 @@ class NoteLeaf extends Leaf {
   private async refused(e: ContractError): Promise<void> {
     if (e.kind !== "changed") return fail(e);
     ui.status.textContent = "";
-    const fresh = await commands.readNote(this.path);
+    const fresh = await opening.readNote(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
     this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.editorText());
   }
@@ -3344,6 +3644,15 @@ class ImageLeaf extends Leaf {
   async load(path: string): Promise<void> {
     this.path = path;
     this.setTitle(name(path));
+    // A drawing scales to any size, and one that names only its viewBox
+    // has no size of its own: fitted, it fills the view in its proportions
+    // instead of centring at a width of nothing.
+    this.box.classList.toggle("vector", /\.svg$/i.test(path));
+    // Brought back behind another tab: shown first, then read.
+    await Promise.resolve();
+    if (this.quiet(path)) return void (this.deferred = true);
+    await fetchFirst(path);
+    if (this.path !== path) return;
     this.img.src = convertFileSrc(path, "verso");
     this.img.alt = name(path);
     this.box.setAttribute("aria-label", `${t.actualSize}: ${name(path)}`);
@@ -3371,7 +3680,7 @@ class TextLeaf extends Leaf {
   private readOnly = false;
   private saveTimer: number | undefined;
   /** Writes run one at a time, each over the revision the last one left. */
-  private saving: Promise<void> = Promise.resolve();
+  protected saving: Promise<void> = Promise.resolve();
   readonly lineNumbersCompartment = new Compartment();
   applyLineNumbers(): void {
     this.editor.dispatch({
@@ -3392,7 +3701,7 @@ class TextLeaf extends Leaf {
   protected extras(): Extension {
     return [];
   }
-  private state(doc: string, language: Extension[] = []): EditorState {
+  protected state(doc: string, language: Extension[] = []): EditorState {
     return EditorState.create({
       doc,
       extensions: [
@@ -3429,8 +3738,12 @@ class TextLeaf extends Leaf {
     this.setTitle(path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
     this.modes.hidden = kindOf(path) !== "frame";
-    const r = await commands.readText(path);
-    if (r.status !== "ok") return fail(r.error);
+    const r = await opening.readText(path, this.quiet(path));
+    if (r.status !== "ok") {
+      if (r.error.kind !== "unavailable" || this.pane.active === this) fail(r.error);
+      return this.showFailure(path, r.error, () => void this.load(path, true));
+    }
+    this.clearFailure();
     // The language by the file's name: highlighted, and folded, as an editor does.
     const desc = LanguageDescription.matchFilename(languages, path);
     const support = desc ? await desc.load().catch(() => null) : null;
@@ -3458,7 +3771,7 @@ class TextLeaf extends Leaf {
     persistSoon();
   }
   /** The editor's text with the file's own line separator. */
-  private text(): string {
+  protected text(): string {
     return this.editor.state.doc.sliceString(0, undefined, this.eol);
   }
   /** Write over the revision that was read, after any write in flight;
@@ -3479,7 +3792,7 @@ class TextLeaf extends Leaf {
     return run;
   }
   /** Over the version the banner shows and no other (see NoteLeaf). */
-  private overwrite(): Promise<void> {
+  protected overwrite(): Promise<void> {
     const run = this.saving.then(async () => {
       const disk = this.conflict.disk;
       if (!disk) return;
@@ -3492,16 +3805,16 @@ class TextLeaf extends Leaf {
     this.saving = run.catch(() => undefined);
     return run;
   }
-  private written(f: TextFile, mine: string): void {
+  protected written(f: TextFile, mine: string): void {
     this.revision = f.revision;
     if (this.text() === mine) this.setDirty(false);
     ui.status.textContent = f.warnings.length > 0 ? f.warnings.join(" · ") : t.saved;
   }
   /** `changed`: nothing was written; the disk's version and the editor's
    *  go on screen until the user decides (invariant 11). */
-  private async refused(e: ContractError): Promise<void> {
+  protected async refused(e: ContractError): Promise<void> {
     if (e.kind !== "changed") return fail(e);
-    const fresh = await commands.readText(this.path);
+    const fresh = await opening.readText(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
     this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.text());
   }
@@ -3599,6 +3912,820 @@ class BaseLeaf extends TextLeaf {
     }
     super.destroy();
   }
+}
+
+/* A board (ADR 0057): a `.canvas` drawn with Excalidraw in its board mode,
+ * over the JSON this tab edits as text in its other mode. The board saves
+ * through the core, which lays the board's canvas over the file as read
+ * (every field the board does not know kept) and writes it in Obsidian's
+ * layout, over the revision read (invariant 11); the text editor then
+ * holds exactly what was written. React and Excalidraw load with the first
+ * board opened, and only then. */
+class BoardLeaf extends TextLeaf {
+  override readonly kind: Kind = "board";
+  readonly boardHost = h("div", "board-host");
+  readonly boardModes = h("div", "modes");
+  private board: BoardHandle | null = null;
+  /** What each card's editor held when it was left, for as long as this
+   *  tab lives: entered again, a card's ⌘Z goes on where it stopped. */
+  readonly cardHistory = new Map<string, KeptCard>();
+  private showing: "board" | "source" = settings.boardOpenAs;
+  /** The board's canvas waiting for a write, or refused by one. */
+  private pendingBoard: string | null = null;
+  /** The notes being edited in cards of this board: saved with it. */
+  private readonly cards = new Set<CardEditing>();
+  /** Whether the file is in Obsidian's layout, as read; a file in another
+   *  layout is rewritten whole by its first save, shown first as a diff
+   *  (decided on 2026-10-01, review `board.md` §6 item 4). */
+  private layoutKept = true;
+  constructor(pane: Pane) {
+    super(pane);
+    this.boardModes.setAttribute("role", "group");
+    const mode = (face: "board" | "source", ic: string, label: string): HTMLButtonElement => {
+      const b = h("button");
+      b.type = "button";
+      b.dataset["face"] = face;
+      b.append(icon(ic), h("span", "", label));
+      b.addEventListener("click", () => void this.setFace(face));
+      return b;
+    };
+    this.boardModes.append(mode("board", "board", boardText.boardMode), mode("source", "source", boardText.textMode));
+    this.el.querySelector(".leaf-head")?.append(this.boardModes);
+    this.host.before(this.boardHost);
+    this.paintFace();
+  }
+  override async load(path: string, force = false): Promise<void> {
+    await super.load(path, force);
+    if (this.path !== path) return;
+    this.pendingBoard = null;
+    const text = this.editor.state.doc.toString();
+    const laid = await commands.boardText(text);
+    this.layoutKept = laid.status !== "ok" || laid.data === text;
+    if (this.showing === "board") await this.showBoard();
+  }
+  /** Draw the editor's text as the board: a first mount, or the new text
+   *  over the board already there. Not JSON: said, and the text shown. */
+  private async showBoard(): Promise<void> {
+    const text = this.editor.state.doc.toString();
+    if (this.board) {
+      if (this.board.load(text)) return;
+    } else {
+      this.boardHost.replaceChildren(h("p", "board-loading", boardText.loading));
+      const mod = await loadBoardModule();
+      if (this.board) return void this.showBoard();
+      const mount = h("div", "board-mount");
+      const handle = mod.mountBoard(mount, this.hostApi(), text);
+      if (handle) {
+        this.board = handle;
+        liveBoards.add(handle);
+        this.boardHost.replaceChildren(mount);
+        return;
+      }
+    }
+    this.boardHost.replaceChildren(h("p", "board-loading", boardText.notABoard));
+    ui.status.textContent = boardText.notABoard;
+  }
+  private hostApi(): BoardHost {
+    // A node names its file as the canvas wrote it; the folder is read by
+    // the name it lists (see `listedPath`).
+    const listed = (path: string): string => listedPath(path, [allNotes, allFiles]) ?? path;
+    return {
+      strings: boardText,
+      lang: LANG,
+      dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
+      save: (json) => this.saveBoard(json),
+      changed: () => this.setDirty(true),
+      settled: () => {
+        if (this.pendingBoard === null && this.cards.size === 0) this.setDirty(false);
+      },
+      openFile: (path, aside) => void openNote(listed(path), aside),
+      renderNote: async (el, path) => {
+        const r = await opening.readNote(listed(path));
+        if (r.status === "ok") await drawCard(el, r.data.html, listed(path));
+        else el.replaceChildren();
+      },
+      renderText: async (el, text) => drawCard(el, await commands.renderMarkdown(text), this.path),
+      noteText: async (path) => {
+        const r = await opening.readNote(listed(path));
+        return r.status === "ok" ? r.data.text : "";
+      },
+      fileSrc: (path) => convertFileSrc(listed(path), "verso"),
+      pictureCopy: (src) => pictureCopy(src),
+      exists: (path) => listedPath(path, [allNotes, allFiles]) !== undefined,
+      pickFile: (query) => quick.pick(query),
+      renderPdf: (el, path) => {
+        const rel = listed(path);
+        const view = new PdfView({
+          strings: pdfStrings(),
+          onCopyLink: (fragment) => void navigator.clipboard.writeText(`[[${name(rel)}#${fragment}]]`).then(() => (ui.status.textContent = t.pageLinkCopied)),
+          onQuote: (fragment, page, text) => void quoteIntoNotes(rel, fragment, page, text),
+          onStatus: (m) => (ui.status.textContent = m),
+          onPage: () => {},
+        });
+        view.container.setAttribute("aria-label", name(rel));
+        el.replaceChildren(view.el);
+        void fetchFirst(rel).then(() => view.load(convertFileSrc(rel, "verso")));
+        return () => {
+          view.destroy();
+          el.replaceChildren();
+        };
+      },
+      prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
+      promote: (from, to, key) => promoteRelation(listed(from), to, key),
+      editNote: (el, path, onExit) => {
+        const card = cardEditor(el, listed(path), onExit, this.cardHistory, () => this.keep());
+        this.cards.add(card);
+        const destroy = card.destroy;
+        card.destroy = () => {
+          this.cards.delete(card);
+          destroy();
+        };
+        return card;
+      },
+      edited: (path) => this.cardHistory.has(listed(path)),
+      openUrl: (url) => void commands.openUrl(url),
+      appKey: (e) => runHotkey(e),
+      status: (text) => (ui.status.textContent = text),
+      prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
+      lastView: () => {
+        try {
+          const v = JSON.parse(localStorage.getItem(this.viewKey()) ?? "null") as SavedView | null;
+          return v && [v.scrollX, v.scrollY, v.zoom].every((n) => typeof n === "number" && Number.isFinite(n)) && v.zoom > 0 ? v : null;
+        } catch {
+          return null;
+        }
+      },
+      rememberView: (v) => {
+        try {
+          localStorage.setItem(this.viewKey(), JSON.stringify(v));
+        } catch {
+          // No storage: the board opens with all of it in view.
+        }
+      },
+      name: () => name(this.path).replace(/\.canvas$/i, ""),
+      saveImage: async (file, base64) => {
+        const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
+        const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
+        const dot = file.lastIndexOf(".");
+        const r = await commands.createFile(freeName(folder, file.slice(0, dot), file.slice(dot)), base64);
+        if (r.status !== "ok") {
+          fail(r.error);
+          return null;
+        }
+        allFiles.push(r.data);
+        await afterFileChange();
+        return r.data;
+      },
+    };
+  }
+  /** Where this board's last view is kept: per folder and board, in this
+   *  window's storage — never in the file (opening writes nothing). */
+  private viewKey(): string {
+    return `verso.boardView:${currentFolder}:${this.path}`;
+  }
+  /** Write the board's canvas over the revision read, after any write in
+   *  flight; the text editor takes what was written, as read. */
+  private saveBoard(json: string): Promise<void> {
+    this.pendingBoard = json;
+    this.setDirty(true);
+    const run = this.saving.then(async () => {
+      const mine = this.pendingBoard;
+      if (mine === null) return;
+      if (this.conflict.up) {
+        ui.status.textContent = t.conflictPending;
+        return;
+      }
+      if (!this.layoutKept && !(await this.agreeRelayout(mine))) {
+        ui.status.textContent = boardText.relayoutDeclined;
+        return;
+      }
+      const r = await commands.writeBoard(this.path, mine, this.revision);
+      if (r.status !== "ok") return this.refusedBoard(r.error, mine);
+      this.revision = r.data.revision;
+      this.editor.setState(this.state(r.data.text));
+      if (this.pendingBoard === mine) {
+        this.pendingBoard = null;
+        this.setDirty(false);
+      }
+      ui.status.textContent = r.data.warnings.length > 0 ? r.data.warnings.join(" · ") : t.saved;
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  /** The diff of rewriting a canvas in another layout, and the user's
+   *  answer: true once, for this tab, when they agree. */
+  private async agreeRelayout(mine: string): Promise<boolean> {
+    const after = await commands.boardPreview(this.path, mine);
+    const now = await opening.readText(this.path);
+    if (after.status !== "ok" || now.status !== "ok") return false;
+    const yes = await plan.confirm(
+      [{ path: this.path, revision: now.data.revision, before: now.data.text, after: after.data }],
+      boardText.relayoutTitle,
+      boardText.relayoutApply,
+      boardText.relayoutDetail,
+      async () => true,
+    );
+    if (yes) this.layoutKept = true;
+    return yes;
+  }
+  /** `changed`: the disk's version against the board's — as it would be
+   *  written over it, so the diff is of contents, not of layouts — until
+   *  the user decides (invariant 11); anything else, said. */
+  private async refusedBoard(e: ContractError, mine: string): Promise<void> {
+    if (e.kind !== "changed") return fail(e);
+    const fresh = await opening.readText(this.path);
+    if (fresh.status !== "ok") return fail(fresh.error);
+    const laid = await commands.boardPreview(this.path, mine);
+    this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, laid.status === "ok" ? laid.data : mine);
+  }
+  /** Over the disk's version the banner shows: the board's canvas when the
+   *  board was refused, the editor's text otherwise. */
+  protected override overwrite(): Promise<void> {
+    const board = this.pendingBoard;
+    if (board === null) return super.overwrite();
+    const run = this.saving.then(async () => {
+      const disk = this.conflict.disk;
+      if (!disk) return;
+      const r = await commands.writeBoard(this.path, board, disk.revision);
+      if (r.status !== "ok") return this.refusedBoard(r.error, board);
+      this.conflict.hide();
+      this.revision = r.data.revision;
+      this.editor.setState(this.state(r.data.text));
+      this.pendingBoard = null;
+      this.setDirty(false);
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  private async setFace(face: "board" | "source"): Promise<void> {
+    if (face === this.showing) return;
+    if (face === "board") {
+      // What the text says is saved first, then drawn.
+      if (this.dirty && this.pendingBoard === null) await this.save();
+      this.showing = face;
+      this.paintFace();
+      await this.showBoard();
+      this.board?.focus();
+    } else {
+      await this.saving;
+      this.showing = face;
+      this.paintFace();
+      this.editor.focus();
+    }
+  }
+  private paintFace(): void {
+    for (const b of this.boardModes.querySelectorAll<HTMLButtonElement>("button")) b.setAttribute("aria-pressed", String(b.dataset["face"] === this.showing));
+    this.boardHost.hidden = this.showing !== "board";
+    this.host.hidden = this.showing !== "source";
+    this.el.classList.toggle("board-face", this.showing === "board");
+  }
+  /** The file changed on disk (the watcher): read again, never with a
+   *  download. The same revision: nothing. Nothing unsaved here: the board
+   *  is drawn again from the file, as a note's tab takes the disk's text.
+   *  Something unsaved: its save meets the difference and shows both
+   *  (invariant 11). Decided on 2026-10-01, review `board.md` §6 item 6. */
+  async recheck(): Promise<void> {
+    const path = this.path;
+    if (!path || this.conflict.up) return;
+    await this.saving;
+    const r = await commands.readText(path);
+    if (r.status !== "ok" || path !== this.path || r.data.revision === this.revision) return;
+    if (this.dirty || this.pendingBoard !== null) {
+      await this.flush();
+      return;
+    }
+    await this.load(path, true);
+  }
+  override async flush(): Promise<boolean> {
+    // What the cards hold, and what the board holds in its save's delay,
+    // goes out first (review `board.md`, reading 2, finding 2).
+    const cards = await Promise.all([...this.cards].map((c) => c.flush()));
+    await this.board?.flush();
+    if (this.pendingBoard !== null && !this.conflict.up) await this.saveBoard(this.pendingBoard);
+    await this.saving;
+    // A board write refused or declined leaves the board unsaved: the text
+    // face holds the old text, and saving it would put the old board back.
+    if (this.pendingBoard !== null) return false;
+    return cards.every(Boolean) && (await super.flush());
+  }
+  override focusContent(): void {
+    if (this.showing === "source") this.editor.focus();
+    else this.board?.focus();
+  }
+  /** ⌘F on the board face goes to the board's search; false on the text
+   *  face, which searches as any text tab does. */
+  find(): boolean {
+    if (this.showing !== "board" || !this.board) return false;
+    this.board.find();
+    return true;
+  }
+  override destroy(): void {
+    if (this.board) liveBoards.delete(this.board);
+    this.board?.destroy();
+    this.board = null;
+    super.destroy();
+  }
+}
+
+/* A note edited inside its card on a board (ADR 0057): the note editor
+ * in Live Preview, saved as a note's tab saves it — after a pause, over
+ * the revision read, atomically — and a refused write shows both versions
+ * in the card until the user decides (invariant 11). Keys, and the
+ * clipboard, stay in the card: Excalidraw takes a text box that is not an
+ * <input> for the board, and would read Delete or a letter as its own. */
+/** A card's editor as it was left: its text, selection and undo history,
+ *  and the revision and line separator that text stands on. */
+type KeptCard = { json: unknown; revision: string; eol: string };
+function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: Map<string, KeptCard>, onEdit?: () => void): CardEditing {
+  const editorHost = h("div", "editor card-editor");
+  const conflict = new ConflictBanner(() => void reload(), () => void overwrite());
+  host.replaceChildren(conflict.el, editorHost);
+  for (const type of ["keydown", "keyup", "keypress", "paste", "copy", "cut"]) host.addEventListener(type, (e) => e.stopPropagation());
+  let view: EditorView | null = null;
+  let revision = "";
+  let eol = "\n";
+  let dirty = false;
+  let timer: number | undefined;
+  let saving: Promise<void> = Promise.resolve();
+  let gone = false;
+  const text = (): string => view?.state.doc.sliceString(0, undefined, eol) ?? "";
+  let readOnly = false;
+  const extensions = (): Extension[] => {
+    const md = markdown({ codeLanguages: languages, extensions: [Table, TaskList, Strikethrough] });
+    const live = livePreview({
+      imageUrl: (target) => imageUrl(path, target, () => view?.dispatch({ effects: redraw.of(null) })),
+      navigate: (target) => {
+        const to = resolveNoteByName(target.split(/[#^]/)[0] ?? "", path);
+        if (to) openNote(to, false);
+        else ui.status.textContent = t.unresolved(target);
+      },
+    });
+    const keys: KeyBinding[] = [
+      { key: "Mod-s", run: () => (void save(), true) },
+      { key: "Escape", run: () => (onExit(), true) },
+    ];
+    return [
+        baseEditorExtensions,
+        md.language.data.of({ autocomplete: completeWikilinks }),
+        md,
+        syntaxHighlighting(classHighlighter),
+        EditorView.contentAttributes.of({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off", "aria-label": name(path) }),
+        tableKeymap,
+        listKeymap,
+        keymap.of(markdownKeymap),
+        EditorView.lineWrapping,
+        live,
+        readOnly ? readOnlyText : [],
+        Prec.high(keymap.of(keys)),
+        EditorView.updateListener.of((u) => {
+          if (!u.docChanged || u.transactions.some((tr) => tr.annotation(fromDisk))) return;
+          dirty = true;
+          // An edit keeps the board's tab, as an edit keeps a note's (ADR 0059).
+          onEdit?.();
+          window.clearTimeout(timer);
+          timer = window.setTimeout(() => {
+            if (dirty && !conflict.up) void save();
+          }, Math.max(0.3, settings.autosave) * 1000);
+        }),
+      ];
+  };
+  const show = (note: NoteText): void => {
+    revision = note.revision;
+    const sep = lineSeparator(note.text);
+    eol = sep ?? "\n";
+    readOnly = sep === null;
+    const st = EditorState.create({ doc: note.text, extensions: extensions() });
+    if (view) view.setState(st);
+    else view = new EditorView({ parent: editorHost, state: st });
+    dirty = false;
+    conflict.hide();
+  };
+  // The card entered again takes up where it was left, ⌘Z included: the
+  // disk's text, if it moved on meanwhile, comes in as one edit of its own.
+  const resume = (note: NoteText, k: KeptCard): boolean => {
+    const sep = lineSeparator(note.text);
+    if (sep === null || sep !== k.eol) return false;
+    let st: EditorState;
+    try {
+      st = EditorState.fromJSON(k.json, { extensions: extensions() }, { history: historyField });
+    } catch {
+      return false;
+    }
+    eol = sep;
+    revision = k.revision;
+    view = new EditorView({ parent: editorHost, state: st });
+    if (note.revision !== k.revision) {
+      const now = sep === "\n" ? note.text : note.text.split(sep).join("\n");
+      const edit = minimalEdit(st.doc.toString(), now);
+      if (edit) view.dispatch({ changes: edit, annotations: [fromDisk.of(true), isolateHistory.of("full")] });
+      revision = note.revision;
+    }
+    dirty = false;
+    return true;
+  };
+  const ready = opening.readNote(path).then((r) => {
+    if (gone) return;
+    if (r.status !== "ok") return fail(r.error);
+    const k = kept.get(path);
+    if (!k || !resume(r.data, k)) show(r.data);
+  });
+  const written = (w: Written, mine: string): void => {
+    revision = w.note.revision;
+    if (text() === mine) dirty = false;
+    ui.status.textContent = w.warnings.length === 0 ? t.saved : `${t.saved} ${w.warnings.join("; ")}`;
+  };
+  const refused = async (e: ContractError): Promise<void> => {
+    if (e.kind !== "changed") return fail(e);
+    const fresh = await opening.readNote(path);
+    if (fresh.status !== "ok") return fail(fresh.error);
+    conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, text());
+  };
+  const save = (): Promise<void> => {
+    const run = saving.then(async () => {
+      if (!view || !dirty) return;
+      if (conflict.up) {
+        ui.status.textContent = t.conflictPending;
+        return;
+      }
+      const mine = text();
+      const r = await commands.writeNote(path, mine, revision);
+      if (r.status === "ok") written(r.data, mine);
+      else await refused(r.error);
+    });
+    saving = run.catch(() => undefined);
+    return run;
+  };
+  const overwrite = (): Promise<void> => {
+    const run = saving.then(async () => {
+      const disk = conflict.disk;
+      if (!view || !disk) return;
+      const mine = text();
+      const r = await commands.writeNote(path, mine, disk.revision);
+      if (r.status !== "ok") return refused(r.error);
+      conflict.hide();
+      written(r.data, mine);
+    });
+    saving = run.catch(() => undefined);
+    return run;
+  };
+  const reload = async (): Promise<void> => {
+    await saving;
+    const r = await opening.readNote(path);
+    if (r.status !== "ok") return fail(r.error);
+    show(r.data);
+  };
+  return {
+    async flush() {
+      await ready;
+      window.clearTimeout(timer);
+      if (conflict.up) return false;
+      if (dirty) await save();
+      return !dirty && !conflict.up;
+    },
+    // The folder changed: text typed here is saved, which meets any
+    // difference; with nothing typed, the disk's text comes in as one edit.
+    async recheck() {
+      await ready;
+      await saving;
+      if (!view || gone || conflict.up) return;
+      if (dirty) return void (await save());
+      const r = await opening.readNote(path);
+      if (gone || r.status !== "ok" || r.data.revision === revision || !view) return;
+      const sep = lineSeparator(r.data.text);
+      if (sep === null || sep !== eol) return show(r.data);
+      const now = sep === "\n" ? r.data.text : r.data.text.split(sep).join("\n");
+      const edit = minimalEdit(view.state.doc.toString(), now);
+      if (edit) view.dispatch({ changes: edit, annotations: [fromDisk.of(true), isolateHistory.of("full")] });
+      revision = r.data.revision;
+    },
+    run(command) {
+      void ready.then(() => {
+        if (!view || gone) return;
+        view.focus();
+        (command === "undo" ? undo : redo)(view);
+      });
+    },
+    focusAt(x, y) {
+      void ready.then(() => {
+        if (!view || gone) return;
+        view.focus();
+        const at = view.posAtCoords({ x, y });
+        view.dispatch({ selection: { anchor: at ?? view.state.doc.length } });
+      });
+    },
+    destroy() {
+      gone = true;
+      window.clearTimeout(timer);
+      // Kept only when all of it is on disk: a text not saved (a conflict
+      // left open) would come back over the file.
+      if (view && !dirty && !conflict.up && !readOnly) kept.set(path, { json: view.state.toJSON({ history: historyField }), revision, eol });
+      else kept.delete(path);
+      view?.destroy();
+      host.replaceChildren();
+    },
+  };
+}
+
+/** HTML the core rendered — a note's, or a board's text card — drawn as
+ *  the reading view draws a note, outside a note's tab (a board's card,
+ *  ADR 0057): callouts, math, diagrams; images and files resolved from
+ *  `source` as the note's own embeds are, sized as written; embedded notes
+ *  one level deep; links that open what they name. */
+/* Pictures on a board are drawn from copies the size a card shows them
+ * (ADR 0057): a photograph of 1920 px drawn into a card of 400 cost a frame
+ * each time the view moved over it, and was decoded again and again. The
+ * copy is made once per picture, off the main thread; the original is laid
+ * over it when the board is zoomed in close (`.is-close`). */
+const PICTURE_COPY = 800;
+const pictureWorker = ((): Worker | null => {
+  try {
+    const code = `self.onmessage = async (e) => {
+      const { id, blob, width } = e.data;
+      try {
+        const full = await createImageBitmap(blob);
+        if (full.width <= width) { full.close(); self.postMessage({ id, out: null }); return; }
+        const small = await createImageBitmap(full, { resizeWidth: width, resizeHeight: Math.max(1, Math.round(full.height * width / full.width)), resizeQuality: "high" });
+        full.close();
+        const c = new OffscreenCanvas(small.width, small.height);
+        c.getContext("2d").drawImage(small, 0, 0);
+        small.close();
+        const out = await c.convertToBlob({ type: blob.type === "image/png" ? "image/png" : "image/jpeg", quality: 0.92 });
+        self.postMessage({ id, out });
+      } catch { self.postMessage({ id, out: null }); }
+    };`;
+    return new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+  } catch {
+    return null;
+  }
+})();
+const pictureCopies = new Map<string, Promise<string | null>>();
+const pictureWaiting = new Map<number, (out: Blob | null) => void>();
+let pictureIds = 0;
+pictureWorker?.addEventListener("message", (e: MessageEvent<{ id: number; out: Blob | null }>) => {
+  pictureWaiting.get(e.data.id)?.(e.data.out);
+  pictureWaiting.delete(e.data.id);
+});
+/** The copy of the picture at `src` for a card, as an address; null when
+ *  the picture is small enough, or not one a copy is made of (a drawing, an
+ *  animation), and the original is drawn. */
+function pictureCopy(src: string): Promise<string | null> {
+  let made = pictureCopies.get(src);
+  if (!made) {
+    made = (async () => {
+      if (!pictureWorker) return null;
+      try {
+        const blob = await (await fetch(src)).blob();
+        if (!/^image\/(jpeg|png|webp|bmp|avif)$/.test(blob.type)) return null;
+        const id = ++pictureIds;
+        const out = await new Promise<Blob | null>((resolve) => {
+          pictureWaiting.set(id, resolve);
+          pictureWorker.postMessage({ id, blob, width: PICTURE_COPY });
+        });
+        return out ? URL.createObjectURL(out) : null;
+      } catch {
+        return null;
+      }
+    })();
+    pictureCopies.set(src, made);
+  }
+  return made;
+}
+/** A picture of a card: its copy, and the original over it for a close
+ *  view; the original alone when there is no copy. */
+async function cardPicture(src: string, alt: string): Promise<HTMLElement> {
+  const copy = await pictureCopy(src);
+  const img = h("img");
+  img.alt = alt;
+  img.decoding = "async";
+  img.src = copy ?? src;
+  if (!copy) return img;
+  const full = h("img", "pic-full");
+  full.alt = "";
+  full.decoding = "async";
+  full.loading = "lazy";
+  full.src = src;
+  const pic = h("span", "pic");
+  pic.append(img, full);
+  return pic;
+}
+
+/** What each card last drew: its note's HTML, and where it read from. */
+const cardDrawn = new WeakMap<HTMLElement, string>();
+/** A board's card drawn again (the folder changed, ADR 0057): not at all
+ *  when its note says the same and embeds nothing, and otherwise drawn
+ *  aside and swapped in once its pictures are decoded — the card never
+ *  shows blank while it is redrawn. */
+async function drawCard(el: HTMLElement, html: string, source: string): Promise<void> {
+  const key = `${source}\n${html}`;
+  // A note it embeds may have changed while it did not; a picture it
+  // embeds is the same address, served as it was.
+  const embedsNote = Array.from(html.matchAll(/<span class="embed" data-target="([^"]*)"/g)).some((m) => !/\.(png|jpe?g|gif|webp|svg|bmp|avif|pdf)(#[^"]*)?$/i.test(m[1] ?? ""));
+  if (cardDrawn.get(el) === key && !embedsNote) return;
+  cardDrawn.set(el, key);
+  if (!el.firstChild) return renderReading(el, html, source);
+  const fresh = h("div");
+  await renderReading(fresh, html, source);
+  await Promise.all(Array.from(fresh.querySelectorAll("img"), (img) => img.decode().catch(() => undefined)));
+  if (cardDrawn.get(el) !== key) return;
+  el.replaceChildren(...Array.from(fresh.childNodes));
+  readingClicks(el, source);
+}
+
+/** The links of a card's reading, followed as the reading view follows
+ *  them: a note in a tab (⌘ beside), a tag searched. */
+function readingClicks(el: HTMLElement, source: string): void {
+  el.dataset["source"] = source;
+  if (el.dataset["reading"] !== undefined) return;
+  el.dataset["reading"] = "";
+  el.addEventListener("click", (ev) => {
+    const a = (ev.target as HTMLElement).closest("a");
+    if (!a || !el.contains(a)) return;
+    if (a.classList.contains("wikilink")) {
+      ev.preventDefault();
+      const to = resolveNoteByName((a.dataset["target"] ?? "").split(/[#^]/)[0] ?? "", el.dataset["source"] ?? source);
+      if (to) openNote(to, ev.metaKey || ev.ctrlKey);
+      else ui.status.textContent = t.unresolved(a.dataset["target"] ?? "");
+    } else if (a.classList.contains("tag")) {
+      ev.preventDefault();
+      ui.search.value = `tag:${a.dataset["tag"] ?? ""}`;
+      void searchNotes(ui.search.value);
+    }
+    // A web address goes to the browser window (guardLink).
+  });
+}
+
+async function renderReading(el: HTMLElement, html: string, source: string, depth = 0): Promise<void> {
+  setHtml(el, html);
+  wireCallouts(el);
+  keyLinks(el);
+  typeset(el);
+  readingClicks(el, source);
+  const pictures = noteImages(el, source);
+  for (const code of el.querySelectorAll<HTMLElement>("pre > code.language-mermaid")) {
+    const box = h("div", "mermaid-block");
+    code.parentElement?.replaceWith(box);
+    void renderMermaid(code.textContent ?? "", box);
+  }
+  const spans = Array.from(el.querySelectorAll<HTMLElement>("span.embed"));
+  await Promise.all(
+    spans.map(async (span) => {
+      const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
+      const note = resolveNoteByName(spec.file, source);
+      if (note && note.endsWith(".md") && depth < 1) {
+        const r = await opening.readNote(note);
+        if (r.status !== "ok") return;
+        const box = h("section", "embed-note");
+        const head = h("a", "embed-note-title", name(note));
+        head.href = "#";
+        head.addEventListener("click", (e) => {
+          e.preventDefault();
+          openNote(note, false);
+        });
+        const body = h("div", "embed-note-body");
+        box.append(head, body);
+        span.replaceWith(box);
+        await renderReading(body, r.data.html, note, depth + 1);
+        return;
+      }
+      const found = await commands.resolveAttachment(source, spec.file);
+      const rel = found.status === "ok" ? found.data : null;
+      if (!rel) return;
+      if (kindOf(rel) === "image") {
+        // On a board a card far from the view is only hidden and slides in
+        // as the view moves: its pictures are drawn from copies the size a
+        // card shows them, the original over them only when zoomed in close.
+        const pic = await cardPicture(convertFileSrc(rel, "verso"), spec.file);
+        const img = pic instanceof HTMLImageElement ? pic : (pic.firstElementChild as HTMLImageElement);
+        const size = sizeOf(span.textContent === spec.file ? null : span.textContent);
+        if (size) {
+          img.style.width = `${size.w}px`;
+          if (size.h) img.style.height = `${size.h}px`;
+        }
+        const p = span.parentElement;
+        span.replaceWith(pic);
+        if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
+      } else {
+        span.classList.add("file");
+        span.title = rel;
+        span.tabIndex = 0;
+        span.setAttribute("role", "link");
+        span.addEventListener("click", () => openNote(rel, false));
+      }
+    }),
+  );
+  await pictures;
+}
+
+/** The board's module — React and Excalidraw — loaded once, on the first
+ *  board opened. Its fonts and styles are the app's own (ADR 0050): the
+ *  asset path is set before the module looks for them. */
+let boardModule: Promise<typeof import("./board/view")> | null = null;
+function loadBoardModule(): Promise<typeof import("./board/view")> {
+  if (!boardModule) {
+    // Excalidraw lists esm.sh after the app's own copy of every font it
+    // uses; the window's policy refuses the address, but WebKit still
+    // asks and the console fills with refusals. The app's fonts are all
+    // there (ADR 0057 point 8): the fallback address is dropped.
+    const Face = window.FontFace;
+    const local = function (this: unknown, family: string, source: string | BufferSource, descriptors?: FontFaceDescriptors): FontFace {
+      const kept = typeof source === "string" ? source.split(/,\s*(?=url\()/).filter((s) => !s.includes("esm.sh")).join(", ") : source;
+      return new Face(family, kept === "" ? source : kept, descriptors);
+    } as unknown as typeof FontFace;
+    local.prototype = Face.prototype;
+    window.FontFace = local;
+    (window as unknown as { EXCALIDRAW_ASSET_PATH: string }).EXCALIDRAW_ASSET_PATH = new URL("excalidraw/", document.baseURI).href;
+    if (!document.querySelector("link[data-board-css]")) {
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "excalidraw/index.css";
+      css.dataset["boardCss"] = "";
+      document.head.append(css);
+    }
+    boardModule = import("./board/view").then(async (mod) => {
+      await mod.completeLocale(LANG);
+      return mod;
+    });
+  }
+  return boardModule;
+}
+
+/** Write the relation `key` from note `from` to note `to` (spec Q10, ADR
+ *  0057 point 4): the change to `from`'s frontmatter shown as a plan with
+ *  its diff, written on the user's yes. True when it was written. */
+async function promoteRelation(from: string, to: string, key: string): Promise<boolean> {
+  const r = await opening.readNote(from);
+  if (r.status !== "ok") {
+    fail(r.error);
+    return false;
+  }
+  const link = linkTo(to, allNotes);
+  if (link === null) {
+    ui.status.textContent = boardText.relationBadTarget(name(to));
+    return false;
+  }
+  const after = withRelation(r.data.text, key, link);
+  if (after === null) {
+    ui.status.textContent = boardText.relationKeyShape(key, name(from));
+    return false;
+  }
+  if (after === r.data.text) return true;
+  return plan.confirm([{ path: from, revision: r.data.revision, before: r.data.text, after }], boardText.promote, boardText.promote);
+}
+
+/** Whether a note is a drawing of the Excalidraw plugin: its marker near
+ *  the top and a `## Drawing` section. */
+function isExcalidrawDrawing(text: string): boolean {
+  return /(^|\n)excalidraw-plugin:\s*\S/.test(text.slice(0, 2000)) && /(^|\n)## Drawing\s*(\n|$)/.test(text);
+}
+
+/** A new board in `folder`, empty, opened. */
+async function newBoard(folder: string): Promise<void> {
+  const path = freeName(folder, t.untitled, ".canvas");
+  const text = await commands.boardText(JSON.stringify({ nodes: [], edges: [] }));
+  if (text.status !== "ok") return fail(text.error);
+  const r = await commands.createFile(path, textBase64(text.data));
+  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  await afterFileChange();
+  openNote(r.data, false);
+}
+
+/** Convert a drawing of the Excalidraw plugin into a board beside it (ADR
+ *  0057 point 5): the new file shown as a plan, created on the user's yes;
+ *  the drawing stays as it was. */
+async function convertToBoard(note: string): Promise<void> {
+  const r = await opening.readText(note);
+  if (r.status !== "ok") return fail(r.error);
+  const read = readDrawing(r.data.text);
+  if ("error" in read) {
+    ui.status.textContent = read.error === "not-drawing" ? boardText.convertNotDrawing : boardText.convertUnreadable;
+    return;
+  }
+  const targets = [...new Set(read.drawing.embedded.values())];
+  const paths = new Map<string, string | null>();
+  for (const target of targets) {
+    const found = await commands.resolveAttachment(note, target);
+    paths.set(target, found.status === "ok" ? found.data : null);
+  }
+  const { doc, dropped } = toBoard(read.drawing, (target) => paths.get(target) ?? null);
+  const text = await commands.boardText(JSON.stringify(doc));
+  if (text.status !== "ok") return fail(text.error);
+  const path = boardPathFor(note);
+  // A board already there is said before the plan, not after the yes
+  // (review `board.md`, reading 2, finding 10).
+  if (listedPath(path, [allNotes, allFiles]) !== undefined) return fail({ message: t.exists });
+  const detail = boardText.convertDetail(note, path) + (dropped > 0 ? ` ${boardText.convertDropped(dropped)}` : "");
+  const yes = await plan.confirm([{ path, revision: "", before: "", after: text.data }], boardText.convertTitle, boardText.convertCreate, detail, async () => {
+    const made = await commands.createFile(path, textBase64(text.data));
+    if (made.status !== "ok") {
+      fail(made.error.kind === "exists" ? { message: t.exists } : made.error);
+      return false;
+    }
+    return true;
+  });
+  if (!yes) return;
+  await afterFileChange();
+  ui.status.textContent = boardText.convertDone(path);
+  openNote(path, false);
 }
 
 type FolderRow = { path: string; kind: Kind; label: string; size: number; modified: number };
@@ -3710,12 +4837,13 @@ class FolderLeaf extends Leaf {
       }
       return;
     }
-    const r = await commands.readNote(notePath);
+    const r = await opening.readNote(notePath);
     if (r.status !== "ok" || this.path !== folder) return;
     const body = h("div", "folder-note-body");
     setHtml(body, r.data.html);
     wireCallouts(body);
     typeset(body);
+    void noteImages(body, notePath);
     const edit = button("ghost iconic embed-edit", t.edit, "edit");
     edit.addEventListener("click", () => openNote(notePath, false));
     body.addEventListener("dblclick", () => {
@@ -3764,8 +4892,11 @@ class FolderLeaf extends Leaf {
     const thumb = h("span", "thumb");
     if (r.kind === "image") {
       const img = h("img");
-      img.src = convertFileSrc(r.path, "verso");
+      // A thumbnail never brings a picture down from the cloud (`?thumb`):
+      // one that is only there shows the kind's mark instead.
+      img.src = `${convertFileSrc(r.path, "verso")}?thumb`;
       img.loading = "lazy";
+      img.addEventListener("error", () => img.replaceWith(iconOfPath(r.path, r.kind)), { once: true });
       img.alt = "";
       thumb.append(img);
     } else thumb.append(iconOfPath(r.path, r.kind));
@@ -3774,8 +4905,9 @@ class FolderLeaf extends Leaf {
     b.append(main, h("span", "col col-kind", kindLabel(r.path, r.kind)), h("span", "col col-size", r.kind === "folder" && r.size === 0 ? "—" : humanSize(r.size)), h("span", "col col-modified", humanDate(r.modified)));
     b.title = r.path;
     b.dataset["path"] = r.path;
-    const open = (pane: boolean) => (r.kind === "folder" ? openFolder(r.path) : openNote(r.path, pane));
-    b.addEventListener("click", (e) => open(e.metaKey || e.ctrlKey));
+    const open = (pane: boolean, preview: boolean) => (r.kind === "folder" ? openFolder(r.path, preview) : openNote(r.path, pane, false, preview));
+    b.addEventListener("click", (e) => open(e.metaKey || e.ctrlKey, true));
+    b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || open(false, false)));
     b.addEventListener("mousedown", () => b.focus());
     if (r.kind === "folder") b.dataset["folder"] = r.path;
     armDrag(b, () => ({ kind: "file", path: r.path }), () => r.label);
@@ -3830,14 +4962,18 @@ class PdfLeaf extends Leaf {
     this.setTitle(path.split("/").pop() ?? path);
     this.view.container.setAttribute("aria-label", path.split("/").pop() ?? path);
     this.crumbs.replaceChildren(...crumbsFor(path));
+    await Promise.resolve();
+    if (this.quiet(path)) return void (this.deferred = true);
     void this.loadPassages();
+    await fetchFirst(path);
+    if (this.path !== path) return;
     await this.view.load(convertFileSrc(path, "verso"), page);
     markCurrent();
     persistSoon();
   }
   /** The passages the companion note quotes, painted on the pages. */
   async loadPassages(): Promise<void> {
-    const r = await commands.readNote(companionOf(this.path));
+    const r = await opening.readNote(companionOf(this.path));
     if (r.status !== "ok") return this.view.setPassages([]);
     const base = this.path.split("/").pop() ?? this.path;
     // The link may carry a path before the name (`./`, `../`, from the
@@ -4434,6 +5570,19 @@ class Pane {
   active: Leaf | null = null;
   vertical = false;
   tabsHidden = false;
+  /** Where this pane has been — the notes, files, folders and graphs it
+   *  showed, in that order — and where in that trail it stands: a
+   *  browser's back and forward, one trail per pane, so a split navigates
+   *  on its own. A step is a place, not a tab: a preview tab replaced by
+   *  the next click, or a tab closed, leaves its place in the trail, and a
+   *  step back opens it again, in the preview tab (decided on 2026-10-01,
+   *  review `board.md` §6 item 18). */
+  private trail: { path: string; kind: Kind }[] = [];
+  private trailAt = -1;
+  /** The trail itself is moving the pane: what follows is not recorded. */
+  private navigating = false;
+  private readonly backButton = button("ghost iconic", t.navBack, "chevronLeft");
+  private readonly forwardButton = button("ghost iconic", t.navForward, "chevron");
 
   constructor() {
     // The tabs are the tablist; the pane's tools sit beside it, outside.
@@ -4489,7 +5638,10 @@ class Pane {
     max.addEventListener("click", () => layout().toggleMaximize(this));
     const close = button("ghost iconic", t.closePane, "close");
     close.addEventListener("click", () => void this.closeAll());
-    this.tools.append(all, orient, plus, max, close);
+    this.backButton.addEventListener("click", () => this.go(-1));
+    this.forwardButton.addEventListener("click", () => this.go(1));
+    this.refreshNav();
+    this.tools.append(this.backButton, this.forwardButton, all, orient, plus, max, close);
     this.tabs.append(this.tabList, this.tools);
     this.tabs.addEventListener("dblclick", (e) => {
       if (e.target === this.tabs || e.target === this.tabList) void newUntitled(this);
@@ -4515,19 +5667,35 @@ class Pane {
     this.el.classList.toggle("tabs-hidden", hidden);
     persistSoon();
   }
-  open(path: string, focus = false, fresh = false): Leaf {
+  /** Put a new `leaf` in the pane: as a preview, in the place of the
+   *  pane's preview tab when there is one and nothing is unsaved in it. */
+  private place(leaf: Leaf, preview: boolean): void {
+    const wanted = preview && settings.previewTabs;
+    const old = wanted ? this.leaves.find((l) => l.transient && !l.dirty && !l.pinned) : undefined;
+    if (old) {
+      this.insert(leaf, this.leaves.indexOf(old));
+      old.destroy();
+      this.remove(old, true);
+    } else this.insert(leaf);
+    leaf.setPreview(wanted);
+  }
+  open(path: string, focus = false, fresh = false, preview = false): Leaf {
     let leaf = fresh ? undefined : this.leaves.find((l) => l.path === path);
+    if (leaf && !preview) leaf.keep();
     // A tab of a note that went away outside, reused for a note of that
     // name again: read the new one, unless text was typed in the old.
     if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
     if (!leaf) {
       const kind = kindOf(path);
-      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : new TextLeaf(this);
+      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
       remember(path);
-      this.insert(leaf);
+      this.place(leaf, preview);
       void leaf.load(path);
     }
     this.activate(leaf, focus);
+    // A new tab names its file only once it is read: the trail takes the
+    // place asked for.
+    this.mark(path, leaf.kind);
     return leaf;
   }
   openGraph(path: string): Leaf {
@@ -4540,11 +5708,12 @@ class Pane {
     this.activate(leaf, false);
     return leaf;
   }
-  openFolder(path: string): Leaf {
+  openFolder(path: string, preview = false): Leaf {
     let leaf = this.leaves.find((l) => l.kind === "folder" && l.path === path);
+    if (leaf && !preview) leaf.keep();
     if (!leaf) {
       leaf = new FolderLeaf(this);
-      this.insert(leaf);
+      this.place(leaf, preview);
       void leaf.load(path);
     }
     this.activate(leaf, false);
@@ -4656,6 +5825,11 @@ class Pane {
     const leaving = this.active;
     if (leaving && leaving !== leaf && leaving.dirty) void leaving.flush();
     this.active = leaf;
+    // Shown: a file left in the cloud by a quiet read comes down now.
+    if (leaf !== leaving && (leaf.failed === "unavailable" || leaf.deferred) && leaf.path) {
+      leaf.deferred = false;
+      void leaf.load(leaf.path, true);
+    }
     for (const l of this.leaves) {
       l.el.hidden = l !== leaf;
       l.tab.setAttribute("aria-selected", String(l === leaf));
@@ -4666,13 +5840,71 @@ class Pane {
     markCurrent();
     leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (focus) leaf.focusContent();
+    this.mark(leaf.path, leaf.kind);
     persistSoon();
+  }
+  /** The trail learns where the pane went — unless it was the trail that
+   *  took it there. A step away from the middle of the trail drops what
+   *  lay ahead, as a browser does. */
+  private mark(path: string, kind: Kind): void {
+    const here = this.trail[this.trailAt];
+    const named = path !== "" || kind === "folder" || kind === "graph";
+    if (!this.navigating && named && !(here && here.path === path && here.kind === kind)) {
+      this.trail.length = this.trailAt + 1;
+      this.trail.push({ path, kind });
+      if (this.trail.length > 60) this.trail.shift();
+      this.trailAt = this.trail.length - 1;
+    }
+    this.refreshNav();
+  }
+  /** A place renamed or moved follows in the trail; one deleted leaves it,
+   *  the cursor keeping its place (review `board.md`, second reading,
+   *  finding 6). */
+  trailMoved(follow: (path: string) => string): void {
+    for (const step of this.trail) step.path = follow(step.path);
+  }
+  trailRemoved(gone: (path: string) => boolean): void {
+    const before = this.trail.slice(0, this.trailAt + 1).filter((st) => gone(st.path)).length;
+    this.trail = this.trail.filter((st) => !gone(st.path));
+    this.trailAt = Math.max(-1, Math.min(this.trailAt - before, this.trail.length - 1));
+    this.refreshNav();
+  }
+  /** The trail starts over at what the pane shows: a workspace brought
+   *  back has no history of this session. */
+  resetTrail(): void {
+    this.trail = this.active ? [{ path: this.active.path, kind: this.active.kind }] : [];
+    this.trailAt = this.trail.length - 1;
+    this.refreshNav();
+  }
+  private refreshNav(): void {
+    this.backButton.disabled = !this.canGo(-1);
+    this.forwardButton.disabled = !this.canGo(1);
+  }
+  /** Whether there is a step back (`-1`) or forward (`1`) to take. */
+  canGo(d: -1 | 1): boolean {
+    return this.trail[this.trailAt + d] !== undefined;
+  }
+  /** Take that step: its tab comes to the front, with the focus, or the
+   *  place opens again in the preview tab. */
+  go(d: -1 | 1): void {
+    const step = this.trail[this.trailAt + d];
+    if (!step) return;
+    this.trailAt += d;
+    this.navigating = true;
+    const leaf = this.leaves.find((l) => l.path === step.path && l.kind === step.kind);
+    if (leaf) this.activate(leaf, true);
+    else if (step.kind === "folder") this.openFolder(step.path, true);
+    else if (step.kind === "graph") this.openGraph(step.path);
+    else this.open(step.path, true, false, true);
+    this.navigating = false;
+    this.refreshNav();
   }
   remove(leaf: Leaf, moving = false): void {
     const i = this.leaves.indexOf(leaf);
     if (i < 0) return;
     if (!moving && leaf.path && leaf.kind !== "folder" && leaf.kind !== "graph") closedTabs.push(leaf.path);
     this.leaves.splice(i, 1);
+    this.refreshNav();
     leaf.tab.remove();
     leaf.el.remove();
     if (this.active === leaf) {
@@ -4919,7 +6151,10 @@ class Layout {
           let made: Leaf | null = null;
           if (tt.kind === "folder") made = tt.path === "" || allFolders.includes(tt.path) ? pane.openFolder(tt.path) : null;
           else if (tt.kind === "graph") made = tt.path === "" || allNotes.includes(tt.path) ? pane.openGraph(tt.path) : null;
-          else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) made = pane.open(tt.path, false);
+          else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) {
+            quietPaths.add(tt.path);
+            made = pane.open(tt.path, false);
+          }
           if (made && tt.pinned === true) made.setPinned(true);
           if (made && (i <= wanted || !active)) active = made;
         }
@@ -4940,6 +6175,10 @@ class Layout {
     if (!root) return false;
     this.root = root.kind === "split" ? root : { kind: "split", dir: "row", children: [root], el: h("div", "split row") };
     this.render();
+    // Tabs brought back are not places this session went to.
+    for (const p of this.panes()) p.resetTrail();
+    // Every tab has asked for its file by now: the restore is over.
+    window.setTimeout(() => quietPaths.clear(), 0);
     this.focus(this.panes()[0] ?? null);
     return true;
   }
@@ -5145,18 +6384,18 @@ ui.spaces.addEventListener("contextmenu", (e) => {
 function openIn(pane: Pane, path: string): Leaf {
   return pane.open(path, false);
 }
-function openNote(path: string, aside: boolean, fresh = false): Leaf | null {
-  (window as any).__openNote = openNote;
+/** `preview`: a single click in a list (the tree, a folder, the search,
+ *  the quick switcher) — a preview tab, when the setting has them. */
+function openNote(path: string, aside: boolean, fresh = false, preview = false): Leaf | null {
   document.body.classList.remove("side-open");
   let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
-  return pane.open(path, false, fresh);
+  return pane.open(path, false, fresh, preview && !aside && !fresh);
 }
-function openFolder(path: string): void {
+function openFolder(path: string, preview = false): void {
   const pane = paneToOpenIn();
-  pane.openFolder(path);
+  pane.openFolder(path, preview);
 }
-(window as any).__openNote = openNote;
 /** Code blocks colored by their language and math typeset, in rendered
  *  HTML: the parser marks them, the window finishes them. */
 function typeset(root: HTMLElement): void {
@@ -5397,6 +6636,7 @@ function pathsMoved(from: string, to: string): void {
   bookmarks = bookmarks.map(follow);
   saveBookmarks();
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.map(follow));
+  for (const sp of spaces) for (const p of sp.layout.panes()) p.trailMoved(follow);
   panel.refresh();
 }
 /** A deletion: those lists forget the file, or a folder's contents. */
@@ -5405,6 +6645,7 @@ function pathsRemoved(path: string): void {
   bookmarks = bookmarks.filter((p) => !gone(p));
   saveBookmarks();
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.filter((p) => !gone(p)));
+  for (const sp of spaces) for (const p of sp.layout.panes()) p.trailRemoved(gone);
   panel.refresh();
 }
 /** The folder's files changed: images asked for before — found or not —
@@ -5506,15 +6747,17 @@ class Panel {
     const path = leaf.path;
     const words = name(path);
     if (!words.trim()) return;
+    const paint = this.painted;
     const r = await commands.search(words, 40);
-    if (r.status !== "ok" || this.leaf !== leaf || this.current !== "backlinks") return;
+    if (r.status !== "ok" || this.leaf !== leaf || this.current !== "backlinks" || this.painted !== paint) return;
     const linked = new Set(leaf.backlinksData.map((b) => b.from));
     const hits = r.data.filter((hit) => hit.path !== path && !linked.has(hit.path));
     if (hits.length === 0) return;
     const head = h("h3", "panel-sub", `${t.mentions} · ${hits.length}`);
     const ul = h("ul", "panel-list");
     ul.append(...hits.map((hit) => {
-      const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false), "search");
+      const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false, false, true), "search");
+      li.querySelector("button")?.addEventListener("dblclick", () => void openNote(hit.path, false));
       li.querySelector("button")?.append(snippetNode(hit.snippet));
       return li;
     }));
@@ -5544,8 +6787,12 @@ class Panel {
     has: (day) => allNotes.includes(dailyPath(day)),
     open: (day) => void dailyNote(day),
   });
+  /** Counts the paints: a search for mentions that comes back after a
+   *  newer paint has nothing to add (two in flight drew the list twice). */
+  private painted = 0;
   paint(): void {
     const leaf = this.leaf;
+    this.painted++;
     switch (this.current) {
       case "calendar": {
         this.daily.render();
@@ -5659,6 +6906,7 @@ async function changedOutside(change: FolderChanged): Promise<void> {
   if (changed.size > 0) void panel.loadTags();
   const outcomes = await recheckAll(changed.size > 0 ? changed : null);
   if (change.key !== currentFolder) return;
+  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof BoardLeaf && changed.has(l.path)) void l.recheck();
   tellOutcomes(outcomes);
   showProblems(change.index);
   // A note this app wrote (another window's view, a card moved) is current
@@ -5838,6 +7086,7 @@ function refreshBases(): void {
   window.clearTimeout(basesTimer);
   basesTimer = window.setTimeout(() => {
     for (const v of liveBases) void v.refresh();
+    for (const b of liveBoards) b.refresh();
     // A daily note made or gone shows on the month too.
     if (panel.current === "calendar") panel.paint();
   }, 200);
@@ -5888,7 +7137,7 @@ async function setNoteProperty(path: string, key: string, value: PropertyValue |
     stopped(left);
     return false;
   }
-  const r = await commands.readNote(path);
+  const r = await opening.readNote(path);
   if (r.status !== "ok") {
     fail(r.error);
     return false;
@@ -5990,7 +7239,7 @@ function showToast(message: string, durationMs = 3500): void {
 async function sameAsDemo(path: string, b64: string): Promise<boolean> {
   try {
     if (path.endsWith(".md") || path.endsWith(".base")) {
-      const r = await commands.readText(path);
+      const r = await opening.readText(path);
       return r.status === "ok" && r.data.text === b64ToUtf8(b64);
     }
     const res = await fetch(convertFileSrc(path, "verso"));
@@ -6006,17 +7255,21 @@ async function sameAsDemo(path: string, b64: string): Promise<boolean> {
 }
 /** Populate the current vault with sample notes, bases, and templates. */
 async function importDemoVault(): Promise<void> {
+  void commands.logWrite("INFO", "import demo: asked").catch(() => undefined);
   try {
     if (!currentFolder) {
       const picked = await openFolderBy(() => commands.pickFolder());
       if (!picked || !currentFolder) return;
     }
     const confirmed = await ask(t.importDemoVaultConfirm, { yes: t.importDemoVault, no: t.cancel });
-    if (!confirmed) return;
+    if (!confirmed) return void commands.logWrite("INFO", "import demo: declined").catch(() => undefined);
 
     ui.status.textContent = "…";
 
-    const folders = ["assets", "daily", "projetos", "templates"];
+    // The demo's own folders, from its files' paths (a parent before its
+    // children): a name written here once did not follow a rename of the
+    // demo's folder, and a case-insensitive disk then put the files in it.
+    const folders = [...new Set(DEMO_VAULT_FILES.flatMap((f) => f.path.split("/").slice(0, -1).map((_, i, parts) => parts.slice(0, i + 1).join("/"))))];
     for (const f of folders) {
       openFolders.add(f);
       try {
@@ -6027,10 +7280,16 @@ async function importDemoVault(): Promise<void> {
     }
 
     // A file already there is never written over: the same content is
-    // left alone, any other is the user's edit and is kept, and named.
+    // left alone, any other — the user's edit, or an earlier version's
+    // demo — is kept, and named. One that could not be written is named
+    // too, and its reason goes to the log: an import that wrote nothing
+    // said "imported" and left no trace (2026-10-01).
+    void commands.logWrite("INFO", `import demo: ${DEMO_VAULT_FILES.length} files`).catch(() => undefined);
     let createdCount = 0;
     const kept: string[] = [];
-    for (const item of DEMO_VAULT_FILES) {
+    const failed: string[] = [];
+    for (const [i, item] of DEMO_VAULT_FILES.entries()) {
+      ui.status.textContent = `… ${i + 1}/${DEMO_VAULT_FILES.length}`;
       try {
         const res = await commands.createFile(item.path, item.b64);
         if (res.status === "ok") {
@@ -6038,12 +7297,15 @@ async function importDemoVault(): Promise<void> {
         } else if (res.error.kind === "exists") {
           if (!(await sameAsDemo(item.path, item.b64))) kept.push(item.path);
         } else {
-          console.warn("importDemoVault: could not create file", item.path, res.error);
+          failed.push(item.path);
+          console.error(`import demo: ${item.path}: ${res.error.kind}: ${res.error.message}`);
         }
       } catch (e) {
-        console.warn("importDemoVault: error creating file", item.path, e);
+        failed.push(item.path);
+        console.error(`import demo: ${item.path}: ${String(e)}`);
       }
     }
+    void commands.logWrite("INFO", `import demo: ${createdCount} created, ${kept.length} kept, ${failed.length} failed`).catch(() => undefined);
 
     await afterFileChange();
     refreshLists();
@@ -6051,6 +7313,7 @@ async function importDemoVault(): Promise<void> {
     const msg = createdCount > 0 ? `${t.demoVaultImported} (${t.demoVaultNew(createdCount)})` : t.demoVaultImported;
     ui.status.textContent = msg;
     showToast(msg);
+    if (failed.length > 0) await tell(`${t.demoVaultFailed}\n${failed.join("\n")}`, t.demoVaultKeptOk);
     if (kept.length > 0) await tell(`${t.demoVaultKept}\n${kept.join("\n")}`, t.demoVaultKeptOk);
   } catch (err: unknown) {
     console.error("importDemoVault failed:", err);
@@ -6169,6 +7432,7 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
         })(), "maximize"] as MenuItem] : []),
       ];
   if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
+  if (kind === "note" && /\.excalidraw\.md$/i.test(path)) items.push([boardText.convert, () => void convertToBoard(path), "board"]);
   items.push(
     sep,
     [t.rename, rename, "edit"],
@@ -6246,7 +7510,7 @@ async function quoteIntoNotes(pdf: string, fragment: string, page: number, text:
   // The companion open in a tab: its text saved first, or nothing is written.
   const unsaved = await flushed(leavesOf(notePath));
   if (unsaved.length > 0) return stopped(unsaved);
-  const existing = await commands.readNote(notePath);
+  const existing = await opening.readNote(notePath);
   let r;
   if (existing.status === "ok") {
     // Appended as the note ends its lines, after a blank line; nothing of
@@ -6292,7 +7556,7 @@ async function duplicateEntry(path: string, kind: Kind): Promise<void> {
   if (kind === "note") {
     const unsaved = await flushed(leavesUnder(path));
     if (unsaved.length > 0) return stopped(unsaved);
-    const read = await commands.readText(path);
+    const read = await opening.readText(path);
     if (read.status !== "ok") return fail(read.error);
     bytes = new TextEncoder().encode(read.data.text);
   } else {
@@ -6337,6 +7601,7 @@ function createMenuItems(folder = ""): MenuItem[] {
     [t.newHere, () => newNotePrompt(folder), "plus"],
     [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
     [t.newBase, () => void newBase(folder), "calendar"],
+    [boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"],
     [t.newWebPage, () => newWebPagePrompt(folder), "globe"],
   ];
   if (folder === "") {
@@ -6420,6 +7685,10 @@ function renameInline(li: HTMLElement, path: string, folder = false): void {
 class Plan {
   readonly el = h("div", "plan");
   private rewrites: { path: string; revision: string; before: string; after: string }[] = [];
+  /** The answer a `confirm` waits for, and the write it asked for instead
+   *  of the plan's own. */
+  private answer: ((applied: boolean) => void) | null = null;
+  private custom: (() => Promise<boolean>) | null = null;
   constructor() {
     this.el.hidden = true;
     asDialog(this.el, "", () => this.hide(), "plan-title");
@@ -6451,11 +7720,35 @@ class Plan {
     this.el.hidden = false;
     apply.focus();
   }
+  /** Show the plan and wait: true when it was applied in full. `onApply`
+   *  writes instead of the plan's own writes (a file to create). */
+  confirm(rewrites: Plan["rewrites"], title: string, applyLabel: string, detail = "", onApply?: () => Promise<boolean>): Promise<boolean> {
+    this.settle(false);
+    this.show(rewrites, title, applyLabel, detail);
+    this.custom = onApply ?? null;
+    return new Promise<boolean>((resolve) => (this.answer = resolve));
+  }
+  private settle(applied: boolean): void {
+    const answer = this.answer;
+    this.answer = null;
+    this.custom = null;
+    answer?.(applied);
+  }
   hide(): void {
     this.el.hidden = true;
     closed(this.el);
+    this.settle(false);
   }
   private async apply(): Promise<void> {
+    if (this.custom) {
+      const done = await this.custom();
+      this.custom = null;
+      const answer = this.answer;
+      this.answer = null;
+      this.hide();
+      answer?.(done);
+      return;
+    }
     let ok = 0;
     let failed = 0;
     const left: string[] = [];
@@ -6465,13 +7758,21 @@ class Plan {
         left.push(name(w.path));
         continue;
       }
-      const r = await commands.writeNote(w.path, w.after, w.revision);
+      // `writeText`: a note goes through `write_note`, a board is indexed
+      // as it is written (a canvas's file nodes follow a rename too).
+      const r = await commands.writeText(w.path, w.after, w.revision);
       if (r.status === "ok") {
         ok++;
         for (const l of leavesOf(w.path)) if (!l.dirty) void l.load(w.path, true);
       } else failed++;
     }
+    // The other open notes look their links up again: a note renamed has
+    // its backlinks only once the notes that point at it are rewritten.
+    if (ok > 0) void recheckAll(new Set(this.rewrites.map((w) => w.path)));
+    const answer = this.answer;
+    this.answer = null;
     this.hide();
+    answer?.(failed === 0 && left.length === 0);
     ui.status.textContent = t.planDone(ok, failed) + (left.length > 0 ? ` ${t.planLeftOut} ${left.join(", ")}.` : "");
   }
 }
@@ -6485,7 +7786,8 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   const b = h("button", `row kind-${kind}`);
   b.type = "button";
   b.append(iconOfPath(path, kind), h("span", "row-name", path.split("/").pop() ?? path));
-  b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey));
+  b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey, false, true));
+  b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || openNote(path, false)));
   b.addEventListener("mousedown", () => b.focus());
   armDrag(b, () => ({ kind: "file", path }), () => name(path));
   b.addEventListener("contextmenu", (e) => {
@@ -6957,6 +8259,8 @@ class QuickSwitcher {
   readonly list = h("ul", "quick-list");
   private items: string[] = [];
   private sel = 0;
+  /** A board asked for a file (`pick`): the choice goes there, nothing opens. */
+  private picking: ((path: string | null) => void) | null = null;
   constructor() {
     this.el.hidden = true;
     this.input.type = "text";
@@ -6987,21 +8291,37 @@ class QuickSwitcher {
       if (e.target === this.el) this.hide();
     });
   }
-  show(): void {
+  show(query = ""): void {
     opened(this.el);
     this.el.hidden = false;
-    this.input.value = "";
+    this.input.value = query;
     this.update();
     this.input.focus();
+    // A name filled in is selected: typing replaces it.
+    if (query) this.input.select();
   }
   hide(restore = true): void {
     this.el.hidden = true;
     closed(this.el, restore);
+    const picking = this.picking;
+    this.picking = null;
+    picking?.(null);
+  }
+  /** Choose a note or file of the folder, and wait: its path, or null. */
+  pick(query = ""): Promise<string | null> {
+    this.hide();
+    return new Promise<string | null>((resolve) => {
+      this.show(query);
+      this.picking = resolve;
+    });
   }
   private choose(path: string | undefined, aside: boolean): void {
     if (!path) return;
-    this.hide(false);
-    openNote(path, aside);
+    const picking = this.picking;
+    this.picking = null;
+    this.hide(Boolean(picking));
+    if (picking) picking(path);
+    else openNote(path, aside, false, true);
   }
   private update(): void {
     const q = this.input.value.trim().toLowerCase();
@@ -7061,10 +8381,25 @@ type Command = { id: string; label: string; keys?: string; run: () => void };
 const DEFAULT_KEYS: Record<string, string> = {
   "open-folder": "Mod-o", search: "Mod-k", "find-in-note": "Mod-f", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
   "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Alt-ArrowLeft", "toggle-right": "Mod-Alt-ArrowRight",
-  reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[",
+  reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[", "nav-back": "Mod-[", "nav-forward": "Mod-]",
+  // Also View › Open Console's own key (the host's menu), shown here.
+  "open-console": "Mod-Alt-i",
+  "reload-window": "Mod-r",
 };
 function keyOf(id: string): string {
   return settings.hotkeys[id] ?? DEFAULT_KEYS[id] ?? "";
+}
+
+/** Reload the window once every open note and file of it is saved. False
+ *  when one could not be (a conflict waits for a decision, a write
+ *  failed): the window stays as it is, and nothing typed is lost. */
+async function reloadWindow(): Promise<boolean> {
+  const leaves = spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves));
+  const saved = await Promise.all(leaves.map((l) => l.flush()));
+  // A key typed in one note while another was still being written.
+  if (!saved.every(Boolean) || leaves.some((l) => l.dirty)) return false;
+  window.location.reload();
+  return true;
 }
 const UNSHIFT: Record<string, string> = { "{": "[", "}": "]", "|": "\\", "<": ",", ">": ".", "?": "/", ":": ";", '"': "'", "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=" };
 const MAC = /mac/i.test(navigator.platform);
@@ -7130,6 +8465,8 @@ function openFindInActiveLeaf(): void {
     } else {
       openSearchPanel(leaf.editor);
     }
+  } else if (leaf instanceof BoardLeaf && leaf.find()) {
+    // The board's own search (ADR 0057).
   } else if (leaf instanceof TextLeaf) {
     openSearchPanel(leaf.editor);
   } else if (leaf instanceof PdfLeaf) {
@@ -7193,6 +8530,8 @@ function allCommands(all = false): Command[] {
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "open-console", label: t.openConsole, run: () => openConsole() },
+    { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
     { id: "new-base", label: t.newBase, need: hasFolder, run: () => void newBase(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "insert-base", label: t.insertBase, need: Boolean(note), run: () => insertBase() },
     { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
@@ -7209,13 +8548,17 @@ function allCommands(all = false): Command[] {
     { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
+    { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
+    { id: "reload-window", label: t.reloadWindow, run: () => void reloadWindow().then((ok) => ok || (ui.status.textContent = t.reloadNotDone)) },
+    { id: "nav-back", label: t.navBack, need: Boolean(pane?.canGo(-1)), run: () => pane?.go(-1) },
+    { id: "nav-forward", label: t.navForward, need: Boolean(pane?.canGo(1)), run: () => pane?.go(1) },
     { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
     { id: "split-down", label: t.splitDown, need: Boolean(pane), run: () => pane && layout().split(pane, "col") },
     { id: "new-space", label: t.newSpace.split(" (")[0] ?? t.newSpace, need: hasFolder, run: () => newSpace() },
     { id: "new-window", label: t.newWindow, need: hasFolder && !popout, run: () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)) },
     { id: "maximize", label: t.maximize, need: Boolean(pane), run: () => pane && layout().toggleMaximize(pane) },
     { id: "close-pane", label: t.closePane, need: Boolean(pane), run: () => pane && void pane.closeAll() },
-    { id: "close-tab", label: t.close, need: Boolean(leaf), run: () => leaf && void leaf.close() },
+    { id: "close-tab", label: t.close, run: () => (leaf ? void leaf.close() : closeWhereNoTab(pane ?? null)) },
     { id: "next-tab", label: t.nextTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, 1) },
     { id: "prev-tab", label: t.prevTab, need: Boolean(pane?.active), run: () => pane && cycleTab(pane, -1) },
     // Dragging a tab or a file, without the pointer; no default keys,
@@ -7410,6 +8753,8 @@ class ReplaceDialog {
     const worker = async () => {
       while (next < notes.length && scan === this.scan) {
         const path = notes[next++]!;
+        // Every note of the folder: read as it is, never fetched from the
+        // cloud — a scan does not pull a vault down (ADR 0043).
         const r = await commands.readText(path);
         read++;
         if (read % 20 === 0 || read === notes.length) note.textContent = t.replaceScanning.replace("{done}", String(read)).replace("{n}", String(notes.length));
@@ -7444,6 +8789,97 @@ class ReplaceDialog {
   }
 }
 const replaceDialog = new ReplaceDialog();
+
+/* The bug report: what the window knows about itself and what it
+ * swallowed, gathered into one field the user reads and edits before it
+ * goes anywhere. Nothing is sent: the button copies, and the log it
+ * quotes is the app's own file, on this machine. */
+class BugDialog {
+  readonly el = h("div", "quick");
+  constructor() {
+    this.el.hidden = true;
+    asDialog(this.el, t.reportBug, () => this.hide());
+    document.body.append(this.el);
+    this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
+  }
+  hide(): void {
+    this.el.hidden = true;
+    closed(this.el);
+  }
+  /** Everything but the user's own words, which go at the top. */
+  private async context(): Promise<string> {
+    const info = await commands.appInfo();
+    const build = info.status === "ok" ? `${info.data.version} (${info.data.commit})` : "?";
+    const read = await commands.logRead();
+    const log = read.status === "ok" ? read.data : "";
+    const leaf = layout().activeLeaf;
+    const where = leaf ? `${leaf.kind}${leaf instanceof NoteLeaf ? ` (${leaf.mode})` : ""}` : "—";
+    const onOff = (v: boolean) => (v ? "on" : "off");
+    const seen = swallowed();
+    const errors = seen.length === 0
+      ? t.reportNoErrors
+      : seen.map((e) => `${e.at} ${e.level} ${e.text}`).join("\n");
+    return [
+      `## ${t.reportContext}`,
+      "",
+      `- Verso ${build} · ${navigator.platform} · ${settings.lang}`,
+      `- folder: ${currentFolder === "" ? "—" : "ok"} · tab: ${where}`,
+      `- remote ${onOff(settings.remoteContent)} · build dirs ${onOff(settings.ignoreBuildDirs)} · gitignore ${onOff(settings.respectGitignore)} · embeds ${settings.embedOrigins.length}`,
+      "",
+      `## ${t.reportErrors}`,
+      "",
+      errors,
+      "",
+      `## ${t.reportLog}`,
+      "",
+      log,
+    ].join("\n");
+  }
+  show(): void {
+    opened(this.el);
+    const box = h("div", "plan-box replace-box");
+    const header = h("div", "replace-header");
+    const titleGroup = h("div", "replace-title-group");
+    titleGroup.append(icon("bug"), h("h2", "", t.reportBug));
+    const closeBtn = button("ghost iconic close-btn", t.close, "close");
+    closeBtn.addEventListener("click", () => this.hide());
+    header.append(titleGroup, closeBtn);
+    const hint = h("p", "settings-hint", t.reportHint);
+    const field = h("textarea", "report-text") as unknown as HTMLTextAreaElement;
+    field.spellcheck = false;
+    field.setAttribute("aria-label", t.reportBug);
+    const head = `## ${t.reportWhat}\n\n`;
+    field.value = `${head}${t.reportHere}\n\n`;
+    const actions = h("div", "confirm-actions");
+    const copy = button("save", t.copyText);
+    copy.addEventListener("click", () => {
+      void navigator.clipboard.writeText(field.value).then(() => {
+        ui.status.textContent = t.copiedText;
+        this.hide();
+      });
+    });
+    actions.append(copy);
+    box.append(header, hint, field, actions);
+    this.el.replaceChildren(box);
+    this.el.hidden = false;
+    // The dot is answered: what was swallowed is on the screen now.
+    ui.reportBug.classList.remove("has-news");
+    field.focus();
+    field.setSelectionRange(head.length, head.length + t.reportHere.length);
+    // The context joins as soon as the host answers, under the cursor.
+    void this.context().then((rest) => {
+      if (this.el.hidden) return;
+      const at = field.selectionStart;
+      const to = field.selectionEnd;
+      field.value = `${field.value}${rest}`;
+      field.setSelectionRange(at, to);
+    });
+  }
+}
+const bugDialog = new BugDialog();
+ui.reportBug.title = t.reportBug;
+ui.reportBug.append(icon("bug", t.reportBug));
+ui.reportBug.addEventListener("click", () => bugDialog.show());
 
 class UpdateController {
   private _info: UpdateInfo | null = null;
@@ -7651,9 +9087,7 @@ class SettingsDialog {
    *  failed), the window stays as it is and says why — the language
    *  applies at the next start. */
   private async reloadForLanguage(): Promise<void> {
-    const leaves = spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves));
-    const saved = await Promise.all(leaves.map((l) => l.flush()));
-    if (saved.every(Boolean)) return window.location.reload();
+    if (await reloadWindow()) return;
     this.notice.textContent = t.languageNotReloaded;
     this.notice.hidden = false;
     ui.status.textContent = t.languageNotReloaded;
@@ -7664,6 +9098,7 @@ class SettingsDialog {
       { id: "appearance", label: t.sAppearance, icon: "palette" },
       { id: "editor", label: t.sEditor, icon: "edit" },
       { id: "files", label: t.sFiles, icon: "folder" },
+      { id: "board", label: boardText.sBoard, icon: "board" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
       { id: "cli", label: t.sCli, icon: "terminal" },
     ];
@@ -7722,6 +9157,7 @@ class SettingsDialog {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
+    add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
     add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
       const wrap = h("div", "setting-version-wrap");
@@ -7934,6 +9370,18 @@ class SettingsDialog {
       ["amethyst", t.colorAmethyst],
     ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
+    const b = boardText;
+    add("board", b.prefOpenAs, b.prefOpenAsDesc, () => this.select([["board", b.prefOpenAsBoard], ["source", b.prefOpenAsText]], settings.boardOpenAs, (v) => { settings.boardOpenAs = v; saveSettings(); }));
+    add("board", b.prefOpen, b.prefOpenDesc, () => this.select([["fit", b.prefOpenFit], ["last", b.prefOpenLast]], settings.boardOpen, (v) => { settings.boardOpen = v; saveSettings(); }));
+    add("board", b.prefStroke, b.prefStrokeDesc, () => this.select([["hand", b.prefStrokeHand], ["clean", b.prefStrokeClean]], settings.boardStroke, (v) => { settings.boardStroke = v; saveSettings(); }));
+    add("board", b.prefFont, b.prefFontDesc, () => this.select([["hand", b.prefFontHand], ["sans", b.prefFontSans], ["mono", b.prefFontMono]], settings.boardFont, (v) => { settings.boardFont = v; saveSettings(); }));
+    add("board", b.prefGrid, b.prefGridDesc, () => this.toggle(settings.boardGrid, (v) => { settings.boardGrid = v; saveSettings(); }));
+    add("board", b.prefFolder, b.prefFolderDesc, () => this.text(settings.boardFolder, (v) => { settings.boardFolder = v.replace(/^\/+|\/+$/g, ""); saveSettings(); }));
+    add("editor", t.previewTabs, t.previewTabsDesc, () => this.toggle(settings.previewTabs, (v) => {
+      settings.previewTabs = v;
+      saveSettings();
+      if (!v) for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) l.keep();
+    }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
@@ -8164,7 +9612,7 @@ async function templateText(nameWanted: string): Promise<string | null> {
   const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "");
   const path = allNotes.find((p) => p.toLowerCase() === `${folder}/${nameWanted}.md`.toLowerCase());
   if (!path) return null;
-  const r = await commands.readNote(path);
+  const r = await opening.readNote(path);
   return r.status === "ok" ? r.data.text : null;
 }
 /** Where the daily note of `day` (`YYYY-MM-DD`) is, or would be. */
@@ -8210,7 +9658,7 @@ function insertTemplate(): void {
   if (tpls.length === 0) { ui.status.textContent = t.noTemplates; return; }
   const r = leaf.el.getBoundingClientRect();
   showMenu(r.left + 40, r.top + 60, tpls.map((p) => [name(p), () => void (async () => {
-    const rr = await commands.readNote(p);
+    const rr = await opening.readNote(p);
     if (rr.status !== "ok") return fail(rr.error);
     const text = rr.data.text.replaceAll("{{date}}", today()).replaceAll("{{title}}", name(leaf.path));
     const pos = leaf.editor.state.selection.main.to;
@@ -8624,8 +10072,44 @@ document.addEventListener("keydown", (e) => {
   // What had the focus handled it (an editor's key, a field, a dialog): it
   // does not run a second time here.
   if (hotkeyRecorder || e.defaultPrevented) return;
+  // F2 renames the open note, as it renames a row of the tree, unless the
+  // keys belong to a field (an editor, an input). A click on a row opens
+  // the note and takes the focus there: F2 still renames it. Every other
+  // hotkey holds Mod (`runHotkey`).
+  if (e.key === "F2" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+    const at = e.target;
+    // A dialog's keys are the dialog's: nothing is renamed behind it.
+    if (at instanceof Element && at.closest('[role="dialog"]')) return;
+    const field = at instanceof HTMLElement && (at.isContentEditable || at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement || at instanceof HTMLSelectElement);
+    const rename = field ? undefined : allCommands().find((c) => c.id === "rename");
+    if (rename) {
+      e.preventDefault();
+      rename.run();
+    }
+    return;
+  }
   runHotkey(e);
 });
+
+/* The mouse's back and forward — buttons 3 and 4 — where the hand
+ * already expects them, on the pane that has the focus. Both events are
+ * heard: `mousedown` is where the button is stopped before anything else
+ * reads it as a click, and `auxclick` is what a non-primary button
+ * reports when the view does not send the first. */
+let navPress = { button: -1, at: -Infinity };
+function mouseNav(e: MouseEvent): boolean {
+  if (e.button !== 3 && e.button !== 4) return false;
+  e.preventDefault();
+  e.stopPropagation();
+  // One step per press: a view that sends both events steps on the first
+  // (review `board.md`, reading 3, finding 10).
+  if (e.type === "auxclick" && navPress.button === e.button && e.timeStamp - navPress.at < 1500) return true;
+  if (e.type === "mousedown") navPress = { button: e.button, at: e.timeStamp };
+  (layout().focused ?? layout().panes()[0])?.go(e.button === 3 ? -1 : 1);
+  return true;
+}
+document.addEventListener("mousedown", (e) => void mouseNav(e), true);
+document.addEventListener("auxclick", (e) => void mouseNav(e), true);
 
 const sideDivider = el<HTMLDivElement>("side-divider");
 sideDivider.title = t.sidebarResize;
@@ -8718,12 +10202,85 @@ if (!popout && !secondary) {
   void listen("menu-open-folder", () => void openFolderDialog());
   void listen("menu-settings", () => settingsDialog.show());
 }
+/** The window's inspector (View › Open console, ⌥⌘I, the palette), when
+ *  the setting allows it; otherwise said where to turn it on. */
+function openConsole(): void {
+  if (settings.devtools) void commands.openDevtools();
+  else ui.status.textContent = t.devtoolsOff;
+}
+void listen<string>("menu-devtools", (e) => {
+  if (e.payload === getCurrentWindow().label) openConsole();
+});
+/** ⌘W with no tab where the focus is (decided on 2026-10-01, review
+ *  `board.md` §6 item 19): an empty pane beside others goes; with no tab
+ *  left anywhere in the window, the window closes, as Obsidian does. */
+function closeWhereNoTab(pane: Pane | null): void {
+  if (pane && layout().paneCount() > 1) return layout().remove(pane);
+  if (spaces.some((sp) => sp.layout.panes().some((p) => p.leaves.length > 0))) return;
+  void getCurrentWindow().close();
+}
+/* File › Close Tab (⌘W) comes from the host's menu, to the focused window:
+ * the system's Close Window took ⌘W before the page saw it. The window
+ * runs what ⌘W is bound to — "close tab" unless the user bound it to
+ * another command. */
+/** Whether a dialog of the window is on screen. */
+function dialogUp(): boolean {
+  return Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).some((d) => !d.hidden && d.getClientRects().length > 0);
+}
+void listen<string>("menu-close-tab", (e) => {
+  if (e.payload !== getCurrentWindow().label) return;
+  // A question on screen is answered first: nothing closes behind it.
+  if (dialogUp()) return;
+  runHotkey(new KeyboardEvent("keydown", { key: "w", code: "KeyW", metaKey: MAC, ctrlKey: !MAC, cancelable: true }));
+});
+/* Edit › Undo, Redo, Select All (⌘Z, ⌘⇧Z, ⌘A) come from the host's own
+ * menu items, to the focused window. An editor runs its own command; on a
+ * board the key goes to Excalidraw, which hears only keys; anywhere else
+ * the web view's editing command runs, as the system's items ran it. */
+void listen<[string, string]>("menu-edit", (e) => {
+  const [label, command] = e.payload;
+  if (label !== getCurrentWindow().label) return;
+  // A site shown in this window has the focus: the host runs the command
+  // there, and nothing here acts behind it.
+  if (!document.hasFocus()) return;
+  const active = document.activeElement;
+  const field =
+    active instanceof HTMLElement && (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
+  // An editor runs its own commands: the web view's Select All selects
+  // only the lines it has drawn, and its Undo knows only what was typed in
+  // that very element — not an editor's history carried over (a card
+  // entered again, ADR 0057) nor a change that came from the disk.
+  const cm = active instanceof HTMLElement ? active.closest<HTMLElement>(".cm-editor") : null;
+  const view = cm ? EditorView.findFromDOM(cm) : null;
+  if (view) {
+    (command === "undo" ? undo : command === "redo" ? redo : selectAll)(view);
+    return;
+  }
+  // A note's card entered on a board, its editor left: the card takes an
+  // undo or redo for its note; otherwise the board has it.
+  if (active instanceof HTMLElement && !field && command !== "select-all") {
+    const slot = active.closest<HTMLElement>(".board-card-slot.is-active") ?? active.closest(".excalidraw")?.querySelector<HTMLElement>(".board-card-slot.is-active");
+    const card = slot?.querySelector<HTMLElement>(".board-card");
+    if (card && !card.dispatchEvent(new CustomEvent(CARD_COMMAND, { detail: command, cancelable: true }))) return;
+  }
+  if (active instanceof HTMLElement && !field && active.closest(".excalidraw")) {
+    const key = command === "select-all" ? "a" : "z";
+    active.dispatchEvent(
+      new KeyboardEvent("keydown", { key, code: `Key${key.toUpperCase()}`, metaKey: true, shiftKey: command === "redo", bubbles: true, cancelable: true }),
+    );
+    return;
+  }
+  document.execCommand(command === "select-all" ? "selectAll" : command);
+});
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
-void (async () => {
+/** The window's start: the folder it opens shown, its tabs brought back.
+ *  The browser harness waits for it before a test types (review
+ *  `board.md`, second reading, finding 9). */
+export const started: Promise<void> = (async () => {
   await Promise.all([embedOriginsPushed, walkRulesPushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
