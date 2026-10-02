@@ -73,3 +73,34 @@ fn version_6_keeps_an_evicted_note_and_reads_the_others_again() {
     // The placeholder's stamp is what it was.
     assert_eq!(index.stamp_of("Segredo.md").unwrap(), Some(stamp()));
 }
+
+#[test]
+fn version_7_migrates_to_version_9_and_marks_notes_to_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("index.sqlite");
+    {
+        let mut index = Index::open(&file).unwrap();
+        let nota = "---\nsticker: 🎯\n---\n# Nota\n";
+        index
+            .upsert("Nota.md", stamp(), nota, &verso_dialect::parse(nota))
+            .unwrap();
+    }
+    // Downgrade to version 7
+    {
+        let conn = rusqlite::Connection::open(&file).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE notes DROP COLUMN sticker;
+             ALTER TABLE notes DROP COLUMN color;
+             ALTER TABLE notes DROP COLUMN banner;
+             ALTER TABLE notes DROP COLUMN banner_y;
+             ALTER TABLE notes DROP COLUMN order_items;
+             ALTER TABLE notes DROP COLUMN pinned_items;
+             UPDATE meta SET value = '7' WHERE key = 'schema';",
+        )
+        .unwrap();
+    }
+
+    let index = Index::open(&file).unwrap();
+    // Notes must be marked to re-read so that labels in frontmatter are populated
+    assert_ne!(index.stamp_of("Nota.md").unwrap(), Some(stamp()));
+}

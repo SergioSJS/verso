@@ -309,7 +309,38 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    caminho); `--unresolved`; `--json`. Nível: A. Pegou: só um caminho era
    achado (2026-10-01).
 
-## 11. O fim
+## 11. Organização: figurinhas, capas, páginas de pasta, ordem manual
+
+1. Nota 19: figurinha e cor aparecem na linha da árvore, na aba e no cabeçalho
+   da nota; clicar na figurinha abre o diálogo seletor (`role="dialog"`) com
+   busca acessível, grade de emojis, ícones Lucide e paleta de cores. Nível: H;
+   E: `labels.spec.mjs`.
+2. Capa e reposicionamento vertical: "Adicionar capa" grava `banner:`;
+   "Reposicionar" mostra controle deslizante e atalhos de teclado (↑ / ↓,
+   Enter para salvar, Esc para cancelar); capas da web respeitam a configuração
+   de permissão de rede. Nível: H; E: `labels.spec.mjs`.
+3. Páginas de pasta e padrões de itens: clicar numa pasta abre a página da
+   pasta; uma nota homônima (`Projetos/Projetos.md`) renderiza a visão geral, e
+   sua tabela de itens atua como base sobre a pasta; novos itens herdam
+   `items_sticker:`, `items_color:` e `items_template:`. Nível: H;
+   E: `folder-pages.spec.mjs`.
+4. Ordem manual e fixados: arrastar um item na árvore ou usar o menu de
+   contexto ("Mover para cima" / "Mover para baixo") reordena os itens; "Fixar
+   no topo da pasta" / "Desafixar da pasta" fixa itens no início; a ordem e os
+   fixados são salvos nas listas `order:` e `pinned:` da nota de pasta. Nível: H;
+   E: `order-pins.spec.mjs`.
+5. Ocultar da árvore: o menu de contexto "Ocultar da árvore" esconde o item;
+   Ajustes › Organização › "Itens ocultos da árvore" lista os itens ocultos
+   deste cofre e permite restaurá-los. Nível: H; E: `order-pins.spec.mjs`.
+6. Edição direta de nota incorporada (Flow): clicar em `![[Nota]]` no modo
+   leitura ou edição permite editar no próprio local com histórico de desfazer
+   isolado; salvar sincroniza de forma limpa ou avisa se houver conflito.
+   Nível: H; E: `flow.spec.mjs`.
+7. Gatilho de emojis: digitar `:` no editor abre o popup de autocompletar;
+   ↑ e ↓ navegam, Enter insere o emoji, Esc fecha. Nível: H;
+   E: `flow.spec.mjs`.
+
+## 12. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
    console: nada vermelho. Nível: A; E: todo teste, no harness.

@@ -513,8 +513,8 @@ decided the typed note, its schemas and their labels per language
 | Typed relation | a frontmatter property of the source note whose value is a quoted wikilink or a list of them; the key is the type | `DECIDED` on 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | a fenced `verso-schema` block in a note, anywhere in the folder but hidden and ignored paths | `DECIDED` on 2026-09-24 (Q11) |
 | Per-block visibility | game master's secret | `[OPEN]` (Q9) |
-| Sticker and color | `sticker:` (emoji or `lucide:name`) and `color:` (hex or CSS color) in the frontmatter of a note or folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
-| Cover banner | `cover:` (path or URL) and `cover_y:` (vertical alignment percentage, 0–100) in the frontmatter of a note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Sticker and color | `sticker:` (emoji or `lucide//<name>`) and `color:` (hex or CSS color) in the frontmatter of a note or folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Cover banner | `banner:` (path or URL) and `banner_y:` (vertical alignment percentage, 0–100) in the frontmatter of a note or folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Manual folder order | `order:` in the folder note's frontmatter, a list of relative child names defining sort order | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Folder pins | `pinned:` in the folder note's frontmatter, a list of quoted wikilinks forming a `pinned` typed relation | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Folder item defaults | `items_sticker:`, `items_color:`, and `items_template:` in the folder note's frontmatter, inherited by newly created items in that folder | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
@@ -555,8 +555,8 @@ Example of organizing frontmatter on a note:
 ---
 sticker: "🚀"
 color: "#e8590c"
-cover: assets/diagrama.svg
-cover_y: 42
+banner: assets/diagrama.svg
+banner_y: 42
 ---
 ```
 
@@ -1222,4 +1222,4 @@ the parser was chosen.
 | v0.22 | 2026-09-30 | **Q10 closed by the maintainer** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): a typed relation is a frontmatter property of the source note whose value is a quoted wikilink or a list of them, the key its type; with it, **Q24's link part**. **Q16 decided for `.canvas`** as Obsidian does: `file` nodes and the links of `text` nodes are backlink sources, a canvas is a link target by its full name. §5.11: the board's format — the drawing under a top-level `verso` key, no type of Verso's own, Obsidian's layout kept on write. Section 6: the typed relation `DECIDED`; the conversion table's D4 `DECIDED`. One question closed, two in part |
 | v0.23 | 2026-10-01 | On the critical review `docs/review/board.md`, §6, accepted by the maintainer: **`property_links`** joins the `expected.yaml` schema (§4.1, §4.7, §4.6), with the drafted fixture `fixtures/frontmatter/property-links` (AI draft, observed in Obsidian 1.13.7); §5.11 records the fields of Verso's own on a canvas, that a `file` node is a path from the root, and that a save writes what the user did not change as it was read. No question closed |
 | v0.24 | 2026-10-02 | The fixture `fixtures/frontmatter/property-links` **approved by the maintainer** in session ("Já aprovo agora"), before 0.3.0-beta.3; its draft mark removed. Nothing else changes. |
-| v0.25 | 2026-10-02 | Organizing properties ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `cover`, `cover_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDED` in section 6. |
+| v0.25 | 2026-10-02 | Organizing properties ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDED` in section 6. |

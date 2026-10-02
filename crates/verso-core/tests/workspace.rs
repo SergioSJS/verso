@@ -1468,6 +1468,143 @@ fn a_rename_in_verso_rewrites_order_in_folder_note() {
     assert!(!read.text.contains("- A.md"));
 }
 
+/// Renaming a folder preserves its internal `order:` items (ADR 0060, D4).
+#[test]
+fn renaming_a_folder_preserves_its_internal_order_list() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let foo = subdir(vault.path(), "foo");
+    let _a = note(foo.path(), "A.md", "# A\n");
+    let _b = note(foo.path(), "B.md", "# B\n");
+    let _sub = subdir(foo.path(), "sub");
+    let _sub_note = note(_sub.path(), "sub.md", "# Sub\n");
+    let _d2024 = subdir(foo.path(), "2024");
+    let _d2024_note = note(_d2024.path(), "2024.md", "# 2024\n");
+    let _fn = note(
+        foo.path(),
+        "foo.md",
+        "---\norder:\n  - A.md\n  - B.md\n  - sub\n  - 2024\n---\n# Foo\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("foo", "bar").unwrap();
+    assert_eq!(renamed.path, "bar");
+    apply(&mut ws, &renamed);
+
+    let read = ws.read_note("bar/foo.md").unwrap();
+    assert!(
+        read.text.contains("order:"),
+        "must keep order: {}",
+        read.text
+    );
+    assert!(read.text.contains("A.md"), "must keep A.md: {}", read.text);
+    assert!(read.text.contains("B.md"), "must keep B.md: {}", read.text);
+    assert!(read.text.contains("sub"), "must keep sub: {}", read.text);
+    assert!(read.text.contains("2024"), "must keep 2024: {}", read.text);
+    assert!(
+        !read.text.contains("order: []"),
+        "order must NOT be empty: {}",
+        read.text
+    );
+
+    let renamed_note = ws.rename_note("bar/foo.md", "bar/bar.md").unwrap();
+    apply(&mut ws, &renamed_note);
+    let read_bar = ws.read_note("bar/bar.md").unwrap();
+    assert!(
+        read_bar.text.contains("order:"),
+        "must keep order: {}",
+        read_bar.text
+    );
+    assert!(
+        read_bar.text.contains("A.md"),
+        "must keep A.md: {}",
+        read_bar.text
+    );
+    assert!(
+        read_bar.text.contains("B.md"),
+        "must keep B.md: {}",
+        read_bar.text
+    );
+    assert!(
+        read_bar.text.contains("sub"),
+        "must keep sub: {}",
+        read_bar.text
+    );
+    assert!(
+        read_bar.text.contains("2024"),
+        "must keep 2024: {}",
+        read_bar.text
+    );
+    assert!(
+        !read_bar.text.contains("order: []"),
+        "order must NOT be empty: {}",
+        read_bar.text
+    );
+}
+
+/// Renaming a subfolder updates its name in the parent folder's `order:` list (ADR 0060, D4).
+#[test]
+fn renaming_a_subfolder_updates_parent_folder_order() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let parent = subdir(vault.path(), "parent");
+    let _sub1 = subdir(parent.path(), "sub1");
+    let _sub1_note = note(_sub1.path(), "sub1.md", "# Sub1\n");
+    let _note_a = note(parent.path(), "nota.md", "# Nota\n");
+    let _d2024 = subdir(parent.path(), "2024");
+    let _d2024_note = note(_d2024.path(), "2024.md", "# 2024\n");
+    let _fn = note(
+        parent.path(),
+        "parent.md",
+        "---\norder:\n  - sub1\n  - nota.md\n  - 2024\n---\n# Parent\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("parent/sub1", "parent/sub2").unwrap();
+    assert_eq!(renamed.path, "parent/sub2");
+    let rw = renamed
+        .rewrites
+        .iter()
+        .find(|r| r.path == "parent/parent.md")
+        .expect("parent folder note must be rewritten");
+    assert!(
+        rw.after.contains("- sub2"),
+        "must contain sub2: {}",
+        rw.after
+    );
+    assert!(
+        !rw.after.contains("- sub1"),
+        "must not contain sub1: {}",
+        rw.after
+    );
+    assert!(
+        rw.after.contains("2024"),
+        "must preserve 2024: {}",
+        rw.after
+    );
+    apply(&mut ws, &renamed);
+
+    // Now rename numeric subfolder 2024 to 2025
+    let renamed_num = ws.rename_entry("parent/2024", "parent/2025").unwrap();
+    let rw_num = renamed_num
+        .rewrites
+        .iter()
+        .find(|r| r.path == "parent/parent.md")
+        .expect("parent folder note must be rewritten for numeric rename");
+    assert!(
+        rw_num.after.contains("2025"),
+        "must contain 2025: {}",
+        rw_num.after
+    );
+    assert!(
+        !rw_num.after.contains("2024"),
+        "must not contain 2024: {}",
+        rw_num.after
+    );
+}
+
 /// A rename made outside reaches the index through the watcher.
 #[test]
 fn a_rename_made_outside_reaches_the_index_through_the_watch() {

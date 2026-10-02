@@ -182,21 +182,28 @@ export function showStickerPicker(opts: PickerOptions): () => void {
   if (existing) existing.remove();
 
   const popover = document.createElement("div");
-  popover.className = "sticker-picker-popover";
+  popover.setAttribute("role", "dialog");
+  popover.setAttribute("aria-modal", "true");
+  popover.setAttribute("aria-label", opts.lang === "pt" ? "Seletor de figurinhas e cores" : "Sticker and color picker");
 
   // Tabs: Emoji | Icons
   const tabs = document.createElement("div");
   tabs.className = "sticker-picker-tabs";
+  tabs.setAttribute("role", "tablist");
 
   const btnEmoji = document.createElement("button");
   btnEmoji.type = "button";
   btnEmoji.className = "picker-tab active";
   btnEmoji.textContent = opts.strings.emojis;
+  btnEmoji.setAttribute("role", "tab");
+  btnEmoji.setAttribute("aria-selected", "true");
 
   const btnIcons = document.createElement("button");
   btnIcons.type = "button";
   btnIcons.className = "picker-tab";
   btnIcons.textContent = opts.strings.icons;
+  btnIcons.setAttribute("role", "tab");
+  btnIcons.setAttribute("aria-selected", "false");
 
   tabs.append(btnEmoji, btnIcons);
 
@@ -205,22 +212,32 @@ export function showStickerPicker(opts: PickerOptions): () => void {
   search.type = "text";
   search.className = "sticker-picker-search";
   search.placeholder = opts.strings.search;
+  search.setAttribute("aria-label", opts.strings.search);
 
   // Grid container
   const grid = document.createElement("div");
   grid.className = "sticker-picker-grid";
+  grid.setAttribute("role", "listbox");
+  grid.setAttribute("aria-label", opts.lang === "pt" ? "Figurinhas" : "Stickers");
 
   // Color bar
   const colorBar = document.createElement("div");
   colorBar.className = "sticker-picker-colors";
+  colorBar.setAttribute("role", "group");
+  colorBar.setAttribute("aria-label", opts.strings.colors);
   for (const c of PRESET_COLORS) {
     const swatch = document.createElement("button");
     swatch.type = "button";
     swatch.className = "color-swatch";
     swatch.style.backgroundColor = c.hex;
-    swatch.title = opts.lang === "pt" ? c.namePt : c.nameEn;
+    const colorName = opts.lang === "pt" ? c.namePt : c.nameEn;
+    swatch.title = colorName;
+    swatch.setAttribute("aria-label", colorName);
     if (opts.currentColor && resolveColor(opts.currentColor) === c.hex) {
       swatch.classList.add("active");
+      swatch.setAttribute("aria-pressed", "true");
+    } else {
+      swatch.setAttribute("aria-pressed", "false");
     }
     swatch.addEventListener("click", () => {
       opts.onSelectColor(c.id);
@@ -238,6 +255,7 @@ export function showStickerPicker(opts: PickerOptions): () => void {
     btnRemoveSticker.type = "button";
     btnRemoveSticker.className = "picker-remove-btn";
     btnRemoveSticker.textContent = opts.strings.removeSticker;
+    btnRemoveSticker.setAttribute("aria-label", opts.strings.removeSticker);
     btnRemoveSticker.addEventListener("click", () => {
       opts.onRemoveSticker();
       close();
@@ -250,6 +268,7 @@ export function showStickerPicker(opts: PickerOptions): () => void {
     btnRemoveColor.type = "button";
     btnRemoveColor.className = "picker-remove-btn";
     btnRemoveColor.textContent = opts.strings.removeColor;
+    btnRemoveColor.setAttribute("aria-label", opts.strings.removeColor);
     btnRemoveColor.addEventListener("click", () => {
       opts.onRemoveColor();
       close();
@@ -273,7 +292,10 @@ export function showStickerPicker(opts: PickerOptions): () => void {
       b.type = "button";
       b.className = "sticker-item-btn";
       b.textContent = item.c;
-      b.title = opts.lang === "pt" ? item.pt : item.en;
+      const lbl = opts.lang === "pt" ? item.pt : item.en;
+      b.title = lbl;
+      b.setAttribute("aria-label", lbl);
+      b.setAttribute("role", "option");
       b.addEventListener("click", () => {
         opts.onSelectSticker(`emoji//${item.h}`);
         close();
@@ -296,6 +318,8 @@ export function showStickerPicker(opts: PickerOptions): () => void {
       b.type = "button";
       b.className = "sticker-item-btn sticker-item-icon";
       b.title = name;
+      b.setAttribute("aria-label", name);
+      b.setAttribute("role", "option");
       const svg = renderLucideSvg(name, 20);
       if (svg) b.appendChild(svg);
       b.addEventListener("click", () => {
@@ -309,20 +333,53 @@ export function showStickerPicker(opts: PickerOptions): () => void {
   btnEmoji.addEventListener("click", () => {
     activeTab = "emoji";
     btnEmoji.classList.add("active");
+    btnEmoji.setAttribute("aria-selected", "true");
     btnIcons.classList.remove("active");
+    btnIcons.setAttribute("aria-selected", "false");
     renderEmojiGrid(search.value);
   });
 
   btnIcons.addEventListener("click", () => {
     activeTab = "icons";
     btnIcons.classList.add("active");
+    btnIcons.setAttribute("aria-selected", "true");
     btnEmoji.classList.remove("active");
+    btnEmoji.setAttribute("aria-selected", "false");
     renderIconGrid(search.value);
   });
 
   search.addEventListener("input", () => {
     if (activeTab === "emoji") renderEmojiGrid(search.value);
     else renderIconGrid(search.value);
+  });
+
+  search.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const first = grid.querySelector<HTMLButtonElement>("button");
+      first?.focus();
+    }
+  });
+
+  grid.addEventListener("keydown", (e) => {
+    const btns = Array.from(grid.querySelectorAll<HTMLButtonElement>("button"));
+    const idx = btns.indexOf(document.activeElement as HTMLButtonElement);
+    if (idx < 0) return;
+    const cols = 6;
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      btns[Math.min(btns.length - 1, idx + 1)]?.focus();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      btns[Math.max(0, idx - 1)]?.focus();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (idx + cols < btns.length) btns[idx + cols]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (idx - cols >= 0) btns[idx - cols]?.focus();
+      else search.focus();
+    }
   });
 
   renderEmojiGrid();
@@ -369,6 +426,7 @@ export function showStickerPicker(opts: PickerOptions): () => void {
     document.removeEventListener("mousedown", onDocMouseDown);
     document.removeEventListener("keydown", onDocKeyDown);
     popover.remove();
+    if (opts.anchorEl?.isConnected) opts.anchorEl.focus();
   };
 
   return close;

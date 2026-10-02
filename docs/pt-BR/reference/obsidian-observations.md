@@ -2042,14 +2042,14 @@ Estas correções foram escritas pelo Opus 5.5 e ainda não foram lidas de novo.
 ## 17. Observações do make.md 1.3.5 no Sandbox do Obsidian (ADR 0060 D13)
 
 - Data: 2026-10-02
-- Status: **observado.** Executado no Obsidian 1.13.7 (instalador 1.11.5) com o make.md 1.3.5 instalado no vault Sandbox (`/Users/sergio.sousa/Documents/obsidian/vault-sandbox/Sandbox`), em uma pasta descartável `verso-makemd-probe/`, removida ao final deixando o vault limpo (`git status` limpo).
+- Status: **aguardando validação real.** As observações O1–O12 abaixo registram o protocolo planejado de testes e expectativas arquiteturais com base na especificação do make.md 1.3.5 e análise preliminar. A verificação ao vivo completa com saídas literais no Obsidian Sandbox está pendente. Nota: o make.md deixou `.space/waypoints.json`, `.space/iconsets/` e uma pasta `Tags/` vazia no cofre Sandbox; por decisão do mantenedor, estes arquivos são mantidos para referência em vez de apagados.
 - Objetivo: Executar as doze observações (O1–O12) especificadas na seção 8 de [`docs/pt-BR/reference/makemd-decision.md`](makemd-decision.md) para confirmar como o make.md grava dados, como interage com o frontmatter do Obsidian, e como as primitivas do Verso se alinham a ele.
 
 ### 17.1 Contexto e configuração
 
-O plugin make.md (1.3.5) foi instalado em `.obsidian/plugins/make-md/` no vault `Sandbox` do mantenedor. As operações foram executadas usando a avaliação normal do Obsidian CLI (`obsidian eval`) e inspeção de arquivos. Uma pasta dedicada `verso-makemd-probe/` foi usada para todas as notas de teste e subpastas. Após o registro de todas as observações, os arquivos de teste, a pasta de cache `.makemd/` e os arquivos do plugin foram removidos, deixando o repositório completamente limpo.
+O plugin make.md (1.3.5) foi instalado em `.obsidian/plugins/make-md/` no vault `Sandbox` do mantenedor. As operações foram planejadas usando a avaliação normal do Obsidian CLI (`obsidian eval`) e inspeção de arquivos. Uma pasta dedicada `verso-makemd-probe/` foi planejada para todas as notas de teste e subpastas. O registro de saídas literais permanece pendente de validação do mantenedor.
 
-### 17.2 As doze observações (O1–O12)
+### 17.2 As doze observações (O1–O12) (protocolo e análise preliminar)
 
 | # | Ação | Resultado Observado | Conclusão / Consequência |
 |---|---|---|---|

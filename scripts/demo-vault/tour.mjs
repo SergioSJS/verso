@@ -110,17 +110,17 @@ const STOPS = [
   },
   {
     id: "arquivos",
-    label: "Arquivos e organização",
-    heading: "📁 Arquivos e organização",
+    label: "Arquivos",
+    heading: "📁 Arquivos",
     color: ORANGE,
     canvasColor: "2",
-    cards: [
-      ["n-arquivos", "14 - Arquivos e Pastas.md", 600],
-      ["n-organizando", "19 - Organizando: figurinhas, capas e páginas.md", 600],
-    ],
+    cards: [["n-arquivos", "14 - Arquivos e Pastas.md", 640]],
     tip:
-      "Renomear atualiza os links que apontam para a nota. Figurinhas, cores e capas destacam itens na árvore. " +
-      "Arraste para ordenar ou fixar no topo; edite notas incorporadas ali mesmo e digite : para emojis.",
+      "Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; " +
+      "arrastar uma nota da árvore para o texto cria um link; a lixeira é a pasta .trash, como no Obsidian.",
+    extra(b, x, y, f) {
+      keys(b, "d-arq", x + 740, y + 160, [[["⌘", "N"], "nova nota"], [["⌘", "⇧", "N"], "nova nota com nome"], [["F2"], "renomear"], [["⌘", "⌫"], "para a lixeira"]], f);
+    },
   },
   {
     id: "ver",
@@ -245,6 +245,26 @@ const STOPS = [
       );
       b.file("n-ajuda", "18 - Ajuda, Atualizações e Diagnóstico.md", x + 720, y + 130, 640, 400);
       b.file("n-inicio", "00 - Bem-vindo ao Verso.md", x + 720, y + 560, 640, 400);
+    },
+  },
+  {
+    id: "organizacao",
+    label: "Organização visual",
+    heading: "🎨 Organização visual",
+    color: AMBER,
+    canvasColor: "3",
+    cards: [["n-organizando", "19 - Organizando: figurinhas, capas e páginas.md", 640]],
+    tip:
+      "Figurinhas, cores e capas destacam notas e pastas na árvore e no cabeçalho. " +
+      "Ordene itens manualmente ou fixe-os no topo da pasta; edite notas incorporadas no lugar e digite : para sugerir emojis no texto.",
+    extra(b, x, y, f) {
+      b.write("d-org-titulo", x + 740, y + 150, "ações e atalhos", { size: 32, color: GREY, frame: f });
+      keys(b, "d-org", x + 740, y + 210, [
+        [[":"], "sugerir emoji ao digitar"],
+        [["↑", "↓"], "escolher figurinha"],
+        [["Enter"], "inserir no texto"],
+        [["Esc"], "fechar sugestões"],
+      ], f);
     },
   },
 ];
