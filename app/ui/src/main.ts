@@ -90,6 +90,7 @@ import { minimalEdit } from "./edit";
 import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
+import { renderSticker, resolveColor, showStickerPicker } from "./labels";
 import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
 import { stringsFor } from "./bases/strings";
 import { DailyCalendar } from "./bases/daily";
@@ -149,7 +150,8 @@ type Strings = Record<
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
   | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reloadWindow" | "reloadNotDone" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
-  | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
+  | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed"
+  | "sOrganizing" | "stickers" | "stickersDesc" | "stickerInLinks" | "stickerInLinksDesc" | "covers" | "coversDesc" | "coverHeight" | "coverHeightDesc" | "aliasInTree" | "aliasInTreeDesc" | "folderNoteName" | "folderNoteNameDesc" | "folderNoteInside" | "folderNoteBeside" | "folderNoteNone" | "folderPageTable" | "folderPageTableDesc" | "manualOrder" | "manualOrderDesc" | "inlineEmbedEdit" | "inlineEmbedEditDesc" | "emojiTrigger" | "emojiTriggerDesc" | "changeSticker" | "changeColor" | "removeSticker" | "removeColor" | "addCover" | "changeCover" | "repositionCover" | "removeCover" | "savePosition" | "cancelPosition" | "turnIntoFolder" | "turnIntoFolderDesc" | "createFolderNoteAsk" | "coverUrlPrompt",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -277,6 +279,24 @@ const pt: Strings = {
   importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!", demoVaultKept: "Estes arquivos já existiam com outro conteúdo — uma edição sua, ou o exemplo de uma versão anterior — e foram mantidos como estão:", demoVaultKeptOk: "OK", demoVaultFailed: "Estes arquivos não puderam ser criados; o log do app diz por quê:",
   devtools: "Console do desenvolvedor", devtoolsDesc: "Visualização › Abrir console (⌥⌘I) abre o inspetor da janela: console, elementos e rede.", openConsole: "Abrir console (dev tools)", devtoolsOff: "O console está desligado em Ajustes › Geral.",
   checkUpdates: "Verificar atualizações automaticamente", checkUpdatesDesc: "Verifica e avisa ao abrir o aplicativo quando uma nova versão do Verso estiver disponível.", checkNow: "Verificar atualizações", checkingUpdates: "Verificando atualizações…", updateUpToDate: "Você está usando a versão mais recente.", updateAvailable: "Nova versão disponível", downloadAndUpdate: "Baixar e atualizar", downloadingUpdate: "Baixando atualização…", updateReady: "Atualização pronta!", restartNow: "Reiniciar agora", viewReleaseNotes: "Ver notas da versão", hideReleaseNotes: "Ocultar notas da versão", updateBannerTitle: "Nova versão disponível", seeInSettings: "Ver nos Ajustes", updateFailed: "Não foi possível verificar atualizações.",
+  sOrganizing: "Organização",
+  stickers: "Figurinhas", stickersDesc: "Exibe figurinhas (emojis ou ícones) na árvore de arquivos, abas e cabeçalhos.",
+  stickerInLinks: "Figurinhas nos links", stickerInLinksDesc: "Exibe a figurinha da nota antes do link no modo de leitura.",
+  covers: "Capas", coversDesc: "Exibe banner de capa no topo de notas e páginas de pastas.",
+  coverHeight: "Altura da capa", coverHeightDesc: "Altura em pixels da imagem de capa (padrão: 180px).",
+  aliasInTree: "Apelidos na árvore", aliasInTreeDesc: "Exibe o primeiro apelido (alias) da nota na árvore de arquivos se houver.",
+  folderNoteName: "Nota da pasta", folderNoteNameDesc: "Onde a nota que descreve a pasta deve ficar salva.",
+  folderNoteInside: "Dentro da pasta (Pasta/Pasta.md)", folderNoteBeside: "Ao lado da pasta (Pasta.md)", folderNoteNone: "Nenhuma",
+  folderPageTable: "Tabela de itens na página da pasta", folderPageTableDesc: "Mostra uma tabela com os itens da pasta abaixo da nota.",
+  manualOrder: "Ordem manual", manualOrderDesc: "Permite reordenar arquivos na árvore arrastando.",
+  inlineEmbedEdit: "Editar notas embutidas no local", inlineEmbedEditDesc: "Permite editar blocos ![[Nota]] diretamente no editor ou leitura.",
+  emojiTrigger: "Gatilho de emoji com :", emojiTriggerDesc: "Abre o seletor de emojis ao digitar dois-pontos.",
+  changeSticker: "Alterar figurinha…", changeColor: "Alterar cor…", removeSticker: "Remover figurinha", removeColor: "Remover cor",
+  addCover: "Adicionar capa", changeCover: "Alterar capa", repositionCover: "Reposicionar", removeCover: "Remover capa",
+  savePosition: "Salvar posição", cancelPosition: "Cancelar",
+  turnIntoFolder: "Transformar em pasta", turnIntoFolderDesc: "Cria uma pasta com este nome e move a nota para dentro dela.",
+  createFolderNoteAsk: "A pasta \"{name}\" ainda não tem uma nota de pasta. Deseja criar \"{path}\" para configurá-la?",
+  coverUrlPrompt: "URL da imagem de capa ou caminho de imagem:",
 };
 
 const en: Strings = {
@@ -374,6 +394,24 @@ const en: Strings = {
   importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content — an edit of yours, or the demo of an earlier version — and were kept as they are:", demoVaultKeptOk: "OK", demoVaultFailed: "These files could not be created; the app's log says why:",
   devtools: "Developer console", devtoolsDesc: "View › Open Console (⌥⌘I) opens the window's inspector: console, elements and network.", openConsole: "Open console (dev tools)", devtoolsOff: "The console is turned off in Settings › General.",
   checkUpdates: "Check for updates automatically", checkUpdatesDesc: "Check and notify on startup when a new version of Verso is available.", checkNow: "Check for updates", checkingUpdates: "Checking for updates…", updateUpToDate: "You are running the latest version.", updateAvailable: "New version available", downloadAndUpdate: "Download and update", downloadingUpdate: "Downloading update…", updateReady: "Update ready!", restartNow: "Restart now", viewReleaseNotes: "View release notes", hideReleaseNotes: "Hide release notes", updateBannerTitle: "New version available", seeInSettings: "View in Settings", updateFailed: "Could not check for updates.",
+  sOrganizing: "Organizing",
+  stickers: "Stickers", stickersDesc: "Show stickers (emojis or icons) in the file tree, tabs, and headers.",
+  stickerInLinks: "Stickers in links", stickerInLinksDesc: "Show note stickers in wikilinks in reading view.",
+  covers: "Covers", coversDesc: "Display cover banner image at the top of notes and folder pages.",
+  coverHeight: "Cover height", coverHeightDesc: "Height in pixels for the cover banner (default: 180px).",
+  aliasInTree: "Aliases in tree", aliasInTreeDesc: "Display note's first alias in file tree instead of filename when present.",
+  folderNoteName: "Folder note", folderNoteNameDesc: "Where the folder note should be placed.",
+  folderNoteInside: "Inside folder (Folder/Folder.md)", folderNoteBeside: "Beside folder (Folder.md)", folderNoteNone: "None",
+  folderPageTable: "Item table in folder page", folderPageTableDesc: "Display default items table below folder note.",
+  manualOrder: "Manual order", manualOrderDesc: "Allow manual ordering of items by dragging in the tree.",
+  inlineEmbedEdit: "Edit embedded notes in place", inlineEmbedEditDesc: "Allow editing ![[Note]] embeds directly in place.",
+  emojiTrigger: "Emoji trigger with :", emojiTriggerDesc: "Open emoji picker when typing a colon in editor.",
+  changeSticker: "Change sticker…", changeColor: "Change color…", removeSticker: "Remove sticker", removeColor: "Remove color",
+  addCover: "Add cover", changeCover: "Change cover", repositionCover: "Reposition", removeCover: "Remove cover",
+  savePosition: "Save position", cancelPosition: "Cancel",
+  turnIntoFolder: "Turn into folder", turnIntoFolderDesc: "Create a folder with this name and move note inside as folder note.",
+  createFolderNoteAsk: "Folder \"{name}\" has no folder note yet. Create \"{path}\" to organize it?",
+  coverUrlPrompt: "Cover image URL or vault image path:",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -657,6 +695,17 @@ type Settings = {
   devtools: boolean;
   /** A single click in a list opens a preview tab (2026-09-30). */
   previewTabs: boolean;
+  /** Organizing (ADR 0060, S1-S4). */
+  stickers: boolean;
+  stickerInLinks: boolean;
+  covers: boolean;
+  coverHeight: number;
+  aliasInTree: boolean;
+  folderNoteName: "inside" | "outside" | "none";
+  folderPageTable: boolean;
+  manualOrder: boolean;
+  inlineEmbedEdit: boolean;
+  emojiTrigger: boolean;
 };
 const DEFAULTS: Settings = {
   lang: "auto",
@@ -691,6 +740,16 @@ const DEFAULTS: Settings = {
   boardGrid: false,
   devtools: true,
   previewTabs: true,
+  stickers: true,
+  stickerInLinks: false,
+  covers: true,
+  coverHeight: 180,
+  aliasInTree: false,
+  folderNoteName: "inside",
+  folderPageTable: true,
+  manualOrder: true,
+  inlineEmbedEdit: true,
+  emojiTrigger: false,
 };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
@@ -1501,7 +1560,9 @@ abstract class Leaf {
     this.tabName.textContent = title;
     // A pinned tab shows its icon alone: the tip names it.
     this.tab.title = this.path && this.path !== title ? `${title}\n${this.path}` : title;
-    this.tabIcon.replaceChildren(this.kind === "graph" ? icon("graph") : iconOfPath(this.path, this.kind));
+    const label = allEntries.get(this.path)?.label;
+    const stickerNode = settings.stickers && label?.sticker ? renderSticker(label.sticker, 14) : null;
+    this.tabIcon.replaceChildren(stickerNode ?? (this.kind === "graph" ? icon("graph") : iconOfPath(this.path, this.kind)));
   }
   setDirty(d: boolean): void {
     if (d) this.keep();
@@ -1861,6 +1922,11 @@ class NoteLeaf extends Leaf {
   /** Writes run one at a time, each over the revision the last one left. */
   private saving: Promise<void> = Promise.resolve();
   readonly star = h("button", "star");
+  readonly coverBox = h("div", "note-cover-box");
+  readonly addCoverBtn = h("button", "note-add-cover-btn");
+  readonly stickerBtn = h("button", "note-sticker-btn");
+  private bannerY = 0.5;
+  private bannerUrl = "";
   readonly editor: EditorView;
   backlinksData: { from: string; line: number }[] = [];
   linksData: { target: string; resolved: string | null }[] = [];
@@ -1927,11 +1993,21 @@ class NoteLeaf extends Leaf {
     this.title.addEventListener("click", () => this.renameHere());
     this.star.type = "button";
     this.star.addEventListener("click", () => toggleBookmark(this.path));
+    this.coverBox.hidden = true;
+    this.addCoverBtn.hidden = true;
+    this.addCoverBtn.type = "button";
+    this.addCoverBtn.append(icon("image"), h("span", "", t.addCover));
+    this.addCoverBtn.addEventListener("click", () => this.promptCover());
+
+    this.stickerBtn.type = "button";
+    this.stickerBtn.hidden = true;
+    this.stickerBtn.addEventListener("click", () => this.openStickerPicker());
+
     const titleRow = h("div", "title-row");
-    titleRow.append(this.title, this.dirtyMark, this.saveButton, this.star);
+    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star);
     this.buildToolbar();
     const sheet = this.sheet;
-    sheet.append(titleRow, this.flags, this.props.el, this.conflict.el, this.preview, this.editorHost);
+    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.preview, this.editorHost);
     this.readingSearch = new ReadingSearch(this.sheet, this.preview, searchStrings());
     this.buildWebBar();
     this.webBar.hidden = true;
@@ -2562,9 +2638,159 @@ class NoteLeaf extends Leaf {
     void this.relink(note.path);
     this.props.render(note.properties, note.text, this.readOnly);
     this.paintFlags();
+    this.paintCoverAndSticker();
     if (this.pane.active === this) panel.show(this);
     this.updateWords();
     this.applyWeb();
+  }
+
+  openStickerPicker(): void {
+    const entry = allEntries.get(this.path);
+    showStickerPicker({
+      anchorEl: this.stickerBtn,
+      currentSticker: entry?.label?.sticker ?? null,
+      currentColor: entry?.label?.color ?? null,
+      strings: {
+        emojis: "Emoji",
+        icons: "Icons",
+        colors: t.hue,
+        search: t.search,
+        removeSticker: t.removeSticker,
+        removeColor: t.removeColor,
+      },
+      lang: settings.lang === "en" ? "en" : "pt",
+      onSelectSticker: (stk) => void this.setProperty("sticker", stk),
+      onSelectColor: (clr) => void this.setProperty("color", clr),
+      onRemoveSticker: () => void this.setProperty("sticker", null),
+      onRemoveColor: () => void this.setProperty("color", null),
+    });
+  }
+
+  async setProperty(key: string, value: string | null): Promise<void> {
+    let doc = this.editor.state.doc.toString();
+    doc = setFrontmatterProp(doc, key, value);
+    const curLen = this.editor.state.doc.length;
+    this.editor.dispatch({ changes: { from: 0, to: curLen, insert: doc }, annotations: Transaction.userEvent.of("input") });
+    await this.save();
+    await afterFileChange();
+  }
+
+  promptCover(): void {
+    const url = prompt(t.coverUrlPrompt ?? "URL:", this.bannerUrl || "");
+    if (url !== null) {
+      void this.setProperty("banner", url.trim() || null);
+    }
+  }
+
+  paintCoverAndSticker(): void {
+    const prop = (k: string): string | null => {
+      const p = this.note?.properties.find((x) => x.key.toLowerCase() === k.toLowerCase());
+      return p && "value" in p.value ? String(p.value.value).trim() : null;
+    };
+    const sticker = prop("sticker");
+    const color = prop("color");
+    const banner = prop("banner");
+    const bannerYStr = prop("banner_y");
+    this.bannerY = bannerYStr !== null && !isNaN(Number(bannerYStr)) ? Math.max(0, Math.min(1, Number(bannerYStr))) : 0.5;
+    this.bannerUrl = banner ?? "";
+
+    if (settings.stickers) {
+      this.stickerBtn.hidden = false;
+      const stickerNode = sticker ? renderSticker(sticker, 24) : null;
+      if (stickerNode) {
+        this.stickerBtn.replaceChildren(stickerNode);
+        this.stickerBtn.style.opacity = "1";
+      } else {
+        this.stickerBtn.replaceChildren(icon("star"));
+        this.stickerBtn.style.opacity = "0.2";
+      }
+      this.stickerBtn.title = t.changeSticker;
+    } else {
+      this.stickerBtn.hidden = true;
+    }
+
+    if (color) {
+      const c = resolveColor(color);
+      if (c) this.title.style.color = c;
+      else this.title.style.color = "";
+    } else {
+      this.title.style.color = "";
+    }
+
+    if (settings.covers) {
+      if (banner) {
+        this.addCoverBtn.hidden = true;
+        this.coverBox.hidden = false;
+        this.coverBox.style.height = `${settings.coverHeight}px`;
+
+        const img = h("img", "note-cover-img");
+        img.src = /^https?:\/\//.test(banner) ? banner : convertFileSrc(banner, "verso");
+        img.style.objectPosition = `center ${this.bannerY * 100}%`;
+
+        const controls = h("div", "note-cover-controls");
+        const btnReposition = h("button", "note-cover-btn", t.repositionCover);
+        const btnChange = h("button", "note-cover-btn", t.changeCover);
+        const btnRemove = h("button", "note-cover-btn", t.removeCover);
+
+        btnChange.addEventListener("click", () => this.promptCover());
+        btnRemove.addEventListener("click", () => {
+          void this.setProperty("banner", null);
+          void this.setProperty("banner_y", null);
+        });
+
+        btnReposition.addEventListener("click", () => {
+          this.coverBox.classList.add("dragging");
+          const hint = h("div", "note-cover-drag-hint", t.savePosition);
+          this.coverBox.append(hint);
+          let startY = 0;
+          let startPos = this.bannerY;
+          let currentY = this.bannerY;
+
+          const onMouseDown = (e: MouseEvent) => {
+            startY = e.clientY;
+            startPos = currentY;
+            const onMouseMove = (ev: MouseEvent) => {
+              const delta = (ev.clientY - startY) / (settings.coverHeight || 180);
+              currentY = Math.max(0, Math.min(1, startPos - delta));
+              img.style.objectPosition = `center ${currentY * 100}%`;
+            };
+            const onMouseUp = () => {
+              document.removeEventListener("mousemove", onMouseMove);
+              document.removeEventListener("mouseup", onMouseUp);
+            };
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", onMouseUp);
+          };
+
+          this.coverBox.addEventListener("mousedown", onMouseDown);
+
+          const finish = (save: boolean) => {
+            this.coverBox.classList.remove("dragging");
+            hint.remove();
+            this.coverBox.removeEventListener("mousedown", onMouseDown);
+            if (save) {
+              this.bannerY = currentY;
+              void this.setProperty("banner_y", currentY.toFixed(2));
+            } else {
+              img.style.objectPosition = `center ${this.bannerY * 100}%`;
+            }
+          };
+
+          hint.style.pointerEvents = "auto";
+          hint.style.cursor = "pointer";
+          hint.addEventListener("click", () => finish(true));
+        });
+
+        controls.append(btnReposition, btnChange, btnRemove);
+        this.coverBox.replaceChildren(img, controls);
+      } else {
+        this.coverBox.hidden = true;
+        this.addCoverBtn.hidden = false;
+      }
+    } else {
+      this.coverBox.hidden = true;
+      this.addCoverBtn.hidden = true;
+    }
   }
   /** What the note says of itself above the text: behind the index, a
    *  last known version, mixed line endings (read-only), gone. */
@@ -3206,9 +3432,20 @@ class NoteLeaf extends Leaf {
   private dressLinks(path: string): void {
     for (const a of this.preview.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
       const target = a.dataset["target"] ?? "";
-      a.classList.toggle("unresolved", this.resolve(target) === null);
+      const to = this.resolve(target);
+      a.classList.toggle("unresolved", to === null);
       // `[[Note#Heading]]` reads as "Note › Heading" when it has no alias.
       if (a.textContent === target && /[#^]/.test(target)) a.textContent = target.replace(/#\^?/g, " › ");
+      if (settings.stickerInLinks && to) {
+        const stk = allEntries.get(to)?.label?.sticker;
+        if (stk && !a.querySelector(".wikilink-sticker")) {
+          const s = renderSticker(stk, 12);
+          if (s) {
+            s.classList.add("wikilink-sticker");
+            a.prepend(s);
+          }
+        }
+      }
     }
     this.dress(path);
   }
@@ -6435,11 +6672,99 @@ function typeset(root: HTMLElement): void {
 }
 /** A folder's own note: `Folder/Folder.md`, or `Folder.md` beside the folder. */
 function folderNoteOf(folder: string): string | null {
-  if (folder === "") return null;
+  if (folder === "" || settings.folderNoteName === "none") return null;
   const label = (folder.split("/").pop() ?? folder).toLowerCase();
   const inside = `${folder}/${label}.md`.toLowerCase();
   const beside = `${folder}.md`.toLowerCase();
+  if (settings.folderNoteName === "outside") {
+    return allNotes.find((p) => p.toLowerCase() === beside) ?? allNotes.find((p) => p.toLowerCase() === inside) ?? null;
+  }
   return allNotes.find((p) => p.toLowerCase() === inside) ?? allNotes.find((p) => p.toLowerCase() === beside) ?? null;
+}
+
+function setFrontmatterProp(doc: string, key: string, value: string | null): string {
+  if (value === null) {
+    const res = propertyChange(doc, key, { op: "remove" });
+    if ("change" in res) {
+      return doc.slice(0, res.change.from) + res.change.insert + doc.slice(res.change.to);
+    }
+    return doc;
+  }
+  let currentDoc = doc;
+  let res = propertyChange(currentDoc, key, { op: "set", value: { kind: "text", value } });
+  if ("refused" in res && (res.refused === "changed" || res.refused === "fixed")) {
+    const createRes = propertyChange(currentDoc, key, { op: "create" });
+    if ("change" in createRes) {
+      currentDoc = currentDoc.slice(0, createRes.change.from) + createRes.change.insert + currentDoc.slice(createRes.change.to);
+      const setRes = propertyChange(currentDoc, key, { op: "set", value: { kind: "text", value } });
+      if ("change" in setRes) {
+        return currentDoc.slice(0, setRes.change.from) + setRes.change.insert + currentDoc.slice(setRes.change.to);
+      }
+    }
+  } else if ("change" in res) {
+    return currentDoc.slice(0, res.change.from) + res.change.insert + currentDoc.slice(res.change.to);
+  }
+  return currentDoc;
+}
+
+function activeLeafForPath(path: string): NoteLeaf | null {
+  for (const s of spaces) {
+    for (const p of s.layout.panes()) {
+      for (const l of p.leaves) {
+        if (l instanceof NoteLeaf && l.path === path) return l;
+      }
+    }
+  }
+  return null;
+}
+
+async function updateEntryProperties(path: string, kind: Kind, updates: Record<string, string | null>): Promise<void> {
+  let targetNote = path;
+  if (kind === "folder") {
+    let fn = folderNoteOf(path);
+    if (!fn) {
+      const folderShort = path.split("/").pop() ?? path;
+      const insidePath = settings.folderNoteName === "outside" ? `${path}.md` : `${path}/${folderShort}.md`;
+      const ask = t.createFolderNoteAsk.replace("{name}", folderShort).replace("{path}", insidePath);
+      if (!confirm(ask)) return;
+      const created = await commands.createNote(insidePath.endsWith(".md") ? insidePath.slice(0, -3) : insidePath, `# ${folderShort}\n\n`);
+      if (created.status !== "ok") {
+        fail(created.error);
+        return;
+      }
+      targetNote = created.data.path;
+      await afterFileChange();
+    } else {
+      targetNote = fn;
+    }
+  }
+  const leaf = activeLeafForPath(targetNote);
+  if (leaf) {
+    let doc = leaf.editor.state.doc.toString();
+    for (const [k, v] of Object.entries(updates)) {
+      doc = setFrontmatterProp(doc, k, v);
+    }
+    const curLen = leaf.editor.state.doc.length;
+    leaf.editor.dispatch({ changes: { from: 0, to: curLen, insert: doc }, annotations: Transaction.userEvent.of("input") });
+    await leaf.save();
+    await afterFileChange();
+  } else {
+    const read = await commands.readNote(targetNote);
+    if (read.status !== "ok") {
+      fail(read.error);
+      return;
+    }
+    let text = read.data.text;
+    for (const [k, v] of Object.entries(updates)) {
+      text = setFrontmatterProp(text, k, v);
+    }
+    const written = await commands.writeNote(targetNote, text, read.data.revision);
+    if (written.status !== "ok") {
+      fail(written.error);
+      return;
+    }
+    await afterFileChange();
+  }
 }
 /** The note a link target names, for a link typed a moment ago and not
  *  indexed yet: the index's own order (verso-index, `RESOLVE` in store.rs
@@ -7416,6 +7741,20 @@ async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
   return true;
 }
 /** The context menu of anything in the folder: the same everywhere it is listed. */
+async function turnNoteIntoFolder(path: string): Promise<void> {
+  const dir = dirOf(path);
+  const stem = name(path);
+  const targetFolder = dir ? `${dir}/${stem}` : stem;
+  const targetNote = `${targetFolder}/${stem}.md`;
+  const cf = await commands.createFolder(targetFolder);
+  if (cf.status !== "ok") {
+    fail(cf.error.kind === "exists" ? { message: t.exists } : cf.error);
+    return;
+  }
+  openFolders.add(targetFolder);
+  await renameTo(path, targetNote, t.moved);
+}
+
 function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
   const folder = kind === "folder";
   const here = folder ? path : dirOf(path);
@@ -7433,7 +7772,39 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
       ];
   if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
   if (kind === "note" && /\.excalidraw\.md$/i.test(path)) items.push([boardText.convert, () => void convertToBoard(path), "board"]);
+
+  const entry = allEntries.get(path);
+  const currentSticker = entry?.label?.sticker ?? null;
+  const currentColor = entry?.label?.color ?? null;
+
+  const openPicker = () => {
+    showStickerPicker({
+      x, y,
+      currentSticker,
+      currentColor,
+      strings: {
+        emojis: "Emoji",
+        icons: "Icons",
+        colors: t.hue,
+        search: t.search,
+        removeSticker: t.removeSticker,
+        removeColor: t.removeColor,
+      },
+      lang: settings.lang === "en" ? "en" : "pt",
+      onSelectSticker: (stk) => void updateEntryProperties(path, kind, { sticker: stk }),
+      onSelectColor: (clr) => void updateEntryProperties(path, kind, { color: clr }),
+      onRemoveSticker: () => void updateEntryProperties(path, kind, { sticker: null }),
+      onRemoveColor: () => void updateEntryProperties(path, kind, { color: null }),
+    });
+  };
+
   items.push(
+    sep,
+    [t.changeSticker, openPicker, "star"],
+    [t.changeColor, openPicker, "palette"],
+    ...(currentSticker ? [[t.removeSticker, () => void updateEntryProperties(path, kind, { sticker: null }), "close"] as MenuItem] : []),
+    ...(currentColor ? [[t.removeColor, () => void updateEntryProperties(path, kind, { color: null }), "close"] as MenuItem] : []),
+    ...(kind === "note" ? [[t.turnIntoFolder, () => void turnNoteIntoFolder(path), "folder"] as MenuItem] : []),
     sep,
     [t.rename, rename, "edit"],
     [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
@@ -7785,7 +8156,20 @@ function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIEl
   const kind = kindOf(path);
   const b = h("button", `row kind-${kind}`);
   b.type = "button";
-  b.append(iconOfPath(path, kind), h("span", "row-name", path.split("/").pop() ?? path));
+  const entry = allEntries.get(path);
+  const label = entry?.label;
+  const stickerNode = settings.stickers && label?.sticker ? renderSticker(label.sticker, 14) : null;
+  const leadIcon = stickerNode ?? iconOfPath(path, kind);
+  const displayName = settings.aliasInTree && label?.alias ? label.alias : (path.split("/").pop() ?? path);
+  const nameSpan = h("span", "row-name", displayName);
+  if (label?.color) {
+    const c = resolveColor(label.color);
+    if (c) {
+      b.classList.add("colored");
+      b.style.setProperty("--row-color", c);
+    }
+  }
+  b.append(leadIcon, nameSpan);
   b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey, false, true));
   b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || openNote(path, false)));
   b.addEventListener("mousedown", () => b.focus());
@@ -7986,8 +8370,20 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
     const s = h("summary");
     s.dataset["folder"] = full;
     const chev = h("span", "chev");
+    const entry = allEntries.get(full);
+    const labelData = entry?.label;
+    const stickerNode = settings.stickers && labelData?.sticker ? renderSticker(labelData.sticker, 14) : null;
     const label = h("span", "folder-label", folder);
-    s.append(chev, label);
+    if (labelData?.color) {
+      const c = resolveColor(labelData.color);
+      if (c) {
+        s.classList.add("colored");
+        s.style.setProperty("--row-color", c);
+      }
+    }
+    s.append(chev);
+    if (stickerNode) s.append(stickerNode);
+    s.append(label);
     if (folderNoteOf(full)) s.classList.add("has-note");
     label.addEventListener("click", (e) => {
       e.preventDefault();
@@ -8363,8 +8759,15 @@ class QuickSwitcher {
         const li = h("li", i === this.sel ? "selected" : "");
         const b = h("button");
         b.type = "button";
-        option(li, b, `quick-option-${i}`, i === this.sel, this.input);
-        b.append(icon(iconFor(kindOf(p))), h("span", "", name(p)), h("span", "path", dirOf(p)));
+        const label = allEntries.get(p)?.label;
+        const stickerNode = settings.stickers && label?.sticker ? renderSticker(label.sticker, 14) : null;
+        const leadIcon = stickerNode ?? icon(iconFor(kindOf(p)));
+        const nameSpan = h("span", "", name(p));
+        if (label?.color) {
+          const c = resolveColor(label.color);
+          if (c) nameSpan.style.color = c;
+        }
+        b.append(leadIcon, nameSpan, h("span", "path", dirOf(p)));
         b.addEventListener("click", (e) => this.choose(p, e.metaKey || e.ctrlKey));
         li.append(b);
         return li;
@@ -9097,6 +9500,7 @@ class SettingsDialog {
       { id: "general", label: t.sGeneral, icon: "gear" },
       { id: "appearance", label: t.sAppearance, icon: "palette" },
       { id: "editor", label: t.sEditor, icon: "edit" },
+      { id: "organizing", label: t.sOrganizing, icon: "folder" },
       { id: "files", label: t.sFiles, icon: "folder" },
       { id: "board", label: boardText.sBoard, icon: "board" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
@@ -9370,6 +9774,16 @@ class SettingsDialog {
       ["amethyst", t.colorAmethyst],
     ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
+    add("organizing", t.stickers, t.stickersDesc, () => this.toggle(settings.stickers, (v) => { settings.stickers = v; saveSettings(); void listAll(); }));
+    add("organizing", t.stickerInLinks, t.stickerInLinksDesc, () => this.toggle(settings.stickerInLinks, (v) => { settings.stickerInLinks = v; saveSettings(); }));
+    add("organizing", t.covers, t.coversDesc, () => this.toggle(settings.covers, (v) => { settings.covers = v; saveSettings(); for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf && l.note) void l.load(l.path, true); }));
+    add("organizing", t.coverHeight, t.coverHeightDesc, () => this.text(String(settings.coverHeight), (v) => { const n = Number(v); if (!isNaN(n) && n >= 80 && n <= 600) { settings.coverHeight = n; saveSettings(); } }));
+    add("organizing", t.aliasInTree, t.aliasInTreeDesc, () => this.toggle(settings.aliasInTree, (v) => { settings.aliasInTree = v; saveSettings(); void listAll(); }));
+    add("organizing", t.folderNoteName, t.folderNoteNameDesc, () => this.select([["inside", t.folderNoteInside], ["outside", t.folderNoteBeside], ["none", t.folderNoteNone]], settings.folderNoteName, (v) => { settings.folderNoteName = v; saveSettings(); void listAll(); }));
+    add("organizing", t.folderPageTable, t.folderPageTableDesc, () => this.toggle(settings.folderPageTable, (v) => { settings.folderPageTable = v; saveSettings(); }));
+    add("organizing", t.manualOrder, t.manualOrderDesc, () => this.toggle(settings.manualOrder, (v) => { settings.manualOrder = v; saveSettings(); }));
+    add("organizing", t.inlineEmbedEdit, t.inlineEmbedEditDesc, () => this.toggle(settings.inlineEmbedEdit, (v) => { settings.inlineEmbedEdit = v; saveSettings(); }));
+    add("organizing", t.emojiTrigger, t.emojiTriggerDesc, () => this.toggle(settings.emojiTrigger, (v) => { settings.emojiTrigger = v; saveSettings(); }));
     const b = boardText;
     add("board", b.prefOpenAs, b.prefOpenAsDesc, () => this.select([["board", b.prefOpenAsBoard], ["source", b.prefOpenAsText]], settings.boardOpenAs, (v) => { settings.boardOpenAs = v; saveSettings(); }));
     add("board", b.prefOpen, b.prefOpenDesc, () => this.select([["fit", b.prefOpenFit], ["last", b.prefOpenLast]], settings.boardOpen, (v) => { settings.boardOpen = v; saveSettings(); }));

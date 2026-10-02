@@ -537,6 +537,16 @@ export type Edge = {
 	to: string,
 };
 
+/**
+ *  Sticker and color of an entry (note or folder), plus its first alias
+ *  when one exists (ADR 0060, S1).
+ */
+export type EntryLabel = {
+	sticker: string | null,
+	color: string | null,
+	alias: string | null,
+};
+
 /**  Why a command could not answer, by what the UI can do about it. */
 export type ErrorKind = 
 /**  No folder is open yet. */
@@ -584,6 +594,7 @@ export type FileEntry = {
 	size: number | null,
 	/**  Seconds since the Unix epoch; 0 when the file system gave none. */
 	modified: number | null,
+	label: EntryLabel | null,
 };
 
 /**  What one entry of the open folder is. */

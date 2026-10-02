@@ -12,7 +12,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 7;
+pub(crate) const VERSION: i64 = 8;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -39,7 +39,11 @@ CREATE TABLE notes (
     content   TEXT NOT NULL DEFAULT '',
     -- ADR 0043: a placeholder keeps the last known version, marked as
     -- unverified (1); a note read from disk is verified (0).
-    unverified INTEGER NOT NULL DEFAULT 0
+    unverified INTEGER NOT NULL DEFAULT 0,
+    sticker   TEXT,
+    color     TEXT,
+    banner    TEXT,
+    banner_y  REAL
 );
 CREATE INDEX notes_path_key ON notes(path_key);
 CREATE INDEX notes_name_key ON notes(name_key);
@@ -91,24 +95,48 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     {
         return Ok(());
     }
-    // Version 6, the one before the board, is carried over in place, not
-    // rebuilt: for a note iCloud has evicted, its row is the only local
-    // copy of its text and links (ADR 0043), and a rebuild would lose it
-    // (decided by the maintainer on 2026-10-01, review `board.md` §6 item
-    // 7). Every note read from disk is read again on the next walk, for
-    // the links its properties hold; a placeholder keeps what it had.
+    let has_column = |table: &str, col: &str| -> bool {
+        conn.query_row(
+            &format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name = ?1"),
+            [col],
+            |r| r.get::<_, i64>(0).map(|n| n > 0),
+        )
+        .unwrap_or(false)
+    };
+    // Version 6 and 7 are carried over in place:
+    // Version 6 had no kind on notes and no relation on links.
+    // Version 7 added kind and relation, but had no label columns (sticker, color, banner, banner_y).
     if has_meta
-        && meta("schema").and_then(|v| v.parse::<i64>().ok()) == Some(6)
+        && matches!(
+            meta("schema").and_then(|v| v.parse::<i64>().ok()),
+            Some(6 | 7)
+        )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
-        conn.execute_batch(
-            "BEGIN;
-             ALTER TABLE notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'note';
-             ALTER TABLE links ADD COLUMN relation TEXT;
-             UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;
-             UPDATE meta SET value = '7' WHERE key = 'schema';
-             COMMIT;",
-        )?;
+        let is_v6 = meta("schema").and_then(|v| v.parse::<i64>().ok()) == Some(6);
+        conn.execute_batch("BEGIN;")?;
+        if !has_column("notes", "kind") {
+            conn.execute_batch("ALTER TABLE notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'note';")?;
+        }
+        if !has_column("links", "relation") {
+            conn.execute_batch("ALTER TABLE links ADD COLUMN relation TEXT;")?;
+        }
+        if !has_column("notes", "sticker") {
+            conn.execute_batch("ALTER TABLE notes ADD COLUMN sticker TEXT;")?;
+        }
+        if !has_column("notes", "color") {
+            conn.execute_batch("ALTER TABLE notes ADD COLUMN color TEXT;")?;
+        }
+        if !has_column("notes", "banner") {
+            conn.execute_batch("ALTER TABLE notes ADD COLUMN banner TEXT;")?;
+        }
+        if !has_column("notes", "banner_y") {
+            conn.execute_batch("ALTER TABLE notes ADD COLUMN banner_y REAL;")?;
+        }
+        if is_v6 {
+            conn.execute_batch("UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;")?;
+        }
+        conn.execute_batch("UPDATE meta SET value = '8' WHERE key = 'schema'; COMMIT;")?;
         return Ok(());
     }
     // Another version, another tokenizer, or a SQLite file that is not

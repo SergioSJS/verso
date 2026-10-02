@@ -2093,6 +2093,13 @@ impl Workspace {
         &self.entries
     }
 
+    /// Every label (sticker, color, alias) known to the index (ADR 0060, S1).
+    pub fn labels(
+        &self,
+    ) -> Result<std::collections::HashMap<String, verso_index::EntryLabel>, CoreError> {
+        self.index.labels().map_err(CoreError::Index)
+    }
+
     /// A path of the folder as confinement names it — relative,
     /// normalized, no extension added — or the refusal. What a caller that
     /// judges a path by its name must look at, instead of the string it
