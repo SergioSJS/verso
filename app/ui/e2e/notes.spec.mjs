@@ -174,7 +174,7 @@ test("a wide picture inside an embedded note does not rewrap the whole note", as
   await app.quickOpen("Com Embute");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   // The caret away from the embed's line: the live preview draws it.
-  await page.locator(".cm-content").first().click();
+  await page.locator(".cm-content").first().click({ position: { x: 50, y: 10 } });
   await expect(page.locator(".cm-lp-embed-body img")).toBeVisible();
   const box = () =>
     page.evaluate(() => {
@@ -216,7 +216,7 @@ test("an embedded note is drawn in the editor as the reading view draws it", asy
   const reading = await look(".embed-note-body");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   // The caret away from the embed's line: the live preview draws it.
-  await page.locator(".cm-content").first().click();
+  await page.locator(".cm-content").first().click({ position: { x: 50, y: 10 } });
   await expect(page.locator(".cm-lp-embed-body h2")).toBeVisible();
   // Each line break between the rendered blocks was drawn as an empty
   // line (the editor's `white-space: break-spaces`), and the headings in
