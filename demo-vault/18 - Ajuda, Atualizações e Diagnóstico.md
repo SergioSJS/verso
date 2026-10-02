@@ -56,4 +56,4 @@ Este cofre de exemplo veio de **Importar cofre de exemplo** (na paleta e no menu
 
 ---
 
-Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+Siga para [[19 - Organizando: figurinhas, capas e páginas]] ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]].

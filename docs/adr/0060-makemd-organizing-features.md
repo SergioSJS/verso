@@ -125,4 +125,4 @@ From the memo, each weighed by the maintainer:
 
 ## Status
 
-Accepted (2026-10-02).
+Accepted (2026-10-02); slices S1–S4 implemented and verified (2026-10-02).

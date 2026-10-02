@@ -127,4 +127,4 @@ Do memo, cada uma pesada pelo mantenedor:
 
 ## Status
 
-Aceito (2026-10-02).
+Aceito (2026-10-02); fatias S1–S4 implementadas e verificadas (2026-10-02).
