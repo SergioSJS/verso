@@ -148,7 +148,7 @@ type Strings = Record<
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
   | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
-  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk"
+  | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed",
   string
 > & {
@@ -274,7 +274,7 @@ const pt: Strings = {
   mcpAddAsk: "Isto entra no arquivo de configuração do Claude Desktop; uma cópia do arquivo como está fica ao lado dele:\n\n{entry}\n\nDepois, reinicie o Claude Desktop.", mcpAddYes: "Adicionar", mcpAdded: "Adicionado. Reinicie o Claude Desktop.", mcpBackup: "Cópia do anterior: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
-  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!", demoVaultKept: "Estes arquivos já existiam com outro conteúdo e foram mantidos como estão, porque foram editados:", demoVaultKeptOk: "OK",
+  importDemoVault: "Importar cofre de exemplo", importDemoVaultConfirm: "Deseja importar as notas, bases e exemplos do cofre modelo para a pasta atual?", demoVaultImported: "Cofre de exemplo importado com sucesso!", demoVaultKept: "Estes arquivos já existiam com outro conteúdo — uma edição sua, ou o exemplo de uma versão anterior — e foram mantidos como estão:", demoVaultKeptOk: "OK", demoVaultFailed: "Estes arquivos não puderam ser criados; o log do app diz por quê:",
   devtools: "Console do desenvolvedor", devtoolsDesc: "Visualização › Abrir console (⌥⌘I) abre o inspetor da janela: console, elementos e rede.", openConsole: "Abrir console (dev tools)", devtoolsOff: "O console está desligado em Ajustes › Geral.",
   checkUpdates: "Verificar atualizações automaticamente", checkUpdatesDesc: "Verifica e avisa ao abrir o aplicativo quando uma nova versão do Verso estiver disponível.", checkNow: "Verificar atualizações", checkingUpdates: "Verificando atualizações…", updateUpToDate: "Você está usando a versão mais recente.", updateAvailable: "Nova versão disponível", downloadAndUpdate: "Baixar e atualizar", downloadingUpdate: "Baixando atualização…", updateReady: "Atualização pronta!", restartNow: "Reiniciar agora", viewReleaseNotes: "Ver notas da versão", hideReleaseNotes: "Ocultar notas da versão", updateBannerTitle: "Nova versão disponível", seeInSettings: "Ver nos Ajustes", updateFailed: "Não foi possível verificar atualizações.",
 };
@@ -371,7 +371,7 @@ const en: Strings = {
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
-  importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content and were kept as they are, because they were edited:", demoVaultKeptOk: "OK",
+  importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content — an edit of yours, or the demo of an earlier version — and were kept as they are:", demoVaultKeptOk: "OK", demoVaultFailed: "These files could not be created; the app's log says why:",
   devtools: "Developer console", devtoolsDesc: "View › Open Console (⌥⌘I) opens the window's inspector: console, elements and network.", openConsole: "Open console (dev tools)", devtoolsOff: "The console is turned off in Settings › General.",
   checkUpdates: "Check for updates automatically", checkUpdatesDesc: "Check and notify on startup when a new version of Verso is available.", checkNow: "Check for updates", checkingUpdates: "Checking for updates…", updateUpToDate: "You are running the latest version.", updateAvailable: "New version available", downloadAndUpdate: "Download and update", downloadingUpdate: "Downloading update…", updateReady: "Update ready!", restartNow: "Restart now", viewReleaseNotes: "View release notes", hideReleaseNotes: "Hide release notes", updateBannerTitle: "New version available", seeInSettings: "View in Settings", updateFailed: "Could not check for updates.",
 };
@@ -7208,13 +7208,14 @@ async function sameAsDemo(path: string, b64: string): Promise<boolean> {
 }
 /** Populate the current vault with sample notes, bases, and templates. */
 async function importDemoVault(): Promise<void> {
+  void commands.logWrite("INFO", "import demo: asked").catch(() => undefined);
   try {
     if (!currentFolder) {
       const picked = await openFolderBy(() => commands.pickFolder());
       if (!picked || !currentFolder) return;
     }
     const confirmed = await ask(t.importDemoVaultConfirm, { yes: t.importDemoVault, no: t.cancel });
-    if (!confirmed) return;
+    if (!confirmed) return void commands.logWrite("INFO", "import demo: declined").catch(() => undefined);
 
     ui.status.textContent = "…";
 
@@ -7232,10 +7233,16 @@ async function importDemoVault(): Promise<void> {
     }
 
     // A file already there is never written over: the same content is
-    // left alone, any other is the user's edit and is kept, and named.
+    // left alone, any other — the user's edit, or an earlier version's
+    // demo — is kept, and named. One that could not be written is named
+    // too, and its reason goes to the log: an import that wrote nothing
+    // said "imported" and left no trace (2026-10-01).
+    void commands.logWrite("INFO", `import demo: ${DEMO_VAULT_FILES.length} files`).catch(() => undefined);
     let createdCount = 0;
     const kept: string[] = [];
-    for (const item of DEMO_VAULT_FILES) {
+    const failed: string[] = [];
+    for (const [i, item] of DEMO_VAULT_FILES.entries()) {
+      ui.status.textContent = `… ${i + 1}/${DEMO_VAULT_FILES.length}`;
       try {
         const res = await commands.createFile(item.path, item.b64);
         if (res.status === "ok") {
@@ -7243,12 +7250,15 @@ async function importDemoVault(): Promise<void> {
         } else if (res.error.kind === "exists") {
           if (!(await sameAsDemo(item.path, item.b64))) kept.push(item.path);
         } else {
-          console.warn("importDemoVault: could not create file", item.path, res.error);
+          failed.push(item.path);
+          console.error(`import demo: ${item.path}: ${res.error.kind}: ${res.error.message}`);
         }
       } catch (e) {
-        console.warn("importDemoVault: error creating file", item.path, e);
+        failed.push(item.path);
+        console.error(`import demo: ${item.path}: ${String(e)}`);
       }
     }
+    void commands.logWrite("INFO", `import demo: ${createdCount} created, ${kept.length} kept, ${failed.length} failed`).catch(() => undefined);
 
     await afterFileChange();
     refreshLists();
@@ -7256,6 +7266,7 @@ async function importDemoVault(): Promise<void> {
     const msg = createdCount > 0 ? `${t.demoVaultImported} (${t.demoVaultNew(createdCount)})` : t.demoVaultImported;
     ui.status.textContent = msg;
     showToast(msg);
+    if (failed.length > 0) await tell(`${t.demoVaultFailed}\n${failed.join("\n")}`, t.demoVaultKeptOk);
     if (kept.length > 0) await tell(`${t.demoVaultKept}\n${kept.join("\n")}`, t.demoVaultKeptOk);
   } catch (err: unknown) {
     console.error("importDemoVault failed:", err);

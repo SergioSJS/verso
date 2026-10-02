@@ -262,7 +262,7 @@ fn may_switch<R: tauri::Runtime>(
     if me != "main" && !me.starts_with("window-") {
         return Err(refused("only a window of the folder opens a folder"));
     }
-    if app.webview_windows().keys().any(|label| {
+    if app.windows().keys().any(|label| {
         label != me
             && (label.starts_with("note-") || label.starts_with("window-") || label == "main")
     }) {
@@ -1257,11 +1257,14 @@ fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 /// Open the web inspector — console, elements, network — of the window
 /// that asks: View › Open console (⌥⌘I), in the installed app as in
 /// development (ADR 0051, 2026-09-30). The window asks only when its
-/// setting allows it.
+/// setting allows it. The web view, not a `WebviewWindow`: a window
+/// that shows a site inside it (a web note, an embed) holds child web
+/// views, and Tauri no longer counts it as one — the command failed
+/// there with "current webview is not a WebviewWindow".
 #[tauri::command]
 #[specta::specta]
-fn open_devtools<R: tauri::Runtime>(window: tauri::WebviewWindow<R>) {
-    window.open_devtools();
+fn open_devtools<R: tauri::Runtime>(webview: tauri::Webview<R>) {
+    webview.open_devtools();
 }
 
 /// Open a web page in a window of its own inside the app: a note with a
@@ -2265,15 +2268,14 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // 2026-10-01, review `board.md` §6 item 20).
             if let Some(w) = focused_window(app) {
                 let edit = page_edit(command);
-                if is_app_view(w.label()) {
+                let app_view = is_app_view(w.label());
+                if app_view {
                     let _ = app.emit("menu-edit", (w.label().to_owned(), command.to_owned()));
-                    for view in app.webviews().into_values() {
-                        if view.label() != w.label() && view.window().label() == w.label() {
-                            let _ = view.eval(&edit);
-                        }
+                }
+                for view in w.webviews() {
+                    if !app_view || view.label() != w.label() {
+                        let _ = view.eval(&edit);
                     }
-                } else {
-                    let _ = w.eval(&edit);
                 }
             }
         } else if id == DEVTOOLS {
@@ -2346,7 +2348,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             "host",
             &format!(
                 "exit requested (code {code:?}, {} window(s) open)",
-                app.webview_windows().len()
+                app.windows().len()
             ),
         ),
         tauri::RunEvent::WindowEvent {
@@ -2360,7 +2362,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
     match event {
         tauri::RunEvent::ExitRequested {
             api, code: None, ..
-        } if !app.webview_windows().is_empty() => {
+        } if !app.windows().is_empty() => {
             api.prevent_exit();
             ask_windows_to_quit(app);
         }
@@ -2387,7 +2389,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 #[cfg(any(target_os = "macos", test))]
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
     *lock(&app.state::<App>().initial_folder) = Some(folder);
-    if let Some(main) = app.get_webview_window("main") {
+    if let Some(main) = app.get_window("main") {
         let _ = main.set_focus();
     }
     let _ = app.emit_to("main", "folder-handed", ());
@@ -2399,7 +2401,7 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
 /// the app alive after its windows had gone.
 fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let mut ours = false;
-    for (label, window) in app.webview_windows() {
+    for (label, window) in app.windows() {
         if is_app_view(&label) {
             ours = true;
         } else {
@@ -2454,10 +2456,13 @@ fn page_edit(command: &str) -> String {
     format!("document.hasFocus() && document.execCommand('{name}')")
 }
 
-/// The window that has the focus, if one of the app's has it.
+/// The window that has the focus, if one of the app's has it. Every
+/// window, not only the `WebviewWindow`s: one that shows a site inside it
+/// holds child web views and is no longer counted as one, and the menu
+/// went deaf in it — no ⌘W, ⌘Z or console.
 #[cfg(target_os = "macos")]
-fn focused_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<tauri::WebviewWindow<R>> {
-    app.webview_windows()
+fn focused_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<tauri::Window<R>> {
+    app.windows()
         .into_values()
         .find(|w| w.is_focused().unwrap_or(false))
 }
@@ -3204,6 +3209,47 @@ mod tests {
         }
         let e = call(&main, "web_url", json!({ "label": "main" })).unwrap_err();
         assert_eq!(e["kind"], "refused", "{e}");
+    }
+
+    /// A window that shows a site inside it (a web note, an embed) holds
+    /// child web views, and Tauri stops counting it as a `WebviewWindow`:
+    /// the console still opens there, a quit still asks it to save, and a
+    /// folder switch still sees it (the console failed with "current
+    /// webview is not a WebviewWindow", 2026-10-01).
+    #[test]
+    fn a_window_showing_a_site_inside_it_is_still_one_of_the_apps_windows() {
+        use tauri::Listener;
+        let (app, main) = app();
+        main.as_ref()
+            .window()
+            .add_child(
+                tauri::webview::WebviewBuilder::new(
+                    "web-1",
+                    tauri::WebviewUrl::External("https://example.com".parse().unwrap()),
+                ),
+                tauri::LogicalPosition::new(0.0, 0.0),
+                tauri::LogicalSize::new(10.0, 10.0),
+            )
+            .unwrap();
+        assert!(
+            app.get_webview_window("main").is_none(),
+            "Tauri's rule changed"
+        );
+        assert!(call(&main, "open_devtools", json!({})).is_ok());
+
+        let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = told.clone();
+        app.listen_any("quit-requested", move |_| {
+            seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        });
+        ask_windows_to_quit(app.handle());
+        assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        let other = tauri::WebviewWindowBuilder::new(&app, "window-1", Default::default())
+            .build()
+            .unwrap();
+        let e = may_switch(app.handle(), &other.as_ref().window()).unwrap_err();
+        assert_eq!(e.kind, ErrorKind::Refused, "{}", e.message);
     }
 
     /// A panic inside a core call is answered as `failed` and leaves the

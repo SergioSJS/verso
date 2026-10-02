@@ -77,6 +77,12 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    (`a51aab2`).
 2. A nota de boas-vindas mostra o destaque "Comece pelo tour" com os dois
    links. Nível: S (os links), H.
+3. Importe de novo numa pasta que tem o exemplo de uma versão anterior.
+   Esperado: o que falta é criado, um arquivo com outro conteúdo fica como
+   está e é nomeado, e o log do app tem linhas `import demo:` dizendo
+   quantos foram criados, mantidos e falharam. Nível: H; E:
+   `import.spec.mjs`. Pegou: uma importação que não escrevia nada dizia
+   "importado" e não deixava rastro.
 
 ## 2. O tour
 
@@ -204,6 +210,12 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    digite num campo do site, e então ⌘A, ⌘Z e ⌘⇧Z agem nesse campo, uma vez
    cada, e nada na nota atrás muda. Nível: A (a web view do site é do host;
    revisão `board.md`, segunda leitura, achado 1).
+5. Com uma nota cujo site incorporado está na tela: ⌥⌘I abre o console, ⌘W
+   fecha a aba, e sair do app pede à janela que salve antes. Nível: A (as
+   web views filhas da janela são do host), U (`cargo test -p verso-app`).
+   Pegou: uma janela com um site dentro deixava de contar como uma janela
+   do app — "current webview is not a WebviewWindow" — e o menu dela
+   ficava surdo.
 
 ## 8. O arquivo do board
 

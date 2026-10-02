@@ -177,7 +177,10 @@ export const commands = {
 	 *  Open the web inspector — console, elements, network — of the window
 	 *  that asks: View › Open console (⌥⌘I), in the installed app as in
 	 *  development (ADR 0051, 2026-09-30). The window asks only when its
-	 *  setting allows it.
+	 *  setting allows it. The web view, not a `WebviewWindow`: a window
+	 *  that shows a site inside it (a web note, an embed) holds child web
+	 *  views, and Tauri no longer counts it as one — the command failed
+	 *  there with "current webview is not a WebviewWindow".
 	 */
 	openDevtools: () => __TAURI_INVOKE<void>("open_devtools"),
 	/**

@@ -80,6 +80,11 @@ point 13).
    put `Templates/` into `templates/` (`a51aab2`).
 2. The welcome note shows the "Comece pelo tour" callout with its two links.
    Level: S (the links), H.
+3. Import again into a folder that holds an earlier version's demo. Expect:
+   what is missing is created, a file with other content is kept as it is
+   and named, and the app's log has `import demo:` lines saying how many
+   were created, kept and failed. Level: H; E: `import.spec.mjs`. Caught:
+   an import that wrote nothing said "imported" and left no trace.
 
 ## 2. The tour
 
@@ -204,6 +209,12 @@ point 13).
    field, once each, and nothing in the note behind changes. Level: A (the
    site's web view is the host's; review `board.md`, second reading,
    finding 1).
+5. With a note whose embedded site is on screen: ⌥⌘I opens the console,
+   ⌘W closes the tab, and quitting asks the window to save first. Level: A
+   (the window's child web views are the host's), U (`cargo test -p
+   verso-app`). Caught: a window holding a site no longer counted as one
+   of the app's — "current webview is not a WebviewWindow" — and its menu
+   went deaf.
 
 ## 8. The board's file
 

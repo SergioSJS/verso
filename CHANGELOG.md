@@ -57,6 +57,8 @@ test release.
 - **Pictures**: a picture whose file name has an accent or a space shows in every view, and resizing one by its corner writes on that picture and no other.
 - **Back and forward step through the notes you visited**, also when one preview tab showed them all; ⌘W with no tab left closes the pane or the window; F2 and the menu's ⌘W no longer act behind a dialog; the mouse's side button takes one step per press.
 - **⌘Z, ⌘⇧Z and ⌘A work in web pages again**, in a page's own window and in a site shown inside a note.
+- **A window showing a site inside it answers its menu again**: with a web page or an embedded site in a note, the console did not open ("current webview is not a WebviewWindow"), ⌘W, ⌘Z and ⌥⌘I did nothing, and quitting did not ask that window to save first.
+- **Importing the demo content again says what it did**: files it could not create are named, with the reason in the app's log, and a file it kept is no longer said to be your edit — it may be the demo of an earlier version.
 - **The bug report hides your home folder in the log's lines too**, a long message no longer fills the log, and a diagram half typed is a warning, not an error.
 - **"Add property" no longer paints over the note**: on a note with no properties the button was taken out of the flow and floated over whatever was under it — the title's rule and the first lines of the note. It keeps its own band at the right now, and still appears only when the sheet is hovered.
 

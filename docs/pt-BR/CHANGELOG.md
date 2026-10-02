@@ -57,6 +57,8 @@ versão de teste.
 - **Imagens**: uma imagem cujo nome de arquivo tem acento ou espaço aparece em toda vista, e redimensionar uma pelo canto grava nessa imagem e em nenhuma outra.
 - **Voltar e avançar passam pelas notas que você visitou**, também quando uma só aba de pré-visualização mostrou todas; ⌘W sem aba nenhuma fecha a área ou a janela; F2 e o ⌘W do menu não agem mais por trás de um diálogo; o botão lateral do mouse dá um passo por clique.
 - **⌘Z, ⌘⇧Z e ⌘A voltam a funcionar em páginas web**, na janela própria de uma página e num site mostrado dentro de uma nota.
+- **Uma janela que mostra um site dentro dela volta a atender o menu**: com uma página web ou um site incorporado numa nota, o console não abria ("current webview is not a WebviewWindow"), ⌘W, ⌘Z e ⌥⌘I não faziam nada, e sair do app não pedia àquela janela que salvasse antes.
+- **Importar o cofre de exemplo de novo diz o que fez**: os arquivos que não puderam ser criados são nomeados, com o motivo no log do app, e um arquivo mantido não é mais dito uma edição sua — pode ser o exemplo de uma versão anterior.
 - **O relato de problema esconde a sua pasta pessoal também nas linhas do log**, uma mensagem longa não enche mais o log, e um diagrama digitado pela metade é aviso, não erro.
 - **"Adicionar propriedade" não pinta mais por cima da nota**: numa nota sem propriedades o botão saía do fluxo e flutuava sobre o que estivesse embaixo — a linha do título e as primeiras linhas da nota. Agora ele tem faixa própria à direita, e continua aparecendo só quando o mouse está sobre a folha.
 
