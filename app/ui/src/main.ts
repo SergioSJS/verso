@@ -85,7 +85,7 @@ const baseEditorExtensions: Extension = [
     ...lintKeymap,
   ]),
 ];
-import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
+import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type Property, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { minimalEdit } from "./edit";
 import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
@@ -4965,6 +4965,14 @@ async function convertToBoard(note: string): Promise<void> {
   openNote(path, false);
 }
 
+function propVal(properties: Property[], key: string): string | null {
+  const p = properties.find((x) => x.key.toLowerCase() === key.toLowerCase());
+  if (!p) return null;
+  if (p.value.kind === "text" || p.value.kind === "number") return p.value.value;
+  if (p.value.kind === "list" && p.value.value.length > 0) return p.value.value[0] ?? null;
+  return null;
+}
+
 type FolderRow = { path: string; kind: Kind; label: string; size: number; modified: number };
 class FolderLeaf extends Leaf {
   readonly kind: Kind = "folder";
@@ -4975,21 +4983,41 @@ class FolderLeaf extends Leaf {
   readonly cols = h("div", "folder-cols");
   readonly items = h("ul", "folder-items list");
   readonly note = h("article", "folder-note");
+  readonly coverBox = h("div", "note-cover-box");
+  readonly addCoverBtn = h("button", "note-add-cover-btn");
+  readonly stickerBtn = h("button", "note-sticker-btn");
+  readonly baseContainer = h("div", "folder-base-container");
+  private baseView: BaseView | null = null;
+  private bannerY = 0.5;
+  private bannerUrl = "";
+  viewMode: "table" | "list" | "grid" = settings.folderPageTable ? "table" : "list";
   grid = false;
   rows: FolderRow[] = [];
   constructor(pane: Pane) {
     super(pane);
+    this.addCoverBtn.type = "button";
+    this.addCoverBtn.textContent = t.addCover;
+    this.addCoverBtn.hidden = true;
+    this.addCoverBtn.addEventListener("click", () => void this.promptCover());
+    this.coverBox.hidden = true;
+
+    this.stickerBtn.type = "button";
+    this.stickerBtn.hidden = true;
+    this.stickerBtn.addEventListener("click", () => void this.promptSticker());
+
+    const asTable = button("ghost iconic", baseStrings.table, "table");
     const asGrid = button("ghost iconic", t.asGrid, "grid");
     const asList = button("ghost iconic", t.asList, "list");
-    asGrid.addEventListener("click", () => this.view(true));
-    asList.addEventListener("click", () => this.view(false));
+    asTable.addEventListener("click", () => this.setViewMode("table"));
+    asGrid.addEventListener("click", () => this.setViewMode("grid"));
+    asList.addEventListener("click", () => this.setViewMode("list"));
     const tools = h("div", "folder-tools");
-    tools.append(asGrid, asList);
-    this.head.append(this.title, tools);
+    tools.append(asTable, asGrid, asList);
+    this.head.append(this.stickerBtn, this.title, tools);
     const top = h("header", "leaf-head");
     top.append(this.crumbs);
     const sheet = h("div", "sheet");
-    sheet.append(this.head, this.meta, this.note, this.cols, this.items);
+    sheet.append(this.coverBox, this.addCoverBtn, this.head, this.meta, this.note, this.baseContainer, this.cols, this.items);
     this.el.append(top, sheet);
     this.cols.hidden = false;
     const col = (key: SortKey, label: string, cls: string) => {
@@ -5016,6 +5044,186 @@ class FolderLeaf extends Leaf {
       ]);
     });
   }
+  setViewMode(mode: "table" | "grid" | "list"): void {
+    this.viewMode = mode;
+    this.baseContainer.hidden = mode !== "table";
+    this.cols.hidden = mode === "grid" || mode === "table";
+    this.items.hidden = mode === "table";
+    if (mode === "grid") this.view(true);
+    else if (mode === "list") this.view(false);
+    else if (mode === "table") void this.mountFolderBase();
+    persistSoon();
+  }
+  private async mountFolderBase(): Promise<void> {
+    const folderNote = folderNoteOf(this.path);
+    const baseFilter = this.path ? `file.inFolder("${this.path}")` : "";
+    const baseYaml = `filters:\n${baseFilter ? `  and:\n    - ${baseFilter}\n` : ""}views:\n  - type: table\n    name: "${baseStrings.table}"\n`;
+    if (this.baseView) {
+      liveBases.delete(this.baseView);
+      this.baseView.destroy();
+    }
+    this.baseView = new BaseView(baseHost(), {
+      path: null,
+      thisPath: folderNote ?? this.path,
+      folder: this.path,
+      text: () => baseYaml,
+      edit: null,
+      viewName: null,
+      key: `folder:${this.path}`,
+    });
+    liveBases.add(this.baseView);
+    this.baseContainer.replaceChildren(this.baseView.el);
+    await this.baseView.refresh();
+  }
+  private async ensureFolderNote(): Promise<string | null> {
+    const existing = folderNoteOf(this.path);
+    if (existing) return existing;
+    if (this.path === "") return null;
+    const ok = await ask(t.createFolderNoteAsk, { yes: t.createFolderNote, no: t.cancel });
+    if (!ok) return null;
+    const folderStem = this.path.split("/").pop() ?? this.path;
+    const isBeside = settings.folderNoteName === "outside";
+    const noteName = isBeside ? this.path : `${this.path}/${folderStem}`;
+    const r = await commands.createNote(noteName, `# ${folderStem}\n\n`);
+    if (r.status !== "ok") {
+      fail(r.error);
+      return null;
+    }
+    await afterFileChange();
+    return r.data.path;
+  }
+  private promptCover(): void {
+    const url = prompt(t.coverUrlPrompt ?? "URL:", this.bannerUrl || "");
+    if (url !== null) {
+      void updateEntryProperties(this.path, "folder", { banner: url.trim() || null }).then(async () => {
+        await afterFileChange();
+        await this.load(this.path);
+      });
+    }
+  }
+  private promptSticker(): void {
+    const fn = folderNoteOf(this.path);
+    const entry = fn ? allEntries.get(fn) : allEntries.get(this.path);
+    showStickerPicker({
+      anchorEl: this.stickerBtn,
+      currentSticker: entry?.label?.sticker ?? null,
+      currentColor: entry?.label?.color ?? null,
+      strings: {
+        emojis: "Emoji",
+        icons: "Icons",
+        colors: t.hue,
+        search: t.search,
+        removeSticker: t.removeSticker,
+        removeColor: t.removeColor,
+      },
+      lang: settings.lang === "en" ? "en" : "pt",
+      onSelectSticker: (stk: string) => {
+        void updateEntryProperties(this.path, "folder", { sticker: stk }).then(async () => {
+          await afterFileChange();
+          await this.load(this.path);
+        });
+      },
+      onSelectColor: (col: string) => {
+        void updateEntryProperties(this.path, "folder", { color: col }).then(async () => {
+          await afterFileChange();
+          await this.load(this.path);
+        });
+      },
+      onRemoveSticker: () => {
+        void updateEntryProperties(this.path, "folder", { sticker: null }).then(async () => {
+          await afterFileChange();
+          await this.load(this.path);
+        });
+      },
+      onRemoveColor: () => {
+        void updateEntryProperties(this.path, "folder", { color: null }).then(async () => {
+          await afterFileChange();
+          await this.load(this.path);
+        });
+      },
+    });
+  }
+  private paintCover(banner: string | null, bannerYStr: string | null, folderNote: string | null): void {
+    this.bannerY = bannerYStr !== null && !isNaN(Number(bannerYStr)) ? Math.max(0, Math.min(1, Number(bannerYStr))) : 0.5;
+    this.bannerUrl = banner ?? "";
+    if (settings.covers) {
+      if (banner) {
+        this.addCoverBtn.hidden = true;
+        this.coverBox.hidden = false;
+        this.coverBox.style.height = `${settings.coverHeight}px`;
+
+        const img = h("img", "note-cover-img");
+        img.src = /^https?:\/\//.test(banner) ? banner : convertFileSrc(banner, "verso");
+        img.style.objectPosition = `center ${this.bannerY * 100}%`;
+
+        const controls = h("div", "note-cover-controls");
+        const btnReposition = h("button", "note-cover-btn", t.repositionCover);
+        const btnChange = h("button", "note-cover-btn", t.changeCover);
+        const btnRemove = h("button", "note-cover-btn", t.removeCover);
+
+        btnChange.addEventListener("click", () => void this.promptCover());
+        btnRemove.addEventListener("click", () => {
+          void updateEntryProperties(this.path, "folder", { banner: null, banner_y: null }).then(async () => {
+            await afterFileChange();
+            await this.load(this.path);
+          });
+        });
+
+        btnReposition.addEventListener("click", () => {
+          this.coverBox.classList.add("dragging");
+          const hint = h("div", "note-cover-drag-hint", t.savePosition);
+          this.coverBox.append(hint);
+          let startY = 0;
+          let startPos = this.bannerY;
+          let currentY = this.bannerY;
+
+          const onMouseDown = (e: MouseEvent) => {
+            startY = e.clientY;
+            startPos = currentY;
+            const onMouseMove = (ev: MouseEvent) => {
+              const delta = (ev.clientY - startY) / (settings.coverHeight || 180);
+              currentY = Math.max(0, Math.min(1, startPos - delta));
+              img.style.objectPosition = `center ${currentY * 100}%`;
+            };
+            const onMouseUp = () => {
+              document.removeEventListener("mousemove", onMouseMove);
+              document.removeEventListener("mouseup", onMouseUp);
+            };
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", onMouseUp);
+          };
+
+          this.coverBox.addEventListener("mousedown", onMouseDown);
+
+          const finish = (save: boolean) => {
+            this.coverBox.classList.remove("dragging");
+            hint.remove();
+            this.coverBox.removeEventListener("mousedown", onMouseDown);
+            if (save) {
+              this.bannerY = currentY;
+              void updateEntryProperties(this.path, "folder", { banner_y: currentY.toFixed(2) });
+            } else {
+              img.style.objectPosition = `center ${this.bannerY * 100}%`;
+            }
+          };
+
+          hint.style.pointerEvents = "auto";
+          hint.style.cursor = "pointer";
+          hint.addEventListener("click", () => finish(true));
+        });
+
+        controls.append(btnReposition, btnChange, btnRemove);
+        this.coverBox.replaceChildren(img, controls);
+      } else {
+        this.coverBox.hidden = true;
+        this.coverBox.replaceChildren();
+        this.addCoverBtn.hidden = !folderNote;
+      }
+    } else {
+      this.coverBox.hidden = true;
+      this.addCoverBtn.hidden = true;
+    }
+  }
   view(grid: boolean): void {
     this.grid = grid;
     this.items.classList.toggle("grid", grid);
@@ -5041,6 +5249,39 @@ class FolderLeaf extends Leaf {
     };
     const folders = allFolders.filter((f) => dirOf(f) === path && f !== "");
     const folderNote = folderNoteOf(path);
+    let banner: string | null = null;
+    let bannerYStr: string | null = null;
+    let sticker: string | null = null;
+    let color: string | null = null;
+    if (folderNote) {
+      const ent = allEntries.get(folderNote);
+      sticker = ent?.label?.sticker ?? null;
+      color = ent?.label?.color ?? null;
+      try {
+        const rd = await opening.readNote(folderNote);
+        if (rd.status === "ok") {
+          banner = propVal(rd.data.properties, "banner");
+          bannerYStr = propVal(rd.data.properties, "banner_y");
+          if (!sticker) sticker = propVal(rd.data.properties, "sticker");
+          if (!color) color = propVal(rd.data.properties, "color");
+        }
+      } catch {}
+    }
+    this.paintCover(banner, bannerYStr, folderNote);
+    if (settings.stickers && (sticker || folderNote)) {
+      const stickerNode = sticker ? renderSticker(sticker, 20) : icon("sparkles");
+      this.stickerBtn.replaceChildren(stickerNode ?? icon("sparkles"));
+      this.stickerBtn.hidden = false;
+    } else {
+      this.stickerBtn.hidden = true;
+    }
+    if (color) {
+      const c = resolveColor(color);
+      if (c) this.title.style.color = c;
+      else this.title.style.color = "";
+    } else {
+      this.title.style.color = "";
+    }
     void this.paintNote(folderNote, path);
     const direct = [...allNotes, ...allFiles].filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && p !== folderNote);
     this.rows = [
@@ -5052,9 +5293,28 @@ class FolderLeaf extends Leaf {
     ];
     const notes = direct.filter((p) => kindOf(p) === "note").length;
     this.meta.textContent = t.counts(notes, direct.length - notes, folders.length);
-    this.render();
+    this.viewMode = settings.folderPageTable ? "table" : (this.grid ? "grid" : "list");
+    if (this.viewMode === "table") {
+      this.baseContainer.hidden = false;
+      this.cols.hidden = true;
+      this.items.hidden = true;
+      void this.mountFolderBase();
+    } else {
+      this.baseContainer.hidden = true;
+      this.cols.hidden = this.viewMode === "grid";
+      this.items.hidden = false;
+      this.render();
+    }
     markCurrent();
     persistSoon();
+  }
+  override destroy(): void {
+    if (this.baseView) {
+      liveBases.delete(this.baseView);
+      this.baseView.destroy();
+      this.baseView = null;
+    }
+    super.destroy();
   }
   /** The folder's own note — `Folder/Folder.md` or `Folder.md` beside it —
    *  rendered at the top, with a way to edit it; or the offer to make one. */
@@ -7393,7 +7653,33 @@ async function createNote(folder: string, nameTyped: string, pane?: Pane, rename
   const clean = nameTyped.trim().replace(/\.md$/i, "");
   if (!clean || unlinkable(clean)) return;
   const path = folder ? `${folder}/${clean}` : clean;
-  const r = await commands.createNote(path, `# ${clean.split("/").pop() ?? clean}\n\n`);
+  let initialText = `# ${clean.split("/").pop() ?? clean}\n\n`;
+  const fn = folder ? folderNoteOf(folder) : null;
+  if (fn) {
+    try {
+      const read = await opening.readNote(fn);
+      if (read.status === "ok") {
+        const tplName = propVal(read.data.properties, "items_template");
+        if (tplName) {
+          let tpl = await templateText(tplName);
+          if (!tpl && allNotes.includes(tplName)) {
+            const rdTpl = await opening.readNote(tplName);
+            if (rdTpl.status === "ok") tpl = rdTpl.data.text;
+          }
+          if (tpl) {
+            initialText = tpl.replace(/{{date}}/g, today()).replace(/{{title}}/g, clean.split("/").pop() ?? clean);
+          }
+        }
+        const stk = propVal(read.data.properties, "items_sticker");
+        const col = propVal(read.data.properties, "items_color");
+        if (stk || col) {
+          if (stk) initialText = setFrontmatterProp(initialText, "sticker", stk);
+          if (col) initialText = setFrontmatterProp(initialText, "color", col);
+        }
+      }
+    } catch {}
+  }
+  const r = await commands.createNote(path, initialText);
   if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
   await afterFileChange();
   const target = pane ?? paneToOpenIn();
