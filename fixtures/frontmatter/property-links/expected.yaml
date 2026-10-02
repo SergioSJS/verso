@@ -1,4 +1,4 @@
-# AI draft (Opus 5.5, 2026-10-01), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-10-02 in session ("Já aprovo agora"), before 0.3.0-beta.3; drafted by Opus 5.5 on 2026-10-01 (ADR 0031).
 # Construct: links held by frontmatter properties — the typed relation.
 # Spec: docs/spec/dialect.md §4.1 (`property_links`), §5.1, Q10 and the link
 # part of Q24. A property holds a link when its value, or an item of its

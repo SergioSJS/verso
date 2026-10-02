@@ -31,7 +31,8 @@
 - Resolved on 2026-10-01 by the author, Opus 5.5: the maintainer answered
   section 6 (section 8), and every finding's "Resolution" says what was done.
   The code is in `2c91553`; the drafted fixture
-  `fixtures/frontmatter/property-links` awaits the maintainer's approval.
+  `fixtures/frontmatter/property-links` awaited the maintainer's approval,
+  given on 2026-10-02 (spec v0.24).
 
 ## How to read
 
