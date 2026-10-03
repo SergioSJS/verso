@@ -79,7 +79,6 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   copy_full_path: ["path"],
   set_embed_origins: ["origins"],
   set_walk_rules: ["builtinIgnores", "gitignore"],
-  set_folder_note_name: ["name"],
   set_menu_language: ["language"],
   install_cli: ["replace"],
 };
