@@ -523,40 +523,22 @@ fn reordering_focuses_preserves_each_focus_own_key_order() {
 }
 
 #[test]
-fn duplicate_focus_names_are_rejected() {
+fn duplicate_focus_names_are_read_as_known_format_d6() {
     let dir = tempdir().unwrap();
     make_dir(dir.path(), ".space");
 
-    let initial = r#"[{"name":"Home","paths":["/"]}]"#;
-    fs::write(dir.path().join(".space/waypoints.json"), initial).unwrap();
-
-    let mut ws = open_workspace(dir.path());
-    ws.set_sync_focuses(true);
-    let summary = ws.get_focuses().unwrap();
-    let stamp = summary.stamp.as_deref();
-
-    // Attempt to write focuses with duplicate names (case-insensitive)
-    let dup = vec![
-        verso_core::Focus {
-            name: "Foco".to_string(),
-            paths: vec!["a".to_string()],
-            sticker: None,
-        },
-        verso_core::Focus {
-            name: "foco".to_string(),
-            paths: vec!["b".to_string()],
-            sticker: None,
-        },
-    ];
-    let res = ws.set_focuses(dup, stamp, None);
-    assert!(res.is_err(), "duplicate focus names must be rejected");
-
-    // File with duplicate names is parsed as format_known = false
+    // File with duplicate names is parsed as format_known = true (ADR 0062 D6 literal)
     let dup_file = r#"[{"name":"Foco","paths":["a"]},{"name":"Foco","paths":["b"]}]"#;
     fs::write(dir.path().join(".space/waypoints.json"), dup_file).unwrap();
+
+    let mut ws = open_workspace(dir.path());
     let read_summary = ws.get_focuses().unwrap();
-    assert!(!read_summary.format_known);
-    assert!(read_summary.read_only_reason.unwrap().contains("duplicate"));
+    assert!(read_summary.has_file);
+    assert!(
+        read_summary.format_known,
+        "duplicate focus names are valid in D6 literal known format"
+    );
+    assert_eq!(read_summary.focuses.len(), 2);
 }
 
 #[test]

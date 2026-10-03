@@ -1038,6 +1038,7 @@ fn to_contract_focuses_summary(s: verso_core::FocusesSummary) -> FocusesSummary 
         has_file: s.has_file,
         format_known: s.format_known,
         read_only_reason: s.read_only_reason,
+        read_only_code: s.read_only_code,
         stamp: s.stamp,
     }
 }
