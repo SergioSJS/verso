@@ -10,6 +10,30 @@
   (Recomendado)", e, sobre observar o make.md no Obsidian, "Pode, no
   Sandbox (Recomendado)".
 - Status no briefing: não consta
+- Revisões: 2026-10-02, à noite — as respostas do mantenedor sobre a revisão
+  das fatias, registradas como vieram: renomear uma pasta renomeia a nota
+  da pasta junto ("Renomear a pasta deveria renomear o MD sim"), D3; a
+  ordem de uma pasta é alfabética ou própria, a própria feita a partir da
+  alfabética ("ter 2 opções, ordem alfabética, ou ordem customizada que
+  pode surgir da alfabética"), então uma pasta pode voltar à alfabética,
+  tirando o seu `order:`, D4; uma cor é escrita em hex ("perfeito hex"), D2 —
+  e `banner_y`, como o reposicionar do make.md escreve, uma porcentagem
+  (`docs/reference/obsidian-observations.md` §17); as observações da D13
+  são rodadas ("rodar"), e o make.md fica no cofre
+  Sandbox depois, para comparar comportamento ("deixa lá … vou usar pra
+  validar comparando funcionamento"). Mais tarde na mesma noite: a nota da
+  pasta é criada sem pergunta quando uma pasta é rotulada, ordenada ou
+  fixada pela primeira vez ("devia só criar"), D3 e D4; os itens da raiz
+  também podem ser ordenados ("documentos da raiz eu DEVERIA poder mover"),
+  D4 — a ordem da raiz guardada numa nota na raiz com o nome da pasta
+  aberta, recomendação do autor, aplicada para o mantenedor confirmar; a ordem
+  da árvore é um interruptor, alfabética ou personalizada, que mantém toda
+  ordem personalizada quando vai para a alfabética ("deveria ser tipo um
+  toggle … e o personalizado manter seu valor") — o "Ordenar arrastando na
+  árvore" da D12, também nos menus da árvore; a nota
+  da pasta não é uma linha da árvore de arquivos — o menu da pasta e a
+  página dela a abrem ("o markdown da pasta não deveria ficar visível na
+  árvore").
 
 ## Contexto
 
@@ -98,7 +122,6 @@ mudado), cada uma registrada na spec na fatia que a traz.
 - [ADR 0049](0049-phase-2-scope-widened.md) §3: a linha "os Contexts do
   make.md" deixa de valer — as visões foram o [0053](0053-views-bases.md),
   este ADR o resto.
-- **Dependências:** `cldr-annotations-modern` é adicionada em `devDependencies` (licença Unicode-3.0) unicamente para o script de build offline `scripts/build-emoji-data.mjs` que gera `app/ui/src/emoji-data.json`; não é embutida na distribuição de execução do aplicativo.
 - **Autoria.** O mantenedor delegou a implementação ao Antigravity em
   2026-10-02 ("vou delegar para o antigravity implementar o make md"): um
   desvio dos papéis do [ADR 0032](0032-author-and-reviewer-roles.md),
@@ -128,4 +151,4 @@ Do memo, cada uma pesada pelo mantenedor:
 
 ## Status
 
-Em andamento / revisão (2026-10-02); fatias S1–S4 implementadas, aguardando revisão final e verificação.
+Aceito (2026-10-02).

@@ -46,6 +46,12 @@ export type LiveOptions = {
   /** An embedded note edited in place inside `mount` (ADR 0060 S4).
    *  Called when the embed is clicked to edit. Returns what takes it down. */
   editEmbed?: (target: string, mount: HTMLElement, onExit: () => void) => (() => void) | undefined;
+  /** The edit-in-place button's tooltips, in the interface's language. */
+  embedLabels?: { edit: string; done: string };
+  /** Whether an embed may be edited in place now (the setting). */
+  canEditEmbed?: () => boolean;
+  /** True when an embedded note is actively being edited, dirty, or conflicted. */
+  isEmbedActive?: (target: string) => boolean;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -697,11 +703,12 @@ class BlockWidget extends WidgetType {
       frame.append(body);
       el.append(frame);
 
-      if (this.opts.editEmbed) {
+      if (this.opts.editEmbed && this.opts.canEditEmbed?.() !== false) {
+        const labels = this.opts.embedLabels;
         const edit = document.createElement("button");
         edit.type = "button";
         edit.className = "ghost iconic embed-edit";
-        edit.title = "Edit in place";
+        edit.title = labels?.edit ?? "";
         edit.append(icon("edit"));
         frame.append(edit);
 
@@ -709,20 +716,22 @@ class BlockWidget extends WidgetType {
         const exit = () => {
           frame.classList.remove("editing");
           edit.replaceChildren(icon("edit"));
-          edit.title = "Edit in place";
+          edit.title = labels?.edit ?? "";
           teardown = undefined;
         };
         const start = (e?: Event) => {
           if (teardown) {
             teardown();
-            exit();
             return;
           }
           e?.stopPropagation();
           frame.classList.add("editing");
           edit.replaceChildren(icon("check"));
-          edit.title = "Done";
+          edit.title = labels?.done ?? "";
           teardown = this.opts.editEmbed!(b.text, body, exit);
+          // Refused (a note that cannot be edited here, the setting off):
+          // the frame goes back to showing the note.
+          if (!teardown) exit();
         };
         edit.addEventListener("click", start);
         body.addEventListener("click", (e) => {
@@ -766,7 +775,8 @@ function foldBlocks(state: EditorState, opts: LiveOptions, blocks: Block[]): Dec
     ranges.push(Decoration.replace({ widget: new FrontmatterWidget(lines, opts.editFrontmatter, opts.frontmatterTitle?.(lines) ?? "") }).range(0, fm));
   }
   for (const b of blocks) {
-    if (b.from <= fm || touched(b.from, b.to)) continue;
+    const active = b.kind === "embed" && Boolean(opts.isEmbedActive?.(b.text));
+    if (b.from <= fm || (touched(b.from, b.to) && !active)) continue;
     const html = b.kind === "embed" ? opts.noteHtml?.(b.text) : undefined;
     ranges.push(Decoration.replace({ widget: new BlockWidget(b, opts, html), block: true }).range(b.from, b.to));
   }

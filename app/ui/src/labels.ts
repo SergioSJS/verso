@@ -146,10 +146,13 @@ export function renderSticker(sticker: string | null | undefined, size = 16): HT
       span.appendChild(svg);
       return span;
     }
-    // Raw unicode emoji fallback
-    span.classList.add("entry-sticker-emoji");
-    span.textContent = s;
-    return span;
+    // An emoji written as itself; any other text is no sticker, and the
+    // item keeps its default icon (ADR 0060 S1).
+    if (s.length <= 16 && /^(\p{Extended_Pictographic}|\p{Regional_Indicator})/u.test(s)) {
+      span.classList.add("entry-sticker-emoji");
+      span.textContent = s;
+      return span;
+    }
   }
   return null;
 }
@@ -161,6 +164,10 @@ export type PickerStrings = {
   search: string;
   removeSticker: string;
   removeColor: string;
+  /** The picker's name, for a screen reader. */
+  label: string;
+  /** The stickers' grid's name, for a screen reader. */
+  grid: string;
 };
 
 export type PickerOptions = {
@@ -182,9 +189,10 @@ export function showStickerPicker(opts: PickerOptions): () => void {
   if (existing) existing.remove();
 
   const popover = document.createElement("div");
+  popover.className = "sticker-picker-popover";
   popover.setAttribute("role", "dialog");
   popover.setAttribute("aria-modal", "true");
-  popover.setAttribute("aria-label", opts.lang === "pt" ? "Seletor de figurinhas e cores" : "Sticker and color picker");
+  popover.setAttribute("aria-label", opts.strings.label);
 
   // Tabs: Emoji | Icons
   const tabs = document.createElement("div");
@@ -218,7 +226,7 @@ export function showStickerPicker(opts: PickerOptions): () => void {
   const grid = document.createElement("div");
   grid.className = "sticker-picker-grid";
   grid.setAttribute("role", "listbox");
-  grid.setAttribute("aria-label", opts.lang === "pt" ? "Figurinhas" : "Stickers");
+  grid.setAttribute("aria-label", opts.strings.grid);
 
   // Color bar
   const colorBar = document.createElement("div");
@@ -240,7 +248,9 @@ export function showStickerPicker(opts: PickerOptions): () => void {
       swatch.setAttribute("aria-pressed", "false");
     }
     swatch.addEventListener("click", () => {
-      opts.onSelectColor(c.id);
+      // The hex, which any reader takes as a colour (the maintainer,
+      // 2026-10-02); a preset's id is still read.
+      opts.onSelectColor(c.hex);
       close();
     });
     colorBar.appendChild(swatch);

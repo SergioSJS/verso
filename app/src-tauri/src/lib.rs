@@ -102,6 +102,9 @@ pub struct App {
     /// The walk's rules — the user's setting, pushed by the UI before a
     /// folder opens and applied to the session on change.
     walk_rules: Mutex<verso_core::WalkRules>,
+    /// The folder note name setting (ADR 0060 D12), pushed by the UI as the
+    /// walk rules are and applied to the session on change.
+    folder_note_name: Mutex<String>,
     /// The folders behind the menu's "Open Recent" items, in the order
     /// the menu shows: item `verso-recent-<i>` opens `menu_recents[i]`.
     /// Paths at the edge, on this side; they never cross to the UI. The
@@ -125,6 +128,7 @@ impl App {
             session: Mutex::new(None),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
             walk_rules: Mutex::new(verso_core::WalkRules::default()),
+            folder_note_name: Mutex::new(String::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
@@ -283,6 +287,7 @@ async fn install<R: tauri::Runtime>(
 ) -> Result<FolderInfo, ContractError> {
     let config = app.state::<App>().config.clone();
     let rules = *lock(&app.state::<App>().walk_rules);
+    let folder_note_name = lock(&app.state::<App>().folder_note_name).clone();
     let handle = app.clone();
     let missed = Arc::new(AtomicBool::new(false));
     let seen = Arc::clone(&missed);
@@ -291,6 +296,7 @@ async fn install<R: tauri::Runtime>(
         // The user's walk rules, before the watch and the first index:
         // both honor them from the start.
         workspace.set_walk_rules(rules);
+        workspace.set_folder_note_name(&folder_note_name);
         // Watched before the first index run, so that a change made while
         // it runs — seconds on a large folder — is not missed.
         let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
@@ -828,6 +834,11 @@ fn renamed_out(r: verso_core::Renamed) -> Renamed {
             })
             .collect(),
         warnings: r.warnings,
+        also: r
+            .also
+            .into_iter()
+            .map(|(from, to)| verso_contract::Moved { from, to })
+            .collect(),
     }
 }
 
@@ -838,16 +849,25 @@ fn renamed_out(r: verso_core::Renamed) -> Renamed {
 fn list_entries(state: State<'_, App>) -> Result<Vec<FileEntry>, ContractError> {
     with(&state, |ws| {
         let labels = ws.labels()?;
+        // A folder's labels are its folder note's: the first of the core's
+        // candidates that is a note, compared without case — the note the
+        // window takes for the folder's, labelled or not.
+        let notes: std::collections::HashMap<String, &str> = ws
+            .entries()
+            .iter()
+            .filter(|e| matches!(e.kind, verso_core::FileKind::Note))
+            .map(|e| (e.path.to_lowercase(), e.path.as_str()))
+            .collect();
         Ok(ws
             .entries()
             .iter()
             .map(|e| {
                 let label = match e.kind {
                     verso_core::FileKind::Folder => {
-                        let name = e.path.rsplit('/').next().unwrap_or(&e.path);
-                        let inside = format!("{}/{}.md", e.path, name);
-                        let beside = format!("{}.md", e.path);
-                        labels.get(&inside).or_else(|| labels.get(&beside))
+                        verso_core::folder_note_candidates(&e.path, ws.folder_note_name())
+                            .iter()
+                            .find_map(|c| notes.get(&c.to_lowercase()))
+                            .and_then(|found| labels.get(*found))
                     }
                     _ => labels.get(&e.path),
                 }
@@ -982,6 +1002,18 @@ fn log_read() -> Result<String, ContractError> {
     } else {
         format!("{where_}\n\n{tail}")
     })
+}
+
+/// The folder note name setting (ADR 0060 D12): empty, a folder's note
+/// is named after it. Applied to the open folder at once.
+#[tauri::command]
+#[specta::specta]
+fn set_folder_note_name(state: State<'_, App>, name: String) -> Result<(), ContractError> {
+    lock(&state.folder_note_name).clone_from(&name);
+    if let Some(session) = lock(&state.session).as_mut() {
+        session.workspace.set_folder_note_name(&name);
+    }
+    Ok(())
 }
 
 /// The walk's rules, from the settings: whether the well-known build
@@ -1990,6 +2022,7 @@ macro_rules! commands_for {
                 copy_full_path,
                 set_embed_origins,
                 set_walk_rules,
+                set_folder_note_name,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,

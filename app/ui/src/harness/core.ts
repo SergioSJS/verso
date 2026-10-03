@@ -79,6 +79,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   copy_full_path: ["path"],
   set_embed_origins: ["origins"],
   set_walk_rules: ["builtinIgnores", "gitignore"],
+  set_folder_note_name: ["name"],
   set_menu_language: ["language"],
   install_cli: ["replace"],
 };
@@ -110,6 +111,128 @@ const baseOf = (p: string): string => p.slice(p.lastIndexOf("/") + 1);
 const stripMd = (p: string): string => p.replace(/\.md$/i, "");
 const hidden = (p: string): boolean => p.split("/").some((s) => s.startsWith("."));
 const isNote = (p: string): boolean => /\.md$/i.test(p);
+
+/** The core's `set_folder_note_name`: a plain file name, or empty. */
+const folderNoteSetting = (name: string): string => {
+  const n = name.trim().replace(/\.md$/i, "");
+  return /[/\\]/.test(n) || n === "." || n === ".." ? "" : n;
+};
+/** The core's `folder_note_candidates` (ADR 0060 D3, D12). */
+function folderNoteCandidates(folder: string, configured: string, rootName = ""): string[] {
+  const out: string[] = [];
+  if (folder === "") {
+    // The core's `root_note_candidates`.
+    if (configured && fold(configured) !== fold(rootName)) out.push(`${configured}.md`);
+    if (rootName) out.push(`${rootName}.md`);
+    return out;
+  }
+  const name = baseOf(folder);
+  if (configured && fold(configured) !== fold(name)) out.push(`${folder}/${configured}.md`);
+  out.push(`${folder}/${name}.md`, `${folder}.md`);
+  return out;
+}
+/** The core's `folders_of_note`: the folders a note is the folder note of,
+ *  by its path alone. */
+function foldersOfNote(note: string, configured: string, rootName = ""): string[] {
+  if (!isNote(note)) return [];
+  const parent = dirOf(note);
+  const stem = stripMd(baseOf(note));
+  const out: string[] = [];
+  const own = parent ? baseOf(parent) : rootName;
+  if ((own && fold(stem) === fold(own)) || (configured && fold(stem) === fold(configured))) out.push(parent);
+  out.push(parent ? `${parent}/${stem}` : stem);
+  return out;
+}
+/** The core's `needs_yaml_quote` and `yaml_scalar`. */
+function yamlScalar(s: string): string {
+  const lower = s.toLowerCase();
+  const quote =
+    s === "" ||
+    "-?:,[]{}#&*!|>'\"%@`~".includes(s[0] ?? "") ||
+    /^\s|\s$/.test(s) ||
+    s.includes(": ") ||
+    s.endsWith(":") ||
+    s.includes(" #") ||
+    /[\t\n\r"\\]/.test(s) ||
+    ["true", "false", "yes", "no", "on", "off", "y", "n", "null"].includes(lower) ||
+    (s.trim() !== "" && !Number.isNaN(Number(s))) ||
+    /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s) ||
+    /^(inf|infinity|nan)$/i.test(s) ||
+    s.startsWith("0x") ||
+    s.startsWith("0o");
+  return quote ? JSON.stringify(s) : s;
+}
+/** The text of an item of a YAML block sequence, as the core reads it. */
+function yamlItemText(raw: string): string | null {
+  if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
+    try {
+      return JSON.parse(raw) as string;
+    } catch {
+      return null;
+    }
+  }
+  if (raw.startsWith("'") && raw.endsWith("'") && raw.length >= 2) return raw.slice(1, -1).replace(/''/g, "'");
+  if (raw === "" || /^[[{\-&*!|>]/.test(raw)) return null;
+  return raw;
+}
+/** The core's `rewrite_order`: the `order:` of the folder note of `folder`
+ *  after a move, only the moved items' lines changed; null when none is. */
+function rewriteOrder(text: string, folder: string, newFolder: string, moved: [string, string, boolean][]): string | null {
+  const m = /^---\r?\n([\s\S]*?)\r?\n(---|\.\.\.)\s*(\r?\n|$)/.exec(text);
+  if (!m) return null;
+  const lines = text.split(/(?<=\n)/);
+  type Item = { line: number; text: string | null; raw: string; lead: string; rest: string };
+  const items: Item[] = [];
+  let inFm = false;
+  let inOrder = false;
+  for (let i = 0; i < lines.length; i++) {
+    const body = (lines[i] ?? "").replace(/\r?\n$/, "");
+    if (i === 0) {
+      inFm = body === "---";
+      continue;
+    }
+    if (!inFm) break;
+    if (body.startsWith("---") || body.startsWith("...")) break;
+    const key = /^([^\s#\-][^:]*):(.*)$/.exec(body);
+    if (key) {
+      if (inOrder) break;
+      if ((key[1] ?? "").trim() === "order") {
+        const after = (key[2] ?? "").trim();
+        if (after && !after.startsWith("#")) return null;
+        inOrder = true;
+      }
+      continue;
+    }
+    if (!inOrder) continue;
+    const item = /^(\s*-[ \t]+)(.*)$/.exec(body);
+    if (!item) continue;
+    const rest = item[2] ?? "";
+    const raw = /^["']/.test(rest) ? rest.trimEnd() : rest.split(" #")[0]!.trimEnd();
+    items.push({ line: i, text: yamlItemText(raw), raw, lead: item[1] ?? "", rest: rest.slice(raw.length) });
+  }
+  const edits = new Map<number, string | null>();
+  for (const [oldPath, newPath, note] of moved) {
+    if (dirOf(oldPath) !== folder) continue;
+    const oldRel = baseOf(oldPath);
+    const newRel = dirOf(newPath) === newFolder ? baseOf(newPath) : null;
+    if (newRel === oldRel) continue;
+    let index = items.findIndex((it, k) => !edits.has(k) && it.text === oldRel);
+    let bare = false;
+    if (index < 0 && note) {
+      index = items.findIndex((it, k) => !edits.has(k) && it.text === stripMd(oldRel));
+      bare = true;
+    }
+    if (index < 0) continue;
+    edits.set(index, newRel === null ? null : bare ? stripMd(newRel) : newRel);
+  }
+  if (edits.size === 0) return null;
+  for (const [k, value] of edits) {
+    const it = items[k]!;
+    const eol = /\r?\n$/.exec(lines[it.line] ?? "")?.[0] ?? "";
+    lines[it.line] = value === null ? "" : `${it.lead}${yamlScalar(value)}${it.rest}${eol}`;
+  }
+  return lines.join("");
+}
 
 /** The links written in a text, outside code: wikilinks and embeds. */
 function linksIn(text: string): Found[] {
@@ -155,6 +278,8 @@ export function canvasLayout(value: unknown, depth = 0): string {
 export class Core {
   readonly files = new Map<string, Stored>();
   readonly folders = new Set<string>();
+  /** The folder note name setting (`set_folder_note_name`). */
+  private folderNoteName = "";
   /** Every command asked for, in order: what a test looks at. */
   readonly calls: { cmd: string; args: unknown }[] = [];
   /** What the window wrote into the app's log (`log_write`). */
@@ -363,6 +488,27 @@ export class Core {
     if (this.files.has(to) || this.folders.has(to)) refuse("exists", `already there: ${to}`);
     const plans = new Map<string, string>();
     const movedNow = this.files.has(from) ? [[from, to] as [string, string]] : [...this.files.keys()].filter((p) => p.startsWith(`${from}/`)).map((p): [string, string] => [p, `${to}${p.slice(from.length)}`]);
+    // The core's `folder_note_follows`: a folder's note takes the folder's
+    // new name, inside it or beside it, unless that name is taken.
+    const then: [string, string][] = [];
+    const also: { from: string; to: string }[] = [];
+    if (this.folders.has(from)) {
+      const taken = (p: string, mine: string) => this.notes().some((n) => fold(n) === fold(p) && fold(n) !== fold(mine));
+      const [oldName, newName] = [baseOf(from), baseOf(to)];
+      const inside = movedNow.find(([a]) => fold(a) === fold(`${from}/${oldName}.md`));
+      if (oldName !== newName && inside && !taken(`${from}/${newName}.md`, inside[0])) {
+        const wanted = `${to}/${newName}.md`;
+        then.push([inside[1], wanted]);
+        also.push({ from: inside[0], to: wanted });
+        inside[1] = wanted;
+      }
+      const beside = this.notes().find((n) => fold(n) === fold(`${from}.md`));
+      if (beside && !taken(`${to}.md`, beside)) {
+        then.push([beside, `${to}.md`]);
+        also.push({ from: beside, to: `${to}.md` });
+        movedNow.push([beside, `${to}.md`]);
+      }
+    }
     const target = new Map(movedNow);
     for (const source of this.linkSources()) {
       if (target.has(source)) continue;
@@ -380,9 +526,40 @@ export class Core {
       if (source.endsWith(".canvas")) for (const [a, b] of target) after = after.split(`"file":${JSON.stringify(a)}`).join(`"file":${JSON.stringify(b)}`);
       if (after !== before) plans.set(source, after);
     }
+    // The `order:` of the folder notes of the folders things leave and
+    // enter (ADR 0060, D4), as the core rewrites it.
+    const movedFolders: [string, string][] = this.folders.has(from)
+      ? [...this.folders].filter((d) => d === from || d.startsWith(`${from}/`)).map((d): [string, string] => [d, `${to}${d.slice(from.length)}`])
+      : [];
+    const moved: [string, string, boolean][] = [
+      ...movedNow.map(([a, b]): [string, string, boolean] => [a, b, isNote(a)]),
+      ...movedFolders.map(([a, b]): [string, string, boolean] => [a, b, false]),
+    ];
+    const movedTo = (p: string): string => {
+      const own = target.get(p);
+      if (own) return own;
+      const hit = movedFolders.filter(([a]) => p === a || p.startsWith(`${a}/`)).sort(([a], [b]) => b.length - a.length)[0];
+      return hit ? `${hit[1]}${p.slice(hit[0].length)}` : p;
+    };
+    const byFold = new Map(this.notes().map((n) => [fold(n), n]));
+    const folderNotes = new Set<string>();
+    for (const [a, b] of moved) for (const dir of [dirOf(a), dirOf(b)]) for (const c of folderNoteCandidates(dir, this.folderNoteName, this.name)) {
+      const found = byFold.get(fold(c));
+      if (found) folderNotes.add(found);
+    }
+    for (const fnPath of folderNotes) {
+      const folder = foldersOfNote(fnPath, this.folderNoteName, this.name).map((f) => (f === "" ? "" : [...this.folders].find((d) => fold(d) === fold(f)))).find((d): d is string => d !== undefined);
+      if (folder === undefined) continue;
+      const after = rewriteOrder(plans.get(fnPath) ?? this.text(fnPath), folder, movedTo(folder), moved);
+      if (after !== null) plans.set(fnPath, after);
+    }
     this.move(from, to);
-    const rewrites: LinkRewrite[] = [...plans].map(([path, after]) => ({ path, revision: String(this.stored(path).revision), before: this.text(path), after }));
-    return { path: to, rewrites, skipped: [], warnings: [] };
+    for (const [a, b] of then) this.move(a, b);
+    const rewrites: LinkRewrite[] = [...plans].map(([source, after]) => {
+      const path = movedTo(source);
+      return { path, revision: String(this.stored(path).revision), before: this.text(path), after };
+    });
+    return { path: to, rewrites, skipped: [], warnings: [], also };
   }
 
   private trash(pathIn: string): Trashed {
@@ -564,40 +741,33 @@ export class Core {
     },
     read_file_text: (a) => lossy.decode(this.stored(this.confine(String(a["path"]))).bytes),
     list_entries: (): FileEntry[] => {
+      // As the index reads them (verso-index, `string_of`, `strings_of`):
+      // a scalar as text, numbers and booleans included; the first alias.
+      const scalar = (v: unknown): string | null => (typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : null);
+      const strings = (v: unknown): string[] => (Array.isArray(v) ? v.map(scalar).filter((x): x is string => x !== null) : [scalar(v)].filter((x): x is string => x !== null));
       const labelFor = (p: string): EntryLabel | null => {
         if (!isNote(p)) return null;
         try {
           const props = propertiesOf(this.text(p));
-          const sticker = typeof props["sticker"] === "string" && props["sticker"].trim() ? props["sticker"].trim() : null;
-          const color = typeof props["color"] === "string" && props["color"].trim() ? props["color"].trim() : null;
-          let alias: string | null = null;
-          if (typeof props["alias"] === "string" && props["alias"].trim()) {
-            alias = props["alias"].trim();
-          } else if (Array.isArray(props["aliases"]) && props["aliases"].length > 0 && typeof props["aliases"][0] === "string" && props["aliases"][0].trim()) {
-            alias = props["aliases"][0].trim();
-          }
-          let order: string[] | null = null;
-          if (Array.isArray(props["order"])) {
-            const list = props["order"].filter((x): x is string => typeof x === "string");
-            if (list.length > 0) order = list;
-          }
-          let pinned: string[] | null = null;
-          if (Array.isArray(props["pinned"])) {
-            const list = props["pinned"].filter((x): x is string => typeof x === "string");
-            if (list.length > 0) pinned = list;
-          }
-          if (!sticker && !color && !alias && !order && !pinned) return null;
+          const sticker = scalar(props["sticker"]);
+          const color = scalar(props["color"]);
+          const alias = strings(props["aliases"])[0] ?? null;
+          const orderList = strings(props["order"]);
+          const pinnedList = strings(props["pinned"]);
+          const order = orderList.length > 0 ? orderList : null;
+          const pinned = pinnedList.length > 0 ? pinnedList : null;
+          if (sticker === null && color === null && alias === null && !order && !pinned) return null;
           return { sticker, color, alias, order, pinned };
         } catch {
           return null;
         }
       };
+      const byFold = new Map(this.notes().map((n) => [fold(n), n]));
       const folderLabel = (d: string): EntryLabel | null => {
-        const seg = d.split("/").filter(Boolean).pop();
-        const cand1 = seg ? `${d}/${seg}.md` : "";
-        const cand2 = `${d}.md`;
-        if (cand1 && this.files.has(cand1)) return labelFor(cand1);
-        if (this.files.has(cand2)) return labelFor(cand2);
+        for (const c of folderNoteCandidates(d, this.folderNoteName)) {
+          const found = byFold.get(fold(c));
+          if (found) return labelFor(found);
+        }
         return null;
       };
       return [
@@ -669,6 +839,10 @@ export class Core {
     copy_full_path: () => null,
     set_embed_origins: () => null,
     set_walk_rules: () => null,
+    set_folder_note_name: (a) => {
+      this.folderNoteName = folderNoteSetting(String(a["name"] ?? ""));
+      return null;
+    },
     log_write: (a) => {
       this.log.push({ level: String(a["level"]), message: String(a["message"]) });
       return null;

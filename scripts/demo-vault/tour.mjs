@@ -249,19 +249,19 @@ const STOPS = [
   },
   {
     id: "organizacao",
-    label: "Organização visual",
-    heading: "🎨 Organização visual",
+    label: "Figurinhas e ordem",
+    heading: "🎨 Figurinhas, capas e ordem",
     color: AMBER,
     canvasColor: "3",
     cards: [["n-organizando", "19 - Organizando: figurinhas, capas e páginas.md", 640]],
     tip:
       "Figurinhas, cores e capas destacam notas e pastas na árvore e no cabeçalho. " +
-      "Ordene itens manualmente ou fixe-os no topo da pasta; edite notas incorporadas no lugar e digite : para sugerir emojis no texto.",
+      "Ordene itens à mão ou fixe-os na pasta; edite notas embutidas no lugar e digite : para sugerir emojis no texto.",
     extra(b, x, y, f) {
       b.write("d-org-titulo", x + 740, y + 150, "ações e atalhos", { size: 32, color: GREY, frame: f });
       keys(b, "d-org", x + 740, y + 210, [
         [[":"], "sugerir emoji ao digitar"],
-        [["↑", "↓"], "escolher figurinha"],
+        [["↑", "↓"], "escolher o emoji"],
         [["Enter"], "inserir no texto"],
         [["Esc"], "fechar sugestões"],
       ], f);

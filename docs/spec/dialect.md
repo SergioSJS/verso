@@ -513,9 +513,9 @@ decided the typed note, its schemas and their labels per language
 | Typed relation | a frontmatter property of the source note whose value is a quoted wikilink or a list of them; the key is the type | `DECIDED` on 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | a fenced `verso-schema` block in a note, anywhere in the folder but hidden and ignored paths | `DECIDED` on 2026-09-24 (Q11) |
 | Per-block visibility | game master's secret | `[OPEN]` (Q9) |
-| Sticker and color | `sticker:` (emoji or `lucide//<name>`) and `color:` (hex or CSS color) in the frontmatter of a note or folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
-| Cover banner | `banner:` (path or URL) and `banner_y:` (vertical alignment percentage, 0–100) in the frontmatter of a note or folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
-| Manual folder order | `order:` in the folder note's frontmatter, a list of relative child names defining sort order | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Sticker and color | `sticker:` in make.md's forms — `emoji//<hex>`, `lucide//<name>`, `ui//<name>` — written by Verso as make.md writes them, or an emoji written as itself, read; another value is no sticker. `color:` a hex, as Verso writes it, or a CSS color, read. In the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Cover banner | `banner:` (a path of the folder or a URL) and `banner_y:` (the vertical position, a percentage from 0 to 100 written as text, `"42"` — as make.md's reposition writes it, read in its source and observed through its property writer, 2026-10-02) in the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Manual folder order | `order:` in the folder note's frontmatter, a list of relative child names defining sort order; no `order:`, the alphabetical one; with the tree set to alphabetical, every `order:` is kept and ignored. The root's, in a note at the root named after the open folder (its place: `PROPOSED`, the author's, to confirm) | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Folder pins | `pinned:` in the folder note's frontmatter, a list of quoted wikilinks forming a `pinned` typed relation | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Folder item defaults | `items_sticker:`, `items_color:`, and `items_template:` in the folder note's frontmatter, inherited by newly created items in that folder | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 
@@ -553,10 +553,10 @@ Example of organizing frontmatter on a note:
 
 ```markdown
 ---
-sticker: "🚀"
+sticker: emoji//1f680
 color: "#e8590c"
 banner: assets/diagrama.svg
-banner_y: 42
+banner_y: "42"
 ---
 ```
 
@@ -569,7 +569,7 @@ order:
   - "Projeto Beta.md"
 pinned:
   - "[[Projeto Alpha]]"
-items_sticker: "📝"
+items_sticker: emoji//1f4dd
 items_color: "#1971c2"
 items_template: "Templates/Nota de Reunião.md"
 ---

@@ -376,6 +376,9 @@ pub struct Renamed {
     pub rewrites: Vec<LinkRewrite>,
     pub skipped: Vec<Skipped>,
     pub warnings: Vec<String>,
+    /// What else moved with the entry by a rule of its own — a folder's
+    /// note taking the folder's new name — old path to new.
+    pub also: Vec<(String, String)>,
 }
 
 /// What a deletion left: where the entry went in `.trash/`, and what
@@ -590,6 +593,10 @@ struct Move {
     notes: Vec<(String, String)>,
     files: Vec<(String, String)>,
     folders: Vec<(String, String)>,
+    /// Renames done after the entry's own, each from where that left the
+    /// file to where it goes: a folder's note taking the folder's new name
+    /// (ADR 0060 D3, the maintainer on 2026-10-02).
+    then: Vec<(String, String)>,
 }
 
 impl Move {
@@ -670,6 +677,9 @@ pub struct Workspace {
     /// of the content it was read from: read again only when the index
     /// has another hash for the note.
     base_facts: HashMap<String, (u64, bases::NoteFacts)>,
+    /// The folder note name setting (ADR 0060 D12): empty, a folder's note
+    /// is named after it.
+    folder_note_name: String,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -800,6 +810,7 @@ impl Workspace {
             dirs: HashSet::new(),
             entries: Vec::new(),
             base_facts: HashMap::new(),
+            folder_note_name: String::new(),
         })
     }
 
@@ -875,6 +886,54 @@ impl Workspace {
     /// Takes effect on the next index run; the caller reindexes.
     pub fn set_walk_rules(&mut self, rules: WalkRules) {
         self.root.set_rules(rules);
+    }
+
+    /// The folder note name setting (ADR 0060 D12), from the window. A
+    /// name that is not a plain file name — a separator, `.` or `..` — is
+    /// taken as empty: a folder's note is then named after it.
+    pub fn set_folder_note_name(&mut self, name: &str) {
+        let name = without_md(name.trim());
+        let plain = !name.contains(['/', '\\']) && name != "." && name != "..";
+        self.folder_note_name = if plain {
+            name.to_owned()
+        } else {
+            String::new()
+        };
+    }
+
+    /// The note that carries `folder`'s labels, order and pins, if it has
+    /// one (ADR 0060 D3): the first of [`folder_note_candidates`] — for the
+    /// root, [`root_note_candidates`] — the index holds, compared without
+    /// case.
+    pub fn folder_note_of(&self, folder: &str) -> Result<Option<String>, CoreError> {
+        let notes = self.index.notes().map_err(CoreError::Index)?;
+        Ok(self
+            .note_candidates(folder)
+            .into_iter()
+            .find_map(|c| notes.iter().find(|n| same_name(n, &c)).cloned()))
+    }
+
+    /// The paths `folder`'s note may have, the root's included.
+    fn note_candidates(&self, folder: &str) -> Vec<String> {
+        if folder.is_empty() {
+            root_note_candidates(&self.folder_note_name, &self.root_name())
+        } else {
+            folder_note_candidates(folder, &self.folder_note_name)
+        }
+    }
+
+    /// The open folder's own name: what the root's note is named after.
+    fn root_name(&self) -> String {
+        self.folder
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    }
+
+    /// The folder note name setting, as applied.
+    #[must_use]
+    pub fn folder_note_name(&self) -> &str {
+        &self.folder_note_name
     }
 
     pub fn index_with_progress<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
@@ -1427,37 +1486,21 @@ impl Workspace {
             .links_naming(&mv.keys())
             .map_err(CoreError::Index)?;
         paths.extend(mv.notes.iter().map(|(old, _)| old.clone()));
-        if let Ok(notes) = self.index.notes() {
-            let note_set: HashSet<String> = notes.into_iter().collect();
-            for (old, new) in mv
-                .notes
-                .iter()
-                .chain(mv.files.iter())
-                .chain(mv.folders.iter())
-            {
-                let dir_old = old.rsplit_once('/').map_or("", |(d, _)| d);
-                let dir_new = new.rsplit_once('/').map_or("", |(d, _)| d);
-                for dir in [dir_old, dir_new] {
-                    if !dir.is_empty() {
-                        let name = name_of(dir);
-                        let inside = format!("{dir}/{name}.md");
-                        let index_note = format!("{dir}/index.md");
-                        let beside = format!("{dir}.md");
-                        if note_set.contains(&inside) {
-                            paths.push(inside);
-                        }
-                        if note_set.contains(&index_note) {
-                            paths.push(index_note);
-                        }
-                        if note_set.contains(&beside) {
-                            paths.push(beside);
-                        }
-                    } else {
-                        for n in &note_set {
-                            if !n.contains('/') {
-                                paths.push(n.clone());
-                            }
-                        }
+        // The folder notes of the folders things leave and enter: their
+        // `order:` may name what moved (ADR 0060, D4).
+        let notes = self.index.notes().map_err(CoreError::Index)?;
+        let by_name: HashMap<String, &String> =
+            notes.iter().map(|n| (n.to_lowercase(), n)).collect();
+        for (old, new) in mv
+            .notes
+            .iter()
+            .chain(mv.files.iter())
+            .chain(mv.folders.iter())
+        {
+            for dir in [parent_of(old), parent_of(new)] {
+                for candidate in self.note_candidates(dir) {
+                    if let Some(found) = by_name.get(&candidate.to_lowercase()) {
+                        paths.push((*found).clone());
                     }
                 }
             }
@@ -1744,7 +1787,14 @@ impl Workspace {
             }
             let mut after = retargeted(&note.text, &edits);
             let text_to_check = after.as_deref().unwrap_or(&note.text);
-            if let Some(order_after) = rewrite_order(text_to_check, &note.path, mv) {
+            if let Some(order_after) = rewrite_order(
+                text_to_check,
+                &note.path,
+                mv,
+                &self.dirs,
+                &self.folder_note_name,
+                &self.root_name(),
+            ) {
                 after = Some(order_after);
             }
             if let Some(after) = after
@@ -1860,6 +1910,7 @@ impl Workspace {
             notes: vec![(old.clone(), new.clone())],
             files: Vec::new(),
             folders: Vec::new(),
+            then: Vec::new(),
         };
         self.perform(mv, &old, &new)
     }
@@ -1879,6 +1930,31 @@ impl Workspace {
             .map_err(CoreError::Write)?;
         // The entry has moved: from here on, nothing is an error.
         warnings.extend(report.warnings());
+        let mut mv = mv;
+        let mut also = Vec::new();
+        for (from, to) in std::mem::take(&mut mv.then) {
+            match self.root.rename(Path::new(&from), Path::new(&to)) {
+                Ok((_, report)) => {
+                    warnings.extend(report.warnings());
+                    let before = mv
+                        .notes
+                        .iter()
+                        .find(|(_, n)| n == &to)
+                        .map_or_else(|| from.clone(), |(o, _)| o.clone());
+                    also.push((before, to));
+                }
+                Err(e) => {
+                    // Not renamed: the map says where the note is.
+                    warnings.push(format!("{from}: {e}"));
+                    for entry in &mut mv.notes {
+                        if entry.1 == to {
+                            entry.1.clone_from(&from);
+                        }
+                    }
+                    mv.notes.retain(|(o, n)| o != n);
+                }
+            }
+        }
         self.follow(&mv, &mut warnings);
         let rewrites = self.plan(examined, &mv, &mut warnings);
         for s in &mut skipped {
@@ -1891,6 +1967,7 @@ impl Workspace {
             rewrites,
             skipped,
             warnings,
+            also,
         })
     }
 
@@ -2192,6 +2269,7 @@ impl Workspace {
             notes: Vec::new(),
             files: vec![(old.clone(), new.clone())],
             folders: Vec::new(),
+            then: Vec::new(),
         };
         self.perform(mv, &old, &new)
     }
@@ -2217,15 +2295,59 @@ impl Workspace {
                 folders.push((d.clone(), format!("{new}/{rest}")));
             }
         }
+        let mut notes = notes;
+        let then = self.folder_note_follows(old, new, &mut notes)?;
         self.perform(
             Move {
                 notes,
                 files,
                 folders,
+                then,
             },
             old,
             new,
         )
+    }
+
+    /// The folder's note takes the folder's new name (the maintainer,
+    /// 2026-10-02): `old/old.md` becomes `new/new.md`, and `old.md` beside
+    /// the folder becomes `new.md`. `notes` is the move's map, made to say
+    /// so; the renames this asks for come back, to run after the folder's.
+    /// A note named by the setting keeps its name, and a note already at
+    /// the new name is left alone.
+    fn folder_note_follows(
+        &self,
+        old: &str,
+        new: &str,
+        notes: &mut Vec<(String, String)>,
+    ) -> Result<Vec<(String, String)>, CoreError> {
+        let all = self.index.notes().map_err(CoreError::Index)?;
+        let taken = |path: &str, mine: &str| {
+            all.iter()
+                .any(|n| same_name(n, path) && !same_name(n, mine))
+        };
+        let (old_name, new_name) = (name_of(old), name_of(new));
+        let mut then = Vec::new();
+        if old_name != new_name {
+            let inside = format!("{old}/{old_name}.md");
+            if let Some(entry) = notes.iter_mut().find(|(o, _)| same_name(o, &inside)) {
+                let stem = without_md(name_of(&entry.0)).to_owned();
+                let wanted = format!("{new}/{new_name}.md");
+                if same_name(&stem, old_name) && !taken(&format!("{old}/{new_name}.md"), &entry.0) {
+                    then.push((entry.1.clone(), wanted.clone()));
+                    entry.1 = wanted;
+                }
+            }
+        }
+        let beside = format!("{old}.md");
+        if let Some(found) = all.iter().find(|n| same_name(n, &beside)) {
+            let wanted = format!("{new}.md");
+            if !taken(&wanted, found) {
+                then.push((found.clone(), wanted.clone()));
+                notes.push((found.clone(), wanted));
+            }
+        }
+        Ok(then)
     }
 
     /// Move anything of the folder — a note, another file or a whole
@@ -2497,266 +2619,338 @@ fn top_level_key(line: &str) -> Option<String> {
     Some(key.to_owned())
 }
 
-/// Rewrite the `order:` list in a folder note's frontmatter when items move (ADR 0060, D4).
-fn rewrite_order(text: &str, note_path: &str, mv: &Move) -> Option<String> {
+/// Whether `s`, written bare as a YAML scalar, would read back as other
+/// text: a different type (`2024`, `01`, `1e3`, `yes`, `null`), an
+/// indicator (`[x].md`, `- a`, `&a`), or a key or comment inside.
+fn needs_yaml_quote(s: &str) -> bool {
+    let Some(first) = s.chars().next() else {
+        return true;
+    };
+    if "-?:,[]{}#&*!|>'\"%@`~".contains(first) || first.is_whitespace() {
+        return true;
+    }
+    if s.ends_with(char::is_whitespace)
+        || s.contains(": ")
+        || s.ends_with(':')
+        || s.contains(" #")
+        || s.contains(['\t', '\n', '\r', '"', '\\'])
+    {
+        return true;
+    }
+    let lower = s.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "true" | "false" | "yes" | "no" | "on" | "off" | "y" | "n" | "null"
+    ) || s.parse::<f64>().is_ok()
+        || s.starts_with("0x")
+        || s.starts_with("0o")
+}
+
+/// `s` as a YAML scalar that reads back as the same text.
+fn yaml_scalar(s: &str) -> String {
+    if needs_yaml_quote(s) {
+        let escaped = s
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\t', "\\t")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r");
+        format!("\"{escaped}\"")
+    } else {
+        s.to_owned()
+    }
+}
+
+/// A plain or quoted YAML scalar as its text; `None` for anything else
+/// (a nested list or mapping), which an item is never compared with.
+fn yaml_scalar_text(raw: &str) -> Option<String> {
+    if let Some(inner) = raw.strip_prefix('"').and_then(|r| r.strip_suffix('"')) {
+        let mut out = String::new();
+        let mut chars = inner.chars();
+        while let Some(c) = chars.next() {
+            if c != '\\' {
+                out.push(c);
+                continue;
+            }
+            match chars.next()? {
+                'n' => out.push('\n'),
+                't' => out.push('\t'),
+                'r' => out.push('\r'),
+                other => out.push(other),
+            }
+        }
+        return Some(out);
+    }
+    if let Some(inner) = raw.strip_prefix('\'').and_then(|r| r.strip_suffix('\'')) {
+        return Some(inner.replace("''", "'"));
+    }
+    if raw.is_empty() || raw.starts_with(['[', '{', '-', '&', '*', '!', '|', '>']) {
+        return None;
+    }
+    Some(raw.to_owned())
+}
+
+/// The folders `note` is the folder note of, by its path alone: inside
+/// the folder, named after it or as the setting says, and beside it
+/// (ADR 0060 D3, D12). The root has none.
+fn folders_of_note(note: &str, configured: &str, root_name: &str) -> Vec<String> {
+    if !note.to_ascii_lowercase().ends_with(".md") {
+        return Vec::new();
+    }
+    let (parent, file) = note.rsplit_once('/').unwrap_or(("", note));
+    let stem = without_md(file);
+    let mut out = Vec::new();
+    let own_name = if parent.is_empty() {
+        root_name
+    } else {
+        name_of(parent)
+    };
+    if same_name(stem, own_name) || (!configured.is_empty() && same_name(stem, configured)) {
+        out.push(parent.to_owned());
+    }
+    out.push(if parent.is_empty() {
+        stem.to_owned()
+    } else {
+        format!("{parent}/{stem}")
+    });
+    out
+}
+
+/// The paths a folder's note may have, in the order they are looked for:
+/// inside the folder, named as the setting says, then after the folder;
+/// then beside it (ADR 0060 D3, D12). Compared without case. The root has
+/// no folder note.
+#[must_use]
+pub fn folder_note_candidates(folder: &str, configured: &str) -> Vec<String> {
+    if folder.is_empty() {
+        return Vec::new();
+    }
+    let name = name_of(folder);
+    let mut out = Vec::new();
+    if !configured.is_empty() && !same_name(configured, name) {
+        out.push(format!("{folder}/{configured}.md"));
+    }
+    out.push(format!("{folder}/{name}.md"));
+    out.push(format!("{folder}.md"));
+    out
+}
+
+/// Two names alike but for case, as the window compares them.
+fn same_name(a: &str, b: &str) -> bool {
+    a.to_lowercase() == b.to_lowercase()
+}
+
+/// The paths the root's note may have: at the root, named as the setting
+/// says, then after the open folder (the maintainer, 2026-10-02: the
+/// root's items can be ordered too). Compared without case.
+#[must_use]
+pub fn root_note_candidates(configured: &str, root_name: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if !configured.is_empty() && !same_name(configured, root_name) {
+        out.push(format!("{configured}.md"));
+    }
+    if !root_name.is_empty() {
+        out.push(format!("{root_name}.md"));
+    }
+    out
+}
+
+/// The parent folder of a relative path; the root is "".
+fn parent_of(path: &str) -> &str {
+    path.rsplit_once('/').map_or("", |(d, _)| d)
+}
+
+/// One item of an `order:` block, as written in the file: where its value
+/// sits (byte offsets in the whole text), where its line starts and ends
+/// (end of line included), and the value as text.
+struct OrderItem {
+    line_start: usize,
+    line_end: usize,
+    value_start: usize,
+    value_end: usize,
+    text: Option<String>,
+}
+
+/// The items of the `order:` block sequence of a frontmatter, as written;
+/// `None` when the note has no such block (a flow list `[a, b]` included:
+/// it is left as it is).
+fn order_items(text: &str, fm_start: usize, fm_end: usize) -> Option<Vec<OrderItem>> {
+    let fm_text = text.get(fm_start..fm_end)?;
+    let mut items = Vec::new();
+    let mut in_order = false;
+    let mut found = false;
+    let mut offset = fm_start;
+    for line in fm_text.split_inclusive('\n') {
+        let start = offset;
+        offset += line.len();
+        let body = line.trim_end_matches(['\n', '\r']);
+        if body.starts_with("---") || body.starts_with("...") {
+            if in_order {
+                break;
+            }
+            continue;
+        }
+        if let Some(key) = top_level_key(body) {
+            if in_order {
+                break;
+            }
+            if key == "order" {
+                let after = body.split_once(':').map_or("", |(_, v)| v).trim();
+                if !after.is_empty() && !after.starts_with('#') {
+                    return None;
+                }
+                in_order = true;
+                found = true;
+            }
+            continue;
+        }
+        if !in_order {
+            continue;
+        }
+        let trimmed = body.trim_start();
+        let Some(rest) = trimmed.strip_prefix('-') else {
+            continue;
+        };
+        if !(rest.is_empty() || rest.starts_with([' ', '\t'])) {
+            continue;
+        }
+        let lead = body.len() - rest.len();
+        let raw_with_space = &body[lead..];
+        let raw_trimmed_start = raw_with_space.trim_start();
+        let value_start = start + lead + (raw_with_space.len() - raw_trimmed_start.len());
+        let raw = if raw_trimmed_start.starts_with(['"', '\'']) {
+            raw_trimmed_start.trim_end()
+        } else {
+            raw_trimmed_start
+                .split_once(" #")
+                .map_or(raw_trimmed_start, |(v, _)| v)
+                .trim_end()
+        };
+        items.push(OrderItem {
+            line_start: start,
+            line_end: offset,
+            value_start,
+            value_end: value_start + raw.len(),
+            text: yaml_scalar_text(raw),
+        });
+    }
+    found.then_some(items)
+}
+
+/// Where `path` is after the move: itself, a note or file that moved, or
+/// inside a folder that moved.
+fn moved_path(mv: &Move, path: &str) -> String {
+    if let Some(new) = mv.note_after(path) {
+        return new.to_owned();
+    }
+    if let Some((_, new)) = mv.files.iter().find(|(old, _)| old == path) {
+        return new.clone();
+    }
+    let mut best: Option<(&str, &str)> = None;
+    for (old, new) in &mv.folders {
+        let inside = path == old || path.starts_with(&format!("{old}/"));
+        if inside && best.is_none_or(|(b, _)| old.len() > b.len()) {
+            best = Some((old, new));
+        }
+    }
+    match best {
+        Some((old, new)) => format!("{new}{}", &path[old.len()..]),
+        None => path.to_owned(),
+    }
+}
+
+/// The `order:` of a folder note after a move (ADR 0060, D4): an item
+/// that moved within its folder takes its new name; one that left the
+/// folder is taken out. Only the lines of those items change — every
+/// other line, comment and spelling stays as written. `None` when nothing
+/// changes. `dirs` are the folders before the move; `configured` is the
+/// folder note name setting.
+fn rewrite_order(
+    text: &str,
+    note_path: &str,
+    mv: &Move,
+    dirs: &HashSet<String>,
+    configured: &str,
+    root_name: &str,
+) -> Option<String> {
     let parsed = verso_dialect::parse(text);
     let fm = parsed.frontmatter.as_ref()?;
-    let verso_dialect::Value::Mapping(map) = fm.values.as_ref().ok()? else {
-        return None;
-    };
-    let (_, order_val) = map.iter().find(|(k, _)| k.eq_ignore_ascii_case("order"))?;
-    let verso_dialect::Value::Sequence(seq) = order_val else {
-        return None;
-    };
-    let order_items: Vec<String> = seq
+    let items = order_items(text, fm.span.start, fm.span.end)?;
+    let folder = folders_of_note(note_path, configured, root_name)
+        .into_iter()
+        .find_map(|f| {
+            if f.is_empty() {
+                Some(String::new())
+            } else {
+                dirs.iter().find(|d| same_name(d, &f)).cloned()
+            }
+        })?;
+    let new_folder = moved_path(mv, &folder);
+
+    let moved: Vec<(&str, &str, bool)> = mv
+        .notes
         .iter()
-        .filter_map(|v| match v {
-            verso_dialect::Value::String(s) => Some(s.clone()),
-            verso_dialect::Value::Integer(i) => Some(i.to_string()),
-            verso_dialect::Value::Float(f) => Some(f.to_string()),
-            verso_dialect::Value::Bool(b) => Some(b.to_string()),
-            _ => None,
-        })
+        .map(|(o, n)| (o.as_str(), n.as_str(), true))
+        .chain(
+            mv.files
+                .iter()
+                .map(|(o, n)| (o.as_str(), n.as_str(), false)),
+        )
+        .chain(
+            mv.folders
+                .iter()
+                .map(|(o, n)| (o.as_str(), n.as_str(), false)),
+        )
         .collect();
-    if order_items.is_empty() {
-        return None;
-    }
 
-    let (parent_dir, filename) = note_path.rsplit_once('/').unwrap_or(("", note_path));
-    let stem = without_md(filename);
-    let mut candidate_folders = Vec::new();
-    if !parent_dir.is_empty() && name_of(parent_dir) == stem {
-        candidate_folders.push(parent_dir.to_owned());
-    }
-    if !parent_dir.is_empty() && stem == "index" {
-        candidate_folders.push(parent_dir.to_owned());
-    }
-    if !parent_dir.is_empty() {
-        candidate_folders.push(format!("{parent_dir}/{stem}"));
-    } else {
-        candidate_folders.push(stem.to_owned());
-        candidate_folders.push(String::new());
-    }
-    if !parent_dir.is_empty() {
-        candidate_folders.push(parent_dir.to_owned());
-    }
-
-    let mut matched_folder = None;
-    for f in &candidate_folders {
-        if mv.folders.iter().any(|(old, _)| old == f) {
-            matched_folder = Some(f.clone());
-            break;
+    // (item index, Some(new text) or None to take the line out)
+    let mut edits: Vec<(usize, Option<String>)> = Vec::new();
+    for (old, new, is_note) in moved {
+        if parent_of(old) != folder {
+            continue;
         }
-        for (old, _) in mv
-            .notes
+        let old_rel = name_of(old);
+        let new_rel = (parent_of(new) == new_folder).then(|| name_of(new));
+        if new_rel == Some(old_rel) {
+            continue;
+        }
+        let taken = |i: usize| edits.iter().any(|(j, _)| *j == i);
+        let exact = items
             .iter()
-            .chain(mv.files.iter())
-            .chain(mv.folders.iter())
-        {
-            let rel = if f.is_empty() {
-                if !old.contains('/') {
-                    Some(old.as_str())
-                } else {
-                    None
-                }
-            } else if let Some(rest) = old.strip_prefix(&format!("{f}/")) {
-                let first_seg = rest.split('/').next().unwrap_or(rest);
-                if order_items
-                    .iter()
-                    .any(|item| item == rest || item == first_seg)
-                {
-                    Some(first_seg)
-                } else {
-                    None
-                }
-            } else if old == f {
-                Some(name_of(old))
-            } else {
-                None
-            };
-            if let Some(r) = rel
-                && order_items.iter().any(|item| item == r)
+            .enumerate()
+            .find(|(i, it)| !taken(*i) && it.text.as_deref() == Some(old_rel));
+        let (index, bare) = match exact {
+            Some((i, _)) => (i, false),
+            None if is_note => match items
+                .iter()
+                .enumerate()
+                .find(|(i, it)| !taken(*i) && it.text.as_deref() == Some(without_md(old_rel)))
             {
-                matched_folder = Some(f.clone());
-                break;
-            }
-        }
-        if matched_folder.is_some() {
-            break;
-        }
-    }
-
-    let folder = matched_folder?;
-    let new_folder = mv
-        .folders
-        .iter()
-        .find(|(old, _)| old == &folder)
-        .map(|(_, new)| new.clone())
-        .or_else(|| {
-            mv.note_after(note_path).and_then(|new_note| {
-                let (new_p, new_file) = new_note.rsplit_once('/').unwrap_or(("", new_note));
-                let new_stem = without_md(new_file);
-                if !new_p.is_empty() && (name_of(new_p) == new_stem || new_stem == "index") {
-                    Some(new_p.to_owned())
-                } else if new_p.is_empty() && folder.is_empty() {
-                    Some(String::new())
-                } else {
-                    None
-                }
-            })
-        })
-        .unwrap_or_else(|| folder.clone());
-
-    let mut new_items = order_items.clone();
-    let mut changed = false;
-
-    for item in &order_items {
-        let old_item_path = if folder.is_empty() {
-            item.clone()
-        } else {
-            format!("{folder}/{item}")
+                Some((i, _)) => (i, true),
+                None => continue,
+            },
+            None => continue,
         };
-
-        // Check if old_item_path moved in folders
-        let moved_folder = mv.folders.iter().find(|(old, _)| old == &old_item_path);
-        if let Some((_, new_dir)) = moved_folder {
-            let new_rel = if new_folder.is_empty() {
-                if !new_dir.contains('/') {
-                    Some(new_dir.clone())
-                } else {
-                    None
-                }
-            } else if let Some(rest) = new_dir.strip_prefix(&format!("{new_folder}/")) {
-                if !rest.contains('/') {
-                    Some(rest.to_owned())
-                } else {
-                    None
-                }
+        let replacement = new_rel.map(|n| {
+            if bare {
+                without_md(n).to_owned()
             } else {
-                None
-            };
-            if let Some(pos) = new_items.iter().position(|it| it == item) {
-                match new_rel {
-                    Some(n) => {
-                        if new_items[pos] != n {
-                            new_items[pos] = n;
-                            changed = true;
-                        }
-                    }
-                    None => {
-                        new_items.remove(pos);
-                        changed = true;
-                    }
-                }
+                n.to_owned()
             }
-            continue;
-        }
-
-        // Check if old_item_path moved in notes or files
-        let moved_note = mv.notes.iter().chain(mv.files.iter()).find(|(old, _)| {
-            old == &old_item_path || without_md(old) == without_md(&old_item_path)
         });
-        if let Some((_, new_file)) = moved_note {
-            let new_rel = if new_folder.is_empty() {
-                if !new_file.contains('/') {
-                    Some(new_file.clone())
-                } else {
-                    None
-                }
-            } else if let Some(rest) = new_file.strip_prefix(&format!("{new_folder}/")) {
-                if !rest.contains('/') {
-                    Some(rest.to_owned())
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            if let Some(pos) = new_items.iter().position(|it| it == item) {
-                match new_rel {
-                    Some(n) => {
-                        let final_name = if !item.ends_with(".md") && n.ends_with(".md") {
-                            without_md(&n).to_owned()
-                        } else {
-                            n
-                        };
-                        if new_items[pos] != final_name {
-                            new_items[pos] = final_name;
-                            changed = true;
-                        }
-                    }
-                    None => {
-                        new_items.remove(pos);
-                        changed = true;
-                    }
-                }
-            }
-            continue;
-        }
+        edits.push((index, replacement));
     }
-
-    if !changed {
+    if edits.is_empty() {
         return None;
     }
-
-    let fm_text = text.get(fm.span.start..fm.span.end)?;
-    let mut order_start = None;
-    let mut order_end = None;
-    let mut in_order = false;
-    let mut line_offset = fm.span.start;
-
-    for line in fm_text.split_inclusive('\n') {
-        let line_len = line.len();
-        if in_order {
-            if top_level_key(line).is_some() || line.starts_with("---") {
-                order_end = Some(line_offset);
-                break;
-            }
-        } else if let Some(k) = top_level_key(line)
-            && k.eq_ignore_ascii_case("order")
-        {
-            in_order = true;
-            order_start = Some(line_offset);
-        }
-        line_offset += line_len;
-    }
-
-    if in_order && order_end.is_none() {
-        order_end = Some(line_offset);
-    }
-
-    let start = order_start?;
-    let end = order_end?;
-
-    let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
-    let mut replacement = String::new();
-    if new_items.is_empty() {
-        replacement = format!("order: []{eol}");
-    } else {
-        replacement.push_str(&format!("order:{eol}"));
-        for item in &new_items {
-            let needs_quote = item.is_empty()
-                || item.contains(' ')
-                || item.contains(':')
-                || item.contains('#')
-                || item.contains('"')
-                || item.contains('\'')
-                || item.chars().all(|c| c.is_ascii_digit())
-                || item.eq_ignore_ascii_case("true")
-                || item.eq_ignore_ascii_case("false")
-                || item.eq_ignore_ascii_case("null")
-                || item.eq_ignore_ascii_case("yes")
-                || item.eq_ignore_ascii_case("no");
-            if needs_quote {
-                let escaped = item.replace('\\', "\\\\").replace('"', "\\\"");
-                replacement.push_str(&format!("  - \"{escaped}\"{eol}"));
-            } else {
-                replacement.push_str(&format!("  - {item}{eol}"));
-            }
-        }
-    }
-
+    edits.sort_by_key(|(i, _)| std::cmp::Reverse(*i));
     let mut out = text.to_owned();
-    out.replace_range(start..end, &replacement);
+    for (i, replacement) in edits {
+        let item = &items[i];
+        match replacement {
+            Some(n) => out.replace_range(item.value_start..item.value_end, &yaml_scalar(&n)),
+            None => out.replace_range(item.line_start..item.line_end, ""),
+        }
+    }
     Some(out)
 }
