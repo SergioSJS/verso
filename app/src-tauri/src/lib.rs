@@ -34,10 +34,10 @@ use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
-    Edge, EntryLabel, ErrorKind, FileEntry, FileKind, FolderChanged, FolderInfo, Heading, Hit,
-    IndexProgress, IndexSummary, Link, LinkRewrite, McpAdded, McpClientState, McpStatus, NoteText,
-    Property, PropertyValue, Renamed, SkipReason, Skipped, Tag, TextFile, Trashed, UpdateProgress,
-    WebNote, Written,
+    Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus, FocusesSummary, FolderChanged,
+    FolderInfo, Heading, Hit, IndexProgress, IndexSummary, Link, LinkRewrite, McpAdded,
+    McpClientState, McpStatus, NoteText, Property, PropertyValue, Renamed, SkipReason, Skipped,
+    Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -1014,6 +1014,74 @@ fn set_folder_note_name(state: State<'_, App>, name: String) -> Result<(), Contr
         session.workspace.set_folder_note_name(&name);
     }
     Ok(())
+}
+
+fn to_contract_focus(f: verso_core::Focus) -> Focus {
+    Focus {
+        name: f.name,
+        paths: f.paths,
+        sticker: f.sticker,
+    }
+}
+
+fn to_core_focus(f: Focus) -> verso_core::Focus {
+    verso_core::Focus {
+        name: f.name,
+        paths: f.paths,
+        sticker: f.sticker,
+    }
+}
+
+fn to_contract_focuses_summary(s: verso_core::FocusesSummary) -> FocusesSummary {
+    FocusesSummary {
+        focuses: s.focuses.into_iter().map(to_contract_focus).collect(),
+        has_file: s.has_file,
+        format_known: s.format_known,
+        read_only_reason: s.read_only_reason,
+        stamp: s.stamp,
+    }
+}
+
+/// Read focuses from `.space/waypoints.json` in the open folder (ADR 0062).
+#[tauri::command]
+#[specta::specta]
+fn get_focuses(state: State<'_, App>) -> Result<FocusesSummary, ContractError> {
+    let summary = with(&state, |ws| ws.get_focuses())?;
+    Ok(to_contract_focuses_summary(summary))
+}
+
+/// Write focuses to `.space/waypoints.json` in the open folder (ADR 0062).
+#[tauri::command]
+#[specta::specta]
+fn set_focuses(
+    state: State<'_, App>,
+    focuses: Vec<Focus>,
+    stamp: Option<String>,
+    base_focuses: Option<Vec<Focus>>,
+) -> Result<FocusesSummary, ContractError> {
+    let core_focuses = focuses.into_iter().map(to_core_focus).collect();
+    let core_base = base_focuses.map(|bf| bf.into_iter().map(to_core_focus).collect());
+    let summary = with(&state, |ws| {
+        ws.set_focuses(core_focuses, stamp.as_deref(), core_base)
+    })?;
+    Ok(to_contract_focuses_summary(summary))
+}
+
+/// Whether focuses can be synced to `.space/waypoints.json` (ADR 0062).
+#[tauri::command]
+#[specta::specta]
+fn can_sync_focuses(state: State<'_, App>) -> Result<bool, ContractError> {
+    with(&state, |ws| ws.can_sync_focuses())
+}
+
+/// Set whether focuses sync to `.space/waypoints.json` is enabled (ADR 0062 D5, D9).
+#[tauri::command]
+#[specta::specta]
+fn set_sync_focuses(state: State<'_, App>, enabled: bool) -> Result<(), ContractError> {
+    with(&state, |ws| {
+        ws.set_sync_focuses(enabled);
+        Ok(())
+    })
 }
 
 /// The walk's rules, from the settings: whether the well-known build
@@ -2023,6 +2091,10 @@ macro_rules! commands_for {
                 set_embed_origins,
                 set_walk_rules,
                 set_folder_note_name,
+                get_focuses,
+                set_focuses,
+                can_sync_focuses,
+                set_sync_focuses,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,

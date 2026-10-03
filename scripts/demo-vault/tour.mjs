@@ -267,6 +267,27 @@ const STOPS = [
       ], f);
     },
   },
+  {
+    id: "focos",
+    label: "Focos",
+    heading: "🧭 Focos",
+    color: TEAL,
+    canvasColor: "5",
+    cards: [["n-focos", "19 - Organizando: figurinhas, capas e páginas.md", 640, "#8. Focos (raízes nomeadas)"]],
+    tip:
+      "Focos são raízes nomeadas da árvore de arquivos, compatíveis com o make.md. " +
+      "Escolha um foco para ver a árvore a partir dele; Início mostra a pasta inteira. " +
+      "A aba Focos no painel da direita cria, renomeia, reordena e troca a figurinha de cada foco.",
+    extra(b, x, y, f) {
+      b.write("d-focos-titulo", x + 740, y + 150, "ações e atalhos", { size: 32, color: GREY, frame: f });
+      keys(b, "d-focos", x + 740, y + 210, [
+        [["⌘", "⇧", "P"], "Trocar foco na paleta"],
+        [["menu"], "Criar foco aqui na árvore"],
+        [["menu"], "Adicionar ao foco…"],
+        [["painel"], "Aba Focos (ao lado de Favoritos)"],
+      ], f);
+    },
+  },
 ];
 
 /** Where stop `i` stands: row by row, left to right. */
@@ -290,8 +311,8 @@ export function tour() {
     const [x, y] = at(i);
     const f = `g-${s.id}`;
     let cx = x + 40;
-    for (const [id, file, width] of s.cards) {
-      b.file(id, file, cx, y + CARD_Y, width, CARD_H);
+    for (const [id, file, width, subpath] of s.cards) {
+      b.file(id, file, cx, y + CARD_Y, width, CARD_H, undefined, subpath);
       cx += width + (s.cards.length > 2 ? 30 : 80);
     }
     for (const e of s.edges ?? []) b.edge(...e, s.canvasColor);

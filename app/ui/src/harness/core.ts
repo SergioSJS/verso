@@ -46,6 +46,8 @@ import type {
   UpdateInfo,
   WebNote,
   Written,
+  Focus,
+  FocusesSummary,
 } from "../bindings";
 import { blocksOf, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown } from "./markdown";
 
@@ -279,6 +281,7 @@ export class Core {
   readonly folders = new Set<string>();
   /** The folder note name setting (`set_folder_note_name`). */
   private folderNoteName = "";
+  private syncFocuses = false;
   /** Every command asked for, in order: what a test looks at. */
   readonly calls: { cmd: string; args: unknown }[] = [];
   /** What the window wrote into the app's log (`log_write`). */
@@ -339,6 +342,124 @@ export class Core {
     const was = this.stored(path);
     if (String(was.revision) !== revision) refuse("changed", `changed on disk: ${path}`);
     return this.put(path, encoder.encode(text));
+  }
+
+  private getFocuses(): FocusesSummary {
+    const stored = this.files.get(".space/waypoints.json");
+    if (!stored) {
+      if (this.files.has(".space/.waypoints.json.icloud")) {
+        return {
+          focuses: [],
+          has_file: true,
+          format_known: false,
+          read_only_reason: "arquivo na nuvem (iCloud) ainda não baixado",
+          stamp: null,
+        };
+      }
+      return {
+        focuses: [],
+        has_file: false,
+        format_known: false,
+        read_only_reason: null,
+        stamp: null,
+      };
+    }
+    try {
+      const text = strict.decode(stored.bytes);
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        return {
+          focuses: [],
+          has_file: true,
+          format_known: false,
+          read_only_reason: "expected JSON array",
+          stamp: String(stored.revision),
+        };
+      }
+      const seenNames = new Set<string>();
+      for (let i = 0; i < parsed.length; i++) {
+        const item = parsed[i];
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `element ${i} is not an object`,
+            stamp: String(stored.revision),
+          };
+        }
+        const keys = Object.keys(item);
+        if (keys.some((k) => k !== "name" && k !== "paths" && k !== "sticker")) {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `unknown key in element ${i}`,
+            stamp: String(stored.revision),
+          };
+        }
+        if (typeof item.name !== "string" || !Array.isArray(item.paths)) {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `element ${i} missing name or paths`,
+            stamp: String(stored.revision),
+          };
+        }
+        const lower = item.name.toLowerCase();
+        if (seenNames.has(lower)) {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `duplicate focus name '${item.name}' in element ${i}`,
+            stamp: String(stored.revision),
+          };
+        }
+        seenNames.add(lower);
+        for (let pi = 0; pi < item.paths.length; pi++) {
+          const p = item.paths[pi];
+          if (typeof p !== "string" || (p !== "/" && (p === "" || p.startsWith("/") || p.split("/").some((s: string) => s === "..")))) {
+            return {
+              focuses: [],
+              has_file: true,
+              format_known: false,
+              read_only_reason: `invalid path in element ${i}`,
+              stamp: String(stored.revision),
+            };
+          }
+        }
+        if (item.sticker !== undefined && typeof item.sticker !== "string") {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `element ${i} sticker is not string`,
+            stamp: String(stored.revision),
+          };
+        }
+      }
+      return {
+        focuses: parsed.map((item: any) => ({
+          name: item.name,
+          paths: item.paths,
+          sticker: item.sticker ?? null,
+        })),
+        has_file: true,
+        format_known: true,
+        read_only_reason: null,
+        stamp: String(stored.revision),
+      };
+    } catch (e) {
+      return {
+        focuses: [],
+        has_file: true,
+        format_known: false,
+        read_only_reason: String(e),
+        stamp: String(stored.revision),
+      };
+    }
   }
 
   notes(): string[] {
@@ -841,6 +962,152 @@ export class Core {
     set_folder_note_name: (a) => {
       this.folderNoteName = folderNoteSetting(String(a["name"] ?? ""));
       return null;
+    },
+    get_focuses: () => this.getFocuses(),
+    can_sync_focuses: () => {
+      const summary = this.getFocuses();
+      return summary.has_file && summary.format_known;
+    },
+    set_sync_focuses: (a) => {
+      this.syncFocuses = Boolean(a["enabled"]);
+      return null;
+    },
+    set_focuses: (a): FocusesSummary => {
+      if (!this.syncFocuses) {
+        refuse("failed", "synchronization of focuses with make.md is disabled");
+      }
+      const focuses = a["focuses"] as Focus[];
+      const stamp = a["stamp"] as string | null;
+      if (!stamp) {
+        refuse("changed", "expected stamp required");
+      }
+      const stored = this.files.get(".space/waypoints.json");
+      if (!stored) {
+        refuse("failed", "no .space/waypoints.json file in folder");
+      }
+      const currentSummary = this.getFocuses();
+      if (!currentSummary.format_known) {
+        refuse("failed", "cannot write focuses: current file format is not known");
+      }
+      const seenNames = new Set<string>();
+      for (let i = 0; i < focuses.length; i++) {
+        const f = focuses[i];
+        if (!f || typeof f.name !== "string" || !Array.isArray(f.paths)) {
+          refuse("failed", `invalid focus at index ${i}`);
+        }
+        const lower = f.name.toLowerCase();
+        if (seenNames.has(lower)) {
+          refuse("failed", `duplicate focus name '${f.name}'`);
+        }
+        seenNames.add(lower);
+        for (const p of f.paths) {
+          if (typeof p !== "string" || (p !== "/" && (p === "" || p.startsWith("/") || p.split("/").some((s) => s === "..")))) {
+            refuse("failed", `invalid path '${p}' in focus '${f.name}'`);
+          }
+        }
+      }
+      const clean = focuses.map((f) => {
+        const obj: any = { name: f.name, paths: f.paths };
+        if (f.sticker != null && f.sticker !== "") {
+          obj.sticker = f.sticker;
+        }
+        return obj;
+      });
+
+      let finalFocuses = clean;
+      if (String(stored.revision) !== stamp) {
+        // Concurrent modification on disk: attempt merge (ADR 0062 D7)
+        const baseFocuses = a["baseFocuses"] as Focus[] | null;
+        if (!baseFocuses) {
+          refuse("changed", "the file on disk changed since it was read");
+        }
+        const diskFocuses = currentSummary.focuses;
+        const oldFocuses = baseFocuses;
+        const newFocuses = clean;
+
+        // Compute deltas:
+        const added = newFocuses.filter((nf) => !oldFocuses.some((of) => of.name === nf.name));
+        const removed = oldFocuses.filter((of) => !newFocuses.some((nf) => nf.name === of.name));
+        const updated = newFocuses.filter((nf) => {
+          const of = oldFocuses.find((o) => o.name === nf.name);
+          return of && JSON.stringify(of) !== JSON.stringify(nf);
+        });
+
+        // 1. Updated: disk must not have modified or deleted it
+        for (const uf of updated) {
+          const df = diskFocuses.find((d) => d.name === uf.name);
+          const of = oldFocuses.find((o) => o.name === uf.name);
+          if (!df || JSON.stringify(df) !== JSON.stringify(of)) {
+            refuse("changed", "conflict: focus modified concurrently on disk");
+          }
+        }
+        // 2. Removed: disk must not have modified it
+        for (const rf of removed) {
+          const df = diskFocuses.find((d) => d.name === rf.name);
+          if (df && JSON.stringify(df) !== JSON.stringify(rf)) {
+            refuse("changed", "conflict: removed focus modified concurrently on disk");
+          }
+        }
+        // 3. Added: disk must not have added same name
+        for (const af of added) {
+          if (diskFocuses.some((d) => d.name.toLowerCase() === af.name.toLowerCase())) {
+            refuse("changed", "conflict: focus with same name added concurrently on disk");
+          }
+        }
+
+        // Apply non-conflicting changes onto diskFocuses:
+        let merged = diskFocuses.filter((df) => !removed.some((rf) => rf.name === df.name));
+        for (const uf of updated) {
+          const idx = merged.findIndex((m) => m.name === uf.name);
+          if (idx >= 0) merged[idx] = uf;
+        }
+        for (const af of added) {
+          merged.push(af);
+        }
+        finalFocuses = merged;
+      }
+
+      // Format-preserving serialization matching verso-core
+      const oldText = strict.decode(stored.bytes);
+      let newText: string;
+      try {
+        const parsed = JSON.parse(oldText);
+        if (Array.isArray(parsed)) {
+          const items: any[] = [];
+          for (const f of finalFocuses) {
+            const old = parsed.find((p: any) => p && p.name === f.name);
+            if (old && JSON.stringify(old) === JSON.stringify(f)) {
+              items.push(old);
+            } else if (old) {
+              const obj: any = {};
+              for (const k of Object.keys(old)) {
+                if (k in f) obj[k] = (f as any)[k];
+              }
+              if (!("name" in obj)) obj.name = f.name;
+              if (!("paths" in obj)) obj.paths = f.paths;
+              if (f.sticker && !("sticker" in obj)) obj.sticker = f.sticker;
+              items.push(obj);
+            } else {
+              items.push(f);
+            }
+          }
+          newText = JSON.stringify(items, null, oldText.includes("\n") ? 2 : 0);
+        } else {
+          newText = JSON.stringify(finalFocuses);
+        }
+      } catch {
+        newText = JSON.stringify(finalFocuses);
+      }
+
+      const newBytes = encoder.encode(newText);
+      const newStored = this.put(".space/waypoints.json", newBytes);
+      return {
+        focuses: finalFocuses,
+        has_file: true,
+        format_known: true,
+        read_only_reason: null,
+        stamp: String(newStored.revision),
+      };
     },
     log_write: (a) => {
       this.log.push({ level: String(a["level"]), message: String(a["message"]) });

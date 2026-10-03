@@ -39,6 +39,8 @@ use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresol
 pub mod bases;
 pub mod canvas;
 pub mod clients;
+pub mod focuses;
+pub use focuses::{Focus, FocusesSummary};
 mod sidecar;
 pub use sidecar::Sidecar;
 
@@ -680,6 +682,12 @@ pub struct Workspace {
     /// The folder note name setting (ADR 0060 D12): empty, a folder's note
     /// is named after it.
     folder_note_name: String,
+    /// Cache of stamped focuses reads, for concurrent reapply (ADR 0062 D7).
+    stamped_focuses: HashMap<String, Vec<Focus>>,
+    /// The last read focuses from .space/waypoints.json, for concurrent reapply (ADR 0062 D7).
+    last_focuses: Option<Vec<Focus>>,
+    /// Whether focuses are synced to .space/waypoints.json for this workspace (ADR 0062 D5, D9).
+    sync_focuses: bool,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -811,6 +819,9 @@ impl Workspace {
             entries: Vec::new(),
             base_facts: HashMap::new(),
             folder_note_name: String::new(),
+            stamped_focuses: HashMap::new(),
+            last_focuses: None,
+            sync_focuses: false,
         })
     }
 
@@ -934,6 +945,84 @@ impl Workspace {
     #[must_use]
     pub fn folder_note_name(&self) -> &str {
         &self.folder_note_name
+    }
+
+    /// Read focuses from `.space/waypoints.json` in the open folder (ADR 0062).
+    pub fn get_focuses(&mut self) -> Result<FocusesSummary, CoreError> {
+        let summary = focuses::read_focuses(&self.root)?;
+        if summary.format_known {
+            if let Some(stamp) = &summary.stamp {
+                self.stamped_focuses
+                    .insert(stamp.clone(), summary.focuses.clone());
+            }
+            self.last_focuses = Some(summary.focuses.clone());
+        }
+        Ok(summary)
+    }
+
+    /// Whether focuses can be synced to `.space/waypoints.json`: the file
+    /// is present and in the known format (ADR 0062 D5, D6).
+    pub fn can_sync_focuses(&mut self) -> Result<bool, CoreError> {
+        let summary = self.get_focuses()?;
+        Ok(summary.has_file && summary.format_known)
+    }
+
+    /// Whether focuses sync to `.space/waypoints.json` is enabled for this workspace (ADR 0062 D5, D9).
+    pub fn sync_focuses(&self) -> bool {
+        self.sync_focuses
+    }
+
+    /// Set whether focuses sync to `.space/waypoints.json` is enabled for this workspace (ADR 0062 D5, D9).
+    pub fn set_sync_focuses(&mut self, enabled: bool) {
+        self.sync_focuses = enabled;
+    }
+
+    /// Write focuses back to `.space/waypoints.json` atomically, checking
+    /// that the file on disk is the one that was read (ADR 0062 D5, D6, D7).
+    pub fn set_focuses(
+        &mut self,
+        focuses: Vec<Focus>,
+        expected_stamp: Option<&str>,
+        base_focuses: Option<Vec<Focus>>,
+    ) -> Result<FocusesSummary, CoreError> {
+        if !self.sync_focuses {
+            return Err(CoreError::Client(
+                "sync focuses is disabled for this workspace".to_string(),
+            ));
+        }
+
+        // Determine base focuses for concurrent reapply (ADR 0062 D7):
+        let base_to_use = match (base_focuses.as_deref(), expected_stamp) {
+            (Some(b), Some(stamp)) => {
+                if self
+                    .stamped_focuses
+                    .get(stamp)
+                    .is_some_and(|stored| stored != b)
+                {
+                    return Err(CoreError::Write(WriteError::Changed {
+                        current: Stamp {
+                            modified: std::time::SystemTime::now(),
+                            len: 0,
+                            hash: 0,
+                        },
+                    }));
+                }
+                Some(b)
+            }
+            (Some(b), None) => Some(b),
+            (None, Some(stamp)) => self.stamped_focuses.get(stamp).map(|v| v.as_slice()),
+            (None, None) => None,
+        };
+
+        let summary = focuses::write_focuses(&self.root, base_to_use, focuses, expected_stamp)?;
+        if summary.format_known {
+            if let Some(stamp) = &summary.stamp {
+                self.stamped_focuses
+                    .insert(stamp.clone(), summary.focuses.clone());
+            }
+            self.last_focuses = Some(summary.focuses.clone());
+        }
+        Ok(summary)
     }
 
     pub fn index_with_progress<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
