@@ -128,7 +128,7 @@ type Strings = Record<
   | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
   | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted"
   | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
-  | "outgoing" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
+  | "outgoing" | "linksTab" | "tags" | "bookmarks" | "bookmark" | "unbookmark" | "noBookmarks" | "noTags" | "noOutline" | "hideTabs" | "showTabs" | "toggleSide" | "toggleRight" | "palette" | "settings"
   | "theme" | "themeAuto" | "themeLight" | "themeDark" | "fontSize" | "attachments" | "autosaveDelay" | "daily" | "dailyFolder" | "templates" | "insertTemplate" | "noTemplates" | "done" | "commands" | "noLinks"
   | "colName" | "colKind" | "colSize" | "colModified" | "kindNote" | "kindFolder" | "kindPlaceholder" | "sortBy" | "duplicate" | "copySuffix" | "duplicated" | "reveal" | "copyPath" | "copyRelativePath" | "copyFullPath" | "openInNewTab" | "copied" | "moveWhere" | "deleteEntry" | "moveToRoot" | "openFolder"
   | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions" | "propertiesTitle"
@@ -221,7 +221,7 @@ const pt: Strings = {
   bullets: "Lista", numbers: "Lista numerada", task: "Tarefa", quote: "Citação", code: "Código", rule: "Separador", pasteHint: "Cole ou arraste uma imagem para anexar", pasted: "Imagem anexada em assets/.",
   closeOthers: "Fechar as outras", closeAll: "Fechar todas", closeRight: "Fechar as da direita", allTabs: "Todas as abas", verticalTabs: "Abas na vertical", horizontalTabs: "Abas na horizontal",
   newFolder: "Nova pasta", newFolderName: "Nome da pasta (Enter cria, Esc cancela)", folderCreated: "Pasta criada.", graph: "Relações", graphOf: "Relações de", reopen: "Reabrir aba fechada", recent: "Recentes", sidebarResize: "Arraste para redimensionar", openSplit: "Abrir em área nova",
-  outgoing: "Links de saída", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos", toggleRight: "Mostrar/ocultar painel", palette: "Paleta de comandos", settings: "Ajustes",
+  outgoing: "Links de saída", linksTab: "Links", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos", toggleRight: "Mostrar/ocultar painel", palette: "Paleta de comandos", settings: "Ajustes",
   theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
   indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
   readOutside: (names) => `Mudou fora do Verso e foi lida de novo: ${names}.`,
@@ -349,7 +349,7 @@ const en: Strings = {
   bullets: "Bullet list", numbers: "Numbered list", task: "Task", quote: "Quote", code: "Code", rule: "Rule", pasteHint: "Paste or drop an image to attach it", pasted: "Image attached in assets/.",
   closeOthers: "Close others", closeAll: "Close all", closeRight: "Close to the right", allTabs: "All tabs", verticalTabs: "Vertical tabs", horizontalTabs: "Horizontal tabs",
   newFolder: "New folder", newFolderName: "Folder name (Enter creates, Esc cancels)", folderCreated: "Folder created.", graph: "Relations", graphOf: "Relations of", reopen: "Reopen closed tab", recent: "Recent", sidebarResize: "Drag to resize", openSplit: "Open in a new pane",
-  outgoing: "Outgoing links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files", toggleRight: "Show/hide panel", palette: "Command palette", settings: "Settings",
+  outgoing: "Outgoing links", linksTab: "Links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files", toggleRight: "Show/hide panel", palette: "Command palette", settings: "Settings",
   theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
   indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
   readOutside: (names) => `Changed outside Verso and read again: ${names}.`,
@@ -8659,7 +8659,7 @@ async function moveFocusOrder(focus: FocusWithOrigin, dir: -1 | 1): Promise<void
 }
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
-type PanelTab = "outline" | "backlinks" | "outgoing" | "tags" | "bookmarks" | "calendar" | "focuses";
+type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses";
 class Panel {
   readonly el = el<HTMLElement>("right");
   readonly tabs = el<HTMLDivElement>("right-tabs");
@@ -8670,8 +8670,7 @@ class Panel {
   constructor() {
     const defs: [PanelTab, string, string][] = [
       ["outline", "outline", t.outline],
-      ["backlinks", "link", t.backlinks],
-      ["outgoing", "wikilink", t.outgoing],
+      ["backlinks", "link", t.linksTab],
       ["tags", "tag", t.tags],
       ["bookmarks", "star", t.bookmarks],
       ["focuses", "compass", t.focusesTab],
@@ -8710,8 +8709,9 @@ class Panel {
       to.focus();
     });
     try {
-      const saved = localStorage.getItem("verso.rightTab") as PanelTab | null;
-      if (saved) this.current = saved;
+      const saved = localStorage.getItem("verso.rightTab") as PanelTab | "outgoing" | null;
+      // The outgoing links joined the backlinks tab.
+      if (saved) this.current = saved === "outgoing" ? "backlinks" : saved;
     } catch {
       // No storage.
     }
@@ -8766,7 +8766,10 @@ class Panel {
       li.querySelector("button")?.append(snippetNode(hit.snippet));
       return li;
     }));
-    this.body.append(head, ul);
+    // Under the backlinks, above the outgoing links.
+    const out = this.body.querySelector(".links-out");
+    if (out) out.before(head, ul);
+    else this.body.append(head, ul);
   }
   private list(items: HTMLElement[], empty: string): void {
     const ul = h("ul", "panel-list");
@@ -8945,21 +8948,34 @@ class Panel {
         break;
       }
       case "backlinks": {
+        // Both kinds of link in one tab, a divider between them.
         const back = leaf instanceof NoteLeaf ? leaf.backlinksData : [];
-        this.list(back.map((b) => this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note")), t.noLinks);
-        if (leaf instanceof NoteLeaf) void this.mentions(leaf);
-        break;
-      }
-      case "outgoing": {
         const out = leaf instanceof NoteLeaf ? leaf.linksData : [];
-        this.list(
-          out.map((l) => {
-            const li = this.row(l.target, l.resolved ? dirOf(l.resolved) : "?", () => (l.resolved ? openNote(l.resolved, false) : undefined), l.resolved ? "note" : "link");
-            if (!l.resolved) li.classList.add("unresolved");
-            return li;
-          }),
-          t.noLinks,
+        const section = (cls: string, title: string, items: HTMLElement[]): HTMLElement => {
+          const box = h("section", `links-section ${cls}`);
+          const ul = h("ul", "panel-list");
+          if (items.length === 0) ul.append(h("li", "empty", t.noLinks));
+          else ul.append(...items);
+          box.append(h("h3", "links-head", `${title} · ${items.length}`), ul);
+          return box;
+        };
+        this.body.replaceChildren(
+          section(
+            "links-back",
+            t.backlinks,
+            back.map((b) => this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note")),
+          ),
+          section(
+            "links-out",
+            t.outgoing,
+            out.map((l) => {
+              const li = this.row(l.target, l.resolved ? dirOf(l.resolved) : "?", () => (l.resolved ? openNote(l.resolved, false) : undefined), l.resolved ? "note" : "link");
+              if (!l.resolved) li.classList.add("unresolved");
+              return li;
+            }),
+          ),
         );
+        if (leaf instanceof NoteLeaf) void this.mentions(leaf);
         break;
       }
       case "tags": {
