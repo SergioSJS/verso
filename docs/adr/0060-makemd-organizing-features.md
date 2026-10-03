@@ -34,7 +34,9 @@
   seu valor") — D12's "Order by dragging in the tree", also in the tree's
   menus; a folder note is no row of
   the file tree — the folder's menu and its page open it ("o markdown da
-  pasta não deveria ficar visível na árvore").
+  pasta não deveria ficar visível na árvore"). 2026-10-03 — D5's focuses,
+  for paths inside the open folder, are decided in
+  [ADR 0062](0062-focuses.md), which also makes the one exception to D2.
 
 ## Context
 

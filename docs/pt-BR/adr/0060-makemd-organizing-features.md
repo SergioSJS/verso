@@ -33,7 +33,9 @@
   árvore" da D12, também nos menus da árvore; a nota
   da pasta não é uma linha da árvore de arquivos — o menu da pasta e a
   página dela a abrem ("o markdown da pasta não deveria ficar visível na
-  árvore").
+  árvore"). 2026-10-03 — os focos da D5, para caminhos dentro da pasta
+  aberta, estão decididos no [ADR 0062](0062-focuses.md), que também abre a
+  única exceção à D2.
 
 ## Contexto
 
