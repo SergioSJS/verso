@@ -1,0 +1,492 @@
+// End-to-end tests for Focuses (ADR 0062).
+
+import { test, expect } from "./fixtures.mjs";
+
+test("focos tab is present in right panel with Início as default", async ({ app }) => {
+  await app.open();
+
+  // Open right panel
+  await app.key("Mod+Alt+ArrowRight");
+
+  // Focos tab button beside bookmarks
+  const tabBtn = app.page.locator('#right-tabs button[data-tab="focuses"]');
+  await expect(tabBtn).toBeVisible();
+
+  // Click Focos tab
+  await tabBtn.click();
+  await expect(tabBtn).toHaveAttribute("aria-selected", "true");
+
+  // Início is always listed first and marked active
+  const firstFocus = app.page.locator(".focus-item").first();
+  await expect(firstFocus).toBeVisible();
+  await expect(firstFocus.locator(".row-name")).toContainText("Início");
+  await expect(firstFocus).toHaveClass(/active/);
+
+  // Tree heading has no reset button initially
+  const resetBtn = app.page.locator("#notes-heading-reset");
+  await expect(resetBtn).toBeHidden();
+});
+
+test("reading focuses from .space/waypoints.json filters the tree", async ({ app }) => {
+  await app.open();
+
+  // Prepare files
+  await app.writeOutside("Projetos/Tarefa.md", "# Tarefa\n");
+  await app.writeOutside("Pessoal/Diario.md", "# Diario\n");
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", sticker: "ui//home", paths: ["/"] },
+      { name: "Trabalho", sticker: "emoji//1f4bc", paths: ["Projetos"] },
+    ]),
+  );
+  await app.folderChanged(["Projetos/Tarefa.md", "Pessoal/Diario.md", ".space/waypoints.json"], true);
+
+  // Open right panel and switch to Focos tab
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  const trabalhoItem = app.page.locator('.focus-item[data-focus-name="Trabalho"]');
+  await expect(trabalhoItem).toBeVisible();
+
+  // Click Trabalho focus
+  await trabalhoItem.locator(".focus-name-btn").click();
+  await expect(trabalhoItem).toHaveClass(/active/);
+
+  // Tree heading now shows focus name and reset button
+  const heading = app.page.locator("#notes-heading-text");
+  await expect(heading).toContainText("Trabalho");
+  const resetBtn = app.page.locator("#notes-heading-reset");
+  await expect(resetBtn).toBeVisible();
+
+  // Tree only shows Projetos folder, not Pessoal
+  const projetos = app.page.locator('#notes summary[data-folder="Projetos"]');
+  await expect(projetos).toBeVisible();
+  const pessoal = app.page.locator('#notes summary[data-folder="Pessoal"]');
+  await expect(pessoal).toHaveCount(0);
+
+  // Clicking reset returns to Início and full tree
+  await resetBtn.click();
+  await expect(resetBtn).toBeHidden();
+  await expect(app.page.locator('#notes summary[data-folder="Pessoal"]')).toBeVisible();
+});
+
+test("add, rename, reorder and delete focus in Focos tab", async ({ app }) => {
+  await app.open();
+
+  // Open right panel and switch to Focos tab
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  // Add focus button
+  const addBtn = app.page.locator("#focuses-add");
+  await expect(addBtn).toBeVisible();
+  await addBtn.click();
+
+  // Prompt dialog for new focus
+  const promptInput = app.page.locator(".prompt-box input");
+  await expect(promptInput).toBeVisible();
+  await promptInput.fill("Estudos");
+  await app.page.locator(".confirm-actions button.save").click();
+
+  const estudosItem = app.page.locator('.focus-item[data-focus-name="Estudos"]');
+  await expect(estudosItem).toBeVisible();
+
+  // Rename focus
+  const renameBtn = estudosItem.locator('button[title="Renomear"]');
+  await renameBtn.click();
+  const renameInput = app.page.locator(".prompt-box input");
+  await expect(renameInput).toBeVisible();
+  await renameInput.fill("Pesquisa");
+  await app.page.locator(".confirm-actions button.save").click();
+
+  const pesquisaItem = app.page.locator('.focus-item[data-focus-name="Pesquisa"]');
+  await expect(pesquisaItem).toBeVisible();
+  await expect(estudosItem).toHaveCount(0);
+
+  // Delete focus
+  const deleteBtn = pesquisaItem.locator('button[title="Excluir"]');
+  await deleteBtn.click();
+  // Confirmation dialog
+  const confirmDel = app.page.locator(".confirm-actions button.save");
+  await expect(confirmDel).toBeVisible();
+  await confirmDel.click();
+
+  await expect(pesquisaItem).toHaveCount(0);
+});
+
+test("tree context menu 'Criar foco aqui' creates a focus", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("Areas/Saude.md", "# Saude\n");
+  await app.folderChanged(["Areas/Saude.md"], true);
+
+  // Right click folder in tree
+  const folder = app.page.locator('#notes summary[data-folder="Areas"]');
+  await expect(folder).toBeVisible();
+  await folder.click({ button: "right" });
+
+  const createFocusOpt = app.page.locator('.menu button[role="menuitem"]', { hasText: "Criar foco aqui" });
+  await expect(createFocusOpt).toBeVisible();
+  await createFocusOpt.click();
+
+  // Active focus is now Areas
+  const heading = app.page.locator("#notes-heading-text");
+  await expect(heading).toContainText("Areas");
+  const resetBtn = app.page.locator("#notes-heading-reset");
+  await expect(resetBtn).toBeVisible();
+
+  // Reset back to Home
+  await resetBtn.click();
+  await expect(resetBtn).toBeHidden();
+});
+
+test("command palette 'Trocar foco' switches focus", async ({ app }) => {
+  await app.open();
+
+  // Create a focus in memory
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+  await app.page.locator("#focuses-add").click();
+  await app.page.locator(".prompt-box input").fill("Dev");
+  await app.page.locator(".confirm-actions button.save").click();
+
+  // Trigger palette command "Trocar foco"
+  await app.command("Trocar foco");
+
+  const switcher = app.page.locator(".focus-switcher:not([hidden])");
+  await expect(switcher).toBeVisible();
+  const devOpt = switcher.locator('.quick-list button', { hasText: "Dev" });
+  await expect(devOpt).toBeVisible();
+  await devOpt.click();
+
+  // Heading updated
+  await expect(app.page.locator("#notes-heading-text")).toContainText("Dev");
+  await expect(app.page.locator("#notes-heading-reset")).toBeVisible();
+});
+
+test("unknown format in .space/waypoints.json displays read-only banner", async ({ app }) => {
+  await app.open();
+
+  // Write invalid/unknown format (e.g. unknown key)
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", sticker: "ui//home", paths: ["/"], unknown_future_prop: 123 },
+    ]),
+  );
+  await app.folderChanged([".space/waypoints.json"], true);
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  const banner = app.page.locator(".focuses-banner");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("formato desconhecido");
+});
+
+test("settings organizing toggle for syncing focuses shows one-time warning", async ({ app }) => {
+  await app.open();
+
+  // Open settings with Cmd+,
+  await app.key("Mod+,");
+  const settingsModal = app.page.locator(".settings:not([hidden])");
+  await expect(settingsModal).toBeVisible();
+
+  // Go to organizing tab
+  await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
+
+  // Find sync focuses toggle
+  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  await expect(syncRow).toBeVisible();
+  const toggle = syncRow.locator('input[type="checkbox"]');
+
+  // Toggle on: should show ask dialog
+  await toggle.click();
+  const confirmBox = app.page.locator(".confirm-box");
+  await expect(confirmBox).toBeVisible();
+  await expect(confirmBox).toContainText("waypoints.json");
+
+  // Confirm sync
+  await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
+  await expect(confirmBox).toHaveCount(0);
+  await expect(toggle).toBeChecked();
+});
+
+test("a focus does not change search, quick open, or backlinks (D4)", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("Trabalho/Projeto.md", "# Projeto\nLembrar de [[Segredo]]\n");
+  await app.writeOutside("Pessoal/Segredo.md", "# Segredo\nNota confidencial fora do foco.\n");
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", sticker: "ui//home", paths: ["/"] },
+      { name: "Foco Trabalho", sticker: "emoji//1f4bc", paths: ["Trabalho"] },
+    ]),
+  );
+  await app.folderChanged(["Trabalho/Projeto.md", "Pessoal/Segredo.md", ".space/waypoints.json"], true);
+
+  // Switch to Foco Trabalho
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+  await app.page.locator('.focus-item[data-focus-name="Foco Trabalho"] .focus-name-btn').click();
+
+  // Tree only shows Trabalho
+  await expect(app.page.locator('#notes summary[data-folder="Trabalho"]')).toBeVisible();
+  await expect(app.page.locator('#notes summary[data-folder="Pessoal"]')).toHaveCount(0);
+
+  // 1. Search still finds note in Pessoal
+  const searchInput = app.page.locator("#search");
+  await searchInput.fill("confidencial");
+  await expect(app.page.locator("#notes .row-name", { hasText: "Segredo" })).toBeVisible();
+  await searchInput.fill("");
+
+  // 2. Quick open (Cmd+P) still finds note in Pessoal
+  await app.quickOpen("Segredo");
+  await expect(app.page.locator(".tab", { hasText: "Segredo" })).toBeVisible();
+});
+
+test("window focus reloads waypoints.json when changed externally (D8)", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("PastaA/NotaA.md", "# Nota A\n");
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "Inicial", paths: ["PastaA"] },
+    ]),
+  );
+  await app.folderChanged(["PastaA/NotaA.md", ".space/waypoints.json"], true);
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+  await expect(app.page.locator('.focus-item[data-focus-name="Inicial"]')).toBeVisible();
+
+  // External update: rename Inicial to ModificadoExternamente
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "ModificadoExternamente", paths: ["PastaA"] },
+    ]),
+  );
+
+  // Trigger window focus event
+  await app.page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+  // Focos tab should update
+  await expect(app.page.locator('.focus-item[data-focus-name="ModificadoExternamente"]')).toBeVisible();
+  await expect(app.page.locator('.focus-item[data-focus-name="Inicial"]')).toHaveCount(0);
+});
+
+test("answering no to sync keeps focuses in local settings beside read-only waypoints (D5)", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "FocoMakeMD", paths: ["Docs"] },
+    ]),
+  );
+  await app.folderChanged([".space/waypoints.json"], true);
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  // Add a focus in Verso
+  await app.page.locator("#focuses-add").click();
+  await app.page.locator(".prompt-box input").fill("FocoVerso");
+  await app.page.locator(".confirm-actions button.save").click();
+
+  // Warning dialog asks whether to sync with make.md
+  const confirmBox = app.page.locator(".confirm-box");
+  await expect(confirmBox).toBeVisible();
+
+  // Choose "Manter local" (no)
+  await confirmBox.locator("button.ghost", { hasText: "Manter local" }).click();
+
+  // Banner indicates sync is off
+  await expect(app.page.locator(".focuses-banner")).toBeVisible();
+
+  // Both make.md focus and Verso focus are visible in the list
+  await expect(app.page.locator('.focus-item[data-focus-name="FocoMakeMD"]')).toBeVisible();
+  await expect(app.page.locator('.focus-item[data-focus-name="FocoVerso"]')).toBeVisible();
+
+  // Make.md focus is read-only (no edit/delete buttons)
+  const makeMdItem = app.page.locator('.focus-item[data-focus-name="FocoMakeMD"]');
+  await expect(makeMdItem.locator('button[title="Excluir"]')).toHaveCount(0);
+
+  // Verso focus has edit/delete buttons
+  const versoItem = app.page.locator('.focus-item[data-focus-name="FocoVerso"]');
+  await expect(versoItem.locator('button[title="Excluir"]')).toBeVisible();
+
+  // .space/waypoints.json was NOT modified
+  const content = await app.file(".space/waypoints.json");
+  expect(content).not.toContain("FocoVerso");
+});
+
+test("creating focuses without .space/waypoints.json never creates .space/ folder", async ({ app }) => {
+  await app.open();
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  // Create a focus
+  await app.page.locator("#focuses-add").click();
+  await app.page.locator(".prompt-box input").fill("LocalOnly");
+  await app.page.locator(".confirm-actions button.save").click();
+
+  await expect(app.page.locator('.focus-item[data-focus-name="LocalOnly"]')).toBeVisible();
+
+  // Check that .space/ was NOT created
+  const content = await app.file(".space/waypoints.json");
+  expect(content).toBeNull();
+});
+
+test("Início is untouchable and non-Home focus containing / renders root tree and is deletable", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("Areas/Nota.md", "# Nota\n");
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "RootFocus", paths: ["/"] },
+    ]),
+  );
+  await app.folderChanged(["Areas/Nota.md", ".space/waypoints.json"], true);
+
+  // Enable sync so focuses from waypoints.json are editable/deletable
+  await app.key("Mod+,");
+  await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
+  await app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" }).locator('input[type="checkbox"]').click();
+  await app.page.locator(".confirm-box button.save", { hasText: "Sincronizar" }).click();
+  await app.key("Escape");
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  // Início has no delete button
+  const inicio = app.page.locator(".focus-item").first();
+  await expect(inicio.locator(".row-name")).toContainText("Início");
+  await expect(inicio.locator('button[title="Excluir"]')).toHaveCount(0);
+
+  // RootFocus has delete button
+  const rootItem = app.page.locator('.focus-item[data-focus-name="RootFocus"]');
+  await expect(rootItem).toBeVisible();
+  const delBtn = rootItem.locator('button[title="Excluir"]');
+  await expect(delBtn).toBeVisible();
+
+  // Selecting RootFocus renders root tree directly (no nameless folder, no //)
+  await rootItem.locator(".focus-name-btn").click();
+  await expect(app.page.locator("#notes-heading-text")).toContainText("RootFocus");
+  const areasFolder = app.page.locator('#notes summary[data-folder="Areas"]');
+  await expect(areasFolder).toBeVisible();
+  await expect(app.page.locator('#notes summary[data-folder="/"]')).toHaveCount(0);
+  await expect(app.page.locator('#notes summary[data-folder="//Areas"]')).toHaveCount(0);
+
+  // RootFocus can be deleted
+  await rootItem.locator('button[title="Excluir"]').click();
+  await app.page.locator(".confirm-actions button.save").click();
+  await expect(rootItem).toHaveCount(0);
+});
+
+test("concurrent merge preserves both make.md and Verso additions without data loss (BLOCKING 1 & 2)", async ({ app }) => {
+  await app.open();
+
+  // Initial waypoints.json with Home
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+    ]),
+  );
+  await app.folderChanged([".space/waypoints.json"], true);
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  // Enable sync in settings
+  await app.key("Mod+,");
+  const settingsModal = app.page.locator(".settings:not([hidden])");
+  await expect(settingsModal).toBeVisible();
+  await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
+  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  await syncRow.locator('input[type="checkbox"]').click();
+  const confirmBox = app.page.locator(".confirm-box");
+  await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
+  await app.key("Escape");
+
+  // Verso has loaded focuses. Now make.md concurrently writes to .space/waypoints.json
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "MakeMDFocus", paths: ["Externo"] },
+    ]),
+  );
+
+  // Verso adds a new focus
+  await app.page.locator("#focuses-add").click();
+  await app.page.locator(".prompt-box input").fill("VersoFocus");
+  await app.page.locator(".confirm-actions button.save").click();
+
+  // Both MakeMDFocus and VersoFocus should exist in UI and on disk!
+  await expect(app.page.locator('.focus-item[data-focus-name="VersoFocus"]')).toBeVisible();
+  await expect(app.page.locator('.focus-item[data-focus-name="MakeMDFocus"]')).toBeVisible();
+
+  const fileContent = await app.file(".space/waypoints.json");
+  expect(fileContent).toContain("MakeMDFocus");
+  expect(fileContent).toContain("VersoFocus");
+});
+
+test("byte and key order preservation in .space/waypoints.json", async ({ app }) => {
+  await app.open();
+
+  // Initial file with custom key order: "paths" before "name"
+  const rawJson = '[\n  {\n    "paths": [\n      "/"\n    ],\n    "name": "Home"\n  }\n]';
+  await app.writeOutside(".space/waypoints.json", rawJson);
+  await app.folderChanged([".space/waypoints.json"], true);
+
+  // Enable sync
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+  await app.key("Mod+,");
+  await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
+  await app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" }).locator('input[type="checkbox"]').click();
+  await app.page.locator(".confirm-box button.save", { hasText: "Sincronizar" }).click();
+  await app.key("Escape");
+
+  // Add focus in Verso
+  await app.page.locator("#focuses-add").click();
+  await app.page.locator(".prompt-box input").fill("NovoFoco");
+  await app.page.locator(".confirm-actions button.save").click();
+
+  // Check that the Home focus still preserves "paths" before "name"
+  const content = await app.file(".space/waypoints.json");
+  expect(content).toContain('"paths"');
+  expect(content).toContain('"name"');
+  const homePathsIdx = content.indexOf('"paths"');
+  const homeNameIdx = content.indexOf('"Home"');
+  expect(homePathsIdx).toBeLessThan(homeNameIdx);
+});
+
+test("iCloud placeholder .waypoints.json.icloud displays unavailable banner", async ({ app }) => {
+  await app.open();
+
+  // Create .space/.waypoints.json.icloud
+  await app.writeOutside(".space/.waypoints.json.icloud", "placeholder");
+  await app.folderChanged([".space/.waypoints.json.icloud"], true);
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  // Read-only banner displayed with cloud / iCloud explanation
+  const banner = app.page.locator(".focuses-banner");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("iCloud");
+});
+

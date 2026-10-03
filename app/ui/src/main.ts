@@ -91,7 +91,7 @@ const baseEditorExtensions: Extension = [
     ...lintKeymap,
   ]),
 ];
-import { commands, type CliState, type ContractError, type FileEntry, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type Property, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
+import { commands, type CliState, type ContractError, type FileEntry, type Focus, type FocusesSummary, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type Property, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { minimalEdit } from "./edit";
 import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
@@ -159,7 +159,8 @@ type Strings = Record<
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed"
   | "sOrganizing" | "stickers" | "stickersDesc" | "stickerInLinks" | "stickerInLinksDesc" | "covers" | "coversDesc" | "coverHeight" | "coverHeightDesc" | "aliasInTree" | "aliasInTreeDesc" | "folderNoteName" | "folderNoteNameDesc" | "folderNoteInside" | "folderNoteBeside" | "folderNoteNone" | "folderPageTable" | "folderPageTableDesc" | "manualOrder" | "manualOrderDesc" | "inlineEmbedEdit" | "inlineEmbedEditDesc" | "emojiTrigger" | "emojiTriggerDesc" | "changeSticker" | "changeColor" | "removeSticker" | "removeColor" | "addCover" | "changeCover" | "repositionCover" | "removeCover" | "savePosition" | "cancelPosition" | "turnIntoFolder" | "turnIntoFolderDesc" | "folderNoteCreated" | "coverUrlPrompt"
-  | "pinToFolder" | "unpinFromFolder" | "moveUp" | "moveDown" | "hideFromTree" | "hiddenFromTree" | "hiddenFromTreeDesc" | "unhide" | "noHiddenItems" | "stickerTabEmoji" | "stickerTabIcons" | "stickerPickerLabel" | "stickerGridLabel" | "editInPlace" | "embedDone" | "coverRemoteOff" | "orderAlphabetical" | "orderCustom" | "openFolderNote" | "orderToAlphabetical" | "orderToCustom",
+  | "pinToFolder" | "unpinFromFolder" | "moveUp" | "moveDown" | "hideFromTree" | "hiddenFromTree" | "hiddenFromTreeDesc" | "unhide" | "noHiddenItems" | "stickerTabEmoji" | "stickerTabIcons" | "stickerPickerLabel" | "stickerGridLabel" | "editInPlace" | "embedDone" | "coverRemoteOff" | "orderAlphabetical" | "orderCustom" | "openFolderNote" | "orderToAlphabetical" | "orderToCustom"
+  | "focusesTab" | "homeFocus" | "createFocus" | "createFocusHere" | "addToFocus" | "switchFocus" | "syncFocuses" | "syncFocusesDesc" | "syncFocusesWarning" | "syncFocusesEnable" | "syncFocusesOffInfo" | "syncFocusesOffBanner" | "syncLocalFocusesQuestion" | "focusesConflict" | "focusNamePrompt" | "noFocuses" | "readOnlyFocuses" | "resetToHome" | "focusCreated" | "focusDeleted" | "deleteFocus",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -167,6 +168,8 @@ type Strings = Record<
   hits: (n: number) => string;
   unresolved: (t: string) => string;
   confirmDelete: (n: string) => string;
+  confirmDeleteFocus: (name: string) => string;
+  pathAddedToFocus: (path: string, focus: string) => string;
   fetching: (n: string) => string;
   fetchFailed: (n: string) => string;
   deleted: (where: string) => string;
@@ -315,6 +318,9 @@ const pt: Strings = {
   coverRemoteOff: "Conteúdo remoto desligado: esta capa não foi carregada.",
   orderAlphabetical: "Ordem alfabética", orderCustom: "Ordem personalizada", openFolderNote: "Abrir nota da pasta",
   orderToAlphabetical: "Ordem personalizada — clique para a alfabética", orderToCustom: "Ordem alfabética — clique para a personalizada",
+  focusesTab: "Focos", homeFocus: "Início", createFocus: "Criar foco", createFocusHere: "Criar foco aqui", addToFocus: "Adicionar ao foco…", switchFocus: "Trocar foco", syncFocuses: "Sincronizar focos com o make.md", syncFocusesDesc: "Grava as alterações de foco no arquivo .space/waypoints.json compatível com o make.md.", syncFocusesWarning: "O arquivo do make.md (.space/waypoints.json) não tem um formato público publicado e uma versão futura do plugin pode interpretá-lo de forma diferente. Deseja sincronizar os focos mesmo assim?", syncFocusesEnable: "Sincronizar", syncFocusesOffInfo: "Manter local", syncFocusesOffBanner: "Sincronização desativada: alterações ficam salvas nas configurações do Verso.", syncLocalFocusesQuestion: "Deseja sincronizar os focos locais com o arquivo .space/waypoints.json do make.md?", focusesConflict: "Nada gravado: o arquivo mudou no make.md.", focusNamePrompt: "Nome do foco", noFocuses: "Nenhum foco criado.", readOnlyFocuses: "O arquivo .space/waypoints.json está em formato desconhecido ou somente leitura.", resetToHome: "Voltar para Início", focusCreated: "Foco criado.", focusDeleted: "Foco excluído.", deleteFocus: "Excluir",
+  confirmDeleteFocus: (name: string) => `Excluir o foco "${name}"?`,
+  pathAddedToFocus: (path: string, focus: string) => `"${path}" adicionado ao foco "${focus}".`,
 };
 
 const en: Strings = {
@@ -440,6 +446,9 @@ const en: Strings = {
   coverRemoteOff: "Remote content is off: this cover was not loaded.",
   orderAlphabetical: "Alphabetical order", orderCustom: "Custom order", openFolderNote: "Open the folder note",
   orderToAlphabetical: "Custom order — click for alphabetical", orderToCustom: "Alphabetical order — click for custom",
+  focusesTab: "Focuses", homeFocus: "Home", createFocus: "Create focus", createFocusHere: "Create focus here", addToFocus: "Add to focus…", switchFocus: "Switch focus", syncFocuses: "Sync focuses with make.md", syncFocusesDesc: "Save focus changes to .space/waypoints.json compatible with make.md.", syncFocusesWarning: "The make.md file (.space/waypoints.json) is not a published format and a later version of the plugin may read it differently. Do you want to sync focuses anyway?", syncFocusesEnable: "Sync", syncFocusesOffInfo: "Keep local", syncFocusesOffBanner: "Sync disabled: changes are kept in Verso's settings.", syncLocalFocusesQuestion: "Do you want to sync local focuses with make.md's .space/waypoints.json file?", focusesConflict: "Nothing written: the file changed in make.md.", focusNamePrompt: "Focus name", noFocuses: "No focuses created.", readOnlyFocuses: "The .space/waypoints.json file is in an unknown format or read-only.", resetToHome: "Reset to Home", focusCreated: "Focus created.", focusDeleted: "Focus deleted.", deleteFocus: "Delete",
+  confirmDeleteFocus: (name: string) => `Delete focus "${name}"?`,
+  pathAddedToFocus: (path: string, focus: string) => `"${path}" added to focus "${focus}".`,
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -735,6 +744,9 @@ type Settings = {
   inlineEmbedEdit: boolean;
   emojiTrigger: boolean;
   hiddenFromTree: Record<string, string[]>;
+  syncFocuses: Record<string, boolean>;
+  syncFocusesAsked: Record<string, boolean>;
+  localFocuses: Record<string, Focus[]>;
 };
 const DEFAULTS: Settings = {
   lang: "auto",
@@ -780,6 +792,9 @@ const DEFAULTS: Settings = {
   inlineEmbedEdit: true,
   emojiTrigger: true,
   hiddenFromTree: {},
+  syncFocuses: {},
+  syncFocusesAsked: {},
+  localFocuses: {},
 };
 let settings: Settings = { ...DEFAULTS };
 function loadSettings(): void {
@@ -794,6 +809,9 @@ function loadSettings(): void {
       settings = { ...DEFAULTS, ...parsed };
       if (!Array.isArray(settings.embedOrigins)) settings.embedOrigins = [];
       if (!settings.hiddenFromTree || Array.isArray(settings.hiddenFromTree)) settings.hiddenFromTree = {};
+      if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
+      if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};
+      if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
     }
   } catch {
     settings = { ...DEFAULTS };
@@ -1015,7 +1033,13 @@ function paintOrderToggle(): void {
 paintOrderToggle();
 const notesHeadingText = h("span", "", t.notes);
 notesHeadingText.id = "notes-heading-text";
-ui.notesHeading.replaceChildren(notesHeadingText, orderToggle);
+const notesHeadingReset = button("side-order ghost iconic", t.resetToHome, "close");
+notesHeadingReset.id = "notes-heading-reset";
+notesHeadingReset.style.display = "none";
+notesHeadingReset.addEventListener("click", () => {
+  void selectFocus(t.homeFocus);
+});
+ui.notesHeading.replaceChildren(notesHeadingText, notesHeadingReset, orderToggle);
 // The tree is named by the heading's words, not by its button too.
 ui.treeRoot.setAttribute("aria-labelledby", notesHeadingText.id);
 ui.folder.dataset["empty"] = t.noFolder;
@@ -8180,6 +8204,15 @@ function pathsMoved(from: string, to: string): void {
   const follow = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? to + p.slice(from.length) : p);
   bookmarks = bookmarks.map(follow);
   saveBookmarks();
+  let focusPathsChanged = false;
+  for (const f of focusesList) {
+    const updated = f.paths.map(follow);
+    if (updated.some((p, idx) => p !== f.paths[idx])) {
+      f.paths = updated;
+      focusPathsChanged = true;
+    }
+  }
+  if (focusPathsChanged) void saveFocuses();
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.map(follow));
   for (const sp of spaces) for (const p of sp.layout.panes()) p.trailMoved(follow);
   const hidden = getHiddenFromTree();
@@ -8191,6 +8224,15 @@ function pathsRemoved(path: string): void {
   const gone = (p: string) => p === path || p.startsWith(`${path}/`);
   bookmarks = bookmarks.filter((p) => !gone(p));
   saveBookmarks();
+  let focusPathsChanged = false;
+  for (const f of focusesList) {
+    const updated = f.paths.filter((p) => !gone(p));
+    if (updated.length !== f.paths.length) {
+      f.paths = updated;
+      focusPathsChanged = true;
+    }
+  }
+  if (focusPathsChanged) void saveFocuses();
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.filter((p) => !gone(p)));
   for (const sp of spaces) for (const p of sp.layout.panes()) p.trailRemoved(gone);
   const hidden = getHiddenFromTree();
@@ -8205,8 +8247,300 @@ function forgetFiles(): void {
   for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf) l.editor.dispatch({ effects: redraw.of(null) });
 }
 
-/* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks ---------- */
-type PanelTab = "outline" | "backlinks" | "outgoing" | "tags" | "bookmarks" | "calendar";
+/* ---------- Focuses (ADR 0062) ---------- */
+type FocusWithOrigin = Focus & { isFromMakeMd?: boolean };
+let focusesSummary: FocusesSummary | null = null;
+let focusesList: FocusWithOrigin[] = [];
+let activeFocusName: string = t.homeFocus;
+let focusesConflictBanner: string | null = null;
+
+function isHomeFocusName(name: string): boolean {
+  return name === t.homeFocus || name === "Home" || name === "Início";
+}
+
+function formatReadOnlyReason(reason: string | null): string {
+  if (!reason) return t.readOnlyFocuses;
+  if (!LOCALE.startsWith("pt")) return reason;
+  if (reason.includes("iCloud placeholder") || reason.includes("placeholder") || reason.includes("ainda não baixado")) {
+    return "O arquivo .space/waypoints.json está apenas no iCloud e ainda não foi baixado neste computador.";
+  }
+  if (reason.includes("Duplicate focus names") || reason.includes("duplicados")) {
+    return "O arquivo .space/waypoints.json possui focos com nomes duplicados.";
+  }
+  if (reason.includes("Format is unknown") || reason.includes("unsupported") || reason.includes("desconhecido")) {
+    return "O arquivo .space/waypoints.json está em formato desconhecido ou não suportado.";
+  }
+  if (reason.includes("Invalid JSON")) {
+    return "O arquivo .space/waypoints.json não contém um JSON válido.";
+  }
+  return t.readOnlyFocuses;
+}
+
+function getDisplayFocuses(): FocusWithOrigin[] {
+  const homeItem = focusesList.find((f) => isHomeFocusName(f.name));
+  const otherItems = focusesList.filter((f) => !isHomeFocusName(f.name));
+  const virtualHome: FocusWithOrigin = homeItem ?? {
+    name: t.homeFocus,
+    paths: ["/"],
+    sticker: "ui//home",
+    isFromMakeMd: false,
+  };
+  return [virtualHome, ...otherItems];
+}
+
+function getSyncFocuses(): boolean {
+  if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
+  return settings.syncFocuses[currentFolder] ?? false;
+}
+
+function setSyncFocuses(value: boolean): void {
+  if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
+  settings.syncFocuses[currentFolder] = value;
+  saveSettings();
+  void commands.setSyncFocuses(value);
+  try {
+    if (typeof panel !== "undefined" && panel.current === "focuses") panel.refresh();
+  } catch {
+    // Panel not yet initialized.
+  }
+}
+
+function isSyncFocusesAsked(): boolean {
+  if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};
+  return settings.syncFocusesAsked[currentFolder] ?? false;
+}
+
+function setSyncFocusesAsked(value: boolean): void {
+  if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};
+  settings.syncFocusesAsked[currentFolder] = value;
+  saveSettings();
+}
+
+function getLocalFocuses(): Focus[] {
+  if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
+  return settings.localFocuses[currentFolder] ?? [];
+}
+
+function setLocalFocuses(list: Focus[]): void {
+  if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
+  settings.localFocuses[currentFolder] = list;
+  saveSettings();
+}
+
+async function promptSyncFocusesIfNeeded(): Promise<boolean> {
+  if (!getSyncFocuses() && !isSyncFocusesAsked() && focusesSummary?.has_file && focusesSummary.format_known) {
+    const ok = await ask(t.syncFocusesWarning, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
+    setSyncFocusesAsked(true);
+    if (ok) {
+      const local = getLocalFocuses();
+      if (local.length > 0) {
+        const migrate = await ask(t.syncLocalFocusesQuestion, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
+        if (!migrate) {
+          setLocalFocuses([]);
+        }
+      }
+      setSyncFocuses(true);
+      await loadFocuses(true);
+      return true;
+    } else {
+      setSyncFocuses(false);
+      return false;
+    }
+  }
+  return getSyncFocuses();
+}
+
+function updateTreeHeading(): void {
+  if (isHomeFocusName(activeFocusName)) {
+    notesHeadingText.textContent = t.notes;
+    notesHeadingReset.style.display = "none";
+  } else {
+    notesHeadingText.textContent = `${t.notes} · ${activeFocusName}`;
+    notesHeadingReset.style.display = "";
+  }
+}
+
+async function loadFocuses(forceReload = false): Promise<void> {
+  const r = await commands.getFocuses();
+  if (r.status === "ok") {
+    focusesSummary = r.data;
+  }
+  const isSync = getSyncFocuses();
+  const hasFile = focusesSummary?.has_file ?? false;
+  const isKnown = focusesSummary?.format_known ?? false;
+
+  void commands.setSyncFocuses(isSync);
+
+  const local = getLocalFocuses();
+
+  if (hasFile && isSync && isKnown) {
+    focusesList = (focusesSummary?.focuses ?? []).map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false }));
+  } else if (hasFile) {
+    // Read-only make.md focuses beside Verso local focuses (ADR 0062 D5)
+    const diskFocuses = (focusesSummary?.focuses ?? []).map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: true }));
+    const versoFocuses = local
+      .filter((lf) => !diskFocuses.some((df) => df.name.trim().toLowerCase() === lf.name.trim().toLowerCase()))
+      .map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false }));
+    focusesList = [...diskFocuses, ...versoFocuses];
+  } else {
+    // No waypoints.json: all focuses are local in Verso settings (ADR 0062 D5)
+    const seen = new Set<string>();
+    const uniqueLocal: Focus[] = [];
+    for (const f of local) {
+      const lower = f.name.trim().toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        uniqueLocal.push(f);
+      }
+    }
+    focusesList = uniqueLocal.map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false }));
+  }
+
+  try {
+    const savedActive = localStorage.getItem(`verso.activeFocus:${currentFolder}`);
+    if (savedActive && (isHomeFocusName(savedActive) || focusesList.some((f) => f.name === savedActive))) {
+      activeFocusName = savedActive;
+    } else {
+      activeFocusName = t.homeFocus;
+    }
+  } catch {
+    activeFocusName = t.homeFocus;
+  }
+  updateTreeHeading();
+}
+
+async function saveFocuses(): Promise<void> {
+  const isSync = getSyncFocuses();
+  const hasFile = focusesSummary?.has_file ?? false;
+  const isKnown = focusesSummary?.format_known ?? false;
+
+  if (isSync && hasFile && isKnown && focusesSummary) {
+    // Save to .space/waypoints.json via core (ADR 0062 D5, D6, D7)
+    // Virtual Início is not written to make.md's file unless it was an explicit waypoint
+    const toSave: Focus[] = focusesList
+      .filter((f) => !isHomeFocusName(f.name) || (focusesSummary?.focuses ?? []).some((df) => isHomeFocusName(df.name)))
+      .map((f) => ({ name: f.name, paths: [...f.paths], sticker: f.sticker ?? null }));
+    const base: Focus[] = (focusesSummary?.focuses ?? []).map((f) => ({
+      name: f.name,
+      paths: [...f.paths],
+      sticker: f.sticker ?? null,
+    }));
+    const r = await commands.setFocuses(toSave, focusesSummary.stamp, base);
+    if (r.status === "ok") {
+      focusesSummary = r.data;
+      focusesList = (r.data.focuses ?? []).map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false }));
+      setLocalFocuses([]);
+      focusesConflictBanner = null;
+    } else {
+      focusesConflictBanner = t.focusesConflict;
+      await loadFocuses(true);
+      panel.refresh();
+      return;
+    }
+  } else {
+    // Keep Verso focuses in configuration beside make.md's (ADR 0062 D5)
+    const versoOnly: Focus[] = focusesList
+      .filter((f) => !f.isFromMakeMd && !isHomeFocusName(f.name))
+      .map((f) => ({ name: f.name, paths: [...f.paths], sticker: f.sticker ?? null }));
+    setLocalFocuses(versoOnly);
+  }
+}
+
+async function selectFocus(name: string): Promise<void> {
+  activeFocusName = name;
+  try {
+    localStorage.setItem(`verso.activeFocus:${currentFolder}`, activeFocusName);
+  } catch {
+    // No storage.
+  }
+  updateTreeHeading();
+  panel.refresh();
+  await listAll();
+}
+
+async function addFocusPrompt(): Promise<FocusWithOrigin | null> {
+  const input = await promptText(t.focusNamePrompt, "", false, { yes: t.save, no: t.cancel });
+  if (!input || !input.trim()) return null;
+  const focusName = input.trim();
+  if (isHomeFocusName(focusName) || focusesList.some((f) => f.name.trim().toLowerCase() === focusName.toLowerCase())) {
+    ui.status.textContent = t.exists;
+    return null;
+  }
+  await promptSyncFocusesIfNeeded();
+  const newFocus: FocusWithOrigin = { name: focusName, paths: [], sticker: null, isFromMakeMd: false };
+  focusesList.push(newFocus);
+  await saveFocuses();
+  ui.status.textContent = t.focusCreated;
+  panel.refresh();
+  return newFocus;
+}
+
+async function renameFocusPrompt(focus: FocusWithOrigin): Promise<void> {
+  if (isHomeFocusName(focus.name) || (focus.isFromMakeMd && !getSyncFocuses())) return;
+  const targetName = focus.name;
+  const input = await promptText(t.rename, targetName, false, { yes: t.save, no: t.cancel });
+  if (!input || !input.trim() || input.trim() === targetName) return;
+  const newName = input.trim();
+  if (isHomeFocusName(newName) || focusesList.some((f) => f.name !== targetName && f.name.trim().toLowerCase() === newName.toLowerCase())) {
+    ui.status.textContent = t.exists;
+    return;
+  }
+  await promptSyncFocusesIfNeeded();
+  const target = focusesList.find((f) => f.name === targetName || f === focus);
+  if (target) target.name = newName;
+  const wasActive = activeFocusName === targetName;
+  if (wasActive) {
+    activeFocusName = newName;
+    try {
+      localStorage.setItem(`verso.activeFocus:${currentFolder}`, activeFocusName);
+    } catch {
+      // No storage.
+    }
+    updateTreeHeading();
+  }
+  await saveFocuses();
+  panel.refresh();
+}
+
+async function deleteFocus(focus: FocusWithOrigin): Promise<void> {
+  if (isHomeFocusName(focus.name) || (focus.isFromMakeMd && !getSyncFocuses())) return;
+  const targetName = focus.name;
+  const ok = await ask(t.confirmDeleteFocus(targetName), { yes: t.deleteFocus, no: t.cancel });
+  if (!ok) return;
+  await promptSyncFocusesIfNeeded();
+  const idx = focusesList.findIndex((f) => f.name === targetName || f === focus);
+  if (idx >= 0) focusesList.splice(idx, 1);
+  await saveFocuses();
+  if (activeFocusName === targetName) {
+    await selectFocus(t.homeFocus);
+  }
+  ui.status.textContent = t.focusDeleted;
+  panel.refresh();
+}
+
+async function moveFocusOrder(focus: FocusWithOrigin, dir: -1 | 1): Promise<void> {
+  if (isHomeFocusName(focus.name) || (focus.isFromMakeMd && !getSyncFocuses())) return;
+  const targetName = focus.name;
+  await promptSyncFocusesIfNeeded();
+  const list = focusesList.filter((f) => !isHomeFocusName(f.name));
+  const i = list.findIndex((f) => f.name === targetName || f === focus);
+  if (i < 0) return;
+  const target = i + dir;
+  if (target < 0 || target >= list.length) return;
+  const currentItem = list[i]!;
+  const targetFocus = list[target]!;
+  const fromIdx = focusesList.indexOf(currentItem);
+  const toIdx = focusesList.indexOf(targetFocus);
+  if (fromIdx >= 0 && toIdx >= 0) {
+    focusesList[fromIdx] = targetFocus;
+    focusesList[toIdx] = currentItem;
+    await saveFocuses();
+    panel.refresh();
+  }
+}
+
+/* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
+type PanelTab = "outline" | "backlinks" | "outgoing" | "tags" | "bookmarks" | "calendar" | "focuses";
 class Panel {
   readonly el = el<HTMLElement>("right");
   readonly tabs = el<HTMLDivElement>("right-tabs");
@@ -8221,6 +8555,7 @@ class Panel {
       ["outgoing", "wikilink", t.outgoing],
       ["tags", "tag", t.tags],
       ["bookmarks", "star", t.bookmarks],
+      ["focuses", "compass", t.focusesTab],
       ["calendar", "calendar", t.calendarTab],
     ];
     // A tablist and its one panel: the arrows, Home and End choose a tab,
@@ -8288,7 +8623,11 @@ class Panel {
       // No storage.
     }
     this.markTabs();
-    this.paint();
+    if (this.current === "focuses") {
+      void loadFocuses().then(() => this.paint());
+    } else {
+      this.paint();
+    }
   }
   /** Notes whose text has this note's name without linking to it: the
    *  search finds the candidates by the name's words. */
@@ -8339,6 +8678,134 @@ class Panel {
   /** Counts the paints: a search for mentions that comes back after a
    *  newer paint has nothing to add (two in flight drew the list twice). */
   private painted = 0;
+  paintFocuses(): void {
+    const wrap = h("div", "focuses-view");
+    if (focusesConflictBanner) {
+      wrap.append(h("div", "focuses-banner error", focusesConflictBanner));
+    } else if (focusesSummary?.has_file && !focusesSummary.format_known) {
+      wrap.append(h("div", "focuses-banner", formatReadOnlyReason(focusesSummary.read_only_reason)));
+    } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses()) {
+      wrap.append(h("div", "focuses-banner", t.syncFocusesOffBanner));
+    }
+    const header = h("div", "focuses-header");
+    header.append(h("span", "focuses-title", t.focusesTab));
+    const addBtn = button("ghost iconic", t.createFocus, "plus");
+    addBtn.id = "focuses-add";
+    addBtn.addEventListener("click", () => void addFocusPrompt());
+    header.append(addBtn);
+    wrap.append(header);
+
+    const ul = h("ul", "panel-list focuses-list");
+    const displayList = getDisplayFocuses();
+    const nonHomeList = displayList.filter((f) => !isHomeFocusName(f.name));
+
+    for (const focus of displayList) {
+      const isHome = isHomeFocusName(focus.name);
+      const isActive = isHome ? isHomeFocusName(activeFocusName) : activeFocusName === focus.name;
+      const isReadOnly = focus.isFromMakeMd && !getSyncFocuses();
+      const li = h("li", `focus-item ${isActive ? "active" : ""}`);
+      li.dataset["focusName"] = focus.name;
+
+      const row = h("div", "focus-item-row");
+      const stkBtn = h("button", "focus-sticker-btn");
+      stkBtn.type = "button";
+      stkBtn.title = t.changeSticker;
+      stkBtn.setAttribute("aria-label", t.changeSticker);
+      if (focus.sticker) {
+        stkBtn.replaceChildren(renderSticker(focus.sticker, 16) ?? icon("star"));
+      } else {
+        stkBtn.replaceChildren(icon(isHome ? "folder" : "star"));
+        stkBtn.style.opacity = isHome ? "0.6" : "0.3";
+      }
+      if (!isReadOnly) {
+        stkBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showStickerPicker({
+            anchorEl: stkBtn,
+            currentSticker: focus.sticker ?? null,
+            currentColor: null,
+            strings: pickerStrings(),
+            lang: LOCALE.startsWith("pt") ? "pt" : "en",
+            onSelectSticker: (stk) => {
+              focus.sticker = stk;
+              if (isHome && !focusesList.some((f) => isHomeFocusName(f.name))) {
+                focusesList.unshift(focus);
+              }
+              void saveFocuses();
+              panel.refresh();
+            },
+            onRemoveSticker: () => {
+              focus.sticker = null;
+              void saveFocuses();
+              panel.refresh();
+            },
+            onSelectColor: () => {},
+            onRemoveColor: () => {},
+          });
+        });
+      } else {
+        stkBtn.disabled = true;
+      }
+
+      const nameBtn = h("button", `focus-name-btn ${isActive ? "active" : ""}`);
+      nameBtn.type = "button";
+      nameBtn.setAttribute("aria-current", String(isActive));
+      const displayName = isHome ? t.homeFocus : focus.name;
+      const titleSpan = h("span", "row-name", displayName);
+      nameBtn.append(titleSpan);
+      nameBtn.addEventListener("click", () => void selectFocus(focus.name));
+
+      const actions = h("div", "focus-actions");
+      if (!isHome && !isReadOnly) {
+        const nonHomeIdx = nonHomeList.indexOf(focus);
+        const upBtn = button("ghost iconic", t.moveUp, "chevronUp");
+        if (nonHomeIdx <= 0) upBtn.disabled = true;
+        upBtn.addEventListener("click", (e) => { e.stopPropagation(); void moveFocusOrder(focus, -1); });
+
+        const downBtn = button("ghost iconic", t.moveDown, "chevronDown");
+        if (nonHomeIdx >= nonHomeList.length - 1) downBtn.disabled = true;
+        downBtn.addEventListener("click", (e) => { e.stopPropagation(); void moveFocusOrder(focus, 1); });
+
+        const renameBtn = button("ghost iconic", t.rename, "edit");
+        renameBtn.addEventListener("click", (e) => { e.stopPropagation(); void renameFocusPrompt(focus); });
+
+        const delBtn = button("ghost iconic danger", t.deleteFocus, "close");
+        delBtn.addEventListener("click", (e) => { e.stopPropagation(); void deleteFocus(focus); });
+
+        actions.append(upBtn, downBtn, renameBtn, delBtn);
+      }
+
+      row.append(stkBtn, nameBtn, actions);
+      li.append(row);
+
+      if (focus.paths.length > 0 && !isHome) {
+        const pathsUl = h("ul", "focus-paths-list");
+        for (const p of focus.paths) {
+          const pLi = h("li", "focus-path-item");
+          const pSpan = h("span", "focus-path-text", p);
+          if (!isReadOnly) {
+            const removeP = button("ghost iconic focus-remove-path", t.remove, "close");
+            removeP.addEventListener("click", async (e) => {
+              e.stopPropagation();
+              focus.paths = focus.paths.filter((x) => x !== p);
+              await saveFocuses();
+              if (activeFocusName === focus.name) await listAll();
+              panel.refresh();
+            });
+            pLi.append(iconOfPath(p, allFolders.includes(p) ? "folder" : kindOf(p)), pSpan, removeP);
+          } else {
+            pLi.append(iconOfPath(p, allFolders.includes(p) ? "folder" : kindOf(p)), pSpan);
+          }
+          pathsUl.append(pLi);
+        }
+        li.append(pathsUl);
+      }
+
+      ul.append(li);
+    }
+    wrap.append(ul);
+    this.body.replaceChildren(wrap);
+  }
   paint(): void {
     const leaf = this.leaf;
     this.painted++;
@@ -8404,10 +8871,108 @@ class Panel {
         );
         break;
       }
+      case "focuses": {
+        this.paintFocuses();
+        break;
+      }
     }
   }
 }
 const panel = new Panel();
+
+class FocusSwitcher {
+  readonly el = h("div", "quick palette focus-switcher");
+  readonly box = h("div", "quick-box");
+  readonly input = h("input");
+  readonly list = h("ul", "quick-list");
+  private items: Focus[] = [];
+  private sel = 0;
+  constructor() {
+    this.el.hidden = true;
+    this.input.type = "text";
+    this.input.placeholder = t.switchFocus;
+    this.input.setAttribute("aria-label", t.switchFocus);
+    asCombobox(this.input, this.list, "focus-switcher-list");
+    asDialog(this.el, t.switchFocus, () => this.hide());
+    this.box.append(this.input, this.list);
+    this.el.append(this.box);
+    document.body.append(this.el);
+    this.input.addEventListener("input", () => this.update());
+    this.input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") this.hide();
+      else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        this.sel = Math.min(this.sel + 1, this.items.length - 1);
+        this.paint();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        this.sel = Math.max(this.sel - 1, 0);
+        this.paint();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const chosen = this.items[this.sel];
+        if (chosen) {
+          this.hide();
+          void selectFocus(chosen.name);
+        }
+      }
+    });
+    this.el.addEventListener("mousedown", (e) => {
+      if (e.target === this.el) this.hide();
+    });
+  }
+  show(): void {
+    opened(this.el);
+    this.el.hidden = false;
+    this.input.value = "";
+    this.update();
+    this.input.focus();
+  }
+  hide(): void {
+    this.el.hidden = true;
+    closed(this.el);
+  }
+  private update(): void {
+    const q = this.input.value.trim().toLowerCase();
+    const all = getDisplayFocuses();
+    this.items = all.filter((f) => q === "" || f.name.toLowerCase().includes(q) || (isHomeFocusName(f.name) && t.homeFocus.toLowerCase().includes(q)));
+    this.sel = Math.max(0, Math.min(this.sel, this.items.length - 1));
+    this.paint();
+  }
+  private paint(): void {
+    this.list.replaceChildren(
+      ...this.items.map((focus, i) => {
+        const isHome = isHomeFocusName(focus.name);
+        const isActive = isHome ? isHomeFocusName(activeFocusName) : focus.name === activeFocusName;
+        const li = h("li");
+        const b = h("button");
+        b.type = "button";
+        b.id = `focus-opt-${i}`;
+        b.setAttribute("role", "option");
+        b.setAttribute("aria-selected", String(i === this.sel));
+        if (i === this.sel) b.classList.add("sel");
+        if (focus.sticker) {
+          b.append(renderSticker(focus.sticker, 16) ?? icon(isHome ? "folder" : "compass"));
+        } else {
+          b.append(icon(isHome ? "folder" : "compass"));
+        }
+        const displayName = isHome ? t.homeFocus : focus.name;
+        b.append(h("span", "label", displayName));
+        if (isActive) {
+          b.append(h("span", "badge", "✓"));
+        }
+        b.addEventListener("click", () => {
+          this.hide();
+          void selectFocus(focus.name);
+        });
+        li.append(b);
+        return li;
+      }),
+    );
+    this.list.querySelector(".sel")?.scrollIntoView({ block: "nearest" });
+  }
+}
+const focusSwitcher = new FocusSwitcher();
 
 /* ---------- File operations ---------- */
 /** Remote content turned on or off: every reading view, tab icon and
@@ -9087,6 +9652,9 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
     ...(folder ? orderMenuItems() : []),
     hideItem,
     sep,
+    [t.createFocusHere, () => void createFocusHere(path), "compass"],
+    [t.addToFocus, () => void showAddToFocusMenu(x, y, path), "compass"],
+    sep,
     [t.rename, rename, "edit"],
     [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
     ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
@@ -9300,6 +9868,51 @@ function showMenu(x: number, y: number, items: MenuItem[]): void {
 document.addEventListener("mousedown", (e) => {
   if (!menu.contains(e.target as globalThis.Node)) menu.hidden = true;
 });
+
+async function createFocusHere(path: string): Promise<void> {
+  const base = name(path);
+  let focusName = base;
+  let n = 2;
+  while (isHomeFocusName(focusName) || focusesList.some((f) => f.name.trim().toLowerCase() === focusName.toLowerCase())) {
+    focusName = `${base} ${n++}`;
+  }
+  await promptSyncFocusesIfNeeded();
+  focusesList.push({ name: focusName, paths: [path], sticker: null, isFromMakeMd: false });
+  await saveFocuses();
+  ui.status.textContent = t.focusCreated;
+  await selectFocus(focusName);
+}
+
+function showAddToFocusMenu(x: number, y: number, path: string): void {
+  const targets = focusesList.filter((f) => !isHomeFocusName(f.name) && (!f.isFromMakeMd || getSyncFocuses()));
+  if (targets.length === 0) {
+    void addFocusPrompt().then((created) => {
+      if (created && !isHomeFocusName(created.name)) {
+        created.paths.push(path);
+        void saveFocuses().then(() => {
+          ui.status.textContent = t.pathAddedToFocus(name(path), created.name);
+          panel.refresh();
+        });
+      }
+    });
+    return;
+  }
+  const items: MenuItem[] = targets.map((f) => [
+    f.name,
+    async () => {
+      if (!f.paths.includes(path)) {
+        await promptSyncFocusesIfNeeded();
+        f.paths.push(path);
+        await saveFocuses();
+        ui.status.textContent = t.pathAddedToFocus(name(path), f.name);
+        if (activeFocusName === f.name) await listAll();
+        panel.refresh();
+      }
+    },
+    "compass",
+  ]);
+  showMenu(x, y, items);
+}
 
 function renameInline(li: HTMLElement, path: string, folder = false): void {
   const row = li.querySelector<HTMLElement>(folder ? ".folder-label, button" : "button");
@@ -9654,7 +10267,7 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
   const items: TreeItem[] = [];
   const hiddenItems = getHiddenFromTree();
   for (const [folder, child] of node.folders.entries()) {
-    const full = prefix ? `${prefix}/${folder}` : folder;
+    const full = prefix ? `${prefix.replace(/\/+$/, "")}/${folder.replace(/^\/+/, "")}` : folder;
     if (!hiddenItems.includes(full)) {
       items.push({ kind: "folder", name: folder, full, child });
     }
@@ -9704,7 +10317,7 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
       const entry = allEntries.get(full);
       const labelData = entry?.label;
       const stickerNode = settings.stickers && labelData?.sticker ? renderSticker(labelData.sticker, 14) : null;
-      const label = h("span", "folder-label", folder);
+      const label = h("span", "folder-label", folder.split("/").filter(Boolean).pop() || folder);
       if (labelData?.color) {
         const c = resolveColor(labelData.color);
         if (c) {
@@ -9794,9 +10407,43 @@ async function listAll(): Promise<void> {
   // — a save, a rename, a drag — puts them in place at once.
   ui.notes.className = revealedFolder === currentFolder ? "tree" : "tree reveal";
   revealedFolder = currentFolder;
-  ui.notes.replaceChildren(...Array.from(renderTree(tree([...allNotes, ...allFiles], allFolders), 0).children));
+  const fullVault = tree([...allNotes, ...allFiles], allFolders);
+  const activeFocus = focusesList.find((f) => f.name === activeFocusName);
+  const isHome = isHomeFocusName(activeFocusName) || !activeFocus || isHomeFocusName(activeFocus.name);
+  if (isHome) {
+    ui.notes.replaceChildren(...Array.from(renderTree(fullVault, 0).children));
+  } else {
+    const focusPaths = activeFocus.paths;
+    if (focusPaths.length === 0) {
+      ui.notes.replaceChildren(h("li", "empty", t.noNotes));
+    } else if (focusPaths.some((p) => p.trim() === "/" || p.replace(/^\/+|\/+$/g, "") === "")) {
+      ui.notes.replaceChildren(...Array.from(renderTree(fullVault, 0).children));
+    } else {
+      const normalizedPaths = focusPaths.map((p) => p.replace(/^\/+|\/+$/g, "")).filter(Boolean);
+      const getSub = (rootNode: Folder, path: string): Folder | null => {
+        let cur: Folder | undefined = rootNode;
+        for (const part of path.split("/").filter(Boolean)) {
+          cur = cur?.folders.get(part);
+          if (!cur) return null;
+        }
+        return cur;
+      };
+      const foldersInFocus = normalizedPaths.filter((p) => allFolders.includes(p) || getSub(fullVault, p) !== null);
+      const rootPaths = normalizedPaths.filter((p) => !foldersInFocus.some((f) => f !== p && p.startsWith(f + "/")));
+      const focusRoot: Folder = { folders: new Map(), files: [] };
+      for (const p of rootPaths) {
+        if (foldersInFocus.includes(p)) {
+          const child = getSub(fullVault, p) ?? { folders: new Map(), files: [] };
+          focusRoot.folders.set(p, child);
+        } else if (allNotes.includes(p) || allFiles.includes(p)) {
+          focusRoot.files.push(p);
+        }
+      }
+      ui.notes.replaceChildren(...Array.from(renderTree(focusRoot, 0).children));
+    }
+  }
   Array.from(ui.notes.children).forEach((li, i) => (li as HTMLElement).style.setProperty("--i", String(i)));
-  if (allNotes.length + allFiles.length === 0) ui.notes.append(h("li", "empty", t.noNotes));
+  if (ui.notes.children.length === 0) ui.notes.append(h("li", "empty", t.noNotes));
   markCurrent();
   // Each tab's sticker drawn again from the labels just read; its title
   // stays as its leaf set it.
@@ -10335,6 +10982,7 @@ function allCommands(all = false): Command[] {
     { id: "graph-note", label: t.graph, need: Boolean(note), run: () => note && pane?.openGraph(note.path) },
     { id: "rename", label: t.rename, need: Boolean(note), run: () => note?.renameHere() },
     { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
+    { id: "switch-focus", label: t.switchFocus, need: hasFolder, run: () => focusSwitcher.show() },
   ];
   return cmds.filter((c) => all || c.need !== false).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run }));
 }
@@ -11133,6 +11781,34 @@ class SettingsDialog {
     add("organizing", t.manualOrder, t.manualOrderDesc, () => this.toggle(settings.manualOrder, (v) => { settings.manualOrder = v; saveSettings(); orderModeChanged(); }));
     add("organizing", t.inlineEmbedEdit, t.inlineEmbedEditDesc, () => this.toggle(settings.inlineEmbedEdit, (v) => { settings.inlineEmbedEdit = v; saveSettings(); }));
     add("organizing", t.emojiTrigger, t.emojiTriggerDesc, () => this.toggle(settings.emojiTrigger, (v) => { settings.emojiTrigger = v; saveSettings(); }));
+    // ADR 0062 D9: sync focuses with make.md (.space/waypoints.json).
+    add("organizing", t.syncFocuses, t.syncFocusesDesc, () => this.toggle(getSyncFocuses(), async (v) => {
+      if (v) {
+        if (!isSyncFocusesAsked()) {
+          const ok = await ask(t.syncFocusesWarning, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
+          setSyncFocusesAsked(true);
+          if (!ok) {
+            setSyncFocuses(false);
+            this.paint();
+            return;
+          }
+        }
+        const local = getLocalFocuses();
+        if (local.length > 0) {
+          const migrate = await ask(t.syncLocalFocusesQuestion, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
+          if (!migrate) {
+            setLocalFocuses([]);
+          }
+        }
+        setSyncFocuses(true);
+        await loadFocuses(true);
+        await saveFocuses();
+      } else {
+        setSyncFocuses(false);
+        await loadFocuses(true);
+      }
+      this.paint();
+    }));
     // Not one of D12's ten settings: the list S3 asks for, where what was
     // hidden from the tree is shown again (ADR 0060, memo §7 S3).
     add("organizing", t.hiddenFromTree, t.hiddenFromTreeDesc, () => {
@@ -11563,6 +12239,7 @@ async function joinAsPopout(): Promise<void> {
   page?.classList.remove("empty");
   ui.search.disabled = false;
   loadBookmarks();
+  await loadFocuses();
   await listAll();
   const s = new Space(name(target.data));
   spaces.push(s);
@@ -11630,6 +12307,7 @@ async function showFolder(info: FolderInfo): Promise<void> {
   ribbon?.paint();
   ui.search.value = "";
   loadBookmarks();
+  await loadFocuses();
   panel.tagsCache = [];
   void panel.loadTags();
   showOutline(null);
@@ -11956,6 +12634,21 @@ function flushAll(): void {
 window.addEventListener("blur", flushAll);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) flushAll();
+});
+window.addEventListener("focus", () => {
+  whenNotRenaming(ui.notes, () => void (async () => {
+    const prevKey = JSON.stringify(focusesList.map((f) => [f.name, f.paths, f.sticker]));
+    await loadFocuses(true);
+    if (panel.current === "focuses") panel.paint();
+    const newKey = JSON.stringify(focusesList.map((f) => [f.name, f.paths, f.sticker]));
+    if (prevKey !== newKey) {
+      if (ui.search.value.trim() !== "") {
+        await searchNotes(ui.search.value);
+      } else {
+        await listAll();
+      }
+    }
+  })());
 });
 /* The window closing: every tab saves what it can first. Text that
  * cannot be saved (a conflict waiting, a write refused) keeps the window

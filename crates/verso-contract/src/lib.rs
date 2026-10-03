@@ -88,6 +88,30 @@ pub struct TextFile {
     pub warnings: Vec<String>,
 }
 
+/// A named root of the file tree (ADR 0062).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Focus {
+    pub name: String,
+    pub paths: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sticker: Option<String>,
+}
+
+/// The result of reading focuses from the open folder (ADR 0062).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FocusesSummary {
+    /// Focuses found in `.space/waypoints.json`, or empty if no file.
+    pub focuses: Vec<Focus>,
+    /// Whether `.space/waypoints.json` is present in the open folder.
+    pub has_file: bool,
+    /// Whether `.space/waypoints.json` is in the known format (ADR 0062 D6).
+    pub format_known: bool,
+    /// Why the file is read-only, if not known format or unreadable.
+    pub read_only_reason: Option<String>,
+    /// The revision stamp for optimistic concurrency (Invariants 9 & 11).
+    pub stamp: Option<String>,
+}
+
 /// What one entry of the open folder is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "lowercase")]

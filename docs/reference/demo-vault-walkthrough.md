@@ -370,6 +370,14 @@ point 13).
 10. `:foguete` in the editor suggests 🚀; Enter inserts it. Level: H; E:
     `flow.spec.mjs`, "emoji trigger with : opens completion and inserts emoji
     (ADR 0060 E4)" (the arrows and Esc: by hand).
+11. Focuses (ADR 0062): the right panel's "Focos" tab lists every focus, with
+    Início first. Choosing a focus shows the file tree from its paths, and the
+    heading shows the active focus (e.g. `ARQUIVOS · Projetos`). The context menu
+    on a tree item offers "Criar foco aqui" and "Adicionar ao foco…". "Trocar foco"
+    in the command palette switches focuses. If `.space/waypoints.json` is present
+    and sync is enabled, changes write back preserving untouched bytes; if disabled
+    or unknown format, focuses stay read-only or in Verso settings. Level: H; E:
+    `focuses.spec.mjs`.
 
 ## 12. The end
 

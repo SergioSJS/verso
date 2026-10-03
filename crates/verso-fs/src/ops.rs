@@ -21,8 +21,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 
 use crate::placeholder;
-use crate::write::{COUNTER, WriteError, network_fs};
-use crate::{Stamp, fnv1a};
+use crate::write::{self, COUNTER, WriteError, WriteReport, network_fs};
+use crate::{ReadError, Stamp, fnv1a};
 
 /// What a create, rename or trash noticed once the entry was in place.
 /// Nothing here means the operation did not happen; each field is for the
@@ -402,6 +402,43 @@ pub(crate) fn trash(root: &Path, relative: &Path) -> Result<(PathBuf, OpReport),
     }
     let report = rename_path(&from, &root.join(&target))?;
     Ok((target, report))
+}
+
+/// The single file under a hidden directory that Verso reads and writes
+/// (ADR 0062 D7): make.md's focuses, kept at `.space/waypoints.json`.
+pub const WAYPOINTS_PATH: &str = ".space/waypoints.json";
+
+/// Read `.space/waypoints.json` under `root` and its [`Stamp`] (ADR 0062 D7).
+/// Returns `NotFound` when there is no such file; returns `Unavailable` when
+/// the file is an iCloud placeholder (Invariant 10).
+pub(crate) fn read_waypoints(root: &Path) -> Result<(Vec<u8>, Stamp), ReadError> {
+    let target = root.join(WAYPOINTS_PATH);
+    if placeholder::stands_in(&target).map_err(ReadError::Io)? {
+        return Err(ReadError::Unavailable);
+    }
+    if !target.exists() {
+        return Err(ReadError::Io(std::io::Error::from(
+            std::io::ErrorKind::NotFound,
+        )));
+    }
+    let bytes = std::fs::read(&target).map_err(ReadError::Io)?;
+    let meta = std::fs::metadata(&target).map_err(ReadError::Io)?;
+    let stamp = Stamp::of(&meta, &bytes).map_err(ReadError::Io)?;
+    Ok((bytes, stamp))
+}
+
+/// Write `.space/waypoints.json` under `root` atomically (ADR 0029, ADR 0062 D7),
+/// checking that the file is the one read (`expected`, Invariant 11).
+pub(crate) fn write_waypoints(
+    root: &Path,
+    content: &[u8],
+    expected: &Stamp,
+) -> Result<WriteReport, WriteError> {
+    let target = root.join(WAYPOINTS_PATH);
+    if placeholder::stands_in(&target).map_err(WriteError::Io)? {
+        return Err(WriteError::Placeholder);
+    }
+    write::write_atomically(&target, content, expected)
 }
 
 #[cfg(test)]

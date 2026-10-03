@@ -23,6 +23,11 @@ versão de teste.
   - **Editar uma nota embutida no lugar**: na Leitura e no Editar, um clique numa nota embutida (`![[Nota]]`) a edita ali mesmo, com o próprio desfazer, o mesmo salvamento e a mesma checagem de mudança feita em outro lugar. Sair dela com texto que não pôde ser salvo pergunta antes. Configuração: "Editar notas embutidas no lugar".
   - **`:` para emoji**: digitar `:` e uma palavra sugere emojis, buscados pelo nome em português e inglês. Configuração: "':' abre o seletor de emoji".
   - Configurações › Organização reúne as dez configurações, e a nota `19 - Organizando: figurinhas, capas e páginas` do cofre de exemplo percorre tudo isso.
+- **Focos: raízes nomeadas da árvore de arquivos, compartilhadas com o make.md** ([ADR 0062](adr/0062-focuses.md)):
+  - **Aba Focos no painel da direita**: uma nova aba ao lado de Favoritos lista todos os focos, com "Início" sempre em primeiro lugar (o cofre completo). Um clique em qualquer foco alterna para ele, filtrando a árvore para exibir apenas as pastas e notas configuradas. O cabeçalho da árvore mostra o foco ativo ("ARQUIVOS · <Foco>") com um botão para voltar rapidamente a Início.
+  - **Criar e adicionar a focos**: pelo menu de contexto de qualquer pasta ou nota na árvore, "Criar foco aqui" (cria um foco novo com esse caminho) e "Adicionar ao foco…" (adiciona o caminho a um foco existente).
+  - **Alternador de focos**: comando "Trocar foco" na paleta de comandos permite buscar e alternar entre os focos pelo teclado.
+  - **Compatibilidade com o make.md**: se `.space/waypoints.json` existir, o Verso lê e exibe seus focos. Ao fazer alterações, o Verso oferece sincronizar de volta com o arquivo (validado para formato conhecido, com gravação atômica e resolução de concorrência). Em Ajustes › Organização, "Sincronizar focos com o make.md" permite controlar a sincronização por pasta aberta.
 
 ### Corrigido
 

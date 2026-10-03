@@ -130,4 +130,16 @@ Experimente na nota abaixo:
 
 ---
 
+## 8. Focos (raízes nomeadas)
+
+Focos são conjuntos de pastas e notas que atuam como raízes da árvore de arquivos — compatíveis com o make.md:
+
+- **Aba Focos**: no painel da direita (ao lado de Favoritos), a aba **Focos** lista todos os focos do cofre. **Início** representa o cofre completo e fica sempre primeiro.
+- **Filtrar a árvore**: clique num foco para mostrar apenas as suas pastas e notas. O cabeçalho da árvore de arquivos passa a exibir o foco ativo (ex: `ARQUIVOS · Projetos`), com um botão para voltar a Início.
+- **Criar e adicionar**: clique com o botão direito numa pasta ou nota na árvore e escolha **Criar foco aqui** ou **Adicionar ao foco…**.
+- **Pelo teclado**: use o comando **Trocar foco** na paleta de comandos para alternar rapidamente entre os focos.
+- **Sincronização com o make.md**: se o cofre tiver `.space/waypoints.json`, o Verso lê seus focos e oferece sincronizar as alterações de volta. Você pode ligar ou desligar em **Ajustes › Organização › Sincronizar focos com o make.md**.
+
+---
+
 Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

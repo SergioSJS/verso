@@ -23,6 +23,11 @@ test release.
   - **Editing an embedded note where it is**: in Reading and in Edit, a click on an embedded note (`![[Note]]`) edits it in place, with its own undo, the same save and the same check against a change made elsewhere. Leaving it with text that could not be saved asks first. Setting: "Edit embedded notes in place".
   - **`:` for emoji**: typing `:` and a word suggests emoji, searched by name in Portuguese and English. Setting: "':' opens the emoji picker".
   - Settings › Organizing holds the ten settings, and the note `19 - Organizando: figurinhas, capas e páginas` of the demo vault walks through all of it.
+- **Focuses: named roots of the file tree, shared with make.md** ([ADR 0062](docs/adr/0062-focuses.md)):
+  - **Focuses tab in the right panel**: a new tab beside Bookmarks lists every focus, with "Home" always first (the whole vault). Click any focus to switch to it, filtering the tree to only show the configured folders and notes. The tree heading shows the active focus ("FILES · <Focus>") with a quick button to reset back to Home.
+  - **Create and add to focuses**: from any folder or note in the tree, right-click to "Create focus here" (creates a new focus with this path) or "Add to focus…" (adds the path to an existing focus).
+  - **Focus switcher**: "Switch focus" in the command palette lets you search and switch focuses by name from the keyboard.
+  - **make.md compatibility**: if `.space/waypoints.json` exists, Verso reads and displays its focuses. When changes are made, Verso offers to sync back to the file (checked for the known format, with atomic write and concurrency conflict resolution). In Settings › Organizing, "Sync focuses with make.md" controls synchronization per folder.
 
 ### Fixed
 

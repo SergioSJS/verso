@@ -13,6 +13,7 @@
 		{"id":"g-terminal","type":"group","x":1650,"y":3900,"width":1400,"height":1000,"label":"⑪ Terminal e agentes","color":"6"},
 		{"id":"g-ajuda","type":"group","x":3300,"y":3900,"width":1400,"height":1000,"label":"⑫ Atalhos e ajuda","color":"1"},
 		{"id":"g-organizacao","type":"group","x":0,"y":5200,"width":1400,"height":1000,"label":"⑬ Figurinhas e ordem","color":"3"},
+		{"id":"g-focos","type":"group","x":1650,"y":5200,"width":1400,"height":1000,"label":"⑭ Focos","color":"5"},
 		{"id":"n-markdown","type":"file","file":"01 - Guia de Markdown e Sintaxe.md","x":40,"y":130,"width":420,"height":560},
 		{"id":"n-editor","type":"file","file":"11 - Escrevendo no Editor.md","x":490,"y":130,"width":420,"height":560},
 		{"id":"n-mermaid","type":"file","file":"08 - Diagramas Mermaid.md","x":940,"y":130,"width":420,"height":560},
@@ -38,7 +39,8 @@
 		{"id":"n-terminal","type":"file","file":"17 - Terminal, CLI e Agentes.md","x":1690,"y":4030,"width":640,"height":560},
 		{"id":"n-ajuda","type":"file","file":"18 - Ajuda, Atualizações e Diagnóstico.md","x":4020,"y":4030,"width":640,"height":400},
 		{"id":"n-inicio","type":"file","file":"00 - Bem-vindo ao Verso.md","x":4020,"y":4460,"width":640,"height":400},
-		{"id":"n-organizando","type":"file","file":"19 - Organizando: figurinhas, capas e páginas.md","x":40,"y":5330,"width":640,"height":560}
+		{"id":"n-organizando","type":"file","file":"19 - Organizando: figurinhas, capas e páginas.md","x":40,"y":5330,"width":640,"height":560},
+		{"id":"n-focos","type":"file","file":"19 - Organizando: figurinhas, capas e páginas.md","x":1690,"y":5330,"width":640,"height":560,"subpath":"#8. Focos (raízes nomeadas)"}
 	],
 	"edges":[
 		{"id":"e-links-grafo","fromNode":"n-links","fromSide":"right","toNode":"n-grafo","toSide":"left","color":"5","label":"viram o grafo"},
@@ -60,6 +62,7 @@
 			{"id":"d-terminal-titulo","type":"text","x":1690,"y":3930,"width":616,"height":70,"strokeColor":"#6741d9","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-terminal","text":"🤖 Terminal e agentes","originalText":"🤖 Terminal e agentes","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-ajuda-titulo","type":"text","x":3340,"y":3930,"width":554.4,"height":70,"strokeColor":"#c2255c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-ajuda","text":"⌨️ Atalhos e ajuda","originalText":"⌨️ Atalhos e ajuda","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-organizacao-titulo","type":"text","x":40,"y":5230,"width":831.6,"height":70,"strokeColor":"#e67700","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-organizacao","text":"🎨 Figurinhas, capas e ordem","originalText":"🎨 Figurinhas, capas e ordem","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-focos-titulo","type":"text","x":1690,"y":5230,"width":215.6,"height":70,"strokeColor":"#0c8599","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"🧭 Focos","originalText":"🧭 Focos","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-escrever-dica","type":"text","x":40,"y":730,"width":1320,"height":105.3,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-escrever","text":"Markdown puro, compatível com o Obsidian: títulos que recolhem, tabelas, tarefas, destaques, fórmulas em KaTeX e diagramas Mermaid. Leitura, Editar e Fonte: ⌘E alterna entre os dois primeiros. Um / no começo da linha insere blocos, e o Verso salva sozinho.","originalText":"Markdown puro, compatível com o Obsidian: títulos que recolhem, tabelas, tarefas, destaques, fórmulas em KaTeX e diagramas Mermaid. Leitura, Editar e Fonte: ⌘E alterna entre os dois primeiros. Um / no começo da linha insere blocos, e o Verso salva sozinho.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{"id":"d-conectar-dica","type":"text","x":1690,"y":730,"width":1320,"height":105.3,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-conectar","text":"Escreva [[ e o nome de uma nota para ligar as duas: a outra ganha um backlink, e ![[nota]] mostra a nota inteira dentro desta. ⌘⇧G abre as relações da nota aberta; o grafo do cofre inteiro fica na faixa da esquerda.","originalText":"Escreva [[ e o nome de uma nota para ligar as duas: a outra ganha um backlink, e ![[nota]] mostra a nota inteira dentro desta. ⌘⇧G abre as relações da nota aberta; o grafo do cofre inteiro fica na faixa da esquerda.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{"id":"d-organizar-dica","type":"text","x":3340,"y":730,"width":860,"height":105.3,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-organizar","text":"As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban ou calendário. ⌘D abre a nota de hoje, feita do template Diário.","originalText":"As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban ou calendário. ⌘D abre a nota de hoje, feita do template Diário.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
@@ -934,8 +937,140 @@
 			},
 			{"id":"d-org-k30-t","type":"text","x":755,"y":5743.5,"width":55,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-organizacao","text":"Esc","originalText":"Esc","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-org-k30","lineHeight":1.25},
 			{"id":"d-org-w3","type":"text","x":849,"y":5745,"width":264,"height":37.5,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-organizacao","text":"fechar sugestões","originalText":"fechar sugestões","fontSize":30,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-focos-dica","type":"text","x":1690,"y":5930,"width":1320,"height":105.3,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"Focos são raízes nomeadas da árvore de arquivos, compatíveis com o make.md. Escolha um foco para ver a árvore a partir dele; Início mostra a pasta inteira. A aba Focos no painel da direita cria, renomeia, reordena e troca a figurinha de cada foco.","originalText":"Focos são raízes nomeadas da árvore de arquivos, compatíveis com o make.md. Escolha um foco para ver a árvore a partir dele; Início mostra a pasta inteira. A aba Focos no painel da direita cria, renomeia, reordena e troca a figurinha de cada foco.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
+			{"id":"d-focos-titulo","type":"text","x":2390,"y":5350,"width":264,"height":40,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"ações e atalhos","originalText":"ações e atalhos","fontSize":32,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{
+				"id":"d-focos-k00",
+				"type":"rectangle",
+				"x":2390,
+				"y":5410,
+				"width":84,
+				"height":72,
+				"strokeColor":"#495057",
+				"backgroundColor":"#f1f3f5",
+				"fillStyle":"solid",
+				"strokeWidth":2,
+				"strokeStyle":"solid",
+				"roughness":0,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"g-focos",
+				"boundElements":[
+					{"id":"d-focos-k00-t","type":"text"}
+				]
+			},
+			{"id":"d-focos-k00-t","type":"text","x":2405,"y":5428.5,"width":54,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-focos","text":"⌘","originalText":"⌘","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-focos-k00","lineHeight":1.25},
+			{
+				"id":"d-focos-k01",
+				"type":"rectangle",
+				"x":2488,
+				"y":5410,
+				"width":84,
+				"height":72,
+				"strokeColor":"#495057",
+				"backgroundColor":"#f1f3f5",
+				"fillStyle":"solid",
+				"strokeWidth":2,
+				"strokeStyle":"solid",
+				"roughness":0,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"g-focos",
+				"boundElements":[
+					{"id":"d-focos-k01-t","type":"text"}
+				]
+			},
+			{"id":"d-focos-k01-t","type":"text","x":2503,"y":5428.5,"width":54,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-focos","text":"⇧","originalText":"⇧","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-focos-k01","lineHeight":1.25},
+			{
+				"id":"d-focos-k02",
+				"type":"rectangle",
+				"x":2586,
+				"y":5410,
+				"width":84,
+				"height":72,
+				"strokeColor":"#495057",
+				"backgroundColor":"#f1f3f5",
+				"fillStyle":"solid",
+				"strokeWidth":2,
+				"strokeStyle":"solid",
+				"roughness":0,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"g-focos",
+				"boundElements":[
+					{"id":"d-focos-k02-t","type":"text"}
+				]
+			},
+			{"id":"d-focos-k02-t","type":"text","x":2601,"y":5428.5,"width":54,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-focos","text":"P","originalText":"P","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-focos-k02","lineHeight":1.25},
+			{"id":"d-focos-w0","type":"text","x":2694,"y":5430,"width":346.5,"height":37.5,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"Trocar foco na paleta","originalText":"Trocar foco na paleta","fontSize":30,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{
+				"id":"d-focos-k10",
+				"type":"rectangle",
+				"x":2390,
+				"y":5515,
+				"width":102,
+				"height":72,
+				"strokeColor":"#495057",
+				"backgroundColor":"#f1f3f5",
+				"fillStyle":"solid",
+				"strokeWidth":2,
+				"strokeStyle":"solid",
+				"roughness":0,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"g-focos",
+				"boundElements":[
+					{"id":"d-focos-k10-t","type":"text"}
+				]
+			},
+			{"id":"d-focos-k10-t","type":"text","x":2405,"y":5533.5,"width":72,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-focos","text":"menu","originalText":"menu","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-focos-k10","lineHeight":1.25},
+			{"id":"d-focos-w1","type":"text","x":2516,"y":5535,"width":412.5,"height":37.5,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"Criar foco aqui na árvore","originalText":"Criar foco aqui na árvore","fontSize":30,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{
+				"id":"d-focos-k20",
+				"type":"rectangle",
+				"x":2390,
+				"y":5620,
+				"width":102,
+				"height":72,
+				"strokeColor":"#495057",
+				"backgroundColor":"#f1f3f5",
+				"fillStyle":"solid",
+				"strokeWidth":2,
+				"strokeStyle":"solid",
+				"roughness":0,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"g-focos",
+				"boundElements":[
+					{"id":"d-focos-k20-t","type":"text"}
+				]
+			},
+			{"id":"d-focos-k20-t","type":"text","x":2405,"y":5638.5,"width":72,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-focos","text":"menu","originalText":"menu","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-focos-k20","lineHeight":1.25},
+			{"id":"d-focos-w2","type":"text","x":2516,"y":5640,"width":297,"height":37.5,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"Adicionar ao foco…","originalText":"Adicionar ao foco…","fontSize":30,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{
+				"id":"d-focos-k30",
+				"type":"rectangle",
+				"x":2390,
+				"y":5725,
+				"width":136,
+				"height":72,
+				"strokeColor":"#495057",
+				"backgroundColor":"#f1f3f5",
+				"fillStyle":"solid",
+				"strokeWidth":2,
+				"strokeStyle":"solid",
+				"roughness":0,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"g-focos",
+				"boundElements":[
+					{"id":"d-focos-k30-t","type":"text"}
+				]
+			},
+			{"id":"d-focos-k30-t","type":"text","x":2405,"y":5743.5,"width":106,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-focos","text":"painel","originalText":"painel","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-focos-k30","lineHeight":1.25},
+			{"id":"d-focos-w3","type":"text","x":2550,"y":5745,"width":528,"height":37.5,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"Aba Focos (ao lado de Favoritos)","originalText":"Aba Focos (ao lado de Favoritos)","fontSize":30,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-titulo","type":"text","x":0,"y":-820,"width":858,"height":150,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Tour do Verso","originalText":"Tour do Verso","fontSize":120,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
-			{"id":"d-sub","type":"text","x":6,"y":-650,"width":902,"height":50,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"um passeio em 13 paradas: siga os números","originalText":"um passeio em 13 paradas: siga os números","fontSize":40,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-sub","type":"text","x":6,"y":-650,"width":902,"height":50,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"um passeio em 14 paradas: siga os números","originalText":"um passeio em 14 paradas: siga os números","fontSize":40,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-como","type":"text","x":6,"y":-560,"width":1500,"height":113.4,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Dois dedos no trackpad, ou a roda do mouse, movem o board; a pinça ou ⌘ + roda aproximam, e ⇧1 mostra tudo. Dê duplo clique num cartão para ler a nota aqui mesmo; mais um clique edita, e Esc sai. ↗ abre a nota numa aba. O Sumário, na barra do board, leva a cada parada.","originalText":"Dois dedos no trackpad, ou a roda do mouse, movem o board; a pinça ou ⌘ + roda aproximam, e ⇧1 mostra tudo. Dê duplo clique num cartão para ler a nota aqui mesmo; mais um clique edita, e Esc sai. ↗ abre a nota numa aba. O Sumário, na barra do board, leva a cada parada.","fontSize":28,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{"id":"d-comece","type":"text","x":180,"y":-330,"width":290.4,"height":55,"strokeColor":"#e03131","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"comece aqui!","originalText":"comece aqui!","fontSize":44,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{
@@ -1222,6 +1357,26 @@
 			},
 			{"id":"d-num-13-t","type":"text","x":1355,"y":5160,"width":80,"height":70,"strokeColor":"#e8590c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"13","originalText":"13","fontSize":56,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-num-13","lineHeight":1.25},
 			{
+				"id":"d-num-14",
+				"type":"ellipse",
+				"x":2990,
+				"y":5140,
+				"width":110,
+				"height":110,
+				"strokeColor":"#e8590c",
+				"backgroundColor":"#fff4e6",
+				"fillStyle":"solid",
+				"strokeWidth":3,
+				"strokeStyle":"solid",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":2},
+				"boundElements":[
+					{"id":"d-num-14-t","type":"text"}
+				]
+			},
+			{"id":"d-num-14-t","type":"text","x":3005,"y":5160,"width":80,"height":70,"strokeColor":"#e8590c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"14","originalText":"14","fontSize":56,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-num-14","lineHeight":1.25},
+			{
 				"id":"d-trilha-1",
 				"type":"arrow",
 				"x":1425,
@@ -1493,6 +1648,29 @@
 					[0,65],
 					[-3300,65],
 					[-3300,250]
+				],
+				"startArrowhead":null,
+				"endArrowhead":"arrow"
+			},
+			{
+				"id":"d-trilha-13",
+				"type":"arrow",
+				"x":1425,
+				"y":5700,
+				"width":200,
+				"height":30,
+				"strokeColor":"#e8590c",
+				"backgroundColor":"transparent",
+				"fillStyle":"solid",
+				"strokeWidth":4,
+				"strokeStyle":"dashed",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":2},
+				"points":[
+					[0,0],
+					[100,-30],
+					[200,0]
 				],
 				"startArrowhead":null,
 				"endArrowhead":"arrow"

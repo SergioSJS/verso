@@ -282,6 +282,14 @@ export const commands = {
 	 *  is named after it. Applied to the open folder at once.
 	 */
 	setFolderNoteName: (name: string) => typedError<null, ContractError>(__TAURI_INVOKE("set_folder_note_name", { name })),
+	/**  Read focuses from `.space/waypoints.json` in the open folder (ADR 0062). */
+	getFocuses: () => typedError<FocusesSummary_Serialize, ContractError>(__TAURI_INVOKE("get_focuses")),
+	/**  Write focuses to `.space/waypoints.json` in the open folder (ADR 0062). */
+	setFocuses: (focuses: Focus_Deserialize[], stamp: string | null, baseFocuses: Focus_Deserialize[] | null) => typedError<FocusesSummary_Serialize, ContractError>(__TAURI_INVOKE("set_focuses", { focuses, stamp, baseFocuses })),
+	/**  Whether focuses can be synced to `.space/waypoints.json` (ADR 0062). */
+	canSyncFocuses: () => typedError<boolean, ContractError>(__TAURI_INVOKE("can_sync_focuses")),
+	/**  Set whether focuses sync to `.space/waypoints.json` is enabled (ADR 0062 D5, D9). */
+	setSyncFocuses: (enabled: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_sync_focuses", { enabled })),
 	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a
@@ -650,6 +658,54 @@ export type FileEntry_Serialize = {
 export type FileKind = "note" | "file" | "folder" | 
 /**  Present, content in the cloud (ADR 0043). */
 "placeholder";
+
+/**  A named root of the file tree (ADR 0062). */
+export type Focus = Focus_Serialize | Focus_Deserialize;
+
+/**  A named root of the file tree (ADR 0062). */
+export type Focus_Deserialize = {
+	name: string,
+	paths: string[],
+	sticker?: string | null,
+};
+
+/**  A named root of the file tree (ADR 0062). */
+export type Focus_Serialize = {
+	name: string,
+	paths: string[],
+	sticker?: string | null,
+};
+
+/**  The result of reading focuses from the open folder (ADR 0062). */
+export type FocusesSummary = FocusesSummary_Serialize | FocusesSummary_Deserialize;
+
+/**  The result of reading focuses from the open folder (ADR 0062). */
+export type FocusesSummary_Deserialize = {
+	/**  Focuses found in `.space/waypoints.json`, or empty if no file. */
+	focuses: Focus_Deserialize[],
+	/**  Whether `.space/waypoints.json` is present in the open folder. */
+	has_file: boolean,
+	/**  Whether `.space/waypoints.json` is in the known format (ADR 0062 D6). */
+	format_known: boolean,
+	/**  Why the file is read-only, if not known format or unreadable. */
+	read_only_reason: string | null,
+	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
+	stamp: string | null,
+};
+
+/**  The result of reading focuses from the open folder (ADR 0062). */
+export type FocusesSummary_Serialize = {
+	/**  Focuses found in `.space/waypoints.json`, or empty if no file. */
+	focuses: Focus_Serialize[],
+	/**  Whether `.space/waypoints.json` is present in the open folder. */
+	has_file: boolean,
+	/**  Whether `.space/waypoints.json` is in the known format (ADR 0062 D6). */
+	format_known: boolean,
+	/**  Why the file is read-only, if not known format or unreadable. */
+	read_only_reason: string | null,
+	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
+	stamp: string | null,
+};
 
 /**
  *  What changed in the open folder, as the watcher saw it and the index

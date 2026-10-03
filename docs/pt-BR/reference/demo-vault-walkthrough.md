@@ -371,6 +371,15 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 10. `:foguete` no editor sugere 🚀; Enter insere. Nível: H; E:
     `flow.spec.mjs`, "emoji trigger with : opens completion and inserts emoji
     (ADR 0060 E4)" (as setas e o Esc: à mão).
+11. Focos (ADR 0062): a aba "Focos" no painel da direita lista todos os focos,
+    com Início sempre primeiro. Escolher um foco exibe a árvore de arquivos a
+    partir dele, e o cabeçalho mostra o foco ativo (ex: `ARQUIVOS · Projetos`).
+    O menu de contexto na árvore oferece "Criar foco aqui" e "Adicionar ao foco…".
+    "Trocar foco" na paleta alterna entre eles. Se `.space/waypoints.json` estiver
+    presente e a sincronização ativa, as alterações são gravadas de volta
+    preservando bytes intocados; se desativada ou com formato desconhecido, os
+    focos permanecem somente leitura ou nos ajustes do Verso. Nível: H; E:
+    `focuses.spec.mjs`.
 
 ## 12. O fim
 
