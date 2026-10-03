@@ -40,7 +40,7 @@ pub mod bases;
 pub mod canvas;
 pub mod clients;
 pub mod focuses;
-pub use focuses::{Focus, FocusesSummary};
+pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
 mod sidecar;
 pub use sidecar::Sidecar;
 

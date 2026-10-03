@@ -1032,13 +1032,29 @@ fn to_core_focus(f: Focus) -> verso_core::Focus {
     }
 }
 
+fn to_contract_read_only_code(
+    code: Option<verso_core::ReadOnlyReasonCode>,
+) -> Option<verso_contract::ReadOnlyReasonCode> {
+    code.map(|c| match c {
+        verso_core::ReadOnlyReasonCode::CloudPlaceholder => {
+            verso_contract::ReadOnlyReasonCode::CloudPlaceholder
+        }
+        verso_core::ReadOnlyReasonCode::InvalidJson => {
+            verso_contract::ReadOnlyReasonCode::InvalidJson
+        }
+        verso_core::ReadOnlyReasonCode::UnknownFormat => {
+            verso_contract::ReadOnlyReasonCode::UnknownFormat
+        }
+    })
+}
+
 fn to_contract_focuses_summary(s: verso_core::FocusesSummary) -> FocusesSummary {
     FocusesSummary {
         focuses: s.focuses.into_iter().map(to_contract_focus).collect(),
         has_file: s.has_file,
         format_known: s.format_known,
         read_only_reason: s.read_only_reason,
-        read_only_code: s.read_only_code,
+        read_only_code: to_contract_read_only_code(s.read_only_code),
         stamp: s.stamp,
     }
 }

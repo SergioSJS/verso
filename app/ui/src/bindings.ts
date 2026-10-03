@@ -689,8 +689,8 @@ export type FocusesSummary_Deserialize = {
 	format_known: boolean,
 	/**  Why the file is read-only, if not known format or unreadable. */
 	read_only_reason: string | null,
-	/**  Machine-readable code for read-only reason ("cloud_placeholder", "unknown_format", "invalid_json"). */
-	read_only_code?: string | null,
+	/**  Machine-readable code for read-only reason. */
+	read_only_code?: ReadOnlyReasonCode | null,
 	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
 	stamp: string | null,
 };
@@ -705,8 +705,8 @@ export type FocusesSummary_Serialize = {
 	format_known: boolean,
 	/**  Why the file is read-only, if not known format or unreadable. */
 	read_only_reason: string | null,
-	/**  Machine-readable code for read-only reason ("cloud_placeholder", "unknown_format", "invalid_json"). */
-	read_only_code?: string | null,
+	/**  Machine-readable code for read-only reason. */
+	read_only_code?: ReadOnlyReasonCode | null,
 	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
 	stamp: string | null,
 };
@@ -938,6 +938,9 @@ export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; 
 { kind: "nested"; value: string } | 
 /**  `key:` with nothing after it (YAML null). */
 { kind: "empty" };
+
+/**  Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062). */
+export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown_format";
 
 /**
  *  What a rename or a move left: the new path, the rewrites it calls for,

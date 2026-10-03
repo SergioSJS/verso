@@ -97,6 +97,15 @@ pub struct Focus {
     pub sticker: Option<String>,
 }
 
+/// Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadOnlyReasonCode {
+    CloudPlaceholder,
+    InvalidJson,
+    UnknownFormat,
+}
+
 /// The result of reading focuses from the open folder (ADR 0062).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct FocusesSummary {
@@ -108,9 +117,9 @@ pub struct FocusesSummary {
     pub format_known: bool,
     /// Why the file is read-only, if not known format or unreadable.
     pub read_only_reason: Option<String>,
-    /// Machine-readable code for read-only reason ("cloud_placeholder", "unknown_format", "invalid_json").
+    /// Machine-readable code for read-only reason.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub read_only_code: Option<String>,
+    pub read_only_code: Option<ReadOnlyReasonCode>,
     /// The revision stamp for optimistic concurrency (Invariants 9 & 11).
     pub stamp: Option<String>,
 }

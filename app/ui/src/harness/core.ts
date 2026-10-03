@@ -1017,46 +1017,78 @@ export class Core {
         const oldFocuses = baseFocuses;
         const newFocuses = clean;
 
-        // Compute deltas:
-        const added = newFocuses.filter((nf) => !oldFocuses.some((of) => of.name === nf.name));
-        const removed = oldFocuses.filter((of) => !newFocuses.some((nf) => nf.name === of.name));
-        const updated = newFocuses.filter((nf) => {
-          const of = oldFocuses.find((o) => o.name === nf.name);
-          return of && JSON.stringify(of) !== JSON.stringify(nf);
-        });
-
-        // 1. Updated: disk must not have modified or deleted it
-        for (const uf of updated) {
-          const df = diskFocuses.find((d) => d.name === uf.name);
-          const of = oldFocuses.find((o) => o.name === uf.name);
-          if (!df || JSON.stringify(df) !== JSON.stringify(of)) {
-            refuse("changed", "conflict: focus modified concurrently on disk");
+        // Compute deltas by position:
+        if (oldFocuses.length === newFocuses.length) {
+          const isReorder = JSON.stringify([...oldFocuses].sort((a, b) => a.name.localeCompare(b.name))) ===
+            JSON.stringify([...newFocuses].sort((a, b) => a.name.localeCompare(b.name)));
+          if (isReorder) {
+            if (diskFocuses.length >= oldFocuses.length && JSON.stringify(diskFocuses.slice(0, oldFocuses.length)) === JSON.stringify(oldFocuses)) {
+              finalFocuses = [...newFocuses, ...diskFocuses.slice(oldFocuses.length)];
+            } else {
+              refuse("changed", "conflict in reorder");
+            }
+          } else {
+            const merged = [...diskFocuses];
+            for (let i = 0; i < oldFocuses.length; i++) {
+              if (JSON.stringify(oldFocuses[i]) !== JSON.stringify(newFocuses[i])) {
+                if (i >= diskFocuses.length || JSON.stringify(diskFocuses[i]) !== JSON.stringify(oldFocuses[i])) {
+                  refuse("changed", "conflict: focus modified concurrently on disk");
+                }
+                merged[i] = newFocuses[i];
+              }
+            }
+            finalFocuses = merged;
           }
-        }
-        // 2. Removed: disk must not have modified it
-        for (const rf of removed) {
-          const df = diskFocuses.find((d) => d.name === rf.name);
-          if (df && JSON.stringify(df) !== JSON.stringify(rf)) {
-            refuse("changed", "conflict: removed focus modified concurrently on disk");
+        } else if (newFocuses.length + 1 === oldFocuses.length) {
+          let delIdx = -1;
+          for (let i = 0; i < oldFocuses.length; i++) {
+            const cand = [...oldFocuses];
+            cand.splice(i, 1);
+            if (JSON.stringify(cand) === JSON.stringify(newFocuses)) {
+              delIdx = i;
+              break;
+            }
           }
-        }
-        // 3. Added: disk must not have added same name
-        for (const af of added) {
-          if (diskFocuses.some((d) => d.name.toLowerCase() === af.name.toLowerCase())) {
-            refuse("changed", "conflict: focus with same name added concurrently on disk");
+          if (delIdx >= 0 && delIdx < diskFocuses.length && JSON.stringify(diskFocuses[delIdx]) === JSON.stringify(oldFocuses[delIdx])) {
+            const merged = [...diskFocuses];
+            merged.splice(delIdx, 1);
+            finalFocuses = merged;
+          } else {
+            refuse("changed", "conflict: delete mismatch");
           }
+        } else if (newFocuses.length === oldFocuses.length + 1) {
+          let insIdx = -1;
+          for (let i = 0; i < newFocuses.length; i++) {
+            const cand = [...newFocuses];
+            cand.splice(i, 1);
+            if (JSON.stringify(cand) === JSON.stringify(oldFocuses)) {
+              insIdx = i;
+              break;
+            }
+          }
+          if (insIdx >= 0) {
+            const merged = [...diskFocuses];
+            if (insIdx >= oldFocuses.length) {
+              merged.push(newFocuses[insIdx]);
+            } else if (diskFocuses.length >= oldFocuses.length && JSON.stringify(diskFocuses.slice(0, oldFocuses.length)) === JSON.stringify(oldFocuses)) {
+              merged.splice(insIdx, 0, newFocuses[insIdx]);
+            } else {
+              refuse("changed", "conflict: insert mismatch");
+            }
+            finalFocuses = merged;
+          } else {
+            refuse("changed", "conflict");
+          }
+        } else if (newFocuses.length > oldFocuses.length && JSON.stringify(newFocuses.slice(0, oldFocuses.length)) === JSON.stringify(oldFocuses)) {
+          const added = newFocuses.slice(oldFocuses.length);
+          if (diskFocuses.length >= oldFocuses.length && JSON.stringify(diskFocuses.slice(0, oldFocuses.length)) === JSON.stringify(oldFocuses)) {
+            finalFocuses = [...diskFocuses, ...added];
+          } else {
+            refuse("changed", "conflict");
+          }
+        } else {
+          refuse("changed", "conflict");
         }
-
-        // Apply non-conflicting changes onto diskFocuses:
-        let merged = diskFocuses.filter((df) => !removed.some((rf) => rf.name === df.name));
-        for (const uf of updated) {
-          const idx = merged.findIndex((m) => m.name === uf.name);
-          if (idx >= 0) merged[idx] = uf;
-        }
-        for (const af of added) {
-          merged.push(af);
-        }
-        finalFocuses = merged;
       }
 
       // Format-preserving serialization matching verso-core
@@ -1066,19 +1098,27 @@ export class Core {
         const parsed = JSON.parse(oldText);
         if (Array.isArray(parsed)) {
           const items: any[] = [];
+          const usedIndices = new Set<number>();
           for (const f of finalFocuses) {
-            const old = parsed.find((p: any) => p && p.name === f.name);
-            if (old && JSON.stringify(old) === JSON.stringify(f)) {
-              items.push(old);
-            } else if (old) {
-              const obj: any = {};
-              for (const k of Object.keys(old)) {
-                if (k in f) obj[k] = (f as any)[k];
+            let foundIdx = parsed.findIndex((p: any, idx: number) => !usedIndices.has(idx) && p && JSON.stringify(p) === JSON.stringify(f));
+            if (foundIdx < 0) {
+              foundIdx = parsed.findIndex((p: any, idx: number) => !usedIndices.has(idx) && p && p.name === f.name);
+            }
+            if (foundIdx >= 0) {
+              usedIndices.add(foundIdx);
+              const old = parsed[foundIdx];
+              if (JSON.stringify(old) === JSON.stringify(f)) {
+                items.push(old);
+              } else {
+                const obj: any = {};
+                for (const k of Object.keys(old)) {
+                  if (k in f) obj[k] = (f as any)[k];
+                }
+                if (!("name" in obj)) obj.name = f.name;
+                if (!("paths" in obj)) obj.paths = f.paths;
+                if (f.sticker && !("sticker" in obj)) obj.sticker = f.sticker;
+                items.push(obj);
               }
-              if (!("name" in obj)) obj.name = f.name;
-              if (!("paths" in obj)) obj.paths = f.paths;
-              if (f.sticker && !("sticker" in obj)) obj.sticker = f.sticker;
-              items.push(obj);
             } else {
               items.push(f);
             }
