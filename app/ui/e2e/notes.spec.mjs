@@ -86,6 +86,18 @@ test("a renamed note shows who links to it at once", async ({ app }) => {
   await expect(panel).toContainText("Pesquisa e Descobertas");
 });
 
+test("backlinks and outgoing links share one tab, a divider between them", async ({ app }) => {
+  await app.open();
+  await app.quickOpen("Projeto Beta");
+  await app.key("Mod+Alt+ArrowRight");
+  await expect(app.page.locator('#right-tabs button[data-tab="outgoing"]')).toHaveCount(0);
+  await app.page.locator('#right-tabs button[data-tab="backlinks"]').click();
+  const panel = app.page.locator("#right-body");
+  await expect(panel.locator(".links-back .links-head")).toBeVisible();
+  await expect(panel.locator(".links-out .links-head")).toBeVisible();
+});
+
+
 test("⌘D makes today's note from the Diário template, and the calendar marks the days", async ({ app }) => {
   await app.open();
   const day = await today(app);
