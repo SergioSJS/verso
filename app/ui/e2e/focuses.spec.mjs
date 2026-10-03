@@ -490,3 +490,141 @@ test("iCloud placeholder .waypoints.json.icloud displays unavailable banner", as
   await expect(banner).toContainText("iCloud");
 });
 
+test("local focuses survive enabling sync with make.md when choosing Manter local", async ({ app }) => {
+  await app.open();
+
+  // 1. Create a focus "Areas" without make.md (stored in local settings)
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+  await app.page.locator("#focuses-add").click();
+  await app.page.locator(".prompt-box input").fill("Areas");
+  await app.page.locator(".confirm-actions button.save").click();
+  await expect(app.page.locator('.focus-item[data-focus-name="Areas"]')).toBeVisible();
+
+  // 2. make.md creates .space/waypoints.json
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "Externo", paths: ["Docs"] },
+    ]),
+  );
+  await app.folderChanged([".space/waypoints.json"], true);
+
+  // 3. Turn on sync in settings
+  await app.key("Mod+,");
+  const settingsModal = app.page.locator(".settings:not([hidden])");
+  await expect(settingsModal).toBeVisible();
+  await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
+  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  await syncRow.locator('input[type="checkbox"]').click();
+
+  // Dialog 1: Warning about make.md format
+  const confirmBox1 = app.page.locator(".confirm-box");
+  await expect(confirmBox1).toBeVisible();
+  await confirmBox1.locator("button.save", { hasText: "Sincronizar" }).click();
+
+  // Dialog 2: Migration prompt - choose "Manter local"
+  const confirmBox2 = app.page.locator(".confirm-box");
+  await expect(confirmBox2).toBeVisible();
+  await confirmBox2.locator("button.ghost", { hasText: "Manter local" }).click();
+  await app.key("Escape");
+
+  // 4. Verify in Focos tab:
+  // Both Externo (from make.md) and Areas (local) are visible!
+  await expect(app.page.locator('.focus-item[data-focus-name="Externo"]')).toBeVisible();
+  const areasItem = app.page.locator('.focus-item[data-focus-name="Areas"]');
+  await expect(areasItem).toBeVisible();
+
+  // .space/waypoints.json was NOT modified with "Areas"
+  const content = await app.file(".space/waypoints.json");
+  expect(content).not.toContain("Areas");
+  expect(content).toContain("Externo");
+
+  // In settings, localFocuses still has Areas
+  const settingsJson = await app.page.evaluate(() => localStorage.getItem("verso.settings"));
+  expect(settingsJson).toContain("Areas");
+});
+
+test("local focuses migrate to waypoints.json when choosing Sincronizar", async ({ app }) => {
+  await app.open();
+
+  // 1. Create a focus "Areas" without make.md
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+  await app.page.locator("#focuses-add").click();
+  await app.page.locator(".prompt-box input").fill("Areas");
+  await app.page.locator(".confirm-actions button.save").click();
+  await expect(app.page.locator('.focus-item[data-focus-name="Areas"]')).toBeVisible();
+
+  // 2. make.md creates .space/waypoints.json
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "Externo", paths: ["Docs"] },
+    ]),
+  );
+  await app.folderChanged([".space/waypoints.json"], true);
+
+  // 3. Turn on sync in settings
+  await app.key("Mod+,");
+  const settingsModal = app.page.locator(".settings:not([hidden])");
+  await expect(settingsModal).toBeVisible();
+  await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
+  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  await syncRow.locator('input[type="checkbox"]').click();
+
+  // Dialog 1: Warning about make.md format
+  const confirmBox1 = app.page.locator(".confirm-box");
+  await expect(confirmBox1).toBeVisible();
+  await confirmBox1.locator("button.save", { hasText: "Sincronizar" }).click();
+
+  // Dialog 2: Migration prompt - choose "Sincronizar"
+  const confirmBox2 = app.page.locator(".confirm-box");
+  await expect(confirmBox2).toBeVisible();
+  await confirmBox2.locator("button.save", { hasText: "Sincronizar" }).click();
+  await app.key("Escape");
+
+  // 4. Verify in Focos tab and on disk:
+  await expect(app.page.locator('.focus-item[data-focus-name="Externo"]')).toBeVisible();
+  await expect(app.page.locator('.focus-item[data-focus-name="Areas"]')).toBeVisible();
+
+  // .space/waypoints.json contains both
+  const content = await app.file(".space/waypoints.json");
+  expect(content).toContain("Areas");
+  expect(content).toContain("Externo");
+
+  // In settings, localFocuses was cleared
+  const settingsJson = await app.page.evaluate(() => localStorage.getItem("verso.settings"));
+  if (settingsJson) {
+    const parsed = JSON.parse(settingsJson);
+    const local = Object.values(parsed.localFocuses || {}).flat();
+    expect(local).toHaveLength(0);
+  }
+});
+
+test("duplicate focus names in waypoints.json are treated as known format (D6)", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "Dup", paths: ["PastaA"] },
+      { name: "Dup", paths: ["PastaB"] },
+    ]),
+  );
+  await app.folderChanged([".space/waypoints.json"], true);
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  // Should NOT display "formato desconhecido" banner
+  const banner = app.page.locator(".focuses-banner");
+  await expect(banner).not.toContainText("formato desconhecido");
+
+  // Dup item is visible
+  await expect(app.page.locator('.focus-item[data-focus-name="Dup"]').first()).toBeVisible();
+});
+

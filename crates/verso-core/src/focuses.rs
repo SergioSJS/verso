@@ -34,6 +34,9 @@ pub struct FocusesSummary {
     pub format_known: bool,
     /// Why the file is read-only, if unknown format or unreadable.
     pub read_only_reason: Option<String>,
+    /// Machine-readable code for read-only reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_only_code: Option<String>,
     /// The revision stamp for optimistic concurrency (Invariants 9 & 11).
     pub stamp: Option<String>,
 }
@@ -47,7 +50,6 @@ pub fn validate_known_format(value: &serde_json::Value) -> Result<Vec<Focus>, St
         return Err("expected JSON array".to_owned());
     };
     let mut focuses = Vec::with_capacity(items.len());
-    let mut seen_names = std::collections::HashSet::new();
     for (i, item) in items.iter().enumerate() {
         let serde_json::Value::Object(map) = item else {
             return Err(format!("element {i} is not a JSON object"));
@@ -60,10 +62,6 @@ pub fn validate_known_format(value: &serde_json::Value) -> Result<Vec<Focus>, St
         let Some(serde_json::Value::String(name)) = map.get("name") else {
             return Err(format!("element {i} missing string 'name'"));
         };
-        let lower = name.to_lowercase();
-        if !seen_names.insert(lower) {
-            return Err(format!("duplicate focus name {name:?} in element {i}"));
-        }
         let Some(serde_json::Value::Array(raw_paths)) = map.get("paths") else {
             return Err(format!("element {i} missing array 'paths'"));
         };
@@ -148,6 +146,7 @@ pub fn read_focuses(root: &Root) -> Result<FocusesSummary, CoreError> {
                         has_file: true,
                         format_known: true,
                         read_only_reason: None,
+                        read_only_code: None,
                         stamp: Some(stamp_str),
                     }),
                     Err(reason) => {
@@ -157,6 +156,7 @@ pub fn read_focuses(root: &Root) -> Result<FocusesSummary, CoreError> {
                             has_file: true,
                             format_known: false,
                             read_only_reason: Some(reason),
+                            read_only_code: Some("unknown_format".to_string()),
                             stamp: Some(stamp_str),
                         })
                     }
@@ -166,6 +166,7 @@ pub fn read_focuses(root: &Root) -> Result<FocusesSummary, CoreError> {
                     has_file: true,
                     format_known: false,
                     read_only_reason: Some(format!("invalid JSON: {e}")),
+                    read_only_code: Some("invalid_json".to_string()),
                     stamp: Some(stamp_str),
                 }),
             }
@@ -174,7 +175,8 @@ pub fn read_focuses(root: &Root) -> Result<FocusesSummary, CoreError> {
             focuses: Vec::new(),
             has_file: true,
             format_known: false,
-            read_only_reason: Some("arquivo na nuvem (iCloud) ainda não baixado".to_string()),
+            read_only_reason: Some("file in cloud (iCloud) not yet downloaded".to_string()),
+            read_only_code: Some("cloud_placeholder".to_string()),
             stamp: None,
         }),
         Err(ReadError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound => Ok(FocusesSummary {
@@ -182,6 +184,7 @@ pub fn read_focuses(root: &Root) -> Result<FocusesSummary, CoreError> {
             has_file: false,
             format_known: false,
             read_only_reason: None,
+            read_only_code: None,
             stamp: None,
         }),
         Err(e) => Err(CoreError::Read(e)),
@@ -326,17 +329,12 @@ fn format_focus(focus: &Focus, keys_order: &[String]) -> String {
 
 /// Validate incoming focuses according to ADR 0062 D6 rules.
 pub fn validate_focuses_input(focuses: &[Focus]) -> Result<(), String> {
-    let mut seen_names = std::collections::HashSet::new();
     for (i, f) in focuses.iter().enumerate() {
         if f.name.is_empty() {
             return Err(format!("focus {i} has empty name"));
         }
         if f.name.contains('\0') {
             return Err(format!("focus {i} name contains NUL byte"));
-        }
-        let lower = f.name.to_lowercase();
-        if !seen_names.insert(lower) {
-            return Err(format!("duplicate focus name {:?}", f.name));
         }
         for (pi, p) in f.paths.iter().enumerate() {
             if p.contains('\0') {
@@ -586,6 +584,7 @@ pub fn write_focuses(
                 has_file: true,
                 format_known: true,
                 read_only_reason: None,
+                read_only_code: None,
                 stamp: Some(revision::encode(&final_stamp)),
             })
         }
@@ -641,6 +640,7 @@ fn try_reread_and_reapply(
         has_file: true,
         format_known: true,
         read_only_reason: None,
+        read_only_code: None,
         stamp: Some(revision::encode(&final_stamp)),
     })
 }

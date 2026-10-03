@@ -108,6 +108,9 @@ pub struct FocusesSummary {
     pub format_known: bool,
     /// Why the file is read-only, if not known format or unreadable.
     pub read_only_reason: Option<String>,
+    /// Machine-readable code for read-only reason ("cloud_placeholder", "unknown_format", "invalid_json").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_only_code: Option<String>,
     /// The revision stamp for optimistic concurrency (Invariants 9 & 11).
     pub stamp: Option<String>,
 }

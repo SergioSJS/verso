@@ -952,6 +952,9 @@ impl Workspace {
         let summary = focuses::read_focuses(&self.root)?;
         if summary.format_known {
             if let Some(stamp) = &summary.stamp {
+                if self.stamped_focuses.len() >= 16 {
+                    self.stamped_focuses.clear();
+                }
                 self.stamped_focuses
                     .insert(stamp.clone(), summary.focuses.clone());
             }
@@ -993,23 +996,7 @@ impl Workspace {
 
         // Determine base focuses for concurrent reapply (ADR 0062 D7):
         let base_to_use = match (base_focuses.as_deref(), expected_stamp) {
-            (Some(b), Some(stamp)) => {
-                if self
-                    .stamped_focuses
-                    .get(stamp)
-                    .is_some_and(|stored| stored != b)
-                {
-                    return Err(CoreError::Write(WriteError::Changed {
-                        current: Stamp {
-                            modified: std::time::SystemTime::now(),
-                            len: 0,
-                            hash: 0,
-                        },
-                    }));
-                }
-                Some(b)
-            }
-            (Some(b), None) => Some(b),
+            (Some(b), _) => Some(b),
             (None, Some(stamp)) => self.stamped_focuses.get(stamp).map(|v| v.as_slice()),
             (None, None) => None,
         };
@@ -1017,6 +1004,9 @@ impl Workspace {
         let summary = focuses::write_focuses(&self.root, base_to_use, focuses, expected_stamp)?;
         if summary.format_known {
             if let Some(stamp) = &summary.stamp {
+                if self.stamped_focuses.len() >= 16 {
+                    self.stamped_focuses.clear();
+                }
                 self.stamped_focuses
                     .insert(stamp.clone(), summary.focuses.clone());
             }

@@ -352,7 +352,8 @@ export class Core {
           focuses: [],
           has_file: true,
           format_known: false,
-          read_only_reason: "arquivo na nuvem (iCloud) ainda não baixado",
+          read_only_reason: "file in cloud (iCloud) not yet downloaded",
+          read_only_code: "cloud_placeholder",
           stamp: null,
         };
       }
@@ -361,6 +362,7 @@ export class Core {
         has_file: false,
         format_known: false,
         read_only_reason: null,
+        read_only_code: null,
         stamp: null,
       };
     }
@@ -373,10 +375,10 @@ export class Core {
           has_file: true,
           format_known: false,
           read_only_reason: "expected JSON array",
+          read_only_code: "unknown_format",
           stamp: String(stored.revision),
         };
       }
-      const seenNames = new Set<string>();
       for (let i = 0; i < parsed.length; i++) {
         const item = parsed[i];
         if (!item || typeof item !== "object" || Array.isArray(item)) {
@@ -385,6 +387,7 @@ export class Core {
             has_file: true,
             format_known: false,
             read_only_reason: `element ${i} is not an object`,
+            read_only_code: "unknown_format",
             stamp: String(stored.revision),
           };
         }
@@ -395,6 +398,7 @@ export class Core {
             has_file: true,
             format_known: false,
             read_only_reason: `unknown key in element ${i}`,
+            read_only_code: "unknown_format",
             stamp: String(stored.revision),
           };
         }
@@ -404,20 +408,10 @@ export class Core {
             has_file: true,
             format_known: false,
             read_only_reason: `element ${i} missing name or paths`,
+            read_only_code: "unknown_format",
             stamp: String(stored.revision),
           };
         }
-        const lower = item.name.toLowerCase();
-        if (seenNames.has(lower)) {
-          return {
-            focuses: [],
-            has_file: true,
-            format_known: false,
-            read_only_reason: `duplicate focus name '${item.name}' in element ${i}`,
-            stamp: String(stored.revision),
-          };
-        }
-        seenNames.add(lower);
         for (let pi = 0; pi < item.paths.length; pi++) {
           const p = item.paths[pi];
           if (typeof p !== "string" || (p !== "/" && (p === "" || p.startsWith("/") || p.split("/").some((s: string) => s === "..")))) {
@@ -426,6 +420,7 @@ export class Core {
               has_file: true,
               format_known: false,
               read_only_reason: `invalid path in element ${i}`,
+              read_only_code: "unknown_format",
               stamp: String(stored.revision),
             };
           }
@@ -436,6 +431,7 @@ export class Core {
             has_file: true,
             format_known: false,
             read_only_reason: `element ${i} sticker is not string`,
+            read_only_code: "unknown_format",
             stamp: String(stored.revision),
           };
         }
@@ -449,6 +445,7 @@ export class Core {
         has_file: true,
         format_known: true,
         read_only_reason: null,
+        read_only_code: null,
         stamp: String(stored.revision),
       };
     } catch (e) {
@@ -457,6 +454,7 @@ export class Core {
         has_file: true,
         format_known: false,
         read_only_reason: String(e),
+        read_only_code: "invalid_json",
         stamp: String(stored.revision),
       };
     }
@@ -989,17 +987,11 @@ export class Core {
       if (!currentSummary.format_known) {
         refuse("failed", "cannot write focuses: current file format is not known");
       }
-      const seenNames = new Set<string>();
       for (let i = 0; i < focuses.length; i++) {
         const f = focuses[i];
         if (!f || typeof f.name !== "string" || !Array.isArray(f.paths)) {
           refuse("failed", `invalid focus at index ${i}`);
         }
-        const lower = f.name.toLowerCase();
-        if (seenNames.has(lower)) {
-          refuse("failed", `duplicate focus name '${f.name}'`);
-        }
-        seenNames.add(lower);
         for (const p of f.paths) {
           if (typeof p !== "string" || (p !== "/" && (p === "" || p.startsWith("/") || p.split("/").some((s) => s === "..")))) {
             refuse("failed", `invalid path '${p}' in focus '${f.name}'`);
@@ -1106,6 +1098,7 @@ export class Core {
         has_file: true,
         format_known: true,
         read_only_reason: null,
+        read_only_code: null,
         stamp: String(newStored.revision),
       };
     },

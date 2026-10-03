@@ -689,6 +689,8 @@ export type FocusesSummary_Deserialize = {
 	format_known: boolean,
 	/**  Why the file is read-only, if not known format or unreadable. */
 	read_only_reason: string | null,
+	/**  Machine-readable code for read-only reason ("cloud_placeholder", "unknown_format", "invalid_json"). */
+	read_only_code?: string | null,
 	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
 	stamp: string | null,
 };
@@ -703,6 +705,8 @@ export type FocusesSummary_Serialize = {
 	format_known: boolean,
 	/**  Why the file is read-only, if not known format or unreadable. */
 	read_only_reason: string | null,
+	/**  Machine-readable code for read-only reason ("cloud_placeholder", "unknown_format", "invalid_json"). */
+	read_only_code?: string | null,
 	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
 	stamp: string | null,
 };

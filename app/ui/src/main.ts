@@ -160,7 +160,7 @@ type Strings = Record<
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed"
   | "sOrganizing" | "stickers" | "stickersDesc" | "stickerInLinks" | "stickerInLinksDesc" | "covers" | "coversDesc" | "coverHeight" | "coverHeightDesc" | "aliasInTree" | "aliasInTreeDesc" | "folderNoteName" | "folderNoteNameDesc" | "folderNoteInside" | "folderNoteBeside" | "folderNoteNone" | "folderPageTable" | "folderPageTableDesc" | "manualOrder" | "manualOrderDesc" | "inlineEmbedEdit" | "inlineEmbedEditDesc" | "emojiTrigger" | "emojiTriggerDesc" | "changeSticker" | "changeColor" | "removeSticker" | "removeColor" | "addCover" | "changeCover" | "repositionCover" | "removeCover" | "savePosition" | "cancelPosition" | "turnIntoFolder" | "turnIntoFolderDesc" | "folderNoteCreated" | "coverUrlPrompt"
   | "pinToFolder" | "unpinFromFolder" | "moveUp" | "moveDown" | "hideFromTree" | "hiddenFromTree" | "hiddenFromTreeDesc" | "unhide" | "noHiddenItems" | "stickerTabEmoji" | "stickerTabIcons" | "stickerPickerLabel" | "stickerGridLabel" | "editInPlace" | "embedDone" | "coverRemoteOff" | "orderAlphabetical" | "orderCustom" | "openFolderNote" | "orderToAlphabetical" | "orderToCustom"
-  | "focusesTab" | "homeFocus" | "createFocus" | "createFocusHere" | "addToFocus" | "switchFocus" | "syncFocuses" | "syncFocusesDesc" | "syncFocusesWarning" | "syncFocusesEnable" | "syncFocusesOffInfo" | "syncFocusesOffBanner" | "syncLocalFocusesQuestion" | "focusesConflict" | "focusNamePrompt" | "noFocuses" | "readOnlyFocuses" | "resetToHome" | "focusCreated" | "focusDeleted" | "deleteFocus",
+  | "focusesTab" | "homeFocus" | "createFocus" | "createFocusHere" | "addToFocus" | "switchFocus" | "syncFocuses" | "syncFocusesDesc" | "syncFocusesWarning" | "syncFocusesEnable" | "syncFocusesOffInfo" | "syncFocusesOffBanner" | "syncLocalFocusesQuestion" | "focusesConflict" | "focusNamePrompt" | "noFocuses" | "readOnlyFocuses" | "readOnlyCloudPlaceholder" | "readOnlyInvalidJson" | "readOnlyUnknownFormat" | "resetToHome" | "focusCreated" | "focusDeleted" | "deleteFocus",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -318,7 +318,7 @@ const pt: Strings = {
   coverRemoteOff: "Conteúdo remoto desligado: esta capa não foi carregada.",
   orderAlphabetical: "Ordem alfabética", orderCustom: "Ordem personalizada", openFolderNote: "Abrir nota da pasta",
   orderToAlphabetical: "Ordem personalizada — clique para a alfabética", orderToCustom: "Ordem alfabética — clique para a personalizada",
-  focusesTab: "Focos", homeFocus: "Início", createFocus: "Criar foco", createFocusHere: "Criar foco aqui", addToFocus: "Adicionar ao foco…", switchFocus: "Trocar foco", syncFocuses: "Sincronizar focos com o make.md", syncFocusesDesc: "Grava as alterações de foco no arquivo .space/waypoints.json compatível com o make.md.", syncFocusesWarning: "O arquivo do make.md (.space/waypoints.json) não tem um formato público publicado e uma versão futura do plugin pode interpretá-lo de forma diferente. Deseja sincronizar os focos mesmo assim?", syncFocusesEnable: "Sincronizar", syncFocusesOffInfo: "Manter local", syncFocusesOffBanner: "Sincronização desativada: alterações ficam salvas nas configurações do Verso.", syncLocalFocusesQuestion: "Deseja sincronizar os focos locais com o arquivo .space/waypoints.json do make.md?", focusesConflict: "Nada gravado: o arquivo mudou no make.md.", focusNamePrompt: "Nome do foco", noFocuses: "Nenhum foco criado.", readOnlyFocuses: "O arquivo .space/waypoints.json está em formato desconhecido ou somente leitura.", resetToHome: "Voltar para Início", focusCreated: "Foco criado.", focusDeleted: "Foco excluído.", deleteFocus: "Excluir",
+  focusesTab: "Focos", homeFocus: "Início", createFocus: "Criar foco", createFocusHere: "Criar foco aqui", addToFocus: "Adicionar ao foco…", switchFocus: "Trocar foco", syncFocuses: "Sincronizar focos com o make.md", syncFocusesDesc: "Grava as alterações de foco no arquivo .space/waypoints.json compatível com o make.md.", syncFocusesWarning: "O arquivo do make.md (.space/waypoints.json) não tem um formato público publicado e uma versão futura do plugin pode interpretá-lo de forma diferente. Deseja sincronizar os focos mesmo assim?", syncFocusesEnable: "Sincronizar", syncFocusesOffInfo: "Manter local", syncFocusesOffBanner: "Sincronização desativada: alterações ficam salvas nas configurações do Verso.", syncLocalFocusesQuestion: "Deseja sincronizar os focos locais com o arquivo .space/waypoints.json do make.md?", focusesConflict: "Nada gravado: o arquivo mudou no make.md.", focusNamePrompt: "Nome do foco", noFocuses: "Nenhum foco criado.", readOnlyFocuses: "O arquivo .space/waypoints.json está em formato desconhecido ou somente leitura.", readOnlyCloudPlaceholder: "O arquivo .space/waypoints.json está na nuvem (iCloud) e ainda não foi baixado neste computador.", readOnlyInvalidJson: "O arquivo .space/waypoints.json não contém um JSON válido.", readOnlyUnknownFormat: "O arquivo .space/waypoints.json está em formato desconhecido ou não suportado.", resetToHome: "Voltar para Início", focusCreated: "Foco criado.", focusDeleted: "Foco excluído.", deleteFocus: "Excluir",
   confirmDeleteFocus: (name: string) => `Excluir o foco "${name}"?`,
   pathAddedToFocus: (path: string, focus: string) => `"${path}" adicionado ao foco "${focus}".`,
 };
@@ -446,7 +446,7 @@ const en: Strings = {
   coverRemoteOff: "Remote content is off: this cover was not loaded.",
   orderAlphabetical: "Alphabetical order", orderCustom: "Custom order", openFolderNote: "Open the folder note",
   orderToAlphabetical: "Custom order — click for alphabetical", orderToCustom: "Alphabetical order — click for custom",
-  focusesTab: "Focuses", homeFocus: "Home", createFocus: "Create focus", createFocusHere: "Create focus here", addToFocus: "Add to focus…", switchFocus: "Switch focus", syncFocuses: "Sync focuses with make.md", syncFocusesDesc: "Save focus changes to .space/waypoints.json compatible with make.md.", syncFocusesWarning: "The make.md file (.space/waypoints.json) is not a published format and a later version of the plugin may read it differently. Do you want to sync focuses anyway?", syncFocusesEnable: "Sync", syncFocusesOffInfo: "Keep local", syncFocusesOffBanner: "Sync disabled: changes are kept in Verso's settings.", syncLocalFocusesQuestion: "Do you want to sync local focuses with make.md's .space/waypoints.json file?", focusesConflict: "Nothing written: the file changed in make.md.", focusNamePrompt: "Focus name", noFocuses: "No focuses created.", readOnlyFocuses: "The .space/waypoints.json file is in an unknown format or read-only.", resetToHome: "Reset to Home", focusCreated: "Focus created.", focusDeleted: "Focus deleted.", deleteFocus: "Delete",
+  focusesTab: "Focuses", homeFocus: "Home", createFocus: "Create focus", createFocusHere: "Create focus here", addToFocus: "Add to focus…", switchFocus: "Switch focus", syncFocuses: "Sync focuses with make.md", syncFocusesDesc: "Save focus changes to .space/waypoints.json compatible with make.md.", syncFocusesWarning: "The make.md file (.space/waypoints.json) is not a published format and a later version of the plugin may read it differently. Do you want to sync focuses anyway?", syncFocusesEnable: "Sync", syncFocusesOffInfo: "Keep local", syncFocusesOffBanner: "Sync disabled: changes are kept in Verso's settings.", syncLocalFocusesQuestion: "Do you want to sync local focuses with make.md's .space/waypoints.json file?", focusesConflict: "Nothing written: the file changed in make.md.", focusNamePrompt: "Focus name", noFocuses: "No focuses created.", readOnlyFocuses: "The .space/waypoints.json file is in an unknown format or read-only.", readOnlyCloudPlaceholder: "The .space/waypoints.json file is in the cloud (iCloud) and has not been downloaded to this computer yet.", readOnlyInvalidJson: "The .space/waypoints.json file does not contain valid JSON.", readOnlyUnknownFormat: "The .space/waypoints.json file is in an unknown or unsupported format.", resetToHome: "Reset to Home", focusCreated: "Focus created.", focusDeleted: "Focus deleted.", deleteFocus: "Delete",
   confirmDeleteFocus: (name: string) => `Delete focus "${name}"?`,
   pathAddedToFocus: (path: string, focus: string) => `"${path}" added to focus "${focus}".`,
 };
@@ -8248,7 +8248,7 @@ function forgetFiles(): void {
 }
 
 /* ---------- Focuses (ADR 0062) ---------- */
-type FocusWithOrigin = Focus & { isFromMakeMd?: boolean };
+type FocusWithOrigin = Focus & { isFromMakeMd?: boolean; isLocal?: boolean };
 let focusesSummary: FocusesSummary | null = null;
 let focusesList: FocusWithOrigin[] = [];
 let activeFocusName: string = t.homeFocus;
@@ -8258,22 +8258,11 @@ function isHomeFocusName(name: string): boolean {
   return name === t.homeFocus || name === "Home" || name === "Início";
 }
 
-function formatReadOnlyReason(reason: string | null): string {
-  if (!reason) return t.readOnlyFocuses;
-  if (!LOCALE.startsWith("pt")) return reason;
-  if (reason.includes("iCloud placeholder") || reason.includes("placeholder") || reason.includes("ainda não baixado")) {
-    return "O arquivo .space/waypoints.json está apenas no iCloud e ainda não foi baixado neste computador.";
-  }
-  if (reason.includes("Duplicate focus names") || reason.includes("duplicados")) {
-    return "O arquivo .space/waypoints.json possui focos com nomes duplicados.";
-  }
-  if (reason.includes("Format is unknown") || reason.includes("unsupported") || reason.includes("desconhecido")) {
-    return "O arquivo .space/waypoints.json está em formato desconhecido ou não suportado.";
-  }
-  if (reason.includes("Invalid JSON")) {
-    return "O arquivo .space/waypoints.json não contém um JSON válido.";
-  }
-  return t.readOnlyFocuses;
+function formatReadOnlyReason(code: string | null | undefined, reason: string | null | undefined): string {
+  if (code === "cloud_placeholder") return t.readOnlyCloudPlaceholder;
+  if (code === "invalid_json") return t.readOnlyInvalidJson;
+  if (code === "unknown_format") return t.readOnlyUnknownFormat;
+  return reason ?? t.readOnlyFocuses;
 }
 
 function getDisplayFocuses(): FocusWithOrigin[] {
@@ -8332,18 +8321,30 @@ async function promptSyncFocusesIfNeeded(): Promise<boolean> {
     const ok = await ask(t.syncFocusesWarning, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
     setSyncFocusesAsked(true);
     if (ok) {
+      setSyncFocuses(true);
+      await commands.setSyncFocuses(true);
       const local = getLocalFocuses();
       if (local.length > 0) {
         const migrate = await ask(t.syncLocalFocusesQuestion, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
-        if (!migrate) {
-          setLocalFocuses([]);
+        if (migrate) {
+          const r = await commands.getFocuses();
+          if (r.status === "ok") focusesSummary = r.data;
+          const diskFocuses = focusesSummary?.focuses ?? [];
+          const toAdd = local.filter((lf) => !diskFocuses.some((df) => df.name.trim().toLowerCase() === lf.name.trim().toLowerCase()));
+          const toSave = [...diskFocuses, ...toAdd];
+          const base = diskFocuses;
+          const res = await commands.setFocuses(toSave, focusesSummary?.stamp ?? null, base);
+          if (res.status === "ok") {
+            setLocalFocuses([]);
+            focusesSummary = res.data;
+          }
         }
       }
-      setSyncFocuses(true);
       await loadFocuses(true);
       return true;
     } else {
       setSyncFocuses(false);
+      await commands.setSyncFocuses(false);
       return false;
     }
   }
@@ -8374,13 +8375,22 @@ async function loadFocuses(forceReload = false): Promise<void> {
   const local = getLocalFocuses();
 
   if (hasFile && isSync && isKnown) {
-    focusesList = (focusesSummary?.focuses ?? []).map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false }));
+    const diskFocuses: FocusWithOrigin[] = (focusesSummary?.focuses ?? []).map((f) => ({
+      ...f,
+      paths: [...f.paths],
+      isFromMakeMd: true,
+      isLocal: false,
+    }));
+    const localFocuses: FocusWithOrigin[] = local
+      .filter((lf) => !diskFocuses.some((df) => df.name.trim().toLowerCase() === lf.name.trim().toLowerCase()))
+      .map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false, isLocal: true }));
+    focusesList = [...diskFocuses, ...localFocuses];
   } else if (hasFile) {
     // Read-only make.md focuses beside Verso local focuses (ADR 0062 D5)
-    const diskFocuses = (focusesSummary?.focuses ?? []).map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: true }));
+    const diskFocuses = (focusesSummary?.focuses ?? []).map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: true, isLocal: false }));
     const versoFocuses = local
       .filter((lf) => !diskFocuses.some((df) => df.name.trim().toLowerCase() === lf.name.trim().toLowerCase()))
-      .map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false }));
+      .map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false, isLocal: true }));
     focusesList = [...diskFocuses, ...versoFocuses];
   } else {
     // No waypoints.json: all focuses are local in Verso settings (ADR 0062 D5)
@@ -8393,7 +8403,7 @@ async function loadFocuses(forceReload = false): Promise<void> {
         uniqueLocal.push(f);
       }
     }
-    focusesList = uniqueLocal.map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false }));
+    focusesList = uniqueLocal.map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false, isLocal: true }));
   }
 
   try {
@@ -8416,9 +8426,9 @@ async function saveFocuses(): Promise<void> {
 
   if (isSync && hasFile && isKnown && focusesSummary) {
     // Save to .space/waypoints.json via core (ADR 0062 D5, D6, D7)
-    // Virtual Início is not written to make.md's file unless it was an explicit waypoint
+    // Only write items that are not isLocal (i.e. file focuses)
     const toSave: Focus[] = focusesList
-      .filter((f) => !isHomeFocusName(f.name) || (focusesSummary?.focuses ?? []).some((df) => isHomeFocusName(df.name)))
+      .filter((f) => !f.isLocal && (!isHomeFocusName(f.name) || (focusesSummary?.focuses ?? []).some((df) => isHomeFocusName(df.name))))
       .map((f) => ({ name: f.name, paths: [...f.paths], sticker: f.sticker ?? null }));
     const base: Focus[] = (focusesSummary?.focuses ?? []).map((f) => ({
       name: f.name,
@@ -8428,8 +8438,17 @@ async function saveFocuses(): Promise<void> {
     const r = await commands.setFocuses(toSave, focusesSummary.stamp, base);
     if (r.status === "ok") {
       focusesSummary = r.data;
-      focusesList = (r.data.focuses ?? []).map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false }));
-      setLocalFocuses([]);
+      const diskItems: FocusWithOrigin[] = (r.data.focuses ?? []).map((f) => ({
+        ...f,
+        paths: [...f.paths],
+        isFromMakeMd: true,
+        isLocal: false,
+      }));
+      const localItems: FocusWithOrigin[] = focusesList
+        .filter((f) => f.isLocal && !isHomeFocusName(f.name))
+        .map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false, isLocal: true }));
+      focusesList = [...diskItems, ...localItems];
+      setLocalFocuses(localItems.map((f) => ({ name: f.name, paths: [...f.paths], sticker: f.sticker ?? null })));
       focusesConflictBanner = null;
     } else {
       focusesConflictBanner = t.focusesConflict;
@@ -8459,6 +8478,7 @@ async function selectFocus(name: string): Promise<void> {
 }
 
 async function addFocusPrompt(): Promise<FocusWithOrigin | null> {
+  const isSync = getSyncFocuses() && (focusesSummary?.has_file ?? false) && (focusesSummary?.format_known ?? false);
   const input = await promptText(t.focusNamePrompt, "", false, { yes: t.save, no: t.cancel });
   if (!input || !input.trim()) return null;
   const focusName = input.trim();
@@ -8467,7 +8487,13 @@ async function addFocusPrompt(): Promise<FocusWithOrigin | null> {
     return null;
   }
   await promptSyncFocusesIfNeeded();
-  const newFocus: FocusWithOrigin = { name: focusName, paths: [], sticker: null, isFromMakeMd: false };
+  const newFocus: FocusWithOrigin = {
+    name: focusName,
+    paths: [],
+    sticker: null,
+    isFromMakeMd: isSync,
+    isLocal: !isSync,
+  };
   focusesList.push(newFocus);
   await saveFocuses();
   ui.status.textContent = t.focusCreated;
@@ -8683,7 +8709,7 @@ class Panel {
     if (focusesConflictBanner) {
       wrap.append(h("div", "focuses-banner error", focusesConflictBanner));
     } else if (focusesSummary?.has_file && !focusesSummary.format_known) {
-      wrap.append(h("div", "focuses-banner", formatReadOnlyReason(focusesSummary.read_only_reason)));
+      wrap.append(h("div", "focuses-banner", formatReadOnlyReason(focusesSummary.read_only_code, focusesSummary.read_only_reason)));
     } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses()) {
       wrap.append(h("div", "focuses-banner", t.syncFocusesOffBanner));
     }
@@ -8702,7 +8728,7 @@ class Panel {
     for (const focus of displayList) {
       const isHome = isHomeFocusName(focus.name);
       const isActive = isHome ? isHomeFocusName(activeFocusName) : activeFocusName === focus.name;
-      const isReadOnly = focus.isFromMakeMd && !getSyncFocuses();
+      const isReadOnly = (focus.isFromMakeMd && !getSyncFocuses()) || (focus.isFromMakeMd && !focusesSummary?.format_known);
       const li = h("li", `focus-item ${isActive ? "active" : ""}`);
       li.dataset["focusName"] = focus.name;
 
@@ -9870,6 +9896,7 @@ document.addEventListener("mousedown", (e) => {
 });
 
 async function createFocusHere(path: string): Promise<void> {
+  const isSync = getSyncFocuses() && (focusesSummary?.has_file ?? false) && (focusesSummary?.format_known ?? false);
   const base = name(path);
   let focusName = base;
   let n = 2;
@@ -9877,7 +9904,7 @@ async function createFocusHere(path: string): Promise<void> {
     focusName = `${base} ${n++}`;
   }
   await promptSyncFocusesIfNeeded();
-  focusesList.push({ name: focusName, paths: [path], sticker: null, isFromMakeMd: false });
+  focusesList.push({ name: focusName, paths: [path], sticker: null, isFromMakeMd: isSync, isLocal: !isSync });
   await saveFocuses();
   ui.status.textContent = t.focusCreated;
   await selectFocus(focusName);
@@ -11789,22 +11816,34 @@ class SettingsDialog {
           setSyncFocusesAsked(true);
           if (!ok) {
             setSyncFocuses(false);
+            await commands.setSyncFocuses(false);
             this.paint();
             return;
           }
         }
+        setSyncFocuses(true);
+        await commands.setSyncFocuses(true);
         const local = getLocalFocuses();
         if (local.length > 0) {
           const migrate = await ask(t.syncLocalFocusesQuestion, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
-          if (!migrate) {
-            setLocalFocuses([]);
+          if (migrate) {
+            const r = await commands.getFocuses();
+            if (r.status === "ok") focusesSummary = r.data;
+            const diskFocuses = focusesSummary?.focuses ?? [];
+            const toAdd = local.filter((lf) => !diskFocuses.some((df) => df.name.trim().toLowerCase() === lf.name.trim().toLowerCase()));
+            const toSave = [...diskFocuses, ...toAdd];
+            const base = diskFocuses;
+            const res = await commands.setFocuses(toSave, focusesSummary?.stamp ?? null, base);
+            if (res.status === "ok") {
+              setLocalFocuses([]);
+              focusesSummary = res.data;
+            }
           }
         }
-        setSyncFocuses(true);
         await loadFocuses(true);
-        await saveFocuses();
       } else {
         setSyncFocuses(false);
+        await commands.setSyncFocuses(false);
         await loadFocuses(true);
       }
       this.paint();
