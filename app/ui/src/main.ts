@@ -97,7 +97,7 @@ import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
 import { PropertiesView, propertyChange, type Edit } from "./props";
 import { frontmatterClose } from "./frontmatter";
-import { allEmojis, renderSticker, resolveColor, showStickerPicker } from "./labels";
+import { allEmojis, renderSticker, resolveColor, showStickerPicker, type PickerStrings } from "./labels";
 import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
 import { stringsFor } from "./bases/strings";
 import { DailyCalendar } from "./bases/daily";
@@ -158,8 +158,8 @@ type Strings = Record<
   | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reloadWindow" | "reloadNotDone" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
   | "checkUpdates" | "checkUpdatesDesc" | "checkNow" | "checkingUpdates" | "updateUpToDate" | "updateAvailable" | "downloadAndUpdate" | "downloadingUpdate" | "updateReady" | "restartNow" | "viewReleaseNotes" | "hideReleaseNotes" | "updateBannerTitle" | "seeInSettings" | "updateFailed"
-  | "sOrganizing" | "stickers" | "stickersDesc" | "stickerInLinks" | "stickerInLinksDesc" | "covers" | "coversDesc" | "coverHeight" | "coverHeightDesc" | "aliasInTree" | "aliasInTreeDesc" | "folderNoteName" | "folderNoteNameDesc" | "folderNoteInside" | "folderNoteBeside" | "folderNoteNone" | "folderPageTable" | "folderPageTableDesc" | "manualOrder" | "manualOrderDesc" | "inlineEmbedEdit" | "inlineEmbedEditDesc" | "emojiTrigger" | "emojiTriggerDesc" | "changeSticker" | "changeColor" | "removeSticker" | "removeColor" | "addCover" | "changeCover" | "repositionCover" | "removeCover" | "savePosition" | "cancelPosition" | "turnIntoFolder" | "turnIntoFolderDesc" | "createFolderNoteAsk" | "coverUrlPrompt"
-  | "pinToFolder" | "unpinFromFolder" | "moveUp" | "moveDown" | "hideFromTree" | "hiddenFromTree" | "hiddenFromTreeDesc" | "unhide" | "noHiddenItems",
+  | "sOrganizing" | "stickers" | "stickersDesc" | "stickerInLinks" | "stickerInLinksDesc" | "covers" | "coversDesc" | "coverHeight" | "coverHeightDesc" | "aliasInTree" | "aliasInTreeDesc" | "folderNoteName" | "folderNoteNameDesc" | "folderNoteInside" | "folderNoteBeside" | "folderNoteNone" | "folderPageTable" | "folderPageTableDesc" | "manualOrder" | "manualOrderDesc" | "inlineEmbedEdit" | "inlineEmbedEditDesc" | "emojiTrigger" | "emojiTriggerDesc" | "changeSticker" | "changeColor" | "removeSticker" | "removeColor" | "addCover" | "changeCover" | "repositionCover" | "removeCover" | "savePosition" | "cancelPosition" | "turnIntoFolder" | "turnIntoFolderDesc" | "folderNoteCreated" | "coverUrlPrompt"
+  | "pinToFolder" | "unpinFromFolder" | "moveUp" | "moveDown" | "hideFromTree" | "hiddenFromTree" | "hiddenFromTreeDesc" | "unhide" | "noHiddenItems" | "stickerTabEmoji" | "stickerTabIcons" | "stickerPickerLabel" | "stickerGridLabel" | "editInPlace" | "embedDone" | "coverRemoteOff" | "orderAlphabetical" | "orderCustom" | "openFolderNote" | "orderToAlphabetical" | "orderToCustom",
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
@@ -303,13 +303,18 @@ const pt: Strings = {
   addCover: "Adicionar capa", changeCover: "Alterar capa", repositionCover: "Reposicionar", removeCover: "Remover capa",
   savePosition: "Salvar posição", cancelPosition: "Cancelar",
   turnIntoFolder: "Transformar em pasta", turnIntoFolderDesc: "Cria uma pasta com este nome e move a nota para dentro dela.",
-  createFolderNoteAsk: "A pasta \"{name}\" ainda não tem uma nota de pasta. Deseja criar \"{path}\" para configurá-la?",
+  folderNoteCreated: "Nota da pasta criada: {path}",
   coverUrlPrompt: "URL da imagem de capa ou caminho de imagem:",
   pinToFolder: "Fixar na pasta", unpinFromFolder: "Desafixar da pasta",
   moveUp: "Mover para cima", moveDown: "Mover para baixo",
   hideFromTree: "Ocultar da árvore", hiddenFromTree: "Itens ocultos da árvore",
   hiddenFromTreeDesc: "Itens que não aparecem na árvore de arquivos, mas continuam pesquisáveis.",
   unhide: "Mostrar", noHiddenItems: "Nenhum item oculto",
+  stickerTabEmoji: "Emoji", stickerTabIcons: "Ícones", stickerPickerLabel: "Figurinhas e cores", stickerGridLabel: "Figurinhas",
+  editInPlace: "Editar no lugar", embedDone: "Concluir",
+  coverRemoteOff: "Conteúdo remoto desligado: esta capa não foi carregada.",
+  orderAlphabetical: "Ordem alfabética", orderCustom: "Ordem personalizada", openFolderNote: "Abrir nota da pasta",
+  orderToAlphabetical: "Ordem personalizada — clique para a alfabética", orderToCustom: "Ordem alfabética — clique para a personalizada",
 };
 
 const en: Strings = {
@@ -423,13 +428,18 @@ const en: Strings = {
   addCover: "Add cover", changeCover: "Change cover", repositionCover: "Reposition", removeCover: "Remove cover",
   savePosition: "Save position", cancelPosition: "Cancel",
   turnIntoFolder: "Turn into folder", turnIntoFolderDesc: "Create a folder with this name and move note inside as folder note.",
-  createFolderNoteAsk: "Folder \"{name}\" has no folder note yet. Create \"{path}\" to organize it?",
+  folderNoteCreated: "Folder note created: {path}",
   coverUrlPrompt: "Cover image URL or vault image path:",
   pinToFolder: "Pin to folder", unpinFromFolder: "Unpin from folder",
   moveUp: "Move up", moveDown: "Move down",
   hideFromTree: "Hide from tree", hiddenFromTree: "Hidden from tree",
   hiddenFromTreeDesc: "Items hidden from the file tree, but still searchable.",
   unhide: "Unhide", noHiddenItems: "No hidden items",
+  stickerTabEmoji: "Emoji", stickerTabIcons: "Icons", stickerPickerLabel: "Stickers and colors", stickerGridLabel: "Stickers",
+  editInPlace: "Edit in place", embedDone: "Done",
+  coverRemoteOff: "Remote content is off: this cover was not loaded.",
+  orderAlphabetical: "Alphabetical order", orderCustom: "Custom order", openFolderNote: "Open the folder note",
+  orderToAlphabetical: "Custom order — click for alphabetical", orderToCustom: "Alphabetical order — click for custom",
 };
 
 /** The interface language: the setting when it names one, else the system's. */
@@ -869,6 +879,7 @@ function pushWalkRules(): Promise<boolean> {
   );
 }
 const walkRulesPushed = pushWalkRules();
+const folderNoteNamePushed = pushFolderNoteName();
 /** The native menu's language ("pt" or "en"): the setting when it names
  *  one, else the system's, as the interface's. A refusal leaves the menu
  *  in the language it had. */
@@ -986,7 +997,27 @@ ui.collapse.replaceChildren(icon("collapse", t.collapseAll));
 ui.collapse.title = t.collapseAll;
 ui.search.placeholder = t.search;
 ui.searchLabel.textContent = t.search;
-ui.notesHeading.textContent = t.notes;
+// The tree's order, from its heading: one button, its icon the mode in use
+// — A→Z alphabetical, the grip custom (the maintainer, 2026-10-02).
+const orderToggle = h("button", "side-order ghost iconic");
+orderToggle.type = "button";
+orderToggle.setAttribute("aria-label", t.orderCustom);
+orderToggle.addEventListener("click", () => {
+  settings.manualOrder = !settings.manualOrder;
+  saveSettings();
+  orderModeChanged();
+});
+function paintOrderToggle(): void {
+  orderToggle.replaceChildren(icon(settings.manualOrder ? "grip" : "sortAz"));
+  orderToggle.setAttribute("aria-pressed", String(settings.manualOrder));
+  orderToggle.title = settings.manualOrder ? t.orderToAlphabetical : t.orderToCustom;
+}
+paintOrderToggle();
+const notesHeadingText = h("span", "", t.notes);
+notesHeadingText.id = "notes-heading-text";
+ui.notesHeading.replaceChildren(notesHeadingText, orderToggle);
+// The tree is named by the heading's words, not by its button too.
+ui.treeRoot.setAttribute("aria-labelledby", notesHeadingText.id);
 ui.folder.dataset["empty"] = t.noFolder;
 el("keys-new").textContent = t.keysNew;
 // The palette's button is its mark alone; its name and key are its tip.
@@ -1473,6 +1504,8 @@ function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey = fals
     } else if (draggedFolder === target.folder) {
       const r = target.el.getBoundingClientRect();
       const placeAfter = y > r.top + r.height / 2;
+      // The row moves at once; the write and the tree's redraw follow.
+      if (settings.manualOrder) moveTreeRow(d.path, target.el, placeAfter);
       void reorderInFolder(target.folder, d.path, target.treeItem, placeAfter);
     } else {
       void moveFile(d.path, target.folder);
@@ -1489,6 +1522,13 @@ function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey = fals
     const pane = paneOf("body" in target ? target.body : target.tabs);
     if (pane) openIn(pane, d.path);
   }
+}
+/** A tree row put before or after another of its list, in the page only. */
+function moveTreeRow(path: string, targetRow: HTMLElement, after: boolean): void {
+  const target = targetRow.closest("li");
+  const own = ui.notes.querySelector<HTMLElement>(`li[data-path="${CSS.escape(path)}"], summary[data-folder="${CSS.escape(path)}"]`)?.closest("li");
+  if (!target || !own || own === target || target.parentElement !== own.parentElement) return;
+  target.parentElement?.insertBefore(own, after ? target.nextSibling : target);
 }
 function paneOf(node: HTMLElement): Pane | null {
   const paneEl = node.closest<HTMLElement>(".pane");
@@ -2084,6 +2124,7 @@ class NoteLeaf extends Leaf {
    *  there again. */
   private gone = false;
   private destroyed = false;
+  cancelReposition?: () => void;
   /** Bumped by every load and every check: a read that comes back after a
    *  newer one began, or after the tab went, changes nothing. */
   private loads = 0;
@@ -2150,6 +2191,13 @@ class NoteLeaf extends Leaf {
       base: (text, embed, mount, edit) => this.liveBase(text, embed, mount, edit),
       pdf: (target, mount) => this.livePdf(target, mount),
       editEmbed: (target, mount, onExit) => this.liveEmbed(target, mount, onExit),
+      embedLabels: { edit: t.editInPlace, done: t.embedDone },
+      canEditEmbed: () => settings.inlineEmbedEdit,
+      isEmbedActive: (target) => {
+        const to = this.resolve(target);
+        if (!to) return false;
+        return [...this.cards].some((c) => c.targetPath?.() === to && (c.isDirty?.() || c.isConflicted?.()));
+      },
     });
     this.editor = new EditorView({ parent: this.editorHost, state: EditorState.create({ doc: "" }) });
     (this.editorHost as any).__cmView = this.editor;
@@ -2438,20 +2486,34 @@ class NoteLeaf extends Leaf {
     this.saveButton.hidden = !d;
   }
   setMode(mode: Mode): void {
-    void this.applySetMode(mode);
-  }
-  private async applySetMode(mode: Mode): Promise<void> {
-    const prevMode = this.mode;
-    if (mode !== prevMode) {
-      const cards = await Promise.all([...this.cards].map((c) => c.flush()));
-      if (!cards.every(Boolean)) {
-        if (!(await askDiscard())) return;
+    if (mode !== this.mode && this.cards.size > 0) {
+      const open = [...this.cards];
+      // An embed with text not yet written goes first: saved, or — on a
+      // conflict — kept open until the user lets it go, as a board's card
+      // is (ADR 0060 D8). A clean one goes at once, and the switch stays
+      // synchronous for the callers that act on the new mode right away.
+      if (open.some((c) => c.isDirty?.() || c.isConflicted?.())) {
+        void this.leaveCards(open).then((left) => left && this.switchMode(mode));
+        return;
       }
-      for (const card of this.cards) {
-        card.destroy();
-      }
+      for (const card of open) card.destroy();
       this.cards.clear();
     }
+    this.switchMode(mode);
+  }
+  /** Save the embeds being edited and close them; on one that could not be
+   *  saved, only if the user agrees to lose its text. */
+  private async leaveCards(open: CardEditing[]): Promise<boolean> {
+    const saved = await Promise.all(open.map((c) => c.flush()));
+    if (!saved.every(Boolean) && !(await askDiscard())) return false;
+    for (const card of open) {
+      card.destroy();
+      this.cards.delete(card);
+    }
+    return true;
+  }
+  private switchMode(mode: Mode): void {
+    const prevMode = this.mode;
     // The two modes draw the note at different heights: the same scroll
     // offset shows another part of it. What was at the top stays there; a
     // note at its start stays at its start.
@@ -2831,15 +2893,8 @@ class NoteLeaf extends Leaf {
       anchorEl: this.stickerBtn,
       currentSticker: entry?.label?.sticker ?? null,
       currentColor: entry?.label?.color ?? null,
-      strings: {
-        emojis: "Emoji",
-        icons: "Icons",
-        colors: t.hue,
-        search: t.search,
-        removeSticker: t.removeSticker,
-        removeColor: t.removeColor,
-      },
-      lang: settings.lang === "en" ? "en" : "pt",
+      strings: pickerStrings(),
+      lang: LOCALE.startsWith("pt") ? "pt" : "en",
       onSelectSticker: (stk) => void this.setProperty("sticker", stk),
       onSelectColor: (clr) => void this.setProperty("color", clr),
       onRemoveSticker: () => void this.setProperty("sticker", null),
@@ -2872,7 +2927,7 @@ class NoteLeaf extends Leaf {
     const color = prop("color");
     const banner = prop("banner");
     const bannerYStr = prop("banner_y");
-    this.bannerY = bannerYStr !== null && !isNaN(Number(bannerYStr)) ? Math.max(0, Math.min(1, Number(bannerYStr))) : 0.5;
+    this.bannerY = bannerFraction(bannerYStr);
     this.bannerUrl = banner ?? "";
 
     if (settings.stickers) {
@@ -2914,7 +2969,7 @@ class NoteLeaf extends Leaf {
         let heldEl: HTMLElement | null = null;
         if (isHeld) {
           const held = h("div", "note-cover-held");
-          const a = h("a", "remote-image", `${t.embedRemoteOff} (${banner})`);
+          const a = h("a", "remote-image", `${t.coverRemoteOff} (${banner})`);
           a.href = banner;
           a.target = "_blank";
           const loadBtn = h("button", "note-cover-btn", t.embedLoad);
@@ -2939,6 +2994,7 @@ class NoteLeaf extends Leaf {
         });
 
         btnReposition.addEventListener("click", () => {
+          this.cancelReposition?.();
           this.coverBox.classList.add("dragging");
           const hint = h("div", "note-cover-drag-hint", `${t.savePosition} (↑/↓, Enter)`);
           const slider = h("input", "note-cover-slider");
@@ -2964,6 +3020,26 @@ class NoteLeaf extends Leaf {
             updateY(Number(slider.value) / 100);
           });
 
+          let done = false;
+          const finish = (save: boolean) => {
+            if (done) return;
+            done = true;
+            this.cancelReposition = undefined;
+            document.removeEventListener("pointerdown", onDocPointerDown, true);
+            slider.removeEventListener("keydown", onKeyDown);
+            this.coverBox.classList.remove("dragging");
+            hint.remove();
+            slider.remove();
+            this.coverBox.removeEventListener("mousedown", onMouseDown);
+            if (save) {
+              this.bannerY = currentY;
+              void this.setProperty("banner_y", bannerPercent(currentY));
+            } else {
+              img.style.objectPosition = `center ${this.bannerY * 100}%`;
+            }
+          };
+          this.cancelReposition = () => finish(false);
+
           const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === "ArrowUp") {
               e.preventDefault();
@@ -2979,7 +3055,16 @@ class NoteLeaf extends Leaf {
               finish(false);
             }
           };
-          window.addEventListener("keydown", onKeyDown);
+          // On the slider, which holds the focus: a key typed elsewhere is not
+          // the cover's.
+          slider.addEventListener("keydown", onKeyDown);
+
+          const onDocPointerDown = (ev: PointerEvent) => {
+            if (!this.coverBox.contains(ev.target as Node) && ev.target !== hint && ev.target !== slider) {
+              finish(false);
+            }
+          };
+          document.addEventListener("pointerdown", onDocPointerDown, true);
 
           const onMouseDown = (e: MouseEvent) => {
             if (e.target === slider || e.target === hint) return;
@@ -2998,20 +3083,6 @@ class NoteLeaf extends Leaf {
           };
 
           this.coverBox.addEventListener("mousedown", onMouseDown);
-
-          const finish = (save: boolean) => {
-            this.coverBox.classList.remove("dragging");
-            hint.remove();
-            slider.remove();
-            window.removeEventListener("keydown", onKeyDown);
-            this.coverBox.removeEventListener("mousedown", onMouseDown);
-            if (save) {
-              this.bannerY = currentY;
-              void this.setProperty("banner_y", currentY.toFixed(2));
-            } else {
-              img.style.objectPosition = `center ${this.bannerY * 100}%`;
-            }
-          };
 
           hint.style.pointerEvents = "auto";
           hint.style.cursor = "pointer";
@@ -3129,6 +3200,7 @@ class NoteLeaf extends Leaf {
   /** Read `path` into the editor. Over unsaved text only when forced (the
    *  user chose to discard it) or on a yes. */
   private async doLoad(path: string, force: boolean): Promise<void> {
+    this.cancelReposition?.();
     if (this.dirty && !force && !(await askDiscard())) return;
     // The tab names its note from the start: a read that waits on a
     // download from the cloud takes seconds, and a second click on the
@@ -3617,9 +3689,12 @@ class NoteLeaf extends Leaf {
   }
 
   /** Draw the reading view from the note, if it changed since it was drawn. */
-  paintPreview(): void {
+  async paintPreview(): Promise<void> {
     const note = this.note;
     if (!this.previewStale || !note) return;
+    if (this.cards.size > 0) {
+      return;
+    }
     this.previewStale = false;
     // The keyboard keeps its place through a redraw — a task checked, the
     // note read again: the focus goes back to the same task, the same link,
@@ -3630,7 +3705,6 @@ class NoteLeaf extends Leaf {
     const open = this.shownPath === note.path ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
     this.shownPath = note.path;
     for (const card of this.cards) {
-      void card.flush();
       card.destroy();
     }
     this.cards.clear();
@@ -3733,7 +3807,7 @@ class NoteLeaf extends Leaf {
           e.preventDefault();
           openNote(to, false);
         });
-        const edit = button("ghost iconic embed-edit", settings.inlineEmbedEdit ? (LOCALE.startsWith("pt") ? "Editar no local" : "Edit in place") : t.editEmbed, "edit");
+        const edit = button("ghost iconic embed-edit", settings.inlineEmbedEdit ? t.editInPlace : t.editEmbed, "edit");
         const body = h("div", "embed-note-body");
         setHtml(body, r.data.html);
         wireCallouts(body);
@@ -3759,7 +3833,7 @@ class NoteLeaf extends Leaf {
           c.destroy();
           box.classList.remove("editing");
           edit.replaceChildren(icon("edit"));
-          edit.title = settings.inlineEmbedEdit ? (LOCALE.startsWith("pt") ? "Editar no local" : "Edit in place") : t.editEmbed;
+          edit.title = settings.inlineEmbedEdit ? t.editInPlace : t.editEmbed;
           const fresh = await opening.readNote(to);
           if (fresh.status === "ok" && this.path === forPath) {
             setHtml(body, fresh.data.html);
@@ -3778,7 +3852,7 @@ class NoteLeaf extends Leaf {
           if (activeCard || !settings.inlineEmbedEdit) return;
           box.classList.add("editing");
           edit.replaceChildren(icon("check"));
-          edit.title = LOCALE.startsWith("pt") ? "Concluir" : "Done";
+          edit.title = t.embedDone;
           activeCard = cardEditor(body, to, () => void exitEdit(), this.cardHistory, () => this.keep(), true);
           this.cards.add(activeCard);
         };
@@ -3952,9 +4026,19 @@ class NoteLeaf extends Leaf {
   insertReference(path: string, x: number, y: number): void {
     const note = kindOf(path) === "note";
     const text = note ? `[[${linkText(this.path, path)}]]` : `![[${linkText(this.path, path)}]]`;
-    if (this.mode === "preview") this.setMode("live");
-    const pos = this.editor.posAtCoords({ x, y }) ?? this.editor.state.doc.length;
-    this.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length } });
+    let fallbackPos: number | null = null;
+    if (this.mode === "preview") {
+      const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-line]");
+      if (el?.dataset["line"]) {
+        const lineNum = Math.min(Number(el.dataset["line"]), this.editor.state.doc.lines);
+        if (lineNum >= 1) {
+          fallbackPos = this.editor.state.doc.line(lineNum).to;
+        }
+      }
+      this.setMode("live");
+    }
+    const pos = this.editor.posAtCoords({ x, y }) ?? fallbackPos ?? this.editor.state.doc.length;
+    this.editor.dispatch({ changes: { from: pos, insert: text }, selection: { anchor: pos + text.length }, scrollIntoView: true });
     this.editor.focus();
   }
   /** A task checked in the reading view: the mark between its brackets
@@ -4132,12 +4216,12 @@ class NoteLeaf extends Leaf {
   }
   override destroy(): void {
     this.destroyed = true;
+    this.cancelReposition?.();
     window.clearTimeout(this.saveTimer);
     this.readingSearch?.close();
-    for (const card of this.cards) {
-      void card.flush();
-      card.destroy();
-    }
+    // The tab's close saved them already (`flush`); this one catches a
+    // keystroke typed since, and writes nothing over a conflict.
+    for (const card of this.cards) void card.flush().finally(() => card.destroy());
     this.cards.clear();
     for (const e of this.embeds) {
       e.destroy();
@@ -4918,6 +5002,9 @@ function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: M
     show(r.data);
   };
   return {
+    isDirty: () => dirty,
+    isConflicted: () => conflict.up,
+    targetPath: () => path,
     async flush() {
       await ready;
       window.clearTimeout(timer);
@@ -5281,6 +5368,8 @@ function propVal(properties: Property[], key: string): string | null {
 
 type FolderRow = { path: string; kind: Kind; label: string; size: number; modified: number };
 class FolderLeaf extends Leaf {
+  /** Ends a cover reposition under way, keeping the old position. */
+  private cancelReposition?: () => void;
   readonly kind: Kind = "folder";
   readonly head = h("header", "folder-head");
   readonly crumbs = crumbsNav();
@@ -5417,24 +5506,7 @@ class FolderLeaf extends Leaf {
     this.baseContainer.replaceChildren(this.baseView.el);
     await this.baseView.refresh();
   }
-  private async ensureFolderNote(): Promise<string | null> {
-    const existing = folderNoteOf(this.path);
-    if (existing) return existing;
-    if (this.path === "") return null;
-    const folderStem = this.path.split("/").pop() ?? this.path;
-    const configured = settings.folderNoteName.trim().replace(/\.md$/i, "");
-    const stem = configured || folderStem;
-    const insidePath = `${this.path}/${stem}.md`;
-    const ok = await ask(t.createFolderNoteAsk.replace("{name}", folderStem).replace("{path}", insidePath), { yes: t.createFolderNote, no: t.cancel });
-    if (!ok) return null;
-    const r = await commands.createNote(insidePath.endsWith(".md") ? insidePath.slice(0, -3) : insidePath, `# ${folderStem}\n\n`);
-    if (r.status !== "ok") {
-      fail(r.error);
-      return null;
-    }
-    await afterFileChange();
-    return r.data.path;
-  }
+
   private async promptCover(): Promise<void> {
     const url = await promptText(t.coverUrlPrompt ?? "URL:", this.bannerUrl || "", false, { yes: t.save ?? "OK", no: t.cancel ?? "Cancel" });
     if (url !== null) {
@@ -5451,15 +5523,8 @@ class FolderLeaf extends Leaf {
       anchorEl: this.stickerBtn,
       currentSticker: entry?.label?.sticker ?? null,
       currentColor: entry?.label?.color ?? null,
-      strings: {
-        emojis: "Emoji",
-        icons: "Icons",
-        colors: t.hue,
-        search: t.search,
-        removeSticker: t.removeSticker,
-        removeColor: t.removeColor,
-      },
-      lang: settings.lang === "en" ? "en" : "pt",
+      strings: pickerStrings(),
+      lang: LOCALE.startsWith("pt") ? "pt" : "en",
       onSelectSticker: (stk: string) => {
         void updateEntryProperties(this.path, "folder", { sticker: stk }).then(async () => {
           await afterFileChange();
@@ -5487,7 +5552,7 @@ class FolderLeaf extends Leaf {
     });
   }
   private paintCover(banner: string | null, bannerYStr: string | null, folderNote: string | null): void {
-    this.bannerY = bannerYStr !== null && !isNaN(Number(bannerYStr)) ? Math.max(0, Math.min(1, Number(bannerYStr))) : 0.5;
+    this.bannerY = bannerFraction(bannerYStr);
     this.bannerUrl = banner ?? "";
     if (settings.covers) {
       if (banner) {
@@ -5505,7 +5570,7 @@ class FolderLeaf extends Leaf {
         let heldEl: HTMLElement | null = null;
         if (isHeld) {
           const held = h("div", "note-cover-held");
-          const a = h("a", "remote-image", `${t.embedRemoteOff} (${banner})`);
+          const a = h("a", "remote-image", `${t.coverRemoteOff} (${banner})`);
           a.href = banner;
           a.target = "_blank";
           const loadBtn = h("button", "note-cover-btn", t.embedLoad);
@@ -5532,6 +5597,7 @@ class FolderLeaf extends Leaf {
         });
 
         btnReposition.addEventListener("click", () => {
+          this.cancelReposition?.();
           this.coverBox.classList.add("dragging");
           const hint = h("div", "note-cover-drag-hint", `${t.savePosition} (↑/↓, Enter)`);
           const slider = h("input", "note-cover-slider");
@@ -5557,6 +5623,26 @@ class FolderLeaf extends Leaf {
             updateY(Number(slider.value) / 100);
           });
 
+          let done = false;
+          const finish = (save: boolean) => {
+            if (done) return;
+            done = true;
+            this.cancelReposition = undefined;
+            document.removeEventListener("pointerdown", onDocPointerDown, true);
+            slider.removeEventListener("keydown", onKeyDown);
+            this.coverBox.classList.remove("dragging");
+            hint.remove();
+            slider.remove();
+            this.coverBox.removeEventListener("mousedown", onMouseDown);
+            if (save) {
+              this.bannerY = currentY;
+              void updateEntryProperties(this.path, "folder", { banner_y: bannerPercent(currentY) });
+            } else {
+              img.style.objectPosition = `center ${this.bannerY * 100}%`;
+            }
+          };
+          this.cancelReposition = () => finish(false);
+
           const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === "ArrowUp") {
               e.preventDefault();
@@ -5572,7 +5658,16 @@ class FolderLeaf extends Leaf {
               finish(false);
             }
           };
-          window.addEventListener("keydown", onKeyDown);
+          // On the slider, which holds the focus: a key typed elsewhere is not
+          // the cover's.
+          slider.addEventListener("keydown", onKeyDown);
+
+          const onDocPointerDown = (ev: PointerEvent) => {
+            if (!this.coverBox.contains(ev.target as Node) && ev.target !== hint && ev.target !== slider) {
+              finish(false);
+            }
+          };
+          document.addEventListener("pointerdown", onDocPointerDown, true);
 
           const onMouseDown = (e: MouseEvent) => {
             if (e.target === slider || e.target === hint) return;
@@ -5591,20 +5686,6 @@ class FolderLeaf extends Leaf {
           };
 
           this.coverBox.addEventListener("mousedown", onMouseDown);
-
-          const finish = (save: boolean) => {
-            this.coverBox.classList.remove("dragging");
-            hint.remove();
-            slider.remove();
-            window.removeEventListener("keydown", onKeyDown);
-            this.coverBox.removeEventListener("mousedown", onMouseDown);
-            if (save) {
-              this.bannerY = currentY;
-              void updateEntryProperties(this.path, "folder", { banner_y: currentY.toFixed(2) });
-            } else {
-              img.style.objectPosition = `center ${this.bannerY * 100}%`;
-            }
-          };
 
           hint.style.pointerEvents = "auto";
           hint.style.cursor = "pointer";
@@ -5632,6 +5713,7 @@ class FolderLeaf extends Leaf {
     persistSoon();
   }
   async load(path: string): Promise<void> {
+    this.cancelReposition?.();
     this.path = path;
     this.setTitle(path === "" ? folderName || "/" : name(path));
     this.title.textContent = this.tabName.textContent;
@@ -5709,6 +5791,7 @@ class FolderLeaf extends Leaf {
     persistSoon();
   }
   override destroy(): void {
+    this.cancelReposition?.();
     if (this.baseView) {
       liveBases.delete(this.baseView);
       this.baseView.destroy();
@@ -5725,7 +5808,8 @@ class FolderLeaf extends Leaf {
         const make = button("ghost", t.createFolderNote, "plus");
         make.addEventListener("click", () => void (async () => {
           const label = folder.split("/").pop() ?? folder;
-          const r = await commands.createNote(`${folder}/${label}`, `# ${label}\n\n`);
+          const path = (folderNoteCandidates(folder)[0] ?? `${folder}/${label}.md`).replace(/\.md$/i, "");
+          const r = await commands.createNote(path, `# ${label}\n\n`);
           if (r.status !== "ok") return fail(r.error);
           await afterFileChange();
           openNote(r.data.path, false);
@@ -5773,8 +5857,8 @@ class FolderLeaf extends Leaf {
         const prefix = this.path ? `${this.path}/` : "";
         const aRel = this.path ? (a.path.startsWith(prefix) ? a.path.slice(prefix.length) : a.path) : a.path;
         const bRel = this.path ? (b.path.startsWith(prefix) ? b.path.slice(prefix.length) : b.path) : b.path;
-        const aIdx = order.findIndex((o) => o === aRel || withoutMd(o) === withoutMd(aRel));
-        const bIdx = order.findIndex((o) => o === bRel || withoutMd(o) === withoutMd(bRel));
+        const aIdx = orderIndex(order, aRel);
+        const bIdx = orderIndex(order, bRel);
         if (aIdx >= 0 && bIdx >= 0) return (aIdx - bIdx) * dir;
         if (aIdx >= 0) return -1 * dir;
         if (bIdx >= 0) return 1 * dir;
@@ -7356,20 +7440,62 @@ function typeset(root: HTMLElement): void {
     });
   }
 }
-/** A folder's own note: `Folder/Folder.md`, or `Folder.md` beside the folder. */
+/** A cover's `banner_y` as a fraction of the image's height. make.md
+ *  writes it as a percentage from 0 to 100, and reads it so (its cover's
+ *  reposition, 1.3.5; read in its source, 2026-10-02) — so does Verso. */
+function bannerFraction(value: string | null): number {
+  const n = value === null ? NaN : parseFloat(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) / 100 : 0.5;
+}
+/** A fraction of the image's height as make.md writes `banner_y`: a
+ *  percentage, as text. */
+function bannerPercent(fraction: number): string {
+  return String(Math.round(Math.max(0, Math.min(1, fraction)) * 100));
+}
+/** The sticker picker's words, in the interface's language. */
+function pickerStrings(): PickerStrings {
+  return { emojis: t.stickerTabEmoji, icons: t.stickerTabIcons, colors: t.hue, search: t.search, removeSticker: t.removeSticker, removeColor: t.removeColor, label: t.stickerPickerLabel, grid: t.stickerGridLabel };
+}
+/** The folder note name setting as the core applies it
+ *  (`set_folder_note_name`): a plain file name, or empty. */
+function folderNoteStem(): string {
+  const n = settings.folderNoteName.trim().replace(/\.md$/i, "");
+  return /[/\\]/.test(n) || n === "." || n === ".." ? "" : n;
+}
+/** The paths a folder's note may have, in the order they are looked for —
+ *  the core's `folder_note_candidates` (ADR 0060 D3, D12): inside, named by
+ *  the setting, then after the folder; then beside it. The root has none. */
+function folderNoteCandidates(folder: string): string[] {
+  const configured = folderNoteStem();
+  const out: string[] = [];
+  if (folder === "") {
+    // The root's note, at the root, named after the open folder — the
+    // core's `root_note_candidates` (the maintainer, 2026-10-02).
+    if (configured && configured.toLowerCase() !== folderName.toLowerCase()) out.push(`${configured}.md`);
+    if (folderName) out.push(`${folderName}.md`);
+    return out;
+  }
+  const name = folder.split("/").pop() ?? folder;
+  if (configured && configured.toLowerCase() !== name.toLowerCase()) out.push(`${folder}/${configured}.md`);
+  out.push(`${folder}/${name}.md`, `${folder}.md`);
+  return out;
+}
+/** A folder's own note: the first candidate that exists, without case. */
 function folderNoteOf(folder: string): string | null {
-  if (folder === "") return null;
-  const folderShort = folder.split("/").pop() ?? folder;
-  const configured = settings.folderNoteName.trim().replace(/\.md$/i, "");
-  const stem = configured || folderShort;
-  const inside = `${folder}/${stem}.md`.toLowerCase();
-  const insideDefault = `${folder}/${folderShort}.md`.toLowerCase();
-  const beside = `${folder}.md`.toLowerCase();
-  return (
-    allNotes.find((p) => p.toLowerCase() === inside) ??
-    allNotes.find((p) => p.toLowerCase() === insideDefault) ??
-    allNotes.find((p) => p.toLowerCase() === beside) ??
-    null
+  for (const candidate of folderNoteCandidates(folder)) {
+    const lower = candidate.toLowerCase();
+    const found = allNotes.find((p) => p.toLowerCase() === lower);
+    if (found) return found;
+  }
+  return null;
+}
+/** The folder note name setting, handed to the core, which finds folder
+ *  notes by it when a rename rewrites an `order:` and when it labels a
+ *  folder. Awaited with the walk rules, before any folder opens. */
+function pushFolderNoteName(): Promise<boolean> {
+  return commands.setFolderNoteName(folderNoteStem()).then(
+    (r) => r.status === "ok" || (fail(r.error), false),
+    () => false,
   );
 }
 
@@ -7448,6 +7574,54 @@ function isItemPinned(itemPath: string, folder: string, pinnedList: string[]): b
   });
 }
 
+/** Where an item stands in an `order:` list: its exact name first, else the
+ *  same name without `.md` — a note and a folder of one name are two items. */
+function orderIndex(order: readonly string[], rel: string): number {
+  const exact = order.indexOf(rel);
+  return exact >= 0 ? exact : order.findIndex((o) => withoutMd(o) === withoutMd(rel));
+}
+/** The folder's items an `order:` names, in its order, each once: by its
+ *  exact name, else by the name without `.md`. */
+function itemsInOrder(order: readonly string[], items: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const o of order) {
+    const found = items.includes(o) ? o : items.find((c) => !out.includes(c) && !order.includes(c) && withoutMd(c) === withoutMd(o));
+    if (found !== undefined && !out.includes(found)) out.push(found);
+  }
+  return out;
+}
+/** `s` as a YAML list item that reads back as the same text — quoted when
+ *  YAML would take it for a number, a boolean, null or an indicator (the
+ *  core's `yaml_scalar`, for `order:` rewritten on a rename). */
+function yamlItem(s: string): string {
+  const lower = s.toLowerCase();
+  const quote =
+    s === "" ||
+    "-?:,[]{}#&*!|>'\"%@`~".includes(s[0] ?? "") ||
+    /^\s|\s$/.test(s) ||
+    s.includes(": ") ||
+    s.endsWith(":") ||
+    s.includes(" #") ||
+    /[\t\n\r"\\]/.test(s) ||
+    ["true", "false", "yes", "no", "on", "off", "y", "n", "null"].includes(lower) ||
+    /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s) ||
+    /^(inf|infinity|nan)$/i.test(s) ||
+    s.startsWith("0x") ||
+    s.startsWith("0o");
+  return quote ? JSON.stringify(s) : s;
+}
+/** A YAML list item as its text: quotes taken off, escapes read. */
+function yamlItemText(raw: string): string {
+  if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+    try {
+      return JSON.parse(raw) as string;
+    } catch {
+      return raw.slice(1, -1);
+    }
+  }
+  if (raw.length >= 2 && raw.startsWith("'") && raw.endsWith("'")) return raw.slice(1, -1).replace(/''/g, "'");
+  return raw;
+}
 function setFrontmatterListProp(doc: string, key: string, values: string[]): string {
   const eol = doc.includes("\r\n") ? "\r\n" : "\n";
   const lines = doc.split(/\r?\n/);
@@ -7458,18 +7632,12 @@ function setFrontmatterListProp(doc: string, key: string, values: string[]): str
     newLines.push(`${key}:`);
     for (const v of values) {
       if (key === "pinned") {
-        let raw = v.trim();
-        if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
-          raw = raw.slice(1, -1).trim();
-        }
-        if (!raw.startsWith("[[") || !raw.endsWith("]]")) {
-          raw = `[[${raw}]]`;
-        }
-        newLines.push(`  - "${raw}"`);
+        // A quoted wikilink, always (ADR 0060 D5), whether the value came
+        // with its quotes or without.
+        const raw = yamlItemText(v.trim()).trim();
+        newLines.push(`  - ${JSON.stringify(raw.startsWith("[[") && raw.endsWith("]]") ? raw : `[[${raw}]]`)}`);
       } else {
-        const clean = v.trim();
-        const needsQuote = /[:#\[\]\{\},\&\*\?\|\>\<\=\!\%\@\`]/.test(clean) || clean.startsWith("-");
-        newLines.push(needsQuote ? `  - ${JSON.stringify(clean)}` : `  - ${clean}`);
+        newLines.push(`  - ${yamlItem(v)}`);
       }
     }
   }
@@ -7521,23 +7689,58 @@ function setFrontmatterListProp(doc: string, key: string, values: string[]): str
   }
 }
 
+/** The folder notes listed in `folder`: its own, and those beside its
+ *  subfolders (`Sub.md` next to `Sub/`). */
+function folderNotesAt(folder: string): Set<string> {
+  const out = new Set<string>();
+  const own = folderNoteOf(folder);
+  if (own) out.add(own);
+  const prefix = folder ? `${folder}/` : "";
+  for (const sub of allFolders) {
+    if (!sub.startsWith(prefix) || sub.slice(prefix.length).includes("/")) continue;
+    const note = folderNoteOf(sub);
+    if (note && dirOf(note) === folder) out.add(note);
+  }
+  return out;
+}
+/** The order mode changed: the tree and the open folder pages sort again. */
+function orderModeChanged(): void {
+  paintOrderToggle();
+  void listAll();
+  for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if (l instanceof FolderLeaf) void l.load(l.path);
+}
+/** The tree's two orders (the maintainer, 2026-10-02): alphabetical, or
+ *  custom — each folder's `order:`. A switch of the whole tree, the
+ *  "Order by dragging" setting: going alphabetical keeps every custom
+ *  order, and going back finds them as they were. The mode in use is
+ *  checked. */
+function orderMenuItems(): MenuItem[] {
+  const set = (custom: boolean) => {
+    if (settings.manualOrder === custom) return;
+    settings.manualOrder = custom;
+    saveSettings();
+    orderModeChanged();
+  };
+  return [
+    [t.orderAlphabetical, () => set(false), settings.manualOrder ? "sort" : "check"],
+    [t.orderCustom, () => set(true), settings.manualOrder ? "check" : "sort"],
+  ];
+}
 async function ensureFolderNote(folder: string): Promise<string | null> {
   const fn = folderNoteOf(folder);
   if (fn) return fn;
-  if (folder === "") return null;
-  const folderShort = folder.split("/").pop() ?? folder;
-  const configured = settings.folderNoteName.trim().replace(/\.md$/i, "");
-  const stem = configured || folderShort;
-  const insidePath = `${folder}/${stem}.md`;
-  const question = t.createFolderNoteAsk.replace("{name}", folderShort).replace("{path}", insidePath);
-  const ok = await ask(question, { yes: t.createFolderNote, no: t.cancel });
-  if (!ok) return null;
+  const folderShort = folder === "" ? folderName : folder.split("/").pop() ?? folder;
+  const insidePath = folderNoteCandidates(folder)[0];
+  if (!insidePath || !folderShort) return null;
+  // Made without a question (the maintainer, 2026-10-02: "devia só
+  // criar"), and said in the status bar.
   const created = await commands.createNote(insidePath.endsWith(".md") ? insidePath.slice(0, -3) : insidePath, `# ${folderShort}\n\n`);
   if (created.status !== "ok") {
     fail(created.error);
     return null;
   }
   await afterFileChange();
+  ui.status.textContent = t.folderNoteCreated.replace("{path}", created.data.path);
   return created.data.path;
 }
 
@@ -7563,11 +7766,9 @@ function parseFrontmatterListProp(doc: string, key: string): string[] {
       if (inlineRest.startsWith("[") && inlineRest.endsWith("]")) {
         const inner = inlineRest.slice(1, -1).trim();
         if (inner) {
-          for (let item of inner.split(",")) {
-            item = item.trim();
-            if ((item.startsWith('"') && item.endsWith('"')) || (item.startsWith("'") && item.endsWith("'"))) {
-              item = item.slice(1, -1);
-            }
+          // Commas inside quotes belong to the item.
+          for (const raw of inner.match(/"(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^,]+/g) ?? []) {
+            const item = yamlItemText(raw.trim());
             if (item) result.push(item);
           }
         }
@@ -7578,10 +7779,8 @@ function parseFrontmatterListProp(doc: string, key: string): string[] {
         if (/^\s*(#.*)?$/.test(l)) continue;
         const itemMatch = /^\s*-\s*(.*)$/.exec(l);
         if (itemMatch) {
-          let item = (itemMatch[1] ?? "").trim();
-          if ((item.startsWith('"') && item.endsWith('"')) || (item.startsWith("'") && item.endsWith("'"))) {
-            item = item.slice(1, -1);
-          }
+          const rest = (itemMatch[1] ?? "").trim();
+          const item = yamlItemText(/^["']/.test(rest) ? rest : (rest.split(" #")[0] ?? "").trim());
           if (item) result.push(item);
         } else if (/^[ \t]/.test(l)) {
           continue;
@@ -7624,7 +7823,6 @@ async function updateEntryProperties(path: string, kind: Kind, updates: Record<s
     leaf.editor.dispatch({ changes: { from: 0, to: curLen, insert: doc }, annotations: Transaction.userEvent.of("input") });
     await leaf.save();
     await afterFileChange();
-    await listAll();
   } else {
     const read = await commands.readNote(targetNote);
     if (read.status !== "ok") {
@@ -7641,7 +7839,6 @@ async function updateEntryProperties(path: string, kind: Kind, updates: Record<s
       return;
     }
     await afterFileChange();
-    await listAll();
   }
 }
 
@@ -7689,7 +7886,7 @@ async function reorderInFolder(folder: string, draggedPath: string, targetPath: 
 
   const prefix = folder ? `${folder}/` : "";
   const directFiles = [...allNotes, ...allFiles]
-    .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && p !== fn)
+    .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && p !== fn && !folderNotesAt(folder).has(p))
     .map((p) => (folder ? p.slice(folder.length + 1) : p));
   const directFolders = allFolders
     .filter((f) => f.startsWith(prefix) && !f.slice(prefix.length).includes("/"))
@@ -7698,8 +7895,8 @@ async function reorderInFolder(folder: string, draggedPath: string, targetPath: 
   const allCurrent = [...directFolders, ...directFiles];
   let orderedList: string[] = [];
   if (currentOrder.length > 0) {
-    const matched = currentOrder.filter((o) => allCurrent.some((c) => c === o || withoutMd(c) === withoutMd(o)));
-    const remaining = allCurrent.filter((c) => !matched.some((m) => m === c || withoutMd(m) === withoutMd(c)));
+    const matched = itemsInOrder(currentOrder, allCurrent);
+    const remaining = allCurrent.filter((c) => !matched.includes(c));
     remaining.sort((a, b) => a.localeCompare(b, LOCALE, { numeric: true }));
     orderedList = [...matched, ...remaining];
   } else {
@@ -7711,8 +7908,9 @@ async function reorderInFolder(folder: string, draggedPath: string, targetPath: 
   const draggedRel = folder ? (draggedPath.startsWith(prefix) ? draggedPath.slice(prefix.length) : draggedPath) : draggedPath;
   const targetRel = folder ? (targetPath.startsWith(prefix) ? targetPath.slice(prefix.length) : targetPath) : targetPath;
 
-  const filtered = orderedList.filter((x) => x !== draggedRel && withoutMd(x) !== withoutMd(draggedRel));
-  const targetIdx = filtered.findIndex((x) => x === targetRel || withoutMd(x) === withoutMd(targetRel));
+  const draggedAt = orderIndex(orderedList, draggedRel);
+  const filtered = orderedList.filter((_, k) => k !== draggedAt);
+  const targetIdx = orderIndex(filtered, targetRel);
   const insertAt = targetIdx >= 0 ? (placeAfter ? targetIdx + 1 : targetIdx) : filtered.length;
   filtered.splice(insertAt, 0, draggedRel);
 
@@ -7730,7 +7928,7 @@ async function moveTreeItemOrder(path: string, direction: -1 | 1): Promise<void>
 
   const prefix = folder ? `${folder}/` : "";
   const directFiles = [...allNotes, ...allFiles]
-    .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && p !== fn)
+    .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && p !== fn && !folderNotesAt(folder).has(p))
     .map((p) => (folder ? p.slice(folder.length + 1) : p));
   const directFolders = allFolders
     .filter((f) => f.startsWith(prefix) && !f.slice(prefix.length).includes("/"))
@@ -7739,8 +7937,8 @@ async function moveTreeItemOrder(path: string, direction: -1 | 1): Promise<void>
   const allCurrent = [...directFolders, ...directFiles];
   let orderedList: string[] = [];
   if (currentOrder.length > 0) {
-    const matched = currentOrder.filter((o) => allCurrent.some((c) => c === o || withoutMd(c) === withoutMd(o)));
-    const remaining = allCurrent.filter((c) => !matched.some((m) => m === c || withoutMd(m) === withoutMd(c)));
+    const matched = itemsInOrder(currentOrder, allCurrent);
+    const remaining = allCurrent.filter((c) => !matched.includes(c));
     remaining.sort((a, b) => a.localeCompare(b, LOCALE, { numeric: true }));
     orderedList = [...matched, ...remaining];
   } else {
@@ -7750,7 +7948,7 @@ async function moveTreeItemOrder(path: string, direction: -1 | 1): Promise<void>
   }
 
   const rel = folder ? (path.startsWith(prefix) ? path.slice(prefix.length) : path) : path;
-  const idx = orderedList.findIndex((x) => x === rel || withoutMd(x) === withoutMd(rel));
+  const idx = orderIndex(orderedList, rel);
   if (idx < 0) return;
   const nextIdx = idx + direction;
   if (nextIdx < 0 || nextIdx >= orderedList.length) return;
@@ -7776,6 +7974,17 @@ async function pinItemToFolder(folder: string, itemPath: string): Promise<void> 
   const quoted = `"[[${linkTarget}]]"`;
   currentPinned.push(quoted);
   await updateEntryListProperty(folder, "folder", "pinned", currentPinned);
+}
+
+async function unpinItemFromFolder(folder: string, itemPath: string): Promise<void> {
+  const fn = await ensureFolderNote(folder);
+  if (!fn) return;
+  const doc = await getNoteDoc(fn);
+  const entry = allEntries.get(fn);
+  const fallbackPinned = entry?.label?.pinned ? [...entry.label.pinned] : [];
+  const currentPinned = doc !== null ? parseFrontmatterListProp(doc, "pinned") : fallbackPinned;
+  const newPinned = currentPinned.filter((p) => !isItemPinned(itemPath, folder, [p]));
+  await updateEntryListProperty(folder, "folder", "pinned", newPinned);
 }
 /** The note a link target names, for a link typed a moment ago and not
  *  indexed yet: the index's own order (verso-index, `RESOLVE` in store.rs
@@ -7973,6 +8182,8 @@ function pathsMoved(from: string, to: string): void {
   saveBookmarks();
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.map(follow));
   for (const sp of spaces) for (const p of sp.layout.panes()) p.trailMoved(follow);
+  const hidden = getHiddenFromTree();
+  if (hidden.some((p) => follow(p) !== p)) setHiddenFromTree(hidden.map(follow));
   panel.refresh();
 }
 /** A deletion: those lists forget the file, or a folder's contents. */
@@ -7982,6 +8193,8 @@ function pathsRemoved(path: string): void {
   saveBookmarks();
   for (const list of [closedTabs, recents]) list.splice(0, list.length, ...list.filter((p) => !gone(p)));
   for (const sp of spaces) for (const p of sp.layout.panes()) p.trailRemoved(gone);
+  const hidden = getHiddenFromTree();
+  if (hidden.some(gone)) setHiddenFromTree(hidden.filter((p) => !gone(p)));
   panel.refresh();
 }
 /** The folder's files changed: images asked for before — found or not —
@@ -8203,8 +8416,10 @@ function remoteContentChanged(): void {
   for (const sp of spaces)
     for (const p of sp.layout.panes())
       for (const l of p.leaves) {
-        if (l instanceof NoteLeaf) l.repaint();
-        else if (l instanceof FolderLeaf) void l.load(l.path);
+        if (l instanceof NoteLeaf) {
+          l.repaint();
+          l.paintCoverAndSticker();
+        } else if (l instanceof FolderLeaf) void l.load(l.path);
         l.setTitle(l.tabName.textContent ?? "");
       }
   if (currentFolder) void searchNotes(ui.search.value);
@@ -8220,6 +8435,9 @@ async function afterFileChange(): Promise<void> {
   const r = await commands.reindex();
   if (r.status !== "ok") fail(r.error);
   forgetFiles();
+  // The entries — labels, order, pins — are read again once: by the search
+  // itself when it is empty, else here, before it.
+  if (ui.search.value.trim() !== "") await listAll();
   await searchNotes(ui.search.value);
   void panel.loadTags();
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.kind === "folder") void l.load(l.path);
@@ -8756,8 +8974,14 @@ async function renameTo(from: string, to: string, done = ""): Promise<boolean> {
     fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
     return false;
   }
+  // What moved with it by a rule of its own — a folder's note taking the
+  // folder's new name — goes where the core put it, not where the prefix
+  // says.
+  const also = new Map(r.data.also.map((m) => [m.from, m.to] as const));
+  for (const [a, b] of also) pathsMoved(a, b);
   pathsMoved(from, r.data.path);
-  for (const l of leavesUnder(from)) l.moved(l.path === from ? r.data.path : r.data.path + l.path.slice(from.length));
+  for (const l of leavesUnder(from)) l.moved(also.get(l.path) ?? (l.path === from ? r.data.path : r.data.path + l.path.slice(from.length)));
+  for (const [a, b] of also) for (const l of leavesUnder(a)) if (l.path === a) l.moved(b);
   if (openFolders.has(from)) {
     openFolders.delete(from);
     openFolders.add(r.data.path);
@@ -8819,15 +9043,8 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
       x, y,
       currentSticker,
       currentColor,
-      strings: {
-        emojis: "Emoji",
-        icons: "Icons",
-        colors: t.hue,
-        search: t.search,
-        removeSticker: t.removeSticker,
-        removeColor: t.removeColor,
-      },
-      lang: settings.lang === "en" ? "en" : "pt",
+      strings: pickerStrings(),
+      lang: LOCALE.startsWith("pt") ? "pt" : "en",
       onSelectSticker: (stk) => void updateEntryProperties(path, kind, { sticker: stk }),
       onSelectColor: (clr) => void updateEntryProperties(path, kind, { color: clr }),
       onRemoveSticker: () => void updateEntryProperties(path, kind, { sticker: null }),
@@ -8842,13 +9059,8 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
   const isPinned = isItemPinned(path, parentFolder, parentPinned);
 
   const pinItem: MenuItem = isPinned
-    ? [t.unpinFromFolder, () => void (async () => {
-        const newPinned = parentPinned.filter((p) => !isItemPinned(path, parentFolder, [p]));
-        await updateEntryListProperty(parentFolder, "folder", "pinned", newPinned);
-      })(), "pin"]
-    : [t.pinToFolder, () => void (async () => {
-        await pinItemToFolder(parentFolder, path);
-      })(), "pin"];
+    ? [t.unpinFromFolder, () => void unpinItemFromFolder(parentFolder, path), "pin"]
+    : [t.pinToFolder, () => void pinItemToFolder(parentFolder, path), "pin"];
 
   const moveUpItem: MenuItem = [t.moveUp, () => void moveTreeItemOrder(path, -1), "arrow-up"];
   const moveDownItem: MenuItem = [t.moveDown, () => void moveTreeItemOrder(path, 1), "arrow-down"];
@@ -8871,6 +9083,8 @@ function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () =>
     sep,
     ...(parentFolder !== "" || parentFn ? [pinItem] : []),
     ...(settings.manualOrder ? [moveUpItem, moveDownItem] : []),
+    ...(folder && folderNoteOf(path) ? [[t.openFolderNote, () => void openNote(folderNoteOf(path) ?? "", false), "note"] as MenuItem] : []),
+    ...(folder ? orderMenuItems() : []),
     hideItem,
     sep,
     [t.rename, rename, "edit"],
@@ -9445,8 +9659,11 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
       items.push({ kind: "folder", name: folder, full, child });
     }
   }
+  // Folder notes are not rows of the tree (the maintainer, 2026-10-02):
+  // the folder's menu and its page open them.
+  const notesOfFolders = folderNotesAt(prefix);
   for (const p of node.files) {
-    if (!hiddenItems.includes(p)) {
+    if (!hiddenItems.includes(p) && !notesOfFolders.has(p)) {
       items.push({ kind: "file", path: p });
     }
   }
@@ -9461,8 +9678,8 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
     if (settings.manualOrder && orderList.length > 0) {
       const aRel = a.kind === "folder" ? a.name : (prefix ? a.path.slice(prefix.length + 1) : a.path);
       const bRel = b.kind === "folder" ? b.name : (prefix ? b.path.slice(prefix.length + 1) : b.path);
-      const aIdx = orderList.findIndex((o) => o === aRel || withoutMd(o) === withoutMd(aRel));
-      const bIdx = orderList.findIndex((o) => o === bRel || withoutMd(o) === withoutMd(bRel));
+      const aIdx = orderIndex(orderList, aRel);
+      const bIdx = orderIndex(orderList, bRel);
       if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
       if (aIdx >= 0) return -1;
       if (bIdx >= 0) return 1;
@@ -9560,6 +9777,8 @@ function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement 
   }
   return ul;
 }
+/** The folder whose tree last rose into view (`listAll`). */
+let revealedFolder: string | null = null;
 async function listAll(): Promise<void> {
   const [notes, files, folders, entries, web] = await Promise.all([commands.listNotes(), commands.listFiles(), commands.listFolders(), commands.listEntries(), commands.listWebNotes()]);
   if (notes.status !== "ok") return fail(notes.error);
@@ -9571,11 +9790,17 @@ async function listAll(): Promise<void> {
   allEntries.clear();
   if (entries.status === "ok") for (const e of entries.data) allEntries.set(e.path, e);
   const was = treeFocus();
-  ui.notes.className = "tree";
+  // The rows rise in turn when a folder opens; a redraw of the same folder
+  // — a save, a rename, a drag — puts them in place at once.
+  ui.notes.className = revealedFolder === currentFolder ? "tree" : "tree reveal";
+  revealedFolder = currentFolder;
   ui.notes.replaceChildren(...Array.from(renderTree(tree([...allNotes, ...allFiles], allFolders), 0).children));
   Array.from(ui.notes.children).forEach((li, i) => (li as HTMLElement).style.setProperty("--i", String(i)));
   if (allNotes.length + allFiles.length === 0) ui.notes.append(h("li", "empty", t.noNotes));
   markCurrent();
+  // Each tab's sticker drawn again from the labels just read; its title
+  // stays as its leaf set it.
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l.path) l.setTitle(l.tabName.textContent ?? "");
   restoreTreeFocus(was);
 }
 /* The tree from the keyboard: the arrows walk the rows on screen, Right
@@ -10903,11 +11128,13 @@ class SettingsDialog {
     add("organizing", t.covers, t.coversDesc, () => this.toggle(settings.covers, (v) => { settings.covers = v; saveSettings(); for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf && l.note) void l.load(l.path, true); }));
     add("organizing", t.coverHeight, t.coverHeightDesc, () => this.text(String(settings.coverHeight), (v) => { const n = Number(v); if (!isNaN(n) && n >= 80 && n <= 600) { settings.coverHeight = n; saveSettings(); } }));
     add("organizing", t.aliasInTree, t.aliasInTreeDesc, () => this.toggle(settings.aliasInTree, (v) => { settings.aliasInTree = v; saveSettings(); void listAll(); }));
-    add("organizing", t.folderNoteName, t.folderNoteNameDesc, () => this.text(settings.folderNoteName, (v) => { settings.folderNoteName = v.trim(); saveSettings(); void listAll(); }));
+    add("organizing", t.folderNoteName, t.folderNoteNameDesc, () => this.text(settings.folderNoteName, (v) => { settings.folderNoteName = v.trim(); saveSettings(); void pushFolderNoteName().then(() => listAll()); }));
     add("organizing", t.folderPageTable, t.folderPageTableDesc, () => this.toggle(settings.folderPageTable, (v) => { settings.folderPageTable = v; saveSettings(); }));
-    add("organizing", t.manualOrder, t.manualOrderDesc, () => this.toggle(settings.manualOrder, (v) => { settings.manualOrder = v; saveSettings(); }));
+    add("organizing", t.manualOrder, t.manualOrderDesc, () => this.toggle(settings.manualOrder, (v) => { settings.manualOrder = v; saveSettings(); orderModeChanged(); }));
     add("organizing", t.inlineEmbedEdit, t.inlineEmbedEditDesc, () => this.toggle(settings.inlineEmbedEdit, (v) => { settings.inlineEmbedEdit = v; saveSettings(); }));
     add("organizing", t.emojiTrigger, t.emojiTriggerDesc, () => this.toggle(settings.emojiTrigger, (v) => { settings.emojiTrigger = v; saveSettings(); }));
+    // Not one of D12's ten settings: the list S3 asks for, where what was
+    // hidden from the tree is shown again (ADR 0060, memo §7 S3).
     add("organizing", t.hiddenFromTree, t.hiddenFromTreeDesc, () => {
       const container = h("div", "hidden-items-list");
       const list = getHiddenFromTree();
@@ -10919,9 +11146,8 @@ class SettingsDialog {
         const row = h("div", "hidden-item-row");
         const label = h("span", "hidden-item-name", item);
         const unhideBtn = button("ghost", t.unhide);
-        unhideBtn.textContent = t.unhide;
         unhideBtn.addEventListener("click", () => {
-          setHiddenFromTree(list.filter((x) => x !== item));
+          setHiddenFromTree(getHiddenFromTree().filter((x) => x !== item));
           void listAll();
           this.paint();
         });
@@ -11610,9 +11836,13 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
   if ((e.target as HTMLElement).closest("button.row, summary, input")) return;
   e.preventDefault();
   const sep: MenuItem = ["—", () => {}];
+  const order = orderMenuItems();
+  const rootNote = folderNoteOf("");
   const items: MenuItem[] = [
     ...createMenuItems(""),
     sep,
+    ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
+    ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
   ];
   showMenu(e.clientX, e.clientY, items);
@@ -11841,7 +12071,7 @@ if (!popout && settings.checkUpdates) {
  *  The browser harness waits for it before a test types (review
  *  `board.md`, second reading, finding 9). */
 export const started: Promise<void> = (async () => {
-  await Promise.all([embedOriginsPushed, walkRulesPushed]);
+  await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
   // window joins it rather than open another.

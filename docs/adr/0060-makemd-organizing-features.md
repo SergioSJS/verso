@@ -12,6 +12,29 @@
   (Recomendado)" (every recommendation accepted), and, on observing make.md
   in Obsidian, "Pode, no Sandbox (Recomendado)".
 - Status in the briefing: not present
+- Revisions: 2026-10-02, evening — the maintainer's answers on the review
+  of the slices, recorded as they came: renaming a folder renames its folder
+  note with it ("Renomear a pasta deveria renomear o MD sim"), D3; a
+  folder's order is alphabetical or its own, the own one made from the
+  alphabetical ("ter 2 opções, ordem alfabética, ou ordem customizada que
+  pode surgir da alfabética"), so a folder can go back to alphabetical, its
+  `order:` taken out, D4; a colour is written as a hex ("perfeito hex"),
+  D2 — and `banner_y`, as make.md's reposition writes it, a percentage
+  (`docs/reference/obsidian-observations.md` §17); the observations of D13
+  are run ("rodar"), and make.md stays in the
+  Sandbox vault afterwards, to compare behaviour ("deixa lá … vou usar pra
+  validar comparando funcionamento"). Later the same night: a folder note is
+  created without a question when a folder is first labelled, ordered or
+  pinned ("devia só criar"), D3 and D4; the root's items can be ordered too
+  ("documentos da raiz eu DEVERIA poder mover"), D4 — the root's order kept
+  in a note at the root named after the open folder, the author's
+  recommendation, applied for the maintainer to confirm; the tree's order is
+  one switch, alphabetical or custom, that keeps every custom order when it
+  goes alphabetical ("deveria ser tipo um toggle … e o personalizado manter
+  seu valor") — D12's "Order by dragging in the tree", also in the tree's
+  menus; a folder note is no row of
+  the file tree — the folder's menu and its page open it ("o markdown da
+  pasta não deveria ficar visível na árvore").
 
 ## Context
 
@@ -97,7 +120,6 @@ spec in the slice that brings it.
 - [ADR 0049](0049-phase-2-scope-widened.md) §3: its line "make.md's
   Contexts" no longer holds — the views were [0053](0053-views-bases.md),
   this ADR the rest.
-- **Dependencies:** `cldr-annotations-modern` is added to `devDependencies` (Unicode-3.0 license) solely for the offline build script `scripts/build-emoji-data.mjs` that generates `app/ui/src/emoji-data.json`; it is not bundled into the runtime distribution.
 - **Authorship.** The maintainer delegated the implementation to
   Antigravity on 2026-10-02 ("vou delegar para o antigravity implementar o
   make md"): a deviation from [ADR 0032](0032-author-and-reviewer-roles.md)'s
@@ -126,4 +148,4 @@ From the memo, each weighed by the maintainer:
 
 ## Status
 
-In progress / review (2026-10-02); slices S1–S4 implemented, awaiting final review and verification.
+Accepted (2026-10-02).

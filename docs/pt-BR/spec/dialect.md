@@ -517,9 +517,9 @@ a nota tipada, os schemas dela e os rótulos deles por idioma
 | Relação tipada | uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles; a chave é o tipo | `DECIDIDO` em 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados | `DECIDIDO` em 2026-09-24 (Q11) |
 | Visibilidade por bloco | segredo do mestre | `[ABERTO]` (Q9) |
-| Figurinha e cor | `sticker:` (emoji ou `lucide//<nome>`) e `color:` (hex ou cor CSS) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
-| Capa com reposicionamento | `banner:` (caminho ou URL) e `banner_y:` (percentual de alinhamento vertical, 0–100) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
-| Ordem manual na pasta | `order:` no frontmatter da nota de pasta, uma lista de nomes relativos definindo a ordem | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Figurinha e cor | `sticker:` nas formas do make.md — `emoji//<hex>`, `lucide//<nome>`, `ui//<nome>` — escritas pelo Verso como o make.md as escreve, ou um emoji escrito como ele mesmo, lido; outro valor não é figurinha. `color:` um hex, como o Verso escreve, ou uma cor CSS, lida. No frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Capa com reposicionamento | `banner:` (um caminho da pasta ou uma URL) e `banner_y:` (a posição vertical, uma porcentagem de 0 a 100 escrita como texto, `"42"` — como o reposicionar do make.md a escreve, lido no código dele e observado pelo escritor de propriedades dele, 2026-10-02) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Ordem manual na pasta | `order:` no frontmatter da nota de pasta, uma lista de nomes relativos definindo a ordem; sem `order:`, a alfabética; com a árvore em ordem alfabética, todo `order:` é mantido e ignorado. A da raiz, numa nota na raiz com o nome da pasta aberta (o lugar: `PROPOSTO`, do autor, a confirmar) | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Itens fixados na pasta | `pinned:` no frontmatter da nota de pasta, uma lista de wikilinks entre aspas formando a relação tipada `pinned` | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Padrões de itens da pasta | `items_sticker:`, `items_color:` e `items_template:` no frontmatter da nota de pasta, herdados por novos itens criados na pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 
@@ -556,10 +556,10 @@ Exemplo de frontmatter de organização em uma nota:
 
 ```markdown
 ---
-sticker: "🚀"
+sticker: emoji//1f680
 color: "#e8590c"
 banner: assets/diagrama.svg
-banner_y: 42
+banner_y: "42"
 ---
 ```
 
@@ -572,7 +572,7 @@ order:
   - "Projeto Beta.md"
 pinned:
   - "[[Projeto Alpha]]"
-items_sticker: "📝"
+items_sticker: emoji//1f4dd
 items_color: "#1971c2"
 items_template: "Templates/Nota de Reunião.md"
 ---

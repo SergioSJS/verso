@@ -309,36 +309,68 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    caminho); `--unresolved`; `--json`. Nível: A. Pegou: só um caminho era
    achado (2026-10-01).
 
-## 11. Organização: figurinhas, capas, páginas de pasta, ordem manual
+## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 
-1. Nota 19: figurinha e cor aparecem na linha da árvore, na aba e no cabeçalho
-   da nota; clicar na figurinha abre o diálogo seletor (`role="dialog"`) com
-   busca acessível, grade de emojis, ícones Lucide e paleta de cores. Nível: H;
-   E: `labels.spec.mjs`.
-2. Capa e reposicionamento vertical: "Adicionar capa" grava `banner:`;
-   "Reposicionar" mostra controle deslizante e atalhos de teclado (↑ / ↓,
-   Enter para salvar, Esc para cancelar); capas da web respeitam a configuração
-   de permissão de rede. Nível: H; E: `labels.spec.mjs`.
-3. Páginas de pasta e padrões de itens: clicar numa pasta abre a página da
-   pasta; uma nota homônima (`Projetos/Projetos.md`) renderiza a visão geral, e
-   sua tabela de itens atua como base sobre a pasta; novos itens herdam
-   `items_sticker:`, `items_color:` e `items_template:`. Nível: H;
-   E: `folder-pages.spec.mjs`.
-4. Ordem manual e fixados: arrastar um item na árvore ou usar o menu de
-   contexto ("Mover para cima" / "Mover para baixo") reordena os itens; "Fixar
-   no topo da pasta" / "Desafixar da pasta" fixa itens no início; a ordem e os
-   fixados são salvos nas listas `order:` e `pinned:` da nota de pasta. Nível: H;
-   E: `order-pins.spec.mjs`.
-5. Ocultar da árvore: o menu de contexto "Ocultar da árvore" esconde o item;
-   Ajustes › Organização › "Itens ocultos da árvore" lista os itens ocultos
-   deste cofre e permite restaurá-los. Nível: H; E: `order-pins.spec.mjs`.
-6. Edição direta de nota incorporada (Flow): clicar em `![[Nota]]` no modo
-   leitura ou edição permite editar no próprio local com histórico de desfazer
-   isolado; salvar sincroniza de forma limpa ou avisa se houver conflito.
-   Nível: H; E: `flow.spec.mjs`.
-7. Gatilho de emojis: digitar `:` no editor abre o popup de autocompletar;
-   ↑ e ↓ navegam, Enter insere o emoji, Esc fecha. Nível: H;
-   E: `flow.spec.mjs`.
+1. Nota 19: a figurinha e a cor aparecem na linha da árvore, na aba e acima
+   do título. Uma linha cujo `sticker:` não é figurinha mantém o próprio
+   ícone. Nível: H; E: `labels.spec.mjs`, "sticker in frontmatter appears in
+   tree row and tab" e "a sticker picked from the picker is written as
+   make.md writes it, and an unknown one falls back".
+2. A figurinha ao lado do título abre o seletor: "Ícones" troca de aba, a
+   busca filtra, uma escolha fecha o seletor e o arquivo ganha
+   `sticker: emoji//…` ou `sticker: lucide//…`; uma cor escreve `color:`.
+   Nível: H; E: `labels.spec.mjs`, "sticker picker popover opens, switches
+   tabs, searches, selects sticker and color".
+3. "Adicionar capa", um caminho da pasta (`assets/diagrama.svg`): a capa
+   aparece. "Reposicionar", ↓ três vezes, Enter: `banner_y` muda; de novo
+   com Esc: nada muda. Nível: H (o arraste: E, `labels.spec.mjs`, "note cover
+   banner displays and drag repositioning updates banner_y"; as teclas: à
+   mão).
+4. A página de uma pasta: a nota da pasta no topo, uma tabela dos itens
+   embaixo. Numa pasta sem nota, "Criar nota da pasta". A nota da pasta não
+   é uma linha da árvore; o menu da pasta, "Abrir nota da pasta", a abre (E:
+   `order-pins.spec.mjs`, "a folder's note is not a row of the tree; the
+   folder's menu opens it"). Nível: H; E:
+   `folder-pages.spec.mjs`, "folder page displays folder note, cover banner,
+   sticker, and default table".
+5. Ajustes › Organização › "Nome da nota da pasta": `README` faz de
+   `Pasta/README.md` a nota da pasta — a figurinha dela aparece na linha da
+   pasta. Nível: H; E: `labels.spec.mjs`, "the folder note name setting
+   names the note a folder's labels come from".
+6. Ordem e fixados: "Mover para cima" numa linha escreve o `order:` da nota
+   da pasta; "Fixar na pasta" escreve `pinned:` e põe a linha primeiro;
+   "Desafixar da pasta" tira; "Ordem alfabética" no menu de uma
+   pasta, ou o botão ao lado de "Arquivos", ordena a árvore toda pelo nome e "Ordem personalizada" traz de volta
+   todo `order:`, intacto; arrastar uma nota da raiz escreve a nota da raiz, com o nome
+   da pasta aberta. Numa pasta sem nota, o primeiro desses a cria, sem pergunta, e
+   a barra de status avisa. Nível: H; E: `order-pins.spec.mjs`, "pin and
+   unpin via context menu updates folder note frontmatter", "pinning in a
+   folder with no folder note creates it, with no question", "the menu
+   switches the tree between alphabetical and custom order, keeping the
+   custom one", e "the root's notes
+   are ordered by dragging, in the root's note"
+   (arrastar uma linha, e ⇧ ao soltar: à mão).
+7. Renomear uma nota citada num `order:` (F2 na linha): o plano mostra a
+   linha da nota da pasta mudada, e só ela. Nível: H (a reescrita do core: U,
+   `cargo test -p verso-core`, os testes de `order` em `workspace.rs`).
+   Renomear uma pasta renomeia a nota da pasta: `Team/Team.md` vira
+   `Crew/Crew.md`, e a aba aberta acompanha. Nível: H; E:
+   `order-pins.spec.mjs`, "renaming a folder renames its folder note, and
+   its open tab follows".
+8. "Ocultar da árvore" tira a linha; Ajustes › Organização › "Itens ocultos
+   da árvore" a lista, e "Mostrar" a traz de volta. Nível: H; E:
+   `order-pins.spec.mjs`, "hide from tree removes item from tree and unhide
+   in settings restores it".
+9. O embed da nota 19: um clique no texto o edita no lugar; o que se digita
+    vai para `projetos/Pesquisa e Descobertas.md`. Com o arquivo mudado em
+    outro lugar, o conflito aparece; trocar de modo então pergunta, e
+    "Cancelar" mantém o texto. Nível: H; E: `flow.spec.mjs`, "typing inside an
+    embed in reading view changes the embedded file only (ADR 0060 S4)",
+    "conflict on the embedded file shows two versions" e "switching mode with
+    an embed in conflict asks, and a no keeps the text typed".
+10. `:foguete` no editor sugere 🚀; Enter insere. Nível: H; E:
+    `flow.spec.mjs`, "emoji trigger with : opens completion and inserts emoji
+    (ADR 0060 E4)" (as setas e o Esc: à mão).
 
 ## 12. O fim
 

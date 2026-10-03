@@ -176,6 +176,12 @@ export type CardEditing = {
   /** Undo or redo in the editor, the keyboard in it. */
   run: (command: "undo" | "redo") => void;
   destroy: () => void;
+  /** True when changes in the card editor are unsaved. */
+  isDirty?: () => boolean;
+  /** True when a conflict banner is active on the card editor. */
+  isConflicted?: () => boolean;
+  /** The note path being edited. */
+  targetPath?: () => string;
 };
 
 export type BoardHandle = {

@@ -57,6 +57,29 @@ mod support {
         !matches!(root.read(h), Err(verso_fs::ReadError::Io(_)))
     }
 
+    /// A folder note's `order:` as the index reads it once the change is
+    /// on disk: what the tree sorts by, and proof the YAML still parses.
+    pub fn order_of(ws: &mut Workspace, folder_note: &str) -> Vec<String> {
+        ws.index().unwrap();
+        ws.labels()
+            .unwrap()
+            .get(folder_note)
+            .and_then(|l| l.order.clone())
+            .unwrap_or_default()
+    }
+
+    /// The folder `pasta` with `A.md`, `B.md` and its folder note
+    /// `pasta/pasta.md` holding `text`; kept until dropped.
+    pub fn folder_with_order(vault: &Path, text: &str) -> (TempDir, Vec<NamedTempFile>) {
+        let pasta = subdir(vault, "pasta");
+        let files = vec![
+            note(pasta.path(), "A.md", "# A\n"),
+            note(pasta.path(), "B.md", "# B\n"),
+            note(pasta.path(), "pasta.md", text),
+        ];
+        (pasta, files)
+    }
+
     /// `path` and `after` of each rewrite of a plan.
     pub fn plan_of(r: &verso_core::Renamed) -> Vec<(&str, &str)> {
         r.rewrites
@@ -1492,54 +1515,11 @@ fn renaming_a_folder_preserves_its_internal_order_list() {
     assert_eq!(renamed.path, "bar");
     apply(&mut ws, &renamed);
 
-    let read = ws.read_note("bar/foo.md").unwrap();
-    assert!(
-        read.text.contains("order:"),
-        "must keep order: {}",
-        read.text
-    );
-    assert!(read.text.contains("A.md"), "must keep A.md: {}", read.text);
-    assert!(read.text.contains("B.md"), "must keep B.md: {}", read.text);
-    assert!(read.text.contains("sub"), "must keep sub: {}", read.text);
-    assert!(read.text.contains("2024"), "must keep 2024: {}", read.text);
-    assert!(
-        !read.text.contains("order: []"),
-        "order must NOT be empty: {}",
-        read.text
-    );
-
-    let renamed_note = ws.rename_note("bar/foo.md", "bar/bar.md").unwrap();
-    apply(&mut ws, &renamed_note);
-    let read_bar = ws.read_note("bar/bar.md").unwrap();
-    assert!(
-        read_bar.text.contains("order:"),
-        "must keep order: {}",
-        read_bar.text
-    );
-    assert!(
-        read_bar.text.contains("A.md"),
-        "must keep A.md: {}",
-        read_bar.text
-    );
-    assert!(
-        read_bar.text.contains("B.md"),
-        "must keep B.md: {}",
-        read_bar.text
-    );
-    assert!(
-        read_bar.text.contains("sub"),
-        "must keep sub: {}",
-        read_bar.text
-    );
-    assert!(
-        read_bar.text.contains("2024"),
-        "must keep 2024: {}",
-        read_bar.text
-    );
-    assert!(
-        !read_bar.text.contains("order: []"),
-        "order must NOT be empty: {}",
-        read_bar.text
+    // The folder note took the folder's new name with it.
+    let read = ws.read_note("bar/bar.md").unwrap();
+    assert_eq!(
+        read.text,
+        "---\norder:\n  - A.md\n  - B.md\n  - sub\n  - 2024\n---\n# Foo\n"
     );
 }
 
@@ -1605,6 +1585,79 @@ fn renaming_a_subfolder_updates_parent_folder_order() {
     );
 }
 
+/// A root note rename must NOT match an item in a subfolder's order list.
+#[test]
+fn renaming_root_note_does_not_corrupt_subfolder_order() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _root_a = note(vault.path(), "A.md", "# Root A\n");
+    let folder = subdir(vault.path(), "pasta");
+    let _sub_a = note(folder.path(), "A.md", "# Sub A\n");
+    let _sub_b = note(folder.path(), "B.md", "# Sub B\n");
+    let _fn = note(
+        folder.path(),
+        "pasta.md",
+        "---\norder:\n  - A.md\n  - B.md\n---\n# Pasta\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("A.md", "X.md").unwrap();
+    assert_eq!(renamed.path, "X.md");
+    // pasta/pasta.md must NOT have been rewritten
+    assert!(
+        !renamed.rewrites.iter().any(|r| r.path == "pasta/pasta.md"),
+        "subfolder folder note must not be rewritten on root note rename"
+    );
+    let read_fn = ws.read_note("pasta/pasta").unwrap();
+    assert!(read_fn.text.contains("- A.md"));
+    assert!(read_fn.text.contains("- B.md"));
+}
+
+/// The order list preserves numeric strings with leading zeroes (01) and quotes specials.
+#[test]
+fn order_preserves_numeric_strings_and_quotes_specials() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let parent = subdir(vault.path(), "parent");
+    let _sub = subdir(parent.path(), "sub");
+    let _sub_note = note(_sub.path(), "sub.md", "# Sub\n");
+    let _fn = note(
+        parent.path(),
+        "parent.md",
+        "---\norder:\n  - \"01\"\n  - \"2024\"\n  - \"[tag]\"\n  - sub\n---\n# Parent\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("parent/sub", "parent/sub2").unwrap();
+    let rw = renamed
+        .rewrites
+        .iter()
+        .find(|r| r.path == "parent/parent.md")
+        .expect("parent folder note must be rewritten");
+    assert!(
+        rw.after.contains("\"01\""),
+        "must preserve 01 with leading zero: {}",
+        rw.after
+    );
+    assert!(
+        !rw.after.contains("- 1\n"),
+        "must not be converted to number 1: {}",
+        rw.after
+    );
+    assert!(
+        rw.after.contains("\"[tag]\""),
+        "must quote [tag]: {}",
+        rw.after
+    );
+    assert!(
+        rw.after.contains("sub2"),
+        "must contain renamed sub2: {}",
+        rw.after
+    );
+}
+
 /// A rename made outside reaches the index through the watcher.
 #[test]
 fn a_rename_made_outside_reaches_the_index_through_the_watch() {
@@ -1649,4 +1702,351 @@ fn a_rename_made_outside_reaches_the_index_through_the_watch() {
     assert!(r.listing_changed);
     assert!(r.changed.contains(&"pasta/B.md".to_string()));
     assert!(r.gone.contains(&"pasta/A.md".to_string()));
+}
+
+/// Only the line of the item that moved changes: comments, bare numbers
+/// (`01`, `1.10`), trailing comments and the other keys stay as written.
+#[test]
+fn an_order_rewrite_changes_the_moved_items_line_only() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let text = "---\ntitle: P\norder:\n  # mine\n  - 01\n  - A.md # first\n  - 1.10\n  - B.md\ntags: [x]\n---\n# P\n";
+    let _pasta = folder_with_order(vault.path(), text);
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("pasta/B.md", "pasta/C.md").unwrap();
+    let rw = renamed
+        .rewrites
+        .iter()
+        .find(|r| r.path == "pasta/pasta.md")
+        .unwrap();
+    assert_eq!(rw.after, text.replace("  - B.md\n", "  - C.md\n"));
+    apply(&mut ws, &renamed);
+    // Bare `01` and `1.10` are numbers to any YAML reader; the text keeps
+    // them as written (above).
+    assert_eq!(
+        order_of(&mut ws, "pasta/pasta.md"),
+        ["1", "A.md", "1.1", "C.md"]
+    );
+}
+
+/// Windows line endings are kept.
+#[test]
+fn an_order_rewrite_keeps_crlf() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let text = "---\r\norder:\r\n  - A.md\r\n  - B.md\r\n---\r\n# P\r\n";
+    let _pasta = folder_with_order(vault.path(), text);
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("pasta/A.md", "pasta/C.md").unwrap();
+    let rw = renamed
+        .rewrites
+        .iter()
+        .find(|r| r.path == "pasta/pasta.md")
+        .unwrap();
+    assert_eq!(rw.after, text.replace("- A.md", "- C.md"));
+}
+
+/// A new name YAML would read as something else is quoted, and reads back
+/// as written.
+#[test]
+fn an_order_rewrite_quotes_a_name_yaml_would_misread() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let (pasta, _files) = folder_with_order(
+        vault.path(),
+        "---\norder:\n  - sub\n  - A.md\n  - B.md\n---\n",
+    );
+    let sub = subdir(pasta.path(), "sub");
+    let _n = note(sub.path(), "n.md", "# n\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("pasta/sub", "pasta/2024").unwrap();
+    apply(&mut ws, &renamed);
+    let renamed = ws.rename_entry("pasta/B.md", "pasta/[x] - y.md").unwrap();
+    let rw = renamed
+        .rewrites
+        .iter()
+        .find(|r| r.path == "pasta/pasta.md")
+        .unwrap();
+    assert!(rw.after.contains("  - \"2024\"\n"), "{}", rw.after);
+    assert!(rw.after.contains("  - \"[x] - y.md\"\n"), "{}", rw.after);
+    apply(&mut ws, &renamed);
+    assert_eq!(
+        order_of(&mut ws, "pasta/pasta.md"),
+        ["2024", "A.md", "[x] - y.md"]
+    );
+}
+
+/// A note and a folder of the same name are two items: renaming the note
+/// leaves the folder's.
+#[test]
+fn an_order_rewrite_tells_a_note_from_a_folder_of_its_name() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let (pasta, _files) = folder_with_order(
+        vault.path(),
+        "---\norder:\n  - Sketch.md\n  - Sketch\n---\n",
+    );
+    let _s = note(pasta.path(), "Sketch.md", "# s\n");
+    let sketch = subdir(pasta.path(), "Sketch");
+    let _n = note(sketch.path(), "n.md", "# n\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws
+        .rename_entry("pasta/Sketch.md", "pasta/Draft.md")
+        .unwrap();
+    apply(&mut ws, &renamed);
+    assert_eq!(order_of(&mut ws, "pasta/pasta.md"), ["Draft.md", "Sketch"]);
+}
+
+/// An item moved to another folder leaves the order; the others stay.
+#[test]
+fn an_item_moved_out_of_the_folder_leaves_its_order() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _pasta = folder_with_order(vault.path(), "---\norder:\n  - B.md\n  - A.md\n---\n");
+    let outro = subdir(vault.path(), "outro");
+    let _o = note(outro.path(), "O.md", "# O\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("pasta/A.md", "outro/A.md").unwrap();
+    apply(&mut ws, &renamed);
+    assert_eq!(order_of(&mut ws, "pasta/pasta.md"), ["B.md"]);
+}
+
+/// With the folder note name setting, that note is the folder's; without
+/// it, a `README.md` with an `order:` is an ordinary note.
+#[test]
+fn the_folder_note_name_setting_names_the_note_whose_order_is_rewritten() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let pasta = subdir(vault.path(), "pasta");
+    let _a = note(pasta.path(), "A.md", "# A\n");
+    let _readme = note(pasta.path(), "README.md", "---\norder:\n  - A.md\n---\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("pasta/A.md", "pasta/B.md").unwrap();
+    assert!(!renamed.rewrites.iter().any(|r| r.path == "pasta/README.md"));
+    apply(&mut ws, &renamed);
+
+    ws.set_folder_note_name("README");
+    assert_eq!(
+        ws.folder_note_of("pasta").unwrap().as_deref(),
+        Some("pasta/README.md")
+    );
+    let read = ws.read_note("pasta/README.md").unwrap();
+    ws.write_note(
+        "pasta/README.md",
+        "---\norder:\n  - B.md\n---\n",
+        &read.revision,
+    )
+    .unwrap();
+    ws.index().unwrap();
+    let renamed = ws.rename_entry("pasta/B.md", "pasta/C.md").unwrap();
+    apply(&mut ws, &renamed);
+    assert_eq!(order_of(&mut ws, "pasta/README.md"), ["C.md"]);
+}
+
+/// A note that is not a folder note keeps its `order:` key as it is.
+#[test]
+fn a_note_that_is_not_a_folder_note_keeps_its_order() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let (pasta, _files) = folder_with_order(vault.path(), "# pasta\n");
+    let _ideias = note(
+        pasta.path(),
+        "ideias.md",
+        "---\norder:\n  - A.md\n---\n[[A]]\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("pasta/A.md", "pasta/C.md").unwrap();
+    let rw = renamed
+        .rewrites
+        .iter()
+        .find(|r| r.path == "pasta/ideias.md")
+        .unwrap();
+    assert!(rw.after.contains("  - A.md\n"), "{}", rw.after);
+    assert!(rw.after.contains("[[C]]"), "{}", rw.after);
+}
+
+/// A folder note beside its folder (`pasta.md`) follows its items, and a
+/// rename at the root of a note of the same name leaves it alone.
+#[test]
+fn a_folder_note_beside_its_folder_is_rewritten_for_its_items_only() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let pasta = subdir(vault.path(), "pasta");
+    let _a = note(pasta.path(), "A.md", "# A\n");
+    let _root_a = note(vault.path(), "A.md", "# root A\n");
+    let _beside = note(vault.path(), "pasta.md", "---\norder:\n  - A.md\n---\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("A.md", "B.md").unwrap();
+    assert!(!renamed.rewrites.iter().any(|r| r.path == "pasta.md"));
+    apply(&mut ws, &renamed);
+
+    let renamed = ws.rename_entry("pasta/A.md", "pasta/C.md").unwrap();
+    apply(&mut ws, &renamed);
+    assert_eq!(order_of(&mut ws, "pasta.md"), ["C.md"]);
+}
+
+/// A rename keeps `pinned:` pointing at the note, as a link.
+#[test]
+fn a_rename_keeps_pinned_pointing_at_the_note() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _pasta = folder_with_order(vault.path(), "---\npinned:\n  - \"[[A]]\"\n---\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("pasta/A.md", "pasta/C.md").unwrap();
+    apply(&mut ws, &renamed);
+    ws.index().unwrap();
+    let pinned = ws
+        .labels()
+        .unwrap()
+        .get("pasta/pasta.md")
+        .and_then(|l| l.pinned.clone());
+    assert_eq!(pinned.unwrap_or_default(), ["[[C]]"]);
+}
+
+/// The folder note is found whatever the case of its name; the root has
+/// none.
+#[test]
+fn the_folder_note_is_found_without_case() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let pasta = subdir(vault.path(), "Pasta");
+    let _n = note(pasta.path(), "pasta.md", "# p\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(
+        ws.folder_note_of("Pasta").unwrap().as_deref(),
+        Some("Pasta/pasta.md")
+    );
+    assert_eq!(ws.folder_note_of("").unwrap(), None);
+}
+
+/// Renaming a folder renames its folder note with it, inside or beside,
+/// and links to that note follow (ADR 0060 D3, the maintainer on
+/// 2026-10-02).
+#[test]
+fn renaming_a_folder_renames_its_folder_note() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let (_pasta, _files) = folder_with_order(
+        vault.path(),
+        "---\norder:\n  - B.md\n  - A.md\n---\n# Pasta\n",
+    );
+    let _other = subdir(vault.path(), "outra");
+    let _o = note(_other.path(), "O.md", "# O\n");
+    let _beside = note(vault.path(), "outra.md", "# beside\n");
+    let _link = note(vault.path(), "Links.md", "[[pasta]] e [[outra]]\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("pasta", "nova").unwrap();
+    assert_eq!(
+        renamed.also,
+        [("pasta/pasta.md".to_owned(), "nova/nova.md".to_owned())]
+    );
+    assert!(exists(vault.path(), "nova/nova.md"));
+    assert!(!exists(vault.path(), "nova/pasta.md"));
+    apply(&mut ws, &renamed);
+    assert_eq!(order_of(&mut ws, "nova/nova.md"), ["B.md", "A.md"]);
+
+    let renamed = ws.rename_entry("outra", "segunda").unwrap();
+    assert_eq!(
+        renamed.also,
+        [("outra.md".to_owned(), "segunda.md".to_owned())]
+    );
+    assert!(exists(vault.path(), "segunda.md"));
+    apply(&mut ws, &renamed);
+    let links = String::from_utf8(on_disk(vault.path(), "Links.md")).unwrap();
+    assert_eq!(links, "[[nova]] e [[segunda]]\n");
+}
+
+/// A note named by the setting keeps its name; a note already at the new
+/// name is left alone; a folder moved under its own name keeps its note's
+/// name, and the note beside it goes along.
+#[test]
+fn a_folder_note_keeps_its_name_when_it_should() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let docs = subdir(vault.path(), "docs");
+    let _readme = note(docs.path(), "README.md", "# r\n");
+    let busy = subdir(vault.path(), "busy");
+    let _own = note(busy.path(), "busy.md", "# own\n");
+    let _taken = note(busy.path(), "livre.md", "# taken\n");
+    let solo = subdir(vault.path(), "solo");
+    let _s = note(solo.path(), "S.md", "# s\n");
+    let _beside = note(vault.path(), "solo.md", "# beside\n");
+    let dest = subdir(vault.path(), "dest");
+    let _d = note(dest.path(), "D.md", "# d\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.set_folder_note_name("README");
+    ws.index().unwrap();
+
+    let renamed = ws.rename_entry("docs", "manual").unwrap();
+    assert!(renamed.also.is_empty());
+    assert!(exists(vault.path(), "manual/README.md"));
+
+    let renamed = ws.rename_entry("busy", "livre").unwrap();
+    assert!(renamed.also.is_empty());
+    assert!(exists(vault.path(), "livre/busy.md"));
+    assert!(exists(vault.path(), "livre/livre.md"));
+
+    let renamed = ws.rename_entry("solo", "dest/solo").unwrap();
+    assert_eq!(
+        renamed.also,
+        [("solo.md".to_owned(), "dest/solo.md".to_owned())]
+    );
+    assert!(exists(vault.path(), "dest/solo/S.md"));
+    assert!(exists(vault.path(), "dest/solo.md"));
+}
+
+/// The root's items can be ordered (the maintainer, 2026-10-02): the root's
+/// note is the one named after the open folder, and a rename at the root
+/// rewrites its `order:`.
+#[test]
+fn the_root_note_orders_the_roots_items() {
+    let vault = Builder::new().prefix("raiz").tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let root_name = vault
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let _a = note(vault.path(), "A.md", "# A\n");
+    let _b = note(vault.path(), "B.md", "# B\n");
+    let _root = note(
+        vault.path(),
+        &format!("{root_name}.md"),
+        "---\norder:\n  - B.md\n  - A.md\n---\n",
+    );
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    assert_eq!(
+        ws.folder_note_of("").unwrap(),
+        Some(format!("{root_name}.md"))
+    );
+
+    let renamed = ws.rename_entry("A.md", "C.md").unwrap();
+    apply(&mut ws, &renamed);
+    assert_eq!(
+        order_of(&mut ws, &format!("{root_name}.md")),
+        ["B.md", "C.md"]
+    );
 }

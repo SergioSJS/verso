@@ -10,7 +10,7 @@ test("folder page displays folder note, cover banner, sticker, and default table
     folderNote,
     `---
 banner: assets/diagrama.svg
-banner_y: "0.40"
+banner_y: "40"
 sticker: emoji//1f4c1
 color: "#3b82f6"
 ---

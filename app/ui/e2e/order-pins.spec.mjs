@@ -75,13 +75,14 @@ order:
   await expect(details).toHaveAttribute("open", "");
 
   const items = details.locator("ul > li[data-path]");
-  await expect(items).toHaveCount(4);
+  // The folder note itself is no row of the tree.
+  await expect(items).toHaveCount(3);
 
   const paths = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 3; i++) {
     paths.push(await items.nth(i).getAttribute("data-path"));
   }
-  expect(paths).toEqual(["Tasks/Third.md", "Tasks/First.md", "Tasks/Second.md", "Tasks/Tasks.md"]);
+  expect(paths).toEqual(["Tasks/Third.md", "Tasks/First.md", "Tasks/Second.md"]);
 });
 
 test("pin and unpin via context menu updates folder note frontmatter", async ({ app }) => {
@@ -154,25 +155,144 @@ test("hide from tree removes item from tree and unhide in settings restores it",
   // Row should no longer be visible in tree
   await expect(row).not.toBeVisible();
 
-  // Open settings via Mod+,
+  // Unhide from the list in Settings › Organizing (ADR 0060, memo S3)
   await app.key("Mod+,");
-  const settingsModal = app.page.locator(".settings");
-  await expect(settingsModal).toBeVisible();
-
-  // Navigate to Organizing section
-  const orgTab = app.page.locator(".settings-nav-item", { hasText: "Organização" });
-  await orgTab.click();
-
-  // Hidden item row should be visible with "Mostrar" button
-  const hiddenItem = app.page.locator(".hidden-item-row", { hasText: secretNote });
-  await expect(hiddenItem).toBeVisible();
-
-  const unhideBtn = hiddenItem.locator("button", { hasText: "Mostrar" });
-  await unhideBtn.click();
-
-  // Close settings via Escape
+  await app.page.locator(".settings-nav-item", { hasText: "Organização" }).click();
+  const hiddenRow = app.page.locator(".hidden-item-row", { hasText: secretNote });
+  await expect(hiddenRow).toBeVisible();
+  await hiddenRow.getByRole("button", { name: "Mostrar" }).click();
+  await expect(hiddenRow).toHaveCount(0);
   await app.key("Escape");
 
   // Row should now be visible again in tree
   await expect(app.page.locator(`#notes li[data-path="${secretNote}"] > button`)).toBeVisible();
+});
+
+test("pinning in a folder with no folder note creates it, with no question", async ({ app }) => {
+  await app.open();
+  const item = "Solo/Item.md";
+  await app.writeOutside(item, "# Item\n");
+  await app.folderChanged([item], true);
+
+  const summary = app.page.locator('#notes summary[data-folder="Solo"]');
+  await expect(summary).toBeVisible();
+  const details = summary.locator("xpath=..");
+  await details.evaluate((d) => { d.open = true; d.dispatchEvent(new Event("toggle")); });
+  const row = details.locator(`li[data-path="${item}"] > button`);
+  await row.click({ button: "right" });
+  await app.page.locator(".menu:not([hidden])").locator("button", { hasText: "Fixar na pasta" }).click();
+
+  // Made at once (the maintainer, 2026-10-02), and said in the status bar.
+  await expect.poll(async () => (await app.files()).includes("Solo/Solo.md")).toBe(true);
+  await expect(app.page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(app.page.locator("#status")).toContainText("Nota da pasta criada: Solo/Solo.md");
+  await expect.poll(async () => app.file("Solo/Solo.md")).toContain('- "[[Item]]"');
+});
+
+test("the menu switches the tree between alphabetical and custom order, keeping the custom one", async ({ app }) => {
+  await app.open();
+  const text = "---\norder:\n  - B.md\n  - A.md\n---\n# Lista\n";
+  await app.writeOutside("Lista/Lista.md", text);
+  await app.writeOutside("Lista/A.md", "# A\n");
+  await app.writeOutside("Lista/B.md", "# B\n");
+  await app.folderChanged(["Lista/Lista.md", "Lista/A.md", "Lista/B.md"], true);
+
+  const summary = app.page.locator('#notes summary[data-folder="Lista"]');
+  const details = summary.locator("xpath=..");
+  await details.evaluate((d) => { d.open = true; d.dispatchEvent(new Event("toggle")); });
+  const order = () => app.page.locator('#notes summary[data-folder="Lista"]').locator("xpath=..").locator("ul > li[data-path]").evaluateAll((els) => els.map((e) => e.dataset.path));
+  await expect.poll(order).toEqual(["Lista/B.md", "Lista/A.md"]);
+
+  const menu = app.page.locator(".menu:not([hidden])");
+  await summary.click({ button: "right" });
+  await menu.locator("button", { hasText: "Ordem alfabética" }).click();
+  await expect.poll(order).toEqual(["Lista/A.md", "Lista/B.md"]);
+  // The custom order is kept, not taken out.
+  expect(await app.file("Lista/Lista.md")).toBe(text);
+
+  await app.page.locator('#notes summary[data-folder="Lista"]').click({ button: "right" });
+  await menu.locator("button", { hasText: "Ordem personalizada" }).click();
+  await expect.poll(order).toEqual(["Lista/B.md", "Lista/A.md"]);
+  expect(await app.file("Lista/Lista.md")).toBe(text);
+
+  // The same switch, from the button beside "Arquivos".
+  const toggle = app.page.getByRole("button", { name: "Ordem personalizada", exact: true });
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(order).toEqual(["Lista/A.md", "Lista/B.md"]);
+  await toggle.click();
+  await expect.poll(order).toEqual(["Lista/B.md", "Lista/A.md"]);
+  await expect(app.page.getByRole("navigation", { name: "Arquivos", exact: true })).toBeVisible();
+});
+
+test("the root's notes are ordered by dragging, in the root's note", async ({ app }) => {
+  await app.open();
+  const before = await app.files();
+  const row = (p) => app.page.locator(`#notes > li[data-path="${p}"] > button`);
+  const first = "00 - Bem-vindo ao Verso.md";
+  const second = "01 - Guia de Markdown e Sintaxe.md";
+  await expect(row(second)).toBeVisible();
+  const a = await row(second).boundingBox();
+  const b = await row(first).boundingBox();
+  await app.page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await app.page.mouse.down();
+  await app.page.mouse.move(a.x + a.width / 2, a.y + a.height / 2 - 8, { steps: 4 });
+  await app.page.mouse.move(b.x + b.width / 2, b.y + b.height * 0.2, { steps: 12 });
+  await app.page.mouse.up();
+
+  // The root's note, named after the open folder, made at once.
+  await expect.poll(async () => (await app.files()).filter((p) => !before.includes(p) && !p.includes("/")).length).toBe(1);
+  const rootNote = (await app.files()).find((p) => !before.includes(p) && !p.includes("/"));
+  const text = await app.file(rootNote);
+  expect(text.indexOf(`- ${second}`)).toBeLessThan(text.indexOf(`- ${first}`));
+  await expect.poll(async () => app.page.locator("#notes > li[data-path]").evaluateAll((els) => els.slice(0, 2).map((e) => e.dataset.path))).toEqual([second, first]);
+  // Redrawn in place: the rows do not rise again, top to bottom.
+  await expect(app.page.locator("#notes")).not.toHaveClass(/reveal/);
+});
+
+test("renaming a folder renames its folder note, and its open tab follows", async ({ app }) => {
+  await app.open();
+  await app.writeOutside("Team/Team.md", "---\nsticker: emoji//1f465\n---\n# Team\n");
+  await app.writeOutside("Team/Alice.md", "# Alice\n");
+  await app.folderChanged(["Team/Team.md", "Team/Alice.md"], true);
+  await app.quickOpen("Team");
+
+  const summary = app.page.locator('#notes summary[data-folder="Team"]');
+  await summary.focus();
+  await app.page.keyboard.press("F2");
+  const field = app.page.locator("#notes input");
+  await expect(field).toBeVisible();
+  await field.fill("Crew");
+  await field.press("Enter");
+  const save = app.page.locator(".plan:visible button.save");
+  if (await save.isVisible().catch(() => false)) await save.click();
+
+  await expect.poll(() => app.files()).toContain("Crew/Crew.md");
+  expect(await app.files()).not.toContain("Crew/Team.md");
+  await expect(app.page.locator('#notes summary[data-folder="Crew"] .entry-sticker')).toHaveCount(1);
+  await expect(app.page.locator(".tab", { hasText: "Crew" })).toBeVisible();
+  await expect(app.page.locator(".tab", { hasText: "Team" })).toHaveCount(0);
+  await expect(app.page.locator(".load-failure")).toHaveCount(0);
+});
+
+test("a folder's note is not a row of the tree; the folder's menu opens it", async ({ app }) => {
+  await app.open();
+  await app.writeOutside("Caixa/Caixa.md", "# Caixa\n");
+  await app.writeOutside("Caixa/Item.md", "# Item\n");
+  await app.writeOutside("Lado.md", "# Lado\n");
+  await app.writeOutside("Lado/Coisa.md", "# Coisa\n");
+  await app.folderChanged(["Caixa/Caixa.md", "Caixa/Item.md", "Lado.md", "Lado/Coisa.md"], true);
+
+  const summary = app.page.locator('#notes summary[data-folder="Caixa"]');
+  const details = summary.locator("xpath=..");
+  await details.evaluate((d) => { d.open = true; d.dispatchEvent(new Event("toggle")); });
+  await expect(details.locator('li[data-path="Caixa/Item.md"]')).toBeVisible();
+  await expect(app.page.locator('#notes li[data-path="Caixa/Caixa.md"]')).toHaveCount(0);
+  // A note beside its folder is the folder's too.
+  await expect(app.page.locator('#notes li[data-path="Lado.md"]')).toHaveCount(0);
+
+  await summary.click({ button: "right" });
+  await app.page.locator(".menu:not([hidden])").locator("button", { hasText: "Abrir nota da pasta" }).click();
+  await expect(app.page.locator(".tab", { hasText: "Caixa" })).toBeVisible();
 });

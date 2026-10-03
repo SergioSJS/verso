@@ -308,35 +308,68 @@ point 13).
    it, or its path); `--unresolved`; `--json`. Level: A. Caught: only a path
    was found (2026-10-01).
 
-## 11. Organizing: stickers, covers, folder pages, manual order
+## 11. Organizing: stickers, covers, folder pages, order
 
-1. Note 19: sticker and color appear on the tree row, in the tab, and above
-   the note title; clicking the sticker opens the picker dialog (`role="dialog"`)
-   with accessible search, emoji grid, Lucide icons, and color palette. Level: H;
-   E: `labels.spec.mjs`.
-2. Note banner and vertical repositioning: "Adicionar capa" sets `banner:`;
-   "Reposicionar" shows the position slider and keyboard controls (↑ / ↓,
-   Enter to save, Esc to cancel); remote web banners respect the network
-   permission setting. Level: H; E: `labels.spec.mjs`.
-3. Folder pages and folder item defaults: clicking a folder row opens the
-   folder page; a homonymous note (`Projetos/Projetos.md`) renders the overview,
-   and its items table acts as a base over the folder; newly created items
-   inherit `items_sticker:`, `items_color:`, and `items_template:`. Level: H;
-   E: `folder-pages.spec.mjs`.
-4. Manual order and pins: dragging a tree row or using the context menu
-   ("Mover para cima" / "Mover para baixo") reorders items; "Fixar no topo da
-   pasta" / "Desafixar da pasta" pins items at the top; order and pins are saved
-   to the folder note's `order:` and `pinned:` frontmatter lists. Level: H;
-   E: `order-pins.spec.mjs`.
-5. Hide from tree: context menu "Ocultar da árvore" hides the item;
-   Ajustes › Organização › "Itens ocultos da árvore" lists hidden items per vault
-   and allows restoring them. Level: H; E: `order-pins.spec.mjs`.
-6. Inline embed editing (Flow): clicking an embedded note `![[Note]]` in reading
-   or edit mode allows editing it in place with isolated undo/redo history;
-   flushing saves cleanly or asks on conflict. Level: H; E: `flow.spec.mjs`.
-7. Emoji trigger: typing `:` in the editor opens the emoji autocomplete popup;
-   ↑ and ↓ navigate, Enter inserts the emoji, Esc dismisses. Level: H;
-   E: `flow.spec.mjs`.
+1. Note 19: its sticker and colour show on its tree row, in its tab and
+   above its title. A row whose `sticker:` is no sticker keeps its own icon.
+   Level: H; E: `labels.spec.mjs`, "sticker in frontmatter appears in tree
+   row and tab" and "a sticker picked from the picker is written as make.md
+   writes it, and an unknown one falls back".
+2. The sticker beside the title opens the picker: "Ícones" switches tab, the
+   search filters, a pick closes it and the file gains `sticker: emoji//…`
+   or `sticker: lucide//…`; a swatch writes `color:`. Level: H; E:
+   `labels.spec.mjs`, "sticker picker popover opens, switches tabs, searches,
+   selects sticker and color".
+3. "Adicionar capa", a path of the folder (`assets/diagrama.svg`): the cover
+   shows. "Reposicionar", ↓ three times, Enter: `banner_y` changes; again
+   with Esc: nothing changes. Level: H (the drag: E, `labels.spec.mjs`,
+   "note cover banner displays and drag repositioning updates banner_y"; the
+   keys: by hand).
+4. A folder's page: its folder note on top, a table of its items below. In
+   a folder with no folder note, "Criar nota da pasta". The folder note is
+   no row of the tree; the folder's menu, "Abrir nota da pasta", opens it
+   (E: `order-pins.spec.mjs`, "a folder's note is not a row of the tree; the
+   folder's menu opens it"). Level: H; E:
+   `folder-pages.spec.mjs`, "folder page displays folder note, cover banner,
+   sticker, and default table".
+5. Ajustes › Organização › "Nome da nota da pasta": `README` makes
+   `Pasta/README.md` the folder's note — its sticker shows on the folder's
+   row. Level: H; E: `labels.spec.mjs`, "the folder note name setting names
+   the note a folder's labels come from".
+6. Order and pins: "Mover para cima" on a row writes the folder note's
+   `order:`; "Fixar na pasta" writes `pinned:` and puts the row first;
+   "Desafixar da pasta" takes it out; "Ordem alfabética" in a folder's
+   menu, or the button beside "Arquivos", sorts the whole tree by name and "Ordem personalizada" brings every
+   `order:` back, untouched; dragging a root note writes the root's note, named
+   after the open folder. In a folder with no folder note, the first of
+   these makes it, with no question, and the status bar says so. Level: H;
+   E: `order-pins.spec.mjs`, "pin and unpin via context menu updates folder
+   note frontmatter", "pinning in a folder with no folder note creates it,
+   with no question", "the menu switches the tree between alphabetical
+   and custom order, keeping the custom one", and "the root's notes are ordered by dragging, in the
+   root's note" (dragging a row, and ⇧ on the drop: by
+   hand).
+7. Rename a note named in an `order:` (F2 on its row): the plan shows the
+   folder note's line changed, and only it. Level: H (the core's rewrite: U,
+   `cargo test -p verso-core`, the `order` tests of `workspace.rs`).
+   Renaming a folder renames its folder note: `Team/Team.md` becomes
+   `Crew/Crew.md`, and its open tab follows. Level: H; E:
+   `order-pins.spec.mjs`, "renaming a folder renames its folder note, and
+   its open tab follows".
+8. "Ocultar da árvore" takes the row away; Ajustes › Organização › "Itens
+   ocultos da árvore" lists it, and "Mostrar" brings it back. Level: H; E:
+   `order-pins.spec.mjs`, "hide from tree removes item from tree and unhide
+   in settings restores it".
+9. The embed in note 19: a click on its text edits it in place; what is
+    typed goes to `projetos/Pesquisa e Descobertas.md`. With the file changed
+    elsewhere, the conflict shows; switching mode then asks, and "Cancelar"
+    keeps the text. Level: H; E: `flow.spec.mjs`, "typing inside an embed in
+    reading view changes the embedded file only (ADR 0060 S4)", "conflict on
+    the embedded file shows two versions" and "switching mode with an embed
+    in conflict asks, and a no keeps the text typed".
+10. `:foguete` in the editor suggests 🚀; Enter inserts it. Level: H; E:
+    `flow.spec.mjs`, "emoji trigger with : opens completion and inserts emoji
+    (ADR 0060 E4)" (the arrows and Esc: by hand).
 
 ## 12. The end
 

@@ -130,6 +130,10 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .side-body { flex: 1; overflow: auto; padding: 0 .6rem 2rem; }
 .side-title { font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: .4rem .5rem .5rem; }
 .side-title:empty { display: none; }
+.side-title { display: flex; align-items: center; gap: .3rem; }
+.side-order { display: inline-grid; place-items: center; padding: .15rem; margin: -.2rem 0; border-radius: 4px; color: var(--ink-3); letter-spacing: normal; }
+.side-order:hover, .side-order:focus-visible { color: var(--ink); background: var(--paper-3); }
+.side-order .icon { width: 13px; height: 13px; }
 
 /* Tree: folders are small caps, notes are plain lines, depth is a hairline. */
 .tree, .tree ul, .list { list-style: none; margin: 0; padding: 0; }
@@ -147,9 +151,10 @@ kbd { font: 600 .72em var(--ui); color: var(--ink-3); border: 1px solid var(--ha
 .list mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .1em; }
 .empty { color: var(--ink-3); padding: .3rem .5rem; font-size: .9rem; }
 
-/* Staggered reveal when a folder opens. */
-.tree > li, .list > li { animation: rise .32s var(--ease-out) both; }
-.tree > li:nth-child(n+2) { animation-delay: calc(var(--i, 0) * 18ms); }
+/* Staggered reveal when a folder opens (`.reveal`, set by listAll once
+   per folder); a redraw of the same tree does not rise again. */
+.tree.reveal > li, .list > li { animation: rise .32s var(--ease-out) both; }
+.tree.reveal > li:nth-child(n+2) { animation-delay: calc(var(--i, 0) * 18ms); }
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
 /* Reduced motion: nothing slides, fades or grows — every animation and
    transition of the window, not only the tree's, ends at once. */

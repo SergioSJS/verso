@@ -229,6 +229,16 @@ pub struct Renamed {
     pub rewrites: Vec<LinkRewrite>,
     pub skipped: Vec<Skipped>,
     pub warnings: Vec<String>,
+    /// What else moved with the entry, by a rule of its own: a folder's
+    /// note taking the folder's new name (ADR 0060). Old path to new.
+    pub also: Vec<Moved>,
+}
+
+/// A file that moved, from one relative path to another.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Moved {
+    pub from: String,
+    pub to: String,
 }
 
 /// What a deletion left: where the entry went in `.trash/`, and what

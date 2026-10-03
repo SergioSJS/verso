@@ -58,6 +58,7 @@
     "allow-copy-full-path",
     "allow-set-embed-origins",
     "allow-set-walk-rules",
+    "allow-set-folder-note-name",
     "allow-log-write",
     "allow-log-read",
     "allow-set-menu-language",

@@ -278,6 +278,11 @@ export const commands = {
 	 */
 	setWalkRules: (builtinIgnores: boolean, gitignore: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_walk_rules", { builtinIgnores, gitignore })),
 	/**
+	 *  The folder note name setting (ADR 0060 D12): empty, a folder's note
+	 *  is named after it. Applied to the open folder at once.
+	 */
+	setFolderNoteName: (name: string) => typedError<null, ContractError>(__TAURI_INVOKE("set_folder_note_name", { name })),
+	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a
 	 *  script error, a rejected promise. The source is the window's, the
@@ -803,6 +808,12 @@ export type McpStatus = {
 	claude: McpClientState,
 };
 
+/**  A file that moved, from one relative path to another. */
+export type Moved = {
+	from: string,
+	to: string,
+};
+
 /**  A note's text as it is on disk now, with what the index knows of it. */
 export type NoteText = {
 	path: string,
@@ -879,6 +890,11 @@ export type Renamed = {
 	rewrites: LinkRewrite[],
 	skipped: Skipped[],
 	warnings: string[],
+	/**
+	 *  What else moved with the entry, by a rule of its own: a folder's
+	 *  note taking the folder's new name (ADR 0060). Old path to new.
+	 */
+	also: Moved[],
 };
 
 /**  Why a note that links to what moved got no rewrite. */

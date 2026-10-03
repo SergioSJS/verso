@@ -97,19 +97,15 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     {
         return Ok(());
     }
-    let has_column = |table: &str, col: &str| -> bool {
-        conn.query_row(
-            &format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name = ?1"),
-            [col],
-            |r| r.get::<_, i64>(0).map(|n| n > 0),
-        )
-        .unwrap_or(false)
-    };
-    // Version 6, 7 and 8 are carried over in place:
-    // Version 6 had no kind on notes and no relation on links.
-    // Version 7 added kind and relation, but had no label columns (sticker, color, banner, banner_y).
-    // Version 8 added sticker, color, banner, banner_y.
-    // Version 9 added order_items and pinned_items.
+    // Versions 6 to 8 are carried over in place, not rebuilt: for a note
+    // iCloud has evicted, its row is the only local copy of its text and
+    // links (ADR 0043), and a rebuild would lose it (decided by the
+    // maintainer on 2026-10-01, review `board.md` §6 item 7, for version 6;
+    // the same holds for every later one). The columns a version lacks are
+    // added — 7 the kind and the relation, 8 and 9 the labels, the order
+    // and the pins (ADR 0060) — and every note read from disk is read
+    // again on the next walk, for what the new columns hold; a placeholder
+    // keeps what it had.
     if has_meta
         && matches!(
             meta("schema").and_then(|v| v.parse::<i64>().ok()),
@@ -117,39 +113,14 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
-        let old_schema = meta("schema")
-            .and_then(|v| v.parse::<i64>().ok())
-            .unwrap_or(0);
         conn.execute_batch("BEGIN;")?;
-        if !has_column("notes", "kind") {
-            conn.execute_batch("ALTER TABLE notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'note';")?;
+        if let Err(e) = carry_over(conn) {
+            // Nothing half done stays: the transaction goes, the error is
+            // the caller's.
+            let _ = conn.execute_batch("ROLLBACK;");
+            return Err(e);
         }
-        if !has_column("links", "relation") {
-            conn.execute_batch("ALTER TABLE links ADD COLUMN relation TEXT;")?;
-        }
-        if !has_column("notes", "sticker") {
-            conn.execute_batch("ALTER TABLE notes ADD COLUMN sticker TEXT;")?;
-        }
-        if !has_column("notes", "color") {
-            conn.execute_batch("ALTER TABLE notes ADD COLUMN color TEXT;")?;
-        }
-        if !has_column("notes", "banner") {
-            conn.execute_batch("ALTER TABLE notes ADD COLUMN banner TEXT;")?;
-        }
-        if !has_column("notes", "banner_y") {
-            conn.execute_batch("ALTER TABLE notes ADD COLUMN banner_y REAL;")?;
-        }
-        if !has_column("notes", "order_items") {
-            conn.execute_batch("ALTER TABLE notes ADD COLUMN order_items TEXT;")?;
-        }
-        if !has_column("notes", "pinned_items") {
-            conn.execute_batch("ALTER TABLE notes ADD COLUMN pinned_items TEXT;")?;
-        }
-        if old_schema < 9 {
-            conn.execute_batch("UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;")?;
-        }
-        conn.execute_batch("UPDATE meta SET value = '9' WHERE key = 'schema'; COMMIT;")?;
-        return Ok(());
+        return conn.execute_batch("COMMIT;");
     }
     // Another version, another tokenizer, or a SQLite file that is not
     // ours: rebuild. `notes_fts` goes first, while `notes` still exists
@@ -169,4 +140,35 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
         [VERSION.to_string(), TOKENIZER.to_owned()],
     )?;
     Ok(())
+}
+
+/// The columns a version 6, 7 or 8 index lacks, added in place, and every
+/// note read from disk marked to be read again; inside the caller's
+/// transaction.
+fn carry_over(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let has_column = |table: &str, col: &str| -> Result<bool, rusqlite::Error> {
+        conn.query_row(
+            &format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name = ?1"),
+            [col],
+            |r| r.get::<_, i64>(0).map(|n| n > 0),
+        )
+    };
+    for (table, col, decl) in [
+        ("notes", "kind", "TEXT NOT NULL DEFAULT 'note'"),
+        ("links", "relation", "TEXT"),
+        ("notes", "sticker", "TEXT"),
+        ("notes", "color", "TEXT"),
+        ("notes", "banner", "TEXT"),
+        ("notes", "banner_y", "REAL"),
+        ("notes", "order_items", "TEXT"),
+        ("notes", "pinned_items", "TEXT"),
+    ] {
+        if !has_column(table, col)? {
+            conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {col} {decl};"))?;
+        }
+    }
+    conn.execute_batch(
+        "UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;
+         UPDATE meta SET value = '9' WHERE key = 'schema';",
+    )
 }

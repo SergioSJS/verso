@@ -203,3 +203,83 @@ test("emoji trigger with : opens completion and inserts emoji (ADR 0060 E4)", as
   const text = await editorContent.textContent();
   expect(/[\u{1F300}-\u{1F9FF}]/u.test(text)).toBe(true);
 });
+
+test("modifying note properties or preview repaint does not destroy dirty embed edits", async ({ app, page }) => {
+  await app.open();
+  const parentFile = "PreserveParent.md";
+  const childFile = "PreserveChild.md";
+
+  await app.writeOutside(parentFile, "# Parent\n\n![[PreserveChild]]\n");
+  await app.writeOutside(childFile, "# Child\nOriginal child text.\n");
+  await app.folderChanged([parentFile, childFile], true);
+
+  await app.quickOpen("PreserveParent");
+
+  const embed = page.locator(".preview .embed-note");
+  await expect(embed).toBeVisible();
+
+  // Start inline editing
+  await embed.locator(".embed-edit").click();
+  const cardEditor = embed.locator(".card-editor");
+  await expect(cardEditor).toBeVisible();
+
+  const cmContent = cardEditor.locator(".cm-content");
+  await cmContent.click();
+  await app.key("End");
+  await page.keyboard.type(" Unsaved dirty embed work.");
+
+  // Parent tab shows dirty indicator or keeps state
+  // Now add a sticker to parent note which updates frontmatter and could repaint
+  const stickerBtn = page.locator(".note-sticker-btn");
+  await expect(stickerBtn).toBeVisible();
+  await stickerBtn.click();
+  const popover = page.locator(".sticker-picker-popover");
+  await expect(popover).toBeVisible();
+  await popover.locator(".color-swatch").first().click();
+  await expect(popover).toHaveCount(0);
+  await expect.poll(async () => await app.file(parentFile)).toContain("color:");
+
+  // Verify the embed is still mounted, in editing mode, and still has the uncommitted text
+  await expect(embed).toHaveClass(/editing/);
+  await expect(cmContent).toContainText("Unsaved dirty embed work.");
+
+  // Now save and verify it flushes to Child.md
+  await app.key("Mod+s");
+  await expect.poll(async () => await app.file(childFile)).toContain("Unsaved dirty embed work.");
+});
+
+test("switching mode with an embed in conflict asks, and a no keeps the text typed", async ({ app, page }) => {
+  await app.open();
+  const parentFile = "ModeParent.md";
+  const childFile = "ModeChild.md";
+  await app.writeOutside(parentFile, "# Parent\n\n![[ModeChild]]\n");
+  await app.writeOutside(childFile, "# Child\nOriginal\n");
+  await app.folderChanged([parentFile, childFile], true);
+  await app.quickOpen("ModeParent");
+
+  const embed = page.locator(".preview .embed-note");
+  await embed.locator(".embed-edit").click();
+  const cmContent = embed.locator(".card-editor .cm-content");
+  await cmContent.click();
+  await app.key("End");
+  await page.keyboard.type(" typed here");
+  await app.writeOutside(childFile, "# Child\nChanged outside\n");
+  await app.key("Mod+s");
+  await expect(embed.locator(".conflict")).toBeVisible();
+
+  // Edit mode would draw the note again and drop the card; it asks first.
+  const editMode = page.locator(".leaf:not([hidden]) .modes button", { hasText: "Editar" });
+  await editMode.click();
+  const question = page.getByRole("alertdialog");
+  await expect(question).toBeVisible();
+  await question.getByRole("button", { name: "Cancelar" }).click();
+  await expect(cmContent).toContainText("typed here");
+  await expect(page.locator(".preview")).toBeVisible();
+  expect(await app.file(childFile)).toBe("# Child\nChanged outside\n");
+
+  // Asked again and let go: the mode changes, the disk's text stays.
+  await editMode.click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Descartar" }).click();
+  await expect(page.locator(".cm-editor").first()).toBeVisible();
+  expect(await app.file(childFile)).toBe("# Child\nChanged outside\n");
+});

@@ -8,134 +8,125 @@ tags:
   - pastas
   - ordem
 status: ativo
-sticker: "🎨"
-color: "#e8590c"
+sticker: emoji//1f3a8
+color: "#e07a52"
 ---
 
-# Organizando: Figurinhas, Capas e Páginas
+# Organizando: figurinhas, capas e páginas
 
-O Verso oferece ferramentas visuais e estruturais para você organizar suas notas com identidade e clareza, mantendo tudo em Markdown puro e sem bancos de dados ocultos.
+O Verso organiza notas e pastas com o mesmo frontmatter que o plugin make.md escreve no Obsidian: um cofre rotulado lá aparece rotulado aqui, e o contrário também. Tudo fica em Markdown, no próprio arquivo.
 
 ---
 
-## 1. Figurinhas e Cores de Destaque
+## 1. Figurinhas e cores
 
-Cada nota ou pasta pode ter sua própria figurinha (emoji ou ícone Lucide) e cor de destaque:
+Uma nota ou pasta pode ter uma figurinha (um emoji ou um ícone) e uma cor que tinge o nome. Elas aparecem na árvore, nas abas e no cabeçalho da nota.
 
-- **Na árvore de arquivos**: o ícone e a cor identificam o item rapidamente na barra lateral.
-- **Nas abas**: a figurinha aparece no título da aba aberta.
-- **No cabeçalho da nota**: a figurinha e a cor acompanham o título no topo do documento.
+### Como definir
+1. Clique na figurinha ao lado do título da nota aberta, ou clique com o botão direito na nota ou pasta na árvore e escolha **Alterar figurinha…** ou **Alterar cor…**.
+2. Busque um emoji pelo nome, em português ou inglês, ou passe para a aba **Ícones**.
+3. Escolha uma cor da paleta.
 
-### Como Definir
-1. Clique no ícone de figurinha ao lado do título da nota aberta, ou clique com o botão direito no arquivo/pasta na árvore e selecione **Alterar figurinha…** ou **Alterar cor…**.
-2. Escolha um emoji recente, busque na lista completa ou alterne para a aba de ícones Lucide (`lucide//<nome>`).
-3. Selecione uma cor da paleta recomendada ou informe um valor hexadecimal personalizado.
-
-No frontmatter YAML, as propriedades são salvas de forma limpa e transparente:
+No frontmatter, a figurinha fica na forma do make.md:
 ```yaml
 ---
-sticker: "🚀"
-color: "#e8590c"
+sticker: emoji//1f680
+color: "#e07a52"
+---
+```
+Um ícone fica como `lucide//rocket`. Um valor que o Verso não reconhece não vira figurinha: o item mantém o ícone dele.
+
+---
+
+## 2. Capas
+
+Uma capa é uma imagem no topo da nota:
+
+- **Adicionar capa**: no topo da nota, clique em **Adicionar capa** e digite o caminho de uma imagem da pasta (como `assets/diagrama.svg`) ou um endereço da web. Uma imagem da web só carrega com **Ajustes › Geral › Carregar conteúdo remoto** ligado.
+- **Reposicionar**: sobre a capa, clique em **Reposicionar** e arraste a imagem na vertical, ou use as setas `↑` e `↓`. **Salvar posição** (ou `Enter`) grava; `Esc` desiste.
+- **Remover capa** tira a capa da nota.
+
+A posição vai para `banner_y`, uma porcentagem de 0 (topo da imagem) a 100 (base), como o make.md escreve:
+```yaml
+---
+banner: assets/diagrama.svg
+banner_y: "42"
 ---
 ```
 
 ---
 
-## 2. Capas de Notas e Reposicionamento
+## 3. Páginas de pasta
 
-Adicione um banner visual no topo da sua nota para destacar projetos, diários ou documentos especiais:
+Clique numa pasta na árvore para abrir a **página da pasta**: no topo, a nota da pasta; embaixo, uma tabela com os itens dela.
 
-- **Adicionar Capa**: passe o mouse sobre o topo da nota e clique em **Adicionar capa** (ou use o menu de opções da nota).
-- **Escolha da Imagem**: selecione uma imagem do seu cofre (como `assets/capa.jpg`) ou forneça uma imagem externa segura.
-- **Reposicionamento Vertical**: passe o mouse sobre a capa e clique em **Reposicionar**. Arraste a imagem verticalmente (ou use as setas `↑` e `↓` do teclado para acessibilidade) e clique em **Salvar**.
+- A nota da pasta é `Projetos/Projetos.md` (dentro da pasta, com o nome dela) ou `Projetos.md` (ao lado da pasta). Para usar outro nome, como `README`, preencha **Ajustes › Organização › Nome da nota da pasta**.
+- A nota da pasta não aparece na árvore: abra pelo botão direito na pasta › **Abrir nota da pasta**, ou pela página da pasta.
+- Numa pasta sem nota, a página oferece **Criar nota da pasta**.
+- Renomear a pasta renomeia a nota dela junto: `Projetos/Projetos.md` vira `Trabalhos/Trabalhos.md`.
+- Os rótulos de uma pasta ficam no frontmatter da nota dela. Rotular, ordenar ou fixar algo numa pasta sem nota cria a nota dela.
 
-O Verso armazena o caminho e o alinhamento percentual diretamente nas propriedades da nota:
+### Itens novos
+A nota da pasta pode dar uma figurinha, uma cor e um template a cada nota nova criada ali:
 ```yaml
 ---
-banner: "assets/diagrama.svg"
-banner_y: 42
----
-```
-
----
-
-## 3. Páginas de Pasta e Templates de Itens
-
-Uma pasta pode funcionar como uma central de conteúdo com sua própria página de visão geral:
-
-- Clique no nome da pasta na árvore para abrir a **Visão de Pasta**, que exibe todos os itens em formato de lista ou miniaturas.
-- Se a pasta contiver uma nota homônima (`Projetos/Projetos.md`), essa nota é exibida como a **Página da pasta**.
-- Para criá-la rapidamente, clique com o botão direito na pasta › **Criar página da pasta**.
-
-### Automação de Novos Itens
-A página de uma pasta pode padronizar novas notas criadas dentro dela através de metadados:
-```yaml
----
-items_sticker: "📝"
-items_color: "#1971c2"
+items_sticker: emoji//1f4dd
+items_color: "#4361ee"
 items_template: "Templates/Nota de Reunião.md"
 ---
 ```
-Qualquer nova nota criada dentro dessa pasta já nascerá com a figurinha, a cor e a estrutura do template configurados automaticamente.
 
 ---
 
-## 4. Ordenação Manual e Itens Fixados
+## 4. Ordem manual e itens fixados
 
-Organize os arquivos da sua árvore na ordem que fizer mais sentido para o seu fluxo de trabalho, além da ordem alfabética:
+- **Arrastar**: arraste uma nota ou pasta para cima ou para baixo dentro da mesma pasta.
+- **Pelo teclado**: no menu do item, **Mover para cima** ou **Mover para baixo**.
+- **Fixar**: no menu do item, **Fixar na pasta** — ou segure `⇧` ao soltar o item na pasta. **Desafixar da pasta** desfaz.
+- **Duas ordens**: uma pasta fica em ordem alfabética até o primeiro arraste, que cria a ordem dela a partir da alfabética. O botão ao lado de **Arquivos** (A→Z na alfabética, uma alça na personalizada), ou o botão direito numa pasta ou na área vazia da árvore, troca a árvore toda entre **Ordem alfabética** e **Ordem personalizada** (a marcada é a atual). A alfabética não apaga nada: de volta à personalizada, cada pasta tem a ordem que tinha.
+- **Na raiz**: as notas soltas na raiz também se ordenam arrastando. A ordem fica numa nota na raiz com o nome da pasta aberta, criada no primeiro arraste.
 
-- **Arrastar e Soltar**: arraste uma nota ou pasta para cima ou para baixo dentro da mesma pasta para definir sua ordem personalizada.
-- **Teclado e Acessibilidade**: use o menu de contexto › **Mover para cima** ou **Mover para baixo** para reordenar sem o mouse.
-- **Fixar no Topo**: clique com o botão direito no arquivo ou pasta › **Fixar no topo da pasta**.
-- **Desafixar**: use o menu de contexto › **Desafixar da pasta** para retornar o item à lista normal.
-
-O Verso registra a ordem manual e os itens fixados na nota da pasta correspondente, como listas limpas de nomes no frontmatter:
+A ordem e os fixados ficam na nota da pasta: `order` com os nomes dos itens, `pinned` com links para eles. Renomear ou mover um item pelo Verso atualiza a lista.
 ```yaml
 ---
 order:
-  - "Pesquisa e Descobertas"
-  - "Projeto Alpha"
-  - "Projeto Beta"
+  - Pesquisa e Descobertas.md
+  - Projeto Alpha.md
+  - Projeto Beta.md
 pinned:
-  - "Pesquisa e Descobertas"
+  - "[[Pesquisa e Descobertas]]"
 ---
 ```
 
 ---
 
-## 5. Ocultar Itens da Árvore
+## 5. Ocultar da árvore
 
-Se você possui arquivos de configuração, rascunhos ou notas auxiliares que não precisam poluir a visualização lateral:
-
-- Clique com o botão direito no item na árvore e selecione **Ocultar da árvore**.
-- Para rever e gerenciar arquivos ocultos deste cofre, abra **Ajustes › Organização › Itens ocultos da árvore**, onde você pode remover qualquer item da lista oculta com um clique.
+- No menu do item na árvore, **Ocultar da árvore**. Ele some da árvore, mas continua na busca e nos links.
+- Para mostrar de novo, abra **Ajustes › Organização › Itens ocultos da árvore** e clique em **Mostrar**.
 
 ---
 
-## 6. Edição Direta de Notas Incorporadas (Flow)
+## 6. Editar uma nota embutida no lugar
 
-No Verso, notas incorporadas (`![[Nome da Nota]]`) não são blocos estáticos:
+Uma nota embutida (`![[Nome da Nota]]`) pode ser editada ali mesmo, sem abrir outra aba:
 
-- Tanto no modo **Leitura** quanto no **Live Preview**, passe o mouse sobre a nota incorporada e clique no corpo do texto para editá-la diretamente no local.
-- O botão no canto superior direito alterna entre a edição direta e a visualização.
-- Cada arquivo preserva seu próprio histórico de desfazer e refazer (`⌘Z` / `⌘⇧Z`), mesmo quando editado de dentro de outra nota.
-- Se a mesma nota estiver aberta em outra aba ou divisão, todas as alterações são sincronizadas instantaneamente em tempo real.
-- Prefere o comportamento clássico de abrir a nota ao lado? Desative a opção em **Ajustes › Organização › Edição de nota incorporada**.
+- Na **Leitura** ou no **Editar**, clique no texto da nota embutida, ou no botão no canto dela. O botão de novo (ou `Esc`) termina a edição.
+- O que você digita é salvo na nota embutida, não nesta. Cada uma tem o próprio desfazer (`⌘Z`).
+- Se a nota embutida mudar em outro lugar enquanto você digita — em outra aba, ou fora do Verso —, aparece o aviso de conflito, com as duas versões; nada é sobrescrito sem você escolher.
+- Prefere abrir a nota ao lado? Desligue **Ajustes › Organização › Editar notas embutidas no lugar**.
 
-Experimente editar o bloco incorporado abaixo:
+Experimente na nota abaixo:
 
 ![[projetos/Pesquisa e Descobertas]]
 
 ---
 
-## 7. Gatilho Rápido de Emojis no Editor
+## 7. Emojis com `:`
 
-Enquanto escreve no editor, você não precisa interromper a digitação para abrir o teclado de caracteres do sistema:
-
-- Digite `:` seguido das primeiras letras do nome de um emoji (por exemplo, `:fog` para 🚀 ou `:pen` para ✍️).
-- Uma janela de autocompletar aparecerá com sugestões pesquisáveis em português e inglês.
-- Use as setas `↑` e `↓` para navegar, pressione `Enter` ou `Tab` para inserir o emoji escolhido, ou pressione `Esc` para fechar.
-- Esta função pode ser ativada ou desativada em **Ajustes › Organização › Sugerir emojis com ':'**.
+- No editor, digite `:` e o nome de um emoji — `:foguete` sugere 🚀.
+- As sugestões aceitam nomes em português e inglês. Use `↑` e `↓` para escolher, `Enter` para inserir e `Esc` para fechar.
+- Desligue em **Ajustes › Organização › ':' abre o seletor de emoji**.
 
 ---
 
