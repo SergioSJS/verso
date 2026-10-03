@@ -628,3 +628,101 @@ test("duplicate focus names in waypoints.json are treated as known format (D6)",
   await expect(app.page.locator('.focus-item[data-focus-name="Dup"]').first()).toBeVisible();
 });
 
+test("deleting second duplicate focus deletes the second focus, not the first", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("A/NotaA.md", "# Nota A\n");
+  await app.writeOutside("B/NotaB.md", "# Nota B\n");
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "Foco", paths: ["A"] },
+      { name: "Foco", paths: ["B"] },
+    ]),
+  );
+  await app.folderChanged(["A/NotaA.md", "B/NotaB.md", ".space/waypoints.json"], true);
+
+  // Turn on sync so changes save to .space/waypoints.json
+  await app.key("Mod+,");
+  const settingsModal = app.page.locator(".settings:not([hidden])");
+  await expect(settingsModal).toBeVisible();
+  await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
+  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  await syncRow.locator('input[type="checkbox"]').click();
+  const confirmBox = app.page.locator(".confirm-box");
+  if (await confirmBox.isVisible()) {
+    await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
+  }
+  await app.key("Escape");
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+
+  const dupItems = app.page.locator('.focus-item[data-focus-name="Foco"]');
+  await expect(dupItems).toHaveCount(2);
+
+  // Click delete on the SECOND "Foco"
+  const secondDeleteBtn = dupItems.nth(1).locator('button[title="Excluir"]');
+  await secondDeleteBtn.click();
+
+  // Confirm delete dialog
+  const deleteConfirm = app.page.locator(".confirm-box");
+  await expect(deleteConfirm).toBeVisible();
+  await deleteConfirm.locator("button.save", { hasText: "Excluir" }).click();
+
+  // Verify only 1 "Foco" remains in the UI
+  await expect(app.page.locator('.focus-item[data-focus-name="Foco"]')).toHaveCount(1);
+
+  // Verify on disk: waypoints.json has "A" and NOT "B"
+  const diskContent = await app.file(".space/waypoints.json");
+  const parsed = JSON.parse(diskContent);
+  const focos = parsed.filter((f) => f.name === "Foco");
+  expect(focos).toHaveLength(1);
+  expect(focos[0].paths).toEqual(["A"]);
+});
+
+test("create focus here prompts to sync and writes new focus directly to waypoints.json", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("Areas/Saude.md", "# Saude\n");
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "Docs", paths: ["Documentos"] },
+    ]),
+  );
+  await app.folderChanged(["Areas/Saude.md", ".space/waypoints.json"], true);
+
+  // Right-click Areas folder in tree to trigger "Criar foco aqui"
+  const folder = app.page.locator('#notes summary[data-folder="Areas"]');
+  await expect(folder).toBeVisible();
+  await folder.click({ button: "right" });
+
+  const createFocusOpt = app.page.locator('.menu button[role="menuitem"]', { hasText: "Criar foco aqui" });
+  await expect(createFocusOpt).toBeVisible();
+  await createFocusOpt.click();
+
+  // Dialog appears asking if user wants to sync with make.md format
+  const confirmBox = app.page.locator(".confirm-box");
+  await expect(confirmBox).toBeVisible();
+  await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
+
+  // The new focus should now be written to .space/waypoints.json
+  const diskContent = await app.file(".space/waypoints.json");
+  const parsed = JSON.parse(diskContent);
+  const areasFocus = parsed.find((f) => f.name === "Areas");
+  expect(areasFocus).toBeDefined();
+  expect(areasFocus.paths).toEqual(["Areas"]);
+
+  // And localStorage localFocuses must NOT contain Areas
+  const settingsJson = await app.page.evaluate(() => localStorage.getItem("verso.settings"));
+  if (settingsJson) {
+    const s = JSON.parse(settingsJson);
+    const local = Object.values(s.localFocuses || {}).flat();
+    expect(local.some((f) => f.name === "Areas")).toBe(false);
+  }
+});
+
+

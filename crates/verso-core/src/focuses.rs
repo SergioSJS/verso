@@ -23,6 +23,15 @@ pub struct Focus {
     pub sticker: Option<String>,
 }
 
+/// Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadOnlyReasonCode {
+    CloudPlaceholder,
+    InvalidJson,
+    UnknownFormat,
+}
+
 /// The result of reading focuses from the open folder (ADR 0062).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FocusesSummary {
@@ -36,7 +45,7 @@ pub struct FocusesSummary {
     pub read_only_reason: Option<String>,
     /// Machine-readable code for read-only reason.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub read_only_code: Option<String>,
+    pub read_only_code: Option<ReadOnlyReasonCode>,
     /// The revision stamp for optimistic concurrency (Invariants 9 & 11).
     pub stamp: Option<String>,
 }
@@ -156,7 +165,7 @@ pub fn read_focuses(root: &Root) -> Result<FocusesSummary, CoreError> {
                             has_file: true,
                             format_known: false,
                             read_only_reason: Some(reason),
-                            read_only_code: Some("unknown_format".to_string()),
+                            read_only_code: Some(ReadOnlyReasonCode::UnknownFormat),
                             stamp: Some(stamp_str),
                         })
                     }
@@ -166,7 +175,7 @@ pub fn read_focuses(root: &Root) -> Result<FocusesSummary, CoreError> {
                     has_file: true,
                     format_known: false,
                     read_only_reason: Some(format!("invalid JSON: {e}")),
-                    read_only_code: Some("invalid_json".to_string()),
+                    read_only_code: Some(ReadOnlyReasonCode::InvalidJson),
                     stamp: Some(stamp_str),
                 }),
             }
@@ -176,7 +185,7 @@ pub fn read_focuses(root: &Root) -> Result<FocusesSummary, CoreError> {
             has_file: true,
             format_known: false,
             read_only_reason: Some("file in cloud (iCloud) not yet downloaded".to_string()),
-            read_only_code: Some("cloud_placeholder".to_string()),
+            read_only_code: Some(ReadOnlyReasonCode::CloudPlaceholder),
             stamp: None,
         }),
         Err(ReadError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound => Ok(FocusesSummary {
@@ -417,16 +426,20 @@ pub fn serialize_preserving(old_text: &str, new_focuses: &[Focus]) -> String {
     let mut matched_starts = std::collections::HashSet::new();
 
     for focus in new_focuses {
-        if let Some(span) = spans
+        // Prioritize exact match (same name, same paths, same sticker) for byte preservation
+        let exact_span = spans
+            .iter()
+            .find(|s| s.focus == *focus && !matched_starts.contains(&s.start));
+
+        if let Some(span) = exact_span {
+            matched_starts.insert(span.start);
+            formatted_elements.push(old_text[span.start..=span.end].to_string());
+        } else if let Some(span) = spans
             .iter()
             .find(|s| s.focus.name == focus.name && !matched_starts.contains(&s.start))
         {
             matched_starts.insert(span.start);
-            if span.focus == *focus {
-                formatted_elements.push(old_text[span.start..=span.end].to_string());
-            } else {
-                formatted_elements.push(format_focus(focus, &span.keys_order));
-            }
+            formatted_elements.push(format_focus(focus, &span.keys_order));
         } else {
             formatted_elements.push(format_focus(focus, &[]));
         }
@@ -435,91 +448,118 @@ pub fn serialize_preserving(old_text: &str, new_focuses: &[Focus]) -> String {
     format!("{prefix}{}{suffix}", formatted_elements.join(&separator))
 }
 
-/// Apply a delta from `old_focuses` to `new_focuses` onto `disk_focuses`.
+/// Apply a delta from `old_focuses` to `new_focuses` onto `disk_focuses` by position (ADR 0062 D7).
 /// If make.md concurrently modified the same focus that Verso modified,
-/// or if any conflicting delta is detected, returns `None` so nothing is written (ADR 0062 D7).
+/// or if any conflicting delta is detected, returns `None` so nothing is written.
 fn reapply_changes(
     old_focuses: &[Focus],
     new_focuses: &[Focus],
     disk_focuses: &[Focus],
 ) -> Option<Vec<Focus>> {
-    let mut added = Vec::new();
-    let mut removed = Vec::new();
-    let mut updated = Vec::new();
-
-    for nf in new_focuses {
-        match old_focuses.iter().find(|o| o.name == nf.name) {
-            None => added.push(nf.clone()),
-            Some(of) if of != nf => updated.push((of.clone(), nf.clone())),
-            Some(_) => {}
-        }
-    }
-
-    for of in old_focuses {
-        if !new_focuses.iter().any(|n| n.name == of.name) {
-            removed.push(of.clone());
-        }
-    }
-
-    // Check for conflicts against disk_focuses:
-    // 1. Updated: make.md must not have touched or deleted the same focus.
-    for (of, nf) in &updated {
-        let Some(df) = disk_focuses.iter().find(|d| d.name == nf.name) else {
-            return None; // make.md deleted it concurrently
+    // Case 1: Identical length (in-place modifications or reordering)
+    if old_focuses.len() == new_focuses.len() {
+        // Check if new_focuses is a permutation of old_focuses (reordering)
+        let is_reorder = {
+            let mut old_sorted = old_focuses.to_vec();
+            let mut new_sorted = new_focuses.to_vec();
+            old_sorted.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.paths.cmp(&b.paths)));
+            new_sorted.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.paths.cmp(&b.paths)));
+            old_sorted == new_sorted
         };
-        if df != of {
-            return None; // make.md also modified this focus! CONFLICT!
+
+        if is_reorder {
+            // Verso reordered focuses. If disk_focuses starts with old_focuses:
+            if disk_focuses.len() >= old_focuses.len()
+                && &disk_focuses[..old_focuses.len()] == old_focuses
+            {
+                let mut result = new_focuses.to_vec();
+                result.extend_from_slice(&disk_focuses[old_focuses.len()..]);
+                return Some(result);
+            }
+            return None;
         }
-    }
 
-    // 2. Removed: make.md must not have modified it concurrently.
-    for of in &removed {
-        if disk_focuses.iter().any(|df| df.name == of.name && df != of) {
-            return None; // make.md modified what Verso deleted! CONFLICT!
+        // In-place modifications by position:
+        // Each index i where old_focuses[i] != new_focuses[i] was changed by Verso.
+        let mut result = disk_focuses.to_vec();
+        for i in 0..old_focuses.len() {
+            if old_focuses[i] != new_focuses[i] {
+                // Verso modified element at index i.
+                // Check if disk_focuses at index i still matches old_focuses[i].
+                if i >= disk_focuses.len() || disk_focuses[i] != old_focuses[i] {
+                    // Conflict: make.md modified, deleted, or shifted this element!
+                    return None;
+                }
+                result[i] = new_focuses[i].clone();
+            }
         }
+        return Some(result);
     }
 
-    // 3. Added: make.md must not have concurrently added a focus with the same name.
-    for nf in &added {
-        if disk_focuses.iter().any(|d| d.name == nf.name) {
-            return None; // CONFLICT!
+    // Case 2: Element deleted (new_focuses.len() + 1 == old_focuses.len())
+    if new_focuses.len() + 1 == old_focuses.len() {
+        // Find deleted index:
+        let mut del_idx = None;
+        for i in 0..old_focuses.len() {
+            let mut candidate = old_focuses.to_vec();
+            candidate.remove(i);
+            if candidate == new_focuses {
+                del_idx = Some(i);
+                break;
+            }
         }
-    }
-
-    // No conflict! Apply the non-conflicting deltas onto disk_focuses:
-    let mut result = disk_focuses.to_vec();
-
-    for of in &removed {
-        result.retain(|r| r.name != of.name);
-    }
-
-    for (_, nf) in &updated {
-        if let Some(df) = result.iter_mut().find(|r| r.name == nf.name) {
-            *df = nf.clone();
-        }
-    }
-
-    for nf in &added {
-        result.push(nf.clone());
-    }
-
-    // If only reordering occurred:
-    if added.is_empty() && removed.is_empty() && updated.is_empty() {
-        let new_names: Vec<&str> = new_focuses.iter().map(|f| f.name.as_str()).collect();
-        let disk_names: Vec<&str> = disk_focuses.iter().map(|f| f.name.as_str()).collect();
-        if new_names.len() == disk_names.len() && new_names.iter().all(|n| disk_names.contains(n)) {
-            result.sort_by_key(|f| {
-                new_names
-                    .iter()
-                    .position(|n| *n == f.name)
-                    .unwrap_or(usize::MAX)
-            });
-        } else {
+        if let Some(i) = del_idx {
+            // Check if disk_focuses at index i still matches old_focuses[i]
+            if i < disk_focuses.len() && disk_focuses[i] == old_focuses[i] {
+                let mut result = disk_focuses.to_vec();
+                result.remove(i);
+                return Some(result);
+            }
             return None;
         }
     }
 
-    Some(result)
+    // Case 3: Element inserted/appended (new_focuses.len() == old_focuses.len() + 1)
+    if new_focuses.len() == old_focuses.len() + 1 {
+        let mut ins_idx = None;
+        for i in 0..new_focuses.len() {
+            let mut candidate = new_focuses.to_vec();
+            candidate.remove(i);
+            if candidate == old_focuses {
+                ins_idx = Some(i);
+                break;
+            }
+        }
+        if let Some(i) = ins_idx {
+            let mut result = disk_focuses.to_vec();
+            if i >= old_focuses.len() {
+                // Appended at end
+                result.push(new_focuses[i].clone());
+                return Some(result);
+            } else if disk_focuses.len() >= old_focuses.len()
+                && &disk_focuses[..old_focuses.len()] == old_focuses
+            {
+                result.insert(i, new_focuses[i].clone());
+                return Some(result);
+            }
+            return None;
+        }
+    }
+
+    // Case 4: Multiple elements appended (e.g. migration of local focuses)
+    if new_focuses.len() > old_focuses.len() && new_focuses.starts_with(old_focuses) {
+        let added = &new_focuses[old_focuses.len()..];
+        // If disk_focuses also starts with old_focuses (make.md only appended or left alone)
+        if disk_focuses.len() >= old_focuses.len()
+            && &disk_focuses[..old_focuses.len()] == old_focuses
+        {
+            let mut result = disk_focuses.to_vec();
+            result.extend_from_slice(added);
+            return Some(result);
+        }
+    }
+
+    None
 }
 
 /// Write `focuses` back to `.space/waypoints.json` (ADR 0062 D5, D6, D7).

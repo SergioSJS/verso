@@ -91,7 +91,7 @@ const baseEditorExtensions: Extension = [
     ...lintKeymap,
   ]),
 ];
-import { commands, type CliState, type ContractError, type FileEntry, type Focus, type FocusesSummary, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type Property, type PropertyValue, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
+import { commands, type CliState, type ContractError, type FileEntry, type Focus, type FocusesSummary, type FolderChanged, type FolderInfo, type IndexProgress, type IndexSummary, type InstallResult, type NoteText, type Property, type PropertyValue, type ReadOnlyReasonCode, type TextFile, type UpdateInfo, type UpdateProgress, type Written } from "./bindings";
 import { minimalEdit } from "./edit";
 import { note, swallowed, watchWindow } from "./report";
 import { frontmatterEnd, livePreview, redraw, sizeOf } from "./live";
@@ -8252,13 +8252,31 @@ type FocusWithOrigin = Focus & { isFromMakeMd?: boolean; isLocal?: boolean };
 let focusesSummary: FocusesSummary | null = null;
 let focusesList: FocusWithOrigin[] = [];
 let activeFocusName: string = t.homeFocus;
+let activeFocusItem: FocusWithOrigin | null = null;
+let activeFocusIndex: number = -1;
 let focusesConflictBanner: string | null = null;
 
 function isHomeFocusName(name: string): boolean {
   return name === t.homeFocus || name === "Home" || name === "Início";
 }
 
-function formatReadOnlyReason(code: string | null | undefined, reason: string | null | undefined): string {
+function getActiveFocus(): FocusWithOrigin | null {
+  if (activeFocusItem && focusesList.includes(activeFocusItem)) {
+    return activeFocusItem;
+  }
+  if (activeFocusIndex >= 0 && activeFocusIndex < focusesList.length) {
+    activeFocusItem = focusesList[activeFocusIndex] ?? null;
+    return activeFocusItem;
+  }
+  return null;
+}
+
+function isHomeActive(): boolean {
+  const af = getActiveFocus();
+  return !af || isHomeFocusName(af.name);
+}
+
+function formatReadOnlyReason(code?: ReadOnlyReasonCode | null, reason?: string | null): string {
   if (code === "cloud_placeholder") return t.readOnlyCloudPlaceholder;
   if (code === "invalid_json") return t.readOnlyInvalidJson;
   if (code === "unknown_format") return t.readOnlyUnknownFormat;
@@ -8352,11 +8370,12 @@ async function promptSyncFocusesIfNeeded(): Promise<boolean> {
 }
 
 function updateTreeHeading(): void {
-  if (isHomeFocusName(activeFocusName)) {
+  const activeFocus = getActiveFocus();
+  if (!activeFocus || isHomeFocusName(activeFocus.name)) {
     notesHeadingText.textContent = t.notes;
     notesHeadingReset.style.display = "none";
   } else {
-    notesHeadingText.textContent = `${t.notes} · ${activeFocusName}`;
+    notesHeadingText.textContent = `${t.notes} · ${activeFocus.name}`;
     notesHeadingReset.style.display = "";
   }
 }
@@ -8408,12 +8427,48 @@ async function loadFocuses(forceReload = false): Promise<void> {
 
   try {
     const savedActive = localStorage.getItem(`verso.activeFocus:${currentFolder}`);
-    if (savedActive && (isHomeFocusName(savedActive) || focusesList.some((f) => f.name === savedActive))) {
-      activeFocusName = savedActive;
+    if (savedActive) {
+      let parsed: { name?: string; index?: number } | null = null;
+      try {
+        parsed = JSON.parse(savedActive);
+      } catch {
+        parsed = { name: savedActive };
+      }
+      if (parsed && typeof parsed.index === "number" && parsed.index >= 0 && parsed.index < focusesList.length) {
+        const item = focusesList[parsed.index];
+        if (item) {
+          activeFocusItem = item;
+          activeFocusIndex = parsed.index;
+          activeFocusName = item.name;
+        } else {
+          activeFocusItem = null;
+          activeFocusIndex = -1;
+          activeFocusName = t.homeFocus;
+        }
+      } else if (parsed && parsed.name && !isHomeFocusName(parsed.name)) {
+        const found = focusesList.find((f) => f.name === parsed!.name);
+        if (found) {
+          activeFocusItem = found;
+          activeFocusIndex = focusesList.indexOf(found);
+          activeFocusName = found.name;
+        } else {
+          activeFocusItem = null;
+          activeFocusIndex = -1;
+          activeFocusName = t.homeFocus;
+        }
+      } else {
+        activeFocusItem = null;
+        activeFocusIndex = -1;
+        activeFocusName = t.homeFocus;
+      }
     } else {
+      activeFocusItem = null;
+      activeFocusIndex = -1;
       activeFocusName = t.homeFocus;
     }
   } catch {
+    activeFocusItem = null;
+    activeFocusIndex = -1;
     activeFocusName = t.homeFocus;
   }
   updateTreeHeading();
@@ -8450,6 +8505,14 @@ async function saveFocuses(): Promise<void> {
       focusesList = [...diskItems, ...localItems];
       setLocalFocuses(localItems.map((f) => ({ name: f.name, paths: [...f.paths], sticker: f.sticker ?? null })));
       focusesConflictBanner = null;
+      if (activeFocusItem && !focusesList.includes(activeFocusItem)) {
+        if (activeFocusIndex >= 0 && activeFocusIndex < focusesList.length) {
+          activeFocusItem = focusesList[activeFocusIndex] ?? null;
+        } else {
+          activeFocusItem = null;
+          activeFocusIndex = -1;
+        }
+      }
     } else {
       focusesConflictBanner = t.focusesConflict;
       await loadFocuses(true);
@@ -8465,12 +8528,36 @@ async function saveFocuses(): Promise<void> {
   }
 }
 
-async function selectFocus(name: string): Promise<void> {
-  activeFocusName = name;
-  try {
-    localStorage.setItem(`verso.activeFocus:${currentFolder}`, activeFocusName);
-  } catch {
-    // No storage.
+async function selectFocus(focusOrName: FocusWithOrigin | string | null): Promise<void> {
+  let focus: FocusWithOrigin | null = null;
+  if (typeof focusOrName === "string") {
+    if (!isHomeFocusName(focusOrName)) {
+      focus = focusesList.find((f) => f.name === focusOrName) ?? null;
+    }
+  } else {
+    focus = focusOrName;
+  }
+  if (!focus || isHomeFocusName(focus.name)) {
+    activeFocusItem = null;
+    activeFocusIndex = -1;
+    activeFocusName = t.homeFocus;
+    try {
+      localStorage.removeItem(`verso.activeFocus:${currentFolder}`);
+    } catch {
+      // No storage.
+    }
+  } else {
+    activeFocusItem = focus;
+    activeFocusIndex = focusesList.indexOf(focus);
+    activeFocusName = focus.name;
+    try {
+      localStorage.setItem(
+        `verso.activeFocus:${currentFolder}`,
+        JSON.stringify({ name: focus.name, index: activeFocusIndex }),
+      );
+    } catch {
+      // No storage.
+    }
   }
   updateTreeHeading();
   panel.refresh();
@@ -8478,7 +8565,7 @@ async function selectFocus(name: string): Promise<void> {
 }
 
 async function addFocusPrompt(): Promise<FocusWithOrigin | null> {
-  const isSync = getSyncFocuses() && (focusesSummary?.has_file ?? false) && (focusesSummary?.format_known ?? false);
+  await loadFocuses(true);
   const input = await promptText(t.focusNamePrompt, "", false, { yes: t.save, no: t.cancel });
   if (!input || !input.trim()) return null;
   const focusName = input.trim();
@@ -8487,6 +8574,7 @@ async function addFocusPrompt(): Promise<FocusWithOrigin | null> {
     return null;
   }
   await promptSyncFocusesIfNeeded();
+  const isSync = getSyncFocuses() && (focusesSummary?.has_file ?? false) && (focusesSummary?.format_known ?? false);
   const newFocus: FocusWithOrigin = {
     name: focusName,
     paths: [],
@@ -8503,22 +8591,23 @@ async function addFocusPrompt(): Promise<FocusWithOrigin | null> {
 
 async function renameFocusPrompt(focus: FocusWithOrigin): Promise<void> {
   if (isHomeFocusName(focus.name) || (focus.isFromMakeMd && !getSyncFocuses())) return;
-  const targetName = focus.name;
-  const input = await promptText(t.rename, targetName, false, { yes: t.save, no: t.cancel });
-  if (!input || !input.trim() || input.trim() === targetName) return;
+  const oldName = focus.name;
+  const input = await promptText(t.rename, oldName, false, { yes: t.save, no: t.cancel });
+  if (!input || !input.trim() || input.trim() === oldName) return;
   const newName = input.trim();
-  if (isHomeFocusName(newName) || focusesList.some((f) => f.name !== targetName && f.name.trim().toLowerCase() === newName.toLowerCase())) {
+  if (isHomeFocusName(newName) || focusesList.some((f) => f !== focus && f.name.trim().toLowerCase() === newName.toLowerCase())) {
     ui.status.textContent = t.exists;
     return;
   }
   await promptSyncFocusesIfNeeded();
-  const target = focusesList.find((f) => f.name === targetName || f === focus);
-  if (target) target.name = newName;
-  const wasActive = activeFocusName === targetName;
-  if (wasActive) {
+  focus.name = newName;
+  if (activeFocusItem === focus) {
     activeFocusName = newName;
     try {
-      localStorage.setItem(`verso.activeFocus:${currentFolder}`, activeFocusName);
+      localStorage.setItem(
+        `verso.activeFocus:${currentFolder}`,
+        JSON.stringify({ name: newName, index: activeFocusIndex }),
+      );
     } catch {
       // No storage.
     }
@@ -8530,15 +8619,15 @@ async function renameFocusPrompt(focus: FocusWithOrigin): Promise<void> {
 
 async function deleteFocus(focus: FocusWithOrigin): Promise<void> {
   if (isHomeFocusName(focus.name) || (focus.isFromMakeMd && !getSyncFocuses())) return;
-  const targetName = focus.name;
-  const ok = await ask(t.confirmDeleteFocus(targetName), { yes: t.deleteFocus, no: t.cancel });
+  const ok = await ask(t.confirmDeleteFocus(focus.name), { yes: t.deleteFocus, no: t.cancel });
   if (!ok) return;
   await promptSyncFocusesIfNeeded();
-  const idx = focusesList.findIndex((f) => f.name === targetName || f === focus);
+  const idx = focusesList.indexOf(focus);
   if (idx >= 0) focusesList.splice(idx, 1);
+  const wasActive = activeFocusItem === focus;
   await saveFocuses();
-  if (activeFocusName === targetName) {
-    await selectFocus(t.homeFocus);
+  if (wasActive) {
+    await selectFocus(null);
   }
   ui.status.textContent = t.focusDeleted;
   panel.refresh();
@@ -8546,10 +8635,9 @@ async function deleteFocus(focus: FocusWithOrigin): Promise<void> {
 
 async function moveFocusOrder(focus: FocusWithOrigin, dir: -1 | 1): Promise<void> {
   if (isHomeFocusName(focus.name) || (focus.isFromMakeMd && !getSyncFocuses())) return;
-  const targetName = focus.name;
   await promptSyncFocusesIfNeeded();
   const list = focusesList.filter((f) => !isHomeFocusName(f.name));
-  const i = list.findIndex((f) => f.name === targetName || f === focus);
+  const i = list.indexOf(focus);
   if (i < 0) return;
   const target = i + dir;
   if (target < 0 || target >= list.length) return;
@@ -8560,6 +8648,11 @@ async function moveFocusOrder(focus: FocusWithOrigin, dir: -1 | 1): Promise<void
   if (fromIdx >= 0 && toIdx >= 0) {
     focusesList[fromIdx] = targetFocus;
     focusesList[toIdx] = currentItem;
+    if (activeFocusItem === focus) {
+      activeFocusIndex = toIdx;
+    } else if (activeFocusItem === targetFocus) {
+      activeFocusIndex = fromIdx;
+    }
     await saveFocuses();
     panel.refresh();
   }
@@ -8597,6 +8690,7 @@ class Panel {
       b.dataset["tab"] = id;
       b.addEventListener("click", () => {
         this.current = id;
+        if (id === "focuses") void loadFocuses().then(() => this.paint());
         this.refresh();
       });
       this.tabs.append(b);
@@ -8611,6 +8705,7 @@ class Panel {
       if (!to) return;
       e.preventDefault();
       this.current = (to.dataset["tab"] ?? "outline") as PanelTab;
+      if (this.current === "focuses") void loadFocuses().then(() => this.paint());
       this.refresh();
       to.focus();
     });
@@ -8649,11 +8744,7 @@ class Panel {
       // No storage.
     }
     this.markTabs();
-    if (this.current === "focuses") {
-      void loadFocuses().then(() => this.paint());
-    } else {
-      this.paint();
-    }
+    this.paint();
   }
   /** Notes whose text has this note's name without linking to it: the
    *  search finds the candidates by the name's words. */
@@ -8727,7 +8818,7 @@ class Panel {
 
     for (const focus of displayList) {
       const isHome = isHomeFocusName(focus.name);
-      const isActive = isHome ? isHomeFocusName(activeFocusName) : activeFocusName === focus.name;
+      const isActive = isHome ? isHomeActive() : (activeFocusItem === focus);
       const isReadOnly = (focus.isFromMakeMd && !getSyncFocuses()) || (focus.isFromMakeMd && !focusesSummary?.format_known);
       const li = h("li", `focus-item ${isActive ? "active" : ""}`);
       li.dataset["focusName"] = focus.name;
@@ -8779,7 +8870,7 @@ class Panel {
       const displayName = isHome ? t.homeFocus : focus.name;
       const titleSpan = h("span", "row-name", displayName);
       nameBtn.append(titleSpan);
-      nameBtn.addEventListener("click", () => void selectFocus(focus.name));
+      nameBtn.addEventListener("click", () => void selectFocus(isHome ? null : focus));
 
       const actions = h("div", "focus-actions");
       if (!isHome && !isReadOnly) {
@@ -8815,7 +8906,7 @@ class Panel {
               e.stopPropagation();
               focus.paths = focus.paths.filter((x) => x !== p);
               await saveFocuses();
-              if (activeFocusName === focus.name) await listAll();
+              if (activeFocusItem === focus) await listAll();
               panel.refresh();
             });
             pLi.append(iconOfPath(p, allFolders.includes(p) ? "folder" : kindOf(p)), pSpan, removeP);
@@ -8969,7 +9060,7 @@ class FocusSwitcher {
     this.list.replaceChildren(
       ...this.items.map((focus, i) => {
         const isHome = isHomeFocusName(focus.name);
-        const isActive = isHome ? isHomeFocusName(activeFocusName) : focus.name === activeFocusName;
+        const isActive = isHome ? isHomeActive() : (activeFocusItem === focus);
         const li = h("li");
         const b = h("button");
         b.type = "button";
@@ -8989,7 +9080,7 @@ class FocusSwitcher {
         }
         b.addEventListener("click", () => {
           this.hide();
-          void selectFocus(focus.name);
+          void selectFocus(isHome ? null : focus);
         });
         li.append(b);
         return li;
@@ -9896,7 +9987,7 @@ document.addEventListener("mousedown", (e) => {
 });
 
 async function createFocusHere(path: string): Promise<void> {
-  const isSync = getSyncFocuses() && (focusesSummary?.has_file ?? false) && (focusesSummary?.format_known ?? false);
+  await loadFocuses(true);
   const base = name(path);
   let focusName = base;
   let n = 2;
@@ -9904,41 +9995,51 @@ async function createFocusHere(path: string): Promise<void> {
     focusName = `${base} ${n++}`;
   }
   await promptSyncFocusesIfNeeded();
-  focusesList.push({ name: focusName, paths: [path], sticker: null, isFromMakeMd: isSync, isLocal: !isSync });
+  const isSync = getSyncFocuses() && (focusesSummary?.has_file ?? false) && (focusesSummary?.format_known ?? false);
+  const newFocus: FocusWithOrigin = {
+    name: focusName,
+    paths: [path],
+    sticker: null,
+    isFromMakeMd: isSync,
+    isLocal: !isSync,
+  };
+  focusesList.push(newFocus);
   await saveFocuses();
   ui.status.textContent = t.focusCreated;
-  await selectFocus(focusName);
+  await selectFocus(newFocus);
 }
 
 function showAddToFocusMenu(x: number, y: number, path: string): void {
-  const targets = focusesList.filter((f) => !isHomeFocusName(f.name) && (!f.isFromMakeMd || getSyncFocuses()));
-  if (targets.length === 0) {
-    void addFocusPrompt().then((created) => {
-      if (created && !isHomeFocusName(created.name)) {
-        created.paths.push(path);
-        void saveFocuses().then(() => {
-          ui.status.textContent = t.pathAddedToFocus(name(path), created.name);
+  void loadFocuses(true).then(() => {
+    const targets = focusesList.filter((f) => !isHomeFocusName(f.name) && (!f.isFromMakeMd || getSyncFocuses()));
+    if (targets.length === 0) {
+      void addFocusPrompt().then((created) => {
+        if (created && !isHomeFocusName(created.name)) {
+          created.paths.push(path);
+          void saveFocuses().then(() => {
+            ui.status.textContent = t.pathAddedToFocus(name(path), created.name);
+            panel.refresh();
+          });
+        }
+      });
+      return;
+    }
+    const items: MenuItem[] = targets.map((f) => [
+      f.name,
+      async () => {
+        if (!f.paths.includes(path)) {
+          await promptSyncFocusesIfNeeded();
+          f.paths.push(path);
+          await saveFocuses();
+          ui.status.textContent = t.pathAddedToFocus(name(path), f.name);
+          if (activeFocusItem === f) await listAll();
           panel.refresh();
-        });
-      }
-    });
-    return;
-  }
-  const items: MenuItem[] = targets.map((f) => [
-    f.name,
-    async () => {
-      if (!f.paths.includes(path)) {
-        await promptSyncFocusesIfNeeded();
-        f.paths.push(path);
-        await saveFocuses();
-        ui.status.textContent = t.pathAddedToFocus(name(path), f.name);
-        if (activeFocusName === f.name) await listAll();
-        panel.refresh();
-      }
-    },
-    "compass",
-  ]);
-  showMenu(x, y, items);
+        }
+      },
+      "compass",
+    ]);
+    showMenu(x, y, items);
+  });
 }
 
 function renameInline(li: HTMLElement, path: string, folder = false): void {
@@ -10435,8 +10536,8 @@ async function listAll(): Promise<void> {
   ui.notes.className = revealedFolder === currentFolder ? "tree" : "tree reveal";
   revealedFolder = currentFolder;
   const fullVault = tree([...allNotes, ...allFiles], allFolders);
-  const activeFocus = focusesList.find((f) => f.name === activeFocusName);
-  const isHome = isHomeFocusName(activeFocusName) || !activeFocus || isHomeFocusName(activeFocus.name);
+  const activeFocus = getActiveFocus();
+  const isHome = isHomeActive() || !activeFocus || isHomeFocusName(activeFocus.name);
   if (isHome) {
     ui.notes.replaceChildren(...Array.from(renderTree(fullVault, 0).children));
   } else {
@@ -11506,6 +11607,7 @@ class SettingsDialog {
     this.el.hidden = true;
     disarmRecorder?.();
     closed(this.el);
+    if (typeof panel !== "undefined" && panel.current === "focuses") panel.paint();
   }
   /** Why the window did not do what was asked, said in the page. */
   private readonly notice = h("p", "settings-hint");
@@ -11847,6 +11949,7 @@ class SettingsDialog {
         await loadFocuses(true);
       }
       this.paint();
+      if (typeof panel !== "undefined" && panel.current === "focuses") panel.paint();
     }));
     // Not one of D12's ten settings: the list S3 asks for, where what was
     // hidden from the tree is shown again (ADR 0060, memo §7 S3).

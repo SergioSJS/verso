@@ -610,3 +610,65 @@ fn concurrent_merge_uses_window_base_focuses_preventing_loss_blocking_1() {
     assert!(on_disk.contains("MakeMD"), "MakeMD must remain on disk");
     assert!(on_disk.contains("VersoFocus"), "VersoFocus must be on disk");
 }
+
+#[test]
+fn duplicate_focus_names_delete_and_edit_by_position() {
+    let dir = tempdir().unwrap();
+    make_dir(dir.path(), ".space");
+
+    let initial = r#"[{"name":"Foco","paths":["A"]},{"name":"Foco","paths":["B"]}]"#;
+    fs::write(dir.path().join(".space/waypoints.json"), initial).unwrap();
+
+    let mut ws = open_workspace(dir.path());
+    ws.set_sync_focuses(true);
+
+    let summary = ws.get_focuses().unwrap();
+    assert_eq!(summary.focuses.len(), 2);
+    assert_eq!(summary.focuses[0].paths, vec!["A"]);
+    assert_eq!(summary.focuses[1].paths, vec!["B"]);
+
+    let stamp = summary.stamp.clone().unwrap();
+    let base = summary.focuses.clone();
+
+    // 1. Direct delete of the second focus (B) without race
+    let mut deleted_b = base.clone();
+    deleted_b.remove(1); // keeps A
+    let res = ws
+        .set_focuses(deleted_b.clone(), Some(&stamp), Some(base.clone()))
+        .unwrap();
+    assert_eq!(res.focuses.len(), 1);
+    assert_eq!(res.focuses[0].paths, vec!["A"]);
+
+    let on_disk = fs::read_to_string(dir.path().join(".space/waypoints.json")).unwrap();
+    assert!(on_disk.contains(r#""paths":["A"]"#));
+    assert!(!on_disk.contains(r#""paths":["B"]"#));
+
+    // Restore initial file
+    fs::write(dir.path().join(".space/waypoints.json"), initial).unwrap();
+    let summary2 = ws.get_focuses().unwrap();
+    let stamp2 = summary2.stamp.clone().unwrap();
+    let base2 = summary2.focuses.clone();
+
+    // 2. Race condition: make.md appends a focus on disk
+    std::thread::sleep(std::time::Duration::from_millis(15));
+    let concurrent_disk = r#"[{"name":"Foco","paths":["A"]},{"name":"Foco","paths":["B"]},{"name":"Other","paths":["C"]}]"#;
+    fs::write(dir.path().join(".space/waypoints.json"), concurrent_disk).unwrap();
+
+    // Stale write from Window 1 deleting the second focus (B)
+    let mut win1_new = base2.clone();
+    win1_new.remove(1); // leaves only index 0 ("A")
+
+    let merged = ws
+        .set_focuses(win1_new, Some(&stamp2), Some(base2))
+        .unwrap();
+    assert_eq!(merged.focuses.len(), 2);
+    assert_eq!(merged.focuses[0].name, "Foco");
+    assert_eq!(merged.focuses[0].paths, vec!["A"]);
+    assert_eq!(merged.focuses[1].name, "Other");
+    assert_eq!(merged.focuses[1].paths, vec!["C"]);
+
+    let final_disk = fs::read_to_string(dir.path().join(".space/waypoints.json")).unwrap();
+    assert!(final_disk.contains(r#""paths":["A"]"#));
+    assert!(!final_disk.contains(r#""paths":["B"]"#));
+    assert!(final_disk.contains("Other"));
+}
