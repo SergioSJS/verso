@@ -8434,17 +8434,14 @@ async function loadFocuses(forceReload = false): Promise<void> {
       } catch {
         parsed = { name: savedActive };
       }
-      if (parsed && typeof parsed.index === "number" && parsed.index >= 0 && parsed.index < focusesList.length) {
-        const item = focusesList[parsed.index];
-        if (item) {
-          activeFocusItem = item;
-          activeFocusIndex = parsed.index;
-          activeFocusName = item.name;
-        } else {
-          activeFocusItem = null;
-          activeFocusIndex = -1;
-          activeFocusName = t.homeFocus;
-        }
+      // The position tells same-named focuses apart; a focus make.md put
+      // before it moves the position, so the name has to agree.
+      const index = typeof parsed?.index === "number" ? parsed.index : -1;
+      const atIndex = focusesList[index];
+      if (parsed && atIndex && (parsed.name === undefined || atIndex.name === parsed.name)) {
+        activeFocusItem = atIndex;
+        activeFocusIndex = index;
+        activeFocusName = atIndex.name;
       } else if (parsed && parsed.name && !isHomeFocusName(parsed.name)) {
         const found = focusesList.find((f) => f.name === parsed!.name);
         if (found) {
@@ -8482,9 +8479,8 @@ async function saveFocuses(): Promise<void> {
   if (isSync && hasFile && isKnown && focusesSummary) {
     // Save to .space/waypoints.json via core (ADR 0062 D5, D6, D7)
     // Only write items that are not isLocal (i.e. file focuses)
-    const toSave: Focus[] = focusesList
-      .filter((f) => !f.isLocal && (!isHomeFocusName(f.name) || (focusesSummary?.focuses ?? []).some((df) => isHomeFocusName(df.name))))
-      .map((f) => ({ name: f.name, paths: [...f.paths], sticker: f.sticker ?? null }));
+    const written = focusesList.filter((f) => !f.isLocal && (!isHomeFocusName(f.name) || (focusesSummary?.focuses ?? []).some((df) => isHomeFocusName(df.name))));
+    const toSave: Focus[] = written.map((f) => ({ name: f.name, paths: [...f.paths], sticker: f.sticker ?? null }));
     const base: Focus[] = (focusesSummary?.focuses ?? []).map((f) => ({
       name: f.name,
       paths: [...f.paths],
@@ -8493,12 +8489,14 @@ async function saveFocuses(): Promise<void> {
     const r = await commands.setFocuses(toSave, focusesSummary.stamp, base);
     if (r.status === "ok") {
       focusesSummary = r.data;
-      const diskItems: FocusWithOrigin[] = (r.data.focuses ?? []).map((f) => ({
-        ...f,
-        paths: [...f.paths],
-        isFromMakeMd: true,
-        isLocal: false,
-      }));
+      // The objects the window holds stay the same when the file holds what
+      // was written: a caller keeps the focus it just created, selected or
+      // added a path to. Only a file merged with make.md's edits gets new ones.
+      const saved = r.data.focuses ?? [];
+      const diskItems: FocusWithOrigin[] =
+        saved.length === written.length
+          ? written.map((obj, i) => Object.assign(obj, { ...saved[i]!, paths: [...saved[i]!.paths], isFromMakeMd: true, isLocal: false }))
+          : saved.map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: true, isLocal: false }));
       const localItems: FocusWithOrigin[] = focusesList
         .filter((f) => f.isLocal && !isHomeFocusName(f.name))
         .map((f) => ({ ...f, paths: [...f.paths], isFromMakeMd: false, isLocal: true }));

@@ -726,3 +726,76 @@ test("create focus here prompts to sync and writes new focus directly to waypoin
 });
 
 
+
+test("a focus created in sync mode becomes the active one", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("Areas/Saude.md", "# Saude\n");
+  await app.writeOutside(".space/waypoints.json", JSON.stringify([{ name: "Home", paths: ["/"] }]));
+  await app.folderChanged(["Areas/Saude.md", ".space/waypoints.json"], true);
+
+  const folder = app.page.locator('#notes summary[data-folder="Areas"]');
+  await folder.click({ button: "right" });
+  await app.page.locator('.menu button[role="menuitem"]', { hasText: "Criar foco aqui" }).click();
+  await app.page.locator(".confirm-box button.save", { hasText: "Sincronizar" }).click();
+
+  // The tree shows the new focus, not Início: the focus written to the file
+  // is the one selected.
+  await expect(app.page.locator("#notes-heading-reset")).toBeVisible();
+  await expect(app.page.locator("#notes-heading")).toContainText("Areas");
+});
+
+test("adding a path to a focus created from the menu keeps the path in sync mode", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("Areas/Saude.md", "# Saude\n");
+  await app.writeOutside(".space/waypoints.json", JSON.stringify([{ name: "Home", paths: ["/"] }]));
+  await app.folderChanged(["Areas/Saude.md", ".space/waypoints.json"], true);
+
+  // No focus to add to yet: "Adicionar ao foco…" asks for a new one.
+  await app.page.locator('#notes summary[data-folder="Areas"]').click({ button: "right" });
+  await app.page.locator('.menu button[role="menuitem"]', { hasText: "Adicionar ao foco" }).click();
+  await app.page.locator(".prompt-box input").fill("Saude");
+  await app.page.locator(".confirm-actions button.save").click();
+  await app.page.locator(".confirm-box button.save", { hasText: "Sincronizar" }).click();
+
+  await expect
+    .poll(async () => JSON.parse(await app.file(".space/waypoints.json")).find((f) => f.name === "Saude")?.paths)
+    .toEqual(["Areas"]);
+});
+
+test("the active focus stays chosen when make.md puts a focus before it", async ({ app }) => {
+  await app.open();
+
+  await app.writeOutside("PastaA/NotaA.md", "# Nota A\n");
+  await app.writeOutside("PastaB/NotaB.md", "# Nota B\n");
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "Alfa", paths: ["PastaA"] },
+      { name: "Beta", paths: ["PastaB"] },
+    ]),
+  );
+  await app.folderChanged(["PastaA/NotaA.md", "PastaB/NotaB.md", ".space/waypoints.json"], true);
+
+  await app.key("Mod+Alt+ArrowRight");
+  await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
+  await app.page.locator('.focus-item[data-focus-name="Alfa"] .focus-name-btn').click();
+  await expect(app.page.locator("#notes-heading-text")).toContainText("Alfa");
+
+  // make.md inserts a focus at the top: Alfa moves one position down.
+  await app.writeOutside(
+    ".space/waypoints.json",
+    JSON.stringify([
+      { name: "Home", paths: ["/"] },
+      { name: "Novo", paths: ["PastaB"] },
+      { name: "Alfa", paths: ["PastaA"] },
+      { name: "Beta", paths: ["PastaB"] },
+    ]),
+  );
+  await app.page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+  await expect(app.page.locator('.focus-item[data-focus-name="Novo"]')).toBeVisible();
+  await expect(app.page.locator("#notes-heading-text")).toContainText("Alfa");
+});

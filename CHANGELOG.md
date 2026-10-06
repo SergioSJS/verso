@@ -31,6 +31,7 @@ test release.
 
 ### Fixed
 
+- **Focuses in sync with make.md**: a focus made there is the one chosen at once, and a path added to a new focus from "Add to focus…" is kept (it was dropped on the next save); a focus make.md puts above the chosen one no longer changes which is chosen.
 - **The file tree no longer rises again, row after row, at every change**: its rows rise in turn when a folder opens, and a save, a rename or a drag puts them in place at once; a dragged row moves as it is dropped.
 - **A board's text no longer comes out cut at its edges when its font arrives late**: on a cold start of the app, the hand-drawn and card fonts can take a few seconds, and the texts measured before them — on "Treino do Board", every lesson's — kept the narrower width and were drawn cut on both sides until the board was edited or opened again. The board now asks for each text's font and measures the text again once it is in.
 
