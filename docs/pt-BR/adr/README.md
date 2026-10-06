@@ -48,7 +48,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0053](0053-views-bases.md) | Visões sobre a pasta: bases, no formato do Obsidian | Aceito (2026-09-24) |
 | [0059](0059-tabs-preview-pinned.md) | Abas: uma aba de pré-visualização por padrão, abas fixas compactas, a aba escolhida emenda na página | Aceito (2026-09-30) |
 | [0060](0060-makemd-organizing-features.md) | As funcionalidades de organização do make.md como primitivas do Verso | Aceito (2026-10-02) |
-| [0061](0061-blocks-in-edit-mode.md) | Blocos no modo Editar: uma alça para arrastar, um + para adicionar, um menu por bloco | Proposto |
+| [0061](0061-blocks-in-edit-mode.md) | Blocos no modo Editar: uma alça para arrastar, um + para adicionar, um menu por bloco | Aceito (2026-10-06) |
 | [0062](0062-focuses.md) | Focos: raízes nomeadas da árvore de arquivos, compartilhadas com o make.md | Aceito (2026-10-03) |
 | [0063](0063-files-onto-the-board.md) | Pôr imagens e arquivos no board: soltar, colar, escolher e arrastar | Aceito (2026-10-06) |
 

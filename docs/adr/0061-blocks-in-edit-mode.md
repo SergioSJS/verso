@@ -11,6 +11,9 @@
   migrar do notion praticamente sem atritos" (people should be able to move
   from Notion with next to no friction), a feature they called important and
   missing from Obsidian.
+- Revisions: 2026-10-06 — decided by the maintainer (Status): D1 with S1
+  and S2 in one pull request, D8 (b) with the daily note on ⌘⇧D, D9 (b),
+  the rest as written.
 - Status in the briefing: not present
 
 ## Context
@@ -74,9 +77,9 @@ a note writes nothing new.
 
 ## Decision
 
-Proposed by the author to the maintainer. Nothing below is decided until the
-maintainer says so (Status); where there are options, the recommendation is
-marked.
+Proposed by the author to the maintainer and decided by the maintainer on
+2026-10-06 (Status). Where there were options, the recommendation is still
+marked, and the one chosen is said.
 
 ### 1. Scope and principle
 
@@ -85,7 +88,8 @@ marked.
    ([0057](0057-board-json-canvas.md)) and make.md's features
    ([0060](0060-makemd-organizing-features.md)), for two slices: **S1** the
    handle, the `+`, the block menu and the keys; **S2** several blocks at
-   once, and moves across containers. Moving a block to another note
+   once, and moves across containers — both in one pull request, by the
+   maintainer's choice of 2026-10-06. Moving a block to another note
    (Notion's "Move to"), which writes two files with no transaction between
    them ([0048](0048-file-operations-in-ui.md)), and importing a Notion
    export are each decided later, on their own. The Phase 2 exit gate does
@@ -208,15 +212,20 @@ note (macOS), ⌘D is the daily note, ⌘/ toggles a comment.
   block they keep moving the row or the line, as now. Notion's keys stay with
   their current owners; someone who wants them rebinds "Move block up" and
   "Move block down" to ⌘⇧↑/↓ in Settings › Hotkeys.
-- **(b)** Notion's keys by default, displacing select-to-start and
-  select-to-end, the daily note's ⌘D and the comment toggle.
+- **(b) Chosen** (2026-10-06). Notion's keys by default, displacing
+  select-to-start and select-to-end, the daily note's ⌘D and the comment
+  toggle: in Edit mode, ⌘⇧↑/↓ moves the block at the caret (the blocks a
+  selection touches, S2), ⌘D duplicates it below and ⌘/ opens "Turn into".
+  ⌥↑/↓ and ⇧⌥↑/↓ keep moving and copying the line. The daily note moves to
+  ⌘⇧D ([0049](0049-phase-2-scope-widened.md) §2, revised). Source mode keeps
+  its keys: it has no blocks (D3).
 
 ### 6. Enter (D9)
 
 - **(a)** As now, the maintainer's word of 2026-10-02: Enter breaks the line
   inside the block, and a double Enter starts the next one. Nothing in the
   editor changes.
-- **(b) Recommended.** (a), plus a setting, "Enter starts a new block", off by
+- **(b) Recommended, and chosen** (2026-10-06). (a), plus a setting, "Enter starts a new block", off by
   default. On, Enter in a paragraph writes the blank line that starts a new
   paragraph and Shift-Enter writes the single line break — Notion's two keys,
   still plain Markdown. Lists, quotes, code and tables keep their Enter. The
@@ -313,6 +322,9 @@ Considered by the author and put to the maintainer with this record:
 
 ## Status
 
-Proposed (2026-10-02). D1–D10 wait for the maintainer. The unit of D5 and
-the (a) part of D9 are the maintainer's words of 2026-10-02, but the record
-as a whole is unconfirmed.
+Accepted (2026-10-06): the maintainer, in session, answering the questions
+put with this record. D1: "S1 e S2 juntos" — both slices in one pull
+request. D8: "As do Notion" — option (b); for the daily note, "⌘⇧D". D9:
+"Como hoje + ajuste opcional" — option (b). D2–D7 and D10: "Aceito como
+está". The unit of D5 and the (a) part of D9 were the maintainer's words of
+2026-10-02.

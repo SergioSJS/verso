@@ -1122,6 +1122,10 @@ ser escolhido.
   célula de tabela, callout inteiro, bloco de código, heading com seu
   conteúdo? A documentação pública do Obsidian descreve a noção dele; a spec
   precisa da sua antes de Q3 e Q4 fazerem sentido.
+  O editor tem a sua própria unidade desde 2026-10-06, para mover blocos no
+  modo Editar ([ADR 0061](../adr/0061-blocks-in-edit-mode.md) D5): um nó da
+  árvore de sintaxe, nunca uma linha. Não fecha nada aqui e fica como entrada
+  quando a Q21 for respondida.
 - **Q22. Charset do `^id` e forma das tags.** `DECIDIDA` para o charset e a
   caixa das tags em 2026-09-23; `[ABERTO]` para o resto.
   A documentação pública do Obsidian restringe `^id` a letras, números e hífen;

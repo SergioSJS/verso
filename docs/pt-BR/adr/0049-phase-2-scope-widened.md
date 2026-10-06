@@ -23,7 +23,9 @@
   2026-10-02 — a linha "os Contexts do make.md" da seção 3 deixa de valer:
   as visões foram o [0053](0053-views-bases.md), e as funcionalidades de
   organização do make.md são o [0060](0060-makemd-organizing-features.md),
-  pelo pedido do mantenedor desse dia.
+  pelo pedido do mantenedor desse dia. 2026-10-06 — a nota diária da seção 2
+  passa de ⌘D para ⌘⇧D: ⌘D duplica um bloco, pela escolha do mantenedor das
+  teclas do Notion ([0061](0061-blocks-in-edit-mode.md) D8).
 
 ## Contexto
 
