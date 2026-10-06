@@ -2832,7 +2832,10 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 .board-canvas .excalidraw [data-testid="toolbar-embeddable"]:has(+ [data-testid="toolbar-laser"]),
 .board-canvas .excalidraw .excalidraw__embeddable-hint,
 .board-canvas .excalidraw .context-menu li[data-testid="copyAsPng"],
-.board-canvas .excalidraw .context-menu li[data-testid="copyAsSvg"] { display: none !important; }
+.board-canvas .excalidraw .context-menu li[data-testid="copyAsSvg"],
+/* The library's browser reaches excalidraw.com and is hidden (ADR 0050):
+   adding to it would keep a shape nowhere the board shows. */
+.board-canvas .excalidraw .context-menu li[data-testid="addToLibrary"] { display: none !important; }
 /* The one word of Excalidraw's tools menu no locale carries. */
 .board-root[data-lang="pt"] .board-canvas .excalidraw div:not([class]):has(+ [data-testid="toolbar-embeddable"]) { font-size: 0 !important; }
 .board-root[data-lang="pt"] .board-canvas .excalidraw div:not([class]):has(+ [data-testid="toolbar-embeddable"])::after { content: "Gerar"; font-size: 14px; }
