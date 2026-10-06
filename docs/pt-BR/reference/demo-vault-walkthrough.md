@@ -172,6 +172,16 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     quebra de linha. No campo de busca, ⌘⇧↑ é do próprio campo. Uma linha
     vazia mostra só o `+`: ele escreve um `/` ali, separado dos vizinhos, e
     Esc o desfaz. Nível: H; E: `blocks.spec.mjs`; U: `test/blocks.test.mjs`.
+11. Nota 01, "Tabelas no Editor", no Editar (ADR 0064): uma tabela é
+    desenhada como tabela com o cursor nela ou não; `/tabela` cria uma cujo
+    cabeçalho vazio recebe as teclas; Tab, Enter, as setas e Esc como a nota
+    diz; os `+` embaixo e ao lado acrescentam linha e coluna; clique direito
+    numa célula: inserir, excluir, alinhar (`:-:`), e as mesmas ferramentas na
+    barra de formatação enquanto uma célula tem o foco, com o alinhamento da
+    coluna marcado; um `|` digitado é gravado
+    `\|`; ⌘Z numa célula desfaz o último passo. Uma tabela dentro de uma
+    lista continua texto. Nível: H; E: `tables.spec.mjs`; U:
+    `test/table.test.mjs`.
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
