@@ -199,7 +199,10 @@ frontmatter, the conversion of the Excalidraw plugin's drawings
 On 2026-10-02 the maintainer pulled in make.md's organizing features —
 labels, folder pages, manual order and pins, editing an embedded note in
 place ([ADR 0060](adr/0060-makemd-organizing-features.md)); the memo is
-`docs/reference/makemd-decision.md`.
+`docs/reference/makemd-decision.md`. On 2026-10-06 the maintainer pulled in
+Notion's blocks in Edit mode — a handle to drag a paragraph, a list item or
+any other block, a `+`, a menu per block and Notion's keys
+([ADR 0061](adr/0061-blocks-in-edit-mode.md)).
 
 ### Decisions that have to come out during the phase
 

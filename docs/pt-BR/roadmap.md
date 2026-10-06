@@ -199,7 +199,10 @@ frontmatter, a conversão dos desenhos do plugin Excalidraw
 Em 2026-10-02 o mantenedor puxou as funcionalidades de organização do
 make.md — rótulos, páginas de pasta, ordem manual e fixados, editar uma nota
 embutida no lugar ([ADR 0060](adr/0060-makemd-organizing-features.md)); o
-memo é `docs/reference/makemd-decision.md`.
+memo é `docs/reference/makemd-decision.md`. Em 2026-10-06 o mantenedor puxou
+os blocos do Notion no modo Editar — uma alça para arrastar um parágrafo, um
+item de lista ou qualquer outro bloco, um `+`, um menu por bloco e as teclas
+do Notion ([ADR 0061](adr/0061-blocks-in-edit-mode.md)).
 
 ### Decisões que precisam sair durante a fase
 

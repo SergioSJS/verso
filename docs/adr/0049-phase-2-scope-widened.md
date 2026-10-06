@@ -24,7 +24,9 @@
   2026-10-02 — the line "make.md's Contexts" of section 3 no longer holds:
   the views were [0053](0053-views-bases.md), and make.md's organizing
   features are [0060](0060-makemd-organizing-features.md), by the
-  maintainer's request of that day.
+  maintainer's request of that day. 2026-10-06 — section 2's daily note
+  moves from ⌘D to ⌘⇧D: ⌘D duplicates a block, by the maintainer's choice
+  of Notion's keys ([0061](0061-blocks-in-edit-mode.md) D8).
 
 ## Context
 

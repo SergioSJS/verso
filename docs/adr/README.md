@@ -48,7 +48,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0053](0053-views-bases.md) | Views over the folder: bases, in Obsidian's format | Accepted (2026-09-24) |
 | [0059](0059-tabs-preview-pinned.md) | Tabs: a preview tab by default, compact pinned tabs, the chosen tab joins its page | Accepted (2026-09-30) |
 | [0060](0060-makemd-organizing-features.md) | make.md's organizing features as Verso primitives | Accepted (2026-10-02) |
-| [0061](0061-blocks-in-edit-mode.md) | Blocks in Edit mode: a handle to drag, a + to add, a menu per block | Proposed |
+| [0061](0061-blocks-in-edit-mode.md) | Blocks in Edit mode: a handle to drag, a + to add, a menu per block | Accepted (2026-10-06) |
 | [0062](0062-focuses.md) | Focuses: named roots of the file tree, shared with make.md | Accepted (2026-10-03) |
 | [0063](0063-files-onto-the-board.md) | Putting pictures and files on the board: drop, paste, pick and drag | Accepted (2026-10-06) |
 

@@ -1114,6 +1114,10 @@ the parser was chosen.
   a table cell, a whole callout, a code block, a heading with its content?
   Obsidian's public documentation describes its notion of it; the spec needs its
   own before Q3 and Q4 make sense.
+  The editor has its own unit since 2026-10-06, for moving blocks in Edit
+  mode ([ADR 0061](../adr/0061-blocks-in-edit-mode.md) D5): a node of the
+  syntax tree, never a line. It closes nothing here and is offered as an
+  input when Q21 is answered.
 - **Q22. Charset of the `^id` and form of the tags.** `DECIDED` for the tags'
   charset and case on 2026-09-23; `[OPEN]` for the rest.
   Obsidian's public documentation restricts `^id` to letters, numbers and

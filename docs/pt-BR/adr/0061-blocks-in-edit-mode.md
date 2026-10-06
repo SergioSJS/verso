@@ -8,6 +8,9 @@
   este registro, "quero que as pessoas consigam migrar do notion praticamente
   sem atritos", uma funcionalidade que chamou de importante e que falta no
   Obsidian.
+- Revisões: 2026-10-06 — decidido pelo mantenedor (Status): D1 com S1 e S2
+  num pull request só, D8 (b) com a nota diária em ⌘⇧D, D9 (b), o resto como
+  está escrito.
 - Status no briefing: não consta
 
 ## Contexto
@@ -73,8 +76,9 @@ de uma nota não grava nada novo.
 
 ## Decisão
 
-Proposto pelo autor ao mantenedor. Nada abaixo está decidido até o
-mantenedor dizer (Status); onde há opções, a recomendação está marcada.
+Proposto pelo autor ao mantenedor e decidido pelo mantenedor em 2026-10-06
+(Status). Onde havia opções, a recomendação continua marcada, e a escolhida é
+dita.
 
 ### 1. Escopo e princípio
 
@@ -83,7 +87,8 @@ mantenedor dizer (Status); onde há opções, a recomendação está marcada.
    ([0057](0057-board-json-canvas.md)) e as funcionalidades do make.md
    ([0060](0060-makemd-organizing-features.md)), para duas fatias: **S1** a
    alça, o `+`, o menu do bloco e as teclas; **S2** vários blocos de uma vez,
-   e movimentos entre contêineres. Mover um bloco para outra nota (o "Mover
+   e movimentos entre contêineres — as duas num pull request só, por escolha
+   do mantenedor em 2026-10-06. Mover um bloco para outra nota (o "Mover
    para" do Notion), que grava dois arquivos sem transação entre eles
    ([0048](0048-file-operations-in-ui.md)), e importar um export do Notion
    são decididos depois, cada um por si. O critério de saída da Fase 2 não
@@ -215,15 +220,20 @@ fim da nota (macOS), ⌘D é a nota diária, ⌘/ alterna um comentário.
   As teclas do Notion ficam com os donos atuais; quem as quiser associa
   "Mover bloco para cima" e "Mover bloco para baixo" a ⌘⇧↑/↓ em
   Configurações › Atalhos.
-- **(b)** As teclas do Notion por padrão, tirando o selecionar até o começo e
-  até o fim, o ⌘D da nota diária e o alternar comentário.
+- **(b) Escolhida** (2026-10-06). As teclas do Notion por padrão, tirando o
+  selecionar até o começo e até o fim, o ⌘D da nota diária e o alternar
+  comentário: no modo Editar, ⌘⇧↑/↓ move o bloco do cursor (os blocos que uma
+  seleção toca, S2), ⌘D o duplica abaixo e ⌘/ abre "Transformar em". ⌥↑/↓ e
+  ⇧⌥↑/↓ continuam movendo e copiando a linha. A nota diária passa para ⌘⇧D
+  ([0049](0049-phase-2-scope-widened.md) §2, revisto). O modo Código-fonte
+  mantém suas teclas: não tem blocos (D3).
 
 ### 6. Enter (D9)
 
 - **(a)** Como hoje, palavra do mantenedor em 2026-10-02: Enter quebra a
   linha dentro do bloco, e um Enter duplo começa o próximo. Nada muda no
   editor.
-- **(b) Recomendada.** (a), mais uma configuração, "Enter começa um bloco
+- **(b) Recomendada, e escolhida** (2026-10-06). (a), mais uma configuração, "Enter começa um bloco
   novo", desligada por padrão. Ligada, Enter num parágrafo escreve a linha em
   branco que começa um parágrafo novo e Shift-Enter escreve a quebra de linha
   simples — as duas teclas do Notion, ainda Markdown puro. Listas, citações,
@@ -325,6 +335,8 @@ Consideradas pelo autor e levadas ao mantenedor com este registro:
 
 ## Status
 
-Proposto (2026-10-02). D1–D10 esperam o mantenedor. A unidade da D5 e a parte
-(a) da D9 são palavras do mantenedor de 2026-10-02, mas o registro como um
-todo não está confirmado.
+Aceito (2026-10-06): o mantenedor, em sessão, respondendo às perguntas feitas
+com este registro. D1: "S1 e S2 juntos" — as duas fatias num pull request só.
+D8: "As do Notion" — opção (b); para a nota diária, "⌘⇧D". D9: "Como hoje +
+ajuste opcional" — opção (b). D2–D7 e D10: "Aceito como está". A unidade da
+D5 e a parte (a) da D9 eram palavras do mantenedor de 2026-10-02.
