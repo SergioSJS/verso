@@ -35,8 +35,8 @@ mantenedor como está escrito (Status).
    pasta, ao lado do board, na pasta de anexos (Ajustes › Arquivos, como nas
    notas), com um nome livre, e um cartão que o mostra é posto onde foi solto,
    ou no meio da vista quando colado. Vários arquivos entram em escada. Outro
-   tipo de arquivo é recusado com uma linha que diz isso e aponta para "Nota ou
-   arquivo".
+   tipo de arquivo é recusado com uma linha que diz isso e aponta para Inserir ›
+   "Nota ou arquivo da pasta".
 3. **Um arquivo arrastado da árvore para o board vira um cartão** do arquivo
    que já está na pasta; nada é copiado e nenhuma aba abre. Uma nota, uma
    imagem, um PDF: o que "Nota ou arquivo" aceita.
@@ -64,6 +64,11 @@ mantenedor como está escrito (Status).
   por Opus 5, lida por Fable 5.1), e em 2026-10-06 o mantenedor pediu que o
   Fable não fosse usado ("evite usar fable"): a leitura antes do merge é o
   mantenedor quem designa.
+- Deixados de fora de propósito, e não decididos (apresentados ao mantenedor
+  em 2026-10-06 com a recomendação de deixá-los assim): a mesma imagem solta
+  duas vezes é copiada duas vezes — sem comparar conteúdo; um arquivo de fora
+  que não é imagem nem PDF (uma nota vinda do Finder) é recusado, não copiado
+  — copiar notas para a pasta é uma decisão à parte.
 
 ## Alternativas descartadas
 
@@ -71,5 +76,10 @@ Nenhuma registrada.
 
 ## Status
 
-Aceito (2026-10-03): o mantenedor, em sessão, sobre as palavras citadas no
-cabeçalho.
+Aceito (2026-10-06): o mantenedor, em sessão. Perguntado qual era a decisão e
+qual a recomendação do autor — aceitar os pontos 1 a 4 como estão escritos,
+o ponto 4 como revisto, deixando de fora os dois itens das Consequências —,
+o mantenedor respondeu "gosto da sua sugestão". A linha de status anterior
+(2026-10-03) se apoiava só nas palavras citadas no cabeçalho, que pedem a
+funcionalidade e não aceitam texto nenhum; uma revisão em 2026-10-06 a achou
+sem apoio, e esta linha a substitui.

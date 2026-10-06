@@ -41,7 +41,7 @@ maintainer as written (Status).
    Files, as for notes), under a free name, and a card showing it is put where
    it was dropped, or in the middle of the view when pasted. Several files go
    in a staircase. Any other kind of file is refused with a line saying so and
-   pointing to "Note or file".
+   pointing to Insert › "Note or file of the folder".
 3. **A file dragged from the tree onto the board becomes a card** for the file
    already in the folder; nothing is copied, and no tab opens. A note, a
    picture, a PDF: whatever "Note or file" accepts.
@@ -67,6 +67,12 @@ maintainer as written (Status).
   (UI by Opus 5, read by Fable 5.1), and on 2026-10-06 the maintainer asked
   that Fable not be used ("evite usar fable"): the reading before the merge
   is the maintainer's to assign.
+- Left out on purpose, and not decided (named to the maintainer on
+  2026-10-06 with the recommendation to leave them so): the same picture
+  dropped twice is copied twice — no comparison of contents; a file from
+  outside that is neither a picture nor a PDF (a note from the Finder) is
+  refused, not copied — copying notes into the folder is a decision of its
+  own.
 
 ## Discarded alternatives
 
@@ -74,5 +80,10 @@ None recorded.
 
 ## Status
 
-Accepted (2026-10-03): the maintainer, in session, on the words quoted in the
-header.
+Accepted (2026-10-06): the maintainer, in session. Asked what the decision
+was and for the author's recommendation — accept points 1 to 4 as written,
+point 4 as revised, leaving out the two items under Consequences — the
+maintainer answered "gosto da sua sugestão" (I like your suggestion). The
+earlier status line (2026-10-03) rested only on the words quoted in the
+header, which ask for the feature and accept no text; a review on
+2026-10-06 found it unsupported, and this line replaces it.
