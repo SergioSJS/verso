@@ -42,6 +42,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Os menus do botão direito não mostram mais dois traços juntos**: o do board (onde o Verso esconde as cópias como imagem do Excalidraw, o link de um cartão e a biblioteca, agora escondida também) e os da janela (onde uma seção que um arquivo não oferece ficava de fora).
 - **Uma linha ou uma forma desenhada por cima de um cartão no board é uma linha só**: enquanto era desenhada, uma cópia vinha atrás dela por cima do cartão, em outro ângulo, e a forma passava por baixo do cartão; agora é desenhada por cima do cartão, uma vez, como vai ficar.
 - **Focos sincronizados com o make.md**: um foco criado já fica escolhido, e um caminho acrescentado a um foco novo por "Adicionar ao foco…" é mantido (sumia no salvamento seguinte); um foco que o make.md põe acima do escolhido não troca mais qual está escolhido.
 - **A árvore de arquivos não sobe de novo, linha a linha, a cada mudança**: as linhas sobem em sequência quando uma pasta abre, e um salvamento, uma renomeação ou um arraste as põe no lugar na hora; uma linha arrastada muda de lugar ao ser solta.

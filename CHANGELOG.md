@@ -42,6 +42,7 @@ test release.
 
 ### Fixed
 
+- **Right-click menus no longer show two lines together**: the board's (where Verso hides Excalidraw's copies as pictures, a card's link and the library, now hidden too) and the window's (where a section a file does not offer was left out).
 - **A line or a shape drawn across a card on the board is one line**: while it was drawn, a copy trailed behind it over the card, at another angle, and the shape went under the card; it is now drawn over the card, once, as it will stay.
 - **Focuses in sync with make.md**: a focus made there is the one chosen at once, and a path added to a new focus from "Add to focus…" is kept (it was dropped on the next save); a focus make.md puts above the chosen one no longer changes which is chosen.
 - **The file tree no longer rises again, row after row, at every change**: its rows rise in turn when a folder opens, and a save, a rename or a drag puts them in place at once; a dragged row moves as it is dropped.

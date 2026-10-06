@@ -10184,10 +10184,22 @@ function createMenuItems(folder = ""): MenuItem[] {
   }
   return items;
 }
+/** A menu's items with its separators tidied: none first or last, never
+ *  two in a row — a section left out (an item a file or a mode does not
+ *  offer) leaves no empty band between two lines. */
+function tidyMenu(items: MenuItem[]): MenuItem[] {
+  const out: MenuItem[] = [];
+  for (const it of items) {
+    if (it[0] === "—" && (out.length === 0 || out[out.length - 1]![0] === "—")) continue;
+    out.push(it);
+  }
+  while (out.length > 0 && out[out.length - 1]![0] === "—") out.pop();
+  return out;
+}
 function showMenu(x: number, y: number, items: MenuItem[]): void {
   menuOpener = document.activeElement;
   menu.replaceChildren(
-    ...items.map(([label, run, iconName]) => {
+    ...tidyMenu(items).map(([label, run, iconName]) => {
       // The list items are layout only: the menu's items are its buttons.
       const li = h("li");
       li.setAttribute("role", "none");

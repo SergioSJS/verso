@@ -478,6 +478,39 @@ function useHintSlot(canvas: RefObject<HTMLDivElement | null>, on: boolean): HTM
  *  bar open, a narrow pane). Excalidraw's phone layout has its own place for
  *  them (style.css). Their width is read while they are on the top row and
  *  not being typed into, so a search field that widens never moves them. */
+/** Excalidraw's right-click menu with the items Verso hides (its copies
+ *  as pictures, a card's link, the library) taken out cleanly: a line left
+ *  first, last or beside another goes, or the menu shows two together. */
+function useTidyContextMenu(canvas: RefObject<HTMLDivElement | null>): void {
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c) return;
+    const tidy = (menu: Element): void => {
+      let last: HTMLElement | null = null;
+      let seen = false;
+      for (const child of Array.from(menu.children) as HTMLElement[]) {
+        const line = child.classList.contains("context-menu-item-separator");
+        if (line) {
+          child.style.display = "";
+          if (!seen || last) child.style.display = "none";
+          else last = child;
+          continue;
+        }
+        if (getComputedStyle(child).display === "none") continue;
+        seen = true;
+        last = null;
+      }
+      if (last) last.style.display = "none";
+    };
+    const mo = new MutationObserver(() => {
+      const menu = c.querySelector(".context-menu");
+      if (menu) tidy(menu);
+    });
+    mo.observe(c, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [canvas]);
+}
+
 function useToolsBelow(canvas: RefObject<HTMLDivElement | null>): boolean {
   const [below, setBelow] = useState(false);
   const toolsWidth = useRef(180);
@@ -2502,6 +2535,7 @@ function Board({
 
   const slot = useToolbarSlot(container);
   const toolsBelow = useToolsBelow(container);
+  useTidyContextMenu(container);
   const insertMenu = readOnly ? null : (
     <InsertMenu
       s={s}
