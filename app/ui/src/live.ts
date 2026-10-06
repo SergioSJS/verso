@@ -18,6 +18,7 @@ import type { Text } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import katex from "katex";
 import { cells } from "./table";
+import { TableEditor, tableArrows, type TableEditorOptions } from "./tableEditor";
 import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
 import { heldImage, imageLink, webFrame } from "./sanitize";
@@ -52,6 +53,9 @@ export type LiveOptions = {
   canEditEmbed?: () => boolean;
   /** True when an embedded note is actively being edited, dirty, or conflicted. */
   isEmbedActive?: (target: string) => boolean;
+  /** Tables edited as tables (ADR 0064): the editor's words and the
+   *  window's menu and renderer. */
+  table?: TableEditorOptions;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -430,7 +434,7 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true; editable?: true };
 const BASE_EMBED = /\.base(#[^|]*)?$/i;
 const PDF_EXT = /\.pdf([#|].*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
@@ -472,7 +476,13 @@ export function blocksOf(state: EditorState): Block[] {
           if (c.name === "TableHeader" || c.name === "TableDelimiter" || c.name === "TableRow") rows.push(doc.sliceString(c.from, c.to));
         }
         const at = lines(n.from, n.to);
-        if (at) out.push({ ...at, kind: "table", text: rows.join("\n"), rows });
+        // Edited as a table (ADR 0064) when it stands on its own lines, out
+        // of a list or a quote, every row between pipes: written back, it
+        // keeps all it had.
+        let nested = false;
+        for (let p = n.node.parent; p; p = p.parent) if (p.name === "Blockquote" || p.name === "ListItem") nested = true;
+        const editable = !nested && rows.length >= 2 && rows.every((r) => /^\|.*\|$/.test(r.trim())) && at !== null && doc.sliceString(at.from, at.to).split("\n").every((l) => /^\s*\|/.test(l));
+        if (at) out.push({ ...at, kind: "table", text: rows.join("\n"), rows, ...(editable ? { editable: true as const } : {}) });
         return false;
       }
       if (n.name === "Paragraph") {
@@ -775,8 +785,14 @@ function foldBlocks(state: EditorState, opts: LiveOptions, blocks: Block[]): Dec
     ranges.push(Decoration.replace({ widget: new FrontmatterWidget(lines, opts.editFrontmatter, opts.frontmatterTitle?.(lines) ?? "") }).range(0, fm));
   }
   for (const b of blocks) {
+    if (b.from <= fm) continue;
+    // A table is edited as a table, the caret in it or not (ADR 0064).
+    if (b.kind === "table" && b.editable && opts.table) {
+      ranges.push(Decoration.replace({ widget: new TableEditor(b.text, opts.table), block: true }).range(b.from, b.to));
+      continue;
+    }
     const active = b.kind === "embed" && Boolean(opts.isEmbedActive?.(b.text));
-    if (b.from <= fm || (touched(b.from, b.to) && !active)) continue;
+    if (touched(b.from, b.to) && !active) continue;
     const html = b.kind === "embed" ? opts.noteHtml?.(b.text) : undefined;
     ranges.push(Decoration.replace({ widget: new BlockWidget(b, opts, html), block: true }).range(b.from, b.to));
   }
@@ -1438,6 +1454,7 @@ export function livePreview(opts: LiveOptions) {
   return [
     plugin,
     clicks,
+    opts.table ? tableArrows((state) => safely(() => blocksOf(state), []).filter((b) => b.kind === "table" && b.editable)) : [],
     frontmatter,
     outOfFrontmatter,
     keepFrontmatter,

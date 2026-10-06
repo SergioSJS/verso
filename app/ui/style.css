@@ -356,6 +356,25 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .cm-block-drop { position: absolute; z-index: 6; height: 3px; margin-top: -1px; border-radius: 2px; background: var(--seal); pointer-events: none; }
 .cm-blocks-dragging, .cm-blocks-dragging * { cursor: grabbing !important; }
 .cm-block-grip[hidden] { display: none; }
+/* A table edited as a table in Edit mode (ADR 0064): each cell's look,
+   rendered as the reading view renders it, and over it the field the cell
+   is typed in, seen only while it has the focus. */
+.editor .cm-table-editor { padding: .5rem 0 .25rem; }
+.cm-table-frame { display: inline-flex; flex-direction: column; max-width: 100%; }
+.cm-table-wrap { display: flex; align-items: stretch; gap: 4px; max-width: 100%; overflow-x: auto; }
+.cm-table-editor table { border-collapse: collapse; font-family: var(--book); font-size: .95em; }
+.cm-table-editor th, .cm-table-editor td { position: relative; min-width: 5.5rem; padding: 0; border: 1px solid var(--hair); vertical-align: top; text-align: left; }
+.cm-table-editor th { background: var(--paper-2); font-weight: 600; color: var(--heading-color, var(--ink)); }
+.cm-table-cell-view { min-height: 1.5em; padding: .35rem .65rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
+.cm-table-cell-view:empty::before { content: "\00a0"; }
+.cm-table-cell-input { position: absolute; inset: 0; box-sizing: border-box; width: 100%; height: 100%; padding: .35rem .65rem; border: 0; margin: 0; font: inherit; line-height: 1.5; color: inherit; text-align: inherit; background: transparent; outline: none; opacity: 0; }
+.cm-table-cell-input:focus { opacity: 1; background: var(--paper); box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--seal) 45%, transparent); }
+.cm-table-editor th:focus-within .cm-table-cell-view, .cm-table-editor td:focus-within .cm-table-cell-view { visibility: hidden; }
+.cm-table-add { display: flex; align-items: center; justify-content: center; padding: 0; border: 1px dashed transparent; border-radius: 4px; background: transparent; color: var(--ink-3); font-size: .9rem; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.cm-table-add-col { width: 1.3rem; }
+.cm-table-add-row { height: 1.3rem; margin: 4px calc(1.3rem + 4px) 0 0; }
+.cm-table-editor:hover .cm-table-add, .cm-table-editor.has-focus .cm-table-add, .cm-table-add:focus-visible { opacity: 1; border-color: var(--hair); }
+.cm-table-add:hover { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
 .title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; }
 .note-title { flex: 1; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
 .note-title:empty { display: none; }
@@ -1671,6 +1690,10 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .tool:hover { color: var(--ink); background: var(--paper-3); }
 .tool .icon { width: 15px; height: 15px; }
 .tool-sep { width: 1px; height: 1.1rem; margin: 0 .3rem; background: var(--hair); }
+/* A table's tools, while one of its cells has the focus (ADR 0064). */
+.tool-table { display: none; align-items: center; gap: .1rem; }
+.toolbar.table-active .tool-table { display: inline-flex; }
+.tool-table .tool[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
 .editor { margin-top: .4rem; }
 
 /* Sidebar divider */

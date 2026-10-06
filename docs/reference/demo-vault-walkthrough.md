@@ -171,6 +171,15 @@ point 13).
     search field, ⌘⇧↑ is the field's own. An empty line shows the `+`
     alone: it writes a `/` there, apart from its neighbours, and Esc takes
     it back. Level: H; E: `blocks.spec.mjs`; U: `test/blocks.test.mjs`.
+11. Note 01, "Tabelas no Editor", in Editar (ADR 0064): a table is drawn as
+    a table with the caret in it or not; `/tabela` makes one whose empty
+    header takes the keys; Tab, Enter, the arrows and Esc as the note says;
+    the `+` under and beside it add a row and a column; right click on a
+    cell: insert, delete, align (`:-:`), and the same tools in the
+    formatting bar while a cell has the focus, the column's alignment
+    pressed; a `|` typed is written `\|`; ⌘Z in
+    a cell undoes the last step. A table inside a list stays text. Level: H;
+    E: `tables.spec.mjs`; U: `test/table.test.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 

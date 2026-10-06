@@ -102,6 +102,7 @@ import { BaseView, type BaseHost, type BaseSource } from "./bases/view";
 import { stringsFor } from "./bases/strings";
 import { DailyCalendar } from "./bases/daily";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./table";
+import { focusTableCell, focusedAlign, tableAction, tableHasFocus } from "./tableEditor";
 import { listKeymap } from "./listKeymap";
 import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
@@ -167,6 +168,7 @@ type Strings = Record<
   string
 > & {
   slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; toggleTitle: string; toggle: string; empty: string };
+  tableEdit: { addRow: string; addCol: string; rowAbove: string; rowBelow: string; deleteRow: string; colLeft: string; colRight: string; deleteCol: string; alignLeft: string; alignCenter: string; alignRight: string; cell: string; headerCell: string };
   blocks: { grip: string; plus: string; delete: string; duplicate: string; turnInto: string; copyLink: string; moveUp: string; moveDown: string; menu: string; duplicateBlock: string; deleteBlock: string; turnBlock: string; text: string; h1: string; h2: string; h3: string; bullet: string; numbered: string; task: string; quote: string; callout: string; code: string; linkCopied: string; noLink: string; noTurn: string; handles: string; handlesDesc: string; enterNewBlock: string; enterNewBlockDesc: string };
   indexed: (n: number, u: number, p: number) => string;
   hits: (n: number) => string;
@@ -246,6 +248,7 @@ const pt: Strings = {
   counts: (notes, files, folders) => `${notes} nota${notes === 1 ? "" : "s"} · ${files} arquivo${files === 1 ? "" : "s"} · ${folders} pasta${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
   slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", toggleTitle: "Recolhível", toggle: "Destaque que abre e fecha (toggle)", empty: "Nada com esse nome." },
+  tableEdit: { addRow: "Acrescentar linha", addCol: "Acrescentar coluna", rowAbove: "Inserir linha acima", rowBelow: "Inserir linha abaixo", deleteRow: "Excluir linha", colLeft: "Inserir coluna à esquerda", colRight: "Inserir coluna à direita", deleteCol: "Excluir coluna", alignLeft: "Alinhar à esquerda", alignCenter: "Centralizar", alignRight: "Alinhar à direita", cell: "Linha {r}, coluna {c}", headerCell: "Cabeçalho, coluna {c}" },
   blocks: { grip: "Arraste para mover · clique para o menu", plus: "Acrescentar um bloco abaixo", delete: "Excluir", duplicate: "Duplicar", turnInto: "Transformar em", copyLink: "Copiar link do bloco", moveUp: "Mover bloco para cima", moveDown: "Mover bloco para baixo", menu: "Menu do bloco", duplicateBlock: "Duplicar bloco", deleteBlock: "Excluir bloco", turnBlock: "Transformar bloco em…", text: "Texto", h1: "Título 1", h2: "Título 2", h3: "Título 3", bullet: "Lista com marcadores", numbered: "Lista numerada", task: "Tarefa", quote: "Citação", callout: "Destaque (callout)", code: "Código", linkCopied: "Link do bloco copiado.", noLink: "Só parágrafos, itens de lista e títulos têm link de bloco.", noTurn: "Este bloco não se transforma sem mudar o texto.", handles: "Alças dos blocos", handlesDesc: "No modo Editar, um + e uma alça ⋮⋮ na margem de cada bloco: arraste para mover, clique para o menu.", enterNewBlock: "Enter começa um bloco novo", enterNewBlockDesc: "Num parágrafo, Enter escreve a linha em branco que começa o próximo bloco e Shift-Enter quebra a linha, como no Notion. Desligado: Enter quebra a linha e Enter duas vezes começa outro bloco." },
   colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
   duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copyRelativePath: "Copiar caminho relativo", copyFullPath: "Copiar caminho completo", openInNewTab: "Abrir em nova aba", copied: "Caminho copiado.",
@@ -375,6 +378,7 @@ const en: Strings = {
   counts: (notes, files, folders) => `${notes} note${notes === 1 ? "" : "s"} · ${files} file${files === 1 ? "" : "s"} · ${folders} folder${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the Trash (.trash)?`,
   slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", toggleTitle: "Toggle", toggle: "A callout that opens and closes", empty: "Nothing by that name." },
+  tableEdit: { addRow: "Add a row", addCol: "Add a column", rowAbove: "Insert row above", rowBelow: "Insert row below", deleteRow: "Delete row", colLeft: "Insert column left", colRight: "Insert column right", deleteCol: "Delete column", alignLeft: "Align left", alignCenter: "Center", alignRight: "Align right", cell: "Row {r}, column {c}", headerCell: "Header, column {c}" },
   blocks: { grip: "Drag to move · click for the menu", plus: "Add a block below", delete: "Delete", duplicate: "Duplicate", turnInto: "Turn into", copyLink: "Copy link to block", moveUp: "Move block up", moveDown: "Move block down", menu: "Block menu", duplicateBlock: "Duplicate block", deleteBlock: "Delete block", turnBlock: "Turn block into…", text: "Text", h1: "Heading 1", h2: "Heading 2", h3: "Heading 3", bullet: "Bulleted list", numbered: "Numbered list", task: "Task", quote: "Quote", callout: "Callout", code: "Code", linkCopied: "Link to the block copied.", noLink: "Only paragraphs, list items and headings have a block link.", noTurn: "This block does not turn into another kind without changing its text.", handles: "Block handles", handlesDesc: "In Edit mode, a + and a ⋮⋮ handle in the margin of each block: drag to move, click for the menu.", enterNewBlock: "Enter starts a new block", enterNewBlockDesc: "In a paragraph, Enter writes the blank line that starts the next block and Shift-Enter breaks the line, as in Notion. Off: Enter breaks the line, and Enter twice starts another block." },
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
   duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copyRelativePath: "Copy relative path", copyFullPath: "Copy full path", openInNewTab: "Open in new tab", copied: "Path copied.",
@@ -1283,6 +1287,16 @@ async function completeMarkdown(ctx: CompletionContext): Promise<CompletionResul
   return completeEmoji(ctx);
 }
 
+/** The table just written above the caret: its first header cell takes
+ *  the keys (Edit mode draws it as a table, ADR 0064). */
+function focusTableOver(v: EditorView): void {
+  const doc = v.state.doc;
+  let line = doc.lineAt(v.state.selection.main.head);
+  if (!/^\s*\|/.test(line.text) && line.number > 1) line = doc.line(line.number - 1);
+  while (line.number > 1 && /^\s*\|/.test(doc.line(line.number - 1).text)) line = doc.line(line.number - 1);
+  if (/^\s*\|/.test(line.text)) focusTableCell(v, line.from, -1, 0);
+}
+
 /** What the `/` menu offers, in sections, with a line of explanation each. */
 function slashSections(): SlashSection[] {
   const today = new Date();
@@ -1311,7 +1325,7 @@ function slashSections(): SlashSection[] {
       { icon: "quote", title: s.toggleTitle, description: s.toggle, keywords: "toggle recolher dobrar fold [!note]-", insert: "> [!note]- " },
     ] },
     { title: s.insert, items: [
-      { icon: "table", title: t.table, description: s.table, keywords: "| tabela table", insert: () => tableTemplate(3, 2, t.tableColumn), select: [2, 2 + t.tableColumn.length] },
+      { icon: "table", title: t.table, description: s.table, keywords: "| tabela table", insert: () => tableTemplate(3, 2), run: (v) => focusTableOver(v) },
       { icon: "wikilink", title: t.wikilink, description: s.wikilink, keywords: "[[ link nota", insert: "[[", run: (v) => startCompletion(v) },
       { icon: "note", title: t.embedNote, description: s.embed, keywords: "![[ embed transclusão", insert: "![[", run: (v) => startCompletion(v) },
       { icon: "image", title: t.image, description: s.image, keywords: "![[ imagem png jpg", insert: "![[", run: (v) => startCompletion(v) },
@@ -2256,6 +2270,11 @@ class NoteLeaf extends Leaf {
       editEmbed: (target, mount, onExit) => this.liveEmbed(target, mount, onExit),
       embedLabels: { edit: t.editInPlace, done: t.embedDone },
       canEditEmbed: () => settings.inlineEmbedEdit,
+      table: {
+        labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
+        menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),
+        render: (md) => commands.renderMarkdown(md),
+      },
       isEmbedActive: (target) => {
         const to = this.resolve(target);
         if (!to) return false;
@@ -2481,6 +2500,44 @@ class NoteLeaf extends Leaf {
     add("table", t.table, () => (formatUnderCaret(this.editor) ? void 0 : this.insertTable()));
     sep();
     add("image", t.pasteHint, () => (ui.status.textContent = t.pasteHint));
+    // A table's tools (ADR 0064), shown while one of its cells has the
+    // focus: what the cell's menu does, a click away.
+    const tools = h("span", "tool-table");
+    tools.setAttribute("role", "group");
+    tools.setAttribute("aria-label", t.table);
+    tools.append(h("span", "tool-sep"));
+    const T = t.tableEdit;
+    for (const [ic, label, action] of [
+      ["alignLeft", T.alignLeft, "alignLeft"],
+      ["alignCenter", T.alignCenter, "alignCenter"],
+      ["alignRight", T.alignRight, "alignRight"],
+      ["rowAbove", T.rowAbove, "rowAbove"],
+      ["rowBelow", T.rowBelow, "rowBelow"],
+      ["colLeft", T.colLeft, "colLeft"],
+      ["colRight", T.colRight, "colRight"],
+      ["rowDelete", T.deleteRow, "deleteRow"],
+      ["colDelete", T.deleteCol, "deleteCol"],
+    ] as const) {
+      const b = button("tool", label, ic);
+      b.dataset["table"] = action;
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", () => void tableAction(this.editor, action));
+      tools.append(b);
+    }
+    this.toolbar.append(tools);
+    // Shown while a cell of this note's tables has the focus; a move from
+    // cell to cell blurs one before it focuses the next.
+    const sync = () => {
+      this.toolbar.classList.toggle("table-active", tableHasFocus(this.editor));
+      const a = focusedAlign(this.editor);
+      for (const [k, v] of [["alignLeft", "left"], ["alignCenter", "center"], ["alignRight", "right"]] as const) {
+        tools.querySelector(`[data-table="${k}"]`)?.setAttribute("aria-pressed", String(a === v));
+      }
+    };
+    this.editorHost.addEventListener("focusin", sync);
+    this.editorHost.addEventListener("input", sync);
+    for (const b of tools.querySelectorAll("button")) b.addEventListener("click", () => window.requestAnimationFrame(sync));
+    this.editorHost.addEventListener("focusout", () => window.setTimeout(sync, 0));
   }
   /** A 3×2 table at the caret, on its own lines; the caret in the first cell. */
   insertTable(): void {
@@ -2488,14 +2545,17 @@ class NoteLeaf extends Leaf {
     const pos = v.state.selection.main.to;
     const line = v.state.doc.lineAt(pos);
     const before = line.text.trim() === "" ? "" : "\n\n";
-    const text = tableTemplate(3, 2, t.tableColumn);
+    const text = tableTemplate(3, 2);
+    const at = line.to + before.length;
     v.dispatch({
       changes: { from: line.to, insert: before + text + "\n" },
-      selection: { anchor: line.to + before.length + 2, head: line.to + before.length + 2 + t.tableColumn.length },
+      selection: { anchor: at + text.length },
       annotations: Transaction.userEvent.of("input"),
       scrollIntoView: true,
     });
     v.focus();
+    // Edit mode draws it as a table: its first header cell takes the keys.
+    if (this.mode === "live") focusTableCell(v, at, -1, 0);
   }
   /** Images pasted or dropped become files beside the note and an embed
    *  at the caret; the core writes them, confined (ADR 0026 rule 5). */
