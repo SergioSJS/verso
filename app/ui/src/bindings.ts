@@ -124,8 +124,9 @@ export const commands = {
 	/**  Every resolved link of the vault: the graph of the whole folder. */
 	graph: () => typedError<Edge[], ContractError>(__TAURI_INVOKE("graph")),
 	/**
-	 *  The folder that is open, for a window that joins the session (a note
-	 *  in a window of its own) and for a reload: `None` when none is.
+	 *  The folder this window shows, for a window that joins a session (a
+	 *  note in a window of its own, a window opened on the same folder) and
+	 *  for a reload: `None` when it shows none (ADR 0065).
 	 */
 	currentFolder: () => typedError<{
 	/**  The folder's own name (its last path component), for display. */
@@ -316,13 +317,13 @@ export const commands = {
 	 */
 	queryBase: (query: BaseQuery) => typedError<BaseResult, ContractError>(__TAURI_INVOKE("query_base", { query })),
 	/**
-	 *  Another window on the open folder (ADR 0049, asked for by the
-	 *  maintainer on 2026-09-24): its own tabs over the same session. What one
-	 *  window writes, the other reads as it reads any change made outside —
-	 *  the watcher's `folder-changed` reaches every window — and a write over
-	 *  a note the other changed is refused (invariant 11).
+	 *  Another window (ADR 0049; ADR 0065): on the folder of the window that
+	 *  asks (`same_folder`), with its own tabs over the same session — what one
+	 *  window writes, the other reads as it reads any change made outside, and
+	 *  a write over a note the other changed is refused (invariant 11) — or on
+	 *  no folder, to open one of its own.
 	 */
-	newWindow: () => typedError<null, ContractError>(__TAURI_INVOKE("new_window")),
+	newWindow: (sameFolder: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("new_window", { sameFolder })),
 	cliStatus: () => __TAURI_INVOKE<CliState>("cli_status"),
 	/**
 	 *  Link the command line into `/usr/local/bin`. Something else there is

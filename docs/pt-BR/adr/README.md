@@ -52,6 +52,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0062](0062-focuses.md) | Focos: raízes nomeadas da árvore de arquivos, compartilhadas com o make.md | Aceito (2026-10-03) |
 | [0063](0063-files-onto-the-board.md) | Pôr imagens e arquivos no board: soltar, colar, escolher e arrastar | Aceito (2026-10-06) |
 | [0064](0064-tables-edited-as-tables.md) | Tabelas editadas como tabelas no modo Editar | Aceito (2026-10-06) |
+| [0065](0065-a-folder-per-window.md) | Uma pasta por janela | Aceito (2026-10-06) |
 
 ### Plugins e LLM
 

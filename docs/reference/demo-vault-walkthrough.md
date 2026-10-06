@@ -114,6 +114,15 @@ point 13).
 5. Note 13: ⌘R reloads the window with the note typed in saved first; with a
    note that cannot be saved (a conflict waiting), the window stays and says
    why. Level: H; E: `notes.spec.mjs`.
+6. Windows (ADR 0065): File › New Window opens a window on the start page;
+   it opens another folder, and each window lists and searches its own
+   notes, its title the folder's name; File › Open Folder… switches only
+   the window in focus; "Nova janela nesta pasta" opens one on the same
+   folder, and a note written in one appears in the other; a note popped
+   out keeps its window from switching while no other window shows its
+   folder; closing a window leaves the others as they were; `verso
+   <folder>` with every window on a folder opens a new window. Level: A;
+   U: `cargo test -p verso-app` (`each_window_answers_from_its_own_folder`).
 
 ## 3. Writing and reading notes
 

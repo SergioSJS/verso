@@ -83,6 +83,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   set_walk_rules: ["builtinIgnores", "gitignore"],
   set_menu_language: ["language"],
   install_cli: ["replace"],
+  new_window: ["sameFolder"],
 };
 
 function refuse(kind: ErrorKind, message: string): never {
