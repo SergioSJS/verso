@@ -29,6 +29,10 @@ test release.
   - **Focus switcher**: "Switch focus" in the command palette lets you search and switch focuses by name from the keyboard.
   - **make.md compatibility**: if `.space/waypoints.json` exists, Verso reads and displays its focuses. When changes are made, Verso offers to sync back to the file (checked for the known format, with atomic write and concurrency conflict resolution). In Settings › Organizing, "Sync focuses with make.md" controls synchronization per folder.
 
+### Changed
+
+- **Backlinks and outgoing links share one tab, "Links"**, in the right panel: the notes that point to the open note on top, a hairline, then where it points to, each with its count. A panel left on the outgoing tab opens on Links.
+
 ### Fixed
 
 - **Focuses in sync with make.md**: a focus made there is the one chosen at once, and a path added to a new focus from "Add to focus…" is kept (it was dropped on the next save); a focus make.md puts above the chosen one no longer changes which is chosen.
