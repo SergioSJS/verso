@@ -43,11 +43,13 @@ Segure `⇧` enquanto desenha para fazer quadrados e círculos perfeitos. Um dup
 - **Mover**: dois dedos no trackpad, ou a roda do mouse (com `⇧`, para os lados). Ou segure `espaço` e arraste.
 - **Aproximar**: a pinça no trackpad, `⌘` + roda, ou `⌘ +` e `⌘ −`. `⌘ 0` volta a 100%.
 - **Ver tudo**: `⇧ 1`. **Ver só a seleção**: `⇧ 2`.
-- **Ir a um grupo**: o botão **Sumário**, na barra do board, lista os grupos e os cartões; um clique num grupo mostra o grupo inteiro.
+- **Ir a um grupo**: o botão **Sumário**, no alto à direita do board, lista os grupos e os cartões; um clique num grupo mostra o grupo inteiro.
 
 ## Ligar uma coisa na outra
 
 Com a **Flecha**, comece em cima de um cartão e solte em cima de outro: a borda acende quando a seta gruda, e ela acompanha os cartões quando eles se movem. Um duplo clique na seta escreve um rótulo. No painel da esquerda, **Tipo de seta** escolhe entre reta, curva e em cotovelo, e **Pontas** muda as pontas.
+
+Para uma **seta livre**, que não prende em cartão nenhum, segure `⌘` enquanto desenha. Sem teclado (no toque), ligue **Inserir › Setas soltas**: as setas novas saem livres até você desligar. Com a Flecha na mão, a linha de dicas embaixo da barra lembra disso — e avisa quando Setas soltas está ligado.
 
 Uma seta entre dois cartões é uma conexão do canvas, que o Obsidian também mostra. Entre duas notas, o botão **Promover a relação** grava o laço no frontmatter da nota de origem — veja [[09 - Board e Relações]].
 

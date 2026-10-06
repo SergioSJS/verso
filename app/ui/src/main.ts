@@ -1382,7 +1382,8 @@ type DropTarget =
   | { folder: string; el: HTMLElement }
   | { treeItem: string; folder: string; el: HTMLElement }
   | { space: Space; el: HTMLElement }
-  | { insert: NoteLeaf };
+  | { insert: NoteLeaf }
+  | { board: BoardLeaf };
 function dropTargetAt(x: number, y: number): DropTarget | null {
   ghost.hidden = true;
   const at = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -1434,6 +1435,13 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
     const folderEl = at.closest<HTMLElement>("[data-folder]");
     if (folderEl && folderEl.dataset["folder"] !== drag.path) return { folder: folderEl.dataset["folder"] ?? "", el: folderEl };
     if (at.closest("#tree-root")) return { folder: "", el: ui.treeRoot };
+    // On a board's canvas: a file becomes a card there. A folder is no
+    // card, and a card being edited takes what its note's text would.
+    if (at.closest(".board-canvas") && !at.closest(".board-card-slot.is-active") && !allFolders.includes(drag.path)) {
+      const leafEl = at.closest<HTMLElement>(".leaf");
+      const leaf = spaces.flatMap((sp) => sp.layout.panes().flatMap((pn) => pn.leaves)).find((l) => l.el === leafEl);
+      if (leaf instanceof BoardLeaf && leaf.path !== drag.path) return { board: leaf };
+    }
     // On a note's text: the file becomes a link or an embed there.
     if (at.closest(".cm-content, .preview, .editor")) {
       const leafEl = at.closest<HTMLElement>(".leaf");
@@ -1475,6 +1483,7 @@ function hint(target: DropTarget, x: number, y: number, shiftKey = false): void 
     target.body.classList.add("drop-hint", zone, "drop-" + zone);
   }
   else if ("insert" in target) target.insert.el.classList.add("drop");
+  else if ("board" in target) target.board.el.classList.add("drop");
   else if ("treeItem" in target) {
     if (shiftKey) {
       target.el.classList.add("drop-pin");
@@ -1542,6 +1551,8 @@ function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey = fals
     }
   } else if ("insert" in target) {
     target.insert.insertReference(d.path, x, y);
+  } else if ("board" in target) {
+    target.board.addPath(d.path, x, y);
   } else if ("body" in target || "tabs" in target) {
     const pane = paneOf("body" in target ? target.body : target.tabs);
     if (pane) openIn(pane, d.path);
@@ -4569,6 +4580,10 @@ class BoardLeaf extends TextLeaf {
   readonly boardHost = h("div", "board-host");
   readonly boardModes = h("div", "modes");
   private board: BoardHandle | null = null;
+  /** A file of the folder put on the board, where it was dropped. */
+  addPath(path: string, x: number, y: number): void {
+    this.board?.addPath(path, x, y);
+  }
   /** What each card's editor held when it was left, for as long as this
    *  tab lives: entered again, a card's ⌘Z goes on where it stopped. */
   readonly cardHistory = new Map<string, KeptCard>();

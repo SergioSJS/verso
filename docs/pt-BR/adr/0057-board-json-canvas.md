@@ -13,6 +13,7 @@
   [0035](0035-cross-cutting-requirements.md) (a vista acessível),
   [0049](0049-phase-2-scope-widened.md) §3 (pedido e não construído, até este
   ADR)
+- Revisões: 2026-10-03 — como imagens e arquivos chegam ao board (soltar, colar, escolher, arrastar) está no [0063](0063-files-onto-the-board.md); o ponto 2 continua valendo.
 - Status no briefing: §9 "Persistência do board" `ABERTO` e "Board — camada
   semântica" `PROPOSTO`, §11.3 e §17 item 6 "Sintaxe de relação tipada"
   `ABERTO`, §17 item 9 `ABERTO` — todos `DECIDIDO` a partir de 2026-09-30

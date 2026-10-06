@@ -13,6 +13,7 @@
   [0035](0035-cross-cutting-requirements.md) (the accessible view),
   [0049](0049-phase-2-scope-widened.md) §3 (asked for and not built, until
   this ADR)
+- Revisions: 2026-10-03 — how pictures and files get onto the board (drop, paste, pick, drag) is [0063](0063-files-onto-the-board.md); point 2 stands.
 - Status in the briefing: §9 "Board persistence" `OPEN` and "Board — semantic
   layer" `PROPOSED`, §11.3 and §17 item 6 "Typed relation syntax" `OPEN`, §17
   item 9 `OPEN` — all `DECIDED` from 2026-09-30 (briefing v0.11)
