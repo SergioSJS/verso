@@ -31,6 +31,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Focos sincronizados com o make.md**: um foco criado já fica escolhido, e um caminho acrescentado a um foco novo por "Adicionar ao foco…" é mantido (sumia no salvamento seguinte); um foco que o make.md põe acima do escolhido não troca mais qual está escolhido.
 - **A árvore de arquivos não sobe de novo, linha a linha, a cada mudança**: as linhas sobem em sequência quando uma pasta abre, e um salvamento, uma renomeação ou um arraste as põe no lugar na hora; uma linha arrastada muda de lugar ao ser solta.
 - **O texto de um board não sai mais cortado nas bordas quando a fonte chega tarde**: numa abertura a frio do app, as fontes manuscrita e dos cartões podem levar alguns segundos, e os textos medidos antes delas — no "Treino do Board", os de todas as lições — ficavam com a largura menor e eram desenhados cortados dos dois lados até o board ser editado ou aberto de novo. Agora o board pede a fonte de cada texto e mede o texto de novo quando ela chega.
 
