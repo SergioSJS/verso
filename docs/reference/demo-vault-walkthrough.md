@@ -326,7 +326,11 @@ point 13).
     card, no new tab; "Inserir" in Excalidraw's toolbar opens a menu whose
     "Imagem ou PDF do computador…" picks pictures from the computer; a `.zip`
     dropped says only pictures and PDFs. A picture card shows the picture
-    alone, no frame or title. With the side bar open and the window not
+    alone, no frame or title. Selected, "Recortar" in the top-right tools
+    opens the crop: a corner dragged, "Aplicar" shows that part, the card at
+    its proportions, the node's `verso.crop` written and the picture's file
+    untouched; "Restaurar original" takes it off. Right-click menus, the
+    board's and the window's, never show two lines together. With the side bar open and the window not
     wide, the search and the Outline in the middle of the footer; with the
     outline open too, or a tall narrow window, on a line under the toolbar;
     with both side bars open, the toolbar on two lines, clear of the lock

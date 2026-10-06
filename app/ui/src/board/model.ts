@@ -215,6 +215,34 @@ export function cardFill(node: CanvasNode): CardFill | null {
   return typeof v === "string" && FILLS.includes(v) && v !== "solid" ? (v as CardFill) : null;
 }
 
+/** The part of a picture a card shows (ADR 0057 point 10, revised on
+ *  2026-10-06): fractions of the picture's width and height. */
+export type Crop = { x: number; y: number; w: number; h: number };
+
+/** A picture card's crop, kept under its node's `verso`; null when it has
+ *  none, or none the board can draw (out of the picture, empty). */
+export function cardCrop(node: CanvasNode): Crop | null {
+  const v = isRecord(node["verso"]) ? node["verso"]["crop"] : undefined;
+  if (!isRecord(v)) return null;
+  const [x, y, w, h] = [v["x"], v["y"], v["w"], v["h"]].map((n) => (typeof n === "number" && Number.isFinite(n) ? n : NaN));
+  if ([x, y, w, h].some((n) => Number.isNaN(n))) return null;
+  if (x! < 0 || y! < 0 || w! <= 0 || h! <= 0 || x! + w! > 1.0001 || y! + h! > 1.0001) return null;
+  return { x: x!, y: y!, w: w!, h: h! };
+}
+
+/** The node with its crop set — rounded to four places, a crop of the
+ *  whole picture written as none — or taken off (null); `verso`'s other
+ *  keys kept. */
+export function withCrop(node: CanvasNode, crop: Crop | null): CanvasNode {
+  const r = (n: number) => Math.round(n * 10000) / 10000;
+  const whole = !crop || (crop.x <= 0.0001 && crop.y <= 0.0001 && crop.w >= 0.9999 && crop.h >= 0.9999);
+  const verso = isRecord(node["verso"]) ? { ...node["verso"] } : {};
+  put(verso, "crop", whole ? undefined : { x: r(crop!.x), y: r(crop!.y), w: r(crop!.w), h: r(crop!.h) });
+  const out: CanvasNode = { ...node };
+  put(out, "verso", Object.keys(verso).length > 0 ? verso : undefined);
+  return out;
+}
+
 /** What Excalidraw's panel sets on a card or an edge that JSON Canvas has
  *  no field for (ADR 0057 point 10), kept under the item's own `verso`
  *  key: the key, the element's value when it is not how the board draws

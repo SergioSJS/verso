@@ -13,7 +13,7 @@
   [0035](0035-cross-cutting-requirements.md) (a vista acessível),
   [0049](0049-phase-2-scope-widened.md) §3 (pedido e não construído, até este
   ADR)
-- Revisões: 2026-10-03 — como imagens e arquivos chegam ao board (soltar, colar, escolher, arrastar) está no [0063](0063-files-onto-the-board.md); o ponto 2 continua valendo.
+- Revisões: 2026-10-03 — como imagens e arquivos chegam ao board (soltar, colar, escolher, arrastar) está no [0063](0063-files-onto-the-board.md); o ponto 2 continua valendo. 2026-10-06 — o ponto 10 ganha o recorte de um cartão de imagem, guardado no nó dele (o mantenedor, perguntado onde o recorte fica: "No card, sem tocar no arquivo").
 - Status no briefing: §9 "Persistência do board" `ABERTO` e "Board — camada
   semântica" `PROPOSTO`, §11.3 e §17 item 6 "Sintaxe de relação tipada"
   `ABERTO`, §17 item 9 `ABERTO` — todos `DECIDIDO` a partir de 2026-09-30
@@ -138,6 +138,17 @@ decididos pelo mantenedor em 2026-10-01 (ponto 18).
       aresta: o JSON Canvas não tem campo para isso, e o Obsidian mantém os
       campos desconhecidos de um nó (memo O1). Nenhuma, ou transparente, tira
       a chave. Pedido pelo mantenedor em 2026-09-30 ("tem como respeitar?").
+    - **O recorte de um cartão de imagem.** Uma imagem no board pode ser
+      recortada — pedido pelo mantenedor em 2026-10-06 ("senti falta de
+      ferramenta de cortar imagem"). O recorte fica no nó do cartão, na
+      chave `verso` dele, como a parte da imagem mostrada, em frações da
+      largura e da altura (`"verso":{"crop":{"x":0.1,"y":0.2,"w":0.6,"h":0.5}}`);
+      o arquivo da imagem nunca é gravado, o recorte muda ou sai a qualquer
+      momento, e uma imagem pode ser recortada de jeitos diferentes em dois
+      cartões. O cartão toma as proporções do recorte. O Obsidian, que mantém
+      a chave, mostra a imagem inteira; a exportação do board como imagem
+      mostra o recorte. Escolhido pelo mantenedor em 2026-10-06 em vez de uma
+      cópia recortada do arquivo.
     - **O estilo de um cartão e de uma aresta.** O mais que o painel define e
       o JSON Canvas não tem campo para guardar fica do mesmo jeito, na chave
       `verso` do próprio item, e só quando não é como o board desenha o item

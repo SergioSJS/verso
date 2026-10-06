@@ -218,6 +218,19 @@ describe("canvas ↔ elements", () => {
     assert.deepEqual([edge.fromSide, edge.toSide], ["right", "left"]);
   });
 
+  test("a picture card's crop is kept on its node, under verso, the rest of verso kept", () => {
+    const node = { id: "p", type: "file", file: "a.png", x: 0, y: 0, width: 100, height: 100, verso: { background: "#a5d8ff" } };
+    const cropped = b.withCrop(node, { x: 0.1, y: 0.2, w: 0.5, h: 0.333333 });
+    assert.deepEqual(cropped.verso, { background: "#a5d8ff", crop: { x: 0.1, y: 0.2, w: 0.5, h: 0.3333 } });
+    assert.deepEqual(b.cardCrop(cropped), { x: 0.1, y: 0.2, w: 0.5, h: 0.3333 });
+    // Taken off, or the whole picture: no crop written; verso's other keys stay.
+    assert.deepEqual(b.withCrop(cropped, null).verso, { background: "#a5d8ff" });
+    assert.deepEqual(b.withCrop(cropped, { x: 0, y: 0, w: 1, h: 1 }).verso, { background: "#a5d8ff" });
+    assert.equal("verso" in b.withCrop({ id: "q", type: "file", file: "a.png" }, null), false);
+    // A crop the board cannot draw is none.
+    for (const bad of [{ x: 0.8, y: 0, w: 0.5, h: 1 }, { x: 0, y: 0, w: 0, h: 1 }, { x: "a", y: 0, w: 1, h: 1 }]) assert.equal(b.cardCrop({ verso: { crop: bad } }), null);
+  });
+
   test("the outline lists groups, cards, edges and, apart, the drawing's texts", () => {
     const note = { id: "x", type: "text", x: 900, y: 900, width: 10, height: 10, text: "nota solta" };
     const o = b.outlineOf([...restored(OBSIDIAN), note], { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo", edge: (a, c, l) => `${a} → ${c} (${l})` });

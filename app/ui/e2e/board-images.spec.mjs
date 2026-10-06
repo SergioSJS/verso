@@ -167,3 +167,47 @@ test.describe("both side bars open, the board narrowest", () => {
     await expect(page.locator(".App-toolbar-container > .board-ex-tools")).toBeVisible();
   });
 });
+
+test("a picture card is cropped on the card: the node keeps the crop, the file is untouched, and it is undone", async ({ app, page }) => {
+  await app.open();
+  // Obsidian's own layout: the first save rewrites nothing else.
+  await app.writeOutside("Mesa.canvas", '{\n\t"nodes":[\n\t\t{"id":"p","type":"file","file":"assets/diagrama.svg","x":0,"y":0,"width":400,"height":300}\n\t],\n\t"edges":[]\n}');
+  await app.folderChanged(["Mesa.canvas"], true);
+  const before = await page.evaluate(() => window.__harness.bytes("assets/diagrama.svg")?.length);
+  await app.quickOpen("Mesa");
+  await app.boardReady();
+  const c = await app.centerOf("p");
+  await page.mouse.click(c.x, c.y);
+  await page.getByTestId("board-tool-crop").click();
+  const rect = page.getByTestId("board-crop-rect");
+  await expect(rect).toBeVisible();
+  // The bottom-right corner dragged up and left: half of each side kept.
+  const r = await rect.boundingBox();
+  const h = page.locator('.board-crop-handle[data-handle="se"]');
+  const hb = await h.boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.screenshot({ path: "/private/tmp/claude-502/-Users-sergio-sousa-Projects-person-apps-verso/58b8519c-6850-4e5b-9e41-fd329849e27c/scratchpad/crop.png" });
+  await page.getByRole("button", { name: "Aplicar" }).click();
+  await expect.poll(async () => JSON.parse(await app.file("Mesa.canvas")).nodes[0].verso?.crop).toMatchObject({ x: 0, y: 0 });
+  const node = JSON.parse(await app.file("Mesa.canvas")).nodes[0];
+  expect(node.verso.crop.w).toBeGreaterThan(0.4);
+  expect(node.verso.crop.w).toBeLessThan(0.6);
+  await expect(page.locator(".board-card-image.cropped .board-crop-view")).toBeVisible();
+  // At once, without a redraw: the part shown fits the card, at the crop's
+  // proportions (the card took them).
+  const card = await page.locator(".board-card-image.cropped").boundingBox();
+  const view = await page.locator(".board-crop-view").boundingBox();
+  expect(view.width).toBeLessThanOrEqual(card.width + 1);
+  expect(view.height).toBeLessThanOrEqual(card.height + 1);
+  expect(Math.abs(view.width / view.height - card.width / card.height)).toBeLessThan(0.05);
+  // The picture's file was not written.
+  expect(await page.evaluate(() => window.__harness.bytes("assets/diagrama.svg")?.length)).toBe(before);
+  // Restored: the crop goes from the node.
+  await page.mouse.click(c.x, (await app.centerOf("p")).y);
+  await page.getByTestId("board-tool-crop").click();
+  await page.getByRole("button", { name: "Restaurar original" }).click();
+  await expect.poll(async () => JSON.parse(await app.file("Mesa.canvas")).nodes[0].verso?.crop).toBeUndefined();
+});

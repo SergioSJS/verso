@@ -14,7 +14,7 @@
 // online features — sharing, collaboration, the library browser — are not
 // offered.
 
-import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type DragEvent, type JSX, type MouseEvent, type RefObject } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type DragEvent, type JSX, type MouseEvent, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import {
@@ -42,6 +42,7 @@ import {
   endSide,
   MARKER,
   backgroundOf,
+  cardCrop,
   fromElements,
   isNode,
   newNode,
@@ -51,7 +52,9 @@ import {
   parseCanvas,
   relationEnds,
   toElements,
+  withCrop,
   type CanvasDoc,
+  type Crop,
   type CanvasEdge,
   type CanvasNode,
   type El,
@@ -283,6 +286,7 @@ const ICO = {
   relation: "M2 3h5v4H2zM9 9h5v4H9zM7 5h2.5a1 1 0 0 1 1 1v3",
   search: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14",
   outline: "M3 4h10M5 8h8M7 12h6",
+  crop: "M4.5 1.5v10h10M1.5 4.5h10v10",
 };
 
 type ToolButtonProps = {
@@ -563,6 +567,8 @@ function useToolsBelow(canvas: RefObject<HTMLDivElement | null>): boolean {
 type TopRightProps = {
   s: BoardStrings;
   insert: JSX.Element | null;
+  /** The selected picture card's crop, when one is selected. */
+  cropPicture: (() => void) | null;
   selectedNode: El | undefined;
   selectedData: CanvasNode | null | undefined;
   openable: boolean | undefined;
@@ -588,6 +594,7 @@ type TopRightProps = {
 function TopRightTools({
   s,
   insert,
+  cropPicture,
   selectedNode,
   selectedData,
   openable,
@@ -649,9 +656,10 @@ function TopRightTools({
           </span>
         )}
       </span>
-      {(openable || ends || file) && <div className="App-toolbar__divider" />}
+      {(openable || ends || file || cropPicture) && <div className="App-toolbar__divider" />}
       {openable && <ToolButton label={s.open} title={s.openTitle} onClick={() => selectedNode && openNode(selectedNode, false)} icon={ICO.open} testId="board-tool-open" />}
       {file && <ToolButton label={s.swap} title={s.swapTitle} onClick={() => selectedNode && selectedData && void relink(selectedNode, selectedData)} icon={ICO.swap} testId="board-tool-swap" />}
+      {cropPicture && <ToolButton label={s.crop} title={s.cropTitle} onClick={cropPicture} icon={ICO.crop} testId="board-tool-crop" />}
       {ends && <ToolButton label={s.promote} title={s.promoteTitle} onClick={() => void promote()} icon={ICO.relation} testId="board-tool-promote" />}
       <div className="App-toolbar__divider" />
       <ToolButton label={s.outline} title={s.outlineTitle} onClick={() => setShowOutline((v) => !v)} icon={ICO.outline} pressed={showOutline} testId="board-tool-outline" />
@@ -718,6 +726,32 @@ function Card({
   const missing = node.type === "file" && !host.exists(file);
   const note = node.type === "file" && !missing && ext(file) === "md";
   const picture = isBarePicture(node, host);
+  const crop = picture ? cardCrop(node) : null;
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  // The crop's part as large as the card holds it at its proportions,
+  // measured in the card's own pixels: a size from container units went
+  // wrong in the app's web view under the cards' zoom until a redraw.
+  const cropBox = useRef<HTMLDivElement>(null);
+  const [cropView, setCropView] = useState<{ w: number; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = cropBox.current;
+    if (!crop || !natural || !el) {
+      setCropView(null);
+      return;
+    }
+    const ar = (crop.w * natural.w) / (crop.h * natural.h);
+    const fit = (): void => {
+      const cw = el.clientWidth;
+      const ch = el.clientHeight;
+      if (cw <= 0 || ch <= 0) return;
+      const w = Math.min(cw, ch * ar);
+      setCropView((was) => (was && Math.abs(was.w - w) < 0.5 && Math.abs(was.h - w / ar) < 0.5 ? was : { w, h: w / ar }));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [crop?.x, crop?.y, crop?.w, crop?.h, natural?.w, natural?.h]);
   const pdf = node.type === "file" && !missing && ext(file) === "pdf";
   const pdfEl = useRef<HTMLDivElement>(null);
   // A PDF card shows the PDF, in its turn, as a note shows an embedded one.
@@ -855,12 +889,23 @@ function Card({
           <div ref={pdfEl} className="board-card-pdf-view" />
         </div>
       )}
-      {picture && copy !== undefined && (
+      {picture && copy !== undefined && (crop ? (
+        // The part of the picture the card shows (its crop), at the crop's
+        // proportions, centred in the card.
+        <div className="board-card-image cropped" ref={cropBox}>
+          <div className="board-crop-view" style={cropView ? { width: `${cropView.w}px`, height: `${cropView.h}px` } : { visibility: "hidden" }}>
+            <div className="board-crop-inner" style={{ left: `${(-crop.x / crop.w) * 100}%`, top: `${(-crop.y / crop.h) * 100}%`, width: `${100 / crop.w}%`, height: `${100 / crop.h}%` }}>
+              <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })} />
+              {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
+            </div>
+          </div>
+        </div>
+      ) : (
         <div className="board-card-image">
           <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" />
           {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
         </div>
-      )}
+      ))}
       {node.type === "link" && (
         <div className="board-card-link">
           <div className="board-card-head">
@@ -1241,20 +1286,48 @@ function sizeOf(url: string): Promise<{ w: number; h: number } | null> {
   });
 }
 
+/** The part `crop` of a picture, as a PNG of its own pixels. */
+function cropped(url: string, size: { w: number; h: number }, crop: Crop): Promise<{ dataURL: string; size: { w: number; h: number } } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const sw = Math.max(1, Math.round(crop.w * size.w));
+      const sh = Math.max(1, Math.round(crop.h * size.h));
+      const canvas = document.createElement("canvas");
+      canvas.width = sw;
+      canvas.height = sh;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(null);
+      ctx.drawImage(img, crop.x * size.w, crop.y * size.h, sw, sh, 0, 0, sw, sh);
+      resolve({ dataURL: canvas.toDataURL("image/png"), size: { w: sw, h: sh } });
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
 /** A picture of the folder as an image element of the picture's export,
  *  fitted in a box and centred: its bytes go in `files`. Null when the
  *  file cannot be read. */
-async function pictureOf(host: BoardHost, file: string, id: string, files: Record<string, unknown>, x: number, y: number, w: number, h: number): Promise<unknown> {
+async function pictureOf(host: BoardHost, file: string, id: string, files: Record<string, unknown>, x: number, y: number, w: number, h: number, crop: Crop | null = null): Promise<unknown> {
   try {
     const blob = await (await fetch(host.fileSrc(file))).blob();
-    const dataURL = await dataUrlOf(blob);
-    const size = await sizeOf(dataURL);
+    let dataURL = await dataUrlOf(blob);
+    let size = await sizeOf(dataURL);
     if (!size) return null;
+    // A cropped card: the picture's part it shows, drawn anew as a PNG.
+    if (crop) {
+      const cut = await cropped(dataURL, size, crop);
+      if (cut) {
+        dataURL = cut.dataURL;
+        size = cut.size;
+      }
+    }
     const k = Math.min(w / size.w, h / size.h);
     const iw = size.w * k;
     const ih = size.h * k;
     const fileId = `picture-${id}`;
-    files[fileId] = { id: fileId, dataURL, mimeType: blob.type || (ext(file) === "svg" ? "image/svg+xml" : `image/${ext(file)}`), created: Date.now() };
+    files[fileId] = { id: fileId, dataURL, mimeType: dataURL.startsWith("data:image/png") && crop ? "image/png" : blob.type || (ext(file) === "svg" ? "image/svg+xml" : `image/${ext(file)}`), created: Date.now() };
     return { type: "image", fileId, x: x + (w - iw) / 2, y: y + (h - ih) / 2, width: iw, height: ih };
   } catch {
     return null;
@@ -1296,7 +1369,7 @@ async function pictureScene(api: Api, host: BoardHost, only: readonly string[] |
     const missing = node.type === "file" && !host.exists(file);
     // A picture card is the picture alone, as the board shows it.
     if (isBarePicture(node, host)) {
-      const picture = await pictureOf(host, file, e.id, files, x, y, w, h);
+      const picture = await pictureOf(host, file, e.id, files, x, y, w, h, cardCrop(node));
       if (picture) {
         out.push(...(convertToExcalidrawElements([picture] as never, { regenerateIds: true }) as unknown as ExcalidrawElement[]));
         continue;
@@ -1350,6 +1423,126 @@ async function pictureScene(api: Api, host: BoardHost, only: readonly string[] |
   }
   return { elements: out, files };
 }
+
+/** A picture card's crop (ADR 0057 point 10, revised 2026-10-06): the whole
+ *  picture, and over it the part the card shows, moved by dragging inside
+ *  it and sized by its corners and sides. Applied, the card shows that part
+ *  at its proportions; the picture's file is never written. */
+function CropDialog({ src, crop, strings: s, onApply, onClose }: { src: string; crop: Crop | null; strings: BoardStrings; onApply: (crop: Crop | null, aspect: number) => void; onClose: () => void }): JSX.Element {
+  const [c, setC] = useState<Crop>(crop ?? { x: 0, y: 0, w: 1, h: 1 });
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    box.current?.querySelector<HTMLElement>("button.primary")?.focus();
+  }, []);
+  const MIN = 0.03;
+  /** A drag of the rectangle (`move`) or of its edges (`n`, `se`...). */
+  const drag = (kind: string) => (down: ReactPointerEvent<HTMLElement>) => {
+    down.preventDefault();
+    down.stopPropagation();
+    const f = frame.current?.getBoundingClientRect();
+    if (!f) return;
+    const start = { ...c };
+    const x0 = down.clientX;
+    const y0 = down.clientY;
+    const target = down.currentTarget;
+    target.setPointerCapture(down.pointerId);
+    const move = (e: PointerEvent) => {
+      const dx = (e.clientX - x0) / f.width;
+      const dy = (e.clientY - y0) / f.height;
+      let { x, y, w, h } = start;
+      if (kind === "move") {
+        x = Math.min(Math.max(0, x + dx), 1 - w);
+        y = Math.min(Math.max(0, y + dy), 1 - h);
+      } else {
+        if (kind.includes("w")) {
+          const nx = Math.min(Math.max(0, x + dx), x + w - MIN);
+          w += x - nx;
+          x = nx;
+        }
+        if (kind.includes("e")) w = Math.min(Math.max(MIN, w + dx), 1 - x);
+        if (kind.includes("n")) {
+          const ny = Math.min(Math.max(0, y + dy), y + h - MIN);
+          h += y - ny;
+          y = ny;
+        }
+        if (kind.includes("s")) h = Math.min(Math.max(MIN, h + dy), 1 - y);
+      }
+      setC({ x, y, w, h });
+    };
+    const up = () => {
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+  };
+  const apply = () => {
+    if (!size) return;
+    onApply(c, (c.w * size.w) / (c.h * size.h));
+  };
+  const pct = (n: number) => `${n * 100}%`;
+  return (
+    <div
+      className="board-export board-crop-dialog"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Escape") onClose();
+        else if (e.key === "Enter") {
+          e.preventDefault();
+          apply();
+        }
+      }}
+    >
+      <div className="board-export-box" role="dialog" aria-modal="true" aria-label={s.cropTitle} ref={box}>
+        <h2>{s.cropTitle}</h2>
+        <p className="board-crop-hint">{s.cropHint}</p>
+        <div className="board-crop-stage">
+          <div className="board-crop-frame" ref={frame}>
+            <img
+              src={src}
+              alt=""
+              draggable={false}
+              // Laid out at a size from its own proportions: a picture with
+              // no size of its own (an SVG) would show at none.
+              style={size ? (() => {
+                const k = Math.min((Math.min(window.innerWidth * 0.7, 640)) / size.w, (window.innerHeight * 0.55) / size.h);
+                return { width: `${Math.round(size.w * k)}px`, height: `${Math.round(size.h * k)}px` };
+              })() : { width: "1px", height: "1px" }}
+              onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })}
+            />
+            <div className="board-crop-dim" aria-hidden="true">
+              <div style={{ left: pct(c.x), top: pct(c.y), width: pct(c.w), height: pct(c.h) }} />
+            </div>
+            <div className="board-crop-rect" data-testid="board-crop-rect" style={{ left: pct(c.x), top: pct(c.y), width: pct(c.w), height: pct(c.h) }} onPointerDown={drag("move")}>
+              {["n", "s", "e", "w", "ne", "nw", "se", "sw"].map((k) => (
+                <span key={k} className={`board-crop-handle h-${k}`} data-handle={k} onPointerDown={drag(k)} />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="board-export-actions">
+          <button type="button" className="primary" disabled={!size} onClick={apply}>
+            {s.cropApply}
+          </button>
+          {crop && (
+            <button type="button" onClick={() => onApply(null, size ? size.w / size.h : 1)}>
+              {s.cropRestore}
+            </button>
+          )}
+          <button type="button" onClick={onClose}>
+            {s.cancel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 /** Excalidraw's export dialog drew each card as an empty web embed; this
  *  one draws the board as it reads (`pictureScene`), and saves the picture
@@ -2552,6 +2745,31 @@ function Board({
     />
   );
 
+  // A picture card's crop (ADR 0057 point 10): the dialog over the board;
+  // applied, the card's node keeps the crop and the card takes its shape.
+  const [cropping, setCropping] = useState<{ id: string; file: string; crop: Crop | null } | null>(null);
+  const cropPicture =
+    !readOnly && selectedNode && selectedData && isBarePicture(selectedData, host)
+      ? () => setCropping({ id: selectedNode.id, file: String(selectedData.file), crop: cardCrop(selectedData) })
+      : null;
+  const applyCrop = (crop: Crop | null, aspect: number): void => {
+    const a = api.current;
+    const at = cropping;
+    setCropping(null);
+    if (!a || !at) return;
+    touched.current = true;
+    a.updateScene({
+      elements: a.getSceneElements().map((x) => {
+        if (x.id !== at.id) return x;
+        const data = nodeData(x as unknown as El);
+        if (!data) return x;
+        const height = Math.max(20, Math.round(x.width / Math.max(0.05, aspect)));
+        return newElementWith(x, { height, customData: { ...(x.customData ?? {}), canvas: withCrop(data, crop) } });
+      }),
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+  };
+
   const outline = useMemo(() => outlineOf(elements, s), [elements, s]);
 
   useEffect(() => {
@@ -2739,6 +2957,7 @@ function Board({
               <TopRightTools
                 s={s}
                 insert={slot ? null : insertMenu}
+                cropPicture={cropPicture}
                 selectedNode={selectedNode}
                 selectedData={selectedData}
                 openable={openable}
@@ -2767,6 +2986,7 @@ function Board({
                 <TopRightTools
                   s={s}
                   insert={slot ? null : insertMenu}
+                  cropPicture={cropPicture}
                   selectedNode={selectedNode}
                   selectedData={selectedData}
                   openable={openable}
@@ -2818,6 +3038,7 @@ function Board({
             )}
         </div>
         {exporting && api.current && <ExportDialog api={api.current} host={host} selected={selected} onClose={() => setExporting(false)} />}
+        {cropping && <CropDialog src={host.fileSrc(cropping.file)} crop={cropping.crop} strings={s} onApply={applyCrop} onClose={() => setCropping(null)} />}
         {showOutline && (
           <OutlinePanel outline={outline} strings={s} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} />
         )}
