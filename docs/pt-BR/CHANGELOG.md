@@ -29,6 +29,10 @@ versão de teste.
   - **Alternador de focos**: comando "Trocar foco" na paleta de comandos permite buscar e alternar entre os focos pelo teclado.
   - **Compatibilidade com o make.md**: se `.space/waypoints.json` existir, o Verso lê e exibe seus focos. Ao fazer alterações, o Verso oferece sincronizar de volta com o arquivo (validado para formato conhecido, com gravação atômica e resolução de concorrência). Em Ajustes › Organização, "Sincronizar focos com o make.md" permite controlar a sincronização por pasta aberta.
 
+### Alterado
+
+- **Backlinks e links de saída dividem uma aba, "Links"**, no painel da direita: em cima, as notas que apontam para a nota aberta; um traço; embaixo, para onde ela aponta, cada lista com sua contagem. Um painel deixado na aba de links de saída abre em Links.
+
 ### Corrigido
 
 - **Focos sincronizados com o make.md**: um foco criado já fica escolhido, e um caminho acrescentado a um foco novo por "Adicionar ao foco…" é mantido (sumia no salvamento seguinte); um foco que o make.md põe acima do escolhido não troca mais qual está escolhido.
