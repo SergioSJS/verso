@@ -19,7 +19,8 @@ Um **board** é um arquivo `.canvas` — o mesmo formato do canvas do Obsidian �
 
 ## O que dá para fazer num board
 
-- **Pôr coisas nele** pela barra do board: *Nota ou arquivo* (qualquer nota, imagem ou PDF da pasta), *Texto* (um cartão em Markdown) e *Link* (um endereço da web, que só abre com um clique).
+- **Pôr coisas nele** pelo botão **Inserir**, na barra de ferramentas do board (onde fica a imagem): *Imagem ou PDF do computador…* (copiados para a pasta de anexos — também dá para soltar ou colar uma imagem no board), *Nota ou arquivo da pasta…* (qualquer nota, imagem ou PDF — ou arraste um arquivo da árvore para o board), *Cartão de texto* (Markdown) e *Link da web…* (um endereço, que só abre com um clique). No mesmo menu, *Setas soltas* faz as setas novas não prenderem nos cartões — segurar `⌘` enquanto desenha faz o mesmo.
+- **Imagens** aparecem só como a imagem, sem moldura nem título; selecionada, os botões **Abrir** e **Trocar arquivo…** ficam no alto à direita.
 - **Ligar cartões**: com a ferramenta de seta do Excalidraw, desenhe de uma borda de cartão até a borda de outro. A seta vira uma aresta do canvas, que o Obsidian também mostra.
 - **Desenhar à vontade**: formas, traço livre, texto solto e setas soltas ficam no mesmo arquivo, sob a chave `verso`. O Obsidian mantém essa parte intacta quando edita o canvas.
 - **Ler e editar num cartão**: duplo clique num cartão de nota entra nele — dá para ler e rolar a nota ali — e mais um clique no texto edita, sem sair do board; `Esc` sai. O ↗ no canto do cartão (ou `⌘` + duplo clique) abre a nota numa aba, e o ⇄ troca o arquivo do cartão. Num cartão de texto, o duplo clique edita o texto.

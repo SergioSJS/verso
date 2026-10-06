@@ -61,7 +61,7 @@ test("lesson 10: an arrow between two notes, promoted to a relation, shows its n
   await page.mouse.up();
   const arrow = (await app.scene()).find((e) => e.type === "arrow" && e.startBinding === "n-alpha" && e.endBinding === "n-beta-2");
   expect(arrow, "the arrow binds both cards").toBeTruthy();
-  await page.locator(".board-bar").getByRole("button", { name: "Promover a relação" }).click();
+  await page.getByTestId("board-tool-promote").click();
   await page.locator(".prompt-field").fill("inspira");
   await page.locator(".prompt-field").press("Enter");
   await page.locator(".plan:visible button.save").click();
@@ -117,16 +117,16 @@ test("lesson 8: a text card is edited from a double click", async ({ app, page }
 test("lesson 11: the board's search finds the word as typed, and stays put while the board saves", async ({ app, page }) => {
   await openPractice(app);
   await app.key("Mod+f");
-  const field = page.locator(".board-search input");
+  const field = page.locator(".board-ex-search input");
   await expect(field).toBeFocused();
   await page.keyboard.type("tesouro");
   await expect(field).toHaveValue("tesouro");
   await expect(field).toHaveAttribute("spellcheck", "false");
-  await expect(page.locator(".board-search-count")).toHaveText(/^1 de \d+$/);
+  await expect(page.locator(".board-ex-search-count")).toHaveText(/^1 de \d+$/);
   // On a match other than the first, which is where the old bug sent the
   // view back to (review `board.md`, reading 4, finding 2).
   await field.press("Enter");
-  await expect(page.locator(".board-search-count")).toHaveText(/^2 de \d+$/);
+  await expect(page.locator(".board-ex-search-count")).toHaveText(/^2 de \d+$/);
   const before = await app.settledView();
   // A real change, so that the board saves: a drawn element nudged with
   // the keyboard, as a user does.

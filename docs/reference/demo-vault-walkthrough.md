@@ -295,6 +295,27 @@ point 13).
    (`a51aab2`).
 9. Lesson 12: "Fundo da tela" in the ☰ menu; the board's JSON in Texto.
    Level: H.
+10. Lesson 8, pictures: drop a picture on the board (or paste one): a card
+    where it was dropped, the file copied into the attachments folder, no
+    picture in the canvas JSON; drag a note from the tree onto the board: a
+    card, no new tab; "Inserir" in Excalidraw's toolbar opens a menu whose
+    "Imagem ou PDF do computador…" picks pictures from the computer; a `.zip`
+    dropped says only pictures and PDFs. A picture card shows the picture
+    alone, no frame or title. With the side bar open and the window not
+    wide, the search and the Outline in the middle of the footer; with the
+    outline open too, or a tall narrow window, on a line under the toolbar;
+    with both side bars open, the toolbar on two lines, clear of the lock
+    and the hand; Excalidraw's toolbar always whole. Level: H (drag from the tree and the system's
+    chooser), A; E: `board-images.spec.mjs`.
+11. Arrows: the arrow tool from one card's middle to another's middle: both
+    ends go to the sides that face each other at once, under the cards, and
+    stay on those sides while a card is dragged; with "Setas soltas" on (the
+    "Inserir" menu), the same drag leaves a free arrow attached to neither.
+    The line tool across a card: one line, drawn over the card as it is
+    drawn, never doubled. With the arrow tool held, the hint line under the
+    toolbar names ⌘ and "Inserir › Setas soltas" (only the menu on a touch
+    screen), and says when Setas soltas is on. Level: H; E:
+    `board-arrows.spec.mjs`.
 
 ## 10. Settings, help, the command line
 

@@ -14,13 +14,14 @@
 // online features — sharing, collaboration, the library browser — are not
 // offered.
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type DragEvent, type JSX, type MouseEvent, type RefObject } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type DragEvent, type JSX, type MouseEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import {
   CaptureUpdateAction,
   Excalidraw,
   FONT_FAMILY,
+  Footer,
   MainMenu,
   convertToExcalidrawElements,
   exportToBlob,
@@ -37,6 +38,8 @@ import type { BoardStrings } from "./strings";
 import {
   BOARD_VERSION,
   CARD_PAPER,
+  anchor,
+  endSide,
   MARKER,
   backgroundOf,
   fromElements,
@@ -49,9 +52,11 @@ import {
   relationEnds,
   toElements,
   type CanvasDoc,
+  type CanvasEdge,
   type CanvasNode,
   type El,
   type Outline,
+  type Side,
 } from "./model";
 import { relationKeyOk } from "./relation";
 import { CARD_COMMAND } from "./command";
@@ -192,6 +197,9 @@ export type BoardHandle = {
   /** Go to the board's search (⌘F). */
   find: () => void;
   focus: () => void;
+  /** Put a file of the folder on the board, at a point of the screen (the
+   *  middle of the view without one). */
+  addPath: (path: string, clientX?: number, clientY?: number) => void;
   /** Save now what the board holds and has not saved: before its tab
    *  closes, the window quits or the folder changes. */
   flush: () => Promise<void>;
@@ -254,6 +262,378 @@ function SwapIcon(): JSX.Element {
   );
 }
 
+/** Small stroke icons for Verso's tools inside Excalidraw's UI. Sized by
+ *  Excalidraw's own CSS (`--default-icon-size`), stroked as its own icons. */
+function BoardIcon({ d, label }: { d: string; label?: string }): JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" aria-hidden={label ? undefined : "true"} role={label ? "img" : undefined} aria-label={label}>
+      <path d={d} />
+    </svg>
+  );
+}
+
+const ICO = {
+  insert: "M2.5 3.5h11v9h-11zM2.5 10.5l3-3 2.5 2.5 2-2 3.5 3.5M10.5 6.5h.01",
+  note: "M4 2.5h5.5L12.5 5.5v8h-8.5zM9.5 2.5v3h3",
+  text: "M4 2.5h5.5L12.5 5.5v8h-8.5zM9.5 2.5v3h3M6 8h4M6 10.5h4",
+  link: "M6.5 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1M9.5 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l1-1",
+  arrow: "M2 8h9M9 5l3 3-3 3",
+  open: "M9 3h4v4M13 3 7.5 8.5M11.5 9.5V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1h2.5",
+  swap: "M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13",
+  relation: "M2 3h5v4H2zM9 9h5v4H9zM7 5h2.5a1 1 0 0 1 1 1v3",
+  search: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14",
+  outline: "M3 4h10M5 8h8M7 12h6",
+};
+
+type ToolButtonProps = {
+  label: string;
+  title: string;
+  onClick: () => void;
+  icon: string;
+  pressed?: boolean;
+  disabled?: boolean;
+  testId: string;
+};
+
+/** A button in Excalidraw's own clothes: its `ToolIcon` wrapper and
+ *  `ToolIcon__icon` box, so its size, hover and colour apply; `is-on` is
+ *  Verso's, for the pressed state (style.css). */
+function ToolButton({ label, title, onClick, icon, pressed, disabled, testId }: ToolButtonProps): JSX.Element {
+  return (
+    <div className="ToolIcon" title={title}>
+      <button
+        type="button"
+        className={`ToolIcon__icon${pressed ? " is-on" : ""}`}
+        aria-label={label}
+        aria-pressed={pressed}
+        disabled={disabled}
+        data-testid={testId}
+        onClick={onClick}
+      >
+        <BoardIcon d={icon} />
+      </button>
+    </div>
+  );
+}
+
+type InsertProps = {
+  s: BoardStrings;
+  addFile: () => void;
+  addText: () => void;
+  addLink: () => void;
+  takeFiles: (files: File[]) => Promise<void>;
+  looseOn: boolean;
+  toggleLoose: () => void;
+};
+
+/** What Verso puts on a board, behind one button of Excalidraw's toolbar —
+ *  where its own image tool would be — as the plugin for Obsidian does: a
+ *  menu in Excalidraw's dropdown clothes. */
+function InsertMenu({ s, addFile, addText, addLink, takeFiles, looseOn, toggleLoose }: InsertProps): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent): void => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setOpen(false);
+      box.current?.querySelector<HTMLButtonElement>(".board-insert-trigger")?.focus();
+    };
+    document.addEventListener("pointerdown", away, true);
+    document.addEventListener("keydown", esc, true);
+    return () => {
+      document.removeEventListener("pointerdown", away, true);
+      document.removeEventListener("keydown", esc, true);
+    };
+  }, [open]);
+  const item = (label: string, title: string, icon: string, testId: string, run: () => void, checked?: boolean): JSX.Element => (
+    <button
+      type="button"
+      role={checked === undefined ? "menuitem" : "menuitemcheckbox"}
+      aria-checked={checked}
+      title={title}
+      data-testid={testId}
+      className={`dropdown-menu-item dropdown-menu-item-base${checked ? " is-on" : ""}`}
+      onClick={() => {
+        setOpen(false);
+        run();
+      }}
+    >
+      <div className="dropdown-menu-item__icon">
+        <BoardIcon d={icon} />
+      </div>
+      <div className="dropdown-menu-item__text">{label}</div>
+      {checked !== undefined && <div className="dropdown-menu-item__shortcut">{checked ? "✓" : ""}</div>}
+    </button>
+  );
+  return (
+    <div className="board-insert" ref={box}>
+      <div className="ToolIcon Shape" title={s.insertTitle}>
+        <button
+          type="button"
+          className={`ToolIcon__icon board-insert-trigger${open ? " is-on" : ""}`}
+          aria-label={s.insert}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          data-testid="board-tool-insert"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <BoardIcon d={ICO.insert} />
+        </button>
+      </div>
+      <input
+        ref={picker}
+        type="file"
+        accept="image/*,application/pdf"
+        multiple
+        hidden
+        data-testid="board-image-picker"
+        onChange={(e) => {
+          const list = Array.from(e.target.files ?? []);
+          e.target.value = "";
+          if (list.length > 0) void takeFiles(list);
+        }}
+      />
+      {open && (
+        <div className="dropdown-menu board-insert-menu" role="menu" aria-label={s.insert}>
+          <div className="Island dropdown-menu-container">
+            {item(s.addImage, s.addImageTitle, ICO.insert, "board-tool-image", () => picker.current?.click())}
+            {item(s.addFile, s.addFileTitle, ICO.note, "board-tool-file", addFile)}
+            {item(s.addText, s.addTextTitle, ICO.text, "board-tool-text", addText)}
+            {item(s.addLink, s.addLinkTitle, ICO.link, "board-tool-link", addLink)}
+            <div className="dropdown-menu-item-separator" />
+            {item(s.looseArrows, s.looseArrowsTitle, ICO.arrow, "board-tool-loose", toggleLoose, looseOn)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Puts the insert menu into Excalidraw's toolbar, before the divider of
+ *  its "More tools": Excalidraw has no slot there, so a node of Verso's is
+ *  placed among its tools, and placed again whenever the toolbar is drawn
+ *  anew (a narrow view, the view mode). `null` while there is no toolbar:
+ *  the menu then goes to the top-right tools. */
+function useToolbarSlot(canvas: RefObject<HTMLDivElement | null>): HTMLElement | null {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c) return;
+    const node = document.createElement("div");
+    node.className = "board-insert-slot";
+    const place = (): void => {
+      const row = c.querySelector<HTMLElement>(".App-toolbar .Stack_horizontal");
+      if (!row) {
+        node.remove();
+        setSlot(null);
+        return;
+      }
+      const dividers = row.querySelectorAll(":scope > .App-toolbar__divider");
+      const before = dividers.length > 1 ? dividers[dividers.length - 1]! : null;
+      if (node.parentElement !== row || (before && node.nextElementSibling !== before)) row.insertBefore(node, before);
+      setSlot(node);
+    };
+    place();
+    const mo = new MutationObserver(() => {
+      if (!node.isConnected || !c.querySelector(".App-toolbar .Stack_horizontal")?.contains(node)) place();
+    });
+    mo.observe(c, { childList: true, subtree: true });
+    return () => {
+      mo.disconnect();
+      node.remove();
+    };
+  }, [canvas]);
+  return slot;
+}
+
+/** Excalidraw's line of hints under its toolbar, while `on`: Verso's own
+ *  hint goes in it as one more line, in its clothes. Excalidraw draws the
+ *  line anew as the hint changes, so it is looked for again each time. */
+function useHintSlot(canvas: RefObject<HTMLDivElement | null>, on: boolean): HTMLElement | null {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c || !on) {
+      setSlot(null);
+      return;
+    }
+    const find = (): void => setSlot(c.querySelector<HTMLElement>(".HintViewer"));
+    find();
+    const mo = new MutationObserver(find);
+    mo.observe(c, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [canvas, on]);
+  return slot;
+}
+
+/** Whether Verso's tools go to Excalidraw's footer: when the board — not
+ *  its desktop layout, which holds until the board is quite narrow — leaves
+ *  no room for them beside the menu and the toolbar on the top row (a side
+ *  bar open, a narrow pane). Excalidraw's phone layout has its own place for
+ *  them (style.css). Their width is read while they are on the top row and
+ *  not being typed into, so a search field that widens never moves them. */
+function useToolsBelow(canvas: RefObject<HTMLDivElement | null>): boolean {
+  const [below, setBelow] = useState(false);
+  const toolsWidth = useRef(180);
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c) return;
+    const measure = (): void => {
+      // The board's width, for the toolbar of the phone layout (style.css):
+      // a percentage there would be of the toolbar's own box.
+      c.style.setProperty("--board-width", `${c.clientWidth}px`);
+      const ex = c.querySelector(".excalidraw");
+      if (ex?.classList.contains("excalidraw--mobile")) {
+        setBelow(false);
+        return;
+      }
+      const top = c.querySelector(".App-menu_top");
+      const bar = c.querySelector(".App-toolbar");
+      if (!ex || !top || !bar) return;
+      const tools = c.querySelector<HTMLElement>(".layer-ui__wrapper__top-right .board-ex-tools");
+      if (tools && !tools.contains(document.activeElement)) toolsWidth.current = tools.getBoundingClientRect().width;
+      const left = c.querySelector(".App-menu_top__left")?.getBoundingClientRect().width ?? 0;
+      const room = top.getBoundingClientRect().width - bar.getBoundingClientRect().width - left - 48;
+      setBelow(room < toolsWidth.current);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(c);
+    // The toolbar drawn anew, or Excalidraw turning to its phone layout
+    // (a class of its root, set after the size that caused it): measured
+    // again, or the tools would wait in a footer the phone layout has not.
+    let watched: Element | null = null;
+    const mo = new MutationObserver((records) => {
+      const bar = c.querySelector(".App-toolbar");
+      const layout = records.some((r) => r.type === "attributes" && (r.target as Element).classList.contains("excalidraw"));
+      if (bar && bar !== watched) {
+        watched = bar;
+        ro.observe(bar);
+        measure();
+      } else if (layout) measure();
+    });
+    mo.observe(c, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    measure();
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [canvas]);
+  return below;
+}
+
+type TopRightProps = {
+  s: BoardStrings;
+  insert: JSX.Element | null;
+  selectedNode: El | undefined;
+  selectedData: CanvasNode | null | undefined;
+  openable: boolean | undefined;
+  openNode: (node: El, preview: boolean) => void;
+  ends: { from: string; to: string } | null;
+  promote: () => Promise<void>;
+  relink: (e: El, n: CanvasNode) => Promise<void>;
+  query: string;
+  setQuery: (v: string) => void;
+  searchBox: RefObject<HTMLInputElement | null>;
+  step: (by: number) => void;
+  hits: string[];
+  hit: number;
+  showOutline: boolean;
+  setShowOutline: (v: boolean | ((prev: boolean) => boolean)) => void;
+  container: RefObject<HTMLDivElement | null>;
+};
+
+/** The board's search, what acts on the selection, and the outline: in
+ *  Excalidraw's top-right corner (`renderTopRightUI`), in an island of its
+ *  own clothes. A component of its own, outside `Board`, so the search
+ *  field keeps the focus while the board draws again at each letter. */
+function TopRightTools({
+  s,
+  insert,
+  selectedNode,
+  selectedData,
+  openable,
+  openNode,
+  ends,
+  promote,
+  relink,
+  query,
+  setQuery,
+  searchBox,
+  step,
+  hits,
+  hit,
+  showOutline,
+  setShowOutline,
+  container,
+}: TopRightProps): JSX.Element {
+  const file = selectedNode && selectedData?.type === "file";
+  const searchId = useId();
+  return (
+    <div className="Island board-ex-tools" role="toolbar" aria-label={s.toolbar}>
+      {insert}
+      {insert && <div className="App-toolbar__divider" />}
+      <span className="board-ex-search">
+        {/* The magnifier focuses the field: on a narrow board the field is
+            folded into it until then (style.css). */}
+        <label htmlFor={searchId} className="board-ex-search-icon">
+          <BoardIcon d={ICO.search} label={s.search} />
+        </label>
+        <input
+          id={searchId}
+          ref={searchBox}
+          type="search"
+          autoComplete="off"
+          spellCheck={false}
+          autoCorrect="off"
+          placeholder={s.search}
+          aria-label={s.search}
+          title={s.searchTitle}
+          value={query}
+          onChange={(e) => setQuery(e.currentTarget.value)}
+          onKeyDownCapture={(e) => {
+            // Inside Excalidraw's UI a letter is a tool's key: kept for
+            // the field, or "e", "r", "o"… would change the tool.
+            e.stopPropagation();
+            if (e.key === "Enter") {
+              e.preventDefault();
+              step(e.shiftKey ? -1 : 1);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              setQuery("");
+              container.current?.querySelector<HTMLElement>(".excalidraw")?.focus();
+            }
+          }}
+        />
+        {query.trim() !== "" && (
+          <span className="board-ex-search-count" aria-live="polite">
+            {hits.length > 0 ? s.searchCount(hit + 1, hits.length) : s.noMatches}
+          </span>
+        )}
+      </span>
+      {(openable || ends || file) && <div className="App-toolbar__divider" />}
+      {openable && <ToolButton label={s.open} title={s.openTitle} onClick={() => selectedNode && openNode(selectedNode, false)} icon={ICO.open} testId="board-tool-open" />}
+      {file && <ToolButton label={s.swap} title={s.swapTitle} onClick={() => selectedNode && selectedData && void relink(selectedNode, selectedData)} icon={ICO.swap} testId="board-tool-swap" />}
+      {ends && <ToolButton label={s.promote} title={s.promoteTitle} onClick={() => void promote()} icon={ICO.relation} testId="board-tool-promote" />}
+      <div className="App-toolbar__divider" />
+      <ToolButton label={s.outline} title={s.outlineTitle} onClick={() => setShowOutline((v) => !v)} icon={ICO.outline} pressed={showOutline} testId="board-tool-outline" />
+    </div>
+  );
+}
+
+/** A card of a picture in the folder: drawn as the picture alone, with no
+ *  frame, head or title (its name is the picture's alternative text; open
+ *  and swap are in the top-right tools while it is selected). */
+function isBarePicture(node: CanvasNode, host: BoardHost): boolean {
+  const file = typeof node.file === "string" ? node.file : "";
+  return node.type === "file" && IMAGE.test(ext(file)) && host.exists(file);
+}
+
 /** A node drawn by Verso inside its element. */
 function Card({
   id,
@@ -304,7 +684,7 @@ function Card({
   const url = typeof node.url === "string" ? node.url : "";
   const missing = node.type === "file" && !host.exists(file);
   const note = node.type === "file" && !missing && ext(file) === "md";
-  const picture = node.type === "file" && !missing && IMAGE.test(ext(file));
+  const picture = isBarePicture(node, host);
   const pdf = node.type === "file" && !missing && ext(file) === "pdf";
   const pdfEl = useRef<HTMLDivElement>(null);
   // A PDF card shows the PDF, in its turn, as a note shows an embedded one.
@@ -408,14 +788,14 @@ function Card({
   const kind = node.type === "text" ? s.textCard : node.type === "link" ? s.linkCard : ext(file) || node.type;
   return (
     <div
-      className={`board-card board-card-${node.type}${missing ? " board-card-missing" : ""}`}
+      className={`board-card board-card-${node.type}${missing ? " board-card-missing" : ""}${picture ? " board-card-bare" : ""}`}
       aria-label={s.card(kind, nodeName(node, s))}
       data-fill={background && fill !== "solid" ? fill : undefined}
       style={background ? ({ "--card-bg": background } as CSSProperties) : undefined}
       ref={root}
       tabIndex={-1}
     >
-      {node.type === "file" && (
+      {node.type === "file" && !picture && (
         <div className="board-card-head">
           <span className="board-card-title">{nodeName(node, s)}</span>
           <button type="button" className="board-card-open board-card-swap" title={s.swapTitle} aria-label={`${s.swap}: ${nodeName(node, s)}`} onClick={() => swap(id)}>
@@ -672,12 +1052,17 @@ function CardLayer({
           const node = nodeData(e);
           if (!node) return null;
           // The card fills the shape up to the inner edge of its stroke: the
-          // stroke is centred on the shape's edge.
+          // stroke is centred on the shape's edge. A picture is shown alone,
+          // as on Obsidian's canvas: its card covers the stroke and the
+          // rounded corners, and the shape's frame is not seen.
           const sw = typeof e["strokeWidth"] === "number" ? (e["strokeWidth"] as number) : 1;
-          const inset = sw / 2;
-          const w = Math.max(1, e.width - sw);
-          const h = Math.max(1, e.height - sw);
-          const r = Math.max(0, Math.min(cornerRadius(e) - inset, w / 2, h / 2));
+          const bare = isBarePicture(node, host);
+          // Excalidraw's stroke spreads past half its width by its
+          // antialiasing: a picture covers one unit more.
+          const inset = bare ? -(sw / 2 + 1) : sw / 2;
+          const w = Math.max(1, e.width - 2 * inset);
+          const h = Math.max(1, e.height - 2 * inset);
+          const r = bare ? 0 : Math.max(0, Math.min(cornerRadius(e) - inset, w / 2, h / 2));
           const box = {
             width: `${w}px`,
             height: `${h}px`,
@@ -823,6 +1208,26 @@ function sizeOf(url: string): Promise<{ w: number; h: number } | null> {
   });
 }
 
+/** A picture of the folder as an image element of the picture's export,
+ *  fitted in a box and centred: its bytes go in `files`. Null when the
+ *  file cannot be read. */
+async function pictureOf(host: BoardHost, file: string, id: string, files: Record<string, unknown>, x: number, y: number, w: number, h: number): Promise<unknown> {
+  try {
+    const blob = await (await fetch(host.fileSrc(file))).blob();
+    const dataURL = await dataUrlOf(blob);
+    const size = await sizeOf(dataURL);
+    if (!size) return null;
+    const k = Math.min(w / size.w, h / size.h);
+    const iw = size.w * k;
+    const ih = size.h * k;
+    const fileId = `picture-${id}`;
+    files[fileId] = { id: fileId, dataURL, mimeType: blob.type || (ext(file) === "svg" ? "image/svg+xml" : `image/${ext(file)}`), created: Date.now() };
+    return { type: "image", fileId, x: x + (w - iw) / 2, y: y + (h - ih) / 2, width: iw, height: ih };
+  } catch {
+    return null;
+  }
+}
+
 /** The board's elements with each card turned into shapes Excalidraw
  *  draws — its box, its name, a line, its text or picture — in its place in
  *  the order; `only`: the selection and what belongs to it. */
@@ -856,6 +1261,14 @@ async function pictureScene(api: Api, host: BoardHost, only: readonly string[] |
     const pad = 12;
     const file = typeof node.file === "string" ? node.file : "";
     const missing = node.type === "file" && !host.exists(file);
+    // A picture card is the picture alone, as the board shows it.
+    if (isBarePicture(node, host)) {
+      const picture = await pictureOf(host, file, e.id, files, x, y, w, h);
+      if (picture) {
+        out.push(...(convertToExcalidrawElements([picture] as never, { regenerateIds: true }) as unknown as ExcalidrawElement[]));
+        continue;
+      }
+    }
     const skels: unknown[] = [
       {
         type: "rectangle",
@@ -892,21 +1305,9 @@ async function pictureScene(api: Api, host: BoardHost, only: readonly string[] |
     else if (node.type === "text" && typeof node.text === "string") body = plainOf(node.text);
     else if (node.type === "link" && typeof node.url === "string") body = node.url;
     else if (node.type === "file" && IMAGE.test(ext(file)) && room > 8) {
-      try {
-        const blob = await (await fetch(host.fileSrc(file))).blob();
-        const dataURL = await dataUrlOf(blob);
-        const size = await sizeOf(dataURL);
-        if (size) {
-          const k = Math.min((w - 2 * pad) / size.w, room / size.h);
-          const iw = size.w * k;
-          const ih = size.h * k;
-          const id = `picture-${e.id}`;
-          files[id] = { id, dataURL, mimeType: blob.type || (ext(file) === "svg" ? "image/svg+xml" : `image/${ext(file)}`), created: Date.now() };
-          skels.push({ type: "image", fileId: id, x: x + (w - iw) / 2, y: top + (room - ih) / 2, width: iw, height: ih });
-        }
-      } catch {
-        body = nodeName(node, s);
-      }
+      const picture = await pictureOf(host, file, e.id, files, x + pad, top, w - 2 * pad, room);
+      if (picture) skels.push(picture);
+      else body = nodeName(node, s);
     }
     if (body) {
       const lines = wrapLines(body, w - 2 * pad, Math.floor(room / (13 * CARD_LINE)), measure(13));
@@ -1099,7 +1500,7 @@ function Board({
 }: {
   host: BoardHost;
   initial: CanvasDoc;
-  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>) => void;
+  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>, addPath: (path: string, clientX?: number, clientY?: number) => void) => void;
 }): JSX.Element {
   const s = host.strings;
   const api = useRef<Api | null>(null);
@@ -1313,6 +1714,7 @@ function Board({
         window.clearTimeout(timer.current);
         return flushRef.current();
       },
+      (path, x, y) => addPathRef.current(path, x, y),
     );
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const theme = (): void => setDark(host.dark());
@@ -1383,6 +1785,7 @@ function Board({
   }, [host, noteUser, readOnly]);
   const flushRef = useRef(flush);
   flushRef.current = flush;
+  const addPathRef = useRef<(path: string, x?: number, y?: number) => void>(() => undefined);
   useEffect(() => {
     if (readOnly) host.status(s.newerBoard);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1438,7 +1841,11 @@ function Board({
     }
     overlayBusy.current = true;
     try {
-      const els = (sceneRef.current as unknown as El[]).filter((e) => !e.isDeleted);
+      // What is being drawn is Excalidraw's own canvas's, above the cards
+      // (style.css); a copy here would trail the pointer beside it.
+      const st = api.current?.getAppState();
+      const drawing = new Set([st?.newElement?.id, st?.multiElement?.id].filter((v): v is string => typeof v === "string"));
+      const els = (sceneRef.current as unknown as El[]).filter((e) => !e.isDeleted && !drawing.has(e.id));
       const bounds = els.map((e) => getCommonBounds([e as unknown as ExcalidrawElement]));
       const prev = overlaysRef.current;
       const map = new Map<string, Overlay>();
@@ -1606,6 +2013,94 @@ function Board({
     return true;
   }, [own]);
 
+  // An arrow ends on a side of a card: that is all a canvas edge records,
+  // and the board draws it so when it opens. The arrow is drawn so at
+  // once — not on the next opening — with the side the file will hold: the
+  // one it holds already, else the side facing the other card (endSide).
+  const snapEdges = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
+    if (state.newElement || state.multiElement || state.editingTextElement || state.editingLinearElement || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
+    const byId = new Map(els.map((e) => [e.id, e] as const));
+    const near = (p: [number, number], q: [number, number]): boolean => Math.abs(p[0] - q[0]) < 0.5 && Math.abs(p[1] - q[1]) < 0.5;
+    let changed = false;
+    const next = els.map((e) => {
+      if (e.type !== "arrow" || e.isDeleted) return e;
+      const a = e as unknown as El;
+      const pts = a.points;
+      if (a["elbowed"] === true || !pts || pts.length !== 2) return e;
+      const from = byId.get(a.startBinding?.elementId ?? "") as unknown as El | undefined;
+      const to = byId.get(a.endBinding?.elementId ?? "") as unknown as El | undefined;
+      if (!from || !to || !isNode(from) || !isNode(to)) return e;
+      const was = a.customData?.canvas as CanvasEdge | undefined;
+      let start: [number, number] = [a.x + pts[0]![0], a.y + pts[0]![1]];
+      let end: [number, number] = [a.x + pts[1]![0], a.y + pts[1]![1]];
+      // An end on the card the file names keeps the file's side; with none,
+      // the file's edge meets the card's middle, and is left as it is.
+      const fromSide = was && was.fromNode === from.id ? (was.fromSide ?? null) : endSide(from, to);
+      const toSide = was && was.toNode === to.id ? (was.toSide ?? null) : endSide(to, from);
+      const s2 = fromSide ? anchor(from, fromSide) : start;
+      const e2 = toSide ? anchor(to, toSide) : end;
+      if (near(s2, start) && near(e2, end)) return e;
+      start = s2;
+      end = e2;
+      changed = true;
+      const dx = end[0] - start[0];
+      const dy = end[1] - start[1];
+      // The bindings as an edge read from the file has them: Excalidraw
+      // places a bound end again from its focus and gap whenever a card
+      // moves, and the ones of the drop would pull it back inside the card.
+      return newElementWith(e as never, {
+        x: start[0],
+        y: start[1],
+        width: Math.abs(dx),
+        height: Math.abs(dy),
+        points: [[0, 0], [dx, dy]],
+        startBinding: { ...a.startBinding, focus: 0, gap: 4 },
+        endBinding: { ...a.endBinding, focus: 0, gap: 4 },
+      } as never) as ExcalidrawElement;
+    });
+    if (!changed) return false;
+    own((api2) => api2.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER }));
+    return true;
+  }, [own]);
+
+  // "Loose arrows": an arrow drawn while it is on attaches to no card, as
+  // one drawn with ⌘ held does (Excalidraw's own way, which nothing
+  // shows). An edge read from the file is never touched: it carries its
+  // canvas data.
+  const loose = useRef(false);
+  const [looseOn, setLooseOn] = useState(false);
+  // How to draw a free arrow, said while the arrow tool is held: nothing
+  // else on screen shows ⌘'s part, and a touch screen has no ⌘ at all.
+  const [arrowTool, setArrowTool] = useState(false);
+  const hintSlot = useHintSlot(container, arrowTool);
+  const touchOnly = useMemo(() => typeof window.matchMedia === "function" && !window.matchMedia("(any-pointer: fine)").matches, []);
+  const arrowHint = looseOn ? s.looseOnHint : touchOnly ? s.looseHintTouch : s.looseHint;
+  const born = useRef<Set<string> | null>(null);
+  const looseFresh = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
+    const known = born.current;
+    if (!known) {
+      born.current = new Set(els.map((e) => e.id));
+      return false;
+    }
+    if (state.newElement || state.multiElement || state.editingTextElement || state.editingLinearElement || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
+    const fresh = els.filter((e) => !known.has(e.id));
+    for (const e of fresh) known.add(e.id);
+    if (!loose.current) return false;
+    const ids = new Set(
+      fresh
+        .filter((e) => e.type === "arrow" && !e.isDeleted && (e.startBinding || e.endBinding) && !(e as unknown as El).customData?.canvas)
+        .map((e) => e.id),
+    );
+    if (ids.size === 0) return false;
+    const next = els.map((e) => {
+      if (ids.has(e.id)) return newElementWith(e as never, { startBinding: null, endBinding: null } as never) as ExcalidrawElement;
+      if ((e.boundElements ?? []).some((b) => ids.has(b.id))) return newElementWith(e as never, { boundElements: (e.boundElements ?? []).filter((b) => !ids.has(b.id)) } as never) as ExcalidrawElement;
+      return e;
+    });
+    own((api2) => api2.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER }));
+    return true;
+  }, [own]);
+
   const liftDrawn = useCallback((els: readonly ExcalidrawElement[], state: AppState): void => {
     const known = seen.current;
     if (!known) {
@@ -1655,6 +2150,7 @@ function Board({
 
   const onChange = useCallback(
     (els: readonly ExcalidrawElement[], state: AppState) => {
+      setArrowTool(state.activeTool.type === "arrow");
       // Excalidraw calls this on every frame the view moves. What reads the
       // elements — the cards, the overlays, the edges, the save, the
       // outline — runs only when they, an edit under way, or the background
@@ -1675,7 +2171,7 @@ function Board({
         dropMarkers(els);
         syncCards(els);
         scheduleOverlays(els);
-        if (!freeEdges(els, state)) liftDrawn(els, state);
+        if (!looseFresh(els, state) && !snapEdges(els, state) && !freeEdges(els, state)) liftDrawn(els, state);
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(flush, SAVE_DELAY);
         window.clearTimeout(outlineTimer.current);
@@ -1715,7 +2211,7 @@ function Board({
       const ids = Object.keys(state.selectedElementIds).filter((k) => state.selectedElementIds[k]);
       setSelected((was) => (was.length === ids.length && was.every((v, i) => v === ids[i]) ? was : ids));
     },
-    [flush, noteUser, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, host, place],
+    [flush, noteUser, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, snapEdges, looseFresh, host, place],
   );
 
   const center = (): [number, number] => {
@@ -1931,17 +2427,96 @@ function Board({
     }
   };
 
-  // Images are files of the folder on a board (ADR 0057 point 2): a pasted
-  // or dropped image is refused, and the user told where they go.
-  const refuseFiles = (ev: DragEvent | ClipboardEvent): void => {
-    touched.current = true;
-    const files = "dataTransfer" in ev ? ev.dataTransfer?.files : ev.clipboardData?.files;
-    if (files && files.length > 0) {
-      ev.stopPropagation();
-      ev.preventDefault();
-      host.status(s.imagesAsFiles);
+  // A picture or PDF dropped or pasted from outside is copied into the
+  // folder (beside the board, in the attachments folder) and shown by a
+  // file card, never kept inside the drawing (ADR 0057 point 2, ADR 0063).
+  const sceneAt = (clientX?: number, clientY?: number): [number, number] => {
+    const a = api.current;
+    if (!a || clientX === undefined || clientY === undefined) return center();
+    const p = viewportCoordsToSceneCoords({ clientX, clientY }, a.getAppState());
+    return [p.x, p.y];
+  };
+  // A picture comes in at its own proportions, its longer side as long as
+  // a new card's: a box of another shape would show the paper round it.
+  const pictureSize = (path: string): Promise<[number, number] | null> =>
+    new Promise((resolve) => {
+      if (!IMAGE.test(ext(path))) return resolve(null);
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        if (!w || !h) return resolve(null);
+        const k = 400 / Math.max(w, h);
+        resolve([Math.max(40, Math.round(w * k)), Math.max(40, Math.round(h * k))]);
+      };
+      img.onerror = () => resolve(null);
+      img.src = host.fileSrc(path);
+    });
+  const addPath = async (path: string, clientX?: number, clientY?: number, nth = 0): Promise<void> => {
+    const [x, y] = sceneAt(clientX, clientY);
+    const size = await pictureSize(path);
+    const node = newNode("file", path, [x + nth * 32, y + nth * 32], randomId());
+    if (size) {
+      node.x = Math.round(x + nth * 32 - size[0] / 2);
+      node.y = Math.round(y + nth * 32 - size[1] / 2);
+      [node.width, node.height] = size;
+    }
+    add(node);
+  };
+  addPathRef.current = (path, clientX, clientY) => void addPath(path, clientX, clientY);
+  // Several files go in a staircase, also when two drops overlap: the step
+  // counts on until the last of them is in.
+  const stair = useRef({ busy: 0, next: 0 });
+  const takeFiles = async (files: File[], clientX?: number, clientY?: number): Promise<void> => {
+    const st = stair.current;
+    st.busy++;
+    try {
+      for (const f of files) {
+        if (!IMAGE.test(ext(f.name)) && ext(f.name) !== "pdf") {
+          host.status(s.imagesAsFiles);
+          continue;
+        }
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+          r.onerror = () => reject(r.error);
+          r.readAsDataURL(f);
+        });
+        const path = await host.saveImage(f.name.includes(".") ? f.name : `${f.name}.png`, base64);
+        if (path) await addPath(path, clientX, clientY, st.next++);
+      }
+    } finally {
+      if (--st.busy === 0) st.next = 0;
     }
   };
+  const onFiles = (ev: DragEvent | ClipboardEvent): void => {
+    touched.current = true;
+    const list = "dataTransfer" in ev ? ev.dataTransfer?.files : ev.clipboardData?.files;
+    // A card being edited takes a file as its note's text does.
+    if (!list || list.length === 0 || (ev.target as Element | null)?.closest?.(".board-card-slot.is-active")) return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    const at = "dataTransfer" in ev ? ev : null;
+    void takeFiles(Array.from(list), at?.clientX, at?.clientY);
+  };
+
+  const slot = useToolbarSlot(container);
+  const toolsBelow = useToolsBelow(container);
+  const insertMenu = readOnly ? null : (
+    <InsertMenu
+      s={s}
+      addFile={() => void addFile()}
+      addText={() => void addText()}
+      addLink={() => void addLink()}
+      takeFiles={takeFiles}
+      looseOn={looseOn}
+      toggleLoose={() => {
+        loose.current = !loose.current;
+        setLooseOn(loose.current);
+        focusBoard();
+      }}
+    />
+  );
 
   const outline = useMemo(() => outlineOf(elements, s), [elements, s]);
 
@@ -2048,63 +2623,6 @@ function Board({
         }
       }}
     >
-      <div className="board-bar" role="toolbar" aria-label={s.toolbar}>
-        <button type="button" title={s.addFileTitle} onClick={() => void addFile()}>
-          {s.addFile}
-        </button>
-        <button type="button" title={s.addTextTitle} onClick={() => void addText()}>
-          {s.addText}
-        </button>
-        <button type="button" title={s.addLinkTitle} onClick={() => void addLink()}>
-          {s.addLink}
-        </button>
-        <span className="board-bar-gap" />
-        {selectedNode && selectedData?.type === "file" && (
-          <button type="button" title={s.swapTitle} onClick={() => void relink(selectedNode, selectedData)}>
-            {s.swap}
-          </button>
-        )}
-        <button type="button" title={s.openTitle} disabled={!openable} onClick={() => selectedNode && openNode(selectedNode, false)}>
-          {s.open}
-        </button>
-        <button type="button" title={ends ? s.promoteTitle : s.promoteNeedsArrow} disabled={!ends} onClick={() => void promote()}>
-          {s.promote}
-        </button>
-        <span className="board-search">
-          <input
-            ref={searchBox}
-            type="search"
-            autoComplete="off"
-            // As the window's own search field: what is typed is searched,
-            // never corrected into another word.
-            spellCheck={false}
-            autoCorrect="off"
-            placeholder={s.search}
-            aria-label={s.search}
-            title={s.searchTitle}
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                step(e.shiftKey ? -1 : 1);
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                setQuery("");
-                container.current?.querySelector<HTMLElement>(".excalidraw")?.focus();
-              }
-            }}
-          />
-          {query.trim() !== "" && (
-            <span className="board-search-count" aria-live="polite">
-              {hits.length > 0 ? s.searchCount(hit + 1, hits.length) : s.noMatches}
-            </span>
-          )}
-        </span>
-        <button type="button" title={s.outlineTitle} aria-pressed={showOutline} onClick={() => setShowOutline((v) => !v)}>
-          {s.outline}
-        </button>
-      </div>
       <div className="board-main">
         <div
           className="board-canvas"
@@ -2119,8 +2637,8 @@ function Board({
             if (!writable(e.target)) focusBoard();
           }}
           onKeyDownCapture={() => (touched.current = true)}
-          onDropCapture={refuseFiles}
-          onPasteCapture={refuseFiles}
+          onDropCapture={onFiles}
+          onPasteCapture={onFiles}
         >
           <Excalidraw
             excalidrawAPI={(a) => {
@@ -2183,11 +2701,57 @@ function Board({
               // Drawn by the card layer; Excalidraw's own box stays empty.
               return node ? <div className="board-card-placeholder" /> : null;
             }}
+            renderTopRightUI={() => toolsBelow ? null : (
+              <TopRightTools
+                s={s}
+                insert={slot ? null : insertMenu}
+                selectedNode={selectedNode}
+                selectedData={selectedData}
+                openable={openable}
+                openNode={openNode}
+                ends={ends}
+                promote={promote}
+                relink={relink}
+                query={query}
+                setQuery={setQuery}
+                searchBox={searchBox}
+                step={step}
+                hits={hits}
+                hit={hit}
+                showOutline={showOutline}
+                setShowOutline={setShowOutline}
+                container={container}
+              />
+            )}
             UIOptions={{
               canvasActions: { loadScene: false, saveToActiveFile: false, export: false, clearCanvas: false, toggleTheme: false, changeViewBackgroundColor: true, saveAsImage: false },
               tools: { image: false },
             }}
           >
+            {toolsBelow && (
+              <Footer>
+                <TopRightTools
+                  s={s}
+                  insert={slot ? null : insertMenu}
+                  selectedNode={selectedNode}
+                  selectedData={selectedData}
+                  openable={openable}
+                  openNode={openNode}
+                  ends={ends}
+                  promote={promote}
+                  relink={relink}
+                  query={query}
+                  setQuery={setQuery}
+                  searchBox={searchBox}
+                  step={step}
+                  hits={hits}
+                  hit={hit}
+                  showOutline={showOutline}
+                  setShowOutline={setShowOutline}
+                  container={container}
+                />
+              </Footer>
+            )}
             <MainMenu>
               <MainMenu.Item onSelect={() => setExporting(true)} shortcut="⌘⇧E">
                 {s.exportImage}
@@ -2196,6 +2760,8 @@ function Board({
               <MainMenu.DefaultItems.Help />
             </MainMenu>
           </Excalidraw>
+          {slot && readOnly === false && createPortal(insertMenu, slot)}
+          {hintSlot && readOnly === false && createPortal(<span className="board-hint" data-testid="board-arrow-hint">{arrowHint}</span>, hintSlot)}
           {layerHost &&
             createPortal(
               <CardLayer
@@ -2236,12 +2802,14 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
   let refresh: () => void = () => undefined;
   let find: () => void = () => undefined;
   let flush: () => Promise<void> = () => Promise.resolve();
+  let addPath: (path: string, x?: number, y?: number) => void = () => undefined;
   const root = createRoot(el);
   root.render(
     <Board
       host={host}
       initial={initial}
-      bind={(l, f, r, fd, fl) => {
+      bind={(l, f, r, fd, fl, ap) => {
+        addPath = ap;
         load = l;
         focus = f;
         refresh = r;
@@ -2260,6 +2828,7 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
     refresh: () => refresh(),
     find: () => find(),
     focus: () => focus(),
+    addPath: (path, x, y) => addPath(path, x, y),
     flush: () => flush(),
     destroy: () => root.unmount(),
   };

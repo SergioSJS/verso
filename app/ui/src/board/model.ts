@@ -142,7 +142,7 @@ function num(v: unknown, fallback = 0): number {
 }
 
 /** The point of a node's side where an edge meets it. */
-function anchor(n: { x: number; y: number; width: number; height: number }, side: Side | undefined): [number, number] {
+export function anchor(n: { x: number; y: number; width: number; height: number }, side: Side | undefined): [number, number] {
   switch (side) {
     case "top":
       return [n.x + n.width / 2, n.y];
@@ -157,17 +157,18 @@ function anchor(n: { x: number; y: number; width: number; height: number }, side
   }
 }
 
-/** The side of a node's box nearest to a point: where an edge leaves or
- *  arrives, as JSON Canvas records it. */
-export function sideOf(n: { x: number; y: number; width: number; height: number }, p: [number, number]): Side {
-  const d: [Side, number][] = [
-    ["top", Math.abs(p[1] - n.y)],
-    ["bottom", Math.abs(p[1] - (n.y + n.height))],
-    ["left", Math.abs(p[0] - n.x)],
-    ["right", Math.abs(p[0] - (n.x + n.width))],
-  ];
-  d.sort((a, b) => a[1] - b[1]);
-  return d[0]?.[0] ?? "right";
+/** The side an edge's end takes on a card it is newly attached to: the
+ *  side facing the other card, along the longer way between their middles.
+ *  Where on the card the pointer let go does not count: Excalidraw puts a
+ *  bound end on the card's outline by its own rules, and a side read from
+ *  that point came out as any of the four. The board draws the end there
+ *  at once and the file records it, so the arrow is the same before and
+ *  after the board is opened again. */
+export function endSide(n: { x: number; y: number; width: number; height: number }, other: { x: number; y: number; width: number; height: number }): Side {
+  const ex = other.x + other.width / 2 - (n.x + n.width / 2);
+  const ey = other.y + other.height / 2 - (n.y + n.height / 2);
+  const across = Math.abs(ex) * (n.height + other.height) >= Math.abs(ey) * (n.width + other.width);
+  return across ? (ex >= 0 ? "right" : "left") : ey >= 0 ? "bottom" : "top";
 }
 
 /** Whether an element stands for a node of the canvas. */
@@ -557,13 +558,6 @@ function put(obj: Record<string, unknown>, key: string, value: unknown): void {
   else obj[key] = value;
 }
 
-/** The absolute point of an arrow's first or last point. */
-function endPoint(arrow: El, last: boolean): [number, number] {
-  const pts = arrow.points ?? [[0, 0]];
-  const p = (last ? pts[pts.length - 1] : pts[0]) ?? [0, 0];
-  return [arrow.x + p[0], arrow.y + p[1]];
-}
-
 /** The board's own background colour (ADR 0057, 2026-09-30), kept under
  *  `verso`; none means the app's paper. */
 export function backgroundOf(doc: CanvasDoc): string | null {
@@ -625,8 +619,8 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     // A side is the file's while its end stays on the same card: moving a
     // card does not turn the edge round, and an edge with no side gains
     // none. An end attached anew takes the side it meets.
-    if (data.fromNode !== from) edge.fromSide = sideOf(fromEl, endPoint(e, false));
-    if (data.toNode !== to) edge.toSide = sideOf(toEl, endPoint(e, true));
+    if (data.fromNode !== from) edge.fromSide = endSide(fromEl, toEl);
+    if (data.toNode !== to) edge.toSide = endSide(toEl, fromEl);
     put(edge, "fromEnd", e.startArrowhead ? "arrow" : data.fromEnd !== undefined ? "none" : undefined);
     put(edge, "toEnd", e.endArrowhead ? (data.toEnd !== undefined ? "arrow" : undefined) : "none");
     const wasColor = hexOf(data.color, EDGE_STROKE).toLowerCase();

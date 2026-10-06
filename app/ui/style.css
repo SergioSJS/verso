@@ -2626,18 +2626,54 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 .board-mount, .board-root { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .board-root { position: relative; }
 .board-loading { margin: 2rem auto; color: var(--ink-2); font-size: .9rem; }
-.board-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; padding: .35rem clamp(.7rem, 1.5vw, 1.2rem); border-bottom: 1px solid var(--hair); font-size: .82rem; }
-.board-bar button { padding: .25rem .6rem; border-radius: 5px; color: var(--ink-2); border: 1px solid var(--hair); background: var(--paper); }
-.board-bar button:hover:not(:disabled) { color: var(--ink); background: var(--paper-3); }
-.board-bar button:disabled { opacity: .45; }
-.board-bar button[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
-.board-bar-gap { flex: 1; }
 .board-main { flex: 1; min-height: 0; display: flex; }
 .board-canvas { flex: 1; min-width: 0; position: relative; }
 .board-canvas .excalidraw { --color-primary: var(--seal); font-family: var(--ui); }
 /* The library browser and its trigger reach excalidraw.com (ADR 0050). */
 .board-canvas .default-sidebar-trigger, .board-canvas .sidebar-trigger { display: none !important; }
 .board-canvas[data-card-selected] .excalidraw-hyperlinkContainer { display: none !important; }
+/* Verso's tools in Excalidraw's own clothes: the `Island`, `ToolIcon` and
+   `dropdown-menu` classes do the drawing; here only the layout and the
+   pressed state, from the same variables. One class more than Excalidraw's
+   rules, whose stylesheet loads after this one. */
+.board-canvas .excalidraw .board-ex-tools { display: flex; flex-direction: row; align-items: center; gap: .1rem; padding: .25rem; }
+.board-canvas .excalidraw .board-ex-tools .App-toolbar__divider { margin: 0 .25rem; }
+.board-canvas .excalidraw .ToolIcon__icon.is-on { background: var(--color-surface-primary-container); }
+.board-canvas .excalidraw .ToolIcon__icon.is-on svg { color: var(--color-on-primary-container); }
+.board-canvas .excalidraw .board-ex-tools .ToolIcon__icon:disabled { opacity: .35; cursor: default; }
+.board-canvas .excalidraw .board-insert-slot, .board-canvas .excalidraw .board-insert { position: relative; display: flex; align-items: center; }
+.board-canvas .excalidraw .board-insert-menu { position: absolute; top: 100%; left: 0; margin-top: .5rem; z-index: 20; }
+.board-canvas .excalidraw .board-ex-tools .board-insert-menu { left: auto; right: 0; }
+.board-canvas .excalidraw .board-insert-menu .dropdown-menu-container { min-width: 16rem; }
+.board-canvas .excalidraw .board-insert-menu .dropdown-menu-item.is-on { color: var(--color-primary); }
+.board-canvas .excalidraw .board-insert-menu .dropdown-menu-item__icon svg { width: 1rem; height: 1rem; }
+.board-canvas .excalidraw .board-insert-menu .dropdown-menu-item-separator { height: 1px; margin: .3rem 0; background: var(--default-border-color); }
+.board-canvas .excalidraw .board-ex-search { display: inline-flex; align-items: center; gap: .25rem; }
+.board-canvas .excalidraw .board-ex-search svg { flex: none; width: var(--default-icon-size); height: var(--default-icon-size); color: var(--icon-fill-color); opacity: .7; }
+.board-canvas .excalidraw .board-ex-search input { width: 12ch; padding: .2rem .45rem; font: inherit; font-size: .82rem; color: var(--color-on-surface); background: var(--color-surface-high); border: 1px solid var(--color-surface-high); border-radius: var(--border-radius-md); }
+.board-canvas .excalidraw .board-ex-search input:focus { width: 18ch; outline: 2px solid var(--color-primary); outline-offset: -1px; }
+.board-canvas .excalidraw .board-ex-search-icon { display: inline-flex; cursor: pointer; }
+/* A board too narrow for them on the top row puts Verso's tools in the
+   middle of Excalidraw's footer (useToolsBelow), whose box lets the
+   pointer through to the canvas: the tools take it back. */
+.board-canvas .excalidraw .footer-center:has(> .board-ex-tools) { justify-content: center; }
+.board-canvas .excalidraw .footer-center > .board-ex-tools { pointer-events: auto; }
+/* Excalidraw's phone layout (a narrow or tall window) puts Verso's tools in
+   the toolbar's own row, where both do not fit and both were cut: the row
+   wraps, and Verso's tools take a line of their own under the toolbar, at
+   the left — the right is Excalidraw's lock and hand. */
+.board-canvas .excalidraw--mobile .App-toolbar-container { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+.board-canvas .excalidraw--mobile .App-toolbar-container > .board-ex-tools { order: 1; align-self: flex-start; }
+/* Narrower still — both side bars open — Excalidraw's own toolbar is wider
+   than the board and was cut at both ends: its tools wrap onto a second
+   line instead, every one of them in reach, clear of the lock and the hand
+   Excalidraw keeps at the right edge. */
+.board-canvas .excalidraw--mobile .App-toolbar { max-width: calc(var(--board-width, 100vw) - 6rem); }
+.board-canvas .excalidraw--mobile .App-toolbar .Stack_horizontal { display: flex; flex-wrap: wrap; justify-content: center; }
+/* A narrow board (Excalidraw's phone layout): the field folds into its
+   magnifier while it is empty and not in use, so the tools keep the row. */
+.board-canvas .excalidraw--mobile .board-ex-search input:not(:focus):placeholder-shown { width: 0; padding: 0; border-width: 0; }
+.board-canvas .excalidraw .board-ex-search-count { color: var(--color-on-surface); opacity: .7; font-size: .72rem; white-space: nowrap; }
 .board-card { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--card-bg, var(--paper)); color: var(--ink); font-size: .82rem; line-height: 1.45; }
 /* A card's own colour in the dark: Excalidraw darkens its canvas's
    colours; a card keeps the hue over the dark paper, so its text stays
@@ -2705,11 +2741,6 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
 .board-card-editor .conflict { margin: 0 .5rem .5rem; }
 .board-card-body.preview img { max-width: 100%; height: auto; }
 .board-card-body.preview .embed-note { margin: .4rem 0; }
-/* The board's search, in its bar. */
-.board-search { display: inline-flex; align-items: center; gap: .4rem; }
-.board-search input { width: 16ch; padding: .22rem .5rem; font: inherit; font-size: .82rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 5px; }
-.board-search input:focus { width: 24ch; outline: 2px solid var(--seal-wash); }
-.board-search-count { color: var(--ink-3); font-size: .78rem; white-space: nowrap; }
 
 /* ---------- Excalidraw in the Verso's own clothes (ADR 0057) ----------
  * Its menus, toolbar and panels are painted from these variables; pointed
@@ -2793,6 +2824,10 @@ textarea.prompt-field { font-family: var(--mono); font-size: .82rem; }
    selection canvas (z 2); above both while a card is entered. */
 .board-cards { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
 .board-cards.has-active { z-index: 3; }
+/* The shape being drawn — Excalidraw's canvas of the new element, between
+   the drawing and the selection — is above the cards while the pointer
+   draws it, as the drawing over a card is once it is done. */
+.board-canvas .excalidraw__canvas:not(.static):not(.interactive) { z-index: 2; }
 /* The plane the cards sit on: not cut to the view (the layer above cuts
    it), so what lies past the view's edge slides in drawn as the view
    moves. The plane and each card are layers of the compositor: a view

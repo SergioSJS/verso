@@ -296,6 +296,28 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    campo corrigia a palavra, e cada salvamento voltava a vista para o
    primeiro resultado (`a51aab2`).
 9. Lição 12: "Fundo da tela" no menu ☰; o JSON do board em Texto. Nível: H.
+10. Lição 8, imagens: solte uma imagem no board (ou cole): um cartão onde
+    foi solta, o arquivo copiado para a pasta de anexos, nenhuma imagem no
+    JSON do canvas; arraste uma nota da árvore para o board: um cartão, sem
+    aba nova; "Inserir", na barra de ferramentas do Excalidraw, abre um menu
+    cujo "Imagem ou PDF do computador…" escolhe imagens do computador; um
+    `.zip` solto diz que só entram imagens e PDFs. Um cartão de imagem mostra
+    só a imagem, sem moldura nem título. Com a barra lateral aberta e a janela não
+    muito larga, a busca e o Sumário no meio do rodapé; com o sumário aberto
+    também, ou numa janela alta e estreita, numa linha embaixo da barra; a
+    com as duas barras laterais abertas, a barra em duas linhas, longe do
+    cadeado e da mão; a barra do Excalidraw sempre inteira.
+    Nível: H (arrastar da árvore e o
+    seletor do sistema), A; E: `board-images.spec.mjs`.
+11. Setas: a ferramenta de seta do meio de um cartão ao meio de outro: as duas
+    pontas vão de imediato para os lados que se olham, por baixo dos cartões,
+    e ficam nesses lados enquanto um cartão é arrastado; com "Setas soltas"
+    ligado (menu "Inserir"), o mesmo arrasto deixa uma seta solta, presa a
+    nenhum. A ferramenta de linha atravessando um cartão: uma linha só,
+    desenhada por cima do cartão enquanto é desenhada, nunca dobrada. Com a
+    Flecha na mão, a linha de dicas embaixo da barra cita ⌘ e "Inserir ›
+    Setas soltas" (só o menu numa tela de toque) e avisa quando Setas soltas
+    está ligado. Nível: H; E: `board-arrows.spec.mjs`.
 
 ## 10. Ajustes, ajuda, a linha de comando
 

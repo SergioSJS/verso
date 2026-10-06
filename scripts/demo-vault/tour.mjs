@@ -327,7 +327,7 @@ export function tour() {
     -560,
     "Dois dedos no trackpad, ou a roda do mouse, movem o board; a pinça ou ⌘ + roda aproximam, e ⇧1 mostra tudo. " +
       "Dê duplo clique num cartão para ler a nota aqui mesmo; mais um clique edita, e Esc sai. ↗ abre a nota numa aba. " +
-      "O Sumário, na barra do board, leva a cada parada.",
+      "O Sumário, no alto à direita do board, leva a cada parada.",
     { size: 28, color: BODY, font: SANS, width: 1500 },
   );
   b.write("d-comece", 180, -330, "comece aqui!", { size: 44, color: RED });

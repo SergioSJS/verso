@@ -205,6 +205,19 @@ describe("canvas ↔ elements", () => {
     assert.deepEqual(edge, { id: "n", fromNode: "a", toNode: "t", fromSide: "right", toSide: "left" });
   });
 
+  test("a new edge's ends take the sides facing each other, wherever the pointer let go", () => {
+    const left = { x: 0, y: 0, width: 300, height: 200 };
+    const right = { x: 700, y: 0, width: 300, height: 200 };
+    const below = { x: 50, y: 600, width: 200, height: 100 };
+    assert.deepEqual([b.endSide(left, right), b.endSide(right, left)], ["right", "left"]);
+    assert.deepEqual([b.endSide(left, below), b.endSide(below, left)], ["bottom", "top"]);
+    // Drawn to the middle of the second card, as the file will read it.
+    const doc = { nodes: [{ id: "a", type: "text", text: "A", ...left }, { id: "c", type: "text", text: "C", ...right }], edges: [] };
+    const arrow = { id: "n", type: "arrow", x: 150, y: 100, width: 700, height: 0, points: [[0, 0], [700, 0]], startBinding: { elementId: "a" }, endBinding: { elementId: "c" }, strokeColor: "#1e1e1e", endArrowhead: "arrow" };
+    const edge = b.fromElements([...restored(doc), arrow], doc).edges[0];
+    assert.deepEqual([edge.fromSide, edge.toSide], ["right", "left"]);
+  });
+
   test("the outline lists groups, cards, edges and, apart, the drawing's texts", () => {
     const note = { id: "x", type: "text", x: 900, y: 900, width: 10, height: 10, text: "nota solta" };
     const o = b.outlineOf([...restored(OBSIDIAN), note], { textCard: "Texto", linkCard: "Link", untitledGroup: "Grupo", edge: (a, c, l) => `${a} → ${c} (${l})` });
