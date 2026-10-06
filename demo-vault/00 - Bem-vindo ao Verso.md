@@ -68,6 +68,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 17. [[17 - Terminal, CLI e Agentes]] — O comando `verso` e o cofre nos agentes de IA.
 18. [[18 - Ajuda, Atualizações e Diagnóstico]] — Atualizações, relatar um problema e o console.
 19. [[19 - Organizando: figurinhas, capas e páginas]] — Figurinhas, cores, capas com reposicionamento, páginas de pasta, ordenação manual, itens ocultos e edição de notas incorporadas.
+20. [[20 - Blocos como no Notion]] — Arrastar parágrafos e itens pela alça ⋮⋮, o + que abre o menu `/`, o menu de cada bloco e as teclas do Notion.
 
 ---
 
@@ -79,7 +80,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 | **Abrir… (pelo nome)** | `⌘ P` | `Ctrl + P` |
 | **Abrir Pasta / Vault** | `⌘ O` | `Ctrl + O` |
 | **Nova Nota** | `⌘ N` | `Ctrl + N` |
-| **Nota de Hoje** | `⌘ D` | `Ctrl + D` |
+| **Nota de Hoje** | `⌘ ⇧ D` | `Ctrl + Shift + D` |
 | **Busca Global** | `⌘ K` | `Ctrl + K` |
 | **Alternar Barra Esquerda** | `⌘ ⌥ ←` | `Ctrl + Alt + ←` |
 | **Alternar Barra Direita** | `⌘ ⌥ →` | `Ctrl + Alt + →` |

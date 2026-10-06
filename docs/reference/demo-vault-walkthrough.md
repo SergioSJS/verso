@@ -155,6 +155,22 @@ point 13).
    Level: H; E: `notes.spec.mjs`. Caught: Editar's text 7.5 px further right,
    its lines 113 px longer in a wide window (`100ch` in the interface's
    font), its list looser (2026-10-02).
+10. Note 20 in Editar (ADR 0061): the pointer over a paragraph shows `+`
+    and ⋮⋮ in the margin, left of the text, and an outline round the whole
+    paragraph; ⋮⋮ dragged below the lists moves the paragraph whole, and
+    one ⌘Z puts it back; "Terceiro passo" dragged to the top renumbers the
+    list 1, 2, 3; "Maçã" dragged to the right under "Fruta" nests there;
+    Esc mid-drag drops nothing. ⋮⋮ clicked: Transformar em › Título 2,
+    Duplicar, Copiar link do bloco (a `^id` written once), Excluir. ⌘⇧↓
+    and ⌘⇧↑ move the block at the caret, past a whole list; ⌘D duplicates
+    it; ⌘/ opens "Transformar em". `+` opens `/` on a new block, and Esc
+    takes it back; on a list item, the new block is the next item. `[] `
+    becomes `- [ ] `; `/recolh` offers "Recolhível". Settings › Editor:
+    "Alças dos blocos" off hides them; "Enter começa um bloco novo" on
+    makes Enter write a blank line and Shift-Enter a line break. In the
+    search field, ⌘⇧↑ is the field's own. An empty line shows the `+`
+    alone: it writes a `/` there, apart from its neighbours, and Esc takes
+    it back. Level: H; E: `blocks.spec.mjs`; U: `test/blocks.test.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 
@@ -165,7 +181,7 @@ point 13).
    listed the whole vault (`26c3b06`).
 2. Note 04: the embedded view and the `base` block listing the daily notes.
    Level: H.
-3. ⌘D: `Diário/<today>.md` is made from `Templates/Diário.md`, `{{title}}`
+3. ⌘⇧D (⌘D until 2026-10-06, ADR 0061): `Diário/<today>.md` is made from `Templates/Diário.md`, `{{title}}`
    and `{{date}}` filled. Level: S (the folders), H; E: `notes.spec.mjs`.
    Caught: the notes said `daily/` and `templates/`, which the app does not
    use by default (`26c3b06`).

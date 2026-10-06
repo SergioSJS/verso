@@ -156,6 +156,22 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Nível: H; E: `notes.spec.mjs`. Pego: o texto do Editar 7,5 px mais à
    direita, as linhas 113 px mais longas numa janela larga (`100ch` na
    fonte da interface), a lista mais solta (2026-10-02).
+10. Nota 20 no Editar (ADR 0061): o ponteiro sobre um parágrafo mostra `+`
+    e ⋮⋮ na margem, à esquerda do texto, e um contorno em volta do parágrafo
+    inteiro; a ⋮⋮ arrastada para baixo das listas move o parágrafo inteiro,
+    e um ⌘Z o devolve; "Terceiro passo" arrastado para o topo renumera a
+    lista 1, 2, 3; "Maçã" arrastada para a direita, sob "Fruta", aninha ali;
+    Esc no meio do arraste não solta nada. A ⋮⋮ clicada: Transformar em ›
+    Título 2, Duplicar, Copiar link do bloco (um `^id` escrito uma vez),
+    Excluir. ⌘⇧↓ e ⌘⇧↑ movem o bloco do cursor, passando por uma lista
+    inteira; ⌘D o duplica; ⌘/ abre "Transformar em". O `+` abre o `/` num
+    bloco novo, e Esc o desfaz; num item de lista, o bloco novo é o próximo
+    item. `[] ` vira `- [ ] `; `/recolh` oferece "Recolhível". Ajustes ›
+    Editor: "Alças dos blocos" desligado as esconde; "Enter começa um bloco
+    novo" ligado faz o Enter escrever uma linha em branco e o Shift-Enter uma
+    quebra de linha. No campo de busca, ⌘⇧↑ é do próprio campo. Uma linha
+    vazia mostra só o `+`: ele escreve um `/` ali, separado dos vizinhos, e
+    Esc o desfaz. Nível: H; E: `blocks.spec.mjs`; U: `test/blocks.test.mjs`.
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
@@ -166,7 +182,7 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    base listava o cofre inteiro (`26c3b06`).
 2. Nota 04: a visão incorporada e o bloco `base` que lista as notas diárias.
    Nível: H.
-3. ⌘D: `Diário/<hoje>.md` é feita do `Templates/Diário.md`, com `{{title}}`
+3. ⌘⇧D (⌘D até 2026-10-06, ADR 0061): `Diário/<hoje>.md` é feita do `Templates/Diário.md`, com `{{title}}`
    e `{{date}}` preenchidos. Nível: S (as pastas), H; E: `notes.spec.mjs`.
    Pegou: as notas diziam `daily/` e `templates/`, que o app não usa por
    padrão (`26c3b06`).

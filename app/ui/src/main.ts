@@ -105,6 +105,9 @@ import { formatUnderCaret, tableKeymap, template as tableTemplate } from "./tabl
 import { listKeymap } from "./listKeymap";
 import { PdfView, parsePdfSpec } from "./pdf";
 import { SlashMenu, slashKeymap, type SlashSection } from "./slash";
+import { blockLink, blocksOfSelection, deleteBlocks, duplicateBlocks, moveBy, randomBlockId, turnInto, turnTargets, type Block, type Edit as BlockEdit, type TurnKind } from "./blocks/model";
+import { blockHandles, blocksOf } from "./blocks/view";
+import { blockKeys } from "./blocks/keys";
 import { ptPhrases } from "./phrases";
 import { ask, tell, promptText } from "./dialog";
 import { boardStrings } from "./board/strings";
@@ -163,7 +166,8 @@ type Strings = Record<
   | "focusesTab" | "homeFocus" | "createFocus" | "createFocusHere" | "addToFocus" | "switchFocus" | "syncFocuses" | "syncFocusesDesc" | "syncFocusesWarning" | "syncFocusesEnable" | "syncFocusesOffInfo" | "syncFocusesOffBanner" | "syncLocalFocusesQuestion" | "focusesConflict" | "focusNamePrompt" | "noFocuses" | "readOnlyFocuses" | "readOnlyCloudPlaceholder" | "readOnlyInvalidJson" | "readOnlyUnknownFormat" | "resetToHome" | "focusCreated" | "focusDeleted" | "deleteFocus",
   string
 > & {
-  slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; empty: string };
+  slash: { basic: string; lists: string; callouts: string; insert: string; h1: string; h2: string; h3: string; quote: string; code: string; divider: string; task: string; bullets: string; numbers: string; calloutNote: string; calloutTip: string; calloutWarning: string; table: string; wikilink: string; embed: string; image: string; link: string; template: string; toggleTitle: string; toggle: string; empty: string };
+  blocks: { grip: string; plus: string; delete: string; duplicate: string; turnInto: string; copyLink: string; moveUp: string; moveDown: string; menu: string; duplicateBlock: string; deleteBlock: string; turnBlock: string; text: string; h1: string; h2: string; h3: string; bullet: string; numbered: string; task: string; quote: string; callout: string; code: string; linkCopied: string; noLink: string; noTurn: string; handles: string; handlesDesc: string; enterNewBlock: string; enterNewBlockDesc: string };
   indexed: (n: number, u: number, p: number) => string;
   hits: (n: number) => string;
   unresolved: (t: string) => string;
@@ -241,7 +245,8 @@ const pt: Strings = {
   planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
   counts: (notes, files, folders) => `${notes} nota${notes === 1 ? "" : "s"} · ${files} arquivo${files === 1 ? "" : "s"} · ${folders} pasta${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
-  slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", empty: "Nada com esse nome." },
+  slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", toggleTitle: "Recolhível", toggle: "Destaque que abre e fecha (toggle)", empty: "Nada com esse nome." },
+  blocks: { grip: "Arraste para mover · clique para o menu", plus: "Acrescentar um bloco abaixo", delete: "Excluir", duplicate: "Duplicar", turnInto: "Transformar em", copyLink: "Copiar link do bloco", moveUp: "Mover bloco para cima", moveDown: "Mover bloco para baixo", menu: "Menu do bloco", duplicateBlock: "Duplicar bloco", deleteBlock: "Excluir bloco", turnBlock: "Transformar bloco em…", text: "Texto", h1: "Título 1", h2: "Título 2", h3: "Título 3", bullet: "Lista com marcadores", numbered: "Lista numerada", task: "Tarefa", quote: "Citação", callout: "Destaque (callout)", code: "Código", linkCopied: "Link do bloco copiado.", noLink: "Só parágrafos, itens de lista e títulos têm link de bloco.", noTurn: "Este bloco não se transforma sem mudar o texto.", handles: "Alças dos blocos", handlesDesc: "No modo Editar, um + e uma alça ⋮⋮ na margem de cada bloco: arraste para mover, clique para o menu.", enterNewBlock: "Enter começa um bloco novo", enterNewBlockDesc: "Num parágrafo, Enter escreve a linha em branco que começa o próximo bloco e Shift-Enter quebra a linha, como no Notion. Desligado: Enter quebra a linha e Enter duas vezes começa outro bloco." },
   colName: "Nome", colKind: "Tipo", colSize: "Tamanho", colModified: "Modificado", kindNote: "Nota", kindFolder: "Pasta", kindPlaceholder: "Na nuvem", sortBy: "Ordenar por",
   duplicate: "Duplicar", copySuffix: "cópia", duplicated: "Duplicado.", reveal: "Mostrar no Finder", copyPath: "Copiar caminho", copyRelativePath: "Copiar caminho relativo", copyFullPath: "Copiar caminho completo", openInNewTab: "Abrir em nova aba", copied: "Caminho copiado.",
   moveWhere: "Pasta de destino (Enter move, Esc cancela)", deleteEntry: "Mover para a lixeira", moveToRoot: "(raiz)", openFolder: "Abrir pasta",
@@ -369,7 +374,8 @@ const en: Strings = {
   planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
   counts: (notes, files, folders) => `${notes} note${notes === 1 ? "" : "s"} · ${files} file${files === 1 ? "" : "s"} · ${folders} folder${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the Trash (.trash)?`,
-  slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", empty: "Nothing by that name." },
+  slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", toggleTitle: "Toggle", toggle: "A callout that opens and closes", empty: "Nothing by that name." },
+  blocks: { grip: "Drag to move · click for the menu", plus: "Add a block below", delete: "Delete", duplicate: "Duplicate", turnInto: "Turn into", copyLink: "Copy link to block", moveUp: "Move block up", moveDown: "Move block down", menu: "Block menu", duplicateBlock: "Duplicate block", deleteBlock: "Delete block", turnBlock: "Turn block into…", text: "Text", h1: "Heading 1", h2: "Heading 2", h3: "Heading 3", bullet: "Bulleted list", numbered: "Numbered list", task: "Task", quote: "Quote", callout: "Callout", code: "Code", linkCopied: "Link to the block copied.", noLink: "Only paragraphs, list items and headings have a block link.", noTurn: "This block does not turn into another kind without changing its text.", handles: "Block handles", handlesDesc: "In Edit mode, a + and a ⋮⋮ handle in the margin of each block: drag to move, click for the menu.", enterNewBlock: "Enter starts a new block", enterNewBlockDesc: "In a paragraph, Enter writes the blank line that starts the next block and Shift-Enter breaks the line, as in Notion. Off: Enter breaks the line, and Enter twice starts another block." },
   colName: "Name", colKind: "Kind", colSize: "Size", colModified: "Modified", kindNote: "Note", kindFolder: "Folder", kindPlaceholder: "In the cloud", sortBy: "Sort by",
   duplicate: "Duplicate", copySuffix: "copy", duplicated: "Duplicated.", reveal: "Reveal in Finder", copyPath: "Copy path", copyRelativePath: "Copy relative path", copyFullPath: "Copy full path", openInNewTab: "Open in new tab", copied: "Path copied.",
   moveWhere: "Destination folder (Enter moves, Esc cancels)", deleteEntry: "Move to Trash", moveToRoot: "(root)", openFolder: "Open folder",
@@ -705,6 +711,10 @@ type Settings = {
   lineNumbersEdit: boolean;
   lineNumbersSource: boolean;
   lineNumbersPreview: boolean;
+  /** Edit mode's block handles (ADR 0061 D10). */
+  blockHandles: boolean;
+  /** Enter in a paragraph starts a new block (ADR 0061 D9 b). */
+  enterNewBlock: boolean;
   defaultMode: "preview" | "live";
   measure: "normal" | "wide";
   linkFormat: "shortest" | "relative" | "root";
@@ -762,6 +772,8 @@ const DEFAULTS: Settings = {
   lineNumbersEdit: false,
   lineNumbersSource: true,
   lineNumbersPreview: false,
+  blockHandles: true,
+  enterNewBlock: false,
   defaultMode: "preview",
   measure: "normal",
   linkFormat: "shortest",
@@ -848,6 +860,9 @@ function applySettings(): void {
   document.documentElement.classList.toggle("show-line-numbers-edit", Boolean(settings.lineNumbersEdit));
   document.documentElement.classList.toggle("show-line-numbers-source", Boolean(settings.lineNumbersSource));
   document.documentElement.classList.toggle("show-line-numbers-preview", Boolean(settings.lineNumbersPreview));
+  // A note's sheet keeps a margin for the handles, in every mode, so its
+  // text stands at the same place in Reading and in Edit.
+  document.documentElement.classList.toggle("block-handles", Boolean(settings.blockHandles));
   const headingFonts: Record<string, string> = {
     serif: '"Fraunces", "Iowan Old Style", Georgia, serif',
     sans: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -1293,6 +1308,7 @@ function slashSections(): SlashSection[] {
       { icon: "quote", title: t.calloutNoteTitle, description: s.calloutNote, keywords: "[!note] note nota aviso", insert: "> [!note] " },
       { icon: "quote", title: t.calloutTipTitle, description: s.calloutTip, keywords: "[!tip] tip dica", insert: "> [!tip] " },
       { icon: "warn", title: t.calloutWarningTitle, description: s.calloutWarning, keywords: "[!warning] warning atenção", insert: "> [!warning] " },
+      { icon: "quote", title: s.toggleTitle, description: s.toggle, keywords: "toggle recolher dobrar fold [!note]-", insert: "> [!note]- " },
     ] },
     { title: s.insert, items: [
       { icon: "table", title: t.table, description: s.table, keywords: "| tabela table", insert: () => tableTemplate(3, 2, t.tableColumn), select: [2, 2 + t.tableColumn.length] },
@@ -2103,7 +2119,7 @@ class NoteLeaf extends Leaf {
   readonly preview = h("div", "preview");
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
-  readonly sheet = h("div", "sheet");
+  readonly sheet = h("div", "sheet note-sheet");
   /* A note with a `url` property is a web page: the page lives in a child
    * web view of the window, laid over this host and kept in step with it. */
   readonly webBar = h("div", "web-bar");
@@ -2135,6 +2151,18 @@ class NoteLeaf extends Leaf {
   readonly lineNumbersCompartment = new Compartment();
   readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty, label: t.slash.insert });
   readonly live: ReturnType<typeof livePreview>;
+  /** The handles, the menu and Notion's keys of a note's blocks, in Edit
+   *  mode (ADR 0061). */
+  readonly blockExt: Extension = [
+    blockHandles({
+      enabled: () => settings.blockHandles && !this.readOnly,
+      menu: (_view, blocks, x, y) => this.blockMenu(blocks, x, y),
+      plus: (_view, block) => this.blockPlus(block),
+      plusAt: (_view, line) => this.blockPlusAt(line),
+      strings: { grip: t.blocks.grip, plus: t.blocks.plus },
+    }),
+    blockKeys({ enterNewBlock: () => settings.enterNewBlock }),
+  ];
   shouldShowLineNumbers(): boolean {
     if (this.mode === "live") return Boolean(settings.lineNumbersEdit);
     if (this.mode === "source") return Boolean(settings.lineNumbersSource);
@@ -2340,7 +2368,7 @@ class NoteLeaf extends Leaf {
         listKeymap,
         keymap.of([...markdownKeymap, indentWithTab]),
         EditorView.lineWrapping,
-        this.liveCompartment.of(this.mode === "live" ? this.live : []),
+        this.liveCompartment.of(this.mode === "live" ? [this.live, this.blockExt] : []),
         this.readOnly ? readOnlyText : [],
         // Above basicSetup's defaults, which bind ⌘I (select the parent
         // node) and ⌘⇧K (delete the line) and come first in this list.
@@ -2624,7 +2652,7 @@ class NoteLeaf extends Leaf {
     this.editorHost.hidden = m === "preview";
     for (const [k, b] of Object.entries(this.modeButtons)) b.setAttribute("aria-pressed", String(k === m));
     if (m === "preview") this.paintPreview();
-    this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? this.live : []) });
+    this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? [this.live, this.blockExt] : []) });
     this.applyLineNumbers();
     if (m === "live") {
       // The caret never lands inside the folded frontmatter.
@@ -2636,6 +2664,126 @@ class NoteLeaf extends Leaf {
   }
   toggleMode(): void {
     this.setMode(this.mode === "preview" ? "live" : "preview");
+  }
+
+  /* ---------- Blocks (ADR 0061) ---------- */
+
+  /** The blocks the caret or the selection is on; none outside Edit mode. */
+  selectedBlocks(): Block[] {
+    if (this.mode !== "live") return [];
+    return blocksOfSelection(blocksOf(this.editor.state), this.editor.state);
+  }
+  /** One edit of the blocks: one transaction, one ⌘Z. */
+  private blockEdit(edit: BlockEdit | null, userEvent: string): boolean {
+    if (!edit || this.readOnly) return false;
+    this.editor.dispatch({ changes: edit.changes, selection: edit.selection, userEvent, scrollIntoView: true });
+    this.editor.focus();
+    return true;
+  }
+  moveBlock(dir: -1 | 1, blocks = this.selectedBlocks()): void {
+    this.blockEdit(moveBy(this.editor.state, blocks, dir), "move.line");
+  }
+  duplicateBlock(blocks = this.selectedBlocks()): void {
+    this.blockEdit(duplicateBlocks(this.editor.state, blocks), "input.duplicate");
+  }
+  deleteBlock(blocks = this.selectedBlocks()): void {
+    this.blockEdit(deleteBlocks(this.editor.state, blocks), "delete");
+  }
+  /** Where a menu about the caret opens: under it. */
+  private caretPoint(): [number, number] {
+    const at = this.editor.coordsAtPos(this.editor.state.selection.main.head);
+    return at ? [at.left, at.bottom + 4] : [window.innerWidth / 2, window.innerHeight / 3];
+  }
+  /** "Turn into": the kinds that keep the block's text, as a menu. */
+  turnBlockMenu(blocks = this.selectedBlocks(), x?: number, y?: number): void {
+    const b = blocks[0];
+    if (!b || this.readOnly) return;
+    const kinds = blocks.length === 1 ? turnTargets(this.editor.state, b) : [];
+    if (kinds.length === 0) {
+      ui.status.textContent = t.blocks.noTurn;
+      return;
+    }
+    const icons: Record<TurnKind, string> = { text: "text", h1: "heading", h2: "heading", h3: "heading", bullet: "bullets", numbered: "numbers", task: "task", quote: "quote", callout: "quote", code: "code" };
+    const [px, py] = x !== undefined && y !== undefined ? [x, y] : this.caretPoint();
+    showMenu(px, py, kinds.map((k) => [t.blocks[k], () => void this.blockEdit(turnInto(this.editor.state, b, k), "input.turn"), icons[k]] as MenuItem));
+  }
+  /** `[[Note#^id]]` or `[[Note#Heading]]`, in the link format setting's
+   *  form, on the clipboard; a new `^id` is written at the block's end. */
+  copyBlockLink(blocks = this.selectedBlocks()): void {
+    const b = blocks[0];
+    if (!b) return;
+    const link = blockLink(this.editor.state, b, randomBlockId);
+    if (!link) {
+      ui.status.textContent = t.blocks.noLink;
+      return;
+    }
+    if ("id" in link && link.changes) {
+      if (this.readOnly) return;
+      this.editor.dispatch({ changes: link.changes, userEvent: "input.blockid" });
+    }
+    const text = `[[${linkText(this.path, this.path)}#${"heading" in link ? link.heading : `^${link.id}`}]]`;
+    void navigator.clipboard.writeText(text).then(
+      () => (ui.status.textContent = t.blocks.linkCopied),
+      () => (ui.status.textContent = text),
+    );
+  }
+  /** ⋮⋮ clicked: the block menu. */
+  blockMenu(blocks: Block[], x: number, y: number): void {
+    if (blocks.length === 0 || this.readOnly) return;
+    const one = blocks.length === 1;
+    const items: MenuItem[] = [
+      ...(one ? [[`${t.blocks.turnInto}…`, () => this.turnBlockMenu(blocks, x, y), "edit"] as MenuItem] : []),
+      [t.blocks.duplicate, () => this.duplicateBlock(blocks), "copy"],
+      ...(one ? [[t.blocks.copyLink, () => this.copyBlockLink(blocks), "link"] as MenuItem] : []),
+      ["—", () => {}],
+      [t.blocks.delete, () => this.deleteBlock(blocks), "close"],
+    ];
+    showMenu(x, y, items);
+  }
+  /** `+` clicked on an empty line: a `/` there, the `/` menu open, apart
+   *  from the text above and below by a blank line so that it starts a
+   *  block of its own; Esc takes it back. */
+  blockPlusAt(at: number): void {
+    if (this.readOnly) return;
+    const view = this.editor;
+    const doc = view.state.doc;
+    const line = doc.lineAt(at);
+    const above = line.number > 1 ? doc.line(line.number - 1).text.trim() !== "" : false;
+    const below = line.number < doc.lines ? doc.line(line.number + 1).text.trim() !== "" : false;
+    const insert = (above ? "\n" : "") + "/" + (below ? "\n" : "");
+    const caret = line.from + (above ? 1 : 0) + 1;
+    view.focus();
+    view.dispatch({ changes: { from: line.from, insert }, selection: { anchor: caret }, userEvent: "input", scrollIntoView: true });
+    this.slash.armCancel(() => {
+      const head = view.state.selection.main.head;
+      const from = line.from;
+      const now = view.state.sliceDoc(from, head);
+      if (!now.startsWith(insert.slice(0, (above ? 1 : 0) + 1))) return;
+      const end = head + (below && view.state.sliceDoc(head, head + 1) === "\n" ? 1 : 0);
+      view.dispatch({ changes: { from, to: end }, selection: { anchor: from }, userEvent: "delete" });
+    });
+  }
+  /** `+` clicked: a block below — a new item of the same list, or a
+   *  paragraph — with the `/` menu open on it; Esc takes it back. */
+  blockPlus(block: Block): void {
+    if (this.readOnly) return;
+    const view = this.editor;
+    const doc = view.state.doc;
+    const c = block.container;
+    let mark = "";
+    if (block.kind === "item") {
+      const m = /^(?:([-+*])|(\d{1,9})([.)]))[ \t]+(\[[ xX]\][ \t]+)?/.exec(doc.sliceString(block.start, doc.lineAt(block.start).to));
+      mark = m ? (m[2] ? `${Number(m[2]) + 1}${m[3]} ` : `${m[1]} `) + (m[4] ? "[ ] " : "") : "- ";
+    }
+    const insert = (block.kind === "item" && c.tight ? "\n" : "\n\n") + c.prefix + mark + "/";
+    const at = block.to;
+    view.focus();
+    view.dispatch({ changes: { from: at, insert }, selection: { anchor: at + insert.length }, userEvent: "input", scrollIntoView: true });
+    this.slash.armCancel(() => {
+      const head = view.state.selection.main.head;
+      if (head < at || !view.state.sliceDoc(at, head).startsWith(insert)) return;
+      view.dispatch({ changes: { from: at, to: head }, selection: { anchor: at }, userEvent: "delete" });
+    });
   }
   private buildWebBar(): void {
     const b = (ic: string, title: string, run: () => void) => {
@@ -10932,14 +11080,30 @@ class QuickSwitcher {
 const quick = new QuickSwitcher();
 
 /* ---------- Commands: one registry for the palette, the keys and the settings ---------- */
-type Command = { id: string; label: string; keys?: string; run: () => void };
+type Command = {
+  id: string;
+  label: string;
+  keys?: string;
+  run: () => void;
+  /** A key of the note's editor (the blocks, ADR 0061): its keys act only
+   *  with the note's text in focus; elsewhere — a field, the tree — the
+   *  key is that place's own. The palette runs it on the active note. */
+  editorOnly?: boolean;
+};
 /** Default keys, as `Mod-Shift-x`; the settings may override each. */
 const DEFAULT_KEYS: Record<string, string> = {
   "open-folder": "Mod-o", search: "Mod-k", "find-in-note": "Mod-f", "new-note": "Mod-n", "new-note-named": "Mod-Shift-n", quick: "Mod-p", palette: "Mod-Shift-p", settings: "Mod-,",
-  "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Alt-ArrowLeft", "toggle-right": "Mod-Alt-ArrowRight",
+  "toggle-mode": "Mod-e", "split-right": "Mod-\\", "split-down": "Mod-Shift-\\", daily: "Mod-Shift-d", replace: "Mod-Shift-h", "toggle-side": "Mod-Alt-ArrowLeft", "toggle-right": "Mod-Alt-ArrowRight",
   reopen: "Mod-Shift-t", "graph-note": "Mod-Shift-g", "new-space": "Mod-t", maximize: "Mod-Shift-m", "close-pane": "Mod-Shift-w", "close-tab": "Mod-w", "next-tab": "Mod-Shift-]", "prev-tab": "Mod-Shift-[", "nav-back": "Mod-[", "nav-forward": "Mod-]",
   // Also View › Open Console's own key (the host's menu), shown here.
   "open-console": "Mod-Alt-i",
+  // Notion's keys for blocks (ADR 0061 D8 b): they displace select to the
+  // note's start and end, and the comment toggle; the daily note moved to
+  // ⌘⇧D for ⌘D.
+  "block-move-up": "Mod-Shift-ArrowUp",
+  "block-move-down": "Mod-Shift-ArrowDown",
+  "block-duplicate": "Mod-d",
+  "block-turn-into": "Mod-/",
   "reload-window": "Mod-r",
 };
 function keyOf(id: string): string {
@@ -11059,13 +11223,17 @@ function runHotkey(e: KeyboardEvent): boolean {
   }
   const cmd = allCommands().find((c) => keyOf(c.id) === combo);
   if (!cmd) return false;
+  if (cmd.editorOnly) {
+    const leaf = layout().activeLeaf;
+    if (!(leaf instanceof NoteLeaf) || !(e.target instanceof Node) || !leaf.editor.contentDOM.contains(e.target)) return false;
+  }
   e.preventDefault();
   cmd.run();
   return true;
 }
 /** In an editor the app's hotkeys come after the editor's own keys (`own`)
- *  and before CodeMirror's defaults: ⌘D is today's note, not "select the
- *  next occurrence", as the ribbon and the settings say. */
+ *  and before CodeMirror's defaults: ⌘D duplicates a block in Edit mode,
+ *  not "select the next occurrence", as the settings say. */
 function appHotkeys(own: readonly string[]): Extension {
   return Prec.high(EditorView.domEventHandlers({ keydown: (e) => !hotkeyRecorder && !own.includes(comboOf(e)) && runHotkey(e) }));
 }
@@ -11081,7 +11249,14 @@ function allCommands(all = false): Command[] {
   const pane = layout().focused ?? layout().panes()[0];
   const note = leaf instanceof NoteLeaf ? leaf : null;
   const hasFolder = currentFolder !== "";
+  const live = note && note.mode === "live" ? note : null;
   const cmds: (Command & { need?: boolean })[] = [
+    { id: "block-move-up", label: t.blocks.moveUp, need: Boolean(live), editorOnly: true, run: () => live?.moveBlock(-1) },
+    { id: "block-move-down", label: t.blocks.moveDown, need: Boolean(live), editorOnly: true, run: () => live?.moveBlock(1) },
+    { id: "block-duplicate", label: t.blocks.duplicateBlock, need: Boolean(live), editorOnly: true, run: () => live?.duplicateBlock() },
+    { id: "block-turn-into", label: t.blocks.turnBlock, need: Boolean(live), editorOnly: true, run: () => live?.turnBlockMenu() },
+    { id: "block-delete", label: t.blocks.deleteBlock, need: Boolean(live), editorOnly: true, run: () => live?.deleteBlock() },
+    { id: "block-copy-link", label: t.blocks.copyLink, need: Boolean(live), editorOnly: true, run: () => live?.copyBlockLink() },
     { id: "open-folder", label: t.open, run: () => void openFolderDialog() },
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
@@ -11141,7 +11316,7 @@ function allCommands(all = false): Command[] {
     { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
     { id: "switch-focus", label: t.switchFocus, need: hasFolder, run: () => focusSwitcher.show() },
   ];
-  return cmds.filter((c) => all || c.need !== false).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run }));
+  return cmds.filter((c) => all || c.need !== false).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
 }
 function cycleTab(pane: Pane, dir: 1 | -1): void {
   const active = pane.active;
@@ -12023,6 +12198,8 @@ class SettingsDialog {
     // 3. Source mode (Fonte)
     add("editor", t.lineNumbersPreview, t.lineNumbersPreviewDesc, () => this.toggle(settings.lineNumbersPreview, (v) => { settings.lineNumbersPreview = v; saveSettings(); }), t.lineNumbers);
     add("editor", t.lineNumbersEdit, t.lineNumbersEditDesc, () => this.toggle(settings.lineNumbersEdit, (v) => { settings.lineNumbersEdit = v; saveSettings(); }), t.lineNumbers);
+    add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));
+    add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
