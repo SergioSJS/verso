@@ -155,7 +155,7 @@ type Strings = Record<
   | "remoteContent" | "remoteContentDesc" | "ignoreBuildDirs" | "ignoreBuildDirsDesc" | "respectGitignore" | "respectGitignoreDesc" | "embedRemoteOff" | "embedLoad" | "embedLocal" | "embedPublic" | "embedApprove" | "embedAllowed" | "embedAllowedDesc" | "embedAllowedNone" | "embedRemove" | "linkFormat" | "linkFormatDesc" | "linkShortest" | "linkRelative" | "linkRoot"
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys" | "loadFailed" | "tryAgain"
-  | "newBase" | "insertBase" | "calendarTab" | "newWindow"
+  | "newBase" | "insertBase" | "calendarTab" | "newWindow" | "newWindowHere"
   | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
   | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText"
@@ -286,7 +286,7 @@ const pt: Strings = {
   reportBug: "Relatar problema", reloadWindow: "Recarregar janela", reloadNotDone: "A janela não recarregou: há mudanças que não puderam ser gravadas (veja as notas abertas).", reportHint: "Tudo abaixo fica no seu computador: o botão copia, nada é enviado. Leia e edite à vontade antes de colar onde quiser.", reportWhat: "O que aconteceu", reportHere: "(conte aqui o que você fez e o que esperava)", reportContext: "Contexto", reportErrors: "Erros desta sessão", reportNoErrors: "nenhum", reportLog: "Registro do aplicativo",
   navBack: "Voltar", navForward: "Avançar",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
-  newBase: "Nova base", insertBase: "Inserir base", calendarTab: "Calendário", newWindow: "Nova janela",
+  newBase: "Nova base", insertBase: "Inserir base", calendarTab: "Calendário", newWindow: "Nova janela", newWindowHere: "Nova janela nesta pasta",
   sCli: "Terminal e agentes", cliTitle: "Comando verso no terminal", cliDesc: "Instala o comando verso em /usr/local/bin: verso . abre a pasta no app, verso search <pasta> <palavras> busca, verso mcp atende um agente. O macOS pede a sua senha uma vez.",
   cliOurs: "Instalado.", cliMissing: "Não instalado.", cliElsewhere: "Outro verso está em /usr/local/bin.", cliUnbundled: "Esta versão do app não traz o comando.",
   cliInstall: "Instalar", cliReplace: "Substituir", cliRemove: "Remover", cliReplaceAsk: "Já existe outro verso em /usr/local/bin. Substituir pelo deste app?", cliCancelled: "Nada instalado.", cliDone: "Comando instalado: abra um terminal novo e digite verso.", cliRemoved: "Comando removido.",
@@ -423,7 +423,7 @@ const en: Strings = {
   mcpClaude: "Add to Claude Desktop", mcpClaudeSame: "Already in Claude Desktop.", mcpClaudeDifferent: "Claude Desktop has a server by this name that starts something else.", mcpNoClaude: "Claude Desktop not found.", mcpNeedCli: "Install the command above first: Claude Desktop starts it.", mcpNoFolder: "Open a folder to connect an agent to it.",
   mcpAddAsk: "This goes into Claude Desktop's configuration file; a copy of the file as it is stays beside it:\n\n{entry}\n\nThen restart Claude Desktop.", mcpAddYes: "Add", mcpAdded: "Added. Restart Claude Desktop.", mcpBackup: "Copy of the previous one: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.",
-  newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window",
+  newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window", newWindowHere: "New window on this folder",
   editorTab: "Tab in the editor", editorTabDesc: "Tab indents the note. To leave the editor from the keyboard: Esc, then Tab within two seconds, or {keys} so that Tab moves the focus until you press it again.",
   importDemoVault: "Import the demo content", importDemoVaultConfirm: "Import the sample vault notes, bases, and examples into the current folder?", demoVaultImported: "Demo vault imported successfully!", demoVaultKept: "These files already existed with other content — an edit of yours, or the demo of an earlier version — and were kept as they are:", demoVaultKeptOk: "OK", demoVaultFailed: "These files could not be created; the app's log says why:",
   devtools: "Developer console", devtoolsDesc: "View › Open Console (⌥⌘I) opens the window's inspector: console, elements and network.", openConsole: "Open console (dev tools)", devtoolsOff: "The console is turned off in Settings › General.",
@@ -937,9 +937,10 @@ const LAST_FOLDER = "verso.lastFolder";
 /** This window shows one note popped out of the main window. */
 const popout = getCurrentWindow().label.startsWith("note-");
 if (popout) document.body.classList.add("popout");
-/** Another window of the same folder (`window-N`, ADR 0049): it joins the
- *  open folder, starts with one empty workspace, and keeps no layout — the
- *  main window's is the one remembered. */
+/** A window opened after the main one (`window-N`): on a folder of its own
+ *  or on the folder of the window it was asked from (ADR 0065); it starts
+ *  with one empty workspace and keeps no layout — the main window's is the
+ *  one remembered. */
 const secondary = getCurrentWindow().label.startsWith("window-");
 /** The open folder's key (FolderInfo.key): what the window keeps its own
  *  state under, never a path (ADR 0026 rule 4); empty when none is open. */
@@ -6905,7 +6906,7 @@ class Pane {
       e.preventDefault();
       showMenu(e.clientX, e.clientY, [
         [t.newNote, () => void newUntitled(this), "plus"],
-        ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
         ["—", () => {}],
         [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
         [t.hideTabs, () => this.setTabsHidden(true)],
@@ -7014,7 +7015,7 @@ class Pane {
         if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
       })(), "maximize"] as MenuItem] : []),
-      ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+      ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
       [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"],
@@ -7477,7 +7478,7 @@ class Space {
       e.preventDefault();
       showMenu(e.clientX, e.clientY, [
         [t.rename, () => this.rename(n)],
-        ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
         [t.closeSpace, () => closeSpace(this)],
       ]);
     });
@@ -7630,7 +7631,7 @@ ui.spaces.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   showMenu(e.clientX, e.clientY, [
     [t.newSpace, () => newSpace(), "plus"],
-    ...(!popout ? [[t.newWindow, () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+    ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
   ]);
 });
 
@@ -11358,7 +11359,8 @@ function allCommands(all = false): Command[] {
     { id: "split-right", label: t.split, need: Boolean(pane), run: () => pane && layout().split(pane, "row") },
     { id: "split-down", label: t.splitDown, need: Boolean(pane), run: () => pane && layout().split(pane, "col") },
     { id: "new-space", label: t.newSpace.split(" (")[0] ?? t.newSpace, need: hasFolder, run: () => newSpace() },
-    { id: "new-window", label: t.newWindow, need: hasFolder && !popout, run: () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)) },
+    { id: "new-window", label: t.newWindow, need: !popout, run: () => void commands.newWindow(false).then((r) => r.status === "ok" || fail(r.error)) },
+    { id: "new-window-here", label: t.newWindowHere, need: hasFolder && !popout, run: () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)) },
     { id: "maximize", label: t.maximize, need: Boolean(pane), run: () => pane && layout().toggleMaximize(pane) },
     { id: "close-pane", label: t.closePane, need: Boolean(pane), run: () => pane && void pane.closeAll() },
     { id: "close-tab", label: t.close, run: () => (leaf ? void leaf.close() : closeWhereNoTab(pane ?? null)) },
@@ -12707,8 +12709,10 @@ async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo 
 async function showFolder(info: FolderInfo): Promise<void> {
   currentFolder = info.key;
   folderName = info.name;
+  // The main window's folder is the one the next launch opens; a window
+  // opened later shows a folder of its own (ADR 0065).
   try {
-    localStorage.setItem(LAST_FOLDER, info.key);
+    if (!secondary) localStorage.setItem(LAST_FOLDER, info.key);
   } catch {
     // No storage: nothing remembered, nothing lost.
   }
@@ -12800,7 +12804,7 @@ const RIBBON: RibbonItem[] = [
   { id: "replace", icon: "replace", label: () => t.replaceTitle, keys: "replace", needsFolder: true, run: () => replaceDialog.show() },
   { id: "template", icon: "template", label: () => t.insertTemplate, needsFolder: true, run: () => insertTemplate() },
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
-  { id: "new-window", icon: "maximize", label: () => t.newWindow, needsFolder: true, run: () => void commands.newWindow().then((r) => r.status === "ok" || fail(r.error)) },
+  { id: "new-window", icon: "maximize", label: () => t.newWindow, needsFolder: false, run: () => void commands.newWindow(false).then((r) => r.status === "ok" || fail(r.error)) },
   { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "toggle-right", bottom: true, run: () => toggleRight() },
   { id: "settings", icon: "gear", label: () => t.settings, keys: "settings", bottom: true, run: () => settingsDialog.show() },
 ];
@@ -13094,16 +13098,25 @@ void listen("quit-requested", async () => {
 });
 
 lesson();
-if (!popout) void listen<string>("open-note", (e) => { openNote(e.payload, false); void getCurrentWindow().setFocus(); });
+/* A note back from its own window, to the window of its folder the host
+ * names (ADR 0065). */
+if (!popout) void listen<[string, string]>("open-note", (e) => {
+  if (e.payload[0] !== getCurrentWindow().label) return;
+  openNote(e.payload[1], false);
+  void getCurrentWindow().setFocus();
+});
 /* A folder handed to the app while it runs (`verso <folder>` in a
  * terminal reaches the installed app on macOS by an open event): the host
- * keeps it; this window saves its tabs, as for any switch, and opens it. */
-if (!popout) void listen("folder-handed", () => void openFolderBy(() => commands.openInitial()));
-/* The app menu (File › Open Folder…, Settings… ⌘,): the host sends these
- * to the main window, which answers as its own button and command do. */
-if (!popout && !secondary) {
-  void listen("menu-open-folder", () => void openFolderDialog());
-  void listen("menu-settings", () => settingsDialog.show());
+ * keeps it and names the window with no folder that takes it; that window
+ * opens it. */
+if (!popout) void listen<string>("folder-handed", (e) => {
+  if (e.payload === getCurrentWindow().label) void openFolderBy(() => commands.openInitial());
+});
+/* The app menu (File › Open Folder…, Settings… ⌘,): the host names the
+ * window in focus, which answers as its own button and command do. */
+if (!popout) {
+  void listen<string>("menu-open-folder", (e) => void (e.payload === getCurrentWindow().label && openFolderDialog()));
+  void listen<string>("menu-settings", (e) => void (e.payload === getCurrentWindow().label && settingsDialog.show()));
 }
 /** The window's inspector (View › Open console, ⌥⌘I, the palette), when
  *  the setting allows it; otherwise said where to turn it on. */
@@ -13192,6 +13205,9 @@ export const started: Promise<void> = (async () => {
   if (open.status === "ok" && open.data) return void (await showFolder(open.data));
   // `verso <folder>` on the command line wins over the last folder.
   if (await openFolderBy(() => commands.openInitial())) return;
+  // A window opened later starts on the start page, to open a folder of
+  // its own (ADR 0065): the last folder is the main window's.
+  if (secondary) return;
   let last: string | null = null;
   try {
     last = localStorage.getItem(LAST_FOLDER);

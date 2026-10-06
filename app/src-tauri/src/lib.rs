@@ -54,7 +54,7 @@ fn to_progress(p: verso_core::IndexProgress) -> IndexProgress {
     }
 }
 
-/// The open folder: its workspace, what the UI was told about it, and
+/// An open folder: its workspace, what the UI was told about it, and
 /// the watch that keeps both current while the folder changes outside the
 /// app — dropped, and so stopped, with the session.
 struct Session {
@@ -75,8 +75,37 @@ fn session_summary(session: &Session, report: &verso_core::IndexReport) -> Index
     }
 }
 
-/// The one open folder, or none yet. One mutex: two commands never
-/// interleave on the index.
+/// The open folders, and which one each window shows (ADR 0065): a window
+/// of the app shows a folder of its own; two windows on one folder share
+/// its session; a folder no window shows is closed. One mutex for all of
+/// them: two commands never interleave on an index.
+#[derive(Default)]
+struct Sessions {
+    /// Folder key → its session.
+    by_key: std::collections::HashMap<String, Session>,
+    /// Window label → the key of the folder it shows: a folder's window
+    /// (`main`, `window-N`) and a note popped out of one (`note-N`).
+    windows: std::collections::HashMap<String, String>,
+}
+
+impl Sessions {
+    /// The session of the folder a window shows.
+    fn of(&mut self, label: &str) -> Option<&mut Session> {
+        let key = self.windows.get(label)?;
+        self.by_key.get_mut(key)
+    }
+
+    /// The window shows no folder any more; its folder closes when no
+    /// other window shows it.
+    fn release(&mut self, label: &str) {
+        if let Some(key) = self.windows.remove(label)
+            && !self.windows.values().any(|k| *k == key)
+        {
+            self.by_key.remove(&key);
+        }
+    }
+}
+
 pub struct App {
     /// Notes popped out to windows of their own: window label → note.
     pub popouts: Mutex<std::collections::HashMap<String, String>>,
@@ -92,7 +121,7 @@ pub struct App {
     /// configuration directory (`verso_core::config_dir`). The tests give
     /// a temporary one, so that a test run never writes into the user's.
     config: Option<PathBuf>,
-    session: Mutex<Option<Session>>,
+    sessions: Mutex<Sessions>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
     /// approved by hand, mirrored from the window's settings. An embed
     /// renders in a child web view (`web_open`), so the app view itself
@@ -125,7 +154,7 @@ impl App {
             web_views: Mutex::new(std::collections::HashMap::new()),
             initial_folder: Mutex::new(initial),
             config: None,
-            session: Mutex::new(None),
+            sessions: Mutex::new(Sessions::default()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
             walk_rules: Mutex::new(verso_core::WalkRules::default()),
             folder_note_name: Mutex::new(String::new()),
@@ -237,12 +266,13 @@ fn panic_text(payload: &(dyn std::any::Any + Send)) -> String {
 /// every later command would fail until restart, with the user's notes
 /// open (the reading of the Phase 2 host reproduced it with a render
 /// panic).
-fn with<T>(
+fn with<T, R: tauri::Runtime>(
     state: &State<'_, App>,
+    window: &tauri::Window<R>,
     f: impl FnOnce(&mut Workspace) -> Result<T, CoreError>,
 ) -> Result<T, ContractError> {
-    let mut guard = lock(&state.session);
-    let session = guard.as_mut().ok_or_else(no_folder)?;
+    let mut guard = lock(&state.sessions);
+    let session = guard.of(window.label()).ok_or_else(no_folder)?;
     match std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace))) {
         Ok(result) => result.map_err(convert),
         Err(payload) => Err(failed(format!(
@@ -252,12 +282,10 @@ fn with<T>(
     }
 }
 
-/// Whether this window may open or switch the folder: a window of the
-/// whole folder (the main one, or another opened on the same folder), and
-/// only while it is the app's one window — a note window names notes by
-/// their path relative to the folder, and another window of the folder
-/// would go on showing the old one; both would write into the new folder
-/// under the old names.
+/// Whether this window may open or switch its folder (ADR 0065): a window
+/// of a folder (`main`, `window-N`) may, unless a note of its folder is
+/// open in a window of its own and no other window shows that folder —
+/// the note window names its note by a path of the folder it would lose.
 fn may_switch<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     window: &tauri::Window<R>,
@@ -266,10 +294,19 @@ fn may_switch<R: tauri::Runtime>(
     if me != "main" && !me.starts_with("window-") {
         return Err(refused("only a window of the folder opens a folder"));
     }
-    if app.windows().keys().any(|label| {
-        label != me
-            && (label.starts_with("note-") || label.starts_with("window-") || label == "main")
-    }) {
+    let state = app.state::<App>();
+    let sessions = lock(&state.sessions);
+    let Some(mine) = sessions.windows.get(me) else {
+        return Ok(());
+    };
+    let shown_elsewhere = sessions
+        .windows
+        .iter()
+        .any(|(label, key)| label != me && key == mine && !label.starts_with("note-"));
+    let notes_open = sessions.windows.iter().any(|(label, key)| {
+        key == mine && label.starts_with("note-") && app.get_window(label).is_some()
+    });
+    if notes_open && !shown_elsewhere {
         return Err(refused("close the note windows first"));
     }
     Ok(())
@@ -319,7 +356,20 @@ async fn install<R: tauri::Runtime>(
     .map_err(convert)?;
     may_switch(app, window)?;
     let info = opened.info.clone();
-    *lock(&app.state::<App>().session) = Some(opened);
+    {
+        let state = app.state::<App>();
+        let mut sessions = lock(&state.sessions);
+        // This window leaves its folder (closed if no other window shows
+        // it); a folder another window has open already keeps its session,
+        // and this one joins it.
+        sessions.release(window.label());
+        sessions.by_key.entry(info.key.clone()).or_insert(opened);
+        sessions
+            .windows
+            .insert(window.label().to_owned(), info.key.clone());
+    }
+    // A window is named after its folder (ADR 0065).
+    let _ = window.set_title(&format!("{} — Verso", info.name));
     // A batch that came while the folder was being opened found no session
     // to bring up to date; it runs now.
     if missed.swap(false, Ordering::SeqCst) {
@@ -366,8 +416,8 @@ fn watch_folder<R: tauri::Runtime>(
 fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, missed: &AtomicBool) {
     let state = app.state::<App>();
     let payload = {
-        let mut guard = lock(&state.session);
-        let Some(session) = guard.as_mut().filter(|s| s.info.key == key) else {
+        let mut guard = lock(&state.sessions);
+        let Some(session) = guard.by_key.get_mut(key) else {
             missed.store(true, Ordering::SeqCst);
             return;
         };
@@ -499,27 +549,40 @@ fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), Contra
     app.restart();
 }
 
-/// The folder that is open, for a window that joins the session (a note
-/// in a window of its own) and for a reload: `None` when none is.
+/// The folder this window shows, for a window that joins a session (a
+/// note in a window of its own, a window opened on the same folder) and
+/// for a reload: `None` when it shows none (ADR 0065).
 #[tauri::command]
 #[specta::specta]
-fn current_folder(state: State<'_, App>) -> Result<Option<FolderInfo>, ContractError> {
-    Ok(lock(&state.session).as_ref().map(|s| s.info.clone()))
+fn current_folder<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Option<FolderInfo>, ContractError> {
+    Ok(lock(&state.sessions)
+        .of(window.label())
+        .map(|s| s.info.clone()))
 }
 
 /// Every note the index knows, by path relative to the folder.
 #[tauri::command]
 #[specta::specta]
-fn list_notes(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
-    with(&state, |ws| ws.notes())
+fn list_notes<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Vec<String>, ContractError> {
+    with(&state, &window, |ws| ws.notes())
 }
 
 /// A note's text as it is on disk, with what the index knows of it;
 /// `not_text` when its bytes are not UTF-8.
 #[tauri::command]
 #[specta::specta]
-fn read_note(state: State<'_, App>, path: String) -> Result<NoteText, ContractError> {
-    with(&state, |ws| ws.read_note(&path)).map(note_out)
+fn read_note<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<NoteText, ContractError> {
+    with(&state, &window, |ws| ws.read_note(&path)).map(note_out)
 }
 
 fn note_out(t: verso_core::NoteText) -> NoteText {
@@ -571,8 +634,13 @@ fn note_out(t: verso_core::NoteText) -> NoteText {
 /// Full-text search: every word must occur, accents and case ignored.
 #[tauri::command]
 #[specta::specta]
-fn search(state: State<'_, App>, words: String, limit: u32) -> Result<Vec<Hit>, ContractError> {
-    with(&state, |ws| {
+fn search<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    words: String,
+    limit: u32,
+) -> Result<Vec<Hit>, ContractError> {
+    with(&state, &window, |ws| {
         Ok(ws
             .search(&words, usize::try_from(limit.clamp(1, 200)).unwrap_or(20))?
             .into_iter()
@@ -587,8 +655,12 @@ fn search(state: State<'_, App>, words: String, limit: u32) -> Result<Vec<Hit>, 
 /// The links a note makes; empty when the index does not know it.
 #[tauri::command]
 #[specta::specta]
-fn links(state: State<'_, App>, path: String) -> Result<Vec<Link>, ContractError> {
-    with(&state, |ws| {
+fn links<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<Vec<Link>, ContractError> {
+    with(&state, &window, |ws| {
         Ok(ws
             .links(&path)?
             .unwrap_or_default()
@@ -610,8 +682,12 @@ fn links(state: State<'_, App>, path: String) -> Result<Vec<Link>, ContractError
 /// The notes that link to this one; empty when the index does not know it.
 #[tauri::command]
 #[specta::specta]
-fn backlinks(state: State<'_, App>, path: String) -> Result<Vec<Backlink>, ContractError> {
-    with(&state, |ws| {
+fn backlinks<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<Vec<Backlink>, ContractError> {
+    with(&state, &window, |ws| {
         Ok(ws
             .backlinks(&path)?
             .unwrap_or_default()
@@ -633,13 +709,14 @@ fn backlinks(state: State<'_, App>, path: String) -> Result<Vec<Backlink>, Contr
 /// The answer is the text that was sent, with the revision of those bytes.
 #[tauri::command]
 #[specta::specta]
-fn write_note(
+fn write_note<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
     path: String,
     text: String,
     revision: String,
 ) -> Result<Written, ContractError> {
-    with(&state, |ws| ws.write_note(&path, &text, &revision)).map(|w| Written {
+    with(&state, &window, |ws| ws.write_note(&path, &text, &revision)).map(|w| Written {
         note: note_out(w.note),
         warnings: w.warnings,
     })
@@ -648,15 +725,21 @@ fn write_note(
 /// Every regular file of the folder that is not a note, for the tree.
 #[tauri::command]
 #[specta::specta]
-fn list_files(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
-    with(&state, |ws| Ok(ws.files()))
+fn list_files<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Vec<String>, ContractError> {
+    with(&state, &window, |ws| Ok(ws.files()))
 }
 
 /// Every tag of the vault, by count, with the notes that carry it.
 #[tauri::command]
 #[specta::specta]
-fn list_tags(state: State<'_, App>) -> Result<Vec<Tag>, ContractError> {
-    with(&state, |ws| {
+fn list_tags<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Vec<Tag>, ContractError> {
+    with(&state, &window, |ws| {
         Ok(ws
             .tags()?
             .into_iter()
@@ -668,8 +751,11 @@ fn list_tags(state: State<'_, App>) -> Result<Vec<Tag>, ContractError> {
 /// The notes that are web pages, with their addresses (an icon, a tab).
 #[tauri::command]
 #[specta::specta]
-fn list_web_notes(state: State<'_, App>) -> Result<Vec<WebNote>, ContractError> {
-    with(&state, |ws| {
+fn list_web_notes<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Vec<WebNote>, ContractError> {
+    with(&state, &window, |ws| {
         Ok(ws
             .web_notes()?
             .into_iter()
@@ -681,8 +767,11 @@ fn list_web_notes(state: State<'_, App>) -> Result<Vec<WebNote>, ContractError> 
 /// Every resolved link of the vault: the graph of the whole folder.
 #[tauri::command]
 #[specta::specta]
-fn graph(state: State<'_, App>) -> Result<Vec<Edge>, ContractError> {
-    with(&state, |ws| {
+fn graph<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Vec<Edge>, ContractError> {
+    with(&state, &window, |ws| {
         Ok(ws
             .graph()?
             .into_iter()
@@ -694,8 +783,11 @@ fn graph(state: State<'_, App>) -> Result<Vec<Edge>, ContractError> {
 /// Every folder of the open folder, empty ones included, for the tree.
 #[tauri::command]
 #[specta::specta]
-fn list_folders(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
-    with(&state, |ws| Ok(ws.folders()))
+fn list_folders<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Vec<String>, ContractError> {
+    with(&state, &window, |ws| Ok(ws.folders()))
 }
 
 /// The bytes of a text file that is not a note (UTF-8, lossily), for
@@ -703,8 +795,12 @@ fn list_folders(state: State<'_, App>) -> Result<Vec<String>, ContractError> {
 /// confined like every path.
 #[tauri::command]
 #[specta::specta]
-fn read_file_text(state: State<'_, App>, path: String) -> Result<String, ContractError> {
-    with(&state, |ws| {
+fn read_file_text<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<String, ContractError> {
+    with(&state, &window, |ws| {
         ws.read_file(&path)
             .map(|b| String::from_utf8_lossy(&b).into_owned())
     })
@@ -716,24 +812,26 @@ fn read_file_text(state: State<'_, App>, path: String) -> Result<String, Contrac
 /// then loads it through the `verso://` protocol below.
 #[tauri::command]
 #[specta::specta]
-fn resolve_attachment(
+fn resolve_attachment<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
     source: String,
     target: String,
 ) -> Result<Option<String>, ContractError> {
-    with(&state, |ws| Ok(ws.resolve_file(&source, &target)))
+    with(&state, &window, |ws| Ok(ws.resolve_file(&source, &target)))
 }
 
 /// Create a note (`name`, with or without `.md`, folders created) with
 /// `text`; `exists` when something stands there (ADR 0048).
 #[tauri::command]
 #[specta::specta]
-fn create_note(
+fn create_note<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
     name: String,
     text: String,
 ) -> Result<NoteText, ContractError> {
-    with(&state, |ws| ws.create_note(&name, &text)).map(note_out)
+    with(&state, &window, |ws| ws.create_note(&name, &text)).map(note_out)
 }
 
 /// Create a file that is not a note (an image pasted into a note) from
@@ -741,13 +839,14 @@ fn create_note(
 /// path. `exists` when something stands there.
 #[tauri::command]
 #[specta::specta]
-fn create_file(
+fn create_file<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
     path: String,
     base64: String,
 ) -> Result<String, ContractError> {
     let bytes = decode_base64(&base64).ok_or_else(|| failed("the bytes are not base64"))?;
-    with(&state, |ws| ws.create_file(&path, &bytes))
+    with(&state, &window, |ws| ws.create_file(&path, &bytes))
 }
 
 /// Standard base64 (with or without padding) to bytes; `None` on a
@@ -779,8 +878,12 @@ fn decode_base64(s: &str) -> Option<Vec<u8>> {
 /// Create a folder inside the open folder; returns its confined path.
 #[tauri::command]
 #[specta::specta]
-fn create_folder(state: State<'_, App>, path: String) -> Result<String, ContractError> {
-    with(&state, |ws| ws.create_folder(&path))
+fn create_folder<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<String, ContractError> {
+    with(&state, &window, |ws| ws.create_folder(&path))
 }
 
 fn trashed_out(t: verso_core::Trashed) -> Trashed {
@@ -794,8 +897,12 @@ fn trashed_out(t: verso_core::Trashed) -> Trashed {
 /// went, with what could not be confirmed once it was there.
 #[tauri::command]
 #[specta::specta]
-fn delete_note(state: State<'_, App>, path: String) -> Result<Trashed, ContractError> {
-    with(&state, |ws| ws.delete_note(&path)).map(trashed_out)
+fn delete_note<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<Trashed, ContractError> {
+    with(&state, &window, |ws| ws.delete_note(&path)).map(trashed_out)
 }
 
 /// Rename or move a note. The file moves; the notes whose links reached
@@ -804,8 +911,13 @@ fn delete_note(state: State<'_, App>, path: String) -> Result<Trashed, ContractE
 /// that could not be planned are listed as skipped.
 #[tauri::command]
 #[specta::specta]
-fn rename_note(state: State<'_, App>, from: String, to: String) -> Result<Renamed, ContractError> {
-    with(&state, |ws| ws.rename_note(&from, &to)).map(renamed_out)
+fn rename_note<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    from: String,
+    to: String,
+) -> Result<Renamed, ContractError> {
+    with(&state, &window, |ws| ws.rename_note(&from, &to)).map(renamed_out)
 }
 
 fn renamed_out(r: verso_core::Renamed) -> Renamed {
@@ -846,8 +958,11 @@ fn renamed_out(r: verso_core::Renamed) -> Renamed {
 /// and date: what a folder view lists and sorts.
 #[tauri::command]
 #[specta::specta]
-fn list_entries(state: State<'_, App>) -> Result<Vec<FileEntry>, ContractError> {
-    with(&state, |ws| {
+fn list_entries<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<Vec<FileEntry>, ContractError> {
+    with(&state, &window, |ws| {
         let labels = ws.labels()?;
         // A folder's labels are its folder note's: the first of the core's
         // candidates that is a note, compared without case — the note the
@@ -900,16 +1015,25 @@ fn list_entries(state: State<'_, App>) -> Result<Vec<FileEntry>, ContractError> 
 /// rewrites, like `rename_note` (ADR 0048, option (b)).
 #[tauri::command]
 #[specta::specta]
-fn rename_entry(state: State<'_, App>, from: String, to: String) -> Result<Renamed, ContractError> {
-    with(&state, |ws| ws.rename_entry(&from, &to)).map(renamed_out)
+fn rename_entry<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    from: String,
+    to: String,
+) -> Result<Renamed, ContractError> {
+    with(&state, &window, |ws| ws.rename_entry(&from, &to)).map(renamed_out)
 }
 
 /// Move anything of the folder — a file or a whole folder — to `.trash/`
 /// at the root; answers where it went.
 #[tauri::command]
 #[specta::specta]
-fn delete_entry(state: State<'_, App>, path: String) -> Result<Trashed, ContractError> {
-    with(&state, |ws| ws.delete_entry(&path)).map(trashed_out)
+fn delete_entry<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<Trashed, ContractError> {
+    with(&state, &window, |ws| ws.delete_entry(&path)).map(trashed_out)
 }
 
 /// Show an entry in the system's file manager. The absolute path is
@@ -917,8 +1041,12 @@ fn delete_entry(state: State<'_, App>, path: String) -> Result<Trashed, Contract
 /// never crosses back to the UI (ADR 0026 rule 4).
 #[tauri::command]
 #[specta::specta]
-fn reveal(state: State<'_, App>, path: String) -> Result<(), ContractError> {
-    let absolute = with(&state, |ws| ws.absolute(&path))?;
+fn reveal<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<(), ContractError> {
+    let absolute = with(&state, &window, |ws| ws.absolute(&path))?;
     #[cfg(target_os = "macos")]
     let mut command = {
         let mut c = std::process::Command::new("open");
@@ -1010,7 +1138,7 @@ fn log_read() -> Result<String, ContractError> {
 #[specta::specta]
 fn set_folder_note_name(state: State<'_, App>, name: String) -> Result<(), ContractError> {
     lock(&state.folder_note_name).clone_from(&name);
-    if let Some(session) = lock(&state.session).as_mut() {
+    for session in lock(&state.sessions).by_key.values_mut() {
         session.workspace.set_folder_note_name(&name);
     }
     Ok(())
@@ -1062,15 +1190,19 @@ fn to_contract_focuses_summary(s: verso_core::FocusesSummary) -> FocusesSummary 
 /// Read focuses from `.space/waypoints.json` in the open folder (ADR 0062).
 #[tauri::command]
 #[specta::specta]
-fn get_focuses(state: State<'_, App>) -> Result<FocusesSummary, ContractError> {
-    let summary = with(&state, |ws| ws.get_focuses())?;
+fn get_focuses<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<FocusesSummary, ContractError> {
+    let summary = with(&state, &window, |ws| ws.get_focuses())?;
     Ok(to_contract_focuses_summary(summary))
 }
 
 /// Write focuses to `.space/waypoints.json` in the open folder (ADR 0062).
 #[tauri::command]
 #[specta::specta]
-fn set_focuses(
+fn set_focuses<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
     focuses: Vec<Focus>,
     stamp: Option<String>,
@@ -1078,7 +1210,7 @@ fn set_focuses(
 ) -> Result<FocusesSummary, ContractError> {
     let core_focuses = focuses.into_iter().map(to_core_focus).collect();
     let core_base = base_focuses.map(|bf| bf.into_iter().map(to_core_focus).collect());
-    let summary = with(&state, |ws| {
+    let summary = with(&state, &window, |ws| {
         ws.set_focuses(core_focuses, stamp.as_deref(), core_base)
     })?;
     Ok(to_contract_focuses_summary(summary))
@@ -1087,15 +1219,22 @@ fn set_focuses(
 /// Whether focuses can be synced to `.space/waypoints.json` (ADR 0062).
 #[tauri::command]
 #[specta::specta]
-fn can_sync_focuses(state: State<'_, App>) -> Result<bool, ContractError> {
-    with(&state, |ws| ws.can_sync_focuses())
+fn can_sync_focuses<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<bool, ContractError> {
+    with(&state, &window, |ws| ws.can_sync_focuses())
 }
 
 /// Set whether focuses sync to `.space/waypoints.json` is enabled (ADR 0062 D5, D9).
 #[tauri::command]
 #[specta::specta]
-fn set_sync_focuses(state: State<'_, App>, enabled: bool) -> Result<(), ContractError> {
-    with(&state, |ws| {
+fn set_sync_focuses<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    enabled: bool,
+) -> Result<(), ContractError> {
+    with(&state, &window, |ws| {
         ws.set_sync_focuses(enabled);
         Ok(())
     })
@@ -1117,7 +1256,7 @@ fn set_walk_rules(
         gitignore,
     };
     *lock(&state.walk_rules) = rules;
-    if let Some(session) = lock(&state.session).as_mut() {
+    for session in lock(&state.sessions).by_key.values_mut() {
         session.workspace.set_walk_rules(rules);
     }
     Ok(())
@@ -1145,8 +1284,12 @@ fn set_menu_language<R: tauri::Runtime>(
 /// no absolute path crosses back to the UI (ADR 0026 rule 4).
 #[tauri::command]
 #[specta::specta]
-fn copy_full_path(state: State<'_, App>, path: String) -> Result<(), ContractError> {
-    let absolute = with(&state, |ws| ws.absolute(&path))?;
+fn copy_full_path<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<(), ContractError> {
+    let absolute = with(&state, &window, |ws| ws.absolute(&path))?;
     let text = absolute.to_string_lossy().to_string();
     #[cfg(target_os = "macos")]
     {
@@ -1226,10 +1369,11 @@ fn text_out(t: verso_core::TextFile) -> TextFile {
 #[specta::specta]
 async fn fetch_file<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
     path: String,
 ) -> Result<bool, ContractError> {
     let state = app.state::<App>();
-    let Some(placeholder) = with(&state, |ws| ws.placeholder(&path))? else {
+    let Some(placeholder) = with(&state, &window, |ws| ws.placeholder(&path))? else {
         return Ok(false);
     };
     tauri::async_runtime::spawn_blocking(move || placeholder.fetch())
@@ -1243,8 +1387,12 @@ async fn fetch_file<R: tauri::Runtime>(
 /// not notes; `not_text` when its bytes are not UTF-8.
 #[tauri::command]
 #[specta::specta]
-fn read_text(state: State<'_, App>, path: String) -> Result<TextFile, ContractError> {
-    with(&state, |ws| ws.read_text(&path)).map(text_out)
+fn read_text<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<TextFile, ContractError> {
+    with(&state, &window, |ws| ws.read_text(&path)).map(text_out)
 }
 
 /// Write any file's text over the revision that was read; a changed file
@@ -1252,13 +1400,14 @@ fn read_text(state: State<'_, App>, path: String) -> Result<TextFile, ContractEr
 /// is the text that was sent, with the revision of those bytes.
 #[tauri::command]
 #[specta::specta]
-fn write_text(
+fn write_text<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
     path: String,
     text: String,
     revision: String,
 ) -> Result<TextFile, ContractError> {
-    with(&state, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
+    with(&state, &window, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
 }
 
 /// Save a board (ADR 0057 point 2): `json` is the canvas as the window
@@ -1269,13 +1418,17 @@ fn write_text(
 /// `not_canvas` when the file on disk is not JSON.
 #[tauri::command]
 #[specta::specta]
-fn write_board(
+fn write_board<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
     path: String,
     json: String,
     revision: String,
 ) -> Result<TextFile, ContractError> {
-    with(&state, |ws| ws.write_board(&path, &json, &revision)).map(text_out)
+    with(&state, &window, |ws| {
+        ws.write_board(&path, &json, &revision)
+    })
+    .map(text_out)
 }
 
 /// What `write_board` would write for `json` over the canvas at `path` as
@@ -1284,12 +1437,13 @@ fn write_board(
 /// `board.md` §6 item 4).
 #[tauri::command]
 #[specta::specta]
-fn board_preview(
+fn board_preview<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     state: State<'_, App>,
     path: String,
     json: String,
 ) -> Result<String, ContractError> {
-    with(&state, |ws| ws.board_preview(&path, &json))
+    with(&state, &window, |ws| ws.board_preview(&path, &json))
 }
 
 /// A canvas's text in Obsidian's layout (ADR 0057 point 2), from the JSON
@@ -1594,11 +1748,22 @@ static POPOUTS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new
 #[specta::specta]
 fn open_window<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
     state: State<'_, App>,
     path: String,
 ) -> Result<(), ContractError> {
     let n = POPOUTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let label = format!("note-{n}");
+    // The note belongs to the folder of the window it came from (ADR 0065).
+    {
+        let mut sessions = lock(&state.sessions);
+        let key = sessions
+            .windows
+            .get(window.label())
+            .cloned()
+            .ok_or_else(no_folder)?;
+        sessions.windows.insert(label.clone(), key);
+    }
     let title = path
         .rsplit('/')
         .next()
@@ -1618,35 +1783,54 @@ fn open_window<R: tauri::Runtime>(
 
 static WINDOWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
 
-/// Another window on the open folder (ADR 0049, asked for by the
-/// maintainer on 2026-09-24): its own tabs over the same session. What one
-/// window writes, the other reads as it reads any change made outside —
-/// the watcher's `folder-changed` reaches every window — and a write over
-/// a note the other changed is refused (invariant 11).
+/// Another window (ADR 0049; ADR 0065): on the folder of the window that
+/// asks (`same_folder`), with its own tabs over the same session — what one
+/// window writes, the other reads as it reads any change made outside, and
+/// a write over a note the other changed is refused (invariant 11) — or on
+/// no folder, to open one of its own.
 #[tauri::command]
 #[specta::specta]
 fn new_window<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
     state: State<'_, App>,
+    same_folder: bool,
 ) -> Result<(), ContractError> {
-    if lock(&state.session).is_none() {
-        return Err(no_folder());
-    }
-    open_folder_window(&app).map_err(|e| failed(e.to_string()))
+    // On this window's folder, or on none: the new window then shows the
+    // start page, to open one (ADR 0065).
+    let key = if same_folder {
+        Some(
+            lock(&state.sessions)
+                .windows
+                .get(window.label())
+                .cloned()
+                .ok_or_else(no_folder)?,
+        )
+    } else {
+        None
+    };
+    open_folder_window(&app, key).map_err(|e| failed(e.to_string()))
 }
 
-fn open_folder_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+/// A window of a folder: `key` the folder it joins, bound before the
+/// window starts and asks which folder it shows; none, the start page.
+fn open_folder_window<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    key: Option<String>,
+) -> tauri::Result<()> {
     let n = WINDOWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    tauri::WebviewWindowBuilder::new(
-        app,
-        format!("window-{n}"),
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("Verso")
-    .inner_size(1180.0, 760.0)
-    .min_inner_size(360.0, 480.0)
-    .disable_drag_drop_handler()
-    .build()?;
+    let label = format!("window-{n}");
+    if let Some(key) = key {
+        lock(&app.state::<App>().sessions)
+            .windows
+            .insert(label.clone(), key);
+    }
+    tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("index.html".into()))
+        .title("Verso")
+        .inner_size(1180.0, 760.0)
+        .min_inner_size(360.0, 480.0)
+        .disable_drag_drop_handler()
+        .build()?;
     Ok(())
 }
 
@@ -1671,8 +1855,28 @@ fn return_to_main<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<(), ContractError> {
-    app.emit_to("main", "open-note", path)
+    // Back to a window of its folder: the main one if it shows it, else
+    // the first other that does (ADR 0065).
+    let home = {
+        let sessions = lock(&state.sessions);
+        let key = sessions.windows.get(window.label()).cloned();
+        let mut folder_windows: Vec<&String> = sessions
+            .windows
+            .iter()
+            .filter(|(l, k)| Some(*k) == key.as_ref() && (*l == "main" || l.starts_with("window-")))
+            .map(|(l, _)| l)
+            .collect();
+        folder_windows.sort_by_key(|l| (*l != "main", (*l).clone()));
+        folder_windows
+            .first()
+            .map(|l| (*l).clone())
+            .unwrap_or_else(|| "main".to_owned())
+    };
+    app.emit("open-note", (home.clone(), path))
         .map_err(|e| failed(e.to_string()))?;
+    if let Some(w) = app.get_window(&home) {
+        let _ = w.set_focus();
+    }
     lock(&state.popouts).remove(window.label());
     window.close().map_err(|e| failed(e.to_string()))
 }
@@ -1682,12 +1886,13 @@ fn return_to_main<R: tauri::Runtime>(
 #[specta::specta]
 fn reindex<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
     state: State<'_, App>,
 ) -> Result<IndexSummary, ContractError> {
     // One hold of the lock for the run and the summary: a folder switched
     // in between would otherwise get the other folder's summary.
-    let mut guard = lock(&state.session);
-    let session = guard.as_mut().ok_or_else(no_folder)?;
+    let mut guard = lock(&state.sessions);
+    let session = guard.of(window.label()).ok_or_else(no_folder)?;
     let handle_for_progress = app.clone();
     let report = match std::panic::catch_unwind(AssertUnwindSafe(|| {
         session.workspace.index_with_progress(move |p| {
@@ -1711,7 +1916,11 @@ fn reindex<R: tauri::Runtime>(
 /// window draws, as a table, cards, a list, a kanban or a calendar.
 #[tauri::command]
 #[specta::specta]
-fn query_base(state: State<'_, App>, query: BaseQuery) -> Result<BaseResult, ContractError> {
+fn query_base<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    query: BaseQuery,
+) -> Result<BaseResult, ContractError> {
     let core = verso_core::bases::BaseQuery {
         path: query.path,
         text: query.text,
@@ -1723,7 +1932,7 @@ fn query_base(state: State<'_, App>, query: BaseQuery) -> Result<BaseResult, Con
         offset_minutes: query.offset,
         lang: query.lang,
     };
-    let r = with(&state, |ws| ws.query_base(&core))?;
+    let r = with(&state, &window, |ws| ws.query_base(&core))?;
     Ok(BaseResult {
         views: r
             .views
@@ -2017,8 +2226,11 @@ fn client_state(e: verso_core::clients::Entry) -> McpClientState {
 /// (ADR 0026 rule 4).
 #[tauri::command]
 #[specta::specta]
-fn mcp_status(state: State<'_, App>) -> Result<McpStatus, ContractError> {
-    let key = with(&state, |ws| Ok(ws.key()))?;
+fn mcp_status<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<McpStatus, ContractError> {
+    let key = with(&state, &window, |ws| Ok(ws.key()))?;
     let server = verso_core::clients::server_name(&key);
     let entry = verso_core::clients::verso_entry(CLI_LINK, &key);
     let claude = match claude_dir() {
@@ -2035,11 +2247,14 @@ fn mcp_status(state: State<'_, App>) -> Result<McpStatus, ContractError> {
 /// linked: the entry starts it.
 #[tauri::command]
 #[specta::specta]
-fn mcp_add_claude(state: State<'_, App>) -> Result<McpAdded, ContractError> {
+fn mcp_add_claude<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<McpAdded, ContractError> {
     if cli_state_now() != CliState::Ours {
         return Err(refused("install the command line first"));
     }
-    let key = with(&state, |ws| Ok(ws.key()))?;
+    let key = with(&state, &window, |ws| Ok(ws.key()))?;
     let server = verso_core::clients::server_name(&key);
     let entry = verso_core::clients::verso_entry(CLI_LINK, &key);
     let dir = claude_dir().ok_or_else(|| refused("Claude Desktop is not installed"))?;
@@ -2062,26 +2277,26 @@ macro_rules! commands_for {
                 pick_folder::<$runtime>,
                 reopen_folder::<$runtime>,
                 open_initial::<$runtime>,
-                list_notes,
-                read_note,
-                search,
-                links,
-                backlinks,
-                write_note,
-                create_note,
-                create_file,
-                create_folder,
-                delete_note,
-                rename_note,
-                resolve_attachment,
-                list_files,
-                list_folders,
-                list_tags,
-                read_file_text,
-                list_entries,
-                list_web_notes,
-                graph,
-                current_folder,
+                list_notes::<$runtime>,
+                read_note::<$runtime>,
+                search::<$runtime>,
+                links::<$runtime>,
+                backlinks::<$runtime>,
+                write_note::<$runtime>,
+                create_note::<$runtime>,
+                create_file::<$runtime>,
+                create_folder::<$runtime>,
+                delete_note::<$runtime>,
+                rename_note::<$runtime>,
+                resolve_attachment::<$runtime>,
+                list_files::<$runtime>,
+                list_folders::<$runtime>,
+                list_tags::<$runtime>,
+                read_file_text::<$runtime>,
+                list_entries::<$runtime>,
+                list_web_notes::<$runtime>,
+                graph::<$runtime>,
+                current_folder::<$runtime>,
                 app_info,
                 open_window::<$runtime>,
                 popout_target::<$runtime>,
@@ -2095,34 +2310,34 @@ macro_rules! commands_for {
                 web_close::<$runtime>,
                 web_nav::<$runtime>,
                 web_url::<$runtime>,
-                read_text,
-                write_text,
-                write_board,
+                read_text::<$runtime>,
+                write_text::<$runtime>,
+                write_board::<$runtime>,
                 board_text,
-                board_preview,
+                board_preview::<$runtime>,
                 render_markdown,
-                rename_entry,
-                delete_entry,
-                reveal,
-                copy_full_path,
+                rename_entry::<$runtime>,
+                delete_entry::<$runtime>,
+                reveal::<$runtime>,
+                copy_full_path::<$runtime>,
                 set_embed_origins,
                 set_walk_rules,
                 set_folder_note_name,
-                get_focuses,
-                set_focuses,
-                can_sync_focuses,
-                set_sync_focuses,
+                get_focuses::<$runtime>,
+                set_focuses::<$runtime>,
+                can_sync_focuses::<$runtime>,
+                set_sync_focuses::<$runtime>,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,
                 reindex::<$runtime>,
-                query_base,
+                query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,
                 install_cli,
                 uninstall_cli,
-                mcp_status,
-                mcp_add_claude,
+                mcp_status::<$runtime>,
+                mcp_add_claude::<$runtime>,
                 check_for_updates,
                 download_and_install_update::<$runtime>,
                 restart_app::<$runtime>
@@ -2341,8 +2556,8 @@ fn serve_file<R: tauri::Runtime>(
         let state = app.state::<App>();
         if fetch && is_app_view(&label) && !relative.to_lowercase().ends_with(".md") {
             let placeholder = {
-                let mut guard = lock(&state.session);
-                guard.as_mut().and_then(|s| {
+                let mut guard = lock(&state.sessions);
+                guard.of(&label).and_then(|s| {
                     let note = s
                         .workspace
                         .confined(&relative)
@@ -2363,9 +2578,10 @@ fn serve_file<R: tauri::Runtime>(
             }
         }
         let served = {
-            let mut guard = lock(&state.session);
+            // The folder of the view that asked (ADR 0065).
+            let mut guard = lock(&state.sessions);
             serve(
-                guard.as_mut().map(|s| &mut s.workspace),
+                guard.of(&label).map(|s| &mut s.workspace),
                 &label,
                 &relative,
                 origin.as_deref(),
@@ -2394,13 +2610,12 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         if id == QUIT {
             ask_windows_to_quit(app);
         } else if id == NEW_WINDOW {
-            // With no folder open the new window offers the picker — the
-            // blank window the menu promises.
-            let _ = open_folder_window(app);
+            // A window with no folder, on the start page (ADR 0065).
+            let _ = open_folder_window(app, None);
         } else if id == OPEN_FOLDER {
-            let _ = app.emit_to("main", "menu-open-folder", ());
+            let _ = app.emit("menu-open-folder", folder_window_in_focus(app));
         } else if id == SETTINGS {
-            let _ = app.emit_to("main", "menu-settings", ());
+            let _ = app.emit("menu-settings", folder_window_in_focus(app));
         } else if let Some(command) = id.strip_prefix(EDIT_PREFIX) {
             // Every window hears an event (see `folder-changed`): the label
             // says which one runs it. A web page — a window of its own, or
@@ -2497,7 +2712,11 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             label,
             event: tauri::WindowEvent::Destroyed,
             ..
-        } => log::write("INFO", "host", &format!("window closed: {label}")),
+        } => {
+            log::write("INFO", "host", &format!("window closed: {label}"));
+            // Its folder closes when no other window shows it (ADR 0065).
+            lock(&app.state::<App>().sessions).release(label);
+        }
         tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
         _ => {}
     }
@@ -2531,10 +2750,42 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 #[cfg(any(target_os = "macos", test))]
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
     *lock(&app.state::<App>().initial_folder) = Some(folder);
-    if let Some(main) = app.get_window("main") {
-        let _ = main.set_focus();
+    // A window of the app that shows no folder takes it; with none, a new
+    // window does, which opens it as it starts (ADR 0065).
+    let empty = {
+        let state = app.state::<App>();
+        let sessions = lock(&state.sessions);
+        let mut labels: Vec<String> = app
+            .windows()
+            .into_keys()
+            .filter(|l| {
+                (l == "main" || l.starts_with("window-")) && !sessions.windows.contains_key(l)
+            })
+            .collect();
+        labels.sort_by_key(|l| (l != "main", l.clone()));
+        labels.into_iter().next()
+    };
+    match empty {
+        Some(label) => {
+            if let Some(w) = app.get_window(&label) {
+                let _ = w.set_focus();
+            }
+            let _ = app.emit("folder-handed", label);
+        }
+        None => {
+            let _ = open_folder_window(app, None);
+        }
     }
-    let _ = app.emit_to("main", "folder-handed", ());
+}
+
+/// The window of a folder that has the focus, for the menu's items that
+/// act on one: the main window when none of them has it.
+#[cfg(target_os = "macos")]
+fn folder_window_in_focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> String {
+    focused_window(app)
+        .map(|w| w.label().to_owned())
+        .filter(|l| l == "main" || l.starts_with("window-"))
+        .unwrap_or_else(|| "main".to_owned())
 }
 
 /// Ask the app's own windows to save their tabs and close themselves;
@@ -3299,28 +3550,22 @@ mod tests {
         assert!(call(&popout, "current_folder", json!({})).is_ok());
     }
 
-    /// Only the main window switches folders, and not while a note is
-    /// popped out: a note window names notes by relative path and would
-    /// write into the new folder under the old names.
+    /// A note window never switches folders, and a window of a folder does
+    /// not while a note of it is popped out and no other window shows the
+    /// folder: the note window names its note by a path of that folder
+    /// (ADR 0065).
     #[test]
-    fn switching_folders_is_refused_from_a_note_window_and_while_one_is_open() {
+    fn switching_folders_is_refused_from_a_note_window_and_while_its_folder_has_one() {
         let vault = tempfile::tempdir().unwrap();
         let _n = note(vault.path(), "Uma.md", "# Uma\n");
         let (app, main) = app_with(Some(vault.path().to_path_buf()));
         let popout = tauri::WebviewWindowBuilder::new(&app, "note-0", Default::default())
             .build()
             .unwrap();
+        // A note window never opens a folder.
         for cmd in ["open_initial", "pick_folder"] {
             let from_popout = call(&popout, cmd, json!({})).unwrap_err();
             assert_eq!(from_popout["kind"], "refused", "{cmd}: {from_popout}");
-            let while_open = call(&main, cmd, json!({})).unwrap_err();
-            assert_eq!(while_open["kind"], "refused", "{cmd}: {while_open}");
-            assert!(
-                while_open["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("note windows")
-            );
         }
         let from_popout = call(
             &popout,
@@ -3329,10 +3574,74 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(from_popout["kind"], "refused", "{from_popout}");
-        // The command line's folder is still there for when the windows
-        // close (the mock runtime never destroys a window, so the opening
-        // itself is exercised by `the_commands_answer_through_the_contract`).
-        assert!(lock(&app.state::<App>().initial_folder).is_some());
+        // The main window opens its folder; a note of it in a window of its
+        // own (as `open_window` binds one) keeps the main window on it.
+        let key = call(&main, "open_initial", json!({})).unwrap()["key"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        lock(&app.state::<App>().sessions)
+            .windows
+            .insert("note-0".to_owned(), key.clone());
+        let while_open = may_switch(app.handle(), &main.as_ref().window()).unwrap_err();
+        assert_eq!(while_open.kind, ErrorKind::Refused);
+        assert!(
+            while_open.message.contains("note windows"),
+            "{}",
+            while_open.message
+        );
+        // Another window on that folder keeps it for the note: the main
+        // window may switch (ADR 0065).
+        let other = tauri::WebviewWindowBuilder::new(&app, "window-7", Default::default())
+            .build()
+            .unwrap();
+        lock(&app.state::<App>().sessions)
+            .windows
+            .insert("window-7".to_owned(), key);
+        assert!(may_switch(app.handle(), &main.as_ref().window()).is_ok());
+        assert!(call(&other, "current_folder", json!({})).unwrap()["key"].is_string());
+    }
+
+    /// Each window shows a folder of its own (ADR 0065): two windows on two
+    /// folders answer from their own; a window with none has none; a folder
+    /// no window shows any more is closed.
+    #[test]
+    fn each_window_answers_from_its_own_folder() {
+        let one = tempfile::tempdir().unwrap();
+        let two = tempfile::tempdir().unwrap();
+        let _a = note(one.path(), "Uma.md", "# Uma\n");
+        let _b = note(two.path(), "Duas.md", "# Duas\n");
+        let (app, main) = app_with(Some(one.path().to_path_buf()));
+        call(&main, "open_initial", json!({})).unwrap();
+        let other = tauri::WebviewWindowBuilder::new(&app, "window-3", Default::default())
+            .build()
+            .unwrap();
+        assert_eq!(
+            call(&other, "current_folder", json!({})).unwrap(),
+            json!(null)
+        );
+        assert_eq!(
+            call(&other, "list_notes", json!({})).unwrap_err()["kind"],
+            "no_folder"
+        );
+        *lock(&app.state::<App>().initial_folder) = Some(two.path().to_path_buf());
+        call(&other, "open_initial", json!({})).unwrap();
+        assert_eq!(
+            call(&main, "list_notes", json!({})).unwrap(),
+            json!(["Uma.md"])
+        );
+        assert_eq!(
+            call(&other, "list_notes", json!({})).unwrap(),
+            json!(["Duas.md"])
+        );
+        assert_eq!(lock(&app.state::<App>().sessions).by_key.len(), 2);
+        // The other window goes: its folder closes; the main window's stays.
+        lock(&app.state::<App>().sessions).release("window-3");
+        assert_eq!(lock(&app.state::<App>().sessions).by_key.len(), 1);
+        assert_eq!(
+            call(&main, "list_notes", json!({})).unwrap(),
+            json!(["Uma.md"])
+        );
     }
 
     /// A web page's view answers only the window that opened it: another
@@ -3390,8 +3699,8 @@ mod tests {
         let other = tauri::WebviewWindowBuilder::new(&app, "window-1", Default::default())
             .build()
             .unwrap();
-        let e = may_switch(app.handle(), &other.as_ref().window()).unwrap_err();
-        assert_eq!(e.kind, ErrorKind::Refused, "{}", e.message);
+        // Another window may open a folder of its own (ADR 0065).
+        assert!(may_switch(app.handle(), &other.as_ref().window()).is_ok());
     }
 
     /// A panic inside a core call is answered as `failed` and leaves the
@@ -3403,7 +3712,8 @@ mod tests {
         let (app, main) = app_with(Some(vault.path().to_path_buf()));
         call(&main, "open_initial", json!({})).unwrap();
         let state = app.state::<App>();
-        let boom = with(&state, |_| -> Result<(), CoreError> {
+        let window = main.as_ref().window();
+        let boom = with(&state, &window, |_| -> Result<(), CoreError> {
             panic!("boom in the core")
         });
         let err = boom.unwrap_err();
@@ -3415,13 +3725,13 @@ mod tests {
         let app_ref = &state;
         let poisoned = std::thread::scope(|s| {
             s.spawn(|| {
-                let _guard = app_ref.session.lock().unwrap();
+                let _guard = app_ref.sessions.lock().unwrap();
                 panic!("poison");
             })
             .join()
         });
         assert!(poisoned.is_err());
-        assert!(state.session.is_poisoned());
+        assert!(state.sessions.is_poisoned());
         let notes = call(&main, "list_notes", json!({})).unwrap();
         assert_eq!(notes, json!(["Uma.md"]));
     }

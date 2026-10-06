@@ -114,6 +114,16 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 5. Nota 13: ⌘R recarrega a janela com a nota digitada salva antes; com uma
    nota que não pode ser salva (um conflito esperando), a janela fica e diz
    por quê. Nível: H; E: `notes.spec.mjs`.
+6. Janelas (ADR 0065): Arquivo › Nova janela abre uma janela na página
+   inicial; ela abre outra pasta, e cada janela lista e busca as suas
+   próprias notas, com o nome da pasta no título; Arquivo › Abrir pasta…
+   troca só a janela em foco; "Nova janela nesta pasta" abre uma na mesma
+   pasta, e uma nota escrita numa aparece na outra; uma nota aberta numa
+   janela própria impede a sua janela de trocar enquanto nenhuma outra
+   janela mostra a pasta dela; fechar uma janela deixa as outras como
+   estavam; `verso <pasta>` com todas as janelas numa pasta abre uma janela
+   nova. Nível: A; U: `cargo test -p verso-app`
+   (`each_window_answers_from_its_own_folder`).
 
 ## 3. Escrever e ler notas
 

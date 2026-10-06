@@ -52,6 +52,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0062](0062-focuses.md) | Focuses: named roots of the file tree, shared with make.md | Accepted (2026-10-03) |
 | [0063](0063-files-onto-the-board.md) | Putting pictures and files on the board: drop, paste, pick and drag | Accepted (2026-10-06) |
 | [0064](0064-tables-edited-as-tables.md) | Tables edited as tables in Edit mode | Accepted (2026-10-06) |
+| [0065](0065-a-folder-per-window.md) | A folder per window | Accepted (2026-10-06) |
 
 ### Plugins and LLM
 

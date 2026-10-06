@@ -38,6 +38,7 @@ test release.
 
 ### Changed
 
+- **Each window, its folder** ([ADR 0065](docs/adr/0065-a-folder-per-window.md)): File › New Window opens a window on the start page, to open another folder — several folders open at once, one per window, each window titled with its folder's name. Open Folder… switches only the window it is used in, and File › Open Folder… and Settings… act on the window in focus. "New window on this folder" (the palette, a tab's menu) opens another window on the same folder, as New Window did. A folder handed to the app (`verso <folder>`, Open Recent) opens in a window with no folder, or in a new one.
 - **Today's note is ⌘⇧D**: ⌘D now duplicates a block in Edit mode, as in Notion. ⌘⇧↑/↓ no longer select to the note's start or end in Edit mode, and ⌘/ no longer toggles a comment there; ⌥↑/↓ still moves the line. Source mode keeps its keys. Esc now also cancels dragging a card or a day's note on a base.
 - **Backlinks and outgoing links share one tab, "Links"**, in the right panel: the notes that point to the open note on top, a hairline, then where it points to, each with its count. A panel left on the outgoing tab opens on Links.
 
