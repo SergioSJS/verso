@@ -13,7 +13,7 @@
   [0035](0035-cross-cutting-requirements.md) (the accessible view),
   [0049](0049-phase-2-scope-widened.md) §3 (asked for and not built, until
   this ADR)
-- Revisions: 2026-10-03 — how pictures and files get onto the board (drop, paste, pick, drag) is [0063](0063-files-onto-the-board.md); point 2 stands.
+- Revisions: 2026-10-03 — how pictures and files get onto the board (drop, paste, pick, drag) is [0063](0063-files-onto-the-board.md); point 2 stands. 2026-10-06 — point 10 gains a picture card's crop, kept on its node (the maintainer, asked where a crop is kept: "No card, sem tocar no arquivo").
 - Status in the briefing: §9 "Board persistence" `OPEN` and "Board — semantic
   layer" `PROPOSED`, §11.3 and §17 item 6 "Typed relation syntax" `OPEN`, §17
   item 9 `OPEN` — all `DECIDED` from 2026-09-30 (briefing v0.11)
@@ -132,6 +132,17 @@ decided by the maintainer on 2026-10-01 (point 18).
       JSON Canvas has no field for it, and Obsidian keeps a node's unknown
       fields (memo O1). None, or transparent, takes the key off. Asked for
       by the maintainer on 2026-09-30 ("tem como respeitar?").
+    - **A picture card's crop.** A picture on the board can be cropped —
+      asked for by the maintainer on 2026-10-06 ("senti falta de ferramenta
+      de cortar imagem"). The crop is kept on the card's node, under its
+      `verso` key, as the part of the picture shown, in fractions of its
+      width and height (`"verso":{"crop":{"x":0.1,"y":0.2,"w":0.6,"h":0.5}}`);
+      the picture's file is never written, the crop is changed or taken off
+      at any time, and one picture may be cropped differently on two cards.
+      The card takes the crop's proportions. Obsidian, which keeps the key,
+      shows the whole picture; the board's image export shows the crop.
+      Chosen by the maintainer on 2026-10-06 over a cropped copy of the
+      file.
     - **A card's and an edge's style.** What else the panel sets that JSON
       Canvas has no field for is kept the same way, under the item's own
       `verso` key, and only when it is not how the board draws the item by

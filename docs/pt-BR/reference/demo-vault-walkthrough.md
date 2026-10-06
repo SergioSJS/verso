@@ -328,7 +328,12 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     aba nova; "Inserir", na barra de ferramentas do Excalidraw, abre um menu
     cujo "Imagem ou PDF do computador…" escolhe imagens do computador; um
     `.zip` solto diz que só entram imagens e PDFs. Um cartão de imagem mostra
-    só a imagem, sem moldura nem título. Com a barra lateral aberta e a janela não
+    só a imagem, sem moldura nem título. Selecionada, "Recortar" nas
+    ferramentas do alto à direita abre o recorte: um canto arrastado,
+    "Aplicar" mostra aquela parte, o cartão nas proporções dela, o
+    `verso.crop` do nó gravado e o arquivo da imagem intacto; "Restaurar
+    original" o tira. Os menus do botão direito, do board e da janela, nunca
+    mostram dois traços juntos. Com a barra lateral aberta e a janela não
     muito larga, a busca e o Sumário no meio do rodapé; com o sumário aberto
     também, ou numa janela alta e estreita, numa linha embaixo da barra; a
     com as duas barras laterais abertas, a barra em duas linhas, longe do

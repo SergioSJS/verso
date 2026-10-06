@@ -2748,6 +2748,33 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 .board-card-body > :first-child { margin-top: 0; }
 .board-card-image { position: relative; flex: 1; min-height: 0; width: 100%; }
 .board-card-image > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+/* A cropped picture card (ADR 0057 point 10): the crop's part at its own
+   proportions, as large as the card holds, centred; the picture laid out
+   under it so that the part shows. */
+.board-card-image.cropped { overflow: hidden; }
+.board-crop-view { position: absolute; left: 50%; top: 50%; translate: -50% -50%; overflow: hidden; }
+.board-crop-inner { position: absolute; }
+.board-crop-inner > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+/* The crop dialog: the whole picture, the part kept bright inside its
+   frame and the rest dimmed, eight handles round it. */
+.board-crop-hint { margin: -.3rem 0 .8rem; font-size: .85rem; color: var(--ink-2); }
+.board-crop-stage { display: flex; align-items: center; justify-content: center; margin-bottom: .9rem; padding: .6rem; border: 1px solid var(--hair); border-radius: 8px; background: repeating-conic-gradient(var(--paper-2) 0 25%, var(--paper) 0 50%) 0 0 / 16px 16px; }
+.board-crop-frame { position: relative; display: inline-block; line-height: 0; user-select: none; touch-action: none; }
+.board-crop-frame > img { display: block; }
+/* What is cut away, dimmed: a layer cut to the picture, so the handles
+   round the part kept stay whole. */
+.board-crop-dim { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.board-crop-dim > div { position: absolute; box-shadow: 0 0 0 9999px oklch(0% 0 0 / .45); }
+.board-crop-rect { position: absolute; outline: 1.5px solid #fff; cursor: move; }
+.board-crop-handle { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 1.5px solid var(--seal); border-radius: 3px; background: #fff; }
+.board-crop-handle.h-n { left: 50%; top: 0; cursor: ns-resize; }
+.board-crop-handle.h-s { left: 50%; top: 100%; cursor: ns-resize; }
+.board-crop-handle.h-e { left: 100%; top: 50%; cursor: ew-resize; }
+.board-crop-handle.h-w { left: 0; top: 50%; cursor: ew-resize; }
+.board-crop-handle.h-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.board-crop-handle.h-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.board-crop-handle.h-nw { left: 0; top: 0; cursor: nwse-resize; }
+.board-crop-handle.h-se { left: 100%; top: 100%; cursor: nwse-resize; }
 /* A picture on a card: its copy at the card's size, and the original laid
    over it only when the board is zoomed in close. */
 .board-card .pic { position: relative; display: block; width: fit-content; max-width: 100%; margin: .4em 0; }
