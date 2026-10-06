@@ -98,10 +98,10 @@ test("backlinks and outgoing links share one tab, a divider between them", async
 });
 
 
-test("⌘D makes today's note from the Diário template, and the calendar marks the days", async ({ app }) => {
+test("⌘⇧D makes today's note from the Diário template, and the calendar marks the days", async ({ app }) => {
   await app.open();
   const day = await today(app);
-  await app.key("Mod+d");
+  await app.key("Mod+Shift+d");
   await expect.poll(() => app.file(`Diário/${day}.md`)).toContain(`# ${day}`);
   const text = await app.file(`Diário/${day}.md`);
   expect(text).toContain("## 🎯 Foco do Dia");

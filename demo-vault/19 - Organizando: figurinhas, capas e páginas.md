@@ -142,4 +142,4 @@ Focos são conjuntos de pastas e notas que atuam como raízes da árvore de arqu
 
 ---
 
-Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+Siga para [[20 - Blocos como no Notion]], volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

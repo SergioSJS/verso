@@ -48,6 +48,26 @@ const STOPS = [
       "Leitura, Editar e Fonte: ⌘E alterna entre os dois primeiros. Um / no começo da linha insere blocos, e o Verso salva sozinho.",
   },
   {
+    id: "blocos",
+    label: "Blocos",
+    heading: "🧱 Blocos como no Notion",
+    color: GREEN,
+    canvasColor: "4",
+    cards: [["n-blocos", "20 - Blocos como no Notion.md", 640]],
+    tip:
+      "No modo Editar, cada parágrafo, item de lista ou título é um bloco: passe o mouse e arraste a ⋮⋮ da margem para movê-lo, " +
+      "ou clique nela para transformar, duplicar, copiar o link ou excluir. O + abre o menu / num bloco novo. O arquivo continua Markdown puro.",
+    extra(b, x, y, f) {
+      b.write("d-blocos-titulo", x + 740, y + 150, "teclas do Notion", { size: 32, color: GREY, frame: f });
+      keys(b, "d-blocos", x + 740, y + 210, [
+        [["⌘", "⇧", "↑"], "mover bloco acima"],
+        [["⌘", "⇧", "↓"], "mover bloco abaixo"],
+        [["⌘", "D"], "duplicar bloco"],
+        [["⌘", "/"], "transformar em…"],
+      ], f);
+    },
+  },
+  {
     id: "conectar",
     label: "Conectar",
     heading: "🔗 Conectar",
@@ -73,7 +93,7 @@ const STOPS = [
       ["n-bases", "04 - Visualização de Bases e Dados.md", 420],
       ["n-diarias", "07 - Notas Diárias, Calendário e Templates.md", 420],
     ],
-    tip: "As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban ou calendário. ⌘D abre a nota de hoje, feita do template Diário.",
+    tip: "As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban ou calendário. ⌘⇧D abre a nota de hoje, feita do template Diário.",
     tipWidth: 860,
     extra(b, x, y, f) {
       b.file("n-base", "Projetos.base", x + 940, y + 740, 420, 64);
@@ -240,7 +260,7 @@ const STOPS = [
         "d-atalhos-lista",
         x + 40,
         y + 140,
-        "⌘⇧P  comandos\n⌘P  abrir pelo nome\n⌘K  buscar nas notas\n⌘N  nova nota\n⌘D  nota de hoje\n" + "⌘E  ler ou editar\n⌘\\  dividir a tela\n⌘[  ⌘]  voltar e avançar\n⌘,  ajustes",
+        "⌘⇧P  comandos\n⌘P  abrir pelo nome\n⌘K  buscar nas notas\n⌘N  nova nota\n⌘⇧D  nota de hoje\n" + "⌘E  ler ou editar\n⌘\\  dividir a tela\n⌘[  ⌘]  voltar e avançar\n⌘,  ajustes",
         { size: 34, color: INK, font: SANS, frame: f },
       );
       b.file("n-ajuda", "18 - Ajuda, Atualizações e Diagnóstico.md", x + 720, y + 130, 640, 400);

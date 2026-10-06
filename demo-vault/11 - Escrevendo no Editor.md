@@ -24,6 +24,8 @@ No canto de cada nota, três botões:
 
 `⌘E` alterna entre Leitura e Editar; **Fonte** está na paleta (`⌘⇧P`). O modo em que as notas abrem fica em **Ajustes › Editor › Abrir notas em**.
 
+No **Editar**, cada parágrafo, item de lista ou título é um bloco que se arrasta pela alça ⋮⋮ da margem, como no Notion — veja [[20 - Blocos como no Notion]].
+
 ---
 
 ## A Barra de Formatação
