@@ -63,6 +63,7 @@ Clique numa pasta na árvore para abrir a **página da pasta**: no topo, a nota 
 - A nota da pasta é `Projetos/Projetos.md` (dentro da pasta, com o nome dela) ou `Projetos.md` (ao lado da pasta). Para usar outro nome, como `README`, preencha **Ajustes › Organização › Nome da nota da pasta**.
 - A nota da pasta não aparece na árvore: abra pelo botão direito na pasta › **Abrir nota da pasta**, ou pela página da pasta.
 - Numa pasta sem nota, a página oferece **Criar nota da pasta**.
+- Um clique com o botão direito no espaço vazio da página traz o mesmo menu da árvore: nova nota, pasta, base, board ou página web, **Mostrar no Finder** e os caminhos.
 - Renomear a pasta renomeia a nota dela junto: `Projetos/Projetos.md` vira `Trabalhos/Trabalhos.md`.
 - Os rótulos de uma pasta ficam no frontmatter da nota dela. Rotular, ordenar ou fixar algo numa pasta sem nota cria a nota dela.
 

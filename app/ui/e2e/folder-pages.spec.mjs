@@ -88,3 +88,23 @@ test("turn note into folder moves note into new folder as folder note", async ({
     return files.includes("OrphanDoc/OrphanDoc.md");
   }).toBe(true);
 });
+
+test("a folder page's right click offers what the tree's does, with icons", async ({ app }) => {
+  await app.open();
+  await app.writeOutside("Pasta/Item.md", "# Item\n");
+  await app.folderChanged(["Pasta/Item.md"], true);
+  await app.page.locator('#notes summary[data-folder="Pasta"] .folder-label').click();
+  const leaf = app.page.locator(".leaf:not([hidden])").filter({ has: app.page.locator(".folder-tools") });
+  await expect(leaf).toBeVisible();
+  // Off the items: the folder's own menu.
+  const tools = leaf.locator(".folder-tools");
+  const box = await tools.boundingBox();
+  await app.page.mouse.click(box.x + 2, box.y + box.height + 40, { button: "right" });
+  const items = app.page.locator('.menu:not([hidden]) button[role="menuitem"]');
+  for (const label of ["Nova nota nesta pasta", "Nova pasta", "Nova base", "Novo board", "Nova página web…", "Mostrar no Finder", "Copiar caminho relativo"]) {
+    await expect(items.filter({ hasText: label })).toHaveCount(1);
+  }
+  // Every item with its icon.
+  const withoutIcon = await items.evaluateAll((els) => els.filter((e) => !e.querySelector("svg")).map((e) => e.textContent));
+  expect(withoutIcon).toEqual([]);
+});

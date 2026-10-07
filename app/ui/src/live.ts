@@ -49,6 +49,9 @@ export type LiveOptions = {
   editEmbed?: (target: string, mount: HTMLElement, onExit: () => void) => (() => void) | undefined;
   /** The edit-in-place button's tooltips, in the interface's language. */
   embedLabels?: { edit: string; done: string };
+  /** A code block's copy button and what it says once copied, in the
+   *  interface's language (ADR 0035). */
+  copyLabels?: { copy: string; copied: string };
   /** Whether an embed may be edited in place now (the setting). */
   canEditEmbed?: () => boolean;
   /** True when an embedded note is actively being edited, dirty, or conflicted. */
@@ -215,28 +218,28 @@ class TaskCheckboxWidget extends WidgetType {
 }
 
 class CodeCopyWidget extends WidgetType {
-  constructor(readonly code: string) {
+  constructor(readonly code: string, readonly labels: { copy: string; copied: string }) {
     super();
   }
   override eq(other: CodeCopyWidget): boolean {
-    return other.code === this.code;
+    return other.code === this.code && other.labels.copy === this.labels.copy;
   }
   override toDOM(): HTMLElement {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "cm-lp-copy-code";
-    btn.title = "Copiar código";
-    btn.setAttribute("aria-label", "Copiar código");
+    btn.title = this.labels.copy;
+    btn.setAttribute("aria-label", this.labels.copy);
     btn.append(icon("copy"));
     btn.addEventListener("mousedown", (e) => e.preventDefault());
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       void navigator.clipboard.writeText(this.code).then(() => {
         btn.replaceChildren(icon("check"));
-        btn.title = "Copiado!";
+        btn.title = this.labels.copied;
         setTimeout(() => {
           btn.replaceChildren(icon("copy"));
-          btn.title = "Copiar código";
+          btn.title = this.labels.copy;
         }, 1500);
       });
     });
@@ -1119,7 +1122,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             out.push({
               from: node.from,
               to: node.from,
-              deco: Decoration.widget({ widget: new CodeCopyWidget(codeText), side: 1 }),
+              deco: Decoration.widget({ widget: new CodeCopyWidget(codeText, opts.copyLabels ?? { copy: "Copy code", copied: "Copied." }), side: 1 }),
             });
           }
         } else if (name === "Blockquote") {

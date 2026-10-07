@@ -82,9 +82,9 @@ export class Space {
     this.tab.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       showMenu(e.clientX, e.clientY, [
-        [t.rename, () => this.rename(n)],
+        [t.rename, () => this.rename(n), "edit"],
         ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
-        [t.closeSpace, () => closeSpace(this)],
+        [t.closeSpace, () => closeSpace(this), "close"],
       ]);
     });
   }

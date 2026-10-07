@@ -42,12 +42,14 @@ versão de teste.
 
 ### Alterado
 
+- **O menu do botão direito de uma página de pasta é o da árvore**: nova nota, pasta, base, board e página web, Mostrar no Finder e os caminhos, todos com seus ícones; os menus do ribbon, dos espaços de trabalho e "Ocultar abas" também ganharam ícones.
 - **Cada janela, sua pasta** ([ADR 0065](adr/0065-a-folder-per-window.md)): Arquivo › Nova janela abre uma janela na página inicial, para abrir outra pasta — várias pastas abertas ao mesmo tempo, uma por janela, cada janela com o nome da sua pasta no título. Abrir pasta… troca só a janela em que é usado, e Arquivo › Abrir pasta… e Ajustes… agem na janela em foco. "Nova janela nesta pasta" (a paleta, o menu de uma aba) abre outra janela na mesma pasta, como fazia Nova janela. Uma pasta entregue ao app (`verso <pasta>`, Abrir recente) abre numa janela sem pasta, ou numa nova.
 - **A nota de hoje é ⌘⇧D**: ⌘D agora duplica um bloco no modo Editar, como no Notion. No modo Editar, ⌘⇧↑/↓ não seleciona mais até o começo ou o fim da nota, e ⌘/ não alterna mais um comentário; ⌥↑/↓ continua movendo a linha. O modo Fonte mantém suas teclas. Esc agora também cancela o arraste de um cartão ou da nota de um dia numa base.
 - **Backlinks e links de saída dividem uma aba, "Links"**, no painel da direita: em cima, as notas que apontam para a nota aberta; um traço; embaixo, para onde ela aponta, cada lista com sua contagem. Um painel deixado na aba de links de saída abre em Links.
 
 ### Corrigido
 
+- **O botão de copiar de um bloco de código fala a língua da janela**: dizia "Copiar código" também numa janela em inglês.
 - **Uma janela mostra só a indexação da sua pasta**: com duas janelas em duas pastas, o "Indexando…" de uma aparecia na outra, inclusive numa janela sem pasta ([ADR 0065](adr/0065-a-folder-per-window.md)).
 - **O botão direito numa imagem funciona**: numa imagem de nota, do board ou na aba dela, o menu é o do Verso — abrir em nova aba ou janela, baixar, copiar, mostrar no Finder — onde aparecia o do WebKit, cujo "Download Image" e "Open Image in New Window" não faziam nada. Os downloads vão para Downloads, e a linha de status diz o nome do arquivo; o "Baixar" da exportação do board também funciona no app.
 - **Os menus do botão direito não mostram mais dois traços juntos**: o do board (onde o Verso esconde as cópias como imagem do Excalidraw, o link de um cartão e a biblioteca, agora escondida também) e os da janela (onde uma seção que um arquivo não oferece ficava de fora).

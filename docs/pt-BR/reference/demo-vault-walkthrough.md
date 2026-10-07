@@ -431,7 +431,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `order-pins.spec.mjs`, "a folder's note is not a row of the tree; the
    folder's menu opens it"). Nível: H; E:
    `folder-pages.spec.mjs`, "folder page displays folder note, cover banner,
-   sticker, and default table".
+   sticker, and default table". Um clique direito no espaço vazio da página
+   mostra o menu da árvore — nova nota, pasta, base, board, página web,
+   Mostrar no Finder, os caminhos — cada item com o seu ícone (E:
+   `folder-pages.spec.mjs`, "a folder page's right click…").
 5. Ajustes › Organização › "Nome da nota da pasta": `README` faz de
    `Pasta/README.md` a nota da pasta — a figurinha dela aparece na linha da
    pasta. Nível: H; E: `labels.spec.mjs`, "the folder note name setting

@@ -8,7 +8,7 @@ import { BaseView } from "../bases/view";
 import { commands, type Property } from "../bindings";
 import { afterFileChange } from "../changes";
 import { promptText } from "../dialog";
-import { button, h } from "../dom";
+import { button, h, ui } from "../dom";
 import { fail } from "../errors";
 import { deleteEntry, textBase64 } from "../files";
 import { allEntries, allFiles, allNotes, folderName, iconOfPath } from "../folder";
@@ -19,7 +19,7 @@ import { renderSticker, resolveColor, showStickerPicker } from "../labels";
 import { armDrag } from "../layout/drag";
 import { Pane } from "../layout/pane";
 import { crumbsFor, crumbsNav, layout, openFolder, openNote, persistSoon } from "../layout/spaces";
-import { entryMenu, showMenu } from "../menu";
+import { createMenuItems, entryMenu, showMenu, type MenuItem } from "../menu";
 import { opening } from "../opening";
 import { bannerFraction, bannerPercent, pickerStrings } from "../organize/cover";
 import { folderNoteCandidates, folderNoteOf } from "../organize/folderNotes";
@@ -30,7 +30,7 @@ import { typeset, wireCallouts } from "../render";
 import { heldImage, setHtml } from "../sanitize";
 import { settings } from "../settings";
 import { baseStrings, LOCALE, t } from "../strings";
-import { newFolderPrompt, newNotePrompt, renameInline } from "../tree/prompts";
+import { renameInline } from "../tree/prompts";
 import { allFolders, markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
 import { NoteLeaf } from "./note";
@@ -115,10 +115,19 @@ export class FolderLeaf extends Leaf {
     this.el.addEventListener("contextmenu", (e) => {
       if ((e.target as HTMLElement).closest(".item")) return;
       e.preventDefault();
+      // The tree's own "new" items (ADR 0048): one menu wherever the
+      // folder is shown, with its icons.
+      const path = this.path;
       showMenu(e.clientX, e.clientY, [
-        [t.newHere, () => newNotePrompt(this.path)],
-        [t.newFolder, () => newFolderPrompt(this.path)],
-        ...(this.path ? [["—", () => {}] as [string, () => void], [t.reveal, () => void commands.reveal(this.path)] as [string, () => void]] : []),
+        ...createMenuItems(path),
+        ...(path
+          ? [
+              ["—", () => {}] as MenuItem,
+              [t.reveal, () => void commands.reveal(path), "search"] as MenuItem,
+              [t.copyRelativePath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
+              [t.copyFullPath, () => void commands.copyFullPath(path).then((r) => (r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error))), "copy"] as MenuItem,
+            ]
+          : []),
       ]);
     });
   }
