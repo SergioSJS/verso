@@ -12,7 +12,7 @@ import { BaseView } from "../bases/view";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
-import { type CardEditing } from "../board/view";
+import { type CardEditing } from "../board/types";
 import { bookmarks, toggleBookmark } from "../bookmarks";
 import { tellOutcomes } from "../changes";
 import { narrow, toggleSide } from "../chrome";

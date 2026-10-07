@@ -7,7 +7,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { baseHost, liveBases } from "../../bases";
 import { BaseView, type BaseSource } from "../../bases/view";
 import { commands } from "../../bindings";
-import { type CardEditing } from "../../board/view";
+import { type CardEditing } from "../../board/types";
 import { button, h, ui } from "../../dom";
 import { allEntries, webNotes } from "../../folder";
 import { icon } from "../../icons";
