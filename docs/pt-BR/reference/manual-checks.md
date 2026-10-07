@@ -39,6 +39,7 @@ app real.
 
 ### Próxima versão
 
+- [ ] **O identificador novo mantém os ajustes da janela**: depois de atualizar da 0.4.0-beta.1, o tema, as teclas e a largura de uma coluna estão como eram; o log diz "window data carried over to com.versomd.app.beta" uma vez.
 - [ ] **A capa de um PDF na visão de pasta**: abra `assets` do cofre de exemplo, Miniaturas — o PDF mostra a primeira página; troque para Lista e volte para a tabela — os itens continuam.
 - [ ] **A versão no endereço dos arquivos** (cache depois de uma
   atualização): depois de atualizar, a janela mostra a interface da versão

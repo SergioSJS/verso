@@ -135,7 +135,7 @@ jobs:
         run: |
           if [ "$BETA" = true ]; then
             npm --prefix app/ui exec -- tauri build --bundles app \
-              --config '{"identifier":"dev.verso.app.beta","productName":"Verso Beta"}'
+              --config '{"identifier":"com.versomd.app.beta","productName":"Verso Beta"}'
           else
             npm --prefix app/ui exec -- tauri build --bundles app
           fi

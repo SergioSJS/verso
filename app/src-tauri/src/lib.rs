@@ -931,6 +931,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     );
     builder
         .setup(|app| {
+            // The window's data under the former identifier comes along,
+            // before any window opens (ADR 0004, decided 2026-10-07).
+            migrate_web_data(&app.config().identifier);
             // The main window is made here, not from the configuration
             // alone: it needs the download hook every window of the app
             // has (`on_download`).
