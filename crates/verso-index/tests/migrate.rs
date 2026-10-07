@@ -132,3 +132,37 @@ fn version_9_is_carried_to_version_10_with_the_types_and_schemas_empty_until_rea
     // Read again on the next walk, which fills the new columns.
     assert_ne!(index.stamp_of("Barão.md").unwrap(), Some(stamp()));
 }
+
+#[test]
+fn version_10_is_carried_to_version_11_and_a_block_falls_back_to_its_own_line_until_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("index.sqlite");
+    let text = "| a | b |\n| --- | --- |\n| 1 | 2 |\n\n^tab\n";
+    {
+        let mut index = Index::open(&file).unwrap();
+        index
+            .upsert("Tabela.md", stamp(), text, &verso_dialect::parse(text))
+            .unwrap();
+        // Version 11 keeps the lines of the block the id names (spec Q3).
+        let block = &index.blocks_of("Tabela.md").unwrap()[0];
+        assert_eq!((block.line, block.first_line, block.last_line), (5, 1, 3));
+    }
+    {
+        let conn = rusqlite::Connection::open(&file).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE blocks DROP COLUMN first_line;
+             ALTER TABLE blocks DROP COLUMN last_line;
+             UPDATE meta SET value = '10' WHERE key = 'schema';",
+        )
+        .unwrap();
+    }
+    let index = Index::open(&file).unwrap();
+    // Carried over, not rebuilt: the id is there, its block its own line
+    // until the next walk reads the note again.
+    let block = &index.blocks_of("Tabela.md").unwrap()[0];
+    assert_eq!(
+        (block.id.as_str(), block.first_line, block.last_line),
+        ("tab", 5, 5)
+    );
+    assert_ne!(index.stamp_of("Tabela.md").unwrap(), Some(stamp()));
+}

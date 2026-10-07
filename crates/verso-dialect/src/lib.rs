@@ -154,6 +154,13 @@ pub struct BlockId {
     pub span: Span,
     /// Position of the `^`.
     pub pos: Pos,
+    /// Byte range of the block the id names (spec Q3, Q21; decided
+    /// 2026-10-07): the paragraph, the heading or the list item it ends —
+    /// the item with its nested items — or, for a `^id` alone on a line
+    /// after a blank line, the block before it.
+    pub block: Span,
+    /// The first and the last line of that block, 1-based.
+    pub lines: (u32, u32),
 }
 
 /// Fold marker of a callout: `-` (collapsed) or `+` (expanded) right after

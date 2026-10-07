@@ -134,7 +134,10 @@ point 13).
    Enter writes today's date; ⌘Z takes it back. Level: H; E:
    `notes.spec.mjs` (the date written at the end, and gone after ⌘Z).
 3. Note 02: every link leads to its note, a `#heading` to its heading; the
-   embed shows "Editar ao lado". Level: S (the links), H.
+   embed shows "Editar ao lado". "Incorporar só um bloco": the embed
+   `#^atomica` shows the third finding alone, not the whole note (spec Q3,
+   Q21). Level: S (the links, `fixtures/block/`), H; E:
+   `blocks-ids.spec.mjs`.
 4. Note 06 in Leitura: `![Diagrama|320](assets/diagrama.svg)` is shown
    320 px wide, from the folder; dragging its corner writes the new size on
    that picture, and the example of it in the heading's code is left as it

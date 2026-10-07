@@ -14,6 +14,7 @@ test release.
 
 ### Added
 
+- **An embed of a block shows that block** (spec Q3, Q21): `![[nota#^id]]` shows the paragraph, list item (with its nested items), heading, table, code block or quote the id names, not the whole note; `[[nota#^id]]` opens the note at that block. A `^id` alone on a line after a blank line names the block before it, as in Obsidian. The same `^id` twice in a note is said in the note, the last one counting (Q4).
 - **A new note offers the templates, as Notion does** ([ADR 0068](docs/adr/0068-templates-chosen-in-a-new-note.md)): under a new note's title, "Start with" lists Blank and the notes of the templates folder; one click — or Tab, the arrows and Enter — fills the note from it, `{{title}}` and `{{date}}` filled. Blank, Esc or typing put the list away. A folder's `items_template` still makes its notes, with no list.
 - **A PDF shows its first page in a folder's view**: Thumbnails and List draw the cover where the PDF's mark was, once the row is on screen; a file only in the cloud keeps the mark and is not downloaded for it.
 

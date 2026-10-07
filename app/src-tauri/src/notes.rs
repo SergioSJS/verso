@@ -64,6 +64,8 @@ pub(crate) fn note_out(t: verso_core::NoteText) -> NoteText {
                 id: b.id,
                 line: b.line,
                 col: b.col,
+                first_line: b.first_line,
+                last_line: b.last_line,
             })
             .collect(),
         stale: t.stale,

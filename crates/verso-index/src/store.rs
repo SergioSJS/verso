@@ -84,6 +84,9 @@ pub struct Block {
     pub id: String,
     pub line: u32,
     pub col: u32,
+    /// The first and last line of the block the id names (spec Q3, Q21).
+    pub first_line: u32,
+    pub last_line: u32,
 }
 
 /// A link of a source that is not parsed as Markdown — a canvas's file
@@ -355,7 +358,7 @@ impl Index {
         }
         {
             let mut ins = tx.prepare(
-                "INSERT INTO blocks (note, id, line, col, start, end) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO blocks (note, id, line, col, start, end, first_line, last_line) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )?;
             for b in &report.blocks {
                 ins.execute(params![
@@ -364,7 +367,9 @@ impl Index {
                     b.pos.line,
                     b.pos.col,
                     offset(b.span.start),
-                    offset(b.span.end)
+                    offset(b.span.end),
+                    b.lines.0,
+                    b.lines.1
                 ])?;
             }
         }
@@ -870,14 +875,19 @@ impl Index {
     /// The `^id` blocks of a note, in document order.
     pub fn blocks_of(&self, relative: &str) -> Result<Vec<Block>, IndexError> {
         let mut st = self.conn.prepare(
-            "SELECT b.id, b.line, b.col FROM blocks b
+            "SELECT b.id, b.line, b.col, b.first_line, b.last_line FROM blocks b
              JOIN notes n ON n.id = b.note WHERE n.path = ?1 ORDER BY b.start",
         )?;
         let rows = st.query_map(params![relative], |r| {
+            let line: u32 = r.get(1)?;
             Ok(Block {
                 id: r.get(0)?,
-                line: r.get(1)?,
+                line,
                 col: r.get(2)?,
+                // A row carried over from version 10 and not read again
+                // yet (a placeholder): the id's own line.
+                first_line: r.get::<_, Option<u32>>(3)?.unwrap_or(line),
+                last_line: r.get::<_, Option<u32>>(4)?.unwrap_or(line),
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)

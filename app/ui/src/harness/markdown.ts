@@ -78,10 +78,50 @@ export function headingsOf(text: string): Heading[] {
 
 /** The `^id` blocks of a note. */
 export function blocksOf(text: string): Block[] {
+  // The blocks as runs of lines that are not blank — a fenced code block
+  // whole — as the core's parser closes them (spec Q3, Q21): a `^id` at the
+  // end of one names it (a list item: from its line to the next item); a
+  // `^id` alone on its run names the run before it.
+  const lines = readableLines(text);
+  const runs: [number, number][] = [];
+  let start = -1;
+  let fence: string | null = null;
+  lines.forEach((line, i) => {
+    const f = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
+    if (fence) {
+      if (f && f[0] === fence[0] && f.length >= fence.length) fence = null;
+      return;
+    }
+    if (f) fence = f;
+    if (line.trim() === "") {
+      if (start >= 0) runs.push([start, i - 1]);
+      start = -1;
+    } else if (start < 0) start = i;
+  });
+  if (start >= 0) runs.push([start, lines.length - 1]);
   const out: Block[] = [];
-  readableLines(text).forEach((line, i) => {
-    const m = /\s\^([A-Za-z0-9-]+)\s*$/.exec(line);
-    if (m && m.index !== undefined) out.push({ id: m[1] ?? "", line: i + 1, col: m.index + 2 });
+  runs.forEach(([a, z], k) => {
+    const alone = a === z ? /^\^([A-Za-z0-9-]+)\s*$/.exec(lines[a]?.trim() ?? "") : null;
+    if (alone) {
+      const before = runs[k - 1] ?? [a, z];
+      out.push({ id: alone[1] ?? "", line: a + 1, col: (lines[a]?.indexOf("^") ?? 0) + 1, first_line: before[0] + 1, last_line: before[1] + 1 });
+      return;
+    }
+    for (let i = a; i <= z; i++) {
+      const m = /\s\^([A-Za-z0-9-]+)\s*$/.exec(lines[i] ?? "");
+      if (!m || m.index === undefined) continue;
+      // A list item: its own line to the line before the next item.
+      const item = /^\s*([-*+]|\d+[.)])\s/.test(lines[i] ?? "");
+      let last = z;
+      if (item) {
+        // Its nested items with it: up to the next item no deeper than it.
+        const indent = (s: string) => s.length - s.trimStart().length;
+        const own = indent(lines[i] ?? "");
+        last = i;
+        while (last + 1 <= z && !(/^\s*([-*+]|\d+[.)])\s/.test(lines[last + 1] ?? "") && indent(lines[last + 1] ?? "") <= own)) last++;
+      }
+      out.push({ id: m[1] ?? "", line: i + 1, col: m.index + 2, first_line: (item ? i : a) + 1, last_line: last + 1 });
+    }
   });
   return out;
 }

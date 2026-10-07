@@ -43,13 +43,25 @@ pub fn parse(source: &str) -> Document {
     // A `verso-schema` block being read: its start, whether it is nested,
     // and its text as the base hands it over (indentation taken off).
     let mut schema: Option<(usize, bool, String)> = None;
+    // The last block closed at the top level: what a `^id` alone on a
+    // line after it names (spec Q3, as Obsidian does; 2026-10-07).
+    let mut last_top: Option<Range<usize>> = None;
+    // Every list item's whole range: a `^id` ending an item's own text
+    // names the item with its nested items (spec Q21).
+    let mut item_ranges: Vec<Range<usize>> = Vec::new();
 
     for (event, range) in Parser::new_ext(source, options).into_offset_iter() {
         // The own text of a list item closes when its first block child
         // starts, or when the item ends; either way before anything inside
         // that child is reported, so blocks stay in document order.
         if let Some(own_text) = track_item(&mut items, &event, &range) {
-            push_block(&mut document, block_id(source, &lines, own_text));
+            push_block(
+                &mut document,
+                block_id(source, &lines, own_text.clone(), own_text),
+            );
+        }
+        if matches!(event, Event::End(TagEnd::Item)) {
+            item_ranges.push(range.clone());
         }
         match &event {
             Event::Start(Tag::Item | Tag::BlockQuote(_) | Tag::FootnoteDefinition(_)) => depth += 1,
@@ -108,8 +120,42 @@ pub fn parse(source: &str) -> Document {
             // item has no paragraph event, so its own inline text — up to
             // its first block child — is checked when the item ends.
             Event::End(TagEnd::Paragraph) => {
-                push_block(&mut document, block_id(source, &lines, range));
+                // Alone on its line at the top level, after a block: the
+                // block before it (spec Q3).
+                let alone = depth == 0
+                    && source.get(range.clone()).is_some_and(|t| {
+                        t.trim().starts_with('^') && !t.trim().contains(char::is_whitespace)
+                    });
+                let named = match (&last_top, alone) {
+                    (Some(before), true) => before.clone(),
+                    _ => range.clone(),
+                };
+                push_block(
+                    &mut document,
+                    block_id(source, &lines, range.clone(), named),
+                );
+                if depth == 0 && !alone {
+                    last_top = Some(range.clone());
+                }
             }
+            // A `^id` at the end of a heading names the heading (spec Q3,
+            // as Obsidian does; observed 2026-10-07).
+            Event::End(TagEnd::Heading(_)) => {
+                push_block(
+                    &mut document,
+                    block_id(source, &lines, range.clone(), range.clone()),
+                );
+                if depth == 0 {
+                    last_top = Some(range.clone());
+                }
+            }
+            Event::End(TagEnd::CodeBlock | TagEnd::Table | TagEnd::List(_) | TagEnd::HtmlBlock)
+                if depth == 0 =>
+            {
+                last_top = Some(range.clone());
+            }
+            Event::End(TagEnd::BlockQuote(_)) if depth == 0 => last_top = Some(range.clone()),
+            Event::Rule if depth == 0 => last_top = Some(range.clone()),
             Event::Start(Tag::BlockQuote(_)) => {
                 if let Some(callout) = callout(source, &lines, range) {
                     document.callouts.push(callout);
@@ -128,6 +174,14 @@ pub fn parse(source: &str) -> Document {
         }
     }
 
+    // A `^id` ending an item's own text names the whole item, its nested
+    // items with it (spec Q21): the item that starts where that text does.
+    for block in &mut document.blocks {
+        if let Some(item) = item_ranges.iter().find(|r| r.start == block.block.start) {
+            block.block.end = block.block.end.max(item.end);
+            block.lines = lines_of(source, &lines, block.block.start, block.block.end);
+        }
+    }
     document.property_links =
         crate::properties::property_links(source, &lines, document.frontmatter.as_ref());
     document
@@ -327,7 +381,12 @@ fn strip_closing_sequence(content: &str) -> &str {
 /// span, which is followed by a backtick, does not qualify; a code block or
 /// a nested list at the end of an item is outside the item's own text
 /// ([`OpenItem`]) and is not looked at.
-fn block_id(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<BlockId> {
+fn block_id(
+    source: &str,
+    lines: &LineIndex,
+    range: Range<usize>,
+    named: Range<usize>,
+) -> Option<BlockId> {
     let text = source.get(range.clone())?;
     let trimmed = text.trim_end();
     let last_word = trimmed.rsplit([' ', '\t', '\n', '\r']).next()?;
@@ -343,7 +402,23 @@ fn block_id(source: &str, lines: &LineIndex, range: Range<usize>) -> Option<Bloc
             end: start + last_word.len(),
         },
         pos: lines.pos(source, start),
+        block: Span {
+            start: named.start,
+            end: named.end,
+        },
+        lines: lines_of(source, lines, named.start, named.end),
     })
+}
+
+/// The first and last line (1-based) of the bytes `start..end`, a final
+/// line break not counting as a line of its own.
+fn lines_of(source: &str, lines: &LineIndex, start: usize, end: usize) -> (u32, u32) {
+    let text = source.get(start..end).unwrap_or("");
+    let last = start + text.trim_end_matches(['\n', '\r']).len();
+    (
+        lines.pos(source, start).line,
+        lines.pos(source, last.max(start)).line,
+    )
 }
 
 /// A callout is a blockquote whose first line, after `>` and spaces, starts
@@ -409,6 +484,19 @@ mod tests {
             .iter()
             .map(|b| (b.id.clone(), b.pos.line, b.pos.col))
             .collect()
+    }
+
+    #[test]
+    fn a_block_id_names_its_block_with_its_lines() {
+        // A list item with its nested items (spec Q21); a `^id` alone after
+        // a blank line, the block before it (Q3); not the next item.
+        let doc = super::parse("- um ^item\n  - filho\n- dois\n\nTexto.\n\n^solto\n");
+        let lines: Vec<(&str, (u32, u32))> = doc
+            .blocks
+            .iter()
+            .map(|b| (b.id.as_str(), b.lines))
+            .collect();
+        assert_eq!(lines, [("item", (1, 2)), ("solto", (5, 5))]);
     }
 
     #[test]

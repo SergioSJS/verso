@@ -520,6 +520,14 @@ export class NoteLeaf extends Leaf {
     const jumpToHeading = (leaf: Leaf, heading: string) => {
       if (!heading || !(leaf instanceof NoteLeaf)) return;
       void leaf.loading.then(() => {
+        // `#^id`: the block the id names, from its first line (spec Q3,
+        // Q21); with the id twice, the last (Q4).
+        if (heading.startsWith("^")) {
+          const id = heading.slice(1);
+          const block = [...(leaf.note?.blocks ?? [])].reverse().find((b) => b.id === id);
+          if (block) leaf.jumpTo(block.first_line);
+          return;
+        }
         const cleanHd = heading.toLowerCase().replace(/^#+\s*/, "");
         const hds = leaf.headings();
         const match = hds.find((h) => {

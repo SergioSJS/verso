@@ -19,6 +19,7 @@ import { boardText, LANG, t } from "../../strings";
 import { cardEditor, convertToBoard, isExcalidrawDrawing, loadBoardModule } from "../board";
 import { NoteLeaf } from "../note";
 import { webLeaves } from "../web";
+import { embeddedHtml } from "../../blockEmbed";
 
 export function buildWebBar(this: NoteLeaf): void {
   const b = (ic: string, title: string, run: () => void) => {
@@ -50,7 +51,7 @@ export function embedHtml(this: NoteLeaf, target: string): string | null | undef
     return null;
   }
   void opening.readNote(to).then(async (r) => {
-    this.embedCache.set(target, r.status === "ok" ? await withNoteImages(cleanHtmlText(r.data.html), to) : null);
+    this.embedCache.set(target, r.status === "ok" ? await withNoteImages(cleanHtmlText(await embeddedHtml(target, r.data)), to) : null);
     this.editor.dispatch({ effects: redraw.of(null) });
   });
   return undefined;

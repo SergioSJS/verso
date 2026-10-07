@@ -22,7 +22,7 @@ Síntese dos aprendizados obtidos durante a fase de pesquisa exploratória para 
 
 1. **Aderência ao Padrão Aberto**: Não inventar extensões proprietárias incompatíveis com o Obsidian e o CommonMark.
 2. **Invariante de Confinamento**: O app nunca deve ler ou gravar fora da pasta que o usuário selecionou.
-3. **Escrita Atômica**: Gravar sempre em arquivo temporário antes de substituir o arquivo original, evitando qualquer perda de dados por queda de energia ou travamento.
+3. **Escrita Atômica**: Gravar sempre em arquivo temporário antes de substituir o arquivo original, evitando qualquer perda de dados por queda de energia ou travamento. ^atomica
 
 ## Conexões
 - Aplicação no [[Projeto Alpha]]
