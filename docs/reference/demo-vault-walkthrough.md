@@ -437,7 +437,9 @@ point 13).
    sticker, and default table". A right click on the page's empty space
    shows the tree's menu — new note, folder, base, board, web page, Mostrar
    no Finder, the paths — every item with its icon (E: `folder-pages.spec.mjs`,
-   "a folder page's right click…").
+   "a folder page's right click…"). In `assets`, Miniaturas: the PDF shows
+   its first page (E: `folder-pages.spec.mjs`, "a PDF shows its first
+   page…").
 5. Ajustes › Organização › "Nome da nota da pasta": `README` makes
    `Pasta/README.md` the folder's note — its sticker shows on the folder's
    row. Level: H; E: `labels.spec.mjs`, "the folder note name setting names

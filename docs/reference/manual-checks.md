@@ -39,6 +39,7 @@ in the real app.
 
 ### Next version
 
+- [ ] **A PDF's cover in a folder's view**: open `assets` of the demo vault, Thumbnails — the PDF shows its first page; switch to List and back to the table — the items stay.
 - [ ] **The version in the files' addresses** (cache after an update):
   after updating, the window shows the new version's interface at once,
   with no stale screen; the PDF reader and a board still open.

@@ -196,6 +196,8 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .folder-items.grid .thumb { display: grid; place-content: center; aspect-ratio: 4 / 3; background: var(--paper-2); border-radius: 6px; overflow: hidden; color: var(--ink-3); }
 .folder-items.grid .thumb .icon { width: 28px; height: 28px; }
 .folder-items.grid .thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* A PDF's cover: its first page from the top, where the title is. */
+.folder-items .thumb img.pdf-cover { object-position: top; }
 .folder-items.grid .item.kind-folder .thumb .icon, .folder-items .item.kind-note .icon { color: var(--brass); }
 .folder-items.grid .label { font-size: .85rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-items.list .item { padding: .35rem .5rem; border-radius: 5px; }

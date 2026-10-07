@@ -39,6 +39,7 @@ app real.
 
 ### Próxima versão
 
+- [ ] **A capa de um PDF na visão de pasta**: abra `assets` do cofre de exemplo, Miniaturas — o PDF mostra a primeira página; troque para Lista e volte para a tabela — os itens continuam.
 - [ ] **A versão no endereço dos arquivos** (cache depois de uma
   atualização): depois de atualizar, a janela mostra a interface da versão
   nova na hora, sem tela antiga; o leitor de PDF e um board continuam
