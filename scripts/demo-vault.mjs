@@ -188,11 +188,11 @@ function problems() {
 
   // The daily notes and the templates where the app looks by default: the
   // window's pt-BR names (the demo vault is in Portuguese).
-  const main = readFileSync(join(root, "app/ui/src/main.ts"), "utf8");
+  const main = readFileSync(join(root, "app/ui/src/strings.ts"), "utf8");
   const ptStrings = main.slice(main.indexOf("const pt: Strings = {"), main.indexOf("const en: Strings = {"));
   const daily = /dailyName: "([^"]+)"/.exec(ptStrings)?.[1];
   const templates = /templatesName: "([^"]+)"/.exec(ptStrings)?.[1];
-  if (!daily || !templates) said.push("app/ui/src/main.ts: the default folders of the daily notes and the templates were not found");
+  if (!daily || !templates) said.push("app/ui/src/strings.ts: the default folders of the daily notes and the templates were not found");
   else {
     if (!files.some((p) => new RegExp(`^${daily}/\\d{4}-\\d{2}-\\d{2}\\.md$`).test(p.normalize("NFC")))) said.push(`no daily note in ${daily}/, where the app looks for them`);
     if (!byPath.has(fold(`${templates}/${daily}.md`))) said.push(`no ${templates}/${daily}.md: the app makes a daily note from the template named as its folder`);

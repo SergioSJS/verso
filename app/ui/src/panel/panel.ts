@@ -1,0 +1,376 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import { DailyCalendar } from "../bases/daily";
+import { commands } from "../bindings";
+import { bookmarks } from "../bookmarks";
+import { dailyNote, dailyPath } from "../daily";
+import { button, el, h, ui } from "../dom";
+import { activeFocusItem, addFocusPrompt, deleteFocus, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
+import { allFiles, allNotes, iconOfPath } from "../folder";
+import { icon } from "../icons";
+import { renderSticker, showStickerPicker } from "../labels";
+import { openNote } from "../layout/spaces";
+import { Leaf } from "../leaves/leaf";
+import { NoteLeaf } from "../leaves/note";
+import { panel } from "../main";
+import { pickerStrings } from "../organize/cover";
+import { dirOf, iconFor, kindOf, name } from "../paths";
+import { searchNotes, snippetNode } from "../search";
+import { baseStrings, LOCALE, t } from "../strings";
+import { allFolders, listAll } from "../tree/tree";
+
+/* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
+export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses";
+export class Panel {
+  readonly el = el<HTMLElement>("right");
+  readonly tabs = el<HTMLDivElement>("right-tabs");
+  readonly body = el<HTMLDivElement>("right-body");
+  current: PanelTab = "outline";
+  leaf: Leaf | null = null;
+  tagsCache: { name: string; notes: string[] }[] = [];
+  constructor() {
+    const defs: [PanelTab, string, string][] = [
+      ["outline", "outline", t.outline],
+      ["backlinks", "link", t.linksTab],
+      ["tags", "tag", t.tags],
+      ["bookmarks", "star", t.bookmarks],
+      ["focuses", "compass", t.focusesTab],
+      ["calendar", "calendar", t.calendarTab],
+    ];
+    // A tablist and its one panel: the arrows, Home and End choose a tab,
+    // and only the chosen one is in the Tab order.
+    this.el.setAttribute("aria-label", t.rightPanel);
+    this.tabs.setAttribute("aria-label", t.rightPanel);
+    this.body.setAttribute("role", "tabpanel");
+    for (const [id, ic, label] of defs) {
+      const b = button("right-tab", label, ic);
+      b.setAttribute("role", "tab");
+      b.id = `verso-right-${id}`;
+      b.setAttribute("aria-controls", this.body.id);
+      b.dataset["tab"] = id;
+      b.addEventListener("click", () => {
+        this.current = id;
+        if (id === "focuses") void loadFocuses().then(() => this.paint());
+        this.refresh();
+      });
+      this.tabs.append(b);
+    }
+    this.tabs.addEventListener("keydown", (e) => {
+      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]"));
+      const i = all.indexOf(e.target as HTMLButtonElement);
+      if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+      const n = all.length;
+      const j = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+      const to = all[j];
+      if (!to) return;
+      e.preventDefault();
+      this.current = (to.dataset["tab"] ?? "outline") as PanelTab;
+      if (this.current === "focuses") void loadFocuses().then(() => this.paint());
+      this.refresh();
+      to.focus();
+    });
+    try {
+      const saved = localStorage.getItem("verso.rightTab") as PanelTab | "outgoing" | null;
+      // The outgoing links joined the backlinks tab.
+      if (saved) this.current = saved === "outgoing" ? "backlinks" : saved;
+    } catch {
+      // No storage.
+    }
+    this.markTabs();
+  }
+  /** The chosen tab: selected, in the Tab order, naming the panel. */
+  private markTabs(): void {
+    for (const b of this.tabs.querySelectorAll<HTMLButtonElement>("button")) {
+      const on = b.dataset["tab"] === this.current;
+      b.setAttribute("aria-selected", String(on));
+      b.tabIndex = on ? 0 : -1;
+      if (on) this.body.setAttribute("aria-labelledby", b.id);
+    }
+  }
+  show(leaf: Leaf | null): void {
+    this.leaf = leaf;
+    this.refresh();
+    if (leaf instanceof NoteLeaf) leaf.updateWords();
+    else ui.words.textContent = "";
+  }
+  async loadTags(): Promise<void> {
+    const r = await commands.listTags();
+    if (r.status === "ok") this.tagsCache = r.data;
+    if (this.current === "tags") this.paint();
+  }
+  refresh(): void {
+    try {
+      localStorage.setItem("verso.rightTab", this.current);
+    } catch {
+      // No storage.
+    }
+    this.markTabs();
+    this.paint();
+  }
+  /** Notes whose text has this note's name without linking to it: the
+   *  search finds the candidates by the name's words. */
+  private async mentions(leaf: NoteLeaf): Promise<void> {
+    const path = leaf.path;
+    const words = name(path);
+    if (!words.trim()) return;
+    const paint = this.painted;
+    const r = await commands.search(words, 40);
+    if (r.status !== "ok" || this.leaf !== leaf || this.current !== "backlinks" || this.painted !== paint) return;
+    const linked = new Set(leaf.backlinksData.map((b) => b.from));
+    const hits = r.data.filter((hit) => hit.path !== path && !linked.has(hit.path));
+    if (hits.length === 0) return;
+    const head = h("h3", "panel-sub", `${t.mentions} · ${hits.length}`);
+    const ul = h("ul", "panel-list");
+    ul.append(...hits.map((hit) => {
+      const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false, false, true), "search");
+      li.querySelector("button")?.addEventListener("dblclick", () => void openNote(hit.path, false));
+      li.querySelector("button")?.append(snippetNode(hit.snippet));
+      return li;
+    }));
+    // Under the backlinks, above the outgoing links.
+    const out = this.body.querySelector(".links-out");
+    if (out) out.before(head, ul);
+    else this.body.append(head, ul);
+  }
+  private list(items: HTMLElement[], empty: string): void {
+    const ul = h("ul", "panel-list");
+    if (items.length === 0) ul.append(h("li", "empty", empty));
+    else ul.append(...items);
+    this.body.replaceChildren(ul);
+  }
+  private row(label: string, sub: string | undefined, run: () => void, ic?: string): HTMLLIElement {
+    const li = h("li");
+    const b = h("button", "row");
+    b.type = "button";
+    if (ic) b.append(icon(ic));
+    b.append(h("span", "row-name", label));
+    if (sub) b.append(h("span", "path", sub));
+    b.addEventListener("click", run);
+    li.append(b);
+    return li;
+  }
+  /** The month of the daily notes (ADR 0053). */
+  readonly daily = new DailyCalendar({
+    locale: LOCALE,
+    s: baseStrings,
+    has: (day) => allNotes.includes(dailyPath(day)),
+    open: (day) => void dailyNote(day),
+  });
+  /** Counts the paints: a search for mentions that comes back after a
+   *  newer paint has nothing to add (two in flight drew the list twice). */
+  private painted = 0;
+  paintFocuses(): void {
+    const wrap = h("div", "focuses-view");
+    if (focusesConflictBanner) {
+      wrap.append(h("div", "focuses-banner error", focusesConflictBanner));
+    } else if (focusesSummary?.has_file && !focusesSummary.format_known) {
+      wrap.append(h("div", "focuses-banner", formatReadOnlyReason(focusesSummary.read_only_code, focusesSummary.read_only_reason)));
+    } else if (focusesSummary?.has_file && focusesSummary.format_known && !getSyncFocuses()) {
+      wrap.append(h("div", "focuses-banner", t.syncFocusesOffBanner));
+    }
+    const header = h("div", "focuses-header");
+    header.append(h("span", "focuses-title", t.focusesTab));
+    const addBtn = button("ghost iconic", t.createFocus, "plus");
+    addBtn.id = "focuses-add";
+    addBtn.addEventListener("click", () => void addFocusPrompt());
+    header.append(addBtn);
+    wrap.append(header);
+
+    const ul = h("ul", "panel-list focuses-list");
+    const displayList = getDisplayFocuses();
+    const nonHomeList = displayList.filter((f) => !isHomeFocusName(f.name));
+
+    for (const focus of displayList) {
+      const isHome = isHomeFocusName(focus.name);
+      const isActive = isHome ? isHomeActive() : (activeFocusItem === focus);
+      const isReadOnly = (focus.isFromMakeMd && !getSyncFocuses()) || (focus.isFromMakeMd && !focusesSummary?.format_known);
+      const li = h("li", `focus-item ${isActive ? "active" : ""}`);
+      li.dataset["focusName"] = focus.name;
+
+      const row = h("div", "focus-item-row");
+      const stkBtn = h("button", "focus-sticker-btn");
+      stkBtn.type = "button";
+      stkBtn.title = t.changeSticker;
+      stkBtn.setAttribute("aria-label", t.changeSticker);
+      if (focus.sticker) {
+        stkBtn.replaceChildren(renderSticker(focus.sticker, 16) ?? icon("star"));
+      } else {
+        stkBtn.replaceChildren(icon(isHome ? "folder" : "star"));
+        stkBtn.style.opacity = isHome ? "0.6" : "0.3";
+      }
+      if (!isReadOnly) {
+        stkBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showStickerPicker({
+            anchorEl: stkBtn,
+            currentSticker: focus.sticker ?? null,
+            currentColor: null,
+            strings: pickerStrings(),
+            lang: LOCALE.startsWith("pt") ? "pt" : "en",
+            onSelectSticker: (stk) => {
+              focus.sticker = stk;
+              if (isHome && !focusesList.some((f) => isHomeFocusName(f.name))) {
+                focusesList.unshift(focus);
+              }
+              void saveFocuses();
+              panel.refresh();
+            },
+            onRemoveSticker: () => {
+              focus.sticker = null;
+              void saveFocuses();
+              panel.refresh();
+            },
+            onSelectColor: () => {},
+            onRemoveColor: () => {},
+          });
+        });
+      } else {
+        stkBtn.disabled = true;
+      }
+
+      const nameBtn = h("button", `focus-name-btn ${isActive ? "active" : ""}`);
+      nameBtn.type = "button";
+      nameBtn.setAttribute("aria-current", String(isActive));
+      const displayName = isHome ? t.homeFocus : focus.name;
+      const titleSpan = h("span", "row-name", displayName);
+      nameBtn.append(titleSpan);
+      nameBtn.addEventListener("click", () => void selectFocus(isHome ? null : focus));
+
+      const actions = h("div", "focus-actions");
+      if (!isHome && !isReadOnly) {
+        const nonHomeIdx = nonHomeList.indexOf(focus);
+        const upBtn = button("ghost iconic", t.moveUp, "chevronUp");
+        if (nonHomeIdx <= 0) upBtn.disabled = true;
+        upBtn.addEventListener("click", (e) => { e.stopPropagation(); void moveFocusOrder(focus, -1); });
+
+        const downBtn = button("ghost iconic", t.moveDown, "chevronDown");
+        if (nonHomeIdx >= nonHomeList.length - 1) downBtn.disabled = true;
+        downBtn.addEventListener("click", (e) => { e.stopPropagation(); void moveFocusOrder(focus, 1); });
+
+        const renameBtn = button("ghost iconic", t.rename, "edit");
+        renameBtn.addEventListener("click", (e) => { e.stopPropagation(); void renameFocusPrompt(focus); });
+
+        const delBtn = button("ghost iconic danger", t.deleteFocus, "close");
+        delBtn.addEventListener("click", (e) => { e.stopPropagation(); void deleteFocus(focus); });
+
+        actions.append(upBtn, downBtn, renameBtn, delBtn);
+      }
+
+      row.append(stkBtn, nameBtn, actions);
+      li.append(row);
+
+      if (focus.paths.length > 0 && !isHome) {
+        const pathsUl = h("ul", "focus-paths-list");
+        for (const p of focus.paths) {
+          const pLi = h("li", "focus-path-item");
+          const pSpan = h("span", "focus-path-text", p);
+          if (!isReadOnly) {
+            const removeP = button("ghost iconic focus-remove-path", t.remove, "close");
+            removeP.addEventListener("click", async (e) => {
+              e.stopPropagation();
+              focus.paths = focus.paths.filter((x) => x !== p);
+              await saveFocuses();
+              if (activeFocusItem === focus) await listAll();
+              panel.refresh();
+            });
+            pLi.append(iconOfPath(p, allFolders.includes(p) ? "folder" : kindOf(p)), pSpan, removeP);
+          } else {
+            pLi.append(iconOfPath(p, allFolders.includes(p) ? "folder" : kindOf(p)), pSpan);
+          }
+          pathsUl.append(pLi);
+        }
+        li.append(pathsUl);
+      }
+
+      ul.append(li);
+    }
+    wrap.append(ul);
+    this.body.replaceChildren(wrap);
+  }
+  paint(): void {
+    const leaf = this.leaf;
+    this.painted++;
+    switch (this.current) {
+      case "calendar": {
+        this.daily.render();
+        this.body.replaceChildren(this.daily.el);
+        break;
+      }
+      case "outline": {
+        const heads = leaf?.headings() ?? [];
+        this.list(
+          heads.map((hd) => {
+            const li = this.row(hd.text, undefined, () => leaf?.jumpTo(hd.line));
+            li.querySelector("button")?.classList.add(`level-${hd.level}`);
+            return li;
+          }),
+          t.noOutline,
+        );
+        break;
+      }
+      case "backlinks": {
+        // Both kinds of link in one tab, a divider between them.
+        const back = leaf instanceof NoteLeaf ? leaf.backlinksData : [];
+        const out = leaf instanceof NoteLeaf ? leaf.linksData : [];
+        const section = (cls: string, title: string, items: HTMLElement[]): HTMLElement => {
+          const box = h("section", `links-section ${cls}`);
+          const ul = h("ul", "panel-list");
+          if (items.length === 0) ul.append(h("li", "empty", t.noLinks));
+          else ul.append(...items);
+          box.append(h("h3", "links-head", `${title} · ${items.length}`), ul);
+          return box;
+        };
+        this.body.replaceChildren(
+          section(
+            "links-back",
+            t.backlinks,
+            back.map((b) => this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note")),
+          ),
+          section(
+            "links-out",
+            t.outgoing,
+            out.map((l) => {
+              const li = this.row(l.target, l.resolved ? dirOf(l.resolved) : "?", () => (l.resolved ? openNote(l.resolved, false) : undefined), l.resolved ? "note" : "link");
+              if (!l.resolved) li.classList.add("unresolved");
+              return li;
+            }),
+          ),
+        );
+        if (leaf instanceof NoteLeaf) void this.mentions(leaf);
+        break;
+      }
+      case "tags": {
+        this.list(
+          this.tagsCache.map((tg) =>
+            this.row(`#${tg.name}`, String(tg.notes.length), () => {
+              ui.search.value = tg.name;
+              void searchNotes(tg.name);
+            }, "tag"),
+          ),
+          t.noTags,
+        );
+        if (this.tagsCache.length === 0) void this.loadTags();
+        break;
+      }
+      case "bookmarks": {
+        this.list(
+          bookmarks.map((p) => {
+            // A file gone outside the app: marked, and not opened as an empty tab.
+            const here = allNotes.includes(p) || allFiles.includes(p);
+            const li = this.row(name(p), dirOf(p), () => (here ? void openNote(p, false) : void (ui.status.textContent = t.unresolved(name(p)))), iconFor(kindOf(p)));
+            if (!here) li.classList.add("unresolved");
+            return li;
+          }),
+          t.noBookmarks,
+        );
+        break;
+      }
+      case "focuses": {
+        this.paintFocuses();
+        break;
+      }
+    }
+  }
+}
