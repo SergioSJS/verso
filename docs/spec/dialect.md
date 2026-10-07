@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.24
+# Verso dialect spec — v0.27
 
-- Version: v0.24 · 2026-10-02
+- Version: v0.27 · 2026-10-07
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -68,6 +68,7 @@ does not follow the schema is invalid.
 | `blocks` | list of `^id` definitions, in document order | not asserted |
 | `callouts` | list, in document order | not asserted |
 | `property_links` | list of the links frontmatter properties hold (Q10), in the order written (§4.7) | not asserted |
+| `schemas` | list of the fenced `verso-schema` blocks, nested ones included, in document order (§4.8) | not asserted |
 | `observed` | how the behavior was verified in Obsidian | see 4.5 |
 | `source` | ADR or question that authorizes a behavior that is Verso's own | see 4.5 |
 
@@ -171,6 +172,28 @@ wikilink as the value, or as an item of a list.
 Added on 2026-10-01 by the maintainer's decision on the critical review
 [`../review/board.md`](../review/board.md), §6 item 2, with the drafted
 fixture `fixtures/frontmatter/property-links`, approved on 2026-10-02.
+
+### 4.8 Items of `schemas`
+
+A type's schema: a fenced code block whose language is `verso-schema`,
+YAML inside (section 6, Q11; [ADR 0052](../adr/0052-typed-note.md)). Only
+a block at the top level of a note is read; one inside a list item or a
+quote is reported as nested, and not read.
+
+| Field | Meaning | Required |
+|---|---|---|
+| `type` | the name notes write in their own `type:`, as written | for a block read |
+| `labels` | the type's name per interface language, a map as written (`{ pt-BR: PdM, en: NPC }`); absent asserts none | no |
+| `properties` | the declared properties, in order, each with `key`, `kind` (`text`, `list`, `number`, `checkbox`, `date`, `datetime`) and `labels` (as above); absent asserts none | no |
+| `error` | why a block at the top level types nothing: `yaml`, `not_a_mapping`, `no_type`, `label`, `properties`, `property` (no `key` or no `kind`), `unknown_kind`, `duplicate_key` | when it does |
+| `nested` | `true` for a block inside a list item or a quote; absent asserts the top level | for a nested block |
+| `pos` | position of the first character of the opening fence (4.4) | when the fixture tests position |
+
+A block that is nested or that types nothing has no `type`, `labels` or
+`properties`. Added on 2026-10-07 with the implementation of ADR 0052
+(`docs/reference/typed-note-decision.md` §8, rows 1 and 2), with the drafted
+fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid`,
+approved on 2026-10-07.
 
 ---
 
@@ -513,6 +536,11 @@ decided the typed note, its schemas and their labels per language
 | Typed relation | a frontmatter property of the source note whose value is a quoted wikilink or a list of them; the key is the type | `DECIDED` on 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | a fenced `verso-schema` block in a note, anywhere in the folder but hidden and ignored paths | `DECIDED` on 2026-09-24 (Q11) |
 | Per-block visibility | game master's secret | `[OPEN]` (Q9) |
+| Sticker and color | `sticker:` in make.md's forms — `emoji//<hex>`, `lucide//<name>`, `ui//<name>` — written by Verso as make.md writes them, or an emoji written as itself, read; another value is no sticker. `color:` a hex, as Verso writes it, or a CSS color, read. In the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Cover banner | `banner:` (a path of the folder or a URL) and `banner_y:` (the vertical position, a percentage from 0 to 100 written as text, `"42"` — as make.md's reposition writes it, read in its source and observed through its property writer, 2026-10-02) in the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Manual folder order | `order:` in the folder note's frontmatter, a list of relative child names defining sort order; no `order:`, the alphabetical one; with the tree set to alphabetical, every `order:` is kept and ignored. The root's, in a note at the root named after the open folder (its place: `PROPOSED`, the author's, to confirm) | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Folder pins | `pinned:` in the folder note's frontmatter, a list of quoted wikilinks forming a `pinned` typed relation | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Folder item defaults | `items_sticker:`, `items_color:`, and `items_template:` in the folder note's frontmatter, inherited by newly created items in that folder | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 
 Example of a typed note:
 
@@ -543,6 +571,32 @@ properties:
 An Obsidian vault that already uses `type:` in the frontmatter for another
 purpose stays valid: with no matching schema in the folder, the note is plain
 Markdown.
+
+Example of organizing frontmatter on a note:
+
+```markdown
+---
+sticker: emoji//1f680
+color: "#e8590c"
+banner: assets/diagrama.svg
+banner_y: "42"
+---
+```
+
+And on a folder note (`Projetos/Projetos.md`):
+
+```markdown
+---
+order:
+  - "Projeto Alpha.md"
+  - "Projeto Beta.md"
+pinned:
+  - "[[Projeto Alpha]]"
+items_sticker: emoji//1f4dd
+items_color: "#1971c2"
+items_template: "Templates/Nota de Reunião.md"
+---
+```
 
 Constraints that any extension has to respect:
 
@@ -609,6 +663,7 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | heading | 5.12 | required by feature 1 of Phase 1 |
 | Markdown link to a local file | 5.13 | `PROPOSED` |
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
+| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day |
 
 Any fixture may be drafted by the AI; it only counts with the maintainer's
 approval in the PR that adds it (ADR 0031). A draft says so on the first line
@@ -1083,6 +1138,10 @@ the parser was chosen.
   a table cell, a whole callout, a code block, a heading with its content?
   Obsidian's public documentation describes its notion of it; the spec needs its
   own before Q3 and Q4 make sense.
+  The editor has its own unit since 2026-10-06, for moving blocks in Edit
+  mode ([ADR 0061](../adr/0061-blocks-in-edit-mode.md) D5): a node of the
+  syntax tree, never a line. It closes nothing here and is offered as an
+  input when Q21 is answered.
 - **Q22. Charset of the `^id` and form of the tags.** `DECIDED` for the tags'
   charset and case on 2026-09-23; `[OPEN]` for the rest.
   Obsidian's public documentation restricts `^id` to letters, numbers and
@@ -1191,3 +1250,6 @@ the parser was chosen.
 | v0.22 | 2026-09-30 | **Q10 closed by the maintainer** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): a typed relation is a frontmatter property of the source note whose value is a quoted wikilink or a list of them, the key its type; with it, **Q24's link part**. **Q16 decided for `.canvas`** as Obsidian does: `file` nodes and the links of `text` nodes are backlink sources, a canvas is a link target by its full name. §5.11: the board's format — the drawing under a top-level `verso` key, no type of Verso's own, Obsidian's layout kept on write. Section 6: the typed relation `DECIDED`; the conversion table's D4 `DECIDED`. One question closed, two in part |
 | v0.23 | 2026-10-01 | On the critical review `docs/review/board.md`, §6, accepted by the maintainer: **`property_links`** joins the `expected.yaml` schema (§4.1, §4.7, §4.6), with the drafted fixture `fixtures/frontmatter/property-links` (AI draft, observed in Obsidian 1.13.7); §5.11 records the fields of Verso's own on a canvas, that a `file` node is a path from the root, and that a save writes what the user did not change as it was read. No question closed |
 | v0.24 | 2026-10-02 | The fixture `fixtures/frontmatter/property-links` **approved by the maintainer** in session ("Já aprovo agora"), before 0.3.0-beta.3; its draft mark removed. Nothing else changes. |
+| v0.25 | 2026-10-02 | Organizing properties ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDED` in section 6. |
+| v0.26 | 2026-10-07 | The typed note's implementation ([ADR 0052](../adr/0052-typed-note.md)) begins: **`schemas`** enters the fixture schema (§4.1, §4.8), with the category `schema` in §8 and two drafted fixtures awaiting the maintainer's approval. The header's version, left at v0.24 by v0.25, catches up |
+| v0.27 | 2026-10-07 | The fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid` **approved by the maintainer** in session ("ta aprovado a fixture"); their draft mark removed. Nothing else changes. |

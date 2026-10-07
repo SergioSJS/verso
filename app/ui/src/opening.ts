@@ -1,0 +1,46 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import { commands, type ContractError } from "./bindings";
+import { ui } from "./dom";
+import { fail } from "./errors";
+import { name } from "./paths";
+import { t } from "./strings";
+
+/* Opening a file is the user asking for it (ADR 0043, amended on
+ * 2026-09-30): a file whose content is only in iCloud is brought down
+ * first, the status line saying so, and read again. The index, the
+ * watcher and a scan of every note read through `commands` and never
+ * download anything. */
+export async function fetchFirst(path: string): Promise<boolean> {
+  const said = t.fetching(name(path));
+  const was = ui.status.textContent;
+  const timer = window.setTimeout(() => (ui.status.textContent = said), 150);
+  const r = await commands.fetchFile(path);
+  window.clearTimeout(timer);
+  if (r.status !== "ok") {
+    // iCloud's failure is said as one; any other is said as what it is.
+    if (r.error.kind === "unavailable") ui.status.textContent = t.fetchFailed(name(path));
+    else fail(r.error);
+    return false;
+  }
+  if (ui.status.textContent === said) ui.status.textContent = was === said ? "" : was;
+  return r.data;
+}
+/** The paths of the tabs a workspace is bringing back, for as long as it
+ *  does: a tab of one of them, not in front of its pane, reads without
+ *  downloading from iCloud (decided on 2026-10-01, review `board.md` §6
+ *  item 8), and comes down when it is shown. Per tab, not per path: the
+ *  same note in two panes is quiet where it is behind (second reading,
+ *  finding 5). */
+export const quietPaths = new Set<string>();
+export async function fetched<T extends { status: "ok" } | { status: "error"; error: ContractError }>(path: string, read: () => Promise<T>, quiet = false): Promise<T> {
+  const r = await read();
+  if (r.status !== "error" || r.error.kind !== "unavailable" || quiet) return r;
+  return (await fetchFirst(path)) ? read() : r;
+}
+export const opening = {
+  readNote: (path: string, quiet = false) => fetched(path, () => commands.readNote(path), quiet),
+  readText: (path: string, quiet = false) => fetched(path, () => commands.readText(path), quiet),
+};

@@ -18,6 +18,7 @@ import type { Text } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import katex from "katex";
 import { cells } from "./table";
+import { TableEditor, tableArrows, type TableEditorOptions } from "./tableEditor";
 import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
 import { heldImage, imageLink, webFrame } from "./sanitize";
@@ -43,6 +44,21 @@ export type LiveOptions = {
   base?: (text: string, embed: string | null, mount: HTMLElement, edit: ((next: string) => void) | null) => () => void;
   /** A PDF file embedded on a line of its own, drawn into `mount`. */
   pdf?: (text: string, mount: HTMLElement) => () => void;
+  /** An embedded note edited in place inside `mount` (ADR 0060 S4).
+   *  Called when the embed is clicked to edit. Returns what takes it down. */
+  editEmbed?: (target: string, mount: HTMLElement, onExit: () => void) => (() => void) | undefined;
+  /** The edit-in-place button's tooltips, in the interface's language. */
+  embedLabels?: { edit: string; done: string };
+  /** A code block's copy button and what it says once copied, in the
+   *  interface's language (ADR 0035). */
+  copyLabels?: { copy: string; copied: string };
+  /** Whether an embed may be edited in place now (the setting). */
+  canEditEmbed?: () => boolean;
+  /** True when an embedded note is actively being edited, dirty, or conflicted. */
+  isEmbedActive?: (target: string) => boolean;
+  /** Tables edited as tables (ADR 0064): the editor's words and the
+   *  window's menu and renderer. */
+  table?: TableEditorOptions;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -202,28 +218,28 @@ class TaskCheckboxWidget extends WidgetType {
 }
 
 class CodeCopyWidget extends WidgetType {
-  constructor(readonly code: string) {
+  constructor(readonly code: string, readonly labels: { copy: string; copied: string }) {
     super();
   }
   override eq(other: CodeCopyWidget): boolean {
-    return other.code === this.code;
+    return other.code === this.code && other.labels.copy === this.labels.copy;
   }
   override toDOM(): HTMLElement {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "cm-lp-copy-code";
-    btn.title = "Copiar código";
-    btn.setAttribute("aria-label", "Copiar código");
+    btn.title = this.labels.copy;
+    btn.setAttribute("aria-label", this.labels.copy);
     btn.append(icon("copy"));
     btn.addEventListener("mousedown", (e) => e.preventDefault());
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       void navigator.clipboard.writeText(this.code).then(() => {
         btn.replaceChildren(icon("check"));
-        btn.title = "Copiado!";
+        btn.title = this.labels.copied;
         setTimeout(() => {
           btn.replaceChildren(icon("copy"));
-          btn.title = "Copiar código";
+          btn.title = this.labels.copy;
         }, 1500);
       });
     });
@@ -421,7 +437,7 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true; editable?: true; ordinal?: number };
 const BASE_EMBED = /\.base(#[^|]*)?$/i;
 const PDF_EXT = /\.pdf([#|].*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
@@ -429,6 +445,10 @@ export function blocksOf(state: EditorState): Block[] {
   const doc = state.doc;
   const tree = syntaxTree(state);
   const out: Block[] = [];
+  // The note's tables in order, every one counted — a nested one too — as
+  // the reading view counts them: a table's widths are kept by its place
+  // (tableWidths.ts).
+  let tables = 0;
   // The block's whole lines, when only indentation or `>` marks precede it
   // on its first line (after a list marker it stays source).
   const lines = (from: number, to: number) => {
@@ -458,12 +478,19 @@ export function blocksOf(state: EditorState): Block[] {
         return false;
       }
       if (n.name === "Table") {
+        const ordinal = tables++;
         const rows: string[] = [];
         for (let c = n.node.firstChild; c; c = c.nextSibling) {
           if (c.name === "TableHeader" || c.name === "TableDelimiter" || c.name === "TableRow") rows.push(doc.sliceString(c.from, c.to));
         }
         const at = lines(n.from, n.to);
-        if (at) out.push({ ...at, kind: "table", text: rows.join("\n"), rows });
+        // Edited as a table (ADR 0064) when it stands on its own lines, out
+        // of a list or a quote, every row between pipes: written back, it
+        // keeps all it had.
+        let nested = false;
+        for (let p = n.node.parent; p; p = p.parent) if (p.name === "Blockquote" || p.name === "ListItem") nested = true;
+        const editable = !nested && rows.length >= 2 && rows.every((r) => /^\|.*\|$/.test(r.trim())) && at !== null && doc.sliceString(at.from, at.to).split("\n").every((l) => /^\s*\|/.test(l));
+        if (at) out.push({ ...at, kind: "table", text: rows.join("\n"), rows, ordinal, ...(editable ? { editable: true as const } : {}) });
         return false;
       }
       if (n.name === "Paragraph") {
@@ -693,10 +720,51 @@ class BlockWidget extends WidgetType {
       else body.innerHTML = this.html;
       frame.append(body);
       el.append(frame);
+
+      if (this.opts.editEmbed && this.opts.canEditEmbed?.() !== false) {
+        const labels = this.opts.embedLabels;
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "ghost iconic embed-edit";
+        edit.title = labels?.edit ?? "";
+        edit.append(icon("edit"));
+        frame.append(edit);
+
+        let teardown: (() => void) | undefined;
+        const exit = () => {
+          frame.classList.remove("editing");
+          edit.replaceChildren(icon("edit"));
+          edit.title = labels?.edit ?? "";
+          teardown = undefined;
+        };
+        const start = (e?: Event) => {
+          if (teardown) {
+            teardown();
+            return;
+          }
+          e?.stopPropagation();
+          frame.classList.add("editing");
+          edit.replaceChildren(icon("check"));
+          edit.title = labels?.done ?? "";
+          teardown = this.opts.editEmbed!(b.text, body, exit);
+          // Refused (a note that cannot be edited here, the setting off):
+          // the frame goes back to showing the note.
+          if (!teardown) exit();
+        };
+        edit.addEventListener("click", start);
+        body.addEventListener("click", (e) => {
+          if ((e.target as HTMLElement).closest("a, button, input, select, textarea, .card-editor")) return;
+          if (teardown) return;
+          start(e);
+        });
+        bases.set(el, () => {
+          teardown?.();
+        });
+      }
     }
     // A click puts the caret at the block, which opens it as text.
     el.addEventListener("mousedown", (e) => {
-      if ((e.target as HTMLElement).closest("a")) return;
+      if ((e.target as HTMLElement).closest("a, .embed-edit, .embed-note-body")) return;
       e.preventDefault();
       const at = startOf(view, el);
       if (at === null) return;
@@ -725,7 +793,14 @@ function foldBlocks(state: EditorState, opts: LiveOptions, blocks: Block[]): Dec
     ranges.push(Decoration.replace({ widget: new FrontmatterWidget(lines, opts.editFrontmatter, opts.frontmatterTitle?.(lines) ?? "") }).range(0, fm));
   }
   for (const b of blocks) {
-    if (b.from <= fm || touched(b.from, b.to)) continue;
+    if (b.from <= fm) continue;
+    // A table is edited as a table, the caret in it or not (ADR 0064).
+    if (b.kind === "table" && b.editable && opts.table) {
+      ranges.push(Decoration.replace({ widget: new TableEditor(b.text, opts.table, b.ordinal ?? 0), block: true }).range(b.from, b.to));
+      continue;
+    }
+    const active = b.kind === "embed" && Boolean(opts.isEmbedActive?.(b.text));
+    if (touched(b.from, b.to) && !active) continue;
     const html = b.kind === "embed" ? opts.noteHtml?.(b.text) : undefined;
     ranges.push(Decoration.replace({ widget: new BlockWidget(b, opts, html), block: true }).range(b.from, b.to));
   }
@@ -1052,7 +1127,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             out.push({
               from: node.from,
               to: node.from,
-              deco: Decoration.widget({ widget: new CodeCopyWidget(codeText), side: 1 }),
+              deco: Decoration.widget({ widget: new CodeCopyWidget(codeText, opts.copyLabels ?? { copy: "Copy code", copied: "Copied." }), side: 1 }),
             });
           }
         } else if (name === "Blockquote") {
@@ -1387,6 +1462,7 @@ export function livePreview(opts: LiveOptions) {
   return [
     plugin,
     clicks,
+    opts.table ? tableArrows((state) => safely(() => blocksOf(state), []).filter((b) => b.kind === "table" && b.editable)) : [],
     frontmatter,
     outOfFrontmatter,
     keepFrontmatter,

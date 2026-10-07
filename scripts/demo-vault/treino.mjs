@@ -27,7 +27,7 @@ const LESSONS = [
       "• Mover: dois dedos no trackpad ou a roda do mouse (com ⇧, para os lados). Ou segure espaço e arraste. A Mão (H) também arrasta.\n" +
       "• Aproximar: a pinça, ⌘ + roda, ou ⌘+ e ⌘−. ⌘0 volta a 100%.\n" +
       "• Ver tudo: ⇧1. Ver só o que está selecionado: ⇧2.\n" +
-      "• Ir a uma lição: abra o Sumário, na barra do board, e clique nela.",
+      "• Ir a uma lição: abra o Sumário, no alto à direita, e clique nela.",
     challenge: "Desafio: há uma ⭐ escondida neste board. Aperte ⇧1, ache, chegue perto e volte pelo Sumário.",
     practice(b, x, y, f) {
       b.write("d-andar-atalhos", x + 20, y + 20, "atalhos para andar", { size: 32, color: GREY, frame: f });
@@ -115,10 +115,11 @@ const LESSONS = [
     color: TEAL,
     text:
       "1. Pegue a Flecha (A ou 5).\n" +
-      "2. Comece em cima de um cartão e solte em cima de outro: a borda acende quando a seta gruda.\n" +
-      "3. Mova um cartão: a seta vai junto.\n" +
+      "2. Comece em cima de um cartão e solte em cima de outro: a borda acende quando a seta gruda, e cada ponta mira o ponto onde você começou e soltou.\n" +
+      "3. Mova um cartão: a seta vai junto, mirando o mesmo ponto.\n" +
       "4. Duplo clique na seta escreve um rótulo.\n" +
-      "5. No painel, Tipo de seta (reta, curva, cotovelo) e Pontas.\n" +
+      "5. Na coluna da esquerda, Tipo de seta: reta, curva, cotovelo, e as Pontas.\n" +
+      "6. Seta livre, presa a nada: segure ⌘ ao desenhar — ou, no toque, Inserir › Setas soltas.\n" +
       "Entre dois cartões, a seta é uma conexão do canvas, que o Obsidian também mostra.",
     challenge: "Desafio: ligue Projeto Beta a Pesquisa e Descobertas e escreva “usa” na seta.",
     practice(b, x, y, f) {
@@ -178,7 +179,7 @@ const LESSONS = [
     title: "🗒️ Cartões do Verso",
     color: VIOLET,
     text:
-      "A barra do board põe coisas nele: Nota ou arquivo (uma nota, imagem ou PDF da pasta), Texto (um cartão em Markdown) e Link.\n" +
+      "Inserir, na barra de ferramentas, põe coisas no board: imagem ou PDF, nota ou arquivo, texto, link. Ou solte uma imagem aqui, ou arraste da árvore.\n" +
       "• Duplo clique entra num cartão; mais um clique edita a nota ali mesmo. Esc sai.\n" +
       "• ↗ abre o arquivo numa aba; ⇄ troca o arquivo do cartão.\n" +
       "• Fundo e Preenchimento pintam o cartão.",
@@ -219,7 +220,7 @@ const LESSONS = [
     text:
       "Uma seta entre duas notas pode virar uma relação:\n" +
       "1. Ligue as duas notas com a Flecha.\n" +
-      "2. Com a seta selecionada, clique em Promover a relação, na barra do board.\n" +
+      "2. Com a seta selecionada, clique em Promover a relação, no alto à direita.\n" +
       "3. Dê um nome à relação, como inspira ou depende_de.\n" +
       "4. O Verso mostra a mudança no topo da nota de onde a seta sai e grava quando você confirma.\n" +
       "A relação vira um link na nota: aparece nos backlinks da outra e acompanha renomeações.",
@@ -295,7 +296,7 @@ export function treino() {
     W + GAP_X + 300,
     -560,
     "Cada quadro é uma lição. Este board é seu para bagunçar: ⌘Z desfaz e ⌘⇧Z refaz.\n" +
-      "Para ir a uma lição, abra o Sumário, na barra do board, e clique nela. ⇧1 mostra tudo de novo.",
+      "Para ir a uma lição, abra o Sumário, no alto à direita, e clique nela. ⇧1 mostra tudo de novo.",
     { size: 28, color: BODY, font: SANS, width: 1500 },
   );
   LESSONS.forEach((l, i) => {

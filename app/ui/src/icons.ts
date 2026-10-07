@@ -67,6 +67,15 @@ const PATHS: Record<string, string> = {
   zoomOut: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14M5 7h4",
   fitWidth: "M2.5 8h11M2.5 8l2.5-2.5M2.5 8l2.5 2.5M13.5 8 11 5.5M13.5 8 11 10.5",
   table: "M2.5 3.5h11v9h-11zM2.5 7h11M2.5 10h11M6.5 3.5v9M10 3.5v9",
+  alignLeft: "M2.5 4h11M2.5 7h7M2.5 10h11M2.5 13h7",
+  alignCenter: "M2.5 4h11M4.5 7h7M2.5 10h11M4.5 13h7",
+  alignRight: "M2.5 4h11M6.5 7h7M2.5 10h11M6.5 13h7",
+  rowAbove: "M2.5 8.5h11v5h-11zM8 2v4M6 4h4",
+  rowBelow: "M2.5 2.5h11v5h-11zM8 10v4M6 12h4",
+  colLeft: "M8.5 2.5h5v11h-5zM2 8h4M4 6v4",
+  colRight: "M2.5 2.5h5v11h-5zM10 8h4M12 6v4",
+  rowDelete: "M2.5 5.5h11v5h-11zM6 6.5l4 3M10 6.5l-4 3",
+  colDelete: "M5.5 2.5h5v11h-5zM6.5 6l3 4M9.5 6l-3 4",
   pin: "M9.5 2.5 13.5 6.5l-1.5.5-2 3-1-1L5.5 12.5l-1-1L8 8 7 7l3-2z",
   copy: "M6 6h7v7H6zM3 10V3h7",
   check: "M3.5 8.5 6.5 11.5 12.5 5",
@@ -76,6 +85,8 @@ const PATHS: Record<string, string> = {
   tag: "M2.5 2.5h5l6 6-5 5-6-6zM5.5 5.5h.01",
   link: "M6.5 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1M9.5 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l1-1",
   sort: "M4.5 3v10M2.5 11l2 2 2-2M11.5 13V3M9.5 5l2-2 2 2",
+  sortAz: "M4 2.5v11M2 11.5l2 2 2-2M9.5 7l2-4.5 2 4.5M10.2 5.5h2.6M9.5 9.5h4l-4 4h4",
+  grip: "M6 3.5h.01M10 3.5h.01M6 8h.01M10 8h.01M6 12.5h.01M10 12.5h.01",
   filter: "M2.5 3.5h11L9 9v4l-2-1V9z",
   kanban: "M2.5 3h3v10h-3zM6.5 3h3v6h-3zM10.5 3h3v8h-3z",
   base: "M2.5 3.5h11v9h-11zM2.5 6.5h11M6 6.5v6",
@@ -85,6 +96,7 @@ const PATHS: Record<string, string> = {
   download: "M3 11.5v1a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5v-1M8 2v7.5M5 6.5 8 9.5 11 6.5",
   sparkles: "M8 2l1.2 3.8L13 7l-3.8 1.2L8 12l-1.2-3.8L3 7l3.8-1.2zM12.5 1.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z",
   tab: "M2.5 4A1.5 1.5 0 0 1 4 2.5h8A1.5 1.5 0 0 1 13.5 4v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12zM2.5 6h11",
+  compass: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12zM10.5 5.5l-1.8 4.2-4.2 1.8 1.8-4.2z",
 };
 
 export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGElement {

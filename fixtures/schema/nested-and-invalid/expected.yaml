@@ -1,0 +1,16 @@
+# Approved by the maintainer on 2026-10-07 in session ("ta aprovado a fixture"); drafted by Opus 5.5 on 2026-10-07 (ADR 0031).
+# Construct: `verso-schema` blocks that type nothing. One inside a list item
+# and one inside a quote are reported as nested and not read (ADR 0052
+# point 3: only a block at the top level counts, so a quoted example stays an
+# example). One with a kind the first version does not have, and one with
+# no `type`, are read and say why they type nothing (ADR 0052 point 5).
+schemas:
+  - nested: true
+    pos: { line: 5, col: 3 }
+  - nested: true
+    pos: { line: 9, col: 3 }
+  - error: unknown_kind
+    pos: { line: 13, col: 1 }
+  - error: no_type
+    pos: { line: 20, col: 1 }
+source: ADR 0052 (spec Q11)

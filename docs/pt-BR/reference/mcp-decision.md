@@ -15,6 +15,7 @@
   como última versão conhecida, porque um placeholder estava no lugar dela), e
   as **mensagens de `ErrorData`** que o cliente recebe estão em inglês, como as
   descrições das ferramentas e pelo mesmo motivo `[ABERTO]` (seção 7).
+- Revisto: 2026-10-07 — a superfície da seção 3.3 ampliada para nove ferramentas (relações tipadas em links e backlinks, `read_board`, propriedades e tags no `read_note`, filtros no `list_notes`, `query_base`): [ADR 0066](../adr/0066-mcp-sees-boards-relations-properties-bases.md); no mesmo dia, o `note_type` de uma nota tipada no `read_note` e um filtro `type` no `list_notes` ([ADR 0052](../adr/0052-typed-note.md)).
 - **Decisão: tomada pelo mantenedor em 2026-09-22**, em sessão, registrada aqui
   e no PR de fechamento: as cinco linhas da seção 9 como recomendado, com uma
   instrução junto — *"reavalie especialmente as contradições, às vezes o

@@ -62,8 +62,7 @@ Você pode incluir o conteúdo de outra nota dentro desta nota usando o prefixo 
 
 Todo link cria o caminho de volta. Abra o painel da direita (`⌘⌥→`, ou o botão no canto direito da barra de status) e veja as abas:
 
-- **Backlinks**: as notas que apontam para a nota aberta — e, em **Menções sem link**, as que citam o nome dela sem ser link.
-- **Links de saída**: para onde esta nota aponta.
+- **Links**: em cima, os **Backlinks** — as notas que apontam para a nota aberta — e, em **Menções sem link**, as que citam o nome dela sem ser link; embaixo, depois de um traço, os **Links de saída**: para onde esta nota aponta.
 - **Estrutura**: os títulos da nota, para pular entre eles.
 
 Renomear uma nota não quebra nada: o Verso mostra as notas que apontam para ela e atualiza os links quando você confirma (veja [[14 - Arquivos e Pastas]]).

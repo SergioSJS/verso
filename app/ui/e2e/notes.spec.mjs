@@ -86,10 +86,22 @@ test("a renamed note shows who links to it at once", async ({ app }) => {
   await expect(panel).toContainText("Pesquisa e Descobertas");
 });
 
-test("⌘D makes today's note from the Diário template, and the calendar marks the days", async ({ app }) => {
+test("backlinks and outgoing links share one tab, a divider between them", async ({ app }) => {
+  await app.open();
+  await app.quickOpen("Projeto Beta");
+  await app.key("Mod+Alt+ArrowRight");
+  await expect(app.page.locator('#right-tabs button[data-tab="outgoing"]')).toHaveCount(0);
+  await app.page.locator('#right-tabs button[data-tab="backlinks"]').click();
+  const panel = app.page.locator("#right-body");
+  await expect(panel.locator(".links-back .links-head")).toBeVisible();
+  await expect(panel.locator(".links-out .links-head")).toBeVisible();
+});
+
+
+test("⌘⇧D makes today's note from the Diário template, and the calendar marks the days", async ({ app }) => {
   await app.open();
   const day = await today(app);
-  await app.key("Mod+d");
+  await app.key("Mod+Shift+d");
   await expect.poll(() => app.file(`Diário/${day}.md`)).toContain(`# ${day}`);
   const text = await app.file(`Diário/${day}.md`);
   expect(text).toContain("## 🎯 Foco do Dia");
@@ -174,7 +186,7 @@ test("a wide picture inside an embedded note does not rewrap the whole note", as
   await app.quickOpen("Com Embute");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   // The caret away from the embed's line: the live preview draws it.
-  await page.locator(".cm-content").first().click();
+  await page.locator(".cm-content").first().click({ position: { x: 50, y: 10 } });
   await expect(page.locator(".cm-lp-embed-body img")).toBeVisible();
   const box = () =>
     page.evaluate(() => {
@@ -216,7 +228,7 @@ test("an embedded note is drawn in the editor as the reading view draws it", asy
   const reading = await look(".embed-note-body");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   // The caret away from the embed's line: the live preview draws it.
-  await page.locator(".cm-content").first().click();
+  await page.locator(".cm-content").first().click({ position: { x: 50, y: 10 } });
   await expect(page.locator(".cm-lp-embed-body h2")).toBeVisible();
   // Each line break between the rendered blocks was drawn as an empty
   // line (the editor's `white-space: break-spaces`), and the headings in

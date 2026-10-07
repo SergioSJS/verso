@@ -159,7 +159,10 @@ export class App {
     return this.page.evaluate((i) => {
       const a = window.__VERSO_TEST__.board;
       const e = a.getSceneElements().find((x) => x.id === i);
-      a.scrollToContent(e, { fitToViewport: true, viewportZoomFactor: 0.6, maxZoom: 1 });
+      // The element at 60 % of the view at most, never past 100 %.
+      const px = (e.width * (1 / 0.6 - 1)) / 2;
+      const py = (e.height * (1 / 0.6 - 1)) / 2;
+      a.setViewport({ target: [e.x - px, e.y - py, e.x + e.width + px, e.y + e.height + py], fit: "scale-down", animation: false });
     }, id);
   }
 }

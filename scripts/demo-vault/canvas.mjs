@@ -84,8 +84,8 @@ export class Board {
     this.nodes.push({ id, type: "group", x, y, width, height, label, ...(color ? { color } : {}) });
   }
 
-  file(id, file, x, y, width, height, color) {
-    this.nodes.push({ id, type: "file", file, x, y, width, height, ...(color ? { color } : {}) });
+  file(id, file, x, y, width, height, color, subpath) {
+    this.nodes.push({ id, type: "file", file, x, y, width, height, ...(color ? { color } : {}), ...(subpath ? { subpath } : {}) });
   }
 
   text(id, text, x, y, width, height, color) {

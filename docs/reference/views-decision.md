@@ -134,6 +134,8 @@ and drop does not reach elements inside the page (seen in the running app).
 
 ## 4. A second window on the same folder
 
+> Revised on 2026-10-06 by [ADR 0065](../adr/0065-a-folder-per-window.md): each window shows a folder of its own; File › New Window opens one with no folder, and a window may open another folder. What follows is the decision of 2026-09-24.
+
 Window → New Window, or the command palette: another window of the open
 folder, with its own tabs over the same session.
 

@@ -159,6 +159,10 @@ No menu `/`, **Destaque: nota**, **Destaque: dica** e **Destaque: aviso** escrev
 
 ## Tabelas no Editor
 
-No modo Editar, com o cursor numa tabela, `Tab` e `⇧Tab` andam pelas células, `Tab` na última célula cria uma linha, e `Enter` cria uma linha abaixo. A cada passo as barras `|` se alinham sozinhas. O botão **Tabela** da barra (ou `⌘⌥T`) insere uma tabela nova, ou alinha a tabela em que o cursor está.
+No modo Editar uma tabela continua uma tabela: clique numa célula e digite nela. `Tab` e `⇧Tab` andam pelas células (`Tab` na última cria uma linha), `Enter` desce para a célula de baixo (na última linha, cria outra), as setas passam à célula vizinha e saem da tabela nas bordas, e `Esc` sai para a linha seguinte. O **+** embaixo da tabela acrescenta uma linha e o **+** ao lado, uma coluna. Clique com o botão direito numa célula para inserir ou excluir linhas e colunas e alinhar a coluna à esquerda, ao centro ou à direita — as mesmas ferramentas aparecem na barra de formatação enquanto uma célula está em foco, com o alinhamento da coluna marcado.
+
+O arquivo continua Markdown: a cada mudança as barras `|` se alinham sozinhas, e um `|` digitado numa célula vira `\|`. O botão **Tabela** da barra (ou `⌘⌥T`) — ou **Tabela** no menu `/` — insere uma tabela nova, com o cursor no primeiro cabeçalho. No modo Fonte, a tabela é o texto.
+
+Para alargar uma coluna, arraste a borda direita da célula de cabeçalho dela, no modo Editar ou na Leitura. O Verso guarda essa largura para a tabela e a nota — o arquivo não muda, e o Obsidian mostra a tabela como sempre.
 
 Voltar para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou continuar para [[02 - Links, Âncoras e Notas Incorporadas]].

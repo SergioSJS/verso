@@ -28,6 +28,7 @@ import type {
   CliState,
   ContractError,
   Edge,
+  EntryLabel,
   ErrorKind,
   FileEntry,
   FolderInfo,
@@ -37,7 +38,9 @@ import type {
   LinkRewrite,
   McpAdded,
   McpStatus,
+  MovedEntries,
   NoteText,
+  NoteType,
   Renamed,
   Tag,
   TextFile,
@@ -45,8 +48,10 @@ import type {
   UpdateInfo,
   WebNote,
   Written,
+  Focus,
+  FocusesSummary,
 } from "../bindings";
-import { blocksOf, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown } from "./markdown";
+import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 
 export type Seed = { path: string; b64: string };
 
@@ -80,6 +85,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   set_walk_rules: ["builtinIgnores", "gitignore"],
   set_menu_language: ["language"],
   install_cli: ["replace"],
+  new_window: ["sameFolder"],
 };
 
 function refuse(kind: ErrorKind, message: string): never {
@@ -109,6 +115,128 @@ const baseOf = (p: string): string => p.slice(p.lastIndexOf("/") + 1);
 const stripMd = (p: string): string => p.replace(/\.md$/i, "");
 const hidden = (p: string): boolean => p.split("/").some((s) => s.startsWith("."));
 const isNote = (p: string): boolean => /\.md$/i.test(p);
+
+/** The core's `set_folder_note_name`: a plain file name, or empty. */
+const folderNoteSetting = (name: string): string => {
+  const n = name.trim().replace(/\.md$/i, "");
+  return /[/\\]/.test(n) || n === "." || n === ".." ? "" : n;
+};
+/** The core's `folder_note_candidates` (ADR 0060 D3, D12). */
+function folderNoteCandidates(folder: string, configured: string, rootName = ""): string[] {
+  const out: string[] = [];
+  if (folder === "") {
+    // The core's `root_note_candidates`.
+    if (configured && fold(configured) !== fold(rootName)) out.push(`${configured}.md`);
+    if (rootName) out.push(`${rootName}.md`);
+    return out;
+  }
+  const name = baseOf(folder);
+  if (configured && fold(configured) !== fold(name)) out.push(`${folder}/${configured}.md`);
+  out.push(`${folder}/${name}.md`, `${folder}.md`);
+  return out;
+}
+/** The core's `folders_of_note`: the folders a note is the folder note of,
+ *  by its path alone. */
+function foldersOfNote(note: string, configured: string, rootName = ""): string[] {
+  if (!isNote(note)) return [];
+  const parent = dirOf(note);
+  const stem = stripMd(baseOf(note));
+  const out: string[] = [];
+  const own = parent ? baseOf(parent) : rootName;
+  if ((own && fold(stem) === fold(own)) || (configured && fold(stem) === fold(configured))) out.push(parent);
+  out.push(parent ? `${parent}/${stem}` : stem);
+  return out;
+}
+/** The core's `needs_yaml_quote` and `yaml_scalar`. */
+function yamlScalar(s: string): string {
+  const lower = s.toLowerCase();
+  const quote =
+    s === "" ||
+    "-?:,[]{}#&*!|>'\"%@`~".includes(s[0] ?? "") ||
+    /^\s|\s$/.test(s) ||
+    s.includes(": ") ||
+    s.endsWith(":") ||
+    s.includes(" #") ||
+    /[\t\n\r"\\]/.test(s) ||
+    ["true", "false", "yes", "no", "on", "off", "y", "n", "null"].includes(lower) ||
+    (s.trim() !== "" && !Number.isNaN(Number(s))) ||
+    /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s) ||
+    /^(inf|infinity|nan)$/i.test(s) ||
+    s.startsWith("0x") ||
+    s.startsWith("0o");
+  return quote ? JSON.stringify(s) : s;
+}
+/** The text of an item of a YAML block sequence, as the core reads it. */
+function yamlItemText(raw: string): string | null {
+  if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
+    try {
+      return JSON.parse(raw) as string;
+    } catch {
+      return null;
+    }
+  }
+  if (raw.startsWith("'") && raw.endsWith("'") && raw.length >= 2) return raw.slice(1, -1).replace(/''/g, "'");
+  if (raw === "" || /^[[{\-&*!|>]/.test(raw)) return null;
+  return raw;
+}
+/** The core's `rewrite_order`: the `order:` of the folder note of `folder`
+ *  after a move, only the moved items' lines changed; null when none is. */
+function rewriteOrder(text: string, folder: string, newFolder: string, moved: [string, string, boolean][]): string | null {
+  const m = /^---\r?\n([\s\S]*?)\r?\n(---|\.\.\.)\s*(\r?\n|$)/.exec(text);
+  if (!m) return null;
+  const lines = text.split(/(?<=\n)/);
+  type Item = { line: number; text: string | null; raw: string; lead: string; rest: string };
+  const items: Item[] = [];
+  let inFm = false;
+  let inOrder = false;
+  for (let i = 0; i < lines.length; i++) {
+    const body = (lines[i] ?? "").replace(/\r?\n$/, "");
+    if (i === 0) {
+      inFm = body === "---";
+      continue;
+    }
+    if (!inFm) break;
+    if (body.startsWith("---") || body.startsWith("...")) break;
+    const key = /^([^\s#\-][^:]*):(.*)$/.exec(body);
+    if (key) {
+      if (inOrder) break;
+      if ((key[1] ?? "").trim() === "order") {
+        const after = (key[2] ?? "").trim();
+        if (after && !after.startsWith("#")) return null;
+        inOrder = true;
+      }
+      continue;
+    }
+    if (!inOrder) continue;
+    const item = /^(\s*-[ \t]+)(.*)$/.exec(body);
+    if (!item) continue;
+    const rest = item[2] ?? "";
+    const raw = /^["']/.test(rest) ? rest.trimEnd() : rest.split(" #")[0]!.trimEnd();
+    items.push({ line: i, text: yamlItemText(raw), raw, lead: item[1] ?? "", rest: rest.slice(raw.length) });
+  }
+  const edits = new Map<number, string | null>();
+  for (const [oldPath, newPath, note] of moved) {
+    if (dirOf(oldPath) !== folder) continue;
+    const oldRel = baseOf(oldPath);
+    const newRel = dirOf(newPath) === newFolder ? baseOf(newPath) : null;
+    if (newRel === oldRel) continue;
+    let index = items.findIndex((it, k) => !edits.has(k) && it.text === oldRel);
+    let bare = false;
+    if (index < 0 && note) {
+      index = items.findIndex((it, k) => !edits.has(k) && it.text === stripMd(oldRel));
+      bare = true;
+    }
+    if (index < 0) continue;
+    edits.set(index, newRel === null ? null : bare ? stripMd(newRel) : newRel);
+  }
+  if (edits.size === 0) return null;
+  for (const [k, value] of edits) {
+    const it = items[k]!;
+    const eol = /\r?\n$/.exec(lines[it.line] ?? "")?.[0] ?? "";
+    lines[it.line] = value === null ? "" : `${it.lead}${yamlScalar(value)}${it.rest}${eol}`;
+  }
+  return lines.join("");
+}
 
 /** The links written in a text, outside code: wikilinks and embeds. */
 function linksIn(text: string): Found[] {
@@ -154,6 +282,9 @@ export function canvasLayout(value: unknown, depth = 0): string {
 export class Core {
   readonly files = new Map<string, Stored>();
   readonly folders = new Set<string>();
+  /** The folder note name setting (`set_folder_note_name`). */
+  private folderNoteName = "";
+  private syncFocuses = false;
   /** Every command asked for, in order: what a test looks at. */
   readonly calls: { cmd: string; args: unknown }[] = [];
   /** What the window wrote into the app's log (`log_write`). */
@@ -214,6 +345,122 @@ export class Core {
     const was = this.stored(path);
     if (String(was.revision) !== revision) refuse("changed", `changed on disk: ${path}`);
     return this.put(path, encoder.encode(text));
+  }
+
+  private getFocuses(): FocusesSummary {
+    const stored = this.files.get(".space/waypoints.json");
+    if (!stored) {
+      if (this.files.has(".space/.waypoints.json.icloud")) {
+        return {
+          focuses: [],
+          has_file: true,
+          format_known: false,
+          read_only_reason: "file in cloud (iCloud) not yet downloaded",
+          read_only_code: "cloud_placeholder",
+          stamp: null,
+        };
+      }
+      return {
+        focuses: [],
+        has_file: false,
+        format_known: false,
+        read_only_reason: null,
+        read_only_code: null,
+        stamp: null,
+      };
+    }
+    try {
+      const text = strict.decode(stored.bytes);
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        return {
+          focuses: [],
+          has_file: true,
+          format_known: false,
+          read_only_reason: "expected JSON array",
+          read_only_code: "unknown_format",
+          stamp: String(stored.revision),
+        };
+      }
+      for (let i = 0; i < parsed.length; i++) {
+        const item = parsed[i];
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `element ${i} is not an object`,
+            read_only_code: "unknown_format",
+            stamp: String(stored.revision),
+          };
+        }
+        const keys = Object.keys(item);
+        if (keys.some((k) => k !== "name" && k !== "paths" && k !== "sticker")) {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `unknown key in element ${i}`,
+            read_only_code: "unknown_format",
+            stamp: String(stored.revision),
+          };
+        }
+        if (typeof item.name !== "string" || !Array.isArray(item.paths)) {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `element ${i} missing name or paths`,
+            read_only_code: "unknown_format",
+            stamp: String(stored.revision),
+          };
+        }
+        for (let pi = 0; pi < item.paths.length; pi++) {
+          const p = item.paths[pi];
+          if (typeof p !== "string" || (p !== "/" && (p === "" || p.startsWith("/") || p.split("/").some((s: string) => s === "..")))) {
+            return {
+              focuses: [],
+              has_file: true,
+              format_known: false,
+              read_only_reason: `invalid path in element ${i}`,
+              read_only_code: "unknown_format",
+              stamp: String(stored.revision),
+            };
+          }
+        }
+        if (item.sticker !== undefined && typeof item.sticker !== "string") {
+          return {
+            focuses: [],
+            has_file: true,
+            format_known: false,
+            read_only_reason: `element ${i} sticker is not string`,
+            read_only_code: "unknown_format",
+            stamp: String(stored.revision),
+          };
+        }
+      }
+      return {
+        focuses: parsed.map((item: any) => ({
+          name: item.name,
+          paths: item.paths,
+          sticker: item.sticker ?? null,
+        })),
+        has_file: true,
+        format_known: true,
+        read_only_reason: null,
+        read_only_code: null,
+        stamp: String(stored.revision),
+      };
+    } catch (e) {
+      return {
+        focuses: [],
+        has_file: true,
+        format_known: false,
+        read_only_reason: String(e),
+        read_only_code: "invalid_json",
+        stamp: String(stored.revision),
+      };
+    }
   }
 
   notes(): string[] {
@@ -315,6 +562,47 @@ export class Core {
       blocks: blocksOf(text),
       stale: false,
       unverified: false,
+      note_type: this.noteType(path),
+      schema_blocks: schemaBlocksOf(text).map((b) => ({ line: b.line, name: b.name, nested: b.nested, error: b.error })),
+    };
+  }
+
+  /** A type's name folded as the core folds it: NFC, case ignored. */
+  private typeKey(name: string): string {
+    return name.trim().normalize("NFC").toLowerCase();
+  }
+
+  /** The `type:` of a note, when it holds one text. */
+  private writtenType(path: string): string | null {
+    const t = propertiesOf(this.text(path))["type"];
+    return typeof t === "string" && t.trim() !== "" ? t : null;
+  }
+
+  /** A note's type, as the core types it at query time (ADR 0052). */
+  private noteType(path: string): NoteType | null {
+    const written = this.writtenType(path);
+    if (written === null) return null;
+    const key = this.typeKey(written);
+    const named = this.notes().flatMap((p) => schemaBlocksOf(this.text(p)).filter((b) => !b.nested && b.name !== null && this.typeKey(b.name) === key).map((b) => ({ path: p, b })));
+    if (named.length === 0) return null;
+    if (named.length > 1) return { written, state: { kind: "conflict", schemas: named.map((n) => n.path).sort() } };
+    const { path: schema, b } = named[0]!;
+    if (b.error) return { written, state: { kind: "invalid", schema, error: b.error } };
+    const props = propertiesOf(this.text(path));
+    const labels = (l: [string, string][]) => l.map(([lang, text]) => ({ lang, text }));
+    return {
+      written,
+      state: {
+        kind: "typed",
+        schema,
+        name: b.name ?? written,
+        labels: labels(b.labels),
+        properties: b.properties.map((p) => {
+          const present = Object.hasOwn(props, p.key);
+          const v = props[p.key];
+          return { key: p.key, kind: p.kind, labels: labels(p.labels), present, fits: present && (v === null || v === "" || fitsKind(p.kind, v)) };
+        }),
+      },
     };
   }
 
@@ -360,8 +648,70 @@ export class Core {
     if (!this.files.has(from) && !this.folders.has(from)) refuse("not_found", `no such entry: ${from}`);
     if (isNote(from) && !isNote(to)) to = `${to}.md`;
     if (this.files.has(to) || this.folders.has(to)) refuse("exists", `already there: ${to}`);
+    const done = this.moveMany([[from, to]]);
+    return { path: to, rewrites: done.rewrites, skipped: [], warnings: [], also: done.also };
+  }
+
+  /** Several entries into `folder` at once, as the core's `move_entries`
+   *  (ADR 0048, revised 2026-10-07): one plan over where everything ended;
+   *  an entry inside a folder also given goes with it; one already there
+   *  stays; a name taken there is refused, and the others move. */
+  private moveEntries(paths: string[], folderIn: string): MovedEntries {
+    const dest = folderIn === "" ? "" : this.confine(folderIn);
+    const keys = [...new Set(paths.map((p) => this.confine(p)))];
+    const dirs = keys.filter((k) => this.folders.has(k));
+    const pairs: [string, string][] = [];
+    const refused: MovedEntries["refused"] = [];
+    for (const k of keys) {
+      if (dirs.some((d) => k.startsWith(`${d}/`)) || dirOf(k) === dest) continue;
+      if (!this.files.has(k) && !this.folders.has(k)) {
+        refused.push({ path: k, error: { kind: "not_found", message: `no such entry: ${k}` } });
+        continue;
+      }
+      const to = dest ? `${dest}/${baseOf(k)}` : baseOf(k);
+      if (this.files.has(to) || this.folders.has(to) || to === k || dest === k || dest.startsWith(`${k}/`)) {
+        refused.push({ path: k, error: { kind: this.files.has(to) || this.folders.has(to) ? "exists" : "refused", message: `cannot move ${k} to ${to}` } });
+        continue;
+      }
+      pairs.push([k, to]);
+    }
+    if (pairs.length === 0) return { moved: [], refused, rewrites: [], skipped: [], warnings: [], also: [] };
+    const done = this.moveMany(pairs);
+    return { moved: pairs.map(([from, to]) => ({ from, to })), refused, rewrites: done.rewrites, skipped: [], warnings: [], also: done.also };
+  }
+
+  /** The moves `pairs` (each checked), with the rewrites of the notes and
+   *  boards whose links reached what moved, planned once over all of them. */
+  private moveMany(pairs: [string, string][]): { rewrites: LinkRewrite[]; also: { from: string; to: string }[] } {
     const plans = new Map<string, string>();
-    const movedNow = this.files.has(from) ? [[from, to] as [string, string]] : [...this.files.keys()].filter((p) => p.startsWith(`${from}/`)).map((p): [string, string] => [p, `${to}${p.slice(from.length)}`]);
+    const movedNow: [string, string][] = [];
+    // The core's `folder_note_follows`: a folder's note takes the folder's
+    // new name, inside it or beside it, unless that name is taken.
+    const then: [string, string][] = [];
+    const also: { from: string; to: string }[] = [];
+    const movedFolders: [string, string][] = [];
+    for (const [from, to] of pairs) {
+      const mine = this.files.has(from) ? [[from, to] as [string, string]] : [...this.files.keys()].filter((p) => p.startsWith(`${from}/`)).map((p): [string, string] => [p, `${to}${p.slice(from.length)}`]);
+      if (this.folders.has(from)) {
+        const taken = (p: string, own: string) => this.notes().some((n) => fold(n) === fold(p) && fold(n) !== fold(own));
+        const [oldName, newName] = [baseOf(from), baseOf(to)];
+        const inside = mine.find(([a]) => fold(a) === fold(`${from}/${oldName}.md`));
+        if (oldName !== newName && inside && !taken(`${from}/${newName}.md`, inside[0])) {
+          const wanted = `${to}/${newName}.md`;
+          then.push([inside[1], wanted]);
+          also.push({ from: inside[0], to: wanted });
+          inside[1] = wanted;
+        }
+        const beside = this.notes().find((n) => fold(n) === fold(`${from}.md`));
+        if (beside && !taken(`${to}.md`, beside)) {
+          then.push([beside, `${to}.md`]);
+          also.push({ from: beside, to: `${to}.md` });
+          mine.push([beside, `${to}.md`]);
+        }
+        for (const d of this.folders) if (d === from || d.startsWith(`${from}/`)) movedFolders.push([d, `${to}${d.slice(from.length)}`]);
+      }
+      movedNow.push(...mine);
+    }
     const target = new Map(movedNow);
     for (const source of this.linkSources()) {
       if (target.has(source)) continue;
@@ -379,9 +729,37 @@ export class Core {
       if (source.endsWith(".canvas")) for (const [a, b] of target) after = after.split(`"file":${JSON.stringify(a)}`).join(`"file":${JSON.stringify(b)}`);
       if (after !== before) plans.set(source, after);
     }
-    this.move(from, to);
-    const rewrites: LinkRewrite[] = [...plans].map(([path, after]) => ({ path, revision: String(this.stored(path).revision), before: this.text(path), after }));
-    return { path: to, rewrites, skipped: [], warnings: [] };
+    // The `order:` of the folder notes of the folders things leave and
+    // enter (ADR 0060, D4), as the core rewrites it.
+    const moved: [string, string, boolean][] = [
+      ...movedNow.map(([a, b]): [string, string, boolean] => [a, b, isNote(a)]),
+      ...movedFolders.map(([a, b]): [string, string, boolean] => [a, b, false]),
+    ];
+    const movedTo = (p: string): string => {
+      const own = target.get(p);
+      if (own) return own;
+      const hit = movedFolders.filter(([a]) => p === a || p.startsWith(`${a}/`)).sort(([a], [b]) => b.length - a.length)[0];
+      return hit ? `${hit[1]}${p.slice(hit[0].length)}` : p;
+    };
+    const byFold = new Map(this.notes().map((n) => [fold(n), n]));
+    const folderNotes = new Set<string>();
+    for (const [a, b] of moved) for (const dir of [dirOf(a), dirOf(b)]) for (const c of folderNoteCandidates(dir, this.folderNoteName, this.name)) {
+      const found = byFold.get(fold(c));
+      if (found) folderNotes.add(found);
+    }
+    for (const fnPath of folderNotes) {
+      const folder = foldersOfNote(fnPath, this.folderNoteName, this.name).map((f) => (f === "" ? "" : [...this.folders].find((d) => fold(d) === fold(f)))).find((d): d is string => d !== undefined);
+      if (folder === undefined) continue;
+      const after = rewriteOrder(plans.get(fnPath) ?? this.text(fnPath), folder, movedTo(folder), moved);
+      if (after !== null) plans.set(fnPath, after);
+    }
+    for (const [from, to] of pairs) this.move(from, to);
+    for (const [a, b] of then) this.move(a, b);
+    const rewrites: LinkRewrite[] = [...plans].map(([source, after]) => {
+      const path = movedTo(source);
+      return { path, revision: String(this.stored(path).revision), before: this.text(path), after };
+    });
+    return { rewrites, also };
   }
 
   private trash(pathIn: string): Trashed {
@@ -508,6 +886,13 @@ export class Core {
     open_initial: () => this.folderInfo(),
     current_folder: () => this.folderInfo(),
     list_notes: () => this.notes(),
+    notes_of_type: (a) => {
+      const key = this.typeKey(String(a["name"]));
+      return this.notes().filter((p) => {
+        const t = this.writtenType(p);
+        return t !== null && this.typeKey(t) === key;
+      });
+    },
     read_note: (a) => {
       const p = String(a["path"]);
       return this.noteText(this.files.has(p) || isNote(p) ? p : `${p}.md`);
@@ -550,6 +935,7 @@ export class Core {
     delete_entry: (a) => this.trash(String(a["path"])),
     rename_note: (a) => this.rename(String(a["from"]), String(a["to"])),
     rename_entry: (a) => this.rename(String(a["from"]), String(a["to"])),
+    move_entries: (a) => this.moveEntries((a["paths"] as unknown[]).map(String), String(a["folder"] ?? "")),
     resolve_attachment: (a) => {
       const found = this.resolve(String(a["target"]), String(a["source"]));
       return found && !isNote(found) ? found : null;
@@ -562,10 +948,41 @@ export class Core {
       return [...by].sort(([a], [b]) => (a < b ? -1 : 1)).map(([name, notes]) => ({ name, notes }));
     },
     read_file_text: (a) => lossy.decode(this.stored(this.confine(String(a["path"]))).bytes),
-    list_entries: (): FileEntry[] => [
-      ...[...this.folders].filter((d) => !hidden(d)).map((d): FileEntry => ({ path: d, kind: "folder", size: 0, modified: this.clock })),
-      ...[...this.files].filter(([p]) => !hidden(p)).map(([p, f]): FileEntry => ({ path: p, kind: isNote(p) ? "note" : "file", size: f.bytes.length, modified: f.modified })),
-    ],
+    list_entries: (): FileEntry[] => {
+      // As the index reads them (verso-index, `string_of`, `strings_of`):
+      // a scalar as text, numbers and booleans included; the first alias.
+      const scalar = (v: unknown): string | null => (typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : null);
+      const strings = (v: unknown): string[] => (Array.isArray(v) ? v.map(scalar).filter((x): x is string => x !== null) : [scalar(v)].filter((x): x is string => x !== null));
+      const labelFor = (p: string): EntryLabel | null => {
+        if (!isNote(p)) return null;
+        try {
+          const props = propertiesOf(this.text(p));
+          const sticker = scalar(props["sticker"]);
+          const color = scalar(props["color"]);
+          const alias = strings(props["aliases"])[0] ?? null;
+          const orderList = strings(props["order"]);
+          const pinnedList = strings(props["pinned"]);
+          const order = orderList.length > 0 ? orderList : null;
+          const pinned = pinnedList.length > 0 ? pinnedList : null;
+          if (sticker === null && color === null && alias === null && !order && !pinned) return null;
+          return { sticker, color, alias, order, pinned };
+        } catch {
+          return null;
+        }
+      };
+      const byFold = new Map(this.notes().map((n) => [fold(n), n]));
+      const folderLabel = (d: string): EntryLabel | null => {
+        for (const c of folderNoteCandidates(d, this.folderNoteName)) {
+          const found = byFold.get(fold(c));
+          if (found) return labelFor(found);
+        }
+        return null;
+      };
+      return [
+        ...[...this.folders].filter((d) => !hidden(d)).map((d): FileEntry => ({ path: d, kind: "folder", size: 0, modified: this.clock, label: folderLabel(d) })),
+        ...[...this.files].filter(([p]) => !hidden(p)).map(([p, f]): FileEntry => ({ path: p, kind: isNote(p) ? "note" : "file", size: f.bytes.length, modified: f.modified, label: labelFor(p) })),
+      ];
+    },
     list_web_notes: (): WebNote[] =>
       this.notes().flatMap((p) => {
         const url = propertiesOf(this.text(p))["url"];
@@ -630,6 +1047,191 @@ export class Core {
     copy_full_path: () => null,
     set_embed_origins: () => null,
     set_walk_rules: () => null,
+    set_folder_note_name: (a) => {
+      this.folderNoteName = folderNoteSetting(String(a["name"] ?? ""));
+      return null;
+    },
+    get_focuses: () => this.getFocuses(),
+    can_sync_focuses: () => {
+      const summary = this.getFocuses();
+      return summary.has_file && summary.format_known;
+    },
+    set_sync_focuses: (a) => {
+      this.syncFocuses = Boolean(a["enabled"]);
+      return null;
+    },
+    set_focuses: (a): FocusesSummary => {
+      if (!this.syncFocuses) {
+        refuse("failed", "synchronization of focuses with make.md is disabled");
+      }
+      const focuses = a["focuses"] as Focus[];
+      const stamp = a["stamp"] as string | null;
+      if (!stamp) {
+        refuse("changed", "expected stamp required");
+      }
+      const stored = this.files.get(".space/waypoints.json");
+      if (!stored) {
+        refuse("failed", "no .space/waypoints.json file in folder");
+      }
+      const currentSummary = this.getFocuses();
+      if (!currentSummary.format_known) {
+        refuse("failed", "cannot write focuses: current file format is not known");
+      }
+      for (let i = 0; i < focuses.length; i++) {
+        const f = focuses[i];
+        if (!f || typeof f.name !== "string" || !Array.isArray(f.paths)) {
+          refuse("failed", `invalid focus at index ${i}`);
+        }
+        for (const p of f.paths) {
+          if (typeof p !== "string" || (p !== "/" && (p === "" || p.startsWith("/") || p.split("/").some((s) => s === "..")))) {
+            refuse("failed", `invalid path '${p}' in focus '${f.name}'`);
+          }
+        }
+      }
+      const clean = focuses.map((f) => {
+        const obj: any = { name: f.name, paths: f.paths };
+        if (f.sticker != null && f.sticker !== "") {
+          obj.sticker = f.sticker;
+        }
+        return obj;
+      });
+
+      let finalFocuses = clean;
+      if (String(stored.revision) !== stamp) {
+        // Concurrent modification on disk: attempt merge (ADR 0062 D7)
+        const baseFocuses = a["baseFocuses"] as Focus[] | null;
+        if (!baseFocuses) {
+          refuse("changed", "the file on disk changed since it was read");
+        }
+        const diskFocuses = currentSummary.focuses;
+        const oldFocuses = baseFocuses;
+        const newFocuses = clean;
+
+        // Compute deltas by position:
+        if (oldFocuses.length === newFocuses.length) {
+          const isReorder = JSON.stringify([...oldFocuses].sort((a, b) => a.name.localeCompare(b.name))) ===
+            JSON.stringify([...newFocuses].sort((a, b) => a.name.localeCompare(b.name)));
+          if (isReorder) {
+            if (diskFocuses.length >= oldFocuses.length && JSON.stringify(diskFocuses.slice(0, oldFocuses.length)) === JSON.stringify(oldFocuses)) {
+              finalFocuses = [...newFocuses, ...diskFocuses.slice(oldFocuses.length)];
+            } else {
+              refuse("changed", "conflict in reorder");
+            }
+          } else {
+            const merged = [...diskFocuses];
+            for (let i = 0; i < oldFocuses.length; i++) {
+              if (JSON.stringify(oldFocuses[i]) !== JSON.stringify(newFocuses[i])) {
+                if (i >= diskFocuses.length || JSON.stringify(diskFocuses[i]) !== JSON.stringify(oldFocuses[i])) {
+                  refuse("changed", "conflict: focus modified concurrently on disk");
+                }
+                merged[i] = newFocuses[i];
+              }
+            }
+            finalFocuses = merged;
+          }
+        } else if (newFocuses.length + 1 === oldFocuses.length) {
+          let delIdx = -1;
+          for (let i = 0; i < oldFocuses.length; i++) {
+            const cand = [...oldFocuses];
+            cand.splice(i, 1);
+            if (JSON.stringify(cand) === JSON.stringify(newFocuses)) {
+              delIdx = i;
+              break;
+            }
+          }
+          if (delIdx >= 0 && delIdx < diskFocuses.length && JSON.stringify(diskFocuses[delIdx]) === JSON.stringify(oldFocuses[delIdx])) {
+            const merged = [...diskFocuses];
+            merged.splice(delIdx, 1);
+            finalFocuses = merged;
+          } else {
+            refuse("changed", "conflict: delete mismatch");
+          }
+        } else if (newFocuses.length === oldFocuses.length + 1) {
+          let insIdx = -1;
+          for (let i = 0; i < newFocuses.length; i++) {
+            const cand = [...newFocuses];
+            cand.splice(i, 1);
+            if (JSON.stringify(cand) === JSON.stringify(oldFocuses)) {
+              insIdx = i;
+              break;
+            }
+          }
+          if (insIdx >= 0) {
+            const merged = [...diskFocuses];
+            if (insIdx >= oldFocuses.length) {
+              merged.push(newFocuses[insIdx]);
+            } else if (diskFocuses.length >= oldFocuses.length && JSON.stringify(diskFocuses.slice(0, oldFocuses.length)) === JSON.stringify(oldFocuses)) {
+              merged.splice(insIdx, 0, newFocuses[insIdx]);
+            } else {
+              refuse("changed", "conflict: insert mismatch");
+            }
+            finalFocuses = merged;
+          } else {
+            refuse("changed", "conflict");
+          }
+        } else if (newFocuses.length > oldFocuses.length && JSON.stringify(newFocuses.slice(0, oldFocuses.length)) === JSON.stringify(oldFocuses)) {
+          const added = newFocuses.slice(oldFocuses.length);
+          if (diskFocuses.length >= oldFocuses.length && JSON.stringify(diskFocuses.slice(0, oldFocuses.length)) === JSON.stringify(oldFocuses)) {
+            finalFocuses = [...diskFocuses, ...added];
+          } else {
+            refuse("changed", "conflict");
+          }
+        } else {
+          refuse("changed", "conflict");
+        }
+      }
+
+      // Format-preserving serialization matching verso-core
+      const oldText = strict.decode(stored.bytes);
+      let newText: string;
+      try {
+        const parsed = JSON.parse(oldText);
+        if (Array.isArray(parsed)) {
+          const items: any[] = [];
+          const usedIndices = new Set<number>();
+          for (const f of finalFocuses) {
+            let foundIdx = parsed.findIndex((p: any, idx: number) => !usedIndices.has(idx) && p && JSON.stringify(p) === JSON.stringify(f));
+            if (foundIdx < 0) {
+              foundIdx = parsed.findIndex((p: any, idx: number) => !usedIndices.has(idx) && p && p.name === f.name);
+            }
+            if (foundIdx >= 0) {
+              usedIndices.add(foundIdx);
+              const old = parsed[foundIdx];
+              if (JSON.stringify(old) === JSON.stringify(f)) {
+                items.push(old);
+              } else {
+                const obj: any = {};
+                for (const k of Object.keys(old)) {
+                  if (k in f) obj[k] = (f as any)[k];
+                }
+                if (!("name" in obj)) obj.name = f.name;
+                if (!("paths" in obj)) obj.paths = f.paths;
+                if (f.sticker && !("sticker" in obj)) obj.sticker = f.sticker;
+                items.push(obj);
+              }
+            } else {
+              items.push(f);
+            }
+          }
+          newText = JSON.stringify(items, null, oldText.includes("\n") ? 2 : 0);
+        } else {
+          newText = JSON.stringify(finalFocuses);
+        }
+      } catch {
+        newText = JSON.stringify(finalFocuses);
+      }
+
+      const newBytes = encoder.encode(newText);
+      const newStored = this.put(".space/waypoints.json", newBytes);
+      return {
+        focuses: finalFocuses,
+        has_file: true,
+        format_known: true,
+        read_only_reason: null,
+        read_only_code: null,
+        stamp: String(newStored.revision),
+      };
+    },
     log_write: (a) => {
       this.log.push({ level: String(a["level"]), message: String(a["message"]) });
       return null;

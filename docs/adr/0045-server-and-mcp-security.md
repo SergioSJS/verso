@@ -13,7 +13,7 @@
   which found this ADR, [0026](0026-core-ui-contract-inviolable-rules.md) and
   [0044](0044-verso-fs-semantics.md) disagreeing about it; the older
   paragraph that called the `verso mcp` group provisional brought in line
-  with a note.
+  with a note. 2026-10-07 — the MCP's surface: nine read-only tools, with typed relations, boards, properties and tags, and bases ([0066](0066-mcp-sees-boards-relations-properties-bases.md)).
 
 ## Context
 

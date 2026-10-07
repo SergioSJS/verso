@@ -37,6 +37,7 @@ mod parse;
 mod position;
 mod properties;
 mod render;
+mod schema;
 mod tags;
 mod wikilink;
 
@@ -44,6 +45,7 @@ pub use frontmatter::{Frontmatter, Value};
 pub use parse::parse;
 pub use position::{Pos, Span};
 pub use render::to_html;
+pub use schema::{PropertyKind, Schema, SchemaBlock, SchemaError, SchemaErrorKind, SchemaProperty};
 pub use tags::{BodyTag, body_tags};
 
 /// Everything the parser found in one note, in document order per list.
@@ -70,6 +72,9 @@ pub struct Document {
     /// Q10, ADR 0057). Kept apart from [`Self::links`], which are the body's
     /// and which the fixtures assert.
     pub property_links: Vec<PropertyLink>,
+    /// Fenced `verso-schema` blocks — a type's schema (spec §6, Q11; ADR
+    /// 0052) — in document order, nested ones included and marked.
+    pub schemas: Vec<SchemaBlock>,
 }
 
 /// A frontmatter property whose value is a quoted wikilink, or an item of

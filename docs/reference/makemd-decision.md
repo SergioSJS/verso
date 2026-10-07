@@ -1,11 +1,11 @@
 # Decision memo: what make.md does, and how Verso would do it
 
 - Date: 2026-10-02
-- Status: **for the maintainer to decide.** Nothing here is decided. Sections
-  1 to 5 are research; section 6 holds the decisions, each with its options
-  and a recommendation labelled as one; section 7 is the plan that follows
-  the recommended answers, slice by slice, so that it can start the morning
-  the answers come. Section 8 lists what was not verified, and why.
+- Status: **decided by the maintainer on 2026-10-02**, in session: every
+  recommendation accepted; the answers are in section 10 and recorded in
+  [ADR 0060](../adr/0060-makemd-organizing-features.md). Sections 1 to 9 are
+  the memo as the maintainer read it: research (1 to 5), the decisions with
+  their options (6), the plan (7), what was not verified (8).
 - Author: Opus 5.5, standing in for Opus 5 in the documents role of
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md). Reader: Fable 5.1,
   whose findings of 2026-10-02 are folded into this text.
@@ -457,6 +457,17 @@ The questions, in the order the work needs them:
 6. **D9** — the block compositor later?
 7. **D11, D12** — emoji and Lucide; the ten settings?
 8. **D13** — run section 8, or allow the next session to?
+
+## 10. The answers
+
+The maintainer, 2026-10-02, asked D1–D13 at once, with the recommendation
+as the first option: **"Aceito todas (Recomendado)"** — every
+recommendation of section 6 accepted. On D13, asked whether the next agent
+may install make.md in the Sandbox vault to run section 8: **"Pode, no
+Sandbox (Recomendado)"**. The same day the maintainer delegated the
+implementation to Antigravity ("vou delegar para o antigravity implementar
+o make md"). Recorded in [ADR 0060](../adr/0060-makemd-organizing-features.md),
+which also revises ADR 0049 §3.
 
 ## Appendix A — make.md's settings (1.3.5)
 

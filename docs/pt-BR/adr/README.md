@@ -47,6 +47,14 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0052](0052-typed-note.md) | Nota tipada: `type:` no frontmatter e um schema | Aceito (2026-09-24); uma propriedade com valor de link é relação tipada a partir do 0057 (2026-09-30) |
 | [0053](0053-views-bases.md) | Visões sobre a pasta: bases, no formato do Obsidian | Aceito (2026-09-24) |
 | [0059](0059-tabs-preview-pinned.md) | Abas: uma aba de pré-visualização por padrão, abas fixas compactas, a aba escolhida emenda na página | Aceito (2026-09-30) |
+| [0060](0060-makemd-organizing-features.md) | As funcionalidades de organização do make.md como primitivas do Verso | Aceito (2026-10-02) |
+| [0061](0061-blocks-in-edit-mode.md) | Blocos no modo Editar: uma alça para arrastar, um + para adicionar, um menu por bloco | Aceito (2026-10-06) |
+| [0062](0062-focuses.md) | Focos: raízes nomeadas da árvore de arquivos, compartilhadas com o make.md | Aceito (2026-10-03) |
+| [0063](0063-files-onto-the-board.md) | Pôr imagens e arquivos no board: soltar, colar, escolher e arrastar | Aceito (2026-10-06) |
+| [0064](0064-tables-edited-as-tables.md) | Tabelas editadas como tabelas no modo Editar | Aceito (2026-10-06) |
+| [0065](0065-a-folder-per-window.md) | Uma pasta por janela | Aceito (2026-10-06) |
+| [0066](0066-mcp-sees-boards-relations-properties-bases.md) | O MCP enxerga boards, relações, propriedades e bases | Aceito (2026-10-07) |
+| [0067](0067-source-files-stay-small.md) | Arquivos de código continuam pequenos: um mapa de módulos e um limite de tamanho | Aceito (2026-10-07) |
 
 ### Plugins e LLM
 

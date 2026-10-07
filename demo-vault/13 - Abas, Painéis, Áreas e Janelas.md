@@ -51,7 +51,8 @@ Uma área é um conjunto de painéis e abas, para trocar de assunto sem fechar n
 
 ## Janelas
 
-- **Nova janela** (menu **Arquivo**, a paleta ou a faixa da esquerda) abre outra janela na mesma pasta.
+- **Nova janela** (menu **Arquivo**, a paleta ou a faixa da esquerda) abre outra janela, na página inicial, para abrir **outra pasta**: cada janela mostra a sua pasta, com o nome dela no título. **Abrir pasta…** numa janela troca só a pasta daquela janela.
+- **Nova janela nesta pasta** (a paleta, o menu de uma aba) abre outra janela na mesma pasta, com abas próprias.
 - **Abrir em nova janela** (menu de uma aba ou de uma nota na árvore) leva a nota para uma janela só dela; **Devolver à janela principal** a traz de volta.
 - `⌘R` recarrega a janela, salvando antes as notas abertas. Se uma não pode ser salva (um conflito esperando a sua escolha), a janela fica como está e diz por quê.
 

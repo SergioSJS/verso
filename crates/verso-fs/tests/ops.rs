@@ -10,7 +10,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use verso_fs::{ConfinementError, ReadError, Root, WriteError};
+use verso_fs::{ConfinementError, ReadError, Root, Stamp, WriteError};
 
 #[cfg(test)]
 mod support {
@@ -321,4 +321,80 @@ fn trash_refuses_a_placeholder_and_what_is_not_there() {
     // And the marker itself is still unavailable through its real name.
     let h = root.handle(Path::new("Nota.md")).unwrap();
     assert!(matches!(root.read(h), Err(ReadError::Unavailable)));
+}
+
+#[test]
+fn waypoints_absent_never_creates_space_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = Root::open(dir.path(), vec![]).unwrap();
+
+    // Absent waypoints answers NotFound and does not create .space/
+    assert!(matches!(
+        root.read_waypoints(),
+        Err(ReadError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound
+    ));
+    assert!(!dir.path().join(".space").exists());
+
+    // write_waypoints when .space/ does not exist fails and never creates .space/
+    let dummy_stamp = Stamp {
+        modified: std::time::UNIX_EPOCH,
+        len: 0,
+        hash: 0,
+    };
+    assert!(root.write_waypoints(b"[]", &dummy_stamp).is_err());
+    assert!(!dir.path().join(".space").exists());
+}
+
+#[test]
+fn waypoints_read_and_write_atomically_while_other_hidden_paths_are_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = Root::open(dir.path(), vec![]).unwrap();
+
+    // Other hidden paths remain strictly refused by confinement (ADR 0044, ADR 0062 D7).
+    assert!(matches!(
+        root.confine(Path::new(".space/other.json")),
+        Err(ConfinementError::Hidden)
+    ));
+    assert!(matches!(
+        root.confine(Path::new(".obsidian/app.json")),
+        Err(ConfinementError::Hidden)
+    ));
+    assert!(matches!(
+        root.confine(Path::new(".trash/x.md")),
+        Err(ConfinementError::Hidden)
+    ));
+
+    // When make.md's .space/waypoints.json is placed on disk:
+    fs::create_dir(dir.path().join(".space")).unwrap();
+    let original = b"[{\"name\":\"Home\",\"paths\":[\"/\"]}]";
+    fs::write(dir.path().join(".space/waypoints.json"), original).unwrap();
+
+    // read_waypoints reads it and yields its Stamp.
+    let (bytes, stamp) = root.read_waypoints().unwrap();
+    assert_eq!(bytes, original);
+
+    // write_waypoints updates it atomically checking the stamp.
+    let updated =
+        b"[{\"name\":\"Home\",\"paths\":[\"/\"]},{\"name\":\"Projetos\",\"paths\":[\"p\"]}]";
+    let report = root.write_waypoints(updated, &stamp).unwrap();
+    assert!(report.warnings().is_empty());
+    assert_eq!(
+        fs::read(dir.path().join(".space/waypoints.json")).unwrap(),
+        updated
+    );
+
+    // A stale stamp is refused with WriteError::Changed.
+    assert!(matches!(
+        root.write_waypoints(b"[]", &stamp),
+        Err(WriteError::Changed { .. })
+    ));
+
+    // An iCloud placeholder sibling (.space/.waypoints.json.icloud) is treated as Unavailable (Invariant 10).
+    fs::remove_file(dir.path().join(".space/waypoints.json")).unwrap();
+    fs::write(dir.path().join(".space/.waypoints.json.icloud"), b"").unwrap();
+    assert!(matches!(root.read_waypoints(), Err(ReadError::Unavailable)));
+    assert!(matches!(
+        root.write_waypoints(b"[]", &stamp),
+        Err(WriteError::Placeholder)
+    ));
 }

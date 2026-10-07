@@ -1,0 +1,515 @@
+/* Reading */
+.preview { font-family: var(--book); font-size: 1.02rem; line-height: 1.7; margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
+.preview:empty { display: none; }
+.preview > :first-child { margin-top: 0; }
+.preview h1, .preview h2, .preview h3, .preview h4 { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; letter-spacing: -.015em; line-height: 1.2; margin: 1.8em 0 .5em; font-variation-settings: "opsz" 48, "SOFT" 30; }
+.preview h1 { font-size: 1.65em; } .preview h2 { font-size: 1.35em; } .preview h3 { font-size: 1.12em; } .preview h4 { font-size: 1em; text-transform: uppercase; letter-spacing: .06em; font-family: var(--ui); color: var(--ink-2); }
+.preview p, .preview blockquote, .preview pre, .preview table { margin: 0 0 1em; }
+.preview ul, .preview ol {
+  margin: 0.25em 0 0.75em;
+  padding-left: 1.5em;
+}
+.preview hr + ul, .preview hr + ol { margin-top: -0.4em; }
+
+/* All list items: compact vertical rhythm matching Edit mode */
+.preview li {
+  margin: 0.12em 0;
+  line-height: 1.6;
+}
+.preview li > p:first-child,
+.preview li > p:first-of-type {
+  display: inline;
+  margin: 0 !important;
+}
+.preview li > p:not(:first-of-type) {
+  display: block;
+  margin: 0.5em 0 0 !important;
+}
+
+/* Unordered bullet lists: applied per-li so mixed lists and level-1 items never lose their bullet */
+.preview ul > li:not(.task-item):not(:has(> input[type="checkbox"])):not(:has(> p:first-child > input[type="checkbox"])) {
+  list-style: none !important;
+}
+.preview ul > li:not(.task-item):not(:has(> input[type="checkbox"])):not(:has(> p:first-child > input[type="checkbox"]))::marker {
+  content: none !important;
+  display: none !important;
+}
+.preview ul > li:not(.task-item):not(:has(> input[type="checkbox"])):not(:has(> p:first-child > input[type="checkbox"]))::before {
+  content: "";
+  display: inline-block;
+  --lp-bullet-size: 0.38em;
+  width: var(--lp-bullet-size);
+  height: var(--lp-bullet-size);
+  border-radius: 50%;
+  background: var(--brass);
+  margin-left: calc(-0.75em - var(--lp-bullet-size) / 2);
+  margin-right: calc(0.75em - var(--lp-bullet-size) / 2);
+  vertical-align: calc(0.36em - var(--lp-bullet-size) / 2);
+}
+
+/* Ordered lists: decimal numbering at all levels, brass color */
+.preview ol, .preview ol ol, .preview ol ol ol {
+  list-style-type: decimal !important;
+}
+.preview ol > li::marker {
+  color: var(--brass) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Checkbox task lists: centered on the 0.75em guide line column */
+.preview li.task-item,
+.preview li:has(> input[type="checkbox"]),
+.preview li:has(> p:first-child > input[type="checkbox"]) {
+  list-style: none !important;
+  list-style-type: none !important;
+  margin-left: 0 !important;
+}
+.preview li.task-item::marker,
+.preview li:has(> input[type="checkbox"])::marker,
+.preview li:has(> p:first-child > input[type="checkbox"])::marker {
+  content: none !important;
+  display: none !important;
+}
+.preview li.task-item::before,
+.preview li:has(> input[type="checkbox"])::before,
+.preview li:has(> p:first-child > input[type="checkbox"])::before {
+  content: none !important;
+  display: none !important;
+}
+.preview li input[type="checkbox"] {
+  appearance: auto;
+  -webkit-appearance: auto;
+  accent-color: var(--seal);
+  width: 1em !important;
+  height: 1em !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: inline-block !important;
+  margin-left: -1.25em !important;
+  margin-right: 0.25em !important;
+  vertical-align: -0.02em !important;
+  cursor: pointer;
+}
+.preview li:has(> input[type="checkbox"]:checked),
+.preview li:has(> p:first-child > input[type="checkbox"]:checked) {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.preview li:has(> input[type="checkbox"]:checked) > ul,
+.preview li:has(> input[type="checkbox"]:checked) > ol,
+.preview li:has(> p:first-child > input[type="checkbox"]:checked) > ul,
+.preview li:has(> p:first-child > input[type="checkbox"]:checked) > ol {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* Nested lists: unified hierarchy guide line directly under parent marker */
+.preview li > ul,
+.preview li > ol {
+  margin: 0.1em 0 0.1em -0.75em !important;
+  padding-left: 2.25em !important;
+  border-left: 1.5px solid color-mix(in oklch, var(--ink) 22%, transparent) !important;
+}
+.preview strong { font-weight: 600; }
+.preview pre { font-family: var(--mono); font-size: .85em; line-height: 1.55; padding: .8rem 1rem; background: var(--paper-2); border-radius: 4px; overflow: auto; }
+.preview code { font-family: var(--mono); font-size: .88em; background: var(--paper-3); padding: .06em .3em; border-radius: 3px; }
+.preview pre code { background: none; padding: 0; }
+.preview blockquote { padding: .1rem 0 .1rem 1.1rem; border-left: 2px solid var(--brass); color: var(--ink-2); font-style: italic; }
+.preview table { border-collapse: collapse; font-size: .92em; font-family: var(--ui); }
+.preview th, .preview td { border-bottom: 1px solid var(--hair); padding: .4rem .7rem .4rem 0; text-align: left; vertical-align: top; }
+.preview th { font-size: .78em; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); border-bottom-color: var(--ink-3); }
+.preview hr {
+  position: relative;
+  border: 0;
+  text-align: center;
+  height: 1.8em;
+  line-height: 1.8em;
+  margin: 1.2em 0;
+}
+.preview hr::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--hair);
+}
+.preview hr::after {
+  content: "⁂";
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
+  padding: 0 .6em;
+  color: var(--brass);
+  font-size: 1.1em;
+}
+.preview img { max-width: 100%; max-height: 30rem; border-radius: 3px; display: block; margin: .4em 0; }
+.preview li > img { display: inline-block; vertical-align: top; }
+.preview a { color: var(--seal); text-decoration: none; border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); }
+.preview a:hover { border-bottom-color: var(--seal); }
+.preview a.wikilink.unresolved { color: var(--ink-3); border-bottom-style: dashed; }
+/* A remote image not loaded (remote content off): a framed link to it. */
+.preview a.remote-image, .editor a.remote-image { display: inline-block; padding: .15em .6em; border: 1px dashed var(--hair); border-radius: 4px; color: var(--ink-2); font-size: .88em; }
+.preview a.remote-image:hover, .editor a.remote-image:hover { color: var(--seal); border-color: var(--seal); }
+.preview .embed { display: inline-block; padding: 0 .45em; border: 1px dashed var(--hair); border-radius: 4px; color: var(--ink-3); font-family: var(--ui); font-size: .85em; }
+.preview .embed::before { content: "⧉ "; }
+.preview .embed.file::before { content: "📎 "; }
+
+/* Editor — the same page, now writable. No frame. */
+/* The reading view's font, for its `100ch`: `ch` is the width of a digit
+   in the element's own font, and the editor's was the interface's — its
+   lines ran longer than the reading view's in a wide window. Its panels and
+   tooltips set their own. Source and code keep theirs. */
+.editor { margin-top: .4rem; margin-left: -.5rem; max-width: 100ch; }
+.editor.live { font-family: var(--book); font-size: 1.02rem; }
+.editor .cm-editor {
+  height: auto;
+  background: none;
+}
+.editor .cm-editor.cm-focused { outline: none; }
+.editor .cm-scroller {
+  overflow: visible !important;
+  font-family: var(--book);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  min-height: 50vh;
+}
+/* `min-width: 0`: the text box is a flex item of the scroller, and without
+   it its smallest size is the widest thing inside (a picture of an
+   embedded note, a table). One wide child then rewraps the whole note at
+   its width, past the edge of the pane. */
+.editor .cm-content { padding: 0 .5rem; caret-color: var(--seal); min-width: 0; }
+/* Live Preview sets its text where the reading view does: the line's own
+   6 px moved into the text box, which keeps the caret off the edge. Lines
+   with an indent of their own (lists, quotes) set theirs below. */
+.editor.live .cm-content { padding-left: 6px; padding-right: 0; }
+.editor.live .cm-line { padding-left: 0; padding-right: 0; }
+.editor .cm-cursor { border-left: 2px solid var(--seal); }
+.editor .cm-gutters { background: none; border: none; }
+.editor .cm-lineNumbers {
+  color: var(--ink-3);
+  font-size: .8rem;
+}
+.editor .cm-lineNumbers .cm-gutterElement {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 1.6rem;
+  padding-right: 0.35rem;
+  box-sizing: border-box;
+}
+/* Heading line numbers gutter element: aligned vertically with the text of the heading */
+.editor .cm-lineNumbers .cm-gutterElement.cm-lp-gutter-h {
+  display: flex !important;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-bottom: .35em;
+  font-size: .85rem;
+}
+.editor .cm-lineNumbers .cm-gutterElement.cm-lp-gutter-h1 {
+  padding-bottom: .45em;
+}
+.editor .cm-lineNumbers .cm-gutterElement.cm-lp-gutter-h2 {
+  padding-bottom: .38em;
+}
+.editor .cm-lineNumbers .cm-gutterElement.cm-lp-gutter-h3 {
+  padding-bottom: .3em;
+}
+
+/* Guard against showing line numbers when disabled */
+html:not(.show-line-numbers-edit) .editor.live .cm-lineNumbers,
+html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
+  display: none !important;
+}
+
+/* Fold gutter in Edit mode */
+.editor .cm-foldGutter {
+  width: 1.2rem;
+}
+.editor.source .cm-foldGutter {
+  display: flex;
+  width: 1.2rem;
+}
+.editor .cm-foldGutter .cm-gutterElement {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink-3);
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+  box-sizing: border-box;
+}
+.editor .cm-foldGutter .cm-gutterElement:has(.cm-foldMarker-folded) {
+  opacity: 1;
+}
+.editor:hover .cm-foldGutter .cm-gutterElement {
+  opacity: 1;
+}
+.editor .cm-foldGutter .cm-gutterElement:hover {
+  color: var(--seal);
+}
+.editor .cm-foldGutter .cm-foldMarker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  line-height: 1;
+  transition: transform .15s ease-out;
+}
+.editor .cm-foldGutter .cm-foldMarker .icon {
+  width: 11px;
+  height: 11px;
+}
+.editor .cm-foldGutter .cm-foldMarker-open {
+  transform: rotate(90deg);
+}
+.editor .cm-foldGutter .cm-foldMarker-folded {
+  transform: rotate(0deg);
+  color: var(--seal);
+}
+/* Heading fold gutter element: drops by .8em (matching .cm-line.cm-lp-h padding-top) to center with heading text */
+.editor .cm-foldGutter .cm-gutterElement.cm-lp-gutter-h {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding-top: .8em;
+  padding-bottom: 0;
+  box-sizing: border-box;
+}
+.editor .cm-foldPlaceholder { background: var(--paper-2); border: 1px solid var(--hair); color: var(--ink-3); border-radius: 3px; padding: 0 .35rem; margin: 0 .2rem; font-family: var(--mono); font-size: .82em; cursor: pointer; line-height: 1; }
+.editor .cm-foldPlaceholder:hover { background: var(--paper-3); color: var(--ink); border-color: var(--ink-3); }
+
+/* Active line & selection highlights */
+.editor .cm-activeLine,
+.editor .cm-activeLineGutter,
+.editor.live .cm-activeLine,
+.editor.live .cm-activeLineGutter {
+  background: none !important;
+}
+.editor .cm-selectionBackground, .editor .cm-editor ::selection { background: var(--selection) !important; }
+.editor.source .cm-scroller { font-family: var(--mono); font-size: .9rem; line-height: 1.6; }
+.editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
+.editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2) !important; }
+
+/* Reading mode line numbers & fold gutter */
+.preview {
+  position: relative;
+  padding-left: 1.6rem;
+}
+.preview .preview-line-num {
+  display: none;
+}
+html.show-line-numbers-preview .preview {
+  padding-left: 3.2rem;
+}
+html.show-line-numbers-preview .preview .preview-line-num {
+  display: inline-flex;
+  position: absolute;
+  left: 1.1rem;
+  width: 1.6rem;
+  text-align: right;
+  justify-content: flex-end;
+  padding-right: 0.35rem;
+  box-sizing: border-box;
+  font-family: var(--mono);
+  font-size: .76rem;
+  color: var(--ink-3);
+  opacity: .55;
+  user-select: none;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* Vertical alignment of line numbers with text */
+html.show-line-numbers-preview .preview p .preview-line-num,
+html.show-line-numbers-preview .preview li .preview-line-num,
+html.show-line-numbers-preview .preview blockquote .preview-line-num,
+html.show-line-numbers-preview .preview table .preview-line-num,
+html.show-line-numbers-preview .preview .callout .preview-line-num,
+html.show-line-numbers-preview .preview pre .preview-line-num {
+  margin-top: 0.25rem;
+}
+html.show-line-numbers-preview .preview pre .preview-line-num {
+  left: -2.1rem;
+}
+
+/* Heading line numbers vertical alignment: centered on the heading text */
+html.show-line-numbers-preview .preview h1 .preview-line-num {
+  margin-top: 0.55rem;
+  font-size: .8rem;
+}
+html.show-line-numbers-preview .preview h2 .preview-line-num {
+  margin-top: 0.38rem;
+  font-size: .8rem;
+}
+html.show-line-numbers-preview .preview h3 .preview-line-num {
+  margin-top: 0.22rem;
+  font-size: .78rem;
+}
+html.show-line-numbers-preview .preview h4 .preview-line-num {
+  margin-top: 0.12rem;
+  font-size: .76rem;
+}
+html.show-line-numbers-preview .preview h5 .preview-line-num,
+html.show-line-numbers-preview .preview h6 .preview-line-num {
+  margin-top: 0.08rem;
+  font-size: .76rem;
+}
+
+/* Reading mode fold buttons (in the left fold gutter, identical to Edit Mode) */
+.preview .heading-fold-btn,
+.preview .quote-fold-btn {
+  position: absolute;
+  left: 0.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  z-index: 2;
+  transition: opacity .15s, color .15s, transform .2s var(--ease-out);
+  transform: rotate(90deg); /* Unfolded: points DOWN 'v' */
+}
+
+/* List fold button is positioned in the left gutter, identical to headings and blockquotes */
+.preview .list-fold-btn {
+  position: absolute;
+  left: 0.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  z-index: 2;
+  margin-top: 0.22rem;
+  transition: opacity .15s, color .15s, transform .2s var(--ease-out);
+  transform: rotate(90deg); /* Unfolded: points DOWN 'v' */
+}
+
+/* Vertical alignment of fold buttons with their respective line/block */
+.preview h1 > .heading-fold-btn { margin-top: 0.55rem; }
+.preview h2 > .heading-fold-btn { margin-top: 0.38rem; }
+.preview h3 > .heading-fold-btn { margin-top: 0.22rem; }
+.preview h4 > .heading-fold-btn { margin-top: 0.12rem; }
+.preview h5 > .heading-fold-btn,
+.preview h6 > .heading-fold-btn { margin-top: 0.08rem; }
+.preview blockquote > .quote-fold-btn { margin-top: 0.25rem; }
+
+/* Hover reveals fold button in the gutter */
+.preview h1:hover > .heading-fold-btn,
+.preview h2:hover > .heading-fold-btn,
+.preview h3:hover > .heading-fold-btn,
+.preview h4:hover > .heading-fold-btn,
+.preview h5:hover > .heading-fold-btn,
+.preview h6:hover > .heading-fold-btn,
+.preview li:hover > .list-fold-btn,
+.preview blockquote:hover > .quote-fold-btn,
+.preview .heading-fold-btn:focus-visible,
+.preview .list-fold-btn:focus-visible,
+.preview .quote-fold-btn:focus-visible {
+  opacity: 1;
+}
+
+.preview .heading-fold-btn:hover,
+.preview .list-fold-btn:hover,
+.preview .quote-fold-btn:hover {
+  color: var(--seal);
+}
+
+/* Folded / Collapsed state: always visible, points RIGHT '>', color seal */
+.preview .heading-folded > .heading-fold-btn,
+.preview li.list-folded > .list-fold-btn,
+.preview blockquote.quote-folded > .quote-fold-btn {
+  opacity: 1;
+  transform: rotate(0deg); /* Folded: points RIGHT '>' */
+  color: var(--seal);
+}
+
+/* Folded elements hide content */
+.preview li.list-folded > ul,
+.preview li.list-folded > ol {
+  display: none !important;
+}
+
+/* Folded placeholder: identical to CodeMirror's .cm-foldPlaceholder in Edit mode */
+.preview .heading-folded::after,
+.preview li.list-folded::after,
+.preview blockquote.quote-folded::after {
+  content: "···";
+  display: inline-block;
+  background: var(--paper-2);
+  border: 1px solid var(--hair);
+  color: var(--ink-3);
+  border-radius: 3px;
+  padding: 0 .35rem;
+  margin-left: .4rem;
+  font-family: var(--mono);
+  font-size: .82em;
+  line-height: 1.1;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+}
+.preview .heading-folded:hover::after,
+.preview li.list-folded:hover::after,
+.preview blockquote.quote-folded:hover::after {
+  background: var(--paper-3);
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+/* Reading mode code folding */
+.preview pre .code-fold-btn {
+  position: absolute;
+  top: .5rem;
+  right: 2.2rem;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  color: var(--ink-3);
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity .15s, transform .2s var(--ease-out);
+}
+.preview pre:hover .code-fold-btn,
+.preview pre.code-folded .code-fold-btn,
+.preview pre .code-fold-btn:focus-visible {
+  opacity: 1;
+}
+.preview pre.code-folded .code-fold-btn {
+  transform: rotate(-90deg);
+  color: var(--seal);
+}
+.preview pre.code-folded code {
+  display: none !important;
+}
+.preview pre.code-folded::after {
+  content: "···";
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+
+

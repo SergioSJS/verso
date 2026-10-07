@@ -121,7 +121,7 @@ Execution order from briefing §15:
 | ~~Disambiguation rule between `verso <folder>` and a subcommand~~ | decided 2026-09-22: a subcommand is required in Phase 1; the Phase 2 rule recorded and still open (`docs/reference/cli-decision.md`) | [0042](adr/0042-open-from-command-line.md) |
 | ~~FTS5 tokenizer for pt-BR and EN~~ | decided 2026-09-22: `unicode61` with `remove_diacritics 2`, no stemming | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Performance targets | after feature 5 produces the baseline; the Mac baseline exists since commit `6b53c64` (`crates/verso-bench/baselines.json`), the targets are still open | [0039](adr/0039-performance-targets.md) |
-| ~~MCP transport, exposed surface, protocol version~~ | decided 2026-09-22: stdio, seven read-only tools, the version `initialize` negotiates (`docs/reference/mcp-decision.md`) | [0045](adr/0045-server-and-mcp-security.md) |
+| ~~MCP transport, exposed surface, protocol version~~ | decided 2026-09-22: stdio, seven read-only tools, the version `initialize` negotiates (`docs/reference/mcp-decision.md`); widened on 2026-10-07 to nine — typed relations, boards, properties and tags, bases | [0045](adr/0045-server-and-mcp-security.md), [0066](adr/0066-mcp-sees-boards-relations-properties-bases.md) |
 | ~~What an opaque handle identifies and for how long~~ | decided 2026-09-24, as built: notes named by their relative path — the MCP, the CLI and the window — and the handle an index into a table of paths inside the process; re-opened before anything outside the app's own views gets access to files (`docs/reference/handles-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 
 ### Exit criterion
@@ -180,7 +180,7 @@ The first version that gets used. macOS only ([ADR 0022](adr/0022-target-platfor
 | 2.3 | File tree | built, with create, rename, move, bin and copy; file operations decided on 2026-09-23 as built ([0048](adr/0048-file-operations-in-ui.md)) |
 | 2.4 | CodeMirror 6 editor with Live Preview | built: reading, Live Preview and source |
 | 2.5 | Backlinks and search coming from the core, through the contract | built, with links, tags, unlinked mentions and the graph |
-| 2.6 | One note type end to end | not started; its decisions taken on 2026-09-24 ([0052](adr/0052-typed-note.md), spec Q11), and the work is the memo's section 8 (`docs/reference/typed-note-decision.md`) |
+| 2.6 | One note type end to end | built on 2026-10-07, rows 1 to 6 of the memo's section 8 (`docs/reference/typed-note-decision.md`): the parser's `schemas`, the index's types and schema blocks (version 10, carried over in place), the core's typing at query time, the panel, `type:` in the search, the MCP; decided on 2026-09-24 ([0052](adr/0052-typed-note.md), spec Q11); the two schema fixtures approved the same day. Waiting for the maintainer's reading |
 | 2.7 | pt-BR and EN in the UI; accessibility ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | languages built, chosen in the settings; accessibility audited statically against WCAG 2.2 AA on 2026-09-24, on a local branch — what was fixed and what waits for the maintainer is in the [review](review/accessibility.md); not yet gone through with a screen reader |
 
 Beyond the seven items, the maintainer asked during the phase for what a
@@ -196,6 +196,13 @@ and the terminal and agents set up from the settings
 board in as well — a `.canvas` drawn with Excalidraw, typed relations in the
 frontmatter, the conversion of the Excalidraw plugin's drawings
 ([ADR 0057](adr/0057-board-json-canvas.md)); the memo is `docs/reference/board-decision.md`.
+On 2026-10-02 the maintainer pulled in make.md's organizing features —
+labels, folder pages, manual order and pins, editing an embedded note in
+place ([ADR 0060](adr/0060-makemd-organizing-features.md)); the memo is
+`docs/reference/makemd-decision.md`. On 2026-10-06 the maintainer pulled in
+Notion's blocks in Edit mode — a handle to drag a paragraph, a list item or
+any other block, a `+`, a menu per block and Notion's keys
+([ADR 0061](adr/0061-blocks-in-edit-mode.md)).
 
 ### Decisions that have to come out during the phase
 

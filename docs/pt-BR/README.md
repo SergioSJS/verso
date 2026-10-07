@@ -73,11 +73,11 @@ que se instala ao lado do app de produção com os próprios ajustes da janela
 - **Qual está rodando**: Ajustes → Geral → Versão, o painel Sobre, ou
   `verso --version`.
 - **Gerar uma** só acontece quando o mantenedor pede:
-  `node scripts/release.mjs prepare X.Y.Z[-beta.N]` abre o pull request da
-  release, e depois do merge dele `node scripts/release.mjs tag
-  X.Y.Z[-beta.N]` marca o commit que trouxe a versão; a tag compila e publica
-  a release. Antes da primeira tag, um ensaio — Actions → release → Run
-  workflow — compila os mesmos arquivos e não publica nada.
+  `node scripts/release.mjs prepare X.Y.Z[-beta.N]`, na branch do pull request
+  que lança, define a versão e move o changelog num commit; o merge desse pull
+  request na `main` compila, publica e cria a tag da release. Um ensaio —
+  Actions → release → Run workflow — compila os mesmos arquivos e não publica
+  nada.
 
 ## Documentos
 

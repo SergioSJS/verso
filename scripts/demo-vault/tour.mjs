@@ -44,8 +44,28 @@ const STOPS = [
       ["n-mermaid", "08 - Diagramas Mermaid.md", 420],
     ],
     tip:
-      "Markdown puro, compatível com o Obsidian: títulos que recolhem, tabelas, tarefas, destaques, fórmulas em KaTeX e diagramas Mermaid. " +
+      "Markdown puro, compatível com o Obsidian: títulos que recolhem, tabelas (a largura de uma coluna se arrasta no cabeçalho), tarefas, destaques, fórmulas em KaTeX e diagramas Mermaid. " +
       "Leitura, Editar e Fonte: ⌘E alterna entre os dois primeiros. Um / no começo da linha insere blocos, e o Verso salva sozinho.",
+  },
+  {
+    id: "blocos",
+    label: "Blocos",
+    heading: "🧱 Blocos como no Notion",
+    color: GREEN,
+    canvasColor: "4",
+    cards: [["n-blocos", "20 - Blocos como no Notion.md", 640]],
+    tip:
+      "No modo Editar, cada parágrafo, item de lista ou título é um bloco: passe o mouse e arraste a ⋮⋮ da margem para movê-lo, " +
+      "ou clique nela para transformar, duplicar, copiar o link ou excluir. O + abre o menu / num bloco novo. O arquivo continua Markdown puro.",
+    extra(b, x, y, f) {
+      b.write("d-blocos-titulo", x + 740, y + 150, "teclas do Notion", { size: 32, color: GREY, frame: f });
+      keys(b, "d-blocos", x + 740, y + 210, [
+        [["⌘", "⇧", "↑"], "mover bloco acima"],
+        [["⌘", "⇧", "↓"], "mover bloco abaixo"],
+        [["⌘", "D"], "duplicar bloco"],
+        [["⌘", "/"], "transformar em…"],
+      ], f);
+    },
   },
   {
     id: "conectar",
@@ -73,11 +93,28 @@ const STOPS = [
       ["n-bases", "04 - Visualização de Bases e Dados.md", 420],
       ["n-diarias", "07 - Notas Diárias, Calendário e Templates.md", 420],
     ],
-    tip: "As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban ou calendário. ⌘D abre a nota de hoje, feita do template Diário.",
+    tip: "As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban ou calendário. ⌘⇧D abre a nota de hoje, feita do template Diário.",
     tipWidth: 860,
     extra(b, x, y, f) {
       b.file("n-base", "Projetos.base", x + 940, y + 740, 420, 64);
       b.write("d-base-w", x + 960, y + 830, "abra a base pelo ↗", { size: 28, color: GREY, frame: f });
+    },
+  },
+  {
+    id: "tipos",
+    label: "Tipos",
+    heading: "🏷️ Notas tipadas",
+    color: AMBER,
+    canvasColor: "3",
+    cards: [
+      ["n-tipos", "21 - Notas Tipadas.md", 640],
+      ["n-lia", "Personagens/Lia Torres.md", 420],
+    ],
+    tip:
+      "Uma nota com type: personagem ganha o formulário do schema do tipo: as propriedades declaradas primeiro, com rótulo e campo certos. " +
+      "O que não cabe fica marcado, a linha vazia só grava quando você preenche, e type:personagem busca as notas do tipo.",
+    extra(b, x, y, f) {
+      b.write("d-tipos-w", x + 40, y + 830, "o schema mora numa nota: Tipos/Personagem", { size: 28, color: GREY, frame: f });
     },
   },
   {
@@ -117,7 +154,8 @@ const STOPS = [
     cards: [["n-arquivos", "14 - Arquivos e Pastas.md", 640]],
     tip:
       "Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; " +
-      "arrastar uma nota da árvore para o texto cria um link; a lixeira é a pasta .trash, como no Obsidian.",
+      "arrastar uma nota da árvore para o texto cria um link; ⌘-clique e ⇧-clique selecionam várias, que se movem juntas; " +
+      "a lixeira é a pasta .trash, como no Obsidian.",
     extra(b, x, y, f) {
       keys(b, "d-arq", x + 740, y + 160, [[["⌘", "N"], "nova nota"], [["⌘", "⇧", "N"], "nova nota com nome"], [["F2"], "renomear"], [["⌘", "⌫"], "para a lixeira"]], f);
     },
@@ -240,11 +278,52 @@ const STOPS = [
         "d-atalhos-lista",
         x + 40,
         y + 140,
-        "⌘⇧P  comandos\n⌘P  abrir pelo nome\n⌘K  buscar nas notas\n⌘N  nova nota\n⌘D  nota de hoje\n" + "⌘E  ler ou editar\n⌘\\  dividir a tela\n⌘[  ⌘]  voltar e avançar\n⌘,  ajustes",
+        "⌘⇧P  comandos\n⌘P  abrir pelo nome\n⌘K  buscar nas notas\n⌘N  nova nota\n⌘⇧D  nota de hoje\n" + "⌘E  ler ou editar\n⌘\\  dividir a tela\n⌘[  ⌘]  voltar e avançar\n⌘,  ajustes",
         { size: 34, color: INK, font: SANS, frame: f },
       );
       b.file("n-ajuda", "18 - Ajuda, Atualizações e Diagnóstico.md", x + 720, y + 130, 640, 400);
       b.file("n-inicio", "00 - Bem-vindo ao Verso.md", x + 720, y + 560, 640, 400);
+    },
+  },
+  {
+    id: "organizacao",
+    label: "Figurinhas e ordem",
+    heading: "🎨 Figurinhas, capas e ordem",
+    color: AMBER,
+    canvasColor: "3",
+    cards: [["n-organizando", "19 - Organizando: figurinhas, capas e páginas.md", 640]],
+    tip:
+      "Figurinhas, cores e capas destacam notas e pastas na árvore e no cabeçalho. " +
+      "Ordene itens à mão ou fixe-os na pasta; edite notas embutidas no lugar e digite : para sugerir emojis no texto.",
+    extra(b, x, y, f) {
+      b.write("d-org-titulo", x + 740, y + 150, "ações e atalhos", { size: 32, color: GREY, frame: f });
+      keys(b, "d-org", x + 740, y + 210, [
+        [[":"], "sugerir emoji ao digitar"],
+        [["↑", "↓"], "escolher o emoji"],
+        [["Enter"], "inserir no texto"],
+        [["Esc"], "fechar sugestões"],
+      ], f);
+    },
+  },
+  {
+    id: "focos",
+    label: "Focos",
+    heading: "🧭 Focos",
+    color: TEAL,
+    canvasColor: "5",
+    cards: [["n-focos", "19 - Organizando: figurinhas, capas e páginas.md", 640, "#8. Focos (raízes nomeadas)"]],
+    tip:
+      "Focos são raízes nomeadas da árvore de arquivos, compatíveis com o make.md. " +
+      "Escolha um foco para ver a árvore a partir dele; Início mostra a pasta inteira. " +
+      "A aba Focos no painel da direita cria, renomeia, reordena e troca a figurinha de cada foco.",
+    extra(b, x, y, f) {
+      b.write("d-focos-titulo", x + 740, y + 150, "ações e atalhos", { size: 32, color: GREY, frame: f });
+      keys(b, "d-focos", x + 740, y + 210, [
+        [["⌘", "⇧", "P"], "Trocar foco na paleta"],
+        [["menu"], "Criar foco aqui na árvore"],
+        [["menu"], "Adicionar ao foco…"],
+        [["painel"], "Aba Focos (ao lado de Favoritos)"],
+      ], f);
     },
   },
 ];
@@ -270,8 +349,8 @@ export function tour() {
     const [x, y] = at(i);
     const f = `g-${s.id}`;
     let cx = x + 40;
-    for (const [id, file, width] of s.cards) {
-      b.file(id, file, cx, y + CARD_Y, width, CARD_H);
+    for (const [id, file, width, subpath] of s.cards) {
+      b.file(id, file, cx, y + CARD_Y, width, CARD_H, undefined, subpath);
       cx += width + (s.cards.length > 2 ? 30 : 80);
     }
     for (const e of s.edges ?? []) b.edge(...e, s.canvasColor);
@@ -286,7 +365,7 @@ export function tour() {
     -560,
     "Dois dedos no trackpad, ou a roda do mouse, movem o board; a pinça ou ⌘ + roda aproximam, e ⇧1 mostra tudo. " +
       "Dê duplo clique num cartão para ler a nota aqui mesmo; mais um clique edita, e Esc sai. ↗ abre a nota numa aba. " +
-      "O Sumário, na barra do board, leva a cada parada.",
+      "O Sumário, no alto à direita do board, leva a cada parada.",
     { size: 28, color: BODY, font: SANS, width: 1500 },
   );
   b.write("d-comece", 180, -330, "comece aqui!", { size: 44, color: RED });

@@ -114,6 +114,15 @@ point 13).
 5. Note 13: ⌘R reloads the window with the note typed in saved first; with a
    note that cannot be saved (a conflict waiting), the window stays and says
    why. Level: H; E: `notes.spec.mjs`.
+6. Windows (ADR 0065): File › New Window opens a window on the start page;
+   it opens another folder, and each window lists and searches its own
+   notes, its title the folder's name; File › Open Folder… switches only
+   the window in focus; "Nova janela nesta pasta" opens one on the same
+   folder, and a note written in one appears in the other; a note popped
+   out keeps its window from switching while no other window shows its
+   folder; closing a window leaves the others as they were; `verso
+   <folder>` with every window on a folder opens a new window. Level: A;
+   U: `cargo test -p verso-app` (`each_window_answers_from_its_own_folder`).
 
 ## 3. Writing and reading notes
 
@@ -132,7 +141,14 @@ point 13).
    is. Level: H; E: `notes.spec.mjs`. Caught: the picture was asked of the
    window's own address before the folder's, drawn 0 px wide (the size after
    an alt text was not read), and its resize rewrote the example
-   (2026-10-01).
+   (2026-10-01). A right click on the picture — here, in its own tab
+   (`assets/diagrama.svg`), on a card of the board — is Verso's menu:
+   "Abrir em nova aba", "Abrir em nova janela", "Baixar imagem" (it lands in
+   Downloads, the status line names it), "Copiar imagem", "Mostrar no
+   Finder"; the board's export "Baixar" lands in Downloads too. Level: H, A
+   (the download and the window); E: `menus.spec.mjs`. Caught: WebKit's own
+   menu showed there, and its "Download Image" and "Open Image in New
+   Window" did nothing (2026-10-06).
 5. A picture whose file name has an accent (`assets/gráfico.svg`) shows from
    the folder. Level: H; E: `notes.spec.mjs`. Caught: the renderer
    percent-encodes the address, and the window asked the core for
@@ -155,6 +171,35 @@ point 13).
    Level: H; E: `notes.spec.mjs`. Caught: Editar's text 7.5 px further right,
    its lines 113 px longer in a wide window (`100ch` in the interface's
    font), its list looser (2026-10-02).
+10. Note 20 in Editar (ADR 0061): the pointer over a paragraph shows `+`
+    and ⋮⋮ in the margin, left of the text, and an outline round the whole
+    paragraph; ⋮⋮ dragged below the lists moves the paragraph whole, and
+    one ⌘Z puts it back; "Terceiro passo" dragged to the top renumbers the
+    list 1, 2, 3; "Maçã" dragged to the right under "Fruta" nests there;
+    Esc mid-drag drops nothing. ⋮⋮ clicked: Transformar em › Título 2,
+    Duplicar, Copiar link do bloco (a `^id` written once), Excluir. ⌘⇧↓
+    and ⌘⇧↑ move the block at the caret, past a whole list; ⌘D duplicates
+    it; ⌘/ opens "Transformar em". `+` opens `/` on a new block, and Esc
+    takes it back; on a list item, the new block is the next item. `[] `
+    becomes `- [ ] `; `/recolh` offers "Recolhível". Settings › Editor:
+    "Alças dos blocos" off hides them; "Enter começa um bloco novo" on
+    makes Enter write a blank line and Shift-Enter a line break. In the
+    search field, ⌘⇧↑ is the field's own. An empty line shows the `+`
+    alone: it writes a `/` there, apart from its neighbours, and Esc takes
+    it back. Level: H; E: `blocks.spec.mjs`; U: `test/blocks.test.mjs`.
+11. Note 01, "Tabelas no Editor", in Editar (ADR 0064): a table is drawn as
+    a table with the caret in it or not; `/tabela` makes one whose empty
+    header takes the keys; Tab, Enter, the arrows and Esc as the note says;
+    the `+` under and beside it add a row and a column; right click on a
+    cell: insert, delete, align (`:-:`), and the same tools in the
+    formatting bar while a cell has the focus, the column's alignment
+    pressed; a `|` typed is written `\|`; ⌘Z in
+    a cell undoes the last step. A table inside a list stays text. Level: H;
+    E: `tables.spec.mjs`; U: `test/table.test.mjs`.
+12. Same table: drag the right edge of a header cell wider, in Editar; Leitura
+    shows the column as wide, and so does the note opened again; the file
+    does not change (ADR 0064 point 6). Level: H; E: `tables.spec.mjs`, "a
+    column dragged wider…" and "a column dragged in Reading…".
 
 ## 4. Organizing: properties, bases, daily notes
 
@@ -165,12 +210,22 @@ point 13).
    listed the whole vault (`26c3b06`).
 2. Note 04: the embedded view and the `base` block listing the daily notes.
    Level: H.
-3. ⌘D: `Diário/<today>.md` is made from `Templates/Diário.md`, `{{title}}`
+3. ⌘⇧D (⌘D until 2026-10-06, ADR 0061): `Diário/<today>.md` is made from `Templates/Diário.md`, `{{title}}`
    and `{{date}}` filled. Level: S (the folders), H; E: `notes.spec.mjs`.
    Caught: the notes said `daily/` and `templates/`, which the app does not
    use by default (`26c3b06`).
 4. Right panel (⌘⌥→) › Calendário: dots on 24 and 25 September and on today.
    Level: H; E: `notes.spec.mjs`.
+5. The typed note (note 21, ADR 0052): `Personagens/Capitão Ruy` shows
+   "Tipo: Personagem" above its properties, the schema's properties first
+   under their labels, `nível: alto` underlined, "Primeira aparição" an
+   empty date row; opening it writes nothing; a date picked there goes at
+   the end of the frontmatter; "Abrir o schema" opens `Tipos/Personagem`.
+   A property added to the schema shows, empty, in both notes, and no file
+   changes. A copy of the schema's note makes both notes say the two
+   schemas share the name; `type:personagem` in the search lists the two.
+   In English, "Type: Character". Level: S (`crates/verso-core/tests/typed.rs`,
+   `fixtures/schema/`), H; E: `typed.spec.mjs`.
 
 ## 5. Finding
 
@@ -211,6 +266,13 @@ point 13).
 6. With a question on screen (Settings, a plan), the menu's ⌘W closes
    nothing behind it; with no tab left, ⌘W closes the window. Level: H (the
    question); E: `tabs.spec.mjs`; A (the window).
+7. Note 14, "Vários de uma vez" (ADR 0048, revised 2026-10-07): ⌘-click two
+   notes of the tree and ⇧-click a third — the rows between are selected;
+   Esc clears; a plain click opens. Drag the selection onto a folder: they
+   move together, and a note linking to them by path shows in one plan. The
+   selection's menu: "Mover para…", "Copiar caminhos relativos", "Mover para
+   a lixeira" asked once. Level: H; E: `tree-selection.spec.mjs`; S:
+   `crates/verso-core/tests/workspace/rename.rs`.
 
 ## 7. The web
 
@@ -219,9 +281,12 @@ point 13).
 2. `Web/Cartão de visita.html`: the page with its own style, in Página;
    its source in Fonte. Level: A. Caught: the page was blank — served as
    bytes, which `nosniff` kept the frame from showing (`a51aab2`).
-3. "Desenho do Excalidraw": "Converter em board" shows the board to be made,
-   and "Criar o board" makes `Desenho do Excalidraw.canvas` beside it.
-   Level: A.
+3. "Desenho do Excalidraw" opens on its drawing, to look at — no tools —
+   with "Converter em board" and "Ver o texto" over it; "Ver o texto" shows
+   the note's text, "Ver o desenho" brings the drawing back, and the file is
+   not written. "Converter em board" shows the board to be made, and "Criar
+   o board" makes `Desenho do Excalidraw.canvas` beside it. Level: H, A; E:
+   `board-drawing.spec.mjs`.
 4. In `Web/jsoncanvas.org.md`'s page, and in a link opened in its own
    window: type in a field of the site, then ⌘A, ⌘Z and ⌘⇧Z act in that
    field, once each, and nothing in the note behind changes. Level: A (the
@@ -295,6 +360,37 @@ point 13).
    (`a51aab2`).
 9. Lesson 12: "Fundo da tela" in the ☰ menu; the board's JSON in Texto.
    Level: H.
+10. Lesson 8, pictures: drop a picture on the board (or paste one): a card
+    where it was dropped, the file copied into the attachments folder, no
+    picture in the canvas JSON; drag a note from the tree onto the board: a
+    card, no new tab; "Inserir" in Excalidraw's toolbar opens a menu whose
+    "Imagem ou PDF do computador…" picks pictures from the computer; a `.zip`
+    dropped says only pictures and PDFs. A picture card shows the picture
+    alone, no frame or title. Selected, "Recortar" in the top-right tools
+    opens the crop: a corner dragged, "Aplicar" shows that part, the card at
+    its proportions, the node's `verso.crop` written and the picture's file
+    untouched; "Restaurar original" takes it off. Right-click menus, the
+    board's and the window's, never show two lines together. With the side bar open and the window not
+    wide, the search and the Outline in the middle of the footer; on a
+    narrower board — the outline open too, a tall narrow window, both side
+    bars open — Excalidraw's toolbar at the foot of the board and Verso's
+    tools at the top right, apart; every tool always whole. Level: H (drag from the tree and the system's
+    chooser), A; E: `board-images.spec.mjs`.
+11. Arrows: the arrow tool from a point of one card to a point of another:
+    each end stays aimed at its point, on the card's outline (its head
+    shows), under the cards, while a card is dragged and when the board
+    opens again; from middle to middle, the sides that face each other. The
+    file's edge holds the sides it meets and, under `verso`, the points;
+    Obsidian draws it from those sides. A rectangle drawn, and an arrow
+    from its middle to a picture's middle: the head at that point, over the
+    picture; the board closed and opened again, the picture dragged, the
+    arrow follows it. With "Setas soltas" on (the
+    "Inserir" menu), the same drag leaves a free arrow attached to neither.
+    The line tool across a card: one line, drawn over the card as it is
+    drawn, never doubled. With the arrow tool held, the hint line under the
+    toolbar names ⌘ and "Inserir › Setas soltas" (only the menu on a touch
+    screen), and says when Setas soltas is on. Level: H; E:
+    `board-arrows.spec.mjs`.
 
 ## 10. Settings, help, the command line
 
@@ -307,8 +403,89 @@ point 13).
    `verso backlinks <folder> "Projeto Alpha"` (its name, as a link names
    it, or its path); `--unresolved`; `--json`. Level: A. Caught: only a path
    was found (2026-10-01).
+4. An agent on the folder through `verso mcp` (note 17): asked which notes
+   have the tag `projeto` and what "Tour do Verso" shows, it lists them by
+   tag and reads the board's cards and edges; `links` of a note with
+   `relacionado: "[[…]]"` names the relation; `query_base` on
+   `Projetos.base` gives the table's rows. Nothing in the folder changes.
+   Level: S (`crates/verso-cli/tests/mcp.rs`), A (a client: Claude Desktop
+   or Claude Code).
 
-## 11. The end
+## 11. Organizing: stickers, covers, folder pages, order
+
+1. Note 19: its sticker and colour show on its tree row, in its tab and
+   above its title. A row whose `sticker:` is no sticker keeps its own icon.
+   Level: H; E: `labels.spec.mjs`, "sticker in frontmatter appears in tree
+   row and tab" and "a sticker picked from the picker is written as make.md
+   writes it, and an unknown one falls back".
+2. The sticker beside the title opens the picker: "Ícones" switches tab, the
+   search filters, a pick closes it and the file gains `sticker: emoji//…`
+   or `sticker: lucide//…`; a swatch writes `color:`. Level: H; E:
+   `labels.spec.mjs`, "sticker picker popover opens, switches tabs, searches,
+   selects sticker and color".
+3. "Adicionar capa", a path of the folder (`assets/diagrama.svg`): the cover
+   shows. "Reposicionar", ↓ three times, Enter: `banner_y` changes; again
+   with Esc: nothing changes. Level: H (the drag: E, `labels.spec.mjs`,
+   "note cover banner displays and drag repositioning updates banner_y"; the
+   keys: by hand).
+4. A folder's page: its folder note on top, a table of its items below. In
+   a folder with no folder note, "Criar nota da pasta". The folder note is
+   no row of the tree; the folder's menu, "Abrir nota da pasta", opens it
+   (E: `order-pins.spec.mjs`, "a folder's note is not a row of the tree; the
+   folder's menu opens it"). Level: H; E:
+   `folder-pages.spec.mjs`, "folder page displays folder note, cover banner,
+   sticker, and default table". A right click on the page's empty space
+   shows the tree's menu — new note, folder, base, board, web page, Mostrar
+   no Finder, the paths — every item with its icon (E: `folder-pages.spec.mjs`,
+   "a folder page's right click…").
+5. Ajustes › Organização › "Nome da nota da pasta": `README` makes
+   `Pasta/README.md` the folder's note — its sticker shows on the folder's
+   row. Level: H; E: `labels.spec.mjs`, "the folder note name setting names
+   the note a folder's labels come from".
+6. Order and pins: "Mover para cima" on a row writes the folder note's
+   `order:`; "Fixar na pasta" writes `pinned:` and puts the row first;
+   "Desafixar da pasta" takes it out; "Ordem alfabética" in a folder's
+   menu, or the button beside "Arquivos", sorts the whole tree by name and "Ordem personalizada" brings every
+   `order:` back, untouched; dragging a root note writes the root's note, named
+   after the open folder. In a folder with no folder note, the first of
+   these makes it, with no question, and the status bar says so. Level: H;
+   E: `order-pins.spec.mjs`, "pin and unpin via context menu updates folder
+   note frontmatter", "pinning in a folder with no folder note creates it,
+   with no question", "the menu switches the tree between alphabetical
+   and custom order, keeping the custom one", and "the root's notes are ordered by dragging, in the
+   root's note" (dragging a row, and ⇧ on the drop: by
+   hand).
+7. Rename a note named in an `order:` (F2 on its row): the plan shows the
+   folder note's line changed, and only it. Level: H (the core's rewrite: U,
+   `cargo test -p verso-core`, the `order` tests of `workspace.rs`).
+   Renaming a folder renames its folder note: `Team/Team.md` becomes
+   `Crew/Crew.md`, and its open tab follows. Level: H; E:
+   `order-pins.spec.mjs`, "renaming a folder renames its folder note, and
+   its open tab follows".
+8. "Ocultar da árvore" takes the row away; Ajustes › Organização › "Itens
+   ocultos da árvore" lists it, and "Mostrar" brings it back. Level: H; E:
+   `order-pins.spec.mjs`, "hide from tree removes item from tree and unhide
+   in settings restores it".
+9. The embed in note 19: a click on its text edits it in place; what is
+    typed goes to `projetos/Pesquisa e Descobertas.md`. With the file changed
+    elsewhere, the conflict shows; switching mode then asks, and "Cancelar"
+    keeps the text. Level: H; E: `flow.spec.mjs`, "typing inside an embed in
+    reading view changes the embedded file only (ADR 0060 S4)", "conflict on
+    the embedded file shows two versions" and "switching mode with an embed
+    in conflict asks, and a no keeps the text typed".
+10. `:foguete` in the editor suggests 🚀; Enter inserts it. Level: H; E:
+    `flow.spec.mjs`, "emoji trigger with : opens completion and inserts emoji
+    (ADR 0060 E4)" (the arrows and Esc: by hand).
+11. Focuses (ADR 0062): the right panel's "Focos" tab lists every focus, with
+    Início first. Choosing a focus shows the file tree from its paths, and the
+    heading shows the active focus (e.g. `ARQUIVOS · Projetos`). The context menu
+    on a tree item offers "Criar foco aqui" and "Adicionar ao foco…". "Trocar foco"
+    in the command palette switches focuses. If `.space/waypoints.json` is present
+    and sync is enabled, changes write back preserving untouched bytes; if disabled
+    or unknown format, focuses stay read-only or in Verso settings. Level: H; E:
+    `focuses.spec.mjs`.
+
+## 12. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.

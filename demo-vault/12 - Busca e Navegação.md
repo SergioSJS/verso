@@ -59,10 +59,10 @@ Cada painel lembra por onde passou: **‹** e **›** na barra de abas, `⌘[` e
 `⌘⌥→`, ou o botão no canto direito da barra de status, abre o painel com seis abas:
 
 - **Estrutura** — os títulos da nota aberta;
-- **Backlinks** — quem aponta para ela, e as **Menções sem link**;
-- **Links de saída** — para onde ela aponta;
+- **Links** — quem aponta para ela (os **Backlinks**, e as **Menções sem link**) e, embaixo, para onde ela aponta (os **Links de saída**);
 - **Tags** — as tags do cofre;
 - **Favoritos** — as notas marcadas com a estrela;
+- **Focos** — as raízes nomeadas da árvore de arquivos;
 - **Calendário** — as notas diárias (veja [[07 - Notas Diárias, Calendário e Templates]]).
 
 A **estrela** ao lado do título de uma nota a põe nos favoritos. Acima do título, o caminho da nota mostra as pastas em que ela está: um clique abre a pasta.
