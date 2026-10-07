@@ -260,9 +260,12 @@ point 13).
 2. `Web/Cartão de visita.html`: the page with its own style, in Página;
    its source in Fonte. Level: A. Caught: the page was blank — served as
    bytes, which `nosniff` kept the frame from showing (`a51aab2`).
-3. "Desenho do Excalidraw": "Converter em board" shows the board to be made,
-   and "Criar o board" makes `Desenho do Excalidraw.canvas` beside it.
-   Level: A.
+3. "Desenho do Excalidraw" opens on its drawing, to look at — no tools —
+   with "Converter em board" and "Ver o texto" over it; "Ver o texto" shows
+   the note's text, "Ver o desenho" brings the drawing back, and the file is
+   not written. "Converter em board" shows the board to be made, and "Criar
+   o board" makes `Desenho do Excalidraw.canvas` beside it. Level: H, A; E:
+   `board-drawing.spec.mjs`.
 4. In `Web/jsoncanvas.org.md`'s page, and in a link opened in its own
    window: type in a field of the site, then ⌘A, ⌘Z and ⌘⇧Z act in that
    field, once each, and nothing in the note behind changes. Level: A (the
@@ -347,14 +350,20 @@ point 13).
     its proportions, the node's `verso.crop` written and the picture's file
     untouched; "Restaurar original" takes it off. Right-click menus, the
     board's and the window's, never show two lines together. With the side bar open and the window not
-    wide, the search and the Outline in the middle of the footer; with the
-    outline open too, or a tall narrow window, on a line under the toolbar;
-    with both side bars open, the toolbar on two lines, clear of the lock
-    and the hand; Excalidraw's toolbar always whole. Level: H (drag from the tree and the system's
+    wide, the search and the Outline in the middle of the footer; on a
+    narrower board — the outline open too, a tall narrow window, both side
+    bars open — Excalidraw's toolbar at the foot of the board and Verso's
+    tools at the top right, apart; every tool always whole. Level: H (drag from the tree and the system's
     chooser), A; E: `board-images.spec.mjs`.
-11. Arrows: the arrow tool from one card's middle to another's middle: both
-    ends go to the sides that face each other at once, under the cards, and
-    stay on those sides while a card is dragged; with "Setas soltas" on (the
+11. Arrows: the arrow tool from a point of one card to a point of another:
+    each end stays aimed at its point, on the card's outline (its head
+    shows), under the cards, while a card is dragged and when the board
+    opens again; from middle to middle, the sides that face each other. The
+    file's edge holds the sides it meets and, under `verso`, the points;
+    Obsidian draws it from those sides. A rectangle drawn, and an arrow
+    from its middle to a picture's middle: the head at that point, over the
+    picture; the board closed and opened again, the picture dragged, the
+    arrow follows it. With "Setas soltas" on (the
     "Inserir" menu), the same drag leaves a free arrow attached to neither.
     The line tool across a card: one line, drawn over the card as it is
     drawn, never doubled. With the arrow tool held, the hint line under the

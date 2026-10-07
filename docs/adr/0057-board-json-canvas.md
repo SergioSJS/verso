@@ -13,7 +13,7 @@
   [0035](0035-cross-cutting-requirements.md) (the accessible view),
   [0049](0049-phase-2-scope-widened.md) §3 (asked for and not built, until
   this ADR)
-- Revisions: 2026-10-03 — how pictures and files get onto the board (drop, paste, pick, drag) is [0063](0063-files-onto-the-board.md); point 2 stands. 2026-10-06 — point 10 gains a picture card's crop, kept on its node (the maintainer, asked where a crop is kept: "No card, sem tocar no arquivo").
+- Revisions: 2026-10-03 — how pictures and files get onto the board (drop, paste, pick, drag) is [0063](0063-files-onto-the-board.md); point 2 stands. 2026-10-06 — point 10 gains a picture card's crop, kept on its node (the maintainer, asked where a crop is kept: "No card, sem tocar no arquivo"). 2026-10-06 — point 5: a drawing of the plugin opens on its drawing; point 20: an arrow is bound at the point it was drawn to, on Excalidraw's development builds (the maintainer, below).
 - Status in the briefing: §9 "Board persistence" `OPEN` and "Board — semantic
   layer" `PROPOSED`, §11.3 and §17 item 6 "Typed relation syntax" `OPEN`, §17
   item 9 `OPEN` — all `DECIDED` from 2026-09-30 (briefing v0.11)
@@ -84,6 +84,15 @@ decided by the maintainer on 2026-10-01 (point 18).
    to the drawing and leaves the drawing as it was. It is written from the
    file's own structure and Excalidraw's schema (MIT); nothing of the plugin's
    code (AGPL-3.0) is read.
+   *(Revised on 2026-10-06 by the maintainer, in session: "nao to
+   conseguindo abrir um excalidraw criado no obisidian nao abre no nosso
+   board"; asked how, they chose "Mostrar o desenho + converter" over editing
+   the plugin's file in place and over a more visible button only.)* A
+   drawing of the plugin opens on its drawing, shown as drawn, to look at —
+   Excalidraw's view mode, its pictures by the files the drawing names — in
+   place of its text, with "Convert to board" over it and its text one
+   click away. Showing it writes nothing; the conversion is still the user's
+   action, as above.
 6. **`.canvas` in the index, as Obsidian** (spec Q16, for `.canvas` only): a
    canvas's `file` nodes and the `[[links]]` in its `text` nodes are backlink
    sources; a `.canvas` is a link target by its full name with the extension
@@ -221,6 +230,34 @@ of that section (the review's section 8 holds the list as it was put).
     a window of the app — the page's own command runs, as the system's item
     ran it.
 
+**Decided on 2026-10-06 by the maintainer**, in session: "fui testar o
+excalidraw, ele ta muito mais elegante em si tratando com as setas [...] se
+eu faço uma seta entre dois elementos, ele salva exatalemte o lugar onde a
+seta ta pontando"; asked how, they chose "Excalidraw next" over keeping
+the stable release and placing the point by Verso's own code, and over
+keeping arrows at the middle of a side.
+
+20. **An arrow is bound at the point it was drawn to.** Excalidraw's
+    development builds bind each end of an arrow at a point of the element,
+    in fractions of its box, met on its outline (`orbit`) or at the point
+    itself (`inside`); its stable release, 0.18.1, binds an end by a focus
+    toward the middle, and Verso drew every edge from a side's middle. The
+    board takes a development build, pinned at an exact version in
+    `package.json` (`@excalidraw/excalidraw@0.18.0-<commit>`), moved only in
+    a change of its own with the whole suite green. An edge — an arrow from
+    a card to a card — passes under the cards, as the canvas draws it: its
+    ends are bound on the cards' outlines, aimed at their points, since an
+    end inside a card would hide its head. An arrow with an end on a shape
+    of the drawing is the drawing's, drawn over the cards, and Excalidraw's
+    own way stands: its head at the point it was drawn to, inside a picture
+    included; the card it reaches lists it, read from the file, so it moves
+    with the card. A canvas edge writes, for Obsidian, the side the arrow
+    meets, and under the edge's `verso` the point (`"fromPoint": [x, y]`,
+    `"toPoint"`) when it is not that side's middle. Read, an edge is bound
+    at its point, else at its side's middle, else at the middle of the side
+    facing the other card. Point 14 stands, with one more case: an end moved
+    on its card takes the side it now meets.
+
 ## Consequences
 
 - ADR 0040 is decided by point 2; ADR 0024's semantic layer by point 4; ADR
@@ -243,6 +280,16 @@ of that section (the review's section 8 holds the list as it was put).
 - The board's text and labels in pt-BR and English
   ([0035](0035-cross-cutting-requirements.md)); Excalidraw's own `pt-BR`
   locale follows the window's language.
+- Point 20 ties the board to a development build of Excalidraw, the one
+  Obsidian's Excalidraw plugin ships: its API and its layout move between
+  builds (on the first move, `scrollToContent` became `setViewport`, the
+  API callback `onExcalidrawAPI`, the phone layout's toolbar went to the
+  foot of the board, and the arrow's binding lost its focus and gap). The
+  board's e2e tests are what tells a build that breaks it; the npm license
+  allowlist runs with the checks, and `npm audit` is read on each move
+  against the one before (on the first, the same 16 advisories as 0.18.1,
+  none new). Drawings of the plugin
+  made with these builds open with their arrows where they were drawn.
 
 ## Discarded alternatives
 
@@ -257,10 +304,19 @@ Considered by the maintainer on the memo and set aside on 2026-09-30:
 - The relation stored only on the board's edge; the semantic layer deferred.
 - The conversion of `.excalidraw.md` left for later.
 
+Offered with the revisions of 2026-10-06 and not chosen:
+
+- Arrows: staying on Excalidraw 0.18.1 and placing an end at its point by
+  Verso's own code; keeping every edge at the middle of a side.
+- A drawing of the plugin: editing it in place, written back in the plugin's
+  format (which changes without notice); only a more visible button over its
+  text.
+
 Ruled out by observation, not by preference: the drawing stored as canvas
 nodes of a type of Verso's own, which Obsidian deletes on its next save (memo,
 section 3.2, O5).
 
 ## Status
 
-Accepted (2026-09-30); points 11 to 19 on 2026-10-01.
+Accepted (2026-09-30); points 11 to 19 on 2026-10-01; point 20 and the
+revision of point 5 on 2026-10-06.

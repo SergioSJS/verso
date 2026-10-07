@@ -99,20 +99,39 @@ test("a note dragged from the tree onto the board becomes a card, not a tab", as
   await expect(page.locator(".tab")).toHaveCount(1);
 });
 
+/** Excalidraw's toolbar and Verso's tools, wherever the layout puts them:
+ *  each whole on the board, and apart. */
+async function wholeAndApart(page) {
+  const canvas = await page.locator(".board-canvas").boundingBox();
+  const bar = await page.locator(".App-toolbar").first().boundingBox();
+  const tools = await page.locator(".board-ex-tools").boundingBox();
+  for (const b of [bar, tools]) {
+    expect(b.x).toBeGreaterThanOrEqual(canvas.x);
+    expect(b.x + b.width).toBeLessThanOrEqual(canvas.x + canvas.width);
+    expect(b.y).toBeGreaterThanOrEqual(canvas.y);
+    expect(b.y + b.height).toBeLessThanOrEqual(canvas.y + canvas.height);
+  }
+  const apart = tools.y >= bar.y + bar.height || bar.y >= tools.y + tools.height || tools.x >= bar.x + bar.width || bar.x >= tools.x + tools.width;
+  expect(apart, "the toolbar and Verso's tools do not overlap").toBe(true);
+  // Every tool of the toolbar inside it, none cut.
+  const items = page.locator(".App-toolbar .ToolIcon, .App-toolbar .App-toolbar__extra-tools-trigger");
+  const n = await items.count();
+  expect(n).toBeGreaterThan(5);
+  for (let i = 0; i < n; i++) {
+    const b = await items.nth(i).boundingBox();
+    if (!b || b.width === 0) continue;
+    expect(b.x).toBeGreaterThanOrEqual(canvas.x);
+    expect(b.x + b.width).toBeLessThanOrEqual(canvas.x + canvas.width);
+  }
+}
+
 test.describe("in a tall, narrow window", () => {
   test.use({ viewport: { width: 440, height: 1000 } });
 
-  test("Excalidraw's toolbar and Verso's tools both fit, each on its own line", async ({ app, page }) => {
+  test("Excalidraw's toolbar and Verso's tools both fit, apart", async ({ app, page }) => {
     await openBoard(app);
-    const canvas = await page.locator(".board-canvas").boundingBox();
-    const bar = await page.locator(".App-toolbar").first().boundingBox();
-    const tools = await page.locator(".board-ex-tools").boundingBox();
-    for (const b of [bar, tools]) {
-      expect(b.x).toBeGreaterThanOrEqual(canvas.x);
-      expect(b.x + b.width).toBeLessThanOrEqual(canvas.x + canvas.width);
-    }
-    // Verso's tools under the toolbar, not beside it.
-    expect(tools.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+    await expect(page.locator(".excalidraw--mobile")).toHaveCount(1);
+    await wholeAndApart(page);
     await expect(page.getByTestId("board-tool-insert")).toBeVisible();
   });
 });
@@ -120,51 +139,33 @@ test.describe("in a tall, narrow window", () => {
 test.describe("a board narrowed by the side bar, in a wide window", () => {
   test.use({ viewport: { width: 1070, height: 770 } });
 
-  test("Verso's tools go to the footer, whole and usable, and Excalidraw's toolbar keeps its row", async ({ app, page }) => {
+  test("Verso's tools stay whole and usable as the board narrows into the phone layout and back", async ({ app, page }) => {
     await openBoard(app);
-    // The window is wide enough for Excalidraw's desktop layout; the board,
-    // beside the side bar, is not wide enough for the tools on the top row.
-    await expect(page.locator(".excalidraw--mobile")).toHaveCount(0);
-    const tools = page.locator(".footer-center > .board-ex-tools");
-    await expect(tools).toBeVisible();
-    const canvas = await page.locator(".board-canvas").boundingBox();
-    const box = await tools.boundingBox();
-    expect(box.x).toBeGreaterThanOrEqual(canvas.x);
-    expect(box.x + box.width).toBeLessThanOrEqual(canvas.x + canvas.width);
+    await wholeAndApart(page);
     // They take the pointer: the outline opens, the search field types.
     await page.getByTestId("board-tool-outline").click();
     await expect(page.getByTestId("board-tool-outline")).toHaveAttribute("aria-pressed", "true");
     // The outline beside it narrows the board into Excalidraw's phone
-    // layout: the tools follow, under the toolbar, never lost.
+    // layout: the tools follow, never lost.
     await expect(page.locator(".excalidraw--mobile")).toHaveCount(1);
-    await expect(page.locator(".App-toolbar-container > .board-ex-tools")).toBeVisible();
+    await wholeAndApart(page);
     await page.getByTestId("board-tool-outline").click();
     await expect(page.locator(".excalidraw--mobile")).toHaveCount(0);
-    const back = page.locator(".footer-center > .board-ex-tools");
-    await back.locator("input").fill("abc");
-    await expect(back.locator("input")).toHaveValue("abc");
+    await wholeAndApart(page);
+    const field = page.locator(".board-ex-tools input");
+    await field.fill("abc");
+    await expect(field).toHaveValue("abc");
   });
 });
 
 test.describe("both side bars open, the board narrowest", () => {
   test.use({ viewport: { width: 900, height: 760 } });
 
-  test("every tool of Excalidraw's toolbar is whole on the board, clear of the lock and the hand", async ({ app, page }) => {
+  test("every tool of Excalidraw's toolbar is whole on the board, apart from Verso's", async ({ app, page }) => {
     await openBoard(app);
     await app.key("Mod+Alt+ArrowRight");
     await expect(page.locator(".excalidraw--mobile")).toHaveCount(1);
-    const canvas = await page.locator(".board-canvas").boundingBox();
-    const lock = await page.locator(".ToolIcon__lock").boundingBox();
-    const tools = page.locator(".App-toolbar .ToolIcon, .App-toolbar [data-testid=board-tool-insert], .App-toolbar .App-toolbar__extra-tools-trigger");
-    const n = await tools.count();
-    expect(n).toBeGreaterThan(8);
-    for (let i = 0; i < n; i++) {
-      const b = await tools.nth(i).boundingBox();
-      if (!b || b.width === 0) continue;
-      expect(b.x).toBeGreaterThanOrEqual(canvas.x);
-      expect(b.x + b.width).toBeLessThanOrEqual(lock.x);
-    }
-    await expect(page.locator(".App-toolbar-container > .board-ex-tools")).toBeVisible();
+    await wholeAndApart(page);
   });
 });
 

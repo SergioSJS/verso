@@ -60,6 +60,17 @@ export type CanvasDoc = {
   [key: string]: unknown;
 };
 
+/** Where an arrow's end is bound to an element, as Excalidraw keeps it: a
+ *  point of the element's box in fractions of its size, met on its outline
+ *  (`orbit`) or at the point itself, inside the element (`inside`). */
+export type Binding = { elementId: string; fixedPoint?: readonly [number, number] | null; mode?: string };
+
+/** A box of the board. */
+type Box = { x: number; y: number; width: number; height: number };
+
+/** Where an edge's end meets its card: the binding's point and mode. */
+export type EndPoint = { fixedPoint: [number, number]; mode: "orbit" | "inside" };
+
 /** An Excalidraw element as far as the board reads it. */
 export type El = {
   id: string;
@@ -78,8 +89,8 @@ export type El = {
   containerId?: string | null;
   link?: string | null;
   points?: readonly (readonly [number, number])[];
-  startBinding?: { elementId: string } | null;
-  endBinding?: { elementId: string } | null;
+  startBinding?: Binding | null;
+  endBinding?: Binding | null;
   startArrowhead?: string | null;
   endArrowhead?: string | null;
   boundElements?: readonly { id: string; type: string }[] | null;
@@ -139,22 +150,6 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function num(v: unknown, fallback = 0): number {
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
-}
-
-/** The point of a node's side where an edge meets it. */
-export function anchor(n: { x: number; y: number; width: number; height: number }, side: Side | undefined): [number, number] {
-  switch (side) {
-    case "top":
-      return [n.x + n.width / 2, n.y];
-    case "bottom":
-      return [n.x + n.width / 2, n.y + n.height];
-    case "left":
-      return [n.x, n.y + n.height / 2];
-    case "right":
-      return [n.x + n.width, n.y + n.height / 2];
-    default:
-      return [n.x + n.width / 2, n.y + n.height / 2];
-  }
 }
 
 /** The side an edge's end takes on a card it is newly attached to: the
@@ -364,21 +359,75 @@ const LABEL_STYLE: StyleRule[] = [
   },
 ];
 
-/** Where an elbow arrow meets a card, as Excalidraw keeps it: a point of
- *  the card's box in fractions of its size (0.5001 for the middle, as
- *  Excalidraw itself normalizes it). */
+/** The middle of each side as a point of the box in fractions of its size
+ *  (0.5001 for the middle, as Excalidraw itself normalizes it). */
 const FIXED_POINT: Record<Side, [number, number]> = { left: [0, 0.5001], right: [1, 0.5001], top: [0.5001, 0], bottom: [0.5001, 1] };
 
-/** An elbow edge laid out again from its two sides (ADR 0057 point 10):
- *  Excalidraw draws an elbow arrow only along right angles and binds it to
- *  points of the cards — without them it would drop the arrow's bindings,
- *  and the edge would leave the canvas on the next save. The route is the
- *  plainest one; Excalidraw routes it its own way once a card moves. */
-function elbowRoute(arrow: Partial<El>, fromSide: Side | undefined, toSide: Side | undefined, dx: number, dy: number): void {
-  const along = (side: Side | undefined, x: number, y: number, start: boolean): Side =>
-    side ?? (Math.abs(x) >= Math.abs(y) ? ((x >= 0) === start ? "right" : "left") : (y >= 0) === start ? "bottom" : "top");
-  const from = along(fromSide, dx, dy, true);
-  const to = along(toSide, dx, dy, false);
+function fraction(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1 ? v : null;
+}
+
+/** Where an end of an edge meets its card, read from the file (ADR 0057
+ *  point 20): the exact point Verso keeps under the edge's `verso`
+ *  (`fromPoint`, `toPoint`), else the middle of the side the canvas names,
+ *  else the middle of the side facing the other card. An edge's end is
+ *  always on the card's outline (`orbit`): an edge passes under the cards. */
+export function endPoint(edge: CanvasEdge, end: "from" | "to", self: Box, other: Box): EndPoint {
+  const v = isRecord(edge["verso"]) ? edge["verso"] : {};
+  const p = v[`${end}Point`];
+  if (Array.isArray(p) && p.length === 2) {
+    const x = fraction(p[0]);
+    const y = fraction(p[1]);
+    if (x !== null && y !== null) return { fixedPoint: [x, y], mode: "orbit" };
+  }
+  const side = end === "from" ? edge.fromSide : edge.toSide;
+  return { fixedPoint: FIXED_POINT[side ?? endSide(self, other)], mode: "orbit" };
+}
+
+/** The side of a box nearest a point of it, for the canvas's `fromSide`
+ *  and `toSide` (what Obsidian draws an edge from). */
+export function sideOf(p: readonly [number, number]): Side {
+  const d: [Side, number][] = [["left", p[0]], ["right", 1 - p[0]], ["top", p[1]], ["bottom", 1 - p[1]]];
+  return d.reduce((best, x) => (x[1] < best[1] ? x : best))[0];
+}
+
+/** A point of a box, from its fractions. */
+export function pointIn(n: Box, p: readonly [number, number]): [number, number] {
+  return [n.x + p[0] * n.width, n.y + p[1] * n.height];
+}
+
+/** Where an end bound at `end` on `box` is drawn, with the arrow coming
+ *  from `other`, a point of the board: at the point itself when it is
+ *  bound inside; else where the way from `other` to the point meets the
+ *  box's outline — a card covers what is inside it. */
+export function endAt(box: Box, end: EndPoint, other: readonly [number, number]): [number, number] {
+  const p = pointIn(box, end.fixedPoint);
+  if (end.mode === "inside") return p;
+  const dx = p[0] - other[0];
+  const dy = p[1] - other[1];
+  let enter = 0;
+  for (const [o, d, lo, hi] of [[other[0], dx, box.x, box.x + box.width], [other[1], dy, box.y, box.y + box.height]] as const) {
+    if (d === 0) {
+      if (o < lo || o > hi) return p;
+      continue;
+    }
+    enter = Math.max(enter, Math.min((lo - o) / d, (hi - o) / d));
+  }
+  // `other` inside the box (cards over each other): the point itself.
+  return enter <= 0 || enter > 1 ? p : [other[0] + dx * enter, other[1] + dy * enter];
+}
+
+/** The side of `box` a point of the board is nearest to. */
+export function sideAt(box: Box, p: readonly [number, number]): Side {
+  return sideOf([(p[0] - box.x) / (box.width || 1), (p[1] - box.y) / (box.height || 1)]);
+}
+
+const samePoint = (p: readonly [number, number], q: readonly [number, number]): boolean => Math.abs(p[0] - q[0]) < 1e-4 && Math.abs(p[1] - q[1]) < 1e-4;
+
+/** An elbow edge laid out again from its two ends (ADR 0057 point 10):
+ *  Excalidraw draws an elbow arrow only along right angles. The route is
+ *  the plainest one; Excalidraw routes it its own way once a card moves. */
+function elbowRoute(arrow: Partial<El>, from: Side, to: Side, dx: number, dy: number): void {
   const hFrom = from === "left" || from === "right";
   const hTo = to === "left" || to === "right";
   const raw: [number, number][] = hFrom && hTo
@@ -390,8 +439,6 @@ function elbowRoute(arrow: Partial<El>, fromSide: Side | undefined, toSide: Side
         : [[0, 0], [0, dy], [dx, dy]];
   const points = raw.filter((p, i) => i === 0 || p[0] !== raw[i - 1]![0] || p[1] !== raw[i - 1]![1]);
   arrow.points = points.length > 1 ? points : [[0, 0], [dx, dy]];
-  if (arrow.startBinding) arrow.startBinding = { ...arrow.startBinding, fixedPoint: FIXED_POINT[from] } as El["startBinding"];
-  if (arrow.endBinding) arrow.endBinding = { ...arrow.endBinding, fixedPoint: FIXED_POINT[to] } as El["endBinding"];
   arrow["fixedSegments"] = null;
   arrow["startIsSpecial"] = null;
   arrow["endIsSpecial"] = null;
@@ -489,6 +536,18 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
   for (const e of edges) {
     for (const end of [e.fromNode, e.toNode]) bound.set(end, [...(bound.get(end) ?? []), { id: e.id, type: "arrow" }]);
   }
+  // An arrow of the drawing with an end on a card (a shape to a picture) is
+  // the card's too: Excalidraw moves a bound arrow with the element only
+  // when the element lists it, and a card read from the file lists only
+  // its edges — the arrow stayed behind when the card moved.
+  const drawn = isRecord(doc.verso) && Array.isArray(doc.verso.drawing) ? doc.verso.drawing : [];
+  for (const d of drawn) {
+    if (!isRecord(d) || typeof d["id"] !== "string" || (d["type"] !== "arrow" && d["type"] !== "line") || d["isDeleted"] === true) continue;
+    for (const b of [d["startBinding"], d["endBinding"]]) {
+      const id = isRecord(b) && typeof b["elementId"] === "string" ? b["elementId"] : null;
+      if (id && byId.has(id) && !(bound.get(id) ?? []).some((x) => x.id === d["id"])) bound.set(id, [...(bound.get(id) ?? []), { id: d["id"] as string, type: "arrow" }]);
+    }
+  }
   for (const n of nodes) {
     const el = nodeElement(n);
     const home = groups.filter((g) => inside(n, g)).sort((a, b) => a.width * a.height - b.width * b.height)[0];
@@ -501,8 +560,12 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
     const from = byId.get(e.fromNode);
     const to = byId.get(e.toNode);
     if (!from || !to) continue;
-    const a = anchor(from, e.fromSide);
-    const b = anchor(to, e.toSide);
+    // Each end bound at its point of the card (ADR 0057 point 20): the
+    // arrow is drawn from it, and Excalidraw keeps it there as cards move.
+    const fromEnd = endPoint(e, "from", from, to);
+    const toEnd = endPoint(e, "to", to, from);
+    const a = endAt(from, fromEnd, pointIn(to, toEnd.fixedPoint));
+    const b = endAt(to, toEnd, pointIn(from, fromEnd.fixedPoint));
     const labelId = `${e.id}-label`;
     const label = typeof e.label === "string" && e.label !== "" ? e.label : null;
     const arrow: Partial<El> = {
@@ -516,17 +579,19 @@ export function toElements(doc: CanvasDoc): Partial<El>[] {
         [0, 0],
         [b[0] - a[0], b[1] - a[1]],
       ],
-      startBinding: { elementId: e.fromNode, focus: 0, gap: 4 } as El["startBinding"],
-      endBinding: { elementId: e.toNode, focus: 0, gap: 4 } as El["endBinding"],
+      startBinding: { elementId: e.fromNode, ...fromEnd },
+      endBinding: { elementId: e.toNode, ...toEnd },
       startArrowhead: e.fromEnd === "arrow" ? "arrow" : null,
       endArrowhead: e.toEnd === "none" ? null : "arrow",
       strokeColor: hexOf(e.color, EDGE_STROKE),
       roughness: 0,
       boundElements: label ? [{ id: labelId, type: "text" }] : null,
-      customData: { canvas: e },
+      // The ends as read, so that a save tells an end the user moved from
+      // one left where the file put it.
+      customData: { canvas: e, ends: { from: fromEnd, to: toEnd } },
     };
     applyStyle(e["verso"], EDGE_STYLE, arrow);
-    if (arrow["elbowed"] === true) elbowRoute(arrow, e.fromSide, e.toSide, b[0] - a[0], b[1] - a[1]);
+    if (arrow["elbowed"] === true) elbowRoute(arrow, sideAt(from, a), sideAt(to, b), b[0] - a[0], b[1] - a[1]);
     out.push(arrow);
     if (label) {
       const text: Partial<El> = {
@@ -644,11 +709,32 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     if (!fromEl || !toEl) continue;
     const data = isRecord(e.customData?.canvas) ? (e.customData?.canvas as CanvasEdge) : ({ id: e.id } as CanvasEdge);
     const edge: CanvasEdge = { ...data, id: e.id, fromNode: from, toNode: to };
-    // A side is the file's while its end stays on the same card: moving a
+    // An end left where the file put it keeps the file's words: moving a
     // card does not turn the edge round, and an edge with no side gains
-    // none. An end attached anew takes the side it meets.
-    if (data.fromNode !== from) edge.fromSide = endSide(fromEl, toEl);
-    if (data.toNode !== to) edge.toSide = endSide(toEl, fromEl);
+    // none. An end attached anew, or moved on its card, takes the side the
+    // arrow meets, for Obsidian, and its point under `verso` when it is not
+    // that side's middle (ADR 0057 point 20).
+    const pts = e.points ?? [];
+    const first = pts[0] ?? [0, 0];
+    const last = pts[pts.length - 1] ?? [0, 0];
+    const drawnAt = { from: [e.x + first[0], e.y + first[1]] as const, to: [e.x + last[0], e.y + last[1]] as const };
+    const boxOf = { from: fromEl, to: toEl };
+    const read = isRecord(e.customData?.["ends"]) ? (e.customData["ends"] as Record<string, EndPoint | undefined>) : {};
+    const verso = isRecord(edge["verso"]) ? { ...edge["verso"] } : {};
+    let moved = false;
+    for (const [end, binding, node] of [["from", e.startBinding, data.fromNode], ["to", e.endBinding, data.toNode]] as const) {
+      // The point alone tells an end moved: the board binds an edge's ends
+      // on the outline whatever Excalidraw bound them with (`orbitOnCards`).
+      const at = binding?.fixedPoint;
+      const was = read[end];
+      if (!at || (node === binding.elementId && was && samePoint(was.fixedPoint, at))) continue;
+      const side = sideAt(boxOf[end], drawnAt[end]);
+      edge[end === "from" ? "fromSide" : "toSide"] = side;
+      const exact = !samePoint(at, FIXED_POINT[side]);
+      put(verso, `${end}Point`, exact ? [Math.round(at[0] * 1e4) / 1e4, Math.round(at[1] * 1e4) / 1e4] : undefined);
+      moved = true;
+    }
+    if (moved) put(edge, "verso", Object.keys(verso).length > 0 ? verso : undefined);
     put(edge, "fromEnd", e.startArrowhead ? "arrow" : data.fromEnd !== undefined ? "none" : undefined);
     put(edge, "toEnd", e.endArrowhead ? (data.toEnd !== undefined ? "arrow" : undefined) : "none");
     const wasColor = hexOf(data.color, EDGE_STROKE).toLowerCase();
