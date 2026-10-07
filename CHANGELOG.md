@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.4.0-beta.1 — 2026-10-07
+
 ### Added
 
 - **Several files and folders selected at once in the tree** ([ADR 0048](docs/adr/0048-file-operations-in-ui.md), revised): ⌘-click adds a row or takes it out, ⇧-click selects every row from the last one clicked, Esc clears. Drag the selection onto a folder to move it all there; its right-click menu moves it (Move to…), copies the relative paths, or sends it to the bin after one question. The links to what moved are updated in one plan — a note that links to two of them is shown once.
