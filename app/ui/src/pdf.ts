@@ -12,8 +12,9 @@ import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDF
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { icon } from "./icons";
 import { note } from "./report";
+import { asset } from "./version";
 
-GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", document.baseURI).href;
+GlobalWorkerOptions.workerSrc = new URL(asset("pdf.worker.min.mjs"), document.baseURI).href;
 
 // WebKit has no async iteration over ReadableStream, which pdf.js uses to
 // read a page's text. The same loop, spelled out.
