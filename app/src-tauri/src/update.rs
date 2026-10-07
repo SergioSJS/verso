@@ -1055,3 +1055,119 @@ pub(crate) fn clear_quarantine_tree(path: &std::path::Path) {
         }
     }
 }
+
+/// The identifier the app had before `com.versomd.app` (ADR 0004, decided
+/// on 2026-10-07): `dev.verso.app`, and `dev.verso.app.beta` for the betas.
+fn former_identifier(identifier: &str) -> Option<String> {
+    identifier
+        .strip_prefix("com.versomd.app")
+        .map(|rest| format!("dev.verso.app{rest}"))
+}
+
+/// What the web view keeps per app — the window's settings, its keys, the
+/// tables' column widths, the local focuses, in its local storage — lives
+/// under the app's identifier, in `~/Library/WebKit/<identifier>`. On the
+/// first start under `com.versomd.app`, the former identifier's is copied
+/// there, once, before any window opens, so an update keeps them (ADR 0004,
+/// the maintainer on 2026-10-07: "migrar uma vez"). Nothing of the open
+/// folder is touched. Answers whether it copied; a failure is said in the
+/// log and the window starts with its defaults.
+pub(crate) fn migrate_web_data(identifier: &str) -> bool {
+    let (Some(home), Some(former)) = (std::env::var_os("HOME"), former_identifier(identifier))
+    else {
+        return false;
+    };
+    let webkit = std::path::Path::new(&home).join("Library").join("WebKit");
+    match copy_web_data(&webkit.join(former), &webkit.join(identifier)) {
+        Ok(copied) => {
+            if copied {
+                crate::log::write(
+                    "INFO",
+                    "host",
+                    &format!("window data carried over to {identifier}"),
+                );
+            }
+            copied
+        }
+        Err(e) => {
+            crate::log::write(
+                "WARN",
+                "host",
+                &format!("window data not carried over to {identifier}: {e}"),
+            );
+            false
+        }
+    }
+}
+
+/// Copy the directory `from` to `to` when `from` exists and `to` does not.
+fn copy_web_data(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<bool> {
+    if !from.is_dir() || to.exists() {
+        return Ok(false);
+    }
+    copy_dir(from, to)?;
+    Ok(true)
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        let target = to.join(entry.file_name());
+        if kind.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else if kind.is_file() {
+            std::fs::copy(entry.path(), &target)?;
+        }
+        // A link is left behind: WebKit keeps none there.
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::*;
+
+    #[test]
+    fn the_former_identifier_is_named_for_the_app_and_the_beta() {
+        assert_eq!(
+            former_identifier("com.versomd.app").as_deref(),
+            Some("dev.verso.app")
+        );
+        assert_eq!(
+            former_identifier("com.versomd.app.beta").as_deref(),
+            Some("dev.verso.app.beta")
+        );
+        assert_eq!(former_identifier("dev.verso.app"), None);
+    }
+
+    #[test]
+    fn the_window_data_is_copied_once_and_never_over_what_is_there() {
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join("dev.verso.app");
+        let new = root.path().join("com.versomd.app");
+        std::fs::create_dir_all(old.join("WebsiteData/LocalStorage")).unwrap();
+        std::fs::write(old.join("WebsiteData/LocalStorage/settings"), b"theme=dark").unwrap();
+
+        assert!(copy_web_data(&old, &new).unwrap());
+        assert_eq!(
+            std::fs::read(new.join("WebsiteData/LocalStorage/settings")).unwrap(),
+            b"theme=dark"
+        );
+        // Once: the new identifier's own data is never overwritten.
+        std::fs::write(
+            new.join("WebsiteData/LocalStorage/settings"),
+            b"theme=light",
+        )
+        .unwrap();
+        assert!(!copy_web_data(&old, &new).unwrap());
+        assert_eq!(
+            std::fs::read(new.join("WebsiteData/LocalStorage/settings")).unwrap(),
+            b"theme=light"
+        );
+        // Nothing to carry: nothing done.
+        assert!(!copy_web_data(&root.path().join("absent"), &root.path().join("x")).unwrap());
+        assert!(!root.path().join("x").exists());
+    }
+}

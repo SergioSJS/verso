@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+### Alterado
+
+- **O identificador do app é `com.versomd.app`** (`com.versomd.app.beta` nas betas), pelo domínio do projeto ([ADR 0004](adr/0004-project-name-verso.md)). Os ajustes da janela, as teclas, as larguras das colunas e os focos locais vêm junto na primeira abertura; o macOS pode pedir de novo, uma vez, acesso a uma pasta.
+
 ### Acrescentado
 
 - **Um PDF mostra a primeira página na visão de pasta**: Miniaturas e Lista desenham a capa onde ficava a marca do PDF, quando a linha aparece na tela; um arquivo só na nuvem mantém a marca e não é baixado para isso.

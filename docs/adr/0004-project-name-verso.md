@@ -31,14 +31,19 @@ an image metadata editor in Perl.
 - Availability on crates.io, npm and the GitHub org is `[OPEN]` and has to be
   verified before making the repository public
   ([0007](0007-private-repo-until-license.md)).
-- `[OPEN]` The app's bundle identifier, `dev.verso.app` (`dev.verso.app.beta`
-  for the betas: `app/src-tauri/tauri.conf.json`, the release workflow), is
-  written as a reversed domain the project does not hold; `com.versomd.app`
-  would follow the one it holds. Changing it leaves behind what macOS and the
-  web view keep per app — permissions granted, the window's own storage —
-  while the settings, in the configuration directory
-  ([0011](0011-config-outside-tree-index-as-cache.md)), stay. The
-  maintainer's to decide.
+- **Decided on 2026-10-07 by the maintainer — the app's bundle identifier
+  is `com.versomd.app`** (`com.versomd.app.beta` for the betas:
+  `app/src-tauri/tauri.conf.json`, the release workflow), following the
+  domain the project holds; it was `dev.verso.app`, a domain it does not.
+  What the web view keeps per app lives under the identifier, and it holds
+  more than permissions: the window's settings, its keys, the tables'
+  column widths and the local focuses are in its local storage, not in the
+  configuration directory. Asked, the maintainer chose to carry them over
+  once: on the first start under the new identifier the app copies
+  `~/Library/WebKit/dev.verso.app[.beta]` to the new one before any window
+  opens (`app/src-tauri/src/update.rs`, `migrate_web_data`), never over data
+  already there. Permissions macOS granted per app (a folder's access) are
+  asked again once.
 - The known collisions are outside the category and do not block use of the
   name; they may require disambiguation in searches.
 

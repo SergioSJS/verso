@@ -1,6 +1,8 @@
 # verso-app manages the desktop shell, self-update and OS integration.
 # Its filesystem work — temporary update downloads, the application
-# bundle, the Downloads folder — never touches a file of the open folder
+# bundle, the Downloads folder, and (since 2026-10-07, ADR 0004) the web
+# view's data carried over once from the former bundle identifier — never
+# touches a file of the open folder
 # (ADR 0026, rule 5): the folder's files still cross only `verso-core` →
 # `verso-fs`. Clippy's disallowed-methods list is per crate, not per
 # module, so the confinement here is the grep in `scripts/check.sh`:

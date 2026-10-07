@@ -39,6 +39,7 @@ in the real app.
 
 ### Next version
 
+- [ ] **The new identifier keeps the window's settings**: after updating from 0.4.0-beta.1, the theme, the keys and a table's column width are as they were; the log says "window data carried over to com.versomd.app.beta" once.
 - [ ] **A PDF's cover in a folder's view**: open `assets` of the demo vault, Thumbnails — the PDF shows its first page; switch to List and back to the table — the items stay.
 - [ ] **The version in the files' addresses** (cache after an update):
   after updating, the window shows the new version's interface at once,
