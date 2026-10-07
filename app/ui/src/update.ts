@@ -1,0 +1,162 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import { listen } from "@tauri-apps/api/event";
+import { commands, type InstallResult, type UpdateInfo, type UpdateProgress } from "./bindings";
+import { h } from "./dom";
+import { icon } from "./icons";
+import { settingsDialog } from "./main";
+import { t } from "./strings";
+
+export class UpdateController {
+  private _info: UpdateInfo | null = null;
+  private _checking = false;
+  private _downloading = false;
+  private _progress: UpdateProgress | null = null;
+  private _result: InstallResult | null = null;
+  private _error: string | null = null;
+  private bannerEl: HTMLElement | null = null;
+  private unlistenProgress: (() => void) | null = null;
+  private listeners = new Set<() => void>();
+
+  get info(): UpdateInfo | null { return this._info; }
+  get checking(): boolean { return this._checking; }
+  get downloading(): boolean { return this._downloading; }
+  get progress(): UpdateProgress | null { return this._progress; }
+  get result(): InstallResult | null { return this._result; }
+  get error(): string | null { return this._error; }
+
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  notify(): void {
+    for (const fn of this.listeners) fn();
+  }
+
+  async check(silent = false): Promise<UpdateInfo | null> {
+    if (this._checking || this._downloading) return this._info;
+    this._checking = true;
+    this._error = null;
+    this.notify();
+    try {
+      const res = await commands.checkForUpdates();
+      if (res.status === "ok") {
+        this._info = res.data;
+        if (res.data.has_update) {
+          this.showBanner(res.data);
+        }
+        return res.data;
+      } else {
+        if (!silent) this._error = res.error.message;
+        return null;
+      }
+    } catch (e: any) {
+      if (!silent) this._error = String(e?.message || e);
+      return null;
+    } finally {
+      this._checking = false;
+      this.notify();
+    }
+  }
+
+  async downloadAndInstall(): Promise<InstallResult | null> {
+    if (!this._info || this._downloading) return null;
+    this._downloading = true;
+    this._error = null;
+    this._result = null;
+    this._progress = {
+      downloaded_bytes: 0,
+      total_bytes: this._info.asset_size ?? 0,
+      percent: 0,
+      status: "downloading",
+      message: null,
+    };
+    this.notify();
+
+    if (!this.unlistenProgress) {
+      this.unlistenProgress = await listen<UpdateProgress>("verso://update-progress", (e) => {
+        this._progress = e.payload;
+        this.notify();
+      });
+    }
+
+    try {
+      // The host picks the asset and checks it against the release's
+      // published checksum itself; a release without one comes back as a
+      // refusal whose message is shown on the update card below.
+      const res = await commands.downloadAndInstallUpdate();
+      if (res.status === "ok") {
+        this._result = res.data;
+        this._downloading = false;
+        this.notify();
+        return res.data;
+      } else {
+        this._error = res.error.message;
+        this._downloading = false;
+        this.notify();
+        return null;
+      }
+    } catch (e: any) {
+      this._error = String(e?.message || e);
+      this._downloading = false;
+      this.notify();
+      return null;
+    }
+  }
+
+  async restart(): Promise<void> {
+    await commands.restartApp();
+  }
+
+  showBanner(info: UpdateInfo): void {
+    if (this.bannerEl) return;
+    try {
+      if (sessionStorage.getItem("verso.update.dismissed") === info.latest_version) return;
+    } catch {}
+
+    const banner = h("div", "verso-update-banner");
+    banner.append(icon("sparkles"));
+
+    const text = h("span", "", `${t.updateBannerTitle}: v${info.latest_version}`);
+    const actions = h("div", "verso-update-banner-actions");
+
+    const dlBtn = h("button", "update-btn-primary", t.downloadAndUpdate);
+    dlBtn.prepend(icon("download"));
+    dlBtn.addEventListener("click", () => {
+      this.dismissBanner();
+      settingsDialog.show("general");
+      void this.downloadAndInstall();
+    });
+
+    const settingsBtn = h("button", "update-btn-secondary", t.seeInSettings);
+    settingsBtn.addEventListener("click", () => {
+      this.dismissBanner();
+      settingsDialog.show("general");
+    });
+
+    const closeBtn = h("button", "verso-update-banner-close");
+    closeBtn.append(icon("close"));
+    closeBtn.setAttribute("aria-label", t.cancel);
+    closeBtn.addEventListener("click", () => {
+      try {
+        sessionStorage.setItem("verso.update.dismissed", info.latest_version);
+      } catch {}
+      this.dismissBanner();
+    });
+
+    actions.append(dlBtn, settingsBtn, closeBtn);
+    banner.append(text, actions);
+    document.body.append(banner);
+    this.bannerEl = banner;
+  }
+
+  dismissBanner(): void {
+    if (this.bannerEl) {
+      this.bannerEl.remove();
+      this.bannerEl = null;
+    }
+  }
+}

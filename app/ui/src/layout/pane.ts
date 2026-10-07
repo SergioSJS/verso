@@ -1,0 +1,419 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import { commands } from "../bindings";
+import { stopped } from "../changes";
+import { button, h, ui } from "../dom";
+import { fail } from "../errors";
+import { movePrompt, newUntitled } from "../files";
+import { popout } from "../folder";
+import { closedTabs, remember } from "../history";
+import { icon } from "../icons";
+import { keyHint } from "../keys";
+import { BaseLeaf } from "../leaves/base";
+import { BoardLeaf } from "../leaves/board";
+import { FolderLeaf } from "../leaves/folderView";
+import { FrameLeaf } from "../leaves/frame";
+import { GraphLeaf } from "../leaves/graph";
+import { ImageLeaf } from "../leaves/image";
+import { askDiscard, Leaf } from "../leaves/leaf";
+import { NoteLeaf } from "../leaves/note";
+import { PdfLeaf } from "../leaves/pdf";
+import { TextLeaf } from "../leaves/textfile";
+import { MenuItem, showMenu } from "../menu";
+import { Kind, kindOf } from "../paths";
+import { settings } from "../settings";
+import { t } from "../strings";
+import { markCurrent, revealInTree, showOutline } from "../tree/tree";
+import { moveTab, moveTabToPane, moveTabToSpace, movingFocus } from "./drag";
+import { current, layout, persistSoon, spaces } from "./spaces";
+
+/* ---------- Pane: tabs and one visible leaf ---------- */
+export class Pane {
+  readonly el = h("div", "pane");
+  readonly tabs = h("div", "tabs");
+  readonly tabList = h("div", "tab-list");
+  readonly tools = h("div", "pane-tools");
+  readonly body = h("div", "pane-body");
+  readonly empty = h("div", "pane-empty");
+  readonly leaves: Leaf[] = [];
+  readonly tabsDivider = h("div", "tabs-divider");
+  active: Leaf | null = null;
+  vertical = false;
+  tabsHidden = false;
+  /** Where this pane has been — the notes, files, folders and graphs it
+   *  showed, in that order — and where in that trail it stands: a
+   *  browser's back and forward, one trail per pane, so a split navigates
+   *  on its own. A step is a place, not a tab: a preview tab replaced by
+   *  the next click, or a tab closed, leaves its place in the trail, and a
+   *  step back opens it again, in the preview tab (decided on 2026-10-01,
+   *  review `board.md` §6 item 18). */
+  private trail: { path: string; kind: Kind }[] = [];
+  private trailAt = -1;
+  /** The trail itself is moving the pane: what follows is not recorded. */
+  private navigating = false;
+  private readonly backButton = button("ghost iconic", t.navBack, "chevronLeft");
+  private readonly forwardButton = button("ghost iconic", t.navForward, "chevron");
+
+  constructor() {
+    // The tabs are the tablist; the pane's tools sit beside it, outside.
+    this.tabList.setAttribute("role", "tablist");
+    this.tabList.setAttribute("aria-label", t.tabs);
+    this.tabList.setAttribute("aria-orientation", "horizontal");
+    this.tabList.addEventListener("keydown", (e) => this.tabKeys(e));
+    const all = button("ghost iconic", t.allTabs, "more");
+    all.setAttribute("aria-haspopup", "menu");
+    all.addEventListener("click", (e) => {
+      const r = all.getBoundingClientRect();
+      showMenu(r.left, r.bottom + 4, [
+        ...this.leaves.map((l) => [`${l.tabName.textContent ?? ""}${l.dirty ? ` (${t.unsaved})` : ""}`, () => this.activate(l, true)] as [string, () => void]),
+        ["—", () => {}],
+        [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical)],
+        [t.hideTabs, () => this.setTabsHidden(true)],
+      ]);
+      e.stopPropagation();
+    });
+    this.tabsDivider.setAttribute("role", "separator");
+    this.tabsDivider.setAttribute("aria-orientation", "vertical");
+    this.tabsDivider.setAttribute("aria-label", t.resizeKeys);
+    this.tabsDivider.tabIndex = 0;
+    this.tabsDivider.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const w = this.tabs.getBoundingClientRect().width + (e.key === "ArrowRight" ? 16 : -16);
+      this.el.style.setProperty("--tabs-w", `${Math.min(Math.max(w, 120), 420)}px`);
+      persistSoon();
+    });
+    this.tabsDivider.addEventListener("pointerdown", (e) => {
+      this.tabsDivider.setPointerCapture(e.pointerId);
+      const x0 = e.clientX;
+      const w0 = this.tabs.getBoundingClientRect().width;
+      const move = (ev: PointerEvent) => this.el.style.setProperty("--tabs-w", `${Math.min(Math.max(w0 + ev.clientX - x0, 120), 420)}px`);
+      const up = () => {
+        this.tabsDivider.removeEventListener("pointermove", move);
+        this.tabsDivider.removeEventListener("pointerup", up);
+        persistSoon();
+      };
+      this.tabsDivider.addEventListener("pointermove", move);
+      this.tabsDivider.addEventListener("pointerup", up);
+    });
+    this.body.addEventListener("dblclick", (e) => {
+      if (this.tabsHidden && e.target === this.body) this.setTabsHidden(false);
+    });
+    const orient = button("ghost iconic", t.verticalTabs, "vtabs");
+    orient.addEventListener("click", () => this.setVertical(!this.vertical));
+    const plus = button("ghost iconic", t.newNote, "plus");
+    keyHint(plus, t.newNote, "new-note");
+    plus.addEventListener("click", () => void newUntitled(this));
+    const max = button("ghost iconic", t.maximize, "maximize");
+    max.addEventListener("click", () => layout().toggleMaximize(this));
+    const close = button("ghost iconic", t.closePane, "close");
+    close.addEventListener("click", () => void this.closeAll());
+    this.backButton.addEventListener("click", () => this.go(-1));
+    this.forwardButton.addEventListener("click", () => this.go(1));
+    this.refreshNav();
+    this.tools.append(this.backButton, this.forwardButton, all, orient, plus, max, close);
+    this.tabs.append(this.tabList, this.tools);
+    this.tabs.addEventListener("dblclick", (e) => {
+      if (e.target === this.tabs || e.target === this.tabList) void newUntitled(this);
+    });
+    this.tabs.addEventListener("contextmenu", (e) => {
+      if ((e.target as HTMLElement).closest(".tab")) return;
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY, [
+        [t.newNote, () => void newUntitled(this), "plus"],
+        ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        ["—", () => {}],
+        [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
+        [t.hideTabs, () => this.setTabsHidden(true)],
+      ]);
+    });
+    this.empty.append(icon("outline"), h("p", "", t.emptyPane));
+    this.body.append(this.empty);
+    this.el.append(this.tabs, this.tabsDivider, this.body);
+    this.el.addEventListener("mousedown", () => layout().focus(this));
+  }
+  setTabsHidden(hidden: boolean): void {
+    this.tabsHidden = hidden;
+    this.el.classList.toggle("tabs-hidden", hidden);
+    persistSoon();
+  }
+  /** Put a new `leaf` in the pane: as a preview, in the place of the
+   *  pane's preview tab when there is one and nothing is unsaved in it. */
+  private place(leaf: Leaf, preview: boolean): void {
+    const wanted = preview && settings.previewTabs;
+    const old = wanted ? this.leaves.find((l) => l.transient && !l.dirty && !l.pinned) : undefined;
+    if (old) {
+      this.insert(leaf, this.leaves.indexOf(old));
+      old.destroy();
+      this.remove(old, true);
+    } else this.insert(leaf);
+    leaf.setPreview(wanted);
+  }
+  open(path: string, focus = false, fresh = false, preview = false): Leaf {
+    let leaf = fresh ? undefined : this.leaves.find((l) => l.path === path);
+    if (leaf && !preview) leaf.keep();
+    // A tab of a note that went away outside, reused for a note of that
+    // name again: read the new one, unless text was typed in the old.
+    if (leaf instanceof NoteLeaf && leaf.isGone && !leaf.dirty) void leaf.load(path, true);
+    if (!leaf) {
+      const kind = kindOf(path);
+      leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
+      remember(path);
+      this.place(leaf, preview);
+      void leaf.load(path);
+    }
+    this.activate(leaf, focus);
+    // A new tab names its file only once it is read: the trail takes the
+    // place asked for.
+    this.mark(path, leaf.kind);
+    return leaf;
+  }
+  openGraph(path: string): Leaf {
+    let leaf = this.leaves.find((l) => l.kind === "graph" && l.path === path);
+    if (!leaf) {
+      leaf = new GraphLeaf(this);
+      this.insert(leaf);
+      void leaf.load(path);
+    }
+    this.activate(leaf, false);
+    return leaf;
+  }
+  openFolder(path: string, preview = false): Leaf {
+    let leaf = this.leaves.find((l) => l.kind === "folder" && l.path === path);
+    if (leaf && !preview) leaf.keep();
+    if (!leaf) {
+      leaf = new FolderLeaf(this);
+      this.place(leaf, preview);
+      void leaf.load(path);
+    }
+    this.activate(leaf, false);
+    return leaf;
+  }
+  setVertical(v: boolean): void {
+    this.vertical = v;
+    this.el.classList.toggle("vertical", v);
+    this.tabList.setAttribute("aria-orientation", v ? "vertical" : "horizontal");
+    persistSoon();
+  }
+  /** The tab bar from the keyboard, as a tablist answers (WAI-ARIA
+   *  tabs): the arrows along the bar, Home and End choose a tab and keep
+   *  the focus on it; Enter or Space opens it (the button's own click). */
+  private tabKeys(e: KeyboardEvent): void {
+    const i = this.leaves.findIndex((l) => l.tab === e.target);
+    if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
+    const n = this.leaves.length;
+    const back = this.vertical ? "ArrowUp" : "ArrowLeft";
+    const on = this.vertical ? "ArrowDown" : "ArrowRight";
+    const j = e.key === on ? (i + 1) % n : e.key === back ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    const leaf = this.leaves[j];
+    if (!leaf) return;
+    e.preventDefault();
+    this.activate(leaf, false);
+    leaf.tab.focus();
+  }
+  tabMenu(leaf: Leaf, x: number, y: number): void {
+    const i = this.leaves.indexOf(leaf);
+    const sep: MenuItem = ["—", () => {}];
+    const file = leaf.kind !== "graph" && leaf.path !== "";
+    // What dragging the tab does, from the menu (and so from the keyboard):
+    const moves: MenuItem[] = [
+      ...(i > 0 ? [[t.moveTabBack, () => moveTab(leaf, -1), "chevronLeft"] as MenuItem] : []),
+      ...(i < this.leaves.length - 1 ? [[t.moveTabForward, () => moveTab(leaf, 1), "chevron"] as MenuItem] : []),
+      ...(layout().paneCount() > 1 ? [[t.moveTabNextPane, () => moveTabToPane(leaf, 1), "panelRight"] as MenuItem, [t.moveTabPrevPane, () => moveTabToPane(leaf, -1), "sidebar"] as MenuItem] : []),
+      ...(popout ? [] : spaces.filter((s) => s !== current).map((s): MenuItem => [`${t.moveTo}: ${s.label}`, () => moveTabToSpace(leaf, s), "sidebar"])),
+    ];
+    showMenu(x, y, [
+      // 1. Window & Split actions
+      ...(!popout && leaf.path ? [[t.openInWindow, () => void (async () => {
+        if (!(await leaf.flush())) return stopped([leaf]);
+        const opened = await commands.openWindow(leaf.path);
+        if (opened.status !== "ok") return fail(opened.error);
+        await leaf.close(true);
+      })(), "maximize"] as MenuItem] : []),
+      ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+      [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
+      [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
+      [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"],
+      [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"],
+      sep,
+      // 2. Pin / Unpin
+      [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned), "pin"],
+      // 3. Move tab actions
+      ...(moves.length > 0 ? [sep, ...moves] : []),
+      // 4. File / Explorer operations
+      ...(file ? [
+        sep,
+        [t.revealInTree, () => void revealInTree(leaf.path), "folder"] as MenuItem,
+        ...(leaf instanceof NoteLeaf ? [[t.rename, () => leaf.renameHere(), "edit"] as MenuItem] : []),
+        [`${t.moveTo}…`, () => movePrompt(leaf.path), "folderPlus"] as MenuItem,
+        [t.copyRelativePath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
+        [t.copyFullPath, () => void commands.copyFullPath(leaf.path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"] as MenuItem,
+        [t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem,
+      ] : []),
+      ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
+      // 5. Close actions
+      sep,
+      [t.close, () => void leaf.close(), "close"],
+      [t.closeOthers, () => void this.closeExcept((l) => l === leaf || l.pinned), "close"],
+      [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i || l.pinned), "close"],
+      [t.closeAll, () => void this.closeExcept((l) => l.pinned), "close"],
+    ]);
+  }
+  async closeExcept(keep: (l: Leaf) => boolean): Promise<void> {
+    for (const l of this.leaves.slice()) {
+      if (keep(l)) continue;
+      if (!(await l.flush()) && !(await askDiscard())) continue;
+      l.destroy();
+      this.remove(l, true);
+    }
+    if (lost()) landIn(this);
+  }
+  /** `next` takes `leaf`'s place — the same tab position, path and pin —
+   *  once `leaf` has saved what it holds; a refused save keeps `leaf`. */
+  async swap(leaf: Leaf, next: Leaf): Promise<void> {
+    if (!(await leaf.flush())) return;
+    // A second click while the first one saved: the tab is already gone.
+    if (!this.leaves.includes(leaf)) return;
+    this.insert(next, this.leaves.indexOf(leaf));
+    void next.load(leaf.path);
+    this.activate(next, true);
+    if (leaf.pinned) next.setPinned(true);
+    leaf.destroy();
+    this.remove(leaf, true);
+  }
+  insert(leaf: Leaf, index?: number): void {
+    const i = index === undefined ? this.leaves.length : Math.min(index, this.leaves.length);
+    this.leaves.splice(i, 0, leaf);
+    const before = this.leaves[i + 1];
+    if (before) this.tabList.insertBefore(leaf.tab, before.tab);
+    else this.tabList.append(leaf.tab);
+    this.body.append(leaf.el);
+    this.empty.hidden = true;
+    persistSoon();
+  }
+  activate(leaf: Leaf, focus: boolean): void {
+    const leaving = this.active;
+    if (leaving && leaving !== leaf && leaving.dirty) void leaving.flush();
+    this.active = leaf;
+    // Shown: a file left in the cloud by a quiet read comes down now.
+    if (leaf !== leaving && (leaf.failed === "unavailable" || leaf.deferred) && leaf.path) {
+      leaf.deferred = false;
+      void leaf.load(leaf.path, true);
+    }
+    for (const l of this.leaves) {
+      l.el.hidden = l !== leaf;
+      l.tab.setAttribute("aria-selected", String(l === leaf));
+      l.tab.tabIndex = l === leaf ? 0 : -1;
+    }
+    layout().focus(this);
+    showOutline(leaf);
+    markCurrent();
+    leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
+    if (focus) leaf.focusContent();
+    this.mark(leaf.path, leaf.kind);
+    persistSoon();
+  }
+  /** The trail learns where the pane went — unless it was the trail that
+   *  took it there. A step away from the middle of the trail drops what
+   *  lay ahead, as a browser does. */
+  private mark(path: string, kind: Kind): void {
+    const here = this.trail[this.trailAt];
+    const named = path !== "" || kind === "folder" || kind === "graph";
+    if (!this.navigating && named && !(here && here.path === path && here.kind === kind)) {
+      this.trail.length = this.trailAt + 1;
+      this.trail.push({ path, kind });
+      if (this.trail.length > 60) this.trail.shift();
+      this.trailAt = this.trail.length - 1;
+    }
+    this.refreshNav();
+  }
+  /** A place renamed or moved follows in the trail; one deleted leaves it,
+   *  the cursor keeping its place (review `board.md`, second reading,
+   *  finding 6). */
+  trailMoved(follow: (path: string) => string): void {
+    for (const step of this.trail) step.path = follow(step.path);
+  }
+  trailRemoved(gone: (path: string) => boolean): void {
+    const before = this.trail.slice(0, this.trailAt + 1).filter((st) => gone(st.path)).length;
+    this.trail = this.trail.filter((st) => !gone(st.path));
+    this.trailAt = Math.max(-1, Math.min(this.trailAt - before, this.trail.length - 1));
+    this.refreshNav();
+  }
+  /** The trail starts over at what the pane shows: a workspace brought
+   *  back has no history of this session. */
+  resetTrail(): void {
+    this.trail = this.active ? [{ path: this.active.path, kind: this.active.kind }] : [];
+    this.trailAt = this.trail.length - 1;
+    this.refreshNav();
+  }
+  private refreshNav(): void {
+    this.backButton.disabled = !this.canGo(-1);
+    this.forwardButton.disabled = !this.canGo(1);
+  }
+  /** Whether there is a step back (`-1`) or forward (`1`) to take. */
+  canGo(d: -1 | 1): boolean {
+    return this.trail[this.trailAt + d] !== undefined;
+  }
+  /** Take that step: its tab comes to the front, with the focus, or the
+   *  place opens again in the preview tab. */
+  go(d: -1 | 1): void {
+    const step = this.trail[this.trailAt + d];
+    if (!step) return;
+    this.trailAt += d;
+    this.navigating = true;
+    const leaf = this.leaves.find((l) => l.path === step.path && l.kind === step.kind);
+    if (leaf) this.activate(leaf, true);
+    else if (step.kind === "folder") this.openFolder(step.path, true);
+    else if (step.kind === "graph") this.openGraph(step.path);
+    else this.open(step.path, true, false, true);
+    this.navigating = false;
+    this.refreshNav();
+  }
+  remove(leaf: Leaf, moving = false): void {
+    const i = this.leaves.indexOf(leaf);
+    if (i < 0) return;
+    if (!moving && leaf.path && leaf.kind !== "folder" && leaf.kind !== "graph") closedTabs.push(leaf.path);
+    this.leaves.splice(i, 1);
+    this.refreshNav();
+    leaf.tab.remove();
+    leaf.el.remove();
+    if (this.active === leaf) {
+      const next = this.leaves[Math.min(i, this.leaves.length - 1)];
+      if (next) this.activate(next, false);
+      else {
+        this.active = null;
+        this.empty.hidden = false;
+        if (!moving && layout().paneCount() > 1) layout().remove(this);
+        else showOutline(null);
+      }
+    }
+    markCurrent();
+    persistSoon();
+  }
+  async closeAll(): Promise<void> {
+    for (const l of this.leaves.slice()) {
+      if (!(await l.flush()) && !(await askDiscard())) return;
+      l.destroy();
+      this.remove(l, true);
+    }
+    if (layout().paneCount() > 1) layout().remove(this);
+    if (lost()) landIn(this);
+  }
+}
+/** The focus fell on the page: what had it went away. */
+export function lost(): boolean {
+  return document.activeElement === null || document.activeElement === document.body;
+}
+/** Where the keyboard lands once tabs closed: the tab now in front of
+ *  `pane`, or of the focused pane when `pane` went; its content when the
+ *  tab bar is hidden; the pane's tools when it has no tab left. */
+export function landIn(pane: Pane): void {
+  const here = layout().panes().includes(pane) ? pane : layout().focused;
+  const leaf = here?.active;
+  if (leaf) {
+    leaf.tab.focus();
+    if (document.activeElement !== leaf.tab) leaf.focusContent();
+  } else here?.tools.querySelector<HTMLButtonElement>("button")?.focus();
+}
