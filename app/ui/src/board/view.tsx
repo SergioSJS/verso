@@ -3093,12 +3093,26 @@ export type DrawingPreview = {
   elements: readonly Record<string, unknown>[];
   pictures: ReadonlyMap<string, string>;
   fileSrc: (path: string) => string;
-  dark: boolean;
+  /** Whether the window is dark now: the drawing follows a change of it. */
+  dark: () => boolean;
   lang: string;
 };
 
-function DrawingView({ elements, pictures, fileSrc, dark, lang }: DrawingPreview): JSX.Element {
+function DrawingView({ elements, pictures, fileSrc, dark: isDark, lang }: DrawingPreview): JSX.Element {
   const [api, setApi] = useState<Api | null>(null);
+  // The theme, as the board follows it: the system's, or the one chosen.
+  const [dark, setDark] = useState(isDark());
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const theme = (): void => setDark(isDark());
+    media.addEventListener("change", theme);
+    const watch = new MutationObserver(theme);
+    watch.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => {
+      media.removeEventListener("change", theme);
+      watch.disconnect();
+    };
+  }, [isDark]);
   const scene = useMemo(() => restoreElements(elements as never, null, { repairBindings: true }), [elements]);
   useEffect(() => {
     if (!api) return;

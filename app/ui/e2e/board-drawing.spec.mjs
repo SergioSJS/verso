@@ -98,3 +98,14 @@ test("a drawing in the plugin's current format converts with its arrows bound at
     a2: [[0.9, 0.2], "inside", [0.55, 0.8], "inside"],
   });
 });
+
+test("the drawing follows the theme: the system turning dark turns it dark", async ({ app, page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await app.open();
+  await app.quickOpen(DEMO);
+  const drawn = page.locator(".drawing-host .excalidraw");
+  await expect(drawn).toBeVisible();
+  await expect(drawn).not.toHaveClass(/theme--dark/);
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(drawn).toHaveClass(/theme--dark/);
+});

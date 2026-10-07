@@ -2970,7 +2970,7 @@ class NoteLeaf extends Leaf {
       elements: read.drawing.elements.filter((e) => e["isDeleted"] !== true),
       pictures,
       fileSrc: (path) => convertFileSrc(listedPath(path, [allNotes, allFiles]) ?? path, "verso"),
-      dark: settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
+      dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
       lang: LANG,
     });
   }
