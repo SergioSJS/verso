@@ -447,18 +447,65 @@ impl Workspace {
     /// the listing follow, plan the rewrites. `old` and `new` are the
     /// entry the caller named; `mv` is everything that moves with it.
     pub(crate) fn perform(&mut self, mv: Move, old: &str, new: &str) -> Result<Renamed, CoreError> {
+        let mut done = self.perform_many(vec![((old.to_owned(), new.to_owned()), mv)])?;
+        // One entry: its refusal is the call's.
+        if let Some((_, e)) = done.refused.pop() {
+            return Err(e);
+        }
+        Ok(Renamed {
+            path: new.to_owned(),
+            rewrites: done.rewrites,
+            skipped: done.skipped,
+            warnings: done.warnings,
+            also: done.also,
+        })
+    }
+
+    /// Several moves at once (ADR 0048, revised 2026-10-07): what they may
+    /// change is read once, before any of them; each entry is then moved
+    /// on disk in turn, and one that cannot be is left where it is, with
+    /// its reason, while the others go on; the index and the listing follow
+    /// what moved, and the rewrites are planned once, over where
+    /// everything ended — a note linking to two of them gets one rewrite.
+    /// Each part is an entry, old path to new, with everything that moves
+    /// with it.
+    pub(crate) fn perform_many(
+        &mut self,
+        parts: Vec<((String, String), Move)>,
+    ) -> Result<Performed, CoreError> {
+        let mut all = Move::default();
+        for (_, part) in &parts {
+            all.extend_from(part);
+        }
         let Examination {
             examined,
             mut skipped,
             mut warnings,
-        } = self.examine(&mv)?;
-        let (_, report) = self
-            .root
-            .rename(Path::new(old), Path::new(new))
-            .map_err(CoreError::Write)?;
-        // The entry has moved: from here on, nothing is an error.
-        warnings.extend(report.warnings());
-        let mut mv = mv;
+        } = self.examine(&all)?;
+        let mut mv = Move::default();
+        let mut moved = Vec::new();
+        let mut refused = Vec::new();
+        for ((old, new), part) in parts {
+            match self.root.rename(Path::new(&old), Path::new(&new)) {
+                Ok((_, report)) => {
+                    warnings.extend(report.warnings());
+                    mv.extend_from(&part);
+                    moved.push((old, new));
+                }
+                Err(e) => refused.push((old, CoreError::Write(e))),
+            }
+        }
+        if moved.is_empty() {
+            return Ok(Performed {
+                moved,
+                refused,
+                rewrites: Vec::new(),
+                skipped: Vec::new(),
+                warnings,
+                also: Vec::new(),
+            });
+        }
+        // What moved has moved: from here on, nothing is an error.
         let mut also = Vec::new();
         for (from, to) in std::mem::take(&mut mv.then) {
             match self.root.rename(Path::new(&from), Path::new(&to)) {
@@ -490,14 +537,27 @@ impl Workspace {
                 s.path = now.to_owned();
             }
         }
-        Ok(Renamed {
-            path: new.to_owned(),
+        Ok(Performed {
+            moved,
+            refused,
             rewrites,
             skipped,
             warnings,
             also,
         })
     }
+}
+
+/// What `perform_many` did: the entries that moved, old path to new; the
+/// ones that could not, with why; the rewrites, the notes it could not
+/// plan, what it could not confirm, and what moved by a rule of its own.
+pub(crate) struct Performed {
+    pub(crate) moved: Vec<(String, String)>,
+    pub(crate) refused: Vec<(String, CoreError)>,
+    pub(crate) rewrites: Vec<LinkRewrite>,
+    pub(crate) skipped: Vec<Skipped>,
+    pub(crate) warnings: Vec<String>,
+    pub(crate) also: Vec<(String, String)>,
 }
 
 /// What a link reached before a move — a note, by the index's rule, or
@@ -567,6 +627,14 @@ pub(crate) struct Move {
 }
 
 impl Move {
+    /// Add what another move changes to this one's.
+    fn extend_from(&mut self, other: &Move) {
+        self.notes.extend(other.notes.iter().cloned());
+        self.files.extend(other.files.iter().cloned());
+        self.folders.extend(other.folders.iter().cloned());
+        self.then.extend(other.then.iter().cloned());
+    }
+
     fn note_after(&self, path: &str) -> Option<&str> {
         self.notes
             .iter()

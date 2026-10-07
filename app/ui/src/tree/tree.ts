@@ -15,13 +15,15 @@ import { armDrag } from "../layout/drag";
 import { current, openFolder, openNote, spaces } from "../layout/spaces";
 import { Leaf } from "../leaves/leaf";
 import { panel } from "../main";
-import { entryMenu } from "../menu";
+import { entryMenu, selectionMenu } from "../menu";
 import { folderNoteOf, folderNotesAt } from "../organize/folderNotes";
 import { isItemPinned, orderIndex, pinBadge } from "../organize/order";
 import { kindOf, name } from "../paths";
 import { getHiddenFromTree, settings } from "../settings";
 import { LOCALE, t } from "../strings";
 import { renameInline } from "./prompts";
+import { isSelected, selectionClick, selectionOf } from "./selection";
+import type { Drag } from "../layout/drag";
 
 export let allFolders: string[] = [];
 /** Open the tree down to `path`, scroll its row into view and focus it. */
@@ -58,6 +60,15 @@ export function showOutline(leaf: Leaf | null): void {
 }
 
 /* ---------- Sidebar: tree, search, outline ---------- */
+/** What a row drags: the selection, when the row is in one of several. */
+function dragOf(path: string): Drag {
+  const many = selectionOf(path);
+  return many ? { kind: "file", path, paths: many } : { kind: "file", path };
+}
+function dragLabel(path: string, one: string): string {
+  const many = selectionOf(path);
+  return many ? t.selection.count(many.length) : one;
+}
 export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): HTMLLIElement {
   const li = h("li");
   li.dataset["path"] = path;
@@ -78,13 +89,19 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
     }
   }
   b.append(leadIcon, nameSpan);
-  b.addEventListener("click", (e) => openNote(path, e.metaKey || e.ctrlKey, false, true));
+  if (isSelected(path)) b.classList.add("selected");
+  // ⌘- and ⇧-click select (ADR 0048, revised 2026-10-07); a plain click opens.
+  b.addEventListener("click", (e) => {
+    if (!selectionClick(path, e)) openNote(path, false, false, true);
+  });
   b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || openNote(path, false)));
   b.addEventListener("mousedown", () => b.focus());
-  armDrag(b, () => ({ kind: "file", path }), () => name(path));
+  armDrag(b, () => dragOf(path), () => dragLabel(path, name(path)));
   b.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    entryMenu(e.clientX, e.clientY, path, kind, () => renameInline(li, path));
+    const many = selectionOf(path);
+    if (many) selectionMenu(e.clientX, e.clientY, many);
+    else entryMenu(e.clientX, e.clientY, path, kind, () => renameInline(li, path));
   });
   b.addEventListener("keydown", (e) => {
     if (e.key === "F2") {
@@ -216,7 +233,19 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
         e.preventDefault();
         openFolder(full);
       });
-      armDrag(s, () => ({ kind: "file", path: full }), () => folder);
+      if (isSelected(full)) s.classList.add("selected");
+      // ⌘- and ⇧-click select the folder, before it opens or toggles.
+      s.addEventListener(
+        "click",
+        (e) => {
+          if (selectionClick(full, e)) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        },
+        true,
+      );
+      armDrag(s, () => dragOf(full), () => dragLabel(full, folder));
 
       let renderedChild: HTMLUListElement | null = null;
       const renderSubtree = () => {
@@ -241,7 +270,9 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       });
       s.addEventListener("contextmenu", (e) => {
         e.preventDefault();
-        entryMenu(e.clientX, e.clientY, full, "folder", () => renameInline(s, full, true));
+        const many = selectionOf(full);
+        if (many) selectionMenu(e.clientX, e.clientY, many);
+        else entryMenu(e.clientX, e.clientY, full, "folder", () => renameInline(s, full, true));
       });
       s.addEventListener("keydown", (e) => {
         if (e.key === "F2") {

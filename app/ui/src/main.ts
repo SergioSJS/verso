@@ -62,6 +62,7 @@ import { giveBack } from "./side";
 import { pt, t } from "./strings";
 import { collapseAll, collapsed, listAll, treeRows } from "./tree/tree";
 import { UpdateController } from "./update";
+import { clearSelection, selectedPaths } from "./tree/selection";
 document.documentElement.lang = t === pt ? "pt-BR" : "en";
 
 watchWindow();
@@ -281,6 +282,15 @@ document.addEventListener("mousedown", (e) => {
   if (!menu.contains(e.target as globalThis.Node)) menu.hidden = true;
 });
 export const plan = new Plan();
+// Esc clears the tree's selection (ADR 0048, revised 2026-10-07),
+// wherever the focus is, and leaves the key to what else it does there.
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (e.key === "Escape" && selectedPaths().length > 0) clearSelection();
+  },
+  true,
+);
 ui.notes.addEventListener("keydown", (e) => {
   if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
   const row = e.target as HTMLElement;

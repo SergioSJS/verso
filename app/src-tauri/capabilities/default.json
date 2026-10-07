@@ -53,6 +53,8 @@
     "allow-board-preview",
     "allow-render-markdown",
     "allow-rename-entry",
+    "allow-move-entries",
+    "allow-notes-of-type",
     "allow-delete-entry",
     "allow-reveal",
     "allow-copy-full-path",

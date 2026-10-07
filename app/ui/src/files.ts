@@ -30,6 +30,7 @@ import { t } from "./strings";
 import { allFolders, openFolders, setTreeLandOn } from "./tree/tree";
 import { tableWidthsMoved } from "./tableWidths";
 import { currentFolder } from "./folder";
+import { selectionMoved } from "./tree/selection";
 
 /** A file's bytes as base64, for `create_file`. */
 export function fileBase64(f: File): Promise<string> {
@@ -59,6 +60,7 @@ export async function copyFilesInto(folder: string, files: FileList): Promise<vo
  *  recents — follows the file, or a folder's contents. */
 export function pathsMoved(from: string, to: string): void {
   tableWidthsMoved(currentFolder, from, to);
+  selectionMoved(from, to);
   const follow = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? to + p.slice(from.length) : p);
   setBookmarks(bookmarks.map(follow));
   saveBookmarks();
@@ -79,6 +81,7 @@ export function pathsMoved(from: string, to: string): void {
 }
 /** A deletion: those lists forget the file, or a folder's contents. */
 export function pathsRemoved(path: string): void {
+  selectionMoved(path, null);
   const gone = (p: string) => p === path || p.startsWith(`${path}/`);
   setBookmarks(bookmarks.filter((p) => !gone(p)));
   saveBookmarks();
@@ -270,18 +273,7 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
     fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
     return false;
   }
-  // What moved with it by a rule of its own — a folder's note taking the
-  // folder's new name — goes where the core put it, not where the prefix
-  // says.
-  const also = new Map(r.data.also.map((m) => [m.from, m.to] as const));
-  for (const [a, b] of also) pathsMoved(a, b);
-  pathsMoved(from, r.data.path);
-  for (const l of leavesUnder(from)) l.moved(also.get(l.path) ?? (l.path === from ? r.data.path : r.data.path + l.path.slice(from.length)));
-  for (const [a, b] of also) for (const l of leavesUnder(a)) if (l.path === a) l.moved(b);
-  if (openFolders.has(from)) {
-    openFolders.delete(from);
-    openFolders.add(r.data.path);
-  }
+  followMoved([{ from, to: r.data.path }], r.data.also);
   if (fromTree) {
     setTreeLandOn(`${allFolders.includes(from) ? "folder" : "file"}:${r.data.path}`);
     const parts = r.data.path.split("/");
@@ -297,6 +289,77 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
   else if (said) ui.status.textContent = said;
   return true;
 }
+/** The window follows entries the core moved: lists, tabs, open folders.
+ *  What moved with them by a rule of its own — a folder's note taking the
+ *  folder's new name — goes where the core put it, not where the prefix
+ *  says. */
+function followMoved(moved: { from: string; to: string }[], alsoMoved: { from: string; to: string }[]): void {
+  const also = new Map(alsoMoved.map((m) => [m.from, m.to] as const));
+  for (const [a, b] of also) pathsMoved(a, b);
+  for (const { from, to } of moved) {
+    pathsMoved(from, to);
+    for (const l of leavesUnder(from)) l.moved(also.get(l.path) ?? (l.path === from ? to : to + l.path.slice(from.length)));
+    if (openFolders.has(from)) {
+      openFolders.delete(from);
+      openFolders.add(to);
+    }
+  }
+  for (const [a, b] of also) for (const l of leavesUnder(a)) if (l.path === a) l.moved(b);
+}
+/** Several entries into `folder` at once — the tree's selection (ADR 0048,
+ *  revised 2026-10-07): saved first, moved by the core in one call, and
+ *  one plan of link rewrites for all of them. One the disk refuses is
+ *  named, and the others move. */
+export async function moveEntries(paths: string[], folder: string): Promise<boolean> {
+  const unsaved = (await Promise.all(paths.map((p) => flushed(leavesUnder(p))))).flat();
+  if (unsaved.length > 0) {
+    stopped(unsaved);
+    return false;
+  }
+  await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
+  const r = await commands.moveEntries(paths, folder);
+  if (r.status !== "ok") {
+    fail(r.error);
+    return false;
+  }
+  followMoved(r.data.moved, r.data.also);
+  if (folder) openFolders.add(folder);
+  await afterFileChange();
+  const why = { unavailable: t.skipUnavailable, not_text: t.skipNotText, failed: t.skipFailed };
+  const skipped = r.data.skipped.length === 0 ? "" : t.planSkipped.replace("{n}", String(r.data.skipped.length)).replace("{names}", r.data.skipped.map((k) => `${name(k.path)} (${why[k.reason]})`).join(", "));
+  const refused = r.data.refused.length === 0 ? "" : t.selection.notMoved(r.data.refused.map((x) => `${x.path.split("/").pop() ?? x.path} (${x.error.kind === "exists" ? t.exists : x.error.message})`).join(", "));
+  const said = [r.data.moved.length > 0 ? t.selection.moved(r.data.moved.length) : "", refused, skipped, ...r.data.warnings].filter(Boolean).join(" ");
+  if (r.data.rewrites.length > 0) plan.show(r.data.rewrites, undefined, undefined, said);
+  else if (said) ui.status.textContent = said;
+  return r.data.moved.length > 0;
+}
+/** Several entries to the bin, asked once. */
+export async function deleteEntries(paths: string[]): Promise<void> {
+  if (!(await ask(t.selection.confirmDelete(paths.length), { yes: t.deleteEntry, no: t.cancel }))) return;
+  // Inside a folder also given: it goes with the folder.
+  const top = paths.filter((p) => !paths.some((q) => q !== p && p.startsWith(`${q}/`)));
+  let gone = 0;
+  for (const path of top) {
+    const unsaved = await flushed(leavesUnder(path));
+    if (unsaved.length > 0) {
+      stopped(unsaved);
+      break;
+    }
+    const r = await commands.deleteEntry(path);
+    if (r.status !== "ok") {
+      fail(r.error);
+      break;
+    }
+    gone++;
+    pathsRemoved(path);
+    for (const l of leavesUnder(path)) {
+      l.setDirty(false);
+      void l.close();
+    }
+  }
+  if (gone > 0) ui.status.textContent = t.selection.deleted(gone);
+  await afterFileChange();
+}
 /** The context menu of anything in the folder: the same everywhere it is listed. */
 export async function turnNoteIntoFolder(path: string): Promise<void> {
   const dir = dirOf(path);
@@ -311,23 +374,26 @@ export async function turnNoteIntoFolder(path: string): Promise<void> {
   openFolders.add(targetFolder);
   await renameTo(path, targetNote, t.moved);
 }
-/** A destination folder, typed with completion over the vault's folders. */
-export function movePrompt(path: string): void {
+/** A destination folder, typed with completion over the vault's folders,
+ *  for one entry or for the tree's selection. */
+export function movePrompt(path: string | string[]): void {
+  const many = Array.isArray(path) ? path : [path];
+  const label = many.length > 1 ? t.selection.count(many.length) : (many[0] ?? "").split("/").pop() ?? "";
   const back = document.activeElement;
   showSide();
   const input = h("input", "new-note");
   input.placeholder = t.moveWhere;
-  input.setAttribute("aria-label", `${t.moveTo}: ${path.split("/").pop() ?? path}`);
+  input.setAttribute("aria-label", `${t.moveTo}: ${label}`);
   const list = h("datalist");
   list.id = "folders-list";
-  list.append(...["", ...allFolders].filter((f) => f !== path && !f.startsWith(`${path}/`)).map((f) => {
+  list.append(...["", ...allFolders].filter((f) => !many.some((p) => f === p || f.startsWith(`${p}/`))).map((f) => {
     const o = h("option");
     o.value = f || "/";
     o.label = f || t.moveToRoot;
     return o;
   }));
   input.setAttribute("list", list.id);
-  const where = h("span", "new-note-where", `${t.moveTo}: ${path.split("/").pop() ?? path} →`);
+  const where = h("span", "new-note-where", `${t.moveTo}: ${label} →`);
   const row = h("div", "new-note-row");
   row.append(where, input, list);
   ui.notesHeading.after(row);
@@ -341,7 +407,7 @@ export function movePrompt(path: string): void {
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
     if (restore) returnFromSide(back);
-    if (commit) void moveFile(path, v);
+    if (commit) void (many.length > 1 ? moveEntries(many, v) : moveFile(many[0] ?? "", v));
   };
   input.addEventListener("keydown", (e) => {
     // Cancelled, the key clicks nothing where the focus goes back to.

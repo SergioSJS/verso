@@ -37,6 +37,7 @@ Com o botão direito numa nota da árvore:
 ## Arrastar e Soltar
 
 - Arraste uma nota da árvore para outra pasta para movê-la.
+- **Vários de uma vez:** `⌘`-clique acrescenta ou tira uma nota ou pasta da seleção, `⇧`-clique seleciona tudo desde a última clicada, e `Esc` limpa. Arraste a seleção para uma pasta, ou use o botão direito nela — **Mover para…**, **Copiar caminhos relativos**, **Mover para a lixeira** —, e tudo vai junto; os links que precisam mudar aparecem num plano só.
 - Arraste um arquivo da árvore para o **texto de uma nota**: entra um link para ele (ou um embed, se for imagem, PDF ou outro arquivo).
 - Arraste arquivos do Finder para a árvore: eles são copiados para a pasta onde você soltar.
 - Cole ou arraste uma **imagem** dentro de uma nota: ela é salva na pasta `assets` ao lado da nota (**Ajustes › Arquivos e links › Pasta de anexos**).

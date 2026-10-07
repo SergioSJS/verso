@@ -206,6 +206,46 @@ pub(crate) fn rename_entry<R: tauri::Runtime>(
     with(&state, &window, |ws| ws.rename_entry(&from, &to)).map(renamed_out)
 }
 
+/// Move several entries of the folder into `folder` (`""` the root) at
+/// once, with one plan of link rewrites (ADR 0048, revised 2026-10-07).
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn move_entries<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    paths: Vec<String>,
+    folder: String,
+) -> Result<MovedEntries, ContractError> {
+    with(&state, &window, |ws| ws.move_entries(&paths, &folder)).map(|m| {
+        let renamed = renamed_out(verso_core::Renamed {
+            path: String::new(),
+            rewrites: m.rewrites,
+            skipped: m.skipped,
+            warnings: m.warnings,
+            also: m.also,
+        });
+        MovedEntries {
+            moved: m
+                .moved
+                .into_iter()
+                .map(|(from, to)| verso_contract::Moved { from, to })
+                .collect(),
+            refused: m
+                .refused
+                .into_iter()
+                .map(|(path, e)| RefusedEntry {
+                    path,
+                    error: convert(e),
+                })
+                .collect(),
+            rewrites: renamed.rewrites,
+            skipped: renamed.skipped,
+            warnings: renamed.warnings,
+            also: renamed.also,
+        }
+    })
+}
+
 /// Move anything of the folder — a file or a whole folder — to `.trash/`
 /// at the root; answers where it went.
 #[tauri::command]

@@ -266,6 +266,13 @@ point 13).
 6. With a question on screen (Settings, a plan), the menu's ⌘W closes
    nothing behind it; with no tab left, ⌘W closes the window. Level: H (the
    question); E: `tabs.spec.mjs`; A (the window).
+7. Note 14, "Vários de uma vez" (ADR 0048, revised 2026-10-07): ⌘-click two
+   notes of the tree and ⇧-click a third — the rows between are selected;
+   Esc clears; a plain click opens. Drag the selection onto a folder: they
+   move together, and a note linking to them by path shows in one plan. The
+   selection's menu: "Mover para…", "Copiar caminhos relativos", "Mover para
+   a lixeira" asked once. Level: H; E: `tree-selection.spec.mjs`; S:
+   `crates/verso-core/tests/workspace/rename.rs`.
 
 ## 7. The web
 

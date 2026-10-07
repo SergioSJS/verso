@@ -460,3 +460,81 @@ fn a_folder_move_keeps_the_last_known_version_of_an_evicted_note() {
         Err(CoreError::Read(verso_fs::ReadError::Unavailable))
     ));
 }
+
+/// Several entries moved at once (ADR 0048, revised 2026-10-07): one
+/// examination before any moves, one plan over where everything ended. A
+/// note linking to two moved folders gets one rewrite; a moved note
+/// linking to a moved folder is planned at its new path; an entry inside
+/// a moved folder goes with it; a name taken in the destination is
+/// refused and the others move.
+#[test]
+fn several_entries_move_into_a_folder_with_one_plan() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _dest = subdir(vault.path(), "dest");
+    let _taken = note(&vault.path().join("dest"), "B.md", "outra B\n");
+    let _p = subdir(vault.path(), "pasta");
+    let _c = note(&vault.path().join("pasta"), "C.md", "c\n");
+    let _o = subdir(vault.path(), "outra");
+    let _d = note(&vault.path().join("outra"), "D.md", "d\n");
+    let _a = note(vault.path(), "A.md", "ver [[pasta/C]]\n");
+    let _b = note(vault.path(), "B.md", "b\n");
+    let _i = note(vault.path(), "Indice.md", "[[pasta/C]] e [[outra/D]]\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let paths: Vec<String> = ["A.md", "B.md", "pasta", "pasta/C.md", "outra"]
+        .map(String::from)
+        .to_vec();
+    let done = ws.move_entries(&paths, "dest").unwrap();
+
+    let moved: Vec<(&str, &str)> = done
+        .moved
+        .iter()
+        .map(|(a, b)| (a.as_str(), b.as_str()))
+        .collect();
+    assert_eq!(
+        moved,
+        [
+            ("A.md", "dest/A.md"),
+            ("pasta", "dest/pasta"),
+            ("outra", "dest/outra")
+        ]
+    );
+    assert_eq!(done.refused.len(), 1, "{done:?}");
+    assert_eq!(done.refused[0].0, "B.md");
+    assert!(
+        matches!(
+            done.refused[0].1,
+            CoreError::Write(verso_core::WriteError::Exists)
+        ),
+        "{done:?}"
+    );
+    assert!(exists(vault.path(), "B.md") && exists(vault.path(), "dest/pasta/C.md"));
+
+    // One rewrite per note: Indice, for both folders at once. A moved
+    // beside the folder it links into: `pasta/C` from `dest/A.md` reaches
+    // `dest/pasta/C.md` as it is, so A needs none. Nothing written yet:
+    // the caller applies the plan.
+    let plan: Vec<(&str, &str)> = done
+        .rewrites
+        .iter()
+        .map(|w| (w.path.as_str(), w.after.as_str()))
+        .collect();
+    assert_eq!(
+        plan,
+        [("Indice.md", "[[dest/pasta/C]] e [[dest/outra/D]]\n")]
+    );
+    assert_eq!(
+        resolved(&mut ws, "dest/A"),
+        [Some("dest/pasta/C.md".to_owned())]
+    );
+    assert_eq!(
+        on_disk(vault.path(), "Indice.md"),
+        b"[[pasta/C]] e [[outra/D]]\n"
+    );
+
+    // Nothing left to move: an empty answer.
+    let again = ws.move_entries(&["dest/A.md".to_owned()], "dest").unwrap();
+    assert!(again.moved.is_empty() && again.refused.is_empty() && again.rewrites.is_empty());
+}

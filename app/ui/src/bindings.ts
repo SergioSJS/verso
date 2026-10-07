@@ -101,6 +101,11 @@ export const commands = {
 	 */
 	renameNote: (from: string, to: string) => typedError<Renamed, ContractError>(__TAURI_INVOKE("rename_note", { from, to })),
 	/**
+	 *  Move several entries of the folder into `folder` (`""` the root) at
+	 *  once, with one plan of link rewrites (ADR 0048, revised 2026-10-07).
+	 */
+	moveEntries: (paths: string[], folder: string) => typedError<MovedEntries, ContractError>(__TAURI_INVOKE("move_entries", { paths, folder })),
+	/**
 	 *  The file an embed written in the note at `source` names
 	 *  (`![[mapa.png]]`), relative to the folder, or none — by the rule of
 	 *  spec Q12 applied to files: from the note's own folder first. The UI
@@ -886,6 +891,23 @@ export type Moved = {
 	to: string,
 };
 
+/**
+ *  What moving several entries at once left — a selection of the tree
+ *  dropped on a folder (ADR 0048, revised 2026-10-07): those that moved;
+ *  those the disk refused, each with its error, which stayed where they
+ *  were; one plan of rewrites over where everything ended; the notes it
+ *  could not plan; what could not be confirmed; and what moved by a rule
+ *  of its own (a folder's note). Empty when nothing had to move.
+ */
+export type MovedEntries = {
+	moved: Moved[],
+	refused: RefusedEntry[],
+	rewrites: LinkRewrite[],
+	skipped: Skipped[],
+	warnings: string[],
+	also: Moved[],
+};
+
 /**  A note's text as it is on disk now, with what the index knows of it. */
 export type NoteText = {
 	path: string,
@@ -969,6 +991,12 @@ export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; 
 
 /**  Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062). */
 export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown_format";
+
+/**  An entry a move left where it was, and why. */
+export type RefusedEntry = {
+	path: string,
+	error: ContractError,
+};
 
 /**
  *  What a rename or a move left: the new path, the rewrites it calls for,

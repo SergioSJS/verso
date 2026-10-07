@@ -38,6 +38,7 @@ import type {
   LinkRewrite,
   McpAdded,
   McpStatus,
+  MovedEntries,
   NoteText,
   NoteType,
   Renamed,
@@ -647,28 +648,69 @@ export class Core {
     if (!this.files.has(from) && !this.folders.has(from)) refuse("not_found", `no such entry: ${from}`);
     if (isNote(from) && !isNote(to)) to = `${to}.md`;
     if (this.files.has(to) || this.folders.has(to)) refuse("exists", `already there: ${to}`);
+    const done = this.moveMany([[from, to]]);
+    return { path: to, rewrites: done.rewrites, skipped: [], warnings: [], also: done.also };
+  }
+
+  /** Several entries into `folder` at once, as the core's `move_entries`
+   *  (ADR 0048, revised 2026-10-07): one plan over where everything ended;
+   *  an entry inside a folder also given goes with it; one already there
+   *  stays; a name taken there is refused, and the others move. */
+  private moveEntries(paths: string[], folderIn: string): MovedEntries {
+    const dest = folderIn === "" ? "" : this.confine(folderIn);
+    const keys = [...new Set(paths.map((p) => this.confine(p)))];
+    const dirs = keys.filter((k) => this.folders.has(k));
+    const pairs: [string, string][] = [];
+    const refused: MovedEntries["refused"] = [];
+    for (const k of keys) {
+      if (dirs.some((d) => k.startsWith(`${d}/`)) || dirOf(k) === dest) continue;
+      if (!this.files.has(k) && !this.folders.has(k)) {
+        refused.push({ path: k, error: { kind: "not_found", message: `no such entry: ${k}` } });
+        continue;
+      }
+      const to = dest ? `${dest}/${baseOf(k)}` : baseOf(k);
+      if (this.files.has(to) || this.folders.has(to) || to === k || dest === k || dest.startsWith(`${k}/`)) {
+        refused.push({ path: k, error: { kind: this.files.has(to) || this.folders.has(to) ? "exists" : "refused", message: `cannot move ${k} to ${to}` } });
+        continue;
+      }
+      pairs.push([k, to]);
+    }
+    if (pairs.length === 0) return { moved: [], refused, rewrites: [], skipped: [], warnings: [], also: [] };
+    const done = this.moveMany(pairs);
+    return { moved: pairs.map(([from, to]) => ({ from, to })), refused, rewrites: done.rewrites, skipped: [], warnings: [], also: done.also };
+  }
+
+  /** The moves `pairs` (each checked), with the rewrites of the notes and
+   *  boards whose links reached what moved, planned once over all of them. */
+  private moveMany(pairs: [string, string][]): { rewrites: LinkRewrite[]; also: { from: string; to: string }[] } {
     const plans = new Map<string, string>();
-    const movedNow = this.files.has(from) ? [[from, to] as [string, string]] : [...this.files.keys()].filter((p) => p.startsWith(`${from}/`)).map((p): [string, string] => [p, `${to}${p.slice(from.length)}`]);
+    const movedNow: [string, string][] = [];
     // The core's `folder_note_follows`: a folder's note takes the folder's
     // new name, inside it or beside it, unless that name is taken.
     const then: [string, string][] = [];
     const also: { from: string; to: string }[] = [];
-    if (this.folders.has(from)) {
-      const taken = (p: string, mine: string) => this.notes().some((n) => fold(n) === fold(p) && fold(n) !== fold(mine));
-      const [oldName, newName] = [baseOf(from), baseOf(to)];
-      const inside = movedNow.find(([a]) => fold(a) === fold(`${from}/${oldName}.md`));
-      if (oldName !== newName && inside && !taken(`${from}/${newName}.md`, inside[0])) {
-        const wanted = `${to}/${newName}.md`;
-        then.push([inside[1], wanted]);
-        also.push({ from: inside[0], to: wanted });
-        inside[1] = wanted;
+    const movedFolders: [string, string][] = [];
+    for (const [from, to] of pairs) {
+      const mine = this.files.has(from) ? [[from, to] as [string, string]] : [...this.files.keys()].filter((p) => p.startsWith(`${from}/`)).map((p): [string, string] => [p, `${to}${p.slice(from.length)}`]);
+      if (this.folders.has(from)) {
+        const taken = (p: string, own: string) => this.notes().some((n) => fold(n) === fold(p) && fold(n) !== fold(own));
+        const [oldName, newName] = [baseOf(from), baseOf(to)];
+        const inside = mine.find(([a]) => fold(a) === fold(`${from}/${oldName}.md`));
+        if (oldName !== newName && inside && !taken(`${from}/${newName}.md`, inside[0])) {
+          const wanted = `${to}/${newName}.md`;
+          then.push([inside[1], wanted]);
+          also.push({ from: inside[0], to: wanted });
+          inside[1] = wanted;
+        }
+        const beside = this.notes().find((n) => fold(n) === fold(`${from}.md`));
+        if (beside && !taken(`${to}.md`, beside)) {
+          then.push([beside, `${to}.md`]);
+          also.push({ from: beside, to: `${to}.md` });
+          mine.push([beside, `${to}.md`]);
+        }
+        for (const d of this.folders) if (d === from || d.startsWith(`${from}/`)) movedFolders.push([d, `${to}${d.slice(from.length)}`]);
       }
-      const beside = this.notes().find((n) => fold(n) === fold(`${from}.md`));
-      if (beside && !taken(`${to}.md`, beside)) {
-        then.push([beside, `${to}.md`]);
-        also.push({ from: beside, to: `${to}.md` });
-        movedNow.push([beside, `${to}.md`]);
-      }
+      movedNow.push(...mine);
     }
     const target = new Map(movedNow);
     for (const source of this.linkSources()) {
@@ -689,9 +731,6 @@ export class Core {
     }
     // The `order:` of the folder notes of the folders things leave and
     // enter (ADR 0060, D4), as the core rewrites it.
-    const movedFolders: [string, string][] = this.folders.has(from)
-      ? [...this.folders].filter((d) => d === from || d.startsWith(`${from}/`)).map((d): [string, string] => [d, `${to}${d.slice(from.length)}`])
-      : [];
     const moved: [string, string, boolean][] = [
       ...movedNow.map(([a, b]): [string, string, boolean] => [a, b, isNote(a)]),
       ...movedFolders.map(([a, b]): [string, string, boolean] => [a, b, false]),
@@ -714,13 +753,13 @@ export class Core {
       const after = rewriteOrder(plans.get(fnPath) ?? this.text(fnPath), folder, movedTo(folder), moved);
       if (after !== null) plans.set(fnPath, after);
     }
-    this.move(from, to);
+    for (const [from, to] of pairs) this.move(from, to);
     for (const [a, b] of then) this.move(a, b);
     const rewrites: LinkRewrite[] = [...plans].map(([source, after]) => {
       const path = movedTo(source);
       return { path, revision: String(this.stored(path).revision), before: this.text(path), after };
     });
-    return { path: to, rewrites, skipped: [], warnings: [], also };
+    return { rewrites, also };
   }
 
   private trash(pathIn: string): Trashed {
@@ -896,6 +935,7 @@ export class Core {
     delete_entry: (a) => this.trash(String(a["path"])),
     rename_note: (a) => this.rename(String(a["from"]), String(a["to"])),
     rename_entry: (a) => this.rename(String(a["from"]), String(a["to"])),
+    move_entries: (a) => this.moveEntries((a["paths"] as unknown[]).map(String), String(a["folder"] ?? "")),
     resolve_attachment: (a) => {
       const found = this.resolve(String(a["target"]), String(a["source"]));
       return found && !isNote(found) ? found : null;

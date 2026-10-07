@@ -392,6 +392,21 @@ pub struct Renamed {
     pub also: Vec<(String, String)>,
 }
 
+/// What moving several entries at once left ([`Workspace::move_entries`]):
+/// those that moved, old path to new; those the disk refused, with why;
+/// one plan of rewrites over where everything ended, the notes it could
+/// not plan, what could not be confirmed, and what moved by a rule of its
+/// own (a folder's note). Empty when nothing had to move.
+#[derive(Debug, Default)]
+pub struct MovedEntries {
+    pub moved: Vec<(String, String)>,
+    pub refused: Vec<(String, CoreError)>,
+    pub rewrites: Vec<LinkRewrite>,
+    pub skipped: Vec<Skipped>,
+    pub warnings: Vec<String>,
+    pub also: Vec<(String, String)>,
+}
+
 /// What a deletion left: where the entry went in `.trash/`, and what
 /// could not be confirmed once it was there.
 #[derive(Debug, Clone, PartialEq, Eq)]

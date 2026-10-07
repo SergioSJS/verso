@@ -274,6 +274,14 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 6. Com uma pergunta na tela (Ajustes, um plano), o ⌘W do menu não fecha
    nada por trás dela; sem aba nenhuma, o ⌘W fecha a janela. Nível: H (a
    pergunta); E: `tabs.spec.mjs`; A (a janela).
+7. Nota 14, "Vários de uma vez" (ADR 0048, revisto em 2026-10-07): ⌘-clique
+   em duas notas da árvore e ⇧-clique numa terceira — as linhas entre elas
+   ficam selecionadas; Esc limpa; um clique comum abre. Arraste a seleção
+   para uma pasta: elas vão juntas, e uma nota que aponta para elas por
+   caminho aparece num plano só. O menu da seleção: "Mover para…", "Copiar
+   caminhos relativos", "Mover para a lixeira" com uma pergunta só. Nível:
+   H; E: `tree-selection.spec.mjs`; S:
+   `crates/verso-core/tests/workspace/rename.rs`.
 
 ## 7. A web
 

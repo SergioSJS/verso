@@ -38,6 +38,9 @@
 .tree li > button, .list li > button { display: block; width: 100%; text-align: left; padding: .3rem .5rem; border-radius: 5px; font-size: .93rem; line-height: 1.35; color: var(--ink); }
 .tree li > button:hover, .list li > button:hover { background: var(--paper-3); }
 .tree li > button[aria-current="true"], .list li > button[aria-current="true"] { color: var(--seal); font-weight: 600; background: var(--seal-wash); }
+/* Rows selected together (⌘- or ⇧-click; ADR 0048, revised 2026-10-07):
+ * a band of their own, under the open note's mark. */
+.tree li > button.selected, .tree summary.selected { background: var(--brass-wash); box-shadow: inset 2px 0 0 var(--brass); }
 .list .path { display: block; font-size: .74rem; color: var(--ink-3); font-weight: 400; letter-spacing: .01em; }
 .list .snippet { display: block; font-family: var(--book); font-size: .84rem; color: var(--ink-2); font-weight: 400; margin-top: .15rem; line-height: 1.4; }
 .list mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .1em; }

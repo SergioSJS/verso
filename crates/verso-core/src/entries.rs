@@ -58,22 +58,91 @@ impl Workspace {
     pub fn rename_entry(&mut self, from: &str, to: &str) -> Result<Renamed, CoreError> {
         let old = self.entry_key(from)?;
         let new = self.entry_key(to)?;
-        if self.dirs.contains(&old) {
-            return self.rename_folder(&old, &new);
-        }
-        if is_note(&old) {
+        if !self.dirs.contains(&old) && is_note(&old) {
             return self.rename_note(&old, &new);
         }
-        let mv = Move {
-            notes: Vec::new(),
-            files: vec![(old.clone(), new.clone())],
-            folders: Vec::new(),
-            then: Vec::new(),
-        };
+        let mv = self.move_of(&old, &new)?;
         self.perform(mv, &old, &new)
     }
 
-    fn rename_folder(&mut self, old: &str, new: &str) -> Result<Renamed, CoreError> {
+    /// Several entries moved into `folder` (`""` the root) at once — a
+    /// selection in the tree (ADR 0048, revised 2026-10-07): what they may
+    /// change is read before any moves, and the link rewrites come as one
+    /// plan over where everything ended. An entry inside a folder also
+    /// given goes with that folder; one already in `folder` stays. One the
+    /// disk refuses — a name taken there, a folder into itself — stays
+    /// where it is, with its reason, and the others move.
+    pub fn move_entries(
+        &mut self,
+        paths: &[String],
+        folder: &str,
+    ) -> Result<MovedEntries, CoreError> {
+        let dest = if folder.is_empty() {
+            String::new()
+        } else {
+            self.entry_key(folder)?
+        };
+        let mut keys = Vec::new();
+        for p in paths {
+            let key = self.entry_key(p)?;
+            if !keys.contains(&key) {
+                keys.push(key);
+            }
+        }
+        let folders: Vec<String> = keys
+            .iter()
+            .filter(|k| self.dirs.contains(*k))
+            .cloned()
+            .collect();
+        let mut parts = Vec::new();
+        for key in &keys {
+            if folders.iter().any(|f| key.starts_with(&format!("{f}/"))) || parent_of(key) == dest {
+                continue;
+            }
+            let name = key.rsplit('/').next().unwrap_or(key);
+            let new = if dest.is_empty() {
+                name.to_owned()
+            } else {
+                format!("{dest}/{name}")
+            };
+            let mv = self.move_of(key, &new)?;
+            parts.push(((key.clone(), new), mv));
+        }
+        if parts.is_empty() {
+            return Ok(MovedEntries::default());
+        }
+        let done = self.perform_many(parts)?;
+        Ok(MovedEntries {
+            moved: done.moved,
+            refused: done.refused,
+            rewrites: done.rewrites,
+            skipped: done.skipped,
+            warnings: done.warnings,
+            also: done.also,
+        })
+    }
+
+    /// Everything that moves when the entry `old` goes to `new`: a note,
+    /// another file, or a folder with all it holds — its folder note taking
+    /// the folder's new name.
+    fn move_of(&self, old: &str, new: &str) -> Result<Move, CoreError> {
+        if self.dirs.contains(old) {
+            return self.folder_move(old, new);
+        }
+        Ok(if is_note(old) {
+            Move {
+                notes: vec![(old.to_owned(), new.to_owned())],
+                ..Move::default()
+            }
+        } else {
+            Move {
+                files: vec![(old.to_owned(), new.to_owned())],
+                ..Move::default()
+            }
+        })
+    }
+
+    fn folder_move(&self, old: &str, new: &str) -> Result<Move, CoreError> {
         let prefix = format!("{old}/");
         let moved = |p: &String| {
             p.strip_prefix(&prefix)
@@ -96,16 +165,12 @@ impl Workspace {
         }
         let mut notes = notes;
         let then = self.folder_note_follows(old, new, &mut notes)?;
-        self.perform(
-            Move {
-                notes,
-                files,
-                folders,
-                then,
-            },
-            old,
-            new,
-        )
+        Ok(Move {
+            notes,
+            files,
+            folders,
+            then,
+        })
     }
 
     /// The folder's note takes the folder's new name (the maintainer,
