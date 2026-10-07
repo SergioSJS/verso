@@ -72,6 +72,10 @@ jobs:
       # the lockfile only, with the runner's own Node.
       - name: npm licenses on the allowlist (ADR 0029)
         run: node scripts/check-npm-licenses.mjs
+      # No source file past 1500 lines, but by a recorded exception that
+      # only shrinks. Node and git only.
+      - name: source files under the size limit (ADR 0067)
+        run: node scripts/check-sizes.mjs
       # The demo vault's boards are their modules' and the app's embedded
       # copy is the folder's: built, never edited by hand. Node and git only.
       - name: demo vault built from its sources (ADR 0058)
