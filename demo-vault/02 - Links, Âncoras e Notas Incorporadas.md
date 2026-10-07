@@ -62,7 +62,7 @@ Um `^id` no fim de um parágrafo, de um item de lista ou de um título dá nome 
 
 ![[Projetos/Pesquisa e Descobertas#^atomica]]
 
-Se o mesmo `^id` aparecer duas vezes numa nota, vale o último, como no Obsidian, e a nota avisa.
+Se o mesmo `^id` aparecer duas vezes numa nota, vale o último, como no Obsidian, e a nota avisa. A marca `^id` não aparece na Leitura; no Editar ela fica apagada, para você ver onde está.
 
 ---
 

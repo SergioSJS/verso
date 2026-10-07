@@ -14,7 +14,7 @@ versão de teste.
 
 ### Acrescentado
 
-- **O embed de um bloco mostra esse bloco** (spec Q3, Q21): `![[nota#^id]]` mostra o parágrafo, o item de lista (com os aninhados), o título, a tabela, o bloco de código ou a citação que o id nomeia, não a nota inteira; `[[nota#^id]]` abre a nota naquele bloco. Um `^id` sozinho numa linha depois de uma linha em branco nomeia o bloco de antes, como no Obsidian. O mesmo `^id` duas vezes numa nota é avisado na nota, valendo o último (Q4).
+- **O embed de um bloco mostra esse bloco** (spec Q3, Q21): `![[nota#^id]]` mostra o parágrafo, o item de lista (com os aninhados), o título, a tabela, o bloco de código ou a citação que o id nomeia, não a nota inteira; `[[nota#^id]]` abre a nota naquele bloco. Um `^id` sozinho numa linha depois de uma linha em branco nomeia o bloco de antes, como no Obsidian. O mesmo `^id` duas vezes numa nota é avisado na nota, valendo o último (Q4). Como no Obsidian, o próprio `^id` não aparece na Leitura (um `^id` sozinho na linha some inteiro) e aparece apagado no Editar.
 - **Uma nota nova oferece os templates, como o Notion** ([ADR 0068](adr/0068-templates-chosen-in-a-new-note.md)): sob o título de uma nota nova, "Começar com" lista Em branco e as notas da pasta de templates; um clique — ou Tab, as setas e Enter — preenche a nota a partir dele, com `{{title}}` e `{{date}}` preenchidos. Em branco, Esc ou digitar guardam a lista. O `items_template` de uma pasta continua criando as notas dela, sem lista.
 - **Um PDF mostra a primeira página na visão de pasta**: Miniaturas e Lista desenham a capa onde ficava a marca do PDF, quando a linha aparece na tela; um arquivo só na nuvem mantém a marca e não é baixado para isso.
 

@@ -350,6 +350,11 @@ the heading (2026-10-07, `fixtures/block/after-a-block`,
 names the block (`fixtures/block/duplicate`). `lines` (section 4.3) says
 which block an id names.
 
+The id is not shown when reading, and a `^id` alone on its line goes with
+its paragraph; the editor shows it, quiet. That is how Obsidian 1.14.4
+draws it (observed on 2026-10-07: reading view and Live Preview); it is
+how the id is drawn, not what it names.
+
 ### 5.8 Callout
 
 ```markdown
@@ -1250,4 +1255,4 @@ the parser was chosen.
 | v0.25 | 2026-10-02 | Organizing properties ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDED` in section 6. |
 | v0.26 | 2026-10-07 | The typed note's implementation ([ADR 0052](../adr/0052-typed-note.md)) begins: **`schemas`** enters the fixture schema (§4.1, §4.8), with the category `schema` in §8 and two drafted fixtures awaiting the maintainer's approval. The header's version, left at v0.24 by v0.25, catches up |
 | v0.27 | 2026-10-07 | The fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid` **approved by the maintainer** in session ("ta aprovado a fixture"); their draft mark removed. Nothing else changes. |
-| v0.28 | 2026-10-07 | **Q3, Q4 and Q21 decided by the maintainer**, after an observation of Obsidian through its CLI the same day: a block is the editor's unit (Q21); a `^id` alone after a blank line names the block before it, one at the end of a heading names the heading (Q3); an id is unique per note, the last of two naming the block (Q4). `blocks` items gain `lines` (§4.3). Three fixtures drafted, awaiting the maintainer's approval: `block/after-a-block`, `block/heading`, `block/duplicate`. |
+| v0.28 | 2026-10-07 | **Q3, Q4 and Q21 decided by the maintainer**, after an observation of Obsidian through its CLI the same day: a block is the editor's unit (Q21); a `^id` alone after a blank line names the block before it, one at the end of a heading names the heading (Q3); an id is unique per note, the last of two naming the block (Q4). `blocks` items gain `lines` (§4.3). Three fixtures drafted, awaiting the maintainer's approval: `block/after-a-block`, `block/heading`, `block/duplicate`. §5.7 says how the id is drawn: hidden when reading, quiet in the editor, as observed. |

@@ -28,6 +28,7 @@
 //! `#tag`s of a body ([`body_tags`]), one rule for the reader and the index.
 
 pub mod bases;
+mod block_ids;
 mod callouts;
 mod comments;
 mod events;
