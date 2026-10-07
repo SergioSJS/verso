@@ -24,6 +24,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Um nome já usado não é erro no log**: dar a uma nota, pasta ou arquivo um nome que a pasta já tem é avisado na barra de status, como antes, e registrado como informação, para que os erros do log (e do relato de bug) sejam só o que deu errado.
 - **As visões Miniaturas e Lista de uma pasta mostram os itens**: uma pasta aberta como tabela mostrava uma visão vazia ao trocar para elas.
 - **Depois de uma atualização a janela mostra a versão nova na hora**: podia mostrar a interface da versão anterior, guardada no cache da web view, até os caches serem limpos. Os arquivos que a janela carrega agora levam a versão no endereço ([ADR 0056](adr/0056-embedded-web-pages.md)).
 

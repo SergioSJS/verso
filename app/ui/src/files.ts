@@ -9,7 +9,7 @@ import { afterFileChange, flushed, stopped } from "./changes";
 import { templateText, today } from "./daily";
 import { ask } from "./dialog";
 import { h, ui } from "./dom";
-import { fail } from "./errors";
+import { fail, nameTaken } from "./errors";
 import { focusesList, saveFocuses } from "./focuses";
 import { allFiles, allNotes } from "./folder";
 import { closedTabs, recents } from "./history";
@@ -48,7 +48,8 @@ export async function copyFilesInto(folder: string, files: FileList): Promise<vo
   for (const f of Array.from(files)) {
     const r = await commands.createFile(`${folder ? folder + "/" : ""}${f.name}`, await fileBase64(f));
     if (r.status === "ok") copied++;
-    else fail(r.error.kind === "exists" ? { message: `${f.name}: ${t.exists}` } : r.error);
+    else if (r.error.kind === "exists") nameTaken(`${f.name}: ${t.exists}`);
+    else fail(r.error);
   }
   if (copied > 0) {
     openFolders.add(folder);
@@ -161,7 +162,7 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
     } catch {}
   }
   const r = await commands.createNote(path, initialText);
-  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);
   await afterFileChange();
   const target = pane ?? paneToOpenIn();
   const leaf = target.open(r.data.path, false);
@@ -191,7 +192,8 @@ export async function newNoteWith(folder: string, props: [string, PropertyValue]
   }
   const r = await commands.createNote(path.replace(/\.md$/i, ""), text);
   if (r.status !== "ok") {
-    fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+    if (r.error.kind === "exists") nameTaken(t.exists);
+    else fail(r.error);
     return null;
   }
   await afterFileChange();
@@ -276,7 +278,8 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
   const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") {
-    fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+    if (r.error.kind === "exists") nameTaken(t.exists);
+    else fail(r.error);
     return false;
   }
   followMoved([{ from, to: r.data.path }], r.data.also);
@@ -453,7 +456,7 @@ export async function duplicateEntry(path: string, kind: Kind): Promise<void> {
   let bin = "";
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   const r = await commands.createFile(candidate, btoa(bin));
-  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);
   ui.status.textContent = t.duplicated;
   await afterFileChange();
 }

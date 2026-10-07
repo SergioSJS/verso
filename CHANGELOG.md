@@ -24,6 +24,7 @@ test release.
 
 ### Fixed
 
+- **A name already taken is not an error in the log**: naming a note, a folder or a file with a name the folder already has is said in the status bar, as before, and logged as information, so the log's errors (and the bug report's) are only what went wrong.
 - **A folder's Thumbnails and List views show its items**: a folder opened as a table showed an empty view when switched to them.
 - **After an update the window shows the new version at once**: it could show the previous version's interface, kept in the web view's cache, until the caches were cleared. The files the window loads now carry the version in their address ([ADR 0056](docs/adr/0056-embedded-web-pages.md)).
 
