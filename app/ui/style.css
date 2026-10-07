@@ -1564,6 +1564,14 @@ body.dragging * { cursor: grabbing !important; }
 .web-address:hover { color: var(--seal); }
 .web-toggle { font-size: .8rem; }
 .web-host { flex: 1; min-height: 0; background: var(--paper-2); }
+/* A drawing of the Excalidraw plugin, shown as drawn (ADR 0057 point 5):
+   what it is and the way to a board over it, the drawing below. */
+.drawing-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; padding: .4rem clamp(1rem, 3vw, 2.4rem); border-bottom: 1px solid var(--hair); font-size: .82rem; }
+.drawing-bar-label { flex: 1 1 16rem; min-width: 0; color: var(--ink-2); }
+.drawing-host { flex: 1; min-height: 0; position: relative; }
+.drawing-convert { font-size: .8rem; font-weight: 600; color: var(--seal-ink); background: var(--seal); padding: .3rem .8rem; border-radius: 5px; }
+.drawing-convert:hover { filter: brightness(1.08); }
+.drawing-host .excalidraw { --color-primary: var(--seal); }
 /* Footnotes: small marks in the text; the notes gathered at the end. */
 .preview sup.footnote-reference { font-size: .72em; line-height: 0; }
 .preview sup.footnote-reference a { color: var(--seal); text-decoration: none; padding: 0 .1em; }
@@ -2668,9 +2676,14 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
 .board-loading { margin: 2rem auto; color: var(--ink-2); font-size: .9rem; }
 .board-main { flex: 1; min-height: 0; display: flex; }
 .board-canvas { flex: 1; min-width: 0; position: relative; }
+/* The arrow's hint where Excalidraw has no line of hints (its phone
+   layout): over its toolbar at the foot of the board, in the clothes of
+   Excalidraw's hints. */
+.board-canvas .board-hint-alone { position: absolute; left: 50%; bottom: 5.5rem; transform: translateX(-50%); z-index: 4; max-width: calc(100% - 2rem); padding: .3rem .6rem; font-size: .75rem; text-align: center; color: var(--ink-2); background: var(--paper); border-radius: 6px; pointer-events: none; }
 .board-canvas .excalidraw { --color-primary: var(--seal); font-family: var(--ui); }
 /* The library browser and its trigger reach excalidraw.com (ADR 0050). */
-.board-canvas .default-sidebar-trigger, .board-canvas .sidebar-trigger { display: none !important; }
+.board-canvas .default-sidebar-trigger, .board-canvas .sidebar-trigger, .board-canvas .sidebar-trigger__label-element,
+.drawing-host .default-sidebar-trigger, .drawing-host .sidebar-trigger, .drawing-host .sidebar-trigger__label-element { display: none !important; }
 .board-canvas[data-card-selected] .excalidraw-hyperlinkContainer { display: none !important; }
 /* Verso's tools in Excalidraw's own clothes: the `Island`, `ToolIcon` and
    `dropdown-menu` classes do the drawing; here only the layout and the
@@ -2698,18 +2711,6 @@ textarea.report-text { width: 100%; min-height: 20rem; font-family: var(--mono);
    pointer through to the canvas: the tools take it back. */
 .board-canvas .excalidraw .footer-center:has(> .board-ex-tools) { justify-content: center; }
 .board-canvas .excalidraw .footer-center > .board-ex-tools { pointer-events: auto; }
-/* Excalidraw's phone layout (a narrow or tall window) puts Verso's tools in
-   the toolbar's own row, where both do not fit and both were cut: the row
-   wraps, and Verso's tools take a line of their own under the toolbar, at
-   the left — the right is Excalidraw's lock and hand. */
-.board-canvas .excalidraw--mobile .App-toolbar-container { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
-.board-canvas .excalidraw--mobile .App-toolbar-container > .board-ex-tools { order: 1; align-self: flex-start; }
-/* Narrower still — both side bars open — Excalidraw's own toolbar is wider
-   than the board and was cut at both ends: its tools wrap onto a second
-   line instead, every one of them in reach, clear of the lock and the hand
-   Excalidraw keeps at the right edge. */
-.board-canvas .excalidraw--mobile .App-toolbar { max-width: calc(var(--board-width, 100vw) - 6rem); }
-.board-canvas .excalidraw--mobile .App-toolbar .Stack_horizontal { display: flex; flex-wrap: wrap; justify-content: center; }
 /* A narrow board (Excalidraw's phone layout): the field folds into its
    magnifier while it is empty and not in use, so the tools keep the row. */
 .board-canvas .excalidraw--mobile .board-ex-search input:not(:focus):placeholder-shown { width: 0; padding: 0; border-width: 0; }

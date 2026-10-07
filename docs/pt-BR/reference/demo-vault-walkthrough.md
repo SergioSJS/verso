@@ -266,9 +266,12 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 2. `Web/Cartão de visita.html`: a página com o próprio estilo, em Página; o
    código em Fonte. Nível: A. Pegou: a página ficava em branco — servida como
    bytes, que o `nosniff` impedia o quadro de mostrar (`a51aab2`).
-3. "Desenho do Excalidraw": "Converter em board" mostra o board que vai ser
-   criado, e "Criar o board" cria `Desenho do Excalidraw.canvas` ao lado.
-   Nível: A.
+3. "Desenho do Excalidraw" abre no seu desenho, para ver — sem
+   ferramentas — com "Converter em board" e "Ver o texto" acima; "Ver o
+   texto" mostra o texto da nota, "Ver o desenho" traz o desenho de volta,
+   e o arquivo não é escrito. "Converter em board" mostra o board que vai
+   ser criado, e "Criar o board" cria `Desenho do Excalidraw.canvas` ao
+   lado. Nível: H, A; E: `board-drawing.spec.mjs`.
 4. Na página do `Web/jsoncanvas.org.md`, e num link aberto na janela dele:
    digite num campo do site, e então ⌘A, ⌘Z e ⌘⇧Z agem nesse campo, uma vez
    cada, e nada na nota atrás muda. Nível: A (a web view do site é do host;
@@ -352,15 +355,22 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     `verso.crop` do nó gravado e o arquivo da imagem intacto; "Restaurar
     original" o tira. Os menus do botão direito, do board e da janela, nunca
     mostram dois traços juntos. Com a barra lateral aberta e a janela não
-    muito larga, a busca e o Sumário no meio do rodapé; com o sumário aberto
-    também, ou numa janela alta e estreita, numa linha embaixo da barra; a
-    com as duas barras laterais abertas, a barra em duas linhas, longe do
-    cadeado e da mão; a barra do Excalidraw sempre inteira.
+    muito larga, a busca e o Sumário no meio do rodapé; num board mais
+    estreito — o sumário aberto também, uma janela alta e estreita, as duas
+    barras laterais abertas — a barra do Excalidraw no pé do board e as
+    ferramentas do Verso no canto de cima, separadas; toda ferramenta sempre
+    inteira.
     Nível: H (arrastar da árvore e o
     seletor do sistema), A; E: `board-images.spec.mjs`.
-11. Setas: a ferramenta de seta do meio de um cartão ao meio de outro: as duas
-    pontas vão de imediato para os lados que se olham, por baixo dos cartões,
-    e ficam nesses lados enquanto um cartão é arrastado; com "Setas soltas"
+11. Setas: a ferramenta de seta de um ponto de um cartão a um ponto de
+    outro: cada ponta continua mirando o seu ponto, no contorno do cartão (a
+    cabeça aparece), por baixo dos cartões, enquanto um cartão é arrastado e
+    quando o board abre de novo; do meio ao meio, os lados que se olham. A
+    aresta do arquivo guarda os lados que encontra e, sob `verso`, os
+    pontos; o Obsidian a desenha a partir desses lados. Um retângulo
+    desenhado, e uma seta do meio dele ao meio de uma imagem: a cabeça
+    nesse ponto, por cima da imagem; o board fechado e aberto de novo, a
+    imagem arrastada, a seta a acompanha. Com "Setas soltas"
     ligado (menu "Inserir"), o mesmo arrasto deixa uma seta solta, presa a
     nenhum. A ferramenta de linha atravessando um cartão: uma linha só,
     desenhada por cima do cartão enquanto é desenhada, nunca dobrada. Com a

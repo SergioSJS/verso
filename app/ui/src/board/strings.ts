@@ -73,6 +73,9 @@ const pt = {
   relation: "relação",
   card: (kind: string, name: string) => `${kind}: ${name}`,
   convert: "Converter em board",
+  drawing: "Desenho do plugin Excalidraw, só para ver: convertido, vira um board ao lado e fica como está.",
+  drawingShowText: "Ver o texto",
+  drawingShowDrawing: "Ver o desenho",
   convertTitle: "Converter o desenho do plugin Excalidraw num board",
   convertDetail: (from: string, to: string) =>
     `Cria ${to} a partir de ${from}. O desenho original fica como está; nada mais é escrito.`,
@@ -199,6 +202,9 @@ const en: BoardStrings = {
   relation: "relation",
   card: (kind: string, name: string) => `${kind}: ${name}`,
   convert: "Convert to board",
+  drawing: "A drawing of the Excalidraw plugin, to look at: converted, it becomes a board beside it and stays as it is.",
+  drawingShowText: "Show the text",
+  drawingShowDrawing: "Show the drawing",
   convertTitle: "Convert the Excalidraw plugin's drawing to a board",
   convertDetail: (from: string, to: string) =>
     `Creates ${to} from ${from}. The original drawing stays as it is; nothing else is written.`,

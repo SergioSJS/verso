@@ -115,10 +115,10 @@ const LESSONS = [
     color: TEAL,
     text:
       "1. Pegue a Flecha (A ou 5).\n" +
-      "2. Comece em cima de um cartão e solte em cima de outro: a borda acende quando a seta gruda.\n" +
-      "3. Mova um cartão: a seta vai junto.\n" +
+      "2. Comece em cima de um cartão e solte em cima de outro: a borda acende quando a seta gruda, e cada ponta mira o ponto onde você começou e soltou.\n" +
+      "3. Mova um cartão: a seta vai junto, mirando o mesmo ponto.\n" +
       "4. Duplo clique na seta escreve um rótulo.\n" +
-      "5. No painel, Tipo de seta (reta, curva, cotovelo) e Pontas.\n" +
+      "5. Na coluna da esquerda, Tipo de seta: reta, curva, cotovelo, e as Pontas.\n" +
       "6. Seta livre, presa a nada: segure ⌘ ao desenhar — ou, no toque, Inserir › Setas soltas.\n" +
       "Entre dois cartões, a seta é uma conexão do canvas, que o Obsidian também mostra.",
     challenge: "Desafio: ligue Projeto Beta a Pesquisa e Descobertas e escreva “usa” na seta.",

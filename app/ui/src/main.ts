@@ -2140,6 +2140,16 @@ class NoteLeaf extends Leaf {
   readonly webBar = h("div", "web-bar");
   readonly webHost = h("div", "web-host");
   readonly webAddress = h("button", "web-address");
+  /** A drawing of the Excalidraw plugin: shown as drawn, in place of its
+   *  text, with the way to a board (ADR 0057 point 5). */
+  readonly drawingBar = h("div", "drawing-bar");
+  readonly drawingHost = h("div", "drawing-host");
+  private drawingToggle = button("ghost", boardText.drawingShowText);
+  private drawingShown = false;
+  /** The note and text the drawing shown was read from. */
+  private drawingFor = "";
+  private drawingText = "";
+  private drawingUnmount: (() => void) | null = null;
   private webLabel: string | null = null;
   /** A view is being made; its label arrives with the answer. */
   private webOpening = false;
@@ -2259,7 +2269,8 @@ class NoteLeaf extends Leaf {
     this.buildWebBar();
     this.webBar.hidden = true;
     this.webHost.hidden = true;
-    this.el.append(head, this.toolbar, this.webBar, sheet, this.webHost);
+    this.buildDrawingBar();
+    this.el.append(head, this.toolbar, this.webBar, this.drawingBar, sheet, this.webHost, this.drawingHost);
     this.live = livePreview({
       imageUrl: (target) => imageUrl(this.path, target, () => this.editor.dispatch({ effects: redraw.of(null) })),
       navigate: (target) => this.follow(target),
@@ -2352,7 +2363,11 @@ class NoteLeaf extends Leaf {
     const b = h("button");
     b.type = "button";
     b.append(icon(ic), h("span", "", label));
-    b.addEventListener("click", () => this.setMode(mode));
+    b.addEventListener("click", () => {
+      // A mode is a way to show the text: a drawing shown gives way to it.
+      if (this.drawingShown) this.setDrawingShown(false);
+      this.setMode(mode);
+    });
     this.modes.append(b);
     return b;
   }
@@ -2709,7 +2724,7 @@ class NoteLeaf extends Leaf {
   applyMode(): void {
     const m = this.mode;
     this.preview.hidden = m !== "preview";
-    this.toolbar.hidden = m === "preview";
+    this.toolbar.hidden = m === "preview" || this.drawingShown;
     this.editorHost.hidden = m === "preview";
     for (const [k, b] of Object.entries(this.modeButtons)) b.setAttribute("aria-pressed", String(k === m));
     if (m === "preview") this.paintPreview();
@@ -2886,6 +2901,78 @@ class NoteLeaf extends Leaf {
   private noteUrl(): string {
     const p = this.note?.properties.find((x) => x.key.toLowerCase() === "url");
     return p && p.value.kind === "text" && /^https?:\/\//i.test(p.value.value) ? p.value.value : "";
+  }
+  private buildDrawingBar(): void {
+    this.drawingBar.hidden = true;
+    this.drawingHost.hidden = true;
+    const convert = button("drawing-convert", boardText.convert);
+    convert.title = boardText.convertTitle;
+    convert.addEventListener("click", () => void convertToBoard(this.path));
+    this.drawingToggle.addEventListener("click", () => this.setDrawingShown(!this.drawingShown));
+    this.drawingBar.append(h("span", "drawing-bar-label", boardText.drawing), convert, this.drawingToggle);
+  }
+  /** A drawing of the Excalidraw plugin opens on its drawing; its text is
+   *  a click away. Read from the text, not the properties: the plugin writes
+   *  a blank line after the opening fence, which the core does not read as
+   *  a frontmatter (spec §5.1). */
+  private applyDrawing(): void {
+    const text = this.note?.text ?? "";
+    const is = !!this.note && isExcalidrawDrawing(text);
+    this.drawingBar.hidden = !is;
+    if (!is) {
+      this.drawingFor = "";
+      this.setDrawingShown(false);
+      return;
+    }
+    if (this.path !== this.drawingFor) {
+      this.drawingFor = this.path;
+      this.drawingText = "";
+      this.setDrawingShown(true);
+    } else if (this.drawingShown && text !== this.drawingText) void this.showDrawing();
+  }
+  private setDrawingShown(on: boolean): void {
+    this.drawingShown = on;
+    this.sheet.hidden = on || this.webShown;
+    this.toolbar.hidden = on || this.webShown || this.mode === "preview";
+    this.drawingHost.hidden = !on;
+    this.drawingToggle.textContent = on ? boardText.drawingShowText : boardText.drawingShowDrawing;
+    if (on) void this.showDrawing();
+    else this.unmountDrawing();
+  }
+  private unmountDrawing(): void {
+    this.drawingUnmount?.();
+    this.drawingUnmount = null;
+    this.drawingText = "";
+  }
+  /** Draw the note's drawing, read again from its text as it is now. */
+  private async showDrawing(): Promise<void> {
+    const note = this.note;
+    if (!note) return;
+    const text = note.text;
+    if (text === this.drawingText && this.drawingUnmount) return;
+    const read = readDrawing(text);
+    if ("error" in read) {
+      ui.status.textContent = read.error === "not-drawing" ? boardText.convertNotDrawing : boardText.convertUnreadable;
+      this.setDrawingShown(false);
+      return;
+    }
+    const pictures = new Map<string, string>();
+    for (const [id, target] of read.drawing.embedded) {
+      const found = await commands.resolveAttachment(note.path, target);
+      if (found.status === "ok" && found.data) pictures.set(id, found.data);
+    }
+    const mod = await loadBoardModule();
+    // The note changed, or the drawing was put away, while it was read.
+    if (this.destroyed || !this.drawingShown || this.note?.text !== text) return;
+    this.unmountDrawing();
+    this.drawingText = text;
+    this.drawingUnmount = mod.mountDrawing(this.drawingHost, {
+      elements: read.drawing.elements.filter((e) => e["isDeleted"] !== true),
+      pictures,
+      fileSrc: (path) => convertFileSrc(listedPath(path, [allNotes, allFiles]) ?? path, "verso"),
+      dark: settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
+      lang: LANG,
+    });
   }
   private applyWeb(): void {
     const url = this.noteUrl();
@@ -3129,6 +3216,7 @@ class NoteLeaf extends Leaf {
     if (this.pane.active === this) panel.show(this);
     this.updateWords();
     this.applyWeb();
+    this.applyDrawing();
   }
 
   openStickerPicker(): void {
@@ -3355,16 +3443,6 @@ class NoteLeaf extends Leaf {
     if (this.readOnly) flags.push(t.mixedEol);
     if (this.gone) flags.push(t.goneOutside);
     this.flags.textContent = flags.join(" ");
-    // A drawing of the Excalidraw plugin: the way to a board (ADR 0057).
-    // Read from the text, not the properties: the plugin writes a blank
-    // line after the opening fence, which the core does not read as a
-    // frontmatter (spec §5.1).
-    if (note && isExcalidrawDrawing(note.text)) {
-      const convert = button("ghost", boardText.convert);
-      convert.title = boardText.convertTitle;
-      convert.addEventListener("click", () => void convertToBoard(note.path));
-      this.flags.append(convert);
-    }
   }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
@@ -4460,6 +4538,7 @@ class NoteLeaf extends Leaf {
   }
   override destroy(): void {
     this.destroyed = true;
+    this.unmountDrawing();
     this.cancelReposition?.();
     window.clearTimeout(this.saveTimer);
     this.readingSearch?.close();

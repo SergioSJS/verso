@@ -32,19 +32,21 @@ import {
   restoreElements,
   viewportCoordsToSceneCoords,
 } from "@excalidraw/excalidraw";
-import type { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type { AppState, BinaryFileData, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import { isLinearElement, LinearElementEditor } from "@excalidraw/element";
 import type { ExcalidrawElement, NonDeleted, ExcalidrawEmbeddableElement } from "@excalidraw/excalidraw/element/types";
 import type { BoardStrings } from "./strings";
 import {
   BOARD_VERSION,
   CARD_PAPER,
-  anchor,
-  endSide,
   MARKER,
   backgroundOf,
   cardCrop,
   fromElements,
   isNode,
+  endAt,
+  pointIn,
+  type Binding,
   newNode,
   nodeData,
   nodeName,
@@ -211,20 +213,28 @@ export type BoardHandle = {
 
 const SAVE_DELAY = 700;
 
-/** With the window in Portuguese, the words Excalidraw's pt-BR leaves out
- *  (`ptBR.ts`) take the place of the English it falls back to. Excalidraw
- *  is pinned at exactly 0.18.1 in package.json: its English is this
- *  module, a hashed file of its build. */
+/** With the window in Portuguese, Verso's words for Excalidraw's labels
+ *  (`ptBR.ts`): the ones its pt-BR leaves out, in place of the English it
+ *  falls back to, and the ones Verso says otherwise — the tutorial names
+ *  them as Verso does. Excalidraw is pinned at an exact build in
+ *  package.json: its English and its pt-BR are these modules, hashed files
+ *  of its build. */
 export async function completeLocale(lang: string): Promise<void> {
   if (!lang.toLowerCase().startsWith("pt")) return;
-  // @ts-expect-error — a module of the package's build, without types.
-  const en = (await import("../../node_modules/@excalidraw/excalidraw/dist/prod/locales/en-B4ZKOASM.js")) as Record<string, unknown>;
+  const modules = (await Promise.all([
+    // @ts-expect-error — a module of the package's build, without types.
+    import("../../node_modules/@excalidraw/excalidraw/dist/prod/locales/en-APPZPZFQ.js"),
+    // @ts-expect-error — a module of the package's build, without types.
+    import("../../node_modules/@excalidraw/excalidraw/dist/prod/locales/pt-BR-CZDV62R3.js"),
+  ])) as Record<string, unknown>[];
   for (const [path, text] of Object.entries(PT_BR)) {
     const parts = path.split(".");
-    let at: Record<string, unknown> | undefined = en[parts[0] ?? ""] as Record<string, unknown> | undefined;
-    for (const part of parts.slice(1, -1)) at = at?.[part] as Record<string, unknown> | undefined;
     const last = parts[parts.length - 1];
-    if (at && typeof at === "object" && last) at[last] = text;
+    for (const m of modules) {
+      let at: Record<string, unknown> | undefined = ((m["default"] ?? m) as Record<string, unknown>)[parts[0] ?? ""] as Record<string, unknown> | undefined;
+      for (const part of parts.slice(1, -1)) at = at?.[part] as Record<string, unknown> | undefined;
+      if (at && typeof at === "object" && last) at[last] = text;
+    }
   }
 }
 
@@ -1716,7 +1726,22 @@ function ExportDialog({ api, host, selected, onClose }: { api: Api; host: BoardH
  *  in past 100 %. */
 function fit(a: Api): void {
   const elements = a.getSceneElements();
-  if (elements.length > 0) a.scrollToContent(elements, { fitToViewport: true, viewportZoomFactor: 0.9, minZoom: 0.1, maxZoom: 1 });
+  if (elements.length > 0) a.setViewport({ target: margined(elements), fit: "scale-down", animation: false });
+}
+
+/** The box of `elements` with a margin, so that they fill 90 % of the view
+ *  that fits it — as Excalidraw 0.18's `viewportZoomFactor: 0.9` did. */
+function margined(elements: readonly ExcalidrawElement[]): [number, number, number, number] {
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const e of elements) {
+    x0 = Math.min(x0, e.x);
+    y0 = Math.min(y0, e.y);
+    x1 = Math.max(x1, e.x + e.width);
+    y1 = Math.max(y1, e.y + e.height);
+  }
+  const px = ((x1 - x0) * (1 / 0.9 - 1)) / 2;
+  const py = ((y1 - y0) * (1 / 0.9 - 1)) / 2;
+  return [x0 - px, y0 - py, x1 + px, y1 + py];
 }
 
 function Board({
@@ -2207,7 +2232,7 @@ function Board({
   // to the frame's box, so an edge to a card of another group was cut at the
   // group's border until the board was opened again.
   const freeEdges = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
-    if (state.newElement || state.multiElement || state.editingTextElement || state.editingLinearElement || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
+    if (state.newElement || state.multiElement || state.editingTextElement || state.selectedLinearElement?.isEditing || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
     const byId = new Map(els.map((e) => [e.id, e] as const));
     const node = (id: string | undefined): boolean => {
       const e = id ? byId.get(id) : undefined;
@@ -2239,49 +2264,51 @@ function Board({
     return true;
   }, [own]);
 
-  // An arrow ends on a side of a card: that is all a canvas edge records,
-  // and the board draws it so when it opens. The arrow is drawn so at
-  // once — not on the next opening — with the side the file will hold: the
-  // one it holds already, else the side facing the other card (endSide).
-  const snapEdges = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
-    if (state.newElement || state.multiElement || state.editingTextElement || state.editingLinearElement || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
+  // An edge — an arrow from a card to a card — passes under the cards, as
+  // the canvas draws it: an end bound inside a card would end under it and
+  // its head would not show. Such an end is bound on the card's outline
+  // instead, aimed at the same point (ADR 0057 point 20). An arrow with an
+  // end on a shape of the drawing is the drawing's, drawn over the cards:
+  // Excalidraw's own way stands, its head at the point inside a picture.
+  const orbitOnCards = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
+    if (state.newElement || state.multiElement || state.editingTextElement || state.selectedLinearElement?.isEditing || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
     const byId = new Map(els.map((e) => [e.id, e] as const));
-    const near = (p: [number, number], q: [number, number]): boolean => Math.abs(p[0] - q[0]) < 0.5 && Math.abs(p[1] - q[1]) < 0.5;
+    const card = (b: Binding | null | undefined): El | undefined => {
+      const n = b ? (byId.get(b.elementId) as unknown as El | undefined) : undefined;
+      return n && !n.isDeleted && isNode(n) ? n : undefined;
+    };
     let changed = false;
     const next = els.map((e) => {
       if (e.type !== "arrow" || e.isDeleted) return e;
       const a = e as unknown as El;
       const pts = a.points;
-      if (a["elbowed"] === true || !pts || pts.length !== 2) return e;
-      const from = byId.get(a.startBinding?.elementId ?? "") as unknown as El | undefined;
-      const to = byId.get(a.endBinding?.elementId ?? "") as unknown as El | undefined;
-      if (!from || !to || !isNode(from) || !isNode(to)) return e;
-      const was = a.customData?.canvas as CanvasEdge | undefined;
-      let start: [number, number] = [a.x + pts[0]![0], a.y + pts[0]![1]];
-      let end: [number, number] = [a.x + pts[1]![0], a.y + pts[1]![1]];
-      // An end on the card the file names keeps the file's side; with none,
-      // the file's edge meets the card's middle, and is left as it is.
-      const fromSide = was && was.fromNode === from.id ? (was.fromSide ?? null) : endSide(from, to);
-      const toSide = was && was.toNode === to.id ? (was.toSide ?? null) : endSide(to, from);
-      const s2 = fromSide ? anchor(from, fromSide) : start;
-      const e2 = toSide ? anchor(to, toSide) : end;
-      if (near(s2, start) && near(e2, end)) return e;
-      start = s2;
-      end = e2;
+      if (a["elbowed"] === true || !pts || pts.length < 2) return e;
+      const from = card(a.startBinding);
+      const to = card(a.endBinding);
+      if (!from || !to) return e;
+      const fromAt = from && a.startBinding?.mode === "inside" ? a.startBinding.fixedPoint : null;
+      const toAt = to && a.endBinding?.mode === "inside" ? a.endBinding.fixedPoint : null;
+      if (!fromAt && !toAt) return e;
+      const abs = pts.map((p) => [a.x + p[0], a.y + p[1]] as [number, number]);
+      const n = abs.length - 1;
+      // Each end aimed from the point the other end is bound at, or from
+      // the arrow's next point when it bends.
+      const target = (c: El | undefined, b: Binding | null | undefined, drawn: [number, number]): [number, number] => (c && b?.fixedPoint ? pointIn(c, b.fixedPoint) : drawn);
+      if (fromAt) abs[0] = endAt(from, { fixedPoint: [fromAt[0], fromAt[1]], mode: "orbit" }, n > 1 ? abs[1]! : target(to, a.endBinding, abs[n]!));
+      if (toAt) abs[n] = endAt(to, { fixedPoint: [toAt[0], toAt[1]], mode: "orbit" }, n > 1 ? abs[n - 1]! : target(from, a.startBinding, abs[0]!));
+      const [x, y] = abs[0]!;
+      const rel = abs.map(([px, py]) => [px - x, py - y] as [number, number]);
+      const xs = rel.map((p) => p[0]);
+      const ys = rel.map((p) => p[1]);
       changed = true;
-      const dx = end[0] - start[0];
-      const dy = end[1] - start[1];
-      // The bindings as an edge read from the file has them: Excalidraw
-      // places a bound end again from its focus and gap whenever a card
-      // moves, and the ones of the drop would pull it back inside the card.
       return newElementWith(e as never, {
-        x: start[0],
-        y: start[1],
-        width: Math.abs(dx),
-        height: Math.abs(dy),
-        points: [[0, 0], [dx, dy]],
-        startBinding: { ...a.startBinding, focus: 0, gap: 4 },
-        endBinding: { ...a.endBinding, focus: 0, gap: 4 },
+        x,
+        y,
+        points: rel,
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+        startBinding: fromAt ? { ...a.startBinding, mode: "orbit" } : a.startBinding,
+        endBinding: toAt ? { ...a.endBinding, mode: "orbit" } : a.endBinding,
       } as never) as ExcalidrawElement;
     });
     if (!changed) return false;
@@ -2308,7 +2335,7 @@ function Board({
       born.current = new Set(els.map((e) => e.id));
       return false;
     }
-    if (state.newElement || state.multiElement || state.editingTextElement || state.editingLinearElement || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
+    if (state.newElement || state.multiElement || state.editingTextElement || state.selectedLinearElement?.isEditing || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
     const fresh = els.filter((e) => !known.has(e.id));
     for (const e of fresh) known.add(e.id);
     if (!loose.current) return false;
@@ -2388,7 +2415,7 @@ function Board({
         state.editingTextElement?.id ?? "",
         state.resizingElement?.id ?? "",
         state.selectedElementsAreBeingDragged ? 1 : 0,
-        state.editingLinearElement ? 1 : 0,
+        state.selectedLinearElement?.isEditing ? 1 : 0,
         state.viewBackgroundColor,
       ].join("|");
       if (key !== workKey.current) {
@@ -2397,7 +2424,7 @@ function Board({
         dropMarkers(els);
         syncCards(els);
         scheduleOverlays(els);
-        if (!looseFresh(els, state) && !snapEdges(els, state) && !freeEdges(els, state)) liftDrawn(els, state);
+        if (!looseFresh(els, state) && !orbitOnCards(els, state) && !freeEdges(els, state)) liftDrawn(els, state);
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(flush, SAVE_DELAY);
         window.clearTimeout(outlineTimer.current);
@@ -2437,7 +2464,7 @@ function Board({
       const ids = Object.keys(state.selectedElementIds).filter((k) => state.selectedElementIds[k]);
       setSelected((was) => (was.length === ids.length && was.every((v, i) => v === ids[i]) ? was : ids));
     },
-    [flush, noteUser, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, snapEdges, looseFresh, host, place],
+    [flush, noteUser, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, orbitOnCards, looseFresh, host, place],
   );
 
   const center = (): [number, number] => {
@@ -2610,11 +2637,14 @@ function Board({
     // and brought to the middle at the zoom it is seen at.
     if (el.type === "frame") {
       a.updateScene({ appState: { selectedElementIds: {} } as never, captureUpdate: CaptureUpdateAction.NEVER });
-      a.scrollToContent(el, { fitToViewport: true, viewportZoomFactor: 0.9, maxZoom: 1, animate: true });
+      a.setViewport({ target: margined([el]), fit: "scale-down", animation: true });
       return;
     }
-    a.updateScene({ appState: { selectedElementIds: { [id]: true } } as never, captureUpdate: CaptureUpdateAction.NEVER });
-    a.scrollToContent(el, { fitToContent: false, animate: true });
+    // An arrow or a line is selected as a click selects it, with its
+    // editor: Excalidraw's "Edit arrow" looks for it and fails without.
+    const linear = isLinearElement(el) ? new LinearElementEditor(el as never, a.getSceneElementsMapIncludingDeleted() as never) : null;
+    a.updateScene({ appState: { selectedElementIds: { [id]: true }, selectedLinearElement: linear } as never, captureUpdate: CaptureUpdateAction.NEVER });
+    a.setViewport({ target: el, fit: "none", animation: true });
   };
   const openFromOutline = (id: string): void => {
     const el = byId(id);
@@ -2893,7 +2923,8 @@ function Board({
           onPasteCapture={onFiles}
         >
           <Excalidraw
-            excalidrawAPI={(a) => {
+            onExcalidrawAPI={(a) => {
+              if (!a) return;
               api.current = a;
               // The browser harness's tests read the scene (e2e/): only when the
               // harness asks for it (`__VERSO_TEST__`); the app never does.
@@ -3016,6 +3047,13 @@ function Board({
           </Excalidraw>
           {slot && readOnly === false && createPortal(insertMenu, slot)}
           {hintSlot && readOnly === false && createPortal(<span className="board-hint" data-testid="board-arrow-hint">{arrowHint}</span>, hintSlot)}
+          {/* Excalidraw's phone layout has no line of hints: the hint
+              stands alone over its toolbar. */}
+          {!hintSlot && arrowTool && readOnly === false && (
+            <span className="board-hint board-hint-alone" data-testid="board-arrow-hint">
+              {arrowHint}
+            </span>
+          )}
           {layerHost &&
             createPortal(
               <CardLayer
@@ -3045,6 +3083,62 @@ function Board({
       </div>
     </div>
   );
+}
+
+/** A drawing of Obsidian's Excalidraw plugin, shown as it is drawn and
+ *  never changed (ADR 0057 point 5, revised 2026-10-06): its scene's
+ *  elements, and its pictures by the files `pictures` names (fileId →
+ *  path of the folder). */
+export type DrawingPreview = {
+  elements: readonly Record<string, unknown>[];
+  pictures: ReadonlyMap<string, string>;
+  fileSrc: (path: string) => string;
+  dark: boolean;
+  lang: string;
+};
+
+function DrawingView({ elements, pictures, fileSrc, dark, lang }: DrawingPreview): JSX.Element {
+  const [api, setApi] = useState<Api | null>(null);
+  const scene = useMemo(() => restoreElements(elements as never, null, { repairBindings: true }), [elements]);
+  useEffect(() => {
+    if (!api) return;
+    let alive = true;
+    void (async () => {
+      const files: BinaryFileData[] = [];
+      for (const [id, path] of pictures) {
+        try {
+          const blob = await (await fetch(fileSrc(path))).blob();
+          files.push({ id: id as never, dataURL: (await dataUrlOf(blob)) as never, mimeType: (blob.type || `image/${ext(path) === "svg" ? "svg+xml" : ext(path)}`) as never, created: Date.now() });
+        } catch {
+          // A picture that cannot be read is drawn as Excalidraw draws a missing one.
+        }
+      }
+      if (alive && files.length > 0) api.addFiles(files);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [api, pictures, fileSrc]);
+  return (
+    <Excalidraw
+      onExcalidrawAPI={(a) => a && setApi(a)}
+      initialData={{ elements: scene, scrollToContent: true }}
+      viewModeEnabled
+      aiEnabled={false}
+      theme={dark ? "dark" : "light"}
+      langCode={lang.toLowerCase().startsWith("pt") ? "pt-BR" : "en"}
+      UIOptions={{
+        canvasActions: { loadScene: false, saveToActiveFile: false, export: false, clearCanvas: false, toggleTheme: false, changeViewBackgroundColor: false, saveAsImage: false },
+      }}
+    />
+  );
+}
+
+/** Show a drawing of the plugin in `el`; the function returned takes it away. */
+export function mountDrawing(el: HTMLElement, preview: DrawingPreview): () => void {
+  const root = createRoot(el);
+  root.render(<DrawingView {...preview} />);
+  return () => root.unmount();
 }
 
 /** Mount a board in `el`, showing the canvas `text`; null when the text is
