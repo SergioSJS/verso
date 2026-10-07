@@ -133,6 +133,10 @@ pub struct BlockOut {
     pub id: String,
     pub line: u32,
     pub col: u32,
+    /// The lines of the block the id names (spec Q3, Q21). With the same
+    /// id twice in a note, the last names the block (Q4).
+    pub first_line: u32,
+    pub last_line: u32,
 }
 
 /// A frontmatter property, typed as the properties panel reads it: a
@@ -891,6 +895,8 @@ impl Server {
                         id: b.id,
                         line: b.line,
                         col: b.col,
+                        first_line: b.first_line,
+                        last_line: b.last_line,
                     })
                     .collect(),
                 properties: text

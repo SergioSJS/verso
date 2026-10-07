@@ -67,6 +67,8 @@ export type Strings = Record<
   planDone: (ok: number, failed: number) => string;
   counts: (notes: number, files: number, folders: number) => string;
   confirmDeleteFolder: (n: string) => string;
+  /** The same `^id` more than once in a note (spec Q4). */
+  blockRepeated: (id: string, lines: number[]) => string;
   /** The tree's selection (ADR 0048, revised 2026-10-07). */
   /** "Start with" under a new note's title (ADR 0068). */
   templatePicker: { title: string; blank: string };
@@ -135,6 +137,7 @@ export const pt: Strings = {
   planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
   counts: (notes, files, folders) => `${notes} nota${notes === 1 ? "" : "s"} · ${files} arquivo${files === 1 ? "" : "s"} · ${folders} pasta${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
+  blockRepeated: (id, lines) => `^${id} aparece ${lines.length} vezes (linhas ${lines.join(", ")}): vale a última, como no Obsidian.`,
   templatePicker: { title: "Começar com", blank: "Em branco" },
   selection: { count: (n) => `${n} itens`, confirmDelete: (n) => `Mover ${n} itens, e o que estiver dentro das pastas, para a lixeira (.trash)?`, moved: (n) => `${n} itens movidos.`, notMoved: (names) => `Não puderam ser movidos: ${names}.`, copyPaths: "Copiar caminhos relativos", clear: "Limpar seleção", deleted: (n) => `${n} itens movidos para .trash/.` },
   slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", toggleTitle: "Recolhível", toggle: "Destaque que abre e fecha (toggle)", empty: "Nada com esse nome." },
@@ -267,6 +270,7 @@ export const en: Strings = {
   planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
   counts: (notes, files, folders) => `${notes} note${notes === 1 ? "" : "s"} · ${files} file${files === 1 ? "" : "s"} · ${folders} folder${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the Trash (.trash)?`,
+  blockRepeated: (id, lines) => `^${id} appears ${lines.length} times (lines ${lines.join(", ")}): the last one counts, as in Obsidian.`,
   templatePicker: { title: "Start with", blank: "Blank" },
   selection: { count: (n) => `${n} items`, confirmDelete: (n) => `Move ${n} items, and what is inside the folders, to the Trash (.trash)?`, moved: (n) => `${n} items moved.`, notMoved: (names) => `Could not be moved: ${names}.`, copyPaths: "Copy relative paths", clear: "Clear selection", deleted: (n) => `${n} items moved to .trash/.` },
   slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", toggleTitle: "Toggle", toggle: "A callout that opens and closes", empty: "Nothing by that name." },

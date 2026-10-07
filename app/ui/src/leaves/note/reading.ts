@@ -32,6 +32,7 @@ import { pdfStrings, quoteIntoNotes } from "../pdf";
 import { TASK } from "../text";
 import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
+import { embeddedHtml } from "../../blockEmbed";
 
 /** The note's links and backlinks from the index, fresh after every
  *  save: what the preview resolves against and the panel lists. Then
@@ -531,8 +532,11 @@ export function dress(this: NoteLeaf, forPath: string): void {
       continue;
     }
     const heading = raw.includes("#") && !raw.includes("#^") ? raw.slice(raw.indexOf("#") + 1) : "";
-    void opening.readNote(to).then((r) => {
+    void opening.readNote(to).then(async (r) => {
       if (r.status !== "ok" || this.path !== forPath) return;
+      // `![[nota#^id]]`: the block the id names, not the whole note.
+      const html = await embeddedHtml(raw, r.data);
+      if (this.path !== forPath) return;
       const box = h("section", "embed-note");
       const head = h("a", "embed-note-title", heading ? `${name(to)} › ${heading}` : name(to));
       head.href = "#";
@@ -542,7 +546,7 @@ export function dress(this: NoteLeaf, forPath: string): void {
       });
       const edit = button("ghost iconic embed-edit", settings.inlineEmbedEdit ? t.editInPlace : t.editEmbed, "edit");
       const body = h("div", "embed-note-body");
-      setHtml(body, r.data.html);
+      setHtml(body, html);
       wireCallouts(body);
       keyLinks(body);
       if (heading) sliceHeading(body, heading);
@@ -569,7 +573,7 @@ export function dress(this: NoteLeaf, forPath: string): void {
         edit.title = settings.inlineEmbedEdit ? t.editInPlace : t.editEmbed;
         const fresh = await opening.readNote(to);
         if (fresh.status === "ok" && this.path === forPath) {
-          setHtml(body, fresh.data.html);
+          setHtml(body, await embeddedHtml(raw, fresh.data));
           wireCallouts(body);
           keyLinks(body);
           if (heading) sliceHeading(body, heading);

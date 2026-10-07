@@ -178,6 +178,10 @@ pub struct Block {
     pub id: String,
     pub line: u32,
     pub col: u32,
+    /// The first and last line of the block the id names (spec Q3, Q21):
+    /// what a link `[[nota#^id]]` reaches and an embed of it shows.
+    pub first_line: u32,
+    pub last_line: u32,
 }
 
 /// A note's text as it is on disk now, with what the index knows of it.

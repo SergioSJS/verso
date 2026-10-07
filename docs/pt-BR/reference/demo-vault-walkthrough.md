@@ -135,7 +135,9 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    a data de hoje; ⌘Z desfaz. Nível: H; E: `notes.spec.mjs` (a data
    escrita no fim, e sumida depois do ⌘Z).
 3. Nota 02: todo link leva à sua nota, um `#título` ao seu título; o embed
-   mostra "Editar ao lado". Nível: S (os links), H.
+   mostra "Editar ao lado". "Incorporar só um bloco": o embed `#^atomica`
+   mostra só a terceira descoberta, não a nota inteira (spec Q3, Q21). Nível:
+   S (os links, `fixtures/block/`), H; E: `blocks-ids.spec.mjs`.
 4. Nota 06 no Leitura: `![Diagrama|320](assets/diagrama.svg)` aparece com
    320 px de largura, vindo da pasta; arrastar o canto grava o tamanho novo
    nessa imagem, e o exemplo dela no código do título fica como está.

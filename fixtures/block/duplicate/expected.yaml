@@ -1,0 +1,23 @@
+# AI draft (Opus 5.5, 2026-10-07), awaiting the maintainer's approval (ADR 0031).
+# Construct: the same `^id` twice in one note. Spec: docs/spec/dialect.md
+# §5.7, Q4 (decided on 2026-10-07: an id is unique per note; with two, the
+# last one names the block, as Obsidian does, and Verso says the id is
+# repeated). The parser reports both, in document order; the rule of the
+# last is the index's and the window's. The spec's section 9 is updated in
+# the same PR.
+blocks:
+  - id: dup
+    pos: { line: 1, col: 11 }
+    lines: [1, 1]
+  - id: dup
+    pos: { line: 3, col: 10 }
+    lines: [3, 3]
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-07 against a throwaway folder in the sandbox
+    vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)` -> blocks
+    { dup: line 2 col 0 .. line 2 col 13 }: one entry, the second paragraph;
+    sections paragraph 0..0 and paragraph 2..2 both carry id "dup".

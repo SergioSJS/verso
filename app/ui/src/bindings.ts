@@ -526,6 +526,12 @@ export type Block = {
 	id: string,
 	line: number,
 	col: number,
+	/**
+	 *  The first and last line of the block the id names (spec Q3, Q21):
+	 *  what a link `[[nota#^id]]` reaches and an embed of it shows.
+	 */
+	first_line: number,
+	last_line: number,
 };
 
 /**
