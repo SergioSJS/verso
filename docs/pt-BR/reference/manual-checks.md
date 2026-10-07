@@ -43,6 +43,14 @@ app real.
 - [ ] **Templates numa nota nova** (ADR 0068): ⌘N — "Começar com" sob o título; escolha "Nota de Reunião": a nota é o template com a data de hoje; ⌘Z desfaz; uma nota nova com Em branco fica como estava.
 - [ ] **O identificador novo mantém os ajustes da janela**: depois de atualizar da 0.4.0-beta.1, o tema, as teclas e a largura de uma coluna estão como eram; o log diz "window data carried over to com.versomd.app.beta" uma vez.
 - [ ] **A capa de um PDF na visão de pasta**: abra `assets` do cofre de exemplo, Miniaturas — o PDF mostra a primeira página; troque para Lista e volte para a tabela — os itens continuam.
+- [ ] **O ⌘Z do menu com o foco fora do texto**: numa nota no Editar,
+  digite duas palavras com um segundo entre elas, clique no botão
+  Editar, aperte ⌘Z duas vezes — cada palavra sai por vez; ⌘⇧Z traz a
+  última de volta.
+- [ ] **Um SVG no Editar**: nota 06 do cofre de exemplo, Editar — o
+  diagrama aparece, e continua ao ser selecionado com o texto em volta.
+  À esquerda do título de uma nota sem figurinha, um brilho apagado, não
+  uma estrela.
 - [ ] **A versão no endereço dos arquivos** (cache depois de uma
   atualização): depois de atualizar, a janela mostra a interface da versão
   nova na hora, sem tela antiga; o leitor de PDF e um board continuam
@@ -53,18 +61,9 @@ app real.
 Relatados no backlog, mudados desde então, mas sem teste que os cubra; se
 ainda acontecem, um passo que os faça acontecer basta.
 
-- [ ] O ⌘Z às vezes não desfaz nada, ou desfaz a mudança errada (Backlog,
-  2026-09-24).
-- [ ] As setas nos bullets e nas checkboxes no Editar pulam uma linha ou
-  marcam a errada (Backlog2, 2026-09-27).
 - [ ] O Exposé do app (⌃↓) lista todas as janelas do Verso (Backlog,
-  2026-09-24).
-- [ ] Arrastar uma aba para a borda direita, com as duas barras laterais
-  abertas, mostra a prévia de onde a aba vai cair (Backlog, 2026-09-24).
-- [ ] Partes da interface que não cabem numa janela estreita (Backlog,
-  2026-09-24; o print não estava no cofre).
-- [ ] "Quando eu seleciono texto no modo Editar e ele tem imagens" — a
-  frase ficou incompleta (Backlog, 2026-09-24).
+  2026-09-24): uma janela do sistema, que o harness do navegador não
+  mostra.
 
 ## Conferido
 
@@ -73,3 +72,11 @@ ainda acontecem, um passo que os faça acontecer basta.
   principal (0.4.0-beta.1, conferido pelo mantenedor em 2026-10-07).
 - [x] O painel da nota tipada e as nove ferramentas do MCP (0.4.0-beta.1,
   2026-10-07).
+- [x] Cobertos por `app/ui/e2e/backlog-repro.spec.mjs` em 2026-10-07, e
+  por isso fora desta lista: as setas e o cursor em bullets e checkboxes
+  no Editar (nenhuma falha achada); uma aba arrastada para a borda
+  direita com as duas barras abertas (nenhuma falha achada); uma janela
+  estreita (a barra direita fechada passava 4px da borda — consertado);
+  o ⌘Z com o foco fora do texto (não desfazia nada — consertado); e a
+  frase incompleta sobre selecionar texto com imagens (um SVG sem
+  tamanho próprio era uma linha vazia no Editar — consertado).

@@ -20,9 +20,14 @@ versão de teste.
 
 ### Alterado
 
+- **Uma nota sem figurinha mostra um brilho apagado à esquerda do título, não uma estrela**: a estrela, na outra ponta do título, é a dos favoritos; duas estrelas queriam dizer duas coisas.
 - **O identificador do app é `com.versomd.app`** (`com.versomd.app.beta` nas betas), pelo domínio do projeto ([ADR 0004](adr/0004-project-name-verso.md)). Os ajustes da janela, as teclas, as larguras das colunas e os focos locais vêm junto na primeira abertura; o macOS pode pedir de novo, uma vez, acesso a uma pasta.
 
 ### Corrigido
+
+- **⌘Z desfaz as mudanças da nota em ordem quando o foco está num botão**: com o foco num botão, numa aba ou numa checkbox em vez do texto, o Desfazer do menu rodava o da própria web view, que não conhece o histórico do editor — não desfazia nada, ou desfazia a mudança errada. Agora a nota em Editar ou Fonte o recebe.
+- **Um SVG sem tamanho próprio aparece no Editar**: uma imagem com largura e altura em porcentagem (o diagrama do cofre de exemplo) encolhia até virar uma linha vazia no Editar, selecionada ou não, e na Leitura quando escrita `![](x.svg)`. Agora ela ocupa a largura da nota.
+- **Nada passa da borda direita da janela com a barra direita fechada**: o divisor e a borda dela ficavam 4px para fora, que uma rolagem podia mostrar.
 
 - **Um nome já usado não é erro no log**: dar a uma nota, pasta ou arquivo um nome que a pasta já tem é avisado na barra de status, como antes, e registrado como informação, para que os erros do log (e do relato de bug) sejam só o que deu errado.
 - **As visões Miniaturas e Lista de uma pasta mostram os itens**: uma pasta aberta como tabela mostrava uma visão vazia ao trocar para elas.

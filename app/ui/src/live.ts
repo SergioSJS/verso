@@ -21,6 +21,7 @@ import { cells } from "./table";
 import { TableEditor, tableArrows, type TableEditorOptions } from "./tableEditor";
 import { frontmatterClose } from "./frontmatter";
 import { icon } from "./icons";
+import { fitWhenSizeless } from "./imageFit";
 import { heldImage, imageLink, webFrame } from "./sanitize";
 import { smartUnindentList } from "./listKeymap";
 import { renderMermaid } from "./mermaid";
@@ -107,6 +108,7 @@ class ImageWidget extends WidgetType {
     img.alt = this.alt;
     if (this.width) img.style.width = `${this.width}px`;
     if (this.height) img.style.height = `${this.height}px`;
+    fitWhenSizeless(img, box);
     const grip = document.createElement("span");
     grip.className = "cm-lp-grip";
     grip.title = "⤡";

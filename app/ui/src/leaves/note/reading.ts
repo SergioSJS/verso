@@ -33,6 +33,7 @@ import { TASK } from "../text";
 import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
+import { fitWhenSizeless } from "../../imageFit";
 
 /** The note's links and backlinks from the index, fresh after every
  *  save: what the preview resolves against and the panel lists. Then
@@ -139,6 +140,7 @@ export function wirePreviewImages(this: NoteLeaf, root: HTMLElement): void {
       const box = h("span", "cm-lp-image-box preview-image-box");
       parent.insertBefore(box, img);
       box.append(img);
+      fitWhenSizeless(img, box);
       const grip = h("span", "cm-lp-grip");
       grip.title = "⤡";
       box.append(grip);

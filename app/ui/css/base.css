@@ -75,6 +75,10 @@ body.no-side.no-right { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 0; }
 .ribbon-item:disabled { opacity: .3; cursor: default; }
 .ribbon-item.dragging { background: var(--brass-wash); color: var(--seal); box-shadow: 0 0 0 1px var(--brass); cursor: grabbing; }
 body.no-side aside.side, body.no-side #side-divider, body.no-right aside.right, body.no-right #right-divider { visibility: hidden; overflow: hidden; min-width: 0; }
+/* The closed right bar's divider (7px) and border (1px), in a track of
+   none, would stand past the window's edge. */
+body.no-right #right-divider { display: none; }
+body.no-right aside.right { border: 0; }
 /* Narrow window (a phone, a half screen): the side bars become drawers
  * over the page, opened by the same toggles, closed by a tap outside. */
 @media (max-width: 760px) {

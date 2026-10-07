@@ -67,7 +67,8 @@ export function paintCoverAndSticker(this: NoteLeaf): void {
       this.stickerBtn.replaceChildren(stickerNode);
       this.stickerBtn.style.opacity = "1";
     } else {
-      this.stickerBtn.replaceChildren(icon("star"));
+      // Not the bookmark's star, at the other end of the title.
+      this.stickerBtn.replaceChildren(icon("sparkles"));
       this.stickerBtn.style.opacity = "0.2";
     }
     this.stickerBtn.title = t.changeSticker;
