@@ -57,6 +57,8 @@ them; if they still happen, a step that makes them happen is enough.
 - [ ] The arrow keys on bullets and checkboxes in Editar skip a line or
   mark the wrong one (Backlog2, 2026-09-27).
 - [ ] App Exposé (⌃↓) lists every Verso window (Backlog, 2026-09-24).
+- [ ] Dragging a tab to the right edge, with both side bars open, shows
+  the preview where the tab will land (Backlog, 2026-09-24).
 - [ ] Parts of the interface that do not fit a narrow window (Backlog,
   2026-09-24; its screenshot was not in the vault).
 - [ ] "Quando eu seleciono texto no modo Editar e ele tem imagens" — the
