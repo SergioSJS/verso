@@ -26,6 +26,7 @@
   pelo pedido do mantenedor desse dia. 2026-10-06 — a nota diária da seção 2
   passa de ⌘D para ⌘⇧D: ⌘D duplica um bloco, pela escolha do mantenedor das
   teclas do Notion ([0061](0061-blocks-in-edit-mode.md) D8).
+  2026-10-07 — o menu próprio do Dock decidido: não feito por enquanto (seção 3).
 
 ## Contexto
 
@@ -94,7 +95,8 @@ Não construídos por motivo técnico: tirar uma aba da janela arrastando (a web
 view não enxerga o ponteiro fora da janela; em vez disso, uma nota vai para uma
 janela própria pelo menu da aba), e uma segunda janela sobre a mesma pasta.
 
-**`[ABERTO]` — um menu próprio do Dock, registrado em 2026-09-29.** As pastas
+**Decidido em 2026-10-07 — nenhum menu próprio do Dock por enquanto;
+registrado em 2026-09-29.** As pastas
 abertas antes, oferecidas num clique com o botão direito no ícone do Dock,
 como o Abrir recente da barra de menus as oferece. No macOS esse menu vem do
 `applicationDockMenu` do delegate da aplicação (`NSApplicationDelegate`), que
@@ -102,8 +104,10 @@ o Tauri v2 não expõe. Chegar a ele exigiria código `unsafe` no workspace, que
 o workspace proíbe ([0029](0029-guardrails-in-ci.md), `unsafe_code =
 "forbid"`), ou um shim nativo — uma dependência ou código Objective-C do
 projeto —, que nada decidiu. O macOS já lista sozinho as janelas abertas do
-app no menu do Dock. Fica aberto para uma decisão futura; a barra de menus
-leva a funcionalidade enquanto isso.
+app no menu do Dock. Perguntado em 2026-10-07 (com "Nova janela" para ele,
+do backlog), o mantenedor escolheu não fazê-lo agora: Arquivo › Nova
+janela, o menu das abas e Abrir recente o levam, e nenhuma exceção de
+`unsafe` é aberta para ele. Volta quando o Tauri expuser o menu do Dock.
 
 ## Consequências
 

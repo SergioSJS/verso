@@ -102,7 +102,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0034](0034-roadmap-in-phases.md) | Roadmap em três fases com portões de saída verificáveis | Aceito |
 | [0035](0035-cross-cutting-requirements.md) | Requisitos transversais: pt-BR e EN, acessibilidade, benchmark | Aceito |
 | [0036](0036-tabletop-rpg-support.md) | Suporte especial a RPG de mesa | Aceito (intenção) |
-| [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito; um menu próprio do Dock `[ABERTO]` (2026-09-29) |
+| [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito; nenhum menu próprio do Dock por enquanto (decidido em 2026-10-07) |
 | [0051](0051-development-flow-and-releases.md) | Fluxo de desenvolvimento, versões e releases | Aceito |
 | [0058](0058-demo-vault-as-tutorial.md) | O cofre de exemplo é o tutorial do produto, mantido a cada feature | Aceito (2026-10-01; revisado no mesmo dia: o roteiro roda por máquina no harness do navegador); o cofre de exemplo em inglês `[ABERTO]` |
 
