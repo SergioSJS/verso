@@ -1,4 +1,4 @@
-# AI draft (Opus 5.5, 2026-10-07), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-10-07 in session ("ta aprovado a fixture"); drafted by Opus 5.5 on 2026-10-07 (ADR 0031).
 # Construct: `verso-schema` blocks that type nothing. One inside a list item
 # and one inside a quote are reported as nested and not read (ADR 0052
 # point 3: only a block at the top level counts, so a quoted example stays an

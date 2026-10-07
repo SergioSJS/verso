@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.26
+# Verso dialect spec — v0.27
 
-- Version: v0.26 · 2026-10-07
+- Version: v0.27 · 2026-10-07
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -193,7 +193,7 @@ A block that is nested or that types nothing has no `type`, `labels` or
 `properties`. Added on 2026-10-07 with the implementation of ADR 0052
 (`docs/reference/typed-note-decision.md` §8, rows 1 and 2), with the drafted
 fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid`,
-awaiting the maintainer's approval.
+approved on 2026-10-07.
 
 ---
 
@@ -663,7 +663,7 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | heading | 5.12 | required by feature 1 of Phase 1 |
 | Markdown link to a local file | 5.13 | `PROPOSED` |
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
-| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, awaiting approval |
+| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day |
 
 Any fixture may be drafted by the AI; it only counts with the maintainer's
 approval in the PR that adds it (ADR 0031). A draft says so on the first line
@@ -1252,3 +1252,4 @@ the parser was chosen.
 | v0.24 | 2026-10-02 | The fixture `fixtures/frontmatter/property-links` **approved by the maintainer** in session ("Já aprovo agora"), before 0.3.0-beta.3; its draft mark removed. Nothing else changes. |
 | v0.25 | 2026-10-02 | Organizing properties ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDED` in section 6. |
 | v0.26 | 2026-10-07 | The typed note's implementation ([ADR 0052](../adr/0052-typed-note.md)) begins: **`schemas`** enters the fixture schema (§4.1, §4.8), with the category `schema` in §8 and two drafted fixtures awaiting the maintainer's approval. The header's version, left at v0.24 by v0.25, catches up |
+| v0.27 | 2026-10-07 | The fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid` **approved by the maintainer** in session ("ta aprovado a fixture"); their draft mark removed. Nothing else changes. |
