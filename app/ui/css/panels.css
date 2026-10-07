@@ -457,6 +457,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 
 /* Image grip and size badge */
 .cm-lp-image-box, .preview-image-box { position: relative; display: inline-block; line-height: 0; vertical-align: top; max-width: 100%; }
+/* An image with no size of its own (imageFit.ts) fills the line. */
+.image-fluid { display: block; }
+.image-fluid > img { width: 100%; height: auto; }
 .cm-lp-grip { position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; border: 2px solid var(--paper); border-radius: 3px; background: var(--seal); cursor: nwse-resize; opacity: 0; transition: opacity .12s; z-index: 5; }
 .cm-lp-image-box:hover .cm-lp-grip, .preview-image-box:hover .cm-lp-grip { opacity: 1; }
 .cm-lp-image-box:hover .cm-lp-image, .cm-lp-image-box:hover img, .preview-image-box:hover img { outline: 2px solid var(--seal-wash); outline-offset: 2px; }

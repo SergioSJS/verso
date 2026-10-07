@@ -43,6 +43,12 @@ in the real app.
 - [ ] **Templates in a new note** (ADR 0068): ⌘N — "Começar com" under the title; choose "Nota de Reunião": the note is the template with today's date; ⌘Z takes it back; a new note with Em branco stays as it was.
 - [ ] **The new identifier keeps the window's settings**: after updating from 0.4.0-beta.1, the theme, the keys and a table's column width are as they were; the log says "window data carried over to com.versomd.app.beta" once.
 - [ ] **A PDF's cover in a folder's view**: open `assets` of the demo vault, Thumbnails — the PDF shows its first page; switch to List and back to the table — the items stay.
+- [ ] **⌘Z from the menu with the focus off the text**: in a note in
+  Editar, type two words a second apart, click Editar's button, press
+  ⌘Z twice — each word goes in turn; ⌘⇧Z brings the last back.
+- [ ] **An SVG in Editar**: note 06 of the demo vault, Editar — the
+  diagram shows, and stays when selected with the text around it. Left
+  of a note's title with no sticker, a faint sparkle, not a star.
 - [ ] **The version in the files' addresses** (cache after an update):
   after updating, the window shows the new version's interface at once,
   with no stale screen; the PDF reader and a board still open.
@@ -52,17 +58,8 @@ in the real app.
 Reported in the backlog, changed since, but with no test that covers
 them; if they still happen, a step that makes them happen is enough.
 
-- [ ] ⌘Z sometimes undoes nothing, or the wrong change (Backlog,
-  2026-09-24).
-- [ ] The arrow keys on bullets and checkboxes in Editar skip a line or
-  mark the wrong one (Backlog2, 2026-09-27).
-- [ ] App Exposé (⌃↓) lists every Verso window (Backlog, 2026-09-24).
-- [ ] Dragging a tab to the right edge, with both side bars open, shows
-  the preview where the tab will land (Backlog, 2026-09-24).
-- [ ] Parts of the interface that do not fit a narrow window (Backlog,
-  2026-09-24; its screenshot was not in the vault).
-- [ ] "Quando eu seleciono texto no modo Editar e ele tem imagens" — the
-  sentence was left unfinished (Backlog, 2026-09-24).
+- [ ] App Exposé (⌃↓) lists every Verso window (Backlog, 2026-09-24):
+  a window of the system, which the browser harness cannot show.
 
 ## Checked
 
@@ -71,3 +68,11 @@ them; if they still happen, a step that makes them happen is enough.
   (0.4.0-beta.1, checked by the maintainer on 2026-10-07).
 - [x] The typed note's panel and the MCP's nine tools (0.4.0-beta.1,
   2026-10-07).
+- [x] Covered by `app/ui/e2e/backlog-repro.spec.mjs` on 2026-10-07, so
+  out of this list: the arrow keys and the caret on bullets and
+  checkboxes in Editar (no fault found); a tab dragged to the right edge
+  with both bars open (no fault found); a narrow window (the closed right
+  bar stood 4px past the edge — fixed); ⌘Z with the focus off the text
+  (undid nothing — fixed); and the unfinished sentence on selecting text
+  with images (an SVG with no size of its own was an empty line in
+  Editar — fixed).

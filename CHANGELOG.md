@@ -20,9 +20,14 @@ test release.
 
 ### Changed
 
+- **A note with no sticker shows a faint sparkle left of its title, not a star**: the star, at the title's other end, is the bookmark's; two stars meant two things.
 - **The app's identifier is `com.versomd.app`** (`com.versomd.app.beta` for the betas), after the project's domain ([ADR 0004](docs/adr/0004-project-name-verso.md)). The window's settings, keys, column widths and local focuses come along on the first start; macOS may ask once more for access to a folder.
 
 ### Fixed
+
+- **⌘Z undoes the note's changes in order when the focus is on a button**: with the focus on a button, a tab or a checkbox instead of the text, the menu's Undo ran the web view's own, which knows nothing of the editor's history — it undid nothing, or the wrong change. The note in Editar or Fonte takes it now.
+- **An SVG with no size of its own shows in Editar**: a picture whose width and height are percents (the demo vault's diagram) shrank to an empty line in Editar, selected or not, and in Leitura when written `![](x.svg)`. It fills the note's width now.
+- **Nothing stands past the window's right edge with the right bar closed**: its divider and border stood 4px past it, which a scroll could bring into view.
 
 - **A name already taken is not an error in the log**: naming a note, a folder or a file with a name the folder already has is said in the status bar, as before, and logged as information, so the log's errors (and the bug report's) are only what went wrong.
 - **A folder's Thumbnails and List views show its items**: a folder opened as a table showed an empty view when switched to them.
