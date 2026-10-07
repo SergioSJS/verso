@@ -53,6 +53,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0063](0063-files-onto-the-board.md) | Pôr imagens e arquivos no board: soltar, colar, escolher e arrastar | Aceito (2026-10-06) |
 | [0064](0064-tables-edited-as-tables.md) | Tabelas editadas como tabelas no modo Editar | Aceito (2026-10-06) |
 | [0065](0065-a-folder-per-window.md) | Uma pasta por janela | Aceito (2026-10-06) |
+| [0066](0066-mcp-sees-boards-relations-properties-bases.md) | O MCP enxerga boards, relações, propriedades e bases | Aceito (2026-10-07) |
 
 ### Plugins e LLM
 

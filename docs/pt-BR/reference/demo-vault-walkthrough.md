@@ -389,6 +389,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `verso backlinks <pasta> "Projeto Alpha"` (o nome, como num link, ou o
    caminho); `--unresolved`; `--json`. Nível: A. Pegou: só um caminho era
    achado (2026-10-01).
+4. Um agente na pasta pelo `verso mcp` (nota 17): perguntado quais notas
+   têm a tag `projeto` e o que o "Tour do Verso" mostra, ele as lista pela
+   tag e lê os cartões e as setas do board; o `links` de uma nota com
+   `relacionado: "[[…]]"` diz a relação; o `query_base` em
+   `Projetos.base` dá as linhas da tabela. Nada na pasta muda. Nível: S
+   (`crates/verso-cli/tests/mcp.rs`), A (um cliente: Claude Desktop ou
+   Claude Code).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 

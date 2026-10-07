@@ -121,7 +121,7 @@ Execution order from briefing §15:
 | ~~Disambiguation rule between `verso <folder>` and a subcommand~~ | decided 2026-09-22: a subcommand is required in Phase 1; the Phase 2 rule recorded and still open (`docs/reference/cli-decision.md`) | [0042](adr/0042-open-from-command-line.md) |
 | ~~FTS5 tokenizer for pt-BR and EN~~ | decided 2026-09-22: `unicode61` with `remove_diacritics 2`, no stemming | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Performance targets | after feature 5 produces the baseline; the Mac baseline exists since commit `6b53c64` (`crates/verso-bench/baselines.json`), the targets are still open | [0039](adr/0039-performance-targets.md) |
-| ~~MCP transport, exposed surface, protocol version~~ | decided 2026-09-22: stdio, seven read-only tools, the version `initialize` negotiates (`docs/reference/mcp-decision.md`) | [0045](adr/0045-server-and-mcp-security.md) |
+| ~~MCP transport, exposed surface, protocol version~~ | decided 2026-09-22: stdio, seven read-only tools, the version `initialize` negotiates (`docs/reference/mcp-decision.md`); widened on 2026-10-07 to nine — typed relations, boards, properties and tags, bases | [0045](adr/0045-server-and-mcp-security.md), [0066](adr/0066-mcp-sees-boards-relations-properties-bases.md) |
 | ~~What an opaque handle identifies and for how long~~ | decided 2026-09-24, as built: notes named by their relative path — the MCP, the CLI and the window — and the handle an index into a table of paths inside the process; re-opened before anything outside the app's own views gets access to files (`docs/reference/handles-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 
 ### Exit criterion

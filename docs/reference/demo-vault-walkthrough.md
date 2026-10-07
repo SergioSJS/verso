@@ -382,6 +382,13 @@ point 13).
    `verso backlinks <folder> "Projeto Alpha"` (its name, as a link names
    it, or its path); `--unresolved`; `--json`. Level: A. Caught: only a path
    was found (2026-10-01).
+4. An agent on the folder through `verso mcp` (note 17): asked which notes
+   have the tag `projeto` and what "Tour do Verso" shows, it lists them by
+   tag and reads the board's cards and edges; `links` of a note with
+   `relacionado: "[[…]]"` names the relation; `query_base` on
+   `Projetos.base` gives the table's rows. Nothing in the folder changes.
+   Level: S (`crates/verso-cli/tests/mcp.rs`), A (a client: Claude Desktop
+   or Claude Code).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

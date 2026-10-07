@@ -232,7 +232,7 @@ fn a_client_initializes_lists_the_tools_and_walks_the_graph() {
             .contains("read-only")
     );
 
-    // The seven tools, and nothing that writes a note.
+    // The nine tools (ADR 0066), and nothing that writes a note.
     let mut names: Vec<&str> = r[1]["result"]["tools"]
         .as_array()
         .unwrap()
@@ -247,6 +247,8 @@ fn a_client_initializes_lists_the_tools_and_walks_the_graph() {
             "index",
             "links",
             "list_notes",
+            "query_base",
+            "read_board",
             "read_note",
             "search",
             "unresolved"
@@ -521,4 +523,242 @@ fn a_note_that_is_not_utf8_answers_not_text() {
     assert_eq!(r["result"]["isError"], true, "{r:?}");
     assert_eq!(structured(&r)["kind"], "not_text", "{r:?}");
     session.close();
+}
+
+/// What ADR 0066 lets an agent see: typed relations on links and
+/// backlinks, a note's properties and tags, the notes by tag and property,
+/// boards listed and read, a base evaluated, and a base or a picture asked
+/// as a note refused with the tool that reads it. Every answer is checked
+/// against the schema its tool declares.
+#[test]
+fn an_agent_sees_relations_properties_tags_boards_and_bases() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _t = note(
+        vault.path(),
+        "Taverna.md",
+        "---\naliado: \"[[Barão]]\"\nstatus: ativo\nnota: 7\nfechada: false\ntags: [local, projeto/ativo]\n---\n# Taverna\n\nVer [[Barão]]. #segredo\n",
+    );
+    let _b = note(
+        vault.path(),
+        "Barão.md",
+        "---\nstatus: Morto\n---\n# Barão\n",
+    );
+    let _q = note(
+        vault.path(),
+        "Mesa.canvas",
+        "{\n\t\"nodes\":[\n\t\t{\"id\":\"g\",\"type\":\"group\",\"x\":0,\"y\":0,\"width\":900,\"height\":500,\"label\":\"Mesa\"},\n\t\t{\"id\":\"a\",\"type\":\"file\",\"file\":\"Barão.md\",\"x\":20,\"y\":20,\"width\":300,\"height\":200},\n\t\t{\"id\":\"t\",\"type\":\"text\",\"text\":\"ver [[Taverna]]\",\"x\":400,\"y\":20,\"width\":250,\"height\":60}\n\t],\n\t\"edges\":[\n\t\t{\"id\":\"e\",\"fromNode\":\"a\",\"toNode\":\"t\",\"label\":\"aliado\",\"verso\":{\"relation\":\"aliado\"}}\n\t],\n\t\"verso\":{\"version\":1,\"drawing\":[{\"id\":\"d\",\"type\":\"text\",\"text\":\"lembrar\"}]}\n}",
+    );
+    let _p = note(
+        vault.path(),
+        "Locais.base",
+        "filters:\n  and:\n    - file.hasTag(\"local\")\nviews:\n  - type: table\n    name: Todos\n    order:\n      - file.name\n      - status\n      - nota\n",
+    );
+    let mut session = Session::start(vault.path(), config.path());
+    let mut requests = initialize("2025-06-18");
+    requests.extend([
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+        call(3, "links", json!({"path":"Taverna"})),
+        call(4, "backlinks", json!({"path":"Barão"})),
+        call(5, "read_note", json!({"path":"Taverna"})),
+        call(6, "list_notes", json!({})),
+        call(7, "list_notes", json!({"tag":"#PROJETO"})),
+        call(
+            8,
+            "list_notes",
+            json!({"property":"status","value":"morto"}),
+        ),
+        call(9, "read_board", json!({"path":"Mesa.canvas"})),
+        call(10, "query_base", json!({"path":"Locais.base"})),
+        call(11, "read_note", json!({"path":"Locais.base"})),
+        call(12, "read_board", json!({"path":"Taverna.md"})),
+        call(13, "list_notes", json!({"value":"ativo"})),
+        call(14, "query_base", json!({"path":"Taverna.md"})),
+    ]);
+    let r = session.requests(&requests);
+    session.close();
+    assert_eq!(r.len(), 14, "{r:?}");
+    let tools = r[1]["result"]["tools"].as_array().unwrap();
+    let schema_of = |name: &str| &tools.iter().find(|t| t["name"] == name).unwrap()["outputSchema"];
+    for (i, tool) in [
+        (2, "links"),
+        (3, "backlinks"),
+        (4, "read_note"),
+        (5, "list_notes"),
+        (6, "list_notes"),
+        (8, "read_board"),
+        (9, "query_base"),
+        (10, "read_note"),
+        (11, "read_board"),
+        (12, "list_notes"),
+        (13, "query_base"),
+    ] {
+        let schema = schema_of(tool);
+        assert!(
+            describes(schema, schema, structured(&r[i])),
+            "{tool}: {} is not described by {schema}",
+            structured(&r[i])
+        );
+    }
+
+    // Typed relations: the property's key, null for the body's link.
+    let links = structured(&r[2])["links"].as_array().unwrap().clone();
+    let rel: Vec<(String, Value)> = links
+        .iter()
+        .map(|l| {
+            (
+                l["target"].as_str().unwrap().to_owned(),
+                l["relation"].clone(),
+            )
+        })
+        .collect();
+    assert!(
+        rel.contains(&("Barão".to_owned(), json!("aliado"))),
+        "{rel:?}"
+    );
+    assert!(rel.contains(&("Barão".to_owned(), Value::Null)), "{rel:?}");
+    let back = structured(&r[3])["backlinks"].as_array().unwrap().clone();
+    assert!(
+        back.iter()
+            .any(|b| b["from"] == "Taverna.md" && b["relation"] == "aliado")
+    );
+    assert!(
+        back.iter().any(|b| b["from"] == "Mesa.canvas"),
+        "a board's card links too"
+    );
+
+    // Properties, typed, and tags.
+    let n = structured(&r[4]);
+    assert_eq!(
+        n["properties"][0],
+        json!({"key":"aliado","value":"[[Barão]]"})
+    );
+    assert_eq!(n["properties"][1], json!({"key":"status","value":"ativo"}));
+    assert_eq!(n["properties"][2], json!({"key":"nota","value":7}));
+    assert_eq!(n["properties"][3], json!({"key":"fechada","value":false}));
+    assert_eq!(
+        n["properties"][4]["value"],
+        json!(["local", "projeto/ativo"])
+    );
+    let mut tags: Vec<&str> = n["tags"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t.as_str().unwrap())
+        .collect();
+    tags.sort_unstable();
+    assert_eq!(tags, ["local", "projeto/ativo", "segredo"]);
+
+    // Lists: boards with notes; filters by tag and by property.
+    assert_eq!(
+        structured(&r[5])["notes"],
+        json!(["Barão.md", "Mesa.canvas", "Taverna.md"])
+    );
+    assert_eq!(structured(&r[6])["notes"], json!(["Taverna.md"]));
+    assert_eq!(structured(&r[7])["notes"], json!(["Barão.md"]));
+
+    // A board: cards with their group, an edge with its relation, the
+    // drawing's text.
+    let b = structured(&r[8]);
+    assert_eq!(b["path"], "Mesa.canvas");
+    assert_eq!(b["cards"][1]["file"], "Barão.md");
+    assert_eq!(b["cards"][1]["group"], "g");
+    assert_eq!(b["cards"][2]["text"], "ver [[Taverna]]");
+    assert_eq!(b["edges"][0]["relation"], "aliado");
+    assert_eq!(b["edges"][0]["from"], "a");
+    assert_eq!(b["annotations"], json!(["lembrar"]));
+
+    // A base evaluated as the app shows it.
+    let q = structured(&r[9]);
+    assert_eq!(q["view"], "Todos");
+    assert_eq!(q["total"], 1);
+    assert_eq!(q["columns"][1]["id"], "status");
+    let row = &q["groups"][0]["rows"][0];
+    assert_eq!(row["path"], "Taverna.md");
+    assert_eq!(row["cells"][1], "ativo");
+    assert_eq!(row["cells"][2], 7.0);
+
+    // What is not a note, not a board, not a base: refused, saying why.
+    assert_eq!(r[10]["result"]["isError"], true);
+    assert_eq!(structured(&r[10])["kind"], "not_a_note");
+    assert!(
+        structured(&r[10])["message"]
+            .as_str()
+            .unwrap()
+            .contains("query_base")
+    );
+    assert_eq!(structured(&r[11])["kind"], "not_a_board");
+    assert_eq!(structured(&r[12])["kind"], "bad_filter");
+    assert_eq!(structured(&r[13])["kind"], "not_a_base");
+}
+
+/// The edges of ADR 0066's tools: paths that name nothing of the folder
+/// refused by `read_board` and `query_base` as by `read_note`; a date cell
+/// as an ISO string; a list property matched by one item; a note whose
+/// name looks like a picture's read as the note it is; an empty filter as
+/// no filter.
+#[test]
+fn the_new_tools_refuse_what_is_not_the_folders_and_answer_dates_and_lists() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _b = note(
+        vault.path(),
+        "Barão.md",
+        "---\nfacções: [Coroa, Guilda]\n---\n# Barão\n",
+    );
+    let _f = note(vault.path(), "Foto.png.md", "# Uma nota, não uma imagem\n");
+    let _q = note(vault.path(), "Mesa.canvas", "{\"nodes\":[],\"edges\":[]}");
+    let _p = note(
+        vault.path(),
+        "Datas.base",
+        "views:\n  - type: table\n    name: Todas\n    order:\n      - file.name\n      - file.mtime\n",
+    );
+    let mut session = Session::start(vault.path(), config.path());
+    let mut requests = initialize("2025-06-18");
+    requests.extend([
+        call(2, "read_board", json!({"path":"../fora.canvas"})),
+        call(3, "read_board", json!({"path":"/etc/fora.canvas"})),
+        call(4, "read_board", json!({"path":".oculto/Mesa.canvas"})),
+        call(5, "query_base", json!({"path":"../fora.base"})),
+        call(6, "query_base", json!({"path":".oculto/x.base"})),
+        call(7, "query_base", json!({"path":"Datas.base"})),
+        call(
+            8,
+            "list_notes",
+            json!({"property":"facções","value":"GUILDA"}),
+        ),
+        call(9, "read_note", json!({"path":"Foto.png"})),
+        call(10, "read_note", json!({"path":"Sumida.png"})),
+        call(11, "list_notes", json!({"tag":"  "})),
+    ]);
+    let r = session.requests(&requests);
+    session.close();
+    assert_eq!(r.len(), 11, "{r:?}");
+    for answer in &r[1..=5] {
+        assert_eq!(answer["result"]["isError"], true, "{answer}");
+        assert_eq!(structured(answer)["kind"], "refused", "{answer}");
+    }
+    let q = structured(&r[6]);
+    assert_eq!(q["truncated"], false);
+    let modified = q["groups"][0]["rows"][0]["cells"][1].as_str().unwrap();
+    let iso = modified.len() == 16
+        && modified.as_bytes()[4] == b'-'
+        && modified.as_bytes()[7] == b'-'
+        && modified.as_bytes()[10] == b'T'
+        && modified.as_bytes()[13] == b':';
+    assert!(iso, "a date with a time is an ISO string: {modified}");
+    assert_eq!(structured(&r[7])["notes"], json!(["Barão.md"]));
+    assert_eq!(structured(&r[8])["path"], "Foto.png.md");
+    assert_eq!(structured(&r[9])["kind"], "not_a_note");
+    assert!(
+        !structured(&r[9])["message"]
+            .as_str()
+            .unwrap()
+            .contains("of the folder"),
+        "a missing file is not said to be one of the folder"
+    );
+    assert_eq!(
+        structured(&r[10])["notes"],
+        json!(["Barão.md", "Foto.png.md", "Mesa.canvas"])
+    );
 }
