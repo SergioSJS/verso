@@ -12,7 +12,13 @@ test release.
 
 ## Unreleased
 
+### Added
+
+- **A PDF shows its first page in a folder's view**: Thumbnails and List draw the cover where the PDF's mark was, once the row is on screen; a file only in the cloud keeps the mark and is not downloaded for it.
+
 ### Fixed
+
+- **A folder's Thumbnails and List views show its items**: a folder opened as a table showed an empty view when switched to them.
 
 - **After an update the window shows the new version at once**: it could show the previous version's interface, kept in the web view's cache, until the caches were cleared. The files the window loads now carry the version in their address ([ADR 0056](docs/adr/0056-embedded-web-pages.md)).
 

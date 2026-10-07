@@ -12,7 +12,13 @@ versão de teste.
 
 ## Não lançado
 
+### Acrescentado
+
+- **Um PDF mostra a primeira página na visão de pasta**: Miniaturas e Lista desenham a capa onde ficava a marca do PDF, quando a linha aparece na tela; um arquivo só na nuvem mantém a marca e não é baixado para isso.
+
 ### Corrigido
+
+- **As visões Miniaturas e Lista de uma pasta mostram os itens**: uma pasta aberta como tabela mostrava uma visão vazia ao trocar para elas.
 
 - **Depois de uma atualização a janela mostra a versão nova na hora**: podia mostrar a interface da versão anterior, guardada no cache da web view, até os caches serem limpos. Os arquivos que a janela carrega agora levam a versão no endereço ([ADR 0056](adr/0056-embedded-web-pages.md)).
 
