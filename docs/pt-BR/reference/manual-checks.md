@@ -59,6 +59,8 @@ ainda acontecem, um passo que os faça acontecer basta.
   marcam a errada (Backlog2, 2026-09-27).
 - [ ] O Exposé do app (⌃↓) lista todas as janelas do Verso (Backlog,
   2026-09-24).
+- [ ] Arrastar uma aba para a borda direita, com as duas barras laterais
+  abertas, mostra a prévia de onde a aba vai cair (Backlog, 2026-09-24).
 - [ ] Partes da interface que não cabem numa janela estreita (Backlog,
   2026-09-24; o print não estava no cofre).
 - [ ] "Quando eu seleciono texto no modo Editar e ele tem imagens" — a
