@@ -892,7 +892,7 @@ function Card({
       {picture && copy !== undefined && (crop ? (
         // The part of the picture the card shows (its crop), at the crop's
         // proportions, centred in the card.
-        <div className="board-card-image cropped" ref={cropBox}>
+        <div className="board-card-image cropped" ref={cropBox} data-path={file}>
           <div className="board-crop-view" style={cropView ? { width: `${cropView.w}px`, height: `${cropView.h}px` } : { visibility: "hidden" }}>
             <div className="board-crop-inner" style={{ left: `${(-crop.x / crop.w) * 100}%`, top: `${(-crop.y / crop.h) * 100}%`, width: `${100 / crop.w}%`, height: `${100 / crop.h}%` }}>
               <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })} />
@@ -901,7 +901,7 @@ function Card({
           </div>
         </div>
       ) : (
-        <div className="board-card-image">
+        <div className="board-card-image" data-path={file}>
           <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" />
           {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
         </div>

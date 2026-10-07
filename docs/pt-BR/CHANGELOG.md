@@ -45,6 +45,7 @@ versão de teste.
 ### Corrigido
 
 - **Uma janela mostra só a indexação da sua pasta**: com duas janelas em duas pastas, o "Indexando…" de uma aparecia na outra, inclusive numa janela sem pasta ([ADR 0065](adr/0065-a-folder-per-window.md)).
+- **O botão direito numa imagem funciona**: numa imagem de nota, do board ou na aba dela, o menu é o do Verso — abrir em nova aba ou janela, baixar, copiar, mostrar no Finder — onde aparecia o do WebKit, cujo "Download Image" e "Open Image in New Window" não faziam nada. Os downloads vão para Downloads, e a linha de status diz o nome do arquivo; o "Baixar" da exportação do board também funciona no app.
 - **Os menus do botão direito não mostram mais dois traços juntos**: o do board (onde o Verso esconde as cópias como imagem do Excalidraw, o link de um cartão e a biblioteca, agora escondida também) e os da janela (onde uma seção que um arquivo não oferece ficava de fora).
 - **Uma linha ou uma forma desenhada por cima de um cartão no board é uma linha só**: enquanto era desenhada, uma cópia vinha atrás dela por cima do cartão, em outro ângulo, e a forma passava por baixo do cartão; agora é desenhada por cima do cartão, uma vez, como vai ficar.
 - **Focos sincronizados com o make.md**: um foco criado já fica escolhido, e um caminho acrescentado a um foco novo por "Adicionar ao foco…" é mantido (sumia no salvamento seguinte); um foco que o make.md põe acima do escolhido não troca mais qual está escolhido.

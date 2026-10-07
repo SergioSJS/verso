@@ -141,7 +141,14 @@ point 13).
    is. Level: H; E: `notes.spec.mjs`. Caught: the picture was asked of the
    window's own address before the folder's, drawn 0 px wide (the size after
    an alt text was not read), and its resize rewrote the example
-   (2026-10-01).
+   (2026-10-01). A right click on the picture — here, in its own tab
+   (`assets/diagrama.svg`), on a card of the board — is Verso's menu:
+   "Abrir em nova aba", "Abrir em nova janela", "Baixar imagem" (it lands in
+   Downloads, the status line names it), "Copiar imagem", "Mostrar no
+   Finder"; the board's export "Baixar" lands in Downloads too. Level: H, A
+   (the download and the window); E: `menus.spec.mjs`. Caught: WebKit's own
+   menu showed there, and its "Download Image" and "Open Image in New
+   Window" did nothing (2026-10-06).
 5. A picture whose file name has an accent (`assets/gráfico.svg`) shows from
    the folder. Level: H; E: `notes.spec.mjs`. Caught: the renderer
    percent-encodes the address, and the window asked the core for
