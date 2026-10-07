@@ -350,6 +350,11 @@ nomeia o heading (2026-10-07, `fixtures/block/after-a-block`,
 o bloco (`fixtures/block/duplicate`). `lines` (seção 4.3) diz qual bloco um id
 nomeia.
 
+O id não aparece na leitura, e um `^id` sozinho na sua linha sai junto com
+o seu parágrafo; o editor o mostra, apagado. É assim que o Obsidian 1.14.4
+o desenha (observado em 2026-10-07: modo de leitura e Live Preview); é
+como o id é desenhado, não o que ele nomeia.
+
 ### 5.8 Callout
 
 ```markdown
@@ -1264,4 +1269,4 @@ ser escolhido.
 | v0.25 | 2026-10-02 | Propriedades de organização ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDIDAS` na seção 6. |
 | v0.26 | 2026-10-07 | Começa a implementação da nota tipada ([ADR 0052](../adr/0052-typed-note.md)): **`schemas`** entra no schema das fixtures (§4.1, §4.8), com a categoria `schema` na §8 e duas fixtures rascunhadas à espera da aprovação do mantenedor. A versão do cabeçalho, deixada em v0.24 pela v0.25, se acerta |
 | v0.27 | 2026-10-07 | As fixtures `fixtures/schema/top-level` e `fixtures/schema/nested-and-invalid` **aprovadas pelo mantenedor** em sessão ("ta aprovado a fixture"); a marca de rascunho removida. Nada mais muda. |
-| v0.28 | 2026-10-07 | **Q3, Q4 e Q21 decididas pelo mantenedor**, depois de uma observação do Obsidian pelo CLI no mesmo dia: um bloco é a unidade do editor (Q21); um `^id` sozinho depois de uma linha em branco nomeia o bloco de antes, um no fim de um heading nomeia o heading (Q3); um id é único por nota, o último de dois nomeando o bloco (Q4). Os itens de `blocks` ganham `lines` (§4.3). Três fixtures rascunhadas, à espera da aprovação do mantenedor: `block/after-a-block`, `block/heading`, `block/duplicate`. |
+| v0.28 | 2026-10-07 | **Q3, Q4 e Q21 decididas pelo mantenedor**, depois de uma observação do Obsidian pelo CLI no mesmo dia: um bloco é a unidade do editor (Q21); um `^id` sozinho depois de uma linha em branco nomeia o bloco de antes, um no fim de um heading nomeia o heading (Q3); um id é único por nota, o último de dois nomeando o bloco (Q4). Os itens de `blocks` ganham `lines` (§4.3). Três fixtures rascunhadas, à espera da aprovação do mantenedor: `block/after-a-block`, `block/heading`, `block/duplicate`. A §5.7 diz como o id é desenhado: escondido na leitura, apagado no editor, como observado. |

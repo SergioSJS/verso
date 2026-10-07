@@ -176,7 +176,7 @@ export function renderMarkdown(raw: string): string {
   let code: { lang: string; lines: string[]; fence: string } | null = null;
   let table = false;
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? "";
+    let line = lines[i] ?? "";
     // A fence closes with the same character, at least as many, and
     // nothing after them: ```` around an example holds its ``` lines.
     const fence = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
@@ -191,6 +191,11 @@ export function renderMarkdown(raw: string): string {
       code.lines.push(line);
       continue;
     }
+    // A block's `^id` is not shown, and a line of it alone goes (the
+    // core's block_ids.rs).
+    const shown = line.replace(/(^|\s)\^[A-Za-z0-9-]+\s*$/, "$1");
+    if (shown.trim() === "" && line.trim() !== "") continue;
+    line = shown;
     const cells = line.trim();
     if (cells.startsWith("|") && cells.endsWith("|")) {
       const row = cells.slice(1, -1).split("|").map((c) => c.trim());

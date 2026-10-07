@@ -23,7 +23,8 @@
 //! footnotes ([`crate::footnotes`]), callouts become `<div class="callout">`
 //! ([`crate::callouts`]), `==highlight==` becomes `<mark>`, and `#tag`
 //! becomes `<a class="tag">` by the rule the index lists tags with
-//! ([`crate::body_tags`]). Each acts on prose only: not in code, not in a
+//! ([`crate::body_tags`]), and a block's `^id` is not shown
+//! ([`crate::block_ids`]). Each acts on prose only: not in code, not in a
 //! link's label or an image's alt text, not in math, not in the
 //! frontmatter — what is code to the base stays code here (invariant 12).
 //! A task-list checkbox carries `data-task-line`, the 1-based line of its
@@ -36,7 +37,7 @@ use pulldown_cmark::{CowStr, Event, LinkType, Tag, TagEnd, html};
 
 use crate::position::LineIndex;
 use crate::tags::BodyTag;
-use crate::{callouts, comments, events, footnotes, tags};
+use crate::{block_ids, callouts, comments, events, footnotes, tags};
 use events::{Context, Offset};
 
 fn attr(s: &str) -> String {
@@ -60,6 +61,7 @@ fn attr(s: &str) -> String {
 #[must_use]
 pub fn to_html(source: &str) -> String {
     let events = comments::strip(source, events::events(source));
+    let events = block_ids::hide(source, events);
     let tags = tags::scan(source, &events);
     let events = footnotes::inline(source, events);
     let events = callouts::callouts(source, events);
@@ -630,5 +632,25 @@ mod tasks {
         let html = to_html("Sem linha em branco\n---\n- item\n");
         assert!(html.contains("<h2>Sem linha em branco</h2>"), "{html}");
         assert!(html.contains("<li>item</li>"), "{html}");
+    }
+
+    #[test]
+    fn a_block_id_is_not_shown() {
+        // Observed on Obsidian 1.14.4 on 2026-10-07: the reading view drops
+        // the `^id` of a paragraph, a heading and a list item, and a `^id`
+        // alone after a table goes with its paragraph.
+        let html = to_html(
+            "Um parágrafo. ^par\n\n## Título ^tit\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n^tab\n\n- item ^it\n  - filho\n\n`código ^cod`\n\nnão ^fim é a última\n",
+        );
+        for id in ["^par", "^tit", "^tab", "^it"] {
+            assert!(!html.contains(id), "{id}: {html}");
+        }
+        assert!(html.contains("<p>Um parágrafo. </p>"), "{html}");
+        assert!(html.contains("<h2>Título </h2>"), "{html}");
+        assert!(!html.contains("<p></p>"), "{html}");
+        assert!(html.contains("<table>"), "{html}");
+        assert!(html.contains("filho"), "{html}");
+        assert!(html.contains("^cod"), "{html}");
+        assert!(html.contains("não ^fim é a última"), "{html}");
     }
 }

@@ -67,6 +67,9 @@ export const redraw = StateEffect.define<null>();
 const WIKILINK = /(!?)\[\[([^\]\n]+)\]\]/g;
 const IMAGE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
 
+/** The syntax nodes that are code: nothing in them is decorated as text. */
+const CODE_NODES = new Set(["InlineCode", "FencedCode", "CodeBlock", "CodeText"]);
+
 /** `![[img.png|300]]` or `|300x200` or `![|60](url)` or, after an alt
  *  text, `![Diagrama|320](url)`: Obsidian's size after the last pipe. */
 export function sizeOf(alias: string | null): { w: number; h: number | null } | null {
@@ -1015,6 +1018,10 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
     if (end > from) out.push({ from, to: end, deco: Decoration.replace({}) });
   };
   const tree = syntaxTree(view.state);
+  const inCode = (pos: number): boolean => {
+    for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) if (CODE_NODES.has(n.name)) return true;
+    return false;
+  };
 
   // The frontmatter is shown by the properties panel above the editor;
   // here it folds to one quiet line (the YAML itself is for source mode).
@@ -1302,16 +1309,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       const end = start + m[0].length;
       const inner = m[2] ?? "";
       const embed = m[1] === "!";
-      let inCode = false;
-      let curr: import("@lezer/common").SyntaxNode | null = tree.resolveInner(start + 2, 1);
-      while (curr) {
-        if (curr.name === "InlineCode" || curr.name === "FencedCode" || curr.name === "CodeBlock" || curr.name === "CodeText") {
-          inCode = true;
-          break;
-        }
-        curr = curr.parent;
-      }
-      if (inCode) continue;
+      if (inCode(start + 2)) continue;
       if (math.some((r) => start < r.to && end > r.from)) continue;
       const target = (inner.split("|")[0] ?? "").split("#")[0] ?? "";
       const alias = inner.includes("|") ? (inner.split("|")[1] ?? "") : null;
@@ -1345,16 +1343,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
     while ((m = MARK_RE.exec(text)) !== null) {
       const start = from + m.index;
       const end = start + m[0].length;
-      let inCode = false;
-      let curr: import("@lezer/common").SyntaxNode | null = tree.resolveInner(start + 2, 1);
-      while (curr) {
-        if (curr.name === "InlineCode" || curr.name === "FencedCode" || curr.name === "CodeBlock" || curr.name === "CodeText") {
-          inCode = true;
-          break;
-        }
-        curr = curr.parent;
-      }
-      if (inCode) continue;
+      if (inCode(start + 2)) continue;
       if (math.some((r) => start < r.to && end > r.from)) continue;
       const isSpanTouched = touched(start, end);
       out.push({ from: start, to: end, deco: Decoration.mark({ class: "cm-lp-mark" }) });
@@ -1362,6 +1351,15 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         hide(start, start + 2);
         hide(end - 2, end);
       }
+    }
+
+    // A block's `^id` stays, quiet, as Obsidian's Live Preview shows it
+    // (the reading view drops it; observed 2026-10-07).
+    const BLOCK_ID = /(?:^|[ \t])(\^[A-Za-z0-9-]+)[ \t]*$/gm;
+    while ((m = BLOCK_ID.exec(text)) !== null) {
+      const end = from + m.index + m[0].trimEnd().length;
+      const start = end - (m[1] ?? "").length;
+      if (!inCode(start) && !math.some((r) => start < r.to && end > r.from)) out.push({ from: start, to: end, deco: Decoration.mark({ class: "cm-blockid" }) });
     }
   }
   // Nothing the view would refuse: a mark is never empty, and a widget or
