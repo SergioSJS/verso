@@ -1,0 +1,54 @@
+/* ---------- Sidebar ---------- */
+.side { display: flex; flex-direction: column; min-height: 0; background: var(--paper-2); border-right: 1px solid var(--hair); }
+.side-head { display: flex; align-items: center; gap: .5rem; padding: 1.1rem 1rem .4rem 1.1rem; }
+.folder-button { flex: 1; min-width: 0; display: flex; align-items: center; gap: .55rem; text-align: left; padding: .35rem .55rem; margin-left: -.55rem; border-radius: 6px; }
+.folder-button:hover { background: var(--paper-3); }
+.folder-button .ic { display: inline-flex; color: var(--brass); }
+.folder-name { font-family: var(--display); font-size: 1.05rem; font-weight: 600; letter-spacing: -.005em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-name:empty::before { content: attr(data-empty); color: var(--ink-2); font-weight: 400; }
+.ghost { font-size: .82rem; color: var(--ink-2); padding: .3rem .55rem; border-radius: 6px; }
+.ghost:hover:not(:disabled) { color: var(--ink); background: var(--paper-3); }
+.ghost:disabled { opacity: .35; cursor: default; }
+.ghost.danger:hover { color: var(--seal); background: var(--seal-wash); }
+
+.search .ic { display: inline-flex; color: var(--ink-3); }
+.search { display: flex; align-items: center; gap: .5rem; margin: .3rem 1.1rem .9rem; padding: .35rem .6rem; border-bottom: 1px solid var(--hair); }
+.search:focus-within { border-bottom-color: var(--brass); }
+.search input { flex: 1; min-width: 0; font: inherit; font-size: .92rem; background: none; border: 0; padding: .1rem 0; color: var(--ink); -webkit-appearance: none; }
+.search input::placeholder { color: var(--ink-3); }
+.search input:disabled { opacity: .5; }
+.search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+.side-body { flex: 1; overflow: auto; padding: 0 .6rem 2rem; }
+.side-title { font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: .4rem .5rem .5rem; }
+.side-title:empty { display: none; }
+.side-title { display: flex; align-items: center; gap: .3rem; }
+.side-order { display: inline-grid; place-items: center; padding: .15rem; margin: -.2rem 0; border-radius: 4px; color: var(--ink-3); letter-spacing: normal; }
+.side-order:hover, .side-order:focus-visible { color: var(--ink); background: var(--paper-3); }
+.side-order .icon { width: 13px; height: 13px; }
+
+/* Tree: folders are small caps, notes are plain lines, depth is a hairline. */
+.tree, .tree ul, .list { list-style: none; margin: 0; padding: 0; }
+.tree ul { margin-left: .75rem; padding-left: .5rem; border-left: 1px solid var(--hair); }
+.tree summary { list-style: none; display: flex; align-items: center; gap: .4rem; padding: .28rem .5rem; border-radius: 5px; font-size: .78rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); cursor: pointer; user-select: none; }
+.tree summary::-webkit-details-marker { display: none; }
+.tree summary::before { content: ""; width: 5px; height: 5px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(-45deg); transition: transform .18s var(--ease-out); flex: none; margin-left: .1rem; }
+.tree details[open] > summary::before { transform: rotate(45deg); }
+.tree summary:hover { color: var(--ink); background: var(--paper-3); }
+.tree li > button, .list li > button { display: block; width: 100%; text-align: left; padding: .3rem .5rem; border-radius: 5px; font-size: .93rem; line-height: 1.35; color: var(--ink); }
+.tree li > button:hover, .list li > button:hover { background: var(--paper-3); }
+.tree li > button[aria-current="true"], .list li > button[aria-current="true"] { color: var(--seal); font-weight: 600; background: var(--seal-wash); }
+.list .path { display: block; font-size: .74rem; color: var(--ink-3); font-weight: 400; letter-spacing: .01em; }
+.list .snippet { display: block; font-family: var(--book); font-size: .84rem; color: var(--ink-2); font-weight: 400; margin-top: .15rem; line-height: 1.4; }
+.list mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .1em; }
+.empty { color: var(--ink-3); padding: .3rem .5rem; font-size: .9rem; }
+
+/* Staggered reveal when a folder opens (`.reveal`, set by listAll once
+   per folder); a redraw of the same tree does not rise again. */
+.tree.reveal > li, .list > li { animation: rise .32s var(--ease-out) both; }
+.tree.reveal > li:nth-child(n+2) { animation-delay: calc(var(--i, 0) * 18ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+/* Reduced motion: nothing slides, fades or grows — every animation and
+   transition of the window, not only the tree's, ends at once. */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; } }
+

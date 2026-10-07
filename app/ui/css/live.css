@@ -1,0 +1,303 @@
+/* Live preview marks */
+.editor .cm-line.cm-lp-h { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; line-height: 1.2; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
+.editor .cm-line.cm-lp-h1 { font-size: 1.65em; }
+.editor .cm-line.cm-lp-h2 { font-size: 1.35em; }
+.editor .cm-line.cm-lp-h3 { font-size: 1.12em; }
+.editor .cm-line.cm-lp-h4, .editor .cm-line.cm-lp-h5, .editor .cm-line.cm-lp-h6 { font-family: var(--ui); font-size: 1em; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+.editor .cm-lp-strong { font-weight: 600; }
+.editor .cm-lp-em { font-style: italic; }
+.editor .cm-lp-strike { text-decoration: line-through; color: var(--ink-3); }
+.editor .cm-lp-mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .15em; }
+.editor .cm-lp-code { font-family: var(--mono); font-size: .88em; background: var(--paper-3); border-radius: 3px; padding: 0 .25em; }
+
+/* Fenced code blocks in Live Preview */
+.editor .cm-line.cm-lp-fence {
+  font-family: var(--mono);
+  font-size: .88em;
+  background: var(--paper-2);
+  padding-left: 1.1em;
+  padding-right: 1.1em;
+}
+.editor .cm-line.cm-lp-fence-first {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  padding-top: .45rem;
+}
+.editor .cm-line.cm-lp-fence-first.cm-lp-fence-closed {
+  min-height: 1.5em;
+  display: flex;
+  align-items: center;
+}
+.editor .cm-line.cm-lp-fence-last {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  padding-bottom: 1.25rem;
+}
+.editor .cm-line.cm-lp-fence-last.cm-lp-fence-closed {
+  min-height: .4em;
+  line-height: .4em;
+}
+.editor .cm-line.cm-lp-fence-single {
+  border-radius: 6px;
+  padding-top: .35rem;
+  padding-bottom: 1.15rem;
+}
+.editor .cm-lp-fence-lang {
+  font-family: var(--ui);
+  font-size: .74em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-3);
+  padding: .1rem .4rem;
+  background: var(--paper-3);
+  border-radius: 3px;
+  display: inline-block;
+  user-select: none;
+}
+
+/* Blockquotes in Live Preview */
+.editor .cm-line.cm-lp-quote {
+  border-left: 2px solid var(--brass);
+  padding-left: 1.1em;
+  color: var(--ink-2);
+  font-style: italic;
+}
+.editor .cm-line.cm-lp-quote-head {
+  padding-top: .2rem;
+}
+.editor .cm-line.cm-lp-quote-tail {
+  padding-bottom: .8rem;
+}
+
+/* Callouts in Live Preview */
+.editor .cm-line.cm-lp-callout {
+  background: var(--paper-2);
+  border-left: 3px solid var(--callout-color, var(--brass));
+  padding-left: 1rem;
+  padding-right: .8rem;
+}
+.editor .cm-line.cm-lp-callout-head {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  padding-top: .5rem;
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: .86em;
+  letter-spacing: .03em;
+  color: var(--callout-color, var(--brass-ink));
+}
+.editor .cm-lp-callout-tag {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: .82em;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--callout-color, var(--brass-ink));
+  margin-right: .35em;
+}
+.editor .cm-line.cm-lp-callout-tail {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  padding-bottom: 1.3rem;
+}
+.editor .cm-line.cm-lp-callout-note,
+.editor .cm-line.cm-lp-callout-info,
+.editor .cm-line.cm-lp-callout-abstract,
+.editor .cm-line.cm-lp-callout-summary,
+.editor .cm-line.cm-lp-callout-tldr {
+  --callout-color: light-dark(oklch(50% 0.1 240), oklch(75% 0.1 240));
+}
+.editor .cm-line.cm-lp-callout-tip,
+.editor .cm-line.cm-lp-callout-hint,
+.editor .cm-line.cm-lp-callout-success,
+.editor .cm-line.cm-lp-callout-check,
+.editor .cm-line.cm-lp-callout-done {
+  --callout-color: light-dark(oklch(49% 0.12 150), oklch(75% 0.12 150));
+}
+.editor .cm-line.cm-lp-callout-warning,
+.editor .cm-line.cm-lp-callout-caution,
+.editor .cm-line.cm-lp-callout-attention,
+.editor .cm-line.cm-lp-callout-question,
+.editor .cm-line.cm-lp-callout-help,
+.editor .cm-line.cm-lp-callout-faq {
+  --callout-color: light-dark(oklch(51% 0.14 70), oklch(78% 0.14 75));
+}
+.editor .cm-line.cm-lp-callout-danger,
+.editor .cm-line.cm-lp-callout-error,
+.editor .cm-line.cm-lp-callout-bug,
+.editor .cm-line.cm-lp-callout-failure,
+.editor .cm-line.cm-lp-callout-fail,
+.editor .cm-line.cm-lp-callout-missing {
+  --callout-color: var(--seal);
+}
+.editor .cm-line.cm-lp-callout-example {
+  --callout-color: light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300));
+}
+.editor .cm-line.cm-lp-callout-quote,
+.editor .cm-line.cm-lp-callout-cite {
+  --callout-color: var(--ink-3);
+}
+
+/* Lists and Bullets in Live Preview */
+.editor .cm-line.cm-lp-li {
+  position: relative;
+  padding-left: calc(1.5em + var(--lp-depth, 0) * 1.5em);
+  /* The reading view's list rhythm (`.preview li`). */
+  line-height: 1.6;
+  padding-top: .12em;
+  padding-bottom: .12em;
+}
+.editor .cm-line.cm-lp-li-raw {
+  position: relative;
+  padding-left: .5rem;
+}
+.editor .cm-line.cm-lp-bullet::before {
+  content: "";
+  display: inline-block;
+  --lp-bullet-size: 0.38em;
+  width: var(--lp-bullet-size);
+  height: var(--lp-bullet-size);
+  border-radius: 50%;
+  background: var(--brass);
+  margin-left: calc(-0.75em - var(--lp-bullet-size) / 2);
+  margin-right: calc(0.75em - var(--lp-bullet-size) / 2);
+  vertical-align: calc(0.36em - var(--lp-bullet-size) / 2);
+}
+.editor .cm-line.cm-lp-ordered .cm-lp-order-mark {
+  display: inline-block;
+  width: 1.5em;
+  margin-left: -1.5em;
+  padding-right: 0.35em;
+  text-align: right;
+  box-sizing: border-box;
+  color: var(--brass);
+  font-variant-numeric: tabular-nums;
+  vertical-align: baseline;
+}
+.editor input.cm-lp-task-check {
+  appearance: auto;
+  -webkit-appearance: auto;
+  accent-color: var(--seal);
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  padding: 0;
+  display: inline-block;
+  margin-left: -1.25em;
+  margin-right: 0.25em;
+  vertical-align: -0.02em;
+  cursor: pointer;
+}
+.editor .cm-line.cm-lp-task-done { color: var(--ink-3); text-decoration: line-through; }
+
+/* Single unified vertical hierarchy guide line for ALL list types (bullets, tasks, ordered) */
+.editor .cm-line.cm-lp-li[style*="--lp-depth"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0.75em;
+  width: calc((var(--lp-depth, 1) - 1) * 1.5em + 1.5px);
+  background-image: repeating-linear-gradient(
+    to right,
+    color-mix(in oklch, var(--ink) 22%, transparent) 0,
+    color-mix(in oklch, var(--ink) 22%, transparent) 1.5px,
+    transparent 1.5px,
+    transparent 1.5em
+  );
+  pointer-events: none;
+}
+.editor .cm-lp-link { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 40%, transparent); cursor: pointer; text-decoration: none; }
+.editor .cm-lp-hr { color: var(--brass); letter-spacing: .3em; }
+
+/* Horizontal rule line in Live Preview */
+.editor .cm-line.cm-lp-hr-line {
+  position: relative;
+  text-align: center;
+  padding: .8em 0;
+}
+.editor .cm-line.cm-lp-hr-line::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--hair);
+}
+.editor .cm-line.cm-lp-hr-line::after {
+  content: "⁂";
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
+  padding: 0 .8em;
+  color: var(--brass);
+  letter-spacing: .5em;
+  font-size: .9em;
+}
+.editor .cm-line.cm-lp-table { font-family: var(--mono); font-size: .86em; line-height: 1.6; white-space: pre; }
+/* Blocks shown rendered in Live Preview until the caret enters them */
+.editor .cm-lp-block { cursor: text; padding: .3rem 0; }
+.editor .cm-lp-math { text-align: center; padding: .4rem 0; }
+.editor .cm-lp-table table { border-collapse: collapse; font-family: var(--book); font-size: .95em; }
+.editor .cm-lp-table th, .editor .cm-lp-table td { padding: .3rem .7rem; border-bottom: 1px solid var(--hair); text-align: left; }
+.editor .cm-lp-table th { font-family: var(--ui); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.table-col-grip { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; z-index: 2; }
+.table-col-grip:hover, .table-col-grip:active { background: var(--brass); }
+.cm-lp-iframe-wrap { padding: .8rem 0; width: 100%; }
+.cm-lp-iframe-wrap iframe, .preview iframe { max-width: 100%; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); }
+/* An embedded page not loaded yet: remote content off, or on the local
+ * network and not approved (sanitize.ts). */
+.embed-gate { display: flex; flex-direction: column; gap: .5rem; margin: .6rem 0; padding: .8rem 1rem; border: 1px dashed var(--hair); border-radius: 6px; color: var(--ink-2); font-size: .88rem; }
+.embed-gate-origin { align-self: flex-start; overflow-wrap: anywhere; }
+.embed-gate-text { margin: 0; line-height: 1.5; }
+.embed-gate-actions { display: flex; gap: .5rem; }
+/* An embedded note's block: the reading view's frame (`.embed-note`) inside
+   it, its margins as the block's padding. */
+.editor .cm-lp-block.cm-lp-embed { padding: .6em 0 1em; }
+.editor .cm-lp-block.cm-lp-embed > .embed-note { margin: 0; }
+/* The reading view's title is a link, and draws as one (`.preview a`). */
+.editor .embed-note-title { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); }
+/* The body is a `.preview`, for the reading view's type; not its place in
+   the page (its gutter and offsets), and not the editor's own spacing:
+   inside `.cm-lineWrapping`, `white-space: break-spaces` drew every line
+   break between the rendered blocks as an empty line. `.preview` twice in
+   the selector: the reading view's line-number gutter
+   (`html.show-line-numbers-preview .preview`) must not reach it. */
+.editor .cm-lp-embed-body.preview { font-family: var(--book); white-space: normal; margin: 0; padding-left: 0; max-width: none; }
+.editor .cm-lp-embed-body > :first-child { margin-top: 0; }
+/* A picture of the embedded note is bounded like the note's own
+   (`.cm-lp-image`): the reading view bounds it with `.preview img`. */
+.editor .cm-lp-embed-body img { max-width: 100%; max-height: 26rem; height: auto; }
+.editor .cm-lp-imath .katex { font-size: 1em; }
+.editor .cm-lp-wikilink { color: var(--seal); border-bottom: 1px solid color-mix(in oklch, var(--seal) 45%, transparent); cursor: pointer; }
+.editor .cm-lp-embed { border-bottom-style: dashed; }
+.editor .cm-lp-image { max-width: 100%; max-height: 26rem; border-radius: 3px; display: block; padding: .4em 0; }
+
+/* Conflict: a notice in the margin voice, not a modal. */
+.conflict { margin: 1.2rem 0 0; padding: .9rem 0 .9rem 1.1rem; border-left: 2px solid var(--seal); }
+.conflict p { margin: 0 0 .6rem; font-size: .9rem; color: var(--seal); }
+.diff { margin: 0 0 .7rem; max-height: 18rem; overflow: auto; font-family: var(--mono); font-size: .8rem; line-height: 1.5; white-space: pre-wrap; background: var(--paper-2); padding: .6rem .8rem; border-radius: 4px; }
+.diff .del { background: var(--seal-wash); }
+.diff .add { background: var(--brass-wash); }
+.conflict-actions { display: flex; gap: .4rem; }
+
+/* Backlinks, under the note, past a hairline */
+.links { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--hair); max-width: 100ch; }
+.section-title { font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 .5rem; }
+.link-list { list-style: none; margin: 0; padding: 0; }
+.link-list li > button { display: block; width: 100%; text-align: left; padding: .3rem 0; font-family: var(--book); font-size: .95rem; color: var(--ink); border-radius: 4px; }
+.link-list li > button:hover { color: var(--seal); }
+.link-list .path { display: block; font-family: var(--ui); font-size: .74rem; color: var(--ink-3); }
+.link-list .empty { padding: .2rem 0; font-style: italic; font-family: var(--book); }
+
+/* Outline, in the sidebar, for the active tab */
+.side-outline { border-top: 1px solid var(--hair); padding: .6rem .6rem 1rem; max-height: 38%; overflow: auto; }
+.outline { list-style: none; margin: 0; padding: 0; }
+.outline li > button { display: block; width: 100%; text-align: left; padding: .2rem .5rem; font-size: .8rem; line-height: 1.35; color: var(--ink-2); border-radius: 4px; }
+.outline li > button:hover { color: var(--ink); background: var(--paper-3); }
+.outline li > button.level-1 { color: var(--ink); font-weight: 600; }
+.outline li > button.level-3 { padding-left: 1.2rem; }
+.outline li > button.level-4, .outline li > button.level-5, .outline li > button.level-6 { padding-left: 1.9rem; color: var(--ink-3); }
+

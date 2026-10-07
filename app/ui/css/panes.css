@@ -1,0 +1,296 @@
+/* ---------- Page: a row of panes ---------- */
+/* One column that may shrink: an `auto` column would grow to the status bar's min-content and push the whole page past its track. */
+.work { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "spaces" "panes" "status"; min-height: 0; min-width: 0; container-type: inline-size; }
+.spaces { grid-area: spaces; }
+.panes { grid-area: panes; }
+.status-bar { grid-area: status; }
+.panes { display: flex; min-height: 0; min-width: 0; }
+.panes > .split { flex: 1; }
+.split { display: flex; min-height: 0; min-width: 0; }
+.split.row { flex-direction: row; }
+.split.col { flex-direction: column; }
+.split > .split { flex: 1 1 0; }
+.pane { flex: 1 1 0; min-width: 140px; min-height: 140px; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.divider { flex: none; position: relative; z-index: 1; }
+.divider.row { width: 7px; margin: 0 -3px; cursor: col-resize; }
+.divider.col { height: 7px; margin: -3px 0; cursor: row-resize; }
+.divider::after { content: ""; position: absolute; background: var(--hair); transition: background .15s; }
+.divider.row::after { inset: 0 3px; }
+.divider.col::after { inset: 3px 0; }
+.divider:hover::after, .divider:active::after { background: var(--brass); }
+.divider.row:hover::after, .divider.row:active::after { inset: 0 2px; }
+.divider.col:hover::after, .divider.col:active::after { inset: 2px 0; }
+
+/* Drop targets while a tab is dragged */
+.tab.dragging { opacity: .4; }
+.tab .tab-pin { display: none; width: 12px; height: 12px; color: var(--brass); }
+.tab.pinned .tab-pin { display: inline-flex; }
+.tab.pinned .tab-close { display: none; }
+.tabs.drop { box-shadow: inset 0 -2px 0 var(--brass); }
+.pane-body { position: relative; }
+.pane-body.drop-hint { visibility: visible !important; }
+.pane-body.drop-hint::after { content: ""; position: absolute; inset: 0; background: var(--brass-wash); border: 2px solid var(--brass); pointer-events: none; z-index: 10; opacity: .85; }
+.pane-body.drop-hint.left::after, .pane-body.drop-hint.drop-left::after { right: 50%; }
+.pane-body.drop-hint.right::after, .pane-body.drop-hint.drop-right::after { left: 50%; }
+.pane-body.drop-hint.top::after, .pane-body.drop-hint.drop-top::after { bottom: 50%; }
+.pane-body.drop-hint.bottom::after, .pane-body.drop-hint.drop-bottom::after { top: 50%; }
+.pane-empty { flex: 1; display: grid; place-content: center; text-align: center; color: var(--ink-3); font-family: var(--book); font-style: italic; padding: 2rem; }
+.pane-empty .icon { margin: 0 auto .6rem; width: 22px; height: 22px; color: var(--brass); }
+.pane-empty p { margin: 0; max-width: 26ch; }
+
+/* ⌘P */
+.quick { position: fixed; inset: 0; z-index: 10; background: color-mix(in oklch, var(--paper) 55%, transparent); display: flex; flex-direction: column; align-items: center; padding-top: 12vh; }
+/* One box: the field on top, the list under a hairline, nothing else drawn. */
+.quick-box { display: flex; flex-direction: column; width: min(44rem, 92vw); max-height: 70vh; background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 24px 60px -20px oklch(0% 0 0 / .4); overflow: hidden; }
+.quick-box > input { flex: none; font: inherit; font-size: 1.05rem; padding: .75rem 1rem; background: none; color: var(--ink); border: 0; border-bottom: 1px solid var(--hair); border-radius: 0; }
+.quick-box > input:focus { outline: none; }
+.quick-list { list-style: none; margin: 0; padding: .35rem; flex: 1; min-height: 0; overflow: auto; }
+.quick-list:empty { display: none; }
+.quick-list:empty ~ *, .quick-box:has(.quick-list:empty) > input { border-bottom: 0; }
+.quick-list li > button { display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%; text-align: left; padding: .45rem .8rem; border-radius: 6px; }
+.quick-list li.selected > button, .quick-list li > button:hover { background: var(--seal-wash); color: var(--seal); }
+.quick-list li.selected > button { outline: 2px solid var(--brass-ink); outline-offset: -2px; }
+.quick-list .path { color: var(--ink-3); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* Tabs */
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .35rem .6rem 0;
+  background: var(--paper-2);
+  /* The line under the bar is painted beneath the tabs, so the chosen tab,
+     on the page's paper, runs into its page without it (a border would be
+     drawn over the tab, and the tab list's scrolling clips any overlap). */
+  box-shadow: inset 0 -1px 0 var(--hair);
+  height: 2.45rem;
+  min-height: 2.45rem;
+  max-height: 2.45rem;
+  box-sizing: border-box;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab-list {
+  display: flex;
+  align-items: flex-end;
+  gap: .25rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  align-self: stretch;
+}
+.tab-list::-webkit-scrollbar { display: none; }
+.tab {
+  height: calc(2.45rem - .35rem);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  max-width: 22ch;
+  padding: 0 .65rem;
+  font-size: .83rem;
+  font-family: var(--ui);
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 6px 6px 0 0;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background .12s, color .12s, border-color .12s, box-shadow .12s;
+}
+.tab-name { overflow: hidden; text-overflow: ellipsis; }
+.tab:not([aria-selected="true"]):hover {
+  color: var(--ink);
+  background: color-mix(in oklch, var(--paper-3) 60%, transparent);
+  border-color: color-mix(in oklch, var(--hair) 55%, transparent);
+  border-bottom-color: var(--hair);
+}
+.tab[aria-selected="true"] {
+  color: var(--ink);
+  font-weight: 550;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-bottom: 1px solid var(--paper);
+  box-shadow: inset 0 2px 0 var(--seal);
+  z-index: 1;
+}
+.pane:not(.focused) .tab[aria-selected="true"] {
+  box-shadow: inset 0 2px 0 var(--ink-3);
+}
+/* A pinned tab is its icon, as a browser's: the tip names it. */
+.pane:not(.vertical) .tab.pinned { flex: 0 0 auto; gap: 0; padding: 0 .6rem; }
+.pane:not(.vertical) .tab.pinned .tab-name, .pane:not(.vertical) .tab.pinned .tab-pin { display: none; }
+.pane.vertical .tab.pinned { max-width: none; }
+.tab.pinned .tab-icon .icon { width: 14px; height: 14px; }
+.pane:not(.vertical) .tab.pinned.dirty .tab-icon { position: relative; }
+.pane:not(.vertical) .tab.pinned.dirty .tab-icon::after { content: ""; position: absolute; right: -4px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--seal); }
+/* A preview tab: its name in italics until it is kept. */
+.tab.preview .tab-name { font-style: italic; }
+/* The dot is drawn, not said: the tab's name says "unsaved" (a browser
+   without alternative text for `content` keeps the first line). */
+.tab.dirty .tab-name::after { content: " •"; content: " •" / ""; color: var(--seal); font-weight: 700; }
+/* A note deleted or moved outside the app: its tab stays, crossed out. */
+.tab.gone .tab-name { text-decoration: line-through; }
+.tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  padding: 0;
+  color: var(--ink-3);
+  opacity: 0;
+  margin-left: .15rem;
+  flex: none;
+  transition: opacity .12s, background .12s, color .12s;
+}
+.tab:hover .tab-close, .tab[aria-selected="true"] .tab-close { opacity: 0.65; }
+.tab-close:hover { opacity: 1 !important; background: var(--paper-3); color: var(--seal); }
+.tab .icon { width: 12px; height: 12px; }
+/* Inside the tab: the tab list clips what goes past it. */
+.tab:focus-visible { outline-offset: -2px; border-radius: 6px 6px 0 0; }
+
+.pane-body { flex: 1; min-height: 0; display: flex; position: relative; }
+.leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.leaf-head { display: flex; align-items: center; gap: .8rem; padding: .55rem clamp(.7rem, 1.5vw, 1.2rem) 0; }
+/* Tight: the leading crumbs slide out to the left under a fade; the
+ * current folder stays readable at the right. */
+.crumbs { flex: 1 1 0; min-width: 0; font-size: .78rem; letter-spacing: .02em; color: var(--ink-3); min-height: 1.2em; overflow: hidden; white-space: nowrap; justify-content: flex-end; padding-left: 2rem; margin-left: -2rem; mask-image: linear-gradient(to right, transparent 0, #000 2rem); }
+/* A spacer that takes the free room, so the crumbs sit left when they fit
+ * and spill left, under the fade, when they do not. */
+.crumbs::after { content: ""; flex: 1 1 0; min-width: 0; }
+.modes { flex: none; }
+.crumbs span { color: var(--ink-2); }
+.crumbs span:last-child { color: var(--ink); }
+.modes { display: inline-flex; gap: .1rem; font-size: .8rem; }
+.modes button { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .55rem; border-radius: 5px; color: var(--ink-2); }
+.modes button:hover { color: var(--ink); background: var(--paper-3); }
+.modes button[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
+.iconic { display: inline-flex; padding: .3rem; }
+.icon { flex: none; }
+
+.sheet { flex: 1; min-height: 0; overflow: auto; padding: .6rem clamp(.7rem, 1.5vw, 1.2rem) 6rem; }
+/* Blocks in Edit mode (ADR 0061): a note's sheet keeps a margin for the
+   + and the ⋮⋮ beside each block, in every mode, so its text stands at
+   the same place in Reading and in Edit. */
+html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) + 1.9rem); }
+.cm-block-handle { position: absolute; z-index: 5; display: flex; align-items: center; gap: 1px; height: 22px; }
+.cm-block-handle[hidden], .cm-block-outline[hidden], .cm-block-drop[hidden] { display: none; }
+.cm-block-plus, .cm-block-grip { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 22px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-3); cursor: pointer; }
+.cm-block-grip { cursor: grab; touch-action: none; }
+.cm-block-grip.dragging { cursor: grabbing; }
+.cm-block-plus:hover, .cm-block-grip:hover { color: var(--ink); background: var(--paper-3); }
+.cm-block-plus svg, .cm-block-grip svg { width: 14px; height: 14px; fill: currentColor; }
+/* Where the block begins and ends, seen before anything moves. */
+.cm-block-outline { position: absolute; z-index: 0; pointer-events: none; border-radius: 6px; background: color-mix(in oklch, var(--seal) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--seal) 16%, transparent); }
+/* Where a dragged block will land. */
+.cm-block-drop { position: absolute; z-index: 6; height: 3px; margin-top: -1px; border-radius: 2px; background: var(--seal); pointer-events: none; }
+.cm-blocks-dragging, .cm-blocks-dragging * { cursor: grabbing !important; }
+.cm-block-grip[hidden] { display: none; }
+/* A table edited as a table in Edit mode (ADR 0064): each cell's look,
+   rendered as the reading view renders it, and over it the field the cell
+   is typed in, seen only while it has the focus. */
+.editor .cm-table-editor { padding: .5rem 0 .25rem; }
+.cm-table-frame { display: inline-flex; flex-direction: column; max-width: 100%; }
+.cm-table-wrap { display: flex; align-items: stretch; gap: 4px; max-width: 100%; overflow-x: auto; }
+.cm-table-editor table { border-collapse: collapse; font-family: var(--book); font-size: .95em; }
+.cm-table-editor th, .cm-table-editor td { position: relative; min-width: 5.5rem; padding: 0; border: 1px solid var(--hair); vertical-align: top; text-align: left; }
+.cm-table-editor th { background: var(--paper-2); font-weight: 600; color: var(--heading-color, var(--ink)); }
+.cm-table-cell-view { min-height: 1.5em; padding: .35rem .65rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
+.cm-table-cell-view:empty::before { content: "\00a0"; }
+.cm-table-cell-input { position: absolute; inset: 0; box-sizing: border-box; width: 100%; height: 100%; padding: .35rem .65rem; border: 0; margin: 0; font: inherit; line-height: 1.5; color: inherit; text-align: inherit; background: transparent; outline: none; opacity: 0; }
+.cm-table-cell-input:focus { opacity: 1; background: var(--paper); box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--seal) 45%, transparent); }
+.cm-table-editor th:focus-within .cm-table-cell-view, .cm-table-editor td:focus-within .cm-table-cell-view { visibility: hidden; }
+.cm-table-add { display: flex; align-items: center; justify-content: center; padding: 0; border: 1px dashed transparent; border-radius: 4px; background: transparent; color: var(--ink-3); font-size: .9rem; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.cm-table-add-col { width: 1.3rem; }
+.cm-table-add-row { height: 1.3rem; margin: 4px calc(1.3rem + 4px) 0 0; }
+.cm-table-editor:hover .cm-table-add, .cm-table-editor.has-focus .cm-table-add, .cm-table-add:focus-visible { opacity: 1; border-color: var(--hair); }
+.cm-table-add:hover { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
+.title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; }
+.note-title { flex: 1; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
+.note-title:empty { display: none; }
+.dirty-mark { color: var(--seal); font-size: 1.4rem; line-height: 1; }
+.save { font-size: .78rem; font-weight: 600; letter-spacing: .04em; color: var(--seal-ink); background: var(--seal); padding: .28rem .7rem; border-radius: 5px; }
+.save:hover { filter: brightness(1.08); }
+.flags { margin: .5rem 0 0; font-size: .82rem; color: var(--brass-ink); }
+.flags:empty { display: none; }
+
+/* Properties: a quiet table, key column fixed, edited in place. */
+.props { margin: .9rem 0 0; padding: .1rem 0; font-size: .84rem; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); max-width: 100ch; }
+.props-header { display: flex; align-items: center; justify-content: space-between; padding: .1rem 0; margin-bottom: .2rem; }
+/* The typed note (ADR 0052): the type's name above the properties, or why
+   its schema types nothing; declared rows, the empty ones lighter until
+   given a value; a value that does not fit its kind underlined. */
+.props-type { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; padding: .25rem .1rem .35rem; font-size: .82rem; color: var(--ink-2); }
+.props-type .props-type-name { font-weight: 600; color: var(--ink); }
+.props-type .props-type-schema { font-size: .78rem; color: var(--seal); text-decoration: underline; text-underline-offset: 2px; background: none; padding: 0; cursor: pointer; }
+.props-type.problem { color: var(--brass-ink); }
+.prop.declared.absent .prop-key { opacity: .7; }
+.prop.declared.absent .prop-input:not(:focus) { background: transparent; }
+/* WebKit shows today's date in an empty date field: faint, so an absent
+   key does not look filled. */
+.prop.declared.absent input[type="date"]:not(:focus)::-webkit-datetime-edit,
+.prop.declared.absent input[type="datetime-local"]:not(:focus)::-webkit-datetime-edit { opacity: .35; }
+.prop.misfit .prop-value { text-decoration: underline wavy var(--brass); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.prop.misfit .prop-input { color: var(--brass-ink); }
+.props-toggle { display: inline-flex; align-items: center; gap: .3rem; font: inherit; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); background: none; border: 0; padding: .15rem .3rem; border-radius: 4px; cursor: pointer; }
+.props-toggle:hover { color: var(--ink); background: var(--paper-2); }
+.props-toggle .icon { width: 12px; height: 12px; transition: transform .15s ease; }
+.props.collapsed .props-toggle .icon { transform: rotate(-90deg); }
+.props.collapsed .prop, .props.collapsed .prop-new { display: none; }
+.prop { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; border-radius: 5px; }
+.prop:hover { background: var(--paper-2); }
+.prop-key { display: inline-flex; align-items: center; gap: .45rem; color: var(--ink-3); min-width: 0; }
+.prop-key .icon { width: 14px; height: 14px; flex: none; }
+.prop-key-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prop-value { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; min-width: 0; }
+.prop-input { font: inherit; color: var(--ink); background: none; border: 0; padding: .25rem .3rem; flex: 1 1 4rem; width: auto; min-width: 4rem; border-radius: 4px; }
+.prop-value:has(.prop-go) { flex-wrap: nowrap; }
+.prop-input:hover { background: var(--paper-3); }
+.prop-input:focus { outline: none; background: var(--paper); box-shadow: 0 0 0 1px var(--brass-ink); }
+.prop-input::placeholder { color: var(--ink-3); font-style: italic; }
+.prop-value input[type="checkbox"] { accent-color: var(--seal); width: 1rem; height: 1rem; margin: 0 .3rem; }
+.pill { display: inline-flex; align-items: center; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--hair); overflow: hidden; }
+.pill-label { font: inherit; font-size: .8rem; padding: .1rem .55rem; color: var(--ink); }
+.pill-label:disabled { color: var(--ink); cursor: default; }
+.tag-pill { background: var(--seal-wash); border-color: transparent; }
+.tag-pill .pill-label { color: var(--seal); }
+.tag-pill .pill-label:hover { text-decoration: underline; }
+.pill-x { display: inline-flex; padding: .1rem .3rem .1rem 0; color: var(--ink-3); }
+.pill-x .icon { width: 11px; height: 11px; }
+.pill-x:hover { color: var(--seal); }
+.prop-add { font: inherit; font-size: .8rem; background: none; border: 0; color: var(--ink); padding: .15rem .3rem; min-width: 5rem; flex: 1; }
+.prop-add::placeholder { color: var(--ink-3); }
+.prop-add:focus { outline: none; border-radius: 4px; box-shadow: 0 0 0 1px var(--brass-ink); }
+.prop-remove { display: inline-flex; padding: .3rem; color: var(--ink-3); opacity: 0; border-radius: 4px; }
+.prop:hover .prop-remove, .prop:focus-within .prop-remove { opacity: 1; }
+.prop-remove:hover { color: var(--seal); background: var(--paper-3); }
+.prop-remove .icon { width: 12px; height: 12px; }
+/* No properties: a hairline under the title, the add button a ghost at its right end. */
+/* No properties: the rule under the title stays, and the button keeps
+   its own band at the right — in the flow, so it is never painted over
+   the title above it or the note below. Shown on hovering the sheet. */
+.props.empty { display: flex; justify-content: flex-end; height: auto; margin: .5rem 0 .3rem; padding: 0; border-bottom: 0; }
+.props.empty .prop-new { margin: 0; padding: .1rem .4rem; opacity: 0; transition: opacity .15s; }
+.sheet:hover .props.empty .prop-new, .props.empty .prop-new:focus-visible { opacity: 1; }
+.props.adding { position: relative; height: auto; margin: .5rem 0 .9rem; padding: .1rem 0; border-bottom: 1px solid var(--hair); }
+.props.adding .prop-new { display: none; }
+.prop.kind-new { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; }
+.prop.kind-new .prop-key input { width: 100%; min-width: 0; }
+.prop-new { display: inline-flex; align-items: center; gap: .35rem; margin: .15rem 0; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--ink-3); border-radius: 5px; }
+.prop-new:hover { color: var(--ink); background: var(--paper-2); }
+.prop-new .icon { width: 13px; height: 13px; }
+.editor .cm-lp-frontmatter { display: none; }
+.status-words { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.panel-sub { margin: 1rem .6rem .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.links-head { margin: .9rem .6rem .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.links-section:first-child .links-head { margin-top: .4rem; }
+.links-section + .links-section { margin-top: .9rem; border-top: 1px solid var(--hair); }
+
