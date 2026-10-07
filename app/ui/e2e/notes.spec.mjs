@@ -335,3 +335,18 @@ test("Editar sets the text where Leitura does: same column, width and line heigh
   }
   expect(editing.item.lineHeight).toBe(reading.item.lineHeight);
 });
+
+test("a name already taken is said, and logged as an answer, not an error", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Ocupada.md", "# Ocupada\n");
+  await app.folderChanged(["Ocupada.md"], true);
+  await app.key("Mod+n");
+  // The title is offered for a name: one the folder already has.
+  await page.keyboard.type("Ocupada");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#status")).toContainText("Já existe um arquivo com esse nome.");
+  expect(await app.file("Ocupada.md")).toBe("# Ocupada\n");
+  // The fixture fails on any ERROR in the log; the answer is INFO.
+  const info = await page.evaluate(() => window.__harness.log.filter((l) => l.level === "INFO").map((l) => l.message));
+  expect(info).toContain("Já existe um arquivo com esse nome.");
+});
