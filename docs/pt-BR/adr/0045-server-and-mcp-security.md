@@ -12,7 +12,7 @@
   `docs/reference/handles-decision.md`, que achou este ADR, o
   [0026](0026-core-ui-contract-inviolable-rules.md) e o
   [0044](0044-verso-fs-semantics.md) discordando sobre isso; o parágrafo mais
-  antigo que dizia o grupo do `verso mcp` provisório acertado com uma nota.
+  antigo que dizia o grupo do `verso mcp` provisório acertado com uma nota. 2026-10-07 — a superfície do MCP: nove ferramentas só de leitura, com relações tipadas, boards, propriedades e tags, e bases ([0066](0066-mcp-sees-boards-relations-properties-bases.md)).
 
 ## Contexto
 

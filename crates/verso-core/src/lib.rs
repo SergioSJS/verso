@@ -37,6 +37,7 @@ pub use verso_fs::{Changes, ConfinementError, ReadError, WalkRules, Watch, Write
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 pub mod bases;
+pub mod board;
 pub mod canvas;
 pub mod clients;
 pub mod focuses;
@@ -2069,6 +2070,74 @@ impl Workspace {
         })
     }
 
+    /// A board read for an agent (ADR 0066 point 2), from its file now: its
+    /// cards, edges and drawn texts, with the board's path as the index
+    /// knows it. Not a `.canvas`, or not JSON: [`CoreError::NotCanvas`].
+    pub fn read_board(&mut self, relative: &str) -> Result<(String, board::BoardRead), CoreError> {
+        let key = self.entry_key(relative)?;
+        if !is_canvas(&key) {
+            return Err(CoreError::NotCanvas);
+        }
+        let file = self.read_text(&key)?;
+        let read = board::read_board(&file.text).map_err(|_| CoreError::NotCanvas)?;
+        Ok((file.path, read))
+    }
+
+    /// A note's tags — of its frontmatter and its body, without `#`, once
+    /// each — as a base counts them (`file.tags`), from the index's copy of
+    /// the note; `None` for a note the index does not know. For a text just
+    /// read, [`tags_of`].
+    pub fn note_tags(&mut self, note: &str) -> Result<Option<Vec<String>>, CoreError> {
+        self.refresh_base_facts()?;
+        Ok(self.base_facts.get(note).map(|(_, f)| f.tags.clone()))
+    }
+
+    /// The notes, in path order, that have the tag `tag` — or one nested
+    /// under it (`projeto` has `projeto/ativo`), case ignored, as
+    /// `file.hasTag` — and the property `property`, holding `value` when
+    /// one is given (a list holds each of its items; case ignored). With
+    /// neither, every note (ADR 0066 point 3).
+    pub fn notes_where(
+        &mut self,
+        tag: Option<&str>,
+        property: Option<&str>,
+        value: Option<&str>,
+    ) -> Result<Vec<String>, CoreError> {
+        self.refresh_base_facts()?;
+        // An empty filter is no filter.
+        let tag = tag
+            .map(|t| t.trim().trim_start_matches('#').to_lowercase())
+            .filter(|t| !t.is_empty());
+        let property = property
+            .map(|p| p.trim().to_lowercase())
+            .filter(|p| !p.is_empty());
+        let value = value.map(|v| v.trim().to_lowercase());
+        let mut out: Vec<String> = self
+            .base_facts
+            .iter()
+            .filter(|(path, _)| path.ends_with(".md"))
+            .filter(|(_, (_, facts))| {
+                let tagged = tag.as_deref().is_none_or(|w| {
+                    facts.tags.iter().any(|t| {
+                        let t = t.to_lowercase();
+                        t == w || t.starts_with(&format!("{w}/"))
+                    })
+                });
+                let held = property.as_deref().is_none_or(|p| {
+                    facts
+                        .props
+                        .iter()
+                        .filter(|(k, _)| k.to_lowercase() == p)
+                        .any(|(_, v)| value.as_deref().is_none_or(|w| holds(v, w)))
+                });
+                tagged && held
+            })
+            .map(|(path, _)| path.clone())
+            .collect();
+        out.sort();
+        Ok(out)
+    }
+
     /// Evaluate a base — a `.base` file, or the text of a `base` block —
     /// over the folder as the index and the last walk know it (ADR 0053).
     /// Reads the base's file, if the query names one, and nothing else of
@@ -2591,6 +2660,17 @@ impl Workspace {
     pub fn notes(&self) -> Result<Vec<String>, CoreError> {
         self.index.notes().map_err(CoreError::Index)
     }
+
+    /// Every board (`.canvas`) the index knows, in path order.
+    pub fn boards(&self) -> Result<Vec<String>, CoreError> {
+        Ok(self
+            .index
+            .sources()
+            .map_err(CoreError::Index)?
+            .into_iter()
+            .filter(|p| is_canvas(p))
+            .collect())
+    }
 }
 
 /// Markdown as the reading view renders a note (`verso_dialect::to_html`),
@@ -2611,6 +2691,24 @@ fn is_note(key: &str) -> bool {
 /// Whether a confined path names a board (ADR 0057): by its `.canvas`.
 fn is_canvas(key: &str) -> bool {
     key.ends_with(".canvas")
+}
+
+/// A text's tags — of its frontmatter and its body, without `#`, once each,
+/// in the order met — as a base counts them (`file.tags`).
+#[must_use]
+pub fn tags_of(text: &str) -> Vec<String> {
+    bases::NoteFacts::of(text).tags
+}
+
+/// Does a property's value hold `wanted` (folded)? A scalar by its text, a
+/// list by any of its items; a mapping never.
+fn holds(v: &verso_dialect::Value, wanted: &str) -> bool {
+    use verso_dialect::Value;
+    match v {
+        Value::Sequence(items) => items.iter().any(|i| holds(i, wanted)),
+        Value::Mapping(_) => false,
+        scalar => property_text(scalar).trim().to_lowercase() == wanted,
+    }
 }
 
 /// Line and column (both from 1, the column in characters) of a byte

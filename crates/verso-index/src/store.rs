@@ -32,6 +32,10 @@ pub struct Link {
     pub col: u32,
     /// The note the target resolves to, or `None` if unresolved.
     pub resolved: Option<String>,
+    /// The key of the frontmatter property that holds the link — a typed
+    /// relation (spec Q10, ADR 0057 point 4) — or `None` for a link of the
+    /// body.
+    pub relation: Option<String>,
 }
 
 /// A note that links to the one asked about.
@@ -42,6 +46,9 @@ pub struct Backlink {
     pub embed: bool,
     pub line: u32,
     pub col: u32,
+    /// The key of the frontmatter property that holds the link, or `None`
+    /// for a link of the body (see [`Link::relation`]).
+    pub relation: Option<String>,
 }
 
 /// A heading of a note, with its position (ADR 0018: cited by line and
@@ -782,7 +789,7 @@ impl Index {
     pub fn links_of(&self, relative: &str) -> Result<Vec<Link>, IndexError> {
         let sql = format!(
             "SELECT l.kind, l.target, l.heading, l.block, l.alias, l.line, l.col,
-                    (SELECT path FROM notes WHERE id = {RESOLVE})
+                    (SELECT path FROM notes WHERE id = {RESOLVE}), l.relation
              FROM links l JOIN notes n ON n.id = l.note
              WHERE n.path = ?1 ORDER BY l.start"
         );
@@ -797,6 +804,7 @@ impl Index {
                 line: r.get(5)?,
                 col: r.get(6)?,
                 resolved: r.get(7)?,
+                relation: r.get(8)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -810,7 +818,7 @@ impl Index {
     /// 2026-09-22; `tests/graph.rs`).
     pub fn backlinks(&self, relative: &str) -> Result<Vec<Backlink>, IndexError> {
         let sql = format!(
-            "SELECT src.path, l.target, l.kind, l.line, l.col
+            "SELECT src.path, l.target, l.kind, l.line, l.col, l.relation
              FROM links l JOIN notes src ON src.id = l.note
              JOIN notes t ON t.path = ?1
              WHERE l.target_key IS NOT NULL AND {RESOLVE} = t.id
@@ -824,6 +832,7 @@ impl Index {
                 embed: embeds(&r.get::<_, String>(2)?),
                 line: r.get(3)?,
                 col: r.get(4)?,
+                relation: r.get(5)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)

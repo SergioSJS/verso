@@ -15,6 +15,7 @@
   a last known version, because a placeholder stood where it was), and the
   **`ErrorData` messages** the client receives are English, like the tool
   descriptions and for the same `[OPEN]` reason (section 7).
+- Revised: 2026-10-07 — the surface of section 3.3 widened to nine tools (typed relations on links and backlinks, `read_board`, properties and tags on `read_note`, `list_notes` filters, `query_base`): [ADR 0066](../adr/0066-mcp-sees-boards-relations-properties-bases.md).
 - **Decision: taken by the maintainer on 2026-09-22**, in session, recorded
   here and in the closing PR: all five lines of section 9 as recommended, with
   one instruction attached — *"reavalie especialmente as contradições, às vezes
