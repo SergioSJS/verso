@@ -1,4 +1,4 @@
-# AI draft (Opus 5.5, 2026-10-07), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-10-07 in session ("tao aprovados"), after checking the blocks in the app; drafted by Opus 5.5 on 2026-10-07 (ADR 0031).
 # Construct: a `^id` alone on its line after a blank line, after a table, a
 # code block and a quote. Spec: docs/spec/dialect.md §5.7, Q3 (decided on
 # 2026-10-07: as Obsidian, the id names the block before it) and Q21 (the

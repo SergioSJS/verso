@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.28
+# Verso dialect spec — v0.29
 
-- Version: v0.28 · 2026-10-07
+- Version: v0.29 · 2026-10-07
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -1256,3 +1256,4 @@ the parser was chosen.
 | v0.26 | 2026-10-07 | The typed note's implementation ([ADR 0052](../adr/0052-typed-note.md)) begins: **`schemas`** enters the fixture schema (§4.1, §4.8), with the category `schema` in §8 and two drafted fixtures awaiting the maintainer's approval. The header's version, left at v0.24 by v0.25, catches up |
 | v0.27 | 2026-10-07 | The fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid` **approved by the maintainer** in session ("ta aprovado a fixture"); their draft mark removed. Nothing else changes. |
 | v0.28 | 2026-10-07 | **Q3, Q4 and Q21 decided by the maintainer**, after an observation of Obsidian through its CLI the same day: a block is the editor's unit (Q21); a `^id` alone after a blank line names the block before it, one at the end of a heading names the heading (Q3); an id is unique per note, the last of two naming the block (Q4). `blocks` items gain `lines` (§4.3). Three fixtures drafted, awaiting the maintainer's approval: `block/after-a-block`, `block/heading`, `block/duplicate`. §5.7 says how the id is drawn: hidden when reading, quiet in the editor, as observed. |
+| v0.29 | 2026-10-07 | The fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` and `fixtures/block/duplicate` **approved by the maintainer** in session ("tao aprovados"), after checking the blocks in the app; their draft mark removed. Nothing else changes. |
