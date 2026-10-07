@@ -209,6 +209,78 @@ pub struct NoteText {
     /// The index holds the note only as a last known version: a
     /// placeholder stood where it was (ADR 0043).
     pub unverified: bool,
+    /// The note's type, when its `type:` names a schema of the folder
+    /// (ADR 0052); null for plain Markdown.
+    pub note_type: Option<NoteType>,
+    /// The `verso-schema` blocks this note holds: one that types nothing,
+    /// or a nested one that is not read, is said in its note (ADR 0052).
+    pub schema_blocks: Vec<SchemaNotice>,
+}
+
+/// A `verso-schema` block of a note.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SchemaNotice {
+    /// The line of the opening fence (1-based).
+    pub line: u32,
+    pub name: Option<String>,
+    /// Inside a list or a quote: not read.
+    pub nested: bool,
+    /// Why a block at the top level types nothing (`unknown_kind`, …).
+    pub error: Option<String>,
+}
+
+/// A note's type (ADR 0052): its `type:` as written, and what it reaches.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct NoteType {
+    pub written: String,
+    pub state: TypeState,
+}
+
+/// What a note's `type:` reaches: one schema, read (`typed`); two or more
+/// of one name, which type nothing (`conflict`, ADR 0052 point 5); or one
+/// that does not parse (`invalid`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum TypeState {
+    Typed {
+        /// The note that holds the schema.
+        schema: String,
+        /// The schema's `type`, as written there.
+        name: String,
+        /// The type's name per interface language.
+        labels: Vec<Label>,
+        /// The declared properties, in the schema's order.
+        properties: Vec<TypedProperty>,
+    },
+    Conflict {
+        /// The notes that hold a schema of that name, in path order.
+        schemas: Vec<String>,
+    },
+    Invalid {
+        schema: String,
+        /// Why, as spec §4.8 names the kinds (`unknown_kind`, `yaml`, …).
+        error: String,
+    },
+}
+
+/// A name in one interface language (`pt-BR`, `en`), as a schema writes it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Label {
+    pub lang: String,
+    pub text: String,
+}
+
+/// A property a schema declares, as the note holds it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct TypedProperty {
+    pub key: String,
+    /// `text`, `list`, `number`, `checkbox`, `date` or `datetime`.
+    pub kind: String,
+    pub labels: Vec<Label>,
+    /// The note has the key.
+    pub present: bool,
+    /// Its value fits the kind; false for a key the note lacks.
+    pub fits: bool,
 }
 
 /// What a write left behind: the note as written — the text that was

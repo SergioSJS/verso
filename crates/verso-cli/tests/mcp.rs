@@ -762,3 +762,60 @@ fn the_new_tools_refuse_what_is_not_the_folders_and_answer_dates_and_lists() {
         json!(["Barão.md", "Foto.png.md", "Mesa.canvas"])
     );
 }
+
+/// The typed note through the MCP (ADR 0052, ADR 0018): `read_note`
+/// carries the type and the declared properties, each present or not and
+/// fitting its kind or not; `list_notes` takes a type.
+#[test]
+fn a_typed_note_comes_with_its_type_and_list_notes_takes_one() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _s = note(
+        vault.path(),
+        "PdM.md",
+        "# PdM\n\n```verso-schema\ntype: npc\nlabel: { pt-BR: PdM, en: NPC }\nproperties:\n  - key: nível\n    kind: number\n  - key: aparição\n    kind: date\n```\n",
+    );
+    let _b = note(
+        vault.path(),
+        "Barão.md",
+        "---\ntype: NPC\nnível: 3\n---\n# Barão\n",
+    );
+    let _t = note(
+        vault.path(),
+        "Taverna.md",
+        "---\ntype: lugar\n---\n# Taverna\n",
+    );
+    let mut session = Session::start(vault.path(), config.path());
+    let mut requests = initialize("2025-06-18");
+    requests.extend([
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+        call(3, "read_note", json!({"path":"Barão"})),
+        call(4, "read_note", json!({"path":"Taverna"})),
+        call(5, "list_notes", json!({"type":"npc"})),
+    ]);
+    let r = session.requests(&requests);
+    session.close();
+    assert_eq!(r.len(), 5, "{r:?}");
+    let tools = r[1]["result"]["tools"].as_array().unwrap();
+    let schema = &tools.iter().find(|t| t["name"] == "read_note").unwrap()["outputSchema"];
+    assert!(
+        describes(schema, schema, structured(&r[2])),
+        "{}",
+        structured(&r[2])
+    );
+    let t = &structured(&r[2])["note_type"];
+    assert_eq!(t["written"], "NPC");
+    assert_eq!(t["state"], "typed");
+    assert_eq!(t["schema"], "PdM.md");
+    assert_eq!(t["labels"][0], json!({"lang":"pt-BR","text":"PdM"}));
+    assert_eq!(
+        t["properties"],
+        json!([
+            {"key":"nível","kind":"number","labels":[],"present":true,"fits":true},
+            {"key":"aparição","kind":"date","labels":[],"present":false,"fits":false}
+        ])
+    );
+    // A type no schema names: plain Markdown.
+    assert_eq!(structured(&r[3])["note_type"], Value::Null);
+    assert_eq!(structured(&r[4])["notes"], json!(["Barão.md"]));
+}

@@ -180,7 +180,7 @@ The first version that gets used. macOS only ([ADR 0022](adr/0022-target-platfor
 | 2.3 | File tree | built, with create, rename, move, bin and copy; file operations decided on 2026-09-23 as built ([0048](adr/0048-file-operations-in-ui.md)) |
 | 2.4 | CodeMirror 6 editor with Live Preview | built: reading, Live Preview and source |
 | 2.5 | Backlinks and search coming from the core, through the contract | built, with links, tags, unlinked mentions and the graph |
-| 2.6 | One note type end to end | not started; its decisions taken on 2026-09-24 ([0052](adr/0052-typed-note.md), spec Q11), and the work is the memo's section 8 (`docs/reference/typed-note-decision.md`) |
+| 2.6 | One note type end to end | built on 2026-10-07, rows 1 to 6 of the memo's section 8 (`docs/reference/typed-note-decision.md`): the parser's `schemas`, the index's types and schema blocks (version 10, carried over in place), the core's typing at query time, the panel, `type:` in the search, the MCP; decided on 2026-09-24 ([0052](adr/0052-typed-note.md), spec Q11). Waiting for the maintainer's reading and for the two schema fixtures' approval |
 | 2.7 | pt-BR and EN in the UI; accessibility ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | languages built, chosen in the settings; accessibility audited statically against WCAG 2.2 AA on 2026-09-24, on a local branch — what was fixed and what waits for the maintainer is in the [review](review/accessibility.md); not yet gone through with a screen reader |
 
 Beyond the seven items, the maintainer asked during the phase for what a

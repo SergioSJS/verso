@@ -216,6 +216,17 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    padrão (`26c3b06`).
 4. Painel da direita (⌘⌥→) › Calendário: pontos em 24 e 25 de setembro e
    hoje. Nível: H; E: `notes.spec.mjs`.
+5. A nota tipada (nota 21, ADR 0052): `Personagens/Capitão Ruy` mostra
+   "Tipo: Personagem" acima das propriedades, as propriedades do schema
+   primeiro sob os seus rótulos, `nível: alto` sublinhado, "Primeira
+   aparição" uma linha de data vazia; abrir não escreve nada; uma data
+   escolhida ali vai para o fim do frontmatter; "Abrir o schema" abre
+   `Tipos/Personagem`. Uma propriedade acrescentada ao schema aparece,
+   vazia, nas duas notas, e nenhum arquivo muda. Uma cópia da nota do
+   schema faz as duas notas dizerem que os dois schemas têm o mesmo nome;
+   `type:personagem` na busca lista as duas. Em inglês, "Type: Character".
+   Nível: S (`crates/verso-core/tests/typed.rs`, `fixtures/schema/`), H; E:
+   `typed.spec.mjs`.
 
 ## 5. Encontrar
 

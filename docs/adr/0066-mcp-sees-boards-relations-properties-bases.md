@@ -78,6 +78,10 @@ it (Status). Every tool stays read-only: nothing here writes the folder.
   answer against its declared schema, as it checks the others.
 - The tutorial's note on the terminal and agents, the walkthrough, the
   changelog and the reference memo `docs/reference/mcp-decision.md` follow.
+- 2026-10-07, later the same day: the typed note (Phase 2 item 2.6) was
+  built, and with it the query by type of point 6 — `read_note` gives a
+  typed note's `note_type`, and `list_notes` takes a `type`
+  ([0052](0052-typed-note.md)).
 - Authorship: Opus 5.5 — core code by
   [ADR 0032](0032-author-and-reviewer-roles.md) is Fable 5.1's, and the
   maintainer asked on 2026-10-06 that Fable not be used: a deviation, with

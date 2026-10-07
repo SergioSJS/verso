@@ -212,6 +212,16 @@ point 13).
    use by default (`26c3b06`).
 4. Right panel (⌘⌥→) › Calendário: dots on 24 and 25 September and on today.
    Level: H; E: `notes.spec.mjs`.
+5. The typed note (note 21, ADR 0052): `Personagens/Capitão Ruy` shows
+   "Tipo: Personagem" above its properties, the schema's properties first
+   under their labels, `nível: alto` underlined, "Primeira aparição" an
+   empty date row; opening it writes nothing; a date picked there goes at
+   the end of the frontmatter; "Abrir o schema" opens `Tipos/Personagem`.
+   A property added to the schema shows, empty, in both notes, and no file
+   changes. A copy of the schema's note makes both notes say the two
+   schemas share the name; `type:personagem` in the search lists the two.
+   In English, "Type: Character". Level: S (`crates/verso-core/tests/typed.rs`,
+   `fixtures/schema/`), H; E: `typed.spec.mjs`.
 
 ## 5. Finding
 

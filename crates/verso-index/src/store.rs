@@ -38,6 +38,23 @@ pub struct Link {
     pub relation: Option<String>,
 }
 
+/// A `verso-schema` block as the index holds it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SchemaRow {
+    /// The note it is in.
+    pub path: String,
+    /// The `type` it declares, when it was read — also by a block that
+    /// then failed (ADR 0052 point 5).
+    pub name: Option<String>,
+    pub name_key: Option<String>,
+    /// Inside a list or a quote: not read (ADR 0052 point 3).
+    pub nested: bool,
+    /// Why a block at the top level types nothing (spec §4.8's kinds).
+    pub error: Option<String>,
+    pub line: u32,
+    pub col: u32,
+}
+
 /// A note that links to the one asked about.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Backlink {
@@ -252,11 +269,26 @@ impl Index {
                 None,
             ),
         };
+        // A `type` holding one text (ADR 0052 point 1); anything else is an
+        // ordinary property, and no type.
+        let note_type = match report.frontmatter.as_ref().map(|f| &f.values) {
+            Some(Ok(Value::Mapping(map))) => {
+                map.iter()
+                    .rev()
+                    .find(|(k, _)| k == "type")
+                    .and_then(|(_, v)| match v {
+                        Value::String(s) if !s.trim().is_empty() => Some(s.clone()),
+                        _ => None,
+                    })
+            }
+            _ => None,
+        };
+        let note_type_key = note_type.as_deref().map(crate::keys::type_key);
         let tx = self.conn.transaction()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
             params![
                 relative,
                 path_key,
@@ -279,9 +311,32 @@ impl Index {
                 banner_y,
                 order_items,
                 pinned_items,
+                note_type,
+                note_type_key,
             ],
         )?;
         let note = tx.last_insert_rowid();
+        {
+            let mut ins = tx.prepare(
+                "INSERT INTO schemas (note, name, name_key, nested, error, line, col) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            )?;
+            for block in &report.schemas {
+                let (name, error) = match &block.definition {
+                    Some(Ok(schema)) => (Some(schema.name.clone()), None),
+                    Some(Err(e)) => (e.name.clone(), Some(e.kind.as_str())),
+                    None => (None, None),
+                };
+                ins.execute(params![
+                    note,
+                    name,
+                    name.as_deref().map(crate::keys::type_key),
+                    block.nested,
+                    error,
+                    block.pos.line,
+                    block.pos.col
+                ])?;
+            }
+        }
         {
             let mut ins = tx.prepare(
                 "INSERT INTO headings (note, level, text, line, col, start, end) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -690,6 +745,50 @@ impl Index {
             .conn
             .prepare("SELECT path FROM notes WHERE kind = 'note' ORDER BY path")?;
         let rows = st.query_map([], |r| r.get(0))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// A `verso-schema` block of the folder, as the index holds it
+    /// (ADR 0052): where it is, the name it declares when it was read, and
+    /// whether it is nested or why it types nothing.
+    pub fn schema_blocks(&self) -> Result<Vec<SchemaRow>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT n.path, s.name, s.name_key, s.nested, s.error, s.line, s.col
+             FROM schemas s JOIN notes n ON n.id = s.note
+             ORDER BY n.path, s.line, s.col",
+        )?;
+        let rows = st.query_map([], |r| {
+            Ok(SchemaRow {
+                path: r.get(0)?,
+                name: r.get(1)?,
+                name_key: r.get(2)?,
+                nested: r.get(3)?,
+                error: r.get(4)?,
+                line: r.get(5)?,
+                col: r.get(6)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// A note's `type`, as written and folded, when it holds one text.
+    pub fn note_type(&self, relative: &str) -> Result<Option<(String, String)>, IndexError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT type, type_key FROM notes WHERE path = ?1 AND type IS NOT NULL",
+                params![relative],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?)
+    }
+
+    /// The notes whose `type` folds to `type_key`, in path order.
+    pub fn notes_of_type(&self, type_key: &str) -> Result<Vec<String>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT path FROM notes WHERE kind = 'note' AND type_key = ?1 ORDER BY path",
+        )?;
+        let rows = st.query_map(params![type_key], |r| r.get(0))?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 

@@ -81,6 +81,10 @@ pasta.
   resposta nova contra o schema declarado, como confere as outras.
 - A nota do tutorial sobre terminal e agentes, o roteiro, o changelog e o
   memo de referência `docs/reference/mcp-decision.md` acompanham.
+- 2026-10-07, mais tarde no mesmo dia: a nota tipada (Fase 2, item 2.6)
+  foi construída, e com ela a consulta por tipo do ponto 6 — o
+  `read_note` dá o `note_type` de uma nota tipada, e o `list_notes` aceita
+  um `type` ([0052](0052-typed-note.md)).
 - Autoria: Opus 5.5 — código do core pelo
   [ADR 0032](0032-author-and-reviewer-roles.md) é do Fable 5.1, e o
   mantenedor pediu em 2026-10-06 que o Fable não fosse usado: um desvio,

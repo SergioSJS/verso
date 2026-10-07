@@ -32,10 +32,11 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 
-pub use keys::{file_key, note_keys, target_key};
+pub use keys::{file_key, note_keys, target_key, type_key};
 pub use search::Hit;
 pub use store::{
-    Backlink, Block, EntryLabel, Heading, Link, NoteStamp, SourceLink, Unresolved, VaultLink,
+    Backlink, Block, EntryLabel, Heading, Link, NoteStamp, SchemaRow, SourceLink, Unresolved,
+    VaultLink,
 };
 
 /// The schema version this build writes. The sidecar beside the index

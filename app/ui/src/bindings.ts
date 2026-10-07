@@ -57,6 +57,11 @@ export const commands = {
 	 *  `not_text` when its bytes are not UTF-8.
 	 */
 	readNote: (path: string) => typedError<NoteText, ContractError>(__TAURI_INVOKE("read_note", { path })),
+	/**
+	 *  The notes whose `type:` is `name`, case ignored (ADR 0052): what the
+	 *  search's `type:` narrows to.
+	 */
+	notesOfType: (name: string) => typedError<string[], ContractError>(__TAURI_INVOKE("notes_of_type", { name })),
 	/**  Full-text search: every word must occur, accents and case ignored. */
 	search: (words: string, limit: number) => typedError<Hit[], ContractError>(__TAURI_INVOKE("search", { words, limit })),
 	/**  The links a note makes; empty when the index does not know it. */
@@ -812,6 +817,12 @@ export type InstallResult = {
 	requires_restart: boolean,
 };
 
+/**  A name in one interface language (`pt-BR`, `en`), as a schema writes it. */
+export type Label = {
+	lang: string,
+	text: string,
+};
+
 /**  A link a note makes. */
 export type Link = {
 	/**  As written in the note. */
@@ -915,6 +926,22 @@ export type NoteText = {
 	 *  placeholder stood where it was (ADR 0043).
 	 */
 	unverified: boolean,
+	/**
+	 *  The note's type, when its `type:` names a schema of the folder
+	 *  (ADR 0052); null for plain Markdown.
+	 */
+	note_type: NoteType | null,
+	/**
+	 *  The `verso-schema` blocks this note holds: one that types nothing,
+	 *  or a nested one that is not read, is said in its note (ADR 0052).
+	 */
+	schema_blocks: SchemaNotice[],
+};
+
+/**  A note's type (ADR 0052): its `type:` as written, and what it reaches. */
+export type NoteType = {
+	written: string,
+	state: TypeState,
 };
 
 /**  One frontmatter key and its value. */
@@ -961,6 +988,17 @@ export type Renamed = {
 	also: Moved[],
 };
 
+/**  A `verso-schema` block of a note. */
+export type SchemaNotice = {
+	/**  The line of the opening fence (1-based). */
+	line: number,
+	name: string | null,
+	/**  Inside a list or a quote: not read. */
+	nested: boolean,
+	/**  Why a block at the top level types nothing (`unknown_kind`, …). */
+	error: string | null,
+};
+
 /**  Why a note that links to what moved got no rewrite. */
 export type SkipReason = 
 /**  A placeholder: present, content not downloaded (ADR 0043). */
@@ -1005,6 +1043,37 @@ export type TextFile = {
 export type Trashed = {
 	path: string,
 	warnings: string[],
+};
+
+/**
+ *  What a note's `type:` reaches: one schema, read (`typed`); two or more
+ *  of one name, which type nothing (`conflict`, ADR 0052 point 5); or one
+ *  that does not parse (`invalid`).
+ */
+export type TypeState = { kind: "typed"; 
+/**  The note that holds the schema. */
+schema: string; 
+/**  The schema's `type`, as written there. */
+name: string; 
+/**  The type's name per interface language. */
+labels: Label[]; 
+/**  The declared properties, in the schema's order. */
+properties: TypedProperty[] } | { kind: "conflict"; 
+/**  The notes that hold a schema of that name, in path order. */
+schemas: string[] } | { kind: "invalid"; schema: string; 
+/**  Why, as spec §4.8 names the kinds (`unknown_kind`, `yaml`, …). */
+error: string };
+
+/**  A property a schema declares, as the note holds it. */
+export type TypedProperty = {
+	key: string,
+	/**  `text`, `list`, `number`, `checkbox`, `date` or `datetime`. */
+	kind: string,
+	labels: Label[],
+	/**  The note has the key. */
+	present: boolean,
+	/**  Its value fits the kind; false for a key the note lacks. */
+	fits: boolean,
 };
 
 /**  Information about an application update. */

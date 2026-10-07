@@ -181,7 +181,7 @@ A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-target-platforms-m
 | 2.3 | Árvore de arquivos | construída, com criar, renomear, mover, lixeira e cópia; operações de arquivo decididas em 2026-09-23 como construídas ([0048](adr/0048-file-operations-in-ui.md)) |
 | 2.4 | Editor CodeMirror 6 com Live Preview | construído: leitura, Live Preview e fonte |
 | 2.5 | Backlinks e busca vindos do core, pelo contrato | construídos, com links, tags, menções sem link e o grafo |
-| 2.6 | Um tipo de nota ponta a ponta | não começado; as decisões dele tomadas em 2026-09-24 ([0052](adr/0052-typed-note.md), Q11 da spec), e o trabalho é a seção 8 do memo (`docs/reference/typed-note-decision.md`) |
+| 2.6 | Um tipo de nota ponta a ponta | construído em 2026-10-07, linhas 1 a 6 da seção 8 do memo (`docs/reference/typed-note-decision.md`): os `schemas` do parser, os tipos e os blocos de schema do índice (versão 10, carregada no lugar), a tipagem do core na hora da consulta, o painel, `type:` na busca, o MCP; decidido em 2026-09-24 ([0052](adr/0052-typed-note.md), Q11 da spec). À espera da leitura do mantenedor e da aprovação das duas fixtures de schema |
 | 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | idiomas construídos, escolhidos nos ajustes; acessibilidade auditada estaticamente contra a WCAG 2.2 AA em 2026-09-24, num branch local — o que foi corrigido e o que espera o mantenedor está na [revisão](review/accessibility.md); ainda não percorrida com um leitor de tela |
 
 Além dos sete itens, o mantenedor pediu durante a fase o que faltaria a quem

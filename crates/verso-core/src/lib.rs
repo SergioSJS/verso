@@ -41,6 +41,7 @@ pub mod board;
 pub mod canvas;
 pub mod clients;
 pub mod focuses;
+pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
 mod sidecar;
 pub use sidecar::Sidecar;
@@ -526,6 +527,13 @@ pub struct NoteText {
     /// The frontmatter's keys and values, typed for a properties panel,
     /// in the order written; empty when there is none or it is not YAML.
     pub properties: Vec<(String, PropertyValue)>,
+    /// The note's type, when its `type:` names a schema of the folder
+    /// (ADR 0052); `None` for plain Markdown.
+    pub note_type: Option<typed::NoteType>,
+    /// The `verso-schema` blocks this note holds, as the parser read them
+    /// now: a schema that types nothing says so in its own note (ADR 0052
+    /// point 5), and a nested one that it is not read (point 3).
+    pub schema_blocks: Vec<typed::SchemaNotice>,
     /// The whole text as read, line endings included, for an editor: what
     /// it gives back is written as is. Bytes that are not UTF-8 give no
     /// text at all ([`CoreError::NotText`]).
@@ -1358,10 +1366,26 @@ impl Workspace {
         stale: bool,
         unverified: bool,
     ) -> Result<NoteText, CoreError> {
+        let document = verso_dialect::parse(&text);
+        let schema_blocks = document.schemas.iter().map(typed::notice).collect();
+        let frontmatter = match document.frontmatter.map(|f| f.values) {
+            Some(Ok(verso_dialect::Value::Mapping(map))) => map,
+            _ => Vec::new(),
+        };
+        let note_type = if typed::written_type(&frontmatter).is_some() {
+            let blocks = self.index.schema_blocks().map_err(CoreError::Index)?;
+            typed::note_type(&frontmatter, &blocks, |p| {
+                self.index.content_of(p).ok().flatten()
+            })
+        } else {
+            None
+        };
         Ok(NoteText {
             lines: text.lines().map(str::to_owned).collect(),
             html: verso_dialect::to_html(&text),
             properties: properties(&text),
+            note_type,
+            schema_blocks,
             stale,
             unverified,
             headings: self.index.headings_of(&path).map_err(CoreError::Index)?,
@@ -2659,6 +2683,15 @@ impl Workspace {
 
     pub fn notes(&self) -> Result<Vec<String>, CoreError> {
         self.index.notes().map_err(CoreError::Index)
+    }
+
+    /// The notes whose `type:` is `name` — case ignored, as a type's name
+    /// is compared (ADR 0052 point 1) — in path order, whether a schema
+    /// types them or not: what `type:` searches.
+    pub fn notes_of_type(&self, name: &str) -> Result<Vec<String>, CoreError> {
+        self.index
+            .notes_of_type(&verso_index::type_key(name))
+            .map_err(CoreError::Index)
     }
 
     /// Every board (`.canvas`) the index knows, in path order.

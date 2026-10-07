@@ -101,6 +101,23 @@ const STOPS = [
     },
   },
   {
+    id: "tipos",
+    label: "Tipos",
+    heading: "🏷️ Notas tipadas",
+    color: AMBER,
+    canvasColor: "3",
+    cards: [
+      ["n-tipos", "21 - Notas Tipadas.md", 640],
+      ["n-lia", "Personagens/Lia Torres.md", 420],
+    ],
+    tip:
+      "Uma nota com type: personagem ganha o formulário do schema do tipo: as propriedades declaradas primeiro, com rótulo e campo certos. " +
+      "O que não cabe fica marcado, a linha vazia só grava quando você preenche, e type:personagem busca as notas do tipo.",
+    extra(b, x, y, f) {
+      b.write("d-tipos-w", x + 40, y + 830, "o schema mora numa nota: Tipos/Personagem", { size: 28, color: GREY, frame: f });
+    },
+  },
+  {
     id: "encontrar",
     label: "Encontrar",
     heading: "🔎 Encontrar",

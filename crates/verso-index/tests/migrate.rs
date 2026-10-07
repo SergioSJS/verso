@@ -104,3 +104,31 @@ fn version_7_migrates_to_version_9_and_marks_notes_to_read_again() {
     // Notes must be marked to re-read so that labels in frontmatter are populated
     assert_ne!(index.stamp_of("Nota.md").unwrap(), Some(stamp()));
 }
+
+#[test]
+fn version_9_is_carried_to_version_10_with_the_types_and_schemas_empty_until_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("index.sqlite");
+    {
+        let mut index = Index::open(&file).unwrap();
+        let barao = "---\ntype: npc\n---\n# Barão\n";
+        index
+            .upsert("Barão.md", stamp(), barao, &verso_dialect::parse(barao))
+            .unwrap();
+    }
+    {
+        let conn = rusqlite::Connection::open(&file).unwrap();
+        conn.execute_batch(
+            "DROP TABLE schemas;
+             ALTER TABLE notes DROP COLUMN type;
+             ALTER TABLE notes DROP COLUMN type_key;
+             UPDATE meta SET value = '9' WHERE key = 'schema';",
+        )
+        .unwrap();
+    }
+    let index = Index::open(&file).unwrap();
+    assert!(index.schema_blocks().unwrap().is_empty());
+    assert_eq!(index.note_type("Barão.md").unwrap(), None);
+    // Read again on the next walk, which fills the new columns.
+    assert_ne!(index.stamp_of("Barão.md").unwrap(), Some(stamp()));
+}

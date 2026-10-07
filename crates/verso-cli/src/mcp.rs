@@ -55,7 +55,8 @@ A note is named by its path relative to the folder, with `.md` (as `list_notes` 
 `read_note` gives a note's properties and tags; `list_notes` filters by `tag` or `property`. A link held by a frontmatter \
 property is a typed relation: `links` and `backlinks` give its `relation` (the property's key). `read_board` reads a \
 board's cards, edges (with their relation) and drawn texts; `query_base` evaluates a base as the app shows it. \
-`list_notes` filters and `query_base` answer from the index, as `search` does. \
+`list_notes` filters and `query_base` answer from the index, as `search` does. A typed note (its `type:` naming a \
+`verso-schema` block of the folder) comes with `note_type`: its schema, declared properties and whether each fits. \
 Cite a block by its `^id` when `read_note` lists one at that line; otherwise cite `path`, `line` and `col` \
 (1-based; `col` counts Unicode characters) as `read_note` numbers them. `search`, `links`, `backlinks` and \
 `unresolved` answer from an index built when the server started; `read_note` reads the file now and says \
@@ -169,6 +170,100 @@ pub struct ReadResult {
     pub properties: Vec<PropertyOut>,
     /// The note's tags, of the frontmatter and the body, without `#`.
     pub tags: Vec<String>,
+    /// The note's type, when its `type:` names a schema of the folder
+    /// (ADR 0052); null for plain Markdown.
+    pub note_type: Option<TypeOut>,
+}
+
+/// A note's type: `typed` by one schema (with its declared properties),
+/// `conflict` (two or more schemas of one name: none applies) or `invalid`
+/// (its schema does not parse).
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct TypeOut {
+    /// The note's `type:`, as written.
+    pub written: String,
+    /// `typed`, `conflict` or `invalid`.
+    pub state: String,
+    /// The note holding the schema (`typed`, `invalid`).
+    pub schema: Option<String>,
+    /// The notes holding a schema of that name (`conflict`).
+    pub schemas: Vec<String>,
+    /// Why the schema does not parse (`invalid`).
+    pub error: Option<String>,
+    /// The type's name per language (`typed`).
+    pub labels: Vec<LabelOut>,
+    /// The declared properties, in the schema's order (`typed`).
+    pub properties: Vec<DeclaredOut>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct LabelOut {
+    pub lang: String,
+    pub text: String,
+}
+
+/// A property the schema declares, as the note holds it.
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct DeclaredOut {
+    pub key: String,
+    /// `text`, `list`, `number`, `checkbox`, `date` or `datetime`.
+    pub kind: String,
+    pub labels: Vec<LabelOut>,
+    /// The note has the key.
+    pub present: bool,
+    /// The value fits the kind (a date `YYYY-MM-DD`, a number…).
+    pub fits: bool,
+}
+
+fn labels_out(labels: Vec<(String, String)>) -> Vec<LabelOut> {
+    labels
+        .into_iter()
+        .map(|(lang, text)| LabelOut { lang, text })
+        .collect()
+}
+
+fn type_out(t: verso_core::typed::NoteType) -> TypeOut {
+    use verso_core::typed::TypeState;
+    let mut out = TypeOut {
+        written: t.written,
+        state: String::new(),
+        schema: None,
+        schemas: Vec::new(),
+        error: None,
+        labels: Vec::new(),
+        properties: Vec::new(),
+    };
+    match t.state {
+        TypeState::Typed(s) => {
+            out.state = "typed".to_owned();
+            out.schema = Some(s.schema);
+            out.labels = labels_out(s.labels);
+            out.properties = s
+                .properties
+                .into_iter()
+                .map(|p| DeclaredOut {
+                    key: p.key,
+                    kind: p.kind,
+                    labels: labels_out(p.labels),
+                    present: p.present,
+                    fits: p.fits,
+                })
+                .collect();
+        }
+        TypeState::Conflict { schemas } => {
+            out.state = "conflict".to_owned();
+            out.schemas = schemas;
+        }
+        TypeState::Invalid { schema, error } => {
+            out.state = "invalid".to_owned();
+            out.schema = Some(schema);
+            out.error = Some(error);
+        }
+    }
+    out
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -242,6 +337,9 @@ pub struct ListParams {
     /// With `property`: only the notes where it holds this value (a list
     /// holds each item; case ignored).
     pub value: Option<String>,
+    /// Only the notes whose `type:` is this name, case ignored (ADR 0052).
+    #[serde(rename = "type")]
+    pub note_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -696,7 +794,7 @@ impl Server {
     }
 
     #[tool(
-        description = "Read a note's text as numbered lines (cite `line` as given, 1-based), with its headings and `^id` blocks and their positions, its frontmatter properties (typed), and its tags. At most 400 lines per call: use `from_line`/`to_line` for the rest. `stale: true` means the index is behind this file. A placeholder (content not downloaded) is an error, not an empty note. A board's lines can be read too; `read_board` gives its structure.",
+        description = "Read a note's text as numbered lines (cite `line` as given, 1-based), with its headings and `^id` blocks and their positions, its frontmatter properties (typed), its tags, and its type when a schema types it (`note_type`: the declared properties, each present or not, fitting its kind or not). At most 400 lines per call: use `from_line`/`to_line` for the rest. `stale: true` means the index is behind this file. A placeholder (content not downloaded) is an error, not an empty note. A board's lines can be read too; `read_board` gives its structure.",
         output_schema = answer_schema::<ReadResult>()
     )]
     fn read_note(
@@ -804,6 +902,7 @@ impl Server {
                     })
                     .collect(),
                 tags,
+                note_type: text.note_type.map(type_out),
             }))
         })
     }
@@ -897,7 +996,7 @@ impl Server {
     }
 
     #[tool(
-        description = "Every note and board the index knows, by path relative to the folder, in path order; at most 5000 per call. With `tag`, `property` (and `value`), only the notes that match: a tag holds its nested tags, a list property holds each item, case ignored. Answers from the index: call `index` after the folder changed.",
+        description = "Every note and board the index knows, by path relative to the folder, in path order; at most 5000 per call. With `tag`, `property` (and `value`), only the notes that match: a tag holds its nested tags, a list property holds each item, case ignored. With `type`, only the notes whose `type:` is that name. Answers from the index: call `index` after the folder changed.",
         output_schema = answer_schema::<ListResult>()
     )]
     fn list_notes(
@@ -906,7 +1005,7 @@ impl Server {
     ) -> Result<Json<ListResult>, CallToolResult> {
         self.guarded(|ws| {
             let given = |f: &Option<String>| f.as_deref().is_some_and(|s| !s.trim().is_empty());
-            let filtered = given(&p.tag) || given(&p.property);
+            let filtered = given(&p.tag) || given(&p.property) || given(&p.note_type);
             if p.value.is_some() && !given(&p.property) {
                 return Err(refuse(
                     "bad_filter",
@@ -915,8 +1014,18 @@ impl Server {
                 ));
             }
             let mut notes = if filtered {
-                ws.notes_where(p.tag.as_deref(), p.property.as_deref(), p.value.as_deref())
-                    .map_err(|e| fail(&e, None))?
+                let mut found = ws
+                    .notes_where(p.tag.as_deref(), p.property.as_deref(), p.value.as_deref())
+                    .map_err(|e| fail(&e, None))?;
+                if let Some(name) = p.note_type.as_deref().filter(|n| !n.trim().is_empty()) {
+                    let of: std::collections::HashSet<String> = ws
+                        .notes_of_type(name)
+                        .map_err(|e| fail(&e, None))?
+                        .into_iter()
+                        .collect();
+                    found.retain(|n| of.contains(n));
+                }
+                found
             } else {
                 let mut all = ws.notes().map_err(|e| fail(&e, None))?;
                 all.extend(ws.boards().map_err(|e| fail(&e, None))?);
