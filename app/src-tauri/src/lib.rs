@@ -36,9 +36,9 @@ use verso_contract::{
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
     Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus, FocusesSummary, FolderChanged,
     FolderInfo, Heading, Hit, IndexProgress, IndexSummary, Label, Link, LinkRewrite, McpAdded,
-    McpClientState, McpStatus, NoteText, NoteType, Property, PropertyValue, Renamed, SchemaNotice,
-    SkipReason, Skipped, Tag, TextFile, Trashed, TypeState, TypedProperty, UpdateProgress, WebNote,
-    Written,
+    McpClientState, McpStatus, MovedEntries, NoteText, NoteType, Property, PropertyValue,
+    RefusedEntry, Renamed, SchemaNotice, SkipReason, Skipped, Tag, TextFile, Trashed, TypeState,
+    TypedProperty, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -767,6 +767,7 @@ macro_rules! commands_for {
                 create_folder::<$runtime>,
                 delete_note::<$runtime>,
                 rename_note::<$runtime>,
+                move_entries::<$runtime>,
                 resolve_attachment::<$runtime>,
                 list_files::<$runtime>,
                 list_folders::<$runtime>,

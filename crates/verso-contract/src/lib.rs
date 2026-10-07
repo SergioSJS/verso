@@ -342,6 +342,29 @@ pub struct Renamed {
     pub also: Vec<Moved>,
 }
 
+/// What moving several entries at once left — a selection of the tree
+/// dropped on a folder (ADR 0048, revised 2026-10-07): those that moved;
+/// those the disk refused, each with its error, which stayed where they
+/// were; one plan of rewrites over where everything ended; the notes it
+/// could not plan; what could not be confirmed; and what moved by a rule
+/// of its own (a folder's note). Empty when nothing had to move.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct MovedEntries {
+    pub moved: Vec<Moved>,
+    pub refused: Vec<RefusedEntry>,
+    pub rewrites: Vec<LinkRewrite>,
+    pub skipped: Vec<Skipped>,
+    pub warnings: Vec<String>,
+    pub also: Vec<Moved>,
+}
+
+/// An entry a move left where it was, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RefusedEntry {
+    pub path: String,
+    pub error: ContractError,
+}
+
 /// A file that moved, from one relative path to another.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Moved {

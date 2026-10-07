@@ -53,6 +53,8 @@ fn main() {
         "board_preview",
         "render_markdown",
         "rename_entry",
+        "move_entries",
+        "notes_of_type",
         "delete_entry",
         "reveal",
         "copy_full_path",

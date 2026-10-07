@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { h, ui } from "../dom";
-import { moveFile } from "../files";
+import { moveFile, moveEntries } from "../files";
 import { BoardLeaf } from "../leaves/board";
 import { Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
@@ -21,7 +21,10 @@ export function overlayOpen(): boolean {
 }
 
 /* ---------- Pointer drag: tabs and tree rows, dropped where the pointer says ---------- */
-export type Drag = { kind: "tab"; leaf: Leaf } | { kind: "file"; path: string };
+/** A tab, or a row of the tree — with the other rows selected with it,
+ *  when it is dragged as part of a selection (ADR 0048, revised
+ *  2026-10-07). */
+export type Drag = { kind: "tab"; leaf: Leaf } | { kind: "file"; path: string; paths?: string[] };
 export let drag: Drag | null = null;
 export const ghost = h("div", "drag-ghost");
 export function clearDropHints(): void {
@@ -233,7 +236,18 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
     }
     return;
   }
-  // A file from the tree.
+  // A file from the tree — or several, a selection: into a folder they
+  // move together, with one plan of link rewrites; anywhere else, each
+  // goes where one would.
+  const many = d.paths && d.paths.length > 1 ? d.paths : null;
+  if (many && !shiftKey && ("treeItem" in target || "folder" in target)) {
+    void moveEntries(many, target.folder);
+    return;
+  }
+  if (many) {
+    for (const path of many) drop({ kind: "file", path }, target, x, y, shiftKey);
+    return;
+  }
   if ("treeItem" in target) {
     const draggedFolder = dirOf(d.path);
     if (shiftKey) {

@@ -154,7 +154,8 @@ const STOPS = [
     cards: [["n-arquivos", "14 - Arquivos e Pastas.md", 640]],
     tip:
       "Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; " +
-      "arrastar uma nota da árvore para o texto cria um link; a lixeira é a pasta .trash, como no Obsidian.",
+      "arrastar uma nota da árvore para o texto cria um link; ⌘-clique e ⇧-clique selecionam várias, que se movem juntas; " +
+      "a lixeira é a pasta .trash, como no Obsidian.",
     extra(b, x, y, f) {
       keys(b, "d-arq", x + 740, y + 160, [[["⌘", "N"], "nova nota"], [["⌘", "⇧", "N"], "nova nota com nome"], [["F2"], "renomear"], [["⌘", "⌫"], "para a lixeira"]], f);
     },

@@ -799,3 +799,76 @@ fn app_views_never_navigate_to_the_web_even_approved() {
     // The child web view is where a page loads, any http(s) page.
     assert!(may_navigate("web-1", &url("https://rolai.app/x"), None));
 }
+
+/// Several entries moved through the contract (ADR 0048, revised
+/// 2026-10-07): those that move come back with where they went, one the
+/// disk refuses with the contract's error kind, and the plan once.
+#[test]
+fn several_entries_move_through_the_contract_with_one_plan() {
+    let vault = tempfile::tempdir().unwrap();
+    let dir = |name: &str| {
+        tempfile::Builder::new()
+            .prefix(name)
+            .rand_bytes(0)
+            .tempdir_in(vault.path())
+            .unwrap()
+    };
+    let (_velha, _nova) = (dir("Velha"), dir("Nova"));
+    let _pa = note(&vault.path().join("Velha"), "Pa.md", "a\n");
+    let _pb = note(&vault.path().join("Velha"), "Pb.md", "b\n");
+    let _taken = note(&vault.path().join("Nova"), "Pb.md", "outra\n");
+    let _ref = note(vault.path(), "Ref.md", "[[Velha/Pa]] e [[Velha/Pb]]\n");
+    let (_app, webview) = app_with(Some(vault.path().to_path_buf()));
+    call(&webview, "open_initial", json!({})).unwrap();
+
+    let done = call(
+        &webview,
+        "move_entries",
+        json!({ "paths": ["Velha/Pa.md", "Velha/Pb.md"], "folder": "Nova" }),
+    )
+    .unwrap();
+    assert_eq!(
+        done["moved"],
+        json!([{ "from": "Velha/Pa.md", "to": "Nova/Pa.md" }]),
+        "{done}"
+    );
+    assert_eq!(done["refused"][0]["path"], "Velha/Pb.md", "{done}");
+    assert_eq!(done["refused"][0]["error"]["kind"], "exists", "{done}");
+    assert_eq!(done["rewrites"].as_array().unwrap().len(), 1, "{done}");
+    assert_eq!(done["rewrites"][0]["path"], "Ref.md");
+    assert_eq!(done["rewrites"][0]["after"], "[[Nova/Pa]] e [[Velha/Pb]]\n");
+
+    // A path that cannot name an entry is refused before anything moves.
+    let err = call(
+        &webview,
+        "move_entries",
+        json!({ "paths": ["../fora.md"], "folder": "Nova" }),
+    )
+    .unwrap_err();
+    assert_eq!(err["kind"], "refused", "{err}");
+}
+
+/// Every command the bindings call is allowed by the window's capability
+/// and listed in build.rs: a command missing there answers "not allowed"
+/// in the app, while the browser harness, which has no capabilities,
+/// passes (`move_entries` did, on 2026-10-07).
+#[test]
+fn every_command_of_the_bindings_is_allowed() {
+    let bindings = include_str!("../../ui/src/bindings.ts");
+    let capability = include_str!("../capabilities/default.json");
+    let build = include_str!("../build.rs");
+    let mut missing = Vec::new();
+    for part in bindings.split("TAURI_INVOKE(\"").skip(1) {
+        let Some(name) = part.split('"').next() else {
+            continue;
+        };
+        let allow = format!("\"allow-{}\"", name.replace('_', "-"));
+        if !capability.contains(&allow) {
+            missing.push(format!("{name}: not in capabilities/default.json"));
+        }
+        if !build.contains(&format!("\"{name}\"")) {
+            missing.push(format!("{name}: not in build.rs"));
+        }
+    }
+    assert!(missing.is_empty(), "{missing:#?}");
+}

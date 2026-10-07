@@ -8,6 +8,10 @@
   2026-09-23 — **decidido pelo mantenedor**: aquele registro vira a Decisão,
   com os nomes que nenhum link alcança agora recusados pela janela
   (`docs/review/phase-2.md` §6, itens 2, 19 e 21).
+  2026-10-07 — **várias entradas de uma vez**, a pedido do mantenedor
+  ("deveria ser possível mover vários arquivos juntos, selecionar vários e
+  mover para pastas"); perguntado como uma seleção deveria se comportar,
+  escolheu "como o Finder/Obsidian".
 
 ## Contexto
 
@@ -33,6 +37,22 @@ volume ignora a caixa; um nome digitado que nenhum link alcança recusado pela
 janela;
 volumes sem hard links permitidos, com aviso; um placeholder sozinho nem
 renomeado nem excluído.
+
+**Várias entradas de uma vez (2026-10-07).** Na árvore de arquivos, o
+⌘-clique (Ctrl fora do Mac) acrescenta uma linha a uma seleção ou a tira —
+a linha clicada antes entra na seleção que ele começa —, o ⇧-clique
+seleciona todas as linhas desde a última clicada, e o Esc ou um clique
+comum a limpa; o clique comum continua abrindo. Arrastada para uma pasta, a
+seleção vai para lá junta; o seu menu a move ("Mover para…"), copia os
+caminhos relativos, ou manda tudo para `.trash/` depois de uma confirmação.
+Mover várias entradas é uma chamada ao core, que lê o que elas podem mudar
+antes de qualquer uma se mover, move cada uma por vez — uma que o disco
+recusa (um nome já tomado lá) fica, nomeada, e as outras vão — e planeja as
+reescritas de links **uma vez, sobre onde tudo terminou**: uma nota que
+aponta para duas delas recebe uma reescrita, como a opção (b) a mostra. Uma
+entrada dentro de uma pasta também selecionada vai com a pasta. O ⌘-clique
+na árvore não abre mais uma nota em aba nova; o menu da linha continua
+abrindo.
 
 As questões como foram registradas de início, antes do item 2.3 da Fase 2:
 

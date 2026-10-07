@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-move-entries"
+description = "Enables the move_entries command without any pre-configured scope."
+commands.allow = ["move_entries"]
+
+[[permission]]
+identifier = "deny-move-entries"
+description = "Denies the move_entries command without any pre-configured scope."
+commands.deny = ["move_entries"]

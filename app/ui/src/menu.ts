@@ -7,7 +7,7 @@ import { commands } from "./bindings";
 import { importDemoVault } from "./demo";
 import { h, ui } from "./dom";
 import { fail } from "./errors";
-import { deleteEntry, duplicateEntry, movePrompt, turnNoteIntoFolder } from "./files";
+import { deleteEntries, deleteEntry, duplicateEntry, movePrompt, turnNoteIntoFolder } from "./files";
 import { activeFocusItem, addFocusPrompt, focusesList, focusesSummary, FocusWithOrigin, getSyncFocuses, isHomeFocusName, loadFocuses, promptSyncFocusesIfNeeded, saveFocuses, selectFocus } from "./focuses";
 import { allEntries, popout } from "./folder";
 import { icon } from "./icons";
@@ -25,6 +25,7 @@ import { giveBack } from "./side";
 import { boardText, LOCALE, t } from "./strings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
 import { listAll } from "./tree/tree";
+import { clearSelection } from "./tree/selection";
 
 export function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
   const folder = kind === "folder";
@@ -113,6 +114,19 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
     [t.deleteEntry, () => void deleteEntry(path, kind), "close"],
   );
   showMenu(x, y, items);
+}
+
+/** The menu of a selection of the tree (ADR 0048, revised 2026-10-07):
+ *  what acts on all of it at once. */
+export function selectionMenu(x: number, y: number, paths: string[]): void {
+  showMenu(x, y, [
+    [`${t.moveTo}…`, () => movePrompt(paths), "sidebar"],
+    [t.selection.copyPaths, () => void navigator.clipboard.writeText(paths.join("\n")).then(() => (ui.status.textContent = t.copied)), "link"],
+    ["—", () => {}],
+    [t.selection.clear, () => clearSelection(), "close"],
+    ["—", () => {}],
+    [t.deleteEntry, () => void deleteEntries(paths), "close"],
+  ]);
 }
 
 export const menu = h("ul", "menu");
