@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.4.0-beta.2 — 2026-10-07
+
 ### Acrescentado
 
 - **O embed de um bloco mostra esse bloco** (spec Q3, Q21): `![[nota#^id]]` mostra o parágrafo, o item de lista (com os aninhados), o título, a tabela, o bloco de código ou a citação que o id nomeia, não a nota inteira; `[[nota#^id]]` abre a nota naquele bloco. Um `^id` sozinho numa linha depois de uma linha em branco nomeia o bloco de antes, como no Obsidian. O mesmo `^id` duas vezes numa nota é avisado na nota, valendo o último (Q4). Como no Obsidian, o próprio `^id` não aparece na Leitura (um `^id` sozinho na linha some inteiro) e aparece apagado no Editar.

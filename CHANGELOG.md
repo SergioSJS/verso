@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.4.0-beta.2 — 2026-10-07
+
 ### Added
 
 - **An embed of a block shows that block** (spec Q3, Q21): `![[nota#^id]]` shows the paragraph, list item (with its nested items), heading, table, code block or quote the id names, not the whole note; `[[nota#^id]]` opens the note at that block. A `^id` alone on a line after a blank line names the block before it, as in Obsidian. The same `^id` twice in a note is said in the note, the last one counting (Q4). As in Obsidian, the `^id` itself is not shown in Leitura (a `^id` alone on its line goes entirely) and is shown quiet in Editar.
