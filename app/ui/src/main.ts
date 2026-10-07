@@ -4517,6 +4517,7 @@ class ImageLeaf extends Leaf {
     await fetchFirst(path);
     if (this.path !== path) return;
     this.img.src = convertFileSrc(path, "verso");
+    this.img.dataset["path"] = path;
     this.img.alt = name(path);
     this.box.setAttribute("aria-label", `${t.actualSize}: ${name(path)}`);
     markCurrent();
@@ -13100,6 +13101,102 @@ void listen("quit-requested", async () => {
 lesson();
 /* A note back from its own window, to the window of its folder the host
  * names (ADR 0065). */
+/** A picture's own menu: a right click on a picture of a note, of the
+ *  board, a cover or a picture's tab. WebKit's menu there ("Open Image in
+ *  New Window", "Download Image"…) needs hooks a desktop app's window does
+ *  not give a page, and did nothing; this one acts as the app does. */
+const imageText = LANG.toLowerCase().startsWith("pt")
+  ? { download: "Baixar imagem", copy: "Copiar imagem", copied: "Imagem copiada.", copyFailed: "Não foi possível copiar a imagem.", openInBrowser: "Abrir no navegador", copyAddress: "Copiar endereço da imagem", downloaded: (name: string) => `Baixado em Downloads: ${name}.`, downloadFailed: "O download não terminou." }
+  : { download: "Download image", copy: "Copy image", copied: "Image copied.", copyFailed: "The image could not be copied.", openInBrowser: "Open in the browser", copyAddress: "Copy image address", downloaded: (name: string) => `Downloaded to Downloads: ${name}.`, downloadFailed: "The download did not finish." };
+/** The folder's file a picture shows, by its `data-path` or its address. */
+function pictureFile(img: HTMLImageElement): string | null {
+  const own = img.closest<HTMLElement>("[data-path]")?.dataset["path"];
+  if (own) return own;
+  const base = convertFileSrc("", "verso");
+  const src = img.currentSrc || img.src;
+  if (!src.startsWith(base)) return null;
+  try {
+    return decodeURIComponent(src.slice(base.length).split(/[?#]/)[0] ?? "") || null;
+  } catch {
+    return null;
+  }
+}
+/** A picture as a PNG, for the clipboard: an SVG or a JPEG drawn again. */
+async function picturePng(src: string): Promise<Blob> {
+  const blob = await (await fetch(src)).blob();
+  if (blob.type === "image/png") return blob;
+  const pic = new Image();
+  pic.src = URL.createObjectURL(blob);
+  try {
+    await pic.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = pic.naturalWidth || 1;
+    canvas.height = pic.naturalHeight || 1;
+    canvas.getContext("2d")?.drawImage(pic, 0, 0);
+    return await new Promise<Blob>((ok, no) => canvas.toBlob((b) => (b ? ok(b) : no(new Error("no png"))), "image/png"));
+  } finally {
+    URL.revokeObjectURL(pic.src);
+  }
+}
+document.addEventListener(
+  "contextmenu",
+  (e) => {
+    const img = (e.target as Element | null)?.closest?.("img");
+    if (!(img instanceof HTMLImageElement)) return;
+    if (!img.closest(".preview, .editor, .image-box, .board-card-image, .note-cover-box, .embed")) return;
+    const src = img.currentSrc || img.src;
+    const file = pictureFile(img);
+    const remote = /^https?:\/\//i.test(src);
+    if (!file && !remote) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const items: MenuItem[] = [];
+    if (file) {
+      items.push([t.openInNewTab, () => openNote(file, false, true), "tab"]);
+      if (!popout) items.push([t.openInWindow, () => void commands.openWindow(file).then((r) => r.status !== "ok" && fail(r.error)), "maximize"]);
+      items.push(["—", () => {}]);
+      items.push([
+        imageText.download,
+        () =>
+          void (async () => {
+            // WebKit saves it to Downloads under a free name; the host says
+            // which (`downloaded`).
+            const blob = await (await fetch(convertFileSrc(file, "verso"))).blob();
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = file.split("/").pop() ?? file;
+            a.click();
+            window.setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+          })().catch((err: unknown) => fail({ message: String(err) })),
+        "download",
+      ]);
+    }
+    items.push([
+      imageText.copy,
+      () =>
+        void navigator.clipboard
+          .write([new ClipboardItem({ "image/png": picturePng(file ? convertFileSrc(file, "verso") : src) })])
+          .then(
+            () => void (ui.status.textContent = imageText.copied),
+            () => void (ui.status.textContent = imageText.copyFailed),
+          ),
+      "copy",
+    ]);
+    if (remote) {
+      items.push([imageText.openInBrowser, () => void commands.openUrl(src), "globe"]);
+      items.push([imageText.copyAddress, () => void navigator.clipboard.writeText(src), "link"]);
+    }
+    if (file) items.push(["—", () => {}], [t.reveal, () => void commands.reveal(file), "folderOpen"]);
+    showMenu(e.clientX, e.clientY, items);
+  },
+  true,
+);
+void listen<[string, string, boolean]>("downloaded", (e) => {
+  const [label, name, ok] = e.payload;
+  if (label !== getCurrentWindow().label) return;
+  ui.status.textContent = ok ? imageText.downloaded(name) : imageText.downloadFailed;
+});
+
 if (!popout) void listen<[string, string]>("open-note", (e) => {
   if (e.payload[0] !== getCurrentWindow().label) return;
   openNote(e.payload[1], false);

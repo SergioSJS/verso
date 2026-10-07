@@ -142,7 +142,15 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Nível: H; E: `notes.spec.mjs`. Pegou: a imagem era pedida ao endereço da
    própria janela antes do da pasta, desenhada com 0 px de largura (o tamanho
    depois de um texto alternativo não era lido), e redimensioná-la
-   reescrevia o exemplo (2026-10-01).
+   reescrevia o exemplo (2026-10-01). Um clique com o botão direito na
+   imagem — aqui, na aba dela (`assets/diagrama.svg`), num cartão do board —
+   é o menu do Verso: "Abrir em nova aba", "Abrir em nova janela", "Baixar
+   imagem" (vai para Downloads, a linha de status diz o nome), "Copiar
+   imagem", "Mostrar no Finder"; o "Baixar" da exportação do board também
+   vai para Downloads. Nível: H, A (o download e a janela); E:
+   `menus.spec.mjs`. Pegou: aparecia o menu do próprio WebKit, e o
+   "Download Image" e o "Open Image in New Window" dele não faziam nada
+   (2026-10-06).
 5. Uma imagem cujo nome de arquivo tem acento (`assets/gráfico.svg`) aparece
    vinda da pasta. Nível: H; E: `notes.spec.mjs`. Pegou: o renderizador
    codifica o endereço em porcentagem, e a janela pedia ao core

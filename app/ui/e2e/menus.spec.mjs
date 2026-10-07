@@ -56,3 +56,20 @@ test("the board's menu on a card, its link and the library hidden", async ({ app
   await expect(page.locator('.context-menu li[data-testid="addToLibrary"]')).toBeHidden();
   tidy(await shape(page, ".context-menu"));
 });
+
+test("a picture's right click is Verso's menu: open, download, copy, reveal — not WebKit's, whose items did nothing", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("diagrama");
+  const img = page.locator(".image-box img");
+  await expect(img).toBeVisible();
+  await img.click({ button: "right" });
+  const menu = page.locator(".menu:not([hidden])");
+  await expect(menu).toBeVisible();
+  for (const item of ["Abrir em nova aba", "Baixar imagem", "Copiar imagem", "Mostrar no Finder"]) await expect(menu.getByRole("menuitem", { name: item })).toBeVisible();
+  const download = page.waitForEvent("download");
+  await menu.getByRole("menuitem", { name: "Baixar imagem" }).click();
+  expect((await download).suggestedFilename()).toBe("diagrama.svg");
+  await img.click({ button: "right" });
+  await page.locator(".menu:not([hidden])").getByRole("menuitem", { name: "Mostrar no Finder" }).click();
+  await expect.poll(() => app.calls("reveal")).toEqual([{ path: "assets/diagrama.svg" }]);
+});

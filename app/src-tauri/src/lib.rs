@@ -1801,6 +1801,7 @@ fn open_window<R: tauri::Runtime>(
         .inner_size(920.0, 720.0)
         .min_inner_size(360.0, 400.0)
         .disable_drag_drop_handler()
+        .on_download(on_download)
         .build()
         .map_err(|e| failed(e.to_string()))?;
     Ok(())
@@ -1855,8 +1856,45 @@ fn open_folder_window<R: tauri::Runtime>(
         .inner_size(1180.0, 760.0)
         .min_inner_size(360.0, 480.0)
         .disable_drag_drop_handler()
+        .on_download(on_download)
         .build()?;
     Ok(())
+}
+
+/// What a window of the app downloads — a picture's "Baixar imagem", the
+/// board's export "Baixar" — goes to the Downloads folder, under a name not
+/// taken there (WebKit's choice, made by wry); without a hook WebKit drops
+/// every download unseen. The window is told the file's name, never its
+/// path (ADR 0026 rule 4), to say where it went. A web page's own window
+/// has no such hook: what a site downloads is the network's (ADR 0050).
+fn on_download<R: tauri::Runtime>(
+    webview: tauri::Webview<R>,
+    event: tauri::webview::DownloadEvent<'_>,
+) -> bool {
+    match event {
+        tauri::webview::DownloadEvent::Requested { destination, .. } => {
+            let name = destination
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            log::write("INFO", "host", &format!("download to Downloads: {name}"));
+            let _ = webview
+                .app_handle()
+                .emit("downloaded", (webview.label().to_owned(), name, true));
+            true
+        }
+        tauri::webview::DownloadEvent::Finished { success, .. } => {
+            if !success {
+                log::write("WARN", "host", "a download did not finish");
+                let _ = webview.app_handle().emit(
+                    "downloaded",
+                    (webview.label().to_owned(), String::new(), false),
+                );
+            }
+            true
+        }
+        _ => true,
+    }
 }
 
 /// Which note this window shows, when it is one popped out; `None` for
@@ -2708,6 +2746,17 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         ),
     );
     builder
+        .setup(|app| {
+            // The main window is made here, not from the configuration
+            // alone: it needs the download hook every window of the app
+            // has (`on_download`).
+            if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main") {
+                tauri::WebviewWindowBuilder::from_config(app.handle(), config)?
+                    .on_download(on_download)
+                    .build()?;
+            }
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(navigation_guard())
         .register_asynchronous_uri_scheme_protocol("verso", serve_file)
