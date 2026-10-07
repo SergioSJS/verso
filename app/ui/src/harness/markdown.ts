@@ -153,14 +153,17 @@ export function renderMarkdown(raw: string): string {
     }
     const cells = line.trim();
     if (cells.startsWith("|") && cells.endsWith("|")) {
-      if (!table) out.push("<table>");
-      table = true;
       const row = cells.slice(1, -1).split("|").map((c) => c.trim());
-      if (!row.every((c) => /^:?-+:?$/.test(c))) out.push(`<tr>${row.map((c) => `<td>${formatInline(c)}</td>`).join("")}</tr>`);
+      // The header in a `thead` of `th` cells, the rest in a `tbody`, as
+      // the core's renderer (pulldown-cmark) writes a table.
+      if (!table) {
+        out.push(`<table><thead><tr>${row.map((c) => `<th>${formatInline(c)}</th>`).join("")}</tr></thead><tbody>`);
+        table = true;
+      } else if (!row.every((c) => /^:?-+:?$/.test(c))) out.push(`<tr>${row.map((c) => `<td>${formatInline(c)}</td>`).join("")}</tr>`);
       continue;
     }
     if (table) {
-      out.push("</table>");
+      out.push("</tbody></table>");
       table = false;
     }
     const callout = /^>\s*\[!(\w+)\]([+-]?)\s*(.*)$/.exec(line);
@@ -194,7 +197,7 @@ export function renderMarkdown(raw: string): string {
     else if (line.trim() !== "") out.push(`<p>${formatInline(line)}</p>`);
   }
   if (code) out.push(`<pre><code>${escapeHtml(code.lines.join("\n"))}</code></pre>`);
-  if (table) out.push("</table>");
+  if (table) out.push("</tbody></table>");
   return out.join("\n");
 }
 

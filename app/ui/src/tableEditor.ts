@@ -17,6 +17,7 @@ import { EditorView, WidgetType, keymap } from "@codemirror/view";
 import { Prec, type EditorState, type Extension } from "@codemirror/state";
 import { redo, undo } from "@codemirror/commands";
 import { deleteCol, deleteRow, gridText, insertCol, insertRow, parseGrid, setAlign, setCell, type Align, type Grid } from "./table";
+import { wireColumnGrips, type WidthStore } from "./tableWidths";
 
 export type TableEditorOptions = {
   labels: {
@@ -38,6 +39,9 @@ export type TableEditorOptions = {
   /** The table as the reading view renders it (the core's renderer), for
    *  the cells' look while they are not typed in. */
   render?: (markdown: string) => Promise<string>;
+  /** Where the widths of the note's `ordinal`-th table, of `cols` columns,
+   *  are kept (ADR 0064, revised 2026-10-07): outside the file. */
+  widths?: (ordinal: number, cols: number) => WidthStore;
 };
 
 /** Where the focus goes after a change, by table position: the widget
@@ -124,12 +128,12 @@ function write(view: EditorView, dom: HTMLElement, grid: Grid, focus: { r: numbe
 }
 
 export class TableEditor extends WidgetType {
-  constructor(readonly text: string, readonly opts: TableEditorOptions) {
+  constructor(readonly text: string, readonly opts: TableEditorOptions, readonly ordinal = 0) {
     super();
   }
 
   override eq(other: TableEditor): boolean {
-    return other.text === this.text;
+    return other.text === this.text && other.ordinal === this.ordinal;
   }
 
   /** The grid of this widget's text. */
@@ -225,7 +229,7 @@ export class TableEditor extends WidgetType {
       el.append(look, input);
       this.arm(input, dom, view);
       el.addEventListener("mousedown", (e) => {
-        if (e.target === input || (e.target as HTMLElement).closest("a")) return;
+        if (e.target === input || (e.target as HTMLElement).closest("a, .table-col-grip")) return;
         e.preventDefault();
         input.focus();
         input.setSelectionRange(input.value.length, input.value.length);
@@ -241,6 +245,7 @@ export class TableEditor extends WidgetType {
     const hr = document.createElement("tr");
     g.head.forEach((t, c) => hr.append(cell("th", -1, c, t)));
     thead.append(hr);
+    if (this.opts.widths) wireColumnGrips(Array.from(hr.children) as HTMLElement[], this.opts.widths(this.ordinal, g.head.length), () => document.createElement("div"));
     const tbody = document.createElement("tbody");
     g.body.forEach((row, r) => {
       const tr = document.createElement("tr");

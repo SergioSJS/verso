@@ -437,7 +437,7 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true; editable?: true };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true; editable?: true; ordinal?: number };
 const BASE_EMBED = /\.base(#[^|]*)?$/i;
 const PDF_EXT = /\.pdf([#|].*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
@@ -445,6 +445,10 @@ export function blocksOf(state: EditorState): Block[] {
   const doc = state.doc;
   const tree = syntaxTree(state);
   const out: Block[] = [];
+  // The note's tables in order, every one counted — a nested one too — as
+  // the reading view counts them: a table's widths are kept by its place
+  // (tableWidths.ts).
+  let tables = 0;
   // The block's whole lines, when only indentation or `>` marks precede it
   // on its first line (after a list marker it stays source).
   const lines = (from: number, to: number) => {
@@ -474,6 +478,7 @@ export function blocksOf(state: EditorState): Block[] {
         return false;
       }
       if (n.name === "Table") {
+        const ordinal = tables++;
         const rows: string[] = [];
         for (let c = n.node.firstChild; c; c = c.nextSibling) {
           if (c.name === "TableHeader" || c.name === "TableDelimiter" || c.name === "TableRow") rows.push(doc.sliceString(c.from, c.to));
@@ -485,7 +490,7 @@ export function blocksOf(state: EditorState): Block[] {
         let nested = false;
         for (let p = n.node.parent; p; p = p.parent) if (p.name === "Blockquote" || p.name === "ListItem") nested = true;
         const editable = !nested && rows.length >= 2 && rows.every((r) => /^\|.*\|$/.test(r.trim())) && at !== null && doc.sliceString(at.from, at.to).split("\n").every((l) => /^\s*\|/.test(l));
-        if (at) out.push({ ...at, kind: "table", text: rows.join("\n"), rows, ...(editable ? { editable: true as const } : {}) });
+        if (at) out.push({ ...at, kind: "table", text: rows.join("\n"), rows, ordinal, ...(editable ? { editable: true as const } : {}) });
         return false;
       }
       if (n.name === "Paragraph") {
@@ -791,7 +796,7 @@ function foldBlocks(state: EditorState, opts: LiveOptions, blocks: Block[]): Dec
     if (b.from <= fm) continue;
     // A table is edited as a table, the caret in it or not (ADR 0064).
     if (b.kind === "table" && b.editable && opts.table) {
-      ranges.push(Decoration.replace({ widget: new TableEditor(b.text, opts.table), block: true }).range(b.from, b.to));
+      ranges.push(Decoration.replace({ widget: new TableEditor(b.text, opts.table, b.ordinal ?? 0), block: true }).range(b.from, b.to));
       continue;
     }
     const active = b.kind === "embed" && Boolean(opts.isEmbedActive?.(b.text));

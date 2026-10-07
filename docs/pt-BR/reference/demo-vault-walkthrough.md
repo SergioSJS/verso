@@ -200,6 +200,11 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     `\|`; ⌘Z numa célula desfaz o último passo. Uma tabela dentro de uma
     lista continua texto. Nível: H; E: `tables.spec.mjs`; U:
     `test/table.test.mjs`.
+12. A mesma tabela: arraste para a direita a borda de uma célula de
+    cabeçalho, no Editar; a Leitura mostra a coluna larga, e a nota aberta de
+    novo também; o arquivo não muda (ADR 0064 ponto 6). Nível: H; E:
+    `tables.spec.mjs`, "a column dragged wider…" e "a column dragged in
+    Reading…".
 
 ## 4. Organizar: propriedades, bases, notas diárias
 

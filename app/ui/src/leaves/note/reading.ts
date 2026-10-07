@@ -30,6 +30,8 @@ import { byFocusKey, focusKey } from "../focus";
 import { NoteLeaf } from "../note";
 import { pdfStrings, quoteIntoNotes } from "../pdf";
 import { TASK } from "../text";
+import { tableWidths, wireColumnGrips } from "../../tableWidths";
+import { currentFolder } from "../../folder";
 
 /** The note's links and backlinks from the index, fresh after every
  *  save: what the preview resolves against and the panel lists. Then
@@ -44,35 +46,18 @@ export function repaint(this: NoteLeaf): void {
   if (this.mode === "preview") this.paintPreview();
 }
 
+/** Each table's columns get a grip to drag their width, kept by Verso
+ *  outside the file (ADR 0064, revised 2026-10-07). A table is counted as
+ *  the editor counts it: among the note's own tables, in order — not one
+ *  of an embedded note or of a base drawn into it. */
 export function wireTableResizers(this: NoteLeaf, root: HTMLElement): void {
-  for (const table of root.querySelectorAll<HTMLTableElement>("table")) {
-    const ths = table.querySelectorAll<HTMLTableCellElement>("th");
-    if (ths.length === 0) continue;
-    for (const th of ths) {
-      if (th.querySelector(".table-col-grip")) continue;
-      const grip = h("div", "table-col-grip");
-      th.style.position = "relative";
-      th.append(grip);
-      grip.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        grip.setPointerCapture(e.pointerId);
-        const startX = e.clientX;
-        const startWidth = th.offsetWidth;
-        const onMove = (ev: PointerEvent) => {
-          const newWidth = Math.max(40, startWidth + (ev.clientX - startX));
-          th.style.width = `${newWidth}px`;
-          th.style.minWidth = `${newWidth}px`;
-        };
-        const onUp = () => {
-          grip.removeEventListener("pointermove", onMove);
-          grip.removeEventListener("pointerup", onUp);
-        };
-        grip.addEventListener("pointermove", onMove);
-        grip.addEventListener("pointerup", onUp);
-      });
-    }
-  }
+  const own = Array.from(root.querySelectorAll<HTMLTableElement>("table")).filter((tb) => !tb.closest(".embed, .embed-note, .embed-base, .embed-pdf"));
+  own.forEach((table, ordinal) => {
+    // The header row — in a `thead` or not, as the renderer writes it.
+    const ths = Array.from(table.querySelector("tr")?.querySelectorAll<HTMLElement>(":scope > th, :scope > td") ?? []);
+    if (ths.length === 0) return;
+    wireColumnGrips(ths, tableWidths(currentFolder, this.path, ordinal, ths.length), () => h("div"));
+  });
 }
 
 export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {

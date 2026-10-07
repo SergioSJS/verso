@@ -44,7 +44,7 @@ const STOPS = [
       ["n-mermaid", "08 - Diagramas Mermaid.md", 420],
     ],
     tip:
-      "Markdown puro, compatível com o Obsidian: títulos que recolhem, tabelas, tarefas, destaques, fórmulas em KaTeX e diagramas Mermaid. " +
+      "Markdown puro, compatível com o Obsidian: títulos que recolhem, tabelas (a largura de uma coluna se arrasta no cabeçalho), tarefas, destaques, fórmulas em KaTeX e diagramas Mermaid. " +
       "Leitura, Editar e Fonte: ⌘E alterna entre os dois primeiros. Um / no começo da linha insere blocos, e o Verso salva sozinho.",
   },
   {

@@ -163,4 +163,6 @@ No modo Editar uma tabela continua uma tabela: clique numa célula e digite nela
 
 O arquivo continua Markdown: a cada mudança as barras `|` se alinham sozinhas, e um `|` digitado numa célula vira `\|`. O botão **Tabela** da barra (ou `⌘⌥T`) — ou **Tabela** no menu `/` — insere uma tabela nova, com o cursor no primeiro cabeçalho. No modo Fonte, a tabela é o texto.
 
+Para alargar uma coluna, arraste a borda direita da célula de cabeçalho dela, no modo Editar ou na Leitura. O Verso guarda essa largura para a tabela e a nota — o arquivo não muda, e o Obsidian mostra a tabela como sempre.
+
 Voltar para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou continuar para [[02 - Links, Âncoras e Notas Incorporadas]].
