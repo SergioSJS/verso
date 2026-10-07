@@ -89,6 +89,16 @@ struct Sessions {
 }
 
 impl Sessions {
+    /// The windows that show folder `key` — its windows and its notes
+    /// popped out — for what only they should hear.
+    fn windows_of(&self, key: &str) -> Vec<String> {
+        self.windows
+            .iter()
+            .filter(|(_, k)| k.as_str() == key)
+            .map(|(label, _)| label.clone())
+            .collect()
+    }
+
     /// The session of the folder a window shows.
     fn of(&mut self, label: &str) -> Option<&mut Session> {
         let key = self.windows.get(label)?;
@@ -328,6 +338,9 @@ async fn install<R: tauri::Runtime>(
     let handle = app.clone();
     let missed = Arc::new(AtomicBool::new(false));
     let seen = Arc::clone(&missed);
+    // The folder's first index is heard by the window that opens it only:
+    // another window shows another folder (ADR 0065).
+    let opener = vec![window.label().to_owned()];
     let opened = tauri::async_runtime::spawn_blocking(move || -> Result<Session, CoreError> {
         let mut workspace = open(config.as_deref())?;
         // The user's walk rules, before the watch and the first index:
@@ -339,8 +352,7 @@ async fn install<R: tauri::Runtime>(
         let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
         let handle_for_progress = handle.clone();
         let report = workspace.index_with_progress(move |p| {
-            let progress = to_progress(p);
-            let _ = handle_for_progress.emit("index-progress", &progress);
+            emit_progress(&handle_for_progress, &opener, &to_progress(p));
         })?;
         let mut info = folder_info(&workspace, &report);
         info.index.unwatched.clone_from(&unwatched);
@@ -405,6 +417,18 @@ fn watch_folder<R: tauri::Runtime>(
     }
 }
 
+/// An index run's progress, to the windows of its folder only: a window on
+/// another folder showed this one's "Indexando" as its own (ADR 0065).
+fn emit_progress<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    windows: &[String],
+    progress: &verso_contract::IndexProgress,
+) {
+    for label in windows {
+        let _ = app.emit_to(label.as_str(), "index-progress", progress);
+    }
+}
+
 /// A batch from the watch, on its thread: index the folder again and send
 /// the app's windows `folder-changed`, once — every window listens to it,
 /// whatever its label. The payload names what this run found changed (a
@@ -417,6 +441,8 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, miss
     let state = app.state::<App>();
     let payload = {
         let mut guard = lock(&state.sessions);
+        // Taken before the run: the lock is held through it.
+        let shown_in = guard.windows_of(key);
         let Some(session) = guard.by_key.get_mut(key) else {
             missed.store(true, Ordering::SeqCst);
             return;
@@ -424,8 +450,7 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, miss
         let handle_for_progress = app.clone();
         let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
             session.workspace.index_with_progress(move |p| {
-                let progress = to_progress(p);
-                let _ = handle_for_progress.emit("index-progress", &progress);
+                emit_progress(&handle_for_progress, &shown_in, &to_progress(p));
             })
         }));
         let report = match outcome {
@@ -1892,12 +1917,16 @@ fn reindex<R: tauri::Runtime>(
     // One hold of the lock for the run and the summary: a folder switched
     // in between would otherwise get the other folder's summary.
     let mut guard = lock(&state.sessions);
+    let shown_in = guard
+        .windows
+        .get(window.label())
+        .map(|key| guard.windows_of(key))
+        .unwrap_or_default();
     let session = guard.of(window.label()).ok_or_else(no_folder)?;
     let handle_for_progress = app.clone();
     let report = match std::panic::catch_unwind(AssertUnwindSafe(|| {
         session.workspace.index_with_progress(move |p| {
-            let progress = to_progress(p);
-            let _ = handle_for_progress.emit("index-progress", &progress);
+            emit_progress(&handle_for_progress, &shown_in, &to_progress(p));
         })
     })) {
         Ok(result) => result.map_err(convert)?,
@@ -3642,6 +3671,36 @@ mod tests {
             call(&main, "list_notes", json!({})).unwrap(),
             json!(["Uma.md"])
         );
+    }
+
+    /// A folder's index progress is heard by the windows of that folder
+    /// only: a window on another folder showed it as its own (2026-10-06).
+    #[test]
+    fn a_folders_index_progress_reaches_only_its_windows() {
+        use tauri::Listener;
+        let one = tempfile::tempdir().unwrap();
+        let two = tempfile::tempdir().unwrap();
+        let _a = note(one.path(), "Uma.md", "# Uma\n");
+        let _b = note(two.path(), "Duas.md", "# Duas\n");
+        let (app, main) = app_with(Some(one.path().to_path_buf()));
+        call(&main, "open_initial", json!({})).unwrap();
+        let other = tauri::WebviewWindowBuilder::new(&app, "window-3", Default::default())
+            .build()
+            .unwrap();
+        *lock(&app.state::<App>().initial_folder) = Some(two.path().to_path_buf());
+        call(&other, "open_initial", json!({})).unwrap();
+        let mine = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let theirs = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let (m, t) = (Arc::clone(&mine), Arc::clone(&theirs));
+        main.listen("index-progress", move |_| {
+            m.fetch_add(1, Ordering::SeqCst);
+        });
+        other.listen("index-progress", move |_| {
+            t.fetch_add(1, Ordering::SeqCst);
+        });
+        call(&main, "reindex", json!({})).unwrap();
+        assert!(mine.load(Ordering::SeqCst) > 0);
+        assert_eq!(theirs.load(Ordering::SeqCst), 0);
     }
 
     /// A web page's view answers only the window that opened it: another
