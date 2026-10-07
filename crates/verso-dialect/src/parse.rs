@@ -8,12 +8,14 @@
 
 use std::ops::Range;
 
-use pulldown_cmark::{Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{
+    CodeBlockKind, Event, LinkType, MetadataBlockKind, Options, Parser, Tag, TagEnd,
+};
 
 use crate::frontmatter::{Frontmatter, parse_yaml};
 use crate::position::{LineIndex, Span};
 use crate::wikilink;
-use crate::{BlockId, Callout, Document, Embed, Fold, Heading, Link};
+use crate::{BlockId, Callout, Document, Embed, Fold, Heading, Link, SchemaBlock};
 
 /// Parse the text of one note into its [`Document`] report.
 ///
@@ -35,6 +37,12 @@ pub fn parse(source: &str) -> Document {
     let options = Options::ENABLE_WIKILINKS | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS;
     let mut document = Document::default();
     let mut items: Vec<OpenItem> = Vec::new();
+    // How many lists items and quotes enclose the event: a `verso-schema`
+    // block counts only at the top level (ADR 0052 point 3).
+    let mut depth = 0usize;
+    // A `verso-schema` block being read: its start, whether it is nested,
+    // and its text as the base hands it over (indentation taken off).
+    let mut schema: Option<(usize, bool, String)> = None;
 
     for (event, range) in Parser::new_ext(source, options).into_offset_iter() {
         // The own text of a list item closes when its first block child
@@ -42,6 +50,36 @@ pub fn parse(source: &str) -> Document {
         // that child is reported, so blocks stay in document order.
         if let Some(own_text) = track_item(&mut items, &event, &range) {
             push_block(&mut document, block_id(source, &lines, own_text));
+        }
+        match &event {
+            Event::Start(Tag::Item | Tag::BlockQuote(_) | Tag::FootnoteDefinition(_)) => depth += 1,
+            Event::End(TagEnd::Item | TagEnd::BlockQuote(_) | TagEnd::FootnoteDefinition) => {
+                depth = depth.saturating_sub(1);
+            }
+            Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(info)))
+                if info.split_whitespace().next() == Some("verso-schema") =>
+            {
+                schema = Some((range.start, depth > 0, String::new()));
+            }
+            Event::Text(text) => {
+                if let Some((_, _, body)) = schema.as_mut() {
+                    body.push_str(text);
+                }
+            }
+            Event::End(TagEnd::CodeBlock) => {
+                if let Some((start, nested, body)) = schema.take() {
+                    document.schemas.push(SchemaBlock {
+                        span: Span {
+                            start,
+                            end: range.end,
+                        },
+                        pos: lines.pos(source, start),
+                        nested,
+                        definition: (!nested).then(|| crate::schema::read(&body)),
+                    });
+                }
+            }
+            _ => {}
         }
         match event {
             Event::Start(Tag::Link {

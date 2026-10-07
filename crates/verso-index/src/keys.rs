@@ -82,6 +82,13 @@ pub fn relative_key(source: &str, target: &str) -> Option<String> {
     Some(key)
 }
 
+/// The key of a type's name — a note's `type:`, a schema's `type` — folded
+/// as a note's name is (ADR 0052 point 1): `NPC` and `npc` are one type.
+#[must_use]
+pub fn type_key(name: &str) -> String {
+    fold(name.trim())
+}
+
 /// The key of a file's name or path, for a file that is not a note (an
 /// attachment an embed names): NFC and lower case, the extension kept —
 /// `img/Mapa.PNG` and `img/mapa.png` are one file to a link (spec Q12

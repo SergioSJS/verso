@@ -990,6 +990,31 @@ function iconOfPath(path: string, kind: Kind): HTMLElement | SVGSVGElement {
   return url ? favicon(url) : icon(iconFor(kind));
 }
 const LOCALE = LANG.toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+/** The typed note's words (ADR 0052): the panel's, and what a note
+ *  holding a schema says of a block that types nothing. */
+const typedText = LANG.toLowerCase().startsWith("pt")
+  ? {
+      type: (label: string) => `Tipo: ${label}`,
+      openSchema: "Abrir o schema",
+      conflict: (name: string, schemas: string[]) => `Tipo ${name}: ${schemas.length} schemas com esse nome — nenhum vale até sobrar um:`,
+      invalid: (name: string, _schema: string, error: string) => `Tipo ${name}: o schema não lê (${error}):`,
+      misfit: (kind: string) => `Não é ${kind}: mostrado como está escrito`,
+      kinds: { text: "texto", list: "lista", number: "número", checkbox: "caixa de seleção", date: "data", datetime: "data e hora" } as Record<string, string>,
+      errors: { yaml: "YAML inválido", not_a_mapping: "não é um mapa", no_type: "falta o type", label: "label inválido", properties: "properties não é uma lista", property: "propriedade sem key ou sem kind", unknown_kind: "kind desconhecido", duplicate_key: "key repetida", stale: "o índice está atrás do arquivo; reindexe" } as Record<string, string>,
+      nested: (line: number) => `O bloco verso-schema da linha ${line} está dentro de uma lista ou citação: é um exemplo, não um schema.`,
+      broken: (line: number, error: string) => `O schema da linha ${line} não lê (${error}): não tipa nenhuma nota.`,
+    }
+  : {
+      type: (label: string) => `Type: ${label}`,
+      openSchema: "Open the schema",
+      conflict: (name: string, schemas: string[]) => `Type ${name}: ${schemas.length} schemas share this name — none applies until one is left:`,
+      invalid: (name: string, _schema: string, error: string) => `Type ${name}: the schema does not read (${error}):`,
+      misfit: (kind: string) => `Not a ${kind}: shown as written`,
+      kinds: { text: "text", list: "list", number: "number", checkbox: "checkbox", date: "date", datetime: "date and time" } as Record<string, string>,
+      errors: { yaml: "invalid YAML", not_a_mapping: "not a mapping", no_type: "no type", label: "invalid label", properties: "properties is not a list", property: "a property without key or kind", unknown_kind: "unknown kind", duplicate_key: "repeated key", stale: "the index is behind the file; reindex" } as Record<string, string>,
+      nested: (line: number) => `The verso-schema block on line ${line} is inside a list or a quote: an example, not a schema.`,
+      broken: (line: number, error: string) => `The schema on line ${line} does not read (${error}): it types no note.`,
+    };
 /** The system asks for reduced motion: no smooth scrolling, no animation. */
 const calm = window.matchMedia("(prefers-reduced-motion: reduce)");
 const dateFmt = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
@@ -2108,7 +2133,9 @@ class NoteLeaf extends Leaf {
   readonly saveButton = h("button", "save", t.save);
   readonly flags = h("p", "flags");
   readonly props = new PropertiesView({
-    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed, open: t.openPage, propertiesTitle: t.propertiesTitle },
+    strings: { addProperty: t.addProperty, keyPlaceholder: t.keyPlaceholder, emptyValue: t.emptyValue, addItem: t.addItem, remove: t.remove, fixed: t.propFixed, open: t.openPage, propertiesTitle: t.propertiesTitle, typed: typedText },
+    lang: LOCALE,
+    onOpen: (path) => void openNote(path, false),
     // One property changed in the panel: the frontmatter lines of that
     // key change in the editor's document, nothing else; the save follows
     // as after any keystroke.
@@ -2417,7 +2444,7 @@ class NoteLeaf extends Leaf {
           this.slash.onUpdate(u);
           // Undone or redone: the panel's rows go back to what the file
           // says; an edit of a key that differs from it is refused.
-          if (this.note && u.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) this.props.render(this.note.properties, this.note.text, this.readOnly);
+          if (this.note && u.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) this.props.render(this.note.properties, this.note.text, this.readOnly, this.note.note_type);
           if (u.docChanged) {
             if (!u.transactions.some((tr) => tr.annotation(fromDisk))) {
               this.setDirty(true);
@@ -3210,7 +3237,7 @@ class NoteLeaf extends Leaf {
     } else if (!this.previewStale) this.shownText = note.text;
     if (this.mode === "preview") this.paintPreview();
     void this.relink(note.path);
-    this.props.render(note.properties, note.text, this.readOnly);
+    this.props.render(note.properties, note.text, this.readOnly, note.note_type);
     this.paintFlags();
     this.paintCoverAndSticker();
     if (this.pane.active === this) panel.show(this);
@@ -3442,6 +3469,12 @@ class NoteLeaf extends Leaf {
     if (note?.unverified) flags.push(t.unverified);
     if (this.readOnly) flags.push(t.mixedEol);
     if (this.gone) flags.push(t.goneOutside);
+    // A schema block of this note that types nothing says so here (ADR
+    // 0052 points 3 and 5).
+    for (const b of note?.schema_blocks ?? []) {
+      if (b.nested) flags.push(typedText.nested(b.line));
+      else if (b.error) flags.push(typedText.broken(b.line, typedText.errors[b.error] ?? b.error));
+    }
     this.flags.textContent = flags.join(" ");
   }
   load(path: string, force = false): Promise<void> {
@@ -10974,18 +11007,21 @@ function snippetNode(snippet: string): HTMLSpanElement {
   }
   return s;
 }
-/** Search: every word must occur; `tag:x`, `path:p` and `file:f` narrow
- *  the result (a tag matches itself and its nested tags). */
+/** Search: every word must occur; `tag:x`, `type:t`, `path:p` and
+ *  `file:f` narrow the result (a tag matches itself and its nested tags;
+ *  a type is compared as a type's name, case ignored). */
 async function searchNotes(words: string): Promise<void> {
   if (words.trim() === "") return listAll();
   const tags: string[] = [];
+  const types: string[] = [];
   const paths: string[] = [];
   const files: string[] = [];
   const rest: string[] = [];
   for (const tok of words.trim().split(/\s+/)) {
-    const m = /^(tag|path|file):(.+)$/i.exec(tok);
+    const m = /^(tag|type|path|file):(.+)$/i.exec(tok);
     if (!m) rest.push(tok);
     else if (m[1]!.toLowerCase() === "tag") tags.push(m[2]!.replace(/^#/, "").toLowerCase());
+    else if (m[1]!.toLowerCase() === "type") types.push(m[2]!);
     else if (m[1]!.toLowerCase() === "path") paths.push(m[2]!.toLowerCase());
     else files.push(m[2]!.toLowerCase());
   }
@@ -11004,6 +11040,14 @@ async function searchNotes(words: string): Promise<void> {
       if (tags.some((want) => n === want || n.startsWith(`${want}/`))) for (const p of tg.notes) allowed.add(p);
     }
     hits = hits.filter((hit) => allowed.has(hit.path));
+  }
+  // `type:npc` (ADR 0052): the notes whose `type:` is that name, case
+  // ignored — the core folds it as it folds a type's name.
+  for (const name of types) {
+    const r = await commands.notesOfType(name);
+    if (r.status !== "ok") return fail(r.error);
+    const of = new Set(r.data);
+    hits = hits.filter((hit) => of.has(hit.path));
   }
   if (paths.length > 0) hits = hits.filter((hit) => paths.every((p) => hit.path.toLowerCase().includes(p)));
   if (files.length > 0) hits = hits.filter((hit) => files.every((f) => name(hit.path).toLowerCase().includes(f)));

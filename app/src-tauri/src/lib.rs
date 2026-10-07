@@ -35,9 +35,10 @@ use verso_contract::{
     AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
     BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
     Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus, FocusesSummary, FolderChanged,
-    FolderInfo, Heading, Hit, IndexProgress, IndexSummary, Link, LinkRewrite, McpAdded,
-    McpClientState, McpStatus, NoteText, Property, PropertyValue, Renamed, SkipReason, Skipped,
-    Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
+    FolderInfo, Heading, Hit, IndexProgress, IndexSummary, Label, Link, LinkRewrite, McpAdded,
+    McpClientState, McpStatus, NoteText, NoteType, Property, PropertyValue, Renamed, SchemaNotice,
+    SkipReason, Skipped, Tag, TextFile, Trashed, TypeState, TypedProperty, UpdateProgress, WebNote,
+    Written,
 };
 use verso_core::{CoreError, ReadError, Workspace, WriteError};
 
@@ -653,7 +654,64 @@ fn note_out(t: verso_core::NoteText) -> NoteText {
             .collect(),
         stale: t.stale,
         unverified: t.unverified,
+        note_type: t.note_type.map(note_type_out),
+        schema_blocks: t
+            .schema_blocks
+            .into_iter()
+            .map(|b| SchemaNotice {
+                line: b.line,
+                name: b.name,
+                nested: b.nested,
+                error: b.error,
+            })
+            .collect(),
     }
+}
+
+fn labels_out(labels: Vec<(String, String)>) -> Vec<Label> {
+    labels
+        .into_iter()
+        .map(|(lang, text)| Label { lang, text })
+        .collect()
+}
+
+fn note_type_out(t: verso_core::typed::NoteType) -> NoteType {
+    use verso_core::typed::TypeState as Core;
+    NoteType {
+        written: t.written,
+        state: match t.state {
+            Core::Typed(s) => TypeState::Typed {
+                schema: s.schema,
+                name: s.name,
+                labels: labels_out(s.labels),
+                properties: s
+                    .properties
+                    .into_iter()
+                    .map(|p| TypedProperty {
+                        key: p.key,
+                        kind: p.kind,
+                        labels: labels_out(p.labels),
+                        present: p.present,
+                        fits: p.fits,
+                    })
+                    .collect(),
+            },
+            Core::Conflict { schemas } => TypeState::Conflict { schemas },
+            Core::Invalid { schema, error } => TypeState::Invalid { schema, error },
+        },
+    }
+}
+
+/// The notes whose `type:` is `name`, case ignored (ADR 0052): what the
+/// search's `type:` narrows to.
+#[tauri::command]
+#[specta::specta]
+fn notes_of_type<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    name: String,
+) -> Result<Vec<String>, ContractError> {
+    with(&state, &window, |ws| ws.notes_of_type(&name))
 }
 
 /// Full-text search: every word must occur, accents and case ignored.
@@ -2346,6 +2404,7 @@ macro_rules! commands_for {
                 open_initial::<$runtime>,
                 list_notes::<$runtime>,
                 read_note::<$runtime>,
+                notes_of_type::<$runtime>,
                 search::<$runtime>,
                 links::<$runtime>,
                 backlinks::<$runtime>,

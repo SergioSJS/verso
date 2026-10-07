@@ -1,0 +1,23 @@
+# AI draft (Opus 5.5, 2026-10-07), awaiting the maintainer's approval (ADR 0031).
+# Construct: a type's schema — a fenced `verso-schema` block at the top level
+# of a note, YAML inside (spec §6, §4.8, Q11; ADR 0052 points 3 and 4). Its
+# `type`, its labels per language and its properties in order, each with its
+# key, kind and labels; a property with no label has none (the window falls
+# back to its key). A `yaml` block is not a schema.
+schemas:
+  - type: npc
+    labels: { pt-BR: PdM, en: NPC }
+    properties:
+      - key: facção
+        kind: text
+        labels: { pt-BR: Facção, en: Faction }
+      - key: nível
+        kind: number
+      - key: aparição
+        kind: date
+        labels: { pt-BR: Primeira aparição, en: First appearance }
+    pos: { line: 5, col: 1 }
+headings:
+  - level: 1
+    text: PdM
+source: ADR 0052 (spec Q11)

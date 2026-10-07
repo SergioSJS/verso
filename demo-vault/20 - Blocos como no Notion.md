@@ -77,4 +77,4 @@ Este parágrafo quer ir para depois da dica: arraste-o pela ⋮⋮, ou ponha o c
 
 ---
 
-Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+Próxima: [[21 - Notas Tipadas]]. Ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]], ou abra o [[Tour do Verso.canvas|Tour do Verso]].

@@ -69,6 +69,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 18. [[18 - Ajuda, Atualizações e Diagnóstico]] — Atualizações, relatar um problema e o console.
 19. [[19 - Organizando: figurinhas, capas e páginas]] — Figurinhas, cores, capas com reposicionamento, páginas de pasta, ordenação manual, itens ocultos e edição de notas incorporadas.
 20. [[20 - Blocos como no Notion]] — Arrastar parágrafos e itens pela alça ⋮⋮, o + que abre o menu `/`, o menu de cada bloco e as teclas do Notion.
+21. [[21 - Notas Tipadas]] — `type:` e um schema: o formulário de um tipo, o que não cabe marcado, nada escrito sem você, e `type:` na busca.
 
 ---
 

@@ -12,7 +12,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 9;
+pub(crate) const VERSION: i64 = 10;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -45,7 +45,9 @@ CREATE TABLE notes (
     banner    TEXT,
     banner_y  REAL,
     order_items TEXT,
-    pinned_items TEXT
+    pinned_items TEXT,
+    type      TEXT,                       -- the frontmatter's `type`, when it is one text, as written (ADR 0052)
+    type_key  TEXT                        -- the same, folded as Q12 folds a note's name
 );
 CREATE INDEX notes_path_key ON notes(path_key);
 CREATE INDEX notes_name_key ON notes(name_key);
@@ -77,6 +79,16 @@ CREATE TABLE links (
 );
 CREATE INDEX links_note ON links(note);
 CREATE INDEX links_target_key ON links(target_key);
+CREATE TABLE IF NOT EXISTS schemas (     -- the `verso-schema` blocks of a note (ADR 0052)
+    note     INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+    name     TEXT,                       -- the `type` it declares, when it was read
+    name_key TEXT,                       -- folded as `notes.type_key`
+    nested   INTEGER NOT NULL,           -- 1: inside a list or a quote, not read
+    error    TEXT,                       -- why a block at the top level types nothing
+    line  INTEGER NOT NULL, col INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS schemas_note ON schemas(note);
+CREATE INDEX IF NOT EXISTS schemas_name_key ON schemas(name_key);
 ";
 
 pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -97,19 +109,20 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     {
         return Ok(());
     }
-    // Versions 6 to 8 are carried over in place, not rebuilt: for a note
+    // Versions 6 to 9 are carried over in place, not rebuilt: for a note
     // iCloud has evicted, its row is the only local copy of its text and
     // links (ADR 0043), and a rebuild would lose it (decided by the
     // maintainer on 2026-10-01, review `board.md` §6 item 7, for version 6;
     // the same holds for every later one). The columns a version lacks are
     // added — 7 the kind and the relation, 8 and 9 the labels, the order
-    // and the pins (ADR 0060) — and every note read from disk is read
+    // and the pins (ADR 0060), 10 the type and the schemas (ADR 0052) —
+    // and every note read from disk is read
     // again on the next walk, for what the new columns hold; a placeholder
     // keeps what it had.
     if has_meta
         && matches!(
             meta("schema").and_then(|v| v.parse::<i64>().ok()),
-            Some(6..=8)
+            Some(6..=9)
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
@@ -126,7 +139,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     // ours: rebuild. `notes_fts` goes first, while `notes` still exists
     // for its external content; `IF EXISTS` covers a foreign file.
     conn.execute_batch(
-        "DROP TABLE IF EXISTS notes_fts; DROP TABLE IF EXISTS links;
+        "DROP TABLE IF EXISTS notes_fts; DROP TABLE IF EXISTS links; DROP TABLE IF EXISTS schemas;
          DROP TABLE IF EXISTS blocks; DROP TABLE IF EXISTS headings;
          DROP TABLE IF EXISTS notes; DROP TABLE IF EXISTS meta;",
     )?;
@@ -142,7 +155,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     Ok(())
 }
 
-/// The columns a version 6, 7 or 8 index lacks, added in place, and every
+/// The columns a version 6 to 9 index lacks, added in place, and every
 /// note read from disk marked to be read again; inside the caller's
 /// transaction.
 fn carry_over(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -162,13 +175,25 @@ fn carry_over(conn: &Connection) -> Result<(), rusqlite::Error> {
         ("notes", "banner_y", "REAL"),
         ("notes", "order_items", "TEXT"),
         ("notes", "pinned_items", "TEXT"),
+        ("notes", "type", "TEXT"),
+        ("notes", "type_key", "TEXT"),
     ] {
         if !has_column(table, col)? {
             conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {col} {decl};"))?;
         }
     }
+    // Version 10's table, created empty: the walk that reads every note
+    // again fills it.
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS schemas (
+             note INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+             name TEXT, name_key TEXT, nested INTEGER NOT NULL, error TEXT,
+             line INTEGER NOT NULL, col INTEGER NOT NULL);
+         CREATE INDEX IF NOT EXISTS schemas_note ON schemas(note);
+         CREATE INDEX IF NOT EXISTS schemas_name_key ON schemas(name_key);",
+    )?;
     conn.execute_batch(
         "UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;
-         UPDATE meta SET value = '9' WHERE key = 'schema';",
+         UPDATE meta SET value = '10' WHERE key = 'schema';",
     )
 }

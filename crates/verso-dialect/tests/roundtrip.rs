@@ -45,6 +45,8 @@ fn fragment() -> impl Strategy<Value = String> {
         1 => Just("---\n".to_owned()),
         1 => Just("`".to_owned()),
         1 => Just("\n```\n".to_owned()),
+        1 => Just("\n```verso-schema\ntype: npc\nproperties:\n  - key: a\n    kind: text\n```\n".to_owned()),
+        1 => Just("\n- ```verso-schema\n  type: x\n  ```\n".to_owned()),
         1 => Just("\n- ".to_owned()),
         1 => Just("\\".to_owned()),
         3 => Just("\n".to_owned()),
@@ -134,6 +136,19 @@ fn check_spans(source: &str, document: &Document) -> Result<(), TestCaseError> {
         })?;
         prop_assert_eq!(text, format!("^{}", block.id));
         prop_assert_eq!(block.pos, expected_pos(source, block.span.start));
+    }
+    for schema in &document.schemas {
+        let text = schema.span.slice(source).ok_or_else(|| {
+            TestCaseError::fail(format!("schema span {:?} off a boundary", schema.span))
+        })?;
+        let first = text.lines().next().unwrap_or_default().trim_start();
+        prop_assert!(
+            (first.starts_with("```") || first.starts_with("~~~"))
+                && first.contains("verso-schema"),
+            "a schema block starts on its fence: {text:?}"
+        );
+        prop_assert_eq!(schema.definition.is_none(), schema.nested);
+        prop_assert_eq!(schema.pos, expected_pos(source, schema.span.start));
     }
     for callout in &document.callouts {
         let text = callout.span.slice(source).ok_or_else(|| {

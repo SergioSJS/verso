@@ -39,6 +39,7 @@ import type {
   McpAdded,
   McpStatus,
   NoteText,
+  NoteType,
   Renamed,
   Tag,
   TextFile,
@@ -49,7 +50,7 @@ import type {
   Focus,
   FocusesSummary,
 } from "../bindings";
-import { blocksOf, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown } from "./markdown";
+import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 
 export type Seed = { path: string; b64: string };
 
@@ -560,6 +561,47 @@ export class Core {
       blocks: blocksOf(text),
       stale: false,
       unverified: false,
+      note_type: this.noteType(path),
+      schema_blocks: schemaBlocksOf(text).map((b) => ({ line: b.line, name: b.name, nested: b.nested, error: b.error })),
+    };
+  }
+
+  /** A type's name folded as the core folds it: NFC, case ignored. */
+  private typeKey(name: string): string {
+    return name.trim().normalize("NFC").toLowerCase();
+  }
+
+  /** The `type:` of a note, when it holds one text. */
+  private writtenType(path: string): string | null {
+    const t = propertiesOf(this.text(path))["type"];
+    return typeof t === "string" && t.trim() !== "" ? t : null;
+  }
+
+  /** A note's type, as the core types it at query time (ADR 0052). */
+  private noteType(path: string): NoteType | null {
+    const written = this.writtenType(path);
+    if (written === null) return null;
+    const key = this.typeKey(written);
+    const named = this.notes().flatMap((p) => schemaBlocksOf(this.text(p)).filter((b) => !b.nested && b.name !== null && this.typeKey(b.name) === key).map((b) => ({ path: p, b })));
+    if (named.length === 0) return null;
+    if (named.length > 1) return { written, state: { kind: "conflict", schemas: named.map((n) => n.path).sort() } };
+    const { path: schema, b } = named[0]!;
+    if (b.error) return { written, state: { kind: "invalid", schema, error: b.error } };
+    const props = propertiesOf(this.text(path));
+    const labels = (l: [string, string][]) => l.map(([lang, text]) => ({ lang, text }));
+    return {
+      written,
+      state: {
+        kind: "typed",
+        schema,
+        name: b.name ?? written,
+        labels: labels(b.labels),
+        properties: b.properties.map((p) => {
+          const present = Object.hasOwn(props, p.key);
+          const v = props[p.key];
+          return { key: p.key, kind: p.kind, labels: labels(p.labels), present, fits: present && (v === null || v === "" || fitsKind(p.kind, v)) };
+        }),
+      },
     };
   }
 
@@ -805,6 +847,13 @@ export class Core {
     open_initial: () => this.folderInfo(),
     current_folder: () => this.folderInfo(),
     list_notes: () => this.notes(),
+    notes_of_type: (a) => {
+      const key = this.typeKey(String(a["name"]));
+      return this.notes().filter((p) => {
+        const t = this.writtenType(p);
+        return t !== null && this.typeKey(t) === key;
+      });
+    },
     read_note: (a) => {
       const p = String(a["path"]);
       return this.noteText(this.files.has(p) || isNote(p) ? p : `${p}.md`);

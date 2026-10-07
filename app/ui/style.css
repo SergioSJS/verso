@@ -387,6 +387,21 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 /* Properties: a quiet table, key column fixed, edited in place. */
 .props { margin: .9rem 0 0; padding: .1rem 0; font-size: .84rem; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); max-width: 100ch; }
 .props-header { display: flex; align-items: center; justify-content: space-between; padding: .1rem 0; margin-bottom: .2rem; }
+/* The typed note (ADR 0052): the type's name above the properties, or why
+   its schema types nothing; declared rows, the empty ones lighter until
+   given a value; a value that does not fit its kind underlined. */
+.props-type { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; padding: .25rem .1rem .35rem; font-size: .82rem; color: var(--ink-2); }
+.props-type .props-type-name { font-weight: 600; color: var(--ink); }
+.props-type .props-type-schema { font-size: .78rem; color: var(--seal); text-decoration: underline; text-underline-offset: 2px; background: none; padding: 0; cursor: pointer; }
+.props-type.problem { color: var(--brass-ink); }
+.prop.declared.absent .prop-key { opacity: .7; }
+.prop.declared.absent .prop-input:not(:focus) { background: transparent; }
+/* WebKit shows today's date in an empty date field: faint, so an absent
+   key does not look filled. */
+.prop.declared.absent input[type="date"]:not(:focus)::-webkit-datetime-edit,
+.prop.declared.absent input[type="datetime-local"]:not(:focus)::-webkit-datetime-edit { opacity: .35; }
+.prop.misfit .prop-value { text-decoration: underline wavy var(--brass); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.prop.misfit .prop-input { color: var(--brass-ink); }
 .props-toggle { display: inline-flex; align-items: center; gap: .3rem; font: inherit; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); background: none; border: 0; padding: .15rem .3rem; border-radius: 4px; cursor: pointer; }
 .props-toggle:hover { color: var(--ink); background: var(--paper-2); }
 .props-toggle .icon { width: 12px; height: 12px; transition: transform .15s ease; }
