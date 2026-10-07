@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.4.0-beta.1 — 2026-10-07
+
 ### Acrescentado
 
 - **Vários arquivos e pastas selecionados de uma vez na árvore** ([ADR 0048](adr/0048-file-operations-in-ui.md), revisto): o ⌘-clique acrescenta ou tira uma linha, o ⇧-clique seleciona todas as linhas desde a última clicada, o Esc limpa. Arraste a seleção para uma pasta para mover tudo para lá; o seu menu do botão direito a move (Mover para…), copia os caminhos relativos, ou a manda para a lixeira depois de uma pergunta. Os links para o que mudou de lugar são atualizados num plano só — uma nota que aponta para dois deles aparece uma vez.
