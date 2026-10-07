@@ -235,11 +235,18 @@ Como o autor construiu isso sob essa decisão (commit `3629f0c`;
   app: uma página que redireciona para outra origem (`example.com` para
   `www.example.com`, `http` para `https`), ou que embute um terceiro site num
   frame, carrega só até onde as origens aprovadas alcançam.
-- **`[ABERTO]` — o cache da web view depois de uma atualização.** Achado no
-  caminho, não é sobre embeds: depois de uma atualização do app, o WKWebView
-  serve a interface da versão anterior, guardada em cache, até os caches
-  dele serem limpos; aconteceu duas vezes em 2026-09-29. Pede uma decisão
-  própria.
+- **Decidido em 2026-10-07 — o cache da web view depois de uma
+  atualização.** Achado no caminho, não é sobre embeds: depois de uma
+  atualização do app, o WKWebView servia a interface da versão anterior,
+  guardada em cache, até os caches dele serem limpos; aconteceu duas vezes
+  em 2026-09-29. O mantenedor, perguntado, escolheu a versão no endereço dos
+  arquivos: o build escreve a página carregando `main.js?v=<versão>` e
+  cada folha de estilos assim (`app/ui/build-index.mjs`), e o que a janela
+  pede por um nome fixo — o worker do PDF, a folha de estilos do Excalidraw
+  — leva o mesmo carimbo (`app/ui/src/version.ts`); os pedaços do bundler
+  já trazem um hash no nome. Uma versão nova nunca reaproveita os arquivos
+  da anterior em cache, e nada é apagado. Não escolhido: limpar o cache da
+  web view quando a versão muda.
 
 ## Alternativas descartadas
 
@@ -296,6 +303,6 @@ Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão.
 O mecanismo sob eles é do autor, construído sob essa decisão e identificado
 como tal acima. Confirmado em 2026-09-29 pelo mantenedor: o ADR fica
 Aceito. Revisto em 2026-09-29 pelo mantenedor, na sessão: o ponto 3, opção
-A, Aceito; o mecanismo sob ele é do autor e substitui o proxy. Dois itens
-ficam `[ABERTO]`: um aviso na hora de aprovar, e o cache da web view depois
-de uma atualização.
+A, Aceito; o mecanismo sob ele é do autor e substitui o proxy. Um item
+fica `[ABERTO]`: um aviso na hora de aprovar; o cache da web view
+depois de uma atualização foi decidido em 2026-10-07 (acima).
