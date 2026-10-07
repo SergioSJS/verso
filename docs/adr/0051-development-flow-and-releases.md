@@ -13,6 +13,11 @@
   maintainer's words). 2026-09-24 — Decision 6: the command line also travels
   inside the app, which the settings link onto the `PATH`
   ([0054](0054-terminal-and-agents-from-the-app.md)); the archive stays.
+  2026-10-02 — Decisions 5 and 6: one merge releases. After 0.3.0-beta.3
+  took a feature pull request, a release pull request and a tag, the
+  maintainer: "esse processo de gerar versao ta ruim de mais", then "ta, melhore o fluxo de deploy entao, ai testamos na próxma versao". The version now travels in the
+  pull request that releases, and its merge into `main` builds, publishes
+  and tags.
 
 ## Context
 
@@ -56,19 +61,23 @@ modificações até gerar versão, considerando changelog inclusive"*.
    it recorded without the maintainer's word, the maintainer answered
    *"Manter"* (2026-09-24).
 5. **A version is cut only when the maintainer asks** — by the maintainer, or
-   by an agent on the maintainer's request — with `scripts/release.mjs`:
-   `prepare X.Y.Z[-beta.N]` sets the version and moves the changelog's
-   unreleased entries under it, in a pull request; once it is merged,
-   `tag X.Y.Z[-beta.N]` tags the commit on `main` that brought the version —
-   the release pull request's merge, not what merged after it — and pushes
-   the tag.
-6. **The tag builds and publishes the release**
-   (`.github/workflows/release.yml`), and nothing else does: the macOS app
-   (arm64) as a zip and the command line as an archive, the version's
-   changelog as the notes, a pre-release for `-beta.N`. Before building, it
-   checks that the tag names the version the sources carry, in a version's
-   shape, with its changelog in both languages, on a commit that is on
-   `main`. A test release is "Verso Beta", with an identifier of its own, so
+   by an agent on the maintainer's request — with `scripts/release.mjs
+   prepare X.Y.Z[-beta.N]`, **on the branch of the pull request that
+   releases**: it sets the version and moves the changelog's unreleased
+   entries under it, in one commit of that pull request. There is no release
+   pull request of its own. *(Until 2026-10-02, `prepare` opened one from
+   `main`, and `tag` tagged its merge by hand.)*
+6. **The merge that brings a new version into `main` builds and publishes
+   the release** (`.github/workflows/release.yml`), and nothing else does: on
+   each push to `main`, a short Linux job reads the workspace's version and
+   stops if its tag exists; otherwise the macOS job builds the app (arm64)
+   as a zip and the command line as an archive, and publishes them with the
+   version's changelog as the notes, a pre-release for `-beta.N` —
+   publishing creates the tag `vX.Y.Z[-beta.N]` on that merge. A tag pushed
+   by hand (`release.mjs tag`, for when the automatic path could not tag)
+   still releases. Before building, the workflow checks that the tag names
+   the version the sources carry, in a version's shape, with its changelog
+   in both languages, on a commit that is on `main`. A test release is "Verso Beta", with an identifier of its own, so
    that it installs beside the production app with its own window settings,
    and its command line opens it; the index, a rebuildable cache, is shared.
    Windows, then Linux, join when their ports land
@@ -82,7 +91,8 @@ modificações até gerar versão, considerando changelog inclusive"*.
   (Actions → release → Run workflow) builds the same files from `main` as a
   test release and keeps them as run artifacts, publishing nothing.
 - **A release that fails**: run it again — the publish step replaces the
-  files and notes of a partial release. If the sources cause the failure,
+  files and notes of a partial release; if it failed before creating the
+  tag, `release.mjs tag` tags the merge by hand and starts it again. If the sources cause the failure,
   the version cannot be released: fix it in a pull request, move the failed
   version's changelog lines back under "Unreleased" in the same pull
   request, and cut the next `-beta.N` (or the next patch).
@@ -138,6 +148,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
   pull request, and the maintainer's merge is the approval.
 - A `.dmg` — building one drives the Finder and fails on headless runners
   often enough; a zip made by `ditto` keeps the signature.
+- *(2026-10-02)* A release pull request kept open by a bot (release-please,
+  changesets) — still two merges, and a dependency on a third-party action.
+- *(2026-10-02)* Building the release on the maintainer's Mac and uploading
+  it with `gh release create` — free and quick, but tied to one machine and
+  not reproducible.
 
 ## Status
 

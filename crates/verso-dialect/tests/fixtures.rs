@@ -56,6 +56,10 @@ fixture_tests! {
     heading_atx => "heading/atx",
     heading_setext => "heading/setext",
     wikilink_accent_space => "wikilink/accent-space",
+    // AI drafts of the typed note (ADR 0052), awaiting approval (first line
+    // of each expected.yaml).
+    schema_top_level => "schema/top-level",
+    schema_nested_and_invalid => "schema/nested-and-invalid",
 }
 
 fn check(name: &str, input: &str, expected: &str) {
@@ -89,6 +93,7 @@ fn check(name: &str, input: &str, expected: &str) {
                 &document.property_links,
                 check_property_link,
             ),
+            "schemas" => check_list(&mut ctx, value, &document.schemas, check_schema),
             // Provenance, not behavior (spec §4.5); the lint script checks them.
             "observed" | "source" => {}
             other => ctx.fail(format!("unknown top-level key `{other}` (spec §4.1)")),
@@ -133,6 +138,106 @@ fn as_str<'a>(value: &'a Yaml<'_>) -> Option<&'a str> {
         Yaml::Value(Scalar::String(s)) => Some(s),
         _ => None,
     }
+}
+
+fn as_bool(value: &Yaml<'_>) -> Option<bool> {
+    match value {
+        Yaml::Value(Scalar::Boolean(b)) => Some(*b),
+        _ => None,
+    }
+}
+
+/// A `labels` map — language to text, in the order written — against what
+/// the parser read; an absent map asserts none (spec §4.8).
+fn check_labels(ctx: &mut Ctx<'_>, expected: Option<&Yaml<'_>>, actual: &[(String, String)]) {
+    let wanted: Vec<(String, String)> = match expected {
+        None => Vec::new(),
+        Some(Yaml::Mapping(map)) => map
+            .iter()
+            .map(|(k, v)| (key_str(k), as_str(v).unwrap_or_default().to_owned()))
+            .collect(),
+        Some(_) => {
+            ctx.fail("labels: must be a map of languages to texts".to_owned());
+            return;
+        }
+    };
+    if wanted != actual {
+        ctx.fail(format!("labels: expected {wanted:?}, got {actual:?}"));
+    }
+}
+
+/// A `verso-schema` block (spec §4.1, `schemas`; §4.8).
+fn check_schema(ctx: &mut Ctx<'_>, item: &Yaml<'_>, block: &verso_dialect::SchemaBlock) {
+    let Some(mut fields) = Fields::new(ctx, item) else {
+        return;
+    };
+    match fields.get("nested").map(as_bool) {
+        None if !block.nested => {}
+        Some(Some(expected)) if expected == block.nested => {}
+        Some(None) => fields.ctx.fail("nested: must be true or false".to_owned()),
+        _ => fields
+            .ctx
+            .fail(format!("nested: the parser found {}", block.nested)),
+    }
+    let error = match &block.definition {
+        Some(Err(e)) => Some(e.kind.as_str()),
+        _ => None,
+    };
+    fields.optional_text("error", error);
+    let type_field = fields.get("type");
+    let labels = fields.get("labels");
+    let properties = fields.get("properties");
+    match &block.definition {
+        Some(Ok(schema)) => {
+            match type_field.map(as_str) {
+                Some(Some(expected)) if expected == schema.name => {}
+                Some(Some(expected)) => fields.ctx.fail(format!(
+                    "type: expected {expected:?}, got {:?}",
+                    schema.name
+                )),
+                _ => fields
+                    .ctx
+                    .fail("type: required for a schema read".to_owned()),
+            }
+            check_labels(&mut fields.ctx.at(".labels"), labels, &schema.labels);
+            let items: Vec<&Yaml<'_>> = match properties {
+                None => Vec::new(),
+                Some(Yaml::Sequence(items)) => items.iter().collect(),
+                Some(_) => {
+                    fields.ctx.fail("properties: must be a list".to_owned());
+                    Vec::new()
+                }
+            };
+            if items.len() == schema.properties.len() {
+                for (i, (item, property)) in items.iter().zip(&schema.properties).enumerate() {
+                    let mut ctx = fields.ctx.at(&format!(".properties[{i}]"));
+                    let Some(mut p) = Fields::new(&mut ctx, item) else {
+                        continue;
+                    };
+                    p.text("key", &property.key);
+                    p.text("kind", property.kind.as_str());
+                    let labels = p.get("labels");
+                    check_labels(p.ctx, labels, &property.labels);
+                    p.finish();
+                }
+            } else {
+                fields.ctx.fail(format!(
+                    "properties: expected {} item(s), the parser read {}",
+                    items.len(),
+                    schema.properties.len()
+                ));
+            }
+        }
+        _ => {
+            if type_field.is_some() || labels.is_some() || properties.is_some() {
+                fields.ctx.fail(
+                    "type, labels and properties: a block not read has none (spec §4.8)".to_owned(),
+                );
+            }
+        }
+    }
+    fields.pos(block.pos);
+    fields.finish();
 }
 
 fn as_int(value: &Yaml<'_>) -> Option<i64> {

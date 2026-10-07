@@ -45,6 +45,8 @@ export class SlashMenu {
   private sel = 0;
   private flat: SlashItem[] = [];
   private empty: string;
+  /** What Esc takes back: the block a `+` added to open the menu. */
+  private onCancel: (() => void) | null = null;
 
   constructor(private readonly sections: () => SlashSection[], strings: { empty: string; label: string }) {
     this.empty = strings.empty;
@@ -67,7 +69,9 @@ export class SlashMenu {
     const before = line.text.slice(0, head - line.from);
     if (!before.endsWith("/")) return;
     const upTo = before.slice(0, -1);
-    if (!/^[\s>-]*$/.test(upTo)) return;
+    // At a block's start: after spaces and quote marks, and a list item's
+    // marker and box (`- `, `1. `, `- [ ] `).
+    if (!/^[\s>]*(?:(?:[-+*]|\d{1,9}[.)])(?:[ \t]+(?:\[[ xX]\][ \t]+)?)?)?$/.test(upTo)) return;
     // A `/` in code is code, and the frontmatter is YAML.
     const fm = frontmatterEnd(view.state.doc);
     if (fm >= 0 && head <= fm) return;
@@ -182,6 +186,22 @@ export class SlashMenu {
     this.el.hidden = true;
     this.view = null;
     this.from = -1;
+    this.onCancel = null;
+  }
+
+  /** The menu was opened by a `+` (ADR 0061 D6): Esc takes back `undo`.
+   *  Choosing an item, or the menu closing any other way, keeps it. */
+  armCancel(undo: () => void): void {
+    if (this.open) this.onCancel = undo;
+  }
+
+  /** Esc: the menu closes, and what opened it is taken back. */
+  cancel(): boolean {
+    if (!this.open) return false;
+    const undo = this.onCancel;
+    this.close();
+    undo?.();
+    return true;
   }
 
   /** Close if the menu belongs to `view`. */
@@ -225,7 +245,7 @@ export function slashKeymap(menu: SlashMenu) {
         { key: "ArrowUp", run: () => menu.move(-1) },
         { key: "Enter", run: () => (menu.open ? menu.apply() : false) },
         { key: "Tab", run: () => (menu.open ? menu.apply() : false) },
-        { key: "Escape", run: () => (menu.open ? (menu.close(), true) : false) },
+        { key: "Escape", run: () => menu.cancel() },
       ]),
     ),
     ViewPlugin.define((view) => ({ destroy: () => menu.closeFor(view) })),

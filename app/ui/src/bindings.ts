@@ -57,6 +57,11 @@ export const commands = {
 	 *  `not_text` when its bytes are not UTF-8.
 	 */
 	readNote: (path: string) => typedError<NoteText, ContractError>(__TAURI_INVOKE("read_note", { path })),
+	/**
+	 *  The notes whose `type:` is `name`, case ignored (ADR 0052): what the
+	 *  search's `type:` narrows to.
+	 */
+	notesOfType: (name: string) => typedError<string[], ContractError>(__TAURI_INVOKE("notes_of_type", { name })),
 	/**  Full-text search: every word must occur, accents and case ignored. */
 	search: (words: string, limit: number) => typedError<Hit[], ContractError>(__TAURI_INVOKE("search", { words, limit })),
 	/**  The links a note makes; empty when the index does not know it. */
@@ -96,6 +101,11 @@ export const commands = {
 	 */
 	renameNote: (from: string, to: string) => typedError<Renamed, ContractError>(__TAURI_INVOKE("rename_note", { from, to })),
 	/**
+	 *  Move several entries of the folder into `folder` (`""` the root) at
+	 *  once, with one plan of link rewrites (ADR 0048, revised 2026-10-07).
+	 */
+	moveEntries: (paths: string[], folder: string) => typedError<MovedEntries, ContractError>(__TAURI_INVOKE("move_entries", { paths, folder })),
+	/**
 	 *  The file an embed written in the note at `source` names
 	 *  (`![[mapa.png]]`), relative to the folder, or none — by the rule of
 	 *  spec Q12 applied to files: from the note's own folder first. The UI
@@ -118,14 +128,15 @@ export const commands = {
 	 *  Every entry of the folder as the last walk saw it, with kind, size
 	 *  and date: what a folder view lists and sorts.
 	 */
-	listEntries: () => typedError<FileEntry[], ContractError>(__TAURI_INVOKE("list_entries")),
+	listEntries: () => typedError<FileEntry_Serialize[], ContractError>(__TAURI_INVOKE("list_entries")),
 	/**  The notes that are web pages, with their addresses (an icon, a tab). */
 	listWebNotes: () => typedError<WebNote[], ContractError>(__TAURI_INVOKE("list_web_notes")),
 	/**  Every resolved link of the vault: the graph of the whole folder. */
 	graph: () => typedError<Edge[], ContractError>(__TAURI_INVOKE("graph")),
 	/**
-	 *  The folder that is open, for a window that joins the session (a note
-	 *  in a window of its own) and for a reload: `None` when none is.
+	 *  The folder this window shows, for a window that joins a session (a
+	 *  note in a window of its own, a window opened on the same folder) and
+	 *  for a reload: `None` when it shows none (ADR 0065).
 	 */
 	currentFolder: () => typedError<{
 	/**  The folder's own name (its last path component), for display. */
@@ -278,6 +289,19 @@ export const commands = {
 	 */
 	setWalkRules: (builtinIgnores: boolean, gitignore: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_walk_rules", { builtinIgnores, gitignore })),
 	/**
+	 *  The folder note name setting (ADR 0060 D12): empty, a folder's note
+	 *  is named after it. Applied to the open folder at once.
+	 */
+	setFolderNoteName: (name: string) => typedError<null, ContractError>(__TAURI_INVOKE("set_folder_note_name", { name })),
+	/**  Read focuses from `.space/waypoints.json` in the open folder (ADR 0062). */
+	getFocuses: () => typedError<FocusesSummary_Serialize, ContractError>(__TAURI_INVOKE("get_focuses")),
+	/**  Write focuses to `.space/waypoints.json` in the open folder (ADR 0062). */
+	setFocuses: (focuses: Focus_Deserialize[], stamp: string | null, baseFocuses: Focus_Deserialize[] | null) => typedError<FocusesSummary_Serialize, ContractError>(__TAURI_INVOKE("set_focuses", { focuses, stamp, baseFocuses })),
+	/**  Whether focuses can be synced to `.space/waypoints.json` (ADR 0062). */
+	canSyncFocuses: () => typedError<boolean, ContractError>(__TAURI_INVOKE("can_sync_focuses")),
+	/**  Set whether focuses sync to `.space/waypoints.json` is enabled (ADR 0062 D5, D9). */
+	setSyncFocuses: (enabled: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_sync_focuses", { enabled })),
+	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a
 	 *  script error, a rejected promise. The source is the window's, the
@@ -303,13 +327,13 @@ export const commands = {
 	 */
 	queryBase: (query: BaseQuery) => typedError<BaseResult, ContractError>(__TAURI_INVOKE("query_base", { query })),
 	/**
-	 *  Another window on the open folder (ADR 0049, asked for by the
-	 *  maintainer on 2026-09-24): its own tabs over the same session. What one
-	 *  window writes, the other reads as it reads any change made outside —
-	 *  the watcher's `folder-changed` reaches every window — and a write over
-	 *  a note the other changed is refused (invariant 11).
+	 *  Another window (ADR 0049; ADR 0065): on the folder of the window that
+	 *  asks (`same_folder`), with its own tabs over the same session — what one
+	 *  window writes, the other reads as it reads any change made outside, and
+	 *  a write over a note the other changed is refused (invariant 11) — or on
+	 *  no folder, to open one of its own.
 	 */
-	newWindow: () => typedError<null, ContractError>(__TAURI_INVOKE("new_window")),
+	newWindow: (sameFolder: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("new_window", { sameFolder })),
 	cliStatus: () => __TAURI_INVOKE<CliState>("cli_status"),
 	/**
 	 *  Link the command line into `/usr/local/bin`. Something else there is
@@ -537,6 +561,36 @@ export type Edge = {
 	to: string,
 };
 
+/**
+ *  Sticker and color of an entry (note or folder), plus its first alias
+ *  when one exists, and manual order and pinned lists (ADR 0060, S1, S3).
+ */
+export type EntryLabel = EntryLabel_Serialize | EntryLabel_Deserialize;
+
+/**
+ *  Sticker and color of an entry (note or folder), plus its first alias
+ *  when one exists, and manual order and pinned lists (ADR 0060, S1, S3).
+ */
+export type EntryLabel_Deserialize = {
+	sticker: string | null,
+	color: string | null,
+	alias: string | null,
+	order?: string[] | null,
+	pinned?: string[] | null,
+};
+
+/**
+ *  Sticker and color of an entry (note or folder), plus its first alias
+ *  when one exists, and manual order and pinned lists (ADR 0060, S1, S3).
+ */
+export type EntryLabel_Serialize = {
+	sticker: string | null,
+	color: string | null,
+	alias: string | null,
+	order?: string[] | null,
+	pinned?: string[] | null,
+};
+
 /**  Why a command could not answer, by what the UI can do about it. */
 export type ErrorKind = 
 /**  No folder is open yet. */
@@ -577,19 +631,96 @@ export type ErrorKind =
  *  the TypeScript side has no 64-bit integer without `bigint`: bytes are
  *  exact up to 2^53, seconds since the epoch far beyond any date.
  */
-export type FileEntry = {
+export type FileEntry = FileEntry_Serialize | FileEntry_Deserialize;
+
+/**
+ *  One entry of the open folder as the last walk saw it: what a folder
+ *  listing shows and sorts by. `size` and `modified` are `f64` because
+ *  the TypeScript side has no 64-bit integer without `bigint`: bytes are
+ *  exact up to 2^53, seconds since the epoch far beyond any date.
+ */
+export type FileEntry_Deserialize = {
 	path: string,
 	kind: FileKind,
 	/**  Bytes; 0 for a folder or an unread placeholder. */
 	size: number | null,
 	/**  Seconds since the Unix epoch; 0 when the file system gave none. */
 	modified: number | null,
+	label: EntryLabel_Deserialize | null,
+};
+
+/**
+ *  One entry of the open folder as the last walk saw it: what a folder
+ *  listing shows and sorts by. `size` and `modified` are `f64` because
+ *  the TypeScript side has no 64-bit integer without `bigint`: bytes are
+ *  exact up to 2^53, seconds since the epoch far beyond any date.
+ */
+export type FileEntry_Serialize = {
+	path: string,
+	kind: FileKind,
+	/**  Bytes; 0 for a folder or an unread placeholder. */
+	size: number | null,
+	/**  Seconds since the Unix epoch; 0 when the file system gave none. */
+	modified: number | null,
+	label: EntryLabel_Serialize | null,
 };
 
 /**  What one entry of the open folder is. */
 export type FileKind = "note" | "file" | "folder" | 
 /**  Present, content in the cloud (ADR 0043). */
 "placeholder";
+
+/**  A named root of the file tree (ADR 0062). */
+export type Focus = Focus_Serialize | Focus_Deserialize;
+
+/**  A named root of the file tree (ADR 0062). */
+export type Focus_Deserialize = {
+	name: string,
+	paths: string[],
+	sticker?: string | null,
+};
+
+/**  A named root of the file tree (ADR 0062). */
+export type Focus_Serialize = {
+	name: string,
+	paths: string[],
+	sticker?: string | null,
+};
+
+/**  The result of reading focuses from the open folder (ADR 0062). */
+export type FocusesSummary = FocusesSummary_Serialize | FocusesSummary_Deserialize;
+
+/**  The result of reading focuses from the open folder (ADR 0062). */
+export type FocusesSummary_Deserialize = {
+	/**  Focuses found in `.space/waypoints.json`, or empty if no file. */
+	focuses: Focus_Deserialize[],
+	/**  Whether `.space/waypoints.json` is present in the open folder. */
+	has_file: boolean,
+	/**  Whether `.space/waypoints.json` is in the known format (ADR 0062 D6). */
+	format_known: boolean,
+	/**  Why the file is read-only, if not known format or unreadable. */
+	read_only_reason: string | null,
+	/**  Machine-readable code for read-only reason. */
+	read_only_code?: ReadOnlyReasonCode | null,
+	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
+	stamp: string | null,
+};
+
+/**  The result of reading focuses from the open folder (ADR 0062). */
+export type FocusesSummary_Serialize = {
+	/**  Focuses found in `.space/waypoints.json`, or empty if no file. */
+	focuses: Focus_Serialize[],
+	/**  Whether `.space/waypoints.json` is present in the open folder. */
+	has_file: boolean,
+	/**  Whether `.space/waypoints.json` is in the known format (ADR 0062 D6). */
+	format_known: boolean,
+	/**  Why the file is read-only, if not known format or unreadable. */
+	read_only_reason: string | null,
+	/**  Machine-readable code for read-only reason. */
+	read_only_code?: ReadOnlyReasonCode | null,
+	/**  The revision stamp for optimistic concurrency (Invariants 9 & 11). */
+	stamp: string | null,
+};
 
 /**
  *  What changed in the open folder, as the watcher saw it and the index
@@ -691,6 +822,12 @@ export type InstallResult = {
 	requires_restart: boolean,
 };
 
+/**  A name in one interface language (`pt-BR`, `en`), as a schema writes it. */
+export type Label = {
+	lang: string,
+	text: string,
+};
+
 /**  A link a note makes. */
 export type Link = {
 	/**  As written in the note. */
@@ -748,6 +885,29 @@ export type McpStatus = {
 	claude: McpClientState,
 };
 
+/**  A file that moved, from one relative path to another. */
+export type Moved = {
+	from: string,
+	to: string,
+};
+
+/**
+ *  What moving several entries at once left — a selection of the tree
+ *  dropped on a folder (ADR 0048, revised 2026-10-07): those that moved;
+ *  those the disk refused, each with its error, which stayed where they
+ *  were; one plan of rewrites over where everything ended; the notes it
+ *  could not plan; what could not be confirmed; and what moved by a rule
+ *  of its own (a folder's note). Empty when nothing had to move.
+ */
+export type MovedEntries = {
+	moved: Moved[],
+	refused: RefusedEntry[],
+	rewrites: LinkRewrite[],
+	skipped: Skipped[],
+	warnings: string[],
+	also: Moved[],
+};
+
 /**  A note's text as it is on disk now, with what the index knows of it. */
 export type NoteText = {
 	path: string,
@@ -788,6 +948,22 @@ export type NoteText = {
 	 *  placeholder stood where it was (ADR 0043).
 	 */
 	unverified: boolean,
+	/**
+	 *  The note's type, when its `type:` names a schema of the folder
+	 *  (ADR 0052); null for plain Markdown.
+	 */
+	note_type: NoteType | null,
+	/**
+	 *  The `verso-schema` blocks this note holds: one that types nothing,
+	 *  or a nested one that is not read, is said in its note (ADR 0052).
+	 */
+	schema_blocks: SchemaNotice[],
+};
+
+/**  A note's type (ADR 0052): its `type:` as written, and what it reaches. */
+export type NoteType = {
+	written: string,
+	state: TypeState,
 };
 
 /**  One frontmatter key and its value. */
@@ -813,6 +989,15 @@ export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; 
 /**  `key:` with nothing after it (YAML null). */
 { kind: "empty" };
 
+/**  Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062). */
+export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown_format";
+
+/**  An entry a move left where it was, and why. */
+export type RefusedEntry = {
+	path: string,
+	error: ContractError,
+};
+
 /**
  *  What a rename or a move left: the new path, the rewrites it calls for,
  *  the notes it could not plan, and what could not be confirmed once the
@@ -824,6 +1009,22 @@ export type Renamed = {
 	rewrites: LinkRewrite[],
 	skipped: Skipped[],
 	warnings: string[],
+	/**
+	 *  What else moved with the entry, by a rule of its own: a folder's
+	 *  note taking the folder's new name (ADR 0060). Old path to new.
+	 */
+	also: Moved[],
+};
+
+/**  A `verso-schema` block of a note. */
+export type SchemaNotice = {
+	/**  The line of the opening fence (1-based). */
+	line: number,
+	name: string | null,
+	/**  Inside a list or a quote: not read. */
+	nested: boolean,
+	/**  Why a block at the top level types nothing (`unknown_kind`, …). */
+	error: string | null,
 };
 
 /**  Why a note that links to what moved got no rewrite. */
@@ -870,6 +1071,37 @@ export type TextFile = {
 export type Trashed = {
 	path: string,
 	warnings: string[],
+};
+
+/**
+ *  What a note's `type:` reaches: one schema, read (`typed`); two or more
+ *  of one name, which type nothing (`conflict`, ADR 0052 point 5); or one
+ *  that does not parse (`invalid`).
+ */
+export type TypeState = { kind: "typed"; 
+/**  The note that holds the schema. */
+schema: string; 
+/**  The schema's `type`, as written there. */
+name: string; 
+/**  The type's name per interface language. */
+labels: Label[]; 
+/**  The declared properties, in the schema's order. */
+properties: TypedProperty[] } | { kind: "conflict"; 
+/**  The notes that hold a schema of that name, in path order. */
+schemas: string[] } | { kind: "invalid"; schema: string; 
+/**  Why, as spec §4.8 names the kinds (`unknown_kind`, `yaml`, …). */
+error: string };
+
+/**  A property a schema declares, as the note holds it. */
+export type TypedProperty = {
+	key: string,
+	/**  `text`, `list`, `number`, `checkbox`, `date` or `datetime`. */
+	kind: string,
+	labels: Label[],
+	/**  The note has the key. */
+	present: boolean,
+	/**  Its value fits the kind; false for a key the note lacks. */
+	fits: boolean,
 };
 
 /**  Information about an application update. */

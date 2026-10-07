@@ -8,6 +8,10 @@
   2026-09-23 — **decided by the maintainer**: that record becomes the
   Decision, with names no link can reach now refused by the window
   (`docs/review/phase-2.md` §6, items 2, 19 and 21).
+  2026-10-07 — **several entries at once**, at the maintainer's request
+  ("deveria ser possível mover vários arquivos juntos, selecionar vários e
+  mover para pastas"); asked how a selection should behave, they chose "como
+  o Finder/Obsidian".
 
 ## Context
 
@@ -31,6 +35,21 @@ delete into `.trash/` after a confirmation; create refused when the name is
 taken; a rename that only changes case allowed where the volume ignores case;
 a typed name no link can reach refused by the window; volumes without hard links
 allowed, with a warning; a lone placeholder neither renamed nor deleted.
+
+**Several entries at once (2026-10-07).** In the file tree, ⌘-click (Ctrl
+elsewhere) adds a row to a selection or takes it out — the row clicked
+before it joins the selection it starts — ⇧-click selects every row from
+the last one clicked, and Esc or a plain click clears it; a plain click
+still opens. Dragged onto a folder, the selection moves there together;
+its menu moves it ("Move to…"), copies the relative paths, or sends it all
+to `.trash/` after one confirmation. A move of several entries is one call
+to the core, which reads what they may change before any of them moves,
+moves each in turn — one the disk refuses (a name taken there) stays,
+named, and the others go — and plans the link rewrites **once, over where
+everything ended**: a note that links to two of them gets one rewrite, as
+option (b) shows it. An entry inside a folder also selected goes with the
+folder. ⌘-click in the tree no longer opens a note in a new tab; the
+row's menu still does.
 
 The questions as they were first recorded, before item 2.3 of Phase 2:
 

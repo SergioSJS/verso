@@ -137,6 +137,8 @@ rodando).
 
 ## 4. Uma segunda janela na mesma pasta
 
+> Revisto em 2026-10-06 pelo [ADR 0065](../adr/0065-a-folder-per-window.md): cada janela mostra uma pasta sua; Arquivo › Nova janela abre uma sem pasta, e uma janela pode abrir outra pasta. O que segue é a decisão de 2026-09-24.
+
 Window → New Window, ou a paleta de comandos: outra janela da pasta aberta,
 com abas próprias sobre a mesma sessão.
 

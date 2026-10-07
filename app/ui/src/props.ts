@@ -15,7 +15,7 @@
 // panel cannot rewrite without loss — a comment in it, several lines, a
 // nested value, an anchor — is shown read-only: Source mode edits it.
 
-import type { Property, PropertyValue } from "./bindings";
+import type { Label, NoteType, Property, PropertyValue, TypedProperty } from "./bindings";
 import { frontmatterClose, opensWithFence } from "./frontmatter";
 import { icon } from "./icons";
 
@@ -30,6 +30,25 @@ export type PropsStrings = {
   /** The button that opens a value's web address. */
   open: string;
   propertiesTitle?: string;
+  /** The typed note's words (ADR 0052). */
+  typed?: TypedStrings;
+};
+
+export type TypedStrings = {
+  /** The type's name above the properties. */
+  type: (label: string) => string;
+  /** The button that opens the note holding the schema. */
+  openSchema: string;
+  /** Two schemas share the name: neither applies. */
+  conflict: (name: string, schemas: string[]) => string;
+  /** The schema of the type does not parse. */
+  invalid: (name: string, schema: string, error: string) => string;
+  /** A value that does not fit its declared kind, shown as written. */
+  misfit: (kind: string) => string;
+  /** The kinds, by name, in the interface language. */
+  kinds: Record<string, string>;
+  /** Why a schema types nothing, by kind (spec §4.8). */
+  errors: Record<string, string>;
 };
 
 export type Change = { from: number; to: number; insert: string };
@@ -50,11 +69,26 @@ export type PropsOptions = {
   onTag: (tag: string) => void;
   /** A value that is a web address was opened. */
   onLink?: (url: string) => void;
+  /** A note was asked for: the one holding a type's schema. */
+  onOpen?: (path: string) => void;
+  /** The interface language (`pt-BR`, `en`), for a schema's labels. */
+  lang?: string;
 };
+
+/** A label for `lang` among a schema's labels: the language itself, its
+ *  base (`pt` for `pt-BR`), or none — the caller falls back to the name. */
+export function labelFor(labels: Label[], lang: string): string | null {
+  const exact = labels.find((l) => l.lang.toLowerCase() === lang.toLowerCase());
+  if (exact) return exact.text;
+  const base = lang.toLowerCase().split("-")[0];
+  return labels.find((l) => l.lang.toLowerCase().split("-")[0] === base)?.text ?? null;
+}
 
 const LIST_KEYS = new Set(["tags", "tag", "aliases", "alias", "cssclasses", "cssclass"]);
 const TAG_KEYS = new Set(["tags", "tag"]);
 const KINDS = new Set(["text", "number", "checkbox", "list", "empty"]);
+/** A declared kind's icon (ADR 0052). */
+const KIND_ICON: Record<string, string> = { text: "text", list: "bullets", number: "hash", checkbox: "task", date: "calendar", datetime: "calendar" };
 
 function iconOf(key: string, v: PropertyValue): string {
   if (TAG_KEYS.has(key.toLowerCase())) return "tag";
@@ -77,6 +111,8 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text?: strin
 export class PropertiesView {
   readonly el = h("div", "props");
   private items: Property[] = [];
+  /** The note's type, when a schema types it (ADR 0052). */
+  private type: NoteType | null = null;
   /** Each key's lines as the rows were drawn from them: an edit goes
    *  through only while the editor's text still has exactly these. */
   private drawn = new Map<string, string | null>();
@@ -93,7 +129,35 @@ export class PropertiesView {
     } catch {
       // No storage.
     }
+    // A press inside the panel: in WebKit a checkbox or a button takes no
+    // focus, so the field that had it loses it on the press — and a redraw
+    // run then would take the control away under the pointer, its click
+    // with it. While the pointer is down inside, the redraw waits for the
+    // click to land.
+    let pressed = false;
+    const release = (): void => {
+      window.removeEventListener("pointerup", release, true);
+      window.removeEventListener("pointercancel", release, true);
+      pressed = false;
+      if (this.pending && !this.el.contains(document.activeElement)) {
+        const run = this.pending;
+        this.pending = null;
+        setTimeout(run, 0);
+      }
+    };
+    this.el.addEventListener(
+      "pointerdown",
+      () => {
+        if (pressed) return;
+        pressed = true;
+        // Only while pressed: no listener outlives the press.
+        window.addEventListener("pointerup", release, true);
+        window.addEventListener("pointercancel", release, true);
+      },
+      true,
+    );
     this.el.addEventListener("focusout", (e) => {
+      if (pressed) return;
       if (this.pending && !this.el.contains(e.relatedTarget as Node | null)) {
         const run = this.pending;
         this.pending = null;
@@ -103,8 +167,9 @@ export class PropertiesView {
   }
   /** Draw the rows the core read from `text`; `readOnly` for a note that
    *  is never edited here. */
-  render(items: Property[], text: string, readOnly = false): void {
+  render(items: Property[], text: string, readOnly = false, type: NoteType | null = null): void {
     const draw = () => {
+      this.type = type;
       this.items = items.map((p) => ({ key: p.key, value: p.value }));
       this.drawn = new Map(this.items.map((p) => [p.key, keyText(text, p.key)]));
       this.readOnly = readOnly;
@@ -113,14 +178,62 @@ export class PropertiesView {
     if (this.el.contains(document.activeElement)) this.pending = draw;
     else draw();
   }
+  /** The line above the properties that names the note's type, or says
+   *  why its schema types nothing. */
+  private typeLine(): HTMLElement | null {
+    const s = this.opts.strings.typed;
+    const t = this.type;
+    if (!s || !t) return null;
+    const line = h("div", "props-type");
+    const open = (path: string, label: string): HTMLButtonElement => {
+      const b = h("button", "props-type-schema", label);
+      b.type = "button";
+      b.title = `${s.openSchema}: ${path}`;
+      // The focus stays where it is: in WebKit a button takes none, and a
+      // field of the panel losing it on the press redrew the panel — the
+      // button under the pointer went, and the click with it.
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", () => this.opts.onOpen?.(path));
+      return b;
+    };
+    const st = t.state;
+    if (st.kind === "typed") {
+      const label = labelFor(st.labels, this.opts.lang ?? "en") ?? st.name;
+      line.append(icon("note"), h("span", "props-type-name", s.type(label)), open(st.schema, s.openSchema));
+    } else if (st.kind === "conflict") {
+      line.classList.add("problem");
+      line.append(icon("warn"), h("span", "", s.conflict(t.written, st.schemas)));
+      for (const p of st.schemas) line.append(open(p, p.replace(/\.md$/, "")));
+    } else {
+      line.classList.add("problem");
+      line.append(icon("warn"), h("span", "", s.invalid(t.written, st.schema, s.errors[st.error] ?? st.error)), open(st.schema, st.schema.replace(/\.md$/, "")));
+    }
+    return line;
+  }
+  /** The rows, the declared ones first in the schema's order when a
+   *  schema types the note, then the note's other keys (ADR 0052 point 6). */
+  private rows(): HTMLElement[] {
+    const st = this.type?.state;
+    if (!st || st.kind !== "typed") return this.items.map((p) => this.row(p));
+    const declared = new Set(st.properties.map((d) => d.key));
+    const out: HTMLElement[] = [];
+    for (const d of st.properties) {
+      const p = this.items.find((x) => x.key === d.key);
+      out.push(p ? this.row(p, d) : this.absentRow(d));
+    }
+    for (const p of this.items) if (!declared.has(p.key)) out.push(this.row(p));
+    return out;
+  }
   private paint(focusKey?: string): void {
-    const rows = this.items.map((p) => this.row(p));
+    const rows = this.rows();
+    const typeLine = this.typeLine();
+    if (typeLine) rows.unshift(typeLine);
     const add = h("button", "prop-new");
     add.type = "button";
     add.append(icon("plus"), h("span", "", this.opts.strings.addProperty));
     add.addEventListener("click", () => this.newRow(add));
     add.hidden = this.readOnly;
-    if (this.items.length > 0) {
+    if (this.items.length > 0 || typeLine) {
       const header = h("div", "props-header");
       const toggle = h("button", "props-toggle");
       toggle.type = "button";
@@ -136,7 +249,7 @@ export class PropertiesView {
       this.el.replaceChildren(...rows, add);
     }
     this.el.hidden = false;
-    this.el.classList.toggle("empty", this.items.length === 0);
+    this.el.classList.toggle("empty", this.items.length === 0 && !typeLine);
     if (focusKey !== undefined) {
       const target = this.el.querySelector<HTMLElement>(`[data-key="${CSS.escape(focusKey)}"] input, [data-key="${CSS.escape(focusKey)}"] .prop-add`);
       target?.focus();
@@ -173,13 +286,82 @@ export class PropertiesView {
     const text = this.drawn.get(p.key);
     return text !== null && text !== undefined && shapeOf(text.split("\n")).kind !== "fixed";
   }
-  private row(p: Property): HTMLElement {
+  /** A declared key the note lacks: an empty row in its kind's widget
+   *  that writes nothing until it is given a value — then the key goes
+   *  where a new key goes, at the end of the frontmatter (ADR 0052). */
+  private absentRow(d: TypedProperty): HTMLElement {
+    const row = h("div", `prop declared absent kind-${d.kind}`);
+    row.dataset["key"] = d.key;
+    const label = labelFor(d.labels, this.opts.lang ?? "en") ?? d.key;
+    const key = h("span", "prop-key");
+    key.title = d.key;
+    key.append(icon(KIND_ICON[d.kind] ?? "text"), h("span", "prop-key-text", label));
+    const value = h("div", "prop-value");
+    const give = (v: PropertyValue | { add: string[] }) => {
+      this.edit(d.key, { op: "create" }, false);
+      if ("add" in v) this.edit(d.key, { op: "add", values: v.add });
+      else this.edit(d.key, { op: "set", value: v });
+    };
+    if (d.kind === "checkbox") {
+      const box = h("input");
+      box.type = "checkbox";
+      box.disabled = this.readOnly;
+      box.setAttribute("aria-label", label);
+      box.addEventListener("change", () => give({ kind: "checkbox", value: box.checked }));
+      value.append(box);
+    } else if (d.kind === "list") {
+      const add = h("input", "prop-add");
+      add.type = "text";
+      add.placeholder = this.opts.strings.addItem;
+      add.disabled = this.readOnly;
+      add.setAttribute("aria-label", `${label}: ${this.opts.strings.addItem}`);
+      const push = () => {
+        const parts = add.value.split(",").map((s) => s.trim()).filter(Boolean);
+        // Cleared first: the repaint takes the field away, and its blur
+        // would push the same items again.
+        add.value = "";
+        if (parts.length > 0) give({ add: parts });
+      };
+      add.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") push();
+      });
+      add.addEventListener("blur", push);
+      value.append(add);
+    } else {
+      const input = h("input", "prop-input");
+      input.type = d.kind === "number" ? "number" : d.kind === "date" ? "date" : d.kind === "datetime" ? "datetime-local" : "text";
+      if (d.kind === "number") input.step = "any";
+      input.placeholder = this.opts.strings.emptyValue;
+      input.disabled = this.readOnly;
+      input.setAttribute("aria-label", label);
+      const commit = () => {
+        const v = input.value.trim();
+        if (v === "") return;
+        give(d.kind === "number" ? { kind: "number", value: v } : { kind: "text", value: v });
+      };
+      input.addEventListener(d.kind === "date" || d.kind === "datetime" ? "change" : "blur", commit);
+      input.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") input.blur();
+      });
+      value.append(input);
+    }
+    row.append(key, value);
+    return row;
+  }
+  private row(p: Property, d?: TypedProperty): HTMLElement {
     const fixed = !this.editable(p);
-    const row = h("div", `prop kind-${p.value.kind}${fixed ? " fixed" : ""}`);
+    const misfit = d !== undefined && !d.fits;
+    const row = h("div", `prop kind-${p.value.kind}${fixed ? " fixed" : ""}${d ? " declared" : ""}${misfit ? " misfit" : ""}`);
     row.dataset["key"] = p.key;
     if (fixed && !this.readOnly) row.title = this.opts.strings.fixed;
+    const s = this.opts.strings.typed;
+    if (misfit && s && d) row.title = s.misfit(s.kinds[d.kind] ?? d.kind);
     const key = h("span", "prop-key");
-    key.append(icon(iconOf(p.key, p.value)), h("span", "prop-key-text", p.key));
+    const label = d ? (labelFor(d.labels, this.opts.lang ?? "en") ?? p.key) : p.key;
+    if (d) key.title = p.key;
+    key.append(icon(d ? (KIND_ICON[d.kind] ?? "text") : iconOf(p.key, p.value)), h("span", "prop-key-text", label));
     const value = h("div", "prop-value");
     const isList = p.value.kind === "list" || (p.value.kind === "empty" && LIST_KEYS.has(p.key.toLowerCase()));
     if (isList) this.listEditor(value, p.key, p.value.kind === "list" ? p.value.value : [], fixed);
@@ -193,7 +375,8 @@ export class PropertiesView {
       value.append(box);
     } else {
       const input = h("input", "prop-input");
-      input.type = p.value.kind === "number" ? "number" : "text";
+      const asDate = d !== undefined && d.fits && (d.kind === "date" || d.kind === "datetime");
+      input.type = asDate ? (d.kind === "date" ? "date" : "datetime-local") : p.value.kind === "number" ? "number" : "text";
       if (p.value.kind === "number") input.step = "any";
       const shown = p.value as { kind: string; value?: unknown };
       input.value = typeof shown.value === "string" ? shown.value : "";
@@ -211,7 +394,7 @@ export class PropertiesView {
         else if (p.value.kind === "empty" && /^(true|false)$/i.test(v)) this.edit(p.key, { op: "set", value: { kind: "checkbox", value: v.toLowerCase() === "true" } }, false);
         else this.edit(p.key, { op: "set", value: { kind: "text", value: v } }, false);
       };
-      input.addEventListener("blur", done);
+      input.addEventListener(asDate ? "change" : "blur", done);
       input.addEventListener("keydown", (e) => {
         e.stopPropagation();
         if (e.key === "Enter") input.blur();

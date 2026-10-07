@@ -20,6 +20,12 @@
   Ajustes… no mesmo dia (`CHANGELOG.md`). 2026-09-30 — a linha do board na
   seção 3 deixa de valer, pelo pedido do mantenedor de 2026-09-29 ("vamos
   puxar a demanda do canvas hexcalidraw etc agora"): o board é o [0057](0057-board-json-canvas.md).
+  2026-10-02 — a linha "os Contexts do make.md" da seção 3 deixa de valer:
+  as visões foram o [0053](0053-views-bases.md), e as funcionalidades de
+  organização do make.md são o [0060](0060-makemd-organizing-features.md),
+  pelo pedido do mantenedor desse dia. 2026-10-06 — a nota diária da seção 2
+  passa de ⌘D para ⌘⇧D: ⌘D duplica um bloco, pela escolha do mantenedor das
+  teclas do Notion ([0061](0061-blocks-in-edit-mode.md) D8).
 
 ## Contexto
 
@@ -80,8 +86,9 @@ isso foi dito ao mantenedor quando pediu:
 
 - ~~Excalidraw ou o canvas do Obsidian — o board ([0024](0024-board-excalidraw.md)).~~
   Decidido em 2026-09-30: [0057](0057-board-json-canvas.md).
-- Visões de kanban, calendário e tabela de dados sobre notas — os "Contexts" do
-  make.md.
+- ~~Visões de kanban, calendário e tabela de dados sobre notas — os "Contexts"
+  do make.md.~~ Decidido em 2026-09-24 ([0053](0053-views-bases.md)) e
+  2026-10-02 ([0060](0060-makemd-organizing-features.md)).
 
 Não construídos por motivo técnico: tirar uma aba da janela arrastando (a web
 view não enxerga o ponteiro fora da janela; em vez disso, uma nota vai para uma

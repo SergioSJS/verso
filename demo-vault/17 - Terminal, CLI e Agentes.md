@@ -44,7 +44,16 @@ Em **Ajustes › Terminal e agentes**:
 - **Claude Code** mostra a linha que liga o cofre ao Claude Code (`claude mcp add …`), com **Copiar**.
 - **Outros clientes MCP** mostra o JSON para outros programas.
 
-O agente ganha sete ferramentas, todas só de leitura: `search` (buscar), `read_note` (ler uma nota), `links` e `backlinks` (as ligações de uma nota), `unresolved` (os links sem destino), `list_notes` (listar as notas) e `index` (atualizar o índice). Ele lê; quem escreve é você.
+O agente ganha nove ferramentas, todas só de leitura:
+
+- `search` (buscar) e `list_notes` (listar as notas e os boards — também só as de uma tag, como `projeto`, ou de uma propriedade, como `status: ativo`);
+- `read_note` (ler uma nota, com as propriedades e as tags dela);
+- `links` e `backlinks` (as ligações de uma nota — e, quando a ligação é uma propriedade do frontmatter, como `aliado: "[[Barão]]"`, qual é a relação);
+- `read_board` (ler um board: os cartões, as setas com as relações, os textos desenhados);
+- `query_base` (consultar uma base, como a tabela que o Verso mostra);
+- `unresolved` (os links sem destino) e `index` (atualizar o índice).
+
+Experimente pedir: *"quais notas têm a tag projeto e o que o Tour do Verso mostra?"*. Ele lê; quem escreve é você.
 
 ---
 

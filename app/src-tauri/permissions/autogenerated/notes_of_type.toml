@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-notes-of-type"
+description = "Enables the notes_of_type command without any pre-configured scope."
+commands.allow = ["notes_of_type"]
+
+[[permission]]
+identifier = "deny-notes-of-type"
+description = "Denies the notes_of_type command without any pre-configured scope."
+commands.deny = ["notes_of_type"]

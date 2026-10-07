@@ -13,6 +13,7 @@
   [0035](0035-cross-cutting-requirements.md) (a vista acessível),
   [0049](0049-phase-2-scope-widened.md) §3 (pedido e não construído, até este
   ADR)
+- Revisões: 2026-10-03 — como imagens e arquivos chegam ao board (soltar, colar, escolher, arrastar) está no [0063](0063-files-onto-the-board.md); o ponto 2 continua valendo. 2026-10-06 — o ponto 10 ganha o recorte de um cartão de imagem, guardado no nó dele (o mantenedor, perguntado onde o recorte fica: "No card, sem tocar no arquivo"). 2026-10-06 — ponto 5: um desenho do plugin abre no seu desenho; ponto 20: uma seta fica presa no ponto para onde foi desenhada, sobre as builds de desenvolvimento do Excalidraw (o mantenedor, abaixo).
 - Status no briefing: §9 "Persistência do board" `ABERTO` e "Board — camada
   semântica" `PROPOSTO`, §11.3 e §17 item 6 "Sintaxe de relação tipada"
   `ABERTO`, §17 item 9 `ABERTO` — todos `DECIDIDO` a partir de 2026-09-30
@@ -85,6 +86,15 @@ decididos pelo mantenedor em 2026-10-01 (ponto 18).
    desenho e deixa o desenho como estava. É escrita a partir da estrutura do
    próprio arquivo e do schema do Excalidraw (MIT); nada do código do plugin
    (AGPL-3.0) é lido.
+   *(Revisto em 2026-10-06 pelo mantenedor, em sessão: "nao to conseguindo
+   abrir um excalidraw criado no obisidian nao abre no nosso board";
+   perguntado como, escolheu "Mostrar o desenho + converter" em vez de
+   editar o arquivo do plugin no lugar e em vez de só um botão mais
+   visível.)* Um desenho do plugin abre no seu desenho, mostrado como foi
+   desenhado, para ver — o modo de visualização do Excalidraw, as imagens
+   pelos arquivos que o desenho nomeia — no lugar do seu texto, com
+   "Converter em board" acima e o texto a um clique. Mostrar não escreve
+   nada; a conversão continua sendo ação do usuário, como acima.
 6. **`.canvas` no índice, como o Obsidian** (Q16 da spec, só para `.canvas`):
    os nós `file` de um canvas e os `[[links]]` dos seus nós `text` são fontes
    de backlink; um `.canvas` é alvo de link pelo nome completo com a extensão
@@ -137,6 +147,17 @@ decididos pelo mantenedor em 2026-10-01 (ponto 18).
       aresta: o JSON Canvas não tem campo para isso, e o Obsidian mantém os
       campos desconhecidos de um nó (memo O1). Nenhuma, ou transparente, tira
       a chave. Pedido pelo mantenedor em 2026-09-30 ("tem como respeitar?").
+    - **O recorte de um cartão de imagem.** Uma imagem no board pode ser
+      recortada — pedido pelo mantenedor em 2026-10-06 ("senti falta de
+      ferramenta de cortar imagem"). O recorte fica no nó do cartão, na
+      chave `verso` dele, como a parte da imagem mostrada, em frações da
+      largura e da altura (`"verso":{"crop":{"x":0.1,"y":0.2,"w":0.6,"h":0.5}}`);
+      o arquivo da imagem nunca é gravado, o recorte muda ou sai a qualquer
+      momento, e uma imagem pode ser recortada de jeitos diferentes em dois
+      cartões. O cartão toma as proporções do recorte. O Obsidian, que mantém
+      a chave, mostra a imagem inteira; a exportação do board como imagem
+      mostra o recorte. Escolhido pelo mantenedor em 2026-10-06 em vez de uma
+      cópia recortada do arquivo.
     - **O estilo de um cartão e de uma aresta.** O mais que o painel define e
       o JSON Canvas não tem campo para guardar fica do mesmo jeito, na chave
       `verso` do próprio item, e só quando não é como o board desenha o item
@@ -220,6 +241,36 @@ seção (a seção 8 da revisão guarda a lista como foi apresentada).
     dela, ou um site mostrado numa janela do app — roda o comando da própria
     página, como o item do sistema rodava.
 
+**Decidido em 2026-10-06 pelo mantenedor**, em sessão: "fui testar o
+excalidraw, ele ta muito mais elegante em si tratando com as setas [...] se
+eu faço uma seta entre dois elementos, ele salva exatalemte o lugar onde a
+seta ta pontando"; perguntado como, escolheu "Excalidraw next" em vez de
+ficar na versão estável e pôr o ponto por código do próprio Verso, e em vez
+de manter as setas no meio de um lado.
+
+20. **Uma seta fica presa no ponto para onde foi desenhada.** As builds de
+    desenvolvimento do Excalidraw prendem cada ponta de uma seta a um ponto
+    do elemento, em frações da sua caixa, encontrado no contorno (`orbit`)
+    ou no próprio ponto (`inside`); a versão estável, 0.18.1, prende uma
+    ponta por um foco em direção ao meio, e o Verso desenhava toda aresta a
+    partir do meio de um lado. O board passa a usar uma build de
+    desenvolvimento, fixada numa versão exata no `package.json`
+    (`@excalidraw/excalidraw@0.18.0-<commit>`), trocada só numa mudança
+    própria com a suíte inteira verde. Uma aresta — uma seta de um cartão a
+    um cartão — passa por baixo dos cartões, como o canvas a desenha: as
+    pontas ficam presas no contorno dos cartões, mirando os seus pontos, já
+    que uma ponta dentro de um cartão esconderia a cabeça da seta. Uma seta
+    com uma ponta numa forma do desenho é do desenho, desenhada por cima dos
+    cartões, e vale o jeito do próprio Excalidraw: a cabeça no ponto para
+    onde foi desenhada, dentro de uma imagem inclusive; o cartão que ela
+    alcança a lista, lido do arquivo, e assim ela se move com o cartão. Uma
+    aresta do canvas escreve, para o Obsidian, o lado que a seta encontra, e
+    sob o `verso` da aresta o ponto (`"fromPoint": [x, y]`, `"toPoint"`)
+    quando ele não é o meio desse lado. Lida, uma aresta fica presa no seu
+    ponto, senão no meio do seu lado, senão no meio do lado voltado para o
+    outro cartão. O ponto 14 continua valendo, com mais um caso: uma ponta
+    movida no seu cartão ganha o lado que agora encontra.
+
 ## Consequências
 
 - O ADR 0040 é decidido pelo ponto 2; a camada semântica do ADR 0024 pelo
@@ -243,6 +294,16 @@ seção (a seção 8 da revisão guarda a lista como foi apresentada).
 - Os textos e rótulos do board em pt-BR e inglês
   ([0035](0035-cross-cutting-requirements.md)); o locale `pt-BR` do próprio
   Excalidraw segue a língua da janela.
+- O ponto 20 prende o board a uma build de desenvolvimento do Excalidraw, a
+  que o plugin Excalidraw do Obsidian usa: a API e o layout dela mudam entre
+  builds (na primeira troca, `scrollToContent` virou `setViewport`, o
+  callback da API virou `onExcalidrawAPI`, a barra do layout de celular foi
+  para o pé do board, e o vínculo da seta perdeu foco e distância). Os
+  testes e2e do board é que dizem quando uma build o quebra; a lista de
+  licenças npm permitidas roda com as verificações, e o `npm audit` é lido
+  a cada troca contra o da anterior (na primeira, os mesmos 16 avisos da
+  0.18.1, nenhum novo). Desenhos do
+  plugin feitos com essas builds abrem com as setas onde foram desenhadas.
 
 ## Alternativas descartadas
 
@@ -257,10 +318,18 @@ Consideradas pelo mantenedor no memo e deixadas de lado em 2026-09-30:
 - A relação guardada só na aresta do board; a camada semântica adiada.
 - A conversão do `.excalidraw.md` deixada para depois.
 
+Oferecidas com as revisões de 2026-10-06 e não escolhidas:
+
+- Setas: ficar no Excalidraw 0.18.1 e pôr uma ponta no seu ponto por código
+  do próprio Verso; manter toda aresta no meio de um lado.
+- Um desenho do plugin: editá-lo no lugar, escrito de volta no formato do
+  plugin (que muda sem aviso); só um botão mais visível sobre o seu texto.
+
 Descartado por observação, não por preferência: o desenho guardado como nós
 de canvas de um tipo do próprio Verso, que o Obsidian apaga no salvamento
 seguinte (memo, seção 3.2, O5).
 
 ## Status
 
-Aceito (2026-09-30); os pontos 11 a 19 em 2026-10-01.
+Aceito (2026-09-30); os pontos 11 a 19 em 2026-10-01; o ponto 20 e a
+revisão do ponto 5 em 2026-10-06.

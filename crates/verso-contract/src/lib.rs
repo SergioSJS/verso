@@ -88,6 +88,42 @@ pub struct TextFile {
     pub warnings: Vec<String>,
 }
 
+/// A named root of the file tree (ADR 0062).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Focus {
+    pub name: String,
+    pub paths: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sticker: Option<String>,
+}
+
+/// Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadOnlyReasonCode {
+    CloudPlaceholder,
+    InvalidJson,
+    UnknownFormat,
+}
+
+/// The result of reading focuses from the open folder (ADR 0062).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FocusesSummary {
+    /// Focuses found in `.space/waypoints.json`, or empty if no file.
+    pub focuses: Vec<Focus>,
+    /// Whether `.space/waypoints.json` is present in the open folder.
+    pub has_file: bool,
+    /// Whether `.space/waypoints.json` is in the known format (ADR 0062 D6).
+    pub format_known: bool,
+    /// Why the file is read-only, if not known format or unreadable.
+    pub read_only_reason: Option<String>,
+    /// Machine-readable code for read-only reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_only_code: Option<ReadOnlyReasonCode>,
+    /// The revision stamp for optimistic concurrency (Invariants 9 & 11).
+    pub stamp: Option<String>,
+}
+
 /// What one entry of the open folder is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "lowercase")]
@@ -97,6 +133,19 @@ pub enum FileKind {
     Folder,
     /// Present, content in the cloud (ADR 0043).
     Placeholder,
+}
+
+/// Sticker and color of an entry (note or folder), plus its first alias
+/// when one exists, and manual order and pinned lists (ADR 0060, S1, S3).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct EntryLabel {
+    pub sticker: Option<String>,
+    pub color: Option<String>,
+    pub alias: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pinned: Option<Vec<String>>,
 }
 
 /// One entry of the open folder as the last walk saw it: what a folder
@@ -111,6 +160,7 @@ pub struct FileEntry {
     pub size: f64,
     /// Seconds since the Unix epoch; 0 when the file system gave none.
     pub modified: f64,
+    pub label: Option<EntryLabel>,
 }
 
 /// A heading of a note, for citing and for the outline.
@@ -159,6 +209,78 @@ pub struct NoteText {
     /// The index holds the note only as a last known version: a
     /// placeholder stood where it was (ADR 0043).
     pub unverified: bool,
+    /// The note's type, when its `type:` names a schema of the folder
+    /// (ADR 0052); null for plain Markdown.
+    pub note_type: Option<NoteType>,
+    /// The `verso-schema` blocks this note holds: one that types nothing,
+    /// or a nested one that is not read, is said in its note (ADR 0052).
+    pub schema_blocks: Vec<SchemaNotice>,
+}
+
+/// A `verso-schema` block of a note.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SchemaNotice {
+    /// The line of the opening fence (1-based).
+    pub line: u32,
+    pub name: Option<String>,
+    /// Inside a list or a quote: not read.
+    pub nested: bool,
+    /// Why a block at the top level types nothing (`unknown_kind`, …).
+    pub error: Option<String>,
+}
+
+/// A note's type (ADR 0052): its `type:` as written, and what it reaches.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct NoteType {
+    pub written: String,
+    pub state: TypeState,
+}
+
+/// What a note's `type:` reaches: one schema, read (`typed`); two or more
+/// of one name, which type nothing (`conflict`, ADR 0052 point 5); or one
+/// that does not parse (`invalid`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum TypeState {
+    Typed {
+        /// The note that holds the schema.
+        schema: String,
+        /// The schema's `type`, as written there.
+        name: String,
+        /// The type's name per interface language.
+        labels: Vec<Label>,
+        /// The declared properties, in the schema's order.
+        properties: Vec<TypedProperty>,
+    },
+    Conflict {
+        /// The notes that hold a schema of that name, in path order.
+        schemas: Vec<String>,
+    },
+    Invalid {
+        schema: String,
+        /// Why, as spec §4.8 names the kinds (`unknown_kind`, `yaml`, …).
+        error: String,
+    },
+}
+
+/// A name in one interface language (`pt-BR`, `en`), as a schema writes it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Label {
+    pub lang: String,
+    pub text: String,
+}
+
+/// A property a schema declares, as the note holds it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct TypedProperty {
+    pub key: String,
+    /// `text`, `list`, `number`, `checkbox`, `date` or `datetime`.
+    pub kind: String,
+    pub labels: Vec<Label>,
+    /// The note has the key.
+    pub present: bool,
+    /// Its value fits the kind; false for a key the note lacks.
+    pub fits: bool,
 }
 
 /// What a write left behind: the note as written — the text that was
@@ -215,6 +337,39 @@ pub struct Renamed {
     pub rewrites: Vec<LinkRewrite>,
     pub skipped: Vec<Skipped>,
     pub warnings: Vec<String>,
+    /// What else moved with the entry, by a rule of its own: a folder's
+    /// note taking the folder's new name (ADR 0060). Old path to new.
+    pub also: Vec<Moved>,
+}
+
+/// What moving several entries at once left — a selection of the tree
+/// dropped on a folder (ADR 0048, revised 2026-10-07): those that moved;
+/// those the disk refused, each with its error, which stayed where they
+/// were; one plan of rewrites over where everything ended; the notes it
+/// could not plan; what could not be confirmed; and what moved by a rule
+/// of its own (a folder's note). Empty when nothing had to move.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct MovedEntries {
+    pub moved: Vec<Moved>,
+    pub refused: Vec<RefusedEntry>,
+    pub rewrites: Vec<LinkRewrite>,
+    pub skipped: Vec<Skipped>,
+    pub warnings: Vec<String>,
+    pub also: Vec<Moved>,
+}
+
+/// An entry a move left where it was, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RefusedEntry {
+    pub path: String,
+    pub error: ContractError,
+}
+
+/// A file that moved, from one relative path to another.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Moved {
+    pub from: String,
+    pub to: String,
 }
 
 /// What a deletion left: where the entry went in `.trash/`, and what

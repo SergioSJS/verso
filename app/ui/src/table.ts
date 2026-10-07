@@ -185,7 +185,7 @@ export function formatUnderCaret(view: EditorView): boolean {
 
 /** A fresh table, `cols` × `rows` body rows, as text; `header` names every
  *  column (the interface's word for one). */
-export function template(cols: number, rows: number, header: string): string {
+export function template(cols: number, rows: number, header = ""): string {
   const head = `|${` ${header} |`.repeat(cols)}`;
   const sep = `|${" --- |".repeat(cols)}`;
   const body = Array.from({ length: rows }, () => `|${"  |".repeat(cols)}`);
@@ -202,3 +202,103 @@ export const tableKeymap = Prec.highest(
     { key: "Enter", run: newRow },
   ]),
 );
+
+// ---------- A table as a grid (the table editor of Edit mode, ADR 0064) ----------
+
+export type Align = "left" | "center" | "right" | null;
+
+/** A table's cells by place: its header, each column's alignment, its
+ *  body rows. A cell holds its text as the user reads it: `\|` is `|`. */
+export type Grid = { head: string[]; align: Align[]; body: string[][] };
+
+function unescape(cell: string): string {
+  return cell.replace(/\\\|/g, "|");
+}
+
+/** A cell's text as a table row can hold it: a `|` escaped, a line break
+ *  (which would end the row) as a space. */
+export function escapeCell(text: string): string {
+  return text.replace(/\r?\n/g, " ").replace(/(?<!\\)\|/g, "\\|");
+}
+
+/** The grid of a table's rows (the header, the delimiter row, the body),
+ *  every row as wide as the widest. */
+export function parseGrid(rows: string[]): Grid {
+  const all = rows.map(cells);
+  const cols = Math.max(1, ...all.map((r) => r.length));
+  const pad = (r: string[]) => Array.from({ length: cols }, (_, i) => unescape(r[i] ?? ""));
+  const delim = all[1] ?? [];
+  const align = Array.from({ length: cols }, (_, i): Align => {
+    const d = (delim[i] ?? "").trim();
+    const l = d.startsWith(":");
+    const r = d.endsWith(":") && d.length > 1;
+    return l && r ? "center" : r ? "right" : l ? "left" : null;
+  });
+  return { head: pad(all[0] ?? []), align, body: all.slice(2).map(pad) };
+}
+
+/** The grid written back as an aligned Markdown table. */
+export function gridText(g: Grid): string {
+  const row = (r: string[]) => `| ${r.map(escapeCell).join(" | ")} |`;
+  const delim = `| ${g.align.map((a) => (a === "center" ? ":---:" : a === "right" ? "---:" : a === "left" ? ":---" : "---")).join(" | ")} |`;
+  return format([row(g.head), delim, ...g.body.map(row)]).join("\n");
+}
+
+const clone = (g: Grid): Grid => ({ head: [...g.head], align: [...g.align], body: g.body.map((r) => [...r]) });
+
+/** Row -1 is the header. */
+export function setCell(g: Grid, r: number, c: number, text: string): Grid {
+  const n = clone(g);
+  if (r < 0) n.head[c] = text;
+  else if (n.body[r]) n.body[r]![c] = text;
+  return n;
+}
+
+/** A blank body row at `at` (0: under the header). */
+export function insertRow(g: Grid, at: number): Grid {
+  const n = clone(g);
+  n.body.splice(Math.max(0, Math.min(at, n.body.length)), 0, n.head.map(() => ""));
+  return n;
+}
+
+/** Body row `r` removed; a table keeps at least its header. */
+export function deleteRow(g: Grid, r: number): Grid {
+  const n = clone(g);
+  if (r >= 0 && r < n.body.length) n.body.splice(r, 1);
+  return n;
+}
+
+/** A blank column at `at`, aligned as none. */
+export function insertCol(g: Grid, at: number): Grid {
+  const n = clone(g);
+  const i = Math.max(0, Math.min(at, n.head.length));
+  n.head.splice(i, 0, "");
+  n.align.splice(i, 0, null);
+  for (const r of n.body) r.splice(i, 0, "");
+  return n;
+}
+
+/** Column `c` removed; a table keeps at least one column. */
+export function deleteCol(g: Grid, c: number): Grid {
+  const n = clone(g);
+  if (n.head.length <= 1 || c < 0 || c >= n.head.length) return n;
+  n.head.splice(c, 1);
+  n.align.splice(c, 1);
+  for (const r of n.body) r.splice(c, 1);
+  return n;
+}
+
+export function setAlign(g: Grid, c: number, a: Align): Grid {
+  const n = clone(g);
+  if (c >= 0 && c < n.align.length) n.align[c] = a;
+  return n;
+}
+
+/** Body row `r` moved to `to`. */
+export function moveRow(g: Grid, r: number, to: number): Grid {
+  const n = clone(g);
+  if (r < 0 || r >= n.body.length) return n;
+  const [row] = n.body.splice(r, 1);
+  n.body.splice(Math.max(0, Math.min(to, n.body.length)), 0, row!);
+  return n;
+}

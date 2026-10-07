@@ -114,6 +114,16 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 5. Nota 13: ⌘R recarrega a janela com a nota digitada salva antes; com uma
    nota que não pode ser salva (um conflito esperando), a janela fica e diz
    por quê. Nível: H; E: `notes.spec.mjs`.
+6. Janelas (ADR 0065): Arquivo › Nova janela abre uma janela na página
+   inicial; ela abre outra pasta, e cada janela lista e busca as suas
+   próprias notas, com o nome da pasta no título; Arquivo › Abrir pasta…
+   troca só a janela em foco; "Nova janela nesta pasta" abre uma na mesma
+   pasta, e uma nota escrita numa aparece na outra; uma nota aberta numa
+   janela própria impede a sua janela de trocar enquanto nenhuma outra
+   janela mostra a pasta dela; fechar uma janela deixa as outras como
+   estavam; `verso <pasta>` com todas as janelas numa pasta abre uma janela
+   nova. Nível: A; U: `cargo test -p verso-app`
+   (`each_window_answers_from_its_own_folder`).
 
 ## 3. Escrever e ler notas
 
@@ -132,7 +142,15 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Nível: H; E: `notes.spec.mjs`. Pegou: a imagem era pedida ao endereço da
    própria janela antes do da pasta, desenhada com 0 px de largura (o tamanho
    depois de um texto alternativo não era lido), e redimensioná-la
-   reescrevia o exemplo (2026-10-01).
+   reescrevia o exemplo (2026-10-01). Um clique com o botão direito na
+   imagem — aqui, na aba dela (`assets/diagrama.svg`), num cartão do board —
+   é o menu do Verso: "Abrir em nova aba", "Abrir em nova janela", "Baixar
+   imagem" (vai para Downloads, a linha de status diz o nome), "Copiar
+   imagem", "Mostrar no Finder"; o "Baixar" da exportação do board também
+   vai para Downloads. Nível: H, A (o download e a janela); E:
+   `menus.spec.mjs`. Pegou: aparecia o menu do próprio WebKit, e o
+   "Download Image" e o "Open Image in New Window" dele não faziam nada
+   (2026-10-06).
 5. Uma imagem cujo nome de arquivo tem acento (`assets/gráfico.svg`) aparece
    vinda da pasta. Nível: H; E: `notes.spec.mjs`. Pegou: o renderizador
    codifica o endereço em porcentagem, e a janela pedia ao core
@@ -156,6 +174,37 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Nível: H; E: `notes.spec.mjs`. Pego: o texto do Editar 7,5 px mais à
    direita, as linhas 113 px mais longas numa janela larga (`100ch` na
    fonte da interface), a lista mais solta (2026-10-02).
+10. Nota 20 no Editar (ADR 0061): o ponteiro sobre um parágrafo mostra `+`
+    e ⋮⋮ na margem, à esquerda do texto, e um contorno em volta do parágrafo
+    inteiro; a ⋮⋮ arrastada para baixo das listas move o parágrafo inteiro,
+    e um ⌘Z o devolve; "Terceiro passo" arrastado para o topo renumera a
+    lista 1, 2, 3; "Maçã" arrastada para a direita, sob "Fruta", aninha ali;
+    Esc no meio do arraste não solta nada. A ⋮⋮ clicada: Transformar em ›
+    Título 2, Duplicar, Copiar link do bloco (um `^id` escrito uma vez),
+    Excluir. ⌘⇧↓ e ⌘⇧↑ movem o bloco do cursor, passando por uma lista
+    inteira; ⌘D o duplica; ⌘/ abre "Transformar em". O `+` abre o `/` num
+    bloco novo, e Esc o desfaz; num item de lista, o bloco novo é o próximo
+    item. `[] ` vira `- [ ] `; `/recolh` oferece "Recolhível". Ajustes ›
+    Editor: "Alças dos blocos" desligado as esconde; "Enter começa um bloco
+    novo" ligado faz o Enter escrever uma linha em branco e o Shift-Enter uma
+    quebra de linha. No campo de busca, ⌘⇧↑ é do próprio campo. Uma linha
+    vazia mostra só o `+`: ele escreve um `/` ali, separado dos vizinhos, e
+    Esc o desfaz. Nível: H; E: `blocks.spec.mjs`; U: `test/blocks.test.mjs`.
+11. Nota 01, "Tabelas no Editor", no Editar (ADR 0064): uma tabela é
+    desenhada como tabela com o cursor nela ou não; `/tabela` cria uma cujo
+    cabeçalho vazio recebe as teclas; Tab, Enter, as setas e Esc como a nota
+    diz; os `+` embaixo e ao lado acrescentam linha e coluna; clique direito
+    numa célula: inserir, excluir, alinhar (`:-:`), e as mesmas ferramentas na
+    barra de formatação enquanto uma célula tem o foco, com o alinhamento da
+    coluna marcado; um `|` digitado é gravado
+    `\|`; ⌘Z numa célula desfaz o último passo. Uma tabela dentro de uma
+    lista continua texto. Nível: H; E: `tables.spec.mjs`; U:
+    `test/table.test.mjs`.
+12. A mesma tabela: arraste para a direita a borda de uma célula de
+    cabeçalho, no Editar; a Leitura mostra a coluna larga, e a nota aberta de
+    novo também; o arquivo não muda (ADR 0064 ponto 6). Nível: H; E:
+    `tables.spec.mjs`, "a column dragged wider…" e "a column dragged in
+    Reading…".
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
@@ -166,12 +215,23 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    base listava o cofre inteiro (`26c3b06`).
 2. Nota 04: a visão incorporada e o bloco `base` que lista as notas diárias.
    Nível: H.
-3. ⌘D: `Diário/<hoje>.md` é feita do `Templates/Diário.md`, com `{{title}}`
+3. ⌘⇧D (⌘D até 2026-10-06, ADR 0061): `Diário/<hoje>.md` é feita do `Templates/Diário.md`, com `{{title}}`
    e `{{date}}` preenchidos. Nível: S (as pastas), H; E: `notes.spec.mjs`.
    Pegou: as notas diziam `daily/` e `templates/`, que o app não usa por
    padrão (`26c3b06`).
 4. Painel da direita (⌘⌥→) › Calendário: pontos em 24 e 25 de setembro e
    hoje. Nível: H; E: `notes.spec.mjs`.
+5. A nota tipada (nota 21, ADR 0052): `Personagens/Capitão Ruy` mostra
+   "Tipo: Personagem" acima das propriedades, as propriedades do schema
+   primeiro sob os seus rótulos, `nível: alto` sublinhado, "Primeira
+   aparição" uma linha de data vazia; abrir não escreve nada; uma data
+   escolhida ali vai para o fim do frontmatter; "Abrir o schema" abre
+   `Tipos/Personagem`. Uma propriedade acrescentada ao schema aparece,
+   vazia, nas duas notas, e nenhum arquivo muda. Uma cópia da nota do
+   schema faz as duas notas dizerem que os dois schemas têm o mesmo nome;
+   `type:personagem` na busca lista as duas. Em inglês, "Type: Character".
+   Nível: S (`crates/verso-core/tests/typed.rs`, `fixtures/schema/`), H; E:
+   `typed.spec.mjs`.
 
 ## 5. Encontrar
 
@@ -214,6 +274,14 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 6. Com uma pergunta na tela (Ajustes, um plano), o ⌘W do menu não fecha
    nada por trás dela; sem aba nenhuma, o ⌘W fecha a janela. Nível: H (a
    pergunta); E: `tabs.spec.mjs`; A (a janela).
+7. Nota 14, "Vários de uma vez" (ADR 0048, revisto em 2026-10-07): ⌘-clique
+   em duas notas da árvore e ⇧-clique numa terceira — as linhas entre elas
+   ficam selecionadas; Esc limpa; um clique comum abre. Arraste a seleção
+   para uma pasta: elas vão juntas, e uma nota que aponta para elas por
+   caminho aparece num plano só. O menu da seleção: "Mover para…", "Copiar
+   caminhos relativos", "Mover para a lixeira" com uma pergunta só. Nível:
+   H; E: `tree-selection.spec.mjs`; S:
+   `crates/verso-core/tests/workspace/rename.rs`.
 
 ## 7. A web
 
@@ -222,9 +290,12 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 2. `Web/Cartão de visita.html`: a página com o próprio estilo, em Página; o
    código em Fonte. Nível: A. Pegou: a página ficava em branco — servida como
    bytes, que o `nosniff` impedia o quadro de mostrar (`a51aab2`).
-3. "Desenho do Excalidraw": "Converter em board" mostra o board que vai ser
-   criado, e "Criar o board" cria `Desenho do Excalidraw.canvas` ao lado.
-   Nível: A.
+3. "Desenho do Excalidraw" abre no seu desenho, para ver — sem
+   ferramentas — com "Converter em board" e "Ver o texto" acima; "Ver o
+   texto" mostra o texto da nota, "Ver o desenho" traz o desenho de volta,
+   e o arquivo não é escrito. "Converter em board" mostra o board que vai
+   ser criado, e "Criar o board" cria `Desenho do Excalidraw.canvas` ao
+   lado. Nível: H, A; E: `board-drawing.spec.mjs`.
 4. Na página do `Web/jsoncanvas.org.md`, e num link aberto na janela dele:
    digite num campo do site, e então ⌘A, ⌘Z e ⌘⇧Z agem nesse campo, uma vez
    cada, e nada na nota atrás muda. Nível: A (a web view do site é do host;
@@ -296,6 +367,40 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    campo corrigia a palavra, e cada salvamento voltava a vista para o
    primeiro resultado (`a51aab2`).
 9. Lição 12: "Fundo da tela" no menu ☰; o JSON do board em Texto. Nível: H.
+10. Lição 8, imagens: solte uma imagem no board (ou cole): um cartão onde
+    foi solta, o arquivo copiado para a pasta de anexos, nenhuma imagem no
+    JSON do canvas; arraste uma nota da árvore para o board: um cartão, sem
+    aba nova; "Inserir", na barra de ferramentas do Excalidraw, abre um menu
+    cujo "Imagem ou PDF do computador…" escolhe imagens do computador; um
+    `.zip` solto diz que só entram imagens e PDFs. Um cartão de imagem mostra
+    só a imagem, sem moldura nem título. Selecionada, "Recortar" nas
+    ferramentas do alto à direita abre o recorte: um canto arrastado,
+    "Aplicar" mostra aquela parte, o cartão nas proporções dela, o
+    `verso.crop` do nó gravado e o arquivo da imagem intacto; "Restaurar
+    original" o tira. Os menus do botão direito, do board e da janela, nunca
+    mostram dois traços juntos. Com a barra lateral aberta e a janela não
+    muito larga, a busca e o Sumário no meio do rodapé; num board mais
+    estreito — o sumário aberto também, uma janela alta e estreita, as duas
+    barras laterais abertas — a barra do Excalidraw no pé do board e as
+    ferramentas do Verso no canto de cima, separadas; toda ferramenta sempre
+    inteira.
+    Nível: H (arrastar da árvore e o
+    seletor do sistema), A; E: `board-images.spec.mjs`.
+11. Setas: a ferramenta de seta de um ponto de um cartão a um ponto de
+    outro: cada ponta continua mirando o seu ponto, no contorno do cartão (a
+    cabeça aparece), por baixo dos cartões, enquanto um cartão é arrastado e
+    quando o board abre de novo; do meio ao meio, os lados que se olham. A
+    aresta do arquivo guarda os lados que encontra e, sob `verso`, os
+    pontos; o Obsidian a desenha a partir desses lados. Um retângulo
+    desenhado, e uma seta do meio dele ao meio de uma imagem: a cabeça
+    nesse ponto, por cima da imagem; o board fechado e aberto de novo, a
+    imagem arrastada, a seta a acompanha. Com "Setas soltas"
+    ligado (menu "Inserir"), o mesmo arrasto deixa uma seta solta, presa a
+    nenhum. A ferramenta de linha atravessando um cartão: uma linha só,
+    desenhada por cima do cartão enquanto é desenhada, nunca dobrada. Com a
+    Flecha na mão, a linha de dicas embaixo da barra cita ⌘ e "Inserir ›
+    Setas soltas" (só o menu numa tela de toque) e avisa quando Setas soltas
+    está ligado. Nível: H; E: `board-arrows.spec.mjs`.
 
 ## 10. Ajustes, ajuda, a linha de comando
 
@@ -308,8 +413,90 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `verso backlinks <pasta> "Projeto Alpha"` (o nome, como num link, ou o
    caminho); `--unresolved`; `--json`. Nível: A. Pegou: só um caminho era
    achado (2026-10-01).
+4. Um agente na pasta pelo `verso mcp` (nota 17): perguntado quais notas
+   têm a tag `projeto` e o que o "Tour do Verso" mostra, ele as lista pela
+   tag e lê os cartões e as setas do board; o `links` de uma nota com
+   `relacionado: "[[…]]"` diz a relação; o `query_base` em
+   `Projetos.base` dá as linhas da tabela. Nada na pasta muda. Nível: S
+   (`crates/verso-cli/tests/mcp.rs`), A (um cliente: Claude Desktop ou
+   Claude Code).
 
-## 11. O fim
+## 11. Organização: figurinhas, capas, páginas de pasta, ordem
+
+1. Nota 19: a figurinha e a cor aparecem na linha da árvore, na aba e acima
+   do título. Uma linha cujo `sticker:` não é figurinha mantém o próprio
+   ícone. Nível: H; E: `labels.spec.mjs`, "sticker in frontmatter appears in
+   tree row and tab" e "a sticker picked from the picker is written as
+   make.md writes it, and an unknown one falls back".
+2. A figurinha ao lado do título abre o seletor: "Ícones" troca de aba, a
+   busca filtra, uma escolha fecha o seletor e o arquivo ganha
+   `sticker: emoji//…` ou `sticker: lucide//…`; uma cor escreve `color:`.
+   Nível: H; E: `labels.spec.mjs`, "sticker picker popover opens, switches
+   tabs, searches, selects sticker and color".
+3. "Adicionar capa", um caminho da pasta (`assets/diagrama.svg`): a capa
+   aparece. "Reposicionar", ↓ três vezes, Enter: `banner_y` muda; de novo
+   com Esc: nada muda. Nível: H (o arraste: E, `labels.spec.mjs`, "note cover
+   banner displays and drag repositioning updates banner_y"; as teclas: à
+   mão).
+4. A página de uma pasta: a nota da pasta no topo, uma tabela dos itens
+   embaixo. Numa pasta sem nota, "Criar nota da pasta". A nota da pasta não
+   é uma linha da árvore; o menu da pasta, "Abrir nota da pasta", a abre (E:
+   `order-pins.spec.mjs`, "a folder's note is not a row of the tree; the
+   folder's menu opens it"). Nível: H; E:
+   `folder-pages.spec.mjs`, "folder page displays folder note, cover banner,
+   sticker, and default table". Um clique direito no espaço vazio da página
+   mostra o menu da árvore — nova nota, pasta, base, board, página web,
+   Mostrar no Finder, os caminhos — cada item com o seu ícone (E:
+   `folder-pages.spec.mjs`, "a folder page's right click…").
+5. Ajustes › Organização › "Nome da nota da pasta": `README` faz de
+   `Pasta/README.md` a nota da pasta — a figurinha dela aparece na linha da
+   pasta. Nível: H; E: `labels.spec.mjs`, "the folder note name setting
+   names the note a folder's labels come from".
+6. Ordem e fixados: "Mover para cima" numa linha escreve o `order:` da nota
+   da pasta; "Fixar na pasta" escreve `pinned:` e põe a linha primeiro;
+   "Desafixar da pasta" tira; "Ordem alfabética" no menu de uma
+   pasta, ou o botão ao lado de "Arquivos", ordena a árvore toda pelo nome e "Ordem personalizada" traz de volta
+   todo `order:`, intacto; arrastar uma nota da raiz escreve a nota da raiz, com o nome
+   da pasta aberta. Numa pasta sem nota, o primeiro desses a cria, sem pergunta, e
+   a barra de status avisa. Nível: H; E: `order-pins.spec.mjs`, "pin and
+   unpin via context menu updates folder note frontmatter", "pinning in a
+   folder with no folder note creates it, with no question", "the menu
+   switches the tree between alphabetical and custom order, keeping the
+   custom one", e "the root's notes
+   are ordered by dragging, in the root's note"
+   (arrastar uma linha, e ⇧ ao soltar: à mão).
+7. Renomear uma nota citada num `order:` (F2 na linha): o plano mostra a
+   linha da nota da pasta mudada, e só ela. Nível: H (a reescrita do core: U,
+   `cargo test -p verso-core`, os testes de `order` em `workspace.rs`).
+   Renomear uma pasta renomeia a nota da pasta: `Team/Team.md` vira
+   `Crew/Crew.md`, e a aba aberta acompanha. Nível: H; E:
+   `order-pins.spec.mjs`, "renaming a folder renames its folder note, and
+   its open tab follows".
+8. "Ocultar da árvore" tira a linha; Ajustes › Organização › "Itens ocultos
+   da árvore" a lista, e "Mostrar" a traz de volta. Nível: H; E:
+   `order-pins.spec.mjs`, "hide from tree removes item from tree and unhide
+   in settings restores it".
+9. O embed da nota 19: um clique no texto o edita no lugar; o que se digita
+    vai para `projetos/Pesquisa e Descobertas.md`. Com o arquivo mudado em
+    outro lugar, o conflito aparece; trocar de modo então pergunta, e
+    "Cancelar" mantém o texto. Nível: H; E: `flow.spec.mjs`, "typing inside an
+    embed in reading view changes the embedded file only (ADR 0060 S4)",
+    "conflict on the embedded file shows two versions" e "switching mode with
+    an embed in conflict asks, and a no keeps the text typed".
+10. `:foguete` no editor sugere 🚀; Enter insere. Nível: H; E:
+    `flow.spec.mjs`, "emoji trigger with : opens completion and inserts emoji
+    (ADR 0060 E4)" (as setas e o Esc: à mão).
+11. Focos (ADR 0062): a aba "Focos" no painel da direita lista todos os focos,
+    com Início sempre primeiro. Escolher um foco exibe a árvore de arquivos a
+    partir dele, e o cabeçalho mostra o foco ativo (ex: `ARQUIVOS · Projetos`).
+    O menu de contexto na árvore oferece "Criar foco aqui" e "Adicionar ao foco…".
+    "Trocar foco" na paleta alterna entre eles. Se `.space/waypoints.json` estiver
+    presente e a sincronização ativa, as alterações são gravadas de volta
+    preservando bytes intocados; se desativada ou com formato desconhecido, os
+    focos permanecem somente leitura ou nos ajustes do Verso. Nível: H; E:
+    `focuses.spec.mjs`.
+
+## 12. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
    console: nada vermelho. Nível: A; E: todo teste, no harness.

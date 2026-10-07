@@ -37,9 +37,20 @@ pub use verso_fs::{Changes, ConfinementError, ReadError, WalkRules, Watch, Write
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 pub mod bases;
+pub mod board;
 pub mod canvas;
 pub mod clients;
+pub mod focuses;
+pub mod typed;
+pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
+mod entries;
+mod indexing;
+mod notes;
+mod rename;
 mod sidecar;
+mod views;
+use entries::*;
+use rename::*;
 pub use sidecar::Sidecar;
 
 /// The opaque revision token of a note: its `verso_fs::Stamp`, encoded so
@@ -376,6 +387,24 @@ pub struct Renamed {
     pub rewrites: Vec<LinkRewrite>,
     pub skipped: Vec<Skipped>,
     pub warnings: Vec<String>,
+    /// What else moved with the entry by a rule of its own — a folder's
+    /// note taking the folder's new name — old path to new.
+    pub also: Vec<(String, String)>,
+}
+
+/// What moving several entries at once left ([`Workspace::move_entries`]):
+/// those that moved, old path to new; those the disk refused, with why;
+/// one plan of rewrites over where everything ended, the notes it could
+/// not plan, what could not be confirmed, and what moved by a rule of its
+/// own (a folder's note). Empty when nothing had to move.
+#[derive(Debug, Default)]
+pub struct MovedEntries {
+    pub moved: Vec<(String, String)>,
+    pub refused: Vec<(String, CoreError)>,
+    pub rewrites: Vec<LinkRewrite>,
+    pub skipped: Vec<Skipped>,
+    pub warnings: Vec<String>,
+    pub also: Vec<(String, String)>,
 }
 
 /// What a deletion left: where the entry went in `.trash/`, and what
@@ -520,6 +549,13 @@ pub struct NoteText {
     /// The frontmatter's keys and values, typed for a properties panel,
     /// in the order written; empty when there is none or it is not YAML.
     pub properties: Vec<(String, PropertyValue)>,
+    /// The note's type, when its `type:` names a schema of the folder
+    /// (ADR 0052); `None` for plain Markdown.
+    pub note_type: Option<typed::NoteType>,
+    /// The `verso-schema` blocks this note holds, as the parser read them
+    /// now: a schema that types nothing says so in its own note (ADR 0052
+    /// point 5), and a nested one that it is not read (point 3).
+    pub schema_blocks: Vec<typed::SchemaNotice>,
     /// The whole text as read, line endings included, for an editor: what
     /// it gives back is written as is. Bytes that are not UTF-8 give no
     /// text at all ([`CoreError::NotText`]).
@@ -528,125 +564,6 @@ pub struct NoteText {
     /// opaque token a write hands back, so the write can refuse a file
     /// that changed meanwhile (invariant 11).
     pub revision: String,
-}
-
-/// What a link reached before a move — a note, by the index's rule, or
-/// a file, by the same rule applied to attachments (spec Q12).
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Reached {
-    Note(String),
-    File(String),
-}
-
-impl Reached {
-    fn path(&self) -> &str {
-        match self {
-            Self::Note(p) | Self::File(p) => p,
-        }
-    }
-}
-
-/// One link of a note read for a plan: where it is in the text, what it
-/// said, and what it reached before the move.
-struct Seen {
-    start: usize,
-    end: usize,
-    target: String,
-    reached: Reached,
-    place: SeenPlace,
-}
-
-/// Where a link read for a plan is written: in a note's text (at
-/// `start..end`), or in a canvas — a file node's `file` field, or inside a
-/// text node's `text` (at `start..end` of that field's text).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SeenPlace {
-    Note,
-    FileNode(usize),
-    TextNode(usize),
-}
-
-/// A note read for a plan, before the move, with the links that reached
-/// something then.
-struct Examined {
-    path: String,
-    text: String,
-    revision: String,
-    links: Vec<Seen>,
-}
-
-/// What reading the notes before a move found: the notes read, the ones
-/// that could not be (and why), and the errors worth a warning.
-struct Examination {
-    examined: Vec<Examined>,
-    skipped: Vec<Skipped>,
-    warnings: Vec<String>,
-}
-
-/// What a rename or a move changes, old path to new, notes and other
-/// files apart: the plan maps what each link reached through this.
-#[derive(Default)]
-struct Move {
-    notes: Vec<(String, String)>,
-    files: Vec<(String, String)>,
-}
-
-impl Move {
-    fn note_after(&self, path: &str) -> Option<&str> {
-        self.notes
-            .iter()
-            .find(|(old, _)| old == path)
-            .map(|(_, new)| new.as_str())
-    }
-
-    /// Where what a link reached is after the move.
-    fn after(&self, reached: &Reached) -> Reached {
-        match reached {
-            // A canvas reaches as a note (the index holds it) and moves as
-            // a file.
-            Reached::Note(p) => Reached::Note(
-                self.note_after(p)
-                    .or_else(|| {
-                        self.files
-                            .iter()
-                            .find(|(old, _)| old == p)
-                            .map(|(_, new)| new.as_str())
-                    })
-                    .map_or_else(|| p.clone(), str::to_owned),
-            ),
-            Reached::File(p) => Reached::File(
-                self.files
-                    .iter()
-                    .find(|(old, _)| old == p)
-                    .map_or_else(|| p.clone(), |(_, new)| new.clone()),
-            ),
-        }
-    }
-
-    /// The folded keys a link naming what moves — before or after, by
-    /// path or by bare name, extension or not — can carry in the index.
-    fn keys(&self) -> Vec<String> {
-        let mut keys = Vec::new();
-        for (old, new) in &self.notes {
-            for p in [old, new] {
-                let (path_key, name_key) = verso_index::note_keys(p);
-                keys.push(path_key);
-                keys.push(name_key);
-            }
-        }
-        for (old, new) in &self.files {
-            for p in [old, new] {
-                let name = p.rsplit('/').next().unwrap_or(p);
-                let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
-                keys.push(verso_index::file_key(p));
-                keys.push(verso_index::file_key(name));
-                keys.push(verso_index::file_key(stem));
-            }
-        }
-        keys.sort();
-        keys.dedup();
-        keys
-    }
 }
 
 /// An open folder with its index.
@@ -669,6 +586,15 @@ pub struct Workspace {
     /// of the content it was read from: read again only when the index
     /// has another hash for the note.
     base_facts: HashMap<String, (u64, bases::NoteFacts)>,
+    /// The folder note name setting (ADR 0060 D12): empty, a folder's note
+    /// is named after it.
+    folder_note_name: String,
+    /// Cache of stamped focuses reads, for concurrent reapply (ADR 0062 D7).
+    stamped_focuses: HashMap<String, Vec<Focus>>,
+    /// The last read focuses from .space/waypoints.json, for concurrent reapply (ADR 0062 D7).
+    last_focuses: Option<Vec<Focus>>,
+    /// Whether focuses are synced to .space/waypoints.json for this workspace (ADR 0062 D5, D9).
+    sync_focuses: bool,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -799,6 +725,10 @@ impl Workspace {
             dirs: HashSet::new(),
             entries: Vec::new(),
             base_facts: HashMap::new(),
+            folder_note_name: String::new(),
+            stamped_focuses: HashMap::new(),
+            last_focuses: None,
+            sync_focuses: false,
         })
     }
 
@@ -876,1453 +806,120 @@ impl Workspace {
         self.root.set_rules(rules);
     }
 
-    pub fn index_with_progress<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
-    where
-        F: FnMut(IndexProgress),
-    {
-        on_progress(IndexProgress {
-            phase: "scanning".to_string(),
-            current: 0,
-            total: 0,
-            file: None,
-        });
-        let walk = self.root.walk();
-        let total_notes = walk
-            .entries
-            .iter()
-            .filter(|e| matches!(e.kind, EntryKind::Note))
-            .count();
-        on_progress(IndexProgress {
-            phase: "indexing".to_string(),
-            current: 0,
-            total: total_notes,
-            file: None,
-        });
-        let mut report = IndexReport::default();
-        let mut present: HashSet<String> = HashSet::new();
-        let mut files: HashMap<String, Vec<String>> = HashMap::new();
-        let mut dirs: HashSet<String> = HashSet::new();
-        let mut entries: Vec<FileEntry> = Vec::with_capacity(walk.entries.len());
-        let mut note_idx = 0;
-        for entry in &walk.entries {
-            let relative = entry.relative.to_string_lossy().into_owned();
-            entries.push(FileEntry {
-                path: relative.clone(),
-                kind: match &entry.kind {
-                    EntryKind::Note => FileKind::Note,
-                    EntryKind::File => FileKind::File,
-                    EntryKind::Directory => FileKind::Folder,
-                    EntryKind::Placeholder { .. } => FileKind::Placeholder,
-                },
-                len: entry.len,
-                modified: entry.modified.map_or(0, seconds_since_epoch),
-                created: entry.created.map_or(0, seconds_since_epoch),
-            });
-            match &entry.kind {
-                EntryKind::Note => {
-                    note_idx += 1;
-                    on_progress(IndexProgress {
-                        phase: "indexing".to_string(),
-                        current: note_idx,
-                        total: total_notes,
-                        file: Some(relative.clone()),
-                    });
-                    present.insert(relative.clone());
-                    match self.root.read(entry.handle) {
-                        Ok((bytes, stamp)) => {
-                            let stamp = note_stamp(&stamp);
-                            let same = self.index.stamp_of(&relative).map_err(CoreError::Index)?
-                                == Some(stamp);
-                            // A row left unverified by a placeholder is
-                            // re-read even when its stamp matches: reading
-                            // the note is what verifies it (ADR 0043).
-                            let unverified = self
-                                .index
-                                .is_unverified(&relative)
-                                .map_err(CoreError::Index)?
-                                .unwrap_or(false);
-                            if same && !unverified {
-                                report.unchanged += 1;
-                                continue;
-                            }
-                            // Lossy for search only: nothing here is ever
-                            // written back (`read_note` refuses such bytes).
-                            let content = String::from_utf8_lossy(&bytes);
-                            let parsed = verso_dialect::parse(&content);
-                            self.index
-                                .upsert(&relative, stamp, &content, &parsed)
-                                .map_err(CoreError::Index)?;
-                            report.indexed += 1;
-                            report.changed.push(relative.clone());
-                        }
-                        Err(verso_fs::ReadError::Unavailable) => {
-                            // Present, content unavailable (ADR 0043): the
-                            // last known version stays, marked unverified.
-                            self.index
-                                .mark_placeholder(&relative)
-                                .map_err(CoreError::Index)?;
-                            report.placeholders += 1;
-                        }
-                        Err(e) => report.unreadable.push((relative, e.to_string())),
-                    }
-                }
-                EntryKind::Placeholder { of } => {
-                    // Present, content unavailable: the last known version
-                    // of the real file stays, marked unverified (ADR 0043);
-                    // a file that is not a note is listed under its real
-                    // name, so an embed finds it present and a read says
-                    // unavailable — never absent.
-                    let real = of.to_string_lossy().into_owned();
-                    if real.ends_with(".md") {
-                        self.index
-                            .mark_placeholder(&real)
-                            .map_err(CoreError::Index)?;
-                    } else {
-                        files
-                            .entry(verso_index::file_key(name_of(&real)))
-                            .or_default()
-                            .push(real.clone());
-                    }
-                    present.insert(real);
-                    report.placeholders += 1;
-                }
-                EntryKind::File => {
-                    files
-                        .entry(verso_index::file_key(name_of(&relative)))
-                        .or_default()
-                        .push(relative.clone());
-                    if is_canvas(&relative) {
-                        present.insert(relative.clone());
-                        match self.root.read(entry.handle) {
-                            Ok((bytes, stamp)) => {
-                                let stamp = note_stamp(&stamp);
-                                if self.index.stamp_of(&relative).map_err(CoreError::Index)?
-                                    == Some(stamp)
-                                {
-                                    continue;
-                                }
-                                self.index_canvas(&relative, &bytes, stamp)?;
-                                report.changed.push(relative.clone());
-                            }
-                            // Unavailable: what the index had stays (ADR
-                            // 0043); a canvas is a file, never a note to
-                            // mark.
-                            Err(verso_fs::ReadError::Unavailable) => {}
-                            Err(e) => report.unreadable.push((relative, e.to_string())),
-                        }
-                    }
-                }
-                EntryKind::Directory => {
-                    dirs.insert(relative.clone());
-                }
-            }
-        }
-        self.files = files;
-        self.dirs = dirs;
-        report.listing_changed = self.entries.len() != entries.len()
-            || self
-                .entries
-                .iter()
-                .zip(&entries)
-                .any(|(was, is)| was.path != is.path || was.kind != is.kind);
-        self.entries = entries;
-        report.problems = walk.problems.iter().map(WalkProblem::from).collect();
-        // Not walked because of a problem: nothing under it is gone. The
-        // root itself (an empty path) protects every note.
-        let protected: Vec<&str> = report.problems.iter().map(WalkProblem::path).collect();
-        let under_problem = |note: &str| {
-            protected.iter().any(|p| {
-                p.is_empty()
-                    || note == *p
-                    || note
-                        .strip_prefix(p)
-                        .is_some_and(|rest| rest.starts_with('/'))
-            })
+    /// The folder note name setting (ADR 0060 D12), from the window. A
+    /// name that is not a plain file name — a separator, `.` or `..` — is
+    /// taken as empty: a folder's note is then named after it.
+    pub fn set_folder_note_name(&mut self, name: &str) {
+        let name = without_md(name.trim());
+        let plain = !name.contains(['/', '\\']) && name != "." && name != "..";
+        self.folder_note_name = if plain {
+            name.to_owned()
+        } else {
+            String::new()
         };
-        for known in self.index.sources().map_err(CoreError::Index)? {
-            if !present.contains(&known)
-                && !under_problem(&known)
-                && self.index.remove(&known).map_err(CoreError::Index)?
-            {
-                report.removed += 1;
-                report.gone.push(known);
-            }
-        }
-        let now = seconds_since_epoch(std::time::SystemTime::now());
-        self.index
-            .set_root(&self.folder.to_string_lossy(), now)
-            .map_err(CoreError::Index)?;
-        // Beside the index, so that the directory can say which folder
-        // each index belongs to; written from the first run, since a
-        // sidecar that starts later cannot describe what already exists.
-        // Losing it costs an entry in a listing, not a note: a warning.
-        let sidecar = Sidecar {
-            folder: self.folder.clone(),
-            indexed_at: now,
-            schema: verso_index::SCHEMA_VERSION,
-        }
-        .write(self.index.path());
-        if let Err(e) = sidecar {
-            report
-                .warnings
-                .push(format!("the index sidecar could not be written: {e}"));
-        }
-        on_progress(IndexProgress {
-            phase: "done".to_string(),
-            current: total_notes,
-            total: total_notes,
-            file: None,
-        });
-        Ok(report)
     }
 
-    /// Watch the folder for changes made outside the app — by another
-    /// editor, a sync client, git (provisional:
-    /// `docs/reference/watcher-decision.md`). `on_change` is called on a
-    /// thread of the watch's own, with each batch, once the folder has
-    /// been quiet for [`WATCH_QUIET`]; the caller brings the index up to
-    /// date with [`Workspace::index`], which finds by itself what changed —
-    /// the batch's paths say that something did, not all of what. The
-    /// index's own directory is left out, for when the configuration
-    /// directory lies inside the folder: every index run writes there.
-    /// Dropping the [`Watch`] stops it.
-    pub fn watch(
-        &self,
-        on_change: impl FnMut(Changes) + Send + 'static,
-    ) -> Result<Watch, CoreError> {
-        let own: Vec<PathBuf> = self
-            .index
-            .path()
-            .parent()
-            .map(Path::to_path_buf)
+    /// The note that carries `folder`'s labels, order and pins, if it has
+    /// one (ADR 0060 D3): the first of [`folder_note_candidates`] — for the
+    /// root, [`root_note_candidates`] — the index holds, compared without
+    /// case.
+    pub fn folder_note_of(&self, folder: &str) -> Result<Option<String>, CoreError> {
+        let notes = self.index.notes().map_err(CoreError::Index)?;
+        Ok(self
+            .note_candidates(folder)
             .into_iter()
-            .collect();
-        self.root
-            .watch(WATCH_QUIET, &own, on_change)
-            .map_err(CoreError::Watch)
+            .find_map(|c| notes.iter().find(|n| same_name(n, &c)).cloned()))
     }
 
-    pub fn search(&self, words: &str, limit: usize) -> Result<Vec<Hit>, CoreError> {
-        self.index.search(words, limit).map_err(CoreError::Index)
-    }
-
-    /// The path of a note as the index keys it and as every answer echoes
-    /// it — relative to the folder, normalized, with `.md` — after
-    /// confinement: a path that cannot name a file of the folder is
-    /// refused here, whether the caller goes on to the disk or only to the
-    /// index (ADR 0044; `docs/reference/mcp-decision.md` §4.3). The key is
-    /// the confined form, never the string the caller sent: `./Taverna`,
-    /// `Taverna/` and `Taverna.md` name one note, and `.`, `` and `x/`
-    /// with nothing after are refused as empty, not as a hidden `.md`.
-    pub fn note_key(&self, note: &str) -> Result<String, CoreError> {
-        let confined = self
-            .root
-            .confine(Path::new(note))
-            .map_err(CoreError::Confined)?;
-        let mut key = confined.to_string_lossy().into_owned();
-        if !key.ends_with(".md") {
-            key.push_str(".md");
-        }
-        Ok(key)
-    }
-
-    /// What a reader names — a note, by [`Self::note_key`], or a board: a
-    /// `.canvas` path stays as given. A canvas is a link source and target
-    /// of the index like a note, so `backlinks`, `links` and `read_note`
-    /// answer for one (review `board.md`, reading 1, finding 9). Writing a
-    /// note never goes through here: a note named `Plano.canvas` is
-    /// `Plano.canvas.md`.
-    pub fn source_key(&self, note: &str) -> Result<String, CoreError> {
-        let confined = self
-            .root
-            .confine(Path::new(note))
-            .map_err(CoreError::Confined)?
-            .to_string_lossy()
-            .into_owned();
-        if !is_canvas(&confined) {
-            return self.note_key(note);
-        }
-        // A note named `Plano.canvas.md` asked for without its `.md`: the
-        // note, when no board of that path is known and the note is
-        // (review `board.md`, second reading, finding 8).
-        let as_note = self.note_key(note)?;
-        if !self.known(&confined)? && self.known(&as_note)? {
-            return Ok(as_note);
-        }
-        Ok(confined)
-    }
-
-    /// [`Self::note_key`] and the handle to read the file.
-    fn note_path(&mut self, note: &str) -> Result<(String, verso_fs::Handle), CoreError> {
-        let key = self.note_key(note)?;
-        let handle = self
-            .root
-            .handle(Path::new(&key))
-            .map_err(CoreError::Confined)?;
-        Ok((key, handle))
-    }
-
-    fn known(&self, path: &str) -> Result<bool, CoreError> {
-        Ok(self
-            .index
-            .stamp_of(path)
-            .map_err(CoreError::Index)?
-            .is_some())
-    }
-
-    /// Backlinks of a note given by its path relative to the folder, with
-    /// or without `.md`, or by its name as a link names it; `None` when
-    /// the index does not know the note.
-    pub fn backlinks(&mut self, note: &str) -> Result<Option<Vec<Backlink>>, CoreError> {
-        let mut path = self.source_key(note)?;
-        if !self.known(&path)? {
-            // Named as a link names it: `Barão` for `npcs/Barão.md`.
-            match self.index.note_named(note).map_err(CoreError::Index)? {
-                Some(found) => path = found,
-                None => return Ok(None),
-            }
-        }
-        self.index
-            .backlinks(&path)
-            .map(Some)
-            .map_err(CoreError::Index)
-    }
-
-    /// The links a note makes, with what each resolves to; `None` when the
-    /// index does not know the note.
-    pub fn links(&mut self, note: &str) -> Result<Option<Vec<Link>>, CoreError> {
-        let path = self.source_key(note)?;
-        if !self.known(&path)? {
-            return Ok(None);
-        }
-        self.index
-            .links_of(&path)
-            .map(Some)
-            .map_err(CoreError::Index)
-    }
-
-    /// Whether the index holds the note only as an unverified last version
-    /// (ADR 0043); `None` when it does not know the note.
-    pub fn is_unverified(&mut self, note: &str) -> Result<Option<bool>, CoreError> {
-        let path = self.source_key(note)?;
-        self.index.is_unverified(&path).map_err(CoreError::Index)
-    }
-
-    /// The note as a caller sees it from a text this core has in hand —
-    /// just read, or just written — with the positions the index has.
-    fn note_text(
-        &self,
-        path: String,
-        text: String,
-        revision: String,
-        stale: bool,
-        unverified: bool,
-    ) -> Result<NoteText, CoreError> {
-        Ok(NoteText {
-            lines: text.lines().map(str::to_owned).collect(),
-            html: verso_dialect::to_html(&text),
-            properties: properties(&text),
-            stale,
-            unverified,
-            headings: self.index.headings_of(&path).map_err(CoreError::Index)?,
-            blocks: self.index.blocks_of(&path).map_err(CoreError::Index)?,
-            revision,
-            text,
-            path,
-        })
-    }
-
-    /// The note's text as it is on disk now, through `verso-fs` (a
-    /// placeholder answers `Read(Unavailable)`, never empty text — ADR
-    /// 0043; bytes that are not UTF-8 answer `NotText`), with the
-    /// positions the index has for it and whether the index is behind
-    /// the file.
-    pub fn read_note(&mut self, note: &str) -> Result<NoteText, CoreError> {
-        let path = self.source_key(note)?;
-        let handle = self
-            .root
-            .handle(Path::new(&path))
-            .map_err(CoreError::Confined)?;
-        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
-        let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
-        let known = self.index.stamp_of(&path).map_err(CoreError::Index)?;
-        let stale = known != Some(note_stamp(&stamp));
-        let unverified = self
-            .index
-            .is_unverified(&path)
-            .map_err(CoreError::Index)?
-            .unwrap_or(false);
-        self.note_text(path, text, revision::encode(&stamp), stale, unverified)
-    }
-
-    /// The stamp of the bytes a write or a create just put in place, for
-    /// the revision it hands back (invariant 11). The report carries it
-    /// when the durability step could confirm it; otherwise the file is
-    /// read again, and its stamp is trusted only while it still holds the
-    /// caller's bytes — a revision is never issued for content other than
-    /// the caller's, so a save by someone else in the meantime is refused
-    /// with the diff, not overwritten.
-    fn stamp_of_written(
-        &self,
-        handle: verso_fs::Handle,
-        confirmed: Option<Stamp>,
-        content: &[u8],
-    ) -> Stamp {
-        if let Some(stamp) = confirmed {
-            return stamp;
-        }
-        match self.root.read(handle) {
-            Ok((bytes, stamp)) if bytes == content => stamp,
-            _ => revision::impossible(),
+    /// The paths `folder`'s note may have, the root's included.
+    fn note_candidates(&self, folder: &str) -> Vec<String> {
+        if folder.is_empty() {
+            root_note_candidates(&self.folder_note_name, &self.root_name())
+        } else {
+            folder_note_candidates(folder, &self.folder_note_name)
         }
     }
 
-    /// What a write could not preserve, one line each, for the user. A
-    /// symlink's target is named relative to the folder when it is inside
-    /// it; outside, only that it is outside — an absolute path never
-    /// crosses the contract (ADR 0026 rule 4).
-    fn write_warnings(&self, r: &verso_fs::WriteReport) -> Vec<String> {
-        let mut out = r.warnings();
-        if let Some(target) = &r.wrote_through_symlink_to {
-            out.push(match target.strip_prefix(&self.folder) {
-                Ok(inside) => format!("written through a symlink to {}", inside.display()),
-                Err(_) => "written through a symlink to a file outside the folder".to_owned(),
-            });
-        }
-        out
+    /// The open folder's own name: what the root's note is named after.
+    fn root_name(&self) -> String {
+        self.folder
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
     }
 
-    fn decode_revision(revision: &str) -> Result<Stamp, CoreError> {
-        revision::decode(revision).ok_or_else(|| {
-            CoreError::Write(WriteError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "the revision token is not one this core issued",
-            )))
-        })
-    }
-
-    /// Write a note's text over the file that `revision` describes —
-    /// atomically, through `verso-fs` (ADR 0029) — and bring the index up
-    /// to date for that note. The bytes are the caller's, as given: no
-    /// normalization (ADR 0012). If the file on disk is no longer the one
-    /// that was read, nothing is written and the answer is
-    /// `CoreError::Write(WriteError::Changed)`: the caller reads again and
-    /// shows the user both versions (invariant 11). Returns the note as
-    /// written — the caller's text with the revision of those bytes,
-    /// never a re-read that someone else may have changed already.
-    pub fn write_note(
-        &mut self,
-        note: &str,
-        text: &str,
-        revision: &str,
-    ) -> Result<Written, CoreError> {
-        let (path, handle) = self.note_path(note)?;
-        let expected = Self::decode_revision(revision)?;
-        let report = self
-            .root
-            .write(handle, text.as_bytes(), &expected)
-            .map_err(CoreError::Write)?;
-        let stamp = self.stamp_of_written(handle, report.stamp, text.as_bytes());
-        self.index
-            .upsert(&path, note_stamp(&stamp), text, &verso_dialect::parse(text))
-            .map_err(CoreError::Index)?;
-        Ok(Written {
-            note: self.note_text(
-                path,
-                text.to_owned(),
-                revision::encode(&stamp),
-                false,
-                false,
-            )?,
-            warnings: self.write_warnings(&report),
-        })
-    }
-
-    /// Create a note that does not exist yet (ADR 0048): `name` with or
-    /// without `.md`, in a folder that is created if needed; refused when
-    /// something already stands there. Indexed at once. What could not be
-    /// confirmed once the file was in place (`verso_fs::OpReport`) has no
-    /// place in the answer and is not reported here.
-    pub fn create_note(&mut self, name: &str, text: &str) -> Result<NoteText, CoreError> {
-        let key = self.note_key(name)?;
-        let (handle, report) = self
-            .root
-            .create(Path::new(&key), text.as_bytes())
-            .map_err(CoreError::Write)?;
-        let stamp = self.stamp_of_written(handle, report.stamp, text.as_bytes());
-        self.index
-            .upsert(&key, note_stamp(&stamp), text, &verso_dialect::parse(text))
-            .map_err(CoreError::Index)?;
-        self.note_text(key, text.to_owned(), revision::encode(&stamp), false, false)
-    }
-
-    /// Create a file that is not a note — an image pasted into a note,
-    /// an attachment — with `bytes`, at a path relative to the folder;
-    /// refused when something stands there. Listed at once.
-    pub fn create_file(&mut self, relative: &str, bytes: &[u8]) -> Result<String, CoreError> {
-        let key = self.entry_key(relative)?;
-        let (handle, report) = self
-            .root
-            .create(Path::new(&key), bytes)
-            .map_err(CoreError::Write)?;
-        self.files
-            .entry(verso_index::file_key(name_of(&key)))
-            .or_default()
-            .push(key.clone());
-        if is_canvas(&key) {
-            let stamp = self.stamp_of_written(handle, report.stamp, bytes);
-            self.index_canvas(&key, bytes, note_stamp(&stamp))?;
-        }
-        Ok(key)
-    }
-
-    /// Create a folder inside the open folder. The walk does not list an
-    /// empty folder, so the caller shows it until something lands in it.
-    pub fn create_folder(&mut self, relative: &str) -> Result<String, CoreError> {
-        let key = self.entry_key(relative)?;
-        let (made, _) = self
-            .root
-            .create_dir(Path::new(&key))
-            .map_err(CoreError::Write)?;
-        let made = made.to_string_lossy().into_owned();
-        self.dirs.insert(made.clone());
-        Ok(made)
-    }
-
-    /// Walk again after an entry moved or went to the bin, so the listing
-    /// and the index agree with the disk; what fails is a warning, since
-    /// the move itself has happened.
-    fn refresh(&mut self, warnings: &mut Vec<String>) {
-        match self.index() {
-            Ok(r) => warnings.extend(r.warnings),
-            Err(e) => warnings.push(format!("the folder could not be listed again: {e}")),
-        }
-    }
-
-    /// Move a note to `.trash/` at the root (Obsidian's bin; nothing is
-    /// unlinked) and forget it in the index. Returns where it went; once
-    /// the note is in the bin, what fails is a warning, not a failure.
-    pub fn delete_note(&mut self, note: &str) -> Result<Trashed, CoreError> {
-        let key = self.note_key(note)?;
-        let (gone, report) = self.root.trash(Path::new(&key)).map_err(CoreError::Write)?;
-        let mut warnings = report.warnings();
-        if let Err(e) = self.index.remove(&key) {
-            warnings.push(format!("the index could not forget {key}: {e}"));
-        }
-        self.refresh(&mut warnings);
-        Ok(Trashed {
-            path: gone.to_string_lossy().into_owned(),
-            warnings,
-        })
-    }
-
-    /// Read, before a move, every note whose links may name what moves —
-    /// by path or by bare name, before or after — and the moved notes
-    /// themselves, with what each link reaches now. A note that cannot be
-    /// read is skipped and said so; the move does not wait for it.
-    fn examine(&mut self, mv: &Move) -> Result<Examination, CoreError> {
-        let mut paths = self
-            .index
-            .links_naming(&mv.keys())
-            .map_err(CoreError::Index)?;
-        paths.extend(mv.notes.iter().map(|(old, _)| old.clone()));
-        paths.sort();
-        paths.dedup();
-        let mut examined = Vec::new();
-        let mut skipped = Vec::new();
-        let mut warnings = Vec::new();
-        for path in paths {
-            let handle = match self.root.handle(Path::new(&path)) {
-                Ok(h) => h,
-                Err(e) => {
-                    warnings.push(format!("{path}: {e}"));
-                    skipped.push(Skipped {
-                        path,
-                        reason: SkipReason::Failed,
-                    });
-                    continue;
-                }
-            };
-            let (bytes, stamp) = match self.root.read(handle) {
-                Ok(read) => read,
-                Err(ReadError::Unavailable) => {
-                    skipped.push(Skipped {
-                        path,
-                        reason: SkipReason::Unavailable,
-                    });
-                    continue;
-                }
-                Err(e) => {
-                    warnings.push(format!("{path}: {e}"));
-                    skipped.push(Skipped {
-                        path,
-                        reason: SkipReason::Failed,
-                    });
-                    continue;
-                }
-            };
-            let Ok(text) = String::from_utf8(bytes) else {
-                skipped.push(Skipped {
-                    path,
-                    reason: SkipReason::NotText,
-                });
-                continue;
-            };
-            if is_canvas(&path) {
-                let Ok(board) = canvas::Canvas::parse(&text) else {
-                    warnings.push(format!("{path}: not JSON, its links were not followed"));
-                    skipped.push(Skipped {
-                        path,
-                        reason: SkipReason::Failed,
-                    });
-                    continue;
-                };
-                let mut links = Vec::new();
-                for l in board.links() {
-                    let reached = match l.place {
-                        canvas::Place::FileNode => self.reach_exact(&l.target)?,
-                        canvas::Place::Text { .. } => self.reach(&path, &l.target)?,
-                    };
-                    if let Some(reached) = reached {
-                        let (start, end, place) = match l.place {
-                            canvas::Place::FileNode => (0, 0, SeenPlace::FileNode(l.node)),
-                            canvas::Place::Text { start, end } => {
-                                (start, end, SeenPlace::TextNode(l.node))
-                            }
-                        };
-                        links.push(Seen {
-                            start,
-                            end,
-                            target: l.target,
-                            reached,
-                            place,
-                        });
-                    }
-                }
-                examined.push(Examined {
-                    path,
-                    text,
-                    revision: revision::encode(&stamp),
-                    links,
-                });
-                continue;
-            }
-            let parsed = verso_dialect::parse(&text);
-            let mut links = Vec::new();
-            let spans = parsed
-                .links
-                .iter()
-                .map(|l| (l.span, l.target.as_str()))
-                .chain(parsed.embeds.iter().map(|e| (e.span, e.target.as_str())))
-                .chain(
-                    parsed
-                        .property_links
-                        .iter()
-                        .map(|p| (p.span, p.target.as_str())),
-                );
-            for (span, target) in spans {
-                if let Some(reached) = self.reach(&path, target)? {
-                    links.push(Seen {
-                        start: span.start,
-                        end: span.end,
-                        target: target.to_owned(),
-                        reached,
-                        place: SeenPlace::Note,
-                    });
-                }
-            }
-            examined.push(Examined {
-                path,
-                text,
-                revision: revision::encode(&stamp),
-                links,
-            });
-        }
-        Ok(Examination {
-            examined,
-            skipped,
-            warnings,
-        })
-    }
-
-    /// What `[[target]]` written in `source` reaches now: a note by the
-    /// index's rule, else a file by the same rule (spec Q12).
-    fn reach(&self, source: &str, target: &str) -> Result<Option<Reached>, CoreError> {
-        if let Some(note) = self
-            .index
-            .resolve_from(source, target)
-            .map_err(CoreError::Index)?
-        {
-            return Ok(Some(Reached::Note(note)));
-        }
-        Ok(self.resolve_file(source, target).map(Reached::File))
-    }
-
-    /// What a canvas's `file` node reaches: the note or the file at that
-    /// path from the root, as JSON Canvas writes it and the window reads
-    /// it — never one found by name in another folder (ADR 0057, decided
-    /// on 2026-10-01). A card left pointing at a path that is gone reaches
-    /// nothing, so a move plans its rewrite.
-    fn reach_exact(&self, target: &str) -> Result<Option<Reached>, CoreError> {
-        if let Some(note) = self.index.resolve_exact(target).map_err(CoreError::Index)? {
-            return Ok(Some(Reached::Note(note)));
-        }
-        let wanted = verso_index::file_key(target);
-        Ok(self
-            .files
-            .values()
-            .flatten()
-            .find(|p| verso_index::file_key(p) == wanted)
-            .cloned()
-            .map(Reached::File))
-    }
-
-    /// Make the index and the listing follow a move that has happened:
-    /// each moved note's row is re-keyed with everything it knows — a
-    /// placeholder's last known version included (ADR 0043) — then the
-    /// folder is walked again. Nothing here fails: the move is done, and
-    /// what could not follow it is a warning.
-    fn follow(&mut self, mv: &Move, warnings: &mut Vec<String>) {
-        for (old, new) in &mv.notes {
-            if let Err(e) = self.index.rekey(old, new) {
-                warnings.push(format!(
-                    "the index could not follow {old} to {new}: {e}; reindex to repair"
-                ));
-            }
-        }
-        for (old, new) in &mv.files {
-            // A canvas is a row of the index too, with its links: it follows
-            // the move as a note's row does, a placeholder's included.
-            if is_canvas(old)
-                && let Err(e) = self.index.rekey(old, new)
-            {
-                warnings.push(format!(
-                    "the index could not follow {old} to {new}: {e}; reindex to repair"
-                ));
-            }
-            if let Some(paths) = self.files.get_mut(&verso_index::file_key(name_of(old))) {
-                paths.retain(|p| p != old);
-            }
-            self.files
-                .entry(verso_index::file_key(name_of(new)))
-                .or_default()
-                .push(new.clone());
-        }
-        self.refresh(warnings);
-    }
-
-    /// The target text that makes a link written as `written` in `source`
-    /// reach `wanted` after the move: the bare name when the writer used
-    /// one and it still resolves there, else the path from the root; with
-    /// `.md` only when the writer wrote it. `None` when no form reaches
-    /// it, which the caller reports.
-    fn retarget(&self, source: &str, written: &str, wanted: &Reached) -> Option<String> {
-        // A candidate goes between `[[` and `]]`, so it has to come back
-        // from the parser as that very target: a name holding `|` (an
-        // alias), `#` (a heading) or `]]` (the end) would be read as
-        // another target, and the link would reach something else.
-        let holds = |candidate: &str| {
-            let doc = verso_dialect::parse(&format!("[[{candidate}]]"));
-            matches!(doc.links.as_slice(), [l] if l.target == candidate
-                && l.heading.is_none() && l.block.is_none() && l.alias.is_none())
-        };
-        let reaches = |candidate: &str| {
-            holds(candidate)
-                && self.reach(source, candidate).ok().flatten().as_ref() == Some(wanted)
-        };
-        let (bare, path) = match wanted {
-            Reached::Note(p) => {
-                // The extension as the writer spelled it, or none.
-                let trimmed = written.trim();
-                let ext = &trimmed[without_md(trimmed).len()..];
-                (
-                    format!("{}{ext}", without_md(name_of(p))),
-                    format!("{}{ext}", without_md(p)),
-                )
-            }
-            Reached::File(p) => {
-                let name = name_of(p);
-                let wrote_extension = name_of(written.trim()).contains('.');
-                let bare = if wrote_extension {
-                    name.to_owned()
-                } else {
-                    name.rsplit_once('.')
-                        .map_or(name, |(stem, _)| stem)
-                        .to_owned()
-                };
-                (bare, p.clone())
-            }
-        };
-        if !written.contains('/') && reaches(&bare) {
-            return Some(bare);
-        }
-        if reaches(&path) {
-            return Some(path);
-        }
-        None
-    }
-
-    /// The rewrites a move calls for: for each note read before it, the
-    /// links that reached what moved and no longer reach it — or that
-    /// reached something else and now reach what moved into their way —
-    /// get a target that reaches, after the move, what they reached
-    /// before. Only what the parser reports as a link is touched: a
-    /// `[[…]]` in a code span or a fence is text. One rewrite per note,
-    /// with the revision of the text it was made from.
-    fn plan(
-        &self,
-        examined: Vec<Examined>,
-        mv: &Move,
-        warnings: &mut Vec<String>,
-    ) -> Vec<LinkRewrite> {
-        let mut rewrites = Vec::new();
-        for note in examined {
-            if is_canvas(&note.path) {
-                rewrites.extend(self.plan_canvas(note, mv, warnings));
-                continue;
-            }
-            let path_now = mv
-                .note_after(&note.path)
-                .map_or_else(|| note.path.clone(), str::to_owned);
-            let mut edits: Vec<(usize, usize, String)> = Vec::new();
-            for seen in &note.links {
-                let wanted = mv.after(&seen.reached);
-                let now = match self.reach(&path_now, &seen.target) {
-                    Ok(now) => now,
-                    Err(e) => {
-                        warnings.push(format!("{path_now}: {e}"));
-                        continue;
-                    }
-                };
-                if now.as_ref() == Some(&wanted) {
-                    continue;
-                }
-                match self.retarget(&path_now, &seen.target, &wanted) {
-                    Some(target) => edits.push((seen.start, seen.end, target)),
-                    None => warnings.push(format!(
-                        "{path_now}: the link [[{}]] could not be pointed at {}",
-                        seen.target,
-                        wanted.path()
-                    )),
-                }
-            }
-            if let Some(after) = retargeted(&note.text, &edits) {
-                rewrites.push(LinkRewrite {
-                    path: path_now,
-                    revision: note.revision,
-                    before: note.text,
-                    after,
-                });
-            }
-        }
-        // In the order of the paths shown, which for a moved note is its
-        // new one.
-        rewrites.sort_by(|a, b| a.path.cmp(&b.path));
-        rewrites
-    }
-
-    /// The rewrite of one canvas a move calls for: a file node that
-    /// pointed at what moved points at its new path, as Obsidian writes it
-    /// (the whole path from the root); a link inside a text node is
-    /// pointed as a note's link would be. The rest of the file keeps its
-    /// bytes (`canvas::Canvas::write`).
-    fn plan_canvas(
-        &self,
-        note: Examined,
-        mv: &Move,
-        warnings: &mut Vec<String>,
-    ) -> Option<LinkRewrite> {
-        // A canvas moves as a file: its own path after the move.
-        let path_now = match mv.after(&Reached::File(note.path.clone())) {
-            Reached::File(p) | Reached::Note(p) => p,
-        };
-        let mut board = canvas::Canvas::parse(&note.text).ok()?;
-        let mut files: Vec<(usize, String)> = Vec::new();
-        let mut texts: HashMap<usize, Vec<(usize, usize, String)>> = HashMap::new();
-        for seen in &note.links {
-            let wanted = mv.after(&seen.reached);
-            let now = match seen.place {
-                SeenPlace::FileNode(_) => self.reach_exact(&seen.target),
-                SeenPlace::TextNode(_) | SeenPlace::Note => self.reach(&path_now, &seen.target),
-            };
-            let now = match now {
-                Ok(now) => now,
-                Err(e) => {
-                    warnings.push(format!("{path_now}: {e}"));
-                    continue;
-                }
-            };
-            if now.as_ref() == Some(&wanted) {
-                continue;
-            }
-            match seen.place {
-                SeenPlace::FileNode(node) => files.push((node, wanted.path().to_owned())),
-                SeenPlace::TextNode(node) => {
-                    match self.retarget(&path_now, &seen.target, &wanted) {
-                        Some(target) => texts
-                            .entry(node)
-                            .or_default()
-                            .push((seen.start, seen.end, target)),
-                        None => warnings.push(format!(
-                            "{path_now}: the link [[{}]] could not be pointed at {}",
-                            seen.target,
-                            wanted.path()
-                        )),
-                    }
-                }
-                SeenPlace::Note => {}
-            }
-        }
-        for (node, path) in files {
-            board.set_node_string(node, "file", path);
-        }
-        for (node, edits) in texts {
-            let Some(text) = board
-                .nodes()
-                .get(node)
-                .and_then(|n| n.get("text"))
-                .and_then(canvas::Json::as_str)
-                .map(str::to_owned)
-            else {
-                continue;
-            };
-            if let Some(after) = retargeted(&text, &edits) {
-                board.set_node_string(node, "text", after);
-            }
-        }
-        let after = board.write();
-        (after != note.text).then_some(LinkRewrite {
-            path: path_now,
-            revision: note.revision,
-            before: note.text,
-            after,
-        })
-    }
-
-    /// Rename or move a note, and say which notes link to it and how
-    /// their text would change (ADR 0048, option (b)): the file moves,
-    /// the index follows, and the rewrites come back as a plan — before
-    /// and after, with each note's revision — for the caller to show and
-    /// then apply through `write_note`, one atomic write per note. Only
-    /// the links the index resolved to the note are rewritten, in a form
-    /// that resolves to its new path (spec Q12): a bare name that would
-    /// now reach another note becomes a path. Nothing but the renamed
-    /// file is written here; once it has moved, nothing fails — what
-    /// could not be planned is in `skipped`, and what could not be
-    /// confirmed in `warnings`.
-    pub fn rename_note(&mut self, from: &str, to: &str) -> Result<Renamed, CoreError> {
-        let old = self.note_key(from)?;
-        let new = self.note_key(to)?;
-        let mv = Move {
-            notes: vec![(old.clone(), new.clone())],
-            files: Vec::new(),
-        };
-        self.perform(mv, &old, &new)
-    }
-
-    /// Read what a move may change, move the entry, make the index and
-    /// the listing follow, plan the rewrites. `old` and `new` are the
-    /// entry the caller named; `mv` is everything that moves with it.
-    fn perform(&mut self, mv: Move, old: &str, new: &str) -> Result<Renamed, CoreError> {
-        let Examination {
-            examined,
-            mut skipped,
-            mut warnings,
-        } = self.examine(&mv)?;
-        let (_, report) = self
-            .root
-            .rename(Path::new(old), Path::new(new))
-            .map_err(CoreError::Write)?;
-        // The entry has moved: from here on, nothing is an error.
-        warnings.extend(report.warnings());
-        self.follow(&mv, &mut warnings);
-        let rewrites = self.plan(examined, &mv, &mut warnings);
-        for s in &mut skipped {
-            if let Some(now) = mv.note_after(&s.path) {
-                s.path = now.to_owned();
-            }
-        }
-        Ok(Renamed {
-            path: new.to_owned(),
-            rewrites,
-            skipped,
-            warnings,
-        })
-    }
-
-    /// Any file's content as text with its revision, for an editor; bytes
-    /// that are not UTF-8 answer `NotText`. A note has
-    /// [`Self::read_note`], which knows more.
-    pub fn read_text(&mut self, relative: &str) -> Result<TextFile, CoreError> {
-        let key = self.entry_key(relative)?;
-        let handle = self
-            .root
-            .handle(Path::new(&key))
-            .map_err(CoreError::Confined)?;
-        let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
-        let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
-        Ok(TextFile {
-            path: key,
-            text,
-            revision: revision::encode(&stamp),
-            warnings: Vec::new(),
-        })
-    }
-
-    /// Evaluate a base — a `.base` file, or the text of a `base` block —
-    /// over the folder as the index and the last walk know it (ADR 0053).
-    /// Reads the base's file, if the query names one, and nothing else of
-    /// the folder: what the notes say comes from the index.
-    pub fn query_base(&mut self, query: &bases::BaseQuery) -> Result<bases::BaseResult, CoreError> {
-        let text = match (&query.text, &query.path) {
-            (Some(text), _) => text.clone(),
-            (None, Some(path)) => self.read_text(path)?.text,
-            (None, None) => String::new(),
-        };
-        let base = verso_dialect::bases::parse_base(&text);
-        self.refresh_base_facts()?;
-        let offset = i64::from(query.offset_minutes) * 60_000;
-        let local = |secs: i64| (secs > 0).then(|| secs * 1_000 + offset);
-        let files: Vec<bases::FileFacts> = self
-            .entries
-            .iter()
-            .filter(|e| e.kind != FileKind::Folder)
-            .map(|e| bases::FileFacts {
-                path: e.path.clone(),
-                size: e.len,
-                ctime: local(e.created).or_else(|| local(e.modified)),
-                mtime: local(e.modified),
-                note: e.path.to_lowercase().ends_with(".md"),
-            })
-            .collect();
-        let notes = self
-            .base_facts
-            .iter()
-            .map(|(path, (_, facts))| (path.clone(), facts))
-            .collect();
-        let links = self
-            .index
-            .all_links()
-            .map_err(CoreError::Index)?
-            .into_iter()
-            .map(|l| {
-                (
-                    l.from,
-                    bases::LinkFact {
-                        target: l.target,
-                        alias: l.alias,
-                        embed: l.embed,
-                        resolved: l.resolved,
-                    },
-                )
-            })
-            .collect();
-        let index = &self.index;
-        let resolver = |from: &str, target: &str| -> Option<String> {
-            index
-                .resolve_from(from, target)
-                .ok()
-                .flatten()
-                .or_else(|| self.resolve_file(from, target))
-        };
-        let facts = bases::Facts::new(files, notes, links, &resolver);
-        Ok(bases::run(&base, query, &facts))
-    }
-
-    /// Bring [`Self::base_facts`] level with the index: notes gone are
-    /// dropped, notes whose hash changed are read again from the index's
-    /// copy of their text.
-    fn refresh_base_facts(&mut self) -> Result<(), CoreError> {
-        let hashes = self.index.note_hashes().map_err(CoreError::Index)?;
-        let present: HashSet<&str> = hashes.iter().map(|(p, _)| p.as_str()).collect();
-        self.base_facts.retain(|p, _| present.contains(p.as_str()));
-        for (path, hash) in &hashes {
-            if self.base_facts.get(path).is_some_and(|(h, _)| h == hash) {
-                continue;
-            }
-            let content = self
-                .index
-                .content_of(path)
-                .map_err(CoreError::Index)?
-                .unwrap_or_default();
-            self.base_facts
-                .insert(path.clone(), (*hash, bases::NoteFacts::of(&content)));
-        }
-        Ok(())
-    }
-
-    /// Write any file's text over the file that `revision` describes,
-    /// atomically (ADR 0029; invariant 11 refuses a changed file). A note
-    /// — a path ending in `.md` — goes through [`Self::write_note`], so
-    /// the index follows it. Returns the caller's text with the revision
-    /// of the bytes written.
-    pub fn write_text(
-        &mut self,
-        relative: &str,
-        text: &str,
-        revision: &str,
-    ) -> Result<TextFile, CoreError> {
-        let key = self.entry_key(relative)?;
-        if is_note(&key) {
-            let w = self.write_note(&key, text, revision)?;
-            return Ok(TextFile {
-                path: w.note.path,
-                text: w.note.text,
-                revision: w.note.revision,
-                warnings: w.warnings,
-            });
-        }
-        let handle = self
-            .root
-            .handle(Path::new(&key))
-            .map_err(CoreError::Confined)?;
-        let expected = Self::decode_revision(revision)?;
-        let report = self
-            .root
-            .write(handle, text.as_bytes(), &expected)
-            .map_err(CoreError::Write)?;
-        let stamp = self.stamp_of_written(handle, report.stamp, text.as_bytes());
-        let mut warnings = self.write_warnings(&report);
-        if is_canvas(&key)
-            && let Err(e) = self.index_canvas(&key, text.as_bytes(), note_stamp(&stamp))
-        {
-            warnings.push(format!("the index could not follow {key}: {e}"));
-        }
-        Ok(TextFile {
-            path: key,
-            text: text.to_owned(),
-            revision: revision::encode(&stamp),
-            warnings,
-        })
-    }
-
-    /// Put a canvas into the index as a link source (ADR 0057 point 6):
-    /// its file nodes and the links of its text nodes, found where they
-    /// are written. A file that is not JSON is still a canvas the index
-    /// knows — a link target — with no links and nothing to search.
-    fn index_canvas(
-        &mut self,
-        relative: &str,
-        bytes: &[u8],
-        stamp: NoteStamp,
-    ) -> Result<(), CoreError> {
-        let text = String::from_utf8_lossy(bytes);
-        let (content, links) = match canvas::Canvas::parse(&text) {
-            Ok(board) => {
-                let lines = LineStarts::of(&text);
-                let links = board
-                    .links()
-                    .into_iter()
-                    .map(|l| {
-                        let (line, col) = lines.line_col(&text, l.at);
-                        verso_index::SourceLink {
-                            embed: l.embed,
-                            exact: l.place == canvas::Place::FileNode,
-                            target: l.target,
-                            heading: l.heading,
-                            block: l.block,
-                            alias: l.alias,
-                            line,
-                            col,
-                            start: l.at,
-                            end: l.at,
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                (board.searchable_text(), links)
-            }
-            Err(_) => (String::new(), Vec::new()),
-        };
-        self.index
-            .upsert_canvas(relative, stamp, &content, &links)
-            .map_err(CoreError::Index)
-    }
-
-    /// Save a board (ADR 0057 point 2): `json` is the canvas as the window
-    /// holds it, laid over the file as read — every value unchanged keeps
-    /// its token, every object its key order — and written in Obsidian's
-    /// layout, atomically, over
-    /// the file `revision` describes (invariant 11 refuses a changed one).
-    /// A file on disk that is not JSON is refused: the text view is where
-    /// it gets fixed.
-    pub fn write_board(
-        &mut self,
-        relative: &str,
-        json: &str,
-        revision: &str,
-    ) -> Result<TextFile, CoreError> {
-        let (key, now, text) = self.board_over_disk(relative, json)?;
-        if text == now.text && now.revision == revision {
-            return Ok(now);
-        }
-        self.write_text(&key, &text, revision)
-    }
-
-    /// The text [`Workspace::write_board`] would write for `json` over the
-    /// file as it is on disk now, writing nothing: the board's side of a
-    /// conflict, and what the first save of a canvas in another layout
-    /// shows before it rewrites the file (review `board.md` §6 item 4).
-    pub fn board_preview(&mut self, relative: &str, json: &str) -> Result<String, CoreError> {
-        self.board_over_disk(relative, json)
-            .map(|(_, _, text)| text)
-    }
-
-    /// The board's path, the file as read now, and `json` laid over it in
-    /// Obsidian's layout.
-    fn board_over_disk(
-        &mut self,
-        relative: &str,
-        json: &str,
-    ) -> Result<(String, TextFile, String), CoreError> {
-        let key = self.entry_key(relative)?;
-        if !is_canvas(&key) {
-            return Err(CoreError::NotCanvas);
-        }
-        let now = self.read_text(&key)?;
-        let old = canvas::Canvas::parse(&now.text).map_err(|_| CoreError::NotCanvas)?;
-        let new = canvas::Canvas::parse(json).map_err(|_| CoreError::NotCanvas)?;
-        let text = old.merged(new.root).write();
-        Ok((key, now, text))
-    }
-
-    /// Every entry of the folder as the last walk saw it — notes, other
-    /// files, folders and placeholders — with size and date: what a
-    /// folder listing shows and sorts by.
+    /// The folder note name setting, as applied.
     #[must_use]
-    pub fn entries(&self) -> &[FileEntry] {
-        &self.entries
+    pub fn folder_note_name(&self) -> &str {
+        &self.folder_note_name
     }
 
-    /// A path of the folder as confinement names it — relative,
-    /// normalized, no extension added — or the refusal. What a caller that
-    /// judges a path by its name must look at, instead of the string it
-    /// was sent: `Nota.md/` and `./Nota.md` are `Nota.md`.
-    pub fn confined(&self, path: &str) -> Result<String, CoreError> {
-        self.entry_key(path)
-    }
-
-    /// A path of the folder confined, as given: no `.md` added, so it
-    /// names a file of any kind or a folder.
-    fn entry_key(&self, path: &str) -> Result<String, CoreError> {
-        Ok(self
-            .root
-            .confine(Path::new(path))
-            .map_err(CoreError::Confined)?
-            .to_string_lossy()
-            .into_owned())
-    }
-
-    /// Where an entry is on disk, for the host to hand to the system's
-    /// file manager. The one absolute path that leaves this crate besides
-    /// [`Self::folder`]; it goes to the operating system, never across
-    /// the contract (ADR 0026 rule 4).
-    pub fn absolute(&self, path: &str) -> Result<PathBuf, CoreError> {
-        Ok(self.folder.join(self.entry_key(path)?))
-    }
-
-    /// Rename or move anything of the folder — a note, another file or a
-    /// folder — and say which notes link to what moved (ADR 0048, option
-    /// (b)): the entry moves, the index follows, and the rewrites come
-    /// back as a plan for the caller to show and apply through
-    /// `write_note`. A note (a path ending in `.md`) goes through
-    /// [`Self::rename_note`]. A folder moves with everything under it,
-    /// notes and attachments alike, and the notes inside keep what they
-    /// knew. An attachment's linkers are the notes whose embeds name it.
-    pub fn rename_entry(&mut self, from: &str, to: &str) -> Result<Renamed, CoreError> {
-        let old = self.entry_key(from)?;
-        let new = self.entry_key(to)?;
-        if self.dirs.contains(&old) {
-            return self.rename_folder(&old, &new);
-        }
-        if is_note(&old) {
-            return self.rename_note(&old, &new);
-        }
-        let mv = Move {
-            notes: Vec::new(),
-            files: vec![(old.clone(), new.clone())],
-        };
-        self.perform(mv, &old, &new)
-    }
-
-    fn rename_folder(&mut self, old: &str, new: &str) -> Result<Renamed, CoreError> {
-        let prefix = format!("{old}/");
-        let moved = |p: &String| {
-            p.strip_prefix(&prefix)
-                .map(|rest| (p.clone(), format!("{new}/{rest}")))
-        };
-        let notes: Vec<(String, String)> = self
-            .index
-            .notes()
-            .map_err(CoreError::Index)?
-            .iter()
-            .filter_map(moved)
-            .collect();
-        let files: Vec<(String, String)> =
-            self.files.values().flatten().filter_map(moved).collect();
-        self.perform(Move { notes, files }, old, new)
-    }
-
-    /// Move anything of the folder — a note, another file or a whole
-    /// folder — to `.trash/` at the root (Obsidian's bin; nothing is
-    /// unlinked) and forget it in the index. Returns where it went; once
-    /// it is in the bin, what fails is a warning, not a failure.
-    pub fn delete_entry(&mut self, path: &str) -> Result<Trashed, CoreError> {
-        let key = self.entry_key(path)?;
-        let folder = self.dirs.contains(&key);
-        if !folder && is_note(&key) {
-            return self.delete_note(&key);
-        }
-        let (gone, report) = self.root.trash(Path::new(&key)).map_err(CoreError::Write)?;
-        let mut warnings = report.warnings();
-        if folder {
-            let prefix = format!("{key}/");
-            match self.index.sources() {
-                Ok(notes) => {
-                    for note in notes.iter().filter(|n| n.starts_with(&prefix)) {
-                        if let Err(e) = self.index.remove(note) {
-                            warnings.push(format!("the index could not forget {note}: {e}"));
-                        }
-                    }
+    /// Read focuses from `.space/waypoints.json` in the open folder (ADR 0062).
+    pub fn get_focuses(&mut self) -> Result<FocusesSummary, CoreError> {
+        let summary = focuses::read_focuses(&self.root)?;
+        if summary.format_known {
+            if let Some(stamp) = &summary.stamp {
+                if self.stamped_focuses.len() >= 16 {
+                    self.stamped_focuses.clear();
                 }
-                Err(e) => warnings.push(format!("the index could not forget {key}: {e}")),
+                self.stamped_focuses
+                    .insert(stamp.clone(), summary.focuses.clone());
             }
+            self.last_focuses = Some(summary.focuses.clone());
         }
-        self.refresh(&mut warnings);
-        Ok(Trashed {
-            path: gone.to_string_lossy().into_owned(),
-            warnings,
-        })
+        Ok(summary)
     }
 
-    /// The notes that are web pages (a `url` property), with the address.
-    pub fn web_notes(&self) -> Result<Vec<(String, String)>, CoreError> {
-        self.index.web_notes().map_err(CoreError::Index)
+    /// Whether focuses can be synced to `.space/waypoints.json`: the file
+    /// is present and in the known format (ADR 0062 D5, D6).
+    pub fn can_sync_focuses(&mut self) -> Result<bool, CoreError> {
+        let summary = self.get_focuses()?;
+        Ok(summary.has_file && summary.format_known)
     }
 
-    /// Every resolved link of the vault, source then target: the graph.
-    pub fn graph(&self) -> Result<Vec<(String, String)>, CoreError> {
-        self.index.graph().map_err(CoreError::Index)
+    /// Whether focuses sync to `.space/waypoints.json` is enabled for this workspace (ADR 0062 D5, D9).
+    pub fn sync_focuses(&self) -> bool {
+        self.sync_focuses
     }
 
-    /// Every tag of the vault with its notes (frontmatter and `#tag`).
-    pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, CoreError> {
-        self.index.tags().map_err(CoreError::Index)
+    /// Set whether focuses sync to `.space/waypoints.json` is enabled for this workspace (ADR 0062 D5, D9).
+    pub fn set_sync_focuses(&mut self, enabled: bool) {
+        self.sync_focuses = enabled;
     }
 
-    /// Every folder, relative path, in byte order.
-    #[must_use]
-    pub fn folders(&self) -> Vec<String> {
-        let mut v: Vec<String> = self.dirs.iter().cloned().collect();
-        v.sort();
-        v
-    }
-
-    /// Every regular file that is not a note, relative path, in byte
-    /// order, as the last walk listed it — a placeholder standing for one
-    /// included, under its real name: what a file tree shows beside the
-    /// notes.
-    #[must_use]
-    pub fn files(&self) -> Vec<String> {
-        let mut v: Vec<String> = self.files.values().flatten().cloned().collect();
-        v.sort();
-        v
-    }
-
-    /// The file an embed or an attachment link written in the note at
-    /// `source` names, by the rule of spec Q12 applied to files: the
-    /// target is tried as a path from the root, then as a path from the
-    /// source's folder (honouring `..`), extension optional, case and
-    /// normalization ignored; then as a bare name — a file anywhere under
-    /// the source's own folder first, else the one with the fewest path
-    /// segments, then the first in byte order. `#…` and `|…` are dropped
-    /// first. Notes are not files here: `links` answers for them. A
-    /// placeholder is a file that is present (ADR 0043): reading it says
-    /// unavailable.
-    #[must_use]
-    pub fn resolve_file(&self, source: &str, target: &str) -> Option<String> {
-        let target = target.split(['#', '|']).next().unwrap_or_default().trim();
-        let wanted = verso_index::file_key(target);
-        if wanted.is_empty() || target.ends_with('/') {
-            return None;
-        }
-        let matches = |path: &str, key: &str| {
-            let folded = verso_index::file_key(path);
-            folded == key
-                || folded
-                    .rsplit_once('.')
-                    .is_some_and(|(stem, _)| stem == key && !stem.ends_with('/'))
-        };
-        let all = || self.files.values().flatten();
-        // As a path from the root, then from the source's folder.
-        if let Some(found) = all().filter(|p| matches(p, &wanted)).min() {
-            return Some(found.clone());
-        }
-        let dir = source.rsplit_once('/').map_or("", |(dir, _)| dir);
-        if let Some(from_dir) = joined(dir, target).map(|p| verso_index::file_key(&p))
-            && from_dir != wanted
-            && let Some(found) = all().filter(|p| matches(p, &from_dir)).min()
-        {
-            return Some(found.clone());
-        }
-        // As a bare name: by file name, extension or not.
-        if target.contains('/') {
-            return None;
-        }
-        let mut candidates: Vec<&String> = self
-            .files
-            .iter()
-            .filter(|(name, _)| {
-                **name == wanted
-                    || name
-                        .rsplit_once('.')
-                        .is_some_and(|(stem, _)| stem == wanted)
-            })
-            .flat_map(|(_, paths)| paths)
-            .collect();
-        // Q12 point 3, amended by the maintainer on 2026-09-23: a candidate
-        // anywhere under the note's own folder comes first, as the index
-        // ranks notes (a note at the root has every file under it).
-        let under_source_dir = |p: &str| dir.is_empty() || p.starts_with(&format!("{dir}/"));
-        candidates.sort_by_key(|p| (!under_source_dir(p), p.matches('/').count(), (*p).clone()));
-        candidates.first().map(|p| (*p).clone())
-    }
-
-    /// The file `relative` names, when its content is only in the cloud,
-    /// for the window to fetch when the user opens it (ADR 0043, amended
-    /// on 2026-09-30); `None` otherwise. Every read here still refuses a
-    /// placeholder: fetching is a separate step, taken only for an opening,
-    /// never by the index, the watcher or a scan of every note.
-    pub fn placeholder(
+    /// Write focuses back to `.space/waypoints.json` atomically, checking
+    /// that the file on disk is the one that was read (ADR 0062 D5, D6, D7).
+    pub fn set_focuses(
         &mut self,
-        relative: &str,
-    ) -> Result<Option<verso_fs::Placeholder>, CoreError> {
-        let confined = self
-            .root
-            .confine(Path::new(relative))
-            .map_err(CoreError::Confined)?;
-        let handle = self.root.handle(&confined).map_err(CoreError::Confined)?;
-        self.root.placeholder(handle).map_err(CoreError::Read)
-    }
+        focuses: Vec<Focus>,
+        expected_stamp: Option<&str>,
+        base_focuses: Option<Vec<Focus>>,
+    ) -> Result<FocusesSummary, CoreError> {
+        if !self.sync_focuses {
+            return Err(CoreError::Client(
+                "sync focuses is disabled for this workspace".to_string(),
+            ));
+        }
 
-    /// The bytes of a file of the folder that is not a note (an image,
-    /// an attachment), confined like every path (ADR 0044), read through
-    /// `verso-fs`. A placeholder answers `Read(Unavailable)`.
-    pub fn read_file(&mut self, relative: &str) -> Result<Vec<u8>, CoreError> {
-        let confined = self
-            .root
-            .confine(Path::new(relative))
-            .map_err(CoreError::Confined)?;
-        let handle = self.root.handle(&confined).map_err(CoreError::Confined)?;
-        let (bytes, _) = self.root.read(handle).map_err(CoreError::Read)?;
-        Ok(bytes)
-    }
+        // Determine base focuses for concurrent reapply (ADR 0062 D7):
+        let base_to_use = match (base_focuses.as_deref(), expected_stamp) {
+            (Some(b), _) => Some(b),
+            (None, Some(stamp)) => self.stamped_focuses.get(stamp).map(|v| v.as_slice()),
+            (None, None) => None,
+        };
 
-    pub fn unresolved(&self) -> Result<Vec<Unresolved>, CoreError> {
-        self.index.unresolved().map_err(CoreError::Index)
-    }
-
-    pub fn notes(&self) -> Result<Vec<String>, CoreError> {
-        self.index.notes().map_err(CoreError::Index)
+        let summary = focuses::write_focuses(&self.root, base_to_use, focuses, expected_stamp)?;
+        if summary.format_known {
+            if let Some(stamp) = &summary.stamp {
+                if self.stamped_focuses.len() >= 16 {
+                    self.stamped_focuses.clear();
+                }
+                self.stamped_focuses
+                    .insert(stamp.clone(), summary.focuses.clone());
+            }
+            self.last_focuses = Some(summary.focuses.clone());
+        }
+        Ok(summary)
     }
 }
 
@@ -2344,6 +941,13 @@ fn is_note(key: &str) -> bool {
 /// Whether a confined path names a board (ADR 0057): by its `.canvas`.
 fn is_canvas(key: &str) -> bool {
     key.ends_with(".canvas")
+}
+
+/// A text's tags — of its frontmatter and its body, without `#`, once each,
+/// in the order met — as a base counts them (`file.tags`).
+#[must_use]
+pub fn tags_of(text: &str) -> Vec<String> {
+    bases::NoteFacts::of(text).tags
 }
 
 /// Line and column (both from 1, the column in characters) of a byte
@@ -2373,35 +977,36 @@ impl LineStarts {
     }
 }
 
-/// `text` with the target of each link at `(start, end)` — the span of
-/// the whole `[[…]]` or `![[…]]` — replaced by the given text, from the
-/// end so the offsets stay right. `None` when there is nothing to change
-/// or a span is not a link the parser would have reported.
-fn retargeted(text: &str, edits: &[(usize, usize, String)]) -> Option<String> {
-    if edits.is_empty() {
-        return None;
+/// The paths a folder's note may have, in the order they are looked for:
+/// inside the folder, named as the setting says, then after the folder;
+/// then beside it (ADR 0060 D3, D12). Compared without case. The root has
+/// no folder note.
+#[must_use]
+pub fn folder_note_candidates(folder: &str, configured: &str) -> Vec<String> {
+    if folder.is_empty() {
+        return Vec::new();
     }
-    let mut edits: Vec<&(usize, usize, String)> = edits.iter().collect();
-    edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
-    let mut out = text.to_owned();
-    for (start, end, target) in edits {
-        let raw = text.get(*start..*end)?;
-        let open = if raw.starts_with("![[") {
-            3
-        } else if raw.starts_with("[[") {
-            2
-        } else {
-            return None;
-        };
-        let inner = raw.get(open..raw.len().checked_sub(2)?)?;
-        // The target is the inner text up to the first `|`, then `#`, as
-        // the parser split it; what follows is kept as written.
-        let before_pipe = inner.split_once('|').map_or(inner, |(t, _)| t);
-        let target_len = before_pipe
-            .split_once('#')
-            .map_or(before_pipe, |(t, _)| t)
-            .len();
-        out.replace_range(start + open..start + open + target_len, target);
+    let name = name_of(folder);
+    let mut out = Vec::new();
+    if !configured.is_empty() && !same_name(configured, name) {
+        out.push(format!("{folder}/{configured}.md"));
     }
-    Some(out)
+    out.push(format!("{folder}/{name}.md"));
+    out.push(format!("{folder}.md"));
+    out
+}
+
+/// The paths the root's note may have: at the root, named as the setting
+/// says, then after the open folder (the maintainer, 2026-10-02: the
+/// root's items can be ordered too). Compared without case.
+#[must_use]
+pub fn root_note_candidates(configured: &str, root_name: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if !configured.is_empty() && !same_name(configured, root_name) {
+        out.push(format!("{configured}.md"));
+    }
+    if !root_name.is_empty() {
+        out.push(format!("{root_name}.md"));
+    }
+    out
 }

@@ -1,34 +1,34 @@
 #!/usr/bin/env node
-// Versions and releases (ADR 0051). A version is cut only when the maintainer
-// asks for one — by the maintainer, or by an agent on the maintainer's
-// request — in two steps around a pull request, since `main` takes nothing
-// but pull requests:
+// Versions and releases (ADR 0051, revised 2026-10-02). A version is cut
+// only when the maintainer asks for one — by the maintainer, or by an agent
+// on the maintainer's request — and reaches users with one merge:
 //
-//   node scripts/release.mjs prepare 0.2.0-beta.1
-//     From origin/main, on a branch release/v0.2.0-beta.1: sets the version
-//     (the workspace's Cargo.toml, which every crate and the app read,
-//     app/ui's package.json and lockfile, and both Cargo.lock files), moves
-//     the changelog's "Unreleased" entries under the version in both
-//     languages, commits with a sign-off, pushes and opens the pull request.
-//     Everything is read from origin/main and checked before anything is
-//     written, so a refusal leaves the checkout as it was.
-//   node scripts/release.mjs tag 0.2.0-beta.1
-//     Once that pull request is merged: tags the commit on main that brought
-//     the version — the release pull request's merge, not whatever merged
-//     after it — and pushes the tag, which starts
-//     .github/workflows/release.yml. Checked first, as the workflow checks
-//     it again: the version, its changelog in both languages.
-//   node scripts/release.mjs notes 0.2.0-beta.1
+//   node scripts/release.mjs prepare 0.3.0-beta.4
+//     On the branch of the pull request that releases (never main): sets
+//     the version (the workspace's Cargo.toml, which every crate and the
+//     app read, app/ui's package.json and lockfile, and both Cargo.lock
+//     files), moves the changelog's "Unreleased" entries under the version
+//     in both languages, and commits with a sign-off. Nothing is pushed:
+//     the commit travels in that pull request. Everything is checked before
+//     anything is written, so a refusal leaves the checkout as it was.
+//   Merging the pull request into main is the release:
+//     .github/workflows/release.yml sees main carry a version with no tag
+//     yet, builds the app, and publishes the release, which creates the tag
+//     on that merge.
+//   node scripts/release.mjs tag 0.3.0-beta.4
+//     By hand, only when the workflow could not tag: tags the commit on main
+//     that brought the version and pushes the tag, which starts the same
+//     workflow.
+//   node scripts/release.mjs notes 0.3.0-beta.4
 //     Prints the version's changelog, English then pt-BR: the release notes.
 //     A production version also carries the test releases that led to it.
-//   node scripts/release.mjs verify v0.2.0-beta.1
+//   node scripts/release.mjs verify v0.3.0-beta.4
 //     The release workflow's first step: the tag names the version the
 //     sources carry, in the shape of a version, with its changelog.
 //
 // `--dry-run` shows what `prepare` or `tag` would do and changes nothing.
 // A production version is X.Y.Z; a test release is X.Y.Z-beta.N.
-// Dependency-free; Node 18 or later, with git, cargo and gh on PATH —
-// `prepare` checks gh before it changes anything.
+// Dependency-free; Node 18 or later, with git and cargo on PATH.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -121,37 +121,23 @@ function notesFrom(texts, v) {
   return `${parts[0]}\n\n---\n\n**Português (Brasil)**\n\n${parts[1]}\n`;
 }
 
-/** `prepare` ends by opening the pull request with gh, so gh is checked
- *  first: missing from PATH or logged out, it stops `prepare` before
- *  anything is written or pushed. The first beta's pushed its branch and
- *  then failed there, leaving the pull request to open by hand. */
-function needGh() {
-  try {
-    // github.com only: `gh auth status` alone fails when any account on any
-    // host has a problem, though this repository needs none of them.
-    execFileSync("gh", ["auth", "status", "--active", "--hostname", "github.com"], { cwd: root, stdio: "ignore" });
-  } catch {
-    fail("gh is not on PATH, or not logged in (gh auth login); nothing was changed");
-  }
-}
-
 function prepare(v) {
-  needGh();
   if (run("git", ["status", "--porcelain"]) !== "") fail("the working tree is not clean");
+  const branch = run("git", ["branch", "--show-current"]);
+  if (branch === "" || branch === "main") fail("run prepare on the branch of the pull request that releases, not on main");
   run("git", ["fetch", "--quiet", "origin", "main"]);
 
-  // Every input from origin/main, every check before any write.
-  const cargo = onMain("Cargo.toml");
+  // Every input from this branch, every check before any write. The
+  // version must be newer than main's — what was released — and than
+  // this branch's, so that running prepare twice is refused.
+  const cargo = readHere("Cargo.toml");
   const current = workspaceVersion(cargo);
-  if (current !== "0.0.0" && !newer(parse(v), parse(current))) fail(`${v} is not newer than ${current}`);
+  for (const [where, base] of [["main", workspaceVersion(onMain("Cargo.toml"))], [branch, current]]) {
+    if (base !== "0.0.0" && !newer(parse(v), parse(base))) fail(`${v} is not newer than ${base}, the version on ${where}`);
+  }
   const date = new Date().toISOString().slice(0, 10);
   const changed = CHANGELOGS.map(({ file, unreleased, empty }) => {
-    let text;
-    try {
-      text = onMain(file);
-    } catch {
-      fail(`origin/main has no ${file}`);
-    }
+    const text = readHere(file);
     const s = section(text, unreleased);
     if (!s) fail(`${file} has no "${unreleased}" section`);
     // The placeholder a release leaves behind is not an entry.
@@ -167,13 +153,12 @@ function prepare(v) {
   });
   const notes = notesFrom(changed, v);
   const newCargo = cargo.replace(/(\[workspace\.package\][^[]*?\nversion = ")[^"]+(")/, `$1${v}$2`);
-  const pkg = JSON.parse(onMain("app/ui/package.json"));
+  const pkg = JSON.parse(readHere("app/ui/package.json"));
   pkg.version = v;
-  const lock = JSON.parse(onMain("app/ui/package-lock.json"));
+  const lock = JSON.parse(readHere("app/ui/package-lock.json"));
   lock.version = v;
   if (lock.packages?.[""]) lock.packages[""].version = v;
 
-  const branch = `release/v${v}`;
   const writes = [
     ["Cargo.toml", `${newCargo.trimEnd()}\n`],
     ["app/ui/package.json", `${JSON.stringify(pkg, null, 2)}\n`],
@@ -181,14 +166,13 @@ function prepare(v) {
     ...CHANGELOGS.map(({ file }, i) => [file, changed[i]]),
   ];
   if (dryRun) {
-    console.log(`would branch ${branch} from origin/main (now ${current})`);
+    console.log(`would set ${v} on ${branch} (now ${current}) and commit`);
     for (const [file] of writes) console.log(`would write ${file}`);
     console.log("would update Cargo.lock and crates/verso-dialect/fuzz/Cargo.lock");
     console.log(`\nthe release notes would be:\n\n${notes}`);
     return;
   }
 
-  run("git", ["switch", "--quiet", "-c", branch, "origin/main"]);
   for (const [file, text] of writes) writeFileSync(join(root, file), text);
   run("cargo", ["update", "--workspace", "--offline", "--quiet"]);
   const fuzz = ["crates/verso-dialect/fuzz/Cargo.toml", "crates/verso-dialect/fuzz/Cargo.lock"];
@@ -201,43 +185,12 @@ function prepare(v) {
   run("git", ["add", "Cargo.toml", "Cargo.lock", fuzz[1], "app/ui/package.json", "app/ui/package-lock.json", ...CHANGELOGS.map((c) => c.file)]);
   run("git", ["commit", "--quiet", "-s", "-m", `release: v${v}`,
     "-m", `Sets the version to ${v} and moves the changelog's unreleased\nentries under it (ADR 0051).`,
-    "-m", `After the merge: node scripts/release.mjs tag ${v}`]);
-  run("git", ["push", "--quiet", "-u", "origin", branch], { stdio: ["ignore", "pipe", "pipe"] });
-  const body = [
-    "## What",
-    "",
-    `Version ${v}: the version set in the workspace and the UI package, and the changelog's unreleased entries moved under it, in both languages.`,
-    "",
-    "## Why",
-    "",
-    "- ADR / section: [ADR 0051](docs/adr/0051-development-flow-and-releases.md) — a version, cut because the maintainer asked for one.",
-    "- Roadmap phase: the current one; a release carries what is merged.",
-    "",
-    "## Discarded alternatives",
-    "",
-    "None considered.",
-    "",
-    "## How to verify",
-    "",
-    "```",
-    `grep -n '^version = "${v}"' Cargo.toml`,
-    `node scripts/release.mjs notes ${v}`,
-    `# after the merge: node scripts/release.mjs tag ${v}`,
-    "```",
-    "",
-    "## Rust concept used",
-    "",
-    "Not applicable: version fields and changelog text only.",
-    "",
-    "## Changelog",
-    "",
-    notes,
-  ].join("\n");
-  console.log(run("gh", ["pr", "create", "--base", "main", "--head", branch, "--title", `release: v${v}`, "--body", body]));
+    "-m", "Merging this commit into main releases it: the release workflow\nbuilds the app, publishes the release and creates the tag."]);
+  console.log(`v${v} committed on ${branch}: push it; merging its pull request into main publishes the release`);
 }
 
 /** The commit on origin/main's first-parent line that brought `version =
- *  "v"` into Cargo.toml: the release pull request's merge. */
+ *  "v"` into Cargo.toml: the merge of the pull request that carried it. */
 function releaseCommit(v) {
   const sha = run("git", ["log", "--first-parent", "--diff-merges=first-parent", `-Sversion = "${v}"`, "-1", "--format=%H", "--no-patch", "origin/main", "--", "Cargo.toml"]);
   if (!sha) fail(`no commit on main brought the version ${v}`);
@@ -247,7 +200,7 @@ function releaseCommit(v) {
 function tag(v) {
   run("git", ["fetch", "--quiet", "--tags", "origin", "main"]);
   const current = workspaceVersion(onMain("Cargo.toml"));
-  if (current !== v) fail(`main carries ${current}, not ${v}: merge the release pull request first`);
+  if (current !== v) fail(`main carries ${current}, not ${v}: merge the pull request that carries the version first`);
   if (run("git", ["tag", "--list", `v${v}`]) !== "") fail(`v${v} already exists; version tags are not moved`);
   const sha = releaseCommit(v);
   // What the workflow will check, checked before the tag exists.

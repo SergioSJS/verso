@@ -32,6 +32,27 @@ pub struct Link {
     pub col: u32,
     /// The note the target resolves to, or `None` if unresolved.
     pub resolved: Option<String>,
+    /// The key of the frontmatter property that holds the link — a typed
+    /// relation (spec Q10, ADR 0057 point 4) — or `None` for a link of the
+    /// body.
+    pub relation: Option<String>,
+}
+
+/// A `verso-schema` block as the index holds it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SchemaRow {
+    /// The note it is in.
+    pub path: String,
+    /// The `type` it declares, when it was read — also by a block that
+    /// then failed (ADR 0052 point 5).
+    pub name: Option<String>,
+    pub name_key: Option<String>,
+    /// Inside a list or a quote: not read (ADR 0052 point 3).
+    pub nested: bool,
+    /// Why a block at the top level types nothing (spec §4.8's kinds).
+    pub error: Option<String>,
+    pub line: u32,
+    pub col: u32,
 }
 
 /// A note that links to the one asked about.
@@ -42,6 +63,9 @@ pub struct Backlink {
     pub embed: bool,
     pub line: u32,
     pub col: u32,
+    /// The key of the frontmatter property that holds the link, or `None`
+    /// for a link of the body (see [`Link::relation`]).
+    pub relation: Option<String>,
 }
 
 /// A heading of a note, with its position (ADR 0018: cited by line and
@@ -87,6 +111,16 @@ pub struct SourceLink {
 pub struct Unresolved {
     pub target: String,
     pub count: u64,
+}
+
+/// Sticker, color and first alias of an entry (note or folder), plus order and pinned lists (ADR 0060, S1, S3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntryLabel {
+    pub sticker: Option<String>,
+    pub color: Option<String>,
+    pub alias: Option<String>,
+    pub order: Option<Vec<String>>,
+    pub pinned: Option<Vec<String>>,
 }
 
 /// A link or an embed of some note, with what it resolves to among the
@@ -170,24 +204,91 @@ impl Index {
                 let name = relative.rsplit('/').next().unwrap_or(relative);
                 name.strip_suffix(".md").unwrap_or(name).to_owned()
             });
-        let (tags, aliases, frontmatter_ok, url) =
-            match report.frontmatter.as_ref().map(|f| &f.values) {
-                Some(Ok(Value::Mapping(map))) => (
-                    strings_of(map, "tags"),
-                    strings_of(map, "aliases"),
-                    true,
-                    strings_of(map, "url")
-                        .into_iter()
-                        .find(|u| u.starts_with("http://") || u.starts_with("https://")),
-                ),
-                Some(Ok(_)) | None => (Vec::new(), Vec::new(), true, None),
-                Some(Err(_)) => (Vec::new(), Vec::new(), false, None),
-            };
+        let (
+            tags,
+            aliases,
+            frontmatter_ok,
+            url,
+            sticker,
+            color,
+            banner,
+            banner_y,
+            order_items,
+            pinned_items,
+        ) = match report.frontmatter.as_ref().map(|f| &f.values) {
+            Some(Ok(Value::Mapping(map))) => (
+                strings_of(map, "tags"),
+                strings_of(map, "aliases"),
+                true,
+                strings_of(map, "url")
+                    .into_iter()
+                    .find(|u| u.starts_with("http://") || u.starts_with("https://")),
+                string_of(map, "sticker"),
+                string_of(map, "color"),
+                string_of(map, "banner"),
+                f64_of(map, "banner_y"),
+                {
+                    let o = strings_of(map, "order");
+                    if o.is_empty() {
+                        None
+                    } else {
+                        Some(json_list(&o))
+                    }
+                },
+                {
+                    let p = strings_of(map, "pinned");
+                    if p.is_empty() {
+                        None
+                    } else {
+                        Some(json_list(&p))
+                    }
+                },
+            ),
+            Some(Ok(_)) | None => (
+                Vec::new(),
+                Vec::new(),
+                true,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
+            Some(Err(_)) => (
+                Vec::new(),
+                Vec::new(),
+                false,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
+        };
+        // A `type` holding one text (ADR 0052 point 1); anything else is an
+        // ordinary property, and no type.
+        let note_type = match report.frontmatter.as_ref().map(|f| &f.values) {
+            Some(Ok(Value::Mapping(map))) => {
+                map.iter()
+                    .rev()
+                    .find(|(k, _)| k == "type")
+                    .and_then(|(_, v)| match v {
+                        Value::String(s) if !s.trim().is_empty() => Some(s.clone()),
+                        _ => None,
+                    })
+            }
+            _ => None,
+        };
+        let note_type_key = note_type.as_deref().map(crate::keys::type_key);
         let tx = self.conn.transaction()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
             params![
                 relative,
                 path_key,
@@ -204,9 +305,38 @@ impl Index {
                 content,
                 dir_of(relative),
                 url,
+                sticker,
+                color,
+                banner,
+                banner_y,
+                order_items,
+                pinned_items,
+                note_type,
+                note_type_key,
             ],
         )?;
         let note = tx.last_insert_rowid();
+        {
+            let mut ins = tx.prepare(
+                "INSERT INTO schemas (note, name, name_key, nested, error, line, col) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            )?;
+            for block in &report.schemas {
+                let (name, error) = match &block.definition {
+                    Some(Ok(schema)) => (Some(schema.name.clone()), None),
+                    Some(Err(e)) => (e.name.clone(), Some(e.kind.as_str())),
+                    None => (None, None),
+                };
+                ins.execute(params![
+                    note,
+                    name,
+                    name.as_deref().map(crate::keys::type_key),
+                    block.nested,
+                    error,
+                    block.pos.line,
+                    block.pos.col
+                ])?;
+            }
+        }
         {
             let mut ins = tx.prepare(
                 "INSERT INTO headings (note, level, text, line, col, start, end) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -618,6 +748,50 @@ impl Index {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// A `verso-schema` block of the folder, as the index holds it
+    /// (ADR 0052): where it is, the name it declares when it was read, and
+    /// whether it is nested or why it types nothing.
+    pub fn schema_blocks(&self) -> Result<Vec<SchemaRow>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT n.path, s.name, s.name_key, s.nested, s.error, s.line, s.col
+             FROM schemas s JOIN notes n ON n.id = s.note
+             ORDER BY n.path, s.line, s.col",
+        )?;
+        let rows = st.query_map([], |r| {
+            Ok(SchemaRow {
+                path: r.get(0)?,
+                name: r.get(1)?,
+                name_key: r.get(2)?,
+                nested: r.get(3)?,
+                error: r.get(4)?,
+                line: r.get(5)?,
+                col: r.get(6)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// A note's `type`, as written and folded, when it holds one text.
+    pub fn note_type(&self, relative: &str) -> Result<Option<(String, String)>, IndexError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT type, type_key FROM notes WHERE path = ?1 AND type IS NOT NULL",
+                params![relative],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?)
+    }
+
+    /// The notes whose `type` folds to `type_key`, in path order.
+    pub fn notes_of_type(&self, type_key: &str) -> Result<Vec<String>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT path FROM notes WHERE kind = 'note' AND type_key = ?1 ORDER BY path",
+        )?;
+        let rows = st.query_map(params![type_key], |r| r.get(0))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     /// Every path the index holds — notes and canvases — in path order:
     /// what a walk compares against to know what is gone.
     pub fn sources(&self) -> Result<Vec<String>, IndexError> {
@@ -714,7 +888,7 @@ impl Index {
     pub fn links_of(&self, relative: &str) -> Result<Vec<Link>, IndexError> {
         let sql = format!(
             "SELECT l.kind, l.target, l.heading, l.block, l.alias, l.line, l.col,
-                    (SELECT path FROM notes WHERE id = {RESOLVE})
+                    (SELECT path FROM notes WHERE id = {RESOLVE}), l.relation
              FROM links l JOIN notes n ON n.id = l.note
              WHERE n.path = ?1 ORDER BY l.start"
         );
@@ -729,6 +903,7 @@ impl Index {
                 line: r.get(5)?,
                 col: r.get(6)?,
                 resolved: r.get(7)?,
+                relation: r.get(8)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -742,7 +917,7 @@ impl Index {
     /// 2026-09-22; `tests/graph.rs`).
     pub fn backlinks(&self, relative: &str) -> Result<Vec<Backlink>, IndexError> {
         let sql = format!(
-            "SELECT src.path, l.target, l.kind, l.line, l.col
+            "SELECT src.path, l.target, l.kind, l.line, l.col, l.relation
              FROM links l JOIN notes src ON src.id = l.note
              JOIN notes t ON t.path = ?1
              WHERE l.target_key IS NOT NULL AND {RESOLVE} = t.id
@@ -756,6 +931,7 @@ impl Index {
                 embed: embeds(&r.get::<_, String>(2)?),
                 line: r.get(3)?,
                 col: r.get(4)?,
+                relation: r.get(5)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -779,6 +955,111 @@ impl Index {
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Every label (sticker, color, first alias, order, pinned) known to the index.
+    pub fn labels(&self) -> Result<std::collections::HashMap<String, EntryLabel>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT path, sticker, color, aliases, order_items, pinned_items FROM notes
+             WHERE sticker IS NOT NULL OR color IS NOT NULL OR aliases != '[]' OR order_items IS NOT NULL OR pinned_items IS NOT NULL",
+        )?;
+        let rows = st.query_map([], |r| {
+            let path: String = r.get(0)?;
+            let sticker: Option<String> = r.get(1)?;
+            let color: Option<String> = r.get(2)?;
+            let aliases_json: String = r.get(3)?;
+            let alias = json_strings(&aliases_json).into_iter().next();
+            let order_json: Option<String> = r.get(4)?;
+            let order = order_json
+                .map(|j| json_strings(&j))
+                .filter(|v| !v.is_empty());
+            let pinned_json: Option<String> = r.get(5)?;
+            let pinned = pinned_json
+                .map(|j| json_strings(&j))
+                .filter(|v| !v.is_empty());
+            Ok((
+                path,
+                EntryLabel {
+                    sticker,
+                    color,
+                    alias,
+                    order,
+                    pinned,
+                },
+            ))
+        })?;
+        let mut map = std::collections::HashMap::new();
+        for item in rows {
+            let (path, label) = item?;
+            if label.sticker.is_some()
+                || label.color.is_some()
+                || label.alias.is_some()
+                || label.order.is_some()
+                || label.pinned.is_some()
+            {
+                map.insert(path, label);
+            }
+        }
+        Ok(map)
+    }
+
+    /// The label of one note, or none.
+    pub fn label_of(&self, path: &str) -> Result<Option<EntryLabel>, IndexError> {
+        let mut st = self.conn.prepare(
+            "SELECT sticker, color, aliases, order_items, pinned_items FROM notes WHERE path = ?1",
+        )?;
+        let mut rows = st.query_map(params![path], |r| {
+            let sticker: Option<String> = r.get(0)?;
+            let color: Option<String> = r.get(1)?;
+            let aliases_json: String = r.get(2)?;
+            let alias = json_strings(&aliases_json).into_iter().next();
+            let order_json: Option<String> = r.get(3)?;
+            let order = order_json
+                .map(|j| json_strings(&j))
+                .filter(|v| !v.is_empty());
+            let pinned_json: Option<String> = r.get(4)?;
+            let pinned = pinned_json
+                .map(|j| json_strings(&j))
+                .filter(|v| !v.is_empty());
+            Ok(EntryLabel {
+                sticker,
+                color,
+                alias,
+                order,
+                pinned,
+            })
+        })?;
+        if let Some(res) = rows.next() {
+            let label = res?;
+            if label.sticker.is_some()
+                || label.color.is_some()
+                || label.alias.is_some()
+                || label.order.is_some()
+                || label.pinned.is_some()
+            {
+                return Ok(Some(label));
+            }
+        }
+        Ok(None)
+    }
+
+    /// The cover (banner path/URL and banner_y) of a note, or none.
+    pub fn banner_of(&self, path: &str) -> Result<Option<(String, Option<f64>)>, IndexError> {
+        let mut st = self
+            .conn
+            .prepare("SELECT banner, banner_y FROM notes WHERE path = ?1")?;
+        let mut rows = st.query_map(params![path], |r| {
+            let banner: Option<String> = r.get(0)?;
+            let banner_y: Option<f64> = r.get(1)?;
+            Ok((banner, banner_y))
+        })?;
+        if let Some(res) = rows.next() {
+            let (banner, banner_y) = res?;
+            if let Some(b) = banner {
+                return Ok(Some((b, banner_y)));
+            }
+        }
+        Ok(None)
     }
 }
 
@@ -805,6 +1086,23 @@ fn scalar_text(v: &Value) -> Option<String> {
         Value::Bool(b) => Some(b.to_string()),
         Value::Null | Value::Sequence(_) | Value::Mapping(_) => None,
     }
+}
+
+fn string_of(map: &[(String, Value)], key: &str) -> Option<String> {
+    map.iter()
+        .find(|(k, _)| k == key)
+        .and_then(|(_, v)| scalar_text(v))
+}
+
+fn f64_of(map: &[(String, Value)], key: &str) -> Option<f64> {
+    map.iter()
+        .find(|(k, _)| k == key)
+        .and_then(|(_, v)| match v {
+            Value::Float(f) => Some(*f),
+            Value::Integer(i) => Some(*i as f64),
+            Value::String(s) => s.parse().ok(),
+            _ => None,
+        })
 }
 
 /// A JSON array of strings, quoted by hand: no JSON dependency for a list

@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.24
+# Spec do dialeto do Verso — v0.27
 
-- Versão: v0.24 · 2026-10-02
+- Versão: v0.27 · 2026-10-07
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -67,6 +67,7 @@ fixtures). Fixture que não segue o schema é inválida.
 | `blocks` | lista de definições `^id`, em ordem de documento | não afirmado |
 | `callouts` | lista, em ordem de documento | não afirmado |
 | `property_links` | lista dos links que as propriedades do frontmatter guardam (Q10), na ordem escrita (§4.7) | não afirmado |
+| `schemas` | lista dos blocos cercados `verso-schema`, os aninhados inclusive, na ordem do documento (§4.8) | não afirmado |
 | `observed` | como o comportamento foi verificado no Obsidian | ver 4.5 |
 | `source` | ADR ou questão que autoriza um comportamento próprio do Verso | ver 4.5 |
 
@@ -169,6 +170,29 @@ um wikilink entre aspas como valor, ou como item de uma lista.
 Acrescentado em 2026-10-01 pela decisão do mantenedor sobre a revisão crítica
 [`../review/board.md`](../review/board.md), §6 item 2, com a fixture
 rascunhada `fixtures/frontmatter/property-links`, aprovada em 2026-10-02.
+
+### 4.8 Itens de `schemas`
+
+O schema de um tipo: um bloco de código cercado cuja linguagem é
+`verso-schema`, com YAML dentro (seção 6, Q11;
+[ADR 0052](../adr/0052-typed-note.md)). Só um bloco no topo de uma nota é
+lido; um dentro de um item de lista ou de uma citação é relatado como
+aninhado, e não é lido.
+
+| Campo | Significado | Obrigatório |
+|---|---|---|
+| `type` | o nome que as notas escrevem no seu próprio `type:`, como escrito | para um bloco lido |
+| `labels` | o nome do tipo por idioma da interface, um mapa como escrito (`{ pt-BR: PdM, en: NPC }`); ausente afirma nenhum | não |
+| `properties` | as propriedades declaradas, em ordem, cada uma com `key`, `kind` (`text`, `list`, `number`, `checkbox`, `date`, `datetime`) e `labels` (como acima); ausente afirma nenhuma | não |
+| `error` | por que um bloco no topo não tipa nada: `yaml`, `not_a_mapping`, `no_type`, `label`, `properties`, `property` (sem `key` ou sem `kind`), `unknown_kind`, `duplicate_key` | quando não tipa |
+| `nested` | `true` para um bloco dentro de um item de lista ou de uma citação; ausente afirma o topo | para um bloco aninhado |
+| `pos` | posição do primeiro caractere da cerca de abertura (4.4) | quando a fixture testa posição |
+
+Um bloco aninhado ou que não tipa nada não tem `type`, `labels` nem
+`properties`. Acrescentado em 2026-10-07 com a implementação do ADR 0052
+(`docs/reference/typed-note-decision.md` §8, linhas 1 e 2), com as
+fixtures rascunhadas `fixtures/schema/top-level` e
+`fixtures/schema/nested-and-invalid`, aprovadas em 2026-10-07.
 
 ---
 
@@ -517,6 +541,11 @@ a nota tipada, os schemas dela e os rótulos deles por idioma
 | Relação tipada | uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles; a chave é o tipo | `DECIDIDO` em 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados | `DECIDIDO` em 2026-09-24 (Q11) |
 | Visibilidade por bloco | segredo do mestre | `[ABERTO]` (Q9) |
+| Figurinha e cor | `sticker:` nas formas do make.md — `emoji//<hex>`, `lucide//<nome>`, `ui//<nome>` — escritas pelo Verso como o make.md as escreve, ou um emoji escrito como ele mesmo, lido; outro valor não é figurinha. `color:` um hex, como o Verso escreve, ou uma cor CSS, lida. No frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Capa com reposicionamento | `banner:` (um caminho da pasta ou uma URL) e `banner_y:` (a posição vertical, uma porcentagem de 0 a 100 escrita como texto, `"42"` — como o reposicionar do make.md a escreve, lido no código dele e observado pelo escritor de propriedades dele, 2026-10-02) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Ordem manual na pasta | `order:` no frontmatter da nota de pasta, uma lista de nomes relativos definindo a ordem; sem `order:`, a alfabética; com a árvore em ordem alfabética, todo `order:` é mantido e ignorado. A da raiz, numa nota na raiz com o nome da pasta aberta (o lugar: `PROPOSTO`, do autor, a confirmar) | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Itens fixados na pasta | `pinned:` no frontmatter da nota de pasta, uma lista de wikilinks entre aspas formando a relação tipada `pinned` | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Padrões de itens da pasta | `items_sticker:`, `items_color:` e `items_template:` no frontmatter da nota de pasta, herdados por novos itens criados na pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 
 Exemplo de nota tipada:
 
@@ -546,6 +575,32 @@ properties:
 
 Um vault do Obsidian que já use `type:` no frontmatter para outra finalidade
 continua válido: sem schema correspondente na pasta, a nota é Markdown comum.
+
+Exemplo de frontmatter de organização em uma nota:
+
+```markdown
+---
+sticker: emoji//1f680
+color: "#e8590c"
+banner: assets/diagrama.svg
+banner_y: "42"
+---
+```
+
+E na nota de uma pasta (`Projetos/Projetos.md`):
+
+```markdown
+---
+order:
+  - "Projeto Alpha.md"
+  - "Projeto Beta.md"
+pinned:
+  - "[[Projeto Alpha]]"
+items_sticker: emoji//1f4dd
+items_color: "#1971c2"
+items_template: "Templates/Nota de Reunião.md"
+---
+```
 
 Restrições que qualquer extensão precisa respeitar:
 
@@ -612,6 +667,7 @@ Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
 | heading | 5.12 | exigida pela feature 1 da Fase 1 |
 | link Markdown para arquivo local | 5.13 | `PROPOSTO` |
 | posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
+| schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, aprovada no mesmo dia |
 
 Qualquer fixture pode ser rascunhada pela IA; só vale com a aprovação do
 mantenedor no PR que a adiciona (ADR 0031). Rascunho diz que é rascunho na
@@ -1091,6 +1147,10 @@ ser escolhido.
   célula de tabela, callout inteiro, bloco de código, heading com seu
   conteúdo? A documentação pública do Obsidian descreve a noção dele; a spec
   precisa da sua antes de Q3 e Q4 fazerem sentido.
+  O editor tem a sua própria unidade desde 2026-10-06, para mover blocos no
+  modo Editar ([ADR 0061](../adr/0061-blocks-in-edit-mode.md) D5): um nó da
+  árvore de sintaxe, nunca uma linha. Não fecha nada aqui e fica como entrada
+  quando a Q21 for respondida.
 - **Q22. Charset do `^id` e forma das tags.** `DECIDIDA` para o charset e a
   caixa das tags em 2026-09-23; `[ABERTO]` para o resto.
   A documentação pública do Obsidian restringe `^id` a letras, números e hífen;
@@ -1202,3 +1262,6 @@ ser escolhido.
 | v0.22 | 2026-09-30 | **Q10 fechada pelo mantenedor** (`docs/reference/board-decision.md` §10, [ADR 0057](../adr/0057-board-json-canvas.md)): uma relação tipada é uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles, a chave o seu tipo; com ela, **a parte de links da Q24**. **Q16 decidida para `.canvas`** como o Obsidian faz: nós `file` e os links dos nós `text` são fontes de backlink, um canvas é alvo de link pelo nome completo. §5.11: o formato do board — o desenho sob uma chave de topo `verso`, nenhum tipo do próprio Verso, o layout do Obsidian mantido na escrita. Seção 6: a relação tipada `DECIDIDA`; o D4 da tabela de conversão `DECIDIDO`. Uma questão fechada, duas em parte |
 | v0.23 | 2026-10-01 | Sobre a revisão crítica `docs/review/board.md`, §6, aceita pelo mantenedor: **`property_links`** entra no schema do `expected.yaml` (§4.1, §4.7, §4.6), com a fixture rascunhada `fixtures/frontmatter/property-links` (rascunho de IA, observada no Obsidian 1.13.7); a §5.11 registra os campos próprios do Verso num canvas, que um nó `file` é um caminho a partir da raiz, e que um salvamento escreve o que o usuário não mudou como foi lido. Nenhuma questão fechada |
 | v0.24 | 2026-10-02 | A fixture `fixtures/frontmatter/property-links` **aprovada pelo mantenedor** em sessão ("Já aprovo agora"), antes da 0.3.0-beta.3; a marca de rascunho removida. Nada mais muda. |
+| v0.25 | 2026-10-02 | Propriedades de organização ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDIDAS` na seção 6. |
+| v0.26 | 2026-10-07 | Começa a implementação da nota tipada ([ADR 0052](../adr/0052-typed-note.md)): **`schemas`** entra no schema das fixtures (§4.1, §4.8), com a categoria `schema` na §8 e duas fixtures rascunhadas à espera da aprovação do mantenedor. A versão do cabeçalho, deixada em v0.24 pela v0.25, se acerta |
+| v0.27 | 2026-10-07 | As fixtures `fixtures/schema/top-level` e `fixtures/schema/nested-and-invalid` **aprovadas pelo mantenedor** em sessão ("ta aprovado a fixture"); a marca de rascunho removida. Nada mais muda. |

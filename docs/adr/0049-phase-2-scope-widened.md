@@ -21,6 +21,12 @@
   (`CHANGELOG.md`). 2026-09-30 — the board's line of section 3 no longer
   holds, by the maintainer's request of 2026-09-29 ("vamos puxar a demanda
   do canvas hexcalidraw etc agora"): the board is [0057](0057-board-json-canvas.md).
+  2026-10-02 — the line "make.md's Contexts" of section 3 no longer holds:
+  the views were [0053](0053-views-bases.md), and make.md's organizing
+  features are [0060](0060-makemd-organizing-features.md), by the
+  maintainer's request of that day. 2026-10-06 — section 2's daily note
+  moves from ⌘D to ⌘⇧D: ⌘D duplicates a block, by the maintainer's choice
+  of Notion's keys ([0061](0061-blocks-in-edit-mode.md) D8).
 
 ## Context
 
@@ -84,7 +90,9 @@ the maintainer when asked:
 
 - ~~Excalidraw or the Obsidian canvas — the board ([0024](0024-board-excalidraw.md)).~~
   Decided on 2026-09-30: [0057](0057-board-json-canvas.md).
-- Kanban, calendar and data-table views over notes — make.md's "Contexts".
+- ~~Kanban, calendar and data-table views over notes — make.md's "Contexts".~~
+  Decided on 2026-09-24 ([0053](0053-views-bases.md)) and 2026-10-02
+  ([0060](0060-makemd-organizing-features.md)).
 
 Not built for a technical reason: tearing a tab out of the window by dragging
 it (the web view does not see the pointer outside the window; a note goes to

@@ -17,7 +17,7 @@ Uma nota por dia, um calendário que mostra os dias com nota, e templates que pr
 
 ## 📅 A Nota de Hoje
 
-- **`⌘D`**, o botão **Nota de hoje** na faixa da esquerda, ou **Nota de hoje** na paleta (`⌘⇧P`).
+- **`⌘⇧D`**, o botão **Nota de hoje** na faixa da esquerda, ou **Nota de hoje** na paleta (`⌘⇧P`).
 - A nota se chama `AAAA-MM-DD.md` e fica na pasta **Diário** — o padrão de **Ajustes › Arquivos e links › Pasta das notas diárias**.
 - Se a nota do dia ainda não existe, o Verso a cria a partir do template com o mesmo nome da pasta — aqui, [[Templates/Diário|Templates/Diário]] — e põe o cursor no fim.
 

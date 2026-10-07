@@ -121,7 +121,7 @@ Ordem de execução do briefing §15:
 | ~~Regra de desambiguação entre `verso <pasta>` e subcomando~~ | decidido 2026-09-22: subcomando obrigatório na Fase 1; a regra da Fase 2 registrada e ainda aberta (`docs/reference/cli-decision.md`) | [0042](adr/0042-open-from-command-line.md) |
 | ~~Tokenizador do FTS5 para pt-BR e EN~~ | decidido em 2026-09-22: `unicode61` com `remove_diacritics 2`, sem stemming | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Metas de performance | depois da feature 5 produzir a linha de base; a linha de base do Mac existe desde o commit `6b53c64` (`crates/verso-bench/baselines.json`), as metas continuam abertas | [0039](adr/0039-performance-targets.md) |
-| ~~Transporte do MCP, superfície exposta, versão do protocolo~~ | decidido em 2026-09-22: stdio, sete ferramentas somente leitura, a versão que o `initialize` negociar (`docs/reference/mcp-decision.md`) | [0045](adr/0045-server-and-mcp-security.md) |
+| ~~Transporte do MCP, superfície exposta, versão do protocolo~~ | decidido em 2026-09-22: stdio, sete ferramentas somente leitura, a versão que o `initialize` negociar (`docs/reference/mcp-decision.md`); ampliado em 2026-10-07 para nove — relações tipadas, boards, propriedades e tags, bases | [0045](adr/0045-server-and-mcp-security.md), [0066](adr/0066-mcp-sees-boards-relations-properties-bases.md) |
 | ~~O que um handle opaco identifica e por quanto tempo~~ | decidido em 2026-09-24, como construído: notas nomeadas pelo caminho relativo — o MCP, a CLI e a janela — e o handle um índice numa tabela de caminhos dentro do processo; reaberto antes que qualquer coisa fora das views do próprio app ganhe acesso a arquivos (`docs/reference/handles-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 
 ### Critério de saída
@@ -181,7 +181,7 @@ A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-target-platforms-m
 | 2.3 | Árvore de arquivos | construída, com criar, renomear, mover, lixeira e cópia; operações de arquivo decididas em 2026-09-23 como construídas ([0048](adr/0048-file-operations-in-ui.md)) |
 | 2.4 | Editor CodeMirror 6 com Live Preview | construído: leitura, Live Preview e fonte |
 | 2.5 | Backlinks e busca vindos do core, pelo contrato | construídos, com links, tags, menções sem link e o grafo |
-| 2.6 | Um tipo de nota ponta a ponta | não começado; as decisões dele tomadas em 2026-09-24 ([0052](adr/0052-typed-note.md), Q11 da spec), e o trabalho é a seção 8 do memo (`docs/reference/typed-note-decision.md`) |
+| 2.6 | Um tipo de nota ponta a ponta | construído em 2026-10-07, linhas 1 a 6 da seção 8 do memo (`docs/reference/typed-note-decision.md`): os `schemas` do parser, os tipos e os blocos de schema do índice (versão 10, carregada no lugar), a tipagem do core na hora da consulta, o painel, `type:` na busca, o MCP; decidido em 2026-09-24 ([0052](adr/0052-typed-note.md), Q11 da spec); as duas fixtures de schema aprovadas no mesmo dia. À espera da leitura do mantenedor |
 | 2.7 | pt-BR e EN na UI; acessibilidade ([ADR 0035](adr/0035-cross-cutting-requirements.md)) | idiomas construídos, escolhidos nos ajustes; acessibilidade auditada estaticamente contra a WCAG 2.2 AA em 2026-09-24, num branch local — o que foi corrigido e o que espera o mantenedor está na [revisão](review/accessibility.md); ainda não percorrida com um leitor de tela |
 
 Além dos sete itens, o mantenedor pediu durante a fase o que faltaria a quem
@@ -196,6 +196,13 @@ janela na mesma pasta, e o terminal e os agentes ligados pelos ajustes
 board — um `.canvas` desenhado com o Excalidraw, relações tipadas no
 frontmatter, a conversão dos desenhos do plugin Excalidraw
 ([ADR 0057](adr/0057-board-json-canvas.md)); o memo é `docs/reference/board-decision.md`.
+Em 2026-10-02 o mantenedor puxou as funcionalidades de organização do
+make.md — rótulos, páginas de pasta, ordem manual e fixados, editar uma nota
+embutida no lugar ([ADR 0060](adr/0060-makemd-organizing-features.md)); o
+memo é `docs/reference/makemd-decision.md`. Em 2026-10-06 o mantenedor puxou
+os blocos do Notion no modo Editar — uma alça para arrastar um parágrafo, um
+item de lista ou qualquer outro bloco, um `+`, um menu por bloco e as teclas
+do Notion ([ADR 0061](adr/0061-blocks-in-edit-mode.md)).
 
 ### Decisões que precisam sair durante a fase
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-folder-note-name"
+description = "Enables the set_folder_note_name command without any pre-configured scope."
+commands.allow = ["set_folder_note_name"]
+
+[[permission]]
+identifier = "deny-set-folder-note-name"
+description = "Denies the set_folder_note_name command without any pre-configured scope."
+commands.deny = ["set_folder_note_name"]

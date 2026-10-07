@@ -31,6 +31,7 @@ Cada ferramenta da barra de cima tem a sua tecla, que aparece ao lado do ícone.
 | `P` ou `7` | Desenhar, à mão livre |
 | `T` ou `8` | Texto |
 | `E` ou `0` | Borracha |
+| `N` | Nota adesiva |
 | `H` | Mão, para arrastar o board |
 | `F` | Ferramenta de quadro (o grupo do canvas) |
 | `K` | Apontador laser |
@@ -38,16 +39,20 @@ Cada ferramenta da barra de cima tem a sua tecla, que aparece ao lado do ícone.
 
 Segure `⇧` enquanto desenha para fazer quadrados e círculos perfeitos. Um duplo clique no vazio escreve um texto.
 
+Em **Mais ferramentas** (o `⋮` da barra) estão também **Desenho vira forma** (`⇧ X`: um rabisco vira retângulo, círculo, losango, linha ou seta) e **Balde de tinta** (`B`: pinta uma região fechada).
+
 ## Andar pelo board
 
 - **Mover**: dois dedos no trackpad, ou a roda do mouse (com `⇧`, para os lados). Ou segure `espaço` e arraste.
 - **Aproximar**: a pinça no trackpad, `⌘` + roda, ou `⌘ +` e `⌘ −`. `⌘ 0` volta a 100%.
 - **Ver tudo**: `⇧ 1`. **Ver só a seleção**: `⇧ 2`.
-- **Ir a um grupo**: o botão **Sumário**, na barra do board, lista os grupos e os cartões; um clique num grupo mostra o grupo inteiro.
+- **Ir a um grupo**: o botão **Sumário**, no alto à direita do board, lista os grupos e os cartões; um clique num grupo mostra o grupo inteiro.
 
 ## Ligar uma coisa na outra
 
-Com a **Flecha**, comece em cima de um cartão e solte em cima de outro: a borda acende quando a seta gruda, e ela acompanha os cartões quando eles se movem. Um duplo clique na seta escreve um rótulo. No painel da esquerda, **Tipo de seta** escolhe entre reta, curva e em cotovelo, e **Pontas** muda as pontas.
+Com a **Flecha**, comece em cima de um cartão e solte em cima de outro: a borda acende quando a seta gruda. Cada ponta fica mirando o ponto onde você começou e onde soltou — parando na borda do cartão — e continua mirando ali quando os cartões se movem e quando o board abre de novo. Um duplo clique na seta escreve um rótulo. Na coluna da esquerda, o botão **Tipo de seta** escolhe entre reta, curva e em cotovelo, e as **Pontas**.
+
+Para uma **seta livre**, que não prende em cartão nenhum, segure `⌘` enquanto desenha. Sem teclado (no toque), ligue **Inserir › Setas soltas**: as setas novas saem livres até você desligar. Com a Flecha na mão, a linha de dicas embaixo da barra lembra disso — e avisa quando Setas soltas está ligado.
 
 Uma seta entre dois cartões é uma conexão do canvas, que o Obsidian também mostra. Entre duas notas, o botão **Promover a relação** grava o laço no frontmatter da nota de origem — veja [[09 - Board e Relações]].
 

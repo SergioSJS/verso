@@ -50,4 +50,6 @@ As propriedades definidas aqui são lidas automaticamente pelas **Bases do Verso
 
 Uma propriedade cujo valor é um wikilink **entre aspas** (ou uma lista deles) liga as duas notas: é a **relação tipada**, que um board também cria — veja [[09 - Board e Relações]].
 
+Com `type:` e um **schema** do tipo, as propriedades viram um formulário: as declaradas primeiro, com rótulo e campo certos — veja [[21 - Notas Tipadas]].
+
 Voltar para [[00 - Bem-vindo ao Verso|Início]] ou seguir para [[04 - Visualização de Bases e Dados]].

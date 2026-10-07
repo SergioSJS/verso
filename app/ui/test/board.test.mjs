@@ -200,9 +200,73 @@ describe("canvas ↔ elements", () => {
 
   test("an edge drawn with Excalidraw's default stroke has no color", () => {
     const doc = { nodes: OBSIDIAN.nodes, edges: [] };
-    const arrow = { id: "n", type: "arrow", x: -17, y: -104, width: 57, height: 1, points: [[0, 0], [57, 0]], startBinding: { elementId: "a" }, endBinding: { elementId: "t" }, strokeColor: "#1e1e1e", endArrowhead: "arrow" };
+    const arrow = { id: "n", type: "arrow", x: -17, y: -104, width: 57, height: 170, points: [[0, 0], [57, -170]], startBinding: { elementId: "a", fixedPoint: [1, 0.5001], mode: "orbit" }, endBinding: { elementId: "t", fixedPoint: [0, 0.5001], mode: "orbit" }, strokeColor: "#1e1e1e", endArrowhead: "arrow" };
     const edge = b.fromElements([...restored(doc), arrow], doc).edges[0];
     assert.deepEqual(edge, { id: "n", fromNode: "a", toNode: "t", fromSide: "right", toSide: "left" });
+  });
+
+  test("a new edge's ends take the side nearest their point, and keep the point when it is not a side's middle (ADR 0057 point 20)", () => {
+    const left = { x: 0, y: 0, width: 300, height: 200 };
+    const right = { x: 700, y: 0, width: 300, height: 200 };
+    const below = { x: 50, y: 600, width: 200, height: 100 };
+    // An edge with no side in the file meets the side facing the other card.
+    assert.deepEqual([b.endSide(left, right), b.endSide(right, left)], ["right", "left"]);
+    assert.deepEqual([b.endSide(left, below), b.endSide(below, left)], ["bottom", "top"]);
+    const doc = { nodes: [{ id: "a", type: "text", text: "A", ...left }, { id: "c", type: "text", text: "C", ...right }], edges: [] };
+    const arrow = { id: "n", type: "arrow", x: 300, y: 60, width: 430, height: 40, points: [[0, 0], [430, 40]], startBinding: { elementId: "a", fixedPoint: [1, 0.3], mode: "orbit" }, endBinding: { elementId: "c", fixedPoint: [0.1, 0.5], mode: "inside" }, strokeColor: "#1e1e1e", endArrowhead: "arrow" };
+    const edge = b.fromElements([...restored(doc), arrow], doc).edges[0];
+    assert.deepEqual([edge.fromSide, edge.toSide], ["right", "left"]);
+    // Bound inside by Excalidraw, an edge's end is on the outline: no "inside" is kept.
+    assert.deepEqual(edge.verso, { fromPoint: [1, 0.3], toPoint: [0.1, 0.5] });
+    // Read again, each end is bound where it was.
+    const back = b.toElements({ ...doc, edges: [edge] }).find((e) => e.id === "n");
+    assert.deepEqual([back.startBinding.fixedPoint, back.startBinding.mode], [[1, 0.3], "orbit"]);
+    assert.deepEqual([back.endBinding.fixedPoint, back.endBinding.mode], [[0.1, 0.5], "orbit"]);
+  });
+
+  test("a card read from the file lists the drawing's arrows bound to it, so they move with it", () => {
+    const doc = {
+      nodes: [{ id: "p", type: "file", file: "a.png", x: 600, y: 0, width: 300, height: 200 }],
+      edges: [],
+      verso: { version: 1, drawing: [
+        { id: "r", type: "rectangle", x: 0, y: 0, width: 100, height: 100, boundElements: [{ id: "ar", type: "arrow" }] },
+        { id: "ar", type: "arrow", x: 50, y: 50, width: 700, height: 50, points: [[0, 0], [700, 50]], startBinding: { elementId: "r", fixedPoint: [0.5, 0.5], mode: "inside" }, endBinding: { elementId: "p", fixedPoint: [0.5, 0.5], mode: "inside" } },
+      ] },
+    };
+    const card = b.toElements(doc).find((e) => e.id === "p");
+    assert.deepEqual(card.boundElements, [{ id: "ar", type: "arrow" }]);
+  });
+
+  test("an edge's ends left where the file put them write nothing new, a side-less edge included", () => {
+    const doc = {
+      nodes: [{ id: "a", type: "text", text: "A", x: 0, y: 0, width: 300, height: 200 }, { id: "c", type: "text", text: "C", x: 700, y: 0, width: 300, height: 200 }],
+      edges: [
+        { id: "e1", fromNode: "a", fromSide: "bottom", toNode: "c" },
+        // A point kept from an earlier save, and an "inside" no edge keeps:
+        // read and saved again untouched, the edge is the same.
+        { id: "e2", fromNode: "a", fromSide: "right", toNode: "c", toSide: "left", verso: { fromPoint: [1, 0.3], toPoint: [0.1, 0.5], toInside: true } },
+      ],
+    };
+    const els = b.toElements(doc);
+    const arrow = els.find((e) => e.id === "e1");
+    assert.deepEqual(arrow.startBinding.fixedPoint, [0.5001, 1]);
+    assert.deepEqual(arrow.endBinding.fixedPoint, [0, 0.5001]);
+    // A card moved: Excalidraw keeps the ends at their points; the file's edge is the same.
+    const moved = els.map((e) => (e.id === "c" ? { ...e, y: 400 } : e));
+    assert.deepEqual(b.fromElements(moved, doc).edges, doc.edges);
+  });
+
+  test("a picture card's crop is kept on its node, under verso, the rest of verso kept", () => {
+    const node = { id: "p", type: "file", file: "a.png", x: 0, y: 0, width: 100, height: 100, verso: { background: "#a5d8ff" } };
+    const cropped = b.withCrop(node, { x: 0.1, y: 0.2, w: 0.5, h: 0.333333 });
+    assert.deepEqual(cropped.verso, { background: "#a5d8ff", crop: { x: 0.1, y: 0.2, w: 0.5, h: 0.3333 } });
+    assert.deepEqual(b.cardCrop(cropped), { x: 0.1, y: 0.2, w: 0.5, h: 0.3333 });
+    // Taken off, or the whole picture: no crop written; verso's other keys stay.
+    assert.deepEqual(b.withCrop(cropped, null).verso, { background: "#a5d8ff" });
+    assert.deepEqual(b.withCrop(cropped, { x: 0, y: 0, w: 1, h: 1 }).verso, { background: "#a5d8ff" });
+    assert.equal("verso" in b.withCrop({ id: "q", type: "file", file: "a.png" }, null), false);
+    // A crop the board cannot draw is none.
+    for (const bad of [{ x: 0.8, y: 0, w: 0.5, h: 1 }, { x: 0, y: 0, w: 0, h: 1 }, { x: "a", y: 0, w: 1, h: 1 }]) assert.equal(b.cardCrop({ verso: { crop: bad } }), null);
   });
 
   test("the outline lists groups, cards, edges and, apart, the drawing's texts", () => {

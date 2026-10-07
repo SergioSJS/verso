@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-can-sync-focuses"
+description = "Enables the can_sync_focuses command without any pre-configured scope."
+commands.allow = ["can_sync_focuses"]
+
+[[permission]]
+identifier = "deny-can-sync-focuses"
+description = "Denies the can_sync_focuses command without any pre-configured scope."
+commands.deny = ["can_sync_focuses"]

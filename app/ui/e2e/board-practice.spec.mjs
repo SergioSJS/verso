@@ -61,7 +61,7 @@ test("lesson 10: an arrow between two notes, promoted to a relation, shows its n
   await page.mouse.up();
   const arrow = (await app.scene()).find((e) => e.type === "arrow" && e.startBinding === "n-alpha" && e.endBinding === "n-beta-2");
   expect(arrow, "the arrow binds both cards").toBeTruthy();
-  await page.locator(".board-bar").getByRole("button", { name: "Promover a relação" }).click();
+  await page.getByTestId("board-tool-promote").click();
   await page.locator(".prompt-field").fill("inspira");
   await page.locator(".prompt-field").press("Enter");
   await page.locator(".plan:visible button.save").click();
@@ -117,16 +117,16 @@ test("lesson 8: a text card is edited from a double click", async ({ app, page }
 test("lesson 11: the board's search finds the word as typed, and stays put while the board saves", async ({ app, page }) => {
   await openPractice(app);
   await app.key("Mod+f");
-  const field = page.locator(".board-search input");
+  const field = page.locator(".board-ex-search input");
   await expect(field).toBeFocused();
   await page.keyboard.type("tesouro");
   await expect(field).toHaveValue("tesouro");
   await expect(field).toHaveAttribute("spellcheck", "false");
-  await expect(page.locator(".board-search-count")).toHaveText(/^1 de \d+$/);
+  await expect(page.locator(".board-ex-search-count")).toHaveText(/^1 de \d+$/);
   // On a match other than the first, which is where the old bug sent the
   // view back to (review `board.md`, reading 4, finding 2).
   await field.press("Enter");
-  await expect(page.locator(".board-search-count")).toHaveText(/^2 de \d+$/);
+  await expect(page.locator(".board-ex-search-count")).toHaveText(/^2 de \d+$/);
   const before = await app.settledView();
   // A real change, so that the board saves: a drawn element nudged with
   // the keyboard, as a user does.
@@ -141,4 +141,38 @@ test("lesson 11: the board's search finds the word as typed, and stays put while
   await page.waitForTimeout(800);
   const after = await app.settledView();
   expect([after.scrollX, after.scrollY, after.zoom]).toEqual([before.scrollX, before.scrollY, before.zoom]);
+});
+
+test("text whose font arrives late is measured again, not left cut at its edges", async ({ app, page }) => {
+  // The fonts held back past the board's last scheduled look (4 s): a cold
+  // start of the app, where WebKit loads them late and does not say so.
+  await page.route(/\.(woff2?|ttf)(\?|$)/, async (route) => {
+    await new Promise((r) => setTimeout(r, 6000));
+    await route.continue();
+  });
+  await openPractice(app);
+  // Each text as Excalidraw lays it out, its fallbacks included: the widest
+  // line wider than the box it keeps is drawn cut.
+  const cut = () =>
+    page.evaluate(() => {
+      const fonts = { 5: "Excalifont, Xiaolai, Segoe UI Emoji", 6: "Nunito, Segoe UI Emoji" };
+      const ctx = document.createElement("canvas").getContext("2d");
+      return window.__VERSO_TEST__.board
+        .getSceneElements()
+        .filter((e) => e.type === "text" && fonts[e.fontFamily])
+        .filter((e) => {
+          ctx.font = `${e.fontSize}px ${fonts[e.fontFamily]}`;
+          return Math.max(...e.text.split("\n").map((l) => ctx.measureText(l).width)) > e.width + 1;
+        })
+        .map((e) => e.id);
+    });
+  // Waited for, not asked for: asking would load them on the test's behalf.
+  const arrived = () =>
+    page.evaluate(() => {
+      const loaded = new Set();
+      document.fonts.forEach((f) => f.status === "loaded" && loaded.add(f.family.replace(/^["']|["']$/g, "")));
+      return loaded.has("Excalifont") && loaded.has("Nunito");
+    });
+  await expect.poll(arrived, { timeout: 20_000 }).toBe(true);
+  await expect.poll(cut, { timeout: 5_000 }).toEqual([]);
 });

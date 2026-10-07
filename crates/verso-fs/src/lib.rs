@@ -401,6 +401,22 @@ impl Root {
         ops::trash(&self.path, &relative)
     }
 
+    /// Read `.space/waypoints.json` at the root and its [`Stamp`] (ADR 0062 D7).
+    /// As with `.trash/`, read by name; other hidden files remain refused.
+    pub fn read_waypoints(&self) -> Result<(Vec<u8>, Stamp), ReadError> {
+        ops::read_waypoints(&self.path)
+    }
+
+    /// Replace `.space/waypoints.json` atomically, checking that the file on
+    /// disk is the one that was read (`expected`, Invariant 11; ADR 0062 D7).
+    pub fn write_waypoints(
+        &self,
+        content: &[u8],
+        expected: &Stamp,
+    ) -> Result<WriteReport, WriteError> {
+        ops::write_waypoints(&self.path, content, expected)
+    }
+
     fn intern(&mut self, relative: PathBuf) -> Handle {
         if let Some(&index) = self.by_path.get(&relative) {
             return Handle {

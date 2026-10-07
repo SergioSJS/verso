@@ -2,10 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Excalidraw's own words its pt-BR translation leaves empty (0.18.1): the
-// board is in Portuguese through and through (ADR 0035). Excalidraw shows
-// English for a key its language lacks; with the window in Portuguese,
-// these take the English text's place (`view.tsx`, `completeLocale`).
+// Excalidraw's own words its pt-BR translation leaves empty, and the few
+// Verso says otherwise (the tutorial names them as Verso does), for the
+// build pinned in package.json: the board is in Portuguese through and
+// through (ADR 0035). Excalidraw shows English for a key its language
+// lacks; with the window in Portuguese, these take its place (`view.tsx`,
+// `completeLocale`).
 
 export const PT_BR: Record<string, string> = {
   "buttons.copyLink": "Copiar link",
@@ -54,13 +56,13 @@ export const PT_BR: Record<string, string> = {
   "helpDialog.navigateFlowchart": "Navegar num fluxograma",
   "helpDialog.cropStart": "Recortar imagem",
   "helpDialog.cropFinish": "Terminar o recorte",
-  "hints.dismissSearch": "Esc fecha a busca",
-  "hints.arrowTool": "Clique para marcar vários pontos, arraste para uma linha só. {{arrowShortcut}} de novo troca o tipo de seta.",
+  "hints.dismissSearch": "{{shortcut}} fecha a busca",
+  "hints.arrowTool": "Clique para marcar vários pontos, arraste para uma linha só. {{shortcut}} de novo troca o tipo de seta.",
   "hints.embeddable": "Clique e arraste para incorporar um site",
-  "hints.createFlowchart": "Segure CtrlOuCmd e uma seta do teclado para criar um fluxograma",
-  "hints.disableSnapping": "Segure CtrlOuCmd para não encaixar",
-  "hints.enterCropEditor": "Clique duas vezes na imagem ou tecle Enter para recortá-la",
-  "hints.leaveCropEditor": "Clique fora da imagem, ou tecle Enter ou Esc, para terminar o recorte",
+  "hints.createFlowchart": "{{shortcut}} cria um fluxograma",
+  "hints.disableSnapping": "Segure {{shortcut}} para não encaixar",
+  "hints.enterCropEditor": "Clique duas vezes na imagem ou tecle {{shortcut}} para recortá-la",
+  "hints.leaveCropEditor": "Clique fora da imagem, ou tecle {{shortcut_1}} ou {{shortcut_2}}, para terminar o recorte",
   "labels.copySource": "Copiar o código",
   "labels.convertToCode": "Converter em código",
   "labels.changeStroke": "Mudar a cor do traço",
@@ -121,4 +123,45 @@ export const PT_BR: Record<string, string> = {
   "toolBar.embeddable": "Incorporação web",
   "toolBar.laser": "Apontador laser",
   "toolBar.mermaidToExcalidraw": "Mermaid para Excalidraw",
+  "labels.signUp": "Criar conta",
+  "labels.signIn": "Entrar",
+  "labels.upgrade": "Fazer upgrade",
+  "labels.textColor": "Cor do texto",
+  "labels.pressure": "Pressão",
+  "labels.pressure_constant": "Constante",
+  "labels.pressure_variable": "Variável",
+  "labels.you": "Você",
+  "labels.boxSelectionMode": "Selecionar ao",
+  "labels.boxSelectionContain": "Envolver",
+  "labels.boxSelectionOverlap": "Tocar",
+  "labels.showHints": "Mostrar dicas",
+  "labels.inputDevice": "Entrada",
+  "labels.inputDeviceTrackpad": "Trackpad",
+  "labels.inputDeviceMouse": "Mouse",
+  "buttons.reset": "Redefinir",
+  "toolBar.stickynote": "Nota adesiva",
+  "toolBar.autoshape": "Desenho vira forma",
+  "toolBar.bucketfill": "Balde de tinta",
+  "bucketfill.noRegion": "Nenhuma região fechada para preencher aqui.",
+  "bucketfill.tooComplex": "Esta região é complexa demais para preencher.",
+  "element.stickynote": "Nota adesiva",
+  "hints.stickynote": "Clique para pôr uma nota, ou arraste para escolher o tamanho",
+  "hints.autoshape": "Desenhe retângulos, círculos, losangos, linhas e setas",
+  "hints.resizeStickyNote": "segure {{shortcut_1}} para redimensionar livre, {{shortcut_2}} para redimensionar a partir do centro",
+  "hints.toggleArrowhead": "Duplo clique para pôr ou tirar a ponta da seta",
+  "hints.cycleSelection": "{{shortcut}}-clique para alternar a seleção, ou arraste para duplicar",
+  "colorPicker.invalidColor": "Cor inválida",
+  "colorPicker.invalidHexLength": "O código hex deve ter 3, 4, 6 ou 8 caracteres",
+  "colorPicker.topPicksTip": "Dica: arraste uma cor para os favoritos para fixá-la",
+  "colorPicker.resetTopPicks": "Voltar aos favoritos padrão",
+  "fileDrop.replace": "Solte para substituir o conteúdo",
+  "fileDrop.add": "Solte para pôr no desenho",
+  "fileDrop.importLibrary": "Solte para importar a biblioteca",
+  "fileDrop.replaceHint": "Segure <shift>Shift</shift> para manter o que já existe",
+  "fileDrop.keepHint": "O que já existe fica",
+  "fileDrop.libraryHint": "Os arquivos de biblioteca serão acrescentados",
+  "fileDrop.replacedToast": "Conteúdo substituído. {{shortcut}} para desfazer",
+  "chat.placeholder.hint": "Por enquanto conhecemos fluxogramas e diagramas de sequência, de classe, de estado e de entidade-relacionamento.",
+  "fontList.topPicksTip": "Dica: arraste uma fonte para os favoritos para fixá-la",
+  "fontList.resetTopPicks": "Voltar aos favoritos padrão",
 };
