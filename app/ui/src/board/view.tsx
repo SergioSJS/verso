@@ -65,10 +65,12 @@ import { PT_BR } from "./ptBR";
 import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
 import { BoardHandle, BoardHost } from "./types";
-import { ext, fit, fold, IMAGE, margined, randomId } from "./util";
+import { ext, IMAGE } from "../paths";
+import { MAC } from "../platform";
+import { fold } from "../text";
+import { fit, margined, randomId } from "./util";
 
 /** A Mac, as Excalidraw tells one: its keys differ there (⌘⌥ for ⌃⇧). */
-const MAC = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
 const SAVE_DELAY = 700;
 
