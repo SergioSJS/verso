@@ -69,8 +69,8 @@ export class Pane {
       showMenu(r.left, r.bottom + 4, [
         ...this.leaves.map((l) => [`${l.tabName.textContent ?? ""}${l.dirty ? ` (${t.unsaved})` : ""}`, () => this.activate(l, true)] as [string, () => void]),
         ["—", () => {}],
-        [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical)],
-        [t.hideTabs, () => this.setTabsHidden(true)],
+        [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
+        [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
       ]);
       e.stopPropagation();
     });
@@ -126,7 +126,7 @@ export class Pane {
         ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
         ["—", () => {}],
         [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
-        [t.hideTabs, () => this.setTabsHidden(true)],
+        [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
       ]);
     });
     this.empty.append(icon("outline"), h("p", "", t.emptyPane));

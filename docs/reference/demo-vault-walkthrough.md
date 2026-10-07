@@ -423,7 +423,10 @@ point 13).
    (E: `order-pins.spec.mjs`, "a folder's note is not a row of the tree; the
    folder's menu opens it"). Level: H; E:
    `folder-pages.spec.mjs`, "folder page displays folder note, cover banner,
-   sticker, and default table".
+   sticker, and default table". A right click on the page's empty space
+   shows the tree's menu — new note, folder, base, board, web page, Mostrar
+   no Finder, the paths — every item with its icon (E: `folder-pages.spec.mjs`,
+   "a folder page's right click…").
 5. Ajustes › Organização › "Nome da nota da pasta": `README` makes
    `Pasta/README.md` the folder's note — its sticker shows on the folder's
    row. Level: H; E: `labels.spec.mjs`, "the folder note name setting names

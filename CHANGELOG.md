@@ -42,12 +42,14 @@ test release.
 
 ### Changed
 
+- **A folder page's right-click menu is the tree's**: new note, folder, base, board and web page, Reveal in Finder and the paths, all with their icons; the ribbon's, the workspaces' and "Hide tabs" menus gained icons too.
 - **Each window, its folder** ([ADR 0065](docs/adr/0065-a-folder-per-window.md)): File › New Window opens a window on the start page, to open another folder — several folders open at once, one per window, each window titled with its folder's name. Open Folder… switches only the window it is used in, and File › Open Folder… and Settings… act on the window in focus. "New window on this folder" (the palette, a tab's menu) opens another window on the same folder, as New Window did. A folder handed to the app (`verso <folder>`, Open Recent) opens in a window with no folder, or in a new one.
 - **Today's note is ⌘⇧D**: ⌘D now duplicates a block in Edit mode, as in Notion. ⌘⇧↑/↓ no longer select to the note's start or end in Edit mode, and ⌘/ no longer toggles a comment there; ⌥↑/↓ still moves the line. Source mode keeps its keys. Esc now also cancels dragging a card or a day's note on a base.
 - **Backlinks and outgoing links share one tab, "Links"**, in the right panel: the notes that point to the open note on top, a hairline, then where it points to, each with its count. A panel left on the outgoing tab opens on Links.
 
 ### Fixed
 
+- **A code block's copy button speaks the window's language**: it said "Copiar código" in an English window too.
 - **A window shows only its own folder's indexing**: with two windows on two folders, the "Indexing…" of one showed in the other, a window with no folder included ([ADR 0065](docs/adr/0065-a-folder-per-window.md)).
 - **A picture's right click works**: on a picture of a note, of the board or in its own tab, the menu is Verso's — open in a new tab or window, download, copy, reveal in Finder — where WebKit's showed and its "Download Image" and "Open Image in New Window" did nothing. Downloads land in Downloads, and the status line names the file; the board's export "Download" works in the app too.
 - **Right-click menus no longer show two lines together**: the board's (where Verso hides Excalidraw's copies as pictures, a card's link and the library, now hidden too) and the window's (where a section a file does not offer was left out).

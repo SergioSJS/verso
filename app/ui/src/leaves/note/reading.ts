@@ -86,17 +86,17 @@ export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {
 
     const btn = h("button", "copy-code-btn");
     btn.type = "button";
-    btn.title = "Copiar código";
-    btn.setAttribute("aria-label", "Copiar código");
+    btn.title = t.copyCode;
+    btn.setAttribute("aria-label", t.copyCode);
     btn.append(icon("copy"));
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       void navigator.clipboard.writeText(text).then(() => {
         btn.replaceChildren(icon("check"));
-        btn.title = "Copiado!";
+        btn.title = t.codeCopied;
         setTimeout(() => {
           btn.replaceChildren(icon("copy"));
-          btn.title = "Copiar código";
+          btn.title = t.copyCode;
         }, 1500);
       });
     });
@@ -120,17 +120,17 @@ export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
     });
     const btn = h("button", "copy-code-btn");
     btn.type = "button";
-    btn.title = "Copiar código";
-    btn.setAttribute("aria-label", "Copiar código");
+    btn.title = t.copyCode;
+    btn.setAttribute("aria-label", t.copyCode);
     btn.append(icon("copy"));
     btn.addEventListener("click", () => {
       const code = pre.querySelector("code")?.textContent ?? pre.textContent ?? "";
       void navigator.clipboard.writeText(code).then(() => {
         btn.replaceChildren(icon("check"));
-        btn.title = "Copiado!";
+        btn.title = t.codeCopied;
         setTimeout(() => {
           btn.replaceChildren(icon("copy"));
-          btn.title = "Copiar código";
+          btn.title = t.copyCode;
         }, 1500);
       });
     });

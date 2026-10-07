@@ -86,9 +86,9 @@ export class Ribbon {
         const hiddenCount = this.hidden.size;
         showMenu(e.clientX, e.clientY, [
           // What dragging a button along the column does, from the menu.
-          [t.ribbonUp, () => this.move(id, -1)],
-          [t.ribbonDown, () => this.move(id, 1)],
-          [t.ribbonHide, () => { this.hidden.add(id); this.save(); this.paint(); }],
+          [t.ribbonUp, () => this.move(id, -1), "chevronUp"],
+          [t.ribbonDown, () => this.move(id, 1), "chevronDown"],
+          [t.ribbonHide, () => { this.hidden.add(id); this.save(); this.paint(); }, "close"],
           ...(hiddenCount > 0 ? [[`${t.ribbonShowAll} (${hiddenCount})`, () => { this.hidden.clear(); this.save(); this.paint(); }] as [string, () => void]] : []),
           [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden.clear(); this.save(); this.paint(); }],
         ]);

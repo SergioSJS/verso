@@ -239,6 +239,7 @@ export class NoteLeaf extends Leaf {
       pdf: (target, mount) => this.livePdf(target, mount),
       editEmbed: (target, mount, onExit) => this.liveEmbed(target, mount, onExit),
       embedLabels: { edit: t.editInPlace, done: t.embedDone },
+      copyLabels: { copy: t.copyCode, copied: t.codeCopied },
       canEditEmbed: () => settings.inlineEmbedEdit,
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
