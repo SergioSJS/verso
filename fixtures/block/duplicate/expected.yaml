@@ -1,4 +1,4 @@
-# AI draft (Opus 5.5, 2026-10-07), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-10-07 in session ("tao aprovados"), after checking the blocks in the app; drafted by Opus 5.5 on 2026-10-07 (ADR 0031).
 # Construct: the same `^id` twice in one note. Spec: docs/spec/dialect.md
 # §5.7, Q4 (decided on 2026-10-07: an id is unique per note; with two, the
 # last one names the block, as Obsidian does, and Verso says the id is

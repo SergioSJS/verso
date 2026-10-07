@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.28
+# Spec do dialeto do Verso — v0.29
 
-- Versão: v0.28 · 2026-10-07
+- Versão: v0.29 · 2026-10-07
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -1270,3 +1270,4 @@ ser escolhido.
 | v0.26 | 2026-10-07 | Começa a implementação da nota tipada ([ADR 0052](../adr/0052-typed-note.md)): **`schemas`** entra no schema das fixtures (§4.1, §4.8), com a categoria `schema` na §8 e duas fixtures rascunhadas à espera da aprovação do mantenedor. A versão do cabeçalho, deixada em v0.24 pela v0.25, se acerta |
 | v0.27 | 2026-10-07 | As fixtures `fixtures/schema/top-level` e `fixtures/schema/nested-and-invalid` **aprovadas pelo mantenedor** em sessão ("ta aprovado a fixture"); a marca de rascunho removida. Nada mais muda. |
 | v0.28 | 2026-10-07 | **Q3, Q4 e Q21 decididas pelo mantenedor**, depois de uma observação do Obsidian pelo CLI no mesmo dia: um bloco é a unidade do editor (Q21); um `^id` sozinho depois de uma linha em branco nomeia o bloco de antes, um no fim de um heading nomeia o heading (Q3); um id é único por nota, o último de dois nomeando o bloco (Q4). Os itens de `blocks` ganham `lines` (§4.3). Três fixtures rascunhadas, à espera da aprovação do mantenedor: `block/after-a-block`, `block/heading`, `block/duplicate`. A §5.7 diz como o id é desenhado: escondido na leitura, apagado no editor, como observado. |
+| v0.29 | 2026-10-07 | As fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` e `fixtures/block/duplicate` **aprovadas pelo mantenedor** em sessão ("tao aprovados"), depois de conferir os blocos no app; a marca de rascunho removida. Nada mais muda. |
