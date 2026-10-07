@@ -8,7 +8,7 @@ import { type CanvasNode, CARD_PAPER, cardCrop, type El, nodeData, nodeName, typ
 import { type BoardStrings } from "./strings";
 import { OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
-import { ext, IMAGE } from "./util";
+import { ext, IMAGE } from "../paths";
 
 /** A card of a picture in the folder: drawn as the picture alone, with no
  *  frame, head or title (its name is the picture's alternative text; open

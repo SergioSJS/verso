@@ -11,19 +11,6 @@ export function randomId(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function ext(path: string): string {
-  const name = path.split("/").pop() ?? path;
-  const i = name.lastIndexOf(".");
-  return i > 0 ? name.slice(i + 1).toLowerCase() : "";
-}
-
-export const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
-
-/** Text as the search compares it: lower case, accents off. */
-export function fold(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
 /** The whole board in view, as a canvas opens in Obsidian — never zoomed
  *  in past 100 %. */
 export function fit(a: Api): void {

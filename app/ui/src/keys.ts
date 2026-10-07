@@ -77,7 +77,9 @@ export async function reloadWindow(): Promise<boolean> {
   return true;
 }
 export const UNSHIFT: Record<string, string> = { "{": "[", "}": "]", "|": "\\", "<": ",", ">": ".", "?": "/", ":": ";", '"': "'", "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=" };
-export const MAC = /mac/i.test(navigator.platform);
+import { MAC } from "./platform";
+
+export { MAC };
 /** The combination a key event is, as `Mod-Shift-x`; empty when it is only
  *  modifiers. Mod is ⌘ on macOS and Ctrl elsewhere; the other one is a
  *  modifier of its own (on macOS ⌃N moves the caret, it is not ⌘N). */
