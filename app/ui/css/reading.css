@@ -513,3 +513,10 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
 }
 
 
+/* "Start with" under a new note's title (ADR 0068): Blank and the
+ * templates, a row of quiet chips. */
+.template-picker { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .4rem 0 1.2rem; }
+.template-picker-title { color: var(--ink-3); font-size: .85rem; margin-right: .2rem; }
+.template-choice { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .65rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink-2); font-size: .88rem; }
+.template-choice:hover, .template-choice:focus-visible { border-color: var(--brass); color: var(--ink); background: var(--brass-wash); }
+.template-choice .icon { width: 14px; height: 14px; }

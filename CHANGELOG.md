@@ -12,18 +12,18 @@ test release.
 
 ## Unreleased
 
+### Added
+
+- **A new note offers the templates, as Notion does** ([ADR 0068](docs/adr/0068-templates-chosen-in-a-new-note.md)): under a new note's title, "Start with" lists Blank and the notes of the templates folder; one click — or Tab, the arrows and Enter — fills the note from it, `{{title}}` and `{{date}}` filled. Blank, Esc or typing put the list away. A folder's `items_template` still makes its notes, with no list.
+- **A PDF shows its first page in a folder's view**: Thumbnails and List draw the cover where the PDF's mark was, once the row is on screen; a file only in the cloud keeps the mark and is not downloaded for it.
+
 ### Changed
 
 - **The app's identifier is `com.versomd.app`** (`com.versomd.app.beta` for the betas), after the project's domain ([ADR 0004](docs/adr/0004-project-name-verso.md)). The window's settings, keys, column widths and local focuses come along on the first start; macOS may ask once more for access to a folder.
 
-### Added
-
-- **A PDF shows its first page in a folder's view**: Thumbnails and List draw the cover where the PDF's mark was, once the row is on screen; a file only in the cloud keeps the mark and is not downloaded for it.
-
 ### Fixed
 
 - **A folder's Thumbnails and List views show its items**: a folder opened as a table showed an empty view when switched to them.
-
 - **After an update the window shows the new version at once**: it could show the previous version's interface, kept in the web view's cache, until the caches were cleared. The files the window loads now carry the version in their address ([ADR 0056](docs/adr/0056-embedded-web-pages.md)).
 
 ## 0.4.0-beta.1 — 2026-10-07

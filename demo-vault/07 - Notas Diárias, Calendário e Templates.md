@@ -45,6 +45,10 @@ Um template é uma nota qualquer da pasta **Templates** (**Ajustes › Arquivos 
 
 Ao ser usado, um template troca `{{date}}` pela data de hoje (`AAAA-MM-DD`) e `{{title}}` pelo nome da nota.
 
+### Começar uma nota nova por um template
+
+Uma nota nova (`⌘N`, ou **Nova nota** na árvore) mostra **Começar com** logo abaixo do título: **Em branco** e cada template da pasta. Clique num — ou chegue com `Tab`, ande com as setas e aperte `Enter` — e o texto do template vira o da nota. **Em branco**, `Esc` ou começar a digitar guardam a lista. Numa pasta cuja nota define `items_template`, a nota nova já nasce daquele template.
+
 ### Inserir um template numa nota
 
 1. Numa linha vazia, digite `/` e escolha **Inserir template…** (ou use **Inserir template…** na paleta, ou o botão da faixa da esquerda).
