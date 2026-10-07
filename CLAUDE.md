@@ -117,6 +117,7 @@ the test.
 | clippy `disallowed_methods` denying `std::fs` outside `verso-fs` (exceptions: index, config) | access to the open folder outside `verso-fs` | workspace |
 | `cargo-deny`: license allowlist, advisories denied | incompatible or vulnerable dependency | workspace |
 | Documentation mirror: every canonical `.md` has a twin in `docs/pt-BR/` with the same headings | a document changed in one language only | workspace |
+| Source files under 1500 lines; an exception is recorded and only shrinks ([ADR 0067](docs/adr/0067-source-files-stay-small.md)) | a file too big to read whole, review or explain | workspace |
 | Parser fuzzing with `cargo-fuzz`, the canvas reader beside it | a malformed file hanging the app | feature 1; the canvas reader with the board |
 | Round-trip property test (reading decided in Q18) | opening rewriting a file | feature 1 |
 | `cargo check --target wasm32-unknown-unknown -p verso-dialect` | the parser ceasing to compile to WASM | feature 1 |

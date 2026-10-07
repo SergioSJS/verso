@@ -49,6 +49,9 @@
   invertida numa chave escrita sem escape — ele parou só com as sementes
   versionadas, "what is written parses again: expected ':'"; o código voltou
   ao que era.
+  2026-10-07 — um limite de tamanho de arquivo de código, 1500 linhas,
+  acrescentado como guardrail de workspace a pedido do mantenedor
+  ([0067](0067-source-files-stay-small.md)).
 
 ## Contexto
 
@@ -74,6 +77,7 @@ com ela. Os dois grupos estão separados abaixo.
 | clippy `disallowed_methods` negando `std::fs` fora de `verso-fs` (exceções declaradas: arquivo do índice em `verso-index`, config em `verso-core`) | acesso à pasta aberta fora de `verso-fs` ([0026](0026-core-ui-contract-inviolable-rules.md), regra 5) |
 | `cargo-deny`: allowlist de licenças compatível com a licença escolhida; advisories negadas | dependência incompatível ou vulnerável |
 | Espelho da documentação: cada `.md` canônico tem gêmeo em `docs/pt-BR/` com a mesma estrutura de títulos, e vice-versa | documento mudado em um idioma só ([0008](0008-documentation-language.md)) |
+| Arquivos de código abaixo de 1500 linhas, salvo uma exceção registrada que só encolhe (`scripts/check-sizes.mjs`) | um arquivo grande demais para ler inteiro, revisar ou explicar ([0067](0067-source-files-stay-small.md)) |
 
 ### Guardrails de feature — entram no mesmo PR da feature que protegem, nunca depois
 

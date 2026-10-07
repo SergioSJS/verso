@@ -1,0 +1,4 @@
+# Source files allowed past the 1500-line limit of ADR 0067, one per line:
+#   <path> <lines> <why>
+# A listed file may not grow past <lines>, and its line goes when it falls
+# under the limit: this list only shrinks (scripts/check-sizes.mjs).

@@ -46,6 +46,8 @@
   day, as a feature guardrail must be: with a planted fault — a backslash in
   a key written unescaped — it stopped on the versioned seeds alone, "what is
   written parses again: expected ':'"; the code was put back.
+  2026-10-07 — a source file size limit, 1500 lines, added as a workspace
+  guardrail at the maintainer's request ([0067](0067-source-files-stay-small.md)).
 
 ## Context
 
@@ -71,6 +73,7 @@ it. The two groups are separated below.
 | clippy `disallowed_methods` denying `std::fs` outside `verso-fs` (declared exceptions: index file in `verso-index`, config in `verso-core`) | access to the open folder outside `verso-fs` ([0026](0026-core-ui-contract-inviolable-rules.md), rule 5) |
 | `cargo-deny`: license allowlist compatible with the chosen license; advisories denied | incompatible or vulnerable dependency |
 | Documentation mirror: each canonical `.md` has a twin in `docs/pt-BR/` with the same heading structure, and vice versa | a document changed in one language only ([0008](0008-documentation-language.md)) |
+| Source files under 1500 lines, but by a recorded exception that only shrinks (`scripts/check-sizes.mjs`) | a file too big to read whole, review or explain ([0067](0067-source-files-stay-small.md)) |
 
 ### Feature guardrails — they go in the same PR as the feature they protect, never later
 
