@@ -194,8 +194,11 @@ test("emoji trigger with : opens completion and inserts emoji (ADR 0060 E4)", as
   const tooltip = page.locator(".cm-tooltip-autocomplete");
   await expect(tooltip).toBeVisible();
 
-  // Click the first matching emoji in the list
-  const option = tooltip.locator("li").first();
+  // Click the first emoji of the list for ":smi" — not of an earlier list
+  // (":s", ":sm") the completion replaces as the letters arrive: a click on
+  // an item of a list just replaced lands on nothing.
+  const option = tooltip.locator("li", { hasText: /smil/i }).first();
+  await expect(option).toBeVisible();
   await option.click();
 
   // The text should now contain an emoji character instead of :smi
