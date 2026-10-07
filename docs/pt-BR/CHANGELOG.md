@@ -12,18 +12,18 @@ versão de teste.
 
 ## Não lançado
 
+### Acrescentado
+
+- **Uma nota nova oferece os templates, como o Notion** ([ADR 0068](adr/0068-templates-chosen-in-a-new-note.md)): sob o título de uma nota nova, "Começar com" lista Em branco e as notas da pasta de templates; um clique — ou Tab, as setas e Enter — preenche a nota a partir dele, com `{{title}}` e `{{date}}` preenchidos. Em branco, Esc ou digitar guardam a lista. O `items_template` de uma pasta continua criando as notas dela, sem lista.
+- **Um PDF mostra a primeira página na visão de pasta**: Miniaturas e Lista desenham a capa onde ficava a marca do PDF, quando a linha aparece na tela; um arquivo só na nuvem mantém a marca e não é baixado para isso.
+
 ### Alterado
 
 - **O identificador do app é `com.versomd.app`** (`com.versomd.app.beta` nas betas), pelo domínio do projeto ([ADR 0004](adr/0004-project-name-verso.md)). Os ajustes da janela, as teclas, as larguras das colunas e os focos locais vêm junto na primeira abertura; o macOS pode pedir de novo, uma vez, acesso a uma pasta.
 
-### Acrescentado
-
-- **Um PDF mostra a primeira página na visão de pasta**: Miniaturas e Lista desenham a capa onde ficava a marca do PDF, quando a linha aparece na tela; um arquivo só na nuvem mantém a marca e não é baixado para isso.
-
 ### Corrigido
 
 - **As visões Miniaturas e Lista de uma pasta mostram os itens**: uma pasta aberta como tabela mostrava uma visão vazia ao trocar para elas.
-
 - **Depois de uma atualização a janela mostra a versão nova na hora**: podia mostrar a interface da versão anterior, guardada no cache da web view, até os caches serem limpos. Os arquivos que a janela carrega agora levam a versão no endereço ([ADR 0056](adr/0056-embedded-web-pages.md)).
 
 ## 0.4.0-beta.1 — 2026-10-07

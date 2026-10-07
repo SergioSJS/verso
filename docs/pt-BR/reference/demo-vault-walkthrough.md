@@ -232,6 +232,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `type:personagem` na busca lista as duas. Em inglês, "Type: Character".
    Nível: S (`crates/verso-core/tests/typed.rs`, `fixtures/schema/`), H; E:
    `typed.spec.mjs`.
+6. Nota 07, "Começar uma nota nova por um template" (ADR 0068): o ⌘N
+   mostra "Começar com" sob o título — Em branco, Diário, Nota de Reunião,
+   Novo Projeto; "Nota de Reunião" preenche a nota, com `{{title}}` e
+   `{{date}}` trocados; Em branco, Esc ou digitar guardam a lista e não
+   gravam nada; as setas andam pela lista. Uma pasta cuja nota define
+   `items_template` cria a nota a partir dele, sem lista. Nível: H; E:
+   `templates.spec.mjs`.
 
 ## 5. Encontrar
 

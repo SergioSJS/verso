@@ -226,6 +226,13 @@ point 13).
    schemas share the name; `type:personagem` in the search lists the two.
    In English, "Type: Character". Level: S (`crates/verso-core/tests/typed.rs`,
    `fixtures/schema/`), H; E: `typed.spec.mjs`.
+6. Note 07, "Começar uma nota nova por um template" (ADR 0068): ⌘N shows
+   "Começar com" under the title — Em branco, Diário, Nota de Reunião, Novo
+   Projeto; "Nota de Reunião" fills the note, `{{title}}` and `{{date}}`
+   replaced; Em branco, Esc or typing put the list away and write nothing;
+   the arrows move along the list. A folder whose note sets
+   `items_template` makes the note from it, with no list. Level: H; E:
+   `templates.spec.mjs`.
 
 ## 5. Finding
 

@@ -55,6 +55,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0065](0065-a-folder-per-window.md) | A folder per window | Accepted (2026-10-06) |
 | [0066](0066-mcp-sees-boards-relations-properties-bases.md) | The MCP sees boards, relations, properties and bases | Accepted (2026-10-07) |
 | [0067](0067-source-files-stay-small.md) | Source files stay small: a module map and a size limit | Accepted (2026-10-07) |
+| [0068](0068-templates-chosen-in-a-new-note.md) | Templates chosen in a new note, as in Notion | Accepted (2026-10-07) |
 
 ### Plugins and LLM
 

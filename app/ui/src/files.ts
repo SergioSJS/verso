@@ -31,6 +31,7 @@ import { allFolders, openFolders, setTreeLandOn } from "./tree/tree";
 import { tableWidthsMoved } from "./tableWidths";
 import { currentFolder } from "./folder";
 import { selectionMoved } from "./tree/selection";
+import { offerTemplates } from "./templatePicker";
 
 /** A file's bytes as base64, for `create_file`. */
 export function fileBase64(f: File): Promise<string> {
@@ -130,6 +131,9 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
   if (!clean || unlinkable(clean)) return;
   const path = folder ? `${folder}/${clean}` : clean;
   let initialText = `# ${clean.split("/").pop() ?? clean}\n\n`;
+  // The folder's template, when it names one; else the note offers the
+  // templates folder's under its title (ADR 0068).
+  let fromFolder = false;
   const fn = folder ? folderNoteOf(folder) : null;
   if (fn) {
     try {
@@ -144,6 +148,7 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
           }
           if (tpl) {
             initialText = tpl.replace(/{{date}}/g, today()).replace(/{{title}}/g, clean.split("/").pop() ?? clean);
+            fromFolder = true;
           }
         }
         const stk = propVal(read.data.properties, "items_sticker");
@@ -164,6 +169,7 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
     await leaf.loading;
     if (renameNow) leaf.renameHere();
     else leaf.editAtEnd();
+    if (!fromFolder) offerTemplates(leaf);
   }
 }
 /** A free name for a new file in `folder`: `base`, then `base 2`… */

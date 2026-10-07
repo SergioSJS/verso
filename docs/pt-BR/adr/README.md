@@ -55,6 +55,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0065](0065-a-folder-per-window.md) | Uma pasta por janela | Aceito (2026-10-06) |
 | [0066](0066-mcp-sees-boards-relations-properties-bases.md) | O MCP enxerga boards, relações, propriedades e bases | Aceito (2026-10-07) |
 | [0067](0067-source-files-stay-small.md) | Arquivos de código continuam pequenos: um mapa de módulos e um limite de tamanho | Aceito (2026-10-07) |
+| [0068](0068-templates-chosen-in-a-new-note.md) | Templates escolhidos numa nota nova, como no Notion | Aceito (2026-10-07) |
 
 ### Plugins e LLM
 
