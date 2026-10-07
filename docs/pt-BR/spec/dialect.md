@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.26
+# Spec do dialeto do Verso — v0.27
 
-- Versão: v0.26 · 2026-10-07
+- Versão: v0.27 · 2026-10-07
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -192,7 +192,7 @@ Um bloco aninhado ou que não tipa nada não tem `type`, `labels` nem
 `properties`. Acrescentado em 2026-10-07 com a implementação do ADR 0052
 (`docs/reference/typed-note-decision.md` §8, linhas 1 e 2), com as
 fixtures rascunhadas `fixtures/schema/top-level` e
-`fixtures/schema/nested-and-invalid`, à espera da aprovação do mantenedor.
+`fixtures/schema/nested-and-invalid`, aprovadas em 2026-10-07.
 
 ---
 
@@ -667,7 +667,7 @@ Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
 | heading | 5.12 | exigida pela feature 1 da Fase 1 |
 | link Markdown para arquivo local | 5.13 | `PROPOSTO` |
 | posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
-| schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, à espera de aprovação |
+| schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, aprovada no mesmo dia |
 
 Qualquer fixture pode ser rascunhada pela IA; só vale com a aprovação do
 mantenedor no PR que a adiciona (ADR 0031). Rascunho diz que é rascunho na
@@ -1264,3 +1264,4 @@ ser escolhido.
 | v0.24 | 2026-10-02 | A fixture `fixtures/frontmatter/property-links` **aprovada pelo mantenedor** em sessão ("Já aprovo agora"), antes da 0.3.0-beta.3; a marca de rascunho removida. Nada mais muda. |
 | v0.25 | 2026-10-02 | Propriedades de organização ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDIDAS` na seção 6. |
 | v0.26 | 2026-10-07 | Começa a implementação da nota tipada ([ADR 0052](../adr/0052-typed-note.md)): **`schemas`** entra no schema das fixtures (§4.1, §4.8), com a categoria `schema` na §8 e duas fixtures rascunhadas à espera da aprovação do mantenedor. A versão do cabeçalho, deixada em v0.24 pela v0.25, se acerta |
+| v0.27 | 2026-10-07 | As fixtures `fixtures/schema/top-level` e `fixtures/schema/nested-and-invalid` **aprovadas pelo mantenedor** em sessão ("ta aprovado a fixture"); a marca de rascunho removida. Nada mais muda. |
