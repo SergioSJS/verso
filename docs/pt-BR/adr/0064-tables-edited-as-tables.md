@@ -6,6 +6,10 @@
   uma tabela deveria ser editada, escolheu "Sempre como tabela". Refina as
   "tabelas com ajuda de edição" do [0049](0049-phase-2-scope-widened.md) §1.
 - Status no briefing: não consta
+- Revisões: 2026-10-07 — largura das colunas, a pedido do mantenedor
+  (backlog: "nas tabelas deveria ser possível redimensionar a largura das
+  colunas"); perguntado onde a largura deveria ficar, escolheu "guardada
+  pelo Verso, fora do arquivo" (ponto 6).
 
 ## Contexto
 
@@ -42,6 +46,14 @@ Escrito pelo autor a partir da escolha do mantenedor acima, e aceito por ela
    em linhas próprias, fora de uma lista ou de uma citação, todas as linhas
    entre pipes. Qualquer outra tabela mantém o comportamento que tinha. O
    modo Fonte mostra o texto.
+
+6. **A largura de uma coluna é arrastada na borda direita da sua célula de
+   cabeçalho**, no modo Editar e na Leitura, e **guardada pelo Verso, nunca
+   no arquivo** (2026-10-07): o Markdown continua uma tabela que o Obsidian
+   lê como antes. Fica guardada por pasta, nota e tabela — a tabela nomeada
+   pelo seu lugar entre as tabelas da nota e pelo seu número de colunas,
+   então uma tabela que ganha ou perde uma coluna volta às larguras
+   naturais — e acompanha a nota quando ela é renomeada ou movida.
 
 ## Consequências
 

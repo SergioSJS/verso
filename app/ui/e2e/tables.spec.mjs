@@ -97,3 +97,52 @@ test("the toolbar shows the table's tools while a cell has the focus", async ({ 
   await page.keyboard.press("Escape");
   await expect(tools).toBeHidden();
 });
+
+test("a column dragged wider keeps its width in Edit and in Reading, and the file does not change", async ({ app, page }) => {
+  const body = "Antes\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n";
+  await openNote(app, body);
+  const th = page.locator(".cm-table-editor th").first();
+  const before = await th.evaluate((e) => e.offsetWidth);
+  const grip = th.locator(".table-col-grip");
+  const box = await grip.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => th.evaluate((e) => e.offsetWidth)).toBeGreaterThan(before + 100);
+  const wide = await th.evaluate((e) => e.offsetWidth);
+  // Kept by Verso, never written into the note (ADR 0064, revised 2026-10-07).
+  expect(await app.file("Tab.md")).toBe(body);
+  // Reading draws the same table at the same width.
+  await page.getByRole("button", { name: "Leitura", exact: true }).click();
+  const read = page.locator(".preview table th").first();
+  await expect(read).toBeVisible();
+  await expect.poll(() => read.evaluate((e) => e.offsetWidth)).toBe(wide);
+  // And Edit again, the note's widget drawn anew.
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await expect.poll(() => page.locator(".cm-table-editor th").first().evaluate((e) => e.offsetWidth)).toBe(wide);
+  expect(await app.file("Tab.md")).toBe(body);
+});
+
+test("a column dragged in Reading keeps its width when the note opens again", async ({ app, page }) => {
+  const body = "| nome | cidade |\n| --- | --- |\n| Ana | Recife |\n";
+  await app.open();
+  await app.writeOutside("Larg.md", body);
+  await app.folderChanged(["Larg.md"], true);
+  await app.quickOpen("Larg");
+  const th = page.locator(".preview table th").nth(1);
+  await expect(th).toBeVisible();
+  const before = await th.evaluate((e) => e.offsetWidth);
+  const box = await th.locator(".table-col-grip").boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 150, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => th.evaluate((e) => e.offsetWidth)).toBeGreaterThan(before + 120);
+  const wide = await th.evaluate((e) => e.offsetWidth);
+  await app.key("Mod+w");
+  await app.quickOpen("Larg");
+  await expect.poll(() => page.locator(".preview table th").nth(1).evaluate((e) => e.offsetWidth)).toBe(wide);
+  expect(await app.file("Larg.md")).toBe(body);
+});

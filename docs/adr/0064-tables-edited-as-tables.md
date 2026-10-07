@@ -7,6 +7,10 @@
   they chose "Sempre como tabela" (always as a table). It refines the
   "tables with editing help" of [0049](0049-phase-2-scope-widened.md) §1.
 - Status in the briefing: not present
+- Revisions: 2026-10-07 — column widths, at the maintainer's request
+  (backlog: "nas tabelas deveria ser possível redimensionar a largura das
+  colunas"); asked where a width should be kept, they chose "guardada pelo
+  Verso, fora do arquivo" (point 6).
 
 ## Context
 
@@ -41,6 +45,13 @@ it (Status).
 5. **Only a table that can be written back whole is edited this way:** on
    lines of its own, outside a list or a quote, every row between pipes.
    Any other table keeps the behaviour it had. Source mode shows the text.
+6. **A column's width is dragged at the right edge of its header cell**,
+   in Edit mode and in Reading, and **kept by Verso, never in the file**
+   (2026-10-07): the Markdown stays a table Obsidian reads as before. It is
+   kept per folder, note and table — the table named by its place among
+   the note's tables and its number of columns, so a table that gains or
+   loses a column starts again at its natural widths — and it follows the
+   note when the note is renamed or moved.
 
 ## Consequences
 

@@ -196,6 +196,10 @@ point 13).
     pressed; a `|` typed is written `\|`; ⌘Z in
     a cell undoes the last step. A table inside a list stays text. Level: H;
     E: `tables.spec.mjs`; U: `test/table.test.mjs`.
+12. Same table: drag the right edge of a header cell wider, in Editar; Leitura
+    shows the column as wide, and so does the note opened again; the file
+    does not change (ADR 0064 point 6). Level: H; E: `tables.spec.mjs`, "a
+    column dragged wider…" and "a column dragged in Reading…".
 
 ## 4. Organizing: properties, bases, daily notes
 

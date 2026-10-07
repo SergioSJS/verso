@@ -28,6 +28,8 @@ import { getHiddenFromTree, setHiddenFromTree } from "./settings";
 import { keyboardIn, returnFromSide, showSide } from "./side";
 import { t } from "./strings";
 import { allFolders, openFolders, setTreeLandOn } from "./tree/tree";
+import { tableWidthsMoved } from "./tableWidths";
+import { currentFolder } from "./folder";
 
 /** A file's bytes as base64, for `create_file`. */
 export function fileBase64(f: File): Promise<string> {
@@ -56,6 +58,7 @@ export async function copyFilesInto(folder: string, files: FileList): Promise<vo
 /** A rename or a move: what remembers paths — bookmarks, closed tabs,
  *  recents — follows the file, or a folder's contents. */
 export function pathsMoved(from: string, to: string): void {
+  tableWidthsMoved(currentFolder, from, to);
   const follow = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? to + p.slice(from.length) : p);
   setBookmarks(bookmarks.map(follow));
   saveBookmarks();

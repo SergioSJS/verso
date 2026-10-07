@@ -51,6 +51,8 @@ import * as reading from "./note/reading";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
+import { tableWidths } from "../tableWidths";
+import { currentFolder } from "../folder";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -245,6 +247,7 @@ export class NoteLeaf extends Leaf {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
         menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),
         render: (md) => commands.renderMarkdown(md),
+        widths: (ordinal, cols) => tableWidths(currentFolder, this.path, ordinal, cols),
       },
       isEmbedActive: (target) => {
         const to = this.resolve(target);
@@ -450,7 +453,12 @@ export class NoteLeaf extends Leaf {
     this.toolbar.hidden = m === "preview" || this.drawingShown;
     this.editorHost.hidden = m === "preview";
     for (const [k, b] of Object.entries(this.modeButtons)) b.setAttribute("aria-pressed", String(k === m));
-    if (m === "preview") this.paintPreview();
+    if (m === "preview") {
+      this.paintPreview();
+      // Not drawn again when the text is the same: the widths a column
+      // was given in Edit mode meanwhile are put on it now.
+      this.wireTableResizers(this.preview);
+    }
     this.editor.dispatch({ effects: this.liveCompartment.reconfigure(m === "live" ? [this.live, this.blockExt] : []) });
     this.applyLineNumbers();
     if (m === "live") {
