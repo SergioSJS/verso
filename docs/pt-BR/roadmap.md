@@ -251,6 +251,7 @@ primitivas ainda propostas ([0014](adr/0014-primitives-catalog.md)) e a
 `DECIDIDO`, sem fase atribuída: a Fase 1 entrega MCP somente leitura e a Fase 2
 não a inclui). E também os **apps de Windows e Linux**
 ([0022](adr/0022-target-platforms-macos-first.md)): o mantenedor decidiu em
-2026-09-23 que os dois saem, Windows primeiro.
+2026-09-23 que os dois saem, Windows primeiro, e em 2026-10-07 que o Windows
+começa agora, antes do fim da Fase 2 ([0069](adr/0069-windows-port.md)).
 
 Ordem entre eles: `[ABERTO]`, menos Windows antes de Linux.

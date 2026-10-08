@@ -251,6 +251,8 @@ proposed ([0014](adr/0014-primitives-catalog.md)) and **agent writing with a
 diff** ([0018](adr/0018-llm-native-mcp-in-core.md), `DECIDED`, with no phase
 assigned: Phase 1 delivers read-only MCP and Phase 2 does not include it).
 Also the **Windows and Linux apps** ([0022](adr/0022-target-platforms-macos-first.md)):
-the maintainer decided on 2026-09-23 that both ship, Windows first.
+the maintainer decided on 2026-09-23 that both ship, Windows first, and on
+2026-10-07 that Windows starts now, before the end of Phase 2
+([0069](adr/0069-windows-port.md)).
 
 Order among them: `[OPEN]`, but for Windows before Linux.
