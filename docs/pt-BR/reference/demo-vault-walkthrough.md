@@ -305,7 +305,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `tree-big.spec.mjs` (`?vault=big`, os dois motores), que também fixa o
    custo das linhas: nenhum SVG embutido, quatro elementos por linha, as
    linhas de uma pasta fechada liberadas, uma linha marcada como a nota
-   aberta.
+   aberta, e um nome comprido terminando em "…" dentro da linha. Tab até a
+   árvore: o anel de foco aparece nos quatro lados de uma linha, por dentro
+   (a olho, nos dois motores; pegou em 2026-10-08: a contenção das pastas o
+   cortava).
 
 ## 7. A web
 
@@ -402,8 +405,9 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     "Aplicar" mostra aquela parte, o cartão nas proporções dela, o
     `verso.crop` do nó gravado e o arquivo da imagem intacto; "Restaurar
     original" o tira. Os menus do botão direito, do board e da janela, nunca
-    mostram dois traços juntos. Uma carta selecionada e clicada com o botão
-    direito um instante depois mostra o menu do board (`menus.spec.mjs`;
+    mostram dois traços juntos. Uma carta de nota selecionada e clicada com
+    o botão direito um instante depois mostra o menu do board, e uma carta
+    de imagem o menu de imagem da janela (`menus.spec.mjs`;
     pegou em 2026-10-08: a carta ativa ficava com o clique e nenhum menu
     abria). Com a barra lateral aberta e a janela não
     muito larga, a busca e o Sumário no meio do rodapé; num board mais

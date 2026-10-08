@@ -8,7 +8,7 @@ import { h, ui } from "../dom";
 import { fail } from "../errors";
 import { deleteEntry, deleteNote } from "../files";
 import { getActiveFocus, isHomeActive, isHomeFocusName } from "../focuses";
-import { allEntries, allFiles, allNotes, currentFolder, rowIcon, setAllFiles, setAllNotes, webNotes } from "../folder";
+import { allEntries, allFiles, allNotes, currentFolder, popout, rowIcon, secondary, setAllFiles, setAllNotes, webNotes } from "../folder";
 import { icon } from "../icons";
 import { renderSticker, resolveColor } from "../labels";
 import { armDrag } from "../layout/drag";
@@ -205,7 +205,8 @@ export function saveOpenFolders(): void {
   savePending = true;
   setTimeout(() => {
     savePending = false;
-    if (!currentFolder) return;
+    // The main window keeps them, as it keeps the areas (spaces.ts).
+    if (!currentFolder || popout || secondary) return;
     try {
       localStorage.setItem(openFoldersKey(currentFolder), JSON.stringify([...openFolders]));
     } catch {
@@ -332,6 +333,9 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
         renderSubtree();
       }
 
+      // `toggle` also fires for a folder drawn open (its `open` was set
+      // before the listener): that is what puts the default-open folders
+      // into the remembered set.
       d.addEventListener("toggle", () => {
         if (d.open) {
           openFolders.add(full);
@@ -430,6 +434,7 @@ export async function listAll(): Promise<void> {
           focusRoot.files.push(p);
         }
       }
+      firstLayerOpen = firstLayerRows(focusRoot) <= OPEN_BY_DEFAULT_ROWS;
       ui.notes.replaceChildren(...Array.from(renderTree(focusRoot, 0).children));
     }
   }
