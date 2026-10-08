@@ -53,6 +53,7 @@
 | um teste chamando `ln`, `chmod`, `test`, `touch`, `sh` | "program not found" | os auxiliares por sistema do `tests/workspace/shell.rs` (`mklink`, `icacls`, `cmd`, PowerShell) |
 | uma variável ou função usada só em alguns ramos de `cfg` | o clippy `-D warnings` falhava no Windows | `cfg` na função, ou `let _ = x;` no outro ramo — nunca `#[allow]` |
 | uma entrada do `clippy.toml` nomeando `std::os::unix::…` | "does not refer to a reachable function" no Windows | `allow-invalid = true` nas entradas de cada sistema |
+| um binário de janela sem `windows_subsystem = "windows"` | o app instalado abria um terminal ao lado da janela | `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]` no `main.rs` do app |
 | uma janela ou web view criada num `#[tauri::command]` síncrono | uma janela branca no Windows (wry#583) | faça o comando `async` |
 
 ## 4. A janela (o WebView2 é Chromium)

@@ -107,8 +107,14 @@ fn a_folder_handed_to_the_running_app_is_opened_once_by_the_main_window() {
 fn a_second_launch_hands_its_folder_to_the_running_app() {
     use tauri::Listener;
     let parent = tempfile::tempdir().unwrap();
-    std::fs::create_dir(parent.path().join("Cofre")).unwrap();
-    let _nota = note(&parent.path().join("Cofre"), "Nota.md", "# Nota\n");
+    // The folder made by tempfile, named exactly: this crate's code may not
+    // call std::fs outside update.rs and log.rs (ADR 0029).
+    let cofre = tempfile::Builder::new()
+        .prefix("Cofre")
+        .rand_bytes(0)
+        .tempdir_in(parent.path())
+        .unwrap();
+    let _nota = note(cofre.path(), "Nota.md", "# Nota\n");
     let (app, webview) = app();
     assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
     let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
