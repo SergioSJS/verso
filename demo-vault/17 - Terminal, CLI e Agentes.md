@@ -46,14 +46,24 @@ Em **Ajustes › Terminal e agentes**:
 - **Claude Code** mostra a linha que liga o cofre ao Claude Code (`claude mcp add …`), com **Copiar**.
 - **Outros clientes MCP** mostra o JSON para outros programas.
 
-O agente ganha nove ferramentas, todas só de leitura:
+### Uma pasta ou todo o Verso
+
+Em **Agentes: uma pasta ou todo o Verso** você escolhe:
+
+- **Um servidor por pasta** (o padrão): cada cofre que você adiciona vira um servidor próprio, e o agente vê só ele.
+- **Um servidor para todo o Verso**: um servidor só, `verso`, adicionado uma vez. Ele atende os cofres marcados em **Esta pasta é visível para agentes** — nenhum até você marcar. O agente pergunta quais existem (`list_folders`) e diz em qual quer ler.
+
+Nos dois modos o app não precisa estar aberto: o agente inicia o `verso` sozinho. Tudo o que um agente lê fica registrado em `agents.log`, na pasta de configuração do Verso.
+
+O agente ganha estas ferramentas, todas só de leitura:
 
 - `search` (buscar) e `list_notes` (listar as notas e os boards — também só as de uma tag, como `projeto`, ou de uma propriedade, como `status: ativo`);
 - `read_note` (ler uma nota, com as propriedades e as tags dela);
 - `links` e `backlinks` (as ligações de uma nota — e, quando a ligação é uma propriedade do frontmatter, como `aliado: "[[Barão]]"`, qual é a relação);
 - `read_board` (ler um board: os cartões, as setas com as relações, os textos desenhados);
 - `query_base` (consultar uma base, como a tabela que o Verso mostra);
-- `unresolved` (os links sem destino) e `index` (atualizar o índice).
+- `unresolved` (os links sem destino) e `index` (atualizar o índice);
+- `list_folders` (os cofres visíveis, no modo de todo o Verso).
 
 Experimente pedir: *"quais notas têm a tag projeto e o que o Tour do Verso mostra?"*. Ele lê; quem escreve é você.
 

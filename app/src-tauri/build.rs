@@ -77,6 +77,8 @@ fn main() {
         "uninstall_cli",
         "mcp_status",
         "mcp_add_claude",
+        "agent_visible",
+        "set_agent_visible",
         "open_claude_download",
         "check_for_updates",
         "download_and_install_update",

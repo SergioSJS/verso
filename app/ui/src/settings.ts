@@ -34,6 +34,9 @@ export type Settings = {
   measure: "normal" | "wide";
   linkFormat: "shortest" | "relative" | "root";
   remoteContent: boolean;
+  /** What "Add to Claude Desktop" writes (ADR 0054, 2026-10-08): this
+   *  folder's own server, or the one server for all of Verso. */
+  mcpMode: "folder" | "all";
   /** What the folder scan leaves out (ADR 0044): the well-known build
    *  directories, and what each `.gitignore` excludes. The host keeps its
    *  own copy, handed over before a folder opens. */
@@ -93,6 +96,7 @@ export const DEFAULTS: Settings = {
   measure: "normal",
   linkFormat: "shortest",
   remoteContent: true,
+  mcpMode: "folder",
   ignoreBuildDirs: true,
   respectGitignore: true,
   embedOrigins: [],
@@ -135,6 +139,7 @@ export function loadSettings(): void {
       }
       settings = { ...DEFAULTS, ...parsed };
       if (!Array.isArray(settings.embedOrigins)) settings.embedOrigins = [];
+      if (settings.mcpMode !== "all") settings.mcpMode = "folder";
       if (!settings.hiddenFromTree || Array.isArray(settings.hiddenFromTree)) settings.hiddenFromTree = {};
       if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
       if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};

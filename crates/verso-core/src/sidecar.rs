@@ -112,17 +112,27 @@ struct Agents {
     visible: Vec<String>,
 }
 
-/// The keys marked visible; none when the file is missing or unreadable.
-pub(crate) fn read_agents(config: &Path) -> Vec<String> {
-    std::fs::read_to_string(config.join("agents.json"))
-        .ok()
-        .and_then(|text| serde_json::from_str::<Agents>(&text).ok())
-        .map(|a| a.visible)
-        .unwrap_or_default()
+/// The keys marked visible: none when the file is missing; `None` when it
+/// is there but does not read — the readers then see no folder (fail
+/// closed), and a mark is not written over it.
+pub(crate) fn read_agents(config: &Path) -> Option<Vec<String>> {
+    match std::fs::read_to_string(config.join("agents.json")) {
+        Ok(text) => serde_json::from_str::<Agents>(&text)
+            .ok()
+            .map(|a| a.visible),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Some(Vec::new()),
+        Err(_) => None,
+    }
+}
+
+/// A temporary name of this process's own: two processes writing at once
+/// (the app and a server, two servers) never write into one temporary.
+fn temporary(config: &Path, name: &str) -> std::path::PathBuf {
+    config.join(format!("{name}.{}.tmp", std::process::id()))
 }
 
 pub(crate) fn write_agents(config: &Path, visible: &[String]) -> std::io::Result<()> {
-    let temporary = config.join("agents.json.tmp");
+    let temporary = temporary(config, "agents.json");
     let agents = Agents {
         visible: visible.to_vec(),
     };
@@ -134,7 +144,9 @@ pub(crate) fn write_agents(config: &Path, visible: &[String]) -> std::io::Result
 /// The calls agents made, newest last, kept to the last [`AGENT_LOG_LINES`]:
 /// `<config>/agents.log` (ADR 0054). Rewritten whole each time — a
 /// temporary, a chmod to `0600`, a rename — with the calls this crate may
-/// make on the configuration directory (its clippy.toml): no appending.
+/// make on the configuration directory (its clippy.toml): no appending. Two
+/// processes that log in the same instant can each rewrite the file
+/// without the other's line; the temporary is each one's own.
 pub(crate) fn append_agent_log(config: &Path, line: &str) -> std::io::Result<()> {
     let file = config.join("agents.log");
     let mut text = std::fs::read_to_string(&file).unwrap_or_default();
@@ -142,7 +154,7 @@ pub(crate) fn append_agent_log(config: &Path, line: &str) -> std::io::Result<()>
     text.push('\n');
     let lines: Vec<&str> = text.lines().collect();
     let kept = lines[lines.len().saturating_sub(AGENT_LOG_LINES)..].join("\n") + "\n";
-    let temporary = config.join("agents.log.tmp");
+    let temporary = temporary(config, "agents.log");
     std::fs::write(&temporary, kept)?;
     private(&temporary)?;
     std::fs::rename(&temporary, file)

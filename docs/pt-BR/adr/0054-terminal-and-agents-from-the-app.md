@@ -116,7 +116,16 @@ autor aceitas ("pode seguir"):
    no diretório de configuração (as últimas 2.000 chamadas), para a pessoa
    ver depois o que um agente olhou. Um arquivo próprio, reescrito inteiro
    a cada vez: o núcleo não pode acrescentar a um arquivo ali (o
-   `clippy.toml` dele, ADR 0029).
+   `clippy.toml` dele, ADR 0029). Uma chamada recusada pela pasta também
+   fica no log, com a pasta como foi pedida (`… on <pedida> (refused)`): o
+   rastro de um agente procurando pastas que não lhe foram dadas. Cada
+   argumento guarda os primeiros 300 caracteres, para que um enorme não
+   faça crescer o arquivo que toda chamada reescreve. Dois servidores
+   registrando no mesmo instante podem cada um reescrever o arquivo sem a
+   linha do outro (cada um grava o próprio temporário); `[OPEN]`:
+   acrescentar em vez disso, o que pede `OpenOptions` declarado no
+   `clippy.toml` do verso-core — uma exceção de guardrail, que cabe ao
+   mantenedor conceder.
 
 **Segurança, como pesada em sessão.** Um programa rodando como a pessoa já
 lê as notas do disco, fora das pastas protegidas do macOS: o servidor não abre porta nova na máquina (as notas,

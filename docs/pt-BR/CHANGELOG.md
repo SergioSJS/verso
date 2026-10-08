@@ -14,6 +14,8 @@ versão de teste.
 
 ### Acrescentado
 
+- **Verso para Windows** ([ADR 0069](adr/0069-windows-port.md)): um instalador para Windows 10 e 11 (x64), por usuário, sem precisar de administrador; o `verso.exe` vem ao lado do app, e "Adicionar ao Claude Desktop" grava o caminho dele. O instalador ainda não é assinado: o SmartScreen do Windows avisa uma vez ("Mais informações" › "Executar assim mesmo"). Rodado até agora só no Windows 11; o Windows 10 é alvo, mas ainda não foi testado.
+- **Um servidor de agentes para todo o Verso** ([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)): Ajustes › Terminal e agentes escolhe entre um servidor por pasta (o padrão, como antes) e um para todo o Verso — `verso mcp --all`, adicionado ao Claude Desktop uma vez, que atende as pastas marcadas como visíveis para agentes (nenhuma até ser marcada, por uma chave na mesma seção) por uma ferramenta `list_folders` e um argumento `folder` em toda ferramenta. Nem o app nem a pasta precisam estar abertos. Toda chamada de um agente fica registrada em `agents.log`, na pasta de configuração do Verso.
 - **Ajustes › Terminal e agentes oferece o download do Claude Desktop** quando ele não está instalado, em vez de só dizer que não o achou.
 
 ### Alterado

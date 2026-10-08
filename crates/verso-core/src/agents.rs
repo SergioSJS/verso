@@ -32,7 +32,7 @@ fn dir(config: Option<&Path>) -> Result<PathBuf, CoreError> {
 /// indexed first, each with its mark.
 pub fn known(config: Option<&Path>) -> Result<Vec<KnownFolder>, CoreError> {
     let dir = dir(config)?;
-    let visible = sidecar::read_agents(&dir);
+    let visible = sidecar::read_agents(&dir).unwrap_or_default();
     Ok(sidecar::known_folders(&dir.join("index"))
         .into_iter()
         .map(|folder| {
@@ -50,7 +50,10 @@ pub fn known(config: Option<&Path>) -> Result<Vec<KnownFolder>, CoreError> {
 
 /// Whether the folder with `key` is marked visible to agents.
 pub fn is_visible(config: Option<&Path>, key: &str) -> Result<bool, CoreError> {
-    Ok(sidecar::read_agents(&dir(config)?).iter().any(|k| k == key))
+    Ok(sidecar::read_agents(&dir(config)?)
+        .unwrap_or_default()
+        .iter()
+        .any(|k| k == key))
 }
 
 /// Mark the folder with `key` visible to agents, or hidden again.
@@ -59,7 +62,12 @@ pub fn set_visible(config: Option<&Path>, key: &str, visible: bool) -> Result<()
         return Err(CoreError::InvalidKey);
     }
     let dir = dir(config)?;
-    let mut keys = sidecar::read_agents(&dir);
+    let mut keys = sidecar::read_agents(&dir).ok_or_else(|| {
+        CoreError::Sidecar(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "agents.json does not read: the marks in it are not written over",
+        ))
+    })?;
     keys.retain(|k| k != key);
     if visible {
         keys.push(key.to_owned());
@@ -78,10 +86,32 @@ pub fn log_call(config: Option<&Path>, tool: &str, folder: &str, what: &str) {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(0));
-    let what = what.replace(['\n', '\r'], " ");
-    let line = format!("{} {tool} on {folder}: {what}", stamp(secs));
+    let line = format!(
+        "{} {tool} on {}: {}",
+        stamp(secs),
+        one_line(folder),
+        one_line(what)
+    );
     let _ = sidecar::append_agent_log(&dir, &line);
 }
+
+/// An agent's string as the log keeps it: one line, at most
+/// [`LOGGED_CHARS`] characters — the log is rewritten whole on every call,
+/// so a huge argument must not grow it.
+fn one_line(text: &str) -> String {
+    let mut out: String = text
+        .chars()
+        .take(LOGGED_CHARS)
+        .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
+        .collect();
+    if text.chars().nth(LOGGED_CHARS).is_some() {
+        out.push('…');
+    }
+    out
+}
+
+/// The characters of an argument an agent's call keeps in the log.
+const LOGGED_CHARS: usize = 300;
 
 /// The agents' calls recorded, one a line, newest last.
 pub fn calls(config: Option<&Path>) -> Result<String, CoreError> {

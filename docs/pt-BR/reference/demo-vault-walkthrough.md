@@ -460,6 +460,14 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    (`a_second_launch_hands_its_folder_to_the_running_app`, os testes do
    host), A (o app instalado, no macOS e no Windows). Pegou em 2026-10-08:
    no macOS um segundo app iniciava, sem janela.
+6. "Um servidor para todo o Verso" em Terminal e agentes (nota 17): a
+   chave "Esta pasta é visível para agentes" aparece desligada; os trechos
+   e a entrada que "Adicionar ao Claude Desktop" mostra dizem `mcp --all`.
+   Com a pasta marcada, o `list_folders` de um agente a nomeia e as
+   ferramentas dele a leem por `folder`; desmarcada, ela some da lista.
+   Nível: H; E: `settings.spec.mjs`; S
+   (`the_server_for_all_of_verso_reads_only_the_visible_folders`); A (o
+   Claude Desktop, com o app fechado).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 

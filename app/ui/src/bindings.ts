@@ -350,13 +350,20 @@ export const commands = {
 	 *  line with the folder's key: the folder's path goes nowhere
 	 *  (ADR 0026 rule 4).
 	 */
-	mcpStatus: () => typedError<McpStatus, ContractError>(__TAURI_INVOKE("mcp_status")),
+	mcpStatus: (all: boolean) => typedError<McpStatus, ContractError>(__TAURI_INVOKE("mcp_status", { all })),
 	/**
 	 *  Add the open folder's server to Claude Desktop — after the window has
 	 *  shown what goes in and the person agreed. Needs the command line
 	 *  linked: the entry starts it.
 	 */
-	mcpAddClaude: () => typedError<McpAdded, ContractError>(__TAURI_INVOKE("mcp_add_claude")),
+	mcpAddClaude: (all: boolean) => typedError<McpAdded, ContractError>(__TAURI_INVOKE("mcp_add_claude", { all })),
+	/**
+	 *  Whether the open folder is marked visible to agents (the server for all
+	 *  of Verso reads only those; ADR 0054).
+	 */
+	agentVisible: () => typedError<boolean, ContractError>(__TAURI_INVOKE("agent_visible")),
+	/**  Mark the open folder visible to agents, or hidden again. */
+	setAgentVisible: (visible: boolean) => typedError<boolean, ContractError>(__TAURI_INVOKE("set_agent_visible", { visible })),
 	/**
 	 *  Claude Desktop's download page, in the system's browser: where Claude
 	 *  Desktop is not installed, the settings offer it instead of a dead

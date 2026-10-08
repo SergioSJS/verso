@@ -851,6 +851,8 @@ macro_rules! commands_for {
                 uninstall_cli,
                 mcp_status::<$runtime>,
                 mcp_add_claude::<$runtime>,
+                agent_visible::<$runtime>,
+                set_agent_visible::<$runtime>,
                 open_claude_download,
                 check_for_updates,
                 download_and_install_update::<$runtime>,

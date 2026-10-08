@@ -134,6 +134,7 @@ uso: verso <comando> <pasta> [...]
   verso backlinks <pasta> --unresolved alvos que nenhuma nota responde
   verso mcp <pasta>                    servidor MCP (stdio) só de leitura para um agente
   verso mcp --key <chave>              o mesmo, com a pasta pela chave que o app dá a ela
+  verso mcp --all                      um servidor para as pastas visíveis para agentes
   verso <pasta>                        abre a pasta no aplicativo (verso . = esta pasta)
   verso open <pasta>                   o mesmo, para uma pasta chamada como um comando
   verso help                           esta ajuda
@@ -221,6 +222,7 @@ usage: verso <command> <folder> [...]
   verso backlinks <folder> --unresolved targets no note answers to
   verso mcp <folder>                   read-only MCP server (stdio) for an agent
   verso mcp --key <key>                the same, the folder named by the key the app gives it
+  verso mcp --all                      one server for the folders visible to agents
   verso <folder>                       open the folder in the app (verso . = this one)
   verso open <folder>                  the same, for a folder named like a command
   verso help                           this help

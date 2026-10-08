@@ -40,3 +40,20 @@ test("adding to Claude Desktop leaves the row readable", async ({ app }) => {
   const widths = await row.evaluate((r) => ({ text: r.querySelector(".setting-text").getBoundingClientRect().width, row: r.getBoundingClientRect().width }));
   expect(widths.text).toBeGreaterThan(widths.row * 0.35);
 });
+
+// One server for all of Verso (ADR 0054, 2026-10-08): the mode changes what
+// goes into Claude Desktop, and the open folder stays hidden until marked.
+test("the server for all of Verso writes --all and starts with the folder hidden", async ({ app }) => {
+  await app.open();
+  await app.key("Mod+,");
+  await app.page.locator(".settings-nav-item", { hasText: "Terminal e agentes" }).click();
+  await app.page.locator(".setting", { hasText: "Agentes: uma pasta ou todo o Verso" }).locator("select").selectOption("all");
+  const visible = app.page.locator(".setting", { hasText: "Esta pasta é visível para agentes" }).locator("input");
+  await expect(visible).toBeEnabled();
+  await expect(visible).not.toBeChecked();
+  await visible.locator("..").click();
+  await expect(visible).toBeChecked();
+  await expect(app.page.locator(".setting-code").first()).toContainText("claude mcp add verso -- /usr/local/bin/verso mcp --all");
+  await app.page.getByRole("button", { name: "Adicionar ao Claude Desktop" }).click();
+  await expect(app.page.locator(".dialog, [role=dialog]").last()).toContainText("--all");
+});
