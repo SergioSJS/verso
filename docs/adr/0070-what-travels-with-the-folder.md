@@ -42,8 +42,9 @@ focuses in `.space/waypoints.json` ([0062](0062-focuses.md)).
 Observed in Obsidian on 2026-10-08
 ([obsidian-paths-names-2026-10-08.md](../reference/obsidian-paths-names-2026-10-08.md)):
 a `\` in a link is part of the name, not a separator; on macOS Obsidian
-refuses only `\ / :` in a name and creates `? * | " < >`, `CON`, a trailing
-dot or space — names a folder synced to Windows cannot carry.
+refuses only `\ / :` in a name and creates `? * | " < >` and `CON` — names
+a folder synced to Windows cannot carry; on Windows it refuses exactly
+those, the rule item 3 takes.
 
 ## Decision
 

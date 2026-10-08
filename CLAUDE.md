@@ -183,6 +183,11 @@ through `verso-core`) — ADR 0028, Consequences.
 1. Read the relevant ADR. It does not exist: write the ADR first, or ask.
 2. Check whether the needed decision is `[OPEN]`. It is: ask, do not choose.
 3. Confirm that the work fits the current phase of `docs/roadmap.md`.
+4. Work that touches files, paths, processes, configuration or the window's
+   focus and keys: read
+   [`docs/reference/cross-platform-checklist.md`](docs/reference/cross-platform-checklist.md)
+   — it is written on the Mac and has to be right on Windows
+   ([ADR 0069](docs/adr/0069-windows-port.md)).
 
 ### The PR
 

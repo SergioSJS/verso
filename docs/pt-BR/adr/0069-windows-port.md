@@ -264,6 +264,14 @@ enquanto algum arquivo dentro dela está aberto.
   instalador onde falta, e toda escolha sob `cfg(windows)` conferida contra
   a documentação do Windows 10. A primeira beta para Windows pode sair antes
   de o Windows 10 ser rodado; as notas da versão dizem isso.
+- **Pedido pelo mantenedor em 2026-10-08**: o que precisou ser corrigido
+  para o primeiro build de Windows fica escrito onde os agentes leem, para
+  que o trabalho feito no Mac saia certo no Windows na primeira vez
+  ("tomar nota de todos os problemas que foram corrigidos para que a versão
+  Windows fosse gerada e a gente não repetisse"):
+  [`cross-platform-checklist.md`](../reference/cross-platform-checklist.md),
+  apontado pelo `CLAUDE.md` §4. Registra hábitos e as suas correções; não
+  decide nada novo.
 - Sem GPU na máquina virtual: o WebView2 renderiza em software lá. A taxa de
   quadros do board é julgada no PC de jogos.
 - Cada job de Windows no CI custa uns 1,7 de um de Linux, só em `main` e

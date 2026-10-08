@@ -1,7 +1,9 @@
 # Os separadores e os nomes de arquivo do Obsidian, observados em 2026-10-08
 
 - Data: 2026-10-08
-- Observado com: Obsidian 1.14.4 (instalador 1.11.5), macOS, pelo CLI dele
+- Observado com: Obsidian 1.14.4 (instalador 1.11.5), macOS, pelo CLI dele;
+  e o Obsidian 1.14.4 no Windows 11 (a máquina de teste do porte), pelo CLI
+  dele (`Obsidian.com`), no mesmo dia
 - Admissível pelo [ADR 0009](../adr/0009-external-constraints.md): uso normal
   do app e só a API pública (`Vault.create`, `MetadataCache.getCache`,
   `MetadataCache.getFirstLinkpathDest`, `MetadataCache.resolvedLinks` e
@@ -52,8 +54,23 @@ nota em `resolvedLinks` e `unresolvedLinks`.
 | `ponto.` (`ponto..md`), `espaco ` (`espaco .md`) | criados como escritos |
 | `a#b`, `a^b`, `a[b`, `a]b`, `normal` | criados como escritos |
 
+**No Windows 11** (mesma versão, mesmo script, um vault sandbox):
+
+| Caso | Resposta |
+|---|---|
+| os seis links acima | o mesmo que no macOS: só os dois escritos com `/` resolvem |
+| `a:b`, `a?b`, `a*b`, `a"b`, `a<b`, `a>b`, `a\|b` | recusados: "File name cannot contain any of the following characters: * " \ / < > : \| ?" |
+| `CON`, `nul`, `COM1` | recusados: "File name is forbidden: CON" (`nul`, `COM1` igual) |
+| `a\b` | a `\` lida como separador, como no macOS |
+| `ponto.`, `espaco `, `a#b`, `a^b`, `a[b`, `normal` | criados: `ponto..md`, `espaco .md`… — o ponto ou o espaço não está no fim do nome do arquivo |
+
 ## 3. O que isso mostra
 
+- No Windows o Obsidian recusa, em toda nota, o que o Windows não guarda:
+  os nove caracteres e os nomes de dispositivo. É a regra que o Verso aplica
+  em todo sistema para o que cria ou renomeia
+  ([0070](../adr/0070-what-travels-with-the-folder.md)). Uma nota digitada
+  como `ponto.` é `ponto..md`, que o Windows guarda.
 - Num **link**, o Obsidian no macOS toma a `\` como parte do nome, não como
   separador: `[[pasta\nota]]` não chega a `pasta/nota.md`. O Verso, que
   estende o Obsidian e nunca o contradiz (invariante 12), faz o mesmo: uma
@@ -62,16 +79,14 @@ nota em `resolvedLinks` e `unresolvedLinks`.
 - Num **caminho entregue ao vault**, o Obsidian converte `\` em `/` antes de
   checar o nome.
 - No macOS o Obsidian recusa só `\`, `/` e `:` num nome. Ele cria nomes que
-  o Windows não guarda — `* " < > ? |`, um nome de dispositivo (`CON`,
-  `NUL`, `COM1`), ponto ou espaço no fim —, que uma pasta sincronizada com o
-  Windows depois não consegue levar. Recusá-los em todo sistema quando uma
+  o Windows não guarda — `* " < > ? |` e os nomes de dispositivo (`CON`,
+  `NUL`, `COM1`) —, que uma pasta sincronizada com o Windows depois não
+  consegue levar. Recusá-los em todo sistema quando uma
   nota é criada ou renomeada é mais estrito que o Obsidian, não contrário a
   ele: nenhum nome existente muda de sentido.
 
 ## 4. Não observado
 
-- O Obsidian no Windows (a resolução de links com `\` e os nomes que os
-  diálogos dele recusam lá).
 - Os diálogos de nova nota e de renomear da janela, que podem checar mais
   que o `Vault.create`.
 - Linux, diferenças só de maiúsculas (spec Q8) e normalização Unicode (Q7).
