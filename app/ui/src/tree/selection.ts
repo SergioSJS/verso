@@ -15,11 +15,22 @@ const selected = new Set<string>();
 /** The row a range starts from: the last one clicked. */
 let anchor: string | null = null;
 
+/** Whether a row of the tree (a file's button or a folder's summary) is
+ *  shown — inside no closed folder — read from the structure, without
+ *  forcing a layout per row. */
+export function shownRow(el: Element): boolean {
+  const from = el.tagName === "SUMMARY" ? el.parentElement?.parentElement : el.parentElement;
+  for (let d = from?.closest("details") ?? null; d; d = d.parentElement?.closest("details") ?? null) {
+    if (!(d as HTMLDetailsElement).open) return false;
+  }
+  return true;
+}
+
 /** A row of the tree and the path it stands for, in the order shown. */
 function rows(): { el: HTMLElement; path: string }[] {
   const out: { el: HTMLElement; path: string }[] = [];
   for (const el of ui.notes.querySelectorAll<HTMLElement>("li[data-path] > button.row, summary[data-folder]")) {
-    if (el.offsetParent === null) continue;
+    if (!shownRow(el)) continue;
     const path = el.dataset["folder"] ?? el.parentElement?.dataset["path"];
     if (path !== undefined) out.push({ el, path });
   }

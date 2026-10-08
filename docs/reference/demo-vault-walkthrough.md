@@ -291,6 +291,12 @@ point 13).
    `Ideia?` or `a\b` is not made (`nota.` is: its file is `nota..md`); the status bar says Windows cannot keep that name.
    A rename to such a name is refused the same way. Level: H; E:
    `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
+9. Note 14, "A Visão de Pasta": open a folder with its chevron and close
+   another; open the app again — the tree is as it was left. A folder of
+   thousands of notes opens with its top-level folders closed. Level: H;
+   E: `tree-big.spec.mjs` (`?vault=big`, both engines), which also pins
+   the rows' cost: no inline SVG, four elements a row, a closed folder's
+   rows let go, one row marked as the open note.
 
 ## 7. The web
 
@@ -388,7 +394,10 @@ point 13).
     opens the crop: a corner dragged, "Aplicar" shows that part, the card at
     its proportions, the node's `verso.crop` written and the picture's file
     untouched; "Restaurar original" takes it off. Right-click menus, the
-    board's and the window's, never show two lines together. With the side bar open and the window not
+    board's and the window's, never show two lines together. A card
+    selected and right-clicked a moment later shows the board's menu
+    (`menus.spec.mjs`; caught 2026-10-08: the entered card took the click
+    and no menu opened). With the side bar open and the window not
     wide, the search and the Outline in the middle of the footer; on a
     narrower board — the outline open too, a tall narrow window, both side
     bars open — Excalidraw's toolbar at the foot of the board and Verso's

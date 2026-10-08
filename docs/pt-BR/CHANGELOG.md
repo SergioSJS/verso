@@ -21,6 +21,9 @@ versão de teste.
 
 - **O primeiro índice de uma pasta grande ficou muito mais rápido**: cada nota era um commit próprio no índice, e no Windows cada commit espera o disco — 5.000 notas levavam 228 s lá; agora 9 s, e 2,6 s em vez de 3,4 s no macOS. O índice continua um cache refeito a partir das notas.
 - **Abrir uma pasta de novo não relê mais todas as notas**: uma nota cuja data de modificação e tamanho o índice guarda, de bem antes da última leitura, é aceita como está — 5.000 notas abrem em 0,05 s em vez de 0,7 s no macOS. Uma nota mudada no mesmo segundo em que foi lida continua sendo relida.
+- **Uma carta do board selecionada e depois clicada com o botão direito mostra o menu do board**: assim que a carta ficava ativa — um instante depois de selecionada — ela ficava com o clique direito e nenhum menu abria.
+- **A árvore lembra quais pastas você deixou abertas**, pasta por pasta, e as mostra assim quando o app abre de novo. Uma pasta de milhares de notas abre com as pastas de primeiro nível fechadas.
+- **A árvore custa menos numa pasta grande**: cada linha é mais barata de desenhar (sem uma imagem própria por ícone, sem uma camada própria por nome), abrir uma nota marca duas linhas em vez de todas, e uma pasta fechada libera as linhas dela — medido em 5.000 notas no Windows, onde a árvore ocupava uns 120 MB.
 - **Depois de um clique numa linha da árvore, ↓ e ↑ andam pela árvore a partir dela**; o F2 continua renomeando a nota aberta, e uma linha alcançada pelas setas é renomeada no lugar.
 - **Teclas e campos em todo motor web**: depois de um clique numa linha da árvore, F2 renomeia a nota aberta no Chromium (WebView2) também; as teclas do board seguem funcionando depois de Inserir › Setas soltas; uma nota ou pasta nova pela árvore é criada no Enter, e o Esc deixa o nome de uma área como estava — cada um estava quebrado no Chromium, o motor do app de Windows que vem ([ADR 0069](adr/0069-windows-port.md)).
 

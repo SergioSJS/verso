@@ -299,6 +299,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    pauta`, `Ideia?` ou `a\b` não é criada (`nota.` é: o arquivo dela é `nota..md`); a barra de status diz que o Windows não
    guarda esse nome. Um renomear para um nome assim é recusado do mesmo
    jeito. Nível: H; E: `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
+9. Nota 14, "A Visão de Pasta": abra uma pasta pela setinha e feche outra;
+   abra o app de novo — a árvore está como ficou. Uma pasta de milhares de
+   notas abre com as pastas de primeiro nível fechadas. Nível: H; E:
+   `tree-big.spec.mjs` (`?vault=big`, os dois motores), que também fixa o
+   custo das linhas: nenhum SVG embutido, quatro elementos por linha, as
+   linhas de uma pasta fechada liberadas, uma linha marcada como a nota
+   aberta.
 
 ## 7. A web
 
@@ -395,7 +402,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     "Aplicar" mostra aquela parte, o cartão nas proporções dela, o
     `verso.crop` do nó gravado e o arquivo da imagem intacto; "Restaurar
     original" o tira. Os menus do botão direito, do board e da janela, nunca
-    mostram dois traços juntos. Com a barra lateral aberta e a janela não
+    mostram dois traços juntos. Uma carta selecionada e clicada com o botão
+    direito um instante depois mostra o menu do board (`menus.spec.mjs`;
+    pegou em 2026-10-08: a carta ativa ficava com o clique e nenhum menu
+    abria). Com a barra lateral aberta e a janela não
     muito larga, a busca e o Sumário no meio do rodapé; num board mais
     estreito — o sumário aberto também, uma janela alta e estreita, as duas
     barras laterais abertas — a barra do Excalidraw no pé do board e as
