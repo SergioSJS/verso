@@ -353,6 +353,13 @@ pub(crate) fn is_trusted_update_url(url: &str) -> bool {
     s.starts_with(&release_download) || s.starts_with(&api_asset)
 }
 
+/// Whether a release asset is an installer run as downloaded (Windows'
+/// NSIS `-setup.exe`, or an `.msi`) rather than an archive to extract.
+pub(crate) fn is_installer_name(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n.ends_with(".exe") || n.ends_with(".msi")
+}
+
 pub(crate) struct TempDirCleaner(std::path::PathBuf);
 impl Drop for TempDirCleaner {
     fn drop(&mut self) {
@@ -582,6 +589,24 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
         kind: ErrorKind::Failed,
         message: format!("Não foi possível criar pasta de extração: {e}"),
     })?;
+
+    // Windows' asset is the installer itself (release.yml), not an archive:
+    // it goes where the install step looks for an installer, unextracted.
+    if is_installer_name(&asset.name) {
+        drop(file);
+        let ext = if asset.name.to_ascii_lowercase().ends_with(".msi") {
+            "msi"
+        } else {
+            "exe"
+        };
+        std::fs::rename(&zip_path, extract_dir.join(format!("verso-setup.{ext}"))).map_err(
+            |e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Não foi possível preparar o instalador: {e}"),
+            },
+        )?;
+        return install_extracted_update(app, &extract_dir, &temp_dir, downloaded);
+    }
 
     {
         let zip_file = std::fs::File::open(&zip_path).map_err(|e| ContractError {
@@ -817,17 +842,37 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 message: "Nenhum instalador (.msi/.exe) encontrado no arquivo baixado.".to_string(),
             })?;
 
-        // Launch the installer — it handles the actual replacement
-        std::process::Command::new(&installer)
-            .spawn()
-            .map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Não foi possível executar o instalador: {e}"),
-            })?;
+        // Out of the temporary folder first: it is removed when this
+        // returns, while the installer still runs.
+        let msi = installer
+            .extension()
+            .is_some_and(|x| x.eq_ignore_ascii_case("msi"));
+        let kept = std::env::temp_dir().join(if msi {
+            "verso-update-setup.msi"
+        } else {
+            "verso-update-setup.exe"
+        });
+        std::fs::copy(&installer, &kept).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível preparar o instalador: {e}"),
+        })?;
+        // Launch the installer — it handles the actual replacement. An
+        // .msi is not a program: Windows Installer runs it.
+        let mut command = if msi {
+            let mut c = std::process::Command::new("msiexec");
+            c.arg("/i").arg(&kept);
+            c
+        } else {
+            std::process::Command::new(&kept)
+        };
+        command.spawn().map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível executar o instalador: {e}"),
+        })?;
 
         return Ok(emit_done(
             "Instalador iniciado. Siga as instruções na tela para concluir a atualização.",
-            Some(installer.display().to_string()),
+            Some(kept.display().to_string()),
             false,
         ));
     }
@@ -1145,6 +1190,18 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()>
 #[cfg(test)]
 mod migration_tests {
     use super::*;
+
+    #[test]
+    fn the_windows_installer_is_run_as_downloaded_and_an_archive_is_extracted() {
+        assert!(is_installer_name(
+            "Verso-Beta-0.5.0-beta.1-windows-x64-setup.exe"
+        ));
+        assert!(is_installer_name("Verso-1.0.0-windows-x64.MSI"));
+        assert!(!is_installer_name(
+            "Verso-Beta-0.5.0-beta.1-macos-arm64.zip"
+        ));
+        assert!(!is_installer_name("verso-cli-0.5.0-windows-x64.zip"));
+    }
 
     #[test]
     fn the_former_identifier_is_named_for_the_app_and_the_beta() {

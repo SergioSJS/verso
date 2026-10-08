@@ -3,8 +3,11 @@
 # production, `vX.Y.Z-beta.N` for a test release. A version reaches main in
 # the pull request that carries it (`node scripts/release.mjs prepare` on
 # its branch); on that push to main, `decide` sees a version with no tag
-# yet, and the macOS job builds it and publishes the release, which creates
-# the tag on the merge. Every other push to main stops at `decide`, a few
+# yet, the macOS and Windows jobs build it, and `publish` publishes the
+# release with both, which creates the tag on the merge. A version is
+# published whole or not at all: when one platform fails, nothing is
+# published, and a run again (Actions → Re-run failed jobs) finishes it.
+# Every other push to main stops at `decide`, a few
 # seconds of Linux. A tag pushed by hand (`release.mjs tag`, when the
 # automatic path could not tag) still releases. Branches and pull requests
 # never build or package the app.
@@ -14,15 +17,19 @@
 # way to see this workflow work before its first real tag, which cannot be
 # taken back once published.
 #
-# macOS only, arm64: the platform Phase 2 ships on (ADR 0022). Windows, then
-# Linux, get a job of their own when their ports land. A test release is
+# macOS, arm64 (ADR 0022), and since its port Windows, x64 (ADR 0069 item
+# 6): an NSIS installer per user, unsigned (ADR 0069), with `verso.exe`
+# beside the app. Linux gets a job of its own when its port lands (ADR
+# 0071). A test release is
 # built as "Verso Beta", with an identifier of its own, so that it installs
 # beside the production app with its own window settings, and its command
 # line opens that app. The app is signed ad hoc, not with a Developer ID:
 # macOS asks once, on first open, to allow it (README.md); a Developer ID is
 # a decision for before public distribution.
 #
-# Cost: one macOS job, about ten minutes, each billed as ten Linux ones.
+# Cost: one macOS job, about ten minutes, each billed as ten Linux ones; one
+# Windows job, about fifteen, each billed as about two; a minute of Linux to
+# publish.
 
 name: release
 
@@ -87,6 +94,9 @@ jobs:
     needs: decide
     if: needs.decide.outputs.tag != ''
     runs-on: macos-latest
+    # Builds only: no write token for a build step (publish has it).
+    permissions:
+      contents: read
     steps:
       # The whole history, for the check that a tag sits on main; and no
       # token left behind for the build steps — only the publish step gets
@@ -114,7 +124,6 @@ jobs:
               exit 1
             fi
             version="${TAG#v}"
-            node scripts/release.mjs notes "$version" > notes.md
           else
             version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
           fi
@@ -162,34 +171,153 @@ jobs:
           slug="$(printf '%s' "$NAME" | tr ' ' '-')"
           ditto -c -k --keepParent "target/release/bundle/macos/$NAME.app" "$slug-$VERSION-macos-arm64.zip"
           tar -czf "verso-cli-$VERSION-macos-arm64.tar.gz" -C target/release verso
-      - name: keep the rehearsal's files
-        if: github.event_name == 'workflow_dispatch'
+      - name: keep the files for the publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: rehearsal-macos-arm64
+          name: release-macos-arm64
+          if-no-files-found: error
           path: |
             ./*-macos-arm64.zip
             ./verso-cli-*-macos-arm64.tar.gz
+
+  windows:
+    name: Verso for Windows (${{ needs.decide.outputs.tag }})
+    needs: decide
+    if: needs.decide.outputs.tag != ''
+    runs-on: windows-2025
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      # The UI's build is a POSIX script (rm, cp, mkdir): npm runs it in Git's
+      # bash, not in cmd.exe.
+      npm_config_script_shell: C:\Program Files\Git\bin\bash.exe
+    steps:
+      # Before the checkout: the runner's Git converts line endings, and the
+      # demo vault and the fixtures are about bytes (invariant 7).
+      - name: no line-ending conversion
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      # The same checks as macOS's, before any build.
+      - name: what is released
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ needs.decide.outputs.tag }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            node scripts/release.mjs verify "$TAG"
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::$TAG is not on main"
+              exit 1
+            fi
+            version="${TAG#v}"
+          else
+            version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$EVENT:$version" in
+            push:*-beta.*|workflow_dispatch:*) echo "beta=true" >> "$GITHUB_OUTPUT"; echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
+            *) echo "beta=false" >> "$GITHUB_OUTPUT"; echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: toolchain from rust-toolchain.toml
+        run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: the UI bundle
+        working-directory: app/ui
+        run: npm ci && npm run build
+      # The command line first: the installer carries it beside the app
+      # (Tauri's externalBin, named with the target), and "Add to Claude"
+      # writes its path (ADR 0069, 2026-10-08). Given at bundle time, as
+      # scripts/check-windows.sh --bundle gives it.
+      - name: the command line
+        env:
+          VERSO_APP_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          cargo build --release --locked -p verso-cli
+          mkdir -p app/src-tauri/binaries
+          cp target/release/verso.exe app/src-tauri/binaries/verso-x86_64-pc-windows-msvc.exe
+      - name: the installer
+        env:
+          BETA: ${{ steps.version.outputs.beta }}
+        run: |
+          if [ "$BETA" = true ]; then
+            conf='{"identifier":"com.versomd.app.beta","productName":"Verso Beta","bundle":{"externalBin":["binaries/verso"]}}'
+          else
+            conf='{"bundle":{"externalBin":["binaries/verso"]}}'
+          fi
+          printf '%s' "$conf" > bundle.conf.json
+          npm --prefix app/ui exec -- tauri build --bundles nsis --config bundle.conf.json
+      # Named as the updater looks for them: the OS, the architecture, the
+      # extension (app/src-tauri/src/update.rs, pick_asset).
+      - name: the release's files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          NAME: ${{ steps.version.outputs.name }}
+        run: |
+          slug="$(printf '%s' "$NAME" | tr ' ' '-')"
+          shopt -s nullglob
+          exes=(target/release/bundle/nsis/*-setup.exe)
+          if [ "${#exes[@]}" -ne 1 ]; then echo "::error::expected one installer, found: ${exes[*]}"; exit 1; fi
+          cp "${exes[0]}" "$slug-$VERSION-windows-x64-setup.exe"
+          pwsh -NoProfile -Command "Compress-Archive -Path target/release/verso.exe -DestinationPath verso-cli-$VERSION-windows-x64.zip"
+      - name: keep the files for the publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-windows-x64
+          if-no-files-found: error
+          path: |
+            ./*-windows-x64-setup.exe
+            ./verso-cli-*-windows-x64.zip
+
+  # Both platforms built: the release is published with their files. On a
+  # rehearsal nothing is published; the files stay as the run's artifacts.
+  publish:
+    name: publish ${{ needs.decide.outputs.tag }}
+    needs: [decide, macos, windows]
+    if: github.event_name == 'push' && needs.decide.outputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: files
       # A run again after a partial publish replaces the files and the notes
       # instead of failing on a release that already exists. On a push to
       # main the tag does not exist yet: creating the release creates it, on
       # the commit this run built (`--target`). A tag made with the
       # workflow's token starts no other workflow, so nothing runs twice.
       - name: publish the release
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.decide.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-          NAME: ${{ steps.version.outputs.name }}
-          BETA: ${{ steps.version.outputs.beta }}
         run: |
-          files=(./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz)
+          version="${TAG#v}"
+          case "$version" in
+            *-beta.*) name="Verso Beta"; pre=(--prerelease) ;;
+            *) name="Verso"; pre=() ;;
+          esac
+          node scripts/release.mjs notes "$version" > notes.md
+          files=(files/*)
+          if [ "${#files[@]}" -ne 4 ]; then echo "::error::expected four files, found: ${files[*]}"; exit 1; fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${files[@]}" --clobber
             gh release edit "$TAG" --notes-file notes.md
           else
-            pre=()
-            if [ "$BETA" = true ]; then pre=(--prerelease); fi
-            gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --notes-file notes.md "${pre[@]}" "${files[@]}"
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$name $version" --notes-file notes.md "${pre[@]}" "${files[@]}"
           fi

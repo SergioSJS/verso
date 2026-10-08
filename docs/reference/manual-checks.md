@@ -21,6 +21,20 @@ in the real app.
 
 ### The Windows port (feat/windows-fs)
 
+- [ ] **One agent server for all of Verso** (ADR 0054, 2026-10-08): in
+  Settings › Terminal e agentes choose "Um servidor para todo o Verso",
+  mark two folders visible, "Adicionar ao Claude Desktop", quit Verso,
+  restart Claude Desktop; in a chat ask which folders it sees and to search
+  one — it names the two, reads them, and `agents.log` in Verso's
+  configuration folder lists each call. On the Mac, with a folder in
+  Documents or iCloud: does macOS ask, and naming which app?
+- [ ] **Claude Desktop starts Verso's server on Windows** (2026-10-08): it
+  did on the Mac; on Windows the log said "no stdio servers connected".
+  Settings › Developer in Claude Desktop shows the server's state.
+- [ ] **The in-app update on Windows** (ADR 0055, 2026-10-08): from one
+  Windows beta to the next, "Atualizar" downloads the installer, runs it,
+  and the new version opens with the notes and settings as they were.
+  Never run yet: the first Windows release is the first chance.
 - [ ] **A note in OneDrive's Files On-Demand** (ADR 0043, 2026-10-08): on a
   Windows machine with OneDrive, put a folder of notes in OneDrive, right
   click it, "Free up space"; open it in Verso — the notes are listed, the

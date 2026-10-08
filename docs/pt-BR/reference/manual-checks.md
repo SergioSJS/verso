@@ -20,6 +20,21 @@ app real.
 
 ### O porte para Windows (feat/windows-fs)
 
+- [ ] **Um servidor de agentes para todo o Verso** (ADR 0054, 2026-10-08):
+  em Ajustes › Terminal e agentes escolha "Um servidor para todo o Verso",
+  marque duas pastas como visíveis, "Adicionar ao Claude Desktop", feche o
+  Verso, reinicie o Claude Desktop; num chat pergunte quais pastas ele vê e
+  peça uma busca numa delas — ele nomeia as duas, as lê, e o `agents.log`
+  na pasta de configuração do Verso lista cada chamada. No Mac, com uma
+  pasta em Documentos ou no iCloud: o macOS pergunta, e nomeando qual app?
+- [ ] **O Claude Desktop inicia o servidor do Verso no Windows**
+  (2026-10-08): no Mac iniciou; no Windows o log disse "no stdio servers
+  connected". Ajustes › Desenvolvedor no Claude Desktop mostra o estado do
+  servidor.
+- [ ] **A atualização pelo app no Windows** (ADR 0055, 2026-10-08): de um
+  beta de Windows para o seguinte, "Atualizar" baixa o instalador, roda-o,
+  e a versão nova abre com as notas e os ajustes como estavam. Nunca
+  rodada: a primeira versão de Windows é a primeira chance.
 - [ ] **Uma nota nos Arquivos Sob Demanda do OneDrive** (ADR 0043,
   2026-10-08): numa máquina Windows com OneDrive, ponha uma pasta de notas
   no OneDrive, botão direito nela, "Liberar espaço"; abra-a no Verso — as

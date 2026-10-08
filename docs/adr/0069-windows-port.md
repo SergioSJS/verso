@@ -149,7 +149,11 @@ refuses to rename a folder while any file in it is open.
    that builds the installer, in the pull request that lands the atomic
    write of item 9 — before it the tests fail on Windows (Context). Pull
    requests stay on Linux. A Windows minute costs about 1.7 times a Linux
-   one.
+   one. *Done on 2026-10-08:* `ci.yml` runs clippy and the tests on
+   `windows-2025` after a merge; `release.yml` builds the installer
+   (`Verso[-Beta]-X.Y.Z-windows-x64-setup.exe`, named as the updater looks
+   for it) and `verso-cli-X.Y.Z-windows-x64.zip`, the UI built in Git's
+   bash, and publishes them with macOS's files.
 7. **The real app tested by machine on Windows, through the end-to-end
    suite the repository already has** (proposed, its own pull request).
    WebView2 is Chromium: started with

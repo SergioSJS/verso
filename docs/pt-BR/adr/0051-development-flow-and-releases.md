@@ -83,7 +83,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
    produção com os próprios ajustes da janela, e a linha de comando dele o
    abre; o índice, um cache que se refaz, é compartilhado. Windows, depois
    Linux, entram quando os portes chegarem
-   ([0022](0022-target-platforms-macos-first.md)).
+   ([0022](0022-target-platforms-macos-first.md)). *(Desde 2026-10-08,
+   [0069](0069-windows-port.md) item 6: um job de Windows gera o instalador
+   NSIS e a linha de comando ao lado do job de macOS, e um job curto de
+   Linux publica a release quando os dois terminam — uma versão é publicada
+   inteira ou não é.)*
 7. **O app diz qual ele é**: a versão e o commit de onde foi compilado, nos
    ajustes e no painel Sobre do macOS, e pelo `verso --version`.
 
