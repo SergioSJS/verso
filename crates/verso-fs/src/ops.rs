@@ -123,7 +123,7 @@ fn place(
             if occupied(to).map_err(WriteError::Io)? {
                 return Err(WriteError::Exists);
             }
-            std::fs::rename(from, to).map_err(WriteError::Io)?;
+            crate::os::rename(from, to).map_err(WriteError::Io)?;
             Ok(Placed::Renamed)
         }
         Err(e) => Err(WriteError::Io(e)),
@@ -312,7 +312,7 @@ pub(crate) fn rename_path(from: &Path, to: &Path) -> Result<OpReport, WriteError
         if !(same_inode && from_dir == to_dir) {
             return Err(WriteError::Exists);
         }
-        std::fs::rename(from, to).map_err(WriteError::Io)?;
+        crate::os::rename(from, to).map_err(WriteError::Io)?;
         let (Some(old_name), Some(new_name)) = (from.file_name(), to.file_name()) else {
             return Err(WriteError::Exists);
         };

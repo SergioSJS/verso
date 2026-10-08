@@ -239,8 +239,10 @@ impl Root {
 
     /// What [`Root::handle`] checks, without keeping a handle: the confined
     /// form of a path relative to the root — `.` dropped, `//` collapsed —
-    /// or why it is refused. Nothing on disk is checked and nothing is
-    /// remembered, so a caller that only needs to key the index by a path
+    /// or why it is refused. Nothing is remembered and nothing on disk is
+    /// checked — but on Windows a name of the 8.3 shape, looked up in its
+    /// folder so that a short name cannot stand for a hidden or ignored
+    /// entry ([`ConfinementError::ShortName`]) —, so a caller that only needs to key the index by a path
     /// asks here, and keys by the answer, never by the string it was
     /// given: `./Taverna.md`, `Taverna//x/../Taverna.md` and `Taverna.md`
     /// are refused or become one name.
@@ -260,6 +262,8 @@ impl Root {
         if self.is_ignored(&relative) {
             return Err(ConfinementError::Ignored);
         }
+        #[cfg(windows)]
+        confine::short_name(&self.path, &relative)?;
         Ok(relative)
     }
 
