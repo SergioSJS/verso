@@ -798,15 +798,21 @@ Raised while writing this spec. All of them need an answer before
   with `lines` (section 4.3) saying which block. `pos` stays the `^`, as
   section 4.3 asks, whichever block the id names. Unchanged: in a list item
   the `^id` is looked for in the item's own text, up to its first block
-  child (section 5.9) — in a loose item, that text is its first paragraph,
-  and the id names the item whole, as in a tight one.
+  child (section 5.9).
 
-  Two facts of the implementation, recorded on 2026-10-07 after the
-  reviewer's reading; they decide nothing. "The block before it" is the one
-  at the same depth: inside a quote or a list item, the block before it in
-  that quote or item; with nothing before it, the `^id` line names itself. A
-  `^word` that is no id (a dot in it, say) is a paragraph like any other, and
-  a `^id` alone after it names that paragraph.
+  **Provisional facts of the implementation, 2026-10-07, after the
+  reviewer's reading — not an answer to this question, not observed in
+  Obsidian, and `[OPEN]` for the maintainer to decide.** (1) In a loose
+  item (a blank line between its first paragraph and its nested list), the
+  first paragraph is taken as the item's own text, and a `^id` ending it
+  names the item whole, as in a tight item; a code block, a quote or a
+  heading first in the item names only itself. (2) "The block before it"
+  is the one at the same depth: inside a quote or a list item, the block
+  before it in that quote or item; with nothing before it, the `^id` line
+  names itself. (3) A `^word` that is no id (a dot in it, say) is a
+  paragraph like any other, and a `^id` alone after it names that
+  paragraph. No fixture records these until the maintainer decides (rule
+  17); the parser's unit tests pin them meanwhile.
 - **Q4. Uniqueness scope of the `^id`.** `DECIDED` on 2026-10-07 by the
   maintainer.
   Unique per note: a link names the note and the id (`[[nota#^id]]`). With
@@ -814,8 +820,9 @@ Raised while writing this spec. All of them need an answer before
   does (observed through the Obsidian CLI on 2026-10-07: its cache keeps the
   second), and Verso says the id is repeated. The parser reports both, in
   document order (`fixtures/block/duplicate`), and so do the index and the
-  MCP's `read_note`; the rule of the last is the window's — an embed, a link
-  to the block — and a client of the MCP applies it the same way.
+  MCP's `read_note`, whose description says nothing of the rule; the rule
+  of the last is applied by the window — an embed, a link to the block —
+  and left to a client of the MCP.
 - **Q5. Callout coverage.** `DECIDED` for the reading view's kinds, fold and
   title on 2026-09-23; `[OPEN]` for nesting.
   Recognized kinds, `-`/`+`, nesting (section 5.8).

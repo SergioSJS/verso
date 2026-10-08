@@ -672,6 +672,15 @@ mod tasks {
         assert_eq!(to_html("Texto\n^id\n"), "<p>Texto</p>\n");
         // One in the middle is the text's own.
         assert_eq!(to_html("Um  \ndois ^id\n"), "<p>Um<br />\ndois </p>\n");
+        // A tight list item has no paragraph: the same there.
+        assert_eq!(
+            to_html("- Texto  \n  ^id\n- dois\n"),
+            "<ul>\n<li>Texto</li>\n<li>dois</li>\n</ul>\n"
+        );
+        assert_eq!(
+            to_html("- a\n  - b\n  ^x\n"),
+            "<ul>\n<li>a\n<ul>\n<li>b</li>\n</ul>\n</li>\n</ul>\n"
+        );
     }
 
     #[test]

@@ -32,8 +32,15 @@ test("a block at the margin, or a blank line in it, is left as it is", () => {
   assert.equal(dedent([]), "");
 });
 
-test("a line indented less than the first keeps what it has", () => {
+test("a line indented less than the first loses all of its indent", () => {
   assert.equal(dedent(["\t\t- neto ^n", "\t- fora"]), "- neto ^n\n- fora");
+});
+
+test("tabs and spaces are measured in columns, as the parser reads them", () => {
+  // Two spaces, then a tab: the tab reaches column 4, two more than the
+  // parent's indent, so the child stays a child.
+  assert.equal(dedent(["  - b ^b", "\t- c"]), "- b ^b\n  - c");
+  assert.equal(dedent(["\t- b ^b", "      - c"]), "- b ^b\n  - c");
 });
 
 test("the id of an embed's target", () => {
