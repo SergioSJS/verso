@@ -6,6 +6,11 @@
 //! `verso-app --export-bindings [FILE]` writes the TypeScript bindings and
 //! exits.
 
+// A window app on Windows, not a console one: without it, every launch of
+// the installed app opened a terminal beside the window (seen 2026-10-08).
+// Debug builds keep the console, for the messages a developer reads.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 
