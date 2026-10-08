@@ -52,6 +52,13 @@
   2026-10-07 — um limite de tamanho de arquivo de código, 1500 linhas,
   acrescentado como guardrail de workspace a pedido do mantenedor
   ([0067](0067-source-files-stay-small.md)).
+  2026-10-08 — o porte para Windows ([0069](0069-windows-port.md)): um
+  terceiro script local, `scripts/check-windows.sh`, roda o clippy e os
+  testes numa máquina Windows por SSH, obrigatório quando o diff toca código
+  de plataforma; os testes de ponta a ponta da janela rodam no Chromium ao
+  lado do WebKit; a lista de `std::fs` nomeia as chamadas de symlink do
+  Windows, e as entradas de cada sistema levam `allow-invalid` onde o outro
+  sistema não as resolve.
 
 ## Contexto
 
@@ -156,10 +163,17 @@ CI confirma, não é onde uma falha aparece primeiro:
   container Linux, como usuário comum, sobre uma cópia das fontes e volumes
   nomeados. A primeira execução real dele achou o bundle da UI faltando antes
   de o shell compilar, o que o CI teria encontrado em seguida (`22d1aa1`).
+- `scripts/check-windows.sh` — clippy e os testes numa máquina Windows
+  alcançada por SSH como `verso-win`, sobre uma cópia byte a byte da árvore
+  de trabalho ([0069](0069-windows-port.md), revisão de 2026-10-08). A
+  primeira execução dele achou o workspace sem compilar no Windows: o `xattr`
+  era dependência do `verso-fs` em todo sistema, e o `verso-fs` para o build
+  de propósito onde só existe a metade Unix da sua identidade de diretório.
 
 O macOS não roda num container e o Windows não roda no Docker num Mac ou num
-Linux: o próprio Mac é a checagem de macOS, e o Windows ganha aqui uma checagem
-do build e no CI os testes quando o porte dele chegar. Os scripts seguem o
+Linux: o próprio Mac é a checagem de macOS, e o Windows é checado numa máquina
+Windows de verdade antes de um push e, a partir da escrita atômica do porte,
+no CI. Os scripts seguem o
 workflow à mão; mudar um é mudar os outros.
 
 ### Requisitos da escrita atômica

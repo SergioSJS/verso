@@ -23,17 +23,19 @@ de UI: `./target/debug/verso help`.
 
 ## Testar localmente, antes do push
 
-O CI confirma; ele não deve ser onde uma falha aparece primeiro. Dois scripts
+O CI confirma; ele não deve ser onde uma falha aparece primeiro. Três scripts
 rodam os guardrails do CI ([ADR 0029](adr/0029-guardrails-in-ci.md)) na sua
 máquina:
 
 | Script | Roda | Precisa de |
 |---|---|---|
-| `scripts/check.sh` | todo guardrail do job de Linux do CI, nativo — num Mac, é a checagem de macOS; e, o que o CI não roda, os testes de ponta a ponta da janela no WebKit sobre o harness do navegador ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)) | o toolchain, o Node 22, `cargo install cargo-deny --locked`; o WebKit do Playwright, baixado na primeira execução |
+| `scripts/check.sh` | todo guardrail do job de Linux do CI, nativo — num Mac, é a checagem de macOS; e, o que o CI não roda, os testes de ponta a ponta da janela sobre o harness do navegador ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)), no WebKit e no Chromium, os motores dos apps de macOS e de Windows ([ADR 0069](adr/0069-windows-port.md)) | o toolchain, o Node 22, `cargo install cargo-deny --locked`; o WebKit e o Chromium do Playwright, baixados na primeira execução |
 | `scripts/check-linux.sh` | fmt, clippy, os testes e os bindings gerados num container Linux, como usuário comum | Docker; o bundle da UI que o primeiro script gera |
+| `scripts/check-windows.sh` | clippy e os testes numa máquina Windows por SSH; `--bundle` gera também o instalador NSIS ([ADR 0069](adr/0069-windows-port.md)). Obrigatório quando o diff toca código de plataforma (`verso-fs`, `app/src-tauri`, caminhos de configuração, `cfg(windows)`), opcional nos outros casos | um host SSH chamado `verso-win` com o toolchain (o cabeçalho do script lista); o bundle da UI que o primeiro script gera |
 
 ```
 scripts/check.sh && scripts/check-linux.sh
+scripts/check-windows.sh   # quando o diff toca código de plataforma
 ```
 
 A primeira execução de Linux baixa uma imagem, um toolchain e as
@@ -43,10 +45,12 @@ cobre:
 - **macOS num container** não existe: o Docker roda Linux. Num Mac, o
   `scripts/check.sh` é a checagem de macOS; o CI repete clippy e os testes no
   macOS depois de cada merge no `main`.
-- **Windows**: o Docker num Mac ou num Linux não roda Windows, e o Verso ainda
-  não compila para Windows. Com o porte para Windows
-  ([ADR 0022](adr/0022-target-platforms-macos-first.md)), uma checagem do
-  build de Windows entra nesses scripts, e os testes rodam em Windows no CI.
+- **Windows**: o Docker num Mac ou num Linux não roda Windows, então o
+  `scripts/check-windows.sh` alcança uma máquina Windows de verdade por SSH
+  ([ADR 0069](adr/0069-windows-port.md)). O porte está em andamento: até o
+  `verso-fs` ter a sua metade de Windows, o workspace não compila lá, e o
+  script diz isso. O CI ganha um job de Windows com a escrita atômica do
+  porte.
 - **O fuzzing e o benchmark**, que o CI roda no `main`:
   `cargo +nightly fuzz run parse` em `crates/verso-dialect`, e
   `cargo run --release -p verso-bench -- --help`.
