@@ -164,6 +164,13 @@ impl Index {
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
         self.conn.execute_batch("BEGIN IMMEDIATE")?;
+        // A clock set back (a restored virtual machine, a clock corrected
+        // by the network) leaves rows vouched for "in the future": they
+        // are read again rather than trusted.
+        self.conn.execute(
+            "UPDATE notes SET indexed_at = 0 WHERE indexed_at > ?1",
+            [now],
+        )?;
         self.run = Some(0);
         self.run_started = Some(now);
         Ok(())
