@@ -802,15 +802,22 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   qual bloco. `pos` continua sendo o `^`, como a seção 4.3 pede, seja qual
   for o bloco que o id nomeia. Sem mudança: num item de lista o `^id` é
   procurado no texto próprio do item, até o primeiro filho de bloco (seção
-  5.9) — num item solto (loose), esse texto é o primeiro parágrafo dele, e o
-  id nomeia o item inteiro, como num item compacto.
+  5.9).
 
-  Dois fatos da implementação, registrados em 2026-10-07 depois da leitura
-  do revisor; não decidem nada. "O bloco de antes" é o da mesma
-  profundidade: dentro de uma citação ou de um item de lista, o bloco de
-  antes naquela citação ou item; sem nada antes, a linha do `^id` nomeia a
-  si mesma. Um `^palavra` que não é id (com um ponto, digamos) é um parágrafo
-  como outro qualquer, e um `^id` sozinho depois dele nomeia esse parágrafo.
+  **Fatos provisórios da implementação, 2026-10-07, depois da leitura do
+  revisor — não são resposta a esta questão, não foram observados no
+  Obsidian, e ficam `[ABERTO]` para o mantenedor decidir.** (1) Num item
+  solto (uma linha em branco entre o primeiro parágrafo e a lista aninhada),
+  o primeiro parágrafo é tomado como o texto próprio do item, e um `^id` no
+  fim dele nomeia o item inteiro, como num item compacto; um bloco de
+  código, uma citação ou um heading em primeiro no item nomeia só a si. (2)
+  "O bloco de antes" é o da mesma profundidade: dentro de uma citação ou de
+  um item de lista, o bloco de antes naquela citação ou item; sem nada
+  antes, a linha do `^id` nomeia a si mesma. (3) Um `^palavra` que não é id
+  (com um ponto, digamos) é um parágrafo como outro qualquer, e um `^id`
+  sozinho depois dele nomeia esse parágrafo. Nenhuma fixture registra isso
+  até o mantenedor decidir (regra 17); os testes unitários do parser
+  fixam isso enquanto isso.
 - **Q4. Escopo de unicidade do `^id`.** `DECIDIDO` em 2026-10-07 pelo
   mantenedor.
   Único por nota: um link nomeia a nota e o id (`[[nota#^id]]`). Com o mesmo
@@ -818,8 +825,9 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   (observado pelo CLI do Obsidian em 2026-10-07: o cache dele guarda o
   segundo), e o Verso diz que o id está repetido. O parser reporta os dois, em
   ordem do documento (`fixtures/block/duplicate`), e o índice e o `read_note`
-  do MCP também; a regra do último é da janela — um embed, um link para o
-  bloco — e um cliente do MCP a aplica do mesmo jeito.
+  do MCP também, cuja descrição nada diz da regra; a regra do último é
+  aplicada pela janela — um embed, um link para o bloco — e fica a cargo de
+  um cliente do MCP.
 - **Q5. Cobertura de callout.** `DECIDIDA` para os tipos, a dobra e o título na
   visualização de leitura em 2026-09-23; `[ABERTO]` para o aninhamento.
   Tipos reconhecidos, `-`/`+`, aninhamento (seção 5.8).

@@ -32,21 +32,23 @@ pub(crate) fn hide<'a>(
     ids.sort_by_key(|i| i.start);
     let mut out: Vec<Offset<'a>> = Vec::with_capacity(events.len());
     let mut context = Context::default();
-    // Where the open paragraph starts in the output, and whether an id was
-    // cut from it.
-    let mut paragraph: Option<(usize, bool)> = None;
+    // The open paragraphs and list items, innermost last: where each
+    // starts in the output, and whether an id was cut from it. A tight
+    // item holds its text with no paragraph around it.
+    let mut open: Vec<(usize, bool)> = Vec::new();
     for (event, range) in events {
         context.enter(&event);
         match &event {
-            Event::Start(Tag::Paragraph) => paragraph = Some((out.len(), false)),
-            Event::End(TagEnd::Paragraph) => {
-                if let Some((at, true)) = paragraph.take() {
+            Event::Start(Tag::Paragraph | Tag::Item) => open.push((out.len(), false)),
+            Event::End(end @ (TagEnd::Paragraph | TagEnd::Item)) => {
+                if let Some((at, true)) = open.pop() {
                     // `Texto  ⏎ ^id`: the break before the cut id would show
                     // as an empty line; it goes, and so does any blank left.
                     while out.len() > at + 1 && out.last().is_some_and(|(e, _)| trailing(e)) {
                         out.pop();
                     }
-                    if out.len() == at + 1 {
+                    // A paragraph left empty goes whole; an item stays, empty.
+                    if out.len() == at + 1 && *end == TagEnd::Paragraph {
                         out.truncate(at);
                         continue;
                     }
@@ -78,7 +80,7 @@ pub(crate) fn hide<'a>(
                     kept - range.start,
                     range.end - range.start,
                 ));
-                if let Some((_, cut)) = paragraph.as_mut() {
+                if let Some((_, cut)) = open.last_mut() {
                     *cut = true;
                 }
                 continue;

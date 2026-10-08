@@ -6,6 +6,7 @@
 //! (ADR 0037), recognizing the constructs of spec §5 and recording where each
 //! one is.
 
+use std::collections::HashMap;
 use std::ops::Range;
 
 use pulldown_cmark::{
@@ -48,15 +49,18 @@ pub fn parse(source: &str) -> Document {
     // Q3, as Obsidian does; 2026-10-07). One entry per level, the top level
     // always there.
     let mut last_at: Vec<Option<Range<usize>>> = vec![None];
-    // The list items open now: where each starts, and where its first block
-    // child starts (a loose item's first paragraph, a tight item's nested
-    // list) once one has.
-    let mut open_items: Vec<(usize, Option<usize>)> = Vec::new();
-    // Every list item closed: its whole range and its first block child's
-    // start. A `^id` ending an item's own text — tight, the item's own
-    // line; loose, its first paragraph — names the item with its nested
-    // items (spec Q21).
-    let mut item_ranges: Vec<(Range<usize>, Option<usize>)> = Vec::new();
+    // The list items open now: where each starts, and its first block
+    // child once one has been seen — `Some(Some(start))` when that child is
+    // a paragraph (a loose item's own text), `Some(None)` when it is
+    // anything else (a code block, a quote, a heading, a nested list, a
+    // thematic break), which widens nothing.
+    let mut open_items: Vec<(usize, Option<Option<usize>>)> = Vec::new();
+    // Every list item closed, by its first byte and by its first
+    // paragraph's: a `^id` ending an item's own text — tight, the item's
+    // own line; loose, its first paragraph — names the item with its
+    // nested items (spec Q21). An inner item closes first and keeps its
+    // key: `or_insert`, never an overwrite.
+    let mut items_by_start: HashMap<usize, Range<usize>> = HashMap::new();
 
     for (event, range) in Parser::new_ext(source, options).into_offset_iter() {
         // The own text of a list item closes when its first block child
@@ -71,14 +75,27 @@ pub fn parse(source: &str) -> Document {
         match &event {
             Event::Start(Tag::Item) => open_items.push((range.start, None)),
             Event::End(TagEnd::Item) => {
-                let first_child = open_items.pop().and_then(|(_, first)| first);
-                item_ranges.push((range.clone(), first_child));
+                let first_paragraph = open_items.pop().and_then(|(_, first)| first.flatten());
+                items_by_start
+                    .entry(first_byte(source, &range))
+                    .or_insert_with(|| range.clone());
+                if let Some(paragraph) = first_paragraph {
+                    items_by_start
+                        .entry(paragraph)
+                        .or_insert_with(|| range.clone());
+                }
             }
-            // The first block inside the open item: a paragraph, a nested
-            // list, a quote, a code block — any block tag but the item's own.
+            // The first block inside the open item: any block tag but the
+            // item's own, and a thematic break, which the base reports as an
+            // event of its own (see `is_inline`).
             Event::Start(tag) if !is_inline(tag) => {
                 if let Some((_, first @ None)) = open_items.last_mut() {
-                    *first = Some(range.start);
+                    *first = Some(matches!(tag, Tag::Paragraph).then_some(range.start));
+                }
+            }
+            Event::Rule => {
+                if let Some((_, first @ None)) = open_items.last_mut() {
+                    *first = Some(None);
                 }
             }
             _ => {}
@@ -212,11 +229,7 @@ pub fn parse(source: &str) -> Document {
     // items with it (spec Q21): the item that starts where that text does
     // (tight), or whose first paragraph it is (loose).
     for block in &mut document.blocks {
-        let start = block.block.start;
-        if let Some((item, _)) = item_ranges.iter().find(|(r, first)| {
-            first_byte(source, r) == start
-                || first.is_some_and(|f| first_byte(source, &(f..r.end)) == start)
-        }) {
+        if let Some(item) = items_by_start.get(&block.block.start) {
             block.block = block_span(source, &(item.start..block.block.end.max(item.end)));
             block.lines = lines_of(source, &lines, block.block.start, block.block.end);
         }
@@ -446,13 +459,16 @@ fn block_id(
     })
 }
 
-/// The span of a block, its first byte on its first line: the base starts
-/// a nested list — and the item in it — at the line break before it, which
-/// is the line above.
+/// The span of a block, from its first byte on its first line to its last
+/// byte of text: the base starts a nested list — and the item in it — at
+/// the line break before it, which is the line above, and ends it after
+/// the indentation of the line that follows.
 fn block_span(source: &str, range: &Range<usize>) -> Span {
+    let start = first_byte(source, range);
+    let text = source.get(start..range.end).unwrap_or("");
     Span {
-        start: first_byte(source, range),
-        end: range.end,
+        start,
+        end: start + text.trim_end().len(),
     }
 }
 
@@ -463,15 +479,13 @@ fn first_byte(source: &str, range: &Range<usize>) -> usize {
 }
 
 /// The first and last line (1-based) of the bytes `start..end`, a line
-/// break before the first byte or after the last not counting as a line
-/// of its own.
+/// break before the first byte, or blanks and breaks after the last,
+/// not counting as a line of their own.
 fn lines_of(source: &str, lines: &LineIndex, start: usize, end: usize) -> (u32, u32) {
-    let start = first_byte(source, &(start..end));
-    let text = source.get(start..end).unwrap_or("");
-    let last = start + text.trim_end_matches(['\n', '\r']).len();
+    let span = block_span(source, &(start..end));
     (
-        lines.pos(source, start).line,
-        lines.pos(source, last.max(start)).line,
+        lines.pos(source, span.start).line,
+        lines.pos(source, span.end.max(span.start)).line,
     )
 }
 
@@ -575,6 +589,49 @@ mod tests {
         assert_eq!(
             lines("- um\n\n  segundo ^p\n\n  - filho\n"),
             [("p".into(), (3, 3))]
+        );
+    }
+
+    #[test]
+    fn only_an_items_first_paragraph_widens_to_the_item() {
+        // A code block, a quote or a heading first in the item: the id
+        // names that block (Q3), never the item.
+        assert_eq!(
+            lines("- ```\n  code\n  ```\n\n  ^c\n\n  - child\n- next\n"),
+            [("c".into(), (1, 3))]
+        );
+        assert_eq!(
+            lines("- > q\n\n  ^q\n\n  - child\n- next\n"),
+            [("q".into(), (1, 1))]
+        );
+        assert_eq!(
+            lines("- ## H ^h\n  - child\n- next\n"),
+            [("h".into(), (1, 1))]
+        );
+        // A thematic break first: the paragraph after it is not the first
+        // child, so it stays its own block.
+        assert_eq!(
+            lines("- * * *\n\n  text ^x\n\n  - child\n- next\n"),
+            [("x".into(), (3, 3))]
+        );
+    }
+
+    #[test]
+    fn a_nested_list_named_from_below_ends_on_its_last_item() {
+        // The base ends a nested list after the indentation of the next
+        // line; the block ends with its text.
+        assert_eq!(
+            lines("- a\n\n  - b\n  - c\n\n  ^l\n"),
+            [("l".into(), (3, 4))]
+        );
+        let doc = super::parse("- a\n\n  - b\n  - c\n\n  ^l\n");
+        assert_eq!(
+            &"- a\n\n  - b\n  - c\n\n  ^l\n"[doc.blocks[0].block.start..doc.blocks[0].block.end],
+            "- b\n  - c"
+        );
+        assert_eq!(
+            lines("- a\n\n  - b ^b\n\n  ^l\n"),
+            [("b".into(), (3, 3)), ("l".into(), (3, 3))]
         );
     }
 

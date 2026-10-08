@@ -26,15 +26,38 @@ export async function embeddedHtml(target: string, note: NoteText): Promise<stri
 /** The block's lines as one text, the indent of its first line taken off
  *  every line: a nested item keeps its own nesting and loses the depth it
  *  had in the note, which on its own — a tab, four spaces — reads as an
- *  indented code block. A line indented less keeps what it has. */
+ *  indented code block. Measured in columns, a tab reaching the next
+ *  multiple of four as the parser reads it, so a child indented with a tab
+ *  under a parent indented with spaces stays a child. A line indented less
+ *  than the first loses all of its indent. */
 export function dedent(lines: string[]): string {
-  const indent = /^[ \t]*/.exec(lines[0] ?? "")?.[0] ?? "";
-  if (!indent) return lines.join("\n");
+  const width = columns(lines[0] ?? "");
+  if (width === 0) return lines.join("\n");
   return lines
     .map((line) => {
-      if (line.startsWith(indent)) return line.slice(indent.length);
-      const own = /^[ \t]*/.exec(line)?.[0] ?? "";
-      return line.slice(Math.min(own.length, indent.length));
+      // Leading blanks up to `width` columns go; a tab reaching past it
+      // leaves the columns it overshoots by, as spaces.
+      let col = 0;
+      let i = 0;
+      while (i < line.length && col < width) {
+        const ch = line[i];
+        if (ch === " ") col++;
+        else if (ch === "\t") col += 4 - (col % 4);
+        else break;
+        i++;
+      }
+      return " ".repeat(Math.max(0, col - width)) + line.slice(i);
     })
     .join("\n");
+}
+
+/** The columns the leading blanks of `line` span. */
+function columns(line: string): number {
+  let col = 0;
+  for (const ch of line) {
+    if (ch === " ") col++;
+    else if (ch === "\t") col += 4 - (col % 4);
+    else break;
+  }
+  return col;
 }
