@@ -166,13 +166,23 @@ pub(crate) fn uninstall_cli() -> Result<CliState, ContractError> {
     Ok(cli_state_now())
 }
 
-/// Claude Desktop's configuration folder.
+/// Claude Desktop's configuration folder: `%APPDATA%\Claude` on Windows
+/// (Anthropic's MCP guide; HOME is usually unset there, so the folder was
+/// never found — ADR 0069), `~/Library/Application Support/Claude` on
+/// macOS, `~/.config/Claude` elsewhere.
 fn claude_dir() -> Option<PathBuf> {
-    let home = PathBuf::from(std::env::var_os("HOME").filter(|h| !h.is_empty())?);
-    #[cfg(target_os = "macos")]
-    return Some(home.join("Library/Application Support/Claude"));
-    #[cfg(not(target_os = "macos"))]
-    return Some(home.join(".config/Claude"));
+    #[cfg(windows)]
+    return Some(
+        PathBuf::from(std::env::var_os("APPDATA").filter(|v| !v.is_empty())?).join("Claude"),
+    );
+    #[cfg(not(windows))]
+    {
+        let home = PathBuf::from(std::env::var_os("HOME").filter(|h| !h.is_empty())?);
+        #[cfg(target_os = "macos")]
+        return Some(home.join("Library/Application Support/Claude"));
+        #[cfg(not(target_os = "macos"))]
+        return Some(home.join(".config/Claude"));
+    }
 }
 
 fn client_state(e: verso_core::clients::Entry) -> McpClientState {

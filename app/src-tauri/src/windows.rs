@@ -5,11 +5,14 @@ use super::*;
 
 static POPOUTS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
+// Async: a window or web view made inside a synchronous command blanks or
+// deadlocks on Windows (Tauri's docs, wry#583) — "New window" showed a white
+// window there (ADR 0069). An async command runs off the main thread.
 /// A note in a window of its own: the same UI, which asks which note
 /// by its window's label.
 #[tauri::command]
 #[specta::specta]
-pub(crate) fn open_window<R: tauri::Runtime>(
+pub(crate) async fn open_window<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
     state: State<'_, App>,
@@ -54,7 +57,7 @@ static WINDOWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new
 /// no folder, to open one of its own.
 #[tauri::command]
 #[specta::specta]
-pub(crate) fn new_window<R: tauri::Runtime>(
+pub(crate) async fn new_window<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
     state: State<'_, App>,
