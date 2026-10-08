@@ -29,7 +29,7 @@
 | `File::open(dir)?.sync_all()` | Windows refuses to open a directory that way | `os::sync_dir` (write access + `FILE_FLAG_BACKUP_SEMANTICS`) |
 | `std::fs::rename` once | an antivirus or the indexer holding the file fails it | `os::rename` (retries for ~2.5 s; a read-only target fails at once) |
 | retrying a write's rename without looking again | the program that held the note could save it meanwhile: its save replaced, no diff | `os::rename_unless_changed`, re-checking the stamp before each try (invariant 11) |
-| one SQLite commit per item (`synchronous = FULL`) | each commit a real `FlushFileBuffers`: a first index of 5,000 notes took 228 s on Windows, 3 s on macOS | one transaction per run, savepoints inside; WAL with `synchronous = NORMAL` for a cache — 9 s |
+| one SQLite commit per item (`synchronous = FULL`) | each commit a real `FlushFileBuffers`: a first index of 5,000 notes took 228 s on Windows, 3 s on macOS | transactions of a few hundred changes per run (`BEGIN IMMEDIATE`, savepoints inside, committed even on a panic), a `busy_timeout` for the other processes; WAL with `synchronous = NORMAL` for a cache — 9 s |
 | renaming a folder while a file in it is open | "Access is denied" | close files first; in tests, `Kept` (a closed `TempPath`) rather than `NamedTempFile` |
 | `std::os::unix::fs::MetadataExt` (`dev`, `ino`, `nlink`, `uid`) | did not compile | `os::file_id`, `os::link_count`, `os::same_owner` |
 | a `compile_error!` for "not Unix" | the whole workspace stopped | a Windows half in `verso-fs/src/os.rs` |
