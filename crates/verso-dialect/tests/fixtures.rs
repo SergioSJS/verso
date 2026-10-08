@@ -50,7 +50,6 @@ fixture_tests! {
     block_after_a_block => "block/after-a-block",
     block_heading => "block/heading",
     block_duplicate => "block/duplicate",
-    // AI drafts of 2026-10-07 (Fable 5.1), awaiting approval (first line of each expected.yaml).
     block_in_list => "block/in-list",
     block_in_quote => "block/in-quote",
     block_alone_top => "block/alone-top",

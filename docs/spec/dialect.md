@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.31
+# Verso dialect spec — v0.32
 
-- Version: v0.31 · 2026-10-07
+- Version: v0.32 · 2026-10-07
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -781,12 +781,12 @@ Raised while writing this spec. All of them need an answer before
   links `resolvedLinks` counts from the sandbox note to `Alvo.md` include the
   embed `![[Alvo]]`. The maintainer decides; this line only records what the
   code does in the meantime.
-- **Q3. Admissible position of the `^id`.** `DECIDED` for the end of a
-  paragraph and of a list item (2026-09-21), for a `^id` alone after a
-  top-level block and at the end of a heading (2026-10-07); `[OPEN]` for a
-  `^id` inside a list item or a quote, and for one alone with nothing
-  before it — observed in Obsidian on 2026-10-07, three fixtures drafted,
-  awaiting the maintainer's approval.
+- **Q3. Admissible position of the `^id`.** `DECIDED`: for the end of a
+  paragraph and of a list item on 2026-09-21; for a `^id` alone after a
+  top-level block and at the end of a heading on 2026-10-07; for a `^id`
+  inside a list item or a quote, and for one alone with nothing before it,
+  on 2026-10-07 as well, with the fixtures `fixtures/block/in-list`,
+  `fixtures/block/in-quote` and `fixtures/block/alone-top` as the answer.
   Closed for those two on 2026-09-21 by the maintainer, with the fixtures
   `fixtures/block/definition` and `fixtures/block/list-item` as the answer
   (ADR 0031): a `^id` as the last word of a paragraph and a `^id` as the last
@@ -804,9 +804,9 @@ Raised while writing this spec. All of them need an answer before
   the `^id` is looked for in the item's own text, up to its first block
   child (section 5.7).
 
-  **Observed in Obsidian 1.14.4 on 2026-10-07 through its CLI (public
-  API only, ADR 0009), after the reviewer's reading; implemented and
-  drafted as fixtures, `[OPEN]` until the maintainer approves them.** The
+  **Decided on 2026-10-07 by the maintainer for the rest, as observed in
+  Obsidian 1.14.4 the same day through its CLI (public API only, ADR 0009),
+  with the three fixtures below approved in session ("Aprovado").** The
   block a `^id` names is the top-level section its line is in, except in a
   list, where it is the innermost list item: (1) inside a quote or a
   callout — the id at the end of a quoted line, alone after a blank quoted
@@ -1285,3 +1285,4 @@ the parser was chosen.
 | v0.29 | 2026-10-07 | The fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` and `fixtures/block/duplicate` **approved by the maintainer** in session ("tao aprovados"), after checking the blocks in the app; their draft mark removed. Nothing else changes. |
 | v0.30 | 2026-10-07 | After the reviewer's reading of the block feature (PR #37): Q3 gains four **provisional facts of the implementation**, `[OPEN]` for the maintainer — a loose item named whole by its first paragraph, "the block before it" at the same depth, a non-id `^word` as a plain paragraph, and the `^id` line inside the item it names — with its status line saying what is decided and what is open; Q4 says where the rule of the last id is stated (the `read_note` answer schema) and applied (the window). No fixture until the maintainer decides. |
 | v0.31 | 2026-10-07 | Q3's open part **observed in Obsidian through its CLI** (28 inputs): the block is the top-level section, or the innermost list item; alone with nothing before it, no block. Implemented; three fixtures drafted (`block/in-list`, `block/in-quote`, `block/alone-top`), awaiting the maintainer's approval; the provisional facts of v0.30 replaced by the observation. The "Unchanged:" sentence of Q3 cites section 5.7, where the own-text rule lives. |
+| v0.32 | 2026-10-07 | The fixtures `fixtures/block/in-list`, `fixtures/block/in-quote` and `fixtures/block/alone-top` **approved by the maintainer** in session ("Aprovado"); their draft mark removed. **Q3 is closed in full.** Nothing else changes. |
