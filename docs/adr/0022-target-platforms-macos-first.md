@@ -5,7 +5,7 @@
 - Status in the briefing: `DECIDED`
 - Revisions: 2026-09-23 — the Windows and Linux apps, their order and how CI
   follows them, from the maintainer. 2026-10-07 — the Windows app starts
-  now, before the end of Phase 2, from the maintainer
+  now, while Phase 2 is open, from the maintainer
   ([0069](0069-windows-port.md)).
 
 ## Context
@@ -39,10 +39,13 @@ fastest route to the burnout recorded in §10.3.
   ([0029](0029-guardrails-in-ci.md)); CI already builds and tests the core on
   Linux on every pull request.
 - **Windows brought forward, by the maintainer on 2026-10-07**: the Windows
-  app starts now, before the end of Phase 2 and before a stable version
+  app starts now, while Phase 2 is open and before a stable version
   (*"uma das coisas que a gente tem para fazer é implementar uma versão para
   Windows"*, then *"Tô querendo já iniciar windows"*). How it is built and
-  tested is [0069](0069-windows-port.md). Linux stays after Phase 2.
+  tested is [0069](0069-windows-port.md). Whether the Windows app is part
+  of Phase 2's scope and exit criterion is `[OPEN]`; until decided, Phase 2
+  stays macOS only, as above. Linux is unchanged (2026-09-23): after Phase
+  2.
 
 ## Discarded alternatives
 
