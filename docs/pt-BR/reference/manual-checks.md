@@ -20,6 +20,11 @@ app real.
 
 ### O porte para Windows (feat/windows-fs)
 
+- [ ] **Sem barra de título** (ADR 0072, 2026-10-08): no Mac, tela cheia
+  (os botões somem, a faixa da esquerda volta para cima), uma segunda
+  janela, arrastar pela barra de abas e pelo topo da barra lateral; no
+  Windows, encaixar numa borda da tela e Win+setas, redimensionar por cada
+  borda, um duplo clique no espaço vazio da barra de abas.
 - [ ] **Um servidor de agentes para todo o Verso** (ADR 0054, 2026-10-08):
   em Ajustes › Terminal e agentes escolha "Um servidor para todo o Verso",
   marque duas pastas como visíveis, "Adicionar ao Claude Desktop", feche o
