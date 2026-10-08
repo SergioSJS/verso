@@ -35,6 +35,8 @@
 | a `compile_error!` for "not Unix" | the whole workspace stopped | a Windows half in `verso-fs/src/os.rs` |
 | a Unix-only crate (`xattr`) as a dependency on every OS | did not compile | `[target.'cfg(unix)'.dependencies]`; check with `cargo tree --target x86_64-pc-windows-msvc` |
 | a watcher event taken as a change whatever its kind | reading notes made Windows report the folder "modified": the index looped | filter what the OS reports for itself (`directory_touched_only`) |
+| reading every file to tell it is unchanged | each opening of 5,000 notes re-read and hashed them all: seconds of CPU on Windows | trust the modified time and length when the file was modified ≥ 2 s before the run that last read it (`unchanged_by_stat`, `indexed_at`); read the rest |
+| a Windows cloud file read like any other | reading a OneDrive Files On-Demand file downloads it: a first index would pull the whole folder | `placeholder::is_dataless` reads its attributes (`RECALL_ON_DATA_ACCESS`, `RECALL_ON_OPEN`, `OFFLINE`); test with `attrib +O` |
 | checking a name's characters only | `OBSIDI~1`, the 8.3 short name of `.obsidian`, got past the hidden rule | `confine::short_name` looks such a name up in its folder (`ShortName`) |
 | a test writing through `Workspace::open(dir, None)` | 1167 indexes left in the user's real config folder | always pass a config folder in tests |
 
@@ -42,7 +44,7 @@
 
 | Habit | What happened | Instead |
 |---|---|---|
-| `HOME` for the config folder | unset on Windows: the app would not start | `config_dir()` (`%APPDATA%\verso` there); Claude Desktop's is `%APPDATA%\Claude` |
+| `HOME` for the config folder | unset on Windows: the app would not start | `config_dir()` (`%LOCALAPPDATA%\verso` there: the machine's, not the roaming profile); Claude Desktop's is `%APPDATA%\Claude` |
 | a binary named `verso-app` | the CLI never found `verso-app.exe` | `std::env::consts::EXE_SUFFIX` |
 | `/usr/bin/true`, `/usr/local/bin`, `open -a`, `osascript` | do not exist on Windows | `cfg` per OS, a Windows path or an explicit "not on this platform yet" |
 | `xdg-open` off macOS, text piped to `clip` | "Show in folder" failed on Windows; accents arrived mangled in the clipboard | `explorer /select,"…"` (a raw argument); UTF-16 with its byte order mark to `clip` |
@@ -70,5 +72,6 @@
 | `npm` from PowerShell | the default execution policy refuses `npm.ps1` | `npm.cmd` |
 | Tauri's CLI run from `app/ui` | "not a Tauri project" | run it from the tree's root (`npm --prefix app/ui exec -- tauri …`) |
 | piping text into PowerShell 5.1 | accents mangled; JSON arrays not enumerated; quotes lost on native arguments | files by `scp`; go through a variable; a `.cmd` file for quoted arguments |
+| `check-windows.sh` while `check.sh` runs | the UI bundle was rebuilt under the copy: "Cannot stat", nothing ran on Windows | run them one after the other |
 | a `?` in a git pathspec | read as a wildcard | `':(literal)path'` |
 | `cmd /C echo {line}>file` | a line ending in a digit makes `1>` a redirection | `(echo {line})>file` |

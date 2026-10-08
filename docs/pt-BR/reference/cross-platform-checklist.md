@@ -37,6 +37,8 @@
 | um `compile_error!` para "não é Unix" | o workspace inteiro parava | uma metade Windows no `verso-fs/src/os.rs` |
 | um crate só de Unix (`xattr`) como dependência em todo sistema | não compilava | `[target.'cfg(unix)'.dependencies]`; cheque com `cargo tree --target x86_64-pc-windows-msvc` |
 | tomar um evento do watcher como mudança, qualquer que seja o tipo | ler notas fazia o Windows dizer que a pasta foi "modificada": o índice entrava em loop | filtre o que o sistema relata sobre si mesmo (`directory_touched_only`) |
+| ler todo arquivo para saber que não mudou | cada abertura de 5.000 notas relia e calculava o hash de todas: segundos de CPU no Windows | confie na data e no tamanho quando o arquivo foi modificado ≥ 2 s antes da rodada que o leu por último (`unchanged_by_stat`, `indexed_at`); leia o resto |
+| um arquivo de nuvem do Windows lido como qualquer outro | ler um arquivo dos Arquivos Sob Demanda do OneDrive o baixa: um primeiro índice puxaria a pasta inteira | `placeholder::is_dataless` lê os atributos dele (`RECALL_ON_DATA_ACCESS`, `RECALL_ON_OPEN`, `OFFLINE`); teste com `attrib +O` |
 | checar só os caracteres de um nome | `OBSIDI~1`, o nome curto 8.3 de `.obsidian`, passava pela regra de oculto | `confine::short_name` procura esse nome na sua pasta (`ShortName`) |
 | um teste escrevendo por `Workspace::open(dir, None)` | 1167 índices deixados na pasta de configuração real do usuário | sempre passe uma pasta de configuração nos testes |
 
@@ -44,7 +46,7 @@
 
 | Hábito | O que aconteceu | No lugar |
 |---|---|---|
-| `HOME` para a pasta de configuração | não existe no Windows: o app não iniciaria | `config_dir()` (`%APPDATA%\verso` lá); a do Claude Desktop é `%APPDATA%\Claude` |
+| `HOME` para a pasta de configuração | não existe no Windows: o app não iniciaria | `config_dir()` (`%LOCALAPPDATA%\verso` lá: da máquina, não do perfil móvel); a do Claude Desktop é `%APPDATA%\Claude` |
 | um binário chamado `verso-app` | o CLI nunca achava o `verso-app.exe` | `std::env::consts::EXE_SUFFIX` |
 | `/usr/bin/true`, `/usr/local/bin`, `open -a`, `osascript` | não existem no Windows | `cfg` por sistema, um caminho de Windows ou um "ainda não nesta plataforma" explícito |
 | `xdg-open` fora do macOS, texto mandado para o `clip` | "Mostrar na pasta" falhava no Windows; acentos chegavam estragados na área de transferência | `explorer /select,"…"` (um argumento cru); UTF-16 com a marca de ordem de bytes para o `clip` |
@@ -72,5 +74,6 @@
 | `npm` a partir do PowerShell | a política de execução padrão recusa o `npm.ps1` | `npm.cmd` |
 | o CLI do Tauri rodado de `app/ui` | "not a Tauri project" | rode da raiz da árvore (`npm --prefix app/ui exec -- tauri …`) |
 | mandar texto pela entrada do PowerShell 5.1 | acentos estragados; arrays de JSON não enumerados; aspas perdidas em argumentos nativos | arquivos por `scp`; passe por uma variável; um arquivo `.cmd` para argumentos com aspas |
+| `check-windows.sh` enquanto o `check.sh` roda | o pacote da interface era refeito debaixo da cópia: "Cannot stat", nada rodou no Windows | rode um depois do outro |
 | um `?` num pathspec do git | lido como curinga | `':(literal)caminho'` |
 | `cmd /C echo {linha}>arquivo` | uma linha terminando em dígito faz do `1>` um redirecionamento | `(echo {linha})>arquivo` |

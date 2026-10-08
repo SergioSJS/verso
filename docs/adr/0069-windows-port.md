@@ -225,14 +225,13 @@ refuses to rename a folder while any file in it is open.
    - OneDrive's placeholder, `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS`, as a
      `verso-fs` fixture: the maintainer closes that provider's `[OPEN]` in
      [0043](0043-placeholder-guard.md) in the port's pull request.
-     **Not in the port's pull request, 2026-10-08**: the test machine has no
-     OneDrive account to observe a placeholder on. Until then `verso-fs`
-     reads no placeholder on Windows, so a folder under Files On-Demand is
-     downloaded by its first index. Proposed: the attributes
+     **Decided by the maintainer on 2026-10-08** ("deveria funcionar
+     igual" ao iCloud), recorded in 0043: a file carrying
      `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS`, `FILE_ATTRIBUTE_RECALL_ON_OPEN`
-     and `FILE_ATTRIBUTE_OFFLINE`, read through std's `file_attributes()`
-     (no dependency, no `unsafe`), with a fixture once observed; the
-     `[OPEN]` of 0043 stays the maintainer's.
+     or `FILE_ATTRIBUTE_OFFLINE`, read through std's `file_attributes()`
+     (no dependency, no `unsafe`), is a placeholder. Tested with
+     `attrib +O`, as the test machine has no OneDrive account; a real
+     OneDrive placeholder is still to be observed.
    - Path confinement against Windows forms: drive letters, UNC paths, `\`,
      junctions, reserved names (`CON`, `NUL`), 8.3 short names, trailing dots
      and spaces, and case-insensitive names (Q8 of the dialect spec is
@@ -245,15 +244,19 @@ refuses to rename a folder while any file in it is open.
      `[OPEN]`; [0011](0011-config-outside-tree-index-as-cache.md) has no
      Windows counterpart. The maintainer, asked on 2026-10-07, does not know
      yet ("Não sei"): the port proposes a location in its pull request, with
-     the reasons, and the maintainer decides there. **Proposed by the port,
-     2026-10-08**: `%APPDATA%\verso`, after `VERSO_CONFIG_DIR` and
-     `XDG_CONFIG_HOME` and ahead of `HOME` — Windows' folder for a user's
-     application data, where Tauri's own configuration folder resolves too,
-     while `HOME` is usually unset there; Claude Desktop's configuration,
-     which "Add to Claude" writes, is `%APPDATA%\Claude`. A question beside
-     it: `%APPDATA%` is the roaming profile, which a company network copies
-     between machines; the index, a cache that can be large, may belong in
-     `%LOCALAPPDATA%` (the log too), the settings in `%APPDATA%`.
+     the reasons, and the maintainer decides there. **Decided on
+     2026-10-08**, the maintainer leaving the choice to the port ("pode
+     decidir a melhor abordagem que fizer mais sentido, qualquer coisa copia
+     obsidian"): `%LOCALAPPDATA%\verso`, after `VERSO_CONFIG_DIR` and
+     `XDG_CONFIG_HOME` and ahead of `HOME`. What lives there — the index,
+     its sidecar, the log — is the machine's layer of ADR 0070, never
+     synced; `%APPDATA%` is the roaming profile a company network copies
+     between machines, and Windows' guidance keeps caches out of it. The
+     settings are in the web view's storage, which Tauri keeps under
+     `%LOCALAPPDATA%` already. Obsidian keeps everything in
+     `%APPDATA%\obsidian`; copying it was the fallback for doubt, and the
+     platform's rule left none. Claude Desktop's configuration, which "Add
+     to Claude" writes, is `%APPDATA%\Claude`, theirs.
    - The updater's Windows install path, which exists and has never run
      ([0055](0055-in-app-updater.md)), and its rollback.
    - The command line on `PATH`, and the keys the tutorial teaches, with Ctrl
@@ -341,6 +344,6 @@ items 4, 6 to 9, and the order of the work. `[OPEN]`, the maintainer not
 knowing yet ("Não sei") and the port proceeding on the recorded
 recommendation as a provisional fact until its pull request: what the
 directory `fsync` means on Windows (item 9); the path separator in a path
-relative to the open folder (item 9); the configuration location (item 9).
-Not in the port's pull request, recorded on 2026-10-08: OneDrive's
-placeholder (item 9).
+relative to the open folder (item 9). Decided on 2026-10-08: the
+configuration location, `%LOCALAPPDATA%\verso` (item 9, the choice left to
+the port); OneDrive's placeholder handled as iCloud's (item 9, ADR 0043).
