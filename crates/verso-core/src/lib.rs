@@ -38,6 +38,7 @@ use verso_fs::{EntryKind, Problem, Root, Stamp};
 pub use verso_fs::{Changes, ConfinementError, ReadError, WalkRules, Watch, WriteError};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
+pub mod agents;
 pub mod bases;
 pub mod board;
 pub mod canvas;

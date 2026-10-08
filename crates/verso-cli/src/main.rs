@@ -55,6 +55,9 @@ enum Command {
     McpKey {
         key: String,
     },
+    /// Every folder Verso has opened that is marked visible to agents
+    /// (`verso mcp --all`; ADR 0054, revised 2026-10-08).
+    McpAll,
     /// Open the folder in the app (`verso .`, like an editor's `code .`).
     Open {
         folder: PathBuf,
@@ -108,6 +111,7 @@ fn parse_with(
     let mut limit = 20usize;
     let mut unresolved = false;
     let mut key: Option<String> = None;
+    let mut all = false;
     let mut positional: Vec<OsString> = Vec::new();
     let mut error: Option<Msg> = None;
     let mut iter = args.iter();
@@ -134,6 +138,7 @@ fn parse_with(
                     error.get_or_insert(Msg::BadOptionValue("--key".to_owned()));
                 }
             },
+            "--all" => all = true,
             "--limit" => match iter.next().and_then(|v| v.to_string_lossy().parse().ok()) {
                 Some(n) => limit = n,
                 None => {
@@ -152,9 +157,33 @@ fn parse_with(
     let options = Options { json, lang };
     let command = match error {
         Some(msg) => Err(msg),
+        None if all => all_of(positional, unresolved, key.as_ref()),
         None => command_of(positional, limit, unresolved, key, is_dir),
     };
     (options, command)
+}
+
+/// `verso mcp --all`: `--all` belongs to `mcp` alone, without a folder or
+/// a key.
+fn all_of(
+    positional: Vec<OsString>,
+    unresolved: bool,
+    key: Option<&String>,
+) -> Result<Command, Msg> {
+    let mut positional = positional.into_iter();
+    if positional.next().is_none_or(|sub| sub != "mcp") {
+        return Err(Msg::ExtraArgument("--all".to_owned()));
+    }
+    if key.is_some() {
+        return Err(Msg::ExtraArgument("--key".to_owned()));
+    }
+    if unresolved {
+        return Err(Msg::ExtraArgument("--unresolved".to_owned()));
+    }
+    if let Some(extra) = positional.next() {
+        return Err(Msg::ExtraArgument(extra.to_string_lossy().into_owned()));
+    }
+    Ok(Command::McpAll)
 }
 
 fn command_of(
@@ -456,6 +485,28 @@ fn run(args: &[OsString]) -> Output {
         | Command::Mcp { folder } => Some(folder.clone()),
         Command::McpKey { .. } => None,
         Command::Help | Command::Version => return out,
+        Command::McpAll => {
+            // Nothing is opened before the first call that names a folder.
+            out.stderr.push(text(&Msg::McpServingAll, lang));
+            emit(std::io::stderr().lock(), &out.stderr);
+            out.stderr.clear();
+            let served = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| e.to_string())
+                .and_then(|rt| {
+                    rt.block_on(mcp::serve(mcp::Server::all(None)))
+                        .map_err(|e| e.to_string())
+                });
+            out.code = match served {
+                Ok(()) => 0,
+                Err(e) => {
+                    out.stderr.push(text(&Msg::McpFailed(e), lang));
+                    3
+                }
+            };
+            return out;
+        }
         Command::Open { folder } => {
             let folder = std::path::absolute(folder).unwrap_or_else(|_| folder.clone());
             match launch_app(&folder) {
@@ -501,7 +552,8 @@ fn run(args: &[OsString]) -> Output {
         }
     };
     out.code = match command {
-        Command::Help | Command::Version | Command::Open { .. } => 0,
+        // Answered above, before any folder is opened.
+        Command::Help | Command::Version | Command::Open { .. } | Command::McpAll => 0,
         Command::Mcp { .. } | Command::McpKey { .. } => {
             // One incremental pass before the first answer (memo §6.3);
             // its report goes to stderr, stdout is the protocol.
@@ -526,7 +578,10 @@ fn run(args: &[OsString]) -> Output {
                 .enable_all()
                 .build()
                 .map_err(|e| e.to_string())
-                .and_then(|rt| rt.block_on(mcp::serve(ws)).map_err(|e| e.to_string()));
+                .and_then(|rt| {
+                    rt.block_on(mcp::serve(mcp::Server::new(ws, None)))
+                        .map_err(|e| e.to_string())
+                });
             match served {
                 Ok(()) => 0,
                 Err(e) => {
