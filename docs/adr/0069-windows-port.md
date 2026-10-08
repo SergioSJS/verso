@@ -260,7 +260,12 @@ refuses to rename a folder while any file in it is open.
    - The updater's Windows install path, which exists and has never run
      ([0055](0055-in-app-updater.md)), and its rollback.
    - The command line on `PATH`, and the keys the tutorial teaches, with Ctrl
-     where macOS has ⌘.
+     where macOS has ⌘. **Decided by the maintainer on 2026-10-08**,
+     accepting the author's recommendation: the installer puts `verso.exe`
+     beside `verso-app.exe` (Tauri's `externalBin`), and "Add to Claude"
+     writes its absolute path into Claude Desktop's configuration — the
+     folder's path still goes nowhere, only its key. On `PATH` it is not
+     put yet.
 
 ## Consequences
 

@@ -13,10 +13,13 @@ pub(crate) const CLI_LINK: &str = "/usr/local/bin/verso";
 /// crosses to the window (ADR 0026 rule 4).
 fn bundled_cli() -> Option<PathBuf> {
     let mut candidates = Vec::new();
+    // `verso.exe` on Windows, which the installer puts beside the app
+    // (ADR 0069).
+    let name = format!("verso{}", std::env::consts::EXE_SUFFIX);
     if let Ok(cli) = std::env::current_exe() {
-        candidates.push(cli.with_file_name("verso"));
+        candidates.push(cli.with_file_name(&name));
         if let Some(parent) = cli.parent() {
-            candidates.push(parent.join("verso"));
+            candidates.push(parent.join(&name));
             if let Some(bundle) = parent.parent() {
                 candidates.push(bundle.join("Resources").join("verso"));
                 candidates.push(bundle.join("MacOS").join("verso"));
@@ -185,6 +188,18 @@ fn claude_dir() -> Option<PathBuf> {
     }
 }
 
+/// What a client starts for the MCP server: the linked command line on
+/// macOS and Linux (installed from the settings), and on Windows, where
+/// nothing is linked onto a PATH, the `verso.exe` the installer put beside
+/// the app, by its absolute path (the maintainer, 2026-10-08). `None` when
+/// there is none to start.
+fn mcp_command() -> Option<String> {
+    #[cfg(windows)]
+    return bundled_cli().map(|cli| cli.to_string_lossy().into_owned());
+    #[cfg(not(windows))]
+    return (cli_state_now() == CliState::Ours).then(|| CLI_LINK.to_owned());
+}
+
 fn client_state(e: verso_core::clients::Entry) -> McpClientState {
     use verso_core::clients::Entry as E;
     match e {
@@ -207,7 +222,8 @@ pub(crate) fn mcp_status<R: tauri::Runtime>(
 ) -> Result<McpStatus, ContractError> {
     let key = with(&state, &window, |ws| Ok(ws.key()))?;
     let server = verso_core::clients::server_name(&key);
-    let entry = verso_core::clients::verso_entry(CLI_LINK, &key);
+    let command = mcp_command().unwrap_or_else(|| CLI_LINK.to_owned());
+    let entry = verso_core::clients::verso_entry(&command, &key);
     let claude = match claude_dir() {
         None => McpClientState::NoClient,
         Some(dir) => {
@@ -226,12 +242,12 @@ pub(crate) fn mcp_add_claude<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
 ) -> Result<McpAdded, ContractError> {
-    if cli_state_now() != CliState::Ours {
+    let Some(command) = mcp_command() else {
         return Err(refused("install the command line first"));
-    }
+    };
     let key = with(&state, &window, |ws| Ok(ws.key()))?;
     let server = verso_core::clients::server_name(&key);
-    let entry = verso_core::clients::verso_entry(CLI_LINK, &key);
+    let entry = verso_core::clients::verso_entry(&command, &key);
     let dir = claude_dir().ok_or_else(|| refused("Claude Desktop is not installed"))?;
     let added = verso_core::clients::add_to_claude(&dir, &server, entry).map_err(convert)?;
     Ok(McpAdded {
