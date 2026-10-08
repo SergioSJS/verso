@@ -139,7 +139,7 @@ export function unportable(typed: string): boolean {
   const name = typed.split("/").pop() ?? typed;
   const stem = (name.split(".")[0] ?? "").trimEnd().toUpperCase();
   const device = /^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[0-9¹²³]|LPT[0-9¹²³])$/.test(stem);
-  if (!device && !/[. ]$/.test(name) && !/[:*"<>?|\x00-\x1f]/.test(name)) return false;
+  if (!device && !/[. ]$/.test(name) && !/[:*"<>?|\\\x00-\x1f]/.test(name)) return false;
   nameTaken(t.unportableName);
   return true;
 }

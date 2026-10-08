@@ -28,7 +28,7 @@ O que vive fora da pasta em 2026-10-08:
 
 | Onde | O quê | De quem |
 |---|---|---|
-| o diretório de configuração (`~/Library/Application Support/verso`, `%APPDATA%\verso`) | o índice (um cache), o arquivo lateral dele, o log | desta máquina |
+| o diretório de configuração (`~/Library/Application Support/verso`, `%LOCALAPPDATA%\verso`) | o índice (um cache), o arquivo lateral dele, o log | desta máquina |
 | o armazenamento do web view | a largura da barra lateral, quais painéis estão abertos | desta máquina |
 | o armazenamento do web view | as configurações (idioma, tema, …, e também os caminhos ignorados, o nome da nota de pasta, as origens de embed aprovadas) | desta máquina, embora algumas sejam da pasta |
 | o armazenamento do web view, pela chave do **caminho absoluto** da pasta | os favoritos da pasta | desta máquina; perdidos mesmo onde o armazenamento sincronizasse, porque o caminho muda |
@@ -69,7 +69,10 @@ exatamente esses, a regra que o item 3 adota.
    recebe um nome que macOS, Windows e Linux guardam. Recusados em todo
    sistema: um nome de dispositivo (`CON`, `PRN`, `AUX`, `NUL`,
    `COM0`–`COM9`, `LPT0`–`LPT9`, com ou sem extensão), ponto ou espaço no
-   fim, `:`, `* " < > ? |`, um caractere de controle. Uma entrada que já
+   fim, `:`, `* " < > ? |`, um caractere de controle, e a `\` (**decidido
+   pelo mantenedor em 2026-10-08**, "pode recusar": o Obsidian a recusa no
+   macOS e no Windows; no macOS e no Linux ela é um byte comum de um nome
+   que o Windows não guardaria). Uma entrada que já
    existe nunca é recusada: é do usuário, abre, é lida e escrita como
    antes; só um nome novo é checado. No Windows, onde esses nomes nem
    existem, todo pedido é checado (ADR 0069).
@@ -117,7 +120,6 @@ sistema guarda, para o que o Verso cria ou renomeia). Proposto: os itens 1,
 2 e 4. `[OPEN]`: o nome do diretório oculto; se as origens de embed
 aprovadas são da pasta ou da pessoa (uma permissão dada a um site, não uma
 propriedade das notas); a pergunta do separador do ADR 0069, que continua
-sendo do mantenedor fechar; se a `\` entra nos caracteres recusados do item
-3 em todo sistema — o Obsidian a recusa no macOS e no Windows, no macOS e no
-Linux ela é um byte comum, e um arquivo `a\b.md` criado num Mac não existe
-no Windows (levantado pela revisão de 2026-10-08).
+sendo do mantenedor fechar. Fechado em 2026-10-08: a `\` entra nos
+caracteres recusados do item 3 em todo sistema (levantado pela revisão
+daquele dia).

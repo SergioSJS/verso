@@ -73,7 +73,7 @@ test("a workspace's name: Escape keeps the old one, Enter takes the new", async 
 // language, and the log has it as an answer, not a fault.
 test("a name Windows cannot keep is refused, and the field says why", async ({ app }) => {
   await withFolder(app);
-  for (const name of ["CON", "Reunião: pauta", "Ideia?"]) {
+  for (const name of ["CON", "Reunião: pauta", "Ideia?", "a\\b"]) {
     await folderMenu(app, "Pasta", "Nova nota nesta pasta");
     const field = app.page.locator("input.new-note");
     await field.fill(name);

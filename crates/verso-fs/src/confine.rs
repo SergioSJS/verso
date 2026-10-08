@@ -55,7 +55,7 @@ impl std::fmt::Display for ConfinementError {
             Self::Hidden => "a hidden entry",
             Self::Ignored => "an ignored path",
             Self::UnportableName => {
-                "a name not every system can keep (a device name such as CON or NUL, a trailing dot or space, a colon, or one of < > \" | ? *)"
+                "a name not every system can keep (a device name such as CON or NUL, a trailing dot or space, a colon, or one of < > \" | ? * \\)"
             }
             Self::ShortName => "a short (8.3) name of another entry",
         };
@@ -168,7 +168,7 @@ pub(crate) fn unportable(part: &std::ffi::OsStr) -> bool {
     }
     if name
         .chars()
-        .any(|c| c < ' ' || matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*'))
+        .any(|c| c < ' ' || matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*' | '\\'))
     {
         return true;
     }
@@ -274,6 +274,7 @@ mod tests {
             "a?",
             "a*",
             "a\tb",
+            "a\\b",
         ] {
             assert!(refused(name), "{name:?} should be refused");
         }

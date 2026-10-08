@@ -130,7 +130,7 @@ function linksOf(text) {
 function unportable(name) {
   const stem = (name.split(".")[0] ?? "").trimEnd().toUpperCase();
   const device = /^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[0-9¹²³]|LPT[0-9¹²³])$/.test(stem);
-  return device || /[. ]$/.test(name) || /[:*"<>?|\x00-\x1f]/.test(name);
+  return device || /[. ]$/.test(name) || /[:*"<>?|\\\x00-\x1f]/.test(name);
 }
 
 function problems() {
