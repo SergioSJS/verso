@@ -296,7 +296,10 @@ point 13).
    thousands of notes opens with its top-level folders closed. Level: H;
    E: `tree-big.spec.mjs` (`?vault=big`, both engines), which also pins
    the rows' cost: no inline SVG, four elements a row, a closed folder's
-   rows let go, one row marked as the open note.
+   rows let go, one row marked as the open note, and a long name ending in
+   "…" inside its row. Tab into the tree: the focus ring shows on all four
+   sides of a row, inside it (by eye, both engines; caught 2026-10-08: the
+   folders' containment cut it).
 
 ## 7. The web
 
@@ -394,8 +397,9 @@ point 13).
     opens the crop: a corner dragged, "Aplicar" shows that part, the card at
     its proportions, the node's `verso.crop` written and the picture's file
     untouched; "Restaurar original" takes it off. Right-click menus, the
-    board's and the window's, never show two lines together. A card
-    selected and right-clicked a moment later shows the board's menu
+    board's and the window's, never show two lines together. A note card
+    selected and right-clicked a moment later shows the board's menu, and a
+    picture card the window's picture menu
     (`menus.spec.mjs`; caught 2026-10-08: the entered card took the click
     and no menu opened). With the side bar open and the window not
     wide, the search and the Outline in the middle of the footer; on a

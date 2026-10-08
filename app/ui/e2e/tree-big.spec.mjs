@@ -45,3 +45,20 @@ test("the open note marks one row, and the folders left open come back", async (
   await expect(rowsIn(app, "pasta-03")).toHaveCount(136);
   await expect(app.page.locator("#notes details[open]")).toHaveCount(1);
 });
+
+test("a long name ends in an ellipsis inside its row", async ({ app }) => {
+  await app.open();
+  const long = `${"Uma nota de nome muito comprido ".repeat(4).trim()}.md`;
+  await app.writeOutside(long, "# Longa\n");
+  await app.folderChanged([long], true);
+  const row = app.page.locator(`#notes li[data-path="${long}"] > button`);
+  await expect(row).toBeVisible();
+  const fit = await row.evaluate((b) => {
+    const name = b.querySelector(".row-name");
+    const r = b.getBoundingClientRect();
+    const n = name.getBoundingClientRect();
+    return { inside: n.right <= r.right + 0.5, cut: name.scrollWidth > name.clientWidth };
+  });
+  // `overflow: clip` without `min-width: 0` let the name spill past the row.
+  expect(fit).toEqual({ inside: true, cut: true });
+});
