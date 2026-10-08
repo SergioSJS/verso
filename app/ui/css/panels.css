@@ -501,7 +501,12 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-subheading { font-family: var(--ui); font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); margin: 1.6rem 0 .4rem; padding-bottom: .35rem; border-bottom: 1px solid var(--hair); font-weight: 600; }
 .settings-hint { font-size: .82rem; color: var(--ink-3); margin: 0 0 .6rem; }
 .setting { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: .8rem 0; border-bottom: 1px solid var(--hair); }
-.setting-text { min-width: 0; }
+/* The text keeps a width of its own: a long status beside it (the MCP's
+   "Added… copy of the previous one: …") squeezed it into a column a word
+   wide (seen 2026-10-08). */
+.setting-text { min-width: 0; flex: 1 1 16rem; }
+.setting-actions { min-width: 0; max-width: 60%; }
+.setting-actions .setting-value { white-space: normal; overflow-wrap: anywhere; text-align: right; }
 .setting-title { font-size: .93rem; color: var(--ink); }
 .setting-desc { font-size: .8rem; color: var(--ink-3); margin-top: .15rem; }
 /* A value to read, not to change: the version and its commit. */
