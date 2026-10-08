@@ -22,8 +22,10 @@
 //! is hidden from the client — the only mitigation is which folder is
 //! opened (memo §3.5).
 
+use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::tool::schema_for_type;
@@ -50,7 +52,9 @@ pub const BASE_ROWS_MAX: usize = 1000;
 pub const BOARD_MAX: usize = 2000;
 
 /// The instructions a client shows the model at `initialize`.
-const INSTRUCTIONS: &str = "Verso: read-only access to one folder of Markdown notes, boards (`.canvas`) and bases (`.base`). \
+const INSTRUCTIONS: &str = "Verso: read-only access to folders of Markdown notes, boards (`.canvas`) and bases (`.base`). \
+`list_folders` names the folders this server answers for: one, for a folder's own server, or every folder its owner marked visible \
+to agents, for the server for all of Verso — there, pass `folder` (the key, or a name only one folder bears) to every tool. \
 A note is named by its path relative to the folder, with `.md` (as `list_notes` and `search` print it). \
 `read_note` gives a note's properties and tags; `list_notes` filters by `tag` or `property`. A link held by a frontmatter \
 property is a typed relation: `links` and `backlinks` give its `relation` (the property's key). `read_board` reads a \
@@ -67,10 +71,40 @@ as a tool error (`isError`) whose structured content has `kind`, `path` and `mes
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 pub struct SearchParams {
+    /// The folder, by its name or key (`list_folders`): required by the
+    /// server for all of Verso, optional for a folder's own server.
+    #[serde(default)]
+    pub folder: Option<String>,
     /// Words that must all occur in the note (accents and case ignored).
     pub words: String,
     /// At most this many hits; default 20, at most 100.
     pub limit: Option<usize>,
+}
+
+/// What a tool that names nothing but its folder takes.
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct FolderParams {
+    /// The folder, by its name or key (`list_folders`): required by the
+    /// server for all of Verso, optional for a folder's own server.
+    #[serde(default)]
+    pub folder: Option<String>,
+}
+
+/// A folder an agent may read.
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct FolderOut {
+    /// The folder's name, as its owner calls it.
+    pub name: String,
+    /// The folder's key: unique where two folders share a name.
+    pub key: String,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub struct FoldersResult {
+    pub folders: Vec<FolderOut>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -91,6 +125,10 @@ pub struct SearchResult {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 pub struct NoteParams {
+    /// The folder, by its name or key (`list_folders`): required by the
+    /// server for all of Verso, optional for a folder's own server.
+    #[serde(default)]
+    pub folder: Option<String>,
     /// The note's path relative to the folder, with or without `.md`.
     pub path: String,
 }
@@ -98,6 +136,10 @@ pub struct NoteParams {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 pub struct ReadParams {
+    /// The folder, by its name or key (`list_folders`): required by the
+    /// server for all of Verso, optional for a folder's own server.
+    #[serde(default)]
+    pub folder: Option<String>,
     /// The note's path relative to the folder, with or without `.md`.
     pub path: String,
     /// First line to return (1-based); default 1.
@@ -333,6 +375,10 @@ pub struct UnresolvedResult {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 pub struct ListParams {
+    /// The folder, by its name or key (`list_folders`): required by the
+    /// server for all of Verso, optional for a folder's own server.
+    #[serde(default)]
+    pub folder: Option<String>,
     /// Only the notes with this tag, or one nested under it (`projeto`
     /// holds `projeto/ativo`); case ignored, `#` optional.
     pub tag: Option<String>,
@@ -359,6 +405,10 @@ pub struct ListResult {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 pub struct BoardParams {
+    /// The folder, by its name or key (`list_folders`): required by the
+    /// server for all of Verso, optional for a folder's own server.
+    #[serde(default)]
+    pub folder: Option<String>,
     /// The board's path relative to the folder, with `.canvas`.
     pub path: String,
 }
@@ -416,6 +466,10 @@ pub struct BoardResult {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 pub struct BaseParams {
+    /// The folder, by its name or key (`list_folders`): required by the
+    /// server for all of Verso, optional for a folder's own server.
+    #[serde(default)]
+    pub folder: Option<String>,
     /// The base's path relative to the folder, with `.base`.
     pub path: String,
     /// The view to evaluate, by name; the first when absent.
@@ -630,9 +684,29 @@ fn problem_out(p: &WalkProblem) -> ProblemOut {
 /// interleave on the index (a second `index` waits for the first).
 #[derive(Clone)]
 pub struct Server {
-    workspace: Arc<Mutex<Workspace>>,
+    scope: Arc<Scope>,
+    /// The configuration directory (`None`: `verso_core::config_dir`):
+    /// where the marks and the log of the agents' calls live.
+    config: Option<PathBuf>,
     tool_router: ToolRouter<Self>,
 }
+
+/// What a server serves (ADR 0054, revised 2026-10-08): one folder — the
+/// `--key` or path it was started with — or every folder Verso has opened
+/// that the person marked visible to agents, each opened the first time a
+/// call names it.
+enum Scope {
+    One {
+        workspace: Arc<Mutex<Workspace>>,
+        key: String,
+        name: String,
+    },
+    All {
+        open: Mutex<HashMap<String, Arc<Mutex<Workspace>>>>,
+    },
+}
+
+type Shared = Arc<Mutex<Workspace>>;
 
 /// The structured content of an error result. Typed, so a client can
 /// branch on `kind` without parsing prose: `refused` (the path cannot
@@ -725,37 +799,147 @@ fn unknown_note(path: &str) -> CallToolResult {
 
 #[tool_router(router = tool_router)]
 impl Server {
+    /// A server of one folder: the `--key` or path it was started with.
+    /// `config` is where the agents' log goes (`None`: the configuration
+    /// directory).
     #[must_use]
-    pub fn new(workspace: Workspace) -> Self {
+    pub fn new(workspace: Workspace, config: Option<PathBuf>) -> Self {
+        let key = workspace.key();
+        let name = workspace.name();
         Self {
-            workspace: Arc::new(Mutex::new(workspace)),
+            scope: Arc::new(Scope::One {
+                workspace: Arc::new(Mutex::new(workspace)),
+                key,
+                name,
+            }),
+            config,
             tool_router: Self::tool_router(),
         }
     }
 
-    /// The workspace, under the lock. A poisoned lock — a call panicked
-    /// while holding it — is taken all the same: the workspace is as the
-    /// panic left it (SQLite rolled its transaction back; `index` re-reads
-    /// what changed), and a server that answers "poisoned lock" to every
-    /// call from then on is worse than one that carries on.
-    fn lock(&self) -> MutexGuard<'_, Workspace> {
-        self.workspace
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
+    /// A server of every folder Verso has opened that is marked visible to
+    /// agents (`verso mcp --all`).
+    #[must_use]
+    pub fn all(config: Option<PathBuf>) -> Self {
+        Self {
+            scope: Arc::new(Scope::All {
+                open: Mutex::new(HashMap::new()),
+            }),
+            config,
+            tool_router: Self::tool_router(),
+        }
     }
 
-    /// Run a tool's body on the workspace, under the lock. A panic inside
-    /// it — the parser on an input nobody foresaw — becomes a `failed`
-    /// error result the model reads, instead of a call that never answers
-    /// (the runtime swallows the panicking task) and a lock poisoned for
-    /// every call after it. `AssertUnwindSafe`: the body may leave the
-    /// workspace mid-operation, which `lock` accepts for the same reason;
-    /// the guard outlives the unwinding, so the lock is not even poisoned.
+    /// The folders this server answers for, by name and key.
+    fn folders(&self) -> Result<Vec<FolderOut>, CallToolResult> {
+        match self.scope.as_ref() {
+            Scope::One { key, name, .. } => Ok(vec![FolderOut {
+                name: name.clone(),
+                key: key.clone(),
+            }]),
+            Scope::All { .. } => Ok(verso_core::agents::known(self.config.as_deref())
+                .map_err(|e| fail(&e, None))?
+                .into_iter()
+                .filter(|f| f.visible)
+                .map(|f| FolderOut {
+                    name: f.name,
+                    key: f.key,
+                })
+                .collect()),
+        }
+    }
+
+    /// The workspace a call names, and the folder's key for the log. On a
+    /// folder's own server `folder` may be left out, or name that folder;
+    /// on the server for all of Verso it is required: the key, or a name
+    /// only one visible folder bears. A folder is opened — and indexed —
+    /// the first time a call names it, and one that fails to open fails
+    /// that call only.
+    fn resolve(&self, folder: Option<&str>) -> Result<(Shared, String), CallToolResult> {
+        match self.scope.as_ref() {
+            Scope::One {
+                workspace,
+                key,
+                name,
+            } => match folder {
+                Some(f) if f != key && f != name => Err(refuse(
+                    "unknown_folder",
+                    None,
+                    &format!("this server serves one folder, {name}; it has no folder {f}"),
+                )),
+                _ => Ok((Arc::clone(workspace), key.clone())),
+            },
+            Scope::All { open } => {
+                let Some(asked) = folder else {
+                    return Err(refuse(
+                        "no_folder",
+                        None,
+                        "name the folder: call list_folders for the folders you may read",
+                    ));
+                };
+                let visible = self.folders()?;
+                let key = match visible.iter().find(|f| f.key == asked) {
+                    Some(f) => f.key.clone(),
+                    None => {
+                        let named: Vec<&FolderOut> =
+                            visible.iter().filter(|f| f.name == asked).collect();
+                        match named.as_slice() {
+                            [one] => one.key.clone(),
+                            [] => {
+                                return Err(refuse(
+                                    "unknown_folder",
+                                    None,
+                                    &format!(
+                                        "no folder visible to agents is named {asked}: call list_folders"
+                                    ),
+                                ));
+                            }
+                            many => {
+                                let keys: Vec<&str> = many.iter().map(|f| f.key.as_str()).collect();
+                                return Err(refuse(
+                                    "ambiguous_folder",
+                                    None,
+                                    &format!(
+                                        "{} folders are named {asked}; name one by its key: {}",
+                                        many.len(),
+                                        keys.join(", ")
+                                    ),
+                                ));
+                            }
+                        }
+                    }
+                };
+                let mut open = open.lock().unwrap_or_else(PoisonError::into_inner);
+                if let Some(ws) = open.get(&key) {
+                    return Ok((Arc::clone(ws), key));
+                }
+                let mut ws =
+                    Workspace::reopen(&key, self.config.as_deref()).map_err(|e| fail(&e, None))?;
+                ws.index().map_err(|e| fail(&e, None))?;
+                let ws = Arc::new(Mutex::new(ws));
+                open.insert(key.clone(), Arc::clone(&ws));
+                Ok((ws, key))
+            }
+        }
+    }
+
+    /// Run a tool's body on the workspace the call names, under its lock,
+    /// and log the call (`agents.log`, ADR 0054). A poisoned lock — a call
+    /// panicked while holding it — is taken all the same: the workspace is
+    /// as the panic left it (SQLite rolled its transaction back; `index`
+    /// re-reads what changed). A panic inside the body — the parser on an
+    /// input nobody foresaw — becomes a `failed` error result the model
+    /// reads, instead of a call that never answers; the guard outlives the
+    /// unwinding, so the lock is not even poisoned.
     fn guarded<T>(
         &self,
+        call: (&str, Option<&str>, &str),
         body: impl FnOnce(&mut Workspace) -> Result<T, CallToolResult>,
     ) -> Result<T, CallToolResult> {
-        let mut ws = self.lock();
+        let (tool, folder, what) = call;
+        let (shared, key) = self.resolve(folder)?;
+        verso_core::agents::log_call(self.config.as_deref(), tool, &key, what);
+        let mut ws = shared.lock().unwrap_or_else(PoisonError::into_inner);
         catch_unwind(AssertUnwindSafe(|| body(&mut ws))).unwrap_or_else(|payload| {
             let message = payload
                 .downcast_ref::<&str>()
@@ -771,6 +955,21 @@ impl Server {
     }
 
     #[tool(
+        description = "The folders this server answers for, by name and key: pass one as `folder` to the other tools (required by the server for all of Verso). A folder is listed only when its owner marked it visible to agents.",
+        output_schema = answer_schema::<FoldersResult>()
+    )]
+    fn list_folders(&self) -> Result<Json<FoldersResult>, CallToolResult> {
+        let folders = self.folders()?;
+        verso_core::agents::log_call(
+            self.config.as_deref(),
+            "list_folders",
+            "-",
+            &folders.len().to_string(),
+        );
+        Ok(Json(FoldersResult { folders }))
+    }
+
+    #[tool(
         description = "Full-text search over the notes: every word must occur (accents and case ignored). Returns note paths with a snippet; `limit` defaults to 20 and is capped at 100. Answers from the index.",
         output_schema = answer_schema::<SearchResult>()
     )]
@@ -779,7 +978,7 @@ impl Server {
         Parameters(p): Parameters<SearchParams>,
     ) -> Result<Json<SearchResult>, CallToolResult> {
         let limit = p.limit.unwrap_or(SEARCH_DEFAULT).clamp(1, SEARCH_MAX);
-        self.guarded(|ws| {
+        self.guarded(("search", p.folder.as_deref(), p.words.as_str()), |ws| {
             // One more than asked, to know whether the cap was hit.
             let mut hits = ws.search(&p.words, limit + 1).map_err(|e| fail(&e, None))?;
             let truncated = hits.len() > limit;
@@ -805,7 +1004,7 @@ impl Server {
         &self,
         Parameters(p): Parameters<ReadParams>,
     ) -> Result<Json<ReadResult>, CallToolResult> {
-        self.guarded(|ws| {
+        self.guarded(("read_note", p.folder.as_deref(), p.path.as_str()), |ws| {
             let key = ws
                 .source_key(&p.path)
                 .map_err(|e| fail(&e, Some(&p.path)))?;
@@ -921,7 +1120,7 @@ impl Server {
         &self,
         Parameters(p): Parameters<NoteParams>,
     ) -> Result<Json<LinksResult>, CallToolResult> {
-        self.guarded(|ws| {
+        self.guarded(("links", p.folder.as_deref(), p.path.as_str()), |ws| {
             let key = ws
                 .source_key(&p.path)
                 .map_err(|e| fail(&e, Some(&p.path)))?;
@@ -957,7 +1156,7 @@ impl Server {
         &self,
         Parameters(p): Parameters<NoteParams>,
     ) -> Result<Json<BacklinksResult>, CallToolResult> {
-        self.guarded(|ws| {
+        self.guarded(("backlinks", p.folder.as_deref(), p.path.as_str()), |ws| {
             let key = ws
                 .source_key(&p.path)
                 .map_err(|e| fail(&e, Some(&p.path)))?;
@@ -986,8 +1185,11 @@ impl Server {
         description = "Link targets that resolve to no note, with how many links name each, vault-wide. Answers from the index.",
         output_schema = answer_schema::<UnresolvedResult>()
     )]
-    fn unresolved(&self) -> Result<Json<UnresolvedResult>, CallToolResult> {
-        self.guarded(|ws| {
+    fn unresolved(
+        &self,
+        Parameters(p): Parameters<FolderParams>,
+    ) -> Result<Json<UnresolvedResult>, CallToolResult> {
+        self.guarded(("unresolved", p.folder.as_deref(), ""), |ws| {
             let un = ws.unresolved().map_err(|e| fail(&e, None))?;
             Ok(Json(UnresolvedResult {
                 unresolved: un
@@ -1009,7 +1211,17 @@ impl Server {
         &self,
         Parameters(p): Parameters<ListParams>,
     ) -> Result<Json<ListResult>, CallToolResult> {
-        self.guarded(|ws| {
+        let filters = [
+            ("tag", &p.tag),
+            ("property", &p.property),
+            ("value", &p.value),
+            ("type", &p.note_type),
+        ]
+        .iter()
+        .filter_map(|(k, v)| v.as_ref().map(|v| format!("{k}={v}")))
+        .collect::<Vec<_>>()
+        .join(" ");
+        self.guarded(("list_notes", p.folder.as_deref(), &filters), |ws| {
             let given = |f: &Option<String>| f.as_deref().is_some_and(|s| !s.trim().is_empty());
             let filtered = given(&p.tag) || given(&p.property) || given(&p.note_type);
             if p.value.is_some() && !given(&p.property) {
@@ -1057,7 +1269,7 @@ impl Server {
         &self,
         Parameters(p): Parameters<BoardParams>,
     ) -> Result<Json<BoardResult>, CallToolResult> {
-        self.guarded(|ws| {
+        self.guarded(("read_board", p.folder.as_deref(), p.path.as_str()), |ws| {
             let (path, mut board) = ws
                 .read_board(&p.path)
                 .map_err(|e| fail(&e, Some(&p.path)))?;
@@ -1110,7 +1322,7 @@ impl Server {
         &self,
         Parameters(p): Parameters<BaseParams>,
     ) -> Result<Json<BaseOut>, CallToolResult> {
-        self.guarded(|ws| {
+        self.guarded(("query_base", p.folder.as_deref(), p.path.as_str()), |ws| {
             let path = ws.confined(&p.path).map_err(|e| fail(&e, Some(&p.path)))?;
             if !path.to_ascii_lowercase().ends_with(".base") {
                 return Err(refuse(
@@ -1201,8 +1413,11 @@ impl Server {
         description = "Refresh the index from the folder (only what changed is re-read) and report what the run did. The only operation that writes, and it writes the index file outside the folder, never a note.",
         output_schema = answer_schema::<IndexResult>()
     )]
-    fn index(&self) -> Result<Json<IndexResult>, CallToolResult> {
-        self.guarded(|ws| {
+    fn index(
+        &self,
+        Parameters(p): Parameters<FolderParams>,
+    ) -> Result<Json<IndexResult>, CallToolResult> {
+        self.guarded(("index", p.folder.as_deref(), ""), |ws| {
             let r = ws.index().map_err(|e| fail(&e, None))?;
             Ok(Json(IndexResult {
                 indexed: r.indexed,
@@ -1230,11 +1445,9 @@ impl ServerHandler for Server {
 }
 
 /// Serve over stdin/stdout until the client closes stdin.
-pub async fn serve(workspace: Workspace) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn serve(server: Server) -> Result<(), Box<dyn std::error::Error>> {
     use rmcp::ServiceExt;
-    let service = Server::new(workspace)
-        .serve(rmcp::transport::stdio())
-        .await?;
+    let service = server.serve(rmcp::transport::stdio()).await?;
     service.waiting().await?;
     Ok(())
 }
@@ -1249,13 +1462,27 @@ mod tests {
         let vault = tempfile::tempdir().unwrap();
         let config = tempfile::tempdir().unwrap();
         let ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
-        (Server::new(ws), vault, config)
+        (
+            Server::new(ws, Some(config.path().to_path_buf())),
+            vault,
+            config,
+        )
+    }
+
+    fn workspace_of(server: &Server) -> Shared {
+        let Scope::One { workspace, .. } = server.scope.as_ref() else {
+            panic!("a folder's own server");
+        };
+        Arc::clone(workspace)
     }
 
     #[test]
     fn a_poisoned_lock_is_taken_and_the_next_call_answers() {
         let (server, _vault, _config) = server();
-        let workspace = Arc::clone(&server.workspace);
+        let Scope::One { workspace, .. } = server.scope.as_ref() else {
+            panic!("a folder's own server");
+        };
+        let workspace = Arc::clone(workspace);
         // A thread panics with the lock held: the mutex is poisoned, as it
         // is when a tool call panics inside the runtime.
         let _ = std::thread::spawn(move || {
@@ -1263,7 +1490,7 @@ mod tests {
             panic!("a call panicked with the workspace locked");
         })
         .join();
-        assert!(server.workspace.is_poisoned());
+        assert!(workspace_of(&server).is_poisoned());
         let Ok(Json(listed)) = server.list_notes(Parameters(ListParams::default())) else {
             panic!("the call after the poisoning did not answer");
         };
@@ -1273,7 +1500,8 @@ mod tests {
     #[test]
     fn a_panic_inside_a_call_is_a_failed_result_and_the_lock_survives() {
         let (server, _vault, _config) = server();
-        let result: Result<(), CallToolResult> = server.guarded(|_| panic!("the parser choked"));
+        let result: Result<(), CallToolResult> =
+            server.guarded(("test", None, ""), |_| panic!("the parser choked"));
         let Err(error) = result else {
             panic!("a panic answered Ok");
         };
@@ -1288,7 +1516,7 @@ mod tests {
             "{content}"
         );
         // Not poisoned: the guard outlived the panic, and the next call answers.
-        assert!(!server.workspace.is_poisoned());
+        assert!(!workspace_of(&server).is_poisoned());
         assert!(server.list_notes(Parameters(ListParams::default())).is_ok());
     }
 }

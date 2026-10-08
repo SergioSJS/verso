@@ -116,6 +116,8 @@ pub enum Msg {
         unchanged: usize,
     },
     McpFailed(String),
+    /// `verso mcp --all` is up.
+    McpServingAll,
 }
 
 /// The text of a message in a language.
@@ -207,6 +209,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                 "verso mcp: servindo {folder} (indexadas {indexed}, sem mudança {unchanged}); aguardando o cliente"
             ),
             Msg::McpFailed(e) => format!("verso mcp falhou: {e}"),
+            Msg::McpServingAll => "verso mcp: atende as pastas visíveis para agentes; esperando o cliente".to_owned(),
         },
         Lang::En => match msg {
             Msg::Usage => "\
@@ -295,6 +298,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
                 "verso mcp: serving {folder} (indexed {indexed}, unchanged {unchanged}); waiting for the client"
             ),
             Msg::McpFailed(e) => format!("verso mcp failed: {e}"),
+            Msg::McpServingAll => "verso mcp: serving the folders visible to agents; waiting for the client".to_owned(),
         },
     }
 }
@@ -365,6 +369,7 @@ mod tests {
                 unchanged: 2,
             },
             Msg::McpFailed("e".into()),
+            Msg::McpServingAll,
             Msg::Opening {
                 folder: "/v".into(),
                 app: "Verso Beta".into(),
@@ -407,6 +412,7 @@ mod tests {
             Msg::IndexFailed(_) => 23,
             Msg::McpServing { .. } => 24,
             Msg::McpFailed(_) => 25,
+            Msg::McpServingAll => 30,
             Msg::Opening { .. } => 26,
             Msg::AppNotFound { .. } => 27,
             Msg::NoFolderToOpen(_) => 28,
@@ -420,7 +426,7 @@ mod tests {
         seen.sort_unstable();
         // `ordinal` is exhaustive, so its highest arm is the variant count
         // minus one; the samples must reach it without a gap.
-        let expected: Vec<usize> = (0..=29).collect();
+        let expected: Vec<usize> = (0..=30).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
     }
 

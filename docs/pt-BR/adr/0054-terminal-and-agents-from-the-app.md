@@ -20,6 +20,7 @@
 - Revisões: 2026-10-08 — **decidido pelo mantenedor**: a linha de comando
   do Windows vem com o app; o host diz o que o "Adicionar ao Claude"
   escreve; a página de download onde falta o Claude Desktop (Status).
+- Revisões: 2026-10-08 — **decidido pelo mantenedor**: dois modos do MCP (por pasta, o padrão; o Verso inteiro), pastas escondidas dos agentes até marcadas, chamadas dos agentes registradas (pontos 3–6).
 
 ## Contexto
 
@@ -76,6 +77,68 @@ Como o autor os construiu (o memo, seção 5):
   [0029](0029-guardrails-in-ci.md).)*
 - **A versão põe a linha de comando dentro do app** e assina o pacote de
   novo, ad hoc como antes; o arquivo separado continua.
+
+### Um servidor por pasta, ou um para o Verso inteiro (2026-10-08)
+
+Pedido pelo mantenedor ("se eu tiver vários vaults, como é que o MCP vai
+saber qual … coloque como opção nas configurações se a pessoa vai usar MCP
+por Vault ou se vai usar MCP por verso inteiro"), com as recomendações do
+autor aceitas ("pode seguir"):
+
+3. **Dois modos, escolhidos em Ajustes → Terminal e agentes.** *Um servidor
+   por pasta*, o padrão e o jeito até aqui: "Adicionar ao Claude Desktop"
+   grava `verso-<pasta>` com `verso mcp --key <chave>`, que vê só aquela
+   pasta. *Um servidor para o Verso inteiro*: uma entrada, `verso`, com
+   `verso mcp --all`, adicionada uma vez; ela atende as pastas que o Verso
+   já abriu e que estão marcadas como visíveis para agentes, por uma
+   ferramenta `list_folders` (o nome e a chave de cada pasta, nunca o
+   caminho) e um argumento `folder` em toda ferramenta: a chave, ou um nome
+   só quando exatamente uma pasta visível o tem — senão a chamada é recusada
+   com as chaves candidatas.
+4. **Uma pasta fica escondida dos agentes até a pessoa marcá-la visível**
+   (por pasta, na mesma seção). As marcas moram no diretório de
+   configuração (`<config>/agents.json`, pela chave da pasta, gravado como
+   o arquivo lateral do índice, no mesmo módulo), não no armazenamento da
+   janela: o servidor roda sem o app. Uma pasta movida ganha uma chave
+   nova, então volta a ficar escondida até ser marcada. O servidor por pasta não precisa de marca — adicioná-lo
+   é a escolha da pessoa por aquela pasta.
+5. **O app não precisa estar aberto, nem a pasta**: um cliente inicia a
+   linha de comando, que abre a pasta do disco pelo núcleo e divide o
+   índice com o app (SQLite em WAL com espera de 5 s, verso-index). A pasta
+   precisa ter sido aberta no Verso uma vez: a chave dela nomeia o arquivo
+   lateral do índice, que diz onde ela está. O servidor do Verso inteiro
+   responde o `list_folders` pelos arquivos laterais e pelas marcas sem
+   abrir nada, abre uma pasta (`Workspace::reopen`, que recusa uma pasta que
+   sumiu) na primeira chamada que a nomeia, e uma pasta que não abre faz
+   falhar aquela chamada, nunca o servidor.
+6. **O que um agente leu fica no log**: toda chamada de ferramenta — a
+   ferramenta, a pasta e a nota ou as palavras — vai para o `agents.log`
+   no diretório de configuração (as últimas 2.000 chamadas), para a pessoa
+   ver depois o que um agente olhou. Um arquivo próprio, reescrito inteiro
+   a cada vez: o núcleo não pode acrescentar a um arquivo ali (o
+   `clippy.toml` dele, ADR 0029).
+
+**Segurança, como pesada em sessão.** Um programa rodando como a pessoa já
+lê as notas do disco, fora das pastas protegidas do macOS: o servidor não abre porta nova na máquina (as notas,
+o índice e a configuração do cliente são arquivos da pessoa; trocar o
+`verso.exe` ou o link pede os mesmos direitos). Ele não escuta porta
+nenhuma — só entrada e saída padrão — e **nunca ganha um transporte de
+rede sem autenticação**. O risco que ele acrescenta é a injeção de prompt:
+o texto de uma nota pode mandar um agente ler mais e enviar para fora por
+outra ferramenta que o agente tenha. Um servidor por pasta limita isso à
+pasta dele; o do Verso inteiro, às pastas marcadas visíveis — daí o modo
+padrão e as marcas escondidas por padrão. As marcas só seguram um agente
+cujas outras ferramentas não escrevem no diretório de configuração: um
+agente com terminal ou ferramenta de arquivos pode marcar todas as pastas
+como visíveis sozinho. O servidor por pasta é o limite que resiste a esse
+agente — um segundo motivo para ele ser o padrão. A verificar no macOS: um processo
+iniciado por um app sem acesso às pastas protegidas (Documentos, Mesa,
+iCloud) só as alcança pelo `verso` se o macOS atribuir o acesso ao Verso e
+não ao app que o iniciou (um pedido nomearia o cliente, não o Verso); o
+Windows não tem essa barreira (ADR 0069). `[ABERTO]`: duas pastas com o
+mesmo nome já colidem no modo por pasta — o segundo "Adicionar ao Claude
+Desktop" substitui a primeira entrada (`verso-<nome>`); o nome da entrada
+nesse caso é do mantenedor escolher.
 
 ## Consequências
 

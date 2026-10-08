@@ -20,6 +20,7 @@ use support::*;
 #[cfg(test)]
 mod shell;
 
+mod agents;
 mod indexing;
 mod order;
 mod rename;

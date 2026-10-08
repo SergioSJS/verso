@@ -101,3 +101,57 @@ fn private(path: &Path) -> std::io::Result<()> {
 fn private(_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
+
+/// The folders marked visible to agents, in `<config>/agents.json`
+/// (ADR 0054, revised 2026-10-08): read by the all-of-Verso MCP server,
+/// which runs without the app. Written as the sidecar is: a temporary, a
+/// chmod to `0600`, a rename.
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct Agents {
+    #[serde(default)]
+    visible: Vec<String>,
+}
+
+/// The keys marked visible; none when the file is missing or unreadable.
+pub(crate) fn read_agents(config: &Path) -> Vec<String> {
+    std::fs::read_to_string(config.join("agents.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str::<Agents>(&text).ok())
+        .map(|a| a.visible)
+        .unwrap_or_default()
+}
+
+pub(crate) fn write_agents(config: &Path, visible: &[String]) -> std::io::Result<()> {
+    let temporary = config.join("agents.json.tmp");
+    let agents = Agents {
+        visible: visible.to_vec(),
+    };
+    std::fs::write(&temporary, serde_json::to_vec_pretty(&agents)?)?;
+    private(&temporary)?;
+    std::fs::rename(&temporary, config.join("agents.json"))
+}
+
+/// The calls agents made, newest last, kept to the last [`AGENT_LOG_LINES`]:
+/// `<config>/agents.log` (ADR 0054). Rewritten whole each time — a
+/// temporary, a chmod to `0600`, a rename — with the calls this crate may
+/// make on the configuration directory (its clippy.toml): no appending.
+pub(crate) fn append_agent_log(config: &Path, line: &str) -> std::io::Result<()> {
+    let file = config.join("agents.log");
+    let mut text = std::fs::read_to_string(&file).unwrap_or_default();
+    text.push_str(line);
+    text.push('\n');
+    let lines: Vec<&str> = text.lines().collect();
+    let kept = lines[lines.len().saturating_sub(AGENT_LOG_LINES)..].join("\n") + "\n";
+    let temporary = config.join("agents.log.tmp");
+    std::fs::write(&temporary, kept)?;
+    private(&temporary)?;
+    std::fs::rename(&temporary, file)
+}
+
+/// What `agents.log` holds; empty when there is none.
+pub(crate) fn read_agent_log(config: &Path) -> String {
+    std::fs::read_to_string(config.join("agents.log")).unwrap_or_default()
+}
+
+/// The agents' calls `agents.log` keeps.
+const AGENT_LOG_LINES: usize = 2000;

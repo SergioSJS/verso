@@ -20,6 +20,7 @@
 - Revisions: 2026-10-08 — **decided by the maintainer**: Windows' command
   line comes with the app; the host says what "Add to Claude" writes; the
   download page where Claude Desktop is missing (Status).
+- Revisions: 2026-10-08 — **decided by the maintainer**: two MCP modes (per folder, the default; all of Verso), folders hidden from agents until marked, agents' calls logged (points 3–6).
 
 ## Context
 
@@ -75,6 +76,67 @@ How the author built them (the memo, section 5):
   [0029](0029-guardrails-in-ci.md).)*
 - **The release puts the command line inside the app** and signs the bundle
   again, ad hoc as before; the separate archive stays.
+
+### One server per folder, or one for all of Verso (2026-10-08)
+
+Asked by the maintainer ("se eu tiver vários vaults, como é que o MCP vai
+saber qual … coloque como opção nas configurações se a pessoa vai usar MCP
+por Vault ou se vai usar MCP por verso inteiro"), with the author's
+recommendations accepted ("pode seguir"):
+
+3. **Two modes, chosen in Settings → Terminal and agents.** *One server per
+   folder*, the default and the way so far: "Add to Claude Desktop" writes
+   `verso-<folder>` with `verso mcp --key <key>`, which sees that folder
+   alone. *One server for all of Verso*: one entry, `verso`, with
+   `verso mcp --all`, added once; it serves the folders Verso has opened
+   that are marked visible to agents, through a `list_folders` tool (each
+   folder's name and key, never its path) and a `folder` argument on every
+   tool: the key, or a name only where exactly one visible folder bears it
+   — otherwise the call is refused with the candidates' keys.
+4. **A folder is hidden from agents until the person marks it visible**
+   (per folder, in the same section). The marks live in the configuration
+   directory (`<config>/agents.json`, keyed by the folder's key, written as
+   the index's sidecar is, in the same module), not in the window's
+   storage: the server runs without the app. A moved folder gets a new key,
+   so it is hidden again until marked. The per-folder server needs no mark — adding it is the
+   person's choice of that folder.
+5. **The app need not be running, nor the folder open**: a client starts
+   the command line, which opens the folder from disk through the core and
+   shares the index with the app (SQLite in WAL with a 5 s busy timeout,
+   verso-index). A folder must have been opened in Verso once: its key
+   names its index's sidecar, which says where it is. The all-of-Verso
+   server answers `list_folders` from the sidecars and the marks without
+   opening anything, opens a folder (`Workspace::reopen`, which refuses a
+   folder that is gone) the first time a call names it, and a folder that
+   fails to open fails that call, never the server.
+6. **What an agent read is logged**: every tool call — the tool, the folder
+   and the note or the words — goes to `agents.log` in the configuration
+   directory (the last 2,000 calls), so the person can see afterwards what
+   an agent looked at. Its own file, rewritten whole each time: the core
+   may not append to a file there (its `clippy.toml`, ADR 0029).
+
+**Security, as weighed in session.** A program running as the person can
+read the notes from disk already, outside macOS's protected folders: the server opens no new door on the
+machine (the notes, the index and the client's configuration are the
+person's files; replacing `verso.exe` or the link needs the same rights).
+It listens on no port — standard input and output only — and **never gets
+a network transport without authentication**. The risk it adds is prompt
+injection: a note's text can tell an agent to read more and send it away
+through another tool the agent has. A per-folder server bounds that to its
+folder; the all-of-Verso server to the folders marked visible — hence the
+default mode and the hidden-by-default marks. The marks hold only against
+an agent whose other tools cannot write the configuration directory: an
+agent with a shell or a file tool can mark every folder visible itself.
+The per-folder server is the bound that survives such an agent — a second
+reason for it being the default. To verify on macOS: a process
+started by an app without access to the protected folders (Documents,
+Desktop, iCloud) reaches them through `verso` only if macOS credits the
+access to Verso rather than to the app that started it (a prompt would
+then name the client, not Verso); Windows has no such gate (ADR 0069).
+`[OPEN]`: two folders with the same name collide already in per-folder
+mode — the second "Add to Claude Desktop" replaces the first entry
+(`verso-<name>`); the entry's name for that case is the maintainer's to
+choose.
 
 ## Consequences
 
