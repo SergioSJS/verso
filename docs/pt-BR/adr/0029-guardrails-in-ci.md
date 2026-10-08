@@ -58,7 +58,10 @@
   de plataforma; os testes de ponta a ponta da janela rodam no Chromium ao
   lado do WebKit; a lista de `std::fs` nomeia as chamadas de symlink do
   Windows, e as entradas de cada sistema levam `allow-invalid` onde o outro
-  sistema não as resolve.
+  sistema não as resolve. No mesmo dia, com a escrita atômica do porte, o
+  `main` ganha um job de Windows — clippy e os testes numa imagem fixada
+  `windows-2025`, com a conversão de fim de linha do runner desligada antes
+  do checkout.
 
 ## Contexto
 

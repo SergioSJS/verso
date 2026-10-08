@@ -487,8 +487,11 @@ Three notes on applying it at the MCP edge:
    request, not of where the user's own folder leads.
 
 Two smaller shapes, so the code does not decide them by silence: the separator
-is **`/`** (macOS and Linux; Windows is not a target,
-[ADR 0022](../adr/0022-target-platforms-macos-first.md)), and the path is
+is **`/`** (macOS and Linux when this was written; Windows became a target on
+2026-09-23, [ADR 0022](../adr/0022-target-platforms-macos-first.md), and the
+port keeps `/` there too: `verso-fs` writes it in every path relative to the
+folder and turns it into the OS's form only at the disk — provisional,
+[ADR 0069](../adr/0069-windows-port.md), item 9), and the path is
 returned **with `.md`**, exactly as `list_notes` and `search` print it, while
 the lenient acceptance of a path without `.md` that `Workspace::backlinks`
 already has is kept.

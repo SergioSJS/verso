@@ -53,7 +53,10 @@
   Windows machine over SSH, required when the diff touches platform code;
   the window's end-to-end tests run in Chromium beside WebKit; the
   `std::fs` list names Windows' symlink calls, and the entries of each OS
-  carry `allow-invalid` where the other OS cannot resolve them.
+  carry `allow-invalid` where the other OS cannot resolve them. The same
+  day, with the port's atomic write, `main` gains a Windows job — clippy
+  and the tests on a pinned `windows-2025` image, the runner's line-ending
+  conversion turned off before the checkout.
 
 ## Context
 

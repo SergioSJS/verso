@@ -204,8 +204,11 @@ is built when Linux becomes a target, as ADR 0044 says; Linux is not one yet.
   The tab behaviours of sections 3.4 to 3.6 wait for a smoke run on a scratch
   copy.
 - Real iCloud Drive evictions and downloads under a watch.
-- Windows (not a target yet), and the host crate on Linux (it needs
-  WebKitGTK; the watcher crates were run there).
+- Windows, not a target when this was written (it became one on
+  2026-09-23), and the host crate on Linux (it needs WebKitGTK; the watcher
+  crates were run there). Since 2026-10-08 the watcher's tests run on
+  Windows, and a directory's own "modified" event, which reading the notes
+  in it raises there, is dropped ([ADR 0069](../adr/0069-windows-port.md)).
 - The cost of section 3.2 on a folder of tens of thousands of notes with
   changes arriving continuously.
 

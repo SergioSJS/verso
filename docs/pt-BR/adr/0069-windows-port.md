@@ -86,6 +86,25 @@ trabalho interativa — o item 7 pode precisar de uma sessão com login e uma
 tarefa agendada, ou de uma sessão de Área de Trabalho Remota aberta, para
 iniciar o app.
 
+Medido no `verso-win` em 2026-10-08, pelos primeiros pull requests do
+porte. O workspace nem compilava lá: o `xattr` era dependência do
+`verso-fs` em todo sistema, e o `verso-fs` parava o build de propósito onde
+só existia a metade Unix da sua identidade de diretório. **Um diretório
+aberto com acesso de escrita e `FILE_FLAG_BACKUP_SEMANTICS`, pelo
+`OpenOptionsExt` estável da std, aceita `FlushFileBuffers` (`sync_all`)**;
+aberto só para leitura, é recusado com "Access is denied". Isso é um
+`fsync` de diretório no Windows sem `unsafe` e sem dependência, um fato
+novo para o primeiro `[OPEN]` do item 9: o porte faz o flush do diretório
+assim, e a pergunta continua sendo do mantenedor. O `Path::join` punha `\`
+nos caminhos relativos à pasta, e um board e um link foram escritos com
+ela. Ler as notas de um diretório levantava um evento de "modificado" do
+próprio diretório, o que faria cada passada do índice começar a próxima. O
+harness de teste do host desktop morria na partida
+(`STATUS_ENTRYPOINT_NOT_FOUND`) sem o manifesto de aplicação que o
+tauri-build embute só no app. Uma nota é renomeada por `link` e `unlink`
+lá também (o NTFS tem hard links), e o Windows recusa renomear uma pasta
+enquanto algum arquivo dentro dela está aberto.
+
 ## Decisão
 
 1. **Só x64, Windows 10 e 11.** Windows em ARM não é construído: não há
