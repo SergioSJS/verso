@@ -16,6 +16,10 @@ async function openNote(app, text, name = "Listas") {
   await expect(app.page.locator(".editor")).toBeAttached();
   await app.key("Mod+e");
   await expect(app.page.locator(".editor.live .cm-content")).toBeVisible();
+  // The editor shows the note before its text arrives: wait for its last
+  // line, or a line lookup can find nothing (seen once in Chromium).
+  const last = text.trim().split("\n").pop();
+  await expect.poll(() => app.page.evaluate(`${view}.state.doc.toString()`)).toContain(last);
 }
 
 const view = "document.querySelector('.leaf:not([hidden]) .note-sheet .editor').__cmView";
