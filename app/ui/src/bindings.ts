@@ -357,6 +357,13 @@ export const commands = {
 	 *  linked: the entry starts it.
 	 */
 	mcpAddClaude: () => typedError<McpAdded, ContractError>(__TAURI_INVOKE("mcp_add_claude")),
+	/**
+	 *  Claude Desktop's download page, in the system's browser: where Claude
+	 *  Desktop is not installed, the settings offer it instead of a dead
+	 *  "not found" (the maintainer, 2026-10-08). One fixed address, nothing
+	 *  from the window: the command takes no argument.
+	 */
+	openClaudeDownload: () => typedError<null, ContractError>(__TAURI_INVOKE("open_claude_download")),
 	/**  Checks GitHub releases for a new version of the application. */
 	checkForUpdates: () => typedError<UpdateInfo, ContractError>(__TAURI_INVOKE("check_for_updates")),
 	/**
@@ -549,7 +556,12 @@ export type CliState =
  *  This build carries no command line to link (a development build
  *  without it).
  */
-"unbundled";
+"unbundled" | 
+/**
+ *  Windows: the command line comes with the app, `verso.exe` beside
+ *  it, and nothing is linked onto a PATH (ADR 0069, item 9).
+ */
+"bundled";
 
 /**
  *  An error as the UI receives it. `message` is the core's text, in
@@ -889,6 +901,12 @@ export type McpStatus = {
 	/**  The name of the server in a client's configuration: `verso-<folder>`. */
 	server: string,
 	claude: McpClientState,
+	/**
+	 *  What a client starts for it, as "Add to Claude" would write it: the
+	 *  linked command line, or on Windows the bundled `verso.exe` by its
+	 *  path — shown to the person before it is written (ADR 0054).
+	 */
+	command: string,
 };
 
 /**  A file that moved, from one relative path to another. */

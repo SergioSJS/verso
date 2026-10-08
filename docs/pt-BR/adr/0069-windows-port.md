@@ -272,7 +272,11 @@ enquanto algum arquivo dentro dela está aberto.
      lado do `verso-app.exe` (o `externalBin` do Tauri), e o "Adicionar ao
      Claude" grava o caminho absoluto dele na configuração do Claude
      Desktop — o caminho da pasta continua não indo a lugar nenhum, só a
-     chave dela. No `PATH` ele ainda não é posto.
+     chave dela. No `PATH` ele ainda não é posto. O `externalBin` é dado
+     só na hora do pacote, no arquivo de configuração que o
+     `scripts/check-windows.sh --bundle` escreve (no `tauri.conf.json` todo
+     build precisaria do arquivo); o job de versão do Windows, quando
+     existir, passa o mesmo.
 
 ## Consequências
 

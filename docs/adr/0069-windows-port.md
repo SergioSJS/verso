@@ -265,7 +265,10 @@ refuses to rename a folder while any file in it is open.
      beside `verso-app.exe` (Tauri's `externalBin`), and "Add to Claude"
      writes its absolute path into Claude Desktop's configuration — the
      folder's path still goes nowhere, only its key. On `PATH` it is not
-     put yet.
+     put yet. The `externalBin` is given at bundle time only, in the config
+     file `scripts/check-windows.sh --bundle` writes (in `tauri.conf.json`
+     every build would need the file); the Windows release job, when it
+     exists, passes the same.
 
 ## Consequences
 

@@ -167,8 +167,10 @@ junto com a janela.
   tentava de novo com `--args`, que um app já aberto ignora, então um erro de
   digitação era reportado como "abrindo"; a leitura da Opus das respostas achou
   isso. Um binário rodado direto — `$VERSO_APP`, uma árvore de
-  desenvolvimento, Linux — continua começando um processo novo a cada vez, e a
-  janela reporta uma pasta que não existe.
+  desenvolvimento, Windows, Linux — começa um processo que, com o app aberto,
+  entrega a pasta a ele e sai (instância única, desde 2026-10-08, Status); no
+  macOS nenhum binário de dentro de um `.app` é rodado, o da linha de comando
+  instalada incluído. A janela reporta uma pasta que não existe.
 - **A primeira versão deste código** usava uma regra léxica — `.`, `..`, uma
   `/` ou um `~` no começo faziam do argumento uma pasta —, então `verso notas`
   era comando desconhecido e `verso ./nao-existe` dizia que estava abrindo; e

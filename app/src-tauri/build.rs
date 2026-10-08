@@ -77,6 +77,7 @@ fn main() {
         "uninstall_cli",
         "mcp_status",
         "mcp_add_claude",
+        "open_claude_download",
         "check_for_updates",
         "download_and_install_update",
         "restart_app",

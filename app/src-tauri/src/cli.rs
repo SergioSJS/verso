@@ -26,36 +26,48 @@ fn bundled_cli() -> Option<PathBuf> {
             }
         }
     }
-    if let Ok(home) = std::env::var("HOME") {
-        candidates
-            .push(PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso"));
-        candidates.push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso"));
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            candidates.push(
+                PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso"),
+            );
+            candidates
+                .push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso"));
+        }
+        candidates.push(PathBuf::from(
+            "/Applications/Verso Beta.app/Contents/MacOS/verso",
+        ));
+        candidates.push(PathBuf::from(
+            "/Applications/Verso.app/Contents/MacOS/verso",
+        ));
     }
-    candidates.push(PathBuf::from(
-        "/Applications/Verso Beta.app/Contents/MacOS/verso",
-    ));
-    candidates.push(PathBuf::from(
-        "/Applications/Verso.app/Contents/MacOS/verso",
-    ));
 
     candidates.into_iter().find(|cli| executable_file(cli))
 }
 
 fn cli_state_now() -> CliState {
-    let Some(ours) = bundled_cli() else {
-        return CliState::Unbundled;
-    };
-    if let Some(target) = link_target(Path::new(CLI_LINK)) {
-        return if target == ours {
-            CliState::Ours
-        } else {
-            CliState::Elsewhere
+    // Nothing is linked on Windows: the installer put verso.exe beside the
+    // app (ADR 0069, item 9).
+    #[cfg(windows)]
+    return bundled_cli().map_or(CliState::Unbundled, |_| CliState::Bundled);
+    #[cfg(not(windows))]
+    {
+        let Some(ours) = bundled_cli() else {
+            return CliState::Unbundled;
         };
-    }
-    if something_at(Path::new(CLI_LINK)) {
-        CliState::Elsewhere
-    } else {
-        CliState::Missing
+        if let Some(target) = link_target(Path::new(CLI_LINK)) {
+            return if target == ours {
+                CliState::Ours
+            } else {
+                CliState::Elsewhere
+            };
+        }
+        if something_at(Path::new(CLI_LINK)) {
+            CliState::Elsewhere
+        } else {
+            CliState::Missing
+        }
     }
 }
 
@@ -107,6 +119,9 @@ pub(crate) fn cli_status() -> CliState {
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn install_cli(replace: bool) -> Result<CliState, ContractError> {
+    if cfg!(windows) {
+        return Err(refused("on Windows the command line comes with the app"));
+    }
     let Some(ours) = bundled_cli() else {
         return Err(refused("this build carries no command line"));
     };
@@ -230,7 +245,33 @@ pub(crate) fn mcp_status<R: tauri::Runtime>(
             client_state(verso_core::clients::claude_entry(&dir, &server, &entry).map_err(convert)?)
         }
     };
-    Ok(McpStatus { server, claude })
+    Ok(McpStatus {
+        server,
+        claude,
+        command,
+    })
+}
+
+/// Claude Desktop's download page, in the system's browser: where Claude
+/// Desktop is not installed, the settings offer it instead of a dead
+/// "not found" (the maintainer, 2026-10-08). One fixed address, nothing
+/// from the window: the command takes no argument.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn open_claude_download() -> Result<(), ContractError> {
+    const PAGE: &str = "https://claude.com/download";
+    #[cfg(target_os = "macos")]
+    let mut command = std::process::Command::new("open");
+    // Explorer hands an address to the default browser.
+    #[cfg(windows)]
+    let mut command = std::process::Command::new("explorer");
+    #[cfg(not(any(target_os = "macos", windows)))]
+    let mut command = std::process::Command::new("xdg-open");
+    command
+        .arg(PAGE)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| failed(e.to_string()))
 }
 
 /// Add the open folder's server to Claude Desktop — after the window has
