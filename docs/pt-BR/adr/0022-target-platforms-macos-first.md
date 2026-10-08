@@ -41,10 +41,13 @@ mais rápida para o burnout registrado em §10.3.
   começa agora, com a Fase 2 aberta e antes de uma versão estável (*"uma
   das coisas que a gente tem para fazer é implementar uma versão para
   Windows"*, depois *"Tô querendo já iniciar windows"*). Como é construído e
-  testado é o [0069](0069-windows-port.md). Se o app de Windows faz parte do
-  escopo e do critério de saída da Fase 2 é `[ABERTO]`; até decidir, a Fase
-  2 fica só macOS, como acima. O Linux não muda (2026-09-23): depois da Fase
-  2.
+  testado é o [0069](0069-windows-port.md). Perguntado se isso põe o app de
+  Windows na Fase 2, o mantenedor respondeu no mesmo dia: *"Vou passar
+  windows na frente"* — o app de Windows faz parte do escopo da Fase 2, à
+  frente do resto do trabalho da Fase 2, e sai antes de a Fase 2 fechar;
+  "a Fase 2 é um esqueleto andante só em macOS" acima vale para a Fase 2
+  como foi planejada, e o roadmap leva a revisão. O Linux não muda
+  (2026-09-23): depois da Fase 2.
 
 ## Alternativas descartadas
 
