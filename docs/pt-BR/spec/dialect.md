@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.29
+# Spec do dialeto do Verso — v0.30
 
-- Versão: v0.29 · 2026-10-07
+- Versão: v0.30 · 2026-10-07
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -784,8 +784,10 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   que o `resolvedLinks` conta da nota de teste para `Alvo.md` incluem o embed
   `![[Alvo]]`. Quem decide é o mantenedor; esta linha só registra o que o
   código faz enquanto isso.
-- **Q3. Posição admissível do `^id`.** `DECIDIDO`: para o fim de um
-  parágrafo e de um item de lista em 2026-09-21, para o resto em 2026-10-07.
+- **Q3. Posição admissível do `^id`.** `DECIDIDO` para o fim de um
+  parágrafo e de um item de lista (2026-09-21), para um `^id` sozinho depois
+  de um bloco de nível superior e no fim de um heading (2026-10-07);
+  `[ABERTO]` para os quatro fatos provisórios abaixo (2026-10-07).
   Fechada para essas duas em 2026-09-21 pelo mantenedor, com as fixtures
   `fixtures/block/definition` e `fixtures/block/list-item` como resposta
   (ADR 0031): um `^id` como última palavra de um parágrafo e um `^id` como
@@ -806,18 +808,24 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 
   **Fatos provisórios da implementação, 2026-10-07, depois da leitura do
   revisor — não são resposta a esta questão, não foram observados no
-  Obsidian, e ficam `[ABERTO]` para o mantenedor decidir.** (1) Num item
-  solto (uma linha em branco entre o primeiro parágrafo e a lista aninhada),
-  o primeiro parágrafo é tomado como o texto próprio do item, e um `^id` no
-  fim dele nomeia o item inteiro, como num item compacto; um bloco de
-  código, uma citação ou um heading em primeiro no item nomeia só a si. (2)
-  "O bloco de antes" é o da mesma profundidade: dentro de uma citação ou de
-  um item de lista, o bloco de antes naquela citação ou item; sem nada
-  antes, a linha do `^id` nomeia a si mesma. (3) Um `^palavra` que não é id
-  (com um ponto, digamos) é um parágrafo como outro qualquer, e um `^id`
-  sozinho depois dele nomeia esse parágrafo. Nenhuma fixture registra isso
-  até o mantenedor decidir (regra 17); os testes unitários do parser
-  fixam isso enquanto isso.
+  Obsidian, e ficam `[ABERTO]` para o mantenedor decidir.** (1) Um item cujo
+  primeiro bloco é um parágrafo — todo item de uma lista solta — toma esse
+  parágrafo como texto próprio, e um `^id` no fim dele nomeia o item
+  inteiro, com os itens aninhados e os parágrafos seguintes, como num item
+  compacto; um bloco de código, uma citação ou um heading em primeiro no
+  item nomeia só a si. (2) "O bloco de antes" é o da mesma profundidade:
+  dentro de uma citação ou de um item de lista, o bloco de antes naquela
+  citação ou item; sem nada antes, a linha do `^id` nomeia a si mesma. (3)
+  Um `^palavra` que não é id (com um ponto, digamos) é um parágrafo como
+  outro qualquer, e um `^id` sozinho depois dele nomeia esse parágrafo. (4)
+  Quando o bloco de antes de um `^id` sozinho é o primeiro parágrafo de um
+  item, o fato (1) faz o bloco ser o item inteiro, e as `lines` dele então
+  vão até a linha do `^id`, que fica dentro do item (`- um`, linha em
+  branco, `  ^x`, linha em branco, `  - filho` dá linhas 1 a 5); no nível
+  superior a linha do `^id` nunca faz parte do bloco que nomeia
+  (`fixtures/block/after-a-block`). Nenhuma fixture registra isso até o
+  mantenedor decidir (invariante 17 do CLAUDE.md, ADR 0031); os testes
+  unitários do parser fixam isso enquanto isso.
 - **Q4. Escopo de unicidade do `^id`.** `DECIDIDO` em 2026-10-07 pelo
   mantenedor.
   Único por nota: um link nomeia a nota e o id (`[[nota#^id]]`). Com o mesmo
@@ -825,9 +833,10 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   (observado pelo CLI do Obsidian em 2026-10-07: o cache dele guarda o
   segundo), e o Verso diz que o id está repetido. O parser reporta os dois, em
   ordem do documento (`fixtures/block/duplicate`), e o índice e o `read_note`
-  do MCP também, cuja descrição nada diz da regra; a regra do último é
-  aplicada pela janela — um embed, um link para o bloco — e fica a cargo de
-  um cliente do MCP.
+  do MCP também, cujo schema de resposta enuncia a regra em `first_line`
+  ("com o mesmo id duas vezes numa nota, o último nomeia o bloco"); a
+  janela a aplica — um embed, um link para o bloco — e um cliente do MCP a
+  lê ali.
 - **Q5. Cobertura de callout.** `DECIDIDA` para os tipos, a dobra e o título na
   visualização de leitura em 2026-09-23; `[ABERTO]` para o aninhamento.
   Tipos reconhecidos, `-`/`+`, aninhamento (seção 5.8).
@@ -1288,3 +1297,4 @@ ser escolhido.
 | v0.27 | 2026-10-07 | As fixtures `fixtures/schema/top-level` e `fixtures/schema/nested-and-invalid` **aprovadas pelo mantenedor** em sessão ("ta aprovado a fixture"); a marca de rascunho removida. Nada mais muda. |
 | v0.28 | 2026-10-07 | **Q3, Q4 e Q21 decididas pelo mantenedor**, depois de uma observação do Obsidian pelo CLI no mesmo dia: um bloco é a unidade do editor (Q21); um `^id` sozinho depois de uma linha em branco nomeia o bloco de antes, um no fim de um heading nomeia o heading (Q3); um id é único por nota, o último de dois nomeando o bloco (Q4). Os itens de `blocks` ganham `lines` (§4.3). Três fixtures rascunhadas, à espera da aprovação do mantenedor: `block/after-a-block`, `block/heading`, `block/duplicate`. A §5.7 diz como o id é desenhado: escondido na leitura, apagado no editor, como observado. |
 | v0.29 | 2026-10-07 | As fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` e `fixtures/block/duplicate` **aprovadas pelo mantenedor** em sessão ("tao aprovados"), depois de conferir os blocos no app; a marca de rascunho removida. Nada mais muda. |
+| v0.30 | 2026-10-07 | Depois da leitura do revisor sobre o recurso de blocos (PR #37): a Q3 ganha quatro **fatos provisórios da implementação**, `[ABERTO]` para o mantenedor — item solto nomeado inteiro pelo primeiro parágrafo, "o bloco de antes" na mesma profundidade, um `^palavra` que não é id como parágrafo comum, e a linha do `^id` dentro do item que ela nomeia — com a linha de status dizendo o que está decidido e o que está aberto; a Q4 diz onde a regra do último id está enunciada (o schema de resposta do `read_note`) e aplicada (a janela). Nenhuma fixture até o mantenedor decidir. |

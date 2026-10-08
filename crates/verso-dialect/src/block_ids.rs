@@ -38,6 +38,23 @@ pub(crate) fn hide<'a>(
     let mut open: Vec<(usize, bool)> = Vec::new();
     for (event, range) in events {
         context.enter(&event);
+        // A block opening inside an item whose own text lost its id: the
+        // break left before the cut goes now, before the block is pushed.
+        if let Event::Start(
+            Tag::List(_)
+            | Tag::BlockQuote(_)
+            | Tag::CodeBlock(_)
+            | Tag::Table(_)
+            | Tag::Heading { .. }
+            | Tag::HtmlBlock
+            | Tag::Paragraph,
+        ) = &event
+            && let Some((at, true)) = open.last()
+        {
+            while out.len() > at + 1 && out.last().is_some_and(|(e, _)| trailing(e)) {
+                out.pop();
+            }
+        }
         match &event {
             Event::Start(Tag::Paragraph | Tag::Item) => open.push((out.len(), false)),
             Event::End(end @ (TagEnd::Paragraph | TagEnd::Item)) => {

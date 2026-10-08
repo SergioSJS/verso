@@ -22,7 +22,8 @@ await esbuild.build({
 const { dedent, blockOfTarget } = await import("./.bundles/blockEmbed.test-bundle.mjs");
 
 test("a nested item loses its depth, its children keep theirs", () => {
-  assert.equal(dedent(["\t- filho ^tab", "\t\t- neto"]), "- filho ^tab\n\t- neto");
+  // What is left of an indent is written as spaces: a tab was four columns.
+  assert.equal(dedent(["\t- filho ^tab", "\t\t- neto"]), "- filho ^tab\n    - neto");
   assert.equal(dedent(["    - c ^c", "        - d"]), "- c ^c\n    - d");
 });
 
@@ -41,6 +42,8 @@ test("tabs and spaces are measured in columns, as the parser reads them", () => 
   // parent's indent, so the child stays a child.
   assert.equal(dedent(["  - b ^b", "\t- c"]), "- b ^b\n  - c");
   assert.equal(dedent(["\t- b ^b", "      - c"]), "- b ^b\n  - c");
+  // A tab left after the cut is written as the columns it had.
+  assert.equal(dedent(["  - b ^b", "  \t  - c"]), "- b ^b\n    - c");
 });
 
 test("the id of an embed's target", () => {

@@ -33,22 +33,10 @@ export async function embeddedHtml(target: string, note: NoteText): Promise<stri
 export function dedent(lines: string[]): string {
   const width = columns(lines[0] ?? "");
   if (width === 0) return lines.join("\n");
-  return lines
-    .map((line) => {
-      // Leading blanks up to `width` columns go; a tab reaching past it
-      // leaves the columns it overshoots by, as spaces.
-      let col = 0;
-      let i = 0;
-      while (i < line.length && col < width) {
-        const ch = line[i];
-        if (ch === " ") col++;
-        else if (ch === "\t") col += 4 - (col % 4);
-        else break;
-        i++;
-      }
-      return " ".repeat(Math.max(0, col - width)) + line.slice(i);
-    })
-    .join("\n");
+  // What is left of a line's indent is written as spaces, measured from
+  // its original columns: a tab kept as a tab would start at a new column
+  // and change its width.
+  return lines.map((line) => " ".repeat(Math.max(0, columns(line) - width)) + line.replace(/^[ \t]+/, "")).join("\n");
 }
 
 /** The columns the leading blanks of `line` span. */
