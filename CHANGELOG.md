@@ -18,11 +18,16 @@ test release.
 - **Verso for Windows** ([ADR 0069](docs/adr/0069-windows-port.md)): an installer for Windows 10 and 11 (x64), per user, with no administrator rights; `verso.exe` comes beside the app, and "Add to Claude Desktop" writes its path. The installer is not signed yet: Windows SmartScreen warns once ("More info" › "Run anyway"). Run so far on Windows 11 only; Windows 10 is targeted but not yet tried.
 - **One agent server for all of Verso** ([ADR 0054](docs/adr/0054-terminal-and-agents-from-the-app.md)): Settings › Terminal and agents chooses between one server per folder (the default, as before) and one for all of Verso — `verso mcp --all`, added to Claude Desktop once, which serves the folders marked visible to agents (none until marked, by a switch in the same section) through a `list_folders` tool and a `folder` argument on every tool. Neither the app nor the folder needs to be open. Every call an agent makes is logged in `agents.log`, in Verso's configuration folder.
 - **Settings › Terminal and agents offers Claude Desktop's download** when it is not installed, instead of only saying it was not found.
+- **An embed of a block shows that block** (spec Q3, Q21): `![[nota#^id]]` shows the paragraph, list item (with its nested items), heading, table, code block or quote the id names, not the whole note; `[[nota#^id]]` opens the note at that block. What the id names is what Obsidian names, observed through its CLI: inside a quote or a callout, the whole quote; inside a list, the innermost item with its nested items, wherever in the item the id sits; alone on a line at the top level, the block before it, and nothing when there is nothing before it. The same `^id` twice in a note is said in the note, the last one counting (Q4). As in Obsidian, the `^id` itself is not shown in Leitura (a `^id` alone on its line goes with the block it names; one that names nothing stays as written) and is shown quiet in Editar.
+- **A new note offers the templates, as Notion does** ([ADR 0068](docs/adr/0068-templates-chosen-in-a-new-note.md)): under a new note's title, "Start with" lists Blank and the notes of the templates folder; one click — or Tab, the arrows and Enter — fills the note from it, `{{title}}` and `{{date}}` filled. Blank, Esc or typing put the list away. A folder's `items_template` still makes its notes, with no list.
+- **A PDF shows its first page in a folder's view**: Thumbnails and List draw the cover where the PDF's mark was, once the row is on screen; a file only in the cloud keeps the mark and is not downloaded for it.
 
 ### Changed
 
 - **A note, folder or file is made or renamed only with a name every system can keep** ([ADR 0070](docs/adr/0070-what-travels-with-the-folder.md)): `CON`, `NUL`, `COM1` and the other device names, a trailing dot or space, and `: * " < > ? | \` are refused on macOS too, since a folder synced to Windows could not carry them; the field says why. A file that already has such a name still opens, saves, and can be renamed to one every system keeps.
 - **The demo vault's note 19 is now `19 - Organizando com figurinhas, capas e páginas`**: its `:` broke its four links once the folder reached Windows. Importing into a folder that holds an earlier demo keeps that one as it is.
+- **A note with no sticker shows a faint sparkle left of its title, not a star**: the star, at the title's other end, is the bookmark's; two stars meant two things.
+- **The app's identifier is `com.versomd.app`** (`com.versomd.app.beta` for the betas), after the project's domain ([ADR 0004](docs/adr/0004-project-name-verso.md)). The window's settings, keys, column widths and local focuses come along on the first start; macOS may ask once more for access to a folder.
 
 ### Fixed
 
@@ -34,26 +39,9 @@ test release.
 - **The tree costs less on a big folder**: each row is cheaper to draw (no image of its own per icon, no layer of its own per name), opening a note marks two rows instead of all of them, and a closed folder lets go of its rows — measured on 5,000 notes on Windows, where the tree held about 120 MB.
 - **After a click on a tree row, ↓ and ↑ walk the tree from it**; F2 still renames the open note, and a row reached by the arrows is renamed in place.
 - **Keys and fields in every web engine**: after a click on a tree row, F2 renames the open note in Chromium (WebView2) too; the board's keys keep working after Insert › Setas soltas; a new note or folder from the tree is made on Enter, and Escape leaves a workspace's name as it was — each was broken in Chromium, the engine of the Windows app to come ([ADR 0069](docs/adr/0069-windows-port.md)).
-
-## 0.4.0-beta.2 — 2026-10-07
-
-### Added
-
-- **An embed of a block shows that block** (spec Q3, Q21): `![[nota#^id]]` shows the paragraph, list item (with its nested items), heading, table, code block or quote the id names, not the whole note; `[[nota#^id]]` opens the note at that block. What the id names is what Obsidian names, observed through its CLI: inside a quote or a callout, the whole quote; inside a list, the innermost item with its nested items, wherever in the item the id sits; alone on a line at the top level, the block before it, and nothing when there is nothing before it. The same `^id` twice in a note is said in the note, the last one counting (Q4). As in Obsidian, the `^id` itself is not shown in Leitura (a `^id` alone on its line goes with the block it names; one that names nothing stays as written) and is shown quiet in Editar.
-- **A new note offers the templates, as Notion does** ([ADR 0068](docs/adr/0068-templates-chosen-in-a-new-note.md)): under a new note's title, "Start with" lists Blank and the notes of the templates folder; one click — or Tab, the arrows and Enter — fills the note from it, `{{title}}` and `{{date}}` filled. Blank, Esc or typing put the list away. A folder's `items_template` still makes its notes, with no list.
-- **A PDF shows its first page in a folder's view**: Thumbnails and List draw the cover where the PDF's mark was, once the row is on screen; a file only in the cloud keeps the mark and is not downloaded for it.
-
-### Changed
-
-- **A note with no sticker shows a faint sparkle left of its title, not a star**: the star, at the title's other end, is the bookmark's; two stars meant two things.
-- **The app's identifier is `com.versomd.app`** (`com.versomd.app.beta` for the betas), after the project's domain ([ADR 0004](docs/adr/0004-project-name-verso.md)). The window's settings, keys, column widths and local focuses come along on the first start; macOS may ask once more for access to a folder.
-
-### Fixed
-
 - **⌘Z undoes the note's changes in order when the focus is on a button**: with the focus on a button, a tab or a checkbox instead of the text, the menu's Undo ran the web view's own, which knows nothing of the editor's history — it undid nothing, or the wrong change. The note in Editar or Fonte takes it now.
 - **An SVG with no size of its own shows in Editar**: a picture whose width and height are percents (the demo vault's diagram) shrank to an empty line in Editar, selected or not, and in Leitura when written `![](x.svg)`. It fills the note's width now.
 - **Nothing stands past the window's right edge with the right bar closed**: its divider and border stood 4px past it, which a scroll could bring into view.
-
 - **A name already taken is not an error in the log**: naming a note, a folder or a file with a name the folder already has is said in the status bar, as before, and logged as information, so the log's errors (and the bug report's) are only what went wrong.
 - **A folder's Thumbnails and List views show its items**: a folder opened as a table showed an empty view when switched to them.
 - **After an update the window shows the new version at once**: it could show the previous version's interface, kept in the web view's cache, until the caches were cleared. The files the window loads now carry the version in their address ([ADR 0056](docs/adr/0056-embedded-web-pages.md)).
