@@ -120,7 +120,8 @@ session, to start the app in.
    with `-D warnings` and `cargo test --workspace`. This goes further than
    [0029](0029-guardrails-in-ci.md), which gives Windows "a check of its
    build here and its tests in CI": the tests run here too, since the
-   machine exists. Whether it must pass before every push is `[OPEN]`. Recorded recommendation: required when the diff touches
+   machine exists. **Decided on 2026-10-07 by the maintainer
+   ("Recomendado")**: required when the diff touches
    platform-dependent code (`verso-fs`, `app/src-tauri`, configuration paths,
    anything under `cfg(windows)`), optional otherwise; for code that only
    Windows compiles, the pull request states the run as a step, as it does
@@ -169,7 +170,9 @@ session, to start the app in.
      Windows `MOVEFILE_WRITE_THROUGH` stands in for the directory `fsync`,
      the strongest the documented API offers for a same-volume rename,
      though not documented as its equivalent (Context); the guardrail's
-     text says so; the maintainer decides.
+     text says so. The maintainer, asked on 2026-10-07, does not know yet
+     ("Não sei"): the port proceeds on this recommendation as a provisional
+     fact, and the maintainer decides on the pull request that lands it.
    - **`[OPEN]`: the path separator.** A note's path crosses the contract as
      a string relative to the open folder (ADR 0026, rule 4), wikilink
      targets and the index hold paths, and `docs/reference/mcp-decision.md`
@@ -181,8 +184,10 @@ session, to start the app in.
      `normalizePath` (`obsidian.d.ts`), whose documentation does not say
      what it does to separators: that Obsidian writes `/` in a vault on
      Windows is to be observed and recorded in `docs/reference/` (ADR 0009)
-     before the port relies on it. The maintainer decides, with Q8 (case)
-     beside it. The absolute paths at
+     before the port relies on it. The maintainer, asked on 2026-10-07,
+     does not know yet ("Não sei"): the port proceeds on this
+     recommendation as a provisional fact, and the maintainer decides on
+     the pull request that lands it, with Q8 (case) beside it. The absolute paths at
      the entry edge (invariant 4) stay in the OS's form.
    - The watcher (`verso-fs/src/watch.rs`) on `ReadDirectoryChangesW`: the
      events a save, a rename and a OneDrive hydration raise, against what
@@ -197,7 +202,9 @@ session, to start the app in.
    - The configuration location on Windows, with the log and the index
      file that live beside it on macOS (`~/Library/Application Support/verso`):
      `[OPEN]`; [0011](0011-config-outside-tree-index-as-cache.md) has no
-     Windows counterpart.
+     Windows counterpart. The maintainer, asked on 2026-10-07, does not know
+     yet ("Não sei"): the port proposes a location in its pull request, with
+     the reasons, and the maintainer decides there.
    - The updater's Windows install path, which exists and has never run
      ([0055](0055-in-app-updater.md)), and its rollback.
    - The command line on `PATH`, and the keys the tutorial teaches, with Ctrl
@@ -226,10 +233,13 @@ session, to start the app in.
 - The virtual machine runs Windows 11. Windows 10 needs a machine of its
   own to be tested on (proposed: a second virtual machine, from the Windows
   10 Enterprise LTSC evaluation); until then Windows 10 is supported but not
-  run. **`[OPEN]`**: either that machine exists before the first Windows
-  beta, or item 1 is amended to declare Windows 10 best effort, in the
-  release notes too. Recorded recommendation: the machine, before the first
-  Windows beta; the maintainer decides.
+  run. **Decided on 2026-10-07 by the maintainer**: the machine comes
+  later ("fica pra depois"), item 1 stands, and the port is written with
+  Windows 10 in mind from the start ("já desenvolve com win 10 em mente"):
+  no API that Windows 11 alone has, WebView2 installed by the installer
+  where it is missing, and every `cfg(windows)` choice checked against
+  Windows 10's documentation. The first Windows beta may ship before
+  Windows 10 is run; the release notes say so.
 - No GPU in the virtual machine: WebView2 renders in software there. The
   board's frame rate is judged on the gaming PC.
 - Each Windows CI job costs about 1.7 times a Linux one, only on `main`
@@ -255,14 +265,17 @@ session, to start the app in.
 ## Status
 
 Proposed. Decided by the maintainer on 2026-10-07: the Windows app starts
-now, while Phase 2 is open (ADR 0022 revised the same day); x64 only, no
-ARM64, and Windows 10 and 11 (item 1); NSIS per user (item 2); no code
-signing for now (item 3, reading their "for now, yes" as accepting the
-unsigned installer). Proposed: the embedded WebView2 bootstrapper (item 2),
-items 4 to 9, the order of the work, and a Windows 10 test machine.
-`[OPEN]`: whether the Windows app is part of Phase 2's scope and exit
-criterion — until decided, Phase 2's scope and exit stay macOS only
-([roadmap](../roadmap.md), ADR 0022); whether `scripts/check-windows.sh`
-must pass before every push; what the directory `fsync` means on Windows
-(item 9); the path separator in a path relative to the open folder (item
-9); the configuration location (item 9); Windows 10 run or best effort.
+now and goes ahead of the rest of Phase 2's work — it is part of Phase 2's
+scope, and ships before Phase 2 closes ("Vou passar windows na frente";
+ADR 0022 and the roadmap revised the same day); x64 only, no ARM64, and
+Windows 10 and 11 (item 1); NSIS per user (item 2); no code signing for now
+(item 3, reading their "for now, yes" as accepting the unsigned installer);
+`scripts/check-windows.sh` required when the diff touches platform
+code, optional otherwise (item 5, "Recomendado"); the Windows 10 machine
+later, the port written with Windows 10 in mind from the start
+(Consequences). Proposed: the embedded WebView2 bootstrapper (item 2),
+items 4, 6 to 9, and the order of the work. `[OPEN]`, the maintainer not
+knowing yet ("Não sei") and the port proceeding on the recorded
+recommendation as a provisional fact until its pull request: what the
+directory `fsync` means on Windows (item 9); the path separator in a path
+relative to the open folder (item 9); the configuration location (item 9).

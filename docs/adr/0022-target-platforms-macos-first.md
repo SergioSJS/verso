@@ -42,10 +42,13 @@ fastest route to the burnout recorded in §10.3.
   app starts now, while Phase 2 is open and before a stable version
   (*"uma das coisas que a gente tem para fazer é implementar uma versão para
   Windows"*, then *"Tô querendo já iniciar windows"*). How it is built and
-  tested is [0069](0069-windows-port.md). Whether the Windows app is part
-  of Phase 2's scope and exit criterion is `[OPEN]`; until decided, Phase 2
-  stays macOS only, as above. Linux is unchanged (2026-09-23): after Phase
-  2.
+  tested is [0069](0069-windows-port.md). Asked whether that puts the
+  Windows app in Phase 2, the maintainer answered the same day: *"Vou
+  passar windows na frente"* — the Windows app is part of Phase 2's scope,
+  ahead of the rest of Phase 2's work, and ships before Phase 2 closes;
+  "Phase 2 is a walking skeleton on macOS only" above holds for Phase 2 as
+  it was planned, and the roadmap carries the revision. Linux is unchanged
+  (2026-09-23): after Phase 2.
 
 ## Discarded alternatives
 

@@ -121,8 +121,8 @@ iniciar o app.
    `cargo clippy` com `-D warnings` e `cargo test --workspace`. Isso vai
    além do [0029](0029-guardrails-in-ci.md), que dá ao Windows "uma
    verificação do build aqui e os testes no CI": os testes rodam aqui
-   também, já que a máquina existe. Se precisa passar antes de todo push é
-   `[ABERTO]`. Recomendação registrada: obrigatório quando o diff toca código
+   também, já que a máquina existe. **Decidido em 2026-10-07 pelo
+   mantenedor ("Recomendado")**: obrigatório quando o diff toca código
    que depende da plataforma (`verso-fs`, `app/src-tauri`, caminhos de
    configuração, tudo sob `cfg(windows)`), opcional nos outros casos; para
    código que só o Windows compila, o pull request declara a execução como
@@ -173,7 +173,9 @@ iniciar o app.
      `MOVEFILE_WRITE_THROUGH` faz as vezes do `fsync` do diretório, o mais
      forte que a API documentada oferece para um rename no mesmo volume,
      embora não documentado como equivalente (Contexto); o texto do
-     guardrail diz isso; o mantenedor decide.
+     guardrail diz isso. O mantenedor, perguntado em 2026-10-07, ainda não
+     sabe ("Não sei"): o porte segue com esta recomendação como fato
+     provisório, e o mantenedor decide no pull request que a trouxer.
    - **`[ABERTO]`: o separador de caminho.** O caminho de uma nota cruza o
      contrato como texto relativo à pasta aberta (ADR 0026, regra 4), os
      alvos de wikilink e o índice guardam caminhos, e o
@@ -186,7 +188,9 @@ iniciar o app.
      documentação não diz o que faz com separadores: que o Obsidian escreve
      `/` num cofre no Windows é para observar e registrar em
      `docs/reference/` (ADR 0009) antes de o porte depender disso. O
-     mantenedor decide, com a Q8 (maiúsculas) ao lado. Os caminhos absolutos da borda de entrada (invariante 4) ficam
+     mantenedor, perguntado em 2026-10-07, ainda não sabe ("Não sei"): o
+     porte segue com esta recomendação como fato provisório, e o mantenedor
+     decide no pull request que a trouxer, com a Q8 (maiúsculas) ao lado. Os caminhos absolutos da borda de entrada (invariante 4) ficam
      na forma do SO.
    - O watcher (`verso-fs/src/watch.rs`) sobre `ReadDirectoryChangesW`: os
      eventos que um salvamento, uma renomeação e uma hidratação do OneDrive
@@ -202,7 +206,9 @@ iniciar o app.
    - O local da configuração no Windows, com o log e o arquivo do índice
      que no macOS moram ao lado dela (`~/Library/Application Support/verso`):
      `[ABERTO]`; o [0011](0011-config-outside-tree-index-as-cache.md) não tem
-     equivalente para Windows.
+     equivalente para Windows. O mantenedor, perguntado em 2026-10-07, ainda
+     não sabe ("Não sei"): o porte propõe um local no pull request dele, com
+     as razões, e o mantenedor decide ali.
    - O caminho de instalação do atualizador no Windows, que existe e nunca
      rodou ([0055](0055-in-app-updater.md)), e o seu rollback.
    - A linha de comando no `PATH`, e as teclas que o tutorial ensina, com
@@ -232,10 +238,13 @@ iniciar o app.
 - A máquina virtual roda o Windows 11. O Windows 10 precisa de uma máquina
   própria para ser testado (proposto: uma segunda máquina virtual, da
   avaliação do Windows 10 Enterprise LTSC); até lá o Windows 10 é suportado
-  mas não rodado. **`[ABERTO]`**: ou essa máquina existe antes da primeira
-  beta para Windows, ou o item 1 é emendado para declarar o Windows 10
-  "melhor esforço", nas notas da versão também. Recomendação registrada: a
-  máquina, antes da primeira beta para Windows; o mantenedor decide.
+  mas não rodado. **Decidido em 2026-10-07 pelo mantenedor**: a máquina
+  fica para depois ("fica pra depois"), o item 1 fica, e o porte é escrito
+  com o Windows 10 em mente desde o início ("já desenvolve com win 10 em
+  mente"): nenhuma API que só o Windows 11 tem, o WebView2 instalado pelo
+  instalador onde falta, e toda escolha sob `cfg(windows)` conferida contra
+  a documentação do Windows 10. A primeira beta para Windows pode sair antes
+  de o Windows 10 ser rodado; as notas da versão dizem isso.
 - Sem GPU na máquina virtual: o WebView2 renderiza em software lá. A taxa de
   quadros do board é julgada no PC de jogos.
 - Cada job de Windows no CI custa uns 1,7 de um de Linux, só em `main` e
@@ -262,15 +271,18 @@ iniciar o app.
 ## Status
 
 Proposto. Decidido pelo mantenedor em 2026-10-07: o app de Windows começa
-agora, com a Fase 2 aberta (ADR 0022 revisado no mesmo dia); só x64, sem
-ARM64, e Windows 10 e 11 (item 1); NSIS por usuário (item 2); sem assinatura
-de código por enquanto (item 3, lendo o seu "por enquanto sim" como aceite
-do instalador não assinado). Proposto: o bootstrapper do WebView2 embutido
-(item 2), os itens 4 a 9, a ordem do trabalho, e uma máquina de teste com
-Windows 10. `[ABERTO]`: se o app de Windows faz parte do escopo e do
-critério de saída da Fase 2 — até decidir, o escopo e a saída da Fase 2
-ficam só macOS ([roadmap](../roadmap.md), ADR 0022); se o
-`scripts/check-windows.sh` precisa passar antes de todo push; o que o
-`fsync` do diretório significa no Windows (item 9); o separador de caminho
-num caminho relativo à pasta aberta (item 9); o local da configuração (item
-9); Windows 10 rodado ou "melhor esforço".
+agora e passa à frente do resto do trabalho da Fase 2 — faz parte do escopo
+da Fase 2, e sai antes de a Fase 2 fechar ("Vou passar windows na frente";
+ADR 0022 e roadmap revisados no mesmo dia); só x64, sem ARM64, e Windows 10
+e 11 (item 1); NSIS por usuário (item 2); sem assinatura de código por
+enquanto (item 3, lendo o seu "por enquanto sim" como aceite do instalador
+não assinado); `scripts/check-windows.sh` obrigatório quando o diff toca
+código de plataforma, opcional nos outros casos (item 5, "Recomendado"); a
+máquina com Windows 10 depois, o porte escrito com o Windows 10 em mente
+desde o início (Consequências). Proposto: o bootstrapper do WebView2
+embutido (item 2), os itens 4, 6 a 9, e a ordem do trabalho. `[ABERTO]`, o
+mantenedor ainda sem saber ("Não sei") e o porte seguindo com a
+recomendação registrada como fato provisório até o pull request dele: o
+que o `fsync` do diretório significa no Windows (item 9); o separador de
+caminho num caminho relativo à pasta aberta (item 9); o local da
+configuração (item 9).
