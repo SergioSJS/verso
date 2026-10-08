@@ -343,7 +343,10 @@ test("a name already taken is said, and logged as an answer, not an error", asyn
   await app.writeOutside("Ocupada.md", "# Ocupada\n");
   await app.folderChanged(["Ocupada.md"], true);
   await app.key("Mod+n");
-  // The title is offered for a name: one the folder already has.
+  // The title is offered for a name: one the folder already has. Typed
+  // once the field has the focus — before, the keys went to the tree's
+  // filter (flaky, 2026-10-08).
+  await expect(page.locator("input.title-input")).toBeFocused();
   await page.keyboard.type("Ocupada");
   await page.keyboard.press("Enter");
   await expect(page.locator("#status")).toContainText("Já existe um arquivo com esse nome.");
