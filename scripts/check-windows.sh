@@ -102,7 +102,10 @@ if [ "${#failed[@]}" -gt 0 ]; then
   exit 1
 fi
 
-cargo_env="Set-Location '$base/src'; \$env:CARGO_TARGET_DIR='$base/target'"
+# The tree goes without its .git: the build is told the commit, or the
+# app's About and log say "unknown" (app/src-tauri/build.rs).
+commit=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
+cargo_env="Set-Location '$base/src'; \$env:CARGO_TARGET_DIR='$base/target'; \$env:VERSO_COMMIT='$commit'"
 step "cargo clippy -D warnings (Windows)" on_host \
   "$cargo_env; cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
 step "cargo test (Windows)" on_host \
