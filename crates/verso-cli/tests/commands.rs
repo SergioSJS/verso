@@ -210,7 +210,7 @@ fn usage_and_open_errors_have_their_exit_codes_and_go_to_stderr() {
         .env_remove("VERSO_CONFIG_DIR")
         .env_remove("XDG_CONFIG_HOME")
         .env_remove("HOME")
-        .env_remove("APPDATA")
+        .env_remove("LOCALAPPDATA")
         .env("VERSO_LANG", "en")
         .output()
         .unwrap();
