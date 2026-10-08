@@ -166,6 +166,43 @@ fn icloud_placeholder_is_present_and_names_the_real_file() {
     )));
 }
 
+/// A file whose data a cloud provider keeps (OneDrive's Files On-Demand)
+/// carries an attribute saying so; `attrib +O` (offline) gives one without
+/// a OneDrive account. It is present, named as itself, and never read —
+/// reading it would download it (ADR 0043, decided for Windows 2026-10-08).
+#[cfg(windows)]
+#[test]
+fn a_windows_cloud_file_is_present_and_not_read() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("nuvem.md"), "# Na nuvem\n");
+    touch(&dir.path().join("aqui.md"), "# Aqui\n");
+    let attrib = |flag: &str| {
+        let status = std::process::Command::new("attrib")
+            .arg(flag)
+            .arg(dir.path().join("nuvem.md"))
+            .status()
+            .unwrap();
+        assert!(status.success());
+    };
+    attrib("+O");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let entries = relatives(&mut root);
+    assert!(entries.contains(&(
+        "nuvem.md".into(),
+        EntryKind::Placeholder {
+            of: PathBuf::from("nuvem.md")
+        }
+    )));
+    assert!(entries.contains(&("aqui.md".into(), EntryKind::Note)));
+    let handle = root.handle(Path::new("nuvem.md")).unwrap();
+    assert!(matches!(
+        root.read(handle),
+        Err(verso_fs::ReadError::Unavailable)
+    ));
+    attrib("-O");
+    assert!(root.read(handle).is_ok());
+}
+
 #[cfg(any(unix, windows))]
 mod symlinks {
     use super::*;
