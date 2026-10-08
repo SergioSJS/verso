@@ -31,7 +31,7 @@
 | `File::open(dir)?.sync_all()` | o Windows se recusa a abrir um diretório assim | `os::sync_dir` (acesso de escrita + `FILE_FLAG_BACKUP_SEMANTICS`) |
 | `std::fs::rename` uma vez | um antivírus ou o indexador segurando o arquivo faz falhar | `os::rename` (tenta de novo por ~2,5 s; um destino somente leitura falha na hora) |
 | tentar de novo o rename de uma escrita sem olhar de novo | o programa que segurava a nota podia salvá-la nesse meio tempo: o salvamento dele substituído, sem diff | `os::rename_unless_changed`, conferindo o carimbo antes de cada tentativa (invariante 11) |
-| um commit do SQLite por item (`synchronous = FULL`) | cada commit um `FlushFileBuffers` de verdade: o primeiro índice de 5.000 notas levou 228 s no Windows, 3 s no macOS | uma transação por rodada, savepoints dentro; WAL com `synchronous = NORMAL` para um cache — 9 s |
+| um commit do SQLite por item (`synchronous = FULL`) | cada commit um `FlushFileBuffers` de verdade: o primeiro índice de 5.000 notas levou 228 s no Windows, 3 s no macOS | transações de algumas centenas de mudanças por rodada (`BEGIN IMMEDIATE`, savepoints dentro, commit até num pânico), um `busy_timeout` para os outros processos; WAL com `synchronous = NORMAL` para um cache — 9 s |
 | renomear uma pasta com um arquivo aberto dentro | "Access is denied" | feche os arquivos antes; nos testes, `Kept` (um `TempPath` fechado) em vez de `NamedTempFile` |
 | `std::os::unix::fs::MetadataExt` (`dev`, `ino`, `nlink`, `uid`) | não compilava | `os::file_id`, `os::link_count`, `os::same_owner` |
 | um `compile_error!` para "não é Unix" | o workspace inteiro parava | uma metade Windows no `verso-fs/src/os.rs` |

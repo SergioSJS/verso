@@ -4,18 +4,23 @@
 use super::*;
 
 impl Workspace {
-    /// One index run, in one transaction of the index: a commit per note
-    /// syncs the disk once per note where SQLite's sync is real (Windows).
-    /// What was done before a failure is committed — each note's change is
-    /// whole on its own.
+    /// One index run, in transactions of a few hundred notes each: a
+    /// commit per note syncs the disk once per note where SQLite's sync is
+    /// real (Windows). What was done before a failure — or a panic, which
+    /// the app catches and survives — is committed, each note's change
+    /// whole on its own, and the run's transaction never stays open.
     pub fn index_with_progress<F>(&mut self, on_progress: F) -> Result<IndexReport, CoreError>
     where
         F: FnMut(IndexProgress),
     {
         self.index.begin().map_err(CoreError::Index)?;
-        let report = self.index_run(on_progress);
+        let report =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.index_run(on_progress)));
         let committed = self.index.commit().map_err(CoreError::Index);
-        let report = report?;
+        let report = match report {
+            Ok(report) => report?,
+            Err(panic) => std::panic::resume_unwind(panic),
+        };
         committed?;
         Ok(report)
     }
@@ -96,6 +101,7 @@ impl Workspace {
                             self.index
                                 .upsert(&relative, stamp, &content, &parsed)
                                 .map_err(CoreError::Index)?;
+                            self.index.step().map_err(CoreError::Index)?;
                             report.indexed += 1;
                             report.changed.push(relative.clone());
                         }
