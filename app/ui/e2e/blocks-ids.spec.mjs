@@ -30,6 +30,28 @@ test("an embed of a block shows that block alone", async ({ app, page }) => {
   await expect(embeds.nth(1)).not.toContainText("item dois");
 });
 
+test("a nested item, by a tab or a blank line, is embedded with its children and as a list", async ({ app, page }) => {
+  await open(app, {
+    "Fonte.md": "- pai\n\t- filho ^tab\n\t\t- neto\n- tio\n\nSolto.\n\n- um ^solto\n\n  - dentro\n- dois\n",
+    "Mostra.md": "![[Fonte#^tab]]\n\n![[Fonte#^solto]]\n",
+  }, "Mostra");
+  const embeds = page.locator(".preview .embed-note-body");
+  await expect(embeds).toHaveCount(2);
+  // The tab-indented item with its child, as a list: not the parent, not
+  // the sibling, and not an indented code block.
+  await expect(embeds.nth(0)).toContainText("filho");
+  await expect(embeds.nth(0)).toContainText("neto");
+  await expect(embeds.nth(0)).not.toContainText("pai");
+  await expect(embeds.nth(0)).not.toContainText("tio");
+  await expect(embeds.nth(0).locator("li")).not.toHaveCount(0);
+  await expect(embeds.nth(0).locator("pre")).toHaveCount(0);
+  // The loose item (a blank line before its sub-list) with its child.
+  await expect(embeds.nth(1)).toContainText("um");
+  await expect(embeds.nth(1)).toContainText("dentro");
+  await expect(embeds.nth(1)).not.toContainText("dois");
+  await expect(embeds.nth(1)).not.toContainText("Solto");
+});
+
 test("the same ^id twice in a note is said, the last counting", async ({ app, page }) => {
   await open(app, { "Dup.md": "Primeiro. ^dup\n\nSegundo. ^dup\n" }, "Dup");
   await expect(page.locator(".note-sheet").getByText(/\^dup aparece 2 vezes \(linhas 1, 3\)/)).toBeVisible();

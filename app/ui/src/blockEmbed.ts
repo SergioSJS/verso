@@ -20,6 +20,21 @@ export async function embeddedHtml(target: string, note: NoteText): Promise<stri
   if (!id) return note.html;
   const block = [...note.blocks].reverse().find((b) => b.id === id);
   if (!block) return note.html;
-  const text = note.lines.slice(block.first_line - 1, block.last_line).join("\n");
-  return commands.renderMarkdown(text);
+  return commands.renderMarkdown(dedent(note.lines.slice(block.first_line - 1, block.last_line)));
+}
+
+/** The block's lines as one text, the indent of its first line taken off
+ *  every line: a nested item keeps its own nesting and loses the depth it
+ *  had in the note, which on its own — a tab, four spaces — reads as an
+ *  indented code block. A line indented less keeps what it has. */
+export function dedent(lines: string[]): string {
+  const indent = /^[ \t]*/.exec(lines[0] ?? "")?.[0] ?? "";
+  if (!indent) return lines.join("\n");
+  return lines
+    .map((line) => {
+      if (line.startsWith(indent)) return line.slice(indent.length);
+      const own = /^[ \t]*/.exec(line)?.[0] ?? "";
+      return line.slice(Math.min(own.length, indent.length));
+    })
+    .join("\n");
 }

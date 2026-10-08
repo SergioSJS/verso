@@ -15,6 +15,8 @@ impl Workspace {
         unverified: bool,
     ) -> Result<NoteText, CoreError> {
         let document = verso_dialect::parse(&text);
+        // Rendered from the same parse: the reader hides the ids it found.
+        let html = verso_dialect::to_html_with(&text, &document);
         let schema_blocks = document.schemas.iter().map(typed::notice).collect();
         let frontmatter = match document.frontmatter.map(|f| f.values) {
             Some(Ok(verso_dialect::Value::Mapping(map))) => map,
@@ -30,7 +32,7 @@ impl Workspace {
         };
         Ok(NoteText {
             lines: text.lines().map(str::to_owned).collect(),
-            html: verso_dialect::to_html(&text),
+            html,
             properties: properties(&text),
             note_type,
             schema_blocks,

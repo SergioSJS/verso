@@ -35,6 +35,7 @@ use std::ops::Range;
 
 use pulldown_cmark::{CowStr, Event, LinkType, Tag, TagEnd, html};
 
+use crate::Document;
 use crate::position::LineIndex;
 use crate::tags::BodyTag;
 use crate::{block_ids, callouts, comments, events, footnotes, tags};
@@ -57,11 +58,20 @@ fn attr(s: &str) -> String {
 /// `source` as HTML. No IO, and no panic: every cut of the text is made
 /// with `get`, and a construct that does not fit is left as written (the
 /// fuzz target of ADR 0029 runs this too). Linear in the size of the note:
-/// each pass reads the events once.
+/// each pass reads the events once. Parses the source for its block ids;
+/// a caller that has the [`Document`] already uses [`to_html_with`].
 #[must_use]
 pub fn to_html(source: &str) -> String {
+    to_html_with(source, &crate::parse(source))
+}
+
+/// [`to_html`] for a source already parsed: `document` must be
+/// [`crate::parse`] of the same `source`, and lends its block ids, which
+/// the reader hides ([`crate::block_ids`]).
+#[must_use]
+pub fn to_html_with(source: &str, document: &Document) -> String {
     let events = comments::strip(source, events::events(source));
-    let events = block_ids::hide(source, events);
+    let events = block_ids::hide(source, events, &document.blocks);
     let tags = tags::scan(source, &events);
     let events = footnotes::inline(source, events);
     let events = callouts::callouts(source, events);
@@ -652,5 +662,24 @@ mod tasks {
         assert!(html.contains("filho"), "{html}");
         assert!(html.contains("^cod"), "{html}");
         assert!(html.contains("não ^fim é a última"), "{html}");
+    }
+
+    #[test]
+    fn a_break_before_a_cut_id_goes_with_it() {
+        // A hard break, or a soft one, right before the id would stay as an
+        // empty line at the end of the paragraph.
+        assert_eq!(to_html("Texto  \n^id\n"), "<p>Texto</p>\n");
+        assert_eq!(to_html("Texto\n^id\n"), "<p>Texto</p>\n");
+        // One in the middle is the text's own.
+        assert_eq!(to_html("Um  \ndois ^id\n"), "<p>Um<br />\ndois </p>\n");
+    }
+
+    #[test]
+    fn to_html_with_renders_as_to_html() {
+        let source = "Um parágrafo. ^par\n\n## Título ^tit\n\n- item ^it\n";
+        assert_eq!(
+            super::to_html_with(source, &crate::parse(source)),
+            to_html(source)
+        );
     }
 }

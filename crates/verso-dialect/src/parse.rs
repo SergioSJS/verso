@@ -43,12 +43,20 @@ pub fn parse(source: &str) -> Document {
     // A `verso-schema` block being read: its start, whether it is nested,
     // and its text as the base hands it over (indentation taken off).
     let mut schema: Option<(usize, bool, String)> = None;
-    // The last block closed at the top level: what a `^id` alone on a
-    // line after it names (spec Q3, as Obsidian does; 2026-10-07).
-    let mut last_top: Option<Range<usize>> = None;
-    // Every list item's whole range: a `^id` ending an item's own text
-    // names the item with its nested items (spec Q21).
-    let mut item_ranges: Vec<Range<usize>> = Vec::new();
+    // The last block closed at each depth — the top level, then each open
+    // list item or quote: what a `^id` alone on a line after it names (spec
+    // Q3, as Obsidian does; 2026-10-07). One entry per level, the top level
+    // always there.
+    let mut last_at: Vec<Option<Range<usize>>> = vec![None];
+    // The list items open now: where each starts, and where its first block
+    // child starts (a loose item's first paragraph, a tight item's nested
+    // list) once one has.
+    let mut open_items: Vec<(usize, Option<usize>)> = Vec::new();
+    // Every list item closed: its whole range and its first block child's
+    // start. A `^id` ending an item's own text — tight, the item's own
+    // line; loose, its first paragraph — names the item with its nested
+    // items (spec Q21).
+    let mut item_ranges: Vec<(Range<usize>, Option<usize>)> = Vec::new();
 
     for (event, range) in Parser::new_ext(source, options).into_offset_iter() {
         // The own text of a list item closes when its first block child
@@ -60,13 +68,31 @@ pub fn parse(source: &str) -> Document {
                 block_id(source, &lines, own_text.clone(), own_text),
             );
         }
-        if matches!(event, Event::End(TagEnd::Item)) {
-            item_ranges.push(range.clone());
+        match &event {
+            Event::Start(Tag::Item) => open_items.push((range.start, None)),
+            Event::End(TagEnd::Item) => {
+                let first_child = open_items.pop().and_then(|(_, first)| first);
+                item_ranges.push((range.clone(), first_child));
+            }
+            // The first block inside the open item: a paragraph, a nested
+            // list, a quote, a code block — any block tag but the item's own.
+            Event::Start(tag) if !is_inline(tag) => {
+                if let Some((_, first @ None)) = open_items.last_mut() {
+                    *first = Some(range.start);
+                }
+            }
+            _ => {}
         }
         match &event {
-            Event::Start(Tag::Item | Tag::BlockQuote(_) | Tag::FootnoteDefinition(_)) => depth += 1,
+            Event::Start(Tag::Item | Tag::BlockQuote(_) | Tag::FootnoteDefinition(_)) => {
+                depth += 1;
+                last_at.push(None);
+            }
             Event::End(TagEnd::Item | TagEnd::BlockQuote(_) | TagEnd::FootnoteDefinition) => {
                 depth = depth.saturating_sub(1);
+                if last_at.len() > 1 {
+                    last_at.pop();
+                }
             }
             Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(info)))
                 if info.split_whitespace().next() == Some("verso-schema") =>
@@ -120,22 +146,23 @@ pub fn parse(source: &str) -> Document {
             // item has no paragraph event, so its own inline text — up to
             // its first block child — is checked when the item ends.
             Event::End(TagEnd::Paragraph) => {
-                // Alone on its line at the top level, after a block: the
-                // block before it (spec Q3).
-                let alone = depth == 0
-                    && source.get(range.clone()).is_some_and(|t| {
-                        t.trim().starts_with('^') && !t.trim().contains(char::is_whitespace)
-                    });
-                let named = match (&last_top, alone) {
-                    (Some(before), true) => before.clone(),
+                // Alone on its line, after a block at the same depth: the
+                // block before it (spec Q3). A `^word` that is no id (a dot
+                // in it, say) is a paragraph like any other, and the next
+                // `^id` alone names it, not what came before.
+                let alone = source.get(range.clone()).is_some_and(|t| {
+                    t.trim().starts_with('^') && !t.trim().contains(char::is_whitespace)
+                });
+                let before = last_at.last().cloned().flatten();
+                let named = match (before, alone) {
+                    (Some(before), true) => before,
                     _ => range.clone(),
                 };
-                push_block(
-                    &mut document,
-                    block_id(source, &lines, range.clone(), named),
-                );
-                if depth == 0 && !alone {
-                    last_top = Some(range.clone());
+                let block = block_id(source, &lines, range.clone(), named);
+                let names_before = alone && block.is_some();
+                push_block(&mut document, block);
+                if !names_before && let Some(last) = last_at.last_mut() {
+                    *last = Some(range.clone());
                 }
             }
             // A `^id` at the end of a heading names the heading (spec Q3,
@@ -145,17 +172,24 @@ pub fn parse(source: &str) -> Document {
                     &mut document,
                     block_id(source, &lines, range.clone(), range.clone()),
                 );
-                if depth == 0 {
-                    last_top = Some(range.clone());
+                if let Some(last) = last_at.last_mut() {
+                    *last = Some(range.clone());
                 }
             }
-            Event::End(TagEnd::CodeBlock | TagEnd::Table | TagEnd::List(_) | TagEnd::HtmlBlock)
-                if depth == 0 =>
-            {
-                last_top = Some(range.clone());
+            // A block closed at this depth: the quote's own end lands at the
+            // depth outside it, its level already popped above.
+            Event::End(
+                TagEnd::CodeBlock
+                | TagEnd::Table
+                | TagEnd::List(_)
+                | TagEnd::HtmlBlock
+                | TagEnd::BlockQuote(_),
+            )
+            | Event::Rule => {
+                if let Some(last) = last_at.last_mut() {
+                    *last = Some(range.clone());
+                }
             }
-            Event::End(TagEnd::BlockQuote(_)) if depth == 0 => last_top = Some(range.clone()),
-            Event::Rule if depth == 0 => last_top = Some(range.clone()),
             Event::Start(Tag::BlockQuote(_)) => {
                 if let Some(callout) = callout(source, &lines, range) {
                     document.callouts.push(callout);
@@ -175,10 +209,15 @@ pub fn parse(source: &str) -> Document {
     }
 
     // A `^id` ending an item's own text names the whole item, its nested
-    // items with it (spec Q21): the item that starts where that text does.
+    // items with it (spec Q21): the item that starts where that text does
+    // (tight), or whose first paragraph it is (loose).
     for block in &mut document.blocks {
-        if let Some(item) = item_ranges.iter().find(|r| r.start == block.block.start) {
-            block.block.end = block.block.end.max(item.end);
+        let start = block.block.start;
+        if let Some((item, _)) = item_ranges.iter().find(|(r, first)| {
+            first_byte(source, r) == start
+                || first.is_some_and(|f| first_byte(source, &(f..r.end)) == start)
+        }) {
+            block.block = block_span(source, &(item.start..block.block.end.max(item.end)));
             block.lines = lines_of(source, &lines, block.block.start, block.block.end);
         }
     }
@@ -402,17 +441,32 @@ fn block_id(
             end: start + last_word.len(),
         },
         pos: lines.pos(source, start),
-        block: Span {
-            start: named.start,
-            end: named.end,
-        },
+        block: block_span(source, &named),
         lines: lines_of(source, lines, named.start, named.end),
     })
 }
 
-/// The first and last line (1-based) of the bytes `start..end`, a final
-/// line break not counting as a line of its own.
+/// The span of a block, its first byte on its first line: the base starts
+/// a nested list — and the item in it — at the line break before it, which
+/// is the line above.
+fn block_span(source: &str, range: &Range<usize>) -> Span {
+    Span {
+        start: first_byte(source, range),
+        end: range.end,
+    }
+}
+
+/// `range.start`, past any line break the base put in front of it.
+fn first_byte(source: &str, range: &Range<usize>) -> usize {
+    let text = source.get(range.clone()).unwrap_or("");
+    range.start + (text.len() - text.trim_start_matches(['\n', '\r']).len())
+}
+
+/// The first and last line (1-based) of the bytes `start..end`, a line
+/// break before the first byte or after the last not counting as a line
+/// of its own.
 fn lines_of(source: &str, lines: &LineIndex, start: usize, end: usize) -> (u32, u32) {
+    let start = first_byte(source, &(start..end));
     let text = source.get(start..end).unwrap_or("");
     let last = start + text.trim_end_matches(['\n', '\r']).len();
     (
@@ -486,17 +540,61 @@ mod tests {
             .collect()
     }
 
+    fn lines(source: &str) -> Vec<(String, (u32, u32))> {
+        super::parse(source)
+            .blocks
+            .iter()
+            .map(|b| (b.id.clone(), b.lines))
+            .collect()
+    }
+
     #[test]
     fn a_block_id_names_its_block_with_its_lines() {
         // A list item with its nested items (spec Q21); a `^id` alone after
         // a blank line, the block before it (Q3); not the next item.
-        let doc = super::parse("- um ^item\n  - filho\n- dois\n\nTexto.\n\n^solto\n");
-        let lines: Vec<(&str, (u32, u32))> = doc
-            .blocks
-            .iter()
-            .map(|b| (b.id.as_str(), b.lines))
-            .collect();
-        assert_eq!(lines, [("item", (1, 2)), ("solto", (5, 5))]);
+        assert_eq!(
+            lines("- um ^item\n  - filho\n- dois\n\nTexto.\n\n^solto\n"),
+            [("item".into(), (1, 2)), ("solto".into(), (5, 5))]
+        );
+    }
+
+    #[test]
+    fn a_loose_item_is_named_whole_too() {
+        // The id ends the item's first paragraph, a blank line before the
+        // nested list: the item with its nested items, as in a tight list
+        // (spec Q21); a tab-indented nested item the same.
+        assert_eq!(
+            lines("- um ^item\n\n  - filho\n- dois\n"),
+            [("item".into(), (1, 3))]
+        );
+        assert_eq!(
+            lines("- a\n\t- b ^b\n\t\t- c\n- d\n"),
+            [("b".into(), (2, 3))]
+        );
+        // A second paragraph of the item is its own block, not the item.
+        assert_eq!(
+            lines("- um\n\n  segundo ^p\n\n  - filho\n"),
+            [("p".into(), (3, 3))]
+        );
+    }
+
+    #[test]
+    fn a_block_id_alone_names_the_block_before_it_at_its_own_depth() {
+        // Inside a quote, the paragraph before it in the quote; inside a
+        // loose item, the item's paragraph, so the whole item (Q21). A
+        // `^word` that is no id is a paragraph like any other, and the next
+        // `^id` alone names it.
+        assert_eq!(
+            lines("> a\n>\n> ^q\n\nFora.\n\n^f\n"),
+            [("q".into(), (1, 1)), ("f".into(), (5, 5))]
+        );
+        assert_eq!(lines("- um\n\n  ^x\n\n  - filho\n"), [("x".into(), (1, 5))]);
+        assert_eq!(
+            lines("Texto.\n\n^foo.bar\n\n^ok\n"),
+            [("ok".into(), (3, 3))]
+        );
+        // Nothing before it: the line itself.
+        assert_eq!(lines("^solto\n\nTexto.\n"), [("solto".into(), (1, 1))]);
     }
 
     #[test]
