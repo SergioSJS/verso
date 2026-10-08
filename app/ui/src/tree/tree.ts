@@ -91,15 +91,20 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
   b.append(leadIcon, nameSpan);
   if (isSelected(path)) b.classList.add("selected");
   // ⌘- and ⇧-click select (ADR 0048, revised 2026-10-07); a plain click opens.
+  // A row a mouse click focused: the arrows walk the tree from it, but F2
+  // and Delete stay the window's (F2 renames the open note, main.ts), as
+  // they were where WebKit leaves a clicked button unfocused. Focused by
+  // the keys (Tab, the arrows), the row takes them. The same in both
+  // engines (ADR 0069, item 8).
+  let byMouse = false;
   b.addEventListener("click", (e) => {
     if (!selectionClick(path, e)) openNote(path, false, false, true);
-    // After a mouse click the row keeps no focus, in either engine. WebKit
-    // never focuses a button on a click, so the keys after it go to the
-    // window (F2 renames the open note, main.ts); Chromium (WebView2, the
-    // Windows app) focuses it, and F2 would rename the row in place. Tab
-    // and the arrows still reach a row and keep it (ADR 0069, item 8).
-    if (e.detail > 0 && document.activeElement === b) b.blur();
+    if (e.detail > 0) {
+      b.focus();
+      byMouse = document.activeElement === b;
+    }
   });
+  b.addEventListener("blur", () => (byMouse = false));
   b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || openNote(path, false)));
   armDrag(b, () => dragOf(path), () => dragLabel(path, name(path)));
   b.addEventListener("contextmenu", (e) => {
@@ -109,6 +114,7 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
     else entryMenu(e.clientX, e.clientY, path, kind, () => renameInline(li, path));
   });
   b.addEventListener("keydown", (e) => {
+    if (byMouse && (e.key === "F2" || e.key === "Delete" || e.key === "Backspace")) return;
     if (e.key === "F2") {
       e.preventDefault();
       renameInline(li, path);

@@ -269,7 +269,11 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    num campo, o F2 é deles. Nível: H; E: `tabs.spec.mjs`, a nota aberta
    depois de um clique na linha dela; a linha com o foco do teclado e um
    campo à mão. Pegou: depois de um clique, o F2 não fazia nada
-   (2026-10-01).
+   (2026-10-01). Depois de um clique numa linha, ↓ e ↑ andam pela árvore a
+   partir dela, e o F2 continua renomeando a nota aberta; uma linha
+   alcançada pelas setas recebe o F2 ela mesma, no lugar. E:
+   `tabs.spec.mjs`, os dois motores. Pegou: as setas andavam depois de um
+   clique só no Chromium (2026-10-08).
 4. Um clique num arquivo da árvore o abre numa aba de pré-visualização, com
    o título em itálico, que o próximo clique substitui; um duplo clique a
    mantém ([ADR 0059](../adr/0059-tabs-preview-pinned.md)). Nível: H; E:
