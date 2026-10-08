@@ -43,8 +43,8 @@ pub fn parse(source: &str) -> Document {
     // A `verso-schema` block being read: its start, whether it is nested,
     // and its text as the base hands it over (indentation taken off).
     let mut schema: Option<(usize, bool, String)> = None;
-    // The containers open around the event — list items, quotes, footnote
-    // definitions — outermost first, each with its whole range: what a
+    // The containers open around the event — list items and quotes —
+    // outermost first, each with its whole range: what a
     // `^id` inside one names (spec Q3, observed in Obsidian 1.14.4 on
     // 2026-10-07 through its CLI): a quote at the top level, whole, with
     // everything in it; otherwise the innermost list item, whole, its
@@ -64,6 +64,9 @@ pub fn parse(source: &str) -> Document {
             push_block(&mut document, block_id(source, &lines, own_text, named));
         }
         match &event {
+            // A footnote definition would be a container too, but footnotes
+            // are not enabled here (the reader enables them in `events.rs`),
+            // so that arm is dormant until they are.
             Event::Start(tag @ (Tag::Item | Tag::BlockQuote(_) | Tag::FootnoteDefinition(_))) => {
                 depth += 1;
                 let kind = match tag {
@@ -142,10 +145,16 @@ pub fn parse(source: &str) -> Document {
                     (None, true, None) => None,
                     (None, false, _) => Some(range.clone()),
                 };
+                // Whether the line is an id at all: `^foo.bar` is not, and
+                // is a block the next `^id` alone names; `^solto` with
+                // nothing before it is an id that names nothing, and is
+                // nothing for the next one either (as observed: the line is
+                // no section).
+                let is_id =
+                    alone && block_id(source, &lines, range.clone(), range.clone()).is_some();
                 let block = named.and_then(|named| block_id(source, &lines, range.clone(), named));
-                let names_before = alone && block.is_some();
                 push_block(&mut document, block);
-                if containers.is_empty() && !names_before {
+                if containers.is_empty() && !is_id {
                     last_top = Some(range.clone());
                 }
             }
@@ -213,7 +222,8 @@ fn push_block(document: &mut Document, candidate: Option<BlockId>) {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Container {
     Item,
-    /// A blockquote or a footnote definition.
+    /// A blockquote (a footnote definition would be one, were footnotes
+    /// enabled in this parser).
     Quote,
 }
 
@@ -406,18 +416,15 @@ fn strip_closing_sequence(content: &str) -> &str {
     }
 }
 
-/// A `^id` as the last word of a paragraph or of a list item's own text
-/// (spec §5.7; `fixtures/block/definition` and `fixtures/block/list-item`).
-/// The id is letters, digits and hyphen, Obsidian's documented charset; the
-/// charset is Q22 and the remaining positions of Q3 (its own line after a
-/// blank line, which Obsidian attaches to the block before it; the end of
-/// a heading) stay open: a `^id` alone on a line after a blank line is a
-/// paragraph of its own here and is reported at the `^`, which is what
-/// spec §4.3 asks of `pos` whichever block it names. The block's own text
-/// is checked, not the base's text events, so a `^id` at the end of a code
-/// span, which is followed by a backtick, does not qualify; a code block or
-/// a nested list at the end of an item is outside the item's own text
-/// ([`OpenItem`]) and is not looked at.
+/// The `^id` that ends `range` — a paragraph, a heading, a list item's own
+/// text — as a block id naming `named` (spec §5.7, Q3, Q21): the block
+/// itself, the container it is in (a quote at the top level, whole; else
+/// the innermost list item, whole), or, alone on its line at the top
+/// level, the block before it. `None` when the last word is no id: letters,
+/// digits and hyphens only; a code span's closing backtick, say,
+/// disqualifies it. A code block, an HTML block or a nested list is never
+/// looked at: the base reports those as their own events, not as text of
+/// the paragraph or the item.
 fn block_id(
     source: &str,
     lines: &LineIndex,
@@ -628,6 +635,8 @@ mod tests {
             [("ok".into(), (3, 3))]
         );
         assert_eq!(lines("^solto\n\nTexto.\n"), []);
+        // Nothing before it names nothing, and is nothing for the next one.
+        assert_eq!(lines("^solto\n\n^x\n"), []);
         // Two alone in a row both name the block before them (Obsidian
         // keeps only the last; Verso resolves both, an extension).
         assert_eq!(
