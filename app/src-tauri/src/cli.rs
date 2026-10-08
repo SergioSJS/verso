@@ -184,15 +184,18 @@ pub(crate) fn uninstall_cli() -> Result<CliState, ContractError> {
     Ok(cli_state_now())
 }
 
-/// Claude Desktop's configuration folder: `%APPDATA%\Claude` on Windows
-/// (Anthropic's MCP guide; HOME is usually unset there, so the folder was
-/// never found — ADR 0069), `~/Library/Application Support/Claude` on
+/// Claude Desktop's configuration folder: on Windows the Store (MSIX)
+/// install's, whose `%APPDATA%` Windows redirects into the package
+/// (`%LOCALAPPDATA%\Packages\Claude_…\LocalCache\Roaming\Claude`,
+/// observed on Windows 11 on 2026-10-08: no `%APPDATA%\Claude` exists
+/// there), else `%APPDATA%\Claude` (Anthropic's MCP guide; HOME is usually
+/// unset there — ADR 0069); `~/Library/Application Support/Claude` on
 /// macOS, `~/.config/Claude` elsewhere.
 fn claude_dir() -> Option<PathBuf> {
     #[cfg(windows)]
-    return Some(
-        PathBuf::from(std::env::var_os("APPDATA").filter(|v| !v.is_empty())?).join("Claude"),
-    );
+    return msix_claude_dir().or_else(|| {
+        Some(PathBuf::from(std::env::var_os("APPDATA").filter(|v| !v.is_empty())?).join("Claude"))
+    });
     #[cfg(not(windows))]
     {
         let home = PathBuf::from(std::env::var_os("HOME").filter(|h| !h.is_empty())?);
