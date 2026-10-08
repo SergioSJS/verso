@@ -25,7 +25,8 @@ in the real app.
   Windows machine with OneDrive, put a folder of notes in OneDrive, right
   click it, "Free up space"; open it in Verso — the notes are listed, the
   first index downloads nothing (the cloud icons stay), and opening one
-  note downloads that one alone. Only `attrib +O` was tested.
+  note downloads that one alone and shows its text — no "the cloud did
+  not give the file's content" in the log. Only `attrib +O` was tested.
 
 ### 0.4.0-beta.1
 

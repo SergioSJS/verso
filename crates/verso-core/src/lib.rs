@@ -14,9 +14,11 @@
 //! ([`Sidecar`], `sidecar.rs`, `clippy.toml`), a file of that directory.
 //!
 //! Provisional (`docs/reference/cli-decision.md`, the maintainer decides):
-//! where the configuration directory is ([`config_dir`]); that a second
-//! `index` run re-reads every note and skips the ones whose stamp the
-//! index already has; that a note under a path the walk reported a
+//! where the configuration directory is ([`config_dir`], decided for
+//! Windows on 2026-10-08); that a second `index` run skips a note whose
+//! modified time and length the index holds from well before its last
+//! read, and re-reads the rest, skipping the ones whose stamp the index
+//! already has (decided on 2026-10-08, ADR 0011); that a note under a path the walk reported a
 //! problem for, or a placeholder (ADR 0043), is never removed from the
 //! index.
 //!

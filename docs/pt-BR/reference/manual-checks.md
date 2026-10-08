@@ -24,7 +24,9 @@ app real.
   2026-10-08): numa máquina Windows com OneDrive, ponha uma pasta de notas
   no OneDrive, botão direito nela, "Liberar espaço"; abra-a no Verso — as
   notas aparecem, o primeiro índice não baixa nada (os ícones de nuvem
-  ficam), e abrir uma nota baixa só aquela. Só o `attrib +O` foi testado.
+  ficam), e abrir uma nota baixa só aquela e mostra o texto dela — nenhum
+  "the cloud did not give the file's content" no log. Só o `attrib +O` foi
+  testado.
 
 ### 0.4.0-beta.1
 
