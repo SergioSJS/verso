@@ -259,6 +259,7 @@ não a inclui). E também os **apps de Windows e Linux**
 2026-09-23 que os dois saem, Windows primeiro, e em 2026-10-07 que o Windows
 começa agora, no escopo da Fase 2 e à frente do resto do trabalho dela
 ([0069](adr/0069-windows-port.md), o cabeçalho da Fase 2 acima). O Linux
-fica aqui.
+fica aqui; como ele seria compilado e testado está proposto no
+[0071](adr/0071-linux-port.md), escrito em 2026-10-08 e esperando.
 
 Ordem entre eles: `[ABERTO]`, menos Windows antes de Linux.

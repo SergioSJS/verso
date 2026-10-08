@@ -259,6 +259,7 @@ Also the **Windows and Linux apps** ([0022](adr/0022-target-platforms-macos-firs
 the maintainer decided on 2026-09-23 that both ship, Windows first, and on
 2026-10-07 that Windows starts now, in Phase 2's scope and ahead of the rest
 of its work ([0069](adr/0069-windows-port.md), the Phase 2 header above).
-Linux stays here.
+Linux stays here; how it would be built and tested is proposed in
+[0071](adr/0071-linux-port.md), written on 2026-10-08 and waiting.
 
 Order among them: `[OPEN]`, but for Windows before Linux.

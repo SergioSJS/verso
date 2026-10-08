@@ -90,8 +90,9 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0055](0055-in-app-updater.md) | O atualizador dentro do app | Aceito (2026-09-29) |
 | [0056](0056-embedded-web-pages.md) | Páginas web embutidas: o proxy, a origem dele e a rede local | Aceito (2026-09-29); revisto no mesmo dia: sem proxy, as páginas carregam direto das origens que o usuário aprovou |
 | [0057](0057-board-json-canvas.md) | O board: um arquivo JSON Canvas, o Excalidraw como superfície, relações tipadas no frontmatter | Aceito (2026-09-30) |
-| [0069](0069-windows-port.md) | A versão para Windows: x64, um instalador, testada numa máquina Windows por SSH | Proposto (2026-10-07); x64, Windows 10 e 11, NSIS e sem assinatura de código por enquanto decididos; começa agora, na Fase 2 à frente do resto (0022 revisado); o bloqueio do push quando código de plataforma muda; máquina Windows 10 depois, código escrito para ele; `[ABERTO]` (provisório): o `fsync` do diretório, o separador de caminho, o local da configuração |
-| [0070](0070-what-travels-with-the-folder.md) | O que viaja com a pasta: três camadas de configuração, e nomes que todo sistema guarda | Proposto (2026-10-08); nomes que todo sistema guarda decidido |
+| [0069](0069-windows-port.md) | A versão para Windows: x64, um instalador, testada numa máquina Windows por SSH | Proposto (2026-10-07); x64, Windows 10 e 11, NSIS e sem assinatura de código por enquanto decididos; começa agora, na Fase 2 à frente do resto (0022 revisado); o bloqueio do push quando código de plataforma muda; máquina Windows 10 depois, código escrito para ele; o local da configuração (`%LOCALAPPDATA%\verso`) e o placeholder do OneDrive decididos em 2026-10-08; `[ABERTO]` (provisório): o `fsync` do diretório, o separador de caminho |
+| [0070](0070-what-travels-with-the-folder.md) | O que viaja com a pasta: três camadas de configuração, e nomes que todo sistema guarda | Proposto (2026-10-08); nomes que todo sistema guarda decidido, a `\` entre eles |
+| [0071](0071-linux-port.md) | A versão para Linux: um build para toda distribuição, testado em máquinas virtuais | Proposto (2026-10-08); espera ("deixe pra depois"); `[ABERTO]`: ARM64, versões suportadas, duas ou três máquinas, o atualizador, assinatura, o local do índice |
 
 ### Dialeto, engenharia e roadmap
 
