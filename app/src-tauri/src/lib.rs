@@ -146,6 +146,9 @@ pub struct App {
     /// (`folder_handed`) — opened once by `open_initial`: a path at the
     /// entry edge, on this side.
     initial_folder: Mutex<std::collections::VecDeque<PathBuf>>,
+    /// Windows told a folder (`folder_handed`) and not done opening it:
+    /// one is not handed another while it installs the first.
+    opening: Mutex<std::collections::HashSet<String>>,
     /// Where the indexes of the folders it opens go: `None` for the
     /// configuration directory (`verso_core::config_dir`). The tests give
     /// a temporary one, so that a test run never writes into the user's.
@@ -182,6 +185,7 @@ impl App {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),
             initial_folder: Mutex::new(initial.into_iter().collect()),
+            opening: Mutex::new(std::collections::HashSet::new()),
             config: None,
             sessions: Mutex::new(Sessions::default()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
@@ -587,12 +591,19 @@ async fn open_initial<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
+    let label = window.label().to_owned();
     let Some(path) = lock(&app.state::<App>().initial_folder).pop_front() else {
+        lock(&app.state::<App>().opening).remove(&label);
         return Ok(None);
     };
-    install(&app, &window, move |config| Workspace::open(&path, config))
+    // Until its folder is installed, this window is not empty for the next
+    // folder handed (`folder_handed`), though no session names it yet.
+    lock(&app.state::<App>().opening).insert(label.clone());
+    let opened = install(&app, &window, move |config| Workspace::open(&path, config))
         .await
-        .map(Some)
+        .map(Some);
+    lock(&app.state::<App>().opening).remove(&label);
+    opened
 }
 
 /// The app's version and the commit it was built from (ADR 0051), for the
@@ -1089,11 +1100,14 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
     } else {
         let state = app.state::<App>();
         let sessions = lock(&state.sessions);
+        let opening = lock(&state.opening);
         let mut labels: Vec<String> = app
             .windows()
             .into_keys()
             .filter(|l| {
-                (l == "main" || l.starts_with("window-")) && !sessions.windows.contains_key(l)
+                (l == "main" || l.starts_with("window-"))
+                    && !sessions.windows.contains_key(l)
+                    && !opening.contains(l)
             })
             .collect();
         labels.sort_by_key(|l| (l != "main", l.clone()));
@@ -1104,6 +1118,8 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
             if let Some(w) = app.get_window(&label) {
                 let _ = w.set_focus();
             }
+            // Told: it opens the folder now, and is not handed another.
+            lock(&app.state::<App>().opening).insert(label.clone());
             let _ = app.emit("folder-handed", label);
         }
         None => {

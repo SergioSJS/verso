@@ -101,4 +101,12 @@ Como o autor os construiu (o memo, seção 5):
 ## Status
 
 Aceito em 2026-09-24 pelo mantenedor, em sessão: os pontos 1 e 2 da Decisão.
-O resto é do autor, construído sob ela e marcado como tal no memo.
+O resto é do autor, construído sob ela e marcado como tal no memo. Revisado
+em 2026-10-08, o mantenedor aceitando as recomendações do autor: no Windows
+a linha de comando vem com o app (`verso.exe` ao lado dele, ADR 0069) e nada
+é instalado num PATH; o que o "Adicionar ao Claude" escreve é o host que diz
+(`McpStatus.command`), para a janela mostrar exatamente o que entra (ponto 2)
+em todo sistema; e onde o Claude Desktop não está instalado, os ajustes
+oferecem a página de download dele — `https://claude.com/download`, aberta
+pelo host no navegador do sistema, um endereço fixo que nada da janela muda
+(ideia do mantenedor).

@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+### Acrescentado
+
+- **Ajustes › Terminal e agentes oferece o download do Claude Desktop** quando ele não está instalado, em vez de só dizer que não o achou.
+
 ### Alterado
 
 - **Uma nota, pasta ou arquivo só é criado ou renomeado com um nome que todo sistema guarda** ([ADR 0070](adr/0070-what-travels-with-the-folder.md)): `CON`, `NUL`, `COM1` e os outros nomes de dispositivo, ponto ou espaço no fim, e `: * " < > ? | \` são recusados no macOS também, porque uma pasta sincronizada com o Windows não conseguiria levá-los; o campo diz por quê. Um arquivo que já tem um nome assim continua abrindo, salvando, e pode ser renomeado para um que todo sistema guarda.
@@ -21,7 +25,6 @@ versão de teste.
 
 - **O primeiro índice de uma pasta grande ficou muito mais rápido**: cada nota era um commit próprio no índice, e no Windows cada commit espera o disco — 5.000 notas levavam 228 s lá; agora 9 s, e 2,6 s em vez de 3,4 s no macOS. O índice continua um cache refeito a partir das notas.
 - **Abrir uma pasta de novo não relê mais todas as notas**: uma nota cuja data de modificação e tamanho o índice guarda, de bem antes da última leitura, é aceita como está — 5.000 notas abrem em 0,05 s em vez de 0,7 s no macOS. Uma nota mudada no mesmo segundo em que foi lida continua sendo relida.
-- **Ajustes › Terminal e agentes oferece o download do Claude Desktop** quando ele não está instalado, em vez de só dizer que não o achou.
 - **`verso <pasta>` com o app aberto abre a pasta numa janela própria**: o app é uma instância só em todo sistema, e uma segunda abertura entrega a pasta ao app aberto. No macOS ele iniciava um segundo app, que não mostrava janela.
 - **Uma carta do board selecionada e depois clicada com o botão direito mostra o menu do board**: assim que a carta ficava ativa — um instante depois de selecionada — ela ficava com o clique direito e nenhum menu abria.
 - **A árvore lembra quais pastas você deixou abertas**, pasta por pasta, e as mostra assim quando o app abre de novo. Uma pasta de milhares de notas abre com as pastas de primeiro nível fechadas.

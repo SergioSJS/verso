@@ -40,7 +40,7 @@ Em **Ajustes › Terminal e agentes › Comando verso no terminal**, clique em *
 
 Em **Ajustes › Terminal e agentes**:
 
-- **Adicionar ao Claude Desktop** liga este cofre ao Claude Desktop (com o comando `verso` instalado).
+- **Adicionar ao Claude Desktop** liga este cofre ao Claude Desktop (no Mac, com o comando `verso` instalado; no Windows ele já vem com o app). Sem o Claude Desktop instalado, o botão vira **Baixar o Claude Desktop** e abre a página de download.
 - **Claude Code** mostra a linha que liga o cofre ao Claude Code (`claude mcp add …`), com **Copiar**.
 - **Outros clientes MCP** mostra o JSON para outros programas.
 

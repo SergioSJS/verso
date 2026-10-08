@@ -10,6 +10,7 @@ import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, lo
 import { currentFolder } from "../folder";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
+import { WINDOWS } from "../platform";
 import { spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { panel, updateController } from "../main";
@@ -468,7 +469,7 @@ export class SettingsDialog {
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     // The command line and MCP (ADR 0054). The folder is named by its key
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
-    add("cli", t.cliTitle, t.cliDesc, () => this.cliControl());
+    add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : t.cliDesc, () => this.cliControl());
     add("cli", t.mcpTitle, t.mcpDesc, () => this.mcpControl());
     if (currentFolder) {
       const server = `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
@@ -552,6 +553,7 @@ export class SettingsDialog {
         // A way to get it, rather than a dead "not found".
         said.textContent = t.mcpNoClaude;
         add.textContent = t.mcpGetClaude;
+        add.title = t.mcpGetClaude;
         add.dataset["get"] = "1";
         add.hidden = false;
       }

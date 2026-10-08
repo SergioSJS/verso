@@ -158,7 +158,9 @@ with the window.
   `verso-app` binary beside it, else, on macOS, the installed app through
   `open -a Verso <folder>`. The folder goes as a document to open, which macOS
   delivers by an open event whether it launches the app or the app is already
-  running; a running app's main window saves its tabs and opens it, as for any
+  running; a running app opens it in a window that shows no folder, else in
+  a new window (revised 2026-10-08, Status) — until then its main window
+  saved its tabs and opened it, as for any
   switch. Until 2026-09-23 it went through `open -a Verso --args`, which an
   app already running never received (`docs/review/phase-2.md`, reading 3,
   finding 20; fixed in `b43e914` at the maintainer's request). `open` refuses a
