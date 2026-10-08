@@ -59,7 +59,7 @@
 |---|---|---|
 | counting on a click not focusing a button (WebKit never does, and undoes a `focus()` made on mousedown) | F2 renamed the clicked row in Chromium only; the arrows walked the tree after a click in Chromium only; the board's keys died after a menu click | focus explicitly after the click, the same in both engines (`tree.ts`: the row takes the arrows, F2 and Delete stay the window's until the keys move the focus); `onMouseDown={(e) => e.preventDefault()}` on buttons that must leave the focus where it was |
 | a field's `finish` that removes the field, guarded by `isConnected` or not at all | Chromium fires `blur` inside `remove()`/`replaceWith()`: Enter threw, Escape committed | a `done` flag set before the removal |
-| `overflow: hidden` and an inline `<svg>` on each of thousands of rows | in Chromium every row became a scroll container, a paint layer and an SVG layout root: ~120 MB for a tree of 5,000 rows | `overflow: clip` (after `hidden`, for an older engine); `maskIcon` (CSS) for a row's icon; never a loop over every row per action |
+| `overflow: hidden` and an inline `<svg>` on each of thousands of rows | in Chromium every row became a scroll container, a paint layer and an SVG layout root: ~120 MB for a tree of 5,000 rows | `overflow: clip` (after `hidden`, for an older engine); `maskIcon` (CSS) for a row's icon; `content-visibility: auto` on a folder's rows, so what is off screen is not restyled when a note opens; never a loop over every row per action |
 | a refused name logged with `fail()` | an ERROR in the log for an answer | `nameTaken()` (INFO) |
 | an HTML file's scripts | Chromium logs "Blocked script execution" for the sandbox | expected: the page runs no script by design |
 
