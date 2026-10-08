@@ -36,6 +36,7 @@
 
 mod confine;
 mod ops;
+mod os;
 mod placeholder;
 mod walk;
 mod watch;
@@ -343,7 +344,7 @@ impl Root {
         content: &[u8],
     ) -> Result<(Handle, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
-        let report = ops::create_atomically(&self.path.join(&relative), content)?;
+        let report = ops::create_atomically(&on_disk(&self.path, &relative), content)?;
         Ok((self.intern(relative), report))
     }
 
@@ -351,7 +352,7 @@ impl Root {
     /// new directory synced into the one it hangs from.
     pub fn create_dir(&self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
-        let report = ops::create_directory(&self.path.join(&relative))?;
+        let report = ops::create_directory(&on_disk(&self.path, &relative))?;
         Ok((relative, report))
     }
 
@@ -364,7 +365,7 @@ impl Root {
     pub fn rename(&mut self, from: &Path, to: &Path) -> Result<(Handle, OpReport), WriteError> {
         let from = self.confine(from).map_err(WriteError::Confined)?;
         let to = self.confine(to).map_err(WriteError::Confined)?;
-        let report = ops::rename_path(&self.path.join(&from), &self.path.join(&to))?;
+        let report = ops::rename_path(&on_disk(&self.path, &from), &on_disk(&self.path, &to))?;
         Ok((self.intern(to), report))
     }
 
@@ -439,7 +440,7 @@ impl Root {
         }
         self.table
             .get(handle.index as usize)
-            .map(|rel| self.path.join(rel))
+            .map(|rel| on_disk(&self.path, rel))
     }
 
     pub(crate) fn root_path(&self) -> &Path {
@@ -448,5 +449,49 @@ impl Root {
 
     pub(crate) fn is_ignored(&self, rel: &Path) -> bool {
         self.ignored.iter().any(|i| rel == i || rel.starts_with(i))
+    }
+}
+
+/// `name` under the relative path `base`, in the one form a path relative to
+/// the open folder takes here, in the index and in the contract: components
+/// joined by `/` on every OS. On Windows `\` would otherwise come out of
+/// `Path::join`, and a link or a board would be written with it (ADR 0069,
+/// item 9, `[OPEN]`: the recorded recommendation, provisional). On Unix this
+/// is `base.join(name)`, byte for byte.
+pub(crate) fn rel_join(base: &Path, name: impl AsRef<std::ffi::OsStr>) -> PathBuf {
+    if base.as_os_str().is_empty() {
+        return PathBuf::from(name.as_ref());
+    }
+    let mut joined = base.as_os_str().to_owned();
+    joined.push("/");
+    joined.push(name);
+    PathBuf::from(joined)
+}
+
+/// Where the relative path `rel` is on disk under `root`, in the OS's form:
+/// each component pushed, so Windows gets `\` throughout — a `\\?\`
+/// root takes no `/`. On Unix this is `root.join(rel)`.
+pub(crate) fn on_disk(root: &Path, rel: &Path) -> PathBuf {
+    let mut out = root.to_path_buf();
+    for part in rel.components() {
+        out.push(part);
+    }
+    out
+}
+
+#[cfg(test)]
+mod path_form {
+    use super::*;
+
+    #[test]
+    fn a_relative_path_is_joined_by_slashes_and_put_on_disk_in_the_os_form() {
+        assert_eq!(rel_join(Path::new(""), "a.md"), PathBuf::from("a.md"));
+        let rel = rel_join(&rel_join(Path::new("pasta"), "sub"), "n.md");
+        assert_eq!(rel.as_os_str(), "pasta/sub/n.md");
+        let root = Path::new("raiz");
+        assert_eq!(
+            on_disk(root, &rel),
+            root.join("pasta").join("sub").join("n.md")
+        );
     }
 }
