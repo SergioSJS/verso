@@ -70,7 +70,9 @@ assinatura.
   da documentação. Um `#[allow]` local no meio do diff não é resposta;
   guardrail que bloqueia trabalho legítimo é assunto de PR próprio, com
   justificativa.
-- Rode `scripts/check.sh` e `scripts/check-linux.sh` antes do push
+- Rode `scripts/check.sh` e `scripts/check-linux.sh` antes do push, e o
+  `scripts/check-windows.sh` quando o diff toca código de plataforma
+  ([ADR 0069](adr/0069-windows-port.md))
   ([README](README.md#testar-localmente-antes-do-push)): o CI confirma o que
   eles acharam verde; ele não deve ser onde uma falha aparece primeiro.
 - O merge exige os três: CI verde, nenhum achado BLOQUEANTE em aberto e o
