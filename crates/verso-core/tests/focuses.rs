@@ -670,7 +670,6 @@ fn duplicate_focus_names_delete_and_edit_by_position() {
 
 /// Whether anything stands at `path`, asked of the system's tool: this
 /// crate's tests may not call `std::fs` (ADR 0029); Windows too (ADR 0069).
-#[cfg(test)]
 fn exists(path: &std::path::Path) -> bool {
     #[cfg(unix)]
     let mut command = {

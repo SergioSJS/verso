@@ -275,7 +275,17 @@ pub(crate) fn reveal<R: tauri::Runtime>(
         c.arg("-R").arg(&absolute);
         c
     };
-    #[cfg(not(target_os = "macos"))]
+    // Explorer selects the entry in its folder; `/select,` takes the path
+    // in quotes, which Rust's own quoting would put around the whole
+    // argument (ADR 0069).
+    #[cfg(windows)]
+    let mut command = {
+        use std::os::windows::process::CommandExt;
+        let mut c = std::process::Command::new("explorer");
+        c.raw_arg(format!("/select,\"{}\"", absolute.display()));
+        c
+    };
+    #[cfg(not(any(target_os = "macos", windows)))]
     let mut command = {
         let mut c = std::process::Command::new("xdg-open");
         c.arg(absolute.parent().unwrap_or(&absolute));
@@ -321,10 +331,14 @@ pub(crate) fn copy_full_path<R: tauri::Runtime>(
             .stdin(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| failed(e.to_string()))?;
+        // `clip` reads the ANSI code page unless the text opens with a
+        // UTF-16 byte order mark: "Capitão" would arrive mangled (ADR 0069).
+        let utf16: Vec<u8> = std::iter::once(0xFEFF_u16)
+            .chain(text.encode_utf16())
+            .flat_map(u16::to_le_bytes)
+            .collect();
         if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(text.as_bytes())
-                .map_err(|e| failed(e.to_string()))?;
+            stdin.write_all(&utf16).map_err(|e| failed(e.to_string()))?;
         }
         child.wait().map_err(|e| failed(e.to_string()))?;
         Ok(())
