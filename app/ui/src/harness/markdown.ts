@@ -52,7 +52,8 @@ export function readableLines(text: string): string[] {
   const lines = text.split("\n");
   let fence: string | null = null;
   return lines.map((line) => {
-    const m = /^\s*(```+|~~~+)/.exec(line);
+    // A fence behind quote marks or a list marker is a fence too.
+    const m = /^\s*(```+|~~~+)/.exec(line.replace(/^(\s*>)+\s?/, "").replace(/^\s*([-*+]|\d+[.)])\s+/, ""));
     if (fence !== null) {
       if (m && m[1]?.startsWith(fence[0] ?? "")) fence = null;
       return " ".repeat(line.length);
@@ -77,11 +78,12 @@ export function headingsOf(text: string): Heading[] {
 }
 
 /** The `^id` blocks of a note, as the core's parser names them (spec Q3,
- *  Q4, Q21; Obsidian observed 2026-10-07), by lines: inside a quote, the
- *  top-level quote whole; inside a list, the innermost item whole, its
- *  nested items with it; at the top level, the block the id ends, or, for
- *  a `^id` alone on its line, the block before it — nothing before it, no
- *  block. Fenced code is one block and never scanned for an id. */
+ *  Q4, Q21; Obsidian observed 2026-10-07), by lines: inside a quote at the
+ *  top level, the quote whole; inside a list, the innermost item whole,
+ *  its nested items with it; at the top level, the block the id ends, or,
+ *  for a `^id` alone on its line, the block before it — nothing before
+ *  it, no block. Fenced and indented code is never scanned for an id, nor
+ *  is the frontmatter. */
 export function blocksOf(text: string): Block[] {
   // The raw lines keep the fences' content, which `readableLines` blanks;
   // the readable ones are where an id is looked for.
@@ -90,24 +92,38 @@ export function blocksOf(text: string): Block[] {
   const indent = (s: string) => s.length - s.trimStart().length;
   const isItem = (s: string) => /^\s*([-*+]|\d+[.)])\s+/.test(s);
   const quoted = (s: string) => /^\s*>/.test(s);
-  // The top-level quote around line `i`: every quoted line touching it.
+  const isHeading = (s: string) => /^\s{0,3}#{1,6}\s/.test(s);
+  // A fence marker, behind quote marks or a list marker or neither.
+  const fenceOf = (s: string) => /^\s*(`{3,}|~{3,})/.exec(s.replace(/^(\s*>)+\s?/, "").replace(/^\s*([-*+]|\d+[.)])\s+/, ""))?.[1] ?? null;
+  // The frontmatter: `---` on the first line to the next `---` line.
+  let body = 0;
+  if (raw[0] === "---") {
+    const close = raw.findIndex((l, i) => i > 0 && /^---\s*$/.test(l));
+    body = close > 0 ? close + 1 : 0;
+  }
+  // The top-level quote around line `i`: every quoted line touching it,
+  // and a plain text line right after one (a lazy continuation).
   const quoteRun = (i: number): [number, number] => {
     let s = i;
     let e = i;
-    while (s > 0 && quoted(raw[s - 1] ?? "")) s--;
-    while (e + 1 < raw.length && quoted(raw[e + 1] ?? "")) e++;
+    while (s > body && quoted(raw[s - 1] ?? "")) s--;
+    while (e + 1 < raw.length && (quoted(raw[e + 1] ?? "") || lazy(e + 1))) e++;
     return [s, e];
+  };
+  const lazy = (i: number): boolean => {
+    const l = raw[i] ?? "";
+    return l.trim() !== "" && !quoted(l) && !isItem(l) && !isHeading(l) && !fenceOf(l) && quoted(raw[i - 1] ?? "");
   };
   // The item whose line `i` is: the item line itself, or the nearest item
   // line above indented less, across blank lines, as long as no line
   // indented no more than this one ends the list first.
   const itemOf = (i: number): number => {
-    if (isItem(raw[i] ?? "")) return i;
+    if (isItem(raw[i] ?? "") && !quoted(raw[i] ?? "")) return i;
     const own = indent(raw[i] ?? "");
-    for (let j = i - 1; j >= 0; j--) {
+    for (let j = i - 1; j >= body; j--) {
       const l = raw[j] ?? "";
       if (l.trim() === "") continue;
-      if (indent(l) < own) return isItem(l) ? j : -1;
+      if (indent(l) < own) return isItem(l) && !quoted(l) ? j : -1;
     }
     return -1;
   };
@@ -124,49 +140,92 @@ export function blocksOf(text: string): Block[] {
     }
     return last;
   };
-  // The container's lines around line `i`, or null at the top level.
+  // The container's lines around line `i`, or null at the top level: an
+  // item first (a quote inside an item is the item's), then a quote.
   const container = (i: number): [number, number] | null => {
-    if (quoted(raw[i] ?? "")) return quoteRun(i);
     const item = itemOf(i);
-    return item >= 0 ? [item, itemEnd(item)] : null;
+    if (item >= 0) return [item, itemEnd(item)];
+    if (quoted(raw[i] ?? "")) return quoteRun(i);
+    return null;
   };
-  // Top-level blocks as runs of lines, split at blank lines, a fence and
-  // a quote whole.
+  // Top-level blocks as runs of lines, split at blank lines; a fence and a
+  // heading are runs of their own, a quote keeps its lazy continuation.
   const runs: [number, number][] = [];
   let start = -1;
   let fence: string | null = null;
-  raw.forEach((line, i) => {
-    const f = /^\s*(`{3,}|~{3,})/.exec(line.replace(/^(\s*>)+\s?/, ""))?.[1];
+  const close = (i: number) => {
+    if (start >= 0) runs.push([start, i]);
+    start = -1;
+  };
+  for (let i = body; i < raw.length; i++) {
+    const line = raw[i] ?? "";
+    const f = fenceOf(line);
     if (fence) {
-      if (f && f[0] === fence[0] && f.length >= fence.length) fence = null;
-      return;
+      if (f && f[0] === fence[0] && f.length >= fence.length) {
+        fence = null;
+        close(i);
+      }
+      continue;
     }
-    if (f) fence = f;
-    const blank = line.trim() === "" || (quoted(line) && start >= 0 && !quoted(raw[start] ?? ""));
+    if (f) {
+      close(i - 1);
+      fence = f;
+      start = i;
+      continue;
+    }
     if (line.trim() === "") {
-      if (start >= 0) runs.push([start, i - 1]);
-      start = -1;
-    } else if (start < 0) start = i;
-    else if (quoted(raw[start] ?? "") !== quoted(line) && !blank) {
-      runs.push([start, i - 1]);
+      close(i - 1);
+      continue;
+    }
+    if (isHeading(line)) {
+      close(i - 1);
+      runs.push([i, i]);
+      continue;
+    }
+    if (start < 0) start = i;
+    else if (quoted(raw[start] ?? "") !== quoted(line) && !lazy(i)) {
+      close(i - 1);
       start = i;
     }
-  });
-  if (start >= 0) runs.push([start, raw.length - 1]);
+  }
+  close(raw.length - 1);
   const out: Block[] = [];
   runs.forEach(([a, z], k) => {
     const first = raw[a] ?? "";
-    const body = first.replace(/^(\s*>)+\s?/, "").trim();
-    const alone = a === z && (lines[a] ?? "").trim() !== "" ? /^\^([A-Za-z0-9-]+)$/.exec(body) : null;
+    const text = first.replace(/^(\s*>)+\s?/, "").trim();
+    const alone = a === z && (lines[a] ?? "").trim() !== "" ? /^\^([A-Za-z0-9-]+)$/.exec(text) : null;
     if (alone) {
-      const named = container(a) ?? runs[k - 1] ?? null;
+      // The block before it: the run before that is not itself a `^id`
+      // alone (two in a row both name the block before them, spec Q3
+      // `[OPEN]`); nothing before it, no block.
+      let named = container(a);
+      if (!named) {
+        for (let j = k - 1; j >= 0; j--) {
+          const [pa, pz] = runs[j] ?? [0, 0];
+          const prev = (raw[pa] ?? "").replace(/^(\s*>)+\s?/, "").trim();
+          const prevAlone = pa === pz && /^\^[A-Za-z0-9-]+$/.test(prev) && !out.some((b) => b.line === pa + 1 && b.first_line === pa + 1);
+          if (!prevAlone) {
+            named = [pa, pz];
+            break;
+          }
+          // A `^id` alone that named nothing is nothing for the next one.
+          if (!out.some((b) => b.line === pa + 1)) break;
+        }
+      }
       if (named) out.push({ id: alone[1] ?? "", line: a + 1, col: first.indexOf("^") + 1, first_line: named[0] + 1, last_line: named[1] + 1 });
       return;
     }
+    if (fenceOf(first) && !isItem(first)) return;
     for (let i = a; i <= z; i++) {
+      const line = raw[i] ?? "";
+      // Indented code outside a list is never scanned.
+      if (indent(line) >= 4 && itemOf(i) < 0 && !quoted(line)) continue;
       const m = /\s\^([A-Za-z0-9-]+)\s*$/.exec(lines[i] ?? "");
       if (!m || m.index === undefined) continue;
-      const named = container(i) ?? (/^#{1,6}\s/.test(raw[i] ?? "") ? [i, i] : [a, z]);
+      // A paragraph's id is its last word: a lazy continuation after it
+      // makes another word the last.
+      if (i < z && !isItem(line.replace(/^(\s*>)+\s?/, "")) && itemOf(i) < 0 && !isHeading(line)) continue;
+      const named = container(i) ?? (isHeading(line) ? [i, i] : [a, z]);
       out.push({ id: m[1] ?? "", line: i + 1, col: m.index + 2, first_line: named[0] + 1, last_line: named[1] + 1 });
     }
   });

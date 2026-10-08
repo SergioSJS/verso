@@ -48,6 +48,9 @@ Do not point it at a real vault for tests. A throwaway folder inside the
 
 ## 4. What the metadata cache exposes
 
+A second round of observation, on the block ids (spec Q3), is recorded in
+[obsidian-blocks-2026-10-07.md](obsidian-blocks-2026-10-07.md).
+
 `obsidian eval code='JSON.stringify(app.metadataCache.getCache("path.md"))'`
 (public API: `MetadataCache.getCache` returning `CachedMetadata`, with `links`
 as `LinkCache[]`, `headings` as `HeadingCache[]`, `blocks` as
