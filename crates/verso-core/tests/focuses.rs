@@ -19,8 +19,12 @@ use verso_fs::ConfinementError;
 mod support {
     use super::*;
 
+    /// The workspace of `dir`, its index kept in a hidden folder inside
+    /// `dir` — gone with it, and skipped by the walk. Opened without a
+    /// configuration folder, every run of these tests left an index in the
+    /// user's own one (1167 of them on the maintainer's Mac on 2026-10-08).
     pub fn open_workspace(dir: &Path) -> Workspace {
-        Workspace::open(dir, None).expect("open workspace")
+        Workspace::open(dir, Some(&dir.join(".verso-test-config"))).expect("open workspace")
     }
 
     pub fn make_dir(parent: &Path, name: &str) {

@@ -71,9 +71,9 @@ trap "on_host \"Remove-Item -Recurse -Force '$base/lock'\" >/dev/null 2>&1" EXIT
 
 failed=()
 step() {
-  local name="$1"; shift
-  printf '\n== %s\n' "$name"
-  if ! "$@"; then failed+=("$name"); fi
+  local title="$1"; shift
+  printf '\n== %s\n' "$title"
+  if ! "$@"; then failed+=("$title"); fi
 }
 
 copy_tree() {
@@ -105,14 +105,22 @@ if [ "$bundle" = 1 ]; then
   config=""
   name="Verso"
   if [ "$beta" = 1 ]; then
-    # The same override as the release workflow's beta build (ADR 0051).
-    config="--config '{\"identifier\":\"com.versomd.app.beta\",\"productName\":\"Verso Beta\"}'"
+    # The same override as the release workflow's beta build (ADR 0051), as
+    # a file: a JSON argument would not survive npm.cmd's batch parsing.
+    config="--config '$base/beta.conf.json'"
     name="Verso Beta"
   fi
   build_installer() {
-    on_host "$cargo_env; Set-Location app/ui; npm ci --no-audit --no-fund --loglevel=error
+    if [ "$beta" = 1 ]; then
+      on_host "Set-Content -Encoding ascii -LiteralPath '$base/beta.conf.json' -Value '{\"identifier\":\"com.versomd.app.beta\",\"productName\":\"Verso Beta\"}'" || return 1
+    fi
+    # npm.cmd, not npm: Windows' default execution policy refuses npm.ps1,
+    # which is what PowerShell picks for `npm`.
+    # From the tree's root, as the release workflow runs it: Tauri's CLI
+    # looks for tauri.conf.json under the current directory.
+    on_host "$cargo_env; npm.cmd --prefix app/ui ci --no-audit --no-fund --loglevel=error
              if (\$LASTEXITCODE) { exit \$LASTEXITCODE }
-             npm exec -- tauri build --bundles nsis $config" || return 1
+             npm.cmd --prefix app/ui exec -- tauri build --bundles nsis $config" || return 1
     mkdir -p target/windows
     # The installer is named after the product and the version.
     local exe
