@@ -996,6 +996,24 @@ pub(crate) fn executable_file(path: &std::path::Path) -> bool {
     }
 }
 
+/// Claude Desktop's settings folder in a Store (MSIX) install, where
+/// Windows keeps the package's `%APPDATA%`: the first package of Claude's
+/// (`Claude_<publisher>`) under `%LOCALAPPDATA%\Packages` that has one.
+/// Here because this crate reads directories in this file only (ADR 0029).
+#[cfg(windows)]
+pub(crate) fn msix_claude_dir() -> Option<std::path::PathBuf> {
+    let packages = std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("Packages");
+    let mut found: Vec<std::path::PathBuf> = std::fs::read_dir(packages)
+        .ok()?
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with("Claude_"))
+        .map(|e| e.path().join("LocalCache").join("Roaming").join("Claude"))
+        .filter(|dir| dir.is_dir())
+        .collect();
+    found.sort();
+    found.into_iter().next()
+}
+
 /// Where the symlink at `path` points, if it is one. Not on Windows, where
 /// the command line is not linked (`cli_state_now`).
 #[cfg(not(windows))]
