@@ -67,3 +67,50 @@ fn a_change_outside_a_run_is_committed_on_its_own() {
     index.step().unwrap();
     assert_eq!(other.stamp_of("nota-7.md").unwrap(), Some(stamp(7)));
 }
+
+fn now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+}
+
+fn put_at(index: &mut Index, path: &str, modified: i64) -> Result<(), IndexError> {
+    let text = "# Nota\n";
+    let stamp = NoteStamp {
+        modified,
+        len: 7,
+        hash: 1,
+    };
+    index.upsert(path, stamp, text, &verso_dialect::parse(text))
+}
+
+/// A note modified well before the run that read it is trusted by its
+/// modified time and length; one modified in the same second is read again
+/// (a change in that second could keep both), and so is one written
+/// outside a run, until a run reads it and finds it unchanged.
+#[test]
+fn a_note_is_trusted_by_its_stat_only_when_modified_before_its_read() {
+    let mut index = Index::in_memory().unwrap();
+    let old = now() - 100;
+    index.begin().unwrap();
+    put_at(&mut index, "velha.md", old).unwrap();
+    put_at(&mut index, "agora.md", now()).unwrap();
+    index.commit().unwrap();
+    assert!(index.unchanged_by_stat("velha.md", old, 7).unwrap());
+    assert!(!index.unchanged_by_stat("velha.md", old, 8).unwrap());
+    assert!(!index.unchanged_by_stat("velha.md", old + 1, 7).unwrap());
+    assert!(!index.unchanged_by_stat("agora.md", now(), 7).unwrap());
+    assert!(!index.unchanged_by_stat("ausente.md", old, 7).unwrap());
+
+    // Written outside a run (Verso's own save): read again once.
+    put_at(&mut index, "salva.md", old).unwrap();
+    assert!(!index.unchanged_by_stat("salva.md", old, 7).unwrap());
+    index.begin().unwrap();
+    index.confirm("salva.md").unwrap();
+    index.commit().unwrap();
+    assert!(index.unchanged_by_stat("salva.md", old, 7).unwrap());
+
+    // A placeholder's last known version is never trusted by its stat.
+    assert!(index.mark_placeholder("velha.md").unwrap());
+    assert!(!index.unchanged_by_stat("velha.md", old, 7).unwrap());
+}

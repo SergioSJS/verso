@@ -77,6 +77,20 @@ impl Workspace {
                         file: Some(relative.clone()),
                     });
                     present.insert(relative.clone());
+                    // Modified time and length the index holds, from long
+                    // enough before the run that last read it: unchanged,
+                    // and not read again (decided 2026-10-08; reading and
+                    // hashing every note made each opening of 5,000 notes
+                    // cost seconds of CPU).
+                    if let Some(modified) = entry.modified.map(seconds_since_epoch)
+                        && self
+                            .index
+                            .unchanged_by_stat(&relative, modified, entry.len)
+                            .map_err(CoreError::Index)?
+                    {
+                        report.unchanged += 1;
+                        continue;
+                    }
                     match self.root.read(entry.handle) {
                         Ok((bytes, stamp)) => {
                             let stamp = note_stamp(&stamp);
@@ -91,6 +105,9 @@ impl Workspace {
                                 .map_err(CoreError::Index)?
                                 .unwrap_or(false);
                             if same && !unverified {
+                                // Read and matched: trusted by its stat
+                                // from the next run on.
+                                self.index.confirm(&relative).map_err(CoreError::Index)?;
                                 report.unchanged += 1;
                                 continue;
                             }

@@ -86,6 +86,9 @@ pub struct Index {
     /// Changes made since the open run's transaction last committed;
     /// `None` outside a run ([`Index::begin`]).
     run: Option<u32>,
+    /// When the open run began, in seconds since the Unix epoch: what a
+    /// row written or confirmed in it records as `indexed_at`.
+    run_started: Option<i64>,
 }
 
 /// Changes of an index run between two commits: the write lock is let go
@@ -139,6 +142,7 @@ impl Index {
             conn,
             path,
             run: None,
+            run_started: None,
         })
     }
 
@@ -154,8 +158,14 @@ impl Index {
         if !self.conn.is_autocommit() {
             self.conn.execute_batch("COMMIT")?;
         }
+        // Taken before any note of the run is read: a row's `indexed_at`
+        // must never be later than the read it vouches for.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
         self.conn.execute_batch("BEGIN IMMEDIATE")?;
         self.run = Some(0);
+        self.run_started = Some(now);
         Ok(())
     }
 
@@ -178,6 +188,7 @@ impl Index {
     /// commit when no transaction is open.
     pub fn commit(&mut self) -> Result<(), IndexError> {
         self.run = None;
+        self.run_started = None;
         if !self.conn.is_autocommit() {
             self.conn.execute_batch("COMMIT")?;
         }
@@ -194,6 +205,7 @@ impl Index {
             conn,
             path: PathBuf::from(":memory:"),
             run: None,
+            run_started: None,
         })
     }
 
