@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.29
+# Verso dialect spec — v0.30
 
-- Version: v0.29 · 2026-10-07
+- Version: v0.30 · 2026-10-07
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -781,8 +781,10 @@ Raised while writing this spec. All of them need an answer before
   links `resolvedLinks` counts from the sandbox note to `Alvo.md` include the
   embed `![[Alvo]]`. The maintainer decides; this line only records what the
   code does in the meantime.
-- **Q3. Admissible position of the `^id`.** `DECIDED`: for the end of a
-  paragraph and of a list item on 2026-09-21, for the rest on 2026-10-07.
+- **Q3. Admissible position of the `^id`.** `DECIDED` for the end of a
+  paragraph and of a list item (2026-09-21), for a `^id` alone after a
+  top-level block and at the end of a heading (2026-10-07); `[OPEN]` for
+  the four provisional facts below (2026-10-07).
   Closed for those two on 2026-09-21 by the maintainer, with the fixtures
   `fixtures/block/definition` and `fixtures/block/list-item` as the answer
   (ADR 0031): a `^id` as the last word of a paragraph and a `^id` as the last
@@ -802,17 +804,23 @@ Raised while writing this spec. All of them need an answer before
 
   **Provisional facts of the implementation, 2026-10-07, after the
   reviewer's reading — not an answer to this question, not observed in
-  Obsidian, and `[OPEN]` for the maintainer to decide.** (1) In a loose
-  item (a blank line between its first paragraph and its nested list), the
-  first paragraph is taken as the item's own text, and a `^id` ending it
-  names the item whole, as in a tight item; a code block, a quote or a
-  heading first in the item names only itself. (2) "The block before it"
-  is the one at the same depth: inside a quote or a list item, the block
-  before it in that quote or item; with nothing before it, the `^id` line
-  names itself. (3) A `^word` that is no id (a dot in it, say) is a
-  paragraph like any other, and a `^id` alone after it names that
-  paragraph. No fixture records these until the maintainer decides (rule
-  17); the parser's unit tests pin them meanwhile.
+  Obsidian, and `[OPEN]` for the maintainer to decide.** (1) An item whose
+  first block is a paragraph — every item of a loose list — takes that
+  paragraph as its own text, and a `^id` ending it names the item whole,
+  its nested items and later paragraphs with it, as in a tight item; a
+  code block, a quote or a heading first in the item names only itself.
+  (2) "The block before it" is the one at the same depth: inside a quote or
+  a list item, the block before it in that quote or item; with nothing
+  before it, the `^id` line names itself. (3) A `^word` that is no id (a
+  dot in it, say) is a paragraph like any other, and a `^id` alone after
+  it names that paragraph. (4) When the block before a `^id` alone is an
+  item's first paragraph, fact (1) makes the block the item whole, and its
+  `lines` then run through the `^id` line, which sits inside the item (`-
+  um`, a blank line, `  ^x`, a blank line, `  - filho` gives lines 1 to 5);
+  at the top level the `^id` line is never part of the block it names
+  (`fixtures/block/after-a-block`). No fixture records these until the
+  maintainer decides (CLAUDE.md invariant 17, ADR 0031); the parser's unit
+  tests pin them meanwhile.
 - **Q4. Uniqueness scope of the `^id`.** `DECIDED` on 2026-10-07 by the
   maintainer.
   Unique per note: a link names the note and the id (`[[nota#^id]]`). With
@@ -820,9 +828,10 @@ Raised while writing this spec. All of them need an answer before
   does (observed through the Obsidian CLI on 2026-10-07: its cache keeps the
   second), and Verso says the id is repeated. The parser reports both, in
   document order (`fixtures/block/duplicate`), and so do the index and the
-  MCP's `read_note`, whose description says nothing of the rule; the rule
-  of the last is applied by the window — an embed, a link to the block —
-  and left to a client of the MCP.
+  MCP's `read_note`, whose answer schema states the rule on `first_line`
+  ("with the same id twice in a note, the last names the block"); the
+  window applies it — an embed, a link to the block — and a client of the
+  MCP reads it there.
 - **Q5. Callout coverage.** `DECIDED` for the reading view's kinds, fold and
   title on 2026-09-23; `[OPEN]` for nesting.
   Recognized kinds, `-`/`+`, nesting (section 5.8).
@@ -1273,3 +1282,4 @@ the parser was chosen.
 | v0.27 | 2026-10-07 | The fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid` **approved by the maintainer** in session ("ta aprovado a fixture"); their draft mark removed. Nothing else changes. |
 | v0.28 | 2026-10-07 | **Q3, Q4 and Q21 decided by the maintainer**, after an observation of Obsidian through its CLI the same day: a block is the editor's unit (Q21); a `^id` alone after a blank line names the block before it, one at the end of a heading names the heading (Q3); an id is unique per note, the last of two naming the block (Q4). `blocks` items gain `lines` (§4.3). Three fixtures drafted, awaiting the maintainer's approval: `block/after-a-block`, `block/heading`, `block/duplicate`. §5.7 says how the id is drawn: hidden when reading, quiet in the editor, as observed. |
 | v0.29 | 2026-10-07 | The fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` and `fixtures/block/duplicate` **approved by the maintainer** in session ("tao aprovados"), after checking the blocks in the app; their draft mark removed. Nothing else changes. |
+| v0.30 | 2026-10-07 | After the reviewer's reading of the block feature (PR #37): Q3 gains four **provisional facts of the implementation**, `[OPEN]` for the maintainer — a loose item named whole by its first paragraph, "the block before it" at the same depth, a non-id `^word` as a plain paragraph, and the `^id` line inside the item it names — with its status line saying what is decided and what is open; Q4 says where the rule of the last id is stated (the `read_note` answer schema) and applied (the window). No fixture until the maintainer decides. |

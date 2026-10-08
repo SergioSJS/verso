@@ -466,9 +466,11 @@ fn block_id(
 fn block_span(source: &str, range: &Range<usize>) -> Span {
     let start = first_byte(source, range);
     let text = source.get(start..range.end).unwrap_or("");
+    // Blanks as the base counts them, not every Unicode space: a line of
+    // U+3000 inside a code block is code.
     Span {
         start,
-        end: start + text.trim_end().len(),
+        end: start + text.trim_end_matches([' ', '\t', '\n', '\r']).len(),
     }
 }
 
@@ -624,6 +626,11 @@ mod tests {
             lines("- a\n\n  - b\n  - c\n\n  ^l\n"),
             [("l".into(), (3, 4))]
         );
+        // A code block whose last line is a wide space keeps that line.
+        assert_eq!(
+            lines("    code\n    \u{3000}\n\n^c\n"),
+            [("c".into(), (1, 2))]
+        );
         let doc = super::parse("- a\n\n  - b\n  - c\n\n  ^l\n");
         assert_eq!(
             &"- a\n\n  - b\n  - c\n\n  ^l\n"[doc.blocks[0].block.start..doc.blocks[0].block.end],
@@ -637,8 +644,9 @@ mod tests {
 
     #[test]
     fn a_block_id_alone_names_the_block_before_it_at_its_own_depth() {
-        // Inside a quote, the paragraph before it in the quote; inside a
-        // loose item, the item's paragraph, so the whole item (Q21). A
+        // Provisional, spec Q3 `[OPEN]` (2026-10-07): inside a quote, the
+        // paragraph before it in the quote; inside a loose item, the item's
+        // first paragraph, so the whole item, the `^id` line inside it. A
         // `^word` that is no id is a paragraph like any other, and the next
         // `^id` alone names it.
         assert_eq!(

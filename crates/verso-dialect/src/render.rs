@@ -681,6 +681,11 @@ mod tasks {
             to_html("- a\n  - b\n  ^x\n"),
             "<ul>\n<li>a\n<ul>\n<li>b</li>\n</ul>\n</li>\n</ul>\n"
         );
+        // The break sits before a nested list: it goes as the list opens.
+        assert_eq!(
+            to_html("- Texto  \n  ^id\n  - filho\n"),
+            "<ul>\n<li>Texto\n<ul>\n<li>filho</li>\n</ul>\n</li>\n</ul>\n"
+        );
     }
 
     #[test]
