@@ -409,12 +409,23 @@ fn index_reports_a_walk_problem_as_the_object_the_cli_prints() {
         .tempdir_in(vault.path())
         .unwrap();
     // A symlink loop, made as `chmod` is elsewhere in these tests: the
-    // `std::fs` guardrail holds for tests too.
+    // `std::fs` guardrail holds for tests too. On Windows by `mklink`,
+    // which Developer Mode lets an ordinary user run (ADR 0069).
+    #[cfg(unix)]
     let status = std::process::Command::new("ln")
         .args(["-s", ".", "loop"])
         .current_dir(d.path())
         .status()
         .unwrap();
+    #[cfg(windows)]
+    let status = {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("cmd")
+            .raw_arg("/C mklink /D loop .")
+            .current_dir(d.path())
+            .status()
+            .unwrap()
+    };
     assert!(status.success());
     let mut session = Session::start(vault.path(), config.path());
     session.requests(&initialize("2025-06-18"));

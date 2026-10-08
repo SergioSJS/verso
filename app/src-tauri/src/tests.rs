@@ -185,12 +185,21 @@ fn one_batch_is_told_once_whatever_the_windows() {
     assert!(missed.load(Ordering::SeqCst));
 }
 
+/// The app's own pages, at the origin each platform's web view serves them
+/// from: WebView2 serves a custom scheme as `http://tauri.localhost`, which
+/// is what the capability's "local" means there (ADR 0069).
+const APP_ORIGIN: &str = if cfg!(windows) {
+    "http://tauri.localhost"
+} else {
+    "tauri://localhost"
+};
+
 fn call(
     webview: &tauri::WebviewWindow<MockRuntime>,
     cmd: &str,
     body: Value,
 ) -> Result<Value, Value> {
-    call_from(webview, "tauri://localhost", cmd, body)
+    call_from(webview, APP_ORIGIN, cmd, body)
 }
 
 /// A call as a document at `origin` would make it.

@@ -808,6 +808,8 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
     // ── Windows ────────────────────────────────────────────────────────────
     #[cfg(target_os = "windows")]
     {
+        // The installer replaces the app itself: nothing is backed up here.
+        let _ = temp_dir;
         // Look for installer (.msi preferred, then .exe)
         let installer =
             find_file_by_exts(extract_dir, &[".msi", ".exe"]).ok_or_else(|| ContractError {
@@ -959,19 +961,13 @@ pub(crate) fn find_file_by_exts(
     None
 }
 
-/// Returns the user's Downloads directory in a cross-platform way.
+/// The user's Downloads folder, where the macOS and Linux fallbacks leave
+/// an update they could not put in place. Windows has no such fallback:
+/// its installer does the replacing (ADR 0069, item 9: the updater's
+/// Windows path is still to be exercised).
+#[cfg(not(target_os = "windows"))]
 pub(crate) fn get_downloads_dir() -> std::path::PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        // USERPROFILE\Downloads
-        if let Ok(profile) = std::env::var("USERPROFILE") {
-            let d = std::path::PathBuf::from(profile).join("Downloads");
-            if d.exists() {
-                return d;
-            }
-        }
-    }
-    // macOS + Linux: $HOME/Downloads
+    // $HOME/Downloads
     let home = std::env::var("HOME")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
     std::path::PathBuf::from(home).join("Downloads")

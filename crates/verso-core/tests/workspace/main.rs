@@ -10,12 +10,15 @@ use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
 
-use tempfile::{Builder, NamedTempFile, TempDir};
+use tempfile::{Builder, TempDir};
 use verso_core::{CoreError, PropertyValue, Sidecar, SkipReason, Workspace};
 
 #[cfg(test)]
 mod support;
 use support::*;
+
+#[cfg(test)]
+mod shell;
 
 mod indexing;
 mod order;

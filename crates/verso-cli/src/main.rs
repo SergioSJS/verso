@@ -294,9 +294,11 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
     if let Some(env) = std::env::var_os("VERSO_APP") {
         candidates.push(PathBuf::from(env));
     }
+    // `verso-app.exe` on Windows (ADR 0069), `verso-app` elsewhere.
+    let beside = format!("verso-app{}", std::env::consts::EXE_SUFFIX);
     if let Ok(me) = std::env::current_exe() {
         if let Some(dir) = me.parent() {
-            candidates.push(dir.join("verso-app"));
+            candidates.push(dir.join(&beside));
         }
         // The installed `verso` is often a symlink (Homebrew); the app
         // binary sits beside the real file, not beside the link. The
@@ -306,7 +308,7 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
         if let Ok(real) = std::fs::canonicalize(&me)
             && let Some(dir) = real.parent()
         {
-            candidates.push(dir.join("verso-app"));
+            candidates.push(dir.join(&beside));
         }
     }
     #[cfg(target_os = "macos")]
