@@ -21,6 +21,11 @@ in the real app.
 
 ### The Windows port (feat/windows-fs)
 
+- [ ] **No title bar** (ADR 0072, 2026-10-08): on the Mac, full screen
+  (the buttons hide, the ribbon goes back up), a second window, dragging by
+  the tab bar and by the side bar's head; on Windows, snapping to a screen
+  edge and Win+arrows, resizing from each border, a double click on the
+  tab bar's empty space.
 - [ ] **One agent server for all of Verso** (ADR 0054, 2026-10-08): in
   Settings › Terminal e agentes choose "Um servidor para todo o Verso",
   mark two folders visible, "Adicionar ao Claude Desktop", quit Verso,
