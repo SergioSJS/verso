@@ -62,9 +62,16 @@ on_host() { ssh -o BatchMode=yes "$host" "\$ErrorActionPreference='Stop'; \$Prog
 # One run at a time on the host: a second would delete the first one's
 # sources mid-build. The lock is a directory, made atomically, removed on
 # the way out.
-if ! on_host "New-Item -ItemType Directory -Force '$base' | Out-Null
-              New-Item -ItemType Directory '$base/lock' | Out-Null" >/dev/null 2>&1; then
+# `$base/src` is deleted on every run: a folder of this script's own only.
+case "$base" in
+  *verso*) ;;
+  *) echo "VERSO_WIN_DIR=$base: a folder whose name holds \"verso\", as its src is deleted"; exit 1 ;;
+esac
+
+if ! lock_error=$(on_host "New-Item -ItemType Directory -Force '$base' | Out-Null
+              New-Item -ItemType Directory '$base/lock' | Out-Null" 2>&1 >/dev/null); then
   echo "another run holds $host:$base/lock — wait for it, or remove that directory if none is running"
+  echo "(the host said: ${lock_error:0:300})"
   exit 1
 fi
 trap "on_host \"Remove-Item -Recurse -Force '$base/lock'\" >/dev/null 2>&1" EXIT

@@ -103,10 +103,12 @@ pub fn append_line(path: &Path, line: &str) -> bool {
         .arg(format!("printf '{line}\\n' >> \"$0\""))
         .arg(path));
     #[cfg(windows)]
-    return cmd(&format!("echo {line}>>\"{}\"", path.display()));
+    return cmd(&format!("(echo {line})>>\"{}\"", path.display()));
 }
 
-/// Another program replaces `path`'s content with a line.
+/// Another program replaces `path`'s content with a line. On Windows the
+/// `echo` is in parentheses: a line ending in a digit would otherwise make
+/// `1>` a redirection of handle 1.
 pub fn overwrite_line(path: &Path, line: &str) -> bool {
     #[cfg(unix)]
     return ran(Command::new("sh")
@@ -114,5 +116,5 @@ pub fn overwrite_line(path: &Path, line: &str) -> bool {
         .arg(format!("printf '{line}\\n' > \"$0\""))
         .arg(path));
     #[cfg(windows)]
-    return cmd(&format!("echo {line}>\"{}\"", path.display()));
+    return cmd(&format!("(echo {line})>\"{}\"", path.display()));
 }
