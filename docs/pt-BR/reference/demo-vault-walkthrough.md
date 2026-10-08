@@ -291,6 +291,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    caminhos relativos", "Mover para a lixeira" com uma pergunta só. Nível:
    H; E: `tree-selection.spec.mjs`; S:
    `crates/verso-core/tests/workspace/rename.rs`.
+8. Nota 14, "Criar" (ADR 0070): uma nota nova chamada `CON`, `Reunião:
+   pauta` ou `nota.` não é criada; a barra de status diz que o Windows não
+   guarda esse nome. Um renomear para um nome assim é recusado do mesmo
+   jeito. Nível: H; E: `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
 
 ## 7. A web
 

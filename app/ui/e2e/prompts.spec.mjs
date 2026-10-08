@@ -67,3 +67,19 @@ test("a workspace's name: Escape keeps the old one, Enter takes the new", async 
   await expect(field).toHaveCount(0);
   await expect(name).toHaveText("Pesquisa");
 });
+
+// A name Windows cannot keep is not made on any system, so that the folder
+// can be synced to Windows (ADR 0070); the field says why, in the person's
+// language, and the log has it as an answer, not a fault.
+test("a name Windows cannot keep is refused, and the field says why", async ({ app }) => {
+  await withFolder(app);
+  for (const name of ["CON", "Reunião: pauta", "nota."]) {
+    await folderMenu(app, "Pasta", "Nova nota nesta pasta");
+    const field = app.page.locator("input.new-note");
+    await field.fill(name);
+    await field.press("Enter");
+    await expect(app.page.locator("#status")).toContainText("O Windows não guarda esse nome");
+  }
+  const files = await app.files();
+  expect(files.filter((f) => f.startsWith("Pasta/"))).toEqual(["Pasta/Nota.md"]);
+});

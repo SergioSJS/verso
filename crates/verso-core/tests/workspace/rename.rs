@@ -107,17 +107,22 @@ fn a_new_name_a_link_cannot_hold_is_not_written_into_links() {
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     ws.index().unwrap();
     for to in ["A|B", "A#B", "x]]y"] {
-        // Windows cannot keep a `|` in a name: refused there before any
-        // plan is made (ADR 0069, item 9).
-        if cfg!(windows) && to.contains('|') {
+        // Windows cannot keep a `|` in a name, so no OS makes one: refused
+        // before any plan is made (ADR 0070).
+        if to.contains('|') {
+            let got = ws.rename_note("Alvo", to);
+            // Refused by the core's confinement on Windows, by the new-name
+            // check of the rename elsewhere: the same reason either way.
             assert!(
                 matches!(
-                    ws.rename_note("Alvo", to),
+                    got,
                     Err(CoreError::Confined(
-                        verso_core::ConfinementError::WindowsName
-                    ))
+                        verso_core::ConfinementError::UnportableName
+                    )) | Err(CoreError::Write(verso_core::WriteError::Confined(
+                        verso_core::ConfinementError::UnportableName
+                    )))
                 ),
-                "{to}"
+                "{to}: {got:?}"
             );
             continue;
         }
@@ -541,4 +546,99 @@ fn several_entries_move_into_a_folder_with_one_plan() {
     // Nothing left to move: an empty answer.
     let again = ws.move_entries(&["dest/A.md".to_owned()], "dest").unwrap();
     assert!(again.moved.is_empty() && again.refused.is_empty() && again.rewrites.is_empty());
+}
+
+/// The demo vault, renamed in, writes the same bytes on every OS (ADR 0069,
+/// ADR 0070): a folder synced between macOS, Windows and Linux must come
+/// back as it would from any of them. A note moved by name rewrites the
+/// links that reached it with `/`, never `\`, and every other file stays
+/// byte for byte. The vault is copied through `verso-fs` (this crate's
+/// tests may not call `std::fs`).
+#[test]
+fn a_rename_in_the_demo_vault_writes_the_same_bytes_on_every_os() {
+    use std::collections::BTreeMap;
+    let demo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../demo-vault");
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let snapshot = |dir: &Path| -> BTreeMap<String, Vec<u8>> {
+        let mut root = verso_fs::Root::open(dir, vec![]).unwrap();
+        let walk = root.walk();
+        walk.entries
+            .iter()
+            .filter(|e| e.kind != verso_fs::EntryKind::Directory)
+            .map(|e| {
+                let rel = e.relative.to_string_lossy().into_owned();
+                (rel, root.read(e.handle).unwrap().0)
+            })
+            .collect()
+    };
+    let source = snapshot(&demo);
+    assert!(source.len() > 30, "{}", source.len());
+    let mut target = verso_fs::Root::open(vault.path(), vec![]).unwrap();
+    for (rel, bytes) in &source {
+        let _ = target.create(Path::new(rel), bytes).unwrap();
+    }
+    let before = snapshot(vault.path());
+    assert_eq!(before, source, "the copy is the demo vault, byte for byte");
+
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let old = "Personagens/Capitão Ruy";
+    let new = "Personagens/Capitão Rui";
+    let reached = ws.backlinks(old).unwrap().unwrap().len();
+    assert!(reached > 0);
+    let r = ws.rename_note(old, new).unwrap();
+    assert!(!r.rewrites.is_empty());
+    let slashes = |s: &str| s.matches('\\').count();
+    for w in &r.rewrites {
+        assert_eq!(
+            slashes(&w.after),
+            slashes(&w.before),
+            "a `\\` appeared in {}",
+            w.path
+        );
+        assert!(
+            w.after.contains("Personagens/Capitão Rui"),
+            "{}: {}",
+            w.path,
+            w.after
+        );
+        let _ = ws.write_note(&w.path, &w.after, &w.revision).unwrap();
+    }
+    ws.index().unwrap();
+    assert_eq!(ws.backlinks(new).unwrap().unwrap().len(), reached);
+    assert!(
+        !ws.unresolved()
+            .unwrap()
+            .iter()
+            .any(|u| format!("{u:?}").contains("Capitão Ruy")),
+        "a link still points at the old name"
+    );
+
+    let after = snapshot(vault.path());
+    let rewritten: Vec<&str> = r.rewrites.iter().map(|w| w.path.as_str()).collect();
+    assert_eq!(
+        after.get("Personagens/Capitão Rui.md"),
+        before.get("Personagens/Capitão Ruy.md")
+    );
+    for (rel, bytes) in &before {
+        if rel == "Personagens/Capitão Ruy.md" {
+            assert!(!after.contains_key(rel));
+        } else if rewritten
+            .iter()
+            .any(|p| p.trim_end_matches(".md") == rel.trim_end_matches(".md"))
+        {
+            assert_ne!(
+                after.get(rel),
+                Some(bytes),
+                "{rel} was planned and not written"
+            );
+        } else {
+            assert_eq!(
+                after.get(rel),
+                Some(bytes),
+                "{rel} changed though no plan named it"
+            );
+        }
+    }
 }

@@ -124,12 +124,25 @@ export async function newUntitled(pane: Pane): Promise<void> {
  *  docs/review/phase-2.md §6 item 19). True, and said, when it is one. */
 export function unlinkable(typed: string): boolean {
   if (!/[[\]|#^]/.test(typed)) return false;
-  fail({ message: t.unlinkableName });
+  // A name refused is an answer to the person, not a fault: INFO in the log.
+  nameTaken(t.unlinkableName);
+  return true;
+}
+/** A name not every OS can keep (ADR 0070): the core refuses it for what is
+ *  made or renamed, so that the folder can be synced to Windows; this says
+ *  why, in the person's language. The last segment only: a folder that
+ *  exists already is the user's, and the core checks the rest. */
+export function unportable(typed: string): boolean {
+  const name = typed.split("/").pop() ?? typed;
+  const stem = (name.split(".")[0] ?? "").trimEnd().toUpperCase();
+  const device = /^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[0-9¹²³]|LPT[0-9¹²³])$/.test(stem);
+  if (!device && !/[. ]$/.test(name) && !/[:*"<>?|\x00-\x1f]/.test(name)) return false;
+  nameTaken(t.unportableName);
   return true;
 }
 export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false): Promise<void> {
   const clean = nameTyped.trim().replace(/\.md$/i, "");
-  if (!clean || unlinkable(clean)) return;
+  if (!clean || unlinkable(clean) || unportable(clean)) return;
   const path = folder ? `${folder}/${clean}` : clean;
   let initialText = `# ${clean.split("/").pop() ?? clean}\n\n`;
   // The folder's template, when it names one; else the note offers the
@@ -246,14 +259,14 @@ export async function deleteEntry(path: string, kind: Kind): Promise<void> {
 }
 export async function renameNote(from: string, toName: string): Promise<void> {
   const clean = toName.trim().replace(/\.md$/i, "");
-  if (!clean || clean === name(from) || unlinkable(clean)) return;
+  if (!clean || clean === name(from) || unlinkable(clean) || unportable(clean)) return;
   const to = clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean;
   await renameTo(from, kindOf(from) === "note" ? to : `${to}${ext(from) ? "." + ext(from) : ""}`);
 }
 export async function renameFolder(from: string, toName: string): Promise<void> {
   const clean = toName.trim().replace(/^\/+|\/+$/g, "");
   const base = from.split("/").pop() ?? from;
-  if (!clean || clean === base || unlinkable(clean)) return;
+  if (!clean || clean === base || unlinkable(clean) || unportable(clean)) return;
   await renameTo(from, clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean);
 }
 export async function moveFile(path: string, folder: string): Promise<void> {

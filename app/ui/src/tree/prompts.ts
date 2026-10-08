@@ -6,7 +6,7 @@ import { commands } from "../bindings";
 import { afterFileChange } from "../changes";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
-import { createNote, renameFolder, renameNote, unlinkable } from "../files";
+import { createNote, renameFolder, renameNote, unlinkable, unportable } from "../files";
 import { icon } from "../icons";
 import { layout, openNote } from "../layout/spaces";
 import { dirOf, name } from "../paths";
@@ -66,7 +66,7 @@ export function newFolderPrompt(folder: string): void {
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
     if (restore) returnFromSide(back);
-    if (!commit || !v || unlinkable(v)) return;
+    if (!commit || !v || unlinkable(v) || unportable(v)) return;
     void commands.createFolder(folder ? `${folder}/${v}` : v).then(async (r) => {
       if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
       openFolders.add(r.data);
