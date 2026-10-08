@@ -100,6 +100,35 @@ fn a_folder_handed_to_the_running_app_is_opened_once_by_the_main_window() {
     assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
 }
 
+/// The app launched again (`verso <folder>`, any system): the second
+/// launch's folder, relative to its own directory, is handed to the
+/// running app as macOS's open event hands it — the same window takes it.
+#[test]
+fn a_second_launch_hands_its_folder_to_the_running_app() {
+    use tauri::Listener;
+    let parent = tempfile::tempdir().unwrap();
+    std::fs::create_dir(parent.path().join("Cofre")).unwrap();
+    let _nota = note(&parent.path().join("Cofre"), "Nota.md", "# Nota\n");
+    let (app, webview) = app();
+    assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
+    let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen = told.clone();
+    app.listen_any("folder-handed", move |_| {
+        seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    });
+    second_launch(
+        app.handle(),
+        vec!["verso-app".into(), "Cofre".into()],
+        parent.path().to_string_lossy().into_owned(),
+    );
+    assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let info = call(&webview, "open_initial", json!({})).unwrap();
+    assert_eq!(info["name"], "Cofre");
+    // Launched again with no folder: nothing is handed.
+    second_launch(app.handle(), vec!["verso-app".into()], String::new());
+    assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+}
+
 /// A note another app writes while the folder is open: the index finds
 /// it and the app's windows are told, by its path relative to the
 /// folder; a note Verso wrote itself is never reported as changed

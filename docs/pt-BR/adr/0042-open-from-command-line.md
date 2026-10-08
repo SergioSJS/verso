@@ -183,4 +183,12 @@ Nenhuma registrada no briefing.
 ## Status
 
 Aceito. A regra da Fase 2: decidida em 2026-09-23 pelo mantenedor (a
-Decisão).
+Decisão). Revisado pelo mantenedor em 2026-10-08, aceitando a recomendação
+do autor: **com o app aberto, `verso <pasta>` abre a pasta numa janela
+própria** — uma janela do app que não mostra pasta nenhuma a recebe, senão
+uma janela nova (ADR 0065). Em todo sistema o app é uma instância só: uma
+segunda abertura entrega a pasta ao app aberto e sai (o plugin de
+instância única do Tauri), e no macOS a linha de comando volta ao
+`open -a`, como decidido acima. Desde o `9d60cfc` (2026-09-25) ela rodava o
+binário do bundle instalado e o `open -n`, o que iniciava um segundo app —
+que, rodado com o primeiro aberto, não mostrava janela.

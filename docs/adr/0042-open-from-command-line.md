@@ -184,4 +184,12 @@ None recorded in the briefing.
 ## Status
 
 Accepted. The Phase 2 rule: decided on 2026-09-23 by the maintainer (the
-Decision).
+Decision). Revised by the maintainer on 2026-10-08, accepting the
+author's recommendation: **with the app running, `verso <folder>` opens
+the folder in a window of its own** — a window of the app that shows no
+folder takes it, else a new window does (ADR 0065). On every system the
+app is one instance: a second launch hands its folder to the running app
+and exits (Tauri's single-instance plugin), and on macOS the command line
+goes back to `open -a`, as decided above. Since `9d60cfc` (2026-09-25) it
+had run the installed bundle's binary and `open -n`, which started a
+second app — one that, run while the first was open, showed no window.

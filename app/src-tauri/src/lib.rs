@@ -868,11 +868,39 @@ pub fn export_bindings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// The app launched again while it runs — `verso <folder>`, which starts
+/// `verso-app <folder>`, or the app's icon: the running app takes the
+/// folder into a window of its own (`folder_handed`, ADR 0065), or, with
+/// none, brings a window forward. The second process exits; its arguments
+/// are its command line, a relative folder read from its own directory.
+fn second_launch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, argv: Vec<String>, cwd: String) {
+    let folder = argv
+        .iter()
+        .skip(1)
+        .find(|a| !a.starts_with("--"))
+        .map(|a| std::path::Path::new(&cwd).join(a));
+    log::write("INFO", "host", "launched again: handed to the running app");
+    match folder {
+        Some(folder) => folder_handed(app, std::path::absolute(&folder).unwrap_or(folder)),
+        None => {
+            let windows = app.windows();
+            let window = windows.get("main").or_else(|| windows.values().next());
+            if let Some(w) = window {
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }
+    }
+}
+
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let commands = commands();
     let initial_folder = initial_folder.map(|p| std::path::absolute(&p).unwrap_or(p));
-    let builder = tauri::Builder::default();
+    // First of the plugins, as the plugin asks: a second launch hands its
+    // folder over and exits before anything else of it starts.
+    let builder =
+        tauri::Builder::default().plugin(tauri_plugin_single_instance::init(second_launch));
     #[cfg(target_os = "macos")]
     let builder = builder.menu(app_menu).on_menu_event(|app, event| {
         let id = event.id().as_ref();
@@ -1028,9 +1056,8 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 /// takes the command line's place: the main window, if it is up, is told
 /// to open it (`open_initial`, after saving its tabs), and one that starts
 /// later opens it at start-up. What is not a folder fails there, as a
-/// command-line argument would. Built for tests on every platform, so
-/// the Linux runs check it too; only macOS sends the event.
-#[cfg(any(target_os = "macos", test))]
+/// command-line argument would. A second launch on any system (the
+/// single-instance plugin, `second_launch`) hands its folder here too.
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
     *lock(&app.state::<App>().initial_folder) = Some(folder);
     // A window of the app that shows no folder takes it; with none, a new

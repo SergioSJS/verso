@@ -451,6 +451,12 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `Projetos.base` dá as linhas da tabela. Nada na pasta muda. Nível: S
    (`crates/verso-cli/tests/mcp.rs`), A (um cliente: Claude Desktop ou
    Claude Code).
+5. `verso <outra pasta>` com o app aberto (nota 17): a pasta abre numa
+   janela própria, no mesmo app — um Verso só no Dock ou na barra de
+   tarefas, nunca um segundo app. Nível: S
+   (`a_second_launch_hands_its_folder_to_the_running_app`, os testes do
+   host), A (o app instalado, no macOS e no Windows). Pegou em 2026-10-08:
+   no macOS um segundo app iniciava, sem janela.
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 
