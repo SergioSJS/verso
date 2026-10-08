@@ -332,6 +332,46 @@ fn a_root_must_be_a_directory() {
     assert!(Root::open(dir.path().join("nao-existe"), vec![]).is_err());
 }
 
+/// On Windows `.obsidian` also answers to a short name such as `OBSIDI~1`:
+/// that second spelling gets no handle, while a file really named with a
+/// `~1` keeps one. Skipped where the volume makes no short names.
+#[cfg(windows)]
+#[test]
+fn a_short_name_does_not_reach_a_hidden_entry() {
+    use std::os::windows::process::CommandExt;
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join(".obsidian/app.json"), "{}");
+    touch(&dir.path().join("arquivo morto/velho.md"), "velho");
+    touch(&dir.path().join("NOTA~1.md"), "a real name");
+    let short = |name: &str| {
+        let out = std::process::Command::new("cmd")
+            .raw_arg(format!(
+                "/C for %I in (\"{}\") do @echo %~snxI",
+                dir.path().join(name).display()
+            ))
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    };
+    let (hidden, ignored) = (short(".obsidian"), short("arquivo morto"));
+    if !hidden.contains('~') || !ignored.contains('~') {
+        eprintln!("no short names on this volume ({hidden:?}, {ignored:?}): skipped");
+        return;
+    }
+    let mut root = Root::open(dir.path(), vec![PathBuf::from("arquivo morto")]).unwrap();
+    assert_eq!(
+        root.handle(&Path::new(&hidden).join("app.json")),
+        Err(verso_fs::ConfinementError::ShortName)
+    );
+    assert_eq!(
+        root.handle(&Path::new(&ignored).join("velho.md")),
+        Err(verso_fs::ConfinementError::ShortName)
+    );
+    assert!(root.handle(Path::new("NOTA~1.md")).is_ok());
+    // A name of the shape that names nothing yet is a new name, not a short one.
+    assert!(root.handle(Path::new("NOVA~1.md")).is_ok());
+}
+
 #[test]
 fn hidden_and_ignored_paths_have_no_handle() {
     let dir = tempfile::tempdir().unwrap();

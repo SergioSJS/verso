@@ -43,19 +43,20 @@ pub(crate) fn file_id(path: &Path, _meta: &Metadata, follow: bool) -> std::io::R
 }
 
 /// How many names the file at `path` has (`meta` read through symlinks).
-/// Unknown on Windows when the file cannot be opened for its attributes:
-/// counted as one, its only name.
+/// On Windows the file is opened for its attributes, which can fail: the
+/// caller says the count was not checked rather than guessing one.
 #[cfg(unix)]
-pub(crate) fn link_count(_path: &Path, meta: &Metadata) -> u64 {
+pub(crate) fn link_count(_path: &Path, meta: &Metadata) -> std::io::Result<u64> {
     use std::os::unix::fs::MetadataExt;
-    meta.nlink()
+    Ok(meta.nlink())
 }
 
 #[cfg(windows)]
-pub(crate) fn link_count(path: &Path, _meta: &Metadata) -> u64 {
-    windows::open_for_attributes(path, true)
-        .and_then(winapi_util::file::information)
-        .map_or(1, |info| info.number_of_links())
+pub(crate) fn link_count(path: &Path, _meta: &Metadata) -> std::io::Result<u64> {
+    Ok(
+        winapi_util::file::information(windows::open_for_attributes(path, true)?)?
+            .number_of_links(),
+    )
 }
 
 /// Whether `new` has the owner of `original`. On Windows an owner is a
@@ -93,27 +94,50 @@ pub(crate) fn sync_dir(dir: &Path) -> std::io::Result<()> {
 /// On Windows a handle another program holds — on either file, or on any
 /// file inside a directory being moved: an antivirus or the search indexer
 /// reading the file just written, a sync client — fails the rename with a
-/// sharing or access error for as long as it is held;
-/// the rename is tried again, waiting longer each time, for about two and
-/// a half seconds before the error is returned (ADR 0069, item 9; ADR 0029).
-#[cfg(unix)]
+/// sharing or access error for as long as it is held; the rename is tried
+/// again, waiting longer each time, for about two and a half seconds before
+/// the error is returned (ADR 0069, item 9; ADR 0029).
 pub(crate) fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
-    std::fs::rename(from, to)
+    rename_unless_changed(from, to, || true).map(|_| ())
+}
+
+/// [`rename`], asking `unchanged` before each new try whether `to` is still
+/// the file the caller checked (invariant 11): a program that held it may
+/// have written it before letting go. `Ok(false)` when it was not: nothing
+/// was renamed. On Unix the rename is tried once, so never asked.
+#[cfg(unix)]
+pub(crate) fn rename_unless_changed(
+    from: &Path,
+    to: &Path,
+    _unchanged: impl Fn() -> bool,
+) -> std::io::Result<bool> {
+    std::fs::rename(from, to).map(|()| true)
 }
 
 #[cfg(windows)]
-pub(crate) fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
+pub(crate) fn rename_unless_changed(
+    from: &Path,
+    to: &Path,
+    unchanged: impl Fn() -> bool,
+) -> std::io::Result<bool> {
+    // A read-only target is refused for good, not held: no waiting.
+    if std::fs::symlink_metadata(to).is_ok_and(|m| m.is_file() && m.permissions().readonly()) {
+        return std::fs::rename(from, to).map(|()| true);
+    }
     let mut wait = std::time::Duration::from_millis(5);
-    for _ in 0..RENAME_ATTEMPTS - 1 {
+    for _ in 1..RENAME_ATTEMPTS {
         match std::fs::rename(from, to) {
             Err(e) if windows::is_held(&e) => {
                 std::thread::sleep(wait);
                 wait *= 2;
+                if !unchanged() {
+                    return Ok(false);
+                }
             }
-            other => return other,
+            other => return other.map(|()| true),
         }
     }
-    std::fs::rename(from, to)
+    std::fs::rename(from, to).map(|()| true)
 }
 
 /// Tries of a held rename on Windows: 5 + 10 + … + 1280 ms of waiting
@@ -167,7 +191,11 @@ mod windows {
             .open(dir)
     }
 
-    /// Whether `e` is another program holding one of the files.
+    /// Whether `e` is another program holding one of the files. A target
+    /// held without delete sharing answers "Access is denied", not a
+    /// sharing violation (measured on Windows 11, 2026-10-08), so that
+    /// error waits too; a read-only target, which answers the same for
+    /// good, is told apart before the first try.
     pub(super) fn is_held(e: &std::io::Error) -> bool {
         matches!(
             e.raw_os_error(),
@@ -196,8 +224,8 @@ mod tests {
         let link = dir.path().join("a-again.md");
         std::fs::hard_link(&a, &link).unwrap();
         assert_eq!(id(&a), id(&link));
-        assert_eq!(link_count(&a, &std::fs::metadata(&a).unwrap()), 2);
-        assert_eq!(link_count(&b, &std::fs::metadata(&b).unwrap()), 1);
+        assert_eq!(link_count(&a, &std::fs::metadata(&a).unwrap()).unwrap(), 2);
+        assert_eq!(link_count(&b, &std::fs::metadata(&b).unwrap()).unwrap(), 1);
         let sub = dir.path().join("sub");
         std::fs::create_dir(&sub).unwrap();
         assert_ne!(id(&sub), id(dir.path()));
@@ -281,5 +309,56 @@ mod tests {
         drop(held);
         assert_eq!(std::fs::read_to_string(&to).unwrap(), "old");
         assert_eq!(std::fs::read_to_string(&from).unwrap(), "new");
+    }
+
+    /// The holder wrote the file before letting go (invariant 11): the
+    /// rename stops, and both files stay as they are.
+    #[cfg(windows)]
+    #[test]
+    fn rename_stops_when_the_holder_changed_the_target() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = temp_dir();
+        let (from, to) = (dir.path().join(".tmp"), dir.path().join("n.md"));
+        std::fs::write(&from, "new").unwrap();
+        std::fs::write(&to, "old").unwrap();
+        let len = std::fs::metadata(&to).unwrap().len();
+        let held = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .share_mode(0x1)
+            .open(&to)
+            .unwrap();
+        let release = std::thread::spawn(move || {
+            use std::io::Write;
+            let mut held = held;
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            held.write_all(b"theirs, longer").unwrap();
+            drop(held);
+        });
+        let still = || std::fs::metadata(&to).is_ok_and(|m| m.len() == len);
+        let renamed = rename_unless_changed(&from, &to, still).unwrap();
+        release.join().unwrap();
+        assert!(!renamed);
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "theirs, longer");
+        assert_eq!(std::fs::read_to_string(&from).unwrap(), "new");
+    }
+
+    /// A read-only target fails at once: nothing holds it, nothing to wait for.
+    #[cfg(windows)]
+    #[test]
+    fn rename_over_a_read_only_file_fails_without_waiting() {
+        let dir = temp_dir();
+        let (from, to) = (dir.path().join(".tmp"), dir.path().join("n.md"));
+        std::fs::write(&from, "new").unwrap();
+        std::fs::write(&to, "old").unwrap();
+        let writable = std::fs::metadata(&to).unwrap().permissions();
+        let mut read_only = writable.clone();
+        read_only.set_readonly(true);
+        std::fs::set_permissions(&to, read_only).unwrap();
+        let started = std::time::Instant::now();
+        assert!(rename(&from, &to).is_err());
+        assert!(started.elapsed() < std::time::Duration::from_millis(500));
+        std::fs::set_permissions(&to, writable).unwrap();
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "old");
     }
 }

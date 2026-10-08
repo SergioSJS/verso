@@ -39,6 +39,10 @@ pub enum ConfinementError {
     /// a device name, a trailing dot or space, a colon, or a character it
     /// does not allow (ADR 0069, ADR 0070).
     UnportableName,
+    /// On Windows, the short (8.3) name of an entry listed under another
+    /// name — `OBSIDI~1` for `.obsidian`: a second spelling that would get
+    /// past the hidden and ignored rules (ADR 0069, item 9).
+    ShortName,
 }
 
 impl std::fmt::Display for ConfinementError {
@@ -53,6 +57,7 @@ impl std::fmt::Display for ConfinementError {
             Self::UnportableName => {
                 "a name not every system can keep (a device name such as CON or NUL, a trailing dot or space, a colon, or one of < > \" | ? *)"
             }
+            Self::ShortName => "a short (8.3) name of another entry",
         };
         write!(
             f,
@@ -109,6 +114,50 @@ pub(crate) fn unportable_new(root: &Path, relative: &Path) -> Result<(), Confine
     Ok(())
 }
 
+/// The first component of the confined `relative` that Windows found on
+/// disk under a short (8.3) name the folder does not list — `OBSIDI~1`
+/// standing for `.obsidian`, `ARQUIV~1` for an ignored `Arquivo Morto` —
+/// refused. Only a name of the 8.3 shape (a `~` and a digit) is looked up,
+/// so an ordinary path costs nothing; a file really named `NOTA~1.md` is
+/// listed as such and kept.
+#[cfg(windows)]
+pub(crate) fn short_name(root: &Path, relative: &Path) -> Result<(), ConfinementError> {
+    let mut at = PathBuf::new();
+    for component in relative.components() {
+        let Component::Normal(part) = component else {
+            continue;
+        };
+        let parent = crate::on_disk(root, &at);
+        at = crate::rel_join(&at, part);
+        if !short_shape(part) || crate::on_disk(root, &at).symlink_metadata().is_err() {
+            continue;
+        }
+        let listed = std::fs::read_dir(&parent).is_ok_and(|entries| {
+            entries.flatten().any(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(&part.to_string_lossy())
+            })
+        });
+        if !listed {
+            return Err(ConfinementError::ShortName);
+        }
+    }
+    Ok(())
+}
+
+/// A name of the 8.3 shape Windows gives as a short name: a `~` followed
+/// by a digit before any extension.
+#[cfg(any(windows, test))]
+fn short_shape(part: &std::ffi::OsStr) -> bool {
+    let name = part.to_string_lossy();
+    let stem = name.split('.').next().unwrap_or("");
+    stem.len() <= 8
+        && stem.split_once('~').is_some_and(|(base, n)| {
+            !base.is_empty() && !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())
+        })
+}
+
 /// Whether the name `part` is one not every OS can keep: Windows would not
 /// keep it as written. Applied to every request on Windows (`confine`), and
 /// on every OS to the names a create or rename makes ([`unportable_new`]).
@@ -150,6 +199,22 @@ pub(crate) fn unportable(part: &std::ffi::OsStr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_short_name_shape() {
+        for short in ["OBSIDI~1", "TRASH~1", "ARQUI~12", "NOTA~1.MD", "a~1.md"] {
+            assert!(short_shape(std::ffi::OsStr::new(short)), "{short}");
+        }
+        for long in [
+            "nota.md",
+            "a~b.md",
+            "~1",
+            "muito~longo1.md",
+            "Arquivo Morto~1x",
+        ] {
+            assert!(!short_shape(std::ffi::OsStr::new(long)), "{long}");
+        }
+    }
 
     #[test]
     fn refuses_what_leaves_the_folder_and_keeps_the_rest() {
