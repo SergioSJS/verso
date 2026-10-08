@@ -30,6 +30,13 @@ verso-contract = { path = "../../crates/verso-contract" }
 # to the App Store.
 tauri = { version = "2", features = ["unstable", "devtools"] }
 tauri-plugin-dialog = "2"
+# One app per user: a second launch — `verso <folder>`, a double click on
+# the app while it runs — hands its folder to the running app, which opens
+# it in a window of its own (ADR 0042, revised 2026-10-08). Tauri's own
+# plugin (MIT OR Apache-2.0); it replaces nothing of ours: without it,
+# Windows and Linux started a second app, and macOS too when a binary was
+# run directly.
+tauri-plugin-single-instance = "2"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 specta = "=2.0.0-rc.25"
 specta-typescript = "=0.0.12"

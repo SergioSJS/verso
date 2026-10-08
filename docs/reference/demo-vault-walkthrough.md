@@ -441,6 +441,11 @@ point 13).
    `Projetos.base` gives the table's rows. Nothing in the folder changes.
    Level: S (`crates/verso-cli/tests/mcp.rs`), A (a client: Claude Desktop
    or Claude Code).
+5. `verso <another folder>` with the app open (note 17): the folder opens
+   in a window of its own, in the same app — one Verso in the Dock or the
+   taskbar, never a second app. Level: S (`a_second_launch_hands_its_folder_to_the_running_app`,
+   the host's tests), A (the installed app, on macOS and Windows). Caught
+   2026-10-08: on macOS a second app started, with no window.
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

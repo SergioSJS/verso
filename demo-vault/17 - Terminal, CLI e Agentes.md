@@ -29,7 +29,7 @@ Em **Ajustes › Terminal e agentes › Comando verso no terminal**, clique em *
 | `verso search ~/Notas reunião` | busca nas notas (`--limit 50` para mais resultados) |
 | `verso backlinks ~/Notas "Projeto Alpha"` | quem aponta para uma nota (pelo nome, como num link, ou pelo caminho dentro da pasta) |
 | `verso backlinks ~/Notas --unresolved` | os links que não levam a nenhuma nota: notas que ainda não existem, e anexos |
-| `verso ~/Notas` | abre a pasta no app |
+| `verso ~/Notas` | abre a pasta no app — com o app aberto, numa janela própria |
 | `verso help` | a ajuda completa |
 
 `--json` devolve a resposta em JSON, para scripts; `--lang pt-BR` ou `--lang en` escolhe o idioma.

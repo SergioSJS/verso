@@ -311,22 +311,10 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
             candidates.push(dir.join(&beside));
         }
     }
-    #[cfg(target_os = "macos")]
-    {
-        candidates.push(PathBuf::from(
-            "/Applications/Verso Beta.app/Contents/MacOS/verso-app",
-        ));
-        candidates.push(PathBuf::from(
-            "/Applications/Verso.app/Contents/MacOS/verso-app",
-        ));
-        if let Ok(home) = std::env::var("HOME") {
-            candidates.push(
-                PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso-app"),
-            );
-            candidates
-                .push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso-app"));
-        }
-    }
+    // The installed macOS app is never run as a binary: `open -a` below hands
+    // it the folder by an open event, and a running app takes it into a new
+    // window. Running the bundle's binary, with `open -n` beside it, started
+    // a second app that showed no window (ADR 0042, revised 2026-10-08).
     for app in candidates {
         match std::process::Command::new(&app)
             .arg(folder)
@@ -349,14 +337,14 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
         }
         for name in app_names {
             match std::process::Command::new("open")
-                .args(["-n", "-a", name])
+                .args(["-a", name])
                 .arg(folder)
                 .stderr(std::process::Stdio::null())
                 .status()
             {
                 Ok(status) if status.success() => return Ok(()),
-                Ok(status) => tried.push(format!("open -n -a {name}: {status}")),
-                Err(e) => tried.push(format!("open -n -a {name}: {e}")),
+                Ok(status) => tried.push(format!("open -a {name}: {status}")),
+                Err(e) => tried.push(format!("open -a {name}: {e}")),
             }
         }
     }

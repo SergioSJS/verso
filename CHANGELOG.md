@@ -21,6 +21,7 @@ test release.
 
 - **The first index of a big folder is much faster**: each note was its own commit to the index, and on Windows each commit waits for the disk — 5,000 notes took 228 s there; now 9 s, and 2.6 s instead of 3.4 s on macOS. The index stays a cache rebuilt from the notes.
 - **Opening a folder again no longer re-reads every note**: a note whose modified time and length the index holds, from well before it was last read, is trusted as is — 5,000 notes open in 0.05 s instead of 0.7 s on macOS. A note changed in the same second it was read is still read again.
+- **`verso <folder>` with the app open opens the folder in a window of its own**: the app is one instance on every system, and a second launch hands its folder to the running app. On macOS it started a second app instead, which showed no window.
 - **A board card selected, then right-clicked, shows the board's menu**: once the card was entered — a moment after it was selected — it took the right click and no menu opened.
 - **The tree remembers which folders you left open**, folder by folder, and shows them so when the app opens again. A folder of thousands of notes opens with its top-level folders closed.
 - **The tree costs less on a big folder**: each row is cheaper to draw (no image of its own per icon, no layer of its own per name), opening a note marks two rows instead of all of them, and a closed folder lets go of its rows — measured on 5,000 notes on Windows, where the tree held about 120 MB.
