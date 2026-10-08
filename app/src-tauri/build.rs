@@ -77,12 +77,21 @@ fn main() {
         "uninstall_cli",
         "mcp_status",
         "mcp_add_claude",
+        "agent_visible",
+        "set_agent_visible",
+        "open_claude_download",
         "check_for_updates",
         "download_and_install_update",
         "restart_app",
     ]);
     commit();
-    if let Err(e) = tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest)) {
+    let mut attributes = tauri_build::Attributes::new().app_manifest(manifest);
+    if windows_msvc() {
+        attributes = attributes
+            .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest());
+        embed_windows_manifest();
+    }
+    if let Err(e) = tauri_build::try_build(attributes) {
         eprintln!("tauri-build: {e:#}");
         std::process::exit(1);
     }
@@ -110,6 +119,26 @@ fn commit() {
     if let Some(common) = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"]) {
         println!("cargo:rerun-if-changed={common}/refs/heads");
     }
+}
+
+/// Whether the build is for Windows with Microsoft's linker.
+fn windows_msvc() -> bool {
+    std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
+        && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc")
+}
+
+/// Windows: the application manifest (Common Controls 6, which Tauri's
+/// dialogs call into) goes into every binary the linker makes for this
+/// package — the app and its test harness alike. tauri-build alone puts it
+/// in the app, and `cargo test` then dies at start with
+/// `STATUS_ENTRYPOINT_NOT_FOUND` (ADR 0069; Tauri's own repository does
+/// the same). `windows-app-manifest.xml` is tauri-build 2.6.3's, as is.
+fn embed_windows_manifest() {
+    let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
+    let manifest = std::path::Path::new(&dir).join("windows-app-manifest.xml");
+    println!("cargo:rerun-if-changed=windows-app-manifest.xml");
+    println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+    println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
 }
 
 /// A git command's output, trimmed; `None` when git is missing or fails.

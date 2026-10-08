@@ -106,6 +106,9 @@ pub enum Msg {
         snippet: String,
     },
     IndexFailed(String),
+    /// The note asked for is not a path of the folder (absolute, `..`,
+    /// hidden, ignored…): the asking was wrong, not the index.
+    RefusedNote(String, String),
     /// `verso mcp` is up: said once, on stderr, before the first answer.
     McpServing {
         folder: String,
@@ -113,6 +116,8 @@ pub enum Msg {
         unchanged: usize,
     },
     McpFailed(String),
+    /// `verso mcp --all` is up.
+    McpServingAll,
 }
 
 /// The text of a message in a language.
@@ -129,6 +134,7 @@ uso: verso <comando> <pasta> [...]
   verso backlinks <pasta> --unresolved alvos que nenhuma nota responde
   verso mcp <pasta>                    servidor MCP (stdio) só de leitura para um agente
   verso mcp --key <chave>              o mesmo, com a pasta pela chave que o app dá a ela
+  verso mcp --all                      um servidor para as pastas visíveis para agentes
   verso <pasta>                        abre a pasta no aplicativo (verso . = esta pasta)
   verso open <pasta>                   o mesmo, para uma pasta chamada como um comando
   verso help                           esta ajuda
@@ -150,7 +156,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
             Msg::MissingQuery => "faltam as palavras da busca".to_owned(),
             Msg::MissingNote => "falta a nota (caminho relativo à pasta)".to_owned(),
             Msg::NoConfigDir => {
-                "sem diretório de configuração: defina HOME, XDG_CONFIG_HOME ou VERSO_CONFIG_DIR"
+                "sem diretório de configuração: defina HOME (LOCALAPPDATA no Windows), XDG_CONFIG_HOME ou VERSO_CONFIG_DIR"
                     .to_owned()
             }
             Msg::CannotOpen(e) => format!("não abriu: {e}"),
@@ -195,6 +201,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
             Msg::UnresolvedLine { target, count } => format!("{target}  ({count})"),
             Msg::HitLine { path, snippet } => format!("{path}: {snippet}"),
             Msg::IndexFailed(e) => format!("indexação falhou: {e}"),
+            Msg::RefusedNote(note, why) => format!("nota recusada: {note} — {why}"),
             Msg::McpServing {
                 folder,
                 indexed,
@@ -203,6 +210,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                 "verso mcp: servindo {folder} (indexadas {indexed}, sem mudança {unchanged}); aguardando o cliente"
             ),
             Msg::McpFailed(e) => format!("verso mcp falhou: {e}"),
+            Msg::McpServingAll => "verso mcp: atende as pastas visíveis para agentes; esperando o cliente".to_owned(),
         },
         Lang::En => match msg {
             Msg::Usage => "\
@@ -214,6 +222,7 @@ usage: verso <command> <folder> [...]
   verso backlinks <folder> --unresolved targets no note answers to
   verso mcp <folder>                   read-only MCP server (stdio) for an agent
   verso mcp --key <key>                the same, the folder named by the key the app gives it
+  verso mcp --all                      one server for the folders visible to agents
   verso <folder>                       open the folder in the app (verso . = this one)
   verso open <folder>                  the same, for a folder named like a command
   verso help                           this help
@@ -235,7 +244,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
             Msg::MissingQuery => "missing the search words".to_owned(),
             Msg::MissingNote => "missing the note (path relative to the folder)".to_owned(),
             Msg::NoConfigDir => {
-                "no configuration directory: set HOME, XDG_CONFIG_HOME or VERSO_CONFIG_DIR"
+                "no configuration directory: set HOME (LOCALAPPDATA on Windows), XDG_CONFIG_HOME or VERSO_CONFIG_DIR"
                     .to_owned()
             }
             Msg::CannotOpen(e) => format!("could not open: {e}"),
@@ -282,6 +291,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
             Msg::UnresolvedLine { target, count } => format!("{target}  ({count})"),
             Msg::HitLine { path, snippet } => format!("{path}: {snippet}"),
             Msg::IndexFailed(e) => format!("indexing failed: {e}"),
+            Msg::RefusedNote(note, why) => format!("note refused: {note} — {why}"),
             Msg::McpServing {
                 folder,
                 indexed,
@@ -290,6 +300,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
                 "verso mcp: serving {folder} (indexed {indexed}, unchanged {unchanged}); waiting for the client"
             ),
             Msg::McpFailed(e) => format!("verso mcp failed: {e}"),
+            Msg::McpServingAll => "verso mcp: serving the folders visible to agents; waiting for the client".to_owned(),
         },
     }
 }
@@ -353,12 +364,14 @@ mod tests {
                 snippet: "s".into(),
             },
             Msg::IndexFailed("e".into()),
+            Msg::RefusedNote("../x".into(), "w".into()),
             Msg::McpServing {
                 folder: "/v".into(),
                 indexed: 1,
                 unchanged: 2,
             },
             Msg::McpFailed("e".into()),
+            Msg::McpServingAll,
             Msg::Opening {
                 folder: "/v".into(),
                 app: "Verso Beta".into(),
@@ -401,9 +414,11 @@ mod tests {
             Msg::IndexFailed(_) => 23,
             Msg::McpServing { .. } => 24,
             Msg::McpFailed(_) => 25,
+            Msg::McpServingAll => 30,
             Msg::Opening { .. } => 26,
             Msg::AppNotFound { .. } => 27,
             Msg::NoFolderToOpen(_) => 28,
+            Msg::RefusedNote(..) => 29,
         }
     }
 
@@ -413,7 +428,7 @@ mod tests {
         seen.sort_unstable();
         // `ordinal` is exhaustive, so its highest arm is the variant count
         // minus one; the samples must reach it without a gap.
-        let expected: Vec<usize> = (0..=28).collect();
+        let expected: Vec<usize> = (0..=30).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
     }
 

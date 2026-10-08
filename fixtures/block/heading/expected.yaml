@@ -1,0 +1,17 @@
+# Approved by the maintainer on 2026-10-07 in session ("tao aprovados"), after checking the blocks in the app; drafted by Opus 5.5 on 2026-10-07 (ADR 0031).
+# Construct: a `^id` at the end of a heading's line. Spec:
+# docs/spec/dialect.md §5.7, Q3 (decided on 2026-10-07: as Obsidian, the id
+# names the heading). The spec's section 9 is updated in the same PR.
+blocks:
+  - id: cab
+    pos: { line: 1, col: 20 }
+    lines: [1, 1]
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-07 against a throwaway folder in the sandbox
+    vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)` -> blocks
+    { cab: line 0 col 0 .. line 0 col 23 }, sections heading 0..0 with id
+    "cab", paragraph 2..2 with none.

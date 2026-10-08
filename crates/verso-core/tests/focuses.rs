@@ -19,8 +19,12 @@ use verso_fs::ConfinementError;
 mod support {
     use super::*;
 
+    /// The workspace of `dir`, its index kept in a hidden folder inside
+    /// `dir` — gone with it, and skipped by the walk. Opened without a
+    /// configuration folder, every run of these tests left an index in the
+    /// user's own one (1167 of them on the maintainer's Mac on 2026-10-08).
     pub fn open_workspace(dir: &Path) -> Workspace {
-        Workspace::open(dir, None).expect("open workspace")
+        Workspace::open(dir, Some(&dir.join(".verso-test-config"))).expect("open workspace")
     }
 
     pub fn make_dir(parent: &Path, name: &str) {
@@ -457,13 +461,7 @@ fn focuses_never_creates_space_directory_when_absent() {
     ws.set_sync_focuses(true);
     let summary = ws.get_focuses().unwrap();
     assert!(!summary.has_file);
-    let space_exists = std::process::Command::new("test")
-        .arg("-e")
-        .arg(dir.path().join(".space"))
-        .status()
-        .unwrap()
-        .success();
-    assert!(!space_exists, ".space must not exist");
+    assert!(!exists(&dir.path().join(".space")), ".space must not exist");
 
     let res = ws.set_focuses(
         vec![verso_core::Focus {
@@ -478,13 +476,10 @@ fn focuses_never_creates_space_directory_when_absent() {
         res.is_err(),
         "set_focuses must fail when .space/waypoints.json is absent"
     );
-    let space_exists = std::process::Command::new("test")
-        .arg("-e")
-        .arg(dir.path().join(".space"))
-        .status()
-        .unwrap()
-        .success();
-    assert!(!space_exists, ".space must never be created by Verso");
+    assert!(
+        !exists(&dir.path().join(".space")),
+        ".space must never be created by Verso"
+    );
 }
 
 #[test]
@@ -671,4 +666,26 @@ fn duplicate_focus_names_delete_and_edit_by_position() {
     assert!(final_disk.contains(r#""paths":["A"]"#));
     assert!(!final_disk.contains(r#""paths":["B"]"#));
     assert!(final_disk.contains("Other"));
+}
+
+/// Whether anything stands at `path`, asked of the system's tool: this
+/// crate's tests may not call `std::fs` (ADR 0029); Windows too (ADR 0069).
+fn exists(path: &std::path::Path) -> bool {
+    #[cfg(unix)]
+    let mut command = {
+        let mut c = std::process::Command::new("test");
+        c.arg("-e").arg(path);
+        c
+    };
+    #[cfg(windows)]
+    let mut command = {
+        use std::os::windows::process::CommandExt;
+        let mut c = std::process::Command::new("cmd");
+        c.raw_arg(format!(
+            "/C if exist \"{}\" (exit 0) else (exit 1)",
+            path.display()
+        ));
+        c
+    };
+    command.status().is_ok_and(|s| s.success())
 }

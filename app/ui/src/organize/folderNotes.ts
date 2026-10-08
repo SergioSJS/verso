@@ -36,11 +36,24 @@ export function folderNoteCandidates(folder: string): string[] {
   out.push(`${folder}/${name}.md`, `${folder}.md`);
   return out;
 }
+/** The notes by their name without case, the first of each: built once
+ *  per listing, not searched per candidate (three per folder per redraw). */
+let byLower: { notes: readonly string[]; map: Map<string, string> } | null = null;
+function noteWithoutCase(lower: string): string | undefined {
+  if (byLower?.notes !== allNotes) {
+    const map = new Map<string, string>();
+    for (const p of allNotes) {
+      const key = p.toLowerCase();
+      if (!map.has(key)) map.set(key, p);
+    }
+    byLower = { notes: allNotes, map };
+  }
+  return byLower.map.get(lower);
+}
 /** A folder's own note: the first candidate that exists, without case. */
 export function folderNoteOf(folder: string): string | null {
   for (const candidate of folderNoteCandidates(folder)) {
-    const lower = candidate.toLowerCase();
-    const found = allNotes.find((p) => p.toLowerCase() === lower);
+    const found = noteWithoutCase(candidate.toLowerCase());
     if (found) return found;
   }
   return null;

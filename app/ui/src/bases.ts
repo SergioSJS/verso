@@ -7,7 +7,7 @@ import { commands } from "./bindings";
 import { afterFileChange } from "./changes";
 import { ask } from "./dialog";
 import { ui } from "./dom";
-import { fail } from "./errors";
+import { fail, nameTaken } from "./errors";
 import { freeName, newNoteWith, saveMarkdownNote, textBase64 } from "./files";
 import { imageUrl } from "./images";
 import { layout, openNote } from "./layout/spaces";
@@ -58,7 +58,7 @@ export function baseTemplate(): string {
 export async function newBase(folder: string): Promise<void> {
   const path = freeName(folder, t.untitled, ".base");
   const r = await commands.createFile(path, textBase64(baseTemplate()));
-  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);
   await afterFileChange();
   openNote(r.data, false);
 }

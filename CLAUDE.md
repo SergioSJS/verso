@@ -129,15 +129,19 @@ the test.
 | npm license allowlist over the window's lockfile | an npm package under a license the project cannot ship | Phase 2 |
 | The window's unit tests (`npm test` in `app/ui`) | the board's model changing what it writes unnoticed | the board |
 | The demo vault built from its sources and holding together | a stale embed, a board edited by hand, a tutorial that no longer holds | the tutorial |
+| The window's end-to-end tests in Chromium beside WebKit (`scripts/check.sh`) — provisional: [ADR 0069](docs/adr/0069-windows-port.md) item 8 is Proposed | a window that works in WebKit and breaks in WebView2 | the Windows port |
+| Clippy and the tests on Windows over SSH (`scripts/check-windows.sh`), when the diff touches platform code | code that is dead or different on Windows | the Windows port |
 
 CI ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 2026-09-23): a pull
 request runs every guardrail but the fuzzing in one Linux job; `main` adds
-clippy and the tests on macOS, the fuzzing and the benchmark; the window's
+clippy and the tests on macOS and on Windows, the fuzzing and the benchmark; the window's
 end-to-end tests run only locally, in `scripts/check.sh`
 ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)); the apps are
 built and packaged only for a new version reaching `main`, never on a branch. Before any push,
-`scripts/check.sh` and `scripts/check-linux.sh` pass locally (README.md): CI
-confirms, it is never the first test.
+`scripts/check.sh` and `scripts/check-linux.sh` pass locally (README.md), and
+`scripts/check-windows.sh` when the diff touches platform code
+([ADR 0069](docs/adr/0069-windows-port.md)): CI confirms, it is never the
+first test.
 
 If a guardrail blocks legitimate work, that is the subject of its own PR, with
 justification — not of an `#[allow]` in the middle of the diff. A subprocess
@@ -179,6 +183,11 @@ through `verso-core`) — ADR 0028, Consequences.
 1. Read the relevant ADR. It does not exist: write the ADR first, or ask.
 2. Check whether the needed decision is `[OPEN]`. It is: ask, do not choose.
 3. Confirm that the work fits the current phase of `docs/roadmap.md`.
+4. Work that touches files, paths, processes, configuration or the window's
+   focus and keys: read
+   [`docs/reference/cross-platform-checklist.md`](docs/reference/cross-platform-checklist.md)
+   — it is written on the Mac and has to be right on Windows
+   ([ADR 0069](docs/adr/0069-windows-port.md)).
 
 ### The PR
 

@@ -25,7 +25,7 @@ body.dragging * { cursor: grabbing !important; }
 #tree-root.drop { box-shadow: inset 0 0 0 2px var(--brass); }
 .tree li.drop-before > button.row, .tree summary.drop-before { border-top: 2px solid var(--brass); }
 .tree li.drop-after > button.row, .tree summary.drop-after { border-bottom: 2px solid var(--brass); }
-.tree li.drop-pin > button.row, .tree summary.drop-pin { outline: 2px dashed var(--brass); background: var(--brass-wash); border-radius: 4px; }
+.tree li.drop-pin > button.row, .tree summary.drop-pin { outline: 2px dashed var(--brass); outline-offset: -2px; background: var(--brass-wash); border-radius: 4px; }
 .tree .pin-badge, .folder-items .pin-badge { margin-left: auto; display: inline-flex; align-items: center; opacity: 0.65; color: var(--brass); }
 .tree .pin-badge .icon, .folder-items .pin-badge .icon { width: 12px; height: 12px; }
 .hidden-items-list { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; max-width: 320px; }
@@ -39,12 +39,29 @@ body.dragging * { cursor: grabbing !important; }
 .row .icon { width: 14px; height: 14px; color: var(--ink-3); flex: none; }
 .row.kind-note .icon { color: var(--brass); }
 .row.kind-image .icon { color: light-dark(oklch(52% 0.1 240), oklch(75% 0.1 240)); }
-.row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* `clip`, not `hidden`: `hidden` makes every row a scroll container, a
+   paint layer and a transform of its own in Chromium — thousands of them
+   on a big folder (measured 2026-10-08); `hidden` first, for an engine
+   that does not know `clip`. */
+/* `min-width: 0`: `clip`, unlike `hidden`, does not let a flex item shrink
+   below its content, and a long name would spill past the row. */
+.row-name { min-width: 0; overflow: hidden; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+/* A row's icon drawn by CSS (`maskIcon`): a mask over the text color. */
+.icon.mi { display: inline-block; background: currentColor; -webkit-mask: var(--mi) center / contain no-repeat; mask: var(--mi) center / contain no-repeat; }
+@media (forced-colors: active) { .icon.mi { forced-color-adjust: none; background: CanvasText; } }
 .tree summary { gap: .35rem; }
 .tree summary::before { content: none; }
 .tree summary .chev { width: 5px; height: 5px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(-45deg); transition: transform .18s var(--ease-out); flex: none; margin: 0 .2rem 0 .1rem; }
 .tree details[open] > summary .chev { transform: rotate(45deg); }
-.tree summary .folder-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A folder's rows off screen are not styled, laid out or painted: opening a
+   note in a big tree, all folders open, restyled and measured every row
+   (1.1–1.5 s on 5,000 rows, Windows without GPU, 2026-10-08). Their space is
+   kept — about one row each until first laid out, then what they took. */
+.tree details > ul { content-visibility: auto; contain-intrinsic-size: auto calc(var(--rows, 1) * 1.9rem); }
+.tree summary .folder-label { flex: 1; min-width: 0; overflow: hidden; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+/* The focus ring drawn inside the row: a folder's rows are contained
+   (`content-visibility`), which would cut a ring drawn outside them. */
+.tree li > button.row:focus-visible, .tree summary:focus-visible { outline-offset: -2px; }
 .tree summary .folder-label:hover { color: var(--seal); }
 
 /* Title as a rename field */
@@ -196,6 +213,8 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .folder-items.grid .thumb { display: grid; place-content: center; aspect-ratio: 4 / 3; background: var(--paper-2); border-radius: 6px; overflow: hidden; color: var(--ink-3); }
 .folder-items.grid .thumb .icon { width: 28px; height: 28px; }
 .folder-items.grid .thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* A PDF's cover: its first page from the top, where the title is. */
+.folder-items .thumb img.pdf-cover { object-position: top; }
 .folder-items.grid .item.kind-folder .thumb .icon, .folder-items .item.kind-note .icon { color: var(--brass); }
 .folder-items.grid .label { font-size: .85rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-items.list .item { padding: .35rem .5rem; border-radius: 5px; }
@@ -455,6 +474,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 
 /* Image grip and size badge */
 .cm-lp-image-box, .preview-image-box { position: relative; display: inline-block; line-height: 0; vertical-align: top; max-width: 100%; }
+/* An image with no size of its own (imageFit.ts) fills the line. */
+.image-fluid { display: block; }
+.image-fluid > img { width: 100%; height: auto; }
 .cm-lp-grip { position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; border: 2px solid var(--paper); border-radius: 3px; background: var(--seal); cursor: nwse-resize; opacity: 0; transition: opacity .12s; z-index: 5; }
 .cm-lp-image-box:hover .cm-lp-grip, .preview-image-box:hover .cm-lp-grip { opacity: 1; }
 .cm-lp-image-box:hover .cm-lp-image, .cm-lp-image-box:hover img, .preview-image-box:hover img { outline: 2px solid var(--seal-wash); outline-offset: 2px; }
@@ -479,7 +501,12 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-subheading { font-family: var(--ui); font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); margin: 1.6rem 0 .4rem; padding-bottom: .35rem; border-bottom: 1px solid var(--hair); font-weight: 600; }
 .settings-hint { font-size: .82rem; color: var(--ink-3); margin: 0 0 .6rem; }
 .setting { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: .8rem 0; border-bottom: 1px solid var(--hair); }
-.setting-text { min-width: 0; }
+/* The text keeps a width of its own: a long status beside it (the MCP's
+   "Added… copy of the previous one: …") squeezed it into a column a word
+   wide (seen 2026-10-08). */
+.setting-text { min-width: 0; flex: 1 1 16rem; }
+.setting-actions { min-width: 0; max-width: 60%; }
+.setting-actions .setting-value { white-space: normal; overflow-wrap: anywhere; text-align: right; }
 .setting-title { font-size: .93rem; color: var(--ink); }
 .setting-desc { font-size: .8rem; color: var(--ink-3); margin-top: .15rem; }
 /* A value to read, not to change: the version and its commit. */

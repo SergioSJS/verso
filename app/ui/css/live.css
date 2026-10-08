@@ -8,6 +8,7 @@
 .editor .cm-lp-em { font-style: italic; }
 .editor .cm-lp-strike { text-decoration: line-through; color: var(--ink-3); }
 .editor .cm-lp-mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .15em; }
+.editor .cm-blockid { color: var(--ink-3); font-size: .9em; }
 .editor .cm-lp-code { font-family: var(--mono); font-size: .88em; background: var(--paper-3); border-radius: 3px; padding: 0 .25em; }
 
 /* Fenced code blocks in Live Preview */

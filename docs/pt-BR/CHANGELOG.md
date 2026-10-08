@@ -14,6 +14,42 @@ versão de teste.
 
 Nada ainda.
 
+## 0.5.0-beta.1 — 2026-10-08
+
+### Acrescentado
+
+- **Sem barra de título no macOS e no Windows** ([ADR 0072](adr/0072-window-controls-in-the-app.md)): a janela de uma pasta usa a altura toda. No Mac, os três botões do sistema ficam no canto de cima à esquerda; no Windows, o app desenha minimizar, maximizar e fechar no canto de cima à direita, nas cores do app. Nada fica embaixo deles, com as barras laterais abertas ou fechadas, painéis divididos ou uma janela estreita. A parte vazia da barra de abas, o topo da barra lateral e a faixa da esquerda arrastam a janela, e um duplo clique ali a maximiza — não cria mais uma nota (o + da barra, o ⌘N e o menu dela continuam criando). Uma nota em janela própria mantém a barra de título.
+- **Verso para Windows** ([ADR 0069](adr/0069-windows-port.md)): um instalador para Windows 10 e 11 (x64), por usuário, sem precisar de administrador; o `verso.exe` vem ao lado do app, e "Adicionar ao Claude Desktop" grava o caminho dele. O instalador ainda não é assinado: o SmartScreen do Windows avisa uma vez ("Mais informações" › "Executar assim mesmo"). Rodado até agora só no Windows 11; o Windows 10 é alvo, mas ainda não foi testado.
+- **Um servidor de agentes para todo o Verso** ([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)): Ajustes › Terminal e agentes escolhe entre um servidor por pasta (o padrão, como antes) e um para todo o Verso — `verso mcp --all`, adicionado ao Claude Desktop uma vez, que atende as pastas marcadas como visíveis para agentes (nenhuma até ser marcada, por uma chave na mesma seção) por uma ferramenta `list_folders` e um argumento `folder` em toda ferramenta. Nem o app nem a pasta precisam estar abertos. Toda chamada de um agente fica registrada em `agents.log`, na pasta de configuração do Verso.
+- **Ajustes › Terminal e agentes oferece o download do Claude Desktop** quando ele não está instalado, em vez de só dizer que não o achou.
+- **O embed de um bloco mostra esse bloco** (spec Q3, Q21): `![[nota#^id]]` mostra o parágrafo, o item de lista (com os aninhados), o título, a tabela, o bloco de código ou a citação que o id nomeia, não a nota inteira; `[[nota#^id]]` abre a nota naquele bloco. O que o id nomeia é o que o Obsidian nomeia, observado pelo CLI dele: dentro de uma citação ou de um callout, a citação inteira; dentro de uma lista, o item mais interno com os aninhados, onde quer que o id esteja no item; sozinho numa linha no nível superior, o bloco de antes, e nada quando não há nada antes. O mesmo `^id` duas vezes numa nota é avisado na nota, valendo o último (Q4). Como no Obsidian, o próprio `^id` não aparece na Leitura (um `^id` sozinho na linha sai com o bloco que nomeia; um que não nomeia nada fica como escrito) e aparece apagado no Editar.
+- **Uma nota nova oferece os templates, como o Notion** ([ADR 0068](adr/0068-templates-chosen-in-a-new-note.md)): sob o título de uma nota nova, "Começar com" lista Em branco e as notas da pasta de templates; um clique — ou Tab, as setas e Enter — preenche a nota a partir dele, com `{{title}}` e `{{date}}` preenchidos. Em branco, Esc ou digitar guardam a lista. O `items_template` de uma pasta continua criando as notas dela, sem lista.
+- **Um PDF mostra a primeira página na visão de pasta**: Miniaturas e Lista desenham a capa onde ficava a marca do PDF, quando a linha aparece na tela; um arquivo só na nuvem mantém a marca e não é baixado para isso.
+
+### Alterado
+
+- **Uma nota, pasta ou arquivo só é criado ou renomeado com um nome que todo sistema guarda** ([ADR 0070](adr/0070-what-travels-with-the-folder.md)): `CON`, `NUL`, `COM1` e os outros nomes de dispositivo, ponto ou espaço no fim, e `: * " < > ? | \` são recusados no macOS também, porque uma pasta sincronizada com o Windows não conseguiria levá-los; o campo diz por quê. Um arquivo que já tem um nome assim continua abrindo, salvando, e pode ser renomeado para um que todo sistema guarda.
+- **A nota 19 do cofre de exemplo agora é `19 - Organizando com figurinhas, capas e páginas`**: o `:` dela quebrava os seus quatro links quando a pasta chegava ao Windows. Importar numa pasta que tem uma demo anterior mantém aquela como está.
+- **Uma nota sem figurinha mostra um brilho apagado à esquerda do título, não uma estrela**: a estrela, na outra ponta do título, é a dos favoritos; duas estrelas queriam dizer duas coisas.
+- **O identificador do app é `com.versomd.app`** (`com.versomd.app.beta` nas betas), pelo domínio do projeto ([ADR 0004](adr/0004-project-name-verso.md)). Os ajustes da janela, as teclas, as larguras das colunas e os focos locais vêm junto na primeira abertura; o macOS pode pedir de novo, uma vez, acesso a uma pasta.
+
+### Corrigido
+
+- **O primeiro índice de uma pasta grande ficou muito mais rápido**: cada nota era um commit próprio no índice, e no Windows cada commit espera o disco — 5.000 notas levavam 228 s lá; agora 9 s, e 2,6 s em vez de 3,4 s no macOS. O índice continua um cache refeito a partir das notas.
+- **Abrir uma pasta de novo não relê mais todas as notas**: uma nota cuja data de modificação e tamanho o índice guarda, de bem antes da última leitura, é aceita como está — 5.000 notas abrem em 0,05 s em vez de 0,7 s no macOS. Uma nota mudada no mesmo segundo em que foi lida continua sendo relida.
+- **`verso <pasta>` com o app aberto abre a pasta numa janela própria**: o app é uma instância só em todo sistema, e uma segunda abertura entrega a pasta ao app aberto. No macOS ele iniciava um segundo app, que não mostrava janela.
+- **Uma carta do board selecionada e depois clicada com o botão direito mostra o menu do board**: assim que a carta ficava ativa — um instante depois de selecionada — ela ficava com o clique direito e nenhum menu abria.
+- **A árvore lembra quais pastas você deixou abertas**, pasta por pasta, e as mostra assim quando o app abre de novo. Uma pasta de milhares de notas abre com as pastas de primeiro nível fechadas.
+- **A árvore custa menos numa pasta grande**: cada linha é mais barata de desenhar (sem uma imagem própria por ícone, sem uma camada própria por nome), abrir uma nota marca duas linhas em vez de todas, e uma pasta fechada libera as linhas dela — medido em 5.000 notas no Windows, onde a árvore ocupava uns 120 MB.
+- **Depois de um clique numa linha da árvore, ↓ e ↑ andam pela árvore a partir dela**; o F2 continua renomeando a nota aberta, e uma linha alcançada pelas setas é renomeada no lugar.
+- **Teclas e campos em todo motor web**: depois de um clique numa linha da árvore, F2 renomeia a nota aberta no Chromium (WebView2) também; as teclas do board seguem funcionando depois de Inserir › Setas soltas; uma nota ou pasta nova pela árvore é criada no Enter, e o Esc deixa o nome de uma área como estava — cada um estava quebrado no Chromium, o motor do app de Windows que vem ([ADR 0069](adr/0069-windows-port.md)).
+- **⌘Z desfaz as mudanças da nota em ordem quando o foco está num botão**: com o foco num botão, numa aba ou numa checkbox em vez do texto, o Desfazer do menu rodava o da própria web view, que não conhece o histórico do editor — não desfazia nada, ou desfazia a mudança errada. Agora a nota em Editar ou Fonte o recebe.
+- **Um SVG sem tamanho próprio aparece no Editar**: uma imagem com largura e altura em porcentagem (o diagrama do cofre de exemplo) encolhia até virar uma linha vazia no Editar, selecionada ou não, e na Leitura quando escrita `![](x.svg)`. Agora ela ocupa a largura da nota.
+- **Nada passa da borda direita da janela com a barra direita fechada**: o divisor e a borda dela ficavam 4px para fora, que uma rolagem podia mostrar.
+- **Um nome já usado não é erro no log**: dar a uma nota, pasta ou arquivo um nome que a pasta já tem é avisado na barra de status, como antes, e registrado como informação, para que os erros do log (e do relato de bug) sejam só o que deu errado.
+- **As visões Miniaturas e Lista de uma pasta mostram os itens**: uma pasta aberta como tabela mostrava uma visão vazia ao trocar para elas.
+- **Depois de uma atualização a janela mostra a versão nova na hora**: podia mostrar a interface da versão anterior, guardada no cache da web view, até os caches serem limpos. Os arquivos que a janela carrega agora levam a versão no endereço ([ADR 0056](adr/0056-embedded-web-pages.md)).
+
 ## 0.4.0-beta.1 — 2026-10-07
 
 ### Acrescentado

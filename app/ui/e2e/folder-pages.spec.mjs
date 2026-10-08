@@ -108,3 +108,16 @@ test("a folder page's right click offers what the tree's does, with icons", asyn
   const withoutIcon = await items.evaluateAll((els) => els.filter((e) => !e.querySelector("svg")).map((e) => e.textContent));
   expect(withoutIcon).toEqual([]);
 });
+
+test("a PDF shows its first page in a folder's view", async ({ app }) => {
+  await app.open();
+  await app.page.locator('#notes summary[data-folder="assets"] .folder-label').click();
+  const leaf = app.page.locator(".leaf:not([hidden])").filter({ has: app.page.locator(".folder-tools") });
+  await leaf.locator(".folder-tools button[title='Miniaturas']").click();
+  const pdf = leaf.locator(".item.kind-pdf .thumb");
+  await expect(pdf).toBeVisible();
+  // Drawn by pdf.js from the file, once the row is on screen.
+  const cover = pdf.locator("img.pdf-cover");
+  await expect(cover).toBeVisible({ timeout: 15000 });
+  expect(await cover.evaluate((img) => img.src.startsWith("data:image/png") && img.naturalWidth > 100)).toBe(true);
+});

@@ -97,7 +97,7 @@ pub(crate) fn open_devtools<R: tauri::Runtime>(webview: tauri::Webview<R>) {
 /// the page cannot navigate anywhere else, nor open windows.
 #[tauri::command]
 #[specta::specta]
-pub(crate) fn open_url<R: tauri::Runtime>(
+pub(crate) async fn open_url<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     url: String,
 ) -> Result<(), ContractError> {
@@ -170,7 +170,7 @@ fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
 /// label the other `web_*` commands take.
 #[tauri::command]
 #[specta::specta]
-pub(crate) fn web_open<R: tauri::Runtime>(
+pub(crate) async fn web_open<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     url: String,

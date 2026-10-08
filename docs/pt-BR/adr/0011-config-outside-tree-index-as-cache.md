@@ -124,4 +124,16 @@ mantém dotfiles.
 
 ## Status
 
-Aceito.
+Aceito. Emendado pelo mantenedor em 2026-10-08:
+
+- No Windows o diretório de configuração é `%LOCALAPPDATA%\verso`, depois de
+  `$VERSO_CONFIG_DIR` e `$XDG_CONFIG_HOME` e antes de `HOME`: o que ele
+  guarda é da máquina, e o `%APPDATA%` móvel é copiado entre máquinas
+  ([ADR 0069](0069-windows-port.md), item 9; a escolha deixada ao porte).
+- Uma rodada de índice confia numa nota pela data de modificação e pelo
+  tamanho, sem lê-la, quando a nota foi modificada pelo menos 2 s antes do
+  começo da rodada que a leu por último (`indexed_at`, schema 12); senão a
+  lê e calcula o hash como antes. Uma mudança no mesmo segundo de uma
+  leitura poderia manter os dois, então essa nota é lida de novo, como o git
+  faz com as suas entradas "racy". Ler e calcular o hash de toda nota fazia
+  cada abertura de 5.000 notas custar segundos ("pode ser").

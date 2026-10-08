@@ -88,25 +88,12 @@ pub struct Walk {
 }
 
 /// Identity of a directory on disk, to tell a loop from a long path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct DirId {
-    dev: u64,
-    ino: u64,
-}
+type DirId = crate::os::FileId;
 
-#[cfg(unix)]
-fn dir_id(meta: &Metadata) -> DirId {
-    use std::os::unix::fs::MetadataExt;
-    DirId {
-        dev: meta.dev(),
-        ino: meta.ino(),
-    }
+/// A directory's identity, through symlinks (the walk follows them).
+fn dir_id(abs: &Path, meta: &Metadata) -> std::io::Result<DirId> {
+    crate::os::file_id(abs, meta, true)
 }
-
-#[cfg(not(unix))]
-compile_error!(
-    "verso-fs needs a directory identity for loop detection; only Unix (dev, ino) is implemented — ADR 0022: macOS first"
-);
 
 pub(crate) fn is_default_ignored_dir(name: &str) -> bool {
     matches!(
@@ -161,9 +148,8 @@ pub(crate) fn walk(root: &mut Root) -> Walk {
         visited_ids: HashSet::new(),
         git_ignores: Vec::new(),
     };
-    match std::fs::metadata(&root_path) {
-        Ok(meta) => {
-            let id = dir_id(&meta);
+    match std::fs::metadata(&root_path).and_then(|meta| dir_id(&root_path, &meta)) {
+        Ok(id) => {
             walker.ancestors.push((id, PathBuf::new()));
             walker.visited.push((id, PathBuf::new()));
             walker.visited_ids.insert(id);
@@ -205,14 +191,14 @@ impl Walker<'_> {
                 // in git.
                 if let Some(error) = builder.add(&gitignore_path) {
                     self.out.problems.push(Problem::Io {
-                        relative: relative.join(".gitignore"),
+                        relative: crate::rel_join(relative, ".gitignore"),
                         error: std::io::Error::other(error),
                     });
                 }
                 match builder.build() {
                     Ok(gi) => self.git_ignores.push(gi),
                     Err(error) => self.out.problems.push(Problem::Io {
-                        relative: relative.join(".gitignore"),
+                        relative: crate::rel_join(relative, ".gitignore"),
                         error: std::io::Error::other(error),
                     }),
                 }
@@ -243,7 +229,7 @@ impl Walker<'_> {
         }
         names.sort();
         for name in names {
-            let rel = relative.join(&name);
+            let rel = crate::rel_join(relative, &name);
             let abs = absolute.join(&name);
             if self.root.is_ignored(&rel) {
                 continue;
@@ -297,7 +283,7 @@ impl Walker<'_> {
             } else {
                 let kind = if let Some(of) = placeholder_of {
                     EntryKind::Placeholder {
-                        of: relative.join(of),
+                        of: crate::rel_join(relative, of),
                     }
                 } else if placeholder::is_dataless(&meta) {
                     EntryKind::Placeholder { of: rel.clone() }
@@ -334,7 +320,18 @@ impl Walker<'_> {
             modified: meta.modified().ok(),
             created: meta.created().ok(),
         });
-        let id = dir_id(meta);
+        // Not entered when its identity cannot be read: a loop could not be
+        // told from a long path (on Windows the directory is opened for it).
+        let id = match dir_id(abs, meta) {
+            Ok(id) => id,
+            Err(error) => {
+                self.out.problems.push(Problem::Io {
+                    relative: rel,
+                    error,
+                });
+                return;
+            }
+        };
         if let Some((_, first)) = self.ancestors.iter().find(|(a, _)| *a == id) {
             self.out.problems.push(Problem::Loop {
                 relative: rel,

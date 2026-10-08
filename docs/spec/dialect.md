@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.27
+# Verso dialect spec — v0.33
 
-- Version: v0.27 · 2026-10-07
+- Version: v0.33 · 2026-10-07
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -108,7 +108,7 @@ Q19, no fixture uses it.
 | List | Fields |
 |---|---|
 | `headings` | `level` (1–6), `text` (raw text, without `#` and without spaces at the ends), `pos` |
-| `blocks` | `id` (without `^`), `pos` (position of the `^`) |
+| `blocks` | `id` (without `^`), `pos` (position of the `^`), `lines` (`[first, last]`, the lines of the block the id names; asserted when given — Q3, Q21) |
 | `callouts` | `kind` (text between `[!` and `]`, as written), `title` (rest of the first line, without spaces at the ends; absent if empty), `fold` (`-`, `+`, or absent), `pos` |
 
 ### 4.4 Position
@@ -331,22 +331,39 @@ blocks:
 (section 4.4): column 23 here, and 24 if it were counted in bytes, because of
 the `ç` of "vingança".
 
-In a list item the `^id` is looked for in the item's own text, before any
-nested block: a `^id` inside a code block, an HTML block or a nested list that
-ends the item does not define a block of that item — section 5.9 already puts
-code outside what is scanned — and an item keeps its `^id` when a nested list
-follows it. That is how the parser behaves; it is not a further decision.
+What a `^id` names is the top-level section its line is in — a paragraph, a
+heading, a table, a code block, a quote or a callout whole, whatever in the
+quote holds the id — except in a list, where it is the innermost list item
+its line is in, whole, with its nested items (Q21): the id may end the
+item's first line, a later paragraph of the item, or stand alone under a
+nested list or after a code block in the item, and it names that item; a
+`^id` in a nested item names the nested item. A `^id` inside a code block
+or an HTML block is never one (section 5.9). Alone on its line at the top
+level, after a blank line, it names the block before it; with nothing
+before it, it names nothing.
 
 The stable block ID, with backlinks and presence in the graph, is a proposed
 primitive ([ADR 0014](../adr/0014-primitives-catalog.md)). The **syntax** `^id`
 is compatible and decided; what Verso does with it goes beyond Obsidian.
 
-Two positions are decided, on 2026-09-21 by the maintainer, with the fixtures
-`fixtures/block/definition` and `fixtures/block/list-item` as the answer: a
-`^id` as the last word of a paragraph, and a `^id` as the last word of a list
-item. The other positions — a `^id` alone on a line after a blank line, a `^id`
-on a heading, and a `^id` after a multi-line block — and the uniqueness scope of
-the id stay `[OPEN]` (section 9, Q3 and Q4).
+Every position is decided (section 9, Q3, Q4, Q21): the last word of a
+paragraph or of a list item (2026-09-21, `fixtures/block/definition`,
+`fixtures/block/list-item`); a `^id` alone on a line after a blank line,
+which names the block before it, and the end of a heading's line, which names
+the heading (2026-10-07, `fixtures/block/after-a-block`,
+`fixtures/block/heading`); a `^id` inside a quote, which names the whole
+quote, inside a list, which names the innermost item, and alone with nothing
+before it, which names nothing (2026-10-07, `fixtures/block/in-quote`,
+`fixtures/block/in-list`, `fixtures/block/alone-top`). An id is unique per
+note; with two, the last names the block (`fixtures/block/duplicate`).
+`lines` (section 4.3) says which block an id names.
+
+The id is not shown when reading, and a `^id` alone on its line goes with
+the block it names; the editor shows it, quiet. That is how Obsidian 1.14.4
+draws it (observed on 2026-10-07: reading view and Live Preview); it is
+how the id is drawn, not what it names. A `^id` that names nothing stays as
+written in Verso's reading view; how Obsidian draws that line was not
+observed.
 
 ### 5.8 Callout
 
@@ -774,33 +791,68 @@ Raised while writing this spec. All of them need an answer before
   links `resolvedLinks` counts from the sandbox note to `Alvo.md` include the
   embed `![[Alvo]]`. The maintainer decides; this line only records what the
   code does in the meantime.
-- **Q3. Admissible position of the `^id`.** `DECIDED` for the end of a
-  paragraph and the end of a list item; `[OPEN]` for the rest.
+- **Q3. Admissible position of the `^id`.** `DECIDED`: for the end of a
+  paragraph and of a list item on 2026-09-21; for a `^id` alone after a
+  top-level block and at the end of a heading on 2026-10-07; for a `^id`
+  inside a list item or a quote, and for one alone with nothing before it,
+  on 2026-10-07 as well, with the fixtures `fixtures/block/in-list`,
+  `fixtures/block/in-quote` and `fixtures/block/alone-top` as the answer.
   Closed for those two on 2026-09-21 by the maintainer, with the fixtures
   `fixtures/block/definition` and `fixtures/block/list-item` as the answer
   (ADR 0031): a `^id` as the last word of a paragraph and a `^id` as the last
-  word of a list item define the block (section 5.7). Still `[OPEN]`: a `^id`
-  alone on a line after a blank line, a `^id` on a heading, and a `^id` after a
-  multi-line block.
+  word of a list item define the block (section 5.7).
 
-  Two observations of the same day are recorded here, and neither closes
-  anything. (1) On the input `Primeiro parágrafo.`, a blank line and `^solto`,
-  Obsidian attaches the id to the block **before** it: observed through the
-  Obsidian CLI, public API only (ADR 0009; `docs/reference/obsidian-cli.md`),
-  where `app.metadataCache.getCache(...)` reports `blocks.solto` with the
-  position of the paragraph on line 0, and the `^solto` line is not a section of
-  its own. Our parser treats that line as a paragraph of its own and reports the
-  `^` at its own position (line 3, column 1), which is what section 4.3 asks of
-  `pos` whichever block the id names; **which** block it names is this question,
-  and it depends on Q21 ("what a block is"). (2) A `^id` on a heading was not
-  observed and nothing is implemented for it. A fact of the implementation is
-  recorded too, and it decides nothing: in a list item the `^id` is looked for
-  in the item's own text, up to its first block child, so a `^id` inside a code
-  block, an HTML block or a nested list that ends the item does not define a
-  block of that item (section 5.9), and an item whose own line ends with `^id`
-  keeps it when a nested list follows.
-- **Q4. Uniqueness scope of the `^id`.** `[OPEN]`
-  Unique per file or per folder; what to do with a duplicate (section 5.7).
+  **Decided on 2026-10-07 by the maintainer, for the rest, as Obsidian
+  does** (observed through the Obsidian CLI the same day, public API only,
+  ADR 0009), in two steps. First: a `^id` alone on a line after a blank line
+  names the block before it — a paragraph, a table, a code block, a quote —
+  and is no block of its own; a `^id` at the end of a heading's line names
+  the heading; a `^id` at the end of a list item names the item with its
+  nested items (Q21). The fixtures `fixtures/block/after-a-block` and
+  `fixtures/block/heading` are the answer, with `lines` (section 4.3) saying
+  which block. `pos` stays the `^`, as section 4.3 asks, whichever block the
+  id names. Then, after a second observation of 28 inputs
+  (`docs/reference/obsidian-blocks-2026-10-07.md`), with the three fixtures
+  below approved in session ("Aprovado"), the rule that holds the first step
+  and the rest: the block a `^id` names is the top-level section its line is
+  in, except in a list, where it is the innermost list item — a heading
+  inside a quote or an item names the quote or the item, not the heading: (1) inside a quote or a
+  callout — the id at the end of a quoted line, alone after a blank quoted
+  line, in a nested quote, in a list inside the quote — the whole top-level
+  quote (`fixtures/block/in-quote`); (2) inside a list — the id at the end
+  of an item's first line, loose or tight, at the end of a later paragraph
+  of the item, after a code block or a quote first in the item, or alone
+  under a nested list — the innermost item its line is in, whole, the
+  `^id` line included when it is inside the item; Obsidian's cache lists
+  the nested items apart, and Q21 (decided) puts them in the block
+  (`fixtures/block/in-list`); (3) alone at the top level with nothing before
+  it, no block at all, and after a paragraph that is no id (`^foo.bar`),
+  that paragraph (`fixtures/block/alone-top`).
+
+  `[OPEN]`: **two `^id`s alone in a row** (`Texto.`, a blank line, `^a`, a
+  blank line, `^b`). Obsidian's cache keeps only `b` on the paragraph;
+  `[[nota#^a]]` is unresolved there, and how its reading view draws the `^a`
+  line was not observed. Verso today reports both on the paragraph, so
+  `[[nota#^a]]` resolves and `^a` is hidden — an extension that gives a
+  target to a link Obsidian leaves unresolved, which ADR 0030 may or may
+  not allow. The two options: keep both (the extension, to be recorded as
+  Verso's own), or keep the last only, as Q4 does for the same id twice. The
+  maintainer decides; no fixture until then. Not observed either, and
+  recorded as what the parser does: a `^id` alone right after the
+  frontmatter, or after a footnote definition, names nothing and the
+  paragraph before the definition respectively (footnotes are not enabled
+  in the parser).
+- **Q4. Uniqueness scope of the `^id`.** `DECIDED` on 2026-10-07 by the
+  maintainer.
+  Unique per note: a link names the note and the id (`[[nota#^id]]`). With
+  the same id twice in one note, **the last one names the block**, as Obsidian
+  does (observed through the Obsidian CLI on 2026-10-07: its cache keeps the
+  second), and Verso says the id is repeated. The parser reports both, in
+  document order (`fixtures/block/duplicate`), and so do the index and the
+  MCP's `read_note`, whose answer schema states the rule on `first_line`
+  ("with the same id twice in a note, the last names the block"); the
+  window applies it — an embed, a link to the block — and a client of the
+  MCP reads it there.
 - **Q5. Callout coverage.** `DECIDED` for the reading view's kinds, fold and
   title on 2026-09-23; `[OPEN]` for nesting.
   Recognized kinds, `-`/`+`, nesting (section 5.8).
@@ -1132,16 +1184,12 @@ the parser was chosen.
   Whether they count as a link (proposal: yes); `<...>` with spaces; relative
   path `../`; what separates a local link from an external URL; `![](img.png)`
   as an embed; URL-encoding.
-- **Q21. What a "block" is.** `[OPEN]`
-  Used throughout the documentation (block ID, per-block merge, per-block
-  visibility, citation by position) and never defined: a paragraph, a list item,
-  a table cell, a whole callout, a code block, a heading with its content?
-  Obsidian's public documentation describes its notion of it; the spec needs its
-  own before Q3 and Q4 make sense.
-  The editor has its own unit since 2026-10-06, for moving blocks in Edit
-  mode ([ADR 0061](../adr/0061-blocks-in-edit-mode.md) D5): a node of the
-  syntax tree, never a line. It closes nothing here and is offered as an
-  input when Q21 is answered.
+- **Q21. What a "block" is.** `DECIDED` on 2026-10-07 by the maintainer.
+  The editor's unit ([ADR 0061](../adr/0061-blocks-in-edit-mode.md) D5): a
+  node of the syntax tree, never a line — a paragraph, a heading, a list item
+  with its nested items, a whole quote or callout, a whole code block, a
+  whole table, a divider. A table cell is no block. What a `^id` names (Q3)
+  and what an embed `![[nota#^id]]` shows are blocks in this sense.
 - **Q22. Charset of the `^id` and form of the tags.** `DECIDED` for the tags'
   charset and case on 2026-09-23; `[OPEN]` for the rest.
   Obsidian's public documentation restricts `^id` to letters, numbers and
@@ -1253,3 +1301,9 @@ the parser was chosen.
 | v0.25 | 2026-10-02 | Organizing properties ([ADR 0060](../adr/0060-makemd-organizing-features.md)): `sticker`, `color`, `banner`, `banner_y`, `order`, `pinned`, `items_sticker`, `items_color`, `items_template` `DECIDED` in section 6. |
 | v0.26 | 2026-10-07 | The typed note's implementation ([ADR 0052](../adr/0052-typed-note.md)) begins: **`schemas`** enters the fixture schema (§4.1, §4.8), with the category `schema` in §8 and two drafted fixtures awaiting the maintainer's approval. The header's version, left at v0.24 by v0.25, catches up |
 | v0.27 | 2026-10-07 | The fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid` **approved by the maintainer** in session ("ta aprovado a fixture"); their draft mark removed. Nothing else changes. |
+| v0.28 | 2026-10-07 | **Q3, Q4 and Q21 decided by the maintainer**, after an observation of Obsidian through its CLI the same day: a block is the editor's unit (Q21); a `^id` alone after a blank line names the block before it, one at the end of a heading names the heading (Q3); an id is unique per note, the last of two naming the block (Q4). `blocks` items gain `lines` (§4.3). Three fixtures drafted, awaiting the maintainer's approval: `block/after-a-block`, `block/heading`, `block/duplicate`. §5.7 says how the id is drawn: hidden when reading, quiet in the editor, as observed. |
+| v0.29 | 2026-10-07 | The fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` and `fixtures/block/duplicate` **approved by the maintainer** in session ("tao aprovados"), after checking the blocks in the app; their draft mark removed. Nothing else changes. |
+| v0.30 | 2026-10-07 | After the reviewer's reading of the block feature (PR #37): Q3 gains four **provisional facts of the implementation**, `[OPEN]` for the maintainer — a loose item named whole by its first paragraph, "the block before it" at the same depth, a non-id `^word` as a plain paragraph, and the `^id` line inside the item it names — with its status line saying what is decided and what is open; Q4 says where the rule of the last id is stated (the `read_note` answer schema) and applied (the window). No fixture until the maintainer decides. |
+| v0.31 | 2026-10-07 | Q3's open part **observed in Obsidian through its CLI** (28 inputs): the block is the top-level section, or the innermost list item; alone with nothing before it, no block. Implemented; three fixtures drafted (`block/in-list`, `block/in-quote`, `block/alone-top`), awaiting the maintainer's approval; the provisional facts of v0.30 replaced by the observation. The "Unchanged:" sentence of Q3 cites section 5.7, where the own-text rule lives. |
+| v0.32 | 2026-10-07 | The fixtures `fixtures/block/in-list`, `fixtures/block/in-quote` and `fixtures/block/alone-top` **approved by the maintainer** in session ("Aprovado"); their draft mark removed. **Q3 is closed in full.** Nothing else changes. |
+| v0.33 | 2026-10-07 | After the second Opus reading: §5.7 says the decided rule (the top-level section, or the innermost list item) in place of the "own text" sentence, lists the three new fixtures and says what a `^id` that names nothing looks like; Q3's two decision paragraphs are one, in two steps; **two `^id`s alone in a row** is `[OPEN]` (the extension or Obsidian's last-only), with the frontmatter and footnote cases recorded as unobserved; the 28 observed inputs are in `docs/reference/obsidian-blocks-2026-10-07.md`. |

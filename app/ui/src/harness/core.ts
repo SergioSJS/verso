@@ -880,6 +880,8 @@ export class Core {
   // ---- The commands ------------------------------------------------------
 
   /** The answer to every command of the contract, by its name. */
+  /** The folder's mark for the server of all of Verso (ADR 0054 point 4). */
+  agentVisible = false;
   readonly handlers: Record<string, (a: Record<string, unknown>) => unknown> = {
     pick_folder: () => this.folderInfo(),
     reopen_folder: () => this.folderInfo(),
@@ -1241,11 +1243,14 @@ export class Core {
     reindex: () => this.summary(),
     query_base: (a) => this.queryBase(a["query"] as BaseQuery),
     new_window: () => null,
-    cli_status: (): CliState => "missing",
+    cli_status: (): CliState => "ours",
     install_cli: (): CliState => "ours",
     uninstall_cli: (): CliState => "missing",
-    mcp_status: (): McpStatus => ({ server: "verso-harness", claude: "absent" }),
-    mcp_add_claude: (): McpAdded => ({ server: "verso-harness", replaced: false, backup: null, warnings: [] }),
+    mcp_status: (a): McpStatus => ({ server: a["all"] ? "verso" : "verso-harness", claude: "absent", command: "/usr/local/bin/verso" }),
+    agent_visible: (): boolean => this.agentVisible,
+    set_agent_visible: (a): boolean => (this.agentVisible = Boolean(a["visible"])),
+    open_claude_download: (): null => null,
+    mcp_add_claude: (a): McpAdded => ({ server: a["all"] ? "verso" : "verso-harness", replaced: false, backup: "claude_desktop_config.verso-backup-1.json", warnings: [] }),
     check_for_updates: (): UpdateInfo => ({
       current_version: "0.0.0-harness",
       latest_version: "0.0.0-harness",

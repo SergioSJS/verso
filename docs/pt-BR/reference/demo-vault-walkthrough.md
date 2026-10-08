@@ -124,6 +124,17 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    estavam; `verso <pasta>` com todas as janelas numa pasta abre uma janela
    nova. Nível: A; U: `cargo test -p verso-app`
    (`each_window_answers_from_its_own_folder`).
+7. Sem barra de título (ADR 0072, nota 13), no macOS e no Windows: os
+   botões da janela — os do macOS no alto à esquerda, os do próprio app no
+   alto à direita no Windows — nunca cobrem uma aba, um botão ou o nome da
+   pasta, com as barras laterais abertas ou fechadas, dois painéis, uma
+   janela estreita; a parte vazia da barra de abas, o topo da barra lateral
+   e a faixa da esquerda arrastam a janela, e um duplo clique ali a
+   maximiza (não cria mais uma nota); no Windows os botões minimizam,
+   maximizam e restauram, e fecham com as abas salvas; uma nota em janela
+   própria mantém a barra de título. Nível: H; E: `frame.spec.mjs`
+   (molduras forçadas); A (o app no macOS e no Windows: arrastar, encaixar
+   numa borda, Win+setas, tela cheia no Mac).
 
 ## 3. Escrever e ler notas
 
@@ -135,7 +146,9 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    a data de hoje; ⌘Z desfaz. Nível: H; E: `notes.spec.mjs` (a data
    escrita no fim, e sumida depois do ⌘Z).
 3. Nota 02: todo link leva à sua nota, um `#título` ao seu título; o embed
-   mostra "Editar ao lado". Nível: S (os links), H.
+   mostra "Editar ao lado". "Incorporar só um bloco": o embed `#^atomica`
+   mostra só a terceira descoberta, não a nota inteira (spec Q3, Q21). Nível:
+   S (os links, `fixtures/block/`), H; E: `blocks-ids.spec.mjs`.
 4. Nota 06 no Leitura: `![Diagrama|320](assets/diagrama.svg)` aparece com
    320 px de largura, vindo da pasta; arrastar o canto grava o tamanho novo
    nessa imagem, e o exemplo dela no código do título fica como está.
@@ -232,6 +245,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `type:personagem` na busca lista as duas. Em inglês, "Type: Character".
    Nível: S (`crates/verso-core/tests/typed.rs`, `fixtures/schema/`), H; E:
    `typed.spec.mjs`.
+6. Nota 07, "Começar uma nota nova por um template" (ADR 0068): o ⌘N
+   mostra "Começar com" sob o título — Em branco, Diário, Nota de Reunião,
+   Novo Projeto; "Nota de Reunião" preenche a nota, com `{{title}}` e
+   `{{date}}` trocados; Em branco, Esc ou digitar guardam a lista e não
+   gravam nada; as setas andam pela lista. Uma pasta cuja nota define
+   `items_template` cria a nota a partir dele, sem lista. Nível: H; E:
+   `templates.spec.mjs`.
 
 ## 5. Encontrar
 
@@ -260,7 +280,11 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    num campo, o F2 é deles. Nível: H; E: `tabs.spec.mjs`, a nota aberta
    depois de um clique na linha dela; a linha com o foco do teclado e um
    campo à mão. Pegou: depois de um clique, o F2 não fazia nada
-   (2026-10-01).
+   (2026-10-01). Depois de um clique numa linha, ↓ e ↑ andam pela árvore a
+   partir dela, e o F2 continua renomeando a nota aberta; uma linha
+   alcançada pelas setas recebe o F2 ela mesma, no lugar. E:
+   `tabs.spec.mjs`, os dois motores. Pegou: as setas andavam depois de um
+   clique só no Chromium (2026-10-08).
 4. Um clique num arquivo da árvore o abre numa aba de pré-visualização, com
    o título em itálico, que o próximo clique substitui; um duplo clique a
    mantém ([ADR 0059](../adr/0059-tabs-preview-pinned.md)). Nível: H; E:
@@ -282,6 +306,20 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    caminhos relativos", "Mover para a lixeira" com uma pergunta só. Nível:
    H; E: `tree-selection.spec.mjs`; S:
    `crates/verso-core/tests/workspace/rename.rs`.
+8. Nota 14, "Criar" (ADR 0070): uma nota nova chamada `CON`, `Reunião:
+   pauta`, `Ideia?` ou `a\b` não é criada (`nota.` é: o arquivo dela é `nota..md`); a barra de status diz que o Windows não
+   guarda esse nome. Um renomear para um nome assim é recusado do mesmo
+   jeito. Nível: H; E: `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
+9. Nota 14, "A Visão de Pasta": abra uma pasta pela setinha e feche outra;
+   abra o app de novo — a árvore está como ficou. Uma pasta de milhares de
+   notas abre com as pastas de primeiro nível fechadas. Nível: H; E:
+   `tree-big.spec.mjs` (`?vault=big`, os dois motores), que também fixa o
+   custo das linhas: nenhum SVG embutido, quatro elementos por linha, as
+   linhas de uma pasta fechada liberadas, uma linha marcada como a nota
+   aberta, e um nome comprido terminando em "…" dentro da linha. Tab até a
+   árvore: o anel de foco aparece nos quatro lados de uma linha, por dentro
+   (a olho, nos dois motores; pegou em 2026-10-08: a contenção das pastas o
+   cortava).
 
 ## 7. A web
 
@@ -378,7 +416,11 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     "Aplicar" mostra aquela parte, o cartão nas proporções dela, o
     `verso.crop` do nó gravado e o arquivo da imagem intacto; "Restaurar
     original" o tira. Os menus do botão direito, do board e da janela, nunca
-    mostram dois traços juntos. Com a barra lateral aberta e a janela não
+    mostram dois traços juntos. Uma carta de nota selecionada e clicada com
+    o botão direito um instante depois mostra o menu do board, e uma carta
+    de imagem o menu de imagem da janela (`menus.spec.mjs`;
+    pegou em 2026-10-08: a carta ativa ficava com o clique e nenhum menu
+    abria). Com a barra lateral aberta e a janela não
     muito larga, a busca e o Sumário no meio do rodapé; num board mais
     estreito — o sumário aberto também, uma janela alta e estreita, as duas
     barras laterais abertas — a barra do Excalidraw no pé do board e as
@@ -405,7 +447,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 ## 10. Ajustes, ajuda, a linha de comando
 
 1. ⌘,: as seções como a nota 15 as nomeia; as opções de Aparência; Terminal
-   e agentes: o botão do comando (Instalar ou Substituir) e os trechos do MCP.
+   e agentes: o botão do comando (Instalar ou Substituir; no Windows nenhum
+   botão — o verso.exe vem com o app) e os trechos do MCP, que mostram o
+   comando que o host gravaria; sem o Claude Desktop, "Baixar o Claude
+   Desktop" abre a página de download no navegador.
    Nível: H; E: `settings.spec.mjs`, as seções e a Aparência.
 2. "Relatar problema", na barra de status: o relato, "Erros desta sessão:
    nenhum". Nível: H; E: `settings.spec.mjs`.
@@ -420,6 +465,20 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `Projetos.base` dá as linhas da tabela. Nada na pasta muda. Nível: S
    (`crates/verso-cli/tests/mcp.rs`), A (um cliente: Claude Desktop ou
    Claude Code).
+5. `verso <outra pasta>` com o app aberto (nota 17): a pasta abre numa
+   janela própria, no mesmo app — um Verso só no Dock ou na barra de
+   tarefas, nunca um segundo app. Nível: S
+   (`a_second_launch_hands_its_folder_to_the_running_app`, os testes do
+   host), A (o app instalado, no macOS e no Windows). Pegou em 2026-10-08:
+   no macOS um segundo app iniciava, sem janela.
+6. "Um servidor para todo o Verso" em Terminal e agentes (nota 17): a
+   chave "Esta pasta é visível para agentes" aparece desligada; os trechos
+   e a entrada que "Adicionar ao Claude Desktop" mostra dizem `mcp --all`.
+   Com a pasta marcada, o `list_folders` de um agente a nomeia e as
+   ferramentas dele a leem por `folder`; desmarcada, ela some da lista.
+   Nível: H; E: `settings.spec.mjs`; S
+   (`the_server_for_all_of_verso_reads_only_the_visible_folders`); A (o
+   Claude Desktop, com o app fechado).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 
@@ -447,7 +506,9 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    sticker, and default table". Um clique direito no espaço vazio da página
    mostra o menu da árvore — nova nota, pasta, base, board, página web,
    Mostrar no Finder, os caminhos — cada item com o seu ícone (E:
-   `folder-pages.spec.mjs`, "a folder page's right click…").
+   `folder-pages.spec.mjs`, "a folder page's right click…"). Em `assets`,
+   Miniaturas: o PDF mostra a primeira página (E: `folder-pages.spec.mjs`,
+   "a PDF shows its first page…").
 5. Ajustes › Organização › "Nome da nota da pasta": `README` faz de
    `Pasta/README.md` a nota da pasta — a figurinha dela aparece na linha da
    pasta. Nível: H; E: `labels.spec.mjs`, "the folder note name setting

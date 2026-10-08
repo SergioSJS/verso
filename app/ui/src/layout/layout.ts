@@ -6,6 +6,7 @@ import { h, ui } from "../dom";
 import { allFiles, allNotes } from "../folder";
 import { Leaf } from "../leaves/leaf";
 import { quietPaths } from "../opening";
+import { refreshFrame } from "../frame";
 import { t } from "../strings";
 import { allFolders } from "../tree/tree";
 import { Pane } from "./pane";
@@ -103,6 +104,8 @@ export class Layout {
       ui.panes.classList.remove("maximized");
       ui.panes.replaceChildren(this.build(this.root));
     }
+    // New tab bars may reach the window buttons' corner (ADR 0072).
+    refreshFrame();
     persistSoon();
   }
   private build(node: LNode): HTMLElement {

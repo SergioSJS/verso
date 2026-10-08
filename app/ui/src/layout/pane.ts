@@ -116,6 +116,9 @@ export class Pane {
     this.tools.append(this.backButton, this.forwardButton, all, orient, plus, max, close);
     this.tabs.append(this.tabList, this.tools);
     this.tabs.addEventListener("dblclick", (e) => {
+      // Without the system's title bar the bar's empty space is the title
+      // bar: a double click maximizes the window there (ADR 0072).
+      if (document.body.classList.contains("framed")) return;
       if (e.target === this.tabs || e.target === this.tabList) void newUntitled(this);
     });
     this.tabs.addEventListener("contextmenu", (e) => {

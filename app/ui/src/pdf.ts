@@ -12,8 +12,9 @@ import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDF
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { icon } from "./icons";
 import { note } from "./report";
+import { asset } from "./version";
 
-GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", document.baseURI).href;
+GlobalWorkerOptions.workerSrc = new URL(asset("pdf.worker.min.mjs"), document.baseURI).href;
 
 // WebKit has no async iteration over ReadableStream, which pdf.js uses to
 // read a page's text. The same loop, spelled out.
@@ -393,6 +394,34 @@ export class PdfView {
     this.token++;
     this.destroyDoc();
     this.viewer.cleanup();
+  }
+}
+
+/** A PDF's first page as a picture `width` CSS pixels wide — the cover a
+ *  folder's view shows (backlog, 2026-10-07) — as a `data:` URL, or null
+ *  when it cannot be read. `url` is the core's protocol; with `?thumb` a
+ *  file only in the cloud answers nothing rather than coming down. */
+export async function pdfCover(url: string, width: number): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = new Uint8Array(await res.arrayBuffer());
+    const task = getDocument({ data, cMapUrl: new URL("cmaps/", document.baseURI).href, cMapPacked: true, standardFontDataUrl: new URL("standard_fonts/", document.baseURI).href });
+    try {
+      const doc = await task.promise;
+      const page = await doc.getPage(1);
+      const scale = (width * window.devicePixelRatio) / page.getViewport({ scale: 1 }).width;
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvas, viewport }).promise;
+      return canvas.toDataURL("image/png");
+    } finally {
+      void task.destroy();
+    }
+  } catch {
+    return null;
   }
 }
 

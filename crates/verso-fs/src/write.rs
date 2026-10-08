@@ -16,7 +16,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::{Handle, Stamp, fnv1a, placeholder};
+use crate::{Handle, Stamp, fnv1a, os, placeholder};
 
 /// Why a write did not happen. Nothing on disk changed in any of these
 /// cases, except a temporary file that could not be removed after a failed
@@ -76,6 +76,10 @@ pub struct WriteReport {
     /// path's inode, the other links still point at the old content.
     /// Provisional (ADR 0029 left "detect and warn" open): it warns.
     pub hard_link_shared: bool,
+    /// Whether the original had another hard link could not be read (on
+    /// Windows the file is opened for its attributes), with the error's
+    /// text: `hard_link_shared` is then unknown, not false.
+    pub hard_links_not_checked: Option<String>,
     /// The folder's file system is not local (macOS `MNT_LOCAL` absent),
     /// where rename is not atomic between client and server (ADR 0029):
     /// the write still happened; the caller warns. `None` also where the
@@ -110,6 +114,11 @@ impl WriteReport {
         }
         if self.hard_link_shared {
             out.push("the file had another hard link, which keeps the old content".to_owned());
+        }
+        if let Some(error) = &self.hard_links_not_checked {
+            out.push(format!(
+                "whether the file had another hard link could not be checked: {error}"
+            ));
         }
         if let Some(fs) = &self.network_fs {
             out.push(format!(
@@ -185,18 +194,35 @@ pub(crate) fn write_atomically(
         let mut out = open_new_with_mode(&temp, &original)?;
         out.write_all(content)?;
         report.mode_preserved = out.set_permissions(original.permissions()).is_ok();
-        report.owner_preserved = same_owner(&original, &out.metadata()?);
+        report.owner_preserved = os::same_owner(&original, &out.metadata()?);
         // Attributes go on before the barrier, so they are durable with the content.
         report.xattrs_not_preserved = copy_xattrs(&target, &temp);
         out.sync_all()?;
         drop(out);
-        report.hard_link_shared = hard_link_count(&original) > 1;
+        match os::link_count(&target, &original) {
+            Ok(links) => report.hard_link_shared = links > 1,
+            Err(e) => report.hard_links_not_checked = Some(e.to_string()),
+        }
         report.network_fs = network_fs(dir);
-        std::fs::rename(&temp, &target)
+        // A rename that has to wait for another program (Windows) asks
+        // again, before each try, whether the file is still the one checked.
+        let unchanged = || {
+            std::fs::metadata(&target).is_ok_and(|now| {
+                now.len() == original.len() && now.modified().ok() == original.modified().ok()
+            })
+        };
+        os::rename_unless_changed(&temp, &target, unchanged)
     })();
-    if let Err(error) = before_rename {
-        let _ = std::fs::remove_file(&temp);
-        return Err(WriteError::Io(error));
+    match before_rename {
+        Ok(true) => {}
+        Ok(false) => {
+            let _ = std::fs::remove_file(&temp);
+            return Err(changed_now(&target));
+        }
+        Err(error) => {
+            let _ = std::fs::remove_file(&temp);
+            return Err(WriteError::Io(error));
+        }
     }
 
     // After the rename the content is in place; what fails from here on is
@@ -205,7 +231,7 @@ pub(crate) fn write_atomically(
     // Without the directory fsync the rename may not survive a power loss
     // (ADR 0029).
     let after_rename = (|| {
-        File::open(dir)?.sync_all()?;
+        os::sync_dir(dir)?;
         let meta = std::fs::metadata(&target)?;
         Ok::<Stamp, std::io::Error>(Stamp {
             modified: meta.modified()?,
@@ -220,8 +246,26 @@ pub(crate) fn write_atomically(
     Ok(report)
 }
 
+/// The file at `target` changed while the write waited for it: the error
+/// that carries its stamp now, so the caller shows the diff.
+fn changed_now(target: &Path) -> WriteError {
+    let stamp = (|| {
+        let meta = std::fs::metadata(target)?;
+        Ok::<Stamp, std::io::Error>(Stamp {
+            modified: meta.modified()?,
+            len: meta.len(),
+            hash: fnv1a(&std::fs::read(target)?),
+        })
+    })();
+    match stamp {
+        Ok(current) => WriteError::Changed { current },
+        Err(e) => WriteError::Io(e),
+    }
+}
+
 /// Copy every extended attribute of `from` onto `to`; return the ones that
 /// could not be copied. Finder tags and quarantine live here (ADR 0029).
+#[cfg(unix)]
 fn copy_xattrs(from: &Path, to: &Path) -> Vec<(String, String)> {
     let mut failed = Vec::new();
     let names = match xattr::list(from) {
@@ -243,6 +287,15 @@ fn copy_xattrs(from: &Path, to: &Path) -> Vec<(String, String)> {
     failed
 }
 
+/// Windows has no extended attributes in this sense: its counterpart,
+/// alternate data streams (`Zone.Identifier` among them), is not carried
+/// over yet. Provisional until the port's `verso-fs` pull request decides it
+/// (ADR 0069, item 9); until then nothing is attempted and nothing reported.
+#[cfg(not(unix))]
+fn copy_xattrs(_from: &Path, _to: &Path) -> Vec<(String, String)> {
+    Vec::new()
+}
+
 #[cfg(unix)]
 fn open_new_with_mode(temp: &Path, original: &std::fs::Metadata) -> Result<File, std::io::Error> {
     use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -256,18 +309,6 @@ fn open_new_with_mode(temp: &Path, original: &std::fs::Metadata) -> Result<File,
 #[cfg(not(unix))]
 fn open_new_with_mode(temp: &Path, _original: &std::fs::Metadata) -> Result<File, std::io::Error> {
     OpenOptions::new().write(true).create_new(true).open(temp)
-}
-
-#[cfg(unix)]
-fn hard_link_count(meta: &std::fs::Metadata) -> u64 {
-    use std::os::unix::fs::MetadataExt;
-    meta.nlink()
-}
-
-#[cfg(unix)]
-fn same_owner(original: &std::fs::Metadata, new: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    original.uid() == new.uid() && original.gid() == new.gid()
 }
 
 /// The name of the directory's file system if it is not local — macOS

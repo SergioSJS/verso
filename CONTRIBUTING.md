@@ -72,7 +72,9 @@ off.
   documentation mirror. A local `#[allow]` in the middle of a diff is not an
   answer; a guardrail that blocks legitimate work is its own pull request, with
   a justification.
-- Run `scripts/check.sh` and `scripts/check-linux.sh` before you push
+- Run `scripts/check.sh` and `scripts/check-linux.sh` before you push, and
+  `scripts/check-windows.sh` when the diff touches platform code
+  ([ADR 0069](docs/adr/0069-windows-port.md))
   ([README](README.md#test-locally-before-pushing)): CI confirms what they
   found green; it should not be where a failure is first seen.
 - Merge takes all three: CI green, no BLOCKING finding open, and the maintainer

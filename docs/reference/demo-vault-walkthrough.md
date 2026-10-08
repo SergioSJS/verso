@@ -123,6 +123,16 @@ point 13).
    folder; closing a window leaves the others as they were; `verso
    <folder>` with every window on a folder opens a new window. Level: A;
    U: `cargo test -p verso-app` (`each_window_answers_from_its_own_folder`).
+7. No title bar (ADR 0072, note 13), on macOS and Windows: the window's
+   buttons — macOS's at the top left, the app's own at the top right on
+   Windows — never cover a tab, a button or the folder's name, with the side
+   bars open or closed, two panes, a narrow window; the empty part of the
+   tab bar, the side bar's head and the ribbon drag the window, and a double
+   click there maximizes it (it no longer makes a new note); on Windows the
+   buttons minimize, maximize and restore, and close with the tabs saved;
+   a note's popout keeps its title bar. Level: H; E: `frame.spec.mjs`
+   (forced frames); A (the app on macOS and on Windows: dragging, snapping
+   to an edge, Win+arrows, full screen on the Mac).
 
 ## 3. Writing and reading notes
 
@@ -134,7 +144,10 @@ point 13).
    Enter writes today's date; ⌘Z takes it back. Level: H; E:
    `notes.spec.mjs` (the date written at the end, and gone after ⌘Z).
 3. Note 02: every link leads to its note, a `#heading` to its heading; the
-   embed shows "Editar ao lado". Level: S (the links), H.
+   embed shows "Editar ao lado". "Incorporar só um bloco": the embed
+   `#^atomica` shows the third finding alone, not the whole note (spec Q3,
+   Q21). Level: S (the links, `fixtures/block/`), H; E:
+   `blocks-ids.spec.mjs`.
 4. Note 06 in Leitura: `![Diagrama|320](assets/diagrama.svg)` is shown
    320 px wide, from the folder; dragging its corner writes the new size on
    that picture, and the example of it in the heading's code is left as it
@@ -226,6 +239,13 @@ point 13).
    schemas share the name; `type:personagem` in the search lists the two.
    In English, "Type: Character". Level: S (`crates/verso-core/tests/typed.rs`,
    `fixtures/schema/`), H; E: `typed.spec.mjs`.
+6. Note 07, "Começar uma nota nova por um template" (ADR 0068): ⌘N shows
+   "Começar com" under the title — Em branco, Diário, Nota de Reunião, Novo
+   Projeto; "Nota de Reunião" fills the note, `{{title}}` and `{{date}}`
+   replaced; Em branco, Esc or typing put the list away and write nothing;
+   the arrows move along the list. A folder whose note sets
+   `items_template` makes the note from it, with no list. Level: H; E:
+   `templates.spec.mjs`.
 
 ## 5. Finding
 
@@ -253,7 +273,11 @@ point 13).
    too — and the row of the tree that has the keyboard focus; in an editor or
    a field, F2 is theirs. Level: H; E: `tabs.spec.mjs`, the open note after
    a click on its row; the row with the keyboard focus and a field by hand.
-   Caught: after a click, F2 did nothing (2026-10-01).
+   Caught: after a click, F2 did nothing (2026-10-01). After a click on a
+   row, ↓ and ↑ walk the tree from it, and F2 still renames the open note;
+   a row reached by the arrows takes F2 itself, in place. E:
+   `tabs.spec.mjs`, both engines. Caught: the arrows worked after a click
+   in Chromium only (2026-10-08).
 4. A click on a file of the tree opens it in a preview tab, its title in
    italics, which the next click replaces; a double click keeps it
    ([ADR 0059](../adr/0059-tabs-preview-pinned.md)). Level: H; E:
@@ -273,6 +297,19 @@ point 13).
    selection's menu: "Mover para…", "Copiar caminhos relativos", "Mover para
    a lixeira" asked once. Level: H; E: `tree-selection.spec.mjs`; S:
    `crates/verso-core/tests/workspace/rename.rs`.
+8. Note 14, "Criar" (ADR 0070): a new note named `CON`, `Reunião: pauta`,
+   `Ideia?` or `a\b` is not made (`nota.` is: its file is `nota..md`); the status bar says Windows cannot keep that name.
+   A rename to such a name is refused the same way. Level: H; E:
+   `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
+9. Note 14, "A Visão de Pasta": open a folder with its chevron and close
+   another; open the app again — the tree is as it was left. A folder of
+   thousands of notes opens with its top-level folders closed. Level: H;
+   E: `tree-big.spec.mjs` (`?vault=big`, both engines), which also pins
+   the rows' cost: no inline SVG, four elements a row, a closed folder's
+   rows let go, one row marked as the open note, and a long name ending in
+   "…" inside its row. Tab into the tree: the focus ring shows on all four
+   sides of a row, inside it (by eye, both engines; caught 2026-10-08: the
+   folders' containment cut it).
 
 ## 7. The web
 
@@ -370,7 +407,11 @@ point 13).
     opens the crop: a corner dragged, "Aplicar" shows that part, the card at
     its proportions, the node's `verso.crop` written and the picture's file
     untouched; "Restaurar original" takes it off. Right-click menus, the
-    board's and the window's, never show two lines together. With the side bar open and the window not
+    board's and the window's, never show two lines together. A note card
+    selected and right-clicked a moment later shows the board's menu, and a
+    picture card the window's picture menu
+    (`menus.spec.mjs`; caught 2026-10-08: the entered card took the click
+    and no menu opened). With the side bar open and the window not
     wide, the search and the Outline in the middle of the footer; on a
     narrower board — the outline open too, a tall narrow window, both side
     bars open — Excalidraw's toolbar at the foot of the board and Verso's
@@ -395,8 +436,10 @@ point 13).
 ## 10. Settings, help, the command line
 
 1. ⌘,: the sections as note 15 names them; Aparência's options; Terminal e
-   agentes: the command's button (Instalar or Substituir) and the MCP
-   snippets. Level: H; E: `settings.spec.mjs`, the sections and Aparência.
+   agentes: the command's button (Instalar or Substituir; on Windows no
+   button — verso.exe comes with the app) and the MCP snippets, which show
+   the command the host would write; without Claude Desktop, "Baixar o
+   Claude Desktop" opens its download page in the browser. Level: H; E: `settings.spec.mjs`, the sections and Aparência.
 2. "Relatar problema", in the status bar: the report, "Erros desta sessão:
    nenhum". Level: H; E: `settings.spec.mjs`.
 3. The command line on the folder: `verso search <folder> reunião`;
@@ -410,6 +453,18 @@ point 13).
    `Projetos.base` gives the table's rows. Nothing in the folder changes.
    Level: S (`crates/verso-cli/tests/mcp.rs`), A (a client: Claude Desktop
    or Claude Code).
+5. `verso <another folder>` with the app open (note 17): the folder opens
+   in a window of its own, in the same app — one Verso in the Dock or the
+   taskbar, never a second app. Level: S (`a_second_launch_hands_its_folder_to_the_running_app`,
+   the host's tests), A (the installed app, on macOS and Windows). Caught
+   2026-10-08: on macOS a second app started, with no window.
+6. "Um servidor para todo o Verso" in Terminal e agentes (note 17): the
+   switch "Esta pasta é visível para agentes" appears off; the snippets and
+   the entry "Adicionar ao Claude Desktop" shows say `mcp --all`. With the
+   folder marked, an agent's `list_folders` names it and its tools read it
+   by `folder`; unmarked, it is gone from the list. Level: H; E:
+   `settings.spec.mjs`; S (`the_server_for_all_of_verso_reads_only_the_visible_folders`);
+   A (Claude Desktop, with the app closed).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 
@@ -437,7 +492,9 @@ point 13).
    sticker, and default table". A right click on the page's empty space
    shows the tree's menu — new note, folder, base, board, web page, Mostrar
    no Finder, the paths — every item with its icon (E: `folder-pages.spec.mjs`,
-   "a folder page's right click…").
+   "a folder page's right click…"). In `assets`, Miniaturas: the PDF shows
+   its first page (E: `folder-pages.spec.mjs`, "a PDF shows its first
+   page…").
 5. Ajustes › Organização › "Nome da nota da pasta": `README` makes
    `Pasta/README.md` the folder's note — its sticker shows on the folder's
    row. Level: H; E: `labels.spec.mjs`, "the folder note name setting names

@@ -30,6 +30,7 @@ import { ReplaceDialog } from "./dialogs/replace";
 import { hotkeyRecorder, SettingsDialog } from "./dialogs/settings";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
+import { installFrame } from "./frame";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
@@ -350,6 +351,9 @@ try {
   }
 } catch { /* no storage */ }
 paintToggles();
+// No title bar on macOS and Windows: the window's corner and its drag
+// regions (ADR 0072).
+installFrame();
 rightDivider.addEventListener("pointerdown", (e) => {
   rightDivider.setPointerCapture(e.pointerId);
   const move = (ev: PointerEvent) => document.body.style.setProperty("--right-w", `${Math.min(Math.max(window.innerWidth - ev.clientX, 180), window.innerWidth * 0.5)}px`);
@@ -627,6 +631,8 @@ void listen<[string, string]>("menu-edit", (e) => {
   const active = document.activeElement;
   const field =
     active instanceof HTMLElement && (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
+  // Where text is typed: a box or a button is not, though it is an input.
+  const typing = field && !(active instanceof HTMLInputElement && !TEXT_INPUTS.has(active.type));
   // An editor runs its own commands: the web view's Select All selects
   // only the lines it has drawn, and its Undo knows only what was typed in
   // that very element — not an editor's history carried over (a card
@@ -651,8 +657,20 @@ void listen<[string, string]>("menu-edit", (e) => {
     );
     return;
   }
-  document.execCommand(command === "select-all" ? "selectAll" : command);
+  // The focus on a button, a box or nothing, and a note in Editar or
+  // Fonte in view: its editor takes the command. The web view's own Undo
+  // knows nothing of the editor's history and rewrites its lines behind
+  // it — ⌘Z undid nothing, or the wrong change (Backlog, 2026-09-24).
+  const leaf = layout().activeLeaf;
+  if (!typing && leaf instanceof NoteLeaf && leaf.mode !== "preview") {
+    (command === "undo" ? undo : command === "redo" ? redo : selectAll)(leaf.editor);
+    leaf.editor.focus();
+    return;
+  }
+  if (typing || command === "select-all") document.execCommand(command === "select-all" ? "selectAll" : command);
 });
+/** The input types text is typed in, which take the web view's Undo. */
+const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
 if (!popout && settings.checkUpdates) {

@@ -84,6 +84,9 @@ pub struct Block {
     pub id: String,
     pub line: u32,
     pub col: u32,
+    /// The first and last line of the block the id names (spec Q3, Q21).
+    pub first_line: u32,
+    pub last_line: u32,
 }
 
 /// A link of a source that is not parsed as Markdown — a canvas's file
@@ -166,7 +169,7 @@ fn embeds(kind: &str) -> bool {
 /// Remove a note's row from `notes_fts` (external content: FTS5 needs the
 /// old values to drop its tokens) and from `notes`. Returns whether there
 /// was one.
-fn forget(tx: &rusqlite::Transaction<'_>, relative: &str) -> Result<bool, IndexError> {
+fn forget(tx: &rusqlite::Connection, relative: &str) -> Result<bool, IndexError> {
     let old: Option<(i64, Option<String>, String)> = tx
         .query_row(
             "SELECT id, title, content FROM notes WHERE path = ?1",
@@ -284,11 +287,11 @@ impl Index {
             _ => None,
         };
         let note_type_key = note_type.as_deref().map(crate::keys::type_key);
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key, indexed_at)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
             params![
                 relative,
                 path_key,
@@ -313,6 +316,7 @@ impl Index {
                 pinned_items,
                 note_type,
                 note_type_key,
+                self.run_started.unwrap_or(0),
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -355,7 +359,7 @@ impl Index {
         }
         {
             let mut ins = tx.prepare(
-                "INSERT INTO blocks (note, id, line, col, start, end) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO blocks (note, id, line, col, start, end, first_line, last_line) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )?;
             for b in &report.blocks {
                 ins.execute(params![
@@ -364,7 +368,9 @@ impl Index {
                     b.pos.line,
                     b.pos.col,
                     offset(b.span.start),
-                    offset(b.span.end)
+                    offset(b.span.end),
+                    b.lines.0,
+                    b.lines.1
                 ])?;
             }
         }
@@ -451,7 +457,7 @@ impl Index {
         let (path_key, name_key) = note_keys(relative);
         let name = relative.rsplit('/').next().unwrap_or(relative);
         let title = name.strip_suffix(".canvas").unwrap_or(name);
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         forget(&tx, relative)?;
         tx.execute(
             "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content)
@@ -511,7 +517,7 @@ impl Index {
     /// `notes_fts` — so that links to it resolve and its path is known.
     /// Returns whether the note was already known.
     pub fn mark_placeholder(&mut self, relative: &str) -> Result<bool, IndexError> {
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         let known = tx.execute(
             "UPDATE notes SET unverified = 1 WHERE path = ?1",
             params![relative],
@@ -588,7 +594,7 @@ impl Index {
     /// Forget a note (deleted or moved away). Its links go with it; links
     /// to it from other notes become unresolved.
     pub fn remove(&mut self, relative: &str) -> Result<bool, IndexError> {
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         let known = forget(&tx, relative)?;
         tx.commit()?;
         Ok(known)
@@ -722,6 +728,43 @@ impl Index {
     }
 
     /// The stamp the index has for a note, to skip an unchanged file.
+    /// Whether the note at `relative` is, by its modified time (seconds) and
+    /// length, the one the index holds — trusted without reading it only
+    /// when it was modified at least 2 s before the run that last read it
+    /// began, and is not a placeholder's last known version (ADR 0043). A
+    /// change within the same second as that read could keep both, so such
+    /// a note is read again (git's "racy" entries).
+    pub fn unchanged_by_stat(
+        &self,
+        relative: &str,
+        modified: i64,
+        len: u64,
+    ) -> Result<bool, IndexError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT 1 FROM notes WHERE path = ?1 AND modified = ?2 AND len = ?3
+                   AND unverified = 0 AND modified < indexed_at - 1",
+                params![relative, modified, i64::try_from(len).unwrap_or(i64::MAX)],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some())
+    }
+
+    /// The note at `relative` was read in this run and matched the index:
+    /// it is known to match the disk as of the run's start. Nothing outside
+    /// a run.
+    pub fn confirm(&mut self, relative: &str) -> Result<(), IndexError> {
+        if let Some(started) = self.run_started {
+            self.conn.execute(
+                "UPDATE notes SET indexed_at = ?2 WHERE path = ?1 AND indexed_at < ?2",
+                params![relative, started],
+            )?;
+        }
+        Ok(())
+    }
+
     pub fn stamp_of(&self, relative: &str) -> Result<Option<NoteStamp>, IndexError> {
         Ok(self
             .conn
@@ -870,14 +913,19 @@ impl Index {
     /// The `^id` blocks of a note, in document order.
     pub fn blocks_of(&self, relative: &str) -> Result<Vec<Block>, IndexError> {
         let mut st = self.conn.prepare(
-            "SELECT b.id, b.line, b.col FROM blocks b
+            "SELECT b.id, b.line, b.col, b.first_line, b.last_line FROM blocks b
              JOIN notes n ON n.id = b.note WHERE n.path = ?1 ORDER BY b.start",
         )?;
         let rows = st.query_map(params![relative], |r| {
+            let line: u32 = r.get(1)?;
             Ok(Block {
                 id: r.get(0)?,
-                line: r.get(1)?,
+                line,
                 col: r.get(2)?,
+                // A row carried over from version 10 and not read again
+                // yet (a placeholder): the id's own line.
+                first_line: r.get::<_, Option<u32>>(3)?.unwrap_or(line),
+                last_line: r.get::<_, Option<u32>>(4)?.unwrap_or(line),
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)

@@ -8,7 +8,7 @@ import { h, ui } from "../dom";
 import { fail } from "../errors";
 import { deleteEntry, deleteNote } from "../files";
 import { getActiveFocus, isHomeActive, isHomeFocusName } from "../focuses";
-import { allEntries, allFiles, allNotes, currentFolder, iconOfPath, setAllFiles, setAllNotes, webNotes } from "../folder";
+import { allEntries, allFiles, allNotes, currentFolder, popout, rowIcon, secondary, setAllFiles, setAllNotes, webNotes } from "../folder";
 import { icon } from "../icons";
 import { renderSticker, resolveColor } from "../labels";
 import { armDrag } from "../layout/drag";
@@ -22,7 +22,7 @@ import { kindOf, name } from "../paths";
 import { getHiddenFromTree, settings } from "../settings";
 import { LOCALE, t } from "../strings";
 import { renameInline } from "./prompts";
-import { isSelected, selectionClick, selectionOf } from "./selection";
+import { isSelected, selectionClick, selectionOf, shownRow } from "./selection";
 import type { Drag } from "../layout/drag";
 
 export let allFolders: string[] = [];
@@ -45,14 +45,22 @@ export async function revealInTree(path: string): Promise<void> {
       (d as unknown as { _ensureRendered?: () => void })._ensureRendered?.();
     }
   }
+  saveOpenFolders();
   const row = ui.notes.querySelector<HTMLButtonElement>(`li[data-path="${CSS.escape(path)}"] > button`);
   row?.scrollIntoView({ block: "center" });
   row?.focus();
 }
+/** The open note's rows say so (`aria-current`): only the rows that change
+ *  are touched — the one that was current and the one that is — never
+ *  every row, which recalculated the style of 5,000 rows per note opened. */
 export function markCurrent(): void {
-  const leaf = current?.layout.activeLeaf ?? null;
-  for (const li of document.querySelectorAll<HTMLLIElement>("li[data-path]")) {
-    li.querySelector("button")?.setAttribute("aria-current", String(leaf !== null && li.dataset["path"] === leaf.path));
+  const path = current?.layout.activeLeaf?.path ?? null;
+  for (const b of document.querySelectorAll<HTMLElement>('li[data-path] [aria-current="true"]')) {
+    if (b.closest<HTMLElement>("li[data-path]")?.dataset["path"] !== path) b.setAttribute("aria-current", "false");
+  }
+  if (path === null) return;
+  for (const li of document.querySelectorAll<HTMLLIElement>(`li[data-path="${CSS.escape(path)}"]`)) {
+    li.querySelector("button")?.setAttribute("aria-current", "true");
   }
 }
 export function showOutline(leaf: Leaf | null): void {
@@ -78,7 +86,7 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
   const entry = allEntries.get(path);
   const label = entry?.label;
   const stickerNode = settings.stickers && label?.sticker ? renderSticker(label.sticker, 14) : null;
-  const leadIcon = stickerNode ?? iconOfPath(path, kind);
+  const leadIcon = stickerNode ?? rowIcon(path, kind);
   const displayName = settings.aliasInTree && label?.alias ? label.alias : (path.split("/").pop() ?? path);
   const nameSpan = h("span", "row-name", displayName);
   if (label?.color) {
@@ -89,13 +97,25 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
     }
   }
   b.append(leadIcon, nameSpan);
+  // Drawn after the open note was marked (a folder opened later): marked here.
+  if (current?.layout.activeLeaf?.path === path) b.setAttribute("aria-current", "true");
   if (isSelected(path)) b.classList.add("selected");
   // ⌘- and ⇧-click select (ADR 0048, revised 2026-10-07); a plain click opens.
+  // A row a mouse click focused: the arrows walk the tree from it, but F2
+  // and Delete stay the window's (F2 renames the open note, main.ts), as
+  // they were where WebKit leaves a clicked button unfocused. Focused by
+  // the keys (Tab, the arrows), the row takes them. The same in both
+  // engines (ADR 0069, item 8).
+  let byMouse = false;
   b.addEventListener("click", (e) => {
     if (!selectionClick(path, e)) openNote(path, false, false, true);
+    if (e.detail > 0) {
+      b.focus();
+      byMouse = document.activeElement === b;
+    }
   });
+  b.addEventListener("blur", () => (byMouse = false));
   b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || openNote(path, false)));
-  b.addEventListener("mousedown", () => b.focus());
   armDrag(b, () => dragOf(path), () => dragLabel(path, name(path)));
   b.addEventListener("contextmenu", (e) => {
     e.preventDefault();
@@ -104,6 +124,7 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
     else entryMenu(e.clientX, e.clientY, path, kind, () => renameInline(li, path));
   });
   b.addEventListener("keydown", (e) => {
+    if (byMouse && (e.key === "F2" || e.key === "Delete" || e.key === "Backspace")) return;
     if (e.key === "F2") {
       e.preventDefault();
       renameInline(li, path);
@@ -150,6 +171,55 @@ export function tree(paths: string[], folders: string[]): Folder {
   return root;
 }
 export const openFolders = new Set<string>();
+/** Whether `openFolders` says what the person left open in this folder —
+ *  remembered from an earlier session, or toggled since. Until then the
+ *  default applies (`firstLayerOpen`). */
+let openFoldersKnown = false;
+/** Rows the first level of a folder may show open by default: above it, a
+ *  big folder opens with its top-level folders closed, so that it does not
+ *  draw thousands of rows at once (the maintainer, 2026-10-08). */
+const OPEN_BY_DEFAULT_ROWS = 500;
+/** Whether the top-level folders open by default, for the tree being drawn. */
+let firstLayerOpen = true;
+const openFoldersKey = (folder: string) => `verso.openFolders.${folder}`;
+/** The folders the person left open in `folder` (its key), as the last
+ *  session closed them (the maintainer, 2026-10-08). */
+export function loadOpenFolders(folder: string): void {
+  openFolders.clear();
+  openFoldersKnown = false;
+  try {
+    const raw = localStorage.getItem(openFoldersKey(folder));
+    if (raw) {
+      for (const f of JSON.parse(raw) as unknown[]) if (typeof f === "string") openFolders.add(f);
+      openFoldersKnown = true;
+    }
+  } catch {
+    // No storage, or not ours: the default applies.
+  }
+}
+let savePending = false;
+/** Kept for the next session, once per burst of toggles. */
+export function saveOpenFolders(): void {
+  openFoldersKnown = true;
+  if (savePending) return;
+  savePending = true;
+  setTimeout(() => {
+    savePending = false;
+    // The main window keeps them, as it keeps the areas (spaces.ts).
+    if (!currentFolder || popout || secondary) return;
+    try {
+      localStorage.setItem(openFoldersKey(currentFolder), JSON.stringify([...openFolders]));
+    } catch {
+      // No storage: remembered for this session only.
+    }
+  }, 0);
+}
+/** The rows the first level would show with every top-level folder open. */
+function firstLayerRows(node: Folder): number {
+  let rows = node.folders.size + node.files.length;
+  for (const child of node.folders.values()) rows += child.folders.size + child.files.length;
+  return rows;
+}
 export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListElement {
   const ul = h("ul", depth === 0 ? "tree" : "");
   const fn = folderNoteOf(prefix);
@@ -206,7 +276,7 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       const { name: folder, full, child } = item;
       const li = h("li");
       const d = h("details");
-      const isOpen = openFolders.size === 0 ? depth < 1 : openFolders.has(full);
+      const isOpen = openFoldersKnown || openFolders.size > 0 ? openFolders.has(full) : depth < 1 && firstLayerOpen;
       d.open = isOpen;
       const s = h("summary");
       s.dataset["folder"] = full;
@@ -251,6 +321,9 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       const renderSubtree = () => {
         if (!renderedChild) {
           renderedChild = renderTree(child, depth + 1, full);
+          // Its rows' height until it is first laid out (`content-visibility`
+          // skips a folder off screen): about one row each.
+          renderedChild.style.setProperty("--rows", String(renderedChild.children.length));
           d.append(renderedChild);
         }
       };
@@ -260,13 +333,21 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
         renderSubtree();
       }
 
+      // `toggle` also fires for a folder drawn open (its `open` was set
+      // before the listener): that is what puts the default-open folders
+      // into the remembered set.
       d.addEventListener("toggle", () => {
         if (d.open) {
           openFolders.add(full);
           renderSubtree();
         } else {
           openFolders.delete(full);
+          // A closed folder lets go of its rows; opening it draws them anew.
+          if (renderedChild?.contains(document.activeElement)) s.focus();
+          renderedChild?.remove();
+          renderedChild = null;
         }
+        saveOpenFolders();
       });
       s.addEventListener("contextmenu", (e) => {
         e.preventDefault();
@@ -314,11 +395,14 @@ export async function listAll(): Promise<void> {
   allEntries.clear();
   if (entries.status === "ok") for (const e of entries.data) allEntries.set(e.path, e);
   const was = treeFocus();
+  // Another folder: the folders it was left with open.
+  if (revealedFolder !== currentFolder) loadOpenFolders(currentFolder);
   // The rows rise in turn when a folder opens; a redraw of the same folder
   // — a save, a rename, a drag — puts them in place at once.
   ui.notes.className = revealedFolder === currentFolder ? "tree" : "tree reveal";
   revealedFolder = currentFolder;
   const fullVault = tree([...allNotes, ...allFiles], allFolders);
+  firstLayerOpen = firstLayerRows(fullVault) <= OPEN_BY_DEFAULT_ROWS;
   const activeFocus = getActiveFocus();
   const isHome = isHomeActive() || !activeFocus || isHomeFocusName(activeFocus.name);
   if (isHome) {
@@ -350,6 +434,7 @@ export async function listAll(): Promise<void> {
           focusRoot.files.push(p);
         }
       }
+      firstLayerOpen = firstLayerRows(focusRoot) <= OPEN_BY_DEFAULT_ROWS;
       ui.notes.replaceChildren(...Array.from(renderTree(focusRoot, 0).children));
     }
   }
@@ -367,7 +452,9 @@ export async function listAll(): Promise<void> {
  * buttons, and each folder's summary — and each stays in the Tab order,
  * as the folder view's rows do. */
 export function treeRows(): HTMLElement[] {
-  return Array.from(ui.notes.querySelectorAll<HTMLElement>("summary, li[data-path] > button")).filter((r) => r.getClientRects().length > 0);
+  // Shown means "not inside a closed folder", read from the structure: no
+  // layout is forced per row and per key, as `getClientRects` did.
+  return Array.from(ui.notes.querySelectorAll<HTMLElement>("summary, li[data-path] > button")).filter(shownRow);
 }
 /** A row of the tree, as a key that outlives the row being drawn anew. */
 export function rowKey(r: HTMLElement): string {

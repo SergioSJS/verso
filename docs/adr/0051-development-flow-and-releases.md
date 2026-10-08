@@ -81,7 +81,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
    that it installs beside the production app with its own window settings,
    and its command line opens it; the index, a rebuildable cache, is shared.
    Windows, then Linux, join when their ports land
-   ([0022](0022-target-platforms-macos-first.md)).
+   ([0022](0022-target-platforms-macos-first.md)). *(Since 2026-10-08,
+   [0069](0069-windows-port.md) item 6: a Windows job builds the NSIS
+   installer and the command line beside the macOS job, and a short Linux
+   job publishes the release once both are built — a version is published
+   whole or not at all.)*
 7. **The app says which it is**: the version and the commit it was built from,
    in the settings and the macOS About panel, and from `verso --version`.
 

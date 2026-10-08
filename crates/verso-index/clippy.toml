@@ -30,8 +30,13 @@ disallowed-methods = [
   { path = "std::fs::File::create_new", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::File::options", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::OpenOptions::open", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
-  { path = "std::os::unix::fs::symlink", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
-  { path = "std::os::unix::fs::chown", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
+  # Each OS has its own symlink calls; the entries of the other OS do not
+  # resolve there, and allow-invalid keeps clippy quiet about that while
+  # the entry still binds where it resolves (ADR 0069: the Windows build).
+  { path = "std::os::unix::fs::symlink", reason = "disk access only in verso-fs (ADR 0026 rule 5)", allow-invalid = true },
+  { path = "std::os::unix::fs::chown", reason = "disk access only in verso-fs (ADR 0026 rule 5)", allow-invalid = true },
+  { path = "std::os::windows::fs::symlink_file", reason = "disk access only in verso-fs (ADR 0026 rule 5)", allow-invalid = true },
+  { path = "std::os::windows::fs::symlink_dir", reason = "disk access only in verso-fs (ADR 0026 rule 5)", allow-invalid = true },
   { path = "std::fs::DirBuilder::create", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::path::Path::exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::path::Path::try_exists", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },

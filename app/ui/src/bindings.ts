@@ -350,13 +350,27 @@ export const commands = {
 	 *  line with the folder's key: the folder's path goes nowhere
 	 *  (ADR 0026 rule 4).
 	 */
-	mcpStatus: () => typedError<McpStatus, ContractError>(__TAURI_INVOKE("mcp_status")),
+	mcpStatus: (all: boolean) => typedError<McpStatus, ContractError>(__TAURI_INVOKE("mcp_status", { all })),
 	/**
 	 *  Add the open folder's server to Claude Desktop — after the window has
 	 *  shown what goes in and the person agreed. Needs the command line
 	 *  linked: the entry starts it.
 	 */
-	mcpAddClaude: () => typedError<McpAdded, ContractError>(__TAURI_INVOKE("mcp_add_claude")),
+	mcpAddClaude: (all: boolean) => typedError<McpAdded, ContractError>(__TAURI_INVOKE("mcp_add_claude", { all })),
+	/**
+	 *  Whether the open folder is marked visible to agents (the server for all
+	 *  of Verso reads only those; ADR 0054).
+	 */
+	agentVisible: () => typedError<boolean, ContractError>(__TAURI_INVOKE("agent_visible")),
+	/**  Mark the open folder visible to agents, or hidden again. */
+	setAgentVisible: (visible: boolean) => typedError<boolean, ContractError>(__TAURI_INVOKE("set_agent_visible", { visible })),
+	/**
+	 *  Claude Desktop's download page, in the system's browser: where Claude
+	 *  Desktop is not installed, the settings offer it instead of a dead
+	 *  "not found" (the maintainer, 2026-10-08). One fixed address, nothing
+	 *  from the window: the command takes no argument.
+	 */
+	openClaudeDownload: () => typedError<null, ContractError>(__TAURI_INVOKE("open_claude_download")),
 	/**  Checks GitHub releases for a new version of the application. */
 	checkForUpdates: () => typedError<UpdateInfo, ContractError>(__TAURI_INVOKE("check_for_updates")),
 	/**
@@ -526,6 +540,12 @@ export type Block = {
 	id: string,
 	line: number,
 	col: number,
+	/**
+	 *  The first and last line of the block the id names (spec Q3, Q21):
+	 *  what a link `[[nota#^id]]` reaches and an embed of it shows.
+	 */
+	first_line: number,
+	last_line: number,
 };
 
 /**
@@ -543,7 +563,12 @@ export type CliState =
  *  This build carries no command line to link (a development build
  *  without it).
  */
-"unbundled";
+"unbundled" | 
+/**
+ *  Windows: the command line comes with the app, `verso.exe` beside
+ *  it, and nothing is linked onto a PATH (ADR 0069, item 9).
+ */
+"bundled";
 
 /**
  *  An error as the UI receives it. `message` is the core's text, in
@@ -883,6 +908,12 @@ export type McpStatus = {
 	/**  The name of the server in a client's configuration: `verso-<folder>`. */
 	server: string,
 	claude: McpClientState,
+	/**
+	 *  What a client starts for it, as "Add to Claude" would write it: the
+	 *  linked command line, or on Windows the bundled `verso.exe` by its
+	 *  path — shown to the person before it is written (ADR 0054).
+	 */
+	command: string,
 };
 
 /**  A file that moved, from one relative path to another. */

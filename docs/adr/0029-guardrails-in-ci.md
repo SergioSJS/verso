@@ -48,6 +48,15 @@
   written parses again: expected ':'"; the code was put back.
   2026-10-07 — a source file size limit, 1500 lines, added as a workspace
   guardrail at the maintainer's request ([0067](0067-source-files-stay-small.md)).
+  2026-10-08 — the Windows port ([0069](0069-windows-port.md)): a third
+  local script, `scripts/check-windows.sh`, runs clippy and the tests on a
+  Windows machine over SSH, required when the diff touches platform code;
+  the window's end-to-end tests run in Chromium beside WebKit; the
+  `std::fs` list names Windows' symlink calls, and the entries of each OS
+  carry `allow-invalid` where the other OS cannot resolve them. The same
+  day, with the port's atomic write, `main` gains a Windows job — clippy
+  and the tests on a pinned `windows-2025` image, the runner's line-ending
+  conversion turned off before the checkout.
 
 ## Context
 
@@ -148,10 +157,16 @@ where a failure is first seen:
   bindings in a Linux container, as an ordinary user, over a copy of the
   sources and named volumes. Its first real run found the UI bundle missing
   before the shell compiled, which CI would have hit next (`22d1aa1`).
+- `scripts/check-windows.sh` — clippy and the tests on a Windows machine
+  reached over SSH as `verso-win`, over a byte-for-byte copy of the working
+  tree ([0069](0069-windows-port.md), revision of 2026-10-08). Its first run
+  found the workspace not compiling on Windows: `xattr` was a dependency of
+  `verso-fs` on every OS, and `verso-fs` stops the build on purpose where
+  only the Unix half of its directory identity exists.
 
 macOS cannot run in a container and Windows cannot run in Docker on a Mac or
-on Linux: the Mac itself is the macOS check, and Windows gets a check of its
-build here and its tests in CI when its port lands. The scripts follow the
+on Linux: the Mac itself is the macOS check, and Windows is checked on a real
+Windows machine before a push and, from the port's atomic write on, in CI. The scripts follow the
 workflow by hand; a change to one is a change to the others.
 
 ### Atomic write requirements

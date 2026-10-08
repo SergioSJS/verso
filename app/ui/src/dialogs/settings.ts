@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type CliState, commands } from "../bindings";
+import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
@@ -10,6 +10,7 @@ import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, lo
 import { currentFolder } from "../folder";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
+import { WINDOWS } from "../platform";
 import { spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { panel, updateController } from "../main";
@@ -27,6 +28,13 @@ export let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
 /** Ends a recording in progress, leaving the keys as they were. */
 export let disarmRecorder: (() => void) | null = null;
 export let updateCardUnsub: (() => void) | null = null;
+/** The arguments a client starts `verso` with, by the mode: the open
+ *  folder's key, or `--all`; none in per-folder mode with no folder open. */
+function mcpArgs(): string[] | null {
+  if (settings.mcpMode === "all") return ["mcp", "--all"];
+  return currentFolder ? ["mcp", "--key", currentFolder] : null;
+}
+
 export class SettingsDialog {
   readonly el = h("div", "quick settings");
   readonly box = h("div", "settings-box");
@@ -468,14 +476,20 @@ export class SettingsDialog {
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     // The command line and MCP (ADR 0054). The folder is named by its key
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
-    add("cli", t.cliTitle, t.cliDesc, () => this.cliControl());
-    add("cli", t.mcpTitle, t.mcpDesc, () => this.mcpControl());
-    if (currentFolder) {
-      const server = `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
-      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(`claude mcp add ${server} -- verso mcp --key ${currentFolder}`));
-      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () =>
-        this.snippet(JSON.stringify({ mcpServers: { [server]: { command: "/usr/local/bin/verso", args: ["mcp", "--key", currentFolder] } } }, null, 2)),
-      );
+    add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : t.cliDesc, () => this.cliControl());
+    // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
+    add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
+    add("cli", t.mcpTitle, settings.mcpMode === "all" ? t.mcpDescAll : t.mcpDesc, () => this.mcpControl());
+    if (settings.mcpMode === "all" && currentFolder) add("cli", t.agentVisibleTitle, t.agentVisibleDesc, () => this.agentVisibleControl());
+    const args = mcpArgs();
+    if (args) {
+      const server = settings.mcpMode === "all" ? "verso" : `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
+      // The command a client starts, as the host knows it (the linked
+      // command line, or on Windows the bundled verso.exe by its path).
+      const code = (command: string) => `claude mcp add ${server} -- ${/\s/.test(command) ? `"${command}"` : command} ${args.join(" ")}`;
+      const other = (command: string) => JSON.stringify({ mcpServers: { [server]: { command, args } } }, null, 2);
+      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso"), (st) => code(st.command)));
+      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso"), (st) => other(st.command)));
     }
     return out;
   }
@@ -489,9 +503,10 @@ export class SettingsDialog {
     install.hidden = true;
     remove.hidden = true;
     const show = (state: CliState) => {
-      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? t.cliElsewhere : t.cliUnbundled;
-      install.hidden = state === "ours" || state === "unbundled";
+      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? t.cliElsewhere : state === "bundled" ? t.cliBundled : t.cliUnbundled;
+      install.hidden = state === "ours" || state === "unbundled" || state === "bundled";
       install.textContent = state === "elsewhere" ? t.cliReplace : t.cliInstall;
+      install.title = install.textContent;
       remove.hidden = state !== "ours";
     };
     void commands.cliStatus().then(show);
@@ -529,33 +544,50 @@ export class SettingsDialog {
     const said = h("span", "setting-value", "…");
     said.setAttribute("aria-live", "polite");
     wrap.append(said);
-    if (!currentFolder) {
+    const args = mcpArgs();
+    if (!args) {
       said.textContent = t.mcpNoFolder;
       return wrap;
     }
+    const all = settings.mcpMode === "all";
     const add = button("ghost", t.mcpClaude);
     add.hidden = true;
     wrap.append(add);
     let server = "";
-    void Promise.all([commands.cliStatus(), commands.mcpStatus()]).then(([cli, st]) => {
+    let command = "/usr/local/bin/verso";
+    void Promise.all([commands.cliStatus(), commands.mcpStatus(all)]).then(([cli, st]) => {
       if (st.status !== "ok") {
         said.textContent = st.error.message;
         return;
       }
       server = st.data.server;
+      command = st.data.command;
       const claude = st.data.claude;
-      if (claude === "noClient") said.textContent = t.mcpNoClaude;
+      if (claude === "noClient") {
+        // A way to get it, rather than a dead "not found".
+        said.textContent = t.mcpNoClaude;
+        add.textContent = t.mcpGetClaude;
+        add.title = t.mcpGetClaude;
+        add.dataset["get"] = "1";
+        add.hidden = false;
+      }
       else if (claude === "same") said.textContent = t.mcpClaudeSame;
-      else if (cli !== "ours") said.textContent = t.mcpNeedCli;
+      else if (cli !== "ours" && cli !== "bundled") said.textContent = t.mcpNeedCli;
       else {
         said.textContent = claude === "different" ? t.mcpClaudeDifferent : "";
         add.hidden = false;
       }
     });
     add.addEventListener("click", () => void (async () => {
-      const entry = JSON.stringify({ [server]: { command: "/usr/local/bin/verso", args: ["mcp", "--key", currentFolder] } }, null, 2);
+      if (add.dataset["get"]) {
+        const r = await commands.openClaudeDownload();
+        if (r.status !== "ok") said.textContent = r.error.message;
+        return;
+      }
+      // What the host will write, as it will write it (ADR 0054 point 2).
+      const entry = JSON.stringify({ [server]: { command, args } }, null, 2);
       if (!(await ask(t.mcpAddAsk.replace("{entry}", entry), { yes: t.mcpAddYes, no: t.cancel }))) return;
-      const r = await commands.mcpAddClaude();
+      const r = await commands.mcpAddClaude(all);
       if (r.status !== "ok") {
         said.textContent = r.error.message;
         return;
@@ -565,10 +597,40 @@ export class SettingsDialog {
     })());
     return wrap;
   }
-  /** A text to copy: shown as code, with its button. */
-  private snippet(text: string): HTMLElement {
+  /** Whether the server for all of Verso serves the open folder: hidden
+   *  until the person says so (ADR 0054 point 4). The mark lives with the
+   *  host, in the configuration directory, since the server runs without
+   *  the app. */
+  private agentVisibleControl(): HTMLElement {
+    const l = this.toggle(false, (v) => void commands.setAgentVisible(v).then((r) => {
+      if (r.status !== "ok") {
+        // The switch says what the host stored, never what was asked.
+        box.checked = !v;
+        ui.status.textContent = r.error.message;
+      } else box.checked = r.data;
+    }));
+    const box = l.querySelector("input") as HTMLInputElement;
+    box.disabled = true;
+    void commands.agentVisible().then((r) => {
+      if (r.status !== "ok") return;
+      box.checked = r.data;
+      box.disabled = false;
+    });
+    return l;
+  }
+  /** A text to copy; `fromHost`, when given, writes it again from the
+   *  host's MCP status once it answers. */
+  private snippet(first: string, fromHost?: (st: McpStatus) => string): HTMLElement {
+    let text = first;
     const wrap = h("div", "setting-snippet");
     const code = h("pre", "setting-code", text);
+    if (fromHost) {
+      void commands.mcpStatus(settings.mcpMode === "all").then((st) => {
+        if (st.status !== "ok") return;
+        text = fromHost(st.data);
+        code.textContent = text;
+      });
+    }
     const copy = button("ghost", t.copyText);
     copy.addEventListener("click", () => void navigator.clipboard.writeText(text).then(() => {
       copy.textContent = t.copiedText;

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-agent-visible"
+description = "Enables the agent_visible command without any pre-configured scope."
+commands.allow = ["agent_visible"]
+
+[[permission]]
+identifier = "deny-agent-visible"
+description = "Denies the agent_visible command without any pre-configured scope."
+commands.deny = ["agent_visible"]

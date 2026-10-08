@@ -49,6 +49,7 @@ import { ConflictBanner } from "./conflict";
 import { pdfStrings, quoteIntoNotes } from "./pdf";
 import { fromDisk, lineSeparator, readOnlyText } from "./text";
 import { TextLeaf } from "./textfile";
+import { asset } from "../version";
 
 /** Every board on screen, told when the folder changes (ADR 0057). */
 export const liveBoards = new Set<BoardHandle>();
@@ -788,7 +789,7 @@ export function loadBoardModule(): Promise<typeof import("../board/view")> {
     if (!document.querySelector("link[data-board-css]")) {
       const css = document.createElement("link");
       css.rel = "stylesheet";
-      css.href = "excalidraw/index.css";
+      css.href = asset("excalidraw/index.css");
       css.dataset["boardCss"] = "";
       document.head.append(css);
     }

@@ -1,0 +1,30 @@
+# Approved by the maintainer on 2026-10-07 in session ("Aprovado"), after the observation in Obsidian; drafted by Fable 5.1 on 2026-10-07 (ADR 0031).
+# Construct: a `^id` alone on its line at the top level — first in the
+# note, after a heading, after a list, after a paragraph that is no id
+# (`^foo.bar`). Spec: docs/spec/dialect.md §5.7, Q3: the block before it;
+# with nothing before it, no block. `pos` is the `^`; `lines` the block.
+# `^solto` on line 1 is absent on purpose. The spec's section 9 is updated
+# in the same PR.
+blocks:
+  - id: cab
+    pos: { line: 5, col: 1 }
+    lines: [3, 3]
+  - id: lst
+    pos: { line: 10, col: 1 }
+    lines: [7, 8]
+  - id: ok
+    pos: { line: 16, col: 1 }
+    lines: [14, 14]
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-07 against a throwaway folder in the sandbox
+    vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)`, 0-based lines:
+    blocks { cab: 2..2, lst: 6..7, ok: 13..13 }, no `solto`; sections:
+    heading 2..2 #cab, list 6..7 #lst, paragraph 11..11, paragraph 13..13
+    #ok — the `^solto` line is no section and names no block, `^ok` names
+    the `^foo.bar` paragraph before it. Also observed, not in this
+    fixture: `Texto.\n\n^a\n\n^b` keeps only `b` (0..0) in Obsidian's
+    cache; Verso reports both ids on that paragraph, an extension.

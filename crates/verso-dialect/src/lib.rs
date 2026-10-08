@@ -28,6 +28,7 @@
 //! `#tag`s of a body ([`body_tags`]), one rule for the reader and the index.
 
 pub mod bases;
+mod block_ids;
 mod callouts;
 mod comments;
 mod events;
@@ -44,7 +45,7 @@ mod wikilink;
 pub use frontmatter::{Frontmatter, Value};
 pub use parse::parse;
 pub use position::{Pos, Span};
-pub use render::to_html;
+pub use render::{to_html, to_html_with};
 pub use schema::{PropertyKind, Schema, SchemaBlock, SchemaError, SchemaErrorKind, SchemaProperty};
 pub use tags::{BodyTag, body_tags};
 
@@ -154,6 +155,14 @@ pub struct BlockId {
     pub span: Span,
     /// Position of the `^`.
     pub pos: Pos,
+    /// Byte range of the block the id names (spec Q3, Q21; decided
+    /// 2026-10-07): the top-level section its line is in — a paragraph, a
+    /// heading, a quote whole — or, in a list, the innermost list item with
+    /// its nested items; for a `^id` alone on a line at the top level, the
+    /// block before it.
+    pub block: Span,
+    /// The first and the last line of that block, 1-based.
+    pub lines: (u32, u32),
 }
 
 /// Fold marker of a callout: `-` (collapsed) or `+` (expanded) right after

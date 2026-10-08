@@ -65,6 +65,26 @@ pub fn verso_entry(command: &str, key: &str) -> Value {
     serde_json::json!({ "command": command, "args": ["mcp", "--key", key] })
 }
 
+/// The name of the server for all of Verso in a client's configuration.
+pub const ALL_SERVER: &str = "verso";
+
+/// What a client starts for the server for all of Verso: `mcp --all`
+/// (ADR 0054, revised 2026-10-08) — no folder named at all.
+#[must_use]
+pub fn verso_all_entry(command: &str) -> Value {
+    serde_json::json!({ "command": command, "args": ["mcp", "--all"] })
+}
+
+/// The server's name and its entry, by the mode: the folder with `key`'s
+/// own server, or with `None` the one server for all of Verso.
+#[must_use]
+pub fn server_and_entry(command: &str, key: Option<&str>) -> (String, Value) {
+    match key {
+        Some(key) => (server_name(key), verso_entry(command, key)),
+        None => (ALL_SERVER.to_owned(), verso_all_entry(command)),
+    }
+}
+
 fn not_json(e: &serde_json::Error) -> CoreError {
     CoreError::Client(format!(
         "the configuration is not JSON, and was not changed: {e}"

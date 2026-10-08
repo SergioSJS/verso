@@ -231,10 +231,17 @@ How the author built it under that decision (commit `3629f0c`;
   that redirects to another origin (`example.com` to `www.example.com`,
   `http` to `https`), or that frames a third site, loads only as far as the
   approved origins reach.
-- **`[OPEN]` — the web view's cache after an update.** Found on the way, not
-  about embeds: after an app update, WKWebView serves the previous version's
-  cached UI until its caches are cleared; hit twice on 2026-09-29. It needs
-  a decision of its own.
+- **Decided on 2026-10-07 — the web view's cache after an update.** Found on
+  the way, not about embeds: after an app update, WKWebView served the
+  previous version's cached UI until its caches were cleared; hit twice on
+  2026-09-29. The maintainer, asked, chose the version in the files'
+  addresses: the build writes the page loading `main.js?v=<version>` and
+  each of its stylesheets so (`app/ui/build-index.mjs`), and what the window
+  asks for by a fixed name — the PDF worker, Excalidraw's stylesheet —
+  carries the same stamp (`app/ui/src/version.ts`); the bundler's chunks
+  already carry a hash in their names. A new version never reuses the
+  previous one's cached files, and nothing is deleted. Not chosen: clearing
+  the web view's cache when the version changes.
 
 ## Discarded alternatives
 
@@ -288,5 +295,5 @@ Decision. The mechanism under them is the author's, built under that decision
 and labelled as such above. Confirmed on 2026-09-29 by the maintainer: the
 ADR stands Accepted. Revised on 2026-09-29 by the maintainer, in session:
 point 3, option A, Accepted; the mechanism under it is the author's, and
-supersedes the proxy. Two items stay `[OPEN]`: a warning at approval time,
-and the web view's cache after an update.
+supersedes the proxy. One item stays `[OPEN]`: a warning at approval time;
+the web view's cache after an update was decided on 2026-10-07 (above).

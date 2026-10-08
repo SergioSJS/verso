@@ -32,9 +32,22 @@ mod support {
         verso_in(None, config, lang, args)
     }
 
-    /// The same, run from `cwd` when given. `VERSO_APP` names `true`, so
-    /// that a test which reaches `verso <folder>` starts nothing on the
-    /// developer's machine: what is checked is what the CLI says.
+    /// A program that starts, takes an argument and quits, standing in for
+    /// the app: `true` on Unix, `whoami` on Windows (ADR 0069).
+    pub fn stand_in_app() -> std::ffi::OsString {
+        #[cfg(unix)]
+        return "/usr/bin/true".into();
+        #[cfg(windows)]
+        return std::path::Path::new(&std::env::var_os("SystemRoot").unwrap())
+            .join("System32")
+            .join("whoami.exe")
+            .into_os_string();
+    }
+
+    /// The same, run from `cwd` when given. `VERSO_APP` names a stand-in
+    /// that quits at once, so that a test which reaches `verso <folder>`
+    /// starts nothing on the developer's machine: what is checked is what
+    /// the CLI says.
     pub fn verso_in(
         cwd: Option<&Path>,
         config: &Path,
@@ -49,7 +62,7 @@ mod support {
             .args(args)
             .env("VERSO_CONFIG_DIR", config)
             .env("VERSO_LANG", lang)
-            .env("VERSO_APP", "/usr/bin/true")
+            .env("VERSO_APP", stand_in_app())
             .output()
             .unwrap();
         (
@@ -102,6 +115,11 @@ fn index_search_and_backlinks_in_both_languages() {
     assert!(out.is_empty(), "{out}");
     assert_eq!(err.trim(), "nota desconhecida: Nada (indexe a pasta?)");
 
+    // A note path that leaves the folder is refused as such, not as a
+    // failed index (exit 2, usage).
+    let (code, _, err) = verso(config.path(), "en", &["backlinks", v, "../fora"]);
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("note refused: ../fora"), "{err}");
     let (code, out, _) = verso(config.path(), "en", &["backlinks", v, "--unresolved"]);
     assert_eq!(code, 0);
     assert_eq!(out.trim(), "Mapa.png  (1)");
@@ -197,6 +215,7 @@ fn usage_and_open_errors_have_their_exit_codes_and_go_to_stderr() {
         .env_remove("VERSO_CONFIG_DIR")
         .env_remove("XDG_CONFIG_HOME")
         .env_remove("HOME")
+        .env_remove("LOCALAPPDATA")
         .env("VERSO_LANG", "en")
         .output()
         .unwrap();

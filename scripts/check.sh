@@ -62,7 +62,7 @@ step "UI: type check, bundle and unit tests"
 step "UI: end-to-end tests in the browser harness (ADR 0058, local only)"
 (
   cd app/ui
-  npx playwright install webkit >/dev/null
+  npx playwright install webkit chromium >/dev/null
   npx playwright test
 )
 step "cargo clippy -D warnings"

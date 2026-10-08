@@ -11,8 +11,9 @@ export type Strings = Record<
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
   | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists" | "planLeftOut"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
+  | "frameControls" | "frameMinimize" | "frameMaximize" | "frameRestore" | "frameClose"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
-  | "planApply" | "planSkip" | "exists" | "unlinkableName" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
+  | "planApply" | "planSkip" | "exists" | "unlinkableName" | "unportableName" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
   | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
   | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted"
   | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
@@ -40,8 +41,9 @@ export type Strings = Record<
   | "errNotText" | "closeNoteWindows" | "planSkipped" | "skipUnavailable" | "skipNotText" | "skipFailed" | "goneOutside" | "goneTab" | "foldCallout"
   | "hotkeyNeedsMod" | "hotkeyReserved" | "errNoFolder" | "errRefused" | "errNotFound" | "errUnavailable" | "errChanged" | "errFailed" | "yamlLine" | "yamlLines" | "pdfLoadFailed" | "pdfPrev" | "pdfNext" | "tableColumn" | "dailyName" | "templatesName" | "calloutNoteTitle" | "calloutTipTitle" | "calloutWarningTitle" | "nextTab" | "prevTab" | "replaceScanning" | "replaceSearched" | "replaceUnread" | "languageNotReloaded" | "resizeKeys" | "loadFailed" | "tryAgain"
   | "newBase" | "insertBase" | "calendarTab" | "newWindow" | "newWindowHere"
-  | "sCli" | "cliTitle" | "cliDesc" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
-  | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
+  | "sCli" | "cliTitle" | "cliDesc" | "cliDescWindows" | "cliOurs" | "cliMissing" | "cliElsewhere" | "cliUnbundled" | "cliBundled" | "cliInstall" | "cliReplace" | "cliRemove" | "cliReplaceAsk" | "cliCancelled" | "cliDone" | "cliRemoved"
+  | "mcpModeTitle" | "mcpModeDesc" | "mcpModeFolder" | "mcpModeAll" | "mcpDescAll" | "agentVisibleTitle" | "agentVisibleDesc"
+  | "mcpTitle" | "mcpDesc" | "mcpClaude" | "mcpClaudeSame" | "mcpClaudeDifferent" | "mcpNoClaude" | "mcpGetClaude" | "mcpNeedCli" | "mcpNoFolder" | "mcpAddAsk" | "mcpAddYes" | "mcpAdded" | "mcpBackup"
   | "mcpCodeTitle" | "mcpCodeDesc" | "mcpOtherTitle" | "mcpOtherDesc" | "copyText" | "copiedText" | "copyCode" | "codeCopied"
   | "tabs" | "unsaved" | "rightPanel" | "reportBug" | "reloadWindow" | "reloadNotDone" | "reportHint" | "reportWhat" | "reportHere" | "reportContext" | "reportErrors" | "reportNoErrors" | "reportLog" | "navBack" | "navForward" | "moveTabBack" | "moveTabForward" | "moveTabNextPane" | "moveTabPrevPane" | "ribbonUp" | "ribbonDown" | "footnoteBack" | "crumbs" | "sortAsc" | "sortDesc" | "actualSize" | "editorTab" | "editorTabDesc"
   | "importDemoVault" | "importDemoVaultConfirm" | "demoVaultImported" | "demoVaultKept" | "demoVaultKeptOk" | "demoVaultFailed"
@@ -67,7 +69,11 @@ export type Strings = Record<
   planDone: (ok: number, failed: number) => string;
   counts: (notes: number, files: number, folders: number) => string;
   confirmDeleteFolder: (n: string) => string;
+  /** The same `^id` more than once in a note (spec Q4). */
+  blockRepeated: (id: string, lines: number[]) => string;
   /** The tree's selection (ADR 0048, revised 2026-10-07). */
+  /** "Start with" under a new note's title (ADR 0068). */
+  templatePicker: { title: string; blank: string };
   selection: { count: (n: number) => string; confirmDelete: (n: number) => string; moved: (n: number) => string; notMoved: (names: string) => string; copyPaths: string; clear: string; deleted: (n: number) => string };
   words: (w: number, c: number) => string;
   replaceCount: (n: number) => string;
@@ -103,10 +109,11 @@ export const pt: Strings = {
   lessonTitle: "Abra uma pasta de notas.", lessonBody: "Tudo fica nos seus arquivos Markdown, como no Obsidian. Nada é reescrito sem você pedir.",
   lessonKeys: "{open-folder} abre uma pasta · {new-note} nova nota · {quick} abre pelo nome · {search} busca · {split-right} divide · {new-space} nova área",
   split: "Dividir à direita", splitDown: "Dividir abaixo", emptyPane: "Escolha um arquivo na lista, ou arraste uma aba para cá.",
+  frameControls: "Controles da janela", frameMinimize: "Minimizar", frameMaximize: "Maximizar", frameRestore: "Restaurar", frameClose: "Fechar",
   quick: "Abrir…", close: "Fechar aba", closePane: "Fechar área", maximize: "Maximizar área", restore: "Restaurar áreas",
   newNote: "Nova nota", newNoteName: "Nome da nota (Enter cria, Esc cancela)", rename: "Renomear", deleteNote: "Apagar",
   openTab: "Abrir em aba nova", openPane: "Abrir ao lado", newHere: "Nova nota nesta pasta", planApply: "Atualizar links", planSkip: "Deixar como está",
-  exists: "Já existe um arquivo com esse nome.", unlinkableName: "Um link não alcança um nome com [ ] | # ^ — escolha outro.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área", space: "Área",
+  exists: "Já existe um arquivo com esse nome.", unlinkableName: "Um link não alcança um nome com [ ] | # ^ — escolha outro.", unportableName: "O Windows não guarda esse nome (CON, NUL, COM1…, ponto ou espaço no fim, ou : * \" < > ? | \\) — escolha outro, para a pasta sincronizar em qualquer sistema.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área", space: "Área",
   closeSpace: "Fechar área", untitled: "Sem título", folderView: "Pasta", asList: "Lista", asGrid: "Miniaturas", readOnly: "Só leitura: não é uma nota Markdown.",
   keysNew: "nova nota", keysEdit: "editar", keysSplit: "dividir", keysSpace: "nova área", moveTo: "Mover para", moved: "Movido.",
   bold: "Negrito", italic: "Itálico", strike: "Riscado", highlight: "Destaque", heading: "Título", link: "Link", wikilink: "Link interno [[ ]]",
@@ -133,6 +140,8 @@ export const pt: Strings = {
   planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
   counts: (notes, files, folders) => `${notes} nota${notes === 1 ? "" : "s"} · ${files} arquivo${files === 1 ? "" : "s"} · ${folders} pasta${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
+  blockRepeated: (id, lines) => `^${id} aparece ${lines.length} vezes (linhas ${lines.join(", ")}): vale a última, como no Obsidian.`,
+  templatePicker: { title: "Começar com", blank: "Em branco" },
   selection: { count: (n) => `${n} itens`, confirmDelete: (n) => `Mover ${n} itens, e o que estiver dentro das pastas, para a lixeira (.trash)?`, moved: (n) => `${n} itens movidos.`, notMoved: (names) => `Não puderam ser movidos: ${names}.`, copyPaths: "Copiar caminhos relativos", clear: "Limpar seleção", deleted: (n) => `${n} itens movidos para .trash/.` },
   slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", toggleTitle: "Recolhível", toggle: "Destaque que abre e fecha (toggle)", empty: "Nada com esse nome." },
   tableEdit: { addRow: "Acrescentar linha", addCol: "Acrescentar coluna", rowAbove: "Inserir linha acima", rowBelow: "Inserir linha abaixo", deleteRow: "Excluir linha", colLeft: "Inserir coluna à esquerda", colRight: "Inserir coluna à direita", deleteCol: "Excluir coluna", alignLeft: "Alinhar à esquerda", alignCenter: "Centralizar", alignRight: "Alinhar à direita", cell: "Linha {r}, coluna {c}", headerCell: "Cabeçalho, coluna {c}" },
@@ -174,11 +183,14 @@ export const pt: Strings = {
   navBack: "Voltar", navForward: "Avançar",
   moveTabBack: "Mover aba para trás", moveTabForward: "Mover aba para a frente", moveTabNextPane: "Mover aba para a área seguinte", moveTabPrevPane: "Mover aba para a área anterior", ribbonUp: "Mover para cima", ribbonDown: "Mover para baixo", footnoteBack: "Voltar ao texto", crumbs: "Caminho", sortAsc: "crescente", sortDesc: "decrescente", actualSize: "Tamanho real",
   newBase: "Nova base", insertBase: "Inserir base", calendarTab: "Calendário", newWindow: "Nova janela", newWindowHere: "Nova janela nesta pasta",
-  sCli: "Terminal e agentes", cliTitle: "Comando verso no terminal", cliDesc: "Instala o comando verso em /usr/local/bin: verso . abre a pasta no app, verso search <pasta> <palavras> busca, verso mcp atende um agente. O macOS pede a sua senha uma vez.",
-  cliOurs: "Instalado.", cliMissing: "Não instalado.", cliElsewhere: "Outro verso está em /usr/local/bin.", cliUnbundled: "Esta versão do app não traz o comando.",
+  sCli: "Terminal e agentes", cliTitle: "Comando verso no terminal", cliDesc: "Instala o comando verso em /usr/local/bin: verso . abre a pasta no app, verso search <pasta> <palavras> busca, verso mcp atende um agente. O macOS pede a sua senha uma vez.", cliDescWindows: "O comando verso.exe vem com o app, na pasta dele: rode-o pelo caminho, ou ponha essa pasta no PATH para digitar só verso. verso . abre a pasta no app, verso search <pasta> <palavras> busca, verso mcp atende um agente.",
+  cliOurs: "Instalado.", cliMissing: "Não instalado.", cliElsewhere: "Outro verso está em /usr/local/bin.", cliUnbundled: "Esta versão do app não traz o comando.", cliBundled: "O comando vem com o app: verso.exe, ao lado dele.",
   cliInstall: "Instalar", cliReplace: "Substituir", cliRemove: "Remover", cliReplaceAsk: "Já existe outro verso em /usr/local/bin. Substituir pelo deste app?", cliCancelled: "Nada instalado.", cliDone: "Comando instalado: abra um terminal novo e digite verso.", cliRemoved: "Comando removido.",
+  mcpModeTitle: "Agentes: uma pasta ou todo o Verso", mcpModeDesc: "Um servidor por pasta: o agente vê só a pasta em que você o adicionou. Um para todo o Verso: um servidor só, que vê as pastas marcadas como visíveis para agentes — e nenhuma até você marcar.", mcpModeFolder: "Um servidor por pasta", mcpModeAll: "Um servidor para todo o Verso",
+  mcpDescAll: "Um agente como o Claude lê, pelo Verso, as pastas marcadas como visíveis: busca, lê notas, segue links. Só leitura. Basta adicionar uma vez; o app não precisa estar aberto.",
+  agentVisibleTitle: "Esta pasta é visível para agentes", agentVisibleDesc: "O servidor de todo o Verso só mostra a um agente as pastas marcadas aqui. Tudo o que um agente lê fica registrado em agents.log, na pasta de configuração do Verso.",
   mcpTitle: "Agentes (MCP)", mcpDesc: "Um agente como o Claude lê esta pasta pelo Verso: busca, lê notas, segue links. Só leitura — o Verso não escreve nada que um agente peça.",
-  mcpClaude: "Adicionar ao Claude Desktop", mcpClaudeSame: "Já está no Claude Desktop.", mcpClaudeDifferent: "O Claude Desktop tem um servidor com esse nome que inicia outra coisa.", mcpNoClaude: "Claude Desktop não encontrado.", mcpNeedCli: "Instale o comando acima primeiro: o Claude Desktop o inicia.", mcpNoFolder: "Abra uma pasta para ligar um agente a ela.",
+  mcpClaude: "Adicionar ao Claude Desktop", mcpClaudeSame: "Já está no Claude Desktop.", mcpClaudeDifferent: "O Claude Desktop tem um servidor com esse nome que inicia outra coisa.", mcpNoClaude: "Claude Desktop não encontrado.", mcpGetClaude: "Baixar o Claude Desktop", mcpNeedCli: "Instale o comando acima primeiro: o Claude Desktop o inicia.", mcpNoFolder: "Abra uma pasta para ligar um agente a ela.",
   mcpAddAsk: "Isto entra no arquivo de configuração do Claude Desktop; uma cópia do arquivo como está fica ao lado dele:\n\n{entry}\n\nDepois, reinicie o Claude Desktop.", mcpAddYes: "Adicionar", mcpAdded: "Adicionado. Reinicie o Claude Desktop.", mcpBackup: "Cópia do anterior: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Cole no terminal para o Claude Code usar esta pasta:", mcpOtherTitle: "Outros clientes MCP", mcpOtherDesc: "O trecho de configuração, para colar no cliente:", copyText: "Copiar", copiedText: "Copiado.", copyCode: "Copiar código", codeCopied: "Copiado!",
   editorTab: "Tab no editor", editorTabDesc: "O Tab indenta a nota. Para sair do editor pelo teclado: Esc e, em até dois segundos, Tab, ou {keys} para o Tab mudar o foco até você apertar de novo.",
@@ -234,10 +246,11 @@ export const en: Strings = {
   lessonTitle: "Open a folder of notes.", lessonBody: "Everything stays in your Markdown files, as in Obsidian. Nothing is rewritten unless you ask.",
   lessonKeys: "{open-folder} opens a folder · {new-note} new note · {quick} opens by name · {search} searches · {split-right} splits · {new-space} new workspace",
   split: "Split right", splitDown: "Split down", emptyPane: "Pick a file from the list, or drag a tab here.",
+  frameControls: "Window controls", frameMinimize: "Minimize", frameMaximize: "Maximize", frameRestore: "Restore", frameClose: "Close",
   quick: "Open…", close: "Close tab", closePane: "Close pane", maximize: "Maximize pane", restore: "Restore panes",
   newNote: "New note", newNoteName: "Note name (Enter creates, Esc cancels)", rename: "Rename", deleteNote: "Delete",
   openTab: "Open in new tab", openPane: "Open to the side", newHere: "New note in this folder", planApply: "Update links", planSkip: "Leave them",
-  exists: "A file with that name already exists.", unlinkableName: "A link cannot reach a name with [ ] | # ^ — choose another.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace", space: "Workspace",
+  exists: "A file with that name already exists.", unlinkableName: "A link cannot reach a name with [ ] | # ^ — choose another.", unportableName: "Windows cannot keep that name (CON, NUL, COM1…, a trailing dot or space, or : * \" < > ? | \\) — choose another, so the folder syncs on any system.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace", space: "Workspace",
   closeSpace: "Close workspace", untitled: "Untitled", folderView: "Folder", asList: "List", asGrid: "Thumbnails", readOnly: "Read-only: not a Markdown note.",
   keysNew: "new note", keysEdit: "edit", keysSplit: "split", keysSpace: "new workspace", moveTo: "Move to", moved: "Moved.",
   bold: "Bold", italic: "Italic", strike: "Strikethrough", highlight: "Highlight", heading: "Heading", link: "Link", wikilink: "Internal link [[ ]]",
@@ -264,6 +277,8 @@ export const en: Strings = {
   planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
   counts: (notes, files, folders) => `${notes} note${notes === 1 ? "" : "s"} · ${files} file${files === 1 ? "" : "s"} · ${folders} folder${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the Trash (.trash)?`,
+  blockRepeated: (id, lines) => `^${id} appears ${lines.length} times (lines ${lines.join(", ")}): the last one counts, as in Obsidian.`,
+  templatePicker: { title: "Start with", blank: "Blank" },
   selection: { count: (n) => `${n} items`, confirmDelete: (n) => `Move ${n} items, and what is inside the folders, to the Trash (.trash)?`, moved: (n) => `${n} items moved.`, notMoved: (names) => `Could not be moved: ${names}.`, copyPaths: "Copy relative paths", clear: "Clear selection", deleted: (n) => `${n} items moved to .trash/.` },
   slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", toggleTitle: "Toggle", toggle: "A callout that opens and closes", empty: "Nothing by that name." },
   tableEdit: { addRow: "Add a row", addCol: "Add a column", rowAbove: "Insert row above", rowBelow: "Insert row below", deleteRow: "Delete row", colLeft: "Insert column left", colRight: "Insert column right", deleteCol: "Delete column", alignLeft: "Align left", alignCenter: "Center", alignRight: "Align right", cell: "Row {r}, column {c}", headerCell: "Header, column {c}" },
@@ -304,11 +319,14 @@ export const en: Strings = {
   reportBug: "Report a problem", reloadWindow: "Reload window", reloadNotDone: "The window did not reload: some changes could not be written (see the open notes).", reportHint: "Everything below stays on your computer: the button copies it, nothing is sent. Read it and edit it as you like before pasting it anywhere.", reportWhat: "What happened", reportHere: "(say here what you did and what you expected)", reportContext: "Context", reportErrors: "Errors this session", reportNoErrors: "none", reportLog: "The app's log",
   navBack: "Back", navForward: "Forward",
   moveTabBack: "Move tab back", moveTabForward: "Move tab forward", moveTabNextPane: "Move tab to the next pane", moveTabPrevPane: "Move tab to the previous pane", ribbonUp: "Move up", ribbonDown: "Move down", footnoteBack: "Back to the text", crumbs: "Path", sortAsc: "ascending", sortDesc: "descending", actualSize: "Actual size",
-  sCli: "Terminal and agents", cliTitle: "The verso command in the terminal", cliDesc: "Installs the verso command in /usr/local/bin: verso . opens the folder in the app, verso search <folder> <words> searches, verso mcp serves an agent. macOS asks for your password once.",
-  cliOurs: "Installed.", cliMissing: "Not installed.", cliElsewhere: "Another verso is in /usr/local/bin.", cliUnbundled: "This build of the app carries no command.",
+  sCli: "Terminal and agents", cliTitle: "The verso command in the terminal", cliDesc: "Installs the verso command in /usr/local/bin: verso . opens the folder in the app, verso search <folder> <words> searches, verso mcp serves an agent. macOS asks for your password once.", cliDescWindows: "The verso.exe command comes with the app, in its folder: run it by its path, or add that folder to PATH to type just verso. verso . opens the folder in the app, verso search <folder> <words> searches, verso mcp serves an agent.",
+  cliOurs: "Installed.", cliMissing: "Not installed.", cliElsewhere: "Another verso is in /usr/local/bin.", cliUnbundled: "This build of the app carries no command.", cliBundled: "The command comes with the app: verso.exe, beside it.",
   cliInstall: "Install", cliReplace: "Replace", cliRemove: "Remove", cliReplaceAsk: "Another verso is already in /usr/local/bin. Replace it with this app's?", cliCancelled: "Nothing installed.", cliDone: "Command installed: open a new terminal and type verso.", cliRemoved: "Command removed.",
+  mcpModeTitle: "Agents: one folder or all of Verso", mcpModeDesc: "One server per folder: the agent sees only the folder you added it from. One for all of Verso: a single server that sees the folders marked visible to agents — and none until you mark one.", mcpModeFolder: "One server per folder", mcpModeAll: "One server for all of Verso",
+  mcpDescAll: "An agent such as Claude reads, through Verso, the folders marked visible: search, read notes, follow links. Read-only. Add it once; the app need not be open.",
+  agentVisibleTitle: "This folder is visible to agents", agentVisibleDesc: "The server for all of Verso shows an agent only the folders marked here. Everything an agent reads is logged in agents.log, in Verso's configuration folder.",
   mcpTitle: "Agents (MCP)", mcpDesc: "An agent such as Claude reads this folder through Verso: search, read notes, follow links. Read-only — Verso writes nothing an agent asks for.",
-  mcpClaude: "Add to Claude Desktop", mcpClaudeSame: "Already in Claude Desktop.", mcpClaudeDifferent: "Claude Desktop has a server by this name that starts something else.", mcpNoClaude: "Claude Desktop not found.", mcpNeedCli: "Install the command above first: Claude Desktop starts it.", mcpNoFolder: "Open a folder to connect an agent to it.",
+  mcpClaude: "Add to Claude Desktop", mcpClaudeSame: "Already in Claude Desktop.", mcpClaudeDifferent: "Claude Desktop has a server by this name that starts something else.", mcpNoClaude: "Claude Desktop not found.", mcpGetClaude: "Get Claude Desktop", mcpNeedCli: "Install the command above first: Claude Desktop starts it.", mcpNoFolder: "Open a folder to connect an agent to it.",
   mcpAddAsk: "This goes into Claude Desktop's configuration file; a copy of the file as it is stays beside it:\n\n{entry}\n\nThen restart Claude Desktop.", mcpAddYes: "Add", mcpAdded: "Added. Restart Claude Desktop.", mcpBackup: "Copy of the previous one: {name}.",
   mcpCodeTitle: "Claude Code", mcpCodeDesc: "Paste in the terminal for Claude Code to use this folder:", mcpOtherTitle: "Other MCP clients", mcpOtherDesc: "The configuration snippet, to paste in the client:", copyText: "Copy", copiedText: "Copied.", copyCode: "Copy code", codeCopied: "Copied!",
   newBase: "New base", insertBase: "Insert base", calendarTab: "Calendar", newWindow: "New window", newWindowHere: "New window on this folder",

@@ -2,13 +2,24 @@
 
 use super::*;
 
+/// A file the test made, closed but kept until dropped. Closed: an open
+/// handle stops Windows from renaming or moving the folder it is in
+/// (ADR 0069), and no test reads through it.
+pub struct Kept(tempfile::TempPath);
+
+impl Kept {
+    pub fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
 /// A note with exactly this name (no random part), kept until dropped.
-pub fn note(dir: &Path, name: &str, content: &str) -> NamedTempFile {
+pub fn note(dir: &Path, name: &str, content: &str) -> Kept {
     bytes(dir, name, content.as_bytes())
 }
 
 /// A file with exactly this name and these bytes, kept until dropped.
-pub fn bytes(dir: &Path, name: &str, content: &[u8]) -> NamedTempFile {
+pub fn bytes(dir: &Path, name: &str, content: &[u8]) -> Kept {
     let mut file = Builder::new()
         .prefix(name)
         .rand_bytes(0)
@@ -16,7 +27,7 @@ pub fn bytes(dir: &Path, name: &str, content: &[u8]) -> NamedTempFile {
         .unwrap();
     file.write_all(content).unwrap();
     file.flush().unwrap();
-    file
+    Kept(file.into_temp_path())
 }
 
 pub fn subdir(dir: &Path, name: &str) -> TempDir {
@@ -55,7 +66,7 @@ pub fn order_of(ws: &mut Workspace, folder_note: &str) -> Vec<String> {
 
 /// The folder `pasta` with `A.md`, `B.md` and its folder note
 /// `pasta/pasta.md` holding `text`; kept until dropped.
-pub fn folder_with_order(vault: &Path, text: &str) -> (TempDir, Vec<NamedTempFile>) {
+pub fn folder_with_order(vault: &Path, text: &str) -> (TempDir, Vec<Kept>) {
     let pasta = subdir(vault, "pasta");
     let files = vec![
         note(pasta.path(), "A.md", "# A\n"),

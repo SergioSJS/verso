@@ -34,6 +34,7 @@ import { renameInline } from "../tree/prompts";
 import { allFolders, markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
 import { NoteLeaf } from "./note";
+import { pdfCover } from "../pdf";
 
 export type SortKey = "name" | "kind" | "size" | "modified";
 export let folderSort: { key: SortKey; desc: boolean } = { key: "name", desc: false };
@@ -50,6 +51,39 @@ export function propVal(properties: Property[], key: string): string | null {
 }
 
 export type FolderRow = { path: string; kind: Kind; label: string; size: number; modified: number };
+/** PDF covers drawn this session, by path and modification time. */
+const covers = new Map<string, Promise<string | null>>();
+/** One cover drawn at a time: a folder of many PDFs does not draw them
+ *  all at once. */
+let coverQueue: Promise<unknown> = Promise.resolve();
+const coverSeen = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (!e.isIntersecting) continue;
+    coverSeen.unobserve(e.target);
+    (e.target as HTMLElement & { drawCover?: () => void }).drawCover?.();
+  }
+});
+function coverWhenSeen(thumb: HTMLElement, r: FolderRow): void {
+  (thumb as HTMLElement & { drawCover?: () => void }).drawCover = () => {
+    const key = `${r.path}\u0000${r.modified}`;
+    let made = covers.get(key);
+    if (!made) {
+      const run = coverQueue.then(() => pdfCover(`${convertFileSrc(r.path, "verso")}?thumb`, 160));
+      coverQueue = run.catch(() => null);
+      made = run;
+      covers.set(key, made);
+    }
+    void made.then((src) => {
+      if (!src || !thumb.isConnected) return;
+      const img = h("img", "pdf-cover");
+      img.src = src;
+      img.alt = "";
+      thumb.replaceChildren(img);
+    });
+  };
+  coverSeen.observe(thumb);
+}
+
 export class FolderLeaf extends Leaf {
   /** Ends a cover reposition under way, keeping the old position. */
   private cancelReposition?: () => void;
@@ -136,9 +170,15 @@ export class FolderLeaf extends Leaf {
     this.baseContainer.hidden = mode !== "table";
     this.cols.hidden = mode === "grid" || mode === "table";
     this.items.hidden = mode === "table";
-    if (mode === "grid") this.view(true);
-    else if (mode === "list") this.view(false);
-    else if (mode === "table") void this.mountFolderBase();
+    // A folder opened as a table never drew its items: they are drawn
+    // now, as Thumbnails or List shows them.
+    if (mode === "grid") {
+      this.view(true);
+      this.render();
+    } else if (mode === "list") {
+      this.view(false);
+      this.render();
+    } else if (mode === "table") void this.mountFolderBase();
     persistSoon();
   }
   private async mountFolderBase(): Promise<void> {
@@ -591,6 +631,11 @@ export class FolderLeaf extends Leaf {
       img.addEventListener("error", () => img.replaceWith(iconOfPath(r.path, r.kind)), { once: true });
       img.alt = "";
       thumb.append(img);
+    } else if (r.kind === "pdf") {
+      // The first page, drawn once the row is on screen; the kind's mark
+      // until then, and for a file that cannot be read.
+      thumb.append(iconOfPath(r.path, r.kind));
+      coverWhenSeen(thumb, r);
     } else thumb.append(iconOfPath(r.path, r.kind));
     const main = h("span", "main");
     main.append(thumb, h("span", "label", r.label));

@@ -87,6 +87,7 @@ fn config_dir_precedence_and_no_relative_fallback() {
         verso_core::config_dir_from(
             Some(OsStr::new("/cfg")),
             Some(OsStr::new("/xdg")),
+            Some(OsStr::new("C:/Users/x/AppData/Local")),
             home,
             true
         )
@@ -94,19 +95,34 @@ fn config_dir_precedence_and_no_relative_fallback() {
         Some(Path::new("/cfg"))
     );
     assert_eq!(
-        verso_core::config_dir_from(None, Some(OsStr::new("/xdg")), home, true).as_deref(),
+        verso_core::config_dir_from(None, Some(OsStr::new("/xdg")), None, home, true).as_deref(),
         Some(Path::new("/xdg/verso"))
     );
     assert_eq!(
-        verso_core::config_dir_from(None, None, home, true).as_deref(),
+        verso_core::config_dir_from(None, None, None, home, true).as_deref(),
         Some(Path::new("/Users/x/Library/Application Support/verso"))
     );
     assert_eq!(
-        verso_core::config_dir_from(None, None, home, false).as_deref(),
+        verso_core::config_dir_from(None, None, None, home, false).as_deref(),
         Some(Path::new("/Users/x/.config/verso"))
     );
+    // On Windows, LOCALAPPDATA names it, ahead of a HOME that Git Bash may set.
+    assert_eq!(
+        verso_core::config_dir_from(
+            None,
+            None,
+            Some(OsStr::new("C:/Users/x/AppData/Local")),
+            home,
+            false
+        )
+        .as_deref(),
+        Some(Path::new("C:/Users/x/AppData/Local/verso"))
+    );
     // No HOME and no override: an error, never a relative directory.
-    assert_eq!(verso_core::config_dir_from(None, None, None, true), None);
+    assert_eq!(
+        verso_core::config_dir_from(None, None, None, None, true),
+        None
+    );
 }
 
 #[test]
@@ -196,29 +212,27 @@ fn a_note_under_an_unreadable_directory_is_not_removed() {
     // The directory becomes unreadable (through the shell: the test may
     // not call std::fs). The walk reports a problem for `sub`; nothing
     // under it is gone.
-    let chmod = |mode: &str| {
-        assert!(
-            std::process::Command::new("chmod")
-                .arg(mode)
-                .arg(sub.path())
-                .status()
-                .unwrap()
-                .success()
-        );
-    };
-    chmod("000");
+    crate::shell::unreadable(sub.path(), true);
     let r = ws.index().unwrap();
-    chmod("755");
+    crate::shell::unreadable(sub.path(), false);
     assert_eq!(r.removed, 0, "{r:?}");
-    assert_eq!(r.problems.len(), 1, "{r:?}");
-    assert_eq!(r.problems[0].path(), "sub");
-    assert!(matches!(r.problems[0], verso_core::WalkProblem::Io { .. }));
-    // Shown as one line with the relative path, not a debug dump.
-    let line = r.problems[0].to_string();
-    assert!(
-        line.starts_with("sub: ") && !line.contains("Io {"),
-        "{line}"
-    );
+    if cfg!(windows) && r.problems.is_empty() {
+        // Windows may still list the directory and refuse each note in it:
+        // the note is then reported unreadable, by its path, and kept
+        // (ADR 0069) — the same promise, one level down.
+        assert_eq!(r.unreadable.len(), 1, "{r:?}");
+        assert_eq!(r.unreadable[0].0, "sub/a.md", "{r:?}");
+    } else {
+        assert_eq!(r.problems.len(), 1, "{r:?}");
+        assert_eq!(r.problems[0].path(), "sub");
+        assert!(matches!(r.problems[0], verso_core::WalkProblem::Io { .. }));
+        // Shown as one line with the relative path, not a debug dump.
+        let line = r.problems[0].to_string();
+        assert!(
+            line.starts_with("sub: ") && !line.contains("Io {"),
+            "{line}"
+        );
+    }
     assert_eq!(ws.backlinks("sub/a").unwrap().unwrap().len(), 1);
     assert!(ws.unresolved().unwrap().is_empty());
 
@@ -233,16 +247,7 @@ fn a_placeholder_that_comes_back_unchanged_is_verified_again() {
     let config = tempfile::tempdir().unwrap();
     // A fixed modification time, so the note that comes back has the very
     // same stamp (time, length, hash) as the one that was evicted.
-    let touch = |path: &Path| {
-        assert!(
-            std::process::Command::new("touch")
-                .args(["-t", "202601010000"])
-                .arg(path)
-                .status()
-                .unwrap()
-                .success()
-        );
-    };
+    let touch = crate::shell::old_mtime;
     let segredo = note(vault.path(), "Segredo.md", "# Segredo\n");
     touch(segredo.path());
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
@@ -481,13 +486,10 @@ fn writing_a_note_goes_through_the_atomic_write_and_refuses_a_changed_file() {
     // Changed on disk behind the editor's back: the fresh revision is stale
     // too. Through the shell, as `chmod` is above: the temp handle points
     // at the inode the atomic write replaced, not at the path.
-    let status = std::process::Command::new("sh")
-        .arg("-c")
-        .arg("printf 'externo\\n' >> \"$0\"")
-        .arg(vault.path().join("Nota.md"))
-        .status()
-        .unwrap();
-    assert!(status.success());
+    assert!(crate::shell::append_line(
+        &vault.path().join("Nota.md"),
+        "externo"
+    ));
     let refused = ws.write_note("Nota", "meu\n", &after.revision);
     assert!(matches!(refused, Err(CoreError::Write(_))), "{refused:?}");
     // A token the core did not issue.
@@ -519,11 +521,7 @@ fn write_note_answers_the_text_and_revision_of_the_bytes_it_wrote() {
         // a moment after this write starts.
         let other = std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_micros(100 + (attempt % 30) * 120));
-            let _ = std::process::Command::new("sh")
-                .arg("-c")
-                .arg("printf 'EXTERNAL\\n' > \"$0\"")
-                .arg(&target)
-                .status();
+            let _ = crate::shell::overwrite_line(&target, "EXTERNAL");
         });
         let mine = format!("mine {attempt}\n");
         let written = ws.write_note("N", &mine, &before.revision);
@@ -741,22 +739,12 @@ fn any_text_file_is_read_and_written_over_its_revision() {
 
 /// A symlink's target is named relative to the folder, or only as
 /// outside it: no absolute path crosses (ADR 0026 rule 4).
-#[cfg(unix)]
 #[test]
 fn a_write_through_a_symlink_names_the_target_without_a_path_outside() {
-    // The links are made by `ln`: this crate's lint keeps disk access in
-    // verso-fs (ADR 0026 rule 5), and a fixture is no reason for an
-    // `#[allow]`.
-    let symlink = |target: &Path, at: &Path| {
-        let made = std::process::Command::new("ln")
-            .arg("-s")
-            .arg(target)
-            .arg(at)
-            .status()
-            .unwrap()
-            .success();
-        assert!(made, "ln -s {} {}", target.display(), at.display());
-    };
+    // The links are made by the system's tool: this crate's lint keeps disk
+    // access in verso-fs (ADR 0026 rule 5), and a fixture is no reason for
+    // an `#[allow]`.
+    let symlink = |target: &Path, at: &Path| crate::shell::symlink(target, at, false);
     let vault = tempfile::tempdir().unwrap();
     let config = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir().unwrap();

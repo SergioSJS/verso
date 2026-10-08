@@ -1,0 +1,29 @@
+# Approved by the maintainer on 2026-10-07 in session ("Aprovado"), after the observation in Obsidian; drafted by Fable 5.1 on 2026-10-07 (ADR 0031).
+# Construct: a `^id` inside a quote — alone after a blank quoted line, at
+# the end of a callout's text, at the end of a list item inside a quote.
+# Spec: docs/spec/dialect.md §5.7, Q3: the top-level quote is the block,
+# whole, whatever holds the id. `pos` is the `^`; `lines` is the quote.
+# The spec's section 9 is updated in the same PR.
+blocks:
+  - id: q
+    pos: { line: 3, col: 3 }
+    lines: [1, 3]
+  - id: c
+    pos: { line: 6, col: 9 }
+    lines: [5, 6]
+  - id: i
+    pos: { line: 8, col: 8 }
+    lines: [8, 9]
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-07 against a throwaway folder in the sandbox
+    vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)`, 0-based lines:
+    blocks { q: 0..2, c: 4..5, i: 7..8 }; sections: blockquote 0..2 #q,
+    callout 4..5 #c, blockquote 7..8 #i — each id on the whole top-level
+    section, the list items inside the third quote (7..7, 8..8) carrying
+    no id of their own. Also observed, not in this fixture: `> > a ^q`
+    gives blockquote 0..0 #q; `> - a\n> - b\n\n^q` gives blockquote
+    0..1 #q.

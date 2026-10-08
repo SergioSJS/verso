@@ -4,6 +4,7 @@
 
 import { importDemoVault } from "./demo";
 import { el, h, ui } from "./dom";
+import { refreshFrame } from "./frame";
 import { icon } from "./icons";
 import { keyOf, prettyKeys } from "./keys";
 import { ribbon } from "./main";
@@ -14,6 +15,7 @@ import { t } from "./strings";
 export const toggleSideButton = el<HTMLButtonElement>("toggle-side");
 export const toggleRightButton = el<HTMLButtonElement>("toggle-right");
 export function paintToggles(): void {
+  refreshFrame();
   ribbon?.paint();
   toggleSideButton.classList.toggle("off", document.body.classList.contains("no-side"));
   toggleRightButton.classList.toggle("off", document.body.classList.contains("no-right"));
@@ -31,6 +33,7 @@ export function rightShown(): boolean {
  *  place: a drawer that closes on a press elsewhere must not redraw the
  *  ribbon under the pointer, whose click would be lost. */
 export function paintExpanded(): void {
+  refreshFrame();
   toggleSideButton.setAttribute("aria-expanded", String(sideShown()));
   toggleRightButton.setAttribute("aria-expanded", String(rightShown()));
   ui.ribbon.querySelector('[data-id="files"]')?.setAttribute("aria-expanded", String(sideShown()));

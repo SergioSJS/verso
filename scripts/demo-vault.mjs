@@ -123,9 +123,24 @@ function linksOf(text) {
 }
 
 /** What `check` refuses in the vault itself, one line each. */
+/** Whether a name is one not every OS can keep — Windows would not keep it
+ *  as written (ADR 0070): the tutorial is imported into folders synced to
+ *  Windows, and the core refuses such a name when the import makes it. The
+ *  same rule as crates/verso-fs/src/confine.rs and app/ui/src/files.ts. */
+function unportable(name) {
+  const stem = (name.split(".")[0] ?? "").trimEnd().toUpperCase();
+  const device = /^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[0-9¹²³]|LPT[0-9¹²³])$/.test(stem);
+  return device || /[. ]$/.test(name) || /[:*"<>?|\\\x00-\x1f]/.test(name);
+}
+
 function problems() {
   const files = vaultFiles();
   const said = [];
+  for (const p of files) {
+    for (const part of p.replace(/^demo-vault\//, "").split("/")) {
+      if (unportable(part)) said.push(`${p}: "${part}" is a name not every system can keep (ADR 0070)`);
+    }
+  }
   const byPath = new Map(files.map((p) => [fold(p), p]));
   const byName = new Map();
   for (const p of files) byName.set(fold(baseOf(p)), [...(byName.get(fold(baseOf(p))) ?? []), p]);

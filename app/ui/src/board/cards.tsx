@@ -8,7 +8,7 @@ import { type CanvasNode, CARD_PAPER, cardCrop, type El, nodeData, nodeName, typ
 import { type BoardStrings } from "./strings";
 import { OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
-import { ext, IMAGE } from "./util";
+import { ext, IMAGE } from "../paths";
 
 /** A card of a picture in the folder: drawn as the picture alone, with no
  *  frame, head or title (its name is the picture's alternative text; open
@@ -434,7 +434,28 @@ export function CardLayer({
       if ((e.target as Element | null)?.closest?.(".board-card-slot.is-active")) e.stopPropagation();
     };
     el.addEventListener("wheel", wheel, { passive: true });
-    return () => el.removeEventListener("wheel", wheel);
+    // An entered card takes the pointer (its links, its text), so a right
+    // click on it never reached the board, and the board's menu did not
+    // open: a card selected, then right-clicked a moment later, showed no
+    // menu. The click goes on to the board's canvas at the same point —
+    // but what has a menu of its own keeps it: the card's text editor, a
+    // link, a picture (the window's image menu, which listens in the
+    // capture phase and answers first anyway; skipped here too, so that
+    // this never depends on that order).
+    const menu = (e: MouseEvent): void => {
+      const target = e.target as Element | null;
+      if (!target?.closest?.(".board-card-slot.is-active") || target.closest(".board-card-editor, .board-card-image, img, a")) return;
+      const canvas = el.closest(".board-canvas")?.querySelector<HTMLCanvasElement>("canvas.excalidraw__canvas.interactive");
+      if (!canvas) return;
+      e.preventDefault();
+      e.stopPropagation();
+      canvas.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, button: 2, buttons: 2 }));
+    };
+    el.addEventListener("contextmenu", menu);
+    return () => {
+      el.removeEventListener("wheel", wheel);
+      el.removeEventListener("contextmenu", menu);
+    };
   }, []);
   // Shown within a screen of the view, hidden past two: a card at the edge
   // does not come and go as the view trembles. The one entered or edited is

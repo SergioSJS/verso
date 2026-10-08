@@ -23,7 +23,7 @@ O Verso organiza notas e pastas com o mesmo frontmatter que o plugin make.md esc
 Uma nota ou pasta pode ter uma figurinha (um emoji ou um ícone) e uma cor que tinge o nome. Elas aparecem na árvore, nas abas e no cabeçalho da nota.
 
 ### Como definir
-1. Clique na figurinha ao lado do título da nota aberta, ou clique com o botão direito na nota ou pasta na árvore e escolha **Alterar figurinha…** ou **Alterar cor…**.
+1. Clique na figurinha à esquerda do título da nota aberta (sem figurinha, ali fica um brilho apagado; a estrela, à direita, é a dos favoritos), ou clique com o botão direito na nota ou pasta na árvore e escolha **Alterar figurinha…** ou **Alterar cor…**.
 2. Busque um emoji pelo nome, em português ou inglês, ou passe para a aba **Ícones**.
 3. Escolha uma cor da paleta.
 

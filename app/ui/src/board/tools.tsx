@@ -122,6 +122,10 @@ export function InsertMenu({ s, addFile, addText, addLink, takeFiles, looseOn, t
       title={title}
       data-testid={testId}
       className={`dropdown-menu-item dropdown-menu-item-base${checked ? " is-on" : ""}`}
+      // The focus stays on the board: Chromium (WebView2) moves it to a
+      // clicked button, and the board's keys (a, r, Esc) would stop
+      // reaching Excalidraw; WebKit never does (ADR 0069, item 8).
+      onMouseDown={(e) => e.preventDefault()}
       onClick={() => {
         setOpen(false);
         run();
@@ -144,6 +148,7 @@ export function InsertMenu({ s, addFile, addText, addLink, takeFiles, looseOn, t
           aria-haspopup="menu"
           aria-expanded={open}
           data-testid="board-tool-insert"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => setOpen((v) => !v)}
         >
           <BoardIcon d={ICO.insert} />

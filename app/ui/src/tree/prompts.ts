@@ -6,7 +6,7 @@ import { commands } from "../bindings";
 import { afterFileChange } from "../changes";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
-import { createNote, renameFolder, renameNote, unlinkable } from "../files";
+import { createNote, renameFolder, renameNote, unlinkable, unportable } from "../files";
 import { icon } from "../icons";
 import { layout, openNote } from "../layout/spaces";
 import { dirOf, name } from "../paths";
@@ -57,11 +57,16 @@ export function newFolderPrompt(folder: string): void {
   row.append(icon("folderPlus"), where, input);
   ui.notesHeading.after(row);
   input.focus();
+  // Once: Chromium (WebView2) fires blur inside row.remove(), and the
+  // second remove would throw before the folder is made (ADR 0069, item 8).
+  let done = false;
   const finish = (commit: boolean, restore = false) => {
+    if (done) return;
+    done = true;
     const v = input.value.trim().replace(/^\/+|\/+$/g, "");
     row.remove();
     if (restore) returnFromSide(back);
-    if (!commit || !v || unlinkable(v)) return;
+    if (!commit || !v || unlinkable(v) || unportable(v)) return;
     void commands.createFolder(folder ? `${folder}/${v}` : v).then(async (r) => {
       if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
       openFolders.add(r.data);
@@ -136,7 +141,12 @@ export function newNotePrompt(folder: string): void {
   row.append(where, input);
   ui.notesHeading.after(row);
   input.focus();
+  // Once: Chromium (WebView2) fires blur inside row.remove(), and the
+  // second remove would throw before the note is made (ADR 0069, item 8).
+  let done = false;
   const finish = (commit: boolean, restore = false) => {
+    if (done) return;
+    done = true;
     const v = input.value;
     row.remove();
     if (restore) returnFromSide(back);

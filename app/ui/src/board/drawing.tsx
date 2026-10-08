@@ -6,7 +6,7 @@ import { Excalidraw, restoreElements } from "@excalidraw/excalidraw";
 import { type BinaryFileData } from "@excalidraw/excalidraw/types";
 import { type JSX, useEffect, useMemo, useState } from "react";
 import { dataUrlOf } from "./pictures";
-import { ext } from "./util";
+import { ext } from "../paths";
 import { Api } from "./view";
 
 /** A drawing of Obsidian's Excalidraw plugin, shown as it is drawn and

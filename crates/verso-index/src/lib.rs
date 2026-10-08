@@ -83,7 +83,21 @@ impl From<std::io::Error> for IndexError {
 pub struct Index {
     conn: Connection,
     path: PathBuf,
+    /// Changes made since the open run's transaction last committed;
+    /// `None` outside a run ([`Index::begin`]).
+    run: Option<u32>,
+    /// When the open run began, in seconds since the Unix epoch: what a
+    /// row written or confirmed in it records as `indexed_at`.
+    run_started: Option<i64>,
 }
+
+/// Changes of an index run between two commits: the write lock is let go
+/// that often, so another process writing the index (the CLI, the MCP
+/// server, a second window) waits a fraction of a second, not the run.
+const RUN_CHUNK: u32 = 200;
+
+/// How long a write waits for another process's lock before failing.
+const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 impl std::fmt::Debug for Index {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -112,9 +126,80 @@ impl Index {
         restrict(&path, 0o600)?;
         exclude_from_backup(&path);
         conn.pragma_update(None, "journal_mode", "WAL")?;
+        // The index is a cache rebuilt from the notes (ADR 0011): in WAL,
+        // NORMAL keeps the file consistent through a crash and gives up
+        // only the last commits on a power loss, which the next index
+        // redoes. FULL syncs the disk on every commit — one per note —
+        // which Windows does for real (`FlushFileBuffers`): a first index
+        // of 5,000 notes took 228 s there against 3 s on macOS (ADR 0069).
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
+        // Another process may be writing (the CLI, the MCP server): wait
+        // for its lock rather than fail at once.
+        conn.busy_timeout(BUSY_TIMEOUT)?;
         schema::ensure(&conn)?;
-        Ok(Self { conn, path })
+        Ok(Self {
+            conn,
+            path,
+            run: None,
+            run_started: None,
+        })
+    }
+
+    /// Opens a transaction around many changes — an index run — so that
+    /// each note's change is a savepoint inside it rather than a commit of
+    /// its own; [`Index::step`] commits every [`RUN_CHUNK`] changes and
+    /// [`Index::commit`] ends the run. `IMMEDIATE`: the write lock is
+    /// taken now, waiting for another process's, rather than at the first
+    /// change, where a reader turned writer could fail. A transaction left
+    /// open by a run that never ended (a panic the caller caught) is
+    /// committed first: each change in it is whole.
+    pub fn begin(&mut self) -> Result<(), IndexError> {
+        if !self.conn.is_autocommit() {
+            self.conn.execute_batch("COMMIT")?;
+        }
+        // Taken before any note of the run is read: a row's `indexed_at`
+        // must never be later than the read it vouches for.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
+        self.conn.execute_batch("BEGIN IMMEDIATE")?;
+        // A clock set back (a restored virtual machine, a clock corrected
+        // by the network) leaves rows vouched for "in the future": they
+        // are read again rather than trusted.
+        self.conn.execute(
+            "UPDATE notes SET indexed_at = 0 WHERE indexed_at > ?1",
+            [now],
+        )?;
+        self.run = Some(0);
+        self.run_started = Some(now);
+        Ok(())
+    }
+
+    /// One change of the open run done: every [`RUN_CHUNK`] changes the
+    /// run commits and opens a new transaction, letting other writers in.
+    /// Nothing outside a run.
+    pub fn step(&mut self) -> Result<(), IndexError> {
+        let Some(done) = self.run.as_mut() else {
+            return Ok(());
+        };
+        *done += 1;
+        if *done >= RUN_CHUNK {
+            *done = 0;
+            self.conn.execute_batch("COMMIT; BEGIN IMMEDIATE")?;
+        }
+        Ok(())
+    }
+
+    /// Commits what [`Index::begin`] opened and ends the run; nothing to
+    /// commit when no transaction is open.
+    pub fn commit(&mut self) -> Result<(), IndexError> {
+        self.run = None;
+        self.run_started = None;
+        if !self.conn.is_autocommit() {
+            self.conn.execute_batch("COMMIT")?;
+        }
+        Ok(())
     }
 
     /// An index that lives only in memory: for tests and for a folder the
@@ -126,6 +211,8 @@ impl Index {
         Ok(Self {
             conn,
             path: PathBuf::from(":memory:"),
+            run: None,
+            run_started: None,
         })
     }
 

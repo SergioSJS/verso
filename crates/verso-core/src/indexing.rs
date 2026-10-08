@@ -4,7 +4,28 @@
 use super::*;
 
 impl Workspace {
-    pub fn index_with_progress<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
+    /// One index run, in transactions of a few hundred notes each: a
+    /// commit per note syncs the disk once per note where SQLite's sync is
+    /// real (Windows). What was done before a failure — or a panic, which
+    /// the app catches and survives — is committed, each note's change
+    /// whole on its own, and the run's transaction never stays open.
+    pub fn index_with_progress<F>(&mut self, on_progress: F) -> Result<IndexReport, CoreError>
+    where
+        F: FnMut(IndexProgress),
+    {
+        self.index.begin().map_err(CoreError::Index)?;
+        let report =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.index_run(on_progress)));
+        let committed = self.index.commit().map_err(CoreError::Index);
+        let report = match report {
+            Ok(report) => report?,
+            Err(panic) => std::panic::resume_unwind(panic),
+        };
+        committed?;
+        Ok(report)
+    }
+
+    fn index_run<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
     where
         F: FnMut(IndexProgress),
     {
@@ -56,6 +77,20 @@ impl Workspace {
                         file: Some(relative.clone()),
                     });
                     present.insert(relative.clone());
+                    // Modified time and length the index holds, from long
+                    // enough before the run that last read it: unchanged,
+                    // and not read again (decided 2026-10-08; reading and
+                    // hashing every note made each opening of 5,000 notes
+                    // cost seconds of CPU).
+                    if let Some(modified) = entry.modified.map(seconds_since_epoch)
+                        && self
+                            .index
+                            .unchanged_by_stat(&relative, modified, entry.len)
+                            .map_err(CoreError::Index)?
+                    {
+                        report.unchanged += 1;
+                        continue;
+                    }
                     match self.root.read(entry.handle) {
                         Ok((bytes, stamp)) => {
                             let stamp = note_stamp(&stamp);
@@ -70,6 +105,9 @@ impl Workspace {
                                 .map_err(CoreError::Index)?
                                 .unwrap_or(false);
                             if same && !unverified {
+                                // Read and matched: trusted by its stat
+                                // from the next run on.
+                                self.index.confirm(&relative).map_err(CoreError::Index)?;
                                 report.unchanged += 1;
                                 continue;
                             }
@@ -80,6 +118,7 @@ impl Workspace {
                             self.index
                                 .upsert(&relative, stamp, &content, &parsed)
                                 .map_err(CoreError::Index)?;
+                            self.index.step().map_err(CoreError::Index)?;
                             report.indexed += 1;
                             report.changed.push(relative.clone());
                         }

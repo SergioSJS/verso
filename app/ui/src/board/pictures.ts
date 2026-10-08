@@ -8,7 +8,7 @@ import { isBarePicture } from "./cards";
 import { plainOf, wrapLines } from "./export";
 import { cardCrop, type Crop, type El, isNode, nodeData, nodeName } from "./model";
 import { BoardHost } from "./types";
-import { ext, IMAGE } from "./util";
+import { ext, IMAGE } from "../paths";
 import { Api } from "./view";
 
 /** The colours a card is drawn in on a picture: the app's light paper, as

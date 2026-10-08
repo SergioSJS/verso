@@ -28,7 +28,7 @@ impl Index {
         if from == to {
             return Ok(self.stamp_of(from)?.is_some());
         }
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         let old: Option<(i64, Option<String>, String)> = tx
             .query_row(
                 "SELECT id, title, content FROM notes WHERE path = ?1",
@@ -165,7 +165,7 @@ impl Index {
 }
 
 /// Remove the row at `path`, if any, from `notes_fts` and `notes`.
-fn forget_path(tx: &rusqlite::Transaction<'_>, path: &str) -> Result<(), IndexError> {
+fn forget_path(tx: &rusqlite::Connection, path: &str) -> Result<(), IndexError> {
     let stale: Option<(i64, Option<String>, String)> = tx
         .query_row(
             "SELECT id, title, content FROM notes WHERE path = ?1",

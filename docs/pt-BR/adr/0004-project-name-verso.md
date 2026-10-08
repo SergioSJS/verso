@@ -30,14 +30,19 @@ e um editor de metadados de imagem em Perl.
 - A disponibilidade em crates.io, npm e org do GitHub é `[ABERTO]` e precisa
   ser verificada antes de tornar o repositório público
   ([0007](0007-private-repo-until-license.md)).
-- `[ABERTO]` O identificador do app, `dev.verso.app` (`dev.verso.app.beta` nas
-  betas: `app/src-tauri/tauri.conf.json`, o workflow da versão), é escrito
-  como um domínio invertido que o projeto não tem; `com.versomd.app` seguiria
-  o que ele tem. Trocá-lo deixa para trás o que o macOS e a web view guardam
-  por app — permissões dadas, o armazenamento da própria janela —, enquanto
-  os ajustes, no diretório de configuração
-  ([0011](0011-config-outside-tree-index-as-cache.md)), ficam. Cabe ao
-  mantenedor decidir.
+- **Decidido em 2026-10-07 pelo mantenedor — o identificador do app é
+  `com.versomd.app`** (`com.versomd.app.beta` nas betas:
+  `app/src-tauri/tauri.conf.json`, o workflow da versão), seguindo o
+  domínio que o projeto tem; era `dev.verso.app`, um domínio que ele não
+  tem. O que a web view guarda por app fica sob o identificador, e é mais do
+  que permissões: os ajustes da janela, as teclas, as larguras das colunas
+  das tabelas e os focos locais estão no armazenamento local dela, não no
+  diretório de configuração. Perguntado, o mantenedor escolheu levá-los uma
+  vez: na primeira abertura com o identificador novo o app copia
+  `~/Library/WebKit/dev.verso.app[.beta]` para o novo antes de qualquer
+  janela abrir (`app/src-tauri/src/update.rs`, `migrate_web_data`), nunca
+  por cima de dados que já estejam lá. Permissões que o macOS deu por app
+  (o acesso a uma pasta) são pedidas de novo uma vez.
 - As colisões conhecidas estão fora da categoria e não bloqueiam o uso do nome;
   podem exigir desambiguação em buscas.
 

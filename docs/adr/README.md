@@ -55,6 +55,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0065](0065-a-folder-per-window.md) | A folder per window | Accepted (2026-10-06) |
 | [0066](0066-mcp-sees-boards-relations-properties-bases.md) | The MCP sees boards, relations, properties and bases | Accepted (2026-10-07) |
 | [0067](0067-source-files-stay-small.md) | Source files stay small: a module map and a size limit | Accepted (2026-10-07) |
+| [0068](0068-templates-chosen-in-a-new-note.md) | Templates chosen in a new note, as in Notion | Accepted (2026-10-07) |
 
 ### Plugins and LLM
 
@@ -89,6 +90,10 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0055](0055-in-app-updater.md) | The in-app updater | Accepted (2026-09-29) |
 | [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29); revised the same day: no proxy, pages load directly from origins the user approved |
 | [0057](0057-board-json-canvas.md) | The board: a JSON Canvas file, Excalidraw as its surface, typed relations in the frontmatter | Accepted (2026-09-30) |
+| [0069](0069-windows-port.md) | The Windows port: x64, an installer, tested on a Windows machine over SSH | Proposed (2026-10-07); x64, Windows 10 and 11, NSIS and no code signing for now decided; starts now, in Phase 2 ahead of the rest (0022 revised); the push gate when platform code changes; Windows 10 machine later, code written for it; the configuration location (`%LOCALAPPDATA%\verso`) and OneDrive's placeholder decided 2026-10-08; `[OPEN]` (provisional): the directory `fsync`, the path separator |
+| [0070](0070-what-travels-with-the-folder.md) | What travels with the folder: three layers of settings, and names every OS can keep | Proposed (2026-10-08); names every OS can keep decided, `\` among them |
+| [0071](0071-linux-port.md) | The Linux port: one build for every distribution, tested on virtual machines | Proposed (2026-10-08); waits ("deixe pra depois"); `[OPEN]`: ARM64, supported versions, two or three machines, the updater, signing, the index's location |
+| [0072](0072-window-controls-in-the-app.md) | The window's controls inside the app: no title bar on macOS and Windows | Accepted (2026-10-08): the app's own buttons on Windows |
 
 ### Dialect, engineering and roadmap
 
@@ -102,7 +107,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0034](0034-roadmap-in-phases.md) | Roadmap in three phases with verifiable exit gates | Accepted |
 | [0035](0035-cross-cutting-requirements.md) | Cross-cutting requirements: pt-BR and EN, accessibility, benchmark | Accepted |
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted (intent) |
-| [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted; a custom Dock menu `[OPEN]` (2026-09-29) |
+| [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted; no custom Dock menu for now (decided 2026-10-07) |
 | [0051](0051-development-flow-and-releases.md) | Development flow, versions and releases | Accepted |
 | [0058](0058-demo-vault-as-tutorial.md) | The demo vault is the product's tutorial, kept with every feature | Accepted (2026-10-01; revised the same day: the walkthrough runs by machine in the browser harness); the demo vault in English `[OPEN]` |
 

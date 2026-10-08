@@ -123,16 +123,19 @@ fn place(
             if occupied(to).map_err(WriteError::Io)? {
                 return Err(WriteError::Exists);
             }
-            std::fs::rename(from, to).map_err(WriteError::Io)?;
+            // A wait for a held file (Windows) looks again before each try:
+            // something that appeared at `to` meanwhile is never replaced.
+            let still_free = || matches!(occupied(to), Ok(false));
+            if !crate::os::rename_unless_changed(from, to, still_free).map_err(WriteError::Io)? {
+                return Err(WriteError::Exists);
+            }
             Ok(Placed::Renamed)
         }
         Err(e) => Err(WriteError::Io(e)),
     }
 }
 
-fn sync_dir(dir: &Path) -> Result<(), std::io::Error> {
-    File::open(dir)?.sync_all()
-}
+use crate::os::sync_dir;
 
 /// Something already stands at `path` — a file, a directory, or a
 /// placeholder for it.
@@ -269,11 +272,16 @@ pub(crate) fn create_directory(dir: &Path) -> Result<OpReport, WriteError> {
 /// Whether `a` and `b` are two names of one inode in one directory: a
 /// rename that changes only the case or the Unicode normalization of a
 /// name on a file system that looks names up without regard to either
-/// finds the source itself standing at the destination.
-#[cfg(unix)]
-fn same_entry(a: &std::fs::Metadata, b: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    a.dev() == b.dev() && a.ino() == b.ino()
+/// (APFS, NTFS) finds the source itself standing at the destination.
+/// Neither followed: a symlink is compared as itself.
+fn same_entry(a: &Path, a_meta: &std::fs::Metadata, b: &Path, b_meta: &std::fs::Metadata) -> bool {
+    match (
+        crate::os::file_id(a, a_meta, false),
+        crate::os::file_id(b, b_meta, false),
+    ) {
+        (Ok(x), Ok(y)) => x == y,
+        _ => false,
+    }
 }
 
 /// Whether the directory `dir` lists an entry named exactly `name`, byte
@@ -305,11 +313,11 @@ pub(crate) fn rename_path(from: &Path, to: &Path) -> Result<OpReport, WriteError
         // links to one file in one directory make `rename` a no-op.
         let same_inode = to
             .symlink_metadata()
-            .is_ok_and(|to_meta| same_entry(&from_meta, &to_meta));
+            .is_ok_and(|to_meta| same_entry(from, &from_meta, to, &to_meta));
         if !(same_inode && from_dir == to_dir) {
             return Err(WriteError::Exists);
         }
-        std::fs::rename(from, to).map_err(WriteError::Io)?;
+        crate::os::rename(from, to).map_err(WriteError::Io)?;
         let (Some(old_name), Some(new_name)) = (from.file_name(), to.file_name()) else {
             return Err(WriteError::Exists);
         };
@@ -344,7 +352,7 @@ pub(crate) fn rename_path(from: &Path, to: &Path) -> Result<OpReport, WriteError
         if occupied(to).map_err(WriteError::Io)? {
             return Err(WriteError::Exists);
         }
-        std::fs::rename(from, to).map_err(WriteError::Io)?;
+        crate::os::rename(from, to).map_err(WriteError::Io)?;
     }
     let mut report = finish_move(to_dir, from_dir, &created, leftover);
     report.no_hard_links = unguarded;
@@ -381,14 +389,14 @@ fn finish_move(
 /// relative path; a name already in the bin gets ` (2)`, ` (3)`… before
 /// its extension. Returns where it went, relative to the root.
 pub(crate) fn trash(root: &Path, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
-    let from = root.join(relative);
+    let from = crate::on_disk(root, relative);
     if placeholder::stands_in(&from).map_err(WriteError::Io)? {
         return Err(WriteError::Placeholder);
     }
-    let bin = Path::new(".trash").join(relative);
+    let bin = crate::rel_join(Path::new(".trash"), relative);
     let mut target = bin.clone();
     let mut n = 2;
-    while occupied(&root.join(&target)).map_err(WriteError::Io)? {
+    while occupied(&crate::on_disk(root, &target)).map_err(WriteError::Io)? {
         let stem = bin
             .file_stem()
             .map(|s| s.to_string_lossy().into_owned())
@@ -397,10 +405,11 @@ pub(crate) fn trash(root: &Path, relative: &Path) -> Result<(PathBuf, OpReport),
             .extension()
             .map(|e| format!(".{}", e.to_string_lossy()))
             .unwrap_or_default();
-        target = bin.with_file_name(format!("{stem} ({n}){ext}"));
+        let parent = bin.parent().unwrap_or(Path::new(""));
+        target = crate::rel_join(parent, format!("{stem} ({n}){ext}"));
         n += 1;
     }
-    let report = rename_path(&from, &root.join(&target))?;
+    let report = rename_path(&from, &crate::on_disk(root, &target))?;
     Ok((target, report))
 }
 
@@ -412,7 +421,7 @@ pub const WAYPOINTS_PATH: &str = ".space/waypoints.json";
 /// Returns `NotFound` when there is no such file; returns `Unavailable` when
 /// the file is an iCloud placeholder (Invariant 10).
 pub(crate) fn read_waypoints(root: &Path) -> Result<(Vec<u8>, Stamp), ReadError> {
-    let target = root.join(WAYPOINTS_PATH);
+    let target = crate::on_disk(root, Path::new(WAYPOINTS_PATH));
     if placeholder::stands_in(&target).map_err(ReadError::Io)? {
         return Err(ReadError::Unavailable);
     }
@@ -434,7 +443,7 @@ pub(crate) fn write_waypoints(
     content: &[u8],
     expected: &Stamp,
 ) -> Result<WriteReport, WriteError> {
-    let target = root.join(WAYPOINTS_PATH);
+    let target = crate::on_disk(root, Path::new(WAYPOINTS_PATH));
     if placeholder::stands_in(&target).map_err(WriteError::Io)? {
         return Err(WriteError::Placeholder);
     }
