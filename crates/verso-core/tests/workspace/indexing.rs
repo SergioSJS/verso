@@ -87,7 +87,7 @@ fn config_dir_precedence_and_no_relative_fallback() {
         verso_core::config_dir_from(
             Some(OsStr::new("/cfg")),
             Some(OsStr::new("/xdg")),
-            Some(OsStr::new("C:/Users/x/AppData/Roaming")),
+            Some(OsStr::new("C:/Users/x/AppData/Local")),
             home,
             true
         )
@@ -106,17 +106,17 @@ fn config_dir_precedence_and_no_relative_fallback() {
         verso_core::config_dir_from(None, None, None, home, false).as_deref(),
         Some(Path::new("/Users/x/.config/verso"))
     );
-    // On Windows, APPDATA names it, ahead of a HOME that Git Bash may set.
+    // On Windows, LOCALAPPDATA names it, ahead of a HOME that Git Bash may set.
     assert_eq!(
         verso_core::config_dir_from(
             None,
             None,
-            Some(OsStr::new("C:/Users/x/AppData/Roaming")),
+            Some(OsStr::new("C:/Users/x/AppData/Local")),
             home,
             false
         )
         .as_deref(),
-        Some(Path::new("C:/Users/x/AppData/Roaming/verso"))
+        Some(Path::new("C:/Users/x/AppData/Local/verso"))
     );
     // No HOME and no override: an error, never a relative directory.
     assert_eq!(

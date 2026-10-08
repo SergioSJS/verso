@@ -150,7 +150,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
             Msg::MissingQuery => "faltam as palavras da busca".to_owned(),
             Msg::MissingNote => "falta a nota (caminho relativo à pasta)".to_owned(),
             Msg::NoConfigDir => {
-                "sem diretório de configuração: defina HOME (APPDATA no Windows), XDG_CONFIG_HOME ou VERSO_CONFIG_DIR"
+                "sem diretório de configuração: defina HOME (LOCALAPPDATA no Windows), XDG_CONFIG_HOME ou VERSO_CONFIG_DIR"
                     .to_owned()
             }
             Msg::CannotOpen(e) => format!("não abriu: {e}"),
@@ -235,7 +235,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
             Msg::MissingQuery => "missing the search words".to_owned(),
             Msg::MissingNote => "missing the note (path relative to the folder)".to_owned(),
             Msg::NoConfigDir => {
-                "no configuration directory: set HOME (APPDATA on Windows), XDG_CONFIG_HOME or VERSO_CONFIG_DIR"
+                "no configuration directory: set HOME (LOCALAPPDATA on Windows), XDG_CONFIG_HOME or VERSO_CONFIG_DIR"
                     .to_owned()
             }
             Msg::CannotOpen(e) => format!("could not open: {e}"),
