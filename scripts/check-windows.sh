@@ -59,6 +59,16 @@ fi
 # One PowerShell command on the host, its exit code passed through.
 on_host() { ssh -o BatchMode=yes "$host" "\$ErrorActionPreference='Stop'; \$ProgressPreference='SilentlyContinue'; $1; exit \$LASTEXITCODE"; }
 
+# One run at a time on the host: a second would delete the first one's
+# sources mid-build. The lock is a directory, made atomically, removed on
+# the way out.
+if ! on_host "New-Item -ItemType Directory -Force '$base' | Out-Null
+              New-Item -ItemType Directory '$base/lock' | Out-Null" >/dev/null 2>&1; then
+  echo "another run holds $host:$base/lock — wait for it, or remove that directory if none is running"
+  exit 1
+fi
+trap "on_host \"Remove-Item -Recurse -Force '$base/lock'\" >/dev/null 2>&1" EXIT
+
 failed=()
 step() {
   local name="$1"; shift
