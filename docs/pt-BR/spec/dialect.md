@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.30
+# Spec do dialeto do Verso — v0.31
 
-- Versão: v0.30 · 2026-10-07
+- Versão: v0.31 · 2026-10-07
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -787,7 +787,9 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
 - **Q3. Posição admissível do `^id`.** `DECIDIDO` para o fim de um
   parágrafo e de um item de lista (2026-09-21), para um `^id` sozinho depois
   de um bloco de nível superior e no fim de um heading (2026-10-07);
-  `[ABERTO]` para os quatro fatos provisórios abaixo (2026-10-07).
+  `[ABERTO]` para um `^id` dentro de um item de lista ou de uma citação, e
+  para um sozinho sem nada antes — observado no Obsidian em 2026-10-07,
+  três fixtures rascunhadas, aguardando a aprovação do mantenedor.
   Fechada para essas duas em 2026-09-21 pelo mantenedor, com as fixtures
   `fixtures/block/definition` e `fixtures/block/list-item` como resposta
   (ADR 0031): um `^id` como última palavra de um parágrafo e um `^id` como
@@ -804,28 +806,28 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   qual bloco. `pos` continua sendo o `^`, como a seção 4.3 pede, seja qual
   for o bloco que o id nomeia. Sem mudança: num item de lista o `^id` é
   procurado no texto próprio do item, até o primeiro filho de bloco (seção
-  5.9).
+  5.7).
 
-  **Fatos provisórios da implementação, 2026-10-07, depois da leitura do
-  revisor — não são resposta a esta questão, não foram observados no
-  Obsidian, e ficam `[ABERTO]` para o mantenedor decidir.** (1) Um item cujo
-  primeiro bloco é um parágrafo — todo item de uma lista solta — toma esse
-  parágrafo como texto próprio, e um `^id` no fim dele nomeia o item
-  inteiro, com os itens aninhados e os parágrafos seguintes, como num item
-  compacto; um bloco de código, uma citação ou um heading em primeiro no
-  item nomeia só a si. (2) "O bloco de antes" é o da mesma profundidade:
-  dentro de uma citação ou de um item de lista, o bloco de antes naquela
-  citação ou item; sem nada antes, a linha do `^id` nomeia a si mesma. (3)
-  Um `^palavra` que não é id (com um ponto, digamos) é um parágrafo como
-  outro qualquer, e um `^id` sozinho depois dele nomeia esse parágrafo. (4)
-  Quando o bloco de antes de um `^id` sozinho é o primeiro parágrafo de um
-  item, o fato (1) faz o bloco ser o item inteiro, e as `lines` dele então
-  vão até a linha do `^id`, que fica dentro do item (`- um`, linha em
-  branco, `  ^x`, linha em branco, `  - filho` dá linhas 1 a 5); no nível
-  superior a linha do `^id` nunca faz parte do bloco que nomeia
-  (`fixtures/block/after-a-block`). Nenhuma fixture registra isso até o
-  mantenedor decidir (invariante 17 do CLAUDE.md, ADR 0031); os testes
-  unitários do parser fixam isso enquanto isso.
+  **Observado no Obsidian 1.14.4 em 2026-10-07 pelo CLI dele (só API
+  pública, ADR 0009), depois da leitura do revisor; implementado e
+  rascunhado como fixtures, `[ABERTO]` até o mantenedor aprová-las.** O
+  bloco que um `^id` nomeia é a seção de nível superior em que a linha dele
+  está, exceto em lista, onde é o item de lista mais interno: (1) dentro de
+  uma citação ou de um callout — o id no fim de uma linha citada, sozinho
+  depois de uma linha citada em branco, numa citação aninhada, numa lista
+  dentro da citação — a citação de nível superior inteira
+  (`fixtures/block/in-quote`); (2) dentro de uma lista — o id no fim da
+  primeira linha de um item, solto ou compacto, no fim de um parágrafo
+  posterior do item, depois de um bloco de código ou de uma citação em
+  primeiro no item, ou sozinho sob uma lista aninhada — o item mais interno
+  em que a linha está, inteiro, a linha do `^id` incluída quando está
+  dentro do item; o cache do Obsidian lista os itens aninhados à parte, e a
+  Q21 (decidida) os põe no bloco (`fixtures/block/in-list`); (3) sozinho no
+  nível superior sem nada antes, nenhum bloco, e depois de um parágrafo que
+  não é id (`^foo.bar`), esse parágrafo (`fixtures/block/alone-top`). Dois
+  `^id` sozinhos em sequência nomeiam ambos o bloco de antes no Verso; o
+  Obsidian guarda só o último — uma extensão, registrada aqui e não uma
+  fixture.
 - **Q4. Escopo de unicidade do `^id`.** `DECIDIDO` em 2026-10-07 pelo
   mantenedor.
   Único por nota: um link nomeia a nota e o id (`[[nota#^id]]`). Com o mesmo
@@ -1298,3 +1300,4 @@ ser escolhido.
 | v0.28 | 2026-10-07 | **Q3, Q4 e Q21 decididas pelo mantenedor**, depois de uma observação do Obsidian pelo CLI no mesmo dia: um bloco é a unidade do editor (Q21); um `^id` sozinho depois de uma linha em branco nomeia o bloco de antes, um no fim de um heading nomeia o heading (Q3); um id é único por nota, o último de dois nomeando o bloco (Q4). Os itens de `blocks` ganham `lines` (§4.3). Três fixtures rascunhadas, à espera da aprovação do mantenedor: `block/after-a-block`, `block/heading`, `block/duplicate`. A §5.7 diz como o id é desenhado: escondido na leitura, apagado no editor, como observado. |
 | v0.29 | 2026-10-07 | As fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` e `fixtures/block/duplicate` **aprovadas pelo mantenedor** em sessão ("tao aprovados"), depois de conferir os blocos no app; a marca de rascunho removida. Nada mais muda. |
 | v0.30 | 2026-10-07 | Depois da leitura do revisor sobre o recurso de blocos (PR #37): a Q3 ganha quatro **fatos provisórios da implementação**, `[ABERTO]` para o mantenedor — item solto nomeado inteiro pelo primeiro parágrafo, "o bloco de antes" na mesma profundidade, um `^palavra` que não é id como parágrafo comum, e a linha do `^id` dentro do item que ela nomeia — com a linha de status dizendo o que está decidido e o que está aberto; a Q4 diz onde a regra do último id está enunciada (o schema de resposta do `read_note`) e aplicada (a janela). Nenhuma fixture até o mantenedor decidir. |
+| v0.31 | 2026-10-07 | A parte aberta da Q3 **observada no Obsidian pelo CLI dele** (28 entradas): o bloco é a seção de nível superior, ou o item de lista mais interno; sozinho sem nada antes, nenhum bloco. Implementado; três fixtures rascunhadas (`block/in-list`, `block/in-quote`, `block/alone-top`), aguardando a aprovação do mantenedor; os fatos provisórios da v0.30 substituídos pela observação. A frase "Sem mudança:" da Q3 cita a seção 5.7, onde mora a regra do texto próprio. |
