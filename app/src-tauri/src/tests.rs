@@ -156,6 +156,35 @@ fn two_folders_handed_at_once_are_both_opened() {
     assert_eq!(lock(&app.state::<App>().initial_folder).len(), 1);
 }
 
+/// A window told a folder is not told another while it opens the first
+/// (`verso a` then `verso b` while `a` indexes): the second gets a window
+/// of its own, and the first window opens the first folder.
+#[test]
+fn a_window_opening_a_folder_is_not_handed_another() {
+    use tauri::Listener;
+    let one = tempfile::tempdir().unwrap();
+    let two = tempfile::tempdir().unwrap();
+    let _a = note(one.path(), "A.md", "# A\n");
+    let _b = note(two.path(), "B.md", "# B\n");
+    let (app, webview) = app();
+    let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen = told.clone();
+    app.listen_any("folder-handed", move |_| {
+        seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    });
+    folder_handed(app.handle(), one.path().to_path_buf());
+    folder_handed(app.handle(), two.path().to_path_buf());
+    // The main window was told once; the second folder waits for a window
+    // of its own.
+    assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let first = call(&webview, "open_initial", json!({})).unwrap();
+    assert_eq!(
+        first["name"],
+        one.path().file_name().unwrap().to_str().unwrap()
+    );
+    assert!(lock(&app.state::<App>().opening).is_empty());
+}
+
 /// A note another app writes while the folder is open: the index finds
 /// it and the app's windows are told, by its path relative to the
 /// folder; a note Verso wrote itself is never reported as changed

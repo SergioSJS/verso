@@ -436,7 +436,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 ## 10. Ajustes, ajuda, a linha de comando
 
 1. ⌘,: as seções como a nota 15 as nomeia; as opções de Aparência; Terminal
-   e agentes: o botão do comando (Instalar ou Substituir) e os trechos do MCP.
+   e agentes: o botão do comando (Instalar ou Substituir; no Windows nenhum
+   botão — o verso.exe vem com o app) e os trechos do MCP, que mostram o
+   comando que o host gravaria; sem o Claude Desktop, "Baixar o Claude
+   Desktop" abre a página de download no navegador.
    Nível: H; E: `settings.spec.mjs`, as seções e a Aparência.
 2. "Relatar problema", na barra de status: o relato, "Erros desta sessão:
    nenhum". Nível: H; E: `settings.spec.mjs`.

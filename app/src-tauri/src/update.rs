@@ -996,13 +996,16 @@ pub(crate) fn executable_file(path: &std::path::Path) -> bool {
     }
 }
 
-/// Where the symlink at `path` points, if it is one.
+/// Where the symlink at `path` points, if it is one. Not on Windows, where
+/// the command line is not linked (`cli_state_now`).
+#[cfg(not(windows))]
 pub(crate) fn link_target(path: &std::path::Path) -> Option<std::path::PathBuf> {
     std::fs::read_link(path).ok()
 }
 
 /// Whether anything sits at `path` — a file, a directory, or a symlink,
 /// even a broken one (the `test -e` this replaces, without following).
+#[cfg(not(windows))]
 pub(crate) fn something_at(path: &std::path::Path) -> bool {
     std::fs::symlink_metadata(path).is_ok()
 }

@@ -156,7 +156,9 @@ junto com a janela.
   binário `verso-app` ao lado dela, senão, no macOS, o app instalado por
   `open -a Verso <pasta>`. A pasta vai como documento a abrir, que o macOS
   entrega por um evento de abrir tanto quando lança o app quanto quando o app
-  já está aberto; a janela principal de um app aberto salva as abas e a abre,
+  já está aberto; um app aberto a abre numa janela que não mostra pasta
+  nenhuma, senão numa janela nova (revisado em 2026-10-08, Status) — até
+  então a janela principal salvava as abas e a abria,
   como em qualquer troca. Até 2026-09-23 ela ia por `open -a Verso --args`,
   que um app já aberto nunca recebia (`docs/review/phase-2.md`, leitura 3,
   achado 20; corrigido em `b43e914` a pedido do mantenedor). O `open` recusa um

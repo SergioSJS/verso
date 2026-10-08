@@ -426,8 +426,10 @@ point 13).
 ## 10. Settings, help, the command line
 
 1. ⌘,: the sections as note 15 names them; Aparência's options; Terminal e
-   agentes: the command's button (Instalar or Substituir) and the MCP
-   snippets. Level: H; E: `settings.spec.mjs`, the sections and Aparência.
+   agentes: the command's button (Instalar or Substituir; on Windows no
+   button — verso.exe comes with the app) and the MCP snippets, which show
+   the command the host would write; without Claude Desktop, "Baixar o
+   Claude Desktop" opens its download page in the browser. Level: H; E: `settings.spec.mjs`, the sections and Aparência.
 2. "Relatar problema", in the status bar: the report, "Erros desta sessão:
    nenhum". Level: H; E: `settings.spec.mjs`.
 3. The command line on the folder: `verso search <folder> reunião`;

@@ -101,4 +101,12 @@ How the author built them (the memo, section 5):
 
 Accepted on 2026-09-24 by the maintainer, in session: points 1 and 2 of the
 Decision. The rest is the author's, built under it and labelled as such in the
-memo.
+memo. Revised on 2026-10-08, the maintainer accepting the author's
+recommendations: on Windows the command line comes with the app (`verso.exe`
+beside it, ADR 0069) and nothing is installed onto a PATH; what "Add to
+Claude" writes is the host's to say (`McpStatus.command`), so the window
+shows exactly what goes in (point 2) on every system; and where Claude
+Desktop is not installed, the settings offer its download page —
+`https://claude.com/download`, opened by the host in the system's browser,
+a fixed address that nothing from the window can change (the maintainer's
+idea).

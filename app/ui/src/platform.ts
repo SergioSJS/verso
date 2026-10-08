@@ -6,3 +6,6 @@
  *  where Mod is ⌘ and ⌃ is a key of its own. One rule for the window's
  *  keys and the board's. */
 export const MAC = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+/** Windows, where the command line comes with the app and nothing is
+ *  installed onto a PATH (ADR 0069). */
+export const WINDOWS = /Win/.test(navigator.platform);
