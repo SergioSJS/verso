@@ -5,7 +5,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { type FileEntry } from "./bindings";
 import { h, ui } from "./dom";
-import { icon } from "./icons";
+import { icon, maskIcon } from "./icons";
 import { iconFor, Kind } from "./paths";
 import { settings } from "./settings";
 import { t } from "./strings";
@@ -76,6 +76,13 @@ export function favicon(url: string): HTMLElement {
 export function iconOfPath(path: string, kind: Kind): HTMLElement | SVGSVGElement {
   const url = webNotes.get(path);
   return url ? favicon(url) : icon(iconFor(kind));
+}
+
+/** A tree row's icon: the web page's favicon, or the kind's line icon drawn
+ *  by CSS (`maskIcon`), never an inline SVG per row. */
+export function rowIcon(path: string, kind: Kind): HTMLElement {
+  const url = webNotes.get(path);
+  return url ? favicon(url) : maskIcon(iconFor(kind));
 }
 
 /** The folder button's name begins with what it shows — the folder's
