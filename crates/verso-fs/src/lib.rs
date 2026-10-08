@@ -344,6 +344,7 @@ impl Root {
         content: &[u8],
     ) -> Result<(Handle, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
         let report = ops::create_atomically(&on_disk(&self.path, &relative), content)?;
         Ok((self.intern(relative), report))
     }
@@ -352,6 +353,7 @@ impl Root {
     /// new directory synced into the one it hangs from.
     pub fn create_dir(&self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
         let report = ops::create_directory(&on_disk(&self.path, &relative))?;
         Ok((relative, report))
     }
@@ -365,6 +367,7 @@ impl Root {
     pub fn rename(&mut self, from: &Path, to: &Path) -> Result<(Handle, OpReport), WriteError> {
         let from = self.confine(from).map_err(WriteError::Confined)?;
         let to = self.confine(to).map_err(WriteError::Confined)?;
+        confine::unportable_new(&self.path, &to).map_err(WriteError::Confined)?;
         let report = ops::rename_path(&on_disk(&self.path, &from), &on_disk(&self.path, &to))?;
         Ok((self.intern(to), report))
     }

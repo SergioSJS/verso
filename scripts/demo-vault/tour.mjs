@@ -291,7 +291,7 @@ const STOPS = [
     heading: "🎨 Figurinhas, capas e ordem",
     color: AMBER,
     canvasColor: "3",
-    cards: [["n-organizando", "19 - Organizando: figurinhas, capas e páginas.md", 640]],
+    cards: [["n-organizando", "19 - Organizando com figurinhas, capas e páginas.md", 640]],
     tip:
       "Figurinhas, cores e capas destacam notas e pastas na árvore e no cabeçalho. " +
       "Ordene itens à mão ou fixe-os na pasta; edite notas embutidas no lugar e digite : para sugerir emojis no texto.",
@@ -311,7 +311,7 @@ const STOPS = [
     heading: "🧭 Focos",
     color: TEAL,
     canvasColor: "5",
-    cards: [["n-focos", "19 - Organizando: figurinhas, capas e páginas.md", 640, "#8. Focos (raízes nomeadas)"]],
+    cards: [["n-focos", "19 - Organizando com figurinhas, capas e páginas.md", 640, "#8. Focos (raízes nomeadas)"]],
     tip:
       "Focos são raízes nomeadas da árvore de arquivos, compatíveis com o make.md. " +
       "Escolha um foco para ver a árvore a partir dele; Início mostra a pasta inteira. " +

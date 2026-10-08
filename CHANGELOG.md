@@ -12,7 +12,14 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+
+- **A note, folder or file is made or renamed only with a name every system can keep** ([ADR 0070](docs/adr/0070-what-travels-with-the-folder.md)): `CON`, `NUL`, `COM1` and the other device names, a trailing dot or space, and `: * " < > ? |` are refused on macOS too, since a folder synced to Windows could not carry them; the field says why. A file that already has such a name still opens, saves, and can be renamed to one every system keeps.
+- **The demo vault's note 19 is now `19 - Organizando com figurinhas, capas e páginas`**: its `:` broke its four links once the folder reached Windows. Importing into a folder that holds an earlier demo keeps that one as it is.
+
+### Fixed
+
+- **Keys and fields in every web engine**: after a click on a tree row, F2 renames the open note in Chromium (WebView2) too; the board's keys keep working after Insert › Setas soltas; a new note or folder from the tree is made on Enter, and Escape leaves a workspace's name as it was — each was broken in Chromium, the engine of the Windows app to come ([ADR 0069](docs/adr/0069-windows-port.md)).
 
 ## 0.4.0-beta.2 — 2026-10-07
 

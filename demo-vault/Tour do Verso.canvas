@@ -44,8 +44,8 @@
 		{"id":"n-terminal","type":"file","file":"17 - Terminal, CLI e Agentes.md","x":40,"y":5330,"width":640,"height":560},
 		{"id":"n-ajuda","type":"file","file":"18 - Ajuda, Atualizações e Diagnóstico.md","x":2370,"y":5330,"width":640,"height":400},
 		{"id":"n-inicio","type":"file","file":"00 - Bem-vindo ao Verso.md","x":2370,"y":5760,"width":640,"height":400},
-		{"id":"n-organizando","type":"file","file":"19 - Organizando: figurinhas, capas e páginas.md","x":3340,"y":5330,"width":640,"height":560},
-		{"id":"n-focos","type":"file","file":"19 - Organizando: figurinhas, capas e páginas.md","x":40,"y":6630,"width":640,"height":560,"subpath":"#8. Focos (raízes nomeadas)"}
+		{"id":"n-organizando","type":"file","file":"19 - Organizando com figurinhas, capas e páginas.md","x":3340,"y":5330,"width":640,"height":560},
+		{"id":"n-focos","type":"file","file":"19 - Organizando com figurinhas, capas e páginas.md","x":40,"y":6630,"width":640,"height":560,"subpath":"#8. Focos (raízes nomeadas)"}
 	],
 	"edges":[
 		{"id":"e-links-grafo","fromNode":"n-links","fromSide":"right","toNode":"n-grafo","toSide":"left","color":"5","label":"viram o grafo"},

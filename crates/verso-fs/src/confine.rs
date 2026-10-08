@@ -17,7 +17,9 @@
 //! the device instead of a file; a trailing dot or space, which Windows
 //! strips, so two names reach one file; a colon, which names an alternate
 //! data stream of another file; and the characters Windows does not allow
-//! in a name.
+//! in a name. On every other OS the same names are refused for what is
+//! made or renamed (ADR 0070: a folder synced to Windows must carry them),
+//! never for an entry that already exists ([`unportable_new`]).
 
 use std::path::{Component, Path, PathBuf};
 
@@ -33,9 +35,10 @@ pub enum ConfinementError {
     Hidden,
     /// Under a path the caller asked to ignore (provisional, ADR 0044).
     Ignored,
-    /// A name Windows would not keep as written: a device name, a trailing
-    /// dot or space, a colon, or a character it does not allow (ADR 0069).
-    WindowsName,
+    /// A name not every OS can keep — Windows would not keep it as written:
+    /// a device name, a trailing dot or space, a colon, or a character it
+    /// does not allow (ADR 0069, ADR 0070).
+    UnportableName,
 }
 
 impl std::fmt::Display for ConfinementError {
@@ -47,8 +50,8 @@ impl std::fmt::Display for ConfinementError {
             Self::NulByte => "a NUL byte",
             Self::Hidden => "a hidden entry",
             Self::Ignored => "an ignored path",
-            Self::WindowsName => {
-                "a name Windows cannot keep as written (a device name such as CON or NUL, a trailing dot or space, a colon, or one of < > \" | ? *)"
+            Self::UnportableName => {
+                "a name not every system can keep (a device name such as CON or NUL, a trailing dot or space, a colon, or one of < > \" | ? *)"
             }
         };
         write!(
@@ -70,8 +73,8 @@ pub(crate) fn confine(relative: &Path) -> Result<PathBuf, ConfinementError> {
         match component {
             Component::Normal(part) => {
                 #[cfg(windows)]
-                if windows_refuses(part) {
-                    return Err(ConfinementError::WindowsName);
+                if unportable(part) {
+                    return Err(ConfinementError::UnportableName);
                 }
                 out = crate::rel_join(&out, part);
             }
@@ -86,10 +89,30 @@ pub(crate) fn confine(relative: &Path) -> Result<PathBuf, ConfinementError> {
     Ok(out)
 }
 
-/// Whether Windows would not keep the name `part` as written. Pure, so it
-/// is tested on every OS; applied on Windows only.
-#[cfg(any(windows, test))]
-fn windows_refuses(part: &std::ffi::OsStr) -> bool {
+/// The first name of the confined `relative` that does not exist yet under
+/// `root` and is not one every OS can keep, refused (ADR 0070). What exists
+/// already is the user's and is never refused — a note inside an existing
+/// folder named `Reunião: pauta` is made, and a file with such a name opens
+/// and can be renamed to a portable one.
+pub(crate) fn unportable_new(root: &Path, relative: &Path) -> Result<(), ConfinementError> {
+    let mut at = PathBuf::new();
+    for component in relative.components() {
+        let Component::Normal(part) = component else {
+            continue;
+        };
+        at = crate::rel_join(&at, part);
+        let exists = crate::on_disk(root, &at).symlink_metadata().is_ok();
+        if !exists && unportable(part) {
+            return Err(ConfinementError::UnportableName);
+        }
+    }
+    Ok(())
+}
+
+/// Whether the name `part` is one not every OS can keep: Windows would not
+/// keep it as written. Applied to every request on Windows (`confine`), and
+/// on every OS to the names a create or rename makes ([`unportable_new`]).
+pub(crate) fn unportable(part: &std::ffi::OsStr) -> bool {
     let name = part.to_string_lossy();
     if name.ends_with('.') || name.ends_with(' ') {
         return true;
@@ -163,7 +186,7 @@ mod tests {
 
     #[test]
     fn windows_names_it_would_not_keep() {
-        let refused = |s: &str| windows_refuses(std::ffi::OsStr::new(s));
+        let refused = |s: &str| unportable(std::ffi::OsStr::new(s));
         for name in [
             "CON",
             "con.md",
@@ -235,15 +258,15 @@ mod tests {
         );
         assert_eq!(
             confine(Path::new("pasta/CON.md")),
-            Err(ConfinementError::WindowsName)
+            Err(ConfinementError::UnportableName)
         );
         assert_eq!(
             confine(Path::new("nota.")),
-            Err(ConfinementError::WindowsName)
+            Err(ConfinementError::UnportableName)
         );
         assert_eq!(
             confine(Path::new("a.md:x")),
-            Err(ConfinementError::WindowsName)
+            Err(ConfinementError::UnportableName)
         );
     }
 }

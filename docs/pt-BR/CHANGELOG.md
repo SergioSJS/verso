@@ -12,7 +12,14 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Alterado
+
+- **Uma nota, pasta ou arquivo só é criado ou renomeado com um nome que todo sistema guarda** ([ADR 0070](adr/0070-what-travels-with-the-folder.md)): `CON`, `NUL`, `COM1` e os outros nomes de dispositivo, ponto ou espaço no fim, e `: * " < > ? |` são recusados no macOS também, porque uma pasta sincronizada com o Windows não conseguiria levá-los; o campo diz por quê. Um arquivo que já tem um nome assim continua abrindo, salvando, e pode ser renomeado para um que todo sistema guarda.
+- **A nota 19 do cofre de exemplo agora é `19 - Organizando com figurinhas, capas e páginas`**: o `:` dela quebrava os seus quatro links quando a pasta chegava ao Windows. Importar numa pasta que tem uma demo anterior mantém aquela como está.
+
+### Corrigido
+
+- **Teclas e campos em todo motor web**: depois de um clique numa linha da árvore, F2 renomeia a nota aberta no Chromium (WebView2) também; as teclas do board seguem funcionando depois de Inserir › Setas soltas; uma nota ou pasta nova pela árvore é criada no Enter, e o Esc deixa o nome de uma área como estava — cada um estava quebrado no Chromium, o motor do app de Windows que vem ([ADR 0069](adr/0069-windows-port.md)).
 
 ## 0.4.0-beta.2 — 2026-10-07
 

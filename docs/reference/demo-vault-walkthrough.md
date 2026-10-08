@@ -283,6 +283,10 @@ point 13).
    selection's menu: "Mover para…", "Copiar caminhos relativos", "Mover para
    a lixeira" asked once. Level: H; E: `tree-selection.spec.mjs`; S:
    `crates/verso-core/tests/workspace/rename.rs`.
+8. Note 14, "Criar" (ADR 0070): a new note named `CON`, `Reunião: pauta` or
+   `nota.` is not made; the status bar says Windows cannot keep that name.
+   A rename to such a name is refused the same way. Level: H; E:
+   `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
 
 ## 7. The web
 
