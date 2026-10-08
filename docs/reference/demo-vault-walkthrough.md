@@ -263,7 +263,11 @@ point 13).
    too — and the row of the tree that has the keyboard focus; in an editor or
    a field, F2 is theirs. Level: H; E: `tabs.spec.mjs`, the open note after
    a click on its row; the row with the keyboard focus and a field by hand.
-   Caught: after a click, F2 did nothing (2026-10-01).
+   Caught: after a click, F2 did nothing (2026-10-01). After a click on a
+   row, ↓ and ↑ walk the tree from it, and F2 still renames the open note;
+   a row reached by the arrows takes F2 itself, in place. E:
+   `tabs.spec.mjs`, both engines. Caught: the arrows worked after a click
+   in Chromium only (2026-10-08).
 4. A click on a file of the tree opens it in a preview tab, its title in
    italics, which the next click replaces; a double click keeps it
    ([ADR 0059](../adr/0059-tabs-preview-pinned.md)). Level: H; E:
