@@ -16,7 +16,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::{Handle, Stamp, fnv1a, placeholder};
+use crate::{Handle, Stamp, fnv1a, os, placeholder};
 
 /// Why a write did not happen. Nothing on disk changed in any of these
 /// cases, except a temporary file that could not be removed after a failed
@@ -185,14 +185,14 @@ pub(crate) fn write_atomically(
         let mut out = open_new_with_mode(&temp, &original)?;
         out.write_all(content)?;
         report.mode_preserved = out.set_permissions(original.permissions()).is_ok();
-        report.owner_preserved = same_owner(&original, &out.metadata()?);
+        report.owner_preserved = os::same_owner(&original, &out.metadata()?);
         // Attributes go on before the barrier, so they are durable with the content.
         report.xattrs_not_preserved = copy_xattrs(&target, &temp);
         out.sync_all()?;
         drop(out);
-        report.hard_link_shared = hard_link_count(&original) > 1;
+        report.hard_link_shared = os::link_count(&target, &original) > 1;
         report.network_fs = network_fs(dir);
-        std::fs::rename(&temp, &target)
+        os::rename(&temp, &target)
     })();
     if let Err(error) = before_rename {
         let _ = std::fs::remove_file(&temp);
@@ -205,7 +205,7 @@ pub(crate) fn write_atomically(
     // Without the directory fsync the rename may not survive a power loss
     // (ADR 0029).
     let after_rename = (|| {
-        File::open(dir)?.sync_all()?;
+        os::sync_dir(dir)?;
         let meta = std::fs::metadata(&target)?;
         Ok::<Stamp, std::io::Error>(Stamp {
             modified: meta.modified()?,
@@ -222,6 +222,7 @@ pub(crate) fn write_atomically(
 
 /// Copy every extended attribute of `from` onto `to`; return the ones that
 /// could not be copied. Finder tags and quarantine live here (ADR 0029).
+#[cfg(unix)]
 fn copy_xattrs(from: &Path, to: &Path) -> Vec<(String, String)> {
     let mut failed = Vec::new();
     let names = match xattr::list(from) {
@@ -243,6 +244,15 @@ fn copy_xattrs(from: &Path, to: &Path) -> Vec<(String, String)> {
     failed
 }
 
+/// Windows has no extended attributes in this sense: its counterpart,
+/// alternate data streams (`Zone.Identifier` among them), is not carried
+/// over yet. Provisional until the port's `verso-fs` pull request decides it
+/// (ADR 0069, item 9); until then nothing is attempted and nothing reported.
+#[cfg(not(unix))]
+fn copy_xattrs(_from: &Path, _to: &Path) -> Vec<(String, String)> {
+    Vec::new()
+}
+
 #[cfg(unix)]
 fn open_new_with_mode(temp: &Path, original: &std::fs::Metadata) -> Result<File, std::io::Error> {
     use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -256,18 +266,6 @@ fn open_new_with_mode(temp: &Path, original: &std::fs::Metadata) -> Result<File,
 #[cfg(not(unix))]
 fn open_new_with_mode(temp: &Path, _original: &std::fs::Metadata) -> Result<File, std::io::Error> {
     OpenOptions::new().write(true).create_new(true).open(temp)
-}
-
-#[cfg(unix)]
-fn hard_link_count(meta: &std::fs::Metadata) -> u64 {
-    use std::os::unix::fs::MetadataExt;
-    meta.nlink()
-}
-
-#[cfg(unix)]
-fn same_owner(original: &std::fs::Metadata, new: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    original.uid() == new.uid() && original.gid() == new.gid()
 }
 
 /// The name of the directory's file system if it is not local — macOS

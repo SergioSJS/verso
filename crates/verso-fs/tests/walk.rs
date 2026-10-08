@@ -166,10 +166,22 @@ fn icloud_placeholder_is_present_and_names_the_real_file() {
     )));
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod symlinks {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::symlink;
+
+    /// Windows has one call per kind of target; Developer Mode lets an
+    /// ordinary user make either (ADR 0069: the test machine has it on).
+    #[cfg(windows)]
+    fn symlink(target: impl AsRef<Path>, link: impl AsRef<Path>) -> std::io::Result<()> {
+        if target.as_ref().is_dir() {
+            std::os::windows::fs::symlink_dir(target, link)
+        } else {
+            std::os::windows::fs::symlink_file(target, link)
+        }
+    }
 
     #[test]
     fn symlinks_to_files_and_directories_are_followed_wherever_they_point() {
@@ -244,6 +256,36 @@ mod symlinks {
         assert!(walk.entries.is_empty());
         assert!(
             matches!(walk.problems.as_slice(), [Problem::Io { relative, .. }] if relative == Path::new("quebrado.md"))
+        );
+    }
+
+    /// On Windows a loop is usually a junction, which any user can make
+    /// without Developer Mode: the same loop, the same single report.
+    #[cfg(windows)]
+    #[test]
+    fn a_junction_loop_is_reported_once_and_the_walk_finishes() {
+        let dir = tempfile::tempdir().unwrap();
+        touch(&dir.path().join("a/b/nota.md"), "");
+        let made = std::process::Command::new("cmd")
+            .arg("/C")
+            .arg("mklink")
+            .arg("/J")
+            // Backslashes: `cmd` reads `/b` in a path as a switch.
+            .arg(dir.path().join("a").join("b").join("volta"))
+            .arg(dir.path().join("a"))
+            .output()
+            .unwrap();
+        assert!(made.status.success(), "{made:?}");
+        let mut root = Root::open(dir.path(), vec![]).unwrap();
+        let walk = root.walk();
+        assert!(
+            matches!(
+                walk.problems.as_slice(),
+                [Problem::Loop { relative, first_seen }]
+                    if relative == Path::new("a/b/volta") && first_seen == Path::new("a")
+            ),
+            "{:?}",
+            walk.problems
         );
     }
 }

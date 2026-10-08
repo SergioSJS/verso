@@ -4968,6 +4968,7 @@ dependencies = [
  "nix",
  "notify",
  "tempfile",
+ "winapi-util",
  "xattr",
 ]
 

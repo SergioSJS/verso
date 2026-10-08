@@ -12,9 +12,6 @@ publish.workspace = true
 # ADR 0028). File IO dependencies (walkdir, notify, tempfile and the like)
 # belong here and nowhere else.
 [dependencies]
-# Extended attributes are not in std; the atomic write has to carry them
-# over (Finder tags, quarantine) or say it could not (ADR 0029).
-xattr = "1.6"
 # Change events for the open folder, so that what another app writes shows
 # up without reopening it: FSEvents on macOS, inotify on Linux,
 # ReadDirectoryChangesW on Windows, one API over the three. std has no file
@@ -26,6 +23,21 @@ notify = "8.2"
 # own engine, instead of a partial matcher of ours that got `!` wrong.
 # Only the `gitignore` module is used; the crate's own walker is not.
 ignore = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+# A file's identity (volume serial number and file index) and its hard link
+# count: std keeps them unstable on Windows (`windows_by_handle`), and the
+# call behind them, `GetFileInformationByHandle`, needs `unsafe`, which the
+# workspace forbids. BurntSushi's crate wraps it in a safe function; it is
+# already in the lockfile, through `ignore` and `walkdir` (ADR 0069, item 9).
+winapi-util = "0.1"
+
+[target.'cfg(unix)'.dependencies]
+# Extended attributes are not in std; the atomic write has to carry them
+# over (Finder tags, quarantine) or say it could not (ADR 0029). Unix only:
+# the crate does not build on Windows, whose counterpart, alternate data
+# streams, is an item of the Windows port (ADR 0069, item 9).
+xattr = "1.6"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # `statfs` is not in std; the atomic write has to know when the folder is on

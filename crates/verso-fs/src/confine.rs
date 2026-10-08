@@ -9,6 +9,15 @@
 //! A symlink inside the folder is the user's and is not a confinement
 //! question: it is followed, and what it reaches is inside the folder for
 //! every purpose.
+//!
+//! On Windows, `Path` already reads `\` as a separator and a drive letter
+//! or a UNC share as a prefix, refused as absolute. Refused there too, a
+//! name Windows would not keep as written (ADR 0069, item 9): a device
+//! name (`CON`, `NUL`, `COM1`…, with or without an extension), which opens
+//! the device instead of a file; a trailing dot or space, which Windows
+//! strips, so two names reach one file; a colon, which names an alternate
+//! data stream of another file; and the characters Windows does not allow
+//! in a name.
 
 use std::path::{Component, Path, PathBuf};
 
@@ -24,6 +33,9 @@ pub enum ConfinementError {
     Hidden,
     /// Under a path the caller asked to ignore (provisional, ADR 0044).
     Ignored,
+    /// A name Windows would not keep as written: a device name, a trailing
+    /// dot or space, a colon, or a character it does not allow (ADR 0069).
+    WindowsName,
 }
 
 impl std::fmt::Display for ConfinementError {
@@ -35,6 +47,9 @@ impl std::fmt::Display for ConfinementError {
             Self::NulByte => "a NUL byte",
             Self::Hidden => "a hidden entry",
             Self::Ignored => "an ignored path",
+            Self::WindowsName => {
+                "a name Windows cannot keep as written (a device name such as CON or NUL, a trailing dot or space, a colon, or one of < > \" | ? *)"
+            }
         };
         write!(
             f,
@@ -53,7 +68,13 @@ pub(crate) fn confine(relative: &Path) -> Result<PathBuf, ConfinementError> {
     let mut out = PathBuf::new();
     for component in relative.components() {
         match component {
-            Component::Normal(part) => out.push(part),
+            Component::Normal(part) => {
+                #[cfg(windows)]
+                if windows_refuses(part) {
+                    return Err(ConfinementError::WindowsName);
+                }
+                out = crate::rel_join(&out, part);
+            }
             Component::CurDir => {}
             Component::ParentDir => return Err(ConfinementError::ParentComponent),
             Component::RootDir | Component::Prefix(_) => return Err(ConfinementError::Absolute),
@@ -63,6 +84,44 @@ pub(crate) fn confine(relative: &Path) -> Result<PathBuf, ConfinementError> {
         return Err(ConfinementError::Empty);
     }
     Ok(out)
+}
+
+/// Whether Windows would not keep the name `part` as written. Pure, so it
+/// is tested on every OS; applied on Windows only.
+#[cfg(any(windows, test))]
+fn windows_refuses(part: &std::ffi::OsStr) -> bool {
+    let name = part.to_string_lossy();
+    if name.ends_with('.') || name.ends_with(' ') {
+        return true;
+    }
+    if name
+        .chars()
+        .any(|c| c < ' ' || matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*'))
+    {
+        return true;
+    }
+    // A device name is matched on what comes before the first dot, case
+    // aside, as Windows 10 does (Windows 11 relaxed some cases; ADR 0069
+    // writes for Windows 10).
+    let stem = name
+        .split('.')
+        .next()
+        .unwrap_or("")
+        .trim_end()
+        .to_ascii_uppercase();
+    let numbered = |prefix: &str| {
+        stem.strip_prefix(prefix).is_some_and(|n| {
+            matches!(
+                n,
+                "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
+            )
+        })
+    };
+    matches!(
+        stem.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+    ) || numbered("COM")
+        || numbered("LPT")
 }
 
 #[cfg(test)]
@@ -99,6 +158,92 @@ mod tests {
         assert_eq!(
             confine(Path::new("link/x.md")).unwrap(),
             PathBuf::from("link/x.md")
+        );
+    }
+
+    #[test]
+    fn windows_names_it_would_not_keep() {
+        let refused = |s: &str| windows_refuses(std::ffi::OsStr::new(s));
+        for name in [
+            "CON",
+            "con.md",
+            "Nul.txt",
+            "aux",
+            "PRN.tar.gz",
+            "COM1",
+            "com9.md",
+            "LPT3",
+            "COM¹",
+            "CONIN$",
+            "nota.",
+            "nota ",
+            "a:b",
+            "a.md:stream",
+            "a<b",
+            "a>b",
+            "a\"b",
+            "a|b",
+            "a?",
+            "a*",
+            "a\tb",
+        ] {
+            assert!(refused(name), "{name:?} should be refused");
+        }
+        for name in [
+            "Nota.md",
+            "console.md",
+            "CONTRATO.md",
+            "com.md",
+            "COM10.md",
+            "lpt.md",
+            "nul-1.md",
+            "auxiliar",
+            ".hidden",
+            "a.b.c",
+            "Ação é açaí.md",
+            "file name.md",
+        ] {
+            assert!(!refused(name), "{name:?} should be kept");
+        }
+    }
+
+    /// On Windows `\` separates and a drive or a share is absolute; the
+    /// names above are refused by `confine` itself.
+    #[cfg(windows)]
+    #[test]
+    fn windows_forms_are_refused_by_confine() {
+        assert_eq!(
+            confine(Path::new("a\\b.md")).unwrap(),
+            PathBuf::from("a\\b.md")
+        );
+        for absolute in [
+            "C:\\x.md",
+            "C:x.md",
+            "\\\\server\\share\\x.md",
+            "\\\\?\\C:\\x.md",
+            "\\x.md",
+        ] {
+            assert_eq!(
+                confine(Path::new(absolute)),
+                Err(ConfinementError::Absolute),
+                "{absolute}"
+            );
+        }
+        assert_eq!(
+            confine(Path::new("a\\..\\..\\x")),
+            Err(ConfinementError::ParentComponent)
+        );
+        assert_eq!(
+            confine(Path::new("pasta/CON.md")),
+            Err(ConfinementError::WindowsName)
+        );
+        assert_eq!(
+            confine(Path::new("nota.")),
+            Err(ConfinementError::WindowsName)
+        );
+        assert_eq!(
+            confine(Path::new("a.md:x")),
+            Err(ConfinementError::WindowsName)
         );
     }
 }
