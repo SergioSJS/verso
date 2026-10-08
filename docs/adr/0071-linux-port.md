@@ -48,9 +48,10 @@ What Linux has on 2026-10-08, from the repository:
   yet either; the end-to-end suite does not run on Linux.
 - **The updater's Linux branch has never run, and reading it, it would
   fail** (`app/src-tauri/src/update.rs`): every download is opened as a ZIP
-  (496, 591), while the asset list prefers an AppImage, a `.deb`, an `.rpm`
-  or a `.tar.gz` (315–316) — with today's release names, the command line's
-  `.tar.gz`; an AppImage is replaced through `current_exe()` (861–863),
+  (496, 591); today no release asset names `linux`, so the Linux app finds
+  no package at all (292–337); once one exists, the asset list puts an
+  AppImage first (315–316), which would be opened as a ZIP; an AppImage is
+  replaced through `current_exe()` (861–863),
   which points inside the read-only mount instead of `$APPIMAGE`.
 - **The integration with the system assumes macOS or Windows:** installing
   the command line writes `/usr/local/bin`, with no elevation off macOS
@@ -63,7 +64,8 @@ What Linux has on 2026-10-08, from the repository:
   every OS (`app/ui/src/strings.ts`, 147, 280 — already wrong on Windows).
 - **WebKitGTK is not WKWebView:** wry documents child web views (web notes
   and embeds) as "Linux (X11 Only)", Wayland needing its GTK builder
-  ([wry](https://docs.rs/crate/wry/0.56.0)); NVIDIA under Wayland may show
+  (wry's documentation, [0.56](https://docs.rs/crate/wry/0.56.0); the
+  lock holds 0.55.1); NVIDIA under Wayland may show
   a blank window ([Tauri](https://v2.tauri.app/develop/debug/linux-graphics/)),
   and the workarounds are environment variables
   (`__NV_DISABLE_EXPLICIT_SYNC`, `WEBKIT_DISABLE_DMABUF_RENDERER`), which
@@ -116,8 +118,8 @@ All proposed by the author; the port waits ("deixe pra depois").
    command line and the MCP server, which a client starts as a program,
    would live inside the sandbox or need a second package.
 3. **Built on Ubuntu 22.04, in a container:** the oldest base of the
-   family, so the packages run on Ubuntu 22.04 and later, Debian 12 and
-   later, and current Fedora. The Debian 12 container of `check-linux.sh`
+   family, so the packages run on Ubuntu 22.04 and later, Debian 12 (now
+   under LTS) and later, and current Fedora. The Debian 12 container of `check-linux.sh`
    keeps checking; it does not build what is shipped. The supported
    versions are a question: `[OPEN]`.
 4. **Tested on virtual machines on the Proxmox host**, set up unattended
@@ -126,12 +128,13 @@ All proposed by the author; the port waits ("deixe pra depois").
    asked about two — the most used distribution and a very different one —
    and whether Debian would be covered; the author answered that Ubuntu
    covers the Debian family's packaging but not Debian's older libraries,
-   and proposed three, the Debian one when the port starts:
+   and proposed three, all set up when the port starts (Decision 8):
    - **Ubuntu's current LTS, GNOME on Wayland** (26.04 today): the most
      used desktop; the `.deb` and the AppImage;
-   - **Debian stable's oldest supported release, GNOME** (12 today): an
-     older WebKitGTK, GStreamer and Mesa, and a bare system (codecs,
-     clipboard tools not installed);
+   - **Debian's oldest release still supported, GNOME** (12 today —
+     oldstable, under LTS from 2026-07-11 until 2028-06; Debian 13 is the
+     current stable, and no machine runs it): an older WebKitGTK, GStreamer
+     and Mesa, and a bare system (codecs, clipboard tools not installed);
    - **Fedora's current release, KDE Plasma** (44 today; Wayland only
      since Fedora 40): the other family — the `.rpm`, SELinux, KDE instead
      of GNOME, newer libraries.
@@ -144,7 +147,8 @@ All proposed by the author; the port waits ("deixe pra depois").
    `check-windows.sh`: the same tree byte for byte to a VM, the package
    built and installed, the app launched; and the end-to-end suite's WebKit
    project run in a Linux container with Node beside Rust, whose Playwright
-   WebKit is the GTK/WPE port — near the Linux app's engine at no machine's
+   WebKit is its own build of the GTK and WPE ports (Playwright's
+   `browser_patches/webkit`) — near the Linux app's engine at no machine's
    cost. When it is required before a push, as `check-windows.sh` is when
    platform code changes (0069, item 5): `[OPEN]`. ADR 0029's list of local
    scripts gains it when it lands.
@@ -156,15 +160,20 @@ All proposed by the author; the port waits ("deixe pra depois").
      would install `/usr/bin/verso-app` and collide in a `.deb`/`.rpm`;
    - the updater's Linux path: fixed (the asset by format, the AppImage
      replaced through `$APPIMAGE`, the file the AppImage documentation
-     names for it), or left to the package manager for `.deb` and `.rpm`,
+     names for it ([AppImage](https://docs.appimage.org/packaging-guide/environment-variables.html))), or left to the package manager for `.deb` and `.rpm`,
      or Tauri's updater plugin — set aside by ADR 0055 while the repository
      is private, it updates AppImage, `.deb` and `.rpm` since its 2.10.0
-     and always requires a signature (signing is ADR 0051's): `[OPEN]`;
+     and always requires a signature
+     ([changelog](https://v2.tauri.app/release/updater/all-versions/)) (signing is ADR 0051's): `[OPEN]`;
    - one instance — missing on Windows too, so one piece of work for both;
    - the command line on `PATH` without root (`~/.local/bin`, in the XDG
-     base directory specification);
+     base directory specification since 0.8,
+     [XDG](https://specifications.freedesktop.org/basedir/latest/));
    - "Show in folder" selecting the file (the file manager's D-Bus
-     interface `org.freedesktop.FileManager1`, else the folder); the menu
+     interface `org.freedesktop.FileManager1`, Nautilus and Dolphin among
+     its implementations,
+     [freedesktop](https://wiki.freedesktop.org/www/Specifications/file-manager-interface/),
+     else the folder); the menu
      item named per OS (Finder, Explorer, the file manager) — Windows
      included; "Copy full path" saying what to install when no clipboard
      tool is there;
@@ -174,8 +183,8 @@ All proposed by the author; the port waits ("deixe pra depois").
      install before it is relied on: `[OPEN]`;
    - the periodic scan when the inotify watch limit runs out (ADR 0044);
    - network file systems: detected on Linux too, or recorded as not
-     detected — ADR 0029 avoided a list of file system magic numbers on
-     macOS, and Linux offers no flag like `MNT_LOCAL`;
+     detected — ADR 0029 avoided a list of file system names on macOS,
+     and Linux offers no flag like `MNT_LOCAL`;
    - extended attributes under SELinux: observed on the Fedora machine;
    - case: the tests that matter where two names differ only in case
      (links, renames, "exists"), and spec Q8 answered for Linux by the

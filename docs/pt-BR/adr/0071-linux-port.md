@@ -46,9 +46,10 @@ O que o Linux tem em 2026-10-08, pelo repositório:
   Windows ainda; a suíte de ponta a ponta não roda no Linux.
 - **O ramo Linux do atualizador nunca rodou e, pela leitura, falharia**
   (`app/src-tauri/src/update.rs`): todo download é aberto como ZIP (496,
-  591), enquanto a lista de arquivos prefere um AppImage, um `.deb`, um
-  `.rpm` ou um `.tar.gz` (315–316) — com os nomes de hoje das versões, o
-  `.tar.gz` da linha de comando; um AppImage é trocado pelo `current_exe()`
+  591); hoje nenhum arquivo das versões tem `linux` no nome, então o app de
+  Linux não acha pacote nenhum (292–337); quando houver um, a lista de
+  arquivos põe um AppImage primeiro (315–316), que seria aberto como ZIP; um
+  AppImage é trocado pelo `current_exe()`
   (861–863), que aponta para dentro da montagem só leitura em vez do
   `$APPIMAGE`.
 - **A integração com o sistema supõe macOS ou Windows:** instalar a linha
@@ -63,7 +64,8 @@ O que o Linux tem em 2026-10-08, pelo repositório:
   (`app/ui/src/strings.ts`, 147, 280 — já errado no Windows).
 - **O WebKitGTK não é o WKWebView:** o wry documenta as web views filhas
   (notas web e embeds) como "Linux (X11 Only)", o Wayland precisando do
-  construtor GTK dele ([wry](https://docs.rs/crate/wry/0.56.0)); NVIDIA no
+  construtor GTK dele (a documentação do wry,
+  [0.56](https://docs.rs/crate/wry/0.56.0); o lock tem a 0.55.1); NVIDIA no
   Wayland pode mostrar a janela em branco
   ([Tauri](https://v2.tauri.app/develop/debug/linux-graphics/)), e os
   contornos são variáveis de ambiente (`__NV_DISABLE_EXPLICIT_SYNC`,
@@ -120,7 +122,7 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
    segundo pacote.
 3. **Compilado no Ubuntu 22.04, num container:** a base mais antiga da
    família, para os pacotes rodarem no Ubuntu 22.04 em diante, no Debian 12
-   em diante e no Fedora atual. O container Debian 12 do `check-linux.sh`
+   (agora em LTS) em diante e no Fedora atual. O container Debian 12 do `check-linux.sh`
    continua checando; ele não compila o que é distribuído. As versões
    suportadas são uma pergunta: `[ABERTO]`.
 4. **Testado em máquinas virtuais no host Proxmox**, instaladas sem
@@ -129,13 +131,15 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
    mantenedor perguntou de duas — a distribuição mais usada e uma bem
    diferente — e se o Debian ficaria coberto; o autor respondeu que o
    Ubuntu cobre o empacotamento da família Debian mas não as bibliotecas
-   mais velhas do Debian, e propôs três, a do Debian quando o porte
-   começar:
+   mais velhas do Debian, e propôs três, todas montadas quando o porte
+   começar (Decisão 8):
    - **O LTS atual do Ubuntu, GNOME no Wayland** (26.04 hoje): o desktop
      mais usado; o `.deb` e o AppImage;
-   - **A versão mais antiga suportada do Debian estável, GNOME** (12 hoje):
-     WebKitGTK, GStreamer e Mesa mais velhos, e um sistema "pelado" (codecs
-     e ferramentas de área de transferência não instalados);
+   - **A versão mais antiga ainda suportada do Debian, GNOME** (12 hoje —
+     oldstable, em LTS de 2026-07-11 até 2028-06; o Debian 13 é o estável
+     atual, e nenhuma máquina o roda): WebKitGTK, GStreamer e Mesa mais
+     velhos, e um sistema "pelado" (codecs e ferramentas de área de
+     transferência não instalados);
    - **A versão atual do Fedora, KDE Plasma** (44 hoje; só Wayland desde o
      Fedora 40): a outra família — o `.rpm`, SELinux, KDE no lugar do
      GNOME, bibliotecas mais novas.
@@ -148,7 +152,8 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
    `check-windows.sh`: a mesma árvore, byte a byte, para uma VM, o pacote
    compilado e instalado, o app aberto; e o projeto WebKit da suíte de ponta
    a ponta rodado num container Linux com Node ao lado do Rust, cujo WebKit
-   do Playwright é o porte GTK/WPE — perto do motor do app de Linux sem o
+   do Playwright é um build próprio dos portes GTK e WPE (o
+   `browser_patches/webkit` do Playwright) — perto do motor do app de Linux sem o
    custo de uma máquina. Quando ele é exigido antes de um push, como o
    `check-windows.sh` é quando código de plataforma muda (0069, item 5):
    `[ABERTO]`. A lista de scripts locais do ADR 0029 o ganha quando ele
@@ -161,18 +166,23 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
      duas instalariam `/usr/bin/verso-app` e colidiriam num `.deb`/`.rpm`;
    - o caminho Linux do atualizador: consertado (o arquivo pelo formato, o
      AppImage trocado pelo `$APPIMAGE`, o arquivo que a documentação do
-     AppImage indica para isso), ou deixado ao gerenciador de pacotes para
+     AppImage indica para isso
+     ([AppImage](https://docs.appimage.org/packaging-guide/environment-variables.html))), ou deixado ao gerenciador de pacotes para
      o `.deb` e o `.rpm`, ou o plugin de atualização do Tauri — deixado de
      lado pelo ADR 0055 enquanto o repositório é privado, ele atualiza
-     AppImage, `.deb` e `.rpm` desde a 2.10.0 e sempre exige assinatura (a
+     AppImage, `.deb` e `.rpm` desde a 2.10.0 e sempre exige assinatura
+     ([changelog](https://v2.tauri.app/release/updater/all-versions/)) (a
      assinatura é do ADR 0051): `[ABERTO]`;
    - uma instância só — falta no Windows também, então um trabalho só para
      os dois;
    - a linha de comando no `PATH` sem root (`~/.local/bin`, da
-     especificação de diretórios base do XDG);
+     especificação de diretórios base do XDG desde a 0.8,
+     [XDG](https://specifications.freedesktop.org/basedir/latest/));
    - "Mostrar na pasta" selecionando o arquivo (a interface D-Bus do
-     gerenciador de arquivos, `org.freedesktop.FileManager1`, senão a
-     pasta); o item de menu nomeado por sistema (Finder, Explorer, o
+     gerenciador de arquivos, `org.freedesktop.FileManager1`, com o
+     Nautilus e o Dolphin entre as implementações,
+     [freedesktop](https://wiki.freedesktop.org/www/Specifications/file-manager-interface/),
+     senão a pasta); o item de menu nomeado por sistema (Finder, Explorer, o
      gerenciador de arquivos) — Windows incluído; "Copiar caminho completo"
      dizendo o que instalar quando não há ferramenta de área de
      transferência;
@@ -185,7 +195,7 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
      inotify (ADR 0044);
    - sistemas de arquivos de rede: detectados no Linux também, ou
      registrados como não detectados — o ADR 0029 evitou uma lista de
-     números mágicos de sistemas de arquivos no macOS, e o Linux não oferece
+     nomes de sistemas de arquivos no macOS, e o Linux não oferece
      uma flag como o `MNT_LOCAL`;
    - atributos estendidos sob SELinux: observados na máquina Fedora;
    - maiúsculas: os testes que importam onde dois nomes diferem só em
