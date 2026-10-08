@@ -50,13 +50,14 @@ test("the board's menu on a card, its link and the library hidden", async ({ app
   await app.quickOpen("Mesa");
   await app.boardReady();
   const c = await app.centerOf("a");
-  // Under load the right click can land before the board hit-tests the
-  // card: the pair of clicks is tried again.
-  await expect(async () => {
-    await page.mouse.click(c.x, c.y);
-    await page.mouse.click(c.x, c.y, { button: "right" });
-    await expect(page.locator(".context-menu")).toBeVisible({ timeout: 2_000 });
-  }).toPass();
+  // Selected, the card is entered a moment later and takes the pointer
+  // (its links, its text): a right click then never reached the board, and
+  // no menu opened — seen as a flaky test under load, where the two clicks
+  // came apart (2026-10-08). The pause makes that the case every time.
+  await page.mouse.click(c.x, c.y);
+  await page.waitForTimeout(600);
+  await page.mouse.click(c.x, c.y, { button: "right" });
+  await expect(page.locator(".context-menu")).toBeVisible();
   await expect(page.locator('.context-menu li[data-testid="addToLibrary"]')).toBeHidden();
   tidy(await shape(page, ".context-menu"));
 });
