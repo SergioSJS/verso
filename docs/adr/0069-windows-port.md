@@ -191,6 +191,18 @@ refuses to rename a folder while any file in it is open.
      text says so. The maintainer, asked on 2026-10-07, does not know yet
      ("Não sei"): the port proceeds on this recommendation as a provisional
      fact, and the maintainer decides on the pull request that lands it.
+     **What the port does, 2026-10-08**: the temporary file's `sync_all`,
+     then `std::fs::rename` (which never degrades to a copy), then the
+     directory flushed — `FlushFileBuffers` on a handle opened with write
+     access and backup semantics, which Windows takes (measured, Context).
+     So a directory flush exists on Windows and `MOVEFILE_WRITE_THROUGH` is
+     not used: no new dependency, no `unsafe`. A rename that meets a held
+     handle is tried again for up to about 2.5 s, and before each try the
+     target is checked to be still the file that was read (invariant 11) —
+     changed, the write stops and the diff is shown. A held target answers
+     "Access is denied" (measured), the error a read-only target gives for
+     good: a read-only target is told apart first and fails at once. The `[OPEN]` becomes: is this flush the directory `fsync`
+     invariant 9 means.
    - **`[OPEN]`: the path separator.** A note's path crosses the contract as
      a string relative to the open folder (ADR 0026, rule 4), wikilink
      targets and the index hold paths, and `docs/reference/mcp-decision.md`
@@ -213,16 +225,35 @@ refuses to rename a folder while any file in it is open.
    - OneDrive's placeholder, `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS`, as a
      `verso-fs` fixture: the maintainer closes that provider's `[OPEN]` in
      [0043](0043-placeholder-guard.md) in the port's pull request.
+     **Not in the port's pull request, 2026-10-08**: the test machine has no
+     OneDrive account to observe a placeholder on. Until then `verso-fs`
+     reads no placeholder on Windows, so a folder under Files On-Demand is
+     downloaded by its first index. Proposed: the attributes
+     `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS`, `FILE_ATTRIBUTE_RECALL_ON_OPEN`
+     and `FILE_ATTRIBUTE_OFFLINE`, read through std's `file_attributes()`
+     (no dependency, no `unsafe`), with a fixture once observed; the
+     `[OPEN]` of 0043 stays the maintainer's.
    - Path confinement against Windows forms: drive letters, UNC paths, `\`,
      junctions, reserved names (`CON`, `NUL`), 8.3 short names, trailing dots
      and spaces, and case-insensitive names (Q8 of the dialect spec is
-     `[OPEN]`).
+     `[OPEN]`). 8.3 short names, 2026-10-08: a name of that shape (a `~`
+     and a digit) that names something is looked up in its folder, and a
+     short spelling of another entry — `OBSIDI~1` for `.obsidian` — is
+     refused, so it cannot get past the hidden and ignored rules.
    - The configuration location on Windows, with the log and the index
      file that live beside it on macOS (`~/Library/Application Support/verso`):
      `[OPEN]`; [0011](0011-config-outside-tree-index-as-cache.md) has no
      Windows counterpart. The maintainer, asked on 2026-10-07, does not know
      yet ("Não sei"): the port proposes a location in its pull request, with
-     the reasons, and the maintainer decides there.
+     the reasons, and the maintainer decides there. **Proposed by the port,
+     2026-10-08**: `%APPDATA%\verso`, after `VERSO_CONFIG_DIR` and
+     `XDG_CONFIG_HOME` and ahead of `HOME` — Windows' folder for a user's
+     application data, where Tauri's own configuration folder resolves too,
+     while `HOME` is usually unset there; Claude Desktop's configuration,
+     which "Add to Claude" writes, is `%APPDATA%\Claude`. A question beside
+     it: `%APPDATA%` is the roaming profile, which a company network copies
+     between machines; the index, a cache that can be large, may belong in
+     `%LOCALAPPDATA%` (the log too), the settings in `%APPDATA%`.
    - The updater's Windows install path, which exists and has never run
      ([0055](0055-in-app-updater.md)), and its rollback.
    - The command line on `PATH`, and the keys the tutorial teaches, with Ctrl
@@ -266,6 +297,12 @@ refuses to rename a folder while any file in it is open.
   [`cross-platform-checklist.md`](../reference/cross-platform-checklist.md),
   pointed to from `CLAUDE.md` §4. It records habits and their fixes; it
   decides nothing new.
+- **Measured on 2026-10-08**: the first index of 5,000 notes took 228 s
+  on the Windows machine against 3.4 s on macOS — one SQLite commit per
+  note, each a real `FlushFileBuffers` on Windows. The index, a cache
+  (ADR 0011), now runs in WAL with `synchronous = NORMAL` and one
+  transaction per index run: 9.1 s on Windows, 2.6 s on macOS. Recorded in
+  the cross-platform checklist.
 - No GPU in the virtual machine: WebView2 renders in software there. The
   board's frame rate is judged on the gaming PC.
 - Each Windows CI job costs about 1.7 times a Linux one, only on `main`
@@ -305,3 +342,5 @@ knowing yet ("Não sei") and the port proceeding on the recorded
 recommendation as a provisional fact until its pull request: what the
 directory `fsync` means on Windows (item 9); the path separator in a path
 relative to the open folder (item 9); the configuration location (item 9).
+Not in the port's pull request, recorded on 2026-10-08: OneDrive's
+placeholder (item 9).

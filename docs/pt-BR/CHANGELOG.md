@@ -19,6 +19,8 @@ versão de teste.
 
 ### Corrigido
 
+- **O primeiro índice de uma pasta grande ficou muito mais rápido**: cada nota era um commit próprio no índice, e no Windows cada commit espera o disco — 5.000 notas levavam 228 s lá; agora 9 s, e 2,6 s em vez de 3,4 s no macOS. O índice continua um cache refeito a partir das notas.
+- **Depois de um clique numa linha da árvore, ↓ e ↑ andam pela árvore a partir dela**; o F2 continua renomeando a nota aberta, e uma linha alcançada pelas setas é renomeada no lugar.
 - **Teclas e campos em todo motor web**: depois de um clique numa linha da árvore, F2 renomeia a nota aberta no Chromium (WebView2) também; as teclas do board seguem funcionando depois de Inserir › Setas soltas; uma nota ou pasta nova pela árvore é criada no Enter, e o Esc deixa o nome de uma área como estava — cada um estava quebrado no Chromium, o motor do app de Windows que vem ([ADR 0069](adr/0069-windows-port.md)).
 
 ## 0.4.0-beta.2 — 2026-10-07
