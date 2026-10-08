@@ -369,10 +369,7 @@ async fn install<R: tauri::Runtime>(
         // Watched before the first index run, so that a change made while
         // it runs — seconds on a large folder — is not missed.
         let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
-        let handle_for_progress = handle.clone();
-        let report = workspace.index_with_progress(move |p| {
-            emit_progress(&handle_for_progress, &opener, &to_progress(p));
-        })?;
+        let report = workspace.index_with_progress(progress_to(handle.clone(), opener))?;
         let mut info = folder_info(&workspace, &report);
         info.index.unwatched.clone_from(&unwatched);
         Ok(Session {
@@ -448,6 +445,31 @@ fn emit_progress<R: tauri::Runtime>(
     }
 }
 
+/// An index run's progress for `windows`, at most one event every
+/// [`PROGRESS_EVERY`] — and always a phase's first and the run's last. One
+/// event per note, unchanged notes included, cost the window more CPU than
+/// the index itself on 5,000 notes (measured on Windows, 2026-10-08).
+fn progress_to<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    windows: Vec<String>,
+) -> impl FnMut(verso_core::IndexProgress) {
+    let mut last: Option<(std::time::Instant, String)> = None;
+    move |p| {
+        let now = std::time::Instant::now();
+        let due = p.current >= p.total
+            || last.as_ref().is_none_or(|(at, phase)| {
+                *phase != p.phase || now.duration_since(*at) >= PROGRESS_EVERY
+            });
+        if due {
+            last = Some((now, p.phase.clone()));
+            emit_progress(&app, &windows, &to_progress(p));
+        }
+    }
+}
+
+/// The least time between two progress events of one index run.
+const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_millis(100);
+
 /// A batch from the watch, on its thread: index the folder again and send
 /// the app's windows `folder-changed`, once — every window listens to it,
 /// whatever its label. The payload names what this run found changed (a
@@ -466,11 +488,9 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, miss
             missed.store(true, Ordering::SeqCst);
             return;
         };
-        let handle_for_progress = app.clone();
+        let progress = progress_to(app.clone(), shown_in);
         let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            session.workspace.index_with_progress(move |p| {
-                emit_progress(&handle_for_progress, &shown_in, &to_progress(p));
-            })
+            session.workspace.index_with_progress(progress)
         }));
         let report = match outcome {
             Ok(Ok(report)) => Ok(report),
@@ -725,11 +745,9 @@ fn reindex<R: tauri::Runtime>(
         .map(|key| guard.windows_of(key))
         .unwrap_or_default();
     let session = guard.of(window.label()).ok_or_else(no_folder)?;
-    let handle_for_progress = app.clone();
+    let progress = progress_to(app.clone(), shown_in);
     let report = match std::panic::catch_unwind(AssertUnwindSafe(|| {
-        session.workspace.index_with_progress(move |p| {
-            emit_progress(&handle_for_progress, &shown_in, &to_progress(p));
-        })
+        session.workspace.index_with_progress(progress)
     })) {
         Ok(result) => result.map_err(convert)?,
         Err(payload) => {
