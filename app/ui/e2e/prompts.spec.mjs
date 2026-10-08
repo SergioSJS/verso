@@ -73,7 +73,7 @@ test("a workspace's name: Escape keeps the old one, Enter takes the new", async 
 // language, and the log has it as an answer, not a fault.
 test("a name Windows cannot keep is refused, and the field says why", async ({ app }) => {
   await withFolder(app);
-  for (const name of ["CON", "Reunião: pauta", "nota."]) {
+  for (const name of ["CON", "Reunião: pauta", "Ideia?"]) {
     await folderMenu(app, "Pasta", "Nova nota nesta pasta");
     const field = app.page.locator("input.new-note");
     await field.fill(name);
@@ -82,4 +82,10 @@ test("a name Windows cannot keep is refused, and the field says why", async ({ a
   }
   const files = await app.files();
   expect(files.filter((f) => f.startsWith("Pasta/"))).toEqual(["Pasta/Nota.md"]);
+  // A dot before `.md` is kept by every system: "nota." makes `nota..md`.
+  await folderMenu(app, "Pasta", "Nova nota nesta pasta");
+  const field = app.page.locator("input.new-note");
+  await field.fill("nota.");
+  await field.press("Enter");
+  await expect.poll(() => app.files()).toContain("Pasta/nota..md");
 });

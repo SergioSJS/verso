@@ -131,7 +131,10 @@ export function unlinkable(typed: string): boolean {
 /** A name not every OS can keep (ADR 0070): the core refuses it for what is
  *  made or renamed, so that the folder can be synced to Windows; this says
  *  why, in the person's language. The last segment only: a folder that
- *  exists already is the user's, and the core checks the rest. */
+ *  exists already is the user's, and the core checks the rest. `typed` is
+ *  the file's whole name — a note's with its `.md`, since a trailing dot or
+ *  space only counts at the very end, as Windows and Obsidian there read
+ *  it (`nota..md` is kept; a folder `pasta.` is not). */
 export function unportable(typed: string): boolean {
   const name = typed.split("/").pop() ?? typed;
   const stem = (name.split(".")[0] ?? "").trimEnd().toUpperCase();
@@ -142,7 +145,8 @@ export function unportable(typed: string): boolean {
 }
 export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false): Promise<void> {
   const clean = nameTyped.trim().replace(/\.md$/i, "");
-  if (!clean || unlinkable(clean) || unportable(clean)) return;
+  // A note's file name ends in `.md`: a dot before it is kept by Windows.
+  if (!clean || unlinkable(clean) || unportable(`${clean}.md`)) return;
   const path = folder ? `${folder}/${clean}` : clean;
   let initialText = `# ${clean.split("/").pop() ?? clean}\n\n`;
   // The folder's template, when it names one; else the note offers the
@@ -259,7 +263,7 @@ export async function deleteEntry(path: string, kind: Kind): Promise<void> {
 }
 export async function renameNote(from: string, toName: string): Promise<void> {
   const clean = toName.trim().replace(/\.md$/i, "");
-  if (!clean || clean === name(from) || unlinkable(clean) || unportable(clean)) return;
+  if (!clean || clean === name(from) || unlinkable(clean) || unportable(`${clean}.md`)) return;
   const to = clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean;
   await renameTo(from, kindOf(from) === "note" ? to : `${to}${ext(from) ? "." + ext(from) : ""}`);
 }
