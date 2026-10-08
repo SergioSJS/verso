@@ -90,6 +90,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0055](0055-in-app-updater.md) | The in-app updater | Accepted (2026-09-29) |
 | [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29); revised the same day: no proxy, pages load directly from origins the user approved |
 | [0057](0057-board-json-canvas.md) | The board: a JSON Canvas file, Excalidraw as its surface, typed relations in the frontmatter | Accepted (2026-09-30) |
+| [0069](0069-windows-port.md) | The Windows port: x64, an installer, tested on a Windows machine over SSH | Proposed (2026-10-07); x64, Windows 10 and 11, NSIS and no code signing for now decided; the push gate `[OPEN]` |
 
 ### Dialect, engineering and roadmap
 
