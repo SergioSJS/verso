@@ -320,6 +320,9 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       const renderSubtree = () => {
         if (!renderedChild) {
           renderedChild = renderTree(child, depth + 1, full);
+          // Its rows' height until it is first laid out (`content-visibility`
+          // skips a folder off screen): about one row each.
+          renderedChild.style.setProperty("--rows", String(renderedChild.children.length));
           d.append(renderedChild);
         }
       };
