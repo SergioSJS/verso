@@ -93,9 +93,14 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
   // ⌘- and ⇧-click select (ADR 0048, revised 2026-10-07); a plain click opens.
   b.addEventListener("click", (e) => {
     if (!selectionClick(path, e)) openNote(path, false, false, true);
+    // After a mouse click the row keeps no focus, in either engine. WebKit
+    // never focuses a button on a click, so the keys after it go to the
+    // window (F2 renames the open note, main.ts); Chromium (WebView2, the
+    // Windows app) focuses it, and F2 would rename the row in place. Tab
+    // and the arrows still reach a row and keep it (ADR 0069, item 8).
+    if (e.detail > 0 && document.activeElement === b) b.blur();
   });
   b.addEventListener("dblclick", (e) => void (e.metaKey || e.ctrlKey || openNote(path, false)));
-  b.addEventListener("mousedown", () => b.focus());
   armDrag(b, () => dragOf(path), () => dragLabel(path, name(path)));
   b.addEventListener("contextmenu", (e) => {
     e.preventDefault();

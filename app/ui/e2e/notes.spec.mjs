@@ -324,6 +324,8 @@ test("Editar sets the text where Leitura does: same column, width and line heigh
       const box = el.getBoundingClientRect();
       return { left: range.getClientRects()[0].left, right: box.right - parseFloat(style.paddingRight), lineHeight: style.lineHeight };
     }, [sel, text]);
+  // Drawn first: under load the measure could run before the paragraph is.
+  await expect(page.locator(".preview p", { hasText: "Um parágrafo" })).toBeVisible();
   const reading = { para: await measure(".preview p", "Um parágrafo"), item: await measure(".preview li", "Um item") };
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await page.locator(".cm-content").first().click();
