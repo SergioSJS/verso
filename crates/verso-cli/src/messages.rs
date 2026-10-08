@@ -106,6 +106,9 @@ pub enum Msg {
         snippet: String,
     },
     IndexFailed(String),
+    /// The note asked for is not a path of the folder (absolute, `..`,
+    /// hidden, ignored…): the asking was wrong, not the index.
+    RefusedNote(String, String),
     /// `verso mcp` is up: said once, on stderr, before the first answer.
     McpServing {
         folder: String,
@@ -195,6 +198,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
             Msg::UnresolvedLine { target, count } => format!("{target}  ({count})"),
             Msg::HitLine { path, snippet } => format!("{path}: {snippet}"),
             Msg::IndexFailed(e) => format!("indexação falhou: {e}"),
+            Msg::RefusedNote(note, why) => format!("nota recusada: {note} — {why}"),
             Msg::McpServing {
                 folder,
                 indexed,
@@ -282,6 +286,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
             Msg::UnresolvedLine { target, count } => format!("{target}  ({count})"),
             Msg::HitLine { path, snippet } => format!("{path}: {snippet}"),
             Msg::IndexFailed(e) => format!("indexing failed: {e}"),
+            Msg::RefusedNote(note, why) => format!("note refused: {note} — {why}"),
             Msg::McpServing {
                 folder,
                 indexed,
@@ -353,6 +358,7 @@ mod tests {
                 snippet: "s".into(),
             },
             Msg::IndexFailed("e".into()),
+            Msg::RefusedNote("../x".into(), "w".into()),
             Msg::McpServing {
                 folder: "/v".into(),
                 indexed: 1,
@@ -404,6 +410,7 @@ mod tests {
             Msg::Opening { .. } => 26,
             Msg::AppNotFound { .. } => 27,
             Msg::NoFolderToOpen(_) => 28,
+            Msg::RefusedNote(..) => 29,
         }
     }
 
@@ -413,7 +420,7 @@ mod tests {
         seen.sort_unstable();
         // `ordinal` is exhaustive, so its highest arm is the variant count
         // minus one; the samples must reach it without a gap.
-        let expected: Vec<usize> = (0..=28).collect();
+        let expected: Vec<usize> = (0..=29).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
     }
 

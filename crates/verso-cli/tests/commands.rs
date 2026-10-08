@@ -115,6 +115,11 @@ fn index_search_and_backlinks_in_both_languages() {
     assert!(out.is_empty(), "{out}");
     assert_eq!(err.trim(), "nota desconhecida: Nada (indexe a pasta?)");
 
+    // A note path that leaves the folder is refused as such, not as a
+    // failed index (exit 2, usage).
+    let (code, _, err) = verso(config.path(), "en", &["backlinks", v, "../fora"]);
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("note refused: ../fora"), "{err}");
     let (code, out, _) = verso(config.path(), "en", &["backlinks", v, "--unresolved"]);
     assert_eq!(code, 0);
     assert_eq!(out.trim(), "Mapa.png  (1)");

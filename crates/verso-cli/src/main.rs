@@ -648,6 +648,13 @@ fn run(args: &[OsString]) -> Output {
                 }
                 0
             }
+            // A path that cannot name a note of the folder is a usage error,
+            // said as such — not "indexing failed".
+            Err(CoreError::Confined(why)) => {
+                out.stderr
+                    .push(text(&Msg::RefusedNote(note, why.to_string()), lang));
+                2
+            }
             Err(e) => {
                 out.stderr
                     .push(text(&Msg::IndexFailed(e.to_string()), lang));
