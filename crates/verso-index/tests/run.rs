@@ -114,3 +114,26 @@ fn a_note_is_trusted_by_its_stat_only_when_modified_before_its_read() {
     assert!(index.mark_placeholder("velha.md").unwrap());
     assert!(!index.unchanged_by_stat("velha.md", old, 7).unwrap());
 }
+
+/// A clock set back (a restored virtual machine) leaves a row vouched for
+/// in the future: the next run reads it again instead of trusting it.
+#[test]
+fn a_row_vouched_for_in_the_future_is_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("index.sqlite");
+    let mut index = Index::open(&file).unwrap();
+    let old = now() - 100;
+    index.begin().unwrap();
+    put_at(&mut index, "nota.md", old).unwrap();
+    index.commit().unwrap();
+    let raw = rusqlite::Connection::open(&file).unwrap();
+    raw.execute(
+        "UPDATE notes SET indexed_at = ?1 WHERE path = 'nota.md'",
+        [now() + 3600],
+    )
+    .unwrap();
+    assert!(index.unchanged_by_stat("nota.md", old, 7).unwrap());
+    index.begin().unwrap();
+    assert!(!index.unchanged_by_stat("nota.md", old, 7).unwrap());
+    index.commit().unwrap();
+}

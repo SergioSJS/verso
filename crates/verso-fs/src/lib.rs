@@ -291,8 +291,12 @@ impl Root {
         if target != path && placeholder::stands_in(&target).map_err(ReadError::Io)? {
             return Err(ReadError::Unavailable);
         }
-        let bytes = std::fs::read(&target).map_err(ReadError::Io)?;
+        // The stamp's time and length are taken before the bytes, as the
+        // write takes them: a write that lands between the two leaves an
+        // older time with the newer content, which the next index reads
+        // again, never a newer time vouching for older content.
         let meta = std::fs::metadata(&target).map_err(ReadError::Io)?;
+        let bytes = std::fs::read(&target).map_err(ReadError::Io)?;
         let stamp = Stamp::of(&meta, &bytes).map_err(ReadError::Io)?;
         Ok((bytes, stamp))
     }
