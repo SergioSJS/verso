@@ -65,6 +65,17 @@ maintainer resolved it by promoting the rule.
   Dropbox and Google Drive go through the system File Provider on recent macOS,
   which may or may not produce the same `SF_DATALESS` flag. Each one is added
   when its platform arrives or a user needs it.
+- **Windows: decided by the maintainer on 2026-10-08** ("deveria funcionar
+  igual" — as iCloud does): a file carrying
+  `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS` (OneDrive's Files On-Demand and
+  every Cloud Files provider), `FILE_ATTRIBUTE_RECALL_ON_OPEN` or
+  `FILE_ATTRIBUTE_OFFLINE` is a placeholder under every rule above: present,
+  content unavailable, its last indexed version kept, never opened by the
+  walk, the index or the watcher, and fetched when the user opens it
+  (reading it downloads it, as on macOS). Tested with `attrib +O` (offline),
+  the test machine having no OneDrive account; a real OneDrive placeholder
+  is still to be observed. OneDrive on macOS, Dropbox and Google Drive stay
+  `[OPEN]`.
 - Each recognized provider becomes a `verso-fs` fixture, not a dialect one,
   recording how it was observed. No `verso-fs` fixture schema exists yet
   ([0044](0044-verso-fs-semantics.md)), so the iCloud Drive mechanism lands as a
@@ -204,7 +215,8 @@ todas (Recomendado)", accepting the author's recommendation for each.
 ## Status
 
 Accepted. Detection mechanism: decided for iCloud Drive on 2026-09-22 (both
-forms, checked before the file is opened); `[OPEN]` for the other providers,
+forms, checked before the file is opened); for Windows' cloud attributes,
+OneDrive's among them, on 2026-10-08; `[OPEN]` for the other providers,
 each one when its platform arrives or a user needs it. Opening a file in the
 window fetches it: decided on 2026-09-30; what opening covers, and the index
 across a version: decided on 2026-10-01.

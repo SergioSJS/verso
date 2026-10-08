@@ -14,12 +14,13 @@ test release.
 
 ### Changed
 
-- **A note, folder or file is made or renamed only with a name every system can keep** ([ADR 0070](docs/adr/0070-what-travels-with-the-folder.md)): `CON`, `NUL`, `COM1` and the other device names, a trailing dot or space, and `: * " < > ? |` are refused on macOS too, since a folder synced to Windows could not carry them; the field says why. A file that already has such a name still opens, saves, and can be renamed to one every system keeps.
+- **A note, folder or file is made or renamed only with a name every system can keep** ([ADR 0070](docs/adr/0070-what-travels-with-the-folder.md)): `CON`, `NUL`, `COM1` and the other device names, a trailing dot or space, and `: * " < > ? | \` are refused on macOS too, since a folder synced to Windows could not carry them; the field says why. A file that already has such a name still opens, saves, and can be renamed to one every system keeps.
 - **The demo vault's note 19 is now `19 - Organizando com figurinhas, capas e páginas`**: its `:` broke its four links once the folder reached Windows. Importing into a folder that holds an earlier demo keeps that one as it is.
 
 ### Fixed
 
 - **The first index of a big folder is much faster**: each note was its own commit to the index, and on Windows each commit waits for the disk — 5,000 notes took 228 s there; now 9 s, and 2.6 s instead of 3.4 s on macOS. The index stays a cache rebuilt from the notes.
+- **Opening a folder again no longer re-reads every note**: a note whose modified time and length the index holds, from well before it was last read, is trusted as is — 5,000 notes open in 0.05 s instead of 0.7 s on macOS. A note changed in the same second it was read is still read again.
 - **After a click on a tree row, ↓ and ↑ walk the tree from it**; F2 still renames the open note, and a row reached by the arrows is renamed in place.
 - **Keys and fields in every web engine**: after a click on a tree row, F2 renames the open note in Chromium (WebView2) too; the board's keys keep working after Insert › Setas soltas; a new note or folder from the tree is made on Enter, and Escape leaves a workspace's name as it was — each was broken in Chromium, the engine of the Windows app to come ([ADR 0069](docs/adr/0069-windows-port.md)).
 
