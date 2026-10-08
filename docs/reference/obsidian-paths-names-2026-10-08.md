@@ -1,7 +1,9 @@
 # Obsidian's separators and file names, observed on 2026-10-08
 
 - Date: 2026-10-08
-- Observed with: Obsidian 1.14.4 (installer 1.11.5), macOS, through its CLI
+- Observed with: Obsidian 1.14.4 (installer 1.11.5), macOS, through its CLI;
+  and Obsidian 1.14.4 on Windows 11 (the port's test machine), through its
+  CLI (`Obsidian.com`), the same day
 - Admissible by [ADR 0009](../adr/0009-external-constraints.md): normal use
   of the app and the public API only (`Vault.create`,
   `MetadataCache.getCache`, `MetadataCache.getFirstLinkpathDest`,
@@ -52,8 +54,23 @@ text, `getFirstLinkpathDest(link, "linker.md")`, and the note's entries in
 | `ponto.` (`ponto..md`), `espaco ` (`espaco .md`) | created as written |
 | `a#b`, `a^b`, `a[b`, `a]b`, `normal` | created as written |
 
+**On Windows 11** (same version, same script, a sandbox vault):
+
+| Case | Answer |
+|---|---|
+| the six links above | the same as on macOS: only the two written with `/` resolve |
+| `a:b`, `a?b`, `a*b`, `a"b`, `a<b`, `a>b`, `a\|b` | refused: "File name cannot contain any of the following characters: * " \ / < > : \| ?" |
+| `CON`, `nul`, `COM1` | refused: "File name is forbidden: CON" (`nul`, `COM1` alike) |
+| `a\b` | the `\` read as a separator, as on macOS |
+| `ponto.`, `espaco `, `a#b`, `a^b`, `a[b`, `normal` | created: `ponto..md`, `espaco .md`… — the dot or space is not at the end of the file's name |
+
 ## 3. What it shows
 
+- On Windows Obsidian refuses, on every note, what Windows cannot keep:
+  the nine characters and the device names. That is the rule Verso applies
+  on every OS for what it makes or renames
+  ([0070](../adr/0070-what-travels-with-the-folder.md)). A note typed as
+  `ponto.` is `ponto..md`, which Windows keeps.
 - In a **link**, Obsidian on macOS takes `\` as part of the name, not as a
   separator: `[[pasta\nota]]` does not reach `pasta/nota.md`. Verso, which
   extends Obsidian and never contradicts it (invariant 12), does the same:
@@ -62,16 +79,13 @@ text, `getFirstLinkpathDest(link, "linker.md")`, and the note's entries in
 - In a **path handed to the vault**, Obsidian turns `\` into `/` before the
   name is checked.
 - On macOS Obsidian refuses only `\`, `/` and `:` in a name. It creates names
-  Windows cannot keep — `* " < > ? |`, a device name (`CON`, `NUL`, `COM1`),
-  a trailing dot or space — which a folder synced to Windows then cannot
-  carry. Refusing them on every OS when a note is made or renamed is
+  Windows cannot keep — `* " < > ? |` and the device names (`CON`, `NUL`,
+  `COM1`) — which a folder synced to Windows then cannot carry. Refusing them on every OS when a note is made or renamed is
   stricter than Obsidian, not contrary to it: no existing name changes
   meaning.
 
 ## 4. Not observed
 
-- Obsidian on Windows (its link resolution with `\`, and the names its own
-  dialogs refuse there).
 - The new-note and rename dialogs of the window, which may check more than
   `Vault.create` does.
 - Linux, case-only differences (spec Q8) and Unicode normalization (Q7).

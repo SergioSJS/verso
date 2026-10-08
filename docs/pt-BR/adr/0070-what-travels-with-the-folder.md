@@ -41,8 +41,9 @@ focos em `.space/waypoints.json` ([0062](0062-focuses.md)).
 Observado no Obsidian em 2026-10-08
 ([obsidian-paths-names-2026-10-08.md](../reference/obsidian-paths-names-2026-10-08.md)):
 uma `\` num link é parte do nome, não separador; no macOS o Obsidian recusa
-só `\ / :` num nome e cria `? * | " < >`, `CON`, ponto ou espaço no fim —
-nomes que uma pasta sincronizada com o Windows não consegue levar.
+só `\ / :` num nome e cria `? * | " < >` e `CON` — nomes que uma pasta
+sincronizada com o Windows não consegue levar; no Windows ele recusa
+exatamente esses, a regra que o item 3 adota.
 
 ## Decisão
 

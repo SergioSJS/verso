@@ -258,6 +258,14 @@ refuses to rename a folder while any file in it is open.
   where it is missing, and every `cfg(windows)` choice checked against
   Windows 10's documentation. The first Windows beta may ship before
   Windows 10 is run; the release notes say so.
+- **Asked by the maintainer on 2026-10-08**: what had to be fixed for the
+  first Windows build is written down where agents read it, so that work
+  done on the Mac is right on Windows the first time ("tomar nota de todos
+  os problemas que foram corrigidos para que a versão Windows fosse gerada
+  e a gente não repetisse"):
+  [`cross-platform-checklist.md`](../reference/cross-platform-checklist.md),
+  pointed to from `CLAUDE.md` §4. It records habits and their fixes; it
+  decides nothing new.
 - No GPU in the virtual machine: WebView2 renders in software there. The
   board's frame rate is judged on the gaming PC.
 - Each Windows CI job costs about 1.7 times a Linux one, only on `main`

@@ -178,6 +178,11 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
 2. Conferir se a decisão necessária está `[ABERTO]`. Está: perguntar, não
    escolher.
 3. Confirmar que o trabalho cabe na fase atual do `roadmap.md`.
+4. Trabalho que toca arquivos, caminhos, processos, configuração ou o foco e
+   as teclas da janela: ler
+   [`docs/reference/cross-platform-checklist.md`](reference/cross-platform-checklist.md)
+   — é escrito no Mac e tem que estar certo no Windows
+   ([ADR 0069](adr/0069-windows-port.md)).
 
 ### O PR
 
