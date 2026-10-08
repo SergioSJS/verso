@@ -46,10 +46,9 @@ next ones take about a minute. What neither covers:
   macOS after each merge into `main`.
 - **Windows**: Docker on a Mac or on Linux cannot run Windows, so
   `scripts/check-windows.sh` reaches a real Windows machine over SSH
-  ([ADR 0069](docs/adr/0069-windows-port.md)). The port is under way: until
-  `verso-fs` has its Windows half, the workspace does not compile there, and
-  the script says so. CI gains a Windows job with the atomic write of the
-  port.
+  ([ADR 0069](docs/adr/0069-windows-port.md)). The workspace builds and its
+  tests run there; CI runs clippy and the tests on Windows after each merge
+  into `main`. The app itself is still being ported.
 - **The fuzzing and the benchmark**, which CI runs on `main`:
   `cargo +nightly fuzz run parse` in `crates/verso-dialect`, and
   `cargo run --release -p verso-bench -- --help`.

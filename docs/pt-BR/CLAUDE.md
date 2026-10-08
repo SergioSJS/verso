@@ -130,7 +130,7 @@ mudando o teste.
 
 CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
 roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
-clippy e os testes no macOS, o fuzzing e o benchmark; os testes de ponta a
+clippy e os testes no macOS e no Windows, o fuzzing e o benchmark; os testes de ponta a
 ponta da janela rodam só localmente, no `scripts/check.sh`
 ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)); os apps são compilados e
 empacotados só quando uma versão nova chega à `main`, nunca numa branch. Antes de qualquer push,

@@ -87,6 +87,24 @@ runs its commands in session 0, with no interactive desktop — item 7 may
 need a logged-on session and a scheduled task, or an open Remote Desktop
 session, to start the app in.
 
+Measured on `verso-win` on 2026-10-08, by the port's first pull requests.
+The workspace did not compile there at all: `xattr` was a dependency of
+`verso-fs` on every OS, and `verso-fs` stopped the build on purpose where
+only the Unix half of its directory identity existed. **A directory opened
+with write access and `FILE_FLAG_BACKUP_SEMANTICS`, through std's stable
+`OpenOptionsExt`, takes `FlushFileBuffers` (`sync_all`)**; opened for
+reading only it is refused with "Access is denied". That is a directory
+`fsync` on Windows with no `unsafe` and no dependency, a new fact for item
+9's first `[OPEN]`: the port flushes the directory that way, and the
+question stays the maintainer's. `Path::join` put `\` in paths relative to
+the folder, and a board and a link were written with it. Reading the notes
+of a directory raised a "modified" event for the directory itself, which
+would have made every pass of the index start the next. The desktop host's
+test harness died at start (`STATUS_ENTRYPOINT_NOT_FOUND`) without the
+application manifest tauri-build embeds in the app alone. A note is
+renamed by `link` and `unlink` there too (NTFS has hard links), and Windows
+refuses to rename a folder while any file in it is open.
+
 ## Decision
 
 1. **x64 only, Windows 10 and 11.** Windows on ARM is not built: there is no

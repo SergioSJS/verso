@@ -206,8 +206,11 @@ diz o ADR 0044; o Linux ainda não é.
   comportamentos de aba das seções 3.4 a 3.6 esperam um smoke test numa cópia
   de rascunho.
 - Evicções e downloads reais do iCloud Drive sob um watcher.
-- Windows (ainda não é alvo), e o crate do host no Linux (precisa do
-  WebKitGTK; os crates do watcher rodaram lá).
+- Windows, que não era alvo quando isto foi escrito (passou a ser em
+  2026-09-23), e o crate do host no Linux (precisa do WebKitGTK; os crates do
+  watcher rodaram lá). Desde 2026-10-08 os testes do watcher rodam no
+  Windows, e o evento de "modificado" do próprio diretório, que ler as notas
+  dele levanta lá, é descartado ([ADR 0069](../adr/0069-windows-port.md)).
 - O custo da seção 3.2 numa pasta de dezenas de milhares de notas com mudanças
   chegando sem parar.
 

@@ -134,7 +134,7 @@ the test.
 
 CI ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 2026-09-23): a pull
 request runs every guardrail but the fuzzing in one Linux job; `main` adds
-clippy and the tests on macOS, the fuzzing and the benchmark; the window's
+clippy and the tests on macOS and on Windows, the fuzzing and the benchmark; the window's
 end-to-end tests run only locally, in `scripts/check.sh`
 ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)); the apps are
 built and packaged only for a new version reaching `main`, never on a branch. Before any push,
