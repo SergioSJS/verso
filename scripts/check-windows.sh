@@ -26,8 +26,8 @@
 # so a build is incremental (tar keeps the files' times, which cargo reads).
 #
 # The UI bundle (app/ui/dist) must exist here first — scripts/check.sh builds
-# it; the host embeds it at compile time. It is sent from here because its
-# build is a POSIX shell script; the bundle is the same on every OS.
+# it; the host embeds it at compile time in clippy and the tests. --bundle
+# builds it again on the host, in Git's bash, as the release workflow does.
 #
 # Every step runs even when one before it fails; the exit code says whether
 # all were green.
@@ -136,7 +136,13 @@ if [ "$bundle" = 1 ]; then
     # which is what PowerShell picks for `npm`.
     # From the tree's root, as the release workflow runs it: Tauri's CLI
     # looks for tauri.conf.json under the current directory.
-    on_host "$cargo_env; npm.cmd --prefix app/ui ci --no-audit --no-fund --loglevel=error
+    # The UI is built here, as the release workflow builds it — its POSIX
+    # build script run by Git's bash — so the installer never carries a
+    # bundle older than the tree (the one sent serves clippy and the tests).
+    on_host "$cargo_env; \$env:npm_config_script_shell='C:\\Program Files\\Git\\bin\\bash.exe'
+             npm.cmd --prefix app/ui ci --no-audit --no-fund --loglevel=error
+             if (\$LASTEXITCODE) { exit \$LASTEXITCODE }
+             npm.cmd --prefix app/ui run build
              if (\$LASTEXITCODE) { exit \$LASTEXITCODE }
              npm.cmd --prefix app/ui exec -- tauri build --bundles nsis $config" || return 1
     mkdir -p target/windows

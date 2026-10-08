@@ -152,7 +152,11 @@ enquanto algum arquivo dentro dela está aberto.
    job de Windows que gera o instalador, no pull request que traz a escrita
    atômica do item 9 — antes dele os testes falham no Windows (Contexto). Os
    pull requests ficam no Linux. Um minuto de Windows custa uns 1,7 de
-   Linux.
+   Linux. *Feito em 2026-10-08:* o `ci.yml` roda o clippy e os testes no
+   `windows-2025` depois de um merge; o `release.yml` gera o instalador
+   (`Verso[-Beta]-X.Y.Z-windows-x64-setup.exe`, com o nome que o
+   atualizador procura) e o `verso-cli-X.Y.Z-windows-x64.zip`, com a UI
+   compilada no bash do Git, e os publica junto com os arquivos do macOS.
 7. **O app real testado por máquina no Windows, pela suíte ponta a ponta
    que o repositório já tem** (proposto, pull request próprio). O WebView2 é
    Chromium: iniciado com
