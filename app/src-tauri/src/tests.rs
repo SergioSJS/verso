@@ -949,6 +949,28 @@ fn several_entries_move_through_the_contract_with_one_plan() {
     assert_eq!(err["kind"], "refused", "{err}");
 }
 
+/// The window controls of a window without the system's title bar (ADR
+/// 0072, app/ui/src/frame.ts) are allowed: without them the app's own
+/// buttons and its drag regions do nothing in the app, while the harness
+/// passes.
+#[test]
+fn the_window_controls_are_allowed() {
+    let capability = include_str!("../capabilities/default.json");
+    let frame = include_str!("../../ui/src/frame.ts");
+    for (call, permission) in [
+        ("minimize()", "core:window:allow-minimize"),
+        ("toggleMaximize()", "core:window:allow-toggle-maximize"),
+        ("close()", "core:window:allow-close"),
+        ("data-tauri-drag-region", "core:window:allow-start-dragging"),
+    ] {
+        assert!(frame.contains(call), "frame.ts no longer uses {call}");
+        assert!(
+            capability.contains(&format!("\"{permission}\"")),
+            "{permission} missing"
+        );
+    }
+}
+
 /// Every command the bindings call is allowed by the window's capability
 /// and listed in build.rs: a command missing there answers "not allowed"
 /// in the app, while the browser harness, which has no capabilities,

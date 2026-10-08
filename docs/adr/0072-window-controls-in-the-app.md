@@ -39,7 +39,7 @@ does. An undecorated window keeps its resize borders, and with `shadow`
 
 ## Decision
 
-Proposed by the author.
+Proposed by the author; decided by the maintainer on 2026-10-08 (Status).
 
 1. **macOS: the system's buttons over the app.** `titleBarStyle:
    "Overlay"`, `hiddenTitle: true`, on every window of a folder
@@ -58,9 +58,9 @@ Proposed by the author.
    keeps their width at its right end, and the side bar's own toggle stays
    left of them. Set on `main` in the configuration and on the `window-*`
    builder, as on macOS; the window permissions these need —
-   `start-dragging`, `toggle-maximize`, `minimize`, `maximize`,
-   `unmaximize`, `is-maximized`, `close` — are added to
-   `capabilities/default.json`, and the host test that guards permissions
+   `start-dragging`, `minimize`, `toggle-maximize`, `close`; `is-maximized`
+   and the double click's `internal-toggle-maximize` are in `core:default`
+   already — are added to `capabilities/default.json`, and the host test that guards permissions
    covers them.
 3. **Linux keeps the system's title bar** until its port (ADR 0071).
 4. **Checked in both engines:** the reserved strip with the side bars open
@@ -73,6 +73,38 @@ Proposed by the author.
 
 ## Consequences
 
+- **As built (2026-10-08).** macOS: the title bar set in
+  `tauri.macos.conf.json` (merged on macOS only), and the `window-*`
+  windows built from `main`'s configuration under their own label — a
+  webview's own `trafficLightPosition` is ignored where child web views
+  are on, as here. Windows: `decorations(false)` on both builders
+  (`windows.rs`, `frameless`). The UI (`app/ui/src/frame.ts`) reserves the
+  corner — 78 px on macOS; on Windows three buttons of 46 px, the top
+  row's height — and pushes any bar of the top row that reaches it: aside
+  by a spacer, or below the corner when it is narrower than that, a column
+  of vertical tabs, or would no longer fit (the right bar's tabs in a
+  narrow bar). Those bars carry `data-tauri-drag-region="deep"`: their
+  buttons and tabs still click. The window permissions added are
+  `start-dragging`, `minimize`, `toggle-maximize` and `close` (the rest is
+  in `core:default`), guarded by a host test.
+- **A double click on the tab bar's empty space maximizes the window**,
+  as the title bar did; it made a new note before, which the bar's +, ⌘N
+  and the bar's menu still do.
+- **The top row follows the font size of the settings (2.45rem), the
+  system's buttons do not**: they are placed for the default size (a row
+  of 37 px) and still fit the smallest (12 px, a row of 29 px); in a
+  bigger font they sit high in a taller row. Measured on macOS 26 on
+  2026-10-08: the position asked for is not applied there — the buttons
+  stay at the system's place, their tops 9 px down, about 3 px above the
+  row's centre; the reserved corner covers them either way. Why, read in
+  tao 0.35: it places them only when its own view draws, which the web
+  view covering it never lets happen; a resize by a pixel at creation does
+  not make it draw either (tried). So the side bar's head centres the
+  folder's name on the buttons, as VS Code's title bar does with the
+  system's place; moving the buttons as Obsidian does would take `unsafe`
+  code (forbidden, ADR 0029) or a dependency such as the plugin set aside
+  above — not taken; **the maintainer, 2026-10-08: "Sem unsafe por
+  enquanto"**.
 - About 30 px more height on macOS and Windows, in every window of a
   folder.
 - The window's name is no longer shown by the system: the folder's name
@@ -92,7 +124,13 @@ Proposed by the author.
 
 ## Status
 
-Proposed. `[OPEN]`: on Windows, buttons drawn by the app without Snap
-Layouts, or `tauri-plugin-decorum`, which keeps Snap Layouts at the cost of
-a community dependency — the author recommends the plugin if it passes
-`cargo-deny` and works with Tauri 2.11, else the app's own buttons.
+Accepted. **Decided by the maintainer on 2026-10-08** ("bora fazer os
+botões internos antes de liberar versão"; on Windows, "Botões próprios"):
+the app draws its own buttons on Windows, with no new dependency, "bonito
+e consistente". The plugin was weighed and set aside on facts gathered that
+day: `tauri-plugin-decorum` 1.1.1 (MIT) has had no release since
+September 2024, opens Snap Layouts by synthesizing keystrokes (`enigo`)
+and depends on old Objective-C crates on macOS; an in-house
+`WM_NCCALCSIZE` handler would need `unsafe`, which the workspace forbids
+(ADR 0029). Lost: the Snap Layouts menu on hovering maximize; Win+arrows,
+dragging to a screen edge and Win+Z stay the system's.

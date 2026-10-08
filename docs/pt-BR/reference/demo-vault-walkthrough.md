@@ -124,6 +124,17 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    estavam; `verso <pasta>` com todas as janelas numa pasta abre uma janela
    nova. Nível: A; U: `cargo test -p verso-app`
    (`each_window_answers_from_its_own_folder`).
+7. Sem barra de título (ADR 0072, nota 13), no macOS e no Windows: os
+   botões da janela — os do macOS no alto à esquerda, os do próprio app no
+   alto à direita no Windows — nunca cobrem uma aba, um botão ou o nome da
+   pasta, com as barras laterais abertas ou fechadas, dois painéis, uma
+   janela estreita; a parte vazia da barra de abas, o topo da barra lateral
+   e a faixa da esquerda arrastam a janela, e um duplo clique ali a
+   maximiza (não cria mais uma nota); no Windows os botões minimizam,
+   maximizam e restauram, e fecham com as abas salvas; uma nota em janela
+   própria mantém a barra de título. Nível: H; E: `frame.spec.mjs`
+   (molduras forçadas); A (o app no macOS e no Windows: arrastar, encaixar
+   numa borda, Win+setas, tela cheia no Mac).
 
 ## 3. Escrever e ler notas
 

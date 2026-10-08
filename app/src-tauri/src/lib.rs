@@ -1032,9 +1032,11 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // alone: it needs the download hook every window of the app
             // has (`on_download`).
             if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main") {
-                tauri::WebviewWindowBuilder::from_config(app.handle(), config)?
-                    .on_download(on_download)
-                    .build()?;
+                frameless(
+                    tauri::WebviewWindowBuilder::from_config(app.handle(), config)?
+                        .on_download(on_download),
+                )
+                .build()?;
             }
             Ok(())
         })
