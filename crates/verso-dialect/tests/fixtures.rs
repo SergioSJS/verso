@@ -376,8 +376,6 @@ impl<'a, 'y> Fields<'a, 'y> {
         }
     }
 
-    /// Call last: any field the fixture wrote that no check consumed is a
-    /// schema violation, not a silent pass.
     /// `[first, last]` lines, asserted when the fixture gives them.
     fn lines(&mut self, field: &str, actual: (u32, u32)) {
         let Some(expected) = self.get(field) else {
@@ -395,6 +393,8 @@ impl<'a, 'y> Fields<'a, 'y> {
         }
     }
 
+    /// Call last: any field the fixture wrote that no check consumed is a
+    /// schema violation, not a silent pass.
     fn finish(self) {
         for (field, _) in &self.map {
             if !self.seen.contains(field) {

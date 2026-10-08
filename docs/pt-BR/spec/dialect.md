@@ -802,15 +802,24 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   qual bloco. `pos` continua sendo o `^`, como a seção 4.3 pede, seja qual
   for o bloco que o id nomeia. Sem mudança: num item de lista o `^id` é
   procurado no texto próprio do item, até o primeiro filho de bloco (seção
-  5.9).
+  5.9) — num item solto (loose), esse texto é o primeiro parágrafo dele, e o
+  id nomeia o item inteiro, como num item compacto.
+
+  Dois fatos da implementação, registrados em 2026-10-07 depois da leitura
+  do revisor; não decidem nada. "O bloco de antes" é o da mesma
+  profundidade: dentro de uma citação ou de um item de lista, o bloco de
+  antes naquela citação ou item; sem nada antes, a linha do `^id` nomeia a
+  si mesma. Um `^palavra` que não é id (com um ponto, digamos) é um parágrafo
+  como outro qualquer, e um `^id` sozinho depois dele nomeia esse parágrafo.
 - **Q4. Escopo de unicidade do `^id`.** `DECIDIDO` em 2026-10-07 pelo
   mantenedor.
   Único por nota: um link nomeia a nota e o id (`[[nota#^id]]`). Com o mesmo
   id duas vezes numa nota, **o último nomeia o bloco**, como o Obsidian faz
   (observado pelo CLI do Obsidian em 2026-10-07: o cache dele guarda o
   segundo), e o Verso diz que o id está repetido. O parser reporta os dois, em
-  ordem do documento (`fixtures/block/duplicate`); a regra do último é do
-  índice e da janela.
+  ordem do documento (`fixtures/block/duplicate`), e o índice e o `read_note`
+  do MCP também; a regra do último é da janela — um embed, um link para o
+  bloco — e um cliente do MCP a aplica do mesmo jeito.
 - **Q5. Cobertura de callout.** `DECIDIDA` para os tipos, a dobra e o título na
   visualização de leitura em 2026-09-23; `[ABERTO]` para o aninhamento.
   Tipos reconhecidos, `-`/`+`, aninhamento (seção 5.8).

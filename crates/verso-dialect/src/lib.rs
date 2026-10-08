@@ -45,7 +45,7 @@ mod wikilink;
 pub use frontmatter::{Frontmatter, Value};
 pub use parse::parse;
 pub use position::{Pos, Span};
-pub use render::to_html;
+pub use render::{to_html, to_html_with};
 pub use schema::{PropertyKind, Schema, SchemaBlock, SchemaError, SchemaErrorKind, SchemaProperty};
 pub use tags::{BodyTag, body_tags};
 

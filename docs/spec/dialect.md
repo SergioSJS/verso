@@ -798,15 +798,24 @@ Raised while writing this spec. All of them need an answer before
   with `lines` (section 4.3) saying which block. `pos` stays the `^`, as
   section 4.3 asks, whichever block the id names. Unchanged: in a list item
   the `^id` is looked for in the item's own text, up to its first block
-  child (section 5.9).
+  child (section 5.9) — in a loose item, that text is its first paragraph,
+  and the id names the item whole, as in a tight one.
+
+  Two facts of the implementation, recorded on 2026-10-07 after the
+  reviewer's reading; they decide nothing. "The block before it" is the one
+  at the same depth: inside a quote or a list item, the block before it in
+  that quote or item; with nothing before it, the `^id` line names itself. A
+  `^word` that is no id (a dot in it, say) is a paragraph like any other, and
+  a `^id` alone after it names that paragraph.
 - **Q4. Uniqueness scope of the `^id`.** `DECIDED` on 2026-10-07 by the
   maintainer.
   Unique per note: a link names the note and the id (`[[nota#^id]]`). With
   the same id twice in one note, **the last one names the block**, as Obsidian
   does (observed through the Obsidian CLI on 2026-10-07: its cache keeps the
   second), and Verso says the id is repeated. The parser reports both, in
-  document order (`fixtures/block/duplicate`); the rule of the last is the
-  index's and the window's.
+  document order (`fixtures/block/duplicate`), and so do the index and the
+  MCP's `read_note`; the rule of the last is the window's — an embed, a link
+  to the block — and a client of the MCP applies it the same way.
 - **Q5. Callout coverage.** `DECIDED` for the reading view's kinds, fold and
   title on 2026-09-23; `[OPEN]` for nesting.
   Recognized kinds, `-`/`+`, nesting (section 5.8).

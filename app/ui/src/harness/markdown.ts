@@ -114,11 +114,18 @@ export function blocksOf(text: string): Block[] {
       const item = /^\s*([-*+]|\d+[.)])\s/.test(lines[i] ?? "");
       let last = z;
       if (item) {
-        // Its nested items with it: up to the next item no deeper than it.
+        // Its nested items with it, across a blank line too (a loose
+        // list): every line indented deeper than the item's own, up to the
+        // first that is not — a sibling, or text after the list.
         const indent = (s: string) => s.length - s.trimStart().length;
         const own = indent(lines[i] ?? "");
         last = i;
-        while (last + 1 <= z && !(/^\s*([-*+]|\d+[.)])\s/.test(lines[last + 1] ?? "") && indent(lines[last + 1] ?? "") <= own)) last++;
+        for (let j = i + 1; j < lines.length; j++) {
+          const l = lines[j] ?? "";
+          if (l.trim() === "") continue;
+          if (indent(l) <= own) break;
+          last = j;
+        }
       }
       out.push({ id: m[1] ?? "", line: i + 1, col: m.index + 2, first_line: (item ? i : a) + 1, last_line: last + 1 });
     }
