@@ -495,8 +495,11 @@ Três observações sobre aplicá-lo na borda do MCP:
    requisição, não de para onde a pasta do usuário leva.
 
 Dois formatos menores, para que o código não os decida por silêncio: o
-separador é **`/`** (macOS e Linux; Windows não é alvo,
-[ADR 0022](../adr/0022-target-platforms-macos-first.md)), e o caminho é
+separador é **`/`** (macOS e Linux quando isto foi escrito; o Windows virou
+alvo em 2026-09-23, [ADR 0022](../adr/0022-target-platforms-macos-first.md),
+e o porte mantém `/` lá também: o `verso-fs` o escreve em todo caminho
+relativo à pasta e só o converte para a forma do sistema no disco —
+provisório, [ADR 0069](../adr/0069-windows-port.md), item 9), e o caminho é
 devolvido **com `.md`**, exatamente como o `list_notes` e o `search` o
 imprimem, mantida a aceitação tolerante de um caminho sem `.md` que o
 `Workspace::backlinks` já tem.

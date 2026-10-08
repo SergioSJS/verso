@@ -9,7 +9,7 @@ import { afterFileChange, flushed, stopped } from "./changes";
 import { templateText, today } from "./daily";
 import { ask } from "./dialog";
 import { h, ui } from "./dom";
-import { fail } from "./errors";
+import { fail, nameTaken } from "./errors";
 import { focusesList, saveFocuses } from "./focuses";
 import { allFiles, allNotes } from "./folder";
 import { closedTabs, recents } from "./history";
@@ -31,6 +31,7 @@ import { allFolders, openFolders, setTreeLandOn } from "./tree/tree";
 import { tableWidthsMoved } from "./tableWidths";
 import { currentFolder } from "./folder";
 import { selectionMoved } from "./tree/selection";
+import { offerTemplates } from "./templatePicker";
 
 /** A file's bytes as base64, for `create_file`. */
 export function fileBase64(f: File): Promise<string> {
@@ -47,7 +48,8 @@ export async function copyFilesInto(folder: string, files: FileList): Promise<vo
   for (const f of Array.from(files)) {
     const r = await commands.createFile(`${folder ? folder + "/" : ""}${f.name}`, await fileBase64(f));
     if (r.status === "ok") copied++;
-    else fail(r.error.kind === "exists" ? { message: `${f.name}: ${t.exists}` } : r.error);
+    else if (r.error.kind === "exists") nameTaken(`${f.name}: ${t.exists}`);
+    else fail(r.error);
   }
   if (copied > 0) {
     openFolders.add(folder);
@@ -122,14 +124,34 @@ export async function newUntitled(pane: Pane): Promise<void> {
  *  docs/review/phase-2.md §6 item 19). True, and said, when it is one. */
 export function unlinkable(typed: string): boolean {
   if (!/[[\]|#^]/.test(typed)) return false;
-  fail({ message: t.unlinkableName });
+  // A name refused is an answer to the person, not a fault: INFO in the log.
+  nameTaken(t.unlinkableName);
+  return true;
+}
+/** A name not every OS can keep (ADR 0070): the core refuses it for what is
+ *  made or renamed, so that the folder can be synced to Windows; this says
+ *  why, in the person's language. The last segment only: a folder that
+ *  exists already is the user's, and the core checks the rest. `typed` is
+ *  the file's whole name — a note's with its `.md`, since a trailing dot or
+ *  space only counts at the very end, as Windows and Obsidian there read
+ *  it (`nota..md` is kept; a folder `pasta.` is not). */
+export function unportable(typed: string): boolean {
+  const name = typed.split("/").pop() ?? typed;
+  const stem = (name.split(".")[0] ?? "").trimEnd().toUpperCase();
+  const device = /^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[0-9¹²³]|LPT[0-9¹²³])$/.test(stem);
+  if (!device && !/[. ]$/.test(name) && !/[:*"<>?|\\\x00-\x1f]/.test(name)) return false;
+  nameTaken(t.unportableName);
   return true;
 }
 export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false): Promise<void> {
   const clean = nameTyped.trim().replace(/\.md$/i, "");
-  if (!clean || unlinkable(clean)) return;
+  // A note's file name ends in `.md`: a dot before it is kept by Windows.
+  if (!clean || unlinkable(clean) || unportable(`${clean}.md`)) return;
   const path = folder ? `${folder}/${clean}` : clean;
   let initialText = `# ${clean.split("/").pop() ?? clean}\n\n`;
+  // The folder's template, when it names one; else the note offers the
+  // templates folder's under its title (ADR 0068).
+  let fromFolder = false;
   const fn = folder ? folderNoteOf(folder) : null;
   if (fn) {
     try {
@@ -144,6 +166,7 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
           }
           if (tpl) {
             initialText = tpl.replace(/{{date}}/g, today()).replace(/{{title}}/g, clean.split("/").pop() ?? clean);
+            fromFolder = true;
           }
         }
         const stk = propVal(read.data.properties, "items_sticker");
@@ -156,7 +179,7 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
     } catch {}
   }
   const r = await commands.createNote(path, initialText);
-  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);
   await afterFileChange();
   const target = pane ?? paneToOpenIn();
   const leaf = target.open(r.data.path, false);
@@ -164,6 +187,7 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
     await leaf.loading;
     if (renameNow) leaf.renameHere();
     else leaf.editAtEnd();
+    if (!fromFolder) offerTemplates(leaf);
   }
 }
 /** A free name for a new file in `folder`: `base`, then `base 2`… */
@@ -185,7 +209,8 @@ export async function newNoteWith(folder: string, props: [string, PropertyValue]
   }
   const r = await commands.createNote(path.replace(/\.md$/i, ""), text);
   if (r.status !== "ok") {
-    fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+    if (r.error.kind === "exists") nameTaken(t.exists);
+    else fail(r.error);
     return null;
   }
   await afterFileChange();
@@ -238,14 +263,14 @@ export async function deleteEntry(path: string, kind: Kind): Promise<void> {
 }
 export async function renameNote(from: string, toName: string): Promise<void> {
   const clean = toName.trim().replace(/\.md$/i, "");
-  if (!clean || clean === name(from) || unlinkable(clean)) return;
+  if (!clean || clean === name(from) || unlinkable(clean) || unportable(`${clean}.md`)) return;
   const to = clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean;
   await renameTo(from, kindOf(from) === "note" ? to : `${to}${ext(from) ? "." + ext(from) : ""}`);
 }
 export async function renameFolder(from: string, toName: string): Promise<void> {
   const clean = toName.trim().replace(/^\/+|\/+$/g, "");
   const base = from.split("/").pop() ?? from;
-  if (!clean || clean === base || unlinkable(clean)) return;
+  if (!clean || clean === base || unlinkable(clean) || unportable(clean)) return;
   await renameTo(from, clean.includes("/") ? clean : dirOf(from) ? `${dirOf(from)}/${clean}` : clean);
 }
 export async function moveFile(path: string, folder: string): Promise<void> {
@@ -270,7 +295,8 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
   const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") {
-    fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+    if (r.error.kind === "exists") nameTaken(t.exists);
+    else fail(r.error);
     return false;
   }
   followMoved([{ from, to: r.data.path }], r.data.also);
@@ -447,7 +473,7 @@ export async function duplicateEntry(path: string, kind: Kind): Promise<void> {
   let bin = "";
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   const r = await commands.createFile(candidate, btoa(bin));
-  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);
   ui.status.textContent = t.duplicated;
   await afterFileChange();
 }

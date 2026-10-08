@@ -32,5 +32,7 @@ await build({
   logLevel: "warning",
 });
 const page = await readFile(join(dist, "index.html"), "utf8");
-if (!page.includes('src="main.js"')) throw new Error("index.html no longer loads main.js");
-await writeFile(join(site, "harness.html"), page.replace('src="main.js"', 'src="harness.js"'));
+// The page loads `main.js?v=<version>` (build-index.mjs); the harness's
+// page loads the harness instead.
+if (!/src="main\.js(\?v=[^"]*)?"/.test(page)) throw new Error("index.html no longer loads main.js");
+await writeFile(join(site, "harness.html"), page.replace(/src="main\.js(\?v=[^"]*)?"/, 'src="harness.js"'));

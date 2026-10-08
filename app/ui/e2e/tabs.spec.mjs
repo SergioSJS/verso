@@ -48,6 +48,21 @@ test("F2 renames the open note, right after a click on its row", async ({ app })
   await expect.poll(() => app.file("00 - Bem-vindo ao Verso.md")).toContain("[[18 - Ajuda]]");
 });
 
+test("after a click on a row the arrows walk the tree from it, and F2 still renames the open note", async ({ app }) => {
+  await app.open();
+  const first = row(app, "01 - Guia de Markdown e Sintaxe.md");
+  await first.click();
+  await expect(first).toBeFocused();
+  await app.page.keyboard.press("ArrowDown");
+  await expect(row(app, "02 - Links, Âncoras e Notas Incorporadas.md")).toBeFocused();
+  await app.page.keyboard.press("ArrowUp");
+  await expect(first).toBeFocused();
+  // Reached by the keys, the row takes F2 itself: it is renamed in place.
+  await app.page.keyboard.press("F2");
+  await expect(app.page.locator("#notes input.rename")).toBeVisible();
+  await app.page.keyboard.press("Escape");
+});
+
 test("back steps through the notes clicked in the tree, though one preview tab showed them all", async ({ app }) => {
   await app.open();
   for (const p of ["01 - Guia de Markdown e Sintaxe.md", "02 - Links, Âncoras e Notas Incorporadas.md", "03 - Propriedades e Metadados.md"]) await row(app, p).click();

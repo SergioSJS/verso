@@ -63,6 +63,17 @@ contradição (C1); o mantenedor resolveu promovendo a regra.
   Dropbox e Google Drive passam pelo File Provider do sistema no macOS recente,
   o que pode ou não produzir a mesma flag `SF_DATALESS`. Cada um entra quando a
   plataforma chegar ou um usuário precisar.
+- **Windows: decidido pelo mantenedor em 2026-10-08** ("deveria funcionar
+  igual" — como o iCloud): um arquivo com
+  `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS` (os Arquivos Sob Demanda do
+  OneDrive e todo provedor de Cloud Files), `FILE_ATTRIBUTE_RECALL_ON_OPEN`
+  ou `FILE_ATTRIBUTE_OFFLINE` é um placeholder sob todas as regras acima:
+  presente, conteúdo indisponível, a última versão indexada mantida, nunca
+  aberto pela varredura, pelo índice ou pelo watcher, e baixado quando o
+  usuário o abre (lê-lo o baixa, como no macOS). Testado com `attrib +O`
+  (offline), já que a máquina de teste não tem conta do OneDrive; um
+  placeholder real do OneDrive ainda está por observar. O OneDrive no macOS,
+  o Dropbox e o Google Drive continuam `[ABERTO]`.
 - Cada provedor reconhecido vira fixture de `verso-fs`, não de dialeto,
   registrando como foi observado. Ainda não existe schema de fixture para
   `verso-fs` ([0044](0044-verso-fs-semantics.md)), então o mecanismo do iCloud
@@ -207,7 +218,8 @@ todas (Recomendado)", aceitando a recomendação do autor para cada um.
 ## Status
 
 Aceito. Mecanismo de detecção: decidido para o iCloud Drive em 2026-09-22 (as
-duas formas, verificadas antes de o arquivo ser aberto); `[ABERTO]` para os
+duas formas, verificadas antes de o arquivo ser aberto); para os atributos
+de nuvem do Windows, os do OneDrive entre eles, em 2026-10-08; `[ABERTO]` para os
 demais provedores, cada um quando a plataforma chegar ou um usuário precisar.
 Abrir um arquivo na janela o baixa: decidido em 2026-09-30; o que abrir cobre,
 e o índice entre versões: decidido em 2026-10-01.

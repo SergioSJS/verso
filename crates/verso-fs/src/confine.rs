@@ -9,6 +9,17 @@
 //! A symlink inside the folder is the user's and is not a confinement
 //! question: it is followed, and what it reaches is inside the folder for
 //! every purpose.
+//!
+//! On Windows, `Path` already reads `\` as a separator and a drive letter
+//! or a UNC share as a prefix, refused as absolute. Refused there too, a
+//! name Windows would not keep as written (ADR 0069, item 9): a device
+//! name (`CON`, `NUL`, `COM1`…, with or without an extension), which opens
+//! the device instead of a file; a trailing dot or space, which Windows
+//! strips, so two names reach one file; a colon, which names an alternate
+//! data stream of another file; and the characters Windows does not allow
+//! in a name. On every other OS the same names are refused for what is
+//! made or renamed (ADR 0070: a folder synced to Windows must carry them),
+//! never for an entry that already exists ([`unportable_new`]).
 
 use std::path::{Component, Path, PathBuf};
 
@@ -24,6 +35,14 @@ pub enum ConfinementError {
     Hidden,
     /// Under a path the caller asked to ignore (provisional, ADR 0044).
     Ignored,
+    /// A name not every OS can keep — Windows would not keep it as written:
+    /// a device name, a trailing dot or space, a colon, or a character it
+    /// does not allow (ADR 0069, ADR 0070).
+    UnportableName,
+    /// On Windows, the short (8.3) name of an entry listed under another
+    /// name — `OBSIDI~1` for `.obsidian`: a second spelling that would get
+    /// past the hidden and ignored rules (ADR 0069, item 9).
+    ShortName,
 }
 
 impl std::fmt::Display for ConfinementError {
@@ -35,6 +54,10 @@ impl std::fmt::Display for ConfinementError {
             Self::NulByte => "a NUL byte",
             Self::Hidden => "a hidden entry",
             Self::Ignored => "an ignored path",
+            Self::UnportableName => {
+                "a name not every system can keep (a device name such as CON or NUL, a trailing dot or space, a colon, or one of < > \" | ? * \\)"
+            }
+            Self::ShortName => "a short (8.3) name of another entry",
         };
         write!(
             f,
@@ -53,7 +76,13 @@ pub(crate) fn confine(relative: &Path) -> Result<PathBuf, ConfinementError> {
     let mut out = PathBuf::new();
     for component in relative.components() {
         match component {
-            Component::Normal(part) => out.push(part),
+            Component::Normal(part) => {
+                #[cfg(windows)]
+                if unportable(part) {
+                    return Err(ConfinementError::UnportableName);
+                }
+                out = crate::rel_join(&out, part);
+            }
             Component::CurDir => {}
             Component::ParentDir => return Err(ConfinementError::ParentComponent),
             Component::RootDir | Component::Prefix(_) => return Err(ConfinementError::Absolute),
@@ -65,9 +94,127 @@ pub(crate) fn confine(relative: &Path) -> Result<PathBuf, ConfinementError> {
     Ok(out)
 }
 
+/// The first name of the confined `relative` that does not exist yet under
+/// `root` and is not one every OS can keep, refused (ADR 0070). What exists
+/// already is the user's and is never refused — a note inside an existing
+/// folder named `Reunião: pauta` is made, and a file with such a name opens
+/// and can be renamed to a portable one.
+pub(crate) fn unportable_new(root: &Path, relative: &Path) -> Result<(), ConfinementError> {
+    let mut at = PathBuf::new();
+    for component in relative.components() {
+        let Component::Normal(part) = component else {
+            continue;
+        };
+        at = crate::rel_join(&at, part);
+        let exists = crate::on_disk(root, &at).symlink_metadata().is_ok();
+        if !exists && unportable(part) {
+            return Err(ConfinementError::UnportableName);
+        }
+    }
+    Ok(())
+}
+
+/// The first component of the confined `relative` that Windows found on
+/// disk under a short (8.3) name the folder does not list — `OBSIDI~1`
+/// standing for `.obsidian`, `ARQUIV~1` for an ignored `Arquivo Morto` —
+/// refused. Only a name of the 8.3 shape (a `~` and a digit) is looked up,
+/// so an ordinary path costs nothing; a file really named `NOTA~1.md` is
+/// listed as such and kept.
+#[cfg(windows)]
+pub(crate) fn short_name(root: &Path, relative: &Path) -> Result<(), ConfinementError> {
+    let mut at = PathBuf::new();
+    for component in relative.components() {
+        let Component::Normal(part) = component else {
+            continue;
+        };
+        let parent = crate::on_disk(root, &at);
+        at = crate::rel_join(&at, part);
+        if !short_shape(part) || crate::on_disk(root, &at).symlink_metadata().is_err() {
+            continue;
+        }
+        let listed = std::fs::read_dir(&parent).is_ok_and(|entries| {
+            entries.flatten().any(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(&part.to_string_lossy())
+            })
+        });
+        if !listed {
+            return Err(ConfinementError::ShortName);
+        }
+    }
+    Ok(())
+}
+
+/// A name of the 8.3 shape Windows gives as a short name: a `~` followed
+/// by a digit before any extension.
+#[cfg(any(windows, test))]
+fn short_shape(part: &std::ffi::OsStr) -> bool {
+    let name = part.to_string_lossy();
+    let stem = name.split('.').next().unwrap_or("");
+    stem.len() <= 8
+        && stem.split_once('~').is_some_and(|(base, n)| {
+            !base.is_empty() && !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())
+        })
+}
+
+/// Whether the name `part` is one not every OS can keep: Windows would not
+/// keep it as written. Applied to every request on Windows (`confine`), and
+/// on every OS to the names a create or rename makes ([`unportable_new`]).
+pub(crate) fn unportable(part: &std::ffi::OsStr) -> bool {
+    let name = part.to_string_lossy();
+    if name.ends_with('.') || name.ends_with(' ') {
+        return true;
+    }
+    if name
+        .chars()
+        .any(|c| c < ' ' || matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*' | '\\'))
+    {
+        return true;
+    }
+    // A device name is matched on what comes before the first dot, case
+    // aside, as Windows 10 does (Windows 11 relaxed some cases; ADR 0069
+    // writes for Windows 10).
+    let stem = name
+        .split('.')
+        .next()
+        .unwrap_or("")
+        .trim_end()
+        .to_ascii_uppercase();
+    let numbered = |prefix: &str| {
+        stem.strip_prefix(prefix).is_some_and(|n| {
+            matches!(
+                n,
+                "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
+            )
+        })
+    };
+    matches!(
+        stem.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+    ) || numbered("COM")
+        || numbered("LPT")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_short_name_shape() {
+        for short in ["OBSIDI~1", "TRASH~1", "ARQUI~12", "NOTA~1.MD", "a~1.md"] {
+            assert!(short_shape(std::ffi::OsStr::new(short)), "{short}");
+        }
+        for long in [
+            "nota.md",
+            "a~b.md",
+            "~1",
+            "muito~longo1.md",
+            "Arquivo Morto~1x",
+        ] {
+            assert!(!short_shape(std::ffi::OsStr::new(long)), "{long}");
+        }
+    }
 
     #[test]
     fn refuses_what_leaves_the_folder_and_keeps_the_rest() {
@@ -99,6 +246,93 @@ mod tests {
         assert_eq!(
             confine(Path::new("link/x.md")).unwrap(),
             PathBuf::from("link/x.md")
+        );
+    }
+
+    #[test]
+    fn windows_names_it_would_not_keep() {
+        let refused = |s: &str| unportable(std::ffi::OsStr::new(s));
+        for name in [
+            "CON",
+            "con.md",
+            "Nul.txt",
+            "aux",
+            "PRN.tar.gz",
+            "COM1",
+            "com9.md",
+            "LPT3",
+            "COM¹",
+            "CONIN$",
+            "nota.",
+            "nota ",
+            "a:b",
+            "a.md:stream",
+            "a<b",
+            "a>b",
+            "a\"b",
+            "a|b",
+            "a?",
+            "a*",
+            "a\tb",
+            "a\\b",
+        ] {
+            assert!(refused(name), "{name:?} should be refused");
+        }
+        for name in [
+            "Nota.md",
+            "console.md",
+            "CONTRATO.md",
+            "com.md",
+            "COM10.md",
+            "lpt.md",
+            "nul-1.md",
+            "auxiliar",
+            ".hidden",
+            "a.b.c",
+            "Ação é açaí.md",
+            "file name.md",
+        ] {
+            assert!(!refused(name), "{name:?} should be kept");
+        }
+    }
+
+    /// On Windows `\` separates and a drive or a share is absolute; the
+    /// names above are refused by `confine` itself.
+    #[cfg(windows)]
+    #[test]
+    fn windows_forms_are_refused_by_confine() {
+        assert_eq!(
+            confine(Path::new("a\\b.md")).unwrap(),
+            PathBuf::from("a\\b.md")
+        );
+        for absolute in [
+            "C:\\x.md",
+            "C:x.md",
+            "\\\\server\\share\\x.md",
+            "\\\\?\\C:\\x.md",
+            "\\x.md",
+        ] {
+            assert_eq!(
+                confine(Path::new(absolute)),
+                Err(ConfinementError::Absolute),
+                "{absolute}"
+            );
+        }
+        assert_eq!(
+            confine(Path::new("a\\..\\..\\x")),
+            Err(ConfinementError::ParentComponent)
+        );
+        assert_eq!(
+            confine(Path::new("pasta/CON.md")),
+            Err(ConfinementError::UnportableName)
+        );
+        assert_eq!(
+            confine(Path::new("nota.")),
+            Err(ConfinementError::UnportableName)
+        );
+        assert_eq!(
+            confine(Path::new("a.md:x")),
+            Err(ConfinementError::UnportableName)
         );
     }
 }

@@ -398,3 +398,103 @@ fn waypoints_read_and_write_atomically_while_other_hidden_paths_are_refused() {
         Err(WriteError::Placeholder)
     ));
 }
+
+/// A name every OS can keep (ADR 0070): what is made or renamed must be one
+/// Windows keeps as written, on every OS, since the folder may be synced to
+/// Windows. Refused: a device name, a trailing dot or space, `:` and
+/// `* " < > ? |`. Nothing is written for a refused name.
+#[test]
+fn a_new_name_must_be_one_every_os_can_keep() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("nota.md"), "x");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    for name in [
+        "CON.md",
+        "nul.md",
+        "COM1.md",
+        "a:b.md",
+        "a?b.md",
+        "a*b.md",
+        "a|b.md",
+        "a<b.md",
+        "nota.",
+        "pasta/aux.md",
+        // A separator on Windows, where it never reaches the name check;
+        // a byte of the name elsewhere, which Windows could not keep.
+        #[cfg(unix)]
+        "a\\b.md",
+    ] {
+        assert!(
+            matches!(
+                root.create(Path::new(name), b"x"),
+                Err(WriteError::Confined(
+                    ConfinementError::UnportableName | ConfinementError::Absolute
+                ))
+            ),
+            "create {name}"
+        );
+        assert!(
+            matches!(
+                root.create_dir(Path::new(name)),
+                Err(WriteError::Confined(
+                    ConfinementError::UnportableName | ConfinementError::Absolute
+                ))
+            ),
+            "create_dir {name}"
+        );
+        assert!(
+            matches!(
+                root.rename(Path::new("nota.md"), Path::new(name)),
+                Err(WriteError::Confined(
+                    ConfinementError::UnportableName | ConfinementError::Absolute
+                ))
+            ),
+            "rename to {name}"
+        );
+    }
+    // (On Windows `a:b.md` is read as drive A: and refused as absolute
+    // before its name is looked at.)
+    assert_eq!(names(dir.path()), vec!["nota.md"]);
+    // Names every OS keeps are made as before.
+    let _ = root
+        .create(Path::new("Reunião, pauta (2).md"), b"x")
+        .unwrap();
+    let _ = root.create_dir(Path::new("console")).unwrap();
+}
+
+/// An entry that already exists is the user's: one whose name Windows
+/// could not keep, made by another app on a Unix system, still opens, is
+/// written, holds new notes and is renamed to a name every OS keeps
+/// (ADR 0070). Windows cannot hold such a name at all.
+#[cfg(unix)]
+#[test]
+fn an_existing_name_no_os_check_refuses_it() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("Reunião: pauta.md"), "x");
+    fs::create_dir(dir.path().join("Ideias?")).unwrap();
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let h = root.handle(Path::new("Reunião: pauta.md")).unwrap();
+    let (bytes, stamp) = root.read(h).unwrap();
+    assert_eq!(bytes, b"x");
+    let _ = root.write(h, b"y", &stamp).unwrap();
+    // Inside an existing folder with such a name, a new portable note.
+    let _ = root.create(Path::new("Ideias?/nova.md"), b"z").unwrap();
+    // Renamed away to a portable name; not to another unportable one.
+    let _ = root
+        .rename(
+            Path::new("Reunião: pauta.md"),
+            Path::new("Reunião - pauta.md"),
+        )
+        .unwrap();
+    assert!(matches!(
+        root.rename(
+            Path::new("Reunião - pauta.md"),
+            Path::new("Reunião: de novo.md")
+        ),
+        Err(WriteError::Confined(ConfinementError::UnportableName))
+    ));
+    assert_eq!(
+        names(dir.path()),
+        vec!["Ideias?".to_owned(), "Reunião - pauta.md".to_owned()]
+    );
+}

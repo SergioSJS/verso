@@ -125,4 +125,17 @@ dotfiles expects.
 
 ## Status
 
-Accepted.
+Accepted. Amended by the maintainer on 2026-10-08:
+
+- On Windows the configuration directory is `%LOCALAPPDATA%\verso`, after
+  `$VERSO_CONFIG_DIR` and `$XDG_CONFIG_HOME` and ahead of `HOME`: what it
+  holds is the machine's, and the roaming `%APPDATA%` is copied between
+  machines ([ADR 0069](0069-windows-port.md), item 9; the choice left to
+  the port).
+- An index run trusts a note by its modified time and length, without
+  reading it, when the note was modified at least 2 s before the run that
+  last read it began (`indexed_at`, schema 12); otherwise it reads and
+  hashes it as before. A change in the same second as a read could keep
+  both, so such a note is read again, as git does with its "racy" entries.
+  Reading and hashing every note made each opening of 5,000 notes cost
+  seconds ("pode ser").

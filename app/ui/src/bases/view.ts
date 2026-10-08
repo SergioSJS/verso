@@ -17,6 +17,7 @@ import { renderList } from "./list";
 import { stringsFor, type BaseStrings } from "./strings";
 import { renderTable } from "./table";
 import * as Y from "./yaml";
+import { fold } from "../text";
 
 /** What a base needs from the window. */
 export type BaseHost = CellHost & {
@@ -90,11 +91,6 @@ function layoutName(kind: string, s: BaseStrings): string {
     default:
       return kind;
   }
-}
-
-/** Folded for the search: lower case, no diacritics. */
-function fold(s: string): string {
-  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
 /** A property id as the view's settings name it (`note.x` → `x`). */

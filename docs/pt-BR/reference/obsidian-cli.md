@@ -48,6 +48,9 @@ Não apontar para vault real em teste. Uma pasta descartável dentro do vault
 
 ## 4. O que o cache de metadados expõe
 
+Uma segunda rodada de observação, sobre os ids de bloco (spec Q3), está
+registrada em [obsidian-blocks-2026-10-07.md](obsidian-blocks-2026-10-07.md).
+
 `obsidian eval code='JSON.stringify(app.metadataCache.getCache("caminho.md"))'`
 (API pública: `MetadataCache.getCache` devolvendo `CachedMetadata`, com `links`
 como `LinkCache[]`, `headings` como `HeadingCache[]`, `blocks` como

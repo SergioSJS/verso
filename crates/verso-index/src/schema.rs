@@ -12,7 +12,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 10;
+pub(crate) const VERSION: i64 = 12;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -47,7 +47,12 @@ CREATE TABLE notes (
     order_items TEXT,
     pinned_items TEXT,
     type      TEXT,                       -- the frontmatter's `type`, when it is one text, as written (ADR 0052)
-    type_key  TEXT                        -- the same, folded as Q12 folds a note's name
+    type_key  TEXT,                       -- the same, folded as Q12 folds a note's name
+    -- When the row was last known to match the disk: the start of the index
+    -- run that read the note (seconds), 0 when written outside a run. A note
+    -- modified at least 2 s before it is trusted by its modified time and
+    -- length alone, without reading it (as git trusts its index).
+    indexed_at INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX notes_path_key ON notes(path_key);
 CREATE INDEX notes_name_key ON notes(name_key);
@@ -63,7 +68,8 @@ CREATE TABLE blocks (
     note  INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
     id    TEXT NOT NULL,
     line  INTEGER NOT NULL, col INTEGER NOT NULL,
-    start INTEGER NOT NULL, end INTEGER NOT NULL
+    start INTEGER NOT NULL, end INTEGER NOT NULL,
+    first_line INTEGER, last_line INTEGER  -- the block the id names (spec Q3, Q21)
 );
 CREATE INDEX blocks_note ON blocks(note);
 CREATE TABLE links (
@@ -109,20 +115,22 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     {
         return Ok(());
     }
-    // Versions 6 to 9 are carried over in place, not rebuilt: for a note
+    // Versions 6 to 10 are carried over in place, not rebuilt: for a note
     // iCloud has evicted, its row is the only local copy of its text and
     // links (ADR 0043), and a rebuild would lose it (decided by the
     // maintainer on 2026-10-01, review `board.md` §6 item 7, for version 6;
     // the same holds for every later one). The columns a version lacks are
     // added — 7 the kind and the relation, 8 and 9 the labels, the order
-    // and the pins (ADR 0060), 10 the type and the schemas (ADR 0052) —
+    // and the pins (ADR 0060), 10 the type and the schemas (ADR 0052), 11
+    // the lines of the block a `^id` names (spec Q3, Q21), 12 when a row
+    // was last known to match the disk —
     // and every note read from disk is read
     // again on the next walk, for what the new columns hold; a placeholder
     // keeps what it had.
     if has_meta
         && matches!(
             meta("schema").and_then(|v| v.parse::<i64>().ok()),
-            Some(6..=9)
+            Some(6..=11)
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
@@ -155,7 +163,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     Ok(())
 }
 
-/// The columns a version 6 to 9 index lacks, added in place, and every
+/// The columns a version 6 to 11 index lacks, added in place, and every
 /// note read from disk marked to be read again; inside the caller's
 /// transaction.
 fn carry_over(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -177,6 +185,9 @@ fn carry_over(conn: &Connection) -> Result<(), rusqlite::Error> {
         ("notes", "pinned_items", "TEXT"),
         ("notes", "type", "TEXT"),
         ("notes", "type_key", "TEXT"),
+        ("blocks", "first_line", "INTEGER"),
+        ("blocks", "last_line", "INTEGER"),
+        ("notes", "indexed_at", "INTEGER NOT NULL DEFAULT 0"),
     ] {
         if !has_column(table, col)? {
             conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {col} {decl};"))?;
@@ -194,6 +205,6 @@ fn carry_over(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
     conn.execute_batch(
         "UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;
-         UPDATE meta SET value = '10' WHERE key = 'schema';",
+         UPDATE meta SET value = '12' WHERE key = 'schema';",
     )
 }

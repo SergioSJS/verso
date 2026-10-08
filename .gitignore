@@ -82,3 +82,6 @@ demo-vault/**/*.teste.*
 demo-vault/**/*.tmp
 demo-vault/**/*.bak
 demo-vault/assets/*test*
+
+# The command line copied beside the app for a Windows bundle (scripts/check-windows.sh).
+/app/src-tauri/binaries/

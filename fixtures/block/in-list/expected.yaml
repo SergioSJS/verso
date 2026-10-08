@@ -1,0 +1,31 @@
+# Approved by the maintainer on 2026-10-07 in session ("Aprovado"), after the observation in Obsidian; drafted by Fable 5.1 on 2026-10-07 (ADR 0031).
+# Construct: a `^id` inside a list — at the end of a loose item's first
+# line, at the end of a tab-indented nested item, and alone under a nested
+# list. Spec: docs/spec/dialect.md §5.7, Q3 and Q21: the id names the
+# innermost list item it is in, whole, its nested items with it (Q21, the
+# maintainer's decision; Obsidian's cache lists the children apart). `pos`
+# is the `^`; `lines` is the item. The spec's section 9 is updated in the
+# same PR.
+blocks:
+  - id: item
+    pos: { line: 1, col: 6 }
+    lines: [1, 3]
+  - id: tab
+    pos: { line: 7, col: 10 }
+    lines: [7, 8]
+  - id: l
+    pos: { line: 16, col: 3 }
+    lines: [11, 16]
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-07 against a throwaway folder in the sandbox
+    vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)`, 0-based lines:
+    blocks { item: 0..0, tab: 6..6, l: 10..15 }; listItems: 0..0 #item
+    with child 2..2 (parent 0), 6..6 #tab with child 7..7 (parent 6),
+    10..15 #l with children 12..12 and 13..13 — the id sits on the list
+    item, whose position is its own content, the nested items listed as
+    children; `^l` alone under the nested list names the item it is in
+    (10..15, the `^l` line included), not the nested list.

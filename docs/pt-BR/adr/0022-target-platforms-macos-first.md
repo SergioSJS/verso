@@ -4,7 +4,8 @@
 - Fonte: `docs/BRIEFING.md` §9
 - Status no briefing: `DECIDIDO`
 - Revisões: 2026-09-23 — os apps de Windows e Linux, a ordem deles e como o CI
-  os acompanha, do mantenedor.
+  os acompanha, do mantenedor. 2026-10-07 — o app de Windows começa agora,
+  com a Fase 2 aberta, do mantenedor ([0069](0069-windows-port.md)).
 
 ## Contexto
 
@@ -36,6 +37,17 @@ mais rápida para o burnout registrado em §10.3.
   CI no `main` quando o porte dele chegar, e no empacotamento de uma versão
   ([0029](0029-guardrails-in-ci.md)); o CI já compila e testa o core em Linux
   em todo pull request.
+- **Windows antecipado, pelo mantenedor em 2026-10-07**: o app de Windows
+  começa agora, com a Fase 2 aberta e antes de uma versão estável (*"uma
+  das coisas que a gente tem para fazer é implementar uma versão para
+  Windows"*, depois *"Tô querendo já iniciar windows"*). Como é construído e
+  testado é o [0069](0069-windows-port.md). Perguntado se isso põe o app de
+  Windows na Fase 2, o mantenedor respondeu no mesmo dia: *"Vou passar
+  windows na frente"* — o app de Windows faz parte do escopo da Fase 2, à
+  frente do resto do trabalho da Fase 2, e sai antes de a Fase 2 fechar;
+  "a Fase 2 é um esqueleto andante só em macOS" acima vale para a Fase 2
+  como foi planejada, e o roadmap leva a revisão. O Linux não muda
+  (2026-09-23): depois da Fase 2.
 
 ## Alternativas descartadas
 

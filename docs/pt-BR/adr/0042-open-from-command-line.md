@@ -22,6 +22,9 @@
   como o código a aplica (Decisão); o jeito de a janela começar mudou, para
   que um app já aberto receba a pasta (`docs/review/phase-2.md` §6, itens 3 e
   14).
+- Revisões: 2026-10-08 — **decidido pelo mantenedor**: com o app aberto,
+  `verso <pasta>` abre a pasta numa janela própria; um app por usuário em
+  todo sistema (Status).
 
 ## Contexto
 
@@ -156,7 +159,9 @@ junto com a janela.
   binário `verso-app` ao lado dela, senão, no macOS, o app instalado por
   `open -a Verso <pasta>`. A pasta vai como documento a abrir, que o macOS
   entrega por um evento de abrir tanto quando lança o app quanto quando o app
-  já está aberto; a janela principal de um app aberto salva as abas e a abre,
+  já está aberto; um app aberto a abre numa janela que não mostra pasta
+  nenhuma, senão numa janela nova (revisado em 2026-10-08, Status) — até
+  então a janela principal salvava as abas e a abria,
   como em qualquer troca. Até 2026-09-23 ela ia por `open -a Verso --args`,
   que um app já aberto nunca recebia (`docs/review/phase-2.md`, leitura 3,
   achado 20; corrigido em `b43e914` a pedido do mantenedor). O `open` recusa um
@@ -167,8 +172,10 @@ junto com a janela.
   tentava de novo com `--args`, que um app já aberto ignora, então um erro de
   digitação era reportado como "abrindo"; a leitura da Opus das respostas achou
   isso. Um binário rodado direto — `$VERSO_APP`, uma árvore de
-  desenvolvimento, Linux — continua começando um processo novo a cada vez, e a
-  janela reporta uma pasta que não existe.
+  desenvolvimento, Windows, Linux — começa um processo que, com o app aberto,
+  entrega a pasta a ele e sai (instância única, desde 2026-10-08, Status); no
+  macOS nenhum binário de dentro de um `.app` é rodado, o da linha de comando
+  instalada incluído. A janela reporta uma pasta que não existe.
 - **A primeira versão deste código** usava uma regra léxica — `.`, `..`, uma
   `/` ou um `~` no começo faziam do argumento uma pasta —, então `verso notas`
   era comando desconhecido e `verso ./nao-existe` dizia que estava abrindo; e
@@ -183,4 +190,12 @@ Nenhuma registrada no briefing.
 ## Status
 
 Aceito. A regra da Fase 2: decidida em 2026-09-23 pelo mantenedor (a
-Decisão).
+Decisão). Revisado pelo mantenedor em 2026-10-08, aceitando a recomendação
+do autor: **com o app aberto, `verso <pasta>` abre a pasta numa janela
+própria** — uma janela do app que não mostra pasta nenhuma a recebe, senão
+uma janela nova (ADR 0065). Em todo sistema o app é uma instância só: uma
+segunda abertura entrega a pasta ao app aberto e sai (o plugin de
+instância única do Tauri), e no macOS a linha de comando volta ao
+`open -a`, como decidido acima. Desde o `9d60cfc` (2026-09-25) ela rodava o
+binário do bundle instalado e o `open -n`, o que iniciava um segundo app —
+que, rodado com o primeiro aberto, não mostrava janela.

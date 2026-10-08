@@ -169,7 +169,12 @@ Execution order from briefing §15:
 
 ## Phase 2 — Walking skeleton on macOS
 
-The first version that gets used. macOS only ([ADR 0022](adr/0022-target-platforms-macos-first.md)).
+The first version that gets used. macOS only
+([ADR 0022](adr/0022-target-platforms-macos-first.md)) as planned; since
+2026-10-07 the **Windows app** is in this phase's scope too, ahead of the
+rest of its work, and ships before the phase closes
+([ADR 0069](adr/0069-windows-port.md), the maintainer: "Vou passar windows
+na frente").
 
 ### Scope
 
@@ -251,6 +256,10 @@ proposed ([0014](adr/0014-primitives-catalog.md)) and **agent writing with a
 diff** ([0018](adr/0018-llm-native-mcp-in-core.md), `DECIDED`, with no phase
 assigned: Phase 1 delivers read-only MCP and Phase 2 does not include it).
 Also the **Windows and Linux apps** ([0022](adr/0022-target-platforms-macos-first.md)):
-the maintainer decided on 2026-09-23 that both ship, Windows first.
+the maintainer decided on 2026-09-23 that both ship, Windows first, and on
+2026-10-07 that Windows starts now, in Phase 2's scope and ahead of the rest
+of its work ([0069](adr/0069-windows-port.md), the Phase 2 header above).
+Linux stays here; how it would be built and tested is proposed in
+[0071](adr/0071-linux-port.md), written on 2026-10-08 and waiting.
 
 Order among them: `[OPEN]`, but for Windows before Linux.

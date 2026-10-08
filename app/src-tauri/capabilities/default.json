@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "The app's own views — the main window, other windows of the same folder, and the notes popped out of them — and nothing else: the core's commands, window focus, and closing its own window once its tabs are saved. Listed by web view, not by window, so a web page shown inside a window (a child view labelled web-*) gets none of it. No fs plugin and no dialog permission: notes are reached only through verso-core, and the native folder picker runs on the host's side (pick_folder), so no path ever reaches the UI (ADR 0026 rule 4).",
+  "description": "The app's own views — the main window, other windows of the same folder, and the notes popped out of them — and nothing else: the core's commands, window focus, closing its own window once its tabs are saved, and the window controls a window without the system's title bar draws itself — dragging, minimizing, maximizing, closing (ADR 0072). Listed by web view, not by window, so a web page shown inside a window (a child view labelled web-*) gets none of it. No fs plugin and no dialog permission: notes are reached only through verso-core, and the native folder picker runs on the host's side (pick_folder), so no path ever reaches the UI (ADR 0026 rule 4).",
   "webviews": [
     "main",
     "window-*",
@@ -10,6 +10,10 @@
     "core:default",
     "core:window:allow-set-focus",
     "core:window:allow-destroy",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
     "allow-pick-folder",
     "allow-reopen-folder",
     "allow-open-initial",
@@ -76,6 +80,9 @@
     "allow-uninstall-cli",
     "allow-mcp-status",
     "allow-mcp-add-claude",
+    "allow-agent-visible",
+    "allow-set-agent-visible",
+    "allow-open-claude-download",
     "allow-check-for-updates",
     "allow-download-and-install-update",
     "allow-restart-app"

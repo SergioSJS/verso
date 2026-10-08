@@ -14,9 +14,11 @@
 //! ([`Sidecar`], `sidecar.rs`, `clippy.toml`), a file of that directory.
 //!
 //! Provisional (`docs/reference/cli-decision.md`, the maintainer decides):
-//! where the configuration directory is ([`config_dir`]); that a second
-//! `index` run re-reads every note and skips the ones whose stamp the
-//! index already has; that a note under a path the walk reported a
+//! where the configuration directory is ([`config_dir`], decided for
+//! Windows on 2026-10-08); that a second `index` run skips a note whose
+//! modified time and length the index holds from well before its last
+//! read, and re-reads the rest, skipping the ones whose stamp the index
+//! already has (decided on 2026-10-08, ADR 0011); that a note under a path the walk reported a
 //! problem for, or a placeholder (ADR 0043), is never removed from the
 //! index.
 //!
@@ -36,6 +38,7 @@ use verso_fs::{EntryKind, Problem, Root, Stamp};
 pub use verso_fs::{Changes, ConfinementError, ReadError, WalkRules, Watch, WriteError};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
+pub mod agents;
 pub mod bases;
 pub mod board;
 pub mod canvas;
@@ -113,7 +116,8 @@ pub enum CoreError {
     Folder(std::io::Error),
     Index(verso_index::IndexError),
     /// No configuration directory can be named: neither `VERSO_CONFIG_DIR`
-    /// nor `XDG_CONFIG_HOME` nor `HOME` is set. Never a relative fallback.
+    /// nor `XDG_CONFIG_HOME` nor `HOME` (`LOCALAPPDATA` on Windows) is set.
+    /// Never a relative fallback.
     NoConfigDir,
     /// A path a caller sent cannot name a note of the folder (ADR 0044:
     /// absolute, `..`, NUL, hidden, ignored). Checked on every path that
@@ -153,7 +157,7 @@ impl std::fmt::Display for CoreError {
             Self::Index(e) => write!(f, "{e}"),
             Self::NoConfigDir => write!(
                 f,
-                "no configuration directory: HOME, XDG_CONFIG_HOME and VERSO_CONFIG_DIR are all unset"
+                "no configuration directory: HOME (LOCALAPPDATA on Windows), XDG_CONFIG_HOME and VERSO_CONFIG_DIR are all unset"
             ),
             Self::Confined(e) => write!(f, "{e}"),
             Self::Read(e) => write!(f, "read: {e}"),
@@ -173,14 +177,24 @@ impl std::error::Error for CoreError {}
 
 /// The configuration directory (ADR 0011): `$VERSO_CONFIG_DIR` if set (tests,
 /// sensitive setups), else `$XDG_CONFIG_HOME/verso` if set, else
-/// `~/Library/Application Support/verso` on macOS and `~/.config/verso`
-/// elsewhere. Without any of the three it is an error, never a path
-/// relative to the current directory. Provisional.
+/// `%LOCALAPPDATA%\verso` on Windows, `~/Library/Application Support/verso`
+/// on macOS and `~/.config/verso` elsewhere. Without any of them it is an
+/// error, never a path relative to the current directory. On Windows
+/// (decided 2026-10-08, ADR 0069 item 9): what lives here — the index, its
+/// sidecar, the log — is this machine's (ADR 0070), so it goes in the
+/// local profile, not in `%APPDATA%`, the roaming one a company network
+/// copies between machines; `HOME` is usually unset there.
 pub fn config_dir() -> Result<PathBuf, CoreError> {
     let get = |name: &str| std::env::var_os(name).filter(|v| !v.is_empty());
     config_dir_from(
         get("VERSO_CONFIG_DIR").as_deref(),
         get("XDG_CONFIG_HOME").as_deref(),
+        if cfg!(windows) {
+            get("LOCALAPPDATA")
+        } else {
+            None
+        }
+        .as_deref(),
         get("HOME").map(PathBuf::from).as_deref(),
         cfg!(target_os = "macos"),
     )
@@ -193,6 +207,7 @@ pub fn config_dir() -> Result<PathBuf, CoreError> {
 pub fn config_dir_from(
     verso: Option<&std::ffi::OsStr>,
     xdg: Option<&std::ffi::OsStr>,
+    windows_local_appdata: Option<&std::ffi::OsStr>,
     home: Option<&Path>,
     macos: bool,
 ) -> Option<PathBuf> {
@@ -201,6 +216,9 @@ pub fn config_dir_from(
     }
     if let Some(xdg) = xdg {
         return Some(PathBuf::from(xdg).join("verso"));
+    }
+    if let Some(local) = windows_local_appdata {
+        return Some(PathBuf::from(local).join("verso"));
     }
     let home = home?;
     Some(if macos {

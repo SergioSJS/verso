@@ -18,10 +18,8 @@ import { isLinearElement, LinearElementEditor } from "@excalidraw/element";
 import {
   CaptureUpdateAction,
   Excalidraw,
-  exportToSvg,
   FONT_FAMILY,
   Footer,
-  getCommonBounds,
   getSceneVersion,
   MainMenu,
   newElementWith,
@@ -33,16 +31,17 @@ import type { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/t
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type JSX, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { CardLayer, drawQueue, isBarePicture, OutlinePanel, Overlay, View } from "./cards";
+import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards";
 import { CropDialog, ExportDialog } from "./dialogs";
 import { DrawingPreview, DrawingView } from "./drawing";
 import { FONT_ID, fontReady, fontsOf } from "./fonts";
 import { useHintSlot, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
+import { useOverlays } from "./overlays";
+import { useSceneFixes } from "./arrows";
 import {
   backgroundOf,
   BOARD_VERSION,
   cardCrop,
-  endAt,
   fromElements,
   isNode,
   MARKER,
@@ -51,11 +50,9 @@ import {
   nodeName,
   outlineOf,
   parseCanvas,
-  pointIn,
   relationEnds,
   toElements,
   withCrop,
-  type Binding,
   type CanvasDoc,
   type CanvasNode,
   type Crop,
@@ -65,10 +62,12 @@ import { PT_BR } from "./ptBR";
 import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
 import { BoardHandle, BoardHost } from "./types";
-import { ext, fit, fold, IMAGE, margined, randomId } from "./util";
+import { ext, IMAGE } from "../paths";
+import { MAC } from "../platform";
+import { fold } from "../text";
+import { fit, margined, randomId } from "./util";
 
 /** A Mac, as Excalidraw tells one: its keys differ there (⌘⌥ for ⌃⇧). */
-const MAC = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
 const SAVE_DELAY = 700;
 
@@ -429,99 +428,7 @@ function Board({
     setCards(list);
   }, []);
 
-  // What is drawn above each card, in the board's order, drawn again over
-  // it. Worked out one frame after a change, and only for a card whose
-  // elements above changed: moving a card alone keeps its picture.
-  const [overlays, setOverlays] = useState<ReadonlyMap<string, Overlay>>(new Map());
-  const overlaysRef = useRef<{ map: ReadonlyMap<string, Overlay>; keys: Map<string, string> }>({ map: new Map(), keys: new Map() });
-  const sceneRef = useRef<readonly ExcalidrawElement[]>([]);
-  const overlayFrame = useRef(0);
-  const overlayBusy = useRef(false);
-  const overlayAgain = useRef(false);
-  const darkRef = useRef(dark);
-  darkRef.current = dark;
-  const runOverlays = useCallback(async (): Promise<void> => {
-    if (overlayBusy.current) {
-      overlayAgain.current = true;
-      return;
-    }
-    overlayBusy.current = true;
-    try {
-      // What is being drawn is Excalidraw's own canvas's, above the cards
-      // (style.css); a copy here would trail the pointer beside it.
-      const st = api.current?.getAppState();
-      const drawing = new Set([st?.newElement?.id, st?.multiElement?.id].filter((v): v is string => typeof v === "string"));
-      const els = (sceneRef.current as unknown as El[]).filter((e) => !e.isDeleted && !drawing.has(e.id));
-      const bounds = els.map((e) => getCommonBounds([e as unknown as ExcalidrawElement]));
-      const prev = overlaysRef.current;
-      const map = new Map<string, Overlay>();
-      const keys = new Map<string, string>();
-      const jobs: Promise<void>[] = [];
-      els.forEach((card, i) => {
-        if (card.type !== "embeddable" || !isNode(card)) return;
-        const [cx0, cy0, cx1, cy1] = bounds[i]!;
-        const above: El[] = [];
-        let aboveBounds: [number, number, number, number] | null = null;
-        for (let j = i + 1; j < els.length; j++) {
-          const o = els[j]!;
-          if (o.type === "embeddable" || o.type === "iframe" || o.type === "frame" || o.type === "magicframe") continue;
-          const [ox0, oy0, ox1, oy1] = bounds[j]!;
-          if (ox1 < cx0 || ox0 > cx1 || oy1 < cy0 || oy0 > cy1) continue;
-          above.push(o);
-          aboveBounds = aboveBounds
-            ? [Math.min(aboveBounds[0], ox0), Math.min(aboveBounds[1], oy0), Math.max(aboveBounds[2], ox1), Math.max(aboveBounds[3], oy1)]
-            : [ox0, oy0, ox1, oy1];
-        }
-        if (!above.length || !aboveBounds) return;
-        const key = `${darkRef.current ? "d" : "l"}|${above.map((o) => `${o.id}:${String(o["version"])}`).join("|")}`;
-        keys.set(card.id, key);
-        const kept = prev.map.get(card.id);
-        if (kept && prev.keys.get(card.id) === key) {
-          map.set(card.id, kept);
-          return;
-        }
-        const [minX, minY] = getCommonBounds(above as unknown as ExcalidrawElement[]);
-        jobs.push(
-          exportToSvg({
-            elements: above as unknown as ExcalidrawElement[],
-            appState: { exportBackground: false, exportWithDarkMode: darkRef.current, viewBackgroundColor: "transparent" },
-            files: api.current?.getFiles() ?? null,
-            exportPadding: 0,
-            skipInliningFonts: true,
-          }).then(
-            (svg: SVGSVGElement) => void map.set(card.id, { x: minX, y: minY, svg: svg.outerHTML }),
-            () => keys.delete(card.id),
-          ),
-        );
-      });
-      await Promise.all(jobs);
-      const same = map.size === prev.map.size && [...map].every(([k, v]) => prev.map.get(k) === v);
-      overlaysRef.current = { map, keys };
-      if (!same) setOverlays(map);
-    } finally {
-      overlayBusy.current = false;
-      if (overlayAgain.current) {
-        overlayAgain.current = false;
-        void runOverlays();
-      }
-    }
-  }, []);
-  const scheduleOverlays = useCallback(
-    (els: readonly ExcalidrawElement[]) => {
-      sceneRef.current = els;
-      if (overlayFrame.current) return;
-      overlayFrame.current = window.requestAnimationFrame(() => {
-        overlayFrame.current = 0;
-        void runOverlays();
-      });
-    },
-    [runOverlays],
-  );
-  useEffect(() => {
-    overlaysRef.current = { map: overlaysRef.current.map, keys: new Map() };
-    scheduleOverlays(sceneRef.current);
-  }, [dark, scheduleOverlays]);
-  useEffect(() => () => window.cancelAnimationFrame(overlayFrame.current), []);
+  const { overlays, scheduleOverlays } = useOverlays(api, dark);
 
   // A card's buttons (open, swap), under Excalidraw's selection canvas, are pressed
   // here: the topmost card under the pointer decides, as the eye does.
@@ -575,101 +482,6 @@ function Board({
     };
   }, []);
 
-  // Excalidraw puts a shape drawn inside a frame just under the frame, and
-  // a group's frame sits under its cards (the canvas's order): a shape
-  // drawn on a card in a group would land under the card. Once drawn, it
-  // goes to the top of its frame's range instead, as a shape drawn
-  // anywhere else goes to the top.
-  const seen = useRef<Set<string> | null>(null);
-  // An arrow between two cards is a canvas edge: it belongs to no group
-  // and passes under the cards, as the board reads it from the file.
-  // Excalidraw puts an arrow begun inside a frame in that frame and clips it
-  // to the frame's box, so an edge to a card of another group was cut at the
-  // group's border until the board was opened again.
-  const freeEdges = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
-    if (state.newElement || state.multiElement || state.editingTextElement || state.selectedLinearElement?.isEditing || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
-    const byId = new Map(els.map((e) => [e.id, e] as const));
-    const node = (id: string | undefined): boolean => {
-      const e = id ? byId.get(id) : undefined;
-      return !!e && !e.isDeleted && isNode(e as unknown as El);
-    };
-    const edge = (e: ExcalidrawElement): boolean => {
-      const a = e as unknown as El;
-      return e.type === "arrow" && !e.isDeleted && node(a.startBinding?.elementId) && node(a.endBinding?.elementId);
-    };
-    const firstNode = els.findIndex((e) => !e.isDeleted && isNode(e as unknown as El));
-    // An edge in a group, above the first card, or with its label in a
-    // group (a label typed on the edge later is put in the edge's group,
-    // and a text in a frame is drawn only inside the frame's box).
-    const labelInFrame = (e: ExcalidrawElement): boolean => (e.boundElements ?? []).some((b) => b.type === "text" && !!byId.get(b.id)?.frameId);
-    const wrong = els.filter((e, i) => edge(e) && (e.frameId || (firstNode >= 0 && i > firstNode) || labelInFrame(e)));
-    if (wrong.length === 0) return false;
-    const moving = new Set<string>();
-    for (const e of wrong) {
-      moving.add(e.id);
-      for (const b of e.boundElements ?? []) if (b.type === "text") moving.add(b.id);
-    }
-    const lifted = els
-      .filter((e) => moving.has(e.id))
-      .map((e) => (e.frameId ? newElementWith(e as never, { frameId: null } as never) : e) as ExcalidrawElement);
-    const rest = els.filter((e) => !moving.has(e.id));
-    const at = rest.findIndex((e) => !e.isDeleted && isNode(e as unknown as El));
-    const list = at < 0 ? [...rest, ...lifted] : [...rest.slice(0, at), ...lifted, ...rest.slice(at)];
-    own((a) => a.updateScene({ elements: list, captureUpdate: CaptureUpdateAction.NEVER }));
-    return true;
-  }, [own]);
-
-  // An edge — an arrow from a card to a card — passes under the cards, as
-  // the canvas draws it: an end bound inside a card would end under it and
-  // its head would not show. Such an end is bound on the card's outline
-  // instead, aimed at the same point (ADR 0057 point 20). An arrow with an
-  // end on a shape of the drawing is the drawing's, drawn over the cards:
-  // Excalidraw's own way stands, its head at the point inside a picture.
-  const orbitOnCards = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
-    if (state.newElement || state.multiElement || state.editingTextElement || state.selectedLinearElement?.isEditing || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
-    const byId = new Map(els.map((e) => [e.id, e] as const));
-    const card = (b: Binding | null | undefined): El | undefined => {
-      const n = b ? (byId.get(b.elementId) as unknown as El | undefined) : undefined;
-      return n && !n.isDeleted && isNode(n) ? n : undefined;
-    };
-    let changed = false;
-    const next = els.map((e) => {
-      if (e.type !== "arrow" || e.isDeleted) return e;
-      const a = e as unknown as El;
-      const pts = a.points;
-      if (a["elbowed"] === true || !pts || pts.length < 2) return e;
-      const from = card(a.startBinding);
-      const to = card(a.endBinding);
-      if (!from || !to) return e;
-      const fromAt = from && a.startBinding?.mode === "inside" ? a.startBinding.fixedPoint : null;
-      const toAt = to && a.endBinding?.mode === "inside" ? a.endBinding.fixedPoint : null;
-      if (!fromAt && !toAt) return e;
-      const abs = pts.map((p) => [a.x + p[0], a.y + p[1]] as [number, number]);
-      const n = abs.length - 1;
-      // Each end aimed from the point the other end is bound at, or from
-      // the arrow's next point when it bends.
-      const target = (c: El | undefined, b: Binding | null | undefined, drawn: [number, number]): [number, number] => (c && b?.fixedPoint ? pointIn(c, b.fixedPoint) : drawn);
-      if (fromAt) abs[0] = endAt(from, { fixedPoint: [fromAt[0], fromAt[1]], mode: "orbit" }, n > 1 ? abs[1]! : target(to, a.endBinding, abs[n]!));
-      if (toAt) abs[n] = endAt(to, { fixedPoint: [toAt[0], toAt[1]], mode: "orbit" }, n > 1 ? abs[n - 1]! : target(from, a.startBinding, abs[0]!));
-      const [x, y] = abs[0]!;
-      const rel = abs.map(([px, py]) => [px - x, py - y] as [number, number]);
-      const xs = rel.map((p) => p[0]);
-      const ys = rel.map((p) => p[1]);
-      changed = true;
-      return newElementWith(e as never, {
-        x,
-        y,
-        points: rel,
-        width: Math.max(...xs) - Math.min(...xs),
-        height: Math.max(...ys) - Math.min(...ys),
-        startBinding: fromAt ? { ...a.startBinding, mode: "orbit" } : a.startBinding,
-        endBinding: toAt ? { ...a.endBinding, mode: "orbit" } : a.endBinding,
-      } as never) as ExcalidrawElement;
-    });
-    if (!changed) return false;
-    own((api2) => api2.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER }));
-    return true;
-  }, [own]);
 
   // "Loose arrows": an arrow drawn while it is on attaches to no card, as
   // one drawn with ⌘ held does (Excalidraw's own way, which nothing
@@ -683,58 +495,7 @@ function Board({
   const hintSlot = useHintSlot(container, arrowTool);
   const touchOnly = useMemo(() => typeof window.matchMedia === "function" && !window.matchMedia("(any-pointer: fine)").matches, []);
   const arrowHint = looseOn ? s.looseOnHint : touchOnly ? s.looseHintTouch : s.looseHint;
-  const born = useRef<Set<string> | null>(null);
-  const looseFresh = useCallback((els: readonly ExcalidrawElement[], state: AppState): boolean => {
-    const known = born.current;
-    if (!known) {
-      born.current = new Set(els.map((e) => e.id));
-      return false;
-    }
-    if (state.newElement || state.multiElement || state.editingTextElement || state.selectedLinearElement?.isEditing || state.resizingElement || state.selectedElementsAreBeingDragged) return false;
-    const fresh = els.filter((e) => !known.has(e.id));
-    for (const e of fresh) known.add(e.id);
-    if (!loose.current) return false;
-    const ids = new Set(
-      fresh
-        .filter((e) => e.type === "arrow" && !e.isDeleted && (e.startBinding || e.endBinding) && !(e as unknown as El).customData?.canvas)
-        .map((e) => e.id),
-    );
-    if (ids.size === 0) return false;
-    const next = els.map((e) => {
-      if (ids.has(e.id)) return newElementWith(e as never, { startBinding: null, endBinding: null } as never) as ExcalidrawElement;
-      if ((e.boundElements ?? []).some((b) => ids.has(b.id))) return newElementWith(e as never, { boundElements: (e.boundElements ?? []).filter((b) => !ids.has(b.id)) } as never) as ExcalidrawElement;
-      return e;
-    });
-    own((api2) => api2.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER }));
-    return true;
-  }, [own]);
-
-  const liftDrawn = useCallback((els: readonly ExcalidrawElement[], state: AppState): void => {
-    const known = seen.current;
-    if (!known) {
-      seen.current = new Set(els.map((e) => e.id));
-      return;
-    }
-    if (state.newElement || state.multiElement || state.editingTextElement || state.resizingElement || state.selectedElementsAreBeingDragged) return;
-    const fresh = els.filter((e) => !known.has(e.id));
-    if (fresh.length === 0) return;
-    for (const e of fresh) known.add(e.id);
-    const list = [...els];
-    let moved = false;
-    for (const e of fresh) {
-      if (!e.frameId || e.isDeleted || isNode(e as unknown as El)) continue;
-      const at = list.indexOf(e);
-      let last = -1;
-      list.forEach((o, k) => {
-        if (o !== e && !o.isDeleted && (o.frameId === e.frameId || o.id === e.frameId)) last = k;
-      });
-      if (last <= at) continue;
-      list.splice(at, 1);
-      list.splice(last, 0, e);
-      moved = true;
-    }
-    if (moved) own((a) => a.updateScene({ elements: list, captureUpdate: CaptureUpdateAction.NEVER }));
-  }, [own]);
+  const { freeEdges, orbitOnCards, looseFresh, liftDrawn } = useSceneFixes(own, loose);
 
   // The layer lives inside Excalidraw's own root, beside its canvases, so
   // that its menus and toolbar stay above the cards.

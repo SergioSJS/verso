@@ -13,46 +13,61 @@ pub(crate) const CLI_LINK: &str = "/usr/local/bin/verso";
 /// crosses to the window (ADR 0026 rule 4).
 fn bundled_cli() -> Option<PathBuf> {
     let mut candidates = Vec::new();
+    // `verso.exe` on Windows, which the installer puts beside the app
+    // (ADR 0069).
+    let name = format!("verso{}", std::env::consts::EXE_SUFFIX);
     if let Ok(cli) = std::env::current_exe() {
-        candidates.push(cli.with_file_name("verso"));
+        candidates.push(cli.with_file_name(&name));
         if let Some(parent) = cli.parent() {
-            candidates.push(parent.join("verso"));
+            candidates.push(parent.join(&name));
             if let Some(bundle) = parent.parent() {
                 candidates.push(bundle.join("Resources").join("verso"));
                 candidates.push(bundle.join("MacOS").join("verso"));
             }
         }
     }
-    if let Ok(home) = std::env::var("HOME") {
-        candidates
-            .push(PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso"));
-        candidates.push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso"));
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            candidates.push(
+                PathBuf::from(&home).join("Applications/Verso Beta.app/Contents/MacOS/verso"),
+            );
+            candidates
+                .push(PathBuf::from(&home).join("Applications/Verso.app/Contents/MacOS/verso"));
+        }
+        candidates.push(PathBuf::from(
+            "/Applications/Verso Beta.app/Contents/MacOS/verso",
+        ));
+        candidates.push(PathBuf::from(
+            "/Applications/Verso.app/Contents/MacOS/verso",
+        ));
     }
-    candidates.push(PathBuf::from(
-        "/Applications/Verso Beta.app/Contents/MacOS/verso",
-    ));
-    candidates.push(PathBuf::from(
-        "/Applications/Verso.app/Contents/MacOS/verso",
-    ));
 
     candidates.into_iter().find(|cli| executable_file(cli))
 }
 
 fn cli_state_now() -> CliState {
-    let Some(ours) = bundled_cli() else {
-        return CliState::Unbundled;
-    };
-    if let Some(target) = link_target(Path::new(CLI_LINK)) {
-        return if target == ours {
-            CliState::Ours
-        } else {
-            CliState::Elsewhere
+    // Nothing is linked on Windows: the installer put verso.exe beside the
+    // app (ADR 0069, item 9).
+    #[cfg(windows)]
+    return bundled_cli().map_or(CliState::Unbundled, |_| CliState::Bundled);
+    #[cfg(not(windows))]
+    {
+        let Some(ours) = bundled_cli() else {
+            return CliState::Unbundled;
         };
-    }
-    if something_at(Path::new(CLI_LINK)) {
-        CliState::Elsewhere
-    } else {
-        CliState::Missing
+        if let Some(target) = link_target(Path::new(CLI_LINK)) {
+            return if target == ours {
+                CliState::Ours
+            } else {
+                CliState::Elsewhere
+            };
+        }
+        if something_at(Path::new(CLI_LINK)) {
+            CliState::Elsewhere
+        } else {
+            CliState::Missing
+        }
     }
 }
 
@@ -104,6 +119,9 @@ pub(crate) fn cli_status() -> CliState {
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn install_cli(replace: bool) -> Result<CliState, ContractError> {
+    if cfg!(windows) {
+        return Err(refused("on Windows the command line comes with the app"));
+    }
     let Some(ours) = bundled_cli() else {
         return Err(refused("this build carries no command line"));
     };
@@ -118,8 +136,13 @@ pub(crate) fn install_cli(replace: bool) -> Result<CliState, ContractError> {
     // Without privileges first: the directory may be the person's own.
     #[cfg(unix)]
     let plain = replace_symlink(&ours, Path::new(CLI_LINK));
+    // The command line on PATH on Windows is an item of the port, not done
+    // yet (ADR 0069, item 9).
     #[cfg(not(unix))]
-    let plain: std::io::Result<()> = Err(std::io::Error::other("no CLI link on this platform"));
+    let plain: std::io::Result<()> = {
+        let _ = &ours;
+        Err(std::io::Error::other("no CLI link on this platform"))
+    };
     if let Err(error) = plain {
         #[cfg(target_os = "macos")]
         {
@@ -161,13 +184,38 @@ pub(crate) fn uninstall_cli() -> Result<CliState, ContractError> {
     Ok(cli_state_now())
 }
 
-/// Claude Desktop's configuration folder.
+/// Claude Desktop's configuration folder: on Windows the Store (MSIX)
+/// install's, whose `%APPDATA%` Windows redirects into the package
+/// (`%LOCALAPPDATA%\Packages\Claude_…\LocalCache\Roaming\Claude`,
+/// observed on Windows 11 on 2026-10-08: no `%APPDATA%\Claude` exists
+/// there), else `%APPDATA%\Claude` (Anthropic's MCP guide; HOME is usually
+/// unset there — ADR 0069); `~/Library/Application Support/Claude` on
+/// macOS, `~/.config/Claude` elsewhere.
 fn claude_dir() -> Option<PathBuf> {
-    let home = PathBuf::from(std::env::var_os("HOME").filter(|h| !h.is_empty())?);
-    #[cfg(target_os = "macos")]
-    return Some(home.join("Library/Application Support/Claude"));
-    #[cfg(not(target_os = "macos"))]
-    return Some(home.join(".config/Claude"));
+    #[cfg(windows)]
+    return msix_claude_dir().or_else(|| {
+        Some(PathBuf::from(std::env::var_os("APPDATA").filter(|v| !v.is_empty())?).join("Claude"))
+    });
+    #[cfg(not(windows))]
+    {
+        let home = PathBuf::from(std::env::var_os("HOME").filter(|h| !h.is_empty())?);
+        #[cfg(target_os = "macos")]
+        return Some(home.join("Library/Application Support/Claude"));
+        #[cfg(not(target_os = "macos"))]
+        return Some(home.join(".config/Claude"));
+    }
+}
+
+/// What a client starts for the MCP server: the linked command line on
+/// macOS and Linux (installed from the settings), and on Windows, where
+/// nothing is linked onto a PATH, the `verso.exe` the installer put beside
+/// the app, by its absolute path (the maintainer, 2026-10-08). `None` when
+/// there is none to start.
+fn mcp_command() -> Option<String> {
+    #[cfg(windows)]
+    return bundled_cli().map(|cli| cli.to_string_lossy().into_owned());
+    #[cfg(not(windows))]
+    return (cli_state_now() == CliState::Ours).then(|| CLI_LINK.to_owned());
 }
 
 fn client_state(e: verso_core::clients::Entry) -> McpClientState {
@@ -189,17 +237,83 @@ fn client_state(e: verso_core::clients::Entry) -> McpClientState {
 pub(crate) fn mcp_status<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
+    all: bool,
 ) -> Result<McpStatus, ContractError> {
-    let key = with(&state, &window, |ws| Ok(ws.key()))?;
-    let server = verso_core::clients::server_name(&key);
-    let entry = verso_core::clients::verso_entry(CLI_LINK, &key);
+    let command = mcp_command().unwrap_or_else(|| CLI_LINK.to_owned());
+    let key = mcp_key(&window, &state, all)?;
+    let (server, entry) = verso_core::clients::server_and_entry(&command, key.as_deref());
     let claude = match claude_dir() {
         None => McpClientState::NoClient,
         Some(dir) => {
             client_state(verso_core::clients::claude_entry(&dir, &server, &entry).map_err(convert)?)
         }
     };
-    Ok(McpStatus { server, claude })
+    Ok(McpStatus {
+        server,
+        claude,
+        command,
+    })
+}
+
+/// The folder a client's entry names, by the mode (ADR 0054, revised
+/// 2026-10-08): the open folder's key for its own server; `None` for the
+/// one server for all of Verso, which needs no folder open.
+fn mcp_key<R: tauri::Runtime>(
+    window: &tauri::Window<R>,
+    state: &State<'_, App>,
+    all: bool,
+) -> Result<Option<String>, ContractError> {
+    if all {
+        return Ok(None);
+    }
+    with(state, window, |ws| Ok(ws.key())).map(Some)
+}
+
+/// Whether the open folder is marked visible to agents (the server for all
+/// of Verso reads only those; ADR 0054).
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn agent_visible<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<bool, ContractError> {
+    let key = with(&state, &window, |ws| Ok(ws.key()))?;
+    verso_core::agents::is_visible(state.config.as_deref(), &key).map_err(convert)
+}
+
+/// Mark the open folder visible to agents, or hidden again.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn set_agent_visible<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    visible: bool,
+) -> Result<bool, ContractError> {
+    let key = with(&state, &window, |ws| Ok(ws.key()))?;
+    verso_core::agents::set_visible(state.config.as_deref(), &key, visible).map_err(convert)?;
+    Ok(visible)
+}
+
+/// Claude Desktop's download page, in the system's browser: where Claude
+/// Desktop is not installed, the settings offer it instead of a dead
+/// "not found" (the maintainer, 2026-10-08). One fixed address, nothing
+/// from the window: the command takes no argument.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn open_claude_download() -> Result<(), ContractError> {
+    const PAGE: &str = "https://claude.com/download";
+    #[cfg(target_os = "macos")]
+    let mut command = std::process::Command::new("open");
+    // Explorer hands an address to the default browser.
+    #[cfg(windows)]
+    let mut command = std::process::Command::new("explorer");
+    #[cfg(not(any(target_os = "macos", windows)))]
+    let mut command = std::process::Command::new("xdg-open");
+    command
+        .arg(PAGE)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| failed(e.to_string()))
 }
 
 /// Add the open folder's server to Claude Desktop — after the window has
@@ -210,13 +324,13 @@ pub(crate) fn mcp_status<R: tauri::Runtime>(
 pub(crate) fn mcp_add_claude<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
+    all: bool,
 ) -> Result<McpAdded, ContractError> {
-    if cli_state_now() != CliState::Ours {
+    let Some(command) = mcp_command() else {
         return Err(refused("install the command line first"));
-    }
-    let key = with(&state, &window, |ws| Ok(ws.key()))?;
-    let server = verso_core::clients::server_name(&key);
-    let entry = verso_core::clients::verso_entry(CLI_LINK, &key);
+    };
+    let key = mcp_key(&window, &state, all)?;
+    let (server, entry) = verso_core::clients::server_and_entry(&command, key.as_deref());
     let dir = claude_dir().ok_or_else(|| refused("Claude Desktop is not installed"))?;
     let added = verso_core::clients::add_to_claude(&dir, &server, entry).map_err(convert)?;
     Ok(McpAdded {

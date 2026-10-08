@@ -353,6 +353,13 @@ pub(crate) fn is_trusted_update_url(url: &str) -> bool {
     s.starts_with(&release_download) || s.starts_with(&api_asset)
 }
 
+/// Whether a release asset is an installer run as downloaded (Windows'
+/// NSIS `-setup.exe`, or an `.msi`) rather than an archive to extract.
+pub(crate) fn is_installer_name(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n.ends_with(".exe") || n.ends_with(".msi")
+}
+
 pub(crate) struct TempDirCleaner(std::path::PathBuf);
 impl Drop for TempDirCleaner {
     fn drop(&mut self) {
@@ -583,6 +590,24 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
         message: format!("Não foi possível criar pasta de extração: {e}"),
     })?;
 
+    // Windows' asset is the installer itself (release.yml), not an archive:
+    // it goes where the install step looks for an installer, unextracted.
+    if is_installer_name(&asset.name) {
+        drop(file);
+        let ext = if asset.name.to_ascii_lowercase().ends_with(".msi") {
+            "msi"
+        } else {
+            "exe"
+        };
+        std::fs::rename(&zip_path, extract_dir.join(format!("verso-setup.{ext}"))).map_err(
+            |e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Não foi possível preparar o instalador: {e}"),
+            },
+        )?;
+        return install_extracted_update(app, &extract_dir, &temp_dir, downloaded);
+    }
+
     {
         let zip_file = std::fs::File::open(&zip_path).map_err(|e| ContractError {
             kind: ErrorKind::Failed,
@@ -808,6 +833,8 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
     // ── Windows ────────────────────────────────────────────────────────────
     #[cfg(target_os = "windows")]
     {
+        // The installer replaces the app itself: nothing is backed up here.
+        let _ = temp_dir;
         // Look for installer (.msi preferred, then .exe)
         let installer =
             find_file_by_exts(extract_dir, &[".msi", ".exe"]).ok_or_else(|| ContractError {
@@ -815,17 +842,37 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 message: "Nenhum instalador (.msi/.exe) encontrado no arquivo baixado.".to_string(),
             })?;
 
-        // Launch the installer — it handles the actual replacement
-        std::process::Command::new(&installer)
-            .spawn()
-            .map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Não foi possível executar o instalador: {e}"),
-            })?;
+        // Out of the temporary folder first: it is removed when this
+        // returns, while the installer still runs.
+        let msi = installer
+            .extension()
+            .is_some_and(|x| x.eq_ignore_ascii_case("msi"));
+        let kept = std::env::temp_dir().join(if msi {
+            "verso-update-setup.msi"
+        } else {
+            "verso-update-setup.exe"
+        });
+        std::fs::copy(&installer, &kept).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível preparar o instalador: {e}"),
+        })?;
+        // Launch the installer — it handles the actual replacement. An
+        // .msi is not a program: Windows Installer runs it.
+        let mut command = if msi {
+            let mut c = std::process::Command::new("msiexec");
+            c.arg("/i").arg(&kept);
+            c
+        } else {
+            std::process::Command::new(&kept)
+        };
+        command.spawn().map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível executar o instalador: {e}"),
+        })?;
 
         return Ok(emit_done(
             "Instalador iniciado. Siga as instruções na tela para concluir a atualização.",
-            Some(installer.display().to_string()),
+            Some(kept.display().to_string()),
             false,
         ));
     }
@@ -959,19 +1006,13 @@ pub(crate) fn find_file_by_exts(
     None
 }
 
-/// Returns the user's Downloads directory in a cross-platform way.
+/// The user's Downloads folder, where the macOS and Linux fallbacks leave
+/// an update they could not put in place. Windows has no such fallback:
+/// its installer does the replacing (ADR 0069, item 9: the updater's
+/// Windows path is still to be exercised).
+#[cfg(not(target_os = "windows"))]
 pub(crate) fn get_downloads_dir() -> std::path::PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        // USERPROFILE\Downloads
-        if let Ok(profile) = std::env::var("USERPROFILE") {
-            let d = std::path::PathBuf::from(profile).join("Downloads");
-            if d.exists() {
-                return d;
-            }
-        }
-    }
-    // macOS + Linux: $HOME/Downloads
+    // $HOME/Downloads
     let home = std::env::var("HOME")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
     std::path::PathBuf::from(home).join("Downloads")
@@ -1000,13 +1041,34 @@ pub(crate) fn executable_file(path: &std::path::Path) -> bool {
     }
 }
 
-/// Where the symlink at `path` points, if it is one.
+/// Claude Desktop's settings folder in a Store (MSIX) install, where
+/// Windows keeps the package's `%APPDATA%`: the first package of Claude's
+/// (`Claude_<publisher>`) under `%LOCALAPPDATA%\Packages` that has one.
+/// Here because this crate reads directories in this file only (ADR 0029).
+#[cfg(windows)]
+pub(crate) fn msix_claude_dir() -> Option<std::path::PathBuf> {
+    let packages = std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("Packages");
+    let mut found: Vec<std::path::PathBuf> = std::fs::read_dir(packages)
+        .ok()?
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with("Claude_"))
+        .map(|e| e.path().join("LocalCache").join("Roaming").join("Claude"))
+        .filter(|dir| dir.is_dir())
+        .collect();
+    found.sort();
+    found.into_iter().next()
+}
+
+/// Where the symlink at `path` points, if it is one. Not on Windows, where
+/// the command line is not linked (`cli_state_now`).
+#[cfg(not(windows))]
 pub(crate) fn link_target(path: &std::path::Path) -> Option<std::path::PathBuf> {
     std::fs::read_link(path).ok()
 }
 
 /// Whether anything sits at `path` — a file, a directory, or a symlink,
 /// even a broken one (the `test -e` this replaces, without following).
+#[cfg(not(windows))]
 pub(crate) fn something_at(path: &std::path::Path) -> bool {
     std::fs::symlink_metadata(path).is_ok()
 }
@@ -1053,5 +1115,133 @@ pub(crate) fn clear_quarantine_tree(path: &std::path::Path) {
         } else {
             clear_quarantine(&child);
         }
+    }
+}
+
+/// The identifier the app had before `com.versomd.app` (ADR 0004, decided
+/// on 2026-10-07): `dev.verso.app`, and `dev.verso.app.beta` for the betas.
+fn former_identifier(identifier: &str) -> Option<String> {
+    identifier
+        .strip_prefix("com.versomd.app")
+        .map(|rest| format!("dev.verso.app{rest}"))
+}
+
+/// What the web view keeps per app — the window's settings, its keys, the
+/// tables' column widths, the local focuses, in its local storage — lives
+/// under the app's identifier, in `~/Library/WebKit/<identifier>`. On the
+/// first start under `com.versomd.app`, the former identifier's is copied
+/// there, once, before any window opens, so an update keeps them (ADR 0004,
+/// the maintainer on 2026-10-07: "migrar uma vez"). Nothing of the open
+/// folder is touched. Answers whether it copied; a failure is said in the
+/// log and the window starts with its defaults.
+pub(crate) fn migrate_web_data(identifier: &str) -> bool {
+    let (Some(home), Some(former)) = (std::env::var_os("HOME"), former_identifier(identifier))
+    else {
+        return false;
+    };
+    let webkit = std::path::Path::new(&home).join("Library").join("WebKit");
+    match copy_web_data(&webkit.join(former), &webkit.join(identifier)) {
+        Ok(copied) => {
+            if copied {
+                crate::log::write(
+                    "INFO",
+                    "host",
+                    &format!("window data carried over to {identifier}"),
+                );
+            }
+            copied
+        }
+        Err(e) => {
+            crate::log::write(
+                "WARN",
+                "host",
+                &format!("window data not carried over to {identifier}: {e}"),
+            );
+            false
+        }
+    }
+}
+
+/// Copy the directory `from` to `to` when `from` exists and `to` does not.
+fn copy_web_data(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<bool> {
+    if !from.is_dir() || to.exists() {
+        return Ok(false);
+    }
+    copy_dir(from, to)?;
+    Ok(true)
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        let target = to.join(entry.file_name());
+        if kind.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else if kind.is_file() {
+            std::fs::copy(entry.path(), &target)?;
+        }
+        // A link is left behind: WebKit keeps none there.
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::*;
+
+    #[test]
+    fn the_windows_installer_is_run_as_downloaded_and_an_archive_is_extracted() {
+        assert!(is_installer_name(
+            "Verso-Beta-0.5.0-beta.1-windows-x64-setup.exe"
+        ));
+        assert!(is_installer_name("Verso-1.0.0-windows-x64.MSI"));
+        assert!(!is_installer_name(
+            "Verso-Beta-0.5.0-beta.1-macos-arm64.zip"
+        ));
+        assert!(!is_installer_name("verso-cli-0.5.0-windows-x64.zip"));
+    }
+
+    #[test]
+    fn the_former_identifier_is_named_for_the_app_and_the_beta() {
+        assert_eq!(
+            former_identifier("com.versomd.app").as_deref(),
+            Some("dev.verso.app")
+        );
+        assert_eq!(
+            former_identifier("com.versomd.app.beta").as_deref(),
+            Some("dev.verso.app.beta")
+        );
+        assert_eq!(former_identifier("dev.verso.app"), None);
+    }
+
+    #[test]
+    fn the_window_data_is_copied_once_and_never_over_what_is_there() {
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join("dev.verso.app");
+        let new = root.path().join("com.versomd.app");
+        std::fs::create_dir_all(old.join("WebsiteData/LocalStorage")).unwrap();
+        std::fs::write(old.join("WebsiteData/LocalStorage/settings"), b"theme=dark").unwrap();
+
+        assert!(copy_web_data(&old, &new).unwrap());
+        assert_eq!(
+            std::fs::read(new.join("WebsiteData/LocalStorage/settings")).unwrap(),
+            b"theme=dark"
+        );
+        // Once: the new identifier's own data is never overwritten.
+        std::fs::write(
+            new.join("WebsiteData/LocalStorage/settings"),
+            b"theme=light",
+        )
+        .unwrap();
+        assert!(!copy_web_data(&old, &new).unwrap());
+        assert_eq!(
+            std::fs::read(new.join("WebsiteData/LocalStorage/settings")).unwrap(),
+            b"theme=light"
+        );
+        // Nothing to carry: nothing done.
+        assert!(!copy_web_data(&root.path().join("absent"), &root.path().join("x")).unwrap());
+        assert!(!root.path().join("x").exists());
     }
 }

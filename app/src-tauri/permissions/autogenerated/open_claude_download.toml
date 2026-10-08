@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-claude-download"
+description = "Enables the open_claude_download command without any pre-configured scope."
+commands.allow = ["open_claude_download"]
+
+[[permission]]
+identifier = "deny-open-claude-download"
+description = "Denies the open_claude_download command without any pre-configured scope."
+commands.deny = ["open_claude_download"]

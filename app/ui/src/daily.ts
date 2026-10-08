@@ -5,7 +5,7 @@
 import { commands } from "./bindings";
 import { afterFileChange } from "./changes";
 import { ui } from "./dom";
-import { fail } from "./errors";
+import { fail, nameTaken } from "./errors";
 import { allNotes } from "./folder";
 import { layout, openNote } from "./layout/spaces";
 import { NoteLeaf } from "./leaves/note";
@@ -58,7 +58,7 @@ export async function saveAsTemplate(): Promise<void> {
   if (!(leaf instanceof NoteLeaf) || !leaf.note) return;
   const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "") || t.templatesName;
   const r = await commands.createNote(`${folder}/${name(leaf.path)}`, leaf.editorText());
-  if (r.status !== "ok") return fail(r.error.kind === "exists" ? { message: t.exists } : r.error);
+  if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);
   await afterFileChange();
   ui.status.textContent = t.templateSaved;
 }

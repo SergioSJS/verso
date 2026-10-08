@@ -6,6 +6,7 @@ import { commands } from "../bindings";
 import { button, h, ui } from "../dom";
 import { fail } from "../errors";
 import { currentFolder, folderName, popout, secondary } from "../folder";
+import { refreshFrame } from "../frame";
 import { icon } from "../icons";
 import { askDiscard, Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
@@ -97,8 +98,13 @@ export class Space {
     n.replaceWith(input);
     input.focus();
     input.select();
+    // Once, by a flag: Chromium (WebView2) fires blur inside replaceWith,
+    // while the field is still connected, and that blur's commit would undo
+    // an Escape (ADR 0069, item 8).
+    let done = false;
     const finish = (commit: boolean, restore = false) => {
-      if (!input.isConnected) return;
+      if (done) return;
+      done = true;
       if (commit) this.label = input.value.trim() || this.label;
       n.textContent = this.label;
       input.replaceWith(n);
@@ -142,6 +148,7 @@ export function renderSpaces(): void {
     s.tab.tabIndex = s === current ? 0 : -1;
   }
   ui.spaces.hidden = spaces.length <= 1;
+  refreshFrame();
   // While there is a choice, the panes are the chosen workspace's panel.
   if (spaces.length > 1 && current) {
     ui.panes.setAttribute("role", "tabpanel");

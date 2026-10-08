@@ -95,6 +95,8 @@ fn preserves_the_mode() {
     assert_eq!(mode, 0o640);
 }
 
+// Extended attributes are a Unix notion; on Windows nothing is carried (ADR 0069).
+#[cfg(unix)]
 #[test]
 fn preserves_extended_attributes() {
     let (dir, mut root) = root_with("nota.md", "antes");

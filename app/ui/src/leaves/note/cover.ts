@@ -67,7 +67,8 @@ export function paintCoverAndSticker(this: NoteLeaf): void {
       this.stickerBtn.replaceChildren(stickerNode);
       this.stickerBtn.style.opacity = "1";
     } else {
-      this.stickerBtn.replaceChildren(icon("star"));
+      // Not the bookmark's star, at the other end of the title.
+      this.stickerBtn.replaceChildren(icon("sparkles"));
       this.stickerBtn.style.opacity = "0.2";
     }
     this.stickerBtn.title = t.changeSticker;
@@ -247,5 +248,10 @@ export function paintFlags(this: NoteLeaf): void {
     if (b.nested) flags.push(typedText.nested(b.line));
     else if (b.error) flags.push(typedText.broken(b.line, typedText.errors[b.error] ?? b.error));
   }
+  // The same `^id` twice: the last names the block, as in Obsidian (spec
+  // Q4); the note says which lines.
+  const lines = new Map<string, number[]>();
+  for (const b of note?.blocks ?? []) lines.set(b.id, [...(lines.get(b.id) ?? []), b.line]);
+  for (const [id, at] of lines) if (at.length > 1) flags.push(t.blockRepeated(id, at));
   this.flags.textContent = flags.join(" ");
 }

@@ -136,12 +136,12 @@ impl Filter {
                 // walk: `.Name.md.icloud` stands for `Name.md`, and a
                 // directory of that form is walked under its own name.
                 match placeholder::icloud_placeholder_of(name) {
-                    Some(real) if i + 1 == count => out.push(real),
-                    Some(_) => out.push(name),
+                    Some(real) if i + 1 == count => out = crate::rel_join(&out, real),
+                    Some(_) => out = crate::rel_join(&out, name),
                     None => return None,
                 }
             } else {
-                out.push(name);
+                out = crate::rel_join(&out, name);
             }
         }
         if self.ignored.iter().any(|i| out == *i || out.starts_with(i)) {
@@ -166,6 +166,17 @@ fn changes_something(kind: &EventKind) -> bool {
     }
 }
 
+/// On Windows a directory's own "modified" — `ReadDirectoryChangesW`'s
+/// `FILE_ACTION_MODIFIED`, which notify reports as `Modify(Any)` — comes
+/// when its last-access time or attributes change, as reading the notes in
+/// it does; a change of what it holds comes as that entry's own event, and
+/// its rename as `Modify(Name)`. Counted, every pass of the index would
+/// cause the next (ADR 0069, item 9).
+#[cfg(windows)]
+fn directory_touched_only(kind: &EventKind, path: &Path) -> bool {
+    matches!(kind, EventKind::Modify(ModifyKind::Any)) && path.is_dir()
+}
+
 /// The batch being gathered.
 #[derive(Default)]
 struct Pending {
@@ -186,6 +197,10 @@ impl Pending {
             self.rescan = true;
         }
         for path in &event.paths {
+            #[cfg(windows)]
+            if directory_touched_only(&event.kind, path) {
+                continue;
+            }
             match filter.relative(path) {
                 Some(Some(rel)) => {
                     self.paths.insert(rel);

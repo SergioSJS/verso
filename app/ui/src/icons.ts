@@ -99,6 +99,30 @@ const PATHS: Record<string, string> = {
   compass: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12zM10.5 5.5l-1.8 4.2-4.2 1.8 1.8-4.2z",
 };
 
+/** A decorative line icon drawn by CSS — a mask over the text color — not
+ *  an inline `<svg>`: every row of the file tree carries one, and thousands
+ *  of inline SVGs cost the engine a layout root and a transform each
+ *  (measured on 5,000 notes, 2026-10-08). Hidden from assistive technology,
+ *  as the rows' SVGs were. The mask of each name is one rule, made once. */
+const masked = new Set<string>();
+export function maskIcon(name: keyof typeof PATHS | string): HTMLSpanElement {
+  if (!masked.has(name)) {
+    masked.add(name);
+    let style = document.getElementById("mask-icons") as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "mask-icons";
+      document.head.append(style);
+    }
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='${PATHS[name] ?? ""}'/></svg>`;
+    style.sheet?.insertRule(`.mi-${CSS.escape(name)} { --mi: url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}"); }`, style.sheet.cssRules.length);
+  }
+  const span = document.createElement("span");
+  span.className = `icon mi mi-${name}`;
+  span.setAttribute("aria-hidden", "true");
+  return span;
+}
+
 export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 16 16");

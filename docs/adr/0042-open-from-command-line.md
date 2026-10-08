@@ -22,6 +22,9 @@
   as the code applies it (Decision); how the window starts changed, so that
   an app already running receives the folder (`docs/review/phase-2.md` §6,
   items 3 and 14).
+- Revisions: 2026-10-08 — **decided by the maintainer**: with the app
+  running, `verso <folder>` opens the folder in a window of its own; one app
+  per user on every system (Status).
 
 ## Context
 
@@ -158,7 +161,9 @@ with the window.
   `verso-app` binary beside it, else, on macOS, the installed app through
   `open -a Verso <folder>`. The folder goes as a document to open, which macOS
   delivers by an open event whether it launches the app or the app is already
-  running; a running app's main window saves its tabs and opens it, as for any
+  running; a running app opens it in a window that shows no folder, else in
+  a new window (revised 2026-10-08, Status) — until then its main window
+  saved its tabs and opened it, as for any
   switch. Until 2026-09-23 it went through `open -a Verso --args`, which an
   app already running never received (`docs/review/phase-2.md`, reading 3,
   finding 20; fixed in `b43e914` at the maintainer's request). `open` refuses a
@@ -168,8 +173,11 @@ with the window.
   there, that the app was not found (`1fc5c79`). A first version retried with
   `--args`, which an app already running ignores, so a typo was reported as
   "opening"; the Opus reading of the answers found it. A binary run directly —
-  `$VERSO_APP`, a development tree, Linux — still starts a new process each
-  time, and the window reports a folder that is not there.
+  `$VERSO_APP`, a development tree, Windows, Linux — starts a process that,
+  with the app running, hands the folder to it and exits (single instance,
+  since 2026-10-08, Status); on macOS no binary inside a `.app` is run, the
+  installed command line's included. The window reports a folder that is
+  not there.
 - **The first version of this code** used a lexical rule — `.`, `..`, a `/` or
   a leading `~` made an argument a folder — so `verso notas` was an unknown
   command and `verso ./nao-existe` said it was opening; and `verso open` alone
@@ -184,4 +192,12 @@ None recorded in the briefing.
 ## Status
 
 Accepted. The Phase 2 rule: decided on 2026-09-23 by the maintainer (the
-Decision).
+Decision). Revised by the maintainer on 2026-10-08, accepting the
+author's recommendation: **with the app running, `verso <folder>` opens
+the folder in a window of its own** — a window of the app that shows no
+folder takes it, else a new window does (ADR 0065). On every system the
+app is one instance: a second launch hands its folder to the running app
+and exits (Tauri's single-instance plugin), and on macOS the command line
+goes back to `open -a`, as decided above. Since `9d60cfc` (2026-09-25) it
+had run the installed bundle's binary and `open -n`, which started a
+second app — one that, run while the first was open, showed no window.

@@ -145,7 +145,10 @@ pub struct App {
     /// line (`verso-app <folder>`) or, on macOS, sent by an open event
     /// (`folder_handed`) — opened once by `open_initial`: a path at the
     /// entry edge, on this side.
-    initial_folder: Mutex<Option<PathBuf>>,
+    initial_folder: Mutex<std::collections::VecDeque<PathBuf>>,
+    /// Windows told a folder (`folder_handed`) and not done opening it:
+    /// one is not handed another while it installs the first.
+    opening: Mutex<std::collections::HashSet<String>>,
     /// Where the indexes of the folders it opens go: `None` for the
     /// configuration directory (`verso_core::config_dir`). The tests give
     /// a temporary one, so that a test run never writes into the user's.
@@ -181,7 +184,8 @@ impl App {
         Self {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),
-            initial_folder: Mutex::new(initial),
+            initial_folder: Mutex::new(initial.into_iter().collect()),
+            opening: Mutex::new(std::collections::HashSet::new()),
             config: None,
             sessions: Mutex::new(Sessions::default()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
@@ -351,6 +355,11 @@ async fn install<R: tauri::Runtime>(
     window: &tauri::Window<R>,
     open: impl FnOnce(Option<&Path>) -> Result<Workspace, CoreError> + Send + 'static,
 ) -> Result<FolderInfo, ContractError> {
+    // Until its folder is installed, this window is not empty for a folder
+    // handed by a second launch (`folder_handed`), though no session names
+    // it yet — whatever opens it: the command line's folder, the picker, a
+    // reopened one. Unmarked on every way out.
+    let _opening = Opening::mark(app, window.label());
     let config = app.state::<App>().config.clone();
     let rules = *lock(&app.state::<App>().walk_rules);
     let folder_note_name = lock(&app.state::<App>().folder_note_name).clone();
@@ -369,10 +378,7 @@ async fn install<R: tauri::Runtime>(
         // Watched before the first index run, so that a change made while
         // it runs — seconds on a large folder — is not missed.
         let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
-        let handle_for_progress = handle.clone();
-        let report = workspace.index_with_progress(move |p| {
-            emit_progress(&handle_for_progress, &opener, &to_progress(p));
-        })?;
+        let report = workspace.index_with_progress(progress_to(handle.clone(), opener))?;
         let mut info = folder_info(&workspace, &report);
         info.index.unwatched.clone_from(&unwatched);
         Ok(Session {
@@ -448,6 +454,31 @@ fn emit_progress<R: tauri::Runtime>(
     }
 }
 
+/// An index run's progress for `windows`, at most one event every
+/// [`PROGRESS_EVERY`] — and always a phase's first and the run's last. One
+/// event per note, unchanged notes included, cost the window more CPU than
+/// the index itself on 5,000 notes (measured on Windows, 2026-10-08).
+fn progress_to<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    windows: Vec<String>,
+) -> impl FnMut(verso_core::IndexProgress) {
+    let mut last: Option<(std::time::Instant, String)> = None;
+    move |p| {
+        let now = std::time::Instant::now();
+        let due = p.current >= p.total
+            || last.as_ref().is_none_or(|(at, phase)| {
+                *phase != p.phase || now.duration_since(*at) >= PROGRESS_EVERY
+            });
+        if due {
+            last = Some((now, p.phase.clone()));
+            emit_progress(&app, &windows, &to_progress(p));
+        }
+    }
+}
+
+/// The least time between two progress events of one index run.
+const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_millis(100);
+
 /// A batch from the watch, on its thread: index the folder again and send
 /// the app's windows `folder-changed`, once — every window listens to it,
 /// whatever its label. The payload names what this run found changed (a
@@ -466,11 +497,9 @@ fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, miss
             missed.store(true, Ordering::SeqCst);
             return;
         };
-        let handle_for_progress = app.clone();
+        let progress = progress_to(app.clone(), shown_in);
         let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            session.workspace.index_with_progress(move |p| {
-                emit_progress(&handle_for_progress, &shown_in, &to_progress(p));
-            })
+            session.workspace.index_with_progress(progress)
         }));
         let report = match outcome {
             Ok(Ok(report)) => Ok(report),
@@ -567,7 +596,9 @@ async fn open_initial<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
-    let Some(path) = lock(&app.state::<App>().initial_folder).take() else {
+    let Some(path) = lock(&app.state::<App>().initial_folder).pop_front() else {
+        // Told, but the folder was taken by another window: not opening.
+        lock(&app.state::<App>().opening).remove(window.label());
         return Ok(None);
     };
     install(&app, &window, move |config| Workspace::open(&path, config))
@@ -590,6 +621,10 @@ fn app_info() -> Result<AppInfo, ContractError> {
 #[tauri::command]
 #[specta::specta]
 fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), ContractError> {
+    // The single instance let go first: a restart does not run the plugins'
+    // exit, and the new process, finding the old one still holding it,
+    // would hand itself over and exit — and then the old one exits too.
+    tauri_plugin_single_instance::destroy(&app);
     app.restart();
 }
 
@@ -725,11 +760,9 @@ fn reindex<R: tauri::Runtime>(
         .map(|key| guard.windows_of(key))
         .unwrap_or_default();
     let session = guard.of(window.label()).ok_or_else(no_folder)?;
-    let handle_for_progress = app.clone();
+    let progress = progress_to(app.clone(), shown_in);
     let report = match std::panic::catch_unwind(AssertUnwindSafe(|| {
-        session.workspace.index_with_progress(move |p| {
-            emit_progress(&handle_for_progress, &shown_in, &to_progress(p));
-        })
+        session.workspace.index_with_progress(progress)
     })) {
         Ok(result) => result.map_err(convert)?,
         Err(payload) => {
@@ -818,6 +851,9 @@ macro_rules! commands_for {
                 uninstall_cli,
                 mcp_status::<$runtime>,
                 mcp_add_claude::<$runtime>,
+                agent_visible::<$runtime>,
+                set_agent_visible::<$runtime>,
+                open_claude_download,
                 check_for_updates,
                 download_and_install_update::<$runtime>,
                 restart_app::<$runtime>
@@ -850,11 +886,69 @@ pub fn export_bindings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// A window marked as opening a folder (`App::opening`) while it lives.
+struct Opening<R: tauri::Runtime> {
+    app: tauri::AppHandle<R>,
+    label: String,
+}
+
+impl<R: tauri::Runtime> Opening<R> {
+    fn mark(app: &tauri::AppHandle<R>, label: &str) -> Self {
+        lock(&app.state::<App>().opening).insert(label.to_owned());
+        Self {
+            app: app.clone(),
+            label: label.to_owned(),
+        }
+    }
+}
+
+impl<R: tauri::Runtime> Drop for Opening<R> {
+    fn drop(&mut self) {
+        lock(&self.app.state::<App>().opening).remove(&self.label);
+    }
+}
+
+/// The app launched again while it runs — `verso <folder>`, which starts
+/// `verso-app <folder>`, or the app's icon: the running app takes the
+/// folder into a window of its own (`folder_handed`, ADR 0065), or, with
+/// none, brings a window forward. The second process exits; its arguments
+/// are its command line, a relative folder read from its own directory.
+fn second_launch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, argv: Vec<String>, cwd: String) {
+    // The first argument, as `main` reads its own (main.rs).
+    let folder = argv
+        .get(1)
+        .filter(|a| !a.starts_with("--"))
+        .map(|a| std::path::Path::new(&cwd).join(a));
+    log::write("INFO", "host", "launched again: handed to the running app");
+    match folder {
+        Some(folder) => folder_handed(app, std::path::absolute(&folder).unwrap_or(folder)),
+        None => {
+            // A window of a folder (the main one first), never a note's
+            // popout or a web page's.
+            let windows = app.windows();
+            let window = windows.get("main").or_else(|| {
+                windows
+                    .iter()
+                    .filter(|(l, _)| l.starts_with("window-"))
+                    .min_by_key(|(l, _)| l.as_str())
+                    .map(|(_, w)| w)
+            });
+            if let Some(w) = window {
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }
+    }
+}
+
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let commands = commands();
     let initial_folder = initial_folder.map(|p| std::path::absolute(&p).unwrap_or(p));
-    let builder = tauri::Builder::default();
+    // First of the plugins, as the plugin asks: a second launch hands its
+    // folder over and exits before anything else of it starts.
+    let builder =
+        tauri::Builder::default().plugin(tauri_plugin_single_instance::init(second_launch));
     #[cfg(target_os = "macos")]
     let builder = builder.menu(app_menu).on_menu_event(|app, event| {
         let id = event.id().as_ref();
@@ -931,13 +1025,18 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     );
     builder
         .setup(|app| {
+            // The window's data under the former identifier comes along,
+            // before any window opens (ADR 0004, decided 2026-10-07).
+            migrate_web_data(&app.config().identifier);
             // The main window is made here, not from the configuration
             // alone: it needs the download hook every window of the app
             // has (`on_download`).
             if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main") {
-                tauri::WebviewWindowBuilder::from_config(app.handle(), config)?
-                    .on_download(on_download)
-                    .build()?;
+                frameless(
+                    tauri::WebviewWindowBuilder::from_config(app.handle(), config)?
+                        .on_download(on_download),
+                )
+                .build()?;
             }
             Ok(())
         })
@@ -978,6 +1077,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             log::write("INFO", "host", &format!("window closed: {label}"));
             // Its folder closes when no other window shows it (ADR 0065).
             lock(&app.state::<App>().sessions).release(label);
+            lock(&app.state::<App>().opening).remove(label);
         }
         tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
         _ => {}
@@ -1007,21 +1107,34 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 /// takes the command line's place: the main window, if it is up, is told
 /// to open it (`open_initial`, after saving its tabs), and one that starts
 /// later opens it at start-up. What is not a folder fails there, as a
-/// command-line argument would. Built for tests on every platform, so
-/// the Linux runs check it too; only macOS sends the event.
-#[cfg(any(target_os = "macos", test))]
+/// command-line argument would. A second launch on any system (the
+/// single-instance plugin, `second_launch`) hands its folder here too.
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
-    *lock(&app.state::<App>().initial_folder) = Some(folder);
-    // A window of the app that shows no folder takes it; with none, a new
-    // window does, which opens it as it starts (ADR 0065).
-    let empty = {
+    // Folders wait in line: two handed before a window took the first
+    // (`verso a; verso b`) are both opened, never one lost.
+    let waiting = {
+        let state = app.state::<App>();
+        let mut queue = lock(&state.initial_folder);
+        let waiting = !queue.is_empty();
+        queue.push_back(folder);
+        waiting
+    };
+    // A window of the app that shows no folder takes it; with none — or
+    // when that window has a folder waiting for it already — a new window
+    // does, which opens it as it starts (ADR 0065).
+    let empty = if waiting {
+        None
+    } else {
         let state = app.state::<App>();
         let sessions = lock(&state.sessions);
+        let opening = lock(&state.opening);
         let mut labels: Vec<String> = app
             .windows()
             .into_keys()
             .filter(|l| {
-                (l == "main" || l.starts_with("window-")) && !sessions.windows.contains_key(l)
+                (l == "main" || l.starts_with("window-"))
+                    && !sessions.windows.contains_key(l)
+                    && !opening.contains(l)
             })
             .collect();
         labels.sort_by_key(|l| (l != "main", l.clone()));
@@ -1032,6 +1145,8 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
             if let Some(w) = app.get_window(&label) {
                 let _ = w.set_focus();
             }
+            // Told: it opens the folder now, and is not handed another.
+            lock(&app.state::<App>().opening).insert(label.clone());
             let _ = app.emit("folder-handed", label);
         }
         None => {

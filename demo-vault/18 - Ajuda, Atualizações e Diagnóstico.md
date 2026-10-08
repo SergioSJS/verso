@@ -56,4 +56,4 @@ Este cofre de exemplo veio de **Importar cofre de exemplo** (na paleta e no menu
 
 ---
 
-Siga para [[19 - Organizando: figurinhas, capas e páginas]] ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]].
+Siga para [[19 - Organizando com figurinhas, capas e páginas]] ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]].

@@ -14,7 +14,16 @@ import { boardText, t } from "./strings";
 export function fail(e: ContractError | unknown): void {
   const { kind, message } = errorParts(e);
   ui.status.textContent = errorSentence(e);
-  note("ERROR", kind ? `${kind}: ${message}` : message);
+  note(ANSWERS.has(kind) ? "INFO" : "ERROR", kind ? `${kind}: ${message}` : message);
+}
+/** Kinds that answer what the user asked for, not a fault: a name already
+ *  taken. The status bar says it; the log keeps ERROR for what went wrong. */
+const ANSWERS = new Set(["exists"]);
+/** A name already taken, said in the status bar as `text`: an answer, so
+ *  the log has it as INFO. */
+export function nameTaken(text: string): void {
+  ui.status.textContent = `${t.error}: ${text}`;
+  note("INFO", text);
 }
 export function errorParts(e: ContractError | unknown): { kind: string; message: string } {
   const message =

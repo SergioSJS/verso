@@ -125,15 +125,19 @@ mudando o teste.
 | Allowlist de licenças npm sobre o lockfile da janela | pacote npm sob licença que o projeto não pode distribuir | Fase 2 |
 | Os testes unitários da janela (`npm test` em `app/ui`) | o modelo do board mudar o que grava sem ninguém ver | o board |
 | O cofre de exemplo construído das suas fontes e se sustentando | um embutido velho, um board editado à mão, um tutorial que não se sustenta | o tutorial |
+| Os testes de ponta a ponta da janela no Chromium ao lado do WebKit (`scripts/check.sh`) — provisório: o item 8 do [ADR 0069](adr/0069-windows-port.md) está Proposto | uma janela que funciona no WebKit e quebra no WebView2 | o porte para Windows |
+| Clippy e os testes no Windows por SSH (`scripts/check-windows.sh`), quando o diff toca código de plataforma | código morto ou diferente no Windows | o porte para Windows |
 
 CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
 roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
-clippy e os testes no macOS, o fuzzing e o benchmark; os testes de ponta a
+clippy e os testes no macOS e no Windows, o fuzzing e o benchmark; os testes de ponta a
 ponta da janela rodam só localmente, no `scripts/check.sh`
 ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)); os apps são compilados e
 empacotados só quando uma versão nova chega à `main`, nunca numa branch. Antes de qualquer push,
-`scripts/check.sh` e `scripts/check-linux.sh` passam localmente (README.md): o
-CI confirma, nunca é o primeiro teste.
+`scripts/check.sh` e `scripts/check-linux.sh` passam localmente (README.md), e
+o `scripts/check-windows.sh` quando o diff toca código de plataforma
+([ADR 0069](adr/0069-windows-port.md)): o CI confirma, nunca é o primeiro
+teste.
 
 Se um guardrail bloquear um trabalho legítimo, isso é assunto de PR próprio, com
 justificativa — não de `#[allow]` no meio do diff. Um subprocesso que faz
@@ -174,6 +178,11 @@ sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
 2. Conferir se a decisão necessária está `[ABERTO]`. Está: perguntar, não
    escolher.
 3. Confirmar que o trabalho cabe na fase atual do `roadmap.md`.
+4. Trabalho que toca arquivos, caminhos, processos, configuração ou o foco e
+   as teclas da janela: ler
+   [`docs/reference/cross-platform-checklist.md`](reference/cross-platform-checklist.md)
+   — é escrito no Mac e tem que estar certo no Windows
+   ([ADR 0069](adr/0069-windows-port.md)).
 
 ### O PR
 

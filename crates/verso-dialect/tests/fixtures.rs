@@ -47,6 +47,12 @@ fixture_tests! {
     block_definition => "block/definition",
     // AI draft of the Q3 PR, awaiting approval (first line of its expected.yaml).
     block_list_item => "block/list-item",
+    block_after_a_block => "block/after-a-block",
+    block_heading => "block/heading",
+    block_duplicate => "block/duplicate",
+    block_in_list => "block/in-list",
+    block_in_quote => "block/in-quote",
+    block_alone_top => "block/alone-top",
     callout_simple => "callout/simple",
     embed_simple => "embed/simple",
     frontmatter_tags_aliases => "frontmatter/tags-aliases",
@@ -373,6 +379,23 @@ impl<'a, 'y> Fields<'a, 'y> {
         }
     }
 
+    /// `[first, last]` lines, asserted when the fixture gives them.
+    fn lines(&mut self, field: &str, actual: (u32, u32)) {
+        let Some(expected) = self.get(field) else {
+            return;
+        };
+        let Yaml::Sequence(items) = expected else {
+            self.ctx.fail(format!("{field}: must be [first, last]"));
+            return;
+        };
+        let got: Vec<Option<i64>> = items.iter().map(as_int).collect();
+        let want = vec![Some(i64::from(actual.0)), Some(i64::from(actual.1))];
+        if got != want {
+            self.ctx
+                .fail(format!("{field}: expected {got:?}, got {want:?}"));
+        }
+    }
+
     /// Call last: any field the fixture wrote that no check consumed is a
     /// schema violation, not a silent pass.
     fn finish(self) {
@@ -452,6 +475,7 @@ fn check_block(ctx: &mut Ctx<'_>, item: &Yaml<'_>, block: &verso_dialect::BlockI
     };
     fields.text("id", &block.id);
     fields.pos(block.pos);
+    fields.lines("lines", block.lines);
     fields.finish();
 }
 

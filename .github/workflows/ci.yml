@@ -21,7 +21,7 @@
 # runner that starts, installs a toolchain and bills its minutes rounded up,
 # so a pull request runs every guardrail but the fuzzing in ONE Linux job,
 # cheapest first, over one cache. `main` runs that job again, plus clippy and
-# the tests on macOS, the fuzzing and the benchmark. No job here builds or
+# the tests on macOS and on Windows, the fuzzing and the benchmark. No job here builds or
 # packages the app: that happens only for a version tag, in a workflow of its
 # own — branches test, they never package.
 #
@@ -182,6 +182,34 @@ jobs:
       # not versioned. Clippy and the tests do not look at the UI, so an empty
       # page stands in for it here instead of installing Node on a runner
       # billed ten times over; the Linux job builds and checks the real one.
+      - name: a stand-in for the UI bundle
+        run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
+      - name: cargo clippy -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - name: cargo test
+        run: cargo test --workspace --all-features --locked
+
+  windows:
+    name: clippy and tests on Windows (main)
+    # The Windows port (ADR 0069, item 6): the same platform checks as
+    # macOS's, on Windows, after a merge only — a Windows minute bills as
+    # about 1.7 Linux ones. The image is pinned, as the Linux ones are.
+    # scripts/check-windows.sh runs the same two steps before a push.
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Before the checkout: the runner's Git converts line endings, and the
+      # fixtures and the round-trip tests are about bytes (invariant 7).
+      - name: no line-ending conversion
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: toolchain from rust-toolchain.toml
+        run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      # As on macOS: an empty page stands in for the UI bundle.
       - name: a stand-in for the UI bundle
         run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
       - name: cargo clippy -D warnings

@@ -100,6 +100,98 @@ fn a_folder_handed_to_the_running_app_is_opened_once_by_the_main_window() {
     assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
 }
 
+/// The app launched again (`verso <folder>`, any system): the second
+/// launch's folder, relative to its own directory, is handed to the
+/// running app as macOS's open event hands it — the same window takes it.
+#[test]
+fn a_second_launch_hands_its_folder_to_the_running_app() {
+    use tauri::Listener;
+    let parent = tempfile::tempdir().unwrap();
+    // The folder made by tempfile, named exactly: this crate's code may not
+    // call std::fs outside update.rs and log.rs (ADR 0029).
+    let cofre = tempfile::Builder::new()
+        .prefix("Cofre")
+        .rand_bytes(0)
+        .tempdir_in(parent.path())
+        .unwrap();
+    let _nota = note(cofre.path(), "Nota.md", "# Nota\n");
+    let (app, webview) = app();
+    assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
+    let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen = told.clone();
+    app.listen_any("folder-handed", move |_| {
+        seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    });
+    second_launch(
+        app.handle(),
+        vec!["verso-app".into(), "Cofre".into()],
+        parent.path().to_string_lossy().into_owned(),
+    );
+    assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let info = call(&webview, "open_initial", json!({})).unwrap();
+    assert_eq!(info["name"], "Cofre");
+    // Launched again with no folder: nothing is handed.
+    second_launch(app.handle(), vec!["verso-app".into()], String::new());
+    assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+}
+
+/// Two folders handed before a window took the first (`verso a; verso b`
+/// in a row): both wait in line and both are opened, in order — before,
+/// the second overwrote the first.
+#[test]
+fn two_folders_handed_at_once_are_both_opened() {
+    let one = tempfile::tempdir().unwrap();
+    let two = tempfile::tempdir().unwrap();
+    let _a = note(one.path(), "A.md", "# A\n");
+    let _b = note(two.path(), "B.md", "# B\n");
+    let (app, webview) = app();
+    folder_handed(app.handle(), one.path().to_path_buf());
+    folder_handed(app.handle(), two.path().to_path_buf());
+    assert_eq!(lock(&app.state::<App>().initial_folder).len(), 2);
+    let first = call(&webview, "open_initial", json!({})).unwrap();
+    assert_eq!(
+        first["name"],
+        one.path().file_name().unwrap().to_str().unwrap()
+    );
+    assert_eq!(lock(&app.state::<App>().initial_folder).len(), 1);
+}
+
+/// A window told a folder is not told another while it opens the first
+/// (`verso a` then `verso b` while `a` indexes): the second gets a window
+/// of its own, and the first window opens the first folder.
+#[test]
+fn a_window_opening_a_folder_is_not_handed_another() {
+    use tauri::Listener;
+    let one = tempfile::tempdir().unwrap();
+    let two = tempfile::tempdir().unwrap();
+    let _a = note(one.path(), "A.md", "# A\n");
+    let _b = note(two.path(), "B.md", "# B\n");
+    let (app, webview) = app();
+    let told = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen = told.clone();
+    app.listen_any("folder-handed", move |_| {
+        seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    });
+    folder_handed(app.handle(), one.path().to_path_buf());
+    // The main window took it and installs it (what open_initial and
+    // install do), so no folder waits in line any more.
+    let taken = lock(&app.state::<App>().initial_folder).pop_front();
+    assert_eq!(taken.as_deref(), Some(one.path()));
+    lock(&app.state::<App>().opening).insert("main".to_owned());
+    let windows = app.webview_windows().len();
+    folder_handed(app.handle(), two.path().to_path_buf());
+    // Told once; the second folder gets a window of its own and waits for it.
+    assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(app.webview_windows().len(), windows + 1);
+    assert_eq!(
+        lock(&app.state::<App>().initial_folder)
+            .front()
+            .map(PathBuf::as_path),
+        Some(two.path())
+    );
+    let _ = webview;
+}
+
 /// A note another app writes while the folder is open: the index finds
 /// it and the app's windows are told, by its path relative to the
 /// folder; a note Verso wrote itself is never reported as changed
@@ -185,12 +277,21 @@ fn one_batch_is_told_once_whatever_the_windows() {
     assert!(missed.load(Ordering::SeqCst));
 }
 
+/// The app's own pages, at the origin each platform's web view serves them
+/// from: WebView2 serves a custom scheme as `http://tauri.localhost`, which
+/// is what the capability's "local" means there (ADR 0069).
+const APP_ORIGIN: &str = if cfg!(windows) {
+    "http://tauri.localhost"
+} else {
+    "tauri://localhost"
+};
+
 fn call(
     webview: &tauri::WebviewWindow<MockRuntime>,
     cmd: &str,
     body: Value,
 ) -> Result<Value, Value> {
-    call_from(webview, "tauri://localhost", cmd, body)
+    call_from(webview, APP_ORIGIN, cmd, body)
 }
 
 /// A call as a document at `origin` would make it.
@@ -444,7 +545,7 @@ fn each_window_answers_from_its_own_folder() {
         call(&other, "list_notes", json!({})).unwrap_err()["kind"],
         "no_folder"
     );
-    *lock(&app.state::<App>().initial_folder) = Some(two.path().to_path_buf());
+    lock(&app.state::<App>().initial_folder).push_back(two.path().to_path_buf());
     call(&other, "open_initial", json!({})).unwrap();
     assert_eq!(
         call(&main, "list_notes", json!({})).unwrap(),
@@ -478,7 +579,7 @@ fn a_folders_index_progress_reaches_only_its_windows() {
     let other = tauri::WebviewWindowBuilder::new(&app, "window-3", Default::default())
         .build()
         .unwrap();
-    *lock(&app.state::<App>().initial_folder) = Some(two.path().to_path_buf());
+    lock(&app.state::<App>().initial_folder).push_back(two.path().to_path_buf());
     call(&other, "open_initial", json!({})).unwrap();
     let mine = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let theirs = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -846,6 +947,28 @@ fn several_entries_move_through_the_contract_with_one_plan() {
     )
     .unwrap_err();
     assert_eq!(err["kind"], "refused", "{err}");
+}
+
+/// The window controls of a window without the system's title bar (ADR
+/// 0072, app/ui/src/frame.ts) are allowed: without them the app's own
+/// buttons and its drag regions do nothing in the app, while the harness
+/// passes.
+#[test]
+fn the_window_controls_are_allowed() {
+    let capability = include_str!("../capabilities/default.json");
+    let frame = include_str!("../../ui/src/frame.ts");
+    for (call, permission) in [
+        ("minimize()", "core:window:allow-minimize"),
+        ("toggleMaximize()", "core:window:allow-toggle-maximize"),
+        ("close()", "core:window:allow-close"),
+        ("data-tauri-drag-region", "core:window:allow-start-dragging"),
+    ] {
+        assert!(frame.contains(call), "frame.ts no longer uses {call}");
+        assert!(
+            capability.contains(&format!("\"{permission}\"")),
+            "{permission} missing"
+        );
+    }
 }
 
 /// Every command the bindings call is allowed by the window's capability

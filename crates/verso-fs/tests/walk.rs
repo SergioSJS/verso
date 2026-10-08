@@ -166,10 +166,59 @@ fn icloud_placeholder_is_present_and_names_the_real_file() {
     )));
 }
 
-#[cfg(unix)]
+/// A file whose data a cloud provider keeps (OneDrive's Files On-Demand)
+/// carries an attribute saying so; `attrib +O` (offline) gives one without
+/// a OneDrive account. It is present, named as itself, and never read —
+/// reading it would download it (ADR 0043, decided for Windows 2026-10-08).
+#[cfg(windows)]
+#[test]
+fn a_windows_cloud_file_is_present_and_not_read() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("nuvem.md"), "# Na nuvem\n");
+    touch(&dir.path().join("aqui.md"), "# Aqui\n");
+    let attrib = |flag: &str| {
+        let status = std::process::Command::new("attrib")
+            .arg(flag)
+            .arg(dir.path().join("nuvem.md"))
+            .status()
+            .unwrap();
+        assert!(status.success());
+    };
+    attrib("+O");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let entries = relatives(&mut root);
+    assert!(entries.contains(&(
+        "nuvem.md".into(),
+        EntryKind::Placeholder {
+            of: PathBuf::from("nuvem.md")
+        }
+    )));
+    assert!(entries.contains(&("aqui.md".into(), EntryKind::Note)));
+    let handle = root.handle(Path::new("nuvem.md")).unwrap();
+    assert!(matches!(
+        root.read(handle),
+        Err(verso_fs::ReadError::Unavailable)
+    ));
+    attrib("-O");
+    assert!(root.read(handle).is_ok());
+}
+
+#[cfg(any(unix, windows))]
 mod symlinks {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::symlink;
+
+    /// Windows has one call per kind of target; Developer Mode lets an
+    /// ordinary user make either (ADR 0069: the test machine has it on).
+    #[cfg(windows)]
+    fn symlink(target: impl AsRef<Path>, link: impl AsRef<Path>) -> std::io::Result<()> {
+        if target.as_ref().is_dir() {
+            std::os::windows::fs::symlink_dir(target, link)
+        } else {
+            std::os::windows::fs::symlink_file(target, link)
+        }
+    }
 
     #[test]
     fn symlinks_to_files_and_directories_are_followed_wherever_they_point() {
@@ -246,6 +295,36 @@ mod symlinks {
             matches!(walk.problems.as_slice(), [Problem::Io { relative, .. }] if relative == Path::new("quebrado.md"))
         );
     }
+
+    /// On Windows a loop is usually a junction, which any user can make
+    /// without Developer Mode: the same loop, the same single report.
+    #[cfg(windows)]
+    #[test]
+    fn a_junction_loop_is_reported_once_and_the_walk_finishes() {
+        let dir = tempfile::tempdir().unwrap();
+        touch(&dir.path().join("a/b/nota.md"), "");
+        let made = std::process::Command::new("cmd")
+            .arg("/C")
+            .arg("mklink")
+            .arg("/J")
+            // Backslashes: `cmd` reads `/b` in a path as a switch.
+            .arg(dir.path().join("a").join("b").join("volta"))
+            .arg(dir.path().join("a"))
+            .output()
+            .unwrap();
+        assert!(made.status.success(), "{made:?}");
+        let mut root = Root::open(dir.path(), vec![]).unwrap();
+        let walk = root.walk();
+        assert!(
+            matches!(
+                walk.problems.as_slice(),
+                [Problem::Loop { relative, first_seen }]
+                    if relative == Path::new("a/b/volta") && first_seen == Path::new("a")
+            ),
+            "{:?}",
+            walk.problems
+        );
+    }
 }
 
 #[test]
@@ -288,6 +367,46 @@ fn a_root_must_be_a_directory() {
     touch(&dir.path().join("nota.md"), "");
     assert!(Root::open(dir.path().join("nota.md"), vec![]).is_err());
     assert!(Root::open(dir.path().join("nao-existe"), vec![]).is_err());
+}
+
+/// On Windows `.obsidian` also answers to a short name such as `OBSIDI~1`:
+/// that second spelling gets no handle, while a file really named with a
+/// `~1` keeps one. Skipped where the volume makes no short names.
+#[cfg(windows)]
+#[test]
+fn a_short_name_does_not_reach_a_hidden_entry() {
+    use std::os::windows::process::CommandExt;
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join(".obsidian/app.json"), "{}");
+    touch(&dir.path().join("arquivo morto/velho.md"), "velho");
+    touch(&dir.path().join("NOTA~1.md"), "a real name");
+    let short = |name: &str| {
+        let out = std::process::Command::new("cmd")
+            .raw_arg(format!(
+                "/C for %I in (\"{}\") do @echo %~snxI",
+                dir.path().join(name).display()
+            ))
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    };
+    let (hidden, ignored) = (short(".obsidian"), short("arquivo morto"));
+    if !hidden.contains('~') || !ignored.contains('~') {
+        eprintln!("no short names on this volume ({hidden:?}, {ignored:?}): skipped");
+        return;
+    }
+    let mut root = Root::open(dir.path(), vec![PathBuf::from("arquivo morto")]).unwrap();
+    assert_eq!(
+        root.handle(&Path::new(&hidden).join("app.json")),
+        Err(verso_fs::ConfinementError::ShortName)
+    );
+    assert_eq!(
+        root.handle(&Path::new(&ignored).join("velho.md")),
+        Err(verso_fs::ConfinementError::ShortName)
+    );
+    assert!(root.handle(Path::new("NOTA~1.md")).is_ok());
+    // A name of the shape that names nothing yet is a new name, not a short one.
+    assert!(root.handle(Path::new("NOVA~1.md")).is_ok());
 }
 
 #[test]

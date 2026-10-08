@@ -39,9 +39,14 @@ mod support {
 
     impl Session {
         pub fn start(vault: &Path, config: &Path) -> Self {
+            Self::start_with(&[vault.as_os_str()], config)
+        }
+
+        /// `verso mcp <args>`: a folder, or `--all`.
+        pub fn start_with(args: &[&std::ffi::OsStr], config: &Path) -> Self {
             let mut child = Command::new(env!("CARGO_BIN_EXE_verso"))
                 .arg("mcp")
-                .arg(vault)
+                .args(args)
                 .env("VERSO_CONFIG_DIR", config)
                 .env("VERSO_LANG", "en")
                 .stdin(Stdio::piped())
@@ -246,6 +251,7 @@ fn a_client_initializes_lists_the_tools_and_walks_the_graph() {
             "backlinks",
             "index",
             "links",
+            "list_folders",
             "list_notes",
             "query_base",
             "read_board",
@@ -409,12 +415,23 @@ fn index_reports_a_walk_problem_as_the_object_the_cli_prints() {
         .tempdir_in(vault.path())
         .unwrap();
     // A symlink loop, made as `chmod` is elsewhere in these tests: the
-    // `std::fs` guardrail holds for tests too.
+    // `std::fs` guardrail holds for tests too. On Windows by `mklink`,
+    // which Developer Mode lets an ordinary user run (ADR 0069).
+    #[cfg(unix)]
     let status = std::process::Command::new("ln")
         .args(["-s", ".", "loop"])
         .current_dir(d.path())
         .status()
         .unwrap();
+    #[cfg(windows)]
+    let status = {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("cmd")
+            .raw_arg("/C mklink /D loop .")
+            .current_dir(d.path())
+            .status()
+            .unwrap()
+    };
     assert!(status.success());
     let mut session = Session::start(vault.path(), config.path());
     session.requests(&initialize("2025-06-18"));
@@ -818,4 +835,151 @@ fn a_typed_note_comes_with_its_type_and_list_notes_takes_one() {
     // A type no schema names: plain Markdown.
     assert_eq!(structured(&r[3])["note_type"], Value::Null);
     assert_eq!(structured(&r[4])["notes"], json!(["Barão.md"]));
+}
+
+/// The server for all of Verso (`verso mcp --all`; ADR 0054, revised
+/// 2026-10-08): it lists and reads only the folders marked visible to
+/// agents, names them by name or key, refuses a hidden or unnamed one, and
+/// every call is in `agents.log`.
+#[test]
+fn the_server_for_all_of_verso_reads_only_the_visible_folders() {
+    let config = tempfile::tempdir().unwrap();
+    let (shown, hidden) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let _a = note(shown.path(), "Taverna.md", "# Taverna\nO dragão dorme.\n");
+    let _b = note(hidden.path(), "Segredo.md", "# Segredo\nO dragão acorda.\n");
+    // Both opened in Verso once (their indexes and sidecars), one marked.
+    for vault in [shown.path(), hidden.path()] {
+        let out = Command::new(env!("CARGO_BIN_EXE_verso"))
+            .arg("index")
+            .arg(vault)
+            .env("VERSO_CONFIG_DIR", config.path())
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{out:?}");
+    }
+    let shown_key = verso_core::Workspace::open(shown.path(), Some(config.path()))
+        .unwrap()
+        .key();
+    verso_core::agents::set_visible(Some(config.path()), &shown_key, true).unwrap();
+
+    let mut s = Session::start_with(&[std::ffi::OsStr::new("--all")], config.path());
+    for m in initialize("2025-06-18") {
+        s.request(&m);
+    }
+    let listed = s.request(&call(2, "list_folders", json!({})));
+    let folders = structured(&listed)["folders"].as_array().unwrap().clone();
+    assert_eq!(folders.len(), 1, "{listed}");
+    assert_eq!(folders[0]["key"], shown_key.as_str());
+    assert!(
+        !listed
+            .to_string()
+            .contains(&*shown.path().to_string_lossy()),
+        "no path crosses"
+    );
+
+    let found = s.request(&call(
+        3,
+        "search",
+        json!({"words": "dragão", "folder": shown_key}),
+    ));
+    assert_eq!(
+        structured(&found)["hits"].as_array().unwrap().len(),
+        1,
+        "{found}"
+    );
+    // By its name too, when only one visible folder bears it.
+    let name = folders[0]["name"].as_str().unwrap().to_owned();
+    let by_name = s.request(&call(
+        4,
+        "search",
+        json!({"words": "dragão", "folder": name}),
+    ));
+    assert_eq!(
+        structured(&by_name)["hits"].as_array().unwrap().len(),
+        1,
+        "{by_name}"
+    );
+
+    let hidden_key = verso_core::Workspace::open(hidden.path(), Some(config.path()))
+        .unwrap()
+        .key();
+    let refused = s.request(&call(
+        5,
+        "search",
+        json!({"words": "dragão", "folder": hidden_key}),
+    ));
+    assert_eq!(structured(&refused)["kind"], "unknown_folder", "{refused}");
+    let unnamed = s.request(&call(6, "search", json!({"words": "dragão"})));
+    assert_eq!(structured(&unnamed)["kind"], "no_folder", "{unnamed}");
+
+    let log = verso_core::agents::calls(Some(config.path())).unwrap();
+    assert!(
+        log.contains(&format!("search on {shown_key}: dragão")),
+        "{log}"
+    );
+    assert!(log.contains("list_folders"), "{log}");
+    // A refused folder is in the log too, as it was asked.
+    assert!(
+        log.contains(&format!("search on {hidden_key} (refused): dragão")),
+        "{log}"
+    );
+
+    // Hidden again while the server runs: gone at the next call.
+    verso_core::agents::set_visible(Some(config.path()), &shown_key, false).unwrap();
+    let gone = s.request(&call(
+        7,
+        "search",
+        json!({"words": "dragão", "folder": shown_key}),
+    ));
+    assert_eq!(structured(&gone)["kind"], "unknown_folder", "{gone}");
+}
+
+/// Two visible folders of one name: the name names neither, the key does.
+#[test]
+fn two_visible_folders_of_one_name_are_named_by_key() {
+    let config = tempfile::tempdir().unwrap();
+    let (left, right) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let mut keys = Vec::new();
+    let mut dirs = Vec::new();
+    for parent in [left.path(), right.path()] {
+        let dir = Builder::new()
+            .prefix("Notas")
+            .rand_bytes(0)
+            .tempdir_in(parent)
+            .unwrap();
+        let _n = note(dir.path(), "Taverna.md", "# Taverna\nO dragão dorme.\n");
+        let mut ws = verso_core::Workspace::open(dir.path(), Some(config.path())).unwrap();
+        ws.index().unwrap();
+        verso_core::agents::set_visible(Some(config.path()), &ws.key(), true).unwrap();
+        keys.push(ws.key());
+        dirs.push((dir, _n));
+    }
+
+    let mut s = Session::start_with(&[std::ffi::OsStr::new("--all")], config.path());
+    for m in initialize("2025-06-18") {
+        s.request(&m);
+    }
+    let by_name = s.request(&call(
+        2,
+        "search",
+        json!({"words": "dragão", "folder": "Notas"}),
+    ));
+    assert_eq!(
+        structured(&by_name)["kind"],
+        "ambiguous_folder",
+        "{by_name}"
+    );
+    for key in &keys {
+        assert!(by_name.to_string().contains(key.as_str()), "{by_name}");
+    }
+    let by_key = s.request(&call(
+        3,
+        "search",
+        json!({"words": "dragão", "folder": keys[1]}),
+    ));
+    assert_eq!(
+        structured(&by_key)["hits"].as_array().unwrap().len(),
+        1,
+        "{by_key}"
+    );
 }

@@ -170,7 +170,12 @@ Ordem de execução do briefing §15:
 
 ## Fase 2 — Esqueleto andante no macOS
 
-A primeira versão que se usa. Só macOS ([ADR 0022](adr/0022-target-platforms-macos-first.md)).
+A primeira versão que se usa. Só macOS
+([ADR 0022](adr/0022-target-platforms-macos-first.md)) como planejado; desde
+2026-10-07 o **app de Windows** está no escopo desta fase também, à frente
+do resto do trabalho dela, e sai antes de a fase fechar
+([ADR 0069](adr/0069-windows-port.md), o mantenedor: "Vou passar windows na
+frente").
 
 ### Escopo
 
@@ -251,6 +256,10 @@ primitivas ainda propostas ([0014](adr/0014-primitives-catalog.md)) e a
 `DECIDIDO`, sem fase atribuída: a Fase 1 entrega MCP somente leitura e a Fase 2
 não a inclui). E também os **apps de Windows e Linux**
 ([0022](adr/0022-target-platforms-macos-first.md)): o mantenedor decidiu em
-2026-09-23 que os dois saem, Windows primeiro.
+2026-09-23 que os dois saem, Windows primeiro, e em 2026-10-07 que o Windows
+começa agora, no escopo da Fase 2 e à frente do resto do trabalho dela
+([0069](adr/0069-windows-port.md), o cabeçalho da Fase 2 acima). O Linux
+fica aqui; como ele seria compilado e testado está proposto no
+[0071](adr/0071-linux-port.md), escrito em 2026-10-08 e esperando.
 
 Ordem entre eles: `[ABERTO]`, menos Windows antes de Linux.

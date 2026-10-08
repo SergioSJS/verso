@@ -56,6 +56,14 @@ Você pode incluir o conteúdo de outra nota dentro desta nota usando o prefixo 
 
 ![[projetos/Pesquisa e Descobertas]]
 
+### Incorporar só um bloco
+
+Um `^id` no fim de um parágrafo, de um item de lista ou de um título dá nome àquele bloco; `![[nota#^id]]` mostra só ele, e `[[nota#^id]]` leva até ele. Um `^id` sozinho numa linha, depois de uma linha em branco, nomeia o bloco de antes — uma tabela, um bloco de código, uma citação. Este embed mostra só o terceiro item das descobertas:
+
+![[Projetos/Pesquisa e Descobertas#^atomica]]
+
+Se o mesmo `^id` aparecer duas vezes numa nota, vale o último, como no Obsidian, e a nota avisa. A marca `^id` não aparece na Leitura; no Editar ela fica apagada, para você ver onde está.
+
 ---
 
 ## 4. Quem Aponta para Esta Nota

@@ -55,6 +55,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0065](0065-a-folder-per-window.md) | Uma pasta por janela | Aceito (2026-10-06) |
 | [0066](0066-mcp-sees-boards-relations-properties-bases.md) | O MCP enxerga boards, relações, propriedades e bases | Aceito (2026-10-07) |
 | [0067](0067-source-files-stay-small.md) | Arquivos de código continuam pequenos: um mapa de módulos e um limite de tamanho | Aceito (2026-10-07) |
+| [0068](0068-templates-chosen-in-a-new-note.md) | Templates escolhidos numa nota nova, como no Notion | Aceito (2026-10-07) |
 
 ### Plugins e LLM
 
@@ -89,6 +90,10 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0055](0055-in-app-updater.md) | O atualizador dentro do app | Aceito (2026-09-29) |
 | [0056](0056-embedded-web-pages.md) | Páginas web embutidas: o proxy, a origem dele e a rede local | Aceito (2026-09-29); revisto no mesmo dia: sem proxy, as páginas carregam direto das origens que o usuário aprovou |
 | [0057](0057-board-json-canvas.md) | O board: um arquivo JSON Canvas, o Excalidraw como superfície, relações tipadas no frontmatter | Aceito (2026-09-30) |
+| [0069](0069-windows-port.md) | A versão para Windows: x64, um instalador, testada numa máquina Windows por SSH | Proposto (2026-10-07); x64, Windows 10 e 11, NSIS e sem assinatura de código por enquanto decididos; começa agora, na Fase 2 à frente do resto (0022 revisado); o bloqueio do push quando código de plataforma muda; máquina Windows 10 depois, código escrito para ele; o local da configuração (`%LOCALAPPDATA%\verso`) e o placeholder do OneDrive decididos em 2026-10-08; `[ABERTO]` (provisório): o `fsync` do diretório, o separador de caminho |
+| [0070](0070-what-travels-with-the-folder.md) | O que viaja com a pasta: três camadas de configuração, e nomes que todo sistema guarda | Proposto (2026-10-08); nomes que todo sistema guarda decidido, a `\` entre eles |
+| [0071](0071-linux-port.md) | A versão para Linux: um build para toda distribuição, testado em máquinas virtuais | Proposto (2026-10-08); espera ("deixe pra depois"); `[ABERTO]`: ARM64, versões suportadas, duas ou três máquinas, o atualizador, assinatura, o local do índice |
+| [0072](0072-window-controls-in-the-app.md) | Os controles da janela dentro do app: sem barra de título no macOS e no Windows | Aceito (2026-10-08): botões do próprio app no Windows |
 
 ### Dialeto, engenharia e roadmap
 
@@ -102,7 +107,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0034](0034-roadmap-in-phases.md) | Roadmap em três fases com portões de saída verificáveis | Aceito |
 | [0035](0035-cross-cutting-requirements.md) | Requisitos transversais: pt-BR e EN, acessibilidade, benchmark | Aceito |
 | [0036](0036-tabletop-rpg-support.md) | Suporte especial a RPG de mesa | Aceito (intenção) |
-| [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito; um menu próprio do Dock `[ABERTO]` (2026-09-29) |
+| [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito; nenhum menu próprio do Dock por enquanto (decidido em 2026-10-07) |
 | [0051](0051-development-flow-and-releases.md) | Fluxo de desenvolvimento, versões e releases | Aceito |
 | [0058](0058-demo-vault-as-tutorial.md) | O cofre de exemplo é o tutorial do produto, mantido a cada feature | Aceito (2026-10-01; revisado no mesmo dia: o roteiro roda por máquina no harness do navegador); o cofre de exemplo em inglês `[ABERTO]` |
 

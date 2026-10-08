@@ -27,6 +27,7 @@
   maintainer's request of that day. 2026-10-06 — section 2's daily note
   moves from ⌘D to ⌘⇧D: ⌘D duplicates a block, by the maintainer's choice
   of Notion's keys ([0061](0061-blocks-in-edit-mode.md) D8).
+  2026-10-07 — the custom Dock menu decided: not built for now (section 3).
 
 ## Context
 
@@ -99,7 +100,8 @@ it (the web view does not see the pointer outside the window; a note goes to
 its own window from the tab's menu instead), and a second window on the same
 folder.
 
-**`[OPEN]` — a custom Dock menu, recorded on 2026-09-29.** The folders opened
+**Decided on 2026-10-07 — no custom Dock menu for now; recorded on
+2026-09-29.** The folders opened
 before, offered on a right-click of the Dock icon, as the menu bar's Open
 Recent offers them. On macOS that menu comes from the application delegate's
 `applicationDockMenu` (`NSApplicationDelegate`), which Tauri v2 does not
@@ -107,8 +109,11 @@ expose. Reaching it would take `unsafe` code in the workspace, which the
 workspace forbids ([0029](0029-guardrails-in-ci.md), `unsafe_code =
 "forbid"`), or a native shim — a dependency or Objective-C code of the
 project's — which nothing has decided. macOS already lists the app's open
-windows in the Dock menu on its own. Left open for a future decision; the
-menu bar carries the feature meanwhile.
+windows in the Dock menu on its own. Asked on 2026-10-07 (with "New
+window" for it, from the backlog), the maintainer chose not to build it
+now: File › New Window, the tabs' menu and Open Recent carry it, and no
+`unsafe` exception is opened for it. It comes back when Tauri exposes the
+Dock menu.
 
 ## Consequences
 

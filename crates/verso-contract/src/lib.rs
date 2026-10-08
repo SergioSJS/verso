@@ -178,6 +178,10 @@ pub struct Block {
     pub id: String,
     pub line: u32,
     pub col: u32,
+    /// The first and last line of the block the id names (spec Q3, Q21):
+    /// what a link `[[nota#^id]]` reaches and an embed of it shows.
+    pub first_line: u32,
+    pub last_line: u32,
 }
 
 /// A note's text as it is on disk now, with what the index knows of it.
@@ -732,6 +736,9 @@ pub enum CliState {
     /// This build carries no command line to link (a development build
     /// without it).
     Unbundled,
+    /// Windows: the command line comes with the app, `verso.exe` beside
+    /// it, and nothing is linked onto a PATH (ADR 0069, item 9).
+    Bundled,
 }
 
 /// How an MCP client's configuration stands with this folder's entry.
@@ -755,6 +762,10 @@ pub struct McpStatus {
     /// The name of the server in a client's configuration: `verso-<folder>`.
     pub server: String,
     pub claude: McpClientState,
+    /// What a client starts for it, as "Add to Claude" would write it: the
+    /// linked command line, or on Windows the bundled `verso.exe` by its
+    /// path — shown to the person before it is written (ADR 0054).
+    pub command: String,
 }
 
 /// What adding the folder's server to Claude Desktop did.

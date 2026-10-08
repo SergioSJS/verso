@@ -3,7 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! On-demand storage placeholders (ADR 0043): iCloud Drive first, as
-//! decided on 2026-09-22. Two forms on macOS: an evicted file keeps its name
+//! decided on 2026-09-22; OneDrive and every Windows cloud provider the
+//! same way, decided on 2026-10-08 ("deveria funcionar igual"): a file
+//! whose attributes say its data is not on disk. Two forms on macOS: an evicted file keeps its name
 //! and carries `SF_DATALESS` in `st_flags` (APFS, since macOS 10.15); the
 //! older form is a sibling `.Name.ext.icloud` in place of `Name.ext`. Either
 //! is "present, content unavailable" — never absent — and is checked
@@ -32,9 +34,37 @@ pub(crate) fn is_dataless(meta: &Metadata) -> bool {
     flags_are_dataless(meta.st_flags())
 }
 
-/// Other platforms have no such flag; a placeholder there is a name form
-/// only (ADR 0043 keeps the other providers `[OPEN]`).
-#[cfg(not(target_os = "macos"))]
+/// From the Windows SDK (winnt.h): the attributes a cloud provider
+/// (OneDrive's Files On-Demand, any Cloud Files provider) or an offline
+/// store puts on a file whose data is not on disk. Reading such a file
+/// downloads it, as on macOS.
+#[cfg(any(windows, test))]
+const FILE_ATTRIBUTE_OFFLINE: u32 = 0x0000_1000;
+#[cfg(any(windows, test))]
+const FILE_ATTRIBUTE_RECALL_ON_OPEN: u32 = 0x0004_0000;
+#[cfg(any(windows, test))]
+const FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS: u32 = 0x0040_0000;
+
+/// Whether Windows file attributes say the file's data is not on disk.
+#[cfg(any(windows, test))]
+pub(crate) fn attributes_are_dataless(attributes: u32) -> bool {
+    attributes
+        & (FILE_ATTRIBUTE_OFFLINE
+            | FILE_ATTRIBUTE_RECALL_ON_OPEN
+            | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+        != 0
+}
+
+/// Whether this file is a cloud placeholder on Windows, from metadata alone.
+#[cfg(windows)]
+pub(crate) fn is_dataless(meta: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    attributes_are_dataless(meta.file_attributes())
+}
+
+/// Linux has no such flag; a placeholder there is a name form only (ADR
+/// 0043 keeps the providers there `[OPEN]`).
+#[cfg(not(any(target_os = "macos", windows)))]
 pub(crate) fn is_dataless(_meta: &Metadata) -> bool {
     false
 }
@@ -186,6 +216,20 @@ mod tests {
         assert!(flags_are_dataless(SF_DATALESS | 0x1));
         assert!(!flags_are_dataless(0));
         assert!(!flags_are_dataless(0x0000_0020)); // UF_APPEND, unrelated
+    }
+
+    #[test]
+    fn dataless_attributes() {
+        assert!(attributes_are_dataless(
+            FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS
+        ));
+        assert!(attributes_are_dataless(
+            FILE_ATTRIBUTE_RECALL_ON_OPEN | 0x20
+        ));
+        assert!(attributes_are_dataless(FILE_ATTRIBUTE_OFFLINE));
+        assert!(!attributes_are_dataless(0x20)); // ARCHIVE, a file on disk
+        assert!(!attributes_are_dataless(0x0008_0000)); // PINNED, kept on disk
+        assert!(!attributes_are_dataless(0x0010_0000)); // UNPINNED, still on disk
     }
 
     #[test]

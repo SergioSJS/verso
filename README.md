@@ -23,17 +23,19 @@ Node 22 is needed for the UI, and the Rust toolchain that
 
 ## Test locally, before pushing
 
-CI confirms; it should not be where a failure is first seen. Two scripts run
+CI confirms; it should not be where a failure is first seen. Three scripts run
 the guardrails of CI ([ADR 0029](docs/adr/0029-guardrails-in-ci.md)) on your
 machine:
 
 | Script | Runs | Needs |
 |---|---|---|
-| `scripts/check.sh` | every guardrail of CI's Linux job, natively — on a Mac, this is the macOS check; and, which CI does not run, the window's end-to-end tests in WebKit over the browser harness ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)) | the toolchain, Node 22, `cargo install cargo-deny --locked`; Playwright's WebKit, downloaded on the first run |
+| `scripts/check.sh` | every guardrail of CI's Linux job, natively — on a Mac, this is the macOS check; and, which CI does not run, the window's end-to-end tests over the browser harness ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)), in WebKit and in Chromium, the engines of the macOS and Windows apps ([ADR 0069](docs/adr/0069-windows-port.md)) | the toolchain, Node 22, `cargo install cargo-deny --locked`; Playwright's WebKit and Chromium, downloaded on the first run |
 | `scripts/check-linux.sh` | fmt, clippy, the tests and the generated bindings in a Linux container, as an ordinary user | Docker; the UI bundle the first script builds |
+| `scripts/check-windows.sh` | clippy and the tests on a Windows machine over SSH; `--bundle` also builds the NSIS installer ([ADR 0069](docs/adr/0069-windows-port.md)). Required when the diff touches platform code (`verso-fs`, `app/src-tauri`, configuration paths, `cfg(windows)`), optional otherwise | an SSH host named `verso-win` with the toolchain (the script's header lists it); the UI bundle the first script builds |
 
 ```
 scripts/check.sh && scripts/check-linux.sh
+scripts/check-windows.sh   # when the diff touches platform code
 ```
 
 The first Linux run downloads an image, a toolchain and the dependencies; the
@@ -42,10 +44,11 @@ next ones take about a minute. What neither covers:
 - **macOS in a container** does not exist: Docker runs Linux. On a Mac,
   `scripts/check.sh` is the macOS check; CI repeats clippy and the tests on
   macOS after each merge into `main`.
-- **Windows**: Docker on a Mac or on Linux cannot run Windows, and Verso does
-  not build for Windows yet. With the Windows port
-  ([ADR 0022](docs/adr/0022-target-platforms-macos-first.md)), a check of the
-  Windows build joins these scripts, and the tests run on Windows in CI.
+- **Windows**: Docker on a Mac or on Linux cannot run Windows, so
+  `scripts/check-windows.sh` reaches a real Windows machine over SSH
+  ([ADR 0069](docs/adr/0069-windows-port.md)). The workspace builds and its
+  tests run there; CI runs clippy and the tests on Windows after each merge
+  into `main`. The app itself is still being ported.
 - **The fuzzing and the benchmark**, which CI runs on `main`:
   `cargo +nightly fuzz run parse` in `crates/verso-dialect`, and
   `cargo run --release -p verso-bench -- --help`.

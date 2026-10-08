@@ -44,7 +44,12 @@ impl Workspace {
     /// [`Self::folder`]; it goes to the operating system, never across
     /// the contract (ADR 0026 rule 4).
     pub fn absolute(&self, path: &str) -> Result<PathBuf, CoreError> {
-        Ok(self.folder.join(self.entry_key(path)?))
+        // The key is `/`-joined: pushed part by part, the path takes the
+        // OS's separator (`C:\vault\sub\nota.md`, not `…\sub/nota.md`).
+        let key = self.entry_key(path)?;
+        Ok(key
+            .split('/')
+            .fold(self.folder.clone(), |at, part| at.join(part)))
     }
 
     /// Rename or move anything of the folder — a note, another file or a

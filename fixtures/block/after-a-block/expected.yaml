@@ -1,0 +1,27 @@
+# Approved by the maintainer on 2026-10-07 in session ("tao aprovados"), after checking the blocks in the app; drafted by Opus 5.5 on 2026-10-07 (ADR 0031).
+# Construct: a `^id` alone on its line after a blank line, after a table, a
+# code block and a quote. Spec: docs/spec/dialect.md §5.7, Q3 (decided on
+# 2026-10-07: as Obsidian, the id names the block before it) and Q21 (the
+# block is the editor's unit, ADR 0061 D5). `pos` is the `^`; `lines` is
+# the block it names: the whole table, the whole code block, the whole
+# quote. The spec's section 9 is updated in the same PR.
+blocks:
+  - id: tab
+    pos: { line: 5, col: 1 }
+    lines: [1, 3]
+  - id: cod
+    pos: { line: 11, col: 1 }
+    lines: [7, 9]
+  - id: cit
+    pos: { line: 16, col: 1 }
+    lines: [13, 14]
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-07 against a throwaway folder in the sandbox
+    vault, public API only (ADR 0009; docs/reference/obsidian-cli.md).
+    `obsidian eval` on `app.metadataCache.getCache(...)` -> blocks
+    { tab: line 0..2, cod: line 6..8, cit: line 12..13 } (0-based), and
+    sections table 0..2, code 6..8, blockquote 12..13, each with that id;
+    the `^id` lines are no section of their own.

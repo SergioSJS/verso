@@ -19,6 +19,7 @@ O cofre é uma pasta comum do seu computador: o que o Verso cria, renomeia ou ap
 - `⌘N` cria uma nota nova; `⌘⇧N` pede o nome antes.
 - O botão **Nova nota** (`+`) da faixa da esquerda abre o menu **Nova…**: nota, pasta, **Nova base**, **Novo board** e **Nova página web…**.
 - O botão direito numa pasta da árvore, ou no espaço vazio dela, tem os mesmos itens — o que você criar entra naquela pasta.
+- Um nome que o Windows não guarda — `CON`, `NUL`, `COM1`, ponto ou espaço no fim, ou `: * " < > ? | \` — não é criado nem dado num renomear, em nenhum sistema: a pasta pode ser sincronizada com um Windows. O campo diz por quê. Um arquivo que já tem um nome assim continua abrindo, e pode ser renomeado para um nome que todo sistema guarda.
 
 ---
 
@@ -46,7 +47,9 @@ Com o botão direito numa nota da árvore:
 
 ## A Visão de Pasta
 
-Um clique no nome de uma pasta abre a pasta numa aba: **Miniaturas** ou **Lista**, com as colunas **Nome**, **Tipo**, **Tamanho** e **Modificado**. Uma pasta pode ter a sua própria nota — `Pasta/Pasta.md` —, que aparece no topo como **Nota da pasta**; se ela não existe, **Criar nota da pasta** a cria.
+A setinha ao lado de uma pasta abre e fecha a pasta na árvore. O Verso lembra quais pastas você deixou abertas: ao abrir o app de novo, a árvore volta como estava. Num cofre grande, as pastas de primeiro nível começam fechadas, para a árvore não desenhar milhares de linhas de uma vez.
+
+Um clique no nome de uma pasta abre a pasta numa aba: **Miniaturas** ou **Lista**, com as colunas **Nome**, **Tipo**, **Tamanho** e **Modificado**. Uma imagem aparece em miniatura, e um PDF mostra a primeira página. Uma pasta pode ter a sua própria nota — `Pasta/Pasta.md` —, que aparece no topo como **Nota da pasta**; se ela não existe, **Criar nota da pasta** a cria.
 
 ---
 

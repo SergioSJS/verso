@@ -50,11 +50,35 @@ test("the board's menu on a card, its link and the library hidden", async ({ app
   await app.quickOpen("Mesa");
   await app.boardReady();
   const c = await app.centerOf("a");
+  // Selected, the card is entered a moment later and takes the pointer
+  // (its links, its text): a right click then never reached the board, and
+  // no menu opened — seen as a flaky test under load, where the two clicks
+  // came apart (2026-10-08). The pause makes that the case every time.
   await page.mouse.click(c.x, c.y);
+  await page.waitForTimeout(600);
   await page.mouse.click(c.x, c.y, { button: "right" });
   await expect(page.locator(".context-menu")).toBeVisible();
   await expect(page.locator('.context-menu li[data-testid="addToLibrary"]')).toBeHidden();
   tidy(await shape(page, ".context-menu"));
+});
+
+test("a picture card on a board keeps the window's picture menu", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Fotos.canvas", '{"nodes":[{"id":"p","x":0,"y":0,"width":300,"height":200,"type":"file","file":"assets/diagrama.svg"}],"edges":[]}');
+  await app.folderChanged(["Fotos.canvas"], true);
+  await app.quickOpen("Fotos");
+  await app.boardReady();
+  await expect(page.locator(".board-card-image img").first()).toBeVisible();
+  const c = await app.centerOf("p");
+  // Entered (selected, a moment later), its right click is the picture's
+  // menu, not the board's: the window's image menu answers in the capture
+  // phase, and the card's forwarding skips pictures besides.
+  await page.mouse.click(c.x, c.y);
+  await page.waitForTimeout(600);
+  await page.mouse.click(c.x, c.y, { button: "right" });
+  const menu = page.locator(".menu:not([hidden])");
+  await expect(menu.getByRole("menuitem", { name: "Baixar imagem" })).toBeVisible();
+  await expect(page.locator(".context-menu")).toHaveCount(0);
 });
 
 test("a picture's right click is Verso's menu: open, download, copy, reveal — not WebKit's, whose items did nothing", async ({ app, page }) => {

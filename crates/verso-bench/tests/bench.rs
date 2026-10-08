@@ -26,11 +26,15 @@ mod support {
                 if path.is_dir() {
                     walk(&path, root, out);
                 } else {
+                    // Joined by `/` on every OS, the form the vault's
+                    // paths take (ADR 0069, item 9).
                     let rel = path
                         .strip_prefix(root)
                         .unwrap()
-                        .to_string_lossy()
-                        .into_owned();
+                        .components()
+                        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                        .collect::<Vec<_>>()
+                        .join("/");
                     out.push((rel, std::fs::read(&path).unwrap()));
                 }
             }
