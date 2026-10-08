@@ -19,6 +19,14 @@ in the real app.
 
 ## Not yet checked
 
+### The Windows port (feat/windows-fs)
+
+- [ ] **A note in OneDrive's Files On-Demand** (ADR 0043, 2026-10-08): on a
+  Windows machine with OneDrive, put a folder of notes in OneDrive, right
+  click it, "Free up space"; open it in Verso — the notes are listed, the
+  first index downloads nothing (the cloud icons stay), and opening one
+  note downloads that one alone. Only `attrib +O` was tested.
+
 ### 0.4.0-beta.1
 
 - [ ] **Several entries in the tree** (`f3e1af3`): ⌘-click two notes and

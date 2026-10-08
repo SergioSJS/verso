@@ -18,6 +18,14 @@ app real.
 
 ## Ainda não conferido
 
+### O porte para Windows (feat/windows-fs)
+
+- [ ] **Uma nota nos Arquivos Sob Demanda do OneDrive** (ADR 0043,
+  2026-10-08): numa máquina Windows com OneDrive, ponha uma pasta de notas
+  no OneDrive, botão direito nela, "Liberar espaço"; abra-a no Verso — as
+  notas aparecem, o primeiro índice não baixa nada (os ícones de nuvem
+  ficam), e abrir uma nota baixa só aquela. Só o `attrib +O` foi testado.
+
 ### 0.4.0-beta.1
 
 - [ ] **Várias entradas na árvore** (`f3e1af3`): ⌘-clique em duas notas e
