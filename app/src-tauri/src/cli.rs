@@ -237,11 +237,11 @@ fn client_state(e: verso_core::clients::Entry) -> McpClientState {
 pub(crate) fn mcp_status<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
+    all: bool,
 ) -> Result<McpStatus, ContractError> {
-    let key = with(&state, &window, |ws| Ok(ws.key()))?;
-    let server = verso_core::clients::server_name(&key);
     let command = mcp_command().unwrap_or_else(|| CLI_LINK.to_owned());
-    let entry = verso_core::clients::verso_entry(&command, &key);
+    let key = mcp_key(&window, &state, all)?;
+    let (server, entry) = verso_core::clients::server_and_entry(&command, key.as_deref());
     let claude = match claude_dir() {
         None => McpClientState::NoClient,
         Some(dir) => {
@@ -253,6 +253,45 @@ pub(crate) fn mcp_status<R: tauri::Runtime>(
         claude,
         command,
     })
+}
+
+/// The folder a client's entry names, by the mode (ADR 0054, revised
+/// 2026-10-08): the open folder's key for its own server; `None` for the
+/// one server for all of Verso, which needs no folder open.
+fn mcp_key<R: tauri::Runtime>(
+    window: &tauri::Window<R>,
+    state: &State<'_, App>,
+    all: bool,
+) -> Result<Option<String>, ContractError> {
+    if all {
+        return Ok(None);
+    }
+    with(state, window, |ws| Ok(ws.key())).map(Some)
+}
+
+/// Whether the open folder is marked visible to agents (the server for all
+/// of Verso reads only those; ADR 0054).
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn agent_visible<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<bool, ContractError> {
+    let key = with(&state, &window, |ws| Ok(ws.key()))?;
+    verso_core::agents::is_visible(state.config.as_deref(), &key).map_err(convert)
+}
+
+/// Mark the open folder visible to agents, or hidden again.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn set_agent_visible<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    visible: bool,
+) -> Result<bool, ContractError> {
+    let key = with(&state, &window, |ws| Ok(ws.key()))?;
+    verso_core::agents::set_visible(state.config.as_deref(), &key, visible).map_err(convert)?;
+    Ok(visible)
 }
 
 /// Claude Desktop's download page, in the system's browser: where Claude
@@ -285,13 +324,13 @@ pub(crate) fn open_claude_download() -> Result<(), ContractError> {
 pub(crate) fn mcp_add_claude<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
+    all: bool,
 ) -> Result<McpAdded, ContractError> {
     let Some(command) = mcp_command() else {
         return Err(refused("install the command line first"));
     };
-    let key = with(&state, &window, |ws| Ok(ws.key()))?;
-    let server = verso_core::clients::server_name(&key);
-    let entry = verso_core::clients::verso_entry(&command, &key);
+    let key = mcp_key(&window, &state, all)?;
+    let (server, entry) = verso_core::clients::server_and_entry(&command, key.as_deref());
     let dir = claude_dir().ok_or_else(|| refused("Claude Desktop is not installed"))?;
     let added = verso_core::clients::add_to_claude(&dir, &server, entry).map_err(convert)?;
     Ok(McpAdded {

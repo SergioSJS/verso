@@ -918,4 +918,68 @@ fn the_server_for_all_of_verso_reads_only_the_visible_folders() {
         "{log}"
     );
     assert!(log.contains("list_folders"), "{log}");
+    // A refused folder is in the log too, as it was asked.
+    assert!(
+        log.contains(&format!("search on {hidden_key} (refused): dragão")),
+        "{log}"
+    );
+
+    // Hidden again while the server runs: gone at the next call.
+    verso_core::agents::set_visible(Some(config.path()), &shown_key, false).unwrap();
+    let gone = s.request(&call(
+        7,
+        "search",
+        json!({"words": "dragão", "folder": shown_key}),
+    ));
+    assert_eq!(structured(&gone)["kind"], "unknown_folder", "{gone}");
+}
+
+/// Two visible folders of one name: the name names neither, the key does.
+#[test]
+fn two_visible_folders_of_one_name_are_named_by_key() {
+    let config = tempfile::tempdir().unwrap();
+    let (left, right) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let mut keys = Vec::new();
+    let mut dirs = Vec::new();
+    for parent in [left.path(), right.path()] {
+        let dir = Builder::new()
+            .prefix("Notas")
+            .rand_bytes(0)
+            .tempdir_in(parent)
+            .unwrap();
+        let _n = note(dir.path(), "Taverna.md", "# Taverna\nO dragão dorme.\n");
+        let mut ws = verso_core::Workspace::open(dir.path(), Some(config.path())).unwrap();
+        ws.index().unwrap();
+        verso_core::agents::set_visible(Some(config.path()), &ws.key(), true).unwrap();
+        keys.push(ws.key());
+        dirs.push((dir, _n));
+    }
+
+    let mut s = Session::start_with(&[std::ffi::OsStr::new("--all")], config.path());
+    for m in initialize("2025-06-18") {
+        s.request(&m);
+    }
+    let by_name = s.request(&call(
+        2,
+        "search",
+        json!({"words": "dragão", "folder": "Notas"}),
+    ));
+    assert_eq!(
+        structured(&by_name)["kind"],
+        "ambiguous_folder",
+        "{by_name}"
+    );
+    for key in &keys {
+        assert!(by_name.to_string().contains(key.as_str()), "{by_name}");
+    }
+    let by_key = s.request(&call(
+        3,
+        "search",
+        json!({"words": "dragão", "folder": keys[1]}),
+    ));
+    assert_eq!(
+        structured(&by_key)["hits"].as_array().unwrap().len(),
+        1,
+        "{by_key}"
+    );
 }

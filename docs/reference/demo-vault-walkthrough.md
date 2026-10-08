@@ -448,6 +448,13 @@ point 13).
    taskbar, never a second app. Level: S (`a_second_launch_hands_its_folder_to_the_running_app`,
    the host's tests), A (the installed app, on macOS and Windows). Caught
    2026-10-08: on macOS a second app started, with no window.
+6. "Um servidor para todo o Verso" in Terminal e agentes (note 17): the
+   switch "Esta pasta é visível para agentes" appears off; the snippets and
+   the entry "Adicionar ao Claude Desktop" shows say `mcp --all`. With the
+   folder marked, an agent's `list_folders` names it and its tools read it
+   by `folder`; unmarked, it is gone from the list. Level: H; E:
+   `settings.spec.mjs`; S (`the_server_for_all_of_verso_reads_only_the_visible_folders`);
+   A (Claude Desktop, with the app closed).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

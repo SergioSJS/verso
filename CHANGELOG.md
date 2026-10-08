@@ -14,6 +14,8 @@ test release.
 
 ### Added
 
+- **Verso for Windows** ([ADR 0069](docs/adr/0069-windows-port.md)): an installer for Windows 10 and 11 (x64), per user, with no administrator rights; `verso.exe` comes beside the app, and "Add to Claude Desktop" writes its path. The installer is not signed yet: Windows SmartScreen warns once ("More info" › "Run anyway"). Run so far on Windows 11 only; Windows 10 is targeted but not yet tried.
+- **One agent server for all of Verso** ([ADR 0054](docs/adr/0054-terminal-and-agents-from-the-app.md)): Settings › Terminal and agents chooses between one server per folder (the default, as before) and one for all of Verso — `verso mcp --all`, added to Claude Desktop once, which serves the folders marked visible to agents (none until marked, by a switch in the same section) through a `list_folders` tool and a `folder` argument on every tool. Neither the app nor the folder needs to be open. Every call an agent makes is logged in `agents.log`, in Verso's configuration folder.
 - **Settings › Terminal and agents offers Claude Desktop's download** when it is not installed, instead of only saying it was not found.
 
 ### Changed

@@ -113,7 +113,15 @@ recommendations accepted ("pode seguir"):
    and the note or the words — goes to `agents.log` in the configuration
    directory (the last 2,000 calls), so the person can see afterwards what
    an agent looked at. Its own file, rewritten whole each time: the core
-   may not append to a file there (its `clippy.toml`, ADR 0029).
+   may not append to a file there (its `clippy.toml`, ADR 0029). A call
+   refused for its folder is logged too, the folder as it was asked
+   (`… on <asked> (refused)`): the trace of an agent looking for folders it
+   was not given. Each argument keeps its first 300 characters, so a huge
+   one cannot grow the file that every call rewrites. Two servers logging
+   in the same instant can each rewrite the file without the other's line
+   (each writes its own temporary); `[OPEN]`: appending instead, which
+   needs `OpenOptions` declared in verso-core's `clippy.toml` — a
+   guardrail's exception, the maintainer's to grant.
 
 **Security, as weighed in session.** A program running as the person can
 read the notes from disk already, outside macOS's protected folders: the server opens no new door on the

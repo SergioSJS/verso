@@ -61,3 +61,34 @@ fn every_call_of_an_agent_is_logged() {
         "{log}"
     );
 }
+
+#[test]
+fn a_huge_argument_is_cut_in_the_log() {
+    let config = tempfile::tempdir().unwrap();
+    let words = "dragão ".repeat(10_000);
+    agents::log_call(Some(config.path()), "search", "k", &words);
+    let log = agents::calls(Some(config.path())).unwrap();
+    assert!(
+        log.chars().count() < 400,
+        "{} characters",
+        log.chars().count()
+    );
+    assert!(log.trim_end().ends_with('…'), "{log}");
+}
+
+#[test]
+fn marks_that_do_not_read_are_not_written_over() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _n = note(vault.path(), "Nota.md", "# Nota\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    std::fs::write(config.path().join("agents.json"), "{ not json").unwrap();
+    // Read as no folder at all (fail closed), and left as it is.
+    assert!(!agents::is_visible(Some(config.path()), &ws.key()).unwrap());
+    assert!(agents::set_visible(Some(config.path()), &ws.key(), true).is_err());
+    assert_eq!(
+        std::fs::read_to_string(config.path().join("agents.json")).unwrap(),
+        "{ not json"
+    );
+}

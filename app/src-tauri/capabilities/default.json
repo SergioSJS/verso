@@ -76,6 +76,8 @@
     "allow-uninstall-cli",
     "allow-mcp-status",
     "allow-mcp-add-claude",
+    "allow-agent-visible",
+    "allow-set-agent-visible",
     "allow-open-claude-download",
     "allow-check-for-updates",
     "allow-download-and-install-update",

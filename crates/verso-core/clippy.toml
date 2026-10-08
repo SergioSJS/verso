@@ -1,6 +1,9 @@
-# verso-core computes the configuration directory (ADR 0011) and writes one
-# file in it: the index's sidecar, `<key>.json` beside `<key>.sqlite`
-# (src/sidecar.rs; docs/reference/index-decision.md §2.4). Never a file of
+# verso-core computes the configuration directory (ADR 0011) and writes
+# three files in it, all in src/sidecar.rs: the index's sidecar,
+# `<key>.json` beside `<key>.sqlite` (docs/reference/index-decision.md
+# §2.4), and since ADR 0054's revision of 2026-10-08 the folders marked
+# visible to agents (`agents.json`) and the log of the agents' calls
+# (`agents.log`), with the same calls. Never a file of
 # the open folder (ADR 0026, rule 5). Clippy does not merge this file with
 # the workspace one, so the test allowances are repeated and the std::fs
 # list is the workspace's minus the five calls the sidecar needs: a write
