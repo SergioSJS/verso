@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.5.0-beta.1 — 2026-10-08
+
 ### Added
 
 - **No title bar on macOS and Windows** ([ADR 0072](docs/adr/0072-window-controls-in-the-app.md)): a folder's window uses its whole height. On the Mac the system's three buttons sit in the top-left corner; on Windows the app draws minimize, maximize and close at the top right, in the app's colors. Nothing ever sits under them, with the side bars open or closed, panes split or a narrow window. The empty part of the tab bar, the side bar's head and the ribbon drag the window, and a double click there maximizes it — it no longer makes a new note (the bar's +, ⌘N and its menu still do). A note's own window keeps its title bar.

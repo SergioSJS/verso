@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.5.0-beta.1 — 2026-10-08
+
 ### Acrescentado
 
 - **Sem barra de título no macOS e no Windows** ([ADR 0072](adr/0072-window-controls-in-the-app.md)): a janela de uma pasta usa a altura toda. No Mac, os três botões do sistema ficam no canto de cima à esquerda; no Windows, o app desenha minimizar, maximizar e fechar no canto de cima à direita, nas cores do app. Nada fica embaixo deles, com as barras laterais abertas ou fechadas, painéis divididos ou uma janela estreita. A parte vazia da barra de abas, o topo da barra lateral e a faixa da esquerda arrastam a janela, e um duplo clique ali a maximiza — não cria mais uma nota (o + da barra, o ⌘N e o menu dela continuam criando). Uma nota em janela própria mantém a barra de título.
