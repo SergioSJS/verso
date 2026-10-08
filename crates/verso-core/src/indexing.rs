@@ -4,7 +4,23 @@
 use super::*;
 
 impl Workspace {
-    pub fn index_with_progress<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
+    /// One index run, in one transaction of the index: a commit per note
+    /// syncs the disk once per note where SQLite's sync is real (Windows).
+    /// What was done before a failure is committed — each note's change is
+    /// whole on its own.
+    pub fn index_with_progress<F>(&mut self, on_progress: F) -> Result<IndexReport, CoreError>
+    where
+        F: FnMut(IndexProgress),
+    {
+        self.index.begin().map_err(CoreError::Index)?;
+        let report = self.index_run(on_progress);
+        let committed = self.index.commit().map_err(CoreError::Index);
+        let report = report?;
+        committed?;
+        Ok(report)
+    }
+
+    fn index_run<F>(&mut self, mut on_progress: F) -> Result<IndexReport, CoreError>
     where
         F: FnMut(IndexProgress),
     {

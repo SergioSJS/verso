@@ -169,7 +169,7 @@ fn embeds(kind: &str) -> bool {
 /// Remove a note's row from `notes_fts` (external content: FTS5 needs the
 /// old values to drop its tokens) and from `notes`. Returns whether there
 /// was one.
-fn forget(tx: &rusqlite::Transaction<'_>, relative: &str) -> Result<bool, IndexError> {
+fn forget(tx: &rusqlite::Connection, relative: &str) -> Result<bool, IndexError> {
     let old: Option<(i64, Option<String>, String)> = tx
         .query_row(
             "SELECT id, title, content FROM notes WHERE path = ?1",
@@ -287,7 +287,7 @@ impl Index {
             _ => None,
         };
         let note_type_key = note_type.as_deref().map(crate::keys::type_key);
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         forget(&tx, relative)?;
         tx.execute(
             "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key)
@@ -456,7 +456,7 @@ impl Index {
         let (path_key, name_key) = note_keys(relative);
         let name = relative.rsplit('/').next().unwrap_or(relative);
         let title = name.strip_suffix(".canvas").unwrap_or(name);
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         forget(&tx, relative)?;
         tx.execute(
             "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content)
@@ -516,7 +516,7 @@ impl Index {
     /// `notes_fts` — so that links to it resolve and its path is known.
     /// Returns whether the note was already known.
     pub fn mark_placeholder(&mut self, relative: &str) -> Result<bool, IndexError> {
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         let known = tx.execute(
             "UPDATE notes SET unverified = 1 WHERE path = ?1",
             params![relative],
@@ -593,7 +593,7 @@ impl Index {
     /// Forget a note (deleted or moved away). Its links go with it; links
     /// to it from other notes become unresolved.
     pub fn remove(&mut self, relative: &str) -> Result<bool, IndexError> {
-        let tx = self.conn.transaction()?;
+        let tx = self.conn.savepoint()?;
         let known = forget(&tx, relative)?;
         tx.commit()?;
         Ok(known)

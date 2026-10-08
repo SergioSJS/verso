@@ -112,9 +112,32 @@ impl Index {
         restrict(&path, 0o600)?;
         exclude_from_backup(&path);
         conn.pragma_update(None, "journal_mode", "WAL")?;
+        // The index is a cache rebuilt from the notes (ADR 0011): in WAL,
+        // NORMAL keeps the file consistent through a crash and gives up
+        // only the last commits on a power loss, which the next index
+        // redoes. FULL syncs the disk on every commit — one per note —
+        // which Windows does for real (`FlushFileBuffers`): a first index
+        // of 5,000 notes took 228 s there against 3 s on macOS (ADR 0069).
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
         schema::ensure(&conn)?;
         Ok(Self { conn, path })
+    }
+
+    /// Opens one transaction around many changes — a whole index run —
+    /// so that each note's change is a savepoint inside it rather than a
+    /// commit of its own. [`Index::commit`] ends it.
+    pub fn begin(&mut self) -> Result<(), IndexError> {
+        self.conn.execute_batch("BEGIN")?;
+        Ok(())
+    }
+
+    /// Commits what [`Index::begin`] opened; nothing when none is open.
+    pub fn commit(&mut self) -> Result<(), IndexError> {
+        if !self.conn.is_autocommit() {
+            self.conn.execute_batch("COMMIT")?;
+        }
+        Ok(())
     }
 
     /// An index that lives only in memory: for tests and for a folder the
