@@ -30,6 +30,7 @@ import { ReplaceDialog } from "./dialogs/replace";
 import { hotkeyRecorder, SettingsDialog } from "./dialogs/settings";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
+import { installFrame } from "./frame";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
@@ -350,6 +351,9 @@ try {
   }
 } catch { /* no storage */ }
 paintToggles();
+// No title bar on macOS and Windows: the window's corner and its drag
+// regions (ADR 0072).
+installFrame();
 rightDivider.addEventListener("pointerdown", (e) => {
   rightDivider.setPointerCapture(e.pointerId);
   const move = (ev: PointerEvent) => document.body.style.setProperty("--right-w", `${Math.min(Math.max(window.innerWidth - ev.clientX, 180), window.innerWidth * 0.5)}px`);

@@ -41,7 +41,7 @@ Uma janela sem decorações mantém as bordas de redimensionar e, com o
 
 ## Decisão
 
-Proposto pelo autor.
+Proposto pelo autor; decidido pelo mantenedor em 2026-10-08 (Status).
 
 1. **macOS: os botões do sistema sobre o app.** `titleBarStyle:
    "Overlay"`, `hiddenTitle: true`, em toda janela de uma pasta (`main`,
@@ -62,8 +62,9 @@ Proposto pelo autor.
    botão de mostrar/ocultar da barra lateral fica à esquerda deles.
    Ajustado na `main` pela configuração e no construtor das `window-*`,
    como no macOS; as permissões de janela necessárias — `start-dragging`,
-   `toggle-maximize`, `minimize`, `maximize`, `unmaximize`,
-   `is-maximized`, `close` — entram no `capabilities/default.json`, e o
+   `minimize`, `toggle-maximize`, `close`; `is-maximized` e o
+   `internal-toggle-maximize` do duplo clique já estão no `core:default`
+   — entram no `capabilities/default.json`, e o
    teste do host que guarda as permissões as cobre.
 3. **O Linux mantém a barra de título do sistema** até o porte dele (ADR
    0071).
@@ -77,6 +78,39 @@ Proposto pelo autor.
 
 ## Consequências
 
+- **Como foi construído (2026-10-08).** macOS: a barra de título
+  definida no `tauri.macos.conf.json` (mesclado só no macOS), e as janelas
+  `window-*` construídas a partir da configuração da `main`, com o rótulo
+  delas — o `trafficLightPosition` do próprio webview é ignorado quando há
+  web views filhas, como aqui. Windows: `decorations(false)` nos dois
+  construtores (`windows.rs`, `frameless`). A UI (`app/ui/src/frame.ts`)
+  reserva o canto — 78 px no macOS; no Windows três botões de 46 px, na
+  altura da linha de cima — e empurra qualquer barra da linha de cima que
+  o alcance: para o lado por um espaçador, ou para baixo do canto quando
+  ela é mais estreita que ele, uma coluna de abas verticais, ou não caberia
+  mais (as abas da barra direita numa barra estreita). Essas barras levam
+  `data-tauri-drag-region="deep"`: os botões e as abas delas continuam
+  clicáveis. As permissões de janela acrescentadas são `start-dragging`,
+  `minimize`, `toggle-maximize` e `close` (o resto está no
+  `core:default`), guardadas por um teste do host.
+- **Um duplo clique no espaço vazio da barra de abas maximiza a janela**,
+  como a barra de título fazia; antes ele criava uma nota, o que o + da
+  barra, o ⌘N e o menu da barra continuam fazendo.
+- **A linha de cima segue o tamanho de fonte dos ajustes (2,45rem), os
+  botões do sistema não**: eles ficam posicionados para o tamanho padrão
+  (uma linha de 37 px) e ainda cabem no menor (12 px, uma linha de 29 px);
+  numa fonte maior ficam no alto de uma linha mais alta. Medido no macOS 26
+  em 2026-10-08: a posição pedida não é aplicada ali — os botões ficam no
+  lugar do sistema, o topo a 9 px, uns 3 px acima do centro da linha; o
+  canto reservado os cobre de qualquer jeito. Por quê, lido no tao 0.35:
+  ele os posiciona só quando a própria view desenha, o que o web view que
+  a cobre nunca deixa acontecer; redimensionar um pixel na criação também
+  não a faz desenhar (tentado). Então o topo da barra lateral centraliza o
+  nome da pasta nos botões, como a barra de título do VS Code faz com o
+  lugar do sistema; mover os botões como o Obsidian faz pediria código
+  `unsafe` (proibido, ADR 0029) ou uma dependência como o plugin posto de
+  lado acima — não adotado; **o mantenedor, 2026-10-08: "Sem unsafe por
+  enquanto"**.
 - Uns 30 px a mais de altura no macOS e no Windows, em toda janela de uma
   pasta.
 - O nome da janela deixa de ser mostrado pelo sistema: o nome da pasta
@@ -97,8 +131,13 @@ Proposto pelo autor.
 
 ## Status
 
-Proposto. `[ABERTO]`: no Windows, botões desenhados pelo app sem Snap
-Layouts, ou o `tauri-plugin-decorum`, que mantém os Snap Layouts ao custo
-de uma dependência da comunidade — o autor recomenda o plugin se ele passar
-no `cargo-deny` e funcionar com o Tauri 2.11, senão os botões do próprio
-app.
+Aceito. **Decidido pelo mantenedor em 2026-10-08** ("bora fazer os botões
+internos antes de liberar versão"; no Windows, "Botões próprios"): o app
+desenha os próprios botões no Windows, sem dependência nova, "bonito e
+consistente". O plugin foi pesado e posto de lado por fatos levantados no
+dia: o `tauri-plugin-decorum` 1.1.1 (MIT) não tem versão desde setembro de
+2024, abre os Snap Layouts sintetizando teclas (`enigo`) e depende de
+crates Objective-C antigos no macOS; um tratamento caseiro de
+`WM_NCCALCSIZE` precisaria de `unsafe`, que o workspace proíbe (ADR 0029).
+Perde-se: o menu de Snap Layouts ao parar no maximizar; Win+setas, arrastar
+para a borda da tela e Win+Z continuam do sistema.

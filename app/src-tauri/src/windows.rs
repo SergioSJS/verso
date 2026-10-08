@@ -92,14 +92,38 @@ pub(crate) fn open_folder_window<R: tauri::Runtime>(
             .windows
             .insert(label.clone(), key);
     }
-    tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("index.html".into()))
-        .title("Verso")
-        .inner_size(1180.0, 760.0)
-        .min_inner_size(360.0, 480.0)
-        .disable_drag_drop_handler()
-        .on_download(on_download)
+    // From the main window's configuration, under its own label: the same
+    // size, and on macOS the same title bar, whose buttons only a window's
+    // configuration places (tauri.macos.conf.json; ADR 0072).
+    let mut config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|w| w.label == "main")
+        .cloned()
+        .unwrap_or_default();
+    config.label = label;
+    frameless(tauri::WebviewWindowBuilder::from_config(app, &config)?.on_download(on_download))
         .build()?;
     Ok(())
+}
+
+/// A folder's window without the system's title bar (ADR 0072). On macOS
+/// the window's configuration does it (tauri.macos.conf.json: the title bar
+/// overlaid; the buttons' position asked there, centred in the app's top
+/// row, is kept for a Tauri that applies it — on macOS 26 they stay at the
+/// system's place, inside the corner frame.ts keeps either way; a
+/// webview's own position is ignored where child web views are on, as
+/// here); on Windows the app draws its own buttons
+/// (app/ui/src/frame.ts). Linux keeps its title bar until its port (ADR
+/// 0071); a note's popout and a web page's window keep theirs everywhere.
+pub(crate) fn frameless<R: tauri::Runtime, M: tauri::Manager<R>>(
+    builder: tauri::WebviewWindowBuilder<'_, R, M>,
+) -> tauri::WebviewWindowBuilder<'_, R, M> {
+    #[cfg(target_os = "windows")]
+    let builder = builder.decorations(false);
+    builder
 }
 
 /// What a window of the app downloads — a picture's "Baixar imagem", the

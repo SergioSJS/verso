@@ -1,0 +1,85 @@
+/* A folder's window without the system's title bar (ADR 0072,
+   src/frame.ts). A bar of the top row that reaches the reserved corner is
+   pushed clear of it: sideways by a spacer at its start or end (every bar
+   is a flex row), so its own padding and the line under it stay as they
+   are; down by a transparent border, its own background painted beneath,
+   the bar's fixed height grown by as much. */
+.frame-push-l::before,
+.frame-push-r::after {
+  content: "";
+  flex: none;
+  align-self: stretch;
+  pointer-events: none;
+}
+.frame-push-l::before { width: var(--frame-l); order: -1; }
+.frame-push-r::after { width: var(--frame-r); order: 99; }
+.frame-push-t { border-top: var(--frame-t) solid transparent; }
+.right-tabs.frame-push-t,
+.tabs.frame-push-t:not(.vertical *) {
+  height: calc(2.45rem + var(--frame-t));
+  min-height: calc(2.45rem + var(--frame-t));
+  max-height: calc(2.45rem + var(--frame-t));
+}
+
+/* The spaces bar, when it is the top row (two workspaces or more), is the
+   top row's height, so the window's buttons sit in one row and the tab
+   bar beneath is left alone. */
+.framed .spaces { min-height: 2.45rem; box-sizing: border-box; }
+
+/* macOS, as Obsidian has it: one title row across the window, the
+   system's buttons in it. The side bar's head is that row's height, its
+   folder name beside the buttons; a strip in the row's color covers the
+   ribbon's top, so the ribbon — pushed down by frame.ts — starts below the
+   row, its line with it. Not in full screen, where the buttons hide. */
+/* The folder's name centred on the system's buttons, whose centre is
+   15.5 px down whatever the font size (they stay at the system's place):
+   the row's padding below takes what the row has beyond 31 px. */
+.framed-mac .side-head { height: 2.45rem; min-height: 2.45rem; padding-top: 0; padding-bottom: max(0px, calc(2.45rem - 31px)); }
+.framed-mac .side-head.frame-push-t { height: calc(2.45rem + var(--frame-t)); min-height: calc(2.45rem + var(--frame-t)); }
+.frame-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: calc(var(--ribbon-w) + 1px);
+  height: max(37px, 2.45rem);
+  background: var(--paper-2);
+}
+.frame-fullscreen .frame-strip { display: none; }
+
+/* Windows: the app's own buttons, the top row's height, at the right end.
+   The system's metrics (46 px each, a 10 px glyph of 1 px lines), the
+   app's colors: the hover of every other button of the bars, and the
+   system's red behind close. */
+.frame-controls {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  height: 2.45rem;
+}
+.frame-button {
+  width: 46px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: default;
+  transition: background-color .12s, color .12s;
+}
+.frame-button:hover { background: var(--paper-3); color: var(--ink); }
+.frame-button:active { background: var(--hair); }
+.frame-close:hover { background: #c42b1c; color: #fff; }
+.frame-close:active { background: #b3271a; color: #fff; }
+.frame-button:focus-visible { outline: 2px solid var(--seal); outline-offset: -2px; }
+/* An inactive window's buttons are dimmed, as the system's are. */
+.frame-inactive .frame-button:not(:hover) { color: var(--ink-3); }
+@media (forced-colors: active) {
+  .frame-button { color: ButtonText; }
+  .frame-button:hover { background: Highlight; color: HighlightText; }
+}

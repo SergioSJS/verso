@@ -6,6 +6,7 @@ import { commands } from "../bindings";
 import { button, h, ui } from "../dom";
 import { fail } from "../errors";
 import { currentFolder, folderName, popout, secondary } from "../folder";
+import { refreshFrame } from "../frame";
 import { icon } from "../icons";
 import { askDiscard, Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
@@ -147,6 +148,7 @@ export function renderSpaces(): void {
     s.tab.tabIndex = s === current ? 0 : -1;
   }
   ui.spaces.hidden = spaces.length <= 1;
+  refreshFrame();
   // While there is a choice, the panes are the chosen workspace's panel.
   if (spaces.length > 1 && current) {
     ui.panes.setAttribute("role", "tabpanel");
