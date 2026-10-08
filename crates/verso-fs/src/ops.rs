@@ -123,7 +123,12 @@ fn place(
             if occupied(to).map_err(WriteError::Io)? {
                 return Err(WriteError::Exists);
             }
-            crate::os::rename(from, to).map_err(WriteError::Io)?;
+            // A wait for a held file (Windows) looks again before each try:
+            // something that appeared at `to` meanwhile is never replaced.
+            let still_free = || matches!(occupied(to), Ok(false));
+            if !crate::os::rename_unless_changed(from, to, still_free).map_err(WriteError::Io)? {
+                return Err(WriteError::Exists);
+            }
             Ok(Placed::Renamed)
         }
         Err(e) => Err(WriteError::Io(e)),
