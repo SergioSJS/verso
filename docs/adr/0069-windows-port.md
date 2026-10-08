@@ -12,7 +12,13 @@
   don't know); and, given the pros and cons, "Prefiro nsis tb. Deixa win 10
   tb, muita máquina não recebe a atualização" (I prefer NSIS too. Keep
   Windows 10 as well, many machines don't get the upgrade). The test machine
-  was set up in the same session.
+  was set up in the same session. The five questions themselves are not in
+  this record, only the answers; the reading of answers 3 and 5 below is
+  the author's. Revised on 2026-10-07 after the reviewer's reading (Fable
+  5.1), with the maintainer's decision to start now: ADR 0022 revised, the
+  real app driven through the existing end-to-end suite, and three
+  questions opened — the directory `fsync`, the path separator, the Windows
+  10 machine.
 - Related: [0022](0022-target-platforms-macos-first.md) (Windows ships,
   before Linux), [0029](0029-guardrails-in-ci.md) (the platform checks and
   the local scripts), [0043](0043-placeholder-guard.md) (OneDrive's
@@ -23,11 +29,13 @@
 
 ## Context
 
-ADR 0022 decided that Windows ships, before Linux, and that it joins CI's
-platform checks on `main` and the packaging of a version when its port
-lands. It did not say how the port is built and tested, and nothing in the
-repository decides an installer format, an architecture or how Windows
-code is run before a push.
+ADR 0022 decided that Windows ships, before Linux and **after Phase 2**, and
+that it joins CI's platform checks on `main` and the packaging of a version
+when its port lands. It did not say how the port is built and tested, and
+nothing in the repository decides an installer format, an architecture or
+how Windows code is run before a push. On 2026-10-07 the maintainer brought
+the Windows app forward ("Tô querendo já iniciar windows"): ADR 0022 and the
+roadmap carry that revision, dated, and this ADR is how.
 
 Windows cannot run in Docker on a Mac ([0029](0029-guardrails-in-ci.md)),
 so `scripts/check-linux.sh` has no Windows twin. Two Windows machines are at
@@ -37,10 +45,29 @@ leave it with the toolchain, SSH and Remote Desktop; and a gaming PC with a
 real GPU. On that virtual machine `cargo test -p verso-dialect` passed,
 93 tests of 93, with the toolchain pinned in `rust-toolchain.toml`.
 
-The roadmap places the Windows app after Phase 2
-([roadmap](../roadmap.md), "Also the Windows and Linux apps"). The
-maintainer's words above bring it before a stable version; reconciling the
-roadmap is theirs.
+The window is tuned to WKWebView today: drags by pointer events because
+HTML5 drag and drop is dead there, embeds in child web views, a cache that
+survives updates. WebView2 is Chromium. The end-to-end suite
+(`app/ui/e2e`, Playwright) runs in WebKit only.
+
+What was checked outside the repository on 2026-10-07, for the items
+below: Tauri's NSIS installer takes `/S` (silent), `/P` (passive) and
+`/UPDATE`, kills the running app in silent mode, and warns about a previous
+MSI install ([Windows Installer](https://v2.tauri.app/distribute/windows-installer/));
+`webviewInstallMode` is `downloadBootstrapper` by default,
+`embedBootstrapper` adds about 1.8 MB, `offlineInstaller` about 127 MB (same
+page); `tauri-driver` runs on Windows and Linux only, while WebdriverIO's
+`@wdio/tauri-service` runs an embedded WebDriver server inside the app on
+Windows, Linux and macOS
+([WebDriver](https://v2.tauri.app/develop/tests/webdriver/)); Playwright
+attaches to a WebView2 app over the Chrome DevTools Protocol when the app
+is started with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>`,
+one `WEBVIEW2_USER_DATA_FOLDER` per test
+([Playwright, WebView2](https://playwright.dev/docs/webview2)); `MoveFileEx`
+with `MOVEFILE_WRITE_THROUGH` "does not return until the file is actually
+moved on the disk", and without `MOVEFILE_COPY_ALLOWED` it never falls back
+to a copy ([MoveFileExW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw));
+a Windows minute of GitHub Actions counts as two Linux minutes.
 
 ## Decision
 
@@ -83,14 +110,45 @@ roadmap is theirs.
    the tests on a pinned runner image, and the release workflow a Windows job
    that builds the installer. Pull requests stay on Linux. A Windows minute
    is billed as two Linux ones.
-7. **The real app tested by machine on Windows** (proposed, its own pull
-   request). Tauri's WebDriver (`tauri-driver`) works on Windows and not on
-   macOS, so the walkthrough steps the browser harness cannot reach can run
-   against the real window there.
-8. **What the port brings, each item with a test.**
-   - Atomic write by `MoveFileEx` with `REPLACE_EXISTING`, and an open handle
-     (antivirus, OneDrive) making the rename fail
-     ([0029](0029-guardrails-in-ci.md)).
+7. **The real app tested by machine on Windows, through the end-to-end
+   suite the repository already has** (proposed, its own pull request).
+   WebView2 is Chromium: started with
+   `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>`,
+   the real window takes Playwright over the Chrome DevTools Protocol, so
+   the tests of `app/ui/e2e` run against the app itself, not the harness,
+   and the walkthrough steps the harness cannot reach become tests there.
+   One user data folder per test (`WEBVIEW2_USER_DATA_FOLDER`), since the
+   control shares one by default. `tauri-driver` is the alternative, Windows
+   and Linux only; WebdriverIO's `@wdio/tauri-service` would reach the real
+   window on the Mac too, with an embedded WebDriver server — a decision of
+   its own, not this ADR's.
+8. **Before any Windows machine: the end-to-end suite in Chromium on the
+   Mac** (proposed, the port's first step). A Playwright `chromium` project
+   beside the `webkit` one, in `scripts/check.sh`; what differs between the
+   two engines is most of what will differ in WebView2, and it costs no
+   runner and no SSH.
+9. **What the port brings, each item with a test.**
+   - Atomic write: `FlushFileBuffers` on the temporary file (`sync_all`),
+     then `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`
+     and without `MOVEFILE_COPY_ALLOWED`, so the move blocks until it is on
+     disk and never degrades to a copy; and an open handle (antivirus,
+     OneDrive) making the rename fail, with the retry the test pins
+     ([0029](0029-guardrails-in-ci.md)). **`[OPEN]`: invariant 9 of
+     `CLAUDE.md` and ADR 0029 ask for an `fsync` of the directory after the
+     rename, and Windows has no such call on a directory handle.** Recorded
+     recommendation: on Windows the directory `fsync` is `MOVEFILE_WRITE_THROUGH`,
+     and the guardrail's text says so; the maintainer decides.
+   - **`[OPEN]`: the path separator.** A note's path crosses the contract as
+     a string relative to the open folder (ADR 0026, rule 4), wikilink
+     targets and the index hold paths, and `docs/reference/mcp-decision.md`
+     chose `/` while "Windows is not a target". Recorded recommendation: `/`
+     everywhere a path is text — the contract, the index, links, the MCP —
+     and `verso-fs` alone turns it into the OS's form at its edge, as
+     Obsidian writes `/` in every vault; the maintainer decides, with Q8
+     (case) beside it.
+   - The watcher (`verso-fs/src/watch.rs`) on `ReadDirectoryChangesW`: the
+     events a save, a rename and a OneDrive hydration raise, against what
+     `docs/reference/watcher-decision.md` records for macOS.
    - OneDrive's placeholder, `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS`, as a
      `verso-fs` fixture: the maintainer closes that provider's `[OPEN]` in
      [0043](0043-placeholder-guard.md) in the port's pull request.
@@ -98,8 +156,10 @@ roadmap is theirs.
      junctions, reserved names (`CON`, `NUL`), 8.3 short names, trailing dots
      and spaces, and case-insensitive names (Q8 of the dialect spec is
      `[OPEN]`).
-   - The configuration location on Windows: `[OPEN]`;
-     [0011](0011-config-outside-tree-index-as-cache.md) has no Windows counterpart.
+   - The configuration location on Windows, with the log and the index
+     file that live beside it on macOS (`~/Library/Application Support/verso`):
+     `[OPEN]`; [0011](0011-config-outside-tree-index-as-cache.md) has no
+     Windows counterpart.
    - The updater's Windows install path, which exists and has never run
      ([0055](0055-in-app-updater.md)), and its rollback.
    - The command line on `PATH`, and the keys the tutorial teaches, with Ctrl
@@ -107,6 +167,12 @@ roadmap is theirs.
 
 ## Consequences
 
+- **Order of the work** (recorded recommendation, the maintainer's call):
+  the port branches from `main` after pull request #37 merges; its first
+  pull request is infrastructure only — item 8, `scripts/check-windows.sh`,
+  the CI job, an NSIS build that installs and opens — and touches no
+  `verso-fs` code; `verso-fs` follows, one item of 9 per pull request, since
+  it is the crate under invariants 5, 9 and 11.
 - Two reference notes contradict ADR 0022 as revised on 2026-09-23:
   `docs/reference/mcp-decision.md` ("Windows is not a target", on the path
   separator) and `docs/reference/watcher-decision.md` ("Windows (not a
@@ -119,7 +185,9 @@ roadmap is theirs.
 - The virtual machine runs Windows 11. Windows 10 needs a machine of its
   own to be tested on (proposed: a second virtual machine, from the Windows
   10 Enterprise LTSC evaluation); until then Windows 10 is supported but not
-  run.
+  run. **`[OPEN]`**: either that machine exists before the first Windows
+  beta, or Windows 10 is declared best effort in the release notes; the
+  maintainer decides.
 - No GPU in the virtual machine: WebView2 renders in software there. The
   board's frame rate is judged on the gaming PC.
 - Each Windows CI job costs twice a Linux one, only on `main` and on a
@@ -144,9 +212,12 @@ roadmap is theirs.
 
 ## Status
 
-Proposed. Decided by the maintainer on 2026-10-07: x64 only, no ARM64, and
-Windows 10 and 11 (item 1); NSIS per user (item 2); no code signing for now
-(item 3, reading their "for now, yes" as accepting the unsigned installer).
-Proposed: the embedded WebView2 bootstrapper (item 2), items 4 to 8, and a
-Windows 10 test machine. `[OPEN]`: whether `scripts/check-windows.sh` must
-pass before every push.
+Proposed. Decided by the maintainer on 2026-10-07: the Windows app starts
+now, before the end of Phase 2 (ADR 0022 revised the same day); x64 only, no
+ARM64, and Windows 10 and 11 (item 1); NSIS per user (item 2); no code
+signing for now (item 3, reading their "for now, yes" as accepting the
+unsigned installer). Proposed: the embedded WebView2 bootstrapper (item 2),
+items 4 to 9, the order of the work, and a Windows 10 test machine.
+`[OPEN]`: whether `scripts/check-windows.sh` must pass before every push;
+what the directory `fsync` means on Windows (item 9); the path separator
+where a path is text (item 9); Windows 10 run or best effort.
