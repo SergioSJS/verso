@@ -50,9 +50,13 @@ test("the board's menu on a card, its link and the library hidden", async ({ app
   await app.quickOpen("Mesa");
   await app.boardReady();
   const c = await app.centerOf("a");
-  await page.mouse.click(c.x, c.y);
-  await page.mouse.click(c.x, c.y, { button: "right" });
-  await expect(page.locator(".context-menu")).toBeVisible();
+  // Under load the right click can land before the board hit-tests the
+  // card: the pair of clicks is tried again.
+  await expect(async () => {
+    await page.mouse.click(c.x, c.y);
+    await page.mouse.click(c.x, c.y, { button: "right" });
+    await expect(page.locator(".context-menu")).toBeVisible({ timeout: 2_000 });
+  }).toPass();
   await expect(page.locator('.context-menu li[data-testid="addToLibrary"]')).toBeHidden();
   tidy(await shape(page, ".context-menu"));
 });

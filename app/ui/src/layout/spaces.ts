@@ -97,8 +97,13 @@ export class Space {
     n.replaceWith(input);
     input.focus();
     input.select();
+    // Once, by a flag: Chromium (WebView2) fires blur inside replaceWith,
+    // while the field is still connected, and that blur's commit would undo
+    // an Escape (ADR 0069, item 8).
+    let done = false;
     const finish = (commit: boolean, restore = false) => {
-      if (!input.isConnected) return;
+      if (done) return;
+      done = true;
       if (commit) this.label = input.value.trim() || this.label;
       n.textContent = this.label;
       input.replaceWith(n);

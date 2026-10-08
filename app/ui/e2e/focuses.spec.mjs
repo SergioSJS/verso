@@ -709,12 +709,11 @@ test("create focus here prompts to sync and writes new focus directly to waypoin
   await expect(confirmBox).toBeVisible();
   await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
 
-  // The new focus should now be written to .space/waypoints.json
-  const diskContent = await app.file(".space/waypoints.json");
-  const parsed = JSON.parse(diskContent);
-  const areasFocus = parsed.find((f) => f.name === "Areas");
-  expect(areasFocus).toBeDefined();
-  expect(areasFocus.paths).toEqual(["Areas"]);
+  // The new focus is written to .space/waypoints.json once the answer is
+  // handled — not in the same tick as the click.
+  await expect
+    .poll(async () => JSON.parse(await app.file(".space/waypoints.json")).find((f) => f.name === "Areas")?.paths ?? null)
+    .toEqual(["Areas"]);
 
   // And localStorage localFocuses must NOT contain Areas
   const settingsJson = await app.page.evaluate(() => localStorage.getItem("verso.settings"));
