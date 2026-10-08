@@ -355,6 +355,11 @@ async fn install<R: tauri::Runtime>(
     window: &tauri::Window<R>,
     open: impl FnOnce(Option<&Path>) -> Result<Workspace, CoreError> + Send + 'static,
 ) -> Result<FolderInfo, ContractError> {
+    // Until its folder is installed, this window is not empty for a folder
+    // handed by a second launch (`folder_handed`), though no session names
+    // it yet — whatever opens it: the command line's folder, the picker, a
+    // reopened one. Unmarked on every way out.
+    let _opening = Opening::mark(app, window.label());
     let config = app.state::<App>().config.clone();
     let rules = *lock(&app.state::<App>().walk_rules);
     let folder_note_name = lock(&app.state::<App>().folder_note_name).clone();
@@ -591,19 +596,14 @@ async fn open_initial<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
-    let label = window.label().to_owned();
     let Some(path) = lock(&app.state::<App>().initial_folder).pop_front() else {
-        lock(&app.state::<App>().opening).remove(&label);
+        // Told, but the folder was taken by another window: not opening.
+        lock(&app.state::<App>().opening).remove(window.label());
         return Ok(None);
     };
-    // Until its folder is installed, this window is not empty for the next
-    // folder handed (`folder_handed`), though no session names it yet.
-    lock(&app.state::<App>().opening).insert(label.clone());
-    let opened = install(&app, &window, move |config| Workspace::open(&path, config))
+    install(&app, &window, move |config| Workspace::open(&path, config))
         .await
-        .map(Some);
-    lock(&app.state::<App>().opening).remove(&label);
-    opened
+        .map(Some)
 }
 
 /// The app's version and the commit it was built from (ADR 0051), for the
@@ -884,6 +884,28 @@ pub fn export_bindings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// A window marked as opening a folder (`App::opening`) while it lives.
+struct Opening<R: tauri::Runtime> {
+    app: tauri::AppHandle<R>,
+    label: String,
+}
+
+impl<R: tauri::Runtime> Opening<R> {
+    fn mark(app: &tauri::AppHandle<R>, label: &str) -> Self {
+        lock(&app.state::<App>().opening).insert(label.to_owned());
+        Self {
+            app: app.clone(),
+            label: label.to_owned(),
+        }
+    }
+}
+
+impl<R: tauri::Runtime> Drop for Opening<R> {
+    fn drop(&mut self) {
+        lock(&self.app.state::<App>().opening).remove(&self.label);
+    }
+}
+
 /// The app launched again while it runs — `verso <folder>`, which starts
 /// `verso-app <folder>`, or the app's icon: the running app takes the
 /// folder into a window of its own (`folder_handed`, ADR 0065), or, with
@@ -1051,6 +1073,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             log::write("INFO", "host", &format!("window closed: {label}"));
             // Its folder closes when no other window shows it (ADR 0065).
             lock(&app.state::<App>().sessions).release(label);
+            lock(&app.state::<App>().opening).remove(label);
         }
         tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
         _ => {}

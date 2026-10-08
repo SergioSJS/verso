@@ -17,6 +17,9 @@
   ficar 100%"): o link é feito pelo `std::fs` no `src/update.rs` do shell,
   com o `osascript` mantido só para o pedido de administrador
   ([0029](0029-guardrails-in-ci.md), revisão de 2026-09-29).
+- Revisões: 2026-10-08 — **decidido pelo mantenedor**: a linha de comando
+  do Windows vem com o app; o host diz o que o "Adicionar ao Claude"
+  escreve; a página de download onde falta o Claude Desktop (Status).
 
 ## Contexto
 
@@ -86,7 +89,7 @@ Como o autor os construiu (o memo, seção 5):
   clientes recebem o texto para colar.
 - Windows e Linux: o link e a entrada em um clique são macOS primeiro; o
   Linux tem os mesmos caminhos sem o pedido de senha, o Windows espera o
-  porte dele.
+  porte dele (superado em 2026-10-08 para o Windows: Status).
 
 ## Alternativas descartadas
 

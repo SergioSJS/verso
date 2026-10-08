@@ -22,6 +22,9 @@
   as the code applies it (Decision); how the window starts changed, so that
   an app already running receives the folder (`docs/review/phase-2.md` §6,
   items 3 and 14).
+- Revisions: 2026-10-08 — **decided by the maintainer**: with the app
+  running, `verso <folder>` opens the folder in a window of its own; one app
+  per user on every system (Status).
 
 ## Context
 

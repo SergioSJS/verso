@@ -19,6 +19,8 @@ O Verso também trabalha fora da janela: o comando `verso` busca nas suas notas 
 
 Em **Ajustes › Terminal e agentes › Comando verso no terminal**, clique em **Instalar**. O Verso põe o comando em `/usr/local/bin/verso` (o macOS pode pedir a sua senha); **Remover** o tira. Se já existe outro `verso` ali, o botão é **Substituir**.
 
+No Windows não há o que instalar: o `verso.exe` vem com o app, na pasta dele. Rode-o pelo caminho, ou ponha essa pasta no PATH para digitar só `verso`.
+
 ---
 
 ## O que o Comando Faz

@@ -173,16 +173,23 @@ fn a_window_opening_a_folder_is_not_handed_another() {
         seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     });
     folder_handed(app.handle(), one.path().to_path_buf());
+    // The main window took it and installs it (what open_initial and
+    // install do), so no folder waits in line any more.
+    let taken = lock(&app.state::<App>().initial_folder).pop_front();
+    assert_eq!(taken.as_deref(), Some(one.path()));
+    lock(&app.state::<App>().opening).insert("main".to_owned());
+    let windows = app.webview_windows().len();
     folder_handed(app.handle(), two.path().to_path_buf());
-    // The main window was told once; the second folder waits for a window
-    // of its own.
+    // Told once; the second folder gets a window of its own and waits for it.
     assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
-    let first = call(&webview, "open_initial", json!({})).unwrap();
+    assert_eq!(app.webview_windows().len(), windows + 1);
     assert_eq!(
-        first["name"],
-        one.path().file_name().unwrap().to_str().unwrap()
+        lock(&app.state::<App>().initial_folder)
+            .front()
+            .map(PathBuf::as_path),
+        Some(two.path())
     );
-    assert!(lock(&app.state::<App>().opening).is_empty());
+    let _ = webview;
 }
 
 /// A note another app writes while the folder is open: the index finds
