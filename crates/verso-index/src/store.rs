@@ -290,8 +290,8 @@ impl Index {
         let tx = self.conn.savepoint()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key, indexed_at)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
             params![
                 relative,
                 path_key,
@@ -316,6 +316,7 @@ impl Index {
                 pinned_items,
                 note_type,
                 note_type_key,
+                self.run_started.unwrap_or(0),
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -727,6 +728,43 @@ impl Index {
     }
 
     /// The stamp the index has for a note, to skip an unchanged file.
+    /// Whether the note at `relative` is, by its modified time (seconds) and
+    /// length, the one the index holds — trusted without reading it only
+    /// when it was modified at least 2 s before the run that last read it
+    /// began, and is not a placeholder's last known version (ADR 0043). A
+    /// change within the same second as that read could keep both, so such
+    /// a note is read again (git's "racy" entries).
+    pub fn unchanged_by_stat(
+        &self,
+        relative: &str,
+        modified: i64,
+        len: u64,
+    ) -> Result<bool, IndexError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT 1 FROM notes WHERE path = ?1 AND modified = ?2 AND len = ?3
+                   AND unverified = 0 AND modified < indexed_at - 1",
+                params![relative, modified, i64::try_from(len).unwrap_or(i64::MAX)],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some())
+    }
+
+    /// The note at `relative` was read in this run and matched the index:
+    /// it is known to match the disk as of the run's start. Nothing outside
+    /// a run.
+    pub fn confirm(&mut self, relative: &str) -> Result<(), IndexError> {
+        if let Some(started) = self.run_started {
+            self.conn.execute(
+                "UPDATE notes SET indexed_at = ?2 WHERE path = ?1 AND indexed_at < ?2",
+                params![relative, started],
+            )?;
+        }
+        Ok(())
+    }
+
     pub fn stamp_of(&self, relative: &str) -> Result<Option<NoteStamp>, IndexError> {
         Ok(self
             .conn
