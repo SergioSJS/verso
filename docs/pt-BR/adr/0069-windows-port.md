@@ -195,6 +195,19 @@ enquanto algum arquivo dentro dela está aberto.
      guardrail diz isso. O mantenedor, perguntado em 2026-10-07, ainda não
      sabe ("Não sei"): o porte segue com esta recomendação como fato
      provisório, e o mantenedor decide no pull request que a trouxer.
+     **O que o porte faz, 2026-10-08**: o `sync_all` do arquivo temporário,
+     depois o `std::fs::rename` (que nunca degrada para uma cópia), depois o
+     diretório descarregado — `FlushFileBuffers` num handle aberto com
+     acesso de escrita e backup semantics, que o Windows aceita (medido,
+     Contexto). Então existe um flush de diretório no Windows e o
+     `MOVEFILE_WRITE_THROUGH` não é usado: nenhuma dependência nova, nenhum
+     `unsafe`. Um rename que encontra um handle segurado é tentado de novo
+     por até uns 2,5 s, e antes de cada tentativa confere-se que o destino
+     ainda é o arquivo que foi lido (invariante 11) — mudou, a escrita para
+     e o diff aparece. Um destino segurado responde "Access is denied"
+     (medido), o mesmo erro que um destino somente leitura dá para sempre:
+     o somente leitura é reconhecido antes e falha na hora. O `[ABERTO]` passa a
+     ser: este flush é o `fsync` de diretório que o invariante 9 quer dizer.
    - **`[ABERTO]`: o separador de caminho.** O caminho de uma nota cruza o
      contrato como texto relativo à pasta aberta (ADR 0026, regra 4), os
      alvos de wikilink e o índice guardam caminhos, e o
@@ -218,16 +231,37 @@ enquanto algum arquivo dentro dela está aberto.
    - O placeholder do OneDrive, `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS`, como
      fixture do `verso-fs`: o mantenedor fecha o `[ABERTO]` desse provedor no
      [0043](0043-placeholder-guard.md) no pull request do porte.
+     **Fora do pull request do porte, 2026-10-08**: a máquina de teste não
+     tem conta do OneDrive para observar um placeholder. Até lá o
+     `verso-fs` não lê placeholder nenhum no Windows, então uma pasta sob
+     Arquivos Sob Demanda é baixada pelo seu primeiro índice. Proposto: os
+     atributos `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS`,
+     `FILE_ATTRIBUTE_RECALL_ON_OPEN` e `FILE_ATTRIBUTE_OFFLINE`, lidos pelo
+     `file_attributes()` do std (sem dependência, sem `unsafe`), com uma
+     fixture quando observado; o `[ABERTO]` do 0043 continua do mantenedor.
    - Confinamento de caminhos contra as formas do Windows: letras de drive,
      caminhos UNC, `\`, junctions, nomes reservados (`CON`, `NUL`), nomes
      curtos 8.3, pontos e espaços no fim, e nomes sem distinção de
-     maiúsculas (a Q8 da spec do dialeto é `[ABERTO]`).
+     maiúsculas (a Q8 da spec do dialeto é `[ABERTO]`). Nomes curtos 8.3,
+     2026-10-08: um nome nesse formato (um `~` e um dígito) que nomeia algo
+     é procurado na sua pasta, e uma grafia curta de outra entrada —
+     `OBSIDI~1` para `.obsidian` — é recusada, para não passar pelas regras
+     de oculto e de ignorado.
    - O local da configuração no Windows, com o log e o arquivo do índice
      que no macOS moram ao lado dela (`~/Library/Application Support/verso`):
      `[ABERTO]`; o [0011](0011-config-outside-tree-index-as-cache.md) não tem
      equivalente para Windows. O mantenedor, perguntado em 2026-10-07, ainda
      não sabe ("Não sei"): o porte propõe um local no pull request dele, com
-     as razões, e o mantenedor decide ali.
+     as razões, e o mantenedor decide ali. **Proposto pelo porte,
+     2026-10-08**: `%APPDATA%\verso`, depois de `VERSO_CONFIG_DIR` e
+     `XDG_CONFIG_HOME` e antes de `HOME` — a pasta do Windows para os dados
+     de aplicativo de um usuário, onde a pasta de configuração do próprio
+     Tauri também cai, enquanto `HOME` em geral não existe lá; a
+     configuração do Claude Desktop, que o "Adicionar ao Claude" escreve, é
+     `%APPDATA%\Claude`. Uma pergunta ao lado: `%APPDATA%` é o perfil
+     móvel, que uma rede de empresa copia entre máquinas; o índice, um
+     cache que pode ser grande, talvez caiba em `%LOCALAPPDATA%` (o log
+     também), e as configurações em `%APPDATA%`.
    - O caminho de instalação do atualizador no Windows, que existe e nunca
      rodou ([0055](0055-in-app-updater.md)), e o seu rollback.
    - A linha de comando no `PATH`, e as teclas que o tutorial ensina, com
@@ -272,6 +306,12 @@ enquanto algum arquivo dentro dela está aberto.
   [`cross-platform-checklist.md`](../reference/cross-platform-checklist.md),
   apontado pelo `CLAUDE.md` §4. Registra hábitos e as suas correções; não
   decide nada novo.
+- **Medido em 2026-10-08**: o primeiro índice de 5.000 notas levou 228 s
+  na máquina Windows contra 3,4 s no macOS — um commit do SQLite por nota,
+  cada um um `FlushFileBuffers` de verdade no Windows. O índice, um cache
+  (ADR 0011), agora roda em WAL com `synchronous = NORMAL` e uma transação
+  por rodada de índice: 9,1 s no Windows, 2,6 s no macOS. Registrado no
+  checklist entre plataformas.
 - Sem GPU na máquina virtual: o WebView2 renderiza em software lá. A taxa de
   quadros do board é julgada no PC de jogos.
 - Cada job de Windows no CI custa uns 1,7 de um de Linux, só em `main` e
@@ -312,4 +352,5 @@ mantenedor ainda sem saber ("Não sei") e o porte seguindo com a
 recomendação registrada como fato provisório até o pull request dele: o
 que o `fsync` do diretório significa no Windows (item 9); o separador de
 caminho num caminho relativo à pasta aberta (item 9); o local da
-configuração (item 9).
+configuração (item 9). Fora do pull request do porte, registrado em
+2026-10-08: o placeholder do OneDrive (item 9).

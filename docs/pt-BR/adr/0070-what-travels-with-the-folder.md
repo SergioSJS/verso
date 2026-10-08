@@ -117,4 +117,7 @@ sistema guarda, para o que o Verso cria ou renomeia). Proposto: os itens 1,
 2 e 4. `[OPEN]`: o nome do diretório oculto; se as origens de embed
 aprovadas são da pasta ou da pessoa (uma permissão dada a um site, não uma
 propriedade das notas); a pergunta do separador do ADR 0069, que continua
-sendo do mantenedor fechar.
+sendo do mantenedor fechar; se a `\` entra nos caracteres recusados do item
+3 em todo sistema — o Obsidian a recusa no macOS e no Windows, no macOS e no
+Linux ela é um byte comum, e um arquivo `a\b.md` criado num Mac não existe
+no Windows (levantado pela revisão de 2026-10-08).

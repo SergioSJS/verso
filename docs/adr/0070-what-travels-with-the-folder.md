@@ -113,4 +113,7 @@ can keep, for what Verso makes or renames). Proposed: items 1, 2 and 4.
 `[OPEN]`: the hidden directory's name; whether the approved embed origins
 are the folder's or the person's (a permission granted to a site, not a
 property of the notes); ADR 0069's separator question, still the
-maintainer's to close.
+maintainer's to close; whether `\` joins item 3's refused characters on
+every OS — Obsidian refuses it on macOS and on Windows, on macOS and Linux
+it is an ordinary byte, and a file `a\b.md` made on a Mac cannot exist on
+Windows (raised by the review of 2026-10-08).

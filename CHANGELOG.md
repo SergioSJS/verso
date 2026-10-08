@@ -19,6 +19,8 @@ test release.
 
 ### Fixed
 
+- **The first index of a big folder is much faster**: each note was its own commit to the index, and on Windows each commit waits for the disk — 5,000 notes took 228 s there; now 9 s, and 2.6 s instead of 3.4 s on macOS. The index stays a cache rebuilt from the notes.
+- **After a click on a tree row, ↓ and ↑ walk the tree from it**; F2 still renames the open note, and a row reached by the arrows is renamed in place.
 - **Keys and fields in every web engine**: after a click on a tree row, F2 renames the open note in Chromium (WebView2) too; the board's keys keep working after Insert › Setas soltas; a new note or folder from the tree is made on Enter, and Escape leaves a workspace's name as it was — each was broken in Chromium, the engine of the Windows app to come ([ADR 0069](docs/adr/0069-windows-port.md)).
 
 ## 0.4.0-beta.2 — 2026-10-07
