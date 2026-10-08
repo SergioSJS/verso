@@ -1,4 +1,4 @@
-# AI draft (Fable 5.1, 2026-10-07), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-10-07 in session ("Aprovado"), after the observation in Obsidian; drafted by Fable 5.1 on 2026-10-07 (ADR 0031).
 # Construct: a `^id` inside a quote — alone after a blank quoted line, at
 # the end of a callout's text, at the end of a list item inside a quote.
 # Spec: docs/spec/dialect.md §5.7, Q3: the top-level quote is the block,

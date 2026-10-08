@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.31
+# Spec do dialeto do Verso — v0.32
 
-- Versão: v0.31 · 2026-10-07
+- Versão: v0.32 · 2026-10-07
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -784,12 +784,13 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   que o `resolvedLinks` conta da nota de teste para `Alvo.md` incluem o embed
   `![[Alvo]]`. Quem decide é o mantenedor; esta linha só registra o que o
   código faz enquanto isso.
-- **Q3. Posição admissível do `^id`.** `DECIDIDO` para o fim de um
-  parágrafo e de um item de lista (2026-09-21), para um `^id` sozinho depois
-  de um bloco de nível superior e no fim de um heading (2026-10-07);
-  `[ABERTO]` para um `^id` dentro de um item de lista ou de uma citação, e
-  para um sozinho sem nada antes — observado no Obsidian em 2026-10-07,
-  três fixtures rascunhadas, aguardando a aprovação do mantenedor.
+- **Q3. Posição admissível do `^id`.** `DECIDIDO`: para o fim de um
+  parágrafo e de um item de lista em 2026-09-21; para um `^id` sozinho
+  depois de um bloco de nível superior e no fim de um heading em
+  2026-10-07; para um `^id` dentro de um item de lista ou de uma citação, e
+  para um sozinho sem nada antes, também em 2026-10-07, com as fixtures
+  `fixtures/block/in-list`, `fixtures/block/in-quote` e
+  `fixtures/block/alone-top` como resposta.
   Fechada para essas duas em 2026-09-21 pelo mantenedor, com as fixtures
   `fixtures/block/definition` e `fixtures/block/list-item` como resposta
   (ADR 0031): um `^id` como última palavra de um parágrafo e um `^id` como
@@ -808,11 +809,11 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   procurado no texto próprio do item, até o primeiro filho de bloco (seção
   5.7).
 
-  **Observado no Obsidian 1.14.4 em 2026-10-07 pelo CLI dele (só API
-  pública, ADR 0009), depois da leitura do revisor; implementado e
-  rascunhado como fixtures, `[ABERTO]` até o mantenedor aprová-las.** O
-  bloco que um `^id` nomeia é a seção de nível superior em que a linha dele
-  está, exceto em lista, onde é o item de lista mais interno: (1) dentro de
+  **Decidido em 2026-10-07 pelo mantenedor para o resto, como observado no
+  Obsidian 1.14.4 no mesmo dia pelo CLI dele (só API pública, ADR 0009),
+  com as três fixtures abaixo aprovadas em sessão ("Aprovado").** O bloco
+  que um `^id` nomeia é a seção de nível superior em que a linha dele está,
+  exceto em lista, onde é o item de lista mais interno: (1) dentro de
   uma citação ou de um callout — o id no fim de uma linha citada, sozinho
   depois de uma linha citada em branco, numa citação aninhada, numa lista
   dentro da citação — a citação de nível superior inteira
@@ -1301,3 +1302,4 @@ ser escolhido.
 | v0.29 | 2026-10-07 | As fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` e `fixtures/block/duplicate` **aprovadas pelo mantenedor** em sessão ("tao aprovados"), depois de conferir os blocos no app; a marca de rascunho removida. Nada mais muda. |
 | v0.30 | 2026-10-07 | Depois da leitura do revisor sobre o recurso de blocos (PR #37): a Q3 ganha quatro **fatos provisórios da implementação**, `[ABERTO]` para o mantenedor — item solto nomeado inteiro pelo primeiro parágrafo, "o bloco de antes" na mesma profundidade, um `^palavra` que não é id como parágrafo comum, e a linha do `^id` dentro do item que ela nomeia — com a linha de status dizendo o que está decidido e o que está aberto; a Q4 diz onde a regra do último id está enunciada (o schema de resposta do `read_note`) e aplicada (a janela). Nenhuma fixture até o mantenedor decidir. |
 | v0.31 | 2026-10-07 | A parte aberta da Q3 **observada no Obsidian pelo CLI dele** (28 entradas): o bloco é a seção de nível superior, ou o item de lista mais interno; sozinho sem nada antes, nenhum bloco. Implementado; três fixtures rascunhadas (`block/in-list`, `block/in-quote`, `block/alone-top`), aguardando a aprovação do mantenedor; os fatos provisórios da v0.30 substituídos pela observação. A frase "Sem mudança:" da Q3 cita a seção 5.7, onde mora a regra do texto próprio. |
+| v0.32 | 2026-10-07 | As fixtures `fixtures/block/in-list`, `fixtures/block/in-quote` e `fixtures/block/alone-top` **aprovadas pelo mantenedor** em sessão ("Aprovado"); a marca de rascunho removida. **A Q3 fecha por inteiro.** Nada mais muda. |
