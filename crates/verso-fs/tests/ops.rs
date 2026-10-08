@@ -419,6 +419,10 @@ fn a_new_name_must_be_one_every_os_can_keep() {
         "a<b.md",
         "nota.",
         "pasta/aux.md",
+        // A separator on Windows, where it never reaches the name check;
+        // a byte of the name elsewhere, which Windows could not keep.
+        #[cfg(unix)]
+        "a\\b.md",
     ] {
         assert!(
             matches!(

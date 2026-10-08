@@ -29,7 +29,7 @@ What lives outside the folder on 2026-10-08:
 
 | Where | What | Of whom |
 |---|---|---|
-| the configuration directory (`~/Library/Application Support/verso`, `%APPDATA%\verso`) | the index (a cache), its sidecar, the log | this machine |
+| the configuration directory (`~/Library/Application Support/verso`, `%LOCALAPPDATA%\verso`) | the index (a cache), its sidecar, the log | this machine |
 | the web view's storage | the side bar's width, which panels are open | this machine |
 | the web view's storage | the settings (language, theme, …, and also the ignored paths, the folder note's name, the approved embed origins) | this machine, though some are about the folder |
 | the web view's storage, keyed by the folder's **absolute path** | the folder's bookmarks | this machine; lost even where the storage synced, since the path differs |
@@ -69,7 +69,9 @@ those, the rule item 3 takes.
    macOS, Windows and Linux can all keep. Refused on every OS: a device
    name (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9`, with or
    without an extension), a trailing dot or space, `:`, `* " < > ? |`, a
-   control character. An entry that already exists is never refused: it is
+   control character, and `\` (**decided by the maintainer on 2026-10-08**,
+   "pode recusar": Obsidian refuses it on macOS and on Windows; on macOS and
+   Linux it is an ordinary byte of a name that Windows could not keep). An entry that already exists is never refused: it is
    the user's, it opens, reads and writes as before; only a new name is
    checked. On Windows, where such names cannot exist at all, every request
    is checked (ADR 0069).
@@ -113,7 +115,5 @@ can keep, for what Verso makes or renames). Proposed: items 1, 2 and 4.
 `[OPEN]`: the hidden directory's name; whether the approved embed origins
 are the folder's or the person's (a permission granted to a site, not a
 property of the notes); ADR 0069's separator question, still the
-maintainer's to close; whether `\` joins item 3's refused characters on
-every OS — Obsidian refuses it on macOS and on Windows, on macOS and Linux
-it is an ordinary byte, and a file `a\b.md` made on a Mac cannot exist on
-Windows (raised by the review of 2026-10-08).
+maintainer's to close. Closed on 2026-10-08: `\` joins item 3's refused
+characters on every OS (raised by the review of that day).
