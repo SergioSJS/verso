@@ -5,8 +5,8 @@
   Obsidian não tem barra de título, os botões de minimizar, maximizar e
   fechar ficam no corpo do app, "e comparando com verso a gente perde
   vários pixels verticais … a barra de título ela é inútil … para janelas
-  menores isso impacta"; o mesmo no Mac, onde os botões da janela ficam à
-  esquerda; "tem que tomar cuidado porque ao chamar a barra lateral direita
+  menores isso impacta"; e "comparando com a versão do Mac, a gente tem a
+  mesma situação. Os botões da janela ficam aqui no canto esquerdo"; "tem que tomar cuidado porque ao chamar a barra lateral direita
   corre o risco de botões ficarem escondidos" — conferir a barra lateral
   direita no Windows e a esquerda no Mac. Depois, sobre a proposta do
   autor: "pode escrever o ADR … e talvez já comece a implementar".
@@ -29,13 +29,15 @@ de cima à esquerda.
 
 O Tauri oferece, no macOS, `titleBarStyle: "Overlay"` com `hiddenTitle`: a
 barra some e os botões do sistema (fechar, minimizar, zoom) flutuam sobre o
-conteúdo, numa posição que o app pode ajustar. No Windows ele oferece uma
+conteúdo, onde o `trafficLightPosition` os põe. No Windows ele oferece uma
 janela sem decorações (`decorations: false`), cujos botões o app desenha e
 cujas áreas de cima o app marca como arrastando a janela
 (`data-tauri-drag-region`; um clique duplo ali maximiza). Uma janela sem
 decorações no Windows 11 perde o menu de Snap Layouts que aparece quando o
-ponteiro para sobre maximizar, a menos que um plugin desenhe esse botão
-(`tauri-plugin-decorum`, da comunidade, MIT).
+ponteiro para sobre maximizar, a menos que a janela mantenha as decorações
+e só tire a barra, o que o `tauri-plugin-decorum` (da comunidade, MIT) faz.
+Uma janela sem decorações mantém as bordas de redimensionar e, com o
+`shadow` (verdadeiro por padrão), a borda e a sombra do sistema.
 
 ## Decisão
 
@@ -43,8 +45,10 @@ Proposto pelo autor.
 
 1. **macOS: os botões do sistema sobre o app.** `titleBarStyle:
    "Overlay"`, `hiddenTitle: true`, em toda janela de uma pasta (`main`,
-   `window-*`); o popout de uma nota e a janela de uma página web mantêm a
-   sua. A faixa de cima do app reserva a largura dos botões à esquerda — o
+   `window-*`); o popout de uma nota (cujo título é o nome da nota) e a
+   janela de uma página web mantêm a sua. A `main` é ajustada no
+   `tauri.conf.json`, as janelas `window-*` no construtor delas
+   (`windows.rs`). A faixa de cima do app reserva a largura dos botões à esquerda — o
    topo da faixa lateral esquerda, e o começo da barra de abas quando as
    barras laterais estão ocultas —, para nada ficar embaixo deles, e essa
    faixa arrasta a janela.
@@ -56,13 +60,20 @@ Proposto pelo autor.
    restaura. A barra lateral direita, aberta ou fechada, nunca fica embaixo
    dos botões: a faixa de cima guarda a largura deles na ponta direita, e o
    botão de mostrar/ocultar da barra lateral fica à esquerda deles.
+   Ajustado na `main` pela configuração e no construtor das `window-*`,
+   como no macOS; as permissões de janela necessárias — `start-dragging`,
+   `toggle-maximize`, `minimize`, `maximize`, `unmaximize`,
+   `is-maximized`, `close` — entram no `capabilities/default.json`, e o
+   teste do host que guarda as permissões as cobre.
 3. **O Linux mantém a barra de título do sistema** até o porte dele (ADR
    0071).
 4. **Conferido nos dois motores:** a faixa reservada com as barras
    laterais abertas e fechadas e numa janela estreita (um e2e por layout de
    plataforma, rodado com uma classe de plataforma forçada), e a olho no Mac
-   e na máquina Windows — mover, maximizar, encaixar numa borda da tela,
-   redimensionar por cada borda.
+   e na máquina Windows — mover, maximizar (a janela não pode passar da
+   tela), encaixar numa borda da tela e com Win+setas, redimensionar por
+   cada borda; no Mac, a tela cheia, onde os botões do sistema se escondem e
+   a faixa reservada fica em branco.
 
 ## Consequências
 
@@ -70,6 +81,9 @@ Proposto pelo autor.
   pasta.
 - O nome da janela deixa de ser mostrado pelo sistema: o nome da pasta
   continua na faixa de cima do app e na barra de tarefas ou no Dock.
+- O menu nativo é a barra de menus do macOS, intocada pelo overlay; no
+  Windows o menu de sistema da barra (Alt+Espaço) vai embora, enquanto
+  Alt+F4 e Win+setas continuam do sistema.
 - No Windows o app passa a cuidar do que o sistema dava de graça (estados
   de hover, clique duplo, foco de teclado dos botões); cada um ganha um
   teste ou uma conferência a olho.
