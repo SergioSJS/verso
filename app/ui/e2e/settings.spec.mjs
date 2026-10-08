@@ -25,3 +25,18 @@ test("the bug report opens with no error of the session", async ({ app }) => {
   expect(text).toContain("## Erros desta sessão");
   expect(text).toMatch(/## Erros desta sessão\s+nenhum/);
 });
+
+// A long answer beside a setting wraps under it, and the setting's own text
+// keeps its width: "Adicionado… Cópia do anterior: …" squeezed the MCP
+// row's description into a column a word wide (2026-10-08).
+test("adding to Claude Desktop leaves the row readable", async ({ app }) => {
+  await app.open();
+  await app.key("Mod+,");
+  await app.page.locator(".settings-nav-item", { hasText: "Terminal e agentes" }).click();
+  await app.page.getByRole("button", { name: "Adicionar ao Claude Desktop" }).click();
+  await app.page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  const row = app.page.locator(".setting", { hasText: "Cópia do anterior" });
+  await expect(row).toBeVisible();
+  const widths = await row.evaluate((r) => ({ text: r.querySelector(".setting-text").getBoundingClientRect().width, row: r.getBoundingClientRect().width }));
+  expect(widths.text).toBeGreaterThan(widths.row * 0.35);
+});
