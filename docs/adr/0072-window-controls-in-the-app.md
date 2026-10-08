@@ -5,8 +5,8 @@
   screen: Obsidian has no title bar, its minimize, maximize and close
   buttons sit in the app's own body, "e comparando com verso a gente perde
   vários pixels verticais … a barra de título ela é inútil … para janelas
-  menores isso impacta"; the same on the Mac, where the window's buttons
-  sit at the left; "tem que tomar cuidado porque ao chamar a barra lateral
+  menores isso impacta"; and "comparando com a versão do Mac, a gente tem a
+  mesma situação. Os botões da janela ficam aqui no canto esquerdo"; "tem que tomar cuidado porque ao chamar a barra lateral
   direita corre o risco de botões ficarem escondidos" — check the right
   side bar on Windows and the left one on the Mac. Then, on the author's
   proposal: "pode escrever o ADR … e talvez já comece a implementar".
@@ -27,13 +27,15 @@ macOS the system's buttons float over its top-left corner.
 
 Tauri offers, on macOS, `titleBarStyle: "Overlay"` with `hiddenTitle`: the
 title bar is gone and the system's buttons (close, minimize, zoom) float
-over the content, at a position the app can set. On Windows it offers a
+over the content, where `trafficLightPosition` puts them. On Windows it offers a
 window without decorations (`decorations: false`), whose buttons the app
 draws and whose top areas the app marks as dragging the window
 (`data-tauri-drag-region`; a double click there maximizes). A window
 without decorations on Windows 11 loses the Snap Layouts menu shown when
-the pointer rests on maximize, unless a plugin draws that button
-(`tauri-plugin-decorum`, community, MIT).
+the pointer rests on maximize, unless the window keeps its decorations and
+only removes the caption, which `tauri-plugin-decorum` (community, MIT)
+does. An undecorated window keeps its resize borders, and with `shadow`
+(true by default) the system's border and shadow.
 
 ## Decision
 
@@ -41,8 +43,10 @@ Proposed by the author.
 
 1. **macOS: the system's buttons over the app.** `titleBarStyle:
    "Overlay"`, `hiddenTitle: true`, on every window of a folder
-   (`main`, `window-*`); a note's popout and a web page's window keep
-   theirs. The app's top row reserves the buttons' width at its left — the
+   (`main`, `window-*`); a note's popout (whose title is the note's name)
+   and a web page's window keep theirs. `main` is set in
+   `tauri.conf.json`, the `window-*` windows on their builder
+   (`windows.rs`). The app's top row reserves the buttons' width at its left — the
    left ribbon's top, and the tab bar's start when the side bars are
    hidden — so nothing sits under them, and that strip drags the window.
 2. **Windows: the app's own buttons.** `decorations: false` on the same
@@ -52,13 +56,20 @@ Proposed by the author.
    row drag the window; a double click maximizes or restores. The right
    side bar, open or closed, never sits under the buttons: the top row
    keeps their width at its right end, and the side bar's own toggle stays
-   left of them.
+   left of them. Set on `main` in the configuration and on the `window-*`
+   builder, as on macOS; the window permissions these need —
+   `start-dragging`, `toggle-maximize`, `minimize`, `maximize`,
+   `unmaximize`, `is-maximized`, `close` — are added to
+   `capabilities/default.json`, and the host test that guards permissions
+   covers them.
 3. **Linux keeps the system's title bar** until its port (ADR 0071).
 4. **Checked in both engines:** the reserved strip with the side bars open
    and closed and in a narrow window (an e2e per platform's layout, run
    with a forced platform class), and by eye on the Mac and on the Windows
-   machine — moving, maximizing, snapping to a screen edge, resizing from
-   each border.
+   machine — moving, maximizing (the window must not overflow the screen),
+   snapping to a screen edge and with Win+arrows, resizing from each
+   border; on the Mac, full screen, where the system's buttons hide and the
+   reserved strip stays blank.
 
 ## Consequences
 
@@ -66,6 +77,9 @@ Proposed by the author.
   folder.
 - The window's name is no longer shown by the system: the folder's name
   stays in the app's top row and in the taskbar or Dock.
+- The native menu is macOS's menu bar, untouched by the overlay; on
+  Windows the caption's system menu (Alt+Space) goes, while Alt+F4 and
+  Win+arrows stay the system's.
 - On Windows the app owns behaviour the system gave for free (hover
   states, double click, keyboard focus of the buttons); each gets a test
   or a check by eye.
