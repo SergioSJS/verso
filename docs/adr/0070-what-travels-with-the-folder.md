@@ -1,0 +1,115 @@
+# ADR 0070 — What travels with the folder: three layers of settings, and names every OS can keep
+
+- Date: 2026-10-08
+- Source: the maintainer, in session: "como teremos sincronizadores entre
+  plataformas. Temos que levar isso em conta. Se a config ficar fora da
+  pasta, não vai sincronizar e a barra tem que funcionar de qualquer jeito"
+  (since we will have syncs across platforms, we have to account for it: if
+  the config stays outside the folder it will not sync, and the slash has to
+  work either way); then, offered three steps — observe Obsidian, write this
+  ADR, refuse on every OS the names Windows cannot keep — "Faça os 3" (do
+  the three).
+- Related: [0010](0010-folder-is-the-unit-no-vault.md) (no vault),
+  [0011](0011-config-outside-tree-index-as-cache.md) (config outside the
+  tree, the index a cache), [0021](0021-sync-automerge-layered-config.md)
+  (layered config, Proposed), [0052](0052-typed-note.md) (schemas in the
+  folder), [0062](0062-focuses.md) (focuses in `.space/waypoints.json`),
+  [0069](0069-windows-port.md) (the Windows port, its separator `[OPEN]`).
+- Status in the briefing: not present
+
+## Context
+
+A folder of notes is meant to be synced between machines and systems —
+iCloud, OneDrive, Syncthing, git — and opened in Verso on macOS, Windows and
+Linux. ADR 0011 put the configuration outside the folder, keyed by the
+folder's path, and recorded the cost: "a folder synced between machines does
+not carry its configuration along".
+
+What lives outside the folder on 2026-10-08:
+
+| Where | What | Of whom |
+|---|---|---|
+| the configuration directory (`~/Library/Application Support/verso`, `%APPDATA%\verso`) | the index (a cache), its sidecar, the log | this machine |
+| the web view's storage | the side bar's width, which panels are open | this machine |
+| the web view's storage | the settings (language, theme, …, and also the ignored paths, the folder note's name, the approved embed origins) | this machine, though some are about the folder |
+| the web view's storage, keyed by the folder's **absolute path** | the folder's bookmarks | this machine; lost even where the storage synced, since the path differs |
+
+Inside the folder already: the notes, the boards, the schemas
+([0052](0052-typed-note.md), the maintainer's choice of the folder over the
+configuration directory), a folder's manual order in its folder note, the
+focuses in `.space/waypoints.json` ([0062](0062-focuses.md)).
+
+Observed in Obsidian on 2026-10-08
+([obsidian-paths-names-2026-10-08.md](../reference/obsidian-paths-names-2026-10-08.md)):
+a `\` in a link is part of the name, not a separator; on macOS Obsidian
+refuses only `\ / :` in a name and creates `? * | " < >`, `CON`, a trailing
+dot or space — names a folder synced to Windows cannot carry.
+
+## Decision
+
+1. **Three layers of settings** (proposed):
+   - **the machine's**, never synced: the index, its sidecar, the log, the
+     window's layout. Where they are today (ADR 0011 unchanged).
+   - **the folder's**, synced with it because they are about it: what anyone
+     opening the folder should find the same. They live inside the folder,
+     in a hidden directory written only when one of them is first changed —
+     no folder gets a directory it did not ask for (ADR 0011, rule 1 kept) —
+     as files written by `verso-fs`'s atomic write (invariants 9 and 11),
+     every path in them relative to the folder with `/`, none absolute
+     (invariant 4).
+   - **the person's**, which follow the user across folders (language,
+     theme, keys): stay on the machine until layered sync
+     ([0021](0021-sync-automerge-layered-config.md)) gives them a home.
+2. **The folder's layer, proposed contents**: the bookmarks, the ignored
+   paths, the folder note's name. On first opening a folder after this
+   lands, what the machine kept for it moves into the folder once.
+3. **Names every OS can keep. Decided by the maintainer on 2026-10-08**:
+   a note, folder or file that Verso **makes or renames** gets a name
+   macOS, Windows and Linux can all keep. Refused on every OS: a device
+   name (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9`, with or
+   without an extension), a trailing dot or space, `:`, `* " < > ? |`, a
+   control character. An entry that already exists is never refused: it is
+   the user's, it opens, reads and writes as before; only a new name is
+   checked. On Windows, where such names cannot exist at all, every request
+   is checked (ADR 0069).
+4. **The separator**: what Verso writes uses `/`, which Obsidian resolves on
+   every OS (ADR 0069, item 9). A `\` inside a link is part of the name, as
+   Obsidian reads it on macOS: never turned into `/`. The maintainer's words
+   above point to `/`; closing ADR 0069's `[OPEN]` is theirs.
+
+## Consequences
+
+- A folder synced to another machine opens with its bookmarks, its ignored
+  paths and its folder note's name; the side bar's width and the language
+  stay each machine's.
+- Two machines changing a folder setting at once leave the sync tool to
+  merge the file, or to keep a conflict copy; the atomic write's check
+  (invariant 11) refuses to write over a version it did not read. Merging
+  is layered sync's work ([0021](0021-sync-automerge-layered-config.md)).
+- Whether Obsidian lists a hidden directory of Verso's in its file explorer
+  is to be observed before the name is chosen (ADR 0009).
+- A name Obsidian accepts on macOS may be refused by Verso: stricter, never
+  contrary — no existing name changes meaning (invariant 12).
+- The UI's new-note and rename fields say why a name is refused.
+
+## Discarded alternatives
+
+- **Everything on the machine, as today**: a synced folder arrives without
+  its bookmarks and ignored paths; the bookmarks are lost even on the same
+  machine when the folder moves, since their key is its path.
+- **Obsidian's `.obsidian/` directory**: Verso writing Obsidian's own
+  configuration risks contradicting it, and those formats are not public
+  (ADR 0009, ADR 0030).
+- **In the notes' frontmatter**: the app's state would rewrite the user's
+  notes (invariant 8).
+- **Refusing the Windows names on Windows only**: a name made on a Mac then
+  breaks the folder's sync to Windows.
+
+## Status
+
+Proposed. Decided by the maintainer on 2026-10-08: item 3 (names every OS
+can keep, for what Verso makes or renames). Proposed: items 1, 2 and 4.
+`[OPEN]`: the hidden directory's name; whether the approved embed origins
+are the folder's or the person's (a permission granted to a site, not a
+property of the notes); ADR 0069's separator question, still the
+maintainer's to close.
