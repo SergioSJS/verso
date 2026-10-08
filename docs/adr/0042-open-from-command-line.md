@@ -168,8 +168,11 @@ with the window.
   there, that the app was not found (`1fc5c79`). A first version retried with
   `--args`, which an app already running ignores, so a typo was reported as
   "opening"; the Opus reading of the answers found it. A binary run directly —
-  `$VERSO_APP`, a development tree, Linux — still starts a new process each
-  time, and the window reports a folder that is not there.
+  `$VERSO_APP`, a development tree, Windows, Linux — starts a process that,
+  with the app running, hands the folder to it and exits (single instance,
+  since 2026-10-08, Status); on macOS no binary inside a `.app` is run, the
+  installed command line's included. The window reports a folder that is
+  not there.
 - **The first version of this code** used a lexical rule — `.`, `..`, a `/` or
   a leading `~` made an argument a folder — so `verso notas` was an unknown
   command and `verso ./nao-existe` said it was opening; and `verso open` alone

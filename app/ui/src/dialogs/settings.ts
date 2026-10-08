@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type CliState, commands } from "../bindings";
+import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
@@ -472,10 +472,12 @@ export class SettingsDialog {
     add("cli", t.mcpTitle, t.mcpDesc, () => this.mcpControl());
     if (currentFolder) {
       const server = `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
-      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(`claude mcp add ${server} -- verso mcp --key ${currentFolder}`));
-      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () =>
-        this.snippet(JSON.stringify({ mcpServers: { [server]: { command: "/usr/local/bin/verso", args: ["mcp", "--key", currentFolder] } } }, null, 2)),
-      );
+      // The command a client starts, as the host knows it (the linked
+      // command line, or on Windows the bundled verso.exe by its path).
+      const code = (command: string) => `claude mcp add ${server} -- ${/\s/.test(command) ? `"${command}"` : command} mcp --key ${currentFolder}`;
+      const other = (command: string) => JSON.stringify({ mcpServers: { [server]: { command, args: ["mcp", "--key", currentFolder] } } }, null, 2);
+      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso"), (st) => code(st.command)));
+      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso"), (st) => other(st.command)));
     }
     return out;
   }
@@ -489,8 +491,8 @@ export class SettingsDialog {
     install.hidden = true;
     remove.hidden = true;
     const show = (state: CliState) => {
-      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? t.cliElsewhere : t.cliUnbundled;
-      install.hidden = state === "ours" || state === "unbundled";
+      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? t.cliElsewhere : state === "bundled" ? t.cliBundled : t.cliUnbundled;
+      install.hidden = state === "ours" || state === "unbundled" || state === "bundled";
       install.textContent = state === "elsewhere" ? t.cliReplace : t.cliInstall;
       remove.hidden = state !== "ours";
     };
@@ -537,23 +539,37 @@ export class SettingsDialog {
     add.hidden = true;
     wrap.append(add);
     let server = "";
+    let command = "/usr/local/bin/verso";
     void Promise.all([commands.cliStatus(), commands.mcpStatus()]).then(([cli, st]) => {
       if (st.status !== "ok") {
         said.textContent = st.error.message;
         return;
       }
       server = st.data.server;
+      command = st.data.command;
       const claude = st.data.claude;
-      if (claude === "noClient") said.textContent = t.mcpNoClaude;
+      if (claude === "noClient") {
+        // A way to get it, rather than a dead "not found".
+        said.textContent = t.mcpNoClaude;
+        add.textContent = t.mcpGetClaude;
+        add.dataset["get"] = "1";
+        add.hidden = false;
+      }
       else if (claude === "same") said.textContent = t.mcpClaudeSame;
-      else if (cli !== "ours") said.textContent = t.mcpNeedCli;
+      else if (cli !== "ours" && cli !== "bundled") said.textContent = t.mcpNeedCli;
       else {
         said.textContent = claude === "different" ? t.mcpClaudeDifferent : "";
         add.hidden = false;
       }
     });
     add.addEventListener("click", () => void (async () => {
-      const entry = JSON.stringify({ [server]: { command: "/usr/local/bin/verso", args: ["mcp", "--key", currentFolder] } }, null, 2);
+      if (add.dataset["get"]) {
+        const r = await commands.openClaudeDownload();
+        if (r.status !== "ok") said.textContent = r.error.message;
+        return;
+      }
+      // What the host will write, as it will write it (ADR 0054 point 2).
+      const entry = JSON.stringify({ [server]: { command, args: ["mcp", "--key", currentFolder] } }, null, 2);
       if (!(await ask(t.mcpAddAsk.replace("{entry}", entry), { yes: t.mcpAddYes, no: t.cancel }))) return;
       const r = await commands.mcpAddClaude();
       if (r.status !== "ok") {
@@ -566,9 +582,19 @@ export class SettingsDialog {
     return wrap;
   }
   /** A text to copy: shown as code, with its button. */
-  private snippet(text: string): HTMLElement {
+  /** A text to copy; `fromHost`, when given, writes it again from the
+   *  host's MCP status once it answers. */
+  private snippet(first: string, fromHost?: (st: McpStatus) => string): HTMLElement {
+    let text = first;
     const wrap = h("div", "setting-snippet");
     const code = h("pre", "setting-code", text);
+    if (fromHost) {
+      void commands.mcpStatus().then((st) => {
+        if (st.status !== "ok") return;
+        text = fromHost(st.data);
+        code.textContent = text;
+      });
+    }
     const copy = button("ghost", t.copyText);
     copy.addEventListener("click", () => void navigator.clipboard.writeText(text).then(() => {
       copy.textContent = t.copiedText;

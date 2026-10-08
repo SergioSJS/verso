@@ -1244,7 +1244,8 @@ export class Core {
     cli_status: (): CliState => "missing",
     install_cli: (): CliState => "ours",
     uninstall_cli: (): CliState => "missing",
-    mcp_status: (): McpStatus => ({ server: "verso-harness", claude: "absent" }),
+    mcp_status: (): McpStatus => ({ server: "verso-harness", claude: "absent", command: "/usr/local/bin/verso" }),
+    open_claude_download: (): null => null,
     mcp_add_claude: (): McpAdded => ({ server: "verso-harness", replaced: false, backup: null, warnings: [] }),
     check_for_updates: (): UpdateInfo => ({
       current_version: "0.0.0-harness",

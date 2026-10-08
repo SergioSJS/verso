@@ -145,7 +145,7 @@ pub struct App {
     /// line (`verso-app <folder>`) or, on macOS, sent by an open event
     /// (`folder_handed`) — opened once by `open_initial`: a path at the
     /// entry edge, on this side.
-    initial_folder: Mutex<Option<PathBuf>>,
+    initial_folder: Mutex<std::collections::VecDeque<PathBuf>>,
     /// Where the indexes of the folders it opens go: `None` for the
     /// configuration directory (`verso_core::config_dir`). The tests give
     /// a temporary one, so that a test run never writes into the user's.
@@ -181,7 +181,7 @@ impl App {
         Self {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),
-            initial_folder: Mutex::new(initial),
+            initial_folder: Mutex::new(initial.into_iter().collect()),
             config: None,
             sessions: Mutex::new(Sessions::default()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
@@ -587,7 +587,7 @@ async fn open_initial<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
-    let Some(path) = lock(&app.state::<App>().initial_folder).take() else {
+    let Some(path) = lock(&app.state::<App>().initial_folder).pop_front() else {
         return Ok(None);
     };
     install(&app, &window, move |config| Workspace::open(&path, config))
@@ -610,6 +610,10 @@ fn app_info() -> Result<AppInfo, ContractError> {
 #[tauri::command]
 #[specta::specta]
 fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), ContractError> {
+    // The single instance let go first: a restart does not run the plugins'
+    // exit, and the new process, finding the old one still holding it,
+    // would hand itself over and exit — and then the old one exits too.
+    tauri_plugin_single_instance::destroy(&app);
     app.restart();
 }
 
@@ -836,6 +840,7 @@ macro_rules! commands_for {
                 uninstall_cli,
                 mcp_status::<$runtime>,
                 mcp_add_claude::<$runtime>,
+                open_claude_download,
                 check_for_updates,
                 download_and_install_update::<$runtime>,
                 restart_app::<$runtime>
@@ -874,17 +879,25 @@ pub fn export_bindings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 /// none, brings a window forward. The second process exits; its arguments
 /// are its command line, a relative folder read from its own directory.
 fn second_launch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, argv: Vec<String>, cwd: String) {
+    // The first argument, as `main` reads its own (main.rs).
     let folder = argv
-        .iter()
-        .skip(1)
-        .find(|a| !a.starts_with("--"))
+        .get(1)
+        .filter(|a| !a.starts_with("--"))
         .map(|a| std::path::Path::new(&cwd).join(a));
     log::write("INFO", "host", "launched again: handed to the running app");
     match folder {
         Some(folder) => folder_handed(app, std::path::absolute(&folder).unwrap_or(folder)),
         None => {
+            // A window of a folder (the main one first), never a note's
+            // popout or a web page's.
             let windows = app.windows();
-            let window = windows.get("main").or_else(|| windows.values().next());
+            let window = windows.get("main").or_else(|| {
+                windows
+                    .iter()
+                    .filter(|(l, _)| l.starts_with("window-"))
+                    .min_by_key(|(l, _)| l.as_str())
+                    .map(|(_, w)| w)
+            });
             if let Some(w) = window {
                 let _ = w.unminimize();
                 let _ = w.set_focus();
@@ -1059,10 +1072,21 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
 /// command-line argument would. A second launch on any system (the
 /// single-instance plugin, `second_launch`) hands its folder here too.
 fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) {
-    *lock(&app.state::<App>().initial_folder) = Some(folder);
-    // A window of the app that shows no folder takes it; with none, a new
-    // window does, which opens it as it starts (ADR 0065).
-    let empty = {
+    // Folders wait in line: two handed before a window took the first
+    // (`verso a; verso b`) are both opened, never one lost.
+    let waiting = {
+        let state = app.state::<App>();
+        let mut queue = lock(&state.initial_folder);
+        let waiting = !queue.is_empty();
+        queue.push_back(folder);
+        waiting
+    };
+    // A window of the app that shows no folder takes it; with none — or
+    // when that window has a folder waiting for it already — a new window
+    // does, which opens it as it starts (ADR 0065).
+    let empty = if waiting {
+        None
+    } else {
         let state = app.state::<App>();
         let sessions = lock(&state.sessions);
         let mut labels: Vec<String> = app

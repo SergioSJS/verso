@@ -135,6 +135,27 @@ fn a_second_launch_hands_its_folder_to_the_running_app() {
     assert_eq!(told.load(std::sync::atomic::Ordering::SeqCst), 1);
 }
 
+/// Two folders handed before a window took the first (`verso a; verso b`
+/// in a row): both wait in line and both are opened, in order — before,
+/// the second overwrote the first.
+#[test]
+fn two_folders_handed_at_once_are_both_opened() {
+    let one = tempfile::tempdir().unwrap();
+    let two = tempfile::tempdir().unwrap();
+    let _a = note(one.path(), "A.md", "# A\n");
+    let _b = note(two.path(), "B.md", "# B\n");
+    let (app, webview) = app();
+    folder_handed(app.handle(), one.path().to_path_buf());
+    folder_handed(app.handle(), two.path().to_path_buf());
+    assert_eq!(lock(&app.state::<App>().initial_folder).len(), 2);
+    let first = call(&webview, "open_initial", json!({})).unwrap();
+    assert_eq!(
+        first["name"],
+        one.path().file_name().unwrap().to_str().unwrap()
+    );
+    assert_eq!(lock(&app.state::<App>().initial_folder).len(), 1);
+}
+
 /// A note another app writes while the folder is open: the index finds
 /// it and the app's windows are told, by its path relative to the
 /// folder; a note Verso wrote itself is never reported as changed
@@ -488,7 +509,7 @@ fn each_window_answers_from_its_own_folder() {
         call(&other, "list_notes", json!({})).unwrap_err()["kind"],
         "no_folder"
     );
-    *lock(&app.state::<App>().initial_folder) = Some(two.path().to_path_buf());
+    lock(&app.state::<App>().initial_folder).push_back(two.path().to_path_buf());
     call(&other, "open_initial", json!({})).unwrap();
     assert_eq!(
         call(&main, "list_notes", json!({})).unwrap(),
@@ -522,7 +543,7 @@ fn a_folders_index_progress_reaches_only_its_windows() {
     let other = tauri::WebviewWindowBuilder::new(&app, "window-3", Default::default())
         .build()
         .unwrap();
-    *lock(&app.state::<App>().initial_folder) = Some(two.path().to_path_buf());
+    lock(&app.state::<App>().initial_folder).push_back(two.path().to_path_buf());
     call(&other, "open_initial", json!({})).unwrap();
     let mine = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let theirs = Arc::new(std::sync::atomic::AtomicUsize::new(0));

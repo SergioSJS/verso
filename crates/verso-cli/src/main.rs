@@ -314,7 +314,14 @@ fn launch_app(folder: &Path) -> Result<(), Launch> {
     // The installed macOS app is never run as a binary: `open -a` below hands
     // it the folder by an open event, and a running app takes it into a new
     // window. Running the bundle's binary, with `open -n` beside it, started
-    // a second app that showed no window (ADR 0042, revised 2026-10-08).
+    // a second app that showed no window (ADR 0042, revised 2026-10-08). The
+    // installed command line is a link into the bundle, so the binary beside
+    // its real file is inside a `.app` too: none of those is run.
+    #[cfg(target_os = "macos")]
+    candidates.retain(|c| {
+        !c.components()
+            .any(|part| part.as_os_str().to_string_lossy().ends_with(".app"))
+    });
     for app in candidates {
         match std::process::Command::new(&app)
             .arg(folder)
