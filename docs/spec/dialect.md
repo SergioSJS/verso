@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.30
+# Verso dialect spec — v0.31
 
-- Version: v0.30 · 2026-10-07
+- Version: v0.31 · 2026-10-07
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -783,8 +783,10 @@ Raised while writing this spec. All of them need an answer before
   code does in the meantime.
 - **Q3. Admissible position of the `^id`.** `DECIDED` for the end of a
   paragraph and of a list item (2026-09-21), for a `^id` alone after a
-  top-level block and at the end of a heading (2026-10-07); `[OPEN]` for
-  the four provisional facts below (2026-10-07).
+  top-level block and at the end of a heading (2026-10-07); `[OPEN]` for a
+  `^id` inside a list item or a quote, and for one alone with nothing
+  before it — observed in Obsidian on 2026-10-07, three fixtures drafted,
+  awaiting the maintainer's approval.
   Closed for those two on 2026-09-21 by the maintainer, with the fixtures
   `fixtures/block/definition` and `fixtures/block/list-item` as the answer
   (ADR 0031): a `^id` as the last word of a paragraph and a `^id` as the last
@@ -800,27 +802,26 @@ Raised while writing this spec. All of them need an answer before
   with `lines` (section 4.3) saying which block. `pos` stays the `^`, as
   section 4.3 asks, whichever block the id names. Unchanged: in a list item
   the `^id` is looked for in the item's own text, up to its first block
-  child (section 5.9).
+  child (section 5.7).
 
-  **Provisional facts of the implementation, 2026-10-07, after the
-  reviewer's reading — not an answer to this question, not observed in
-  Obsidian, and `[OPEN]` for the maintainer to decide.** (1) An item whose
-  first block is a paragraph — every item of a loose list — takes that
-  paragraph as its own text, and a `^id` ending it names the item whole,
-  its nested items and later paragraphs with it, as in a tight item; a
-  code block, a quote or a heading first in the item names only itself.
-  (2) "The block before it" is the one at the same depth: inside a quote or
-  a list item, the block before it in that quote or item; with nothing
-  before it, the `^id` line names itself. (3) A `^word` that is no id (a
-  dot in it, say) is a paragraph like any other, and a `^id` alone after
-  it names that paragraph. (4) When the block before a `^id` alone is an
-  item's first paragraph, fact (1) makes the block the item whole, and its
-  `lines` then run through the `^id` line, which sits inside the item (`-
-  um`, a blank line, `  ^x`, a blank line, `  - filho` gives lines 1 to 5);
-  at the top level the `^id` line is never part of the block it names
-  (`fixtures/block/after-a-block`). No fixture records these until the
-  maintainer decides (CLAUDE.md invariant 17, ADR 0031); the parser's unit
-  tests pin them meanwhile.
+  **Observed in Obsidian 1.14.4 on 2026-10-07 through its CLI (public
+  API only, ADR 0009), after the reviewer's reading; implemented and
+  drafted as fixtures, `[OPEN]` until the maintainer approves them.** The
+  block a `^id` names is the top-level section its line is in, except in a
+  list, where it is the innermost list item: (1) inside a quote or a
+  callout — the id at the end of a quoted line, alone after a blank quoted
+  line, in a nested quote, in a list inside the quote — the whole top-level
+  quote (`fixtures/block/in-quote`); (2) inside a list — the id at the end
+  of an item's first line, loose or tight, at the end of a later paragraph
+  of the item, after a code block or a quote first in the item, or alone
+  under a nested list — the innermost item its line is in, whole, the
+  `^id` line included when it is inside the item; Obsidian's cache lists
+  the nested items apart, and Q21 (decided) puts them in the block
+  (`fixtures/block/in-list`); (3) alone at the top level with nothing before
+  it, no block at all, and after a paragraph that is no id (`^foo.bar`),
+  that paragraph (`fixtures/block/alone-top`). Two `^id`s alone in a row
+  both name the block before them in Verso; Obsidian keeps only the last —
+  an extension, recorded here and not a fixture.
 - **Q4. Uniqueness scope of the `^id`.** `DECIDED` on 2026-10-07 by the
   maintainer.
   Unique per note: a link names the note and the id (`[[nota#^id]]`). With
@@ -1283,3 +1284,4 @@ the parser was chosen.
 | v0.28 | 2026-10-07 | **Q3, Q4 and Q21 decided by the maintainer**, after an observation of Obsidian through its CLI the same day: a block is the editor's unit (Q21); a `^id` alone after a blank line names the block before it, one at the end of a heading names the heading (Q3); an id is unique per note, the last of two naming the block (Q4). `blocks` items gain `lines` (§4.3). Three fixtures drafted, awaiting the maintainer's approval: `block/after-a-block`, `block/heading`, `block/duplicate`. §5.7 says how the id is drawn: hidden when reading, quiet in the editor, as observed. |
 | v0.29 | 2026-10-07 | The fixtures `fixtures/block/after-a-block`, `fixtures/block/heading` and `fixtures/block/duplicate` **approved by the maintainer** in session ("tao aprovados"), after checking the blocks in the app; their draft mark removed. Nothing else changes. |
 | v0.30 | 2026-10-07 | After the reviewer's reading of the block feature (PR #37): Q3 gains four **provisional facts of the implementation**, `[OPEN]` for the maintainer — a loose item named whole by its first paragraph, "the block before it" at the same depth, a non-id `^word` as a plain paragraph, and the `^id` line inside the item it names — with its status line saying what is decided and what is open; Q4 says where the rule of the last id is stated (the `read_note` answer schema) and applied (the window). No fixture until the maintainer decides. |
+| v0.31 | 2026-10-07 | Q3's open part **observed in Obsidian through its CLI** (28 inputs): the block is the top-level section, or the innermost list item; alone with nothing before it, no block. Implemented; three fixtures drafted (`block/in-list`, `block/in-quote`, `block/alone-top`), awaiting the maintainer's approval; the provisional facts of v0.30 replaced by the observation. The "Unchanged:" sentence of Q3 cites section 5.7, where the own-text rule lives. |

@@ -6,7 +6,6 @@
 //! (ADR 0037), recognizing the constructs of spec §5 and recording where each
 //! one is.
 
-use std::collections::HashMap;
 use std::ops::Range;
 
 use pulldown_cmark::{
@@ -44,72 +43,38 @@ pub fn parse(source: &str) -> Document {
     // A `verso-schema` block being read: its start, whether it is nested,
     // and its text as the base hands it over (indentation taken off).
     let mut schema: Option<(usize, bool, String)> = None;
-    // The last block closed at each depth — the top level, then each open
-    // list item or quote: what a `^id` alone on a line after it names (spec
-    // Q3, as Obsidian does; 2026-10-07). One entry per level, the top level
-    // always there.
-    let mut last_at: Vec<Option<Range<usize>>> = vec![None];
-    // The list items open now: where each starts, and its first block
-    // child once one has been seen — `Some(Some(start))` when that child is
-    // a paragraph (a loose item's own text), `Some(None)` when it is
-    // anything else (a code block, a quote, a heading, a nested list, a
-    // thematic break), which widens nothing.
-    let mut open_items: Vec<(usize, Option<Option<usize>>)> = Vec::new();
-    // Every list item closed, by its first byte and by its first
-    // paragraph's: a `^id` ending an item's own text — tight, the item's
-    // own line; loose, its first paragraph — names the item with its
-    // nested items (spec Q21). An inner item closes first and keeps its
-    // key: `or_insert`, never an overwrite.
-    let mut items_by_start: HashMap<usize, Range<usize>> = HashMap::new();
+    // The containers open around the event — list items, quotes, footnote
+    // definitions — outermost first, each with its whole range: what a
+    // `^id` inside one names (spec Q3, observed in Obsidian 1.14.4 on
+    // 2026-10-07 through its CLI): a quote at the top level, whole, with
+    // everything in it; otherwise the innermost list item, whole, its
+    // nested items with it (Q21).
+    let mut containers: Vec<(Container, Range<usize>)> = Vec::new();
+    // The last block closed at the top level: what a `^id` alone on a
+    // line after it names (Q3). With nothing before it, the `^id` names no
+    // block at all, as observed.
+    let mut last_top: Option<Range<usize>> = None;
 
     for (event, range) in Parser::new_ext(source, options).into_offset_iter() {
         // The own text of a list item closes when its first block child
         // starts, or when the item ends; either way before anything inside
         // that child is reported, so blocks stay in document order.
         if let Some(own_text) = track_item(&mut items, &event, &range) {
-            push_block(
-                &mut document,
-                block_id(source, &lines, own_text.clone(), own_text),
-            );
+            let named = named_container(&containers).unwrap_or(own_text.clone());
+            push_block(&mut document, block_id(source, &lines, own_text, named));
         }
         match &event {
-            Event::Start(Tag::Item) => open_items.push((range.start, None)),
-            Event::End(TagEnd::Item) => {
-                let first_paragraph = open_items.pop().and_then(|(_, first)| first.flatten());
-                items_by_start
-                    .entry(first_byte(source, &range))
-                    .or_insert_with(|| range.clone());
-                if let Some(paragraph) = first_paragraph {
-                    items_by_start
-                        .entry(paragraph)
-                        .or_insert_with(|| range.clone());
-                }
-            }
-            // The first block inside the open item: any block tag but the
-            // item's own, and a thematic break, which the base reports as an
-            // event of its own (see `is_inline`).
-            Event::Start(tag) if !is_inline(tag) => {
-                if let Some((_, first @ None)) = open_items.last_mut() {
-                    *first = Some(matches!(tag, Tag::Paragraph).then_some(range.start));
-                }
-            }
-            Event::Rule => {
-                if let Some((_, first @ None)) = open_items.last_mut() {
-                    *first = Some(None);
-                }
-            }
-            _ => {}
-        }
-        match &event {
-            Event::Start(Tag::Item | Tag::BlockQuote(_) | Tag::FootnoteDefinition(_)) => {
+            Event::Start(tag @ (Tag::Item | Tag::BlockQuote(_) | Tag::FootnoteDefinition(_))) => {
                 depth += 1;
-                last_at.push(None);
+                let kind = match tag {
+                    Tag::Item => Container::Item,
+                    _ => Container::Quote,
+                };
+                containers.push((kind, range.clone()));
             }
             Event::End(TagEnd::Item | TagEnd::BlockQuote(_) | TagEnd::FootnoteDefinition) => {
                 depth = depth.saturating_sub(1);
-                if last_at.len() > 1 {
-                    last_at.pop();
-                }
+                containers.pop();
             }
             Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(info)))
                 if info.split_whitespace().next() == Some("verso-schema") =>
@@ -163,38 +128,42 @@ pub fn parse(source: &str) -> Document {
             // item has no paragraph event, so its own inline text — up to
             // its first block child — is checked when the item ends.
             Event::End(TagEnd::Paragraph) => {
-                // Alone on its line, after a block at the same depth: the
-                // block before it (spec Q3). A `^word` that is no id (a dot
-                // in it, say) is a paragraph like any other, and the next
-                // `^id` alone names it, not what came before.
+                // Inside a container, the container. At the top level: the
+                // paragraph itself, or, for a `^id` alone on its line, the
+                // block before it; nothing before it, no block (Q3). A
+                // `^word` that is no id (a dot in it, say) is a paragraph
+                // like any other, which the next `^id` alone names.
                 let alone = source.get(range.clone()).is_some_and(|t| {
                     t.trim().starts_with('^') && !t.trim().contains(char::is_whitespace)
                 });
-                let before = last_at.last().cloned().flatten();
-                let named = match (before, alone) {
-                    (Some(before), true) => before,
-                    _ => range.clone(),
+                let named = match (named_container(&containers), alone, &last_top) {
+                    (Some(container), _, _) => Some(container),
+                    (None, true, Some(before)) => Some(before.clone()),
+                    (None, true, None) => None,
+                    (None, false, _) => Some(range.clone()),
                 };
-                let block = block_id(source, &lines, range.clone(), named);
+                let block = named.and_then(|named| block_id(source, &lines, range.clone(), named));
                 let names_before = alone && block.is_some();
                 push_block(&mut document, block);
-                if !names_before && let Some(last) = last_at.last_mut() {
-                    *last = Some(range.clone());
+                if containers.is_empty() && !names_before {
+                    last_top = Some(range.clone());
                 }
             }
             // A `^id` at the end of a heading names the heading (spec Q3,
-            // as Obsidian does; observed 2026-10-07).
+            // as Obsidian does; observed 2026-10-07), or the container the
+            // heading is in.
             Event::End(TagEnd::Heading(_)) => {
+                let named = named_container(&containers).unwrap_or(range.clone());
                 push_block(
                     &mut document,
-                    block_id(source, &lines, range.clone(), range.clone()),
+                    block_id(source, &lines, range.clone(), named),
                 );
-                if let Some(last) = last_at.last_mut() {
-                    *last = Some(range.clone());
+                if containers.is_empty() {
+                    last_top = Some(range.clone());
                 }
             }
-            // A block closed at this depth: the quote's own end lands at the
-            // depth outside it, its level already popped above.
+            // A block closed at the top level: the quote's own end lands
+            // there, its entry already popped above.
             Event::End(
                 TagEnd::CodeBlock
                 | TagEnd::Table
@@ -202,10 +171,10 @@ pub fn parse(source: &str) -> Document {
                 | TagEnd::HtmlBlock
                 | TagEnd::BlockQuote(_),
             )
-            | Event::Rule => {
-                if let Some(last) = last_at.last_mut() {
-                    *last = Some(range.clone());
-                }
+            | Event::Rule
+                if containers.is_empty() =>
+            {
+                last_top = Some(range.clone());
             }
             Event::Start(Tag::BlockQuote(_)) => {
                 if let Some(callout) = callout(source, &lines, range) {
@@ -225,15 +194,6 @@ pub fn parse(source: &str) -> Document {
         }
     }
 
-    // A `^id` ending an item's own text names the whole item, its nested
-    // items with it (spec Q21): the item that starts where that text does
-    // (tight), or whose first paragraph it is (loose).
-    for block in &mut document.blocks {
-        if let Some(item) = items_by_start.get(&block.block.start) {
-            block.block = block_span(source, &(item.start..block.block.end.max(item.end)));
-            block.lines = lines_of(source, &lines, block.block.start, block.block.end);
-        }
-    }
     document.property_links =
         crate::properties::property_links(source, &lines, document.frontmatter.as_ref());
     document
@@ -246,6 +206,31 @@ pub fn parse(source: &str) -> Document {
 fn push_block(document: &mut Document, candidate: Option<BlockId>) {
     if let Some(block) = candidate {
         document.blocks.push(block);
+    }
+}
+
+/// A container a block can sit in, for what a `^id` inside it names.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Container {
+    Item,
+    /// A blockquote or a footnote definition.
+    Quote,
+}
+
+/// The block a `^id` inside `containers` names, as Obsidian's cache has it
+/// (observed 2026-10-07): a quote at the top level is one block, whole,
+/// whatever is in it — a list, a nested quote, a callout's body; in a list
+/// otherwise, the innermost item, whole, its nested items with it (Q21).
+/// `None` at the top level.
+fn named_container(containers: &[(Container, Range<usize>)]) -> Option<Range<usize>> {
+    match containers.first() {
+        None => None,
+        Some((Container::Quote, range)) => Some(range.clone()),
+        Some((Container::Item, _)) => containers
+            .iter()
+            .rev()
+            .find(|(kind, _)| *kind == Container::Item)
+            .map(|(_, range)| range.clone()),
     }
 }
 
@@ -575,10 +560,12 @@ mod tests {
     }
 
     #[test]
-    fn a_loose_item_is_named_whole_too() {
-        // The id ends the item's first paragraph, a blank line before the
-        // nested list: the item with its nested items, as in a tight list
-        // (spec Q21); a tab-indented nested item the same.
+    fn a_block_id_in_a_list_names_the_innermost_item_whole() {
+        // Observed in Obsidian 1.14.4 on 2026-10-07 (its cache: the list
+        // item's own content; Q21 adds the nested items). Loose or tight,
+        // the id at the end of the first line, of a later paragraph, alone
+        // under a nested list, or after a code block or a quote first in
+        // the item: the item.
         assert_eq!(
             lines("- um ^item\n\n  - filho\n- dois\n"),
             [("item".into(), (1, 3))]
@@ -587,44 +574,65 @@ mod tests {
             lines("- a\n\t- b ^b\n\t\t- c\n- d\n"),
             [("b".into(), (2, 3))]
         );
-        // A second paragraph of the item is its own block, not the item.
         assert_eq!(
             lines("- um\n\n  segundo ^p\n\n  - filho\n"),
-            [("p".into(), (3, 3))]
+            [("p".into(), (1, 5))]
         );
-    }
-
-    #[test]
-    fn only_an_items_first_paragraph_widens_to_the_item() {
-        // A code block, a quote or a heading first in the item: the id
-        // names that block (Q3), never the item.
-        assert_eq!(
-            lines("- ```\n  code\n  ```\n\n  ^c\n\n  - child\n- next\n"),
-            [("c".into(), (1, 3))]
-        );
-        assert_eq!(
-            lines("- > q\n\n  ^q\n\n  - child\n- next\n"),
-            [("q".into(), (1, 1))]
-        );
-        assert_eq!(
-            lines("- ## H ^h\n  - child\n- next\n"),
-            [("h".into(), (1, 1))]
-        );
-        // A thematic break first: the paragraph after it is not the first
-        // child, so it stays its own block.
-        assert_eq!(
-            lines("- * * *\n\n  text ^x\n\n  - child\n- next\n"),
-            [("x".into(), (3, 3))]
-        );
-    }
-
-    #[test]
-    fn a_nested_list_named_from_below_ends_on_its_last_item() {
-        // The base ends a nested list after the indentation of the next
-        // line; the block ends with its text.
+        assert_eq!(lines("- um\n\n  ^x\n\n  - filho\n"), [("x".into(), (1, 5))]);
         assert_eq!(
             lines("- a\n\n  - b\n  - c\n\n  ^l\n"),
-            [("l".into(), (3, 4))]
+            [("l".into(), (1, 6))]
+        );
+        assert_eq!(
+            lines("- ```\n  code\n  ```\n\n  ^c\n\n  - child\n- next\n"),
+            [("c".into(), (1, 7))]
+        );
+        assert_eq!(lines("- > q ^x\n- dois\n"), [("x".into(), (1, 1))]);
+        assert_eq!(
+            lines("- ## H ^h\n  - child\n- next\n"),
+            [("h".into(), (1, 2))]
+        );
+        assert_eq!(
+            lines("- um ^u\n- dois\n\n  ^v\n"),
+            [("u".into(), (1, 1)), ("v".into(), (2, 4))]
+        );
+        assert_eq!(
+            lines("- um\n\n  - filho ^f\n\n  texto ^t\n- dois\n"),
+            [("f".into(), (3, 3)), ("t".into(), (1, 5))]
+        );
+    }
+
+    #[test]
+    fn a_block_id_in_a_quote_names_the_quote_whole() {
+        // Observed the same day: the top-level quote, whole, whatever
+        // holds the id — a nested quote, a list in it, a callout.
+        assert_eq!(lines("> a ^q\n"), [("q".into(), (1, 1))]);
+        assert_eq!(lines("> a\n>\n> b ^q\n>\n> c\n"), [("q".into(), (1, 5))]);
+        assert_eq!(lines("> a\n>\n> ^q\n"), [("q".into(), (1, 3))]);
+        assert_eq!(lines("> > a ^q\n"), [("q".into(), (1, 1))]);
+        assert_eq!(lines("> - um ^i\n> - dois\n"), [("i".into(), (1, 2))]);
+        assert_eq!(lines("> [!note] T\n> texto ^c\n"), [("c".into(), (1, 2))]);
+        assert_eq!(lines("> - a\n> - b\n\n^q\n"), [("q".into(), (1, 2))]);
+    }
+
+    #[test]
+    fn a_block_id_alone_at_the_top_level_names_the_block_before_it_or_nothing() {
+        // Observed the same day: the section before it — a list, a heading,
+        // a thematic break, a paragraph that is no id; nothing before it,
+        // no block.
+        assert_eq!(lines("- a\n- b\n\n^lst\n"), [("lst".into(), (1, 2))]);
+        assert_eq!(lines("# T\n\n^h\n"), [("h".into(), (1, 1))]);
+        assert_eq!(lines("Texto.\n\n---\n\n^r\n"), [("r".into(), (3, 3))]);
+        assert_eq!(
+            lines("Texto.\n\n^foo.bar\n\n^ok\n"),
+            [("ok".into(), (3, 3))]
+        );
+        assert_eq!(lines("^solto\n\nTexto.\n"), []);
+        // Two alone in a row both name the block before them (Obsidian
+        // keeps only the last; Verso resolves both, an extension).
+        assert_eq!(
+            lines("Texto.\n\n^a\n\n^b\n"),
+            [("a".into(), (1, 1)), ("b".into(), (1, 1))]
         );
         // A code block whose last line is a wide space keeps that line.
         assert_eq!(
@@ -634,32 +642,8 @@ mod tests {
         let doc = super::parse("- a\n\n  - b\n  - c\n\n  ^l\n");
         assert_eq!(
             &"- a\n\n  - b\n  - c\n\n  ^l\n"[doc.blocks[0].block.start..doc.blocks[0].block.end],
-            "- b\n  - c"
+            "- a\n\n  - b\n  - c\n\n  ^l"
         );
-        assert_eq!(
-            lines("- a\n\n  - b ^b\n\n  ^l\n"),
-            [("b".into(), (3, 3)), ("l".into(), (3, 3))]
-        );
-    }
-
-    #[test]
-    fn a_block_id_alone_names_the_block_before_it_at_its_own_depth() {
-        // Provisional, spec Q3 `[OPEN]` (2026-10-07): inside a quote, the
-        // paragraph before it in the quote; inside a loose item, the item's
-        // first paragraph, so the whole item, the `^id` line inside it. A
-        // `^word` that is no id is a paragraph like any other, and the next
-        // `^id` alone names it.
-        assert_eq!(
-            lines("> a\n>\n> ^q\n\nFora.\n\n^f\n"),
-            [("q".into(), (1, 1)), ("f".into(), (5, 5))]
-        );
-        assert_eq!(lines("- um\n\n  ^x\n\n  - filho\n"), [("x".into(), (1, 5))]);
-        assert_eq!(
-            lines("Texto.\n\n^foo.bar\n\n^ok\n"),
-            [("ok".into(), (3, 3))]
-        );
-        // Nothing before it: the line itself.
-        assert_eq!(lines("^solto\n\nTexto.\n"), [("solto".into(), (1, 1))]);
     }
 
     #[test]

@@ -52,6 +52,21 @@ test("a nested item, by a tab or a blank line, is embedded with its children and
   await expect(embeds.nth(1)).not.toContainText("Solto");
 });
 
+test("a ^id inside a quote embeds the whole quote", async ({ app, page }) => {
+  await open(app, {
+    "Fonte.md": "Antes.\n\n> primeira\n>\n> ^cit\n\nDepois.\n",
+    "Mostra.md": "![[Fonte#^cit]]\n",
+  }, "Mostra");
+  const embed = page.locator(".preview .embed-note-body");
+  await expect(embed).toHaveCount(1);
+  // The harness draws a quote line by line; the core draws one quote.
+  await expect(embed.locator("blockquote")).not.toHaveCount(0);
+  await expect(embed).toContainText("primeira");
+  await expect(embed).not.toContainText("Antes");
+  await expect(embed).not.toContainText("Depois");
+  await expect(embed).not.toContainText("^cit");
+});
+
 test("the same ^id twice in a note is said, the last counting", async ({ app, page }) => {
   await open(app, { "Dup.md": "Primeiro. ^dup\n\nSegundo. ^dup\n" }, "Dup");
   await expect(page.locator(".note-sheet").getByText(/\^dup aparece 2 vezes \(linhas 1, 3\)/)).toBeVisible();
