@@ -495,6 +495,7 @@ export class SettingsDialog {
       said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? t.cliElsewhere : state === "bundled" ? t.cliBundled : t.cliUnbundled;
       install.hidden = state === "ours" || state === "unbundled" || state === "bundled";
       install.textContent = state === "elsewhere" ? t.cliReplace : t.cliInstall;
+      install.title = install.textContent;
       remove.hidden = state !== "ours";
     };
     void commands.cliStatus().then(show);

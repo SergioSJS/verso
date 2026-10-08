@@ -17,6 +17,9 @@
   the link is made through `std::fs` in the shell's `src/update.rs`, with
   `osascript` kept for the administrator prompt alone
   ([0029](0029-guardrails-in-ci.md), revision of 2026-09-29).
+- Revisions: 2026-10-08 — **decided by the maintainer**: Windows' command
+  line comes with the app; the host says what "Add to Claude" writes; the
+  download page where Claude Desktop is missing (Status).
 
 ## Context
 
@@ -85,7 +88,8 @@ How the author built them (the memo, section 5):
 - Only Claude Desktop is written into, and only on the person's yes; other
   clients get the text to paste.
 - Windows and Linux: the link and the one-click entry are macOS-first; Linux
-  has the same paths without the password prompt, Windows waits for its port.
+  has the same paths without the password prompt, Windows waits for its port
+  (superseded on 2026-10-08 for Windows: Status).
 
 ## Discarded alternatives
 

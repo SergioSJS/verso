@@ -22,6 +22,9 @@
   como o código a aplica (Decisão); o jeito de a janela começar mudou, para
   que um app já aberto receba a pasta (`docs/review/phase-2.md` §6, itens 3 e
   14).
+- Revisões: 2026-10-08 — **decidido pelo mantenedor**: com o app aberto,
+  `verso <pasta>` abre a pasta numa janela própria; um app por usuário em
+  todo sistema (Status).
 
 ## Contexto
 
