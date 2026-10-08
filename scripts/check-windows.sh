@@ -112,18 +112,26 @@ step "cargo test (Windows)" on_host \
   "$cargo_env; cargo test --workspace --all-features --locked --no-fail-fast"
 
 if [ "$bundle" = 1 ]; then
-  config=""
+  # The bundle's settings as a file (a JSON argument would not survive
+  # npm.cmd's batch parsing): the command line beside the app, `verso.exe`,
+  # which "Add to Claude" starts (externalBin, given here and not in
+  # tauri.conf.json, whose every build would then need the file); and for a
+  # beta, the release workflow's override (ADR 0051).
+  config="--config '$base/bundle.conf.json'"
   name="Verso"
+  bundle_conf='{"bundle":{"externalBin":["binaries/verso"]}}'
   if [ "$beta" = 1 ]; then
-    # The same override as the release workflow's beta build (ADR 0051), as
-    # a file: a JSON argument would not survive npm.cmd's batch parsing.
-    config="--config '$base/beta.conf.json'"
     name="Verso Beta"
+    bundle_conf='{"identifier":"com.versomd.app.beta","productName":"Verso Beta","bundle":{"externalBin":["binaries/verso"]}}'
   fi
   build_installer() {
-    if [ "$beta" = 1 ]; then
-      on_host "Set-Content -Encoding ascii -LiteralPath '$base/beta.conf.json' -Value '{\"identifier\":\"com.versomd.app.beta\",\"productName\":\"Verso Beta\"}'" || return 1
-    fi
+    on_host "Set-Content -Encoding ascii -LiteralPath '$base/bundle.conf.json' -Value '$bundle_conf'" || return 1
+    # The command line, built as the release builds it (the app's name in
+    # it), where Tauri looks for an external binary: named with the target.
+    on_host "$cargo_env; \$env:VERSO_APP_NAME='$name'; cargo build --release --locked -p verso-cli
+             if (\$LASTEXITCODE) { exit \$LASTEXITCODE }
+             New-Item -ItemType Directory -Force app/src-tauri/binaries | Out-Null
+             Copy-Item -Force '$base/target/release/verso.exe' app/src-tauri/binaries/verso-x86_64-pc-windows-msvc.exe" || return 1
     # npm.cmd, not npm: Windows' default execution policy refuses npm.ps1,
     # which is what PowerShell picks for `npm`.
     # From the tree's root, as the release workflow runs it: Tauri's CLI

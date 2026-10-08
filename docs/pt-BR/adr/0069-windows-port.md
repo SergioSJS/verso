@@ -267,7 +267,12 @@ enquanto algum arquivo dentro dela está aberto.
    - O caminho de instalação do atualizador no Windows, que existe e nunca
      rodou ([0055](0055-in-app-updater.md)), e o seu rollback.
    - A linha de comando no `PATH`, e as teclas que o tutorial ensina, com
-     Ctrl onde o macOS tem ⌘.
+     Ctrl onde o macOS tem ⌘. **Decidido pelo mantenedor em 2026-10-08**,
+     aceitando a recomendação do autor: o instalador põe o `verso.exe` ao
+     lado do `verso-app.exe` (o `externalBin` do Tauri), e o "Adicionar ao
+     Claude" grava o caminho absoluto dele na configuração do Claude
+     Desktop — o caminho da pasta continua não indo a lugar nenhum, só a
+     chave dela. No `PATH` ele ainda não é posto.
 
 ## Consequências
 
