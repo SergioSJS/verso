@@ -107,6 +107,20 @@ fn a_new_name_a_link_cannot_hold_is_not_written_into_links() {
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     ws.index().unwrap();
     for to in ["A|B", "A#B", "x]]y"] {
+        // Windows cannot keep a `|` in a name: refused there before any
+        // plan is made (ADR 0069, item 9).
+        if cfg!(windows) && to.contains('|') {
+            assert!(
+                matches!(
+                    ws.rename_note("Alvo", to),
+                    Err(CoreError::Confined(
+                        verso_core::ConfinementError::WindowsName
+                    ))
+                ),
+                "{to}"
+            );
+            continue;
+        }
         let r = ws.rename_note("Alvo", to).unwrap();
         assert!(r.rewrites.is_empty(), "{to}: {:?}", r.rewrites);
         assert!(
@@ -270,19 +284,9 @@ fn a_rename_that_happened_reports_what_it_could_not_plan_or_confirm() {
     // The index directory cannot take the sidecar: the move is answered,
     // with the sidecar failure as a warning.
     let index_dir = ws.index_path().parent().unwrap().to_path_buf();
-    let chmod = |mode: &str| {
-        assert!(
-            std::process::Command::new("chmod")
-                .arg(mode)
-                .arg(&index_dir)
-                .status()
-                .unwrap()
-                .success()
-        );
-    };
-    chmod("500");
+    crate::shell::unwritable(&index_dir, true);
     let r = ws.rename_entry("mapa.png", "mapa2.png");
-    chmod("700");
+    crate::shell::unwritable(&index_dir, false);
     let r = r.unwrap();
     assert_eq!(r.path, "mapa2.png");
     assert!(

@@ -118,8 +118,13 @@ pub(crate) fn install_cli(replace: bool) -> Result<CliState, ContractError> {
     // Without privileges first: the directory may be the person's own.
     #[cfg(unix)]
     let plain = replace_symlink(&ours, Path::new(CLI_LINK));
+    // The command line on PATH on Windows is an item of the port, not done
+    // yet (ADR 0069, item 9).
     #[cfg(not(unix))]
-    let plain: std::io::Result<()> = Err(std::io::Error::other("no CLI link on this platform"));
+    let plain: std::io::Result<()> = {
+        let _ = &ours;
+        Err(std::io::Error::other("no CLI link on this platform"))
+    };
     if let Err(error) = plain {
         #[cfg(target_os = "macos")]
         {
