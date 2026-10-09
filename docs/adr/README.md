@@ -94,6 +94,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0070](0070-what-travels-with-the-folder.md) | What travels with the folder: three layers of settings, and names every OS can keep | Proposed (2026-10-08); names every OS can keep decided, `\` among them |
 | [0071](0071-linux-port.md) | The Linux port: one build for every distribution, tested on virtual machines | Proposed (2026-10-08); waits ("deixe pra depois"); `[OPEN]`: ARM64, supported versions, two or three machines, the updater, signing, the index's location |
 | [0072](0072-window-controls-in-the-app.md) | The window's controls inside the app: no title bar on macOS and Windows | Accepted (2026-10-08): the app's own buttons on Windows |
+| [0073](0073-self-hosted-server-first.md) | Self-hosted server first: online collaboration before sync | Proposed (2026-10-09); decided: self-hosted first, mobile reached, the Notion/Foundry model as the focus if viable, security in full, a responsive-window investigation, Phase 3 after Linux; proposes to revise 0020, 0021, 0044, 0045, 0050 and 0070 and to supersede 0025 item 3; `[OPEN]`: online-only mobile vs offline earlier, owners per server, finer permissions and history, E2E later, local TLS trust, where the service lives, contract version and server update, board co-editing, account recovery, MCP over the network, Docker platforms, the pre-signed URL as a handle, symlinks on a shared server, remote content per reader, native iPad criteria, cost pass-through |
 
 ### Dialect, engineering and roadmap
 

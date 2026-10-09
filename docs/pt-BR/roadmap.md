@@ -262,4 +262,9 @@ começa agora, no escopo da Fase 2 e à frente do resto do trabalho dela
 fica aqui; como ele seria compilado e testado está proposto no
 [0071](adr/0071-linux-port.md), escrito em 2026-10-08 e esperando.
 
-Ordem entre eles: `[ABERTO]`, menos Windows antes de Linux.
+Ordem entre eles: `[ABERTO]`, menos Windows antes de Linux, e Linux antes do
+servidor. Em 2026-10-09 o mantenedor definiu a Fase 3, a escrever aqui quando
+a Fase 2 fechar, como o app de Linux e depois um servidor auto-hospedado,
+com compartilhamento e edição simultânea como foco se forem viáveis; o como,
+e o sync depois do servidor e por ele, estão propostos no
+[0073](adr/0073-self-hosted-server-first.md).

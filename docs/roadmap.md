@@ -262,4 +262,9 @@ of its work ([0069](adr/0069-windows-port.md), the Phase 2 header above).
 Linux stays here; how it would be built and tested is proposed in
 [0071](adr/0071-linux-port.md), written on 2026-10-08 and waiting.
 
-Order among them: `[OPEN]`, but for Windows before Linux.
+Order among them: `[OPEN]`, but for Windows before Linux, and Linux before
+the server. On 2026-10-09 the maintainer set Phase 3, to be written here when
+Phase 2 closes, as the Linux app and then a self-hosted server, with sharing
+and simultaneous editing as the focus if viable; how, and sync after the
+server and through it, are proposed in
+[0073](adr/0073-self-hosted-server-first.md).
