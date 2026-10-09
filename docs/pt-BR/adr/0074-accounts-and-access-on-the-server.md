@@ -63,8 +63,8 @@ documentação pública deles:
 
 ## Decisão
 
-Proposta. Nada aqui está decidido até o mantenedor dizer (Status); cada item
-nomeia as alternativas consideradas e a recomendação.
+Proposta; o mantenedor decidiu as seis questões em 2026-10-09 (Status), e
+cada item diz o que foi decidido e o que foi pesado.
 
 1. **O primeiro admin vem do ambiente, só na primeira subida.** O
    `verso serve` lê `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD` — ou
@@ -81,12 +81,9 @@ nomeia as alternativas consideradas e a recomendação.
      quem chegar primeiro: imprime uma vez no log um link de configuração
      com um token de uso único, válido por uma hora, e essa página cria o
      admin. Quem consegue ler o log do contêiner é quem roda o servidor.
-   - Alternativas: as variáveis **sempre** valendo (a senha do admin
-     redefinida para a da variável a cada subida — simples para quem opera,
-     e uma senha trocada no app volta no próximo reinício); uma página de
-     configuração **sem token** (rejeitada: o primeiro visitante fica dono
-     do servidor); conta nenhuma, um segredo como admin (o modelo do
-     Vaultwarden: nenhuma identidade a quem dar pastas).
+   - Decidido pelo mantenedor em 2026-10-09: as variáveis são lidas só na
+     primeira subida, com um caminho de volta para um admin que esquece a
+     senha ou perde a conta (item 5).
 2. **O e-mail é o nome da conta, verificado ou não.** Uma conta é um
    endereço de e-mail (sem espaços nas pontas, NFC, em minúsculas para
    comparar, mostrado como digitado), um nome de exibição e uma língua
@@ -113,7 +110,11 @@ nomeia as alternativas consideradas e a recomendação.
    único com um token, válido por sete dias, que o admin copia para mandar
    como quiser (e que o servidor manda por e-mail quando tem servidor de
    e-mail). O convite já pode levar uma pasta e um papel (item 6), para
-   "convidar um jogador para a campanha" ser um passo só.
+   "convidar um jogador para a campanha" ser um passo só. A página de admin
+   lista cada convite com o estado dele — pendente, usado (por quem,
+   quando) ou expirado — e encerra um antes de ser usado; e lista cada
+   conta com o espaço que as pastas dela ocupam e quantas pastas ela tem
+   ([0075](0075-server-packaging-and-storage.md) item 4).
    - Alternativas: uma lista de endereços ou de um domínio que podem se
      cadastrar (útil para uma empresa; acrescenta uma página de cadastro a
      defender); cadastro aberto (rejeitado para um servidor que guarda notas
@@ -122,20 +123,31 @@ nomeia as alternativas consideradas e a recomendação.
    o admin redefine a senha de um membro pela página de admin — o membro
    recebe um link de redefinição de uso único, como um convite; e a conta do
    próprio admin é recuperada por quem roda o servidor, com
-   `verso serve admin reset <e-mail>` rodado dentro do contêiner
-   (`docker exec`), que imprime um link de redefinição. O acesso à máquina é
-   o último fator, como já é para os arquivos.
+   `verso serve admin reset <e-mail>` rodado na máquina ou dentro do
+   contêiner (`docker exec`, o terminal que o CasaOS e o ZimaOS oferecem),
+   que imprime um link de redefinição, encerra as sessões da conta e
+   registra a redefinição no log de auditoria. O acesso à máquina é o
+   último fator, como já é para os arquivos. É o que fazem os serviços
+   auto-hospedados que o mantenedor apontou como a referência ("siga o que
+   a comunidade preferir"): Grafana
+   (`grafana cli admin reset-admin-password`), Gitea
+   (`gitea admin user change-password`), Immich
+   (`immich-admin reset-admin-password`), Nextcloud
+   (`occ user:resetpassword`), Authentik (`ak create_recovery_key`),
+   Keycloak (`kc.sh bootstrap-admin`).
 6. **Dois níveis de papel.** No servidor: **admin** (contas, convites, as
    configurações do servidor) ou **membro**. Por pasta, como o item 5 do
-   0073: **dono**, **editor**, **leitor**. Recomendado: o papel de admin
+   0073: **dono**, **editor**, **leitor**. Decidido: o papel de admin
    **não** dá acesso a toda pasta — um admin que quer entrar numa pasta dá o
    acesso a si mesmo, e a concessão fica no log de auditoria (item 9) para o
    dono da pasta ver. Quem roda o servidor lê o disco de qualquer jeito, e o
    0073 diz isso com essas palavras; o ponto é a interface não mostrar as
    notas de um membro a outro por padrão. Várias contas por servidor (uma
-   família, uma mesa de jogadores, um time) é a recomendação para o
-   `[ABERTO]` do 0073 sobre donos por servidor: o modelo do Foundry que o
-   mantenedor nomeou é um mestre e jogadores num servidor.
+   família, uma mesa de jogadores, um time) respondem o `[ABERTO]` do 0073
+   sobre donos por servidor: o modelo do Foundry que o mantenedor nomeou é
+   um mestre e jogadores num servidor. Criar pastas é uma permissão que o
+   admin concede, desligada para um membro novo, para que um jogador
+   convidado só veja as pastas compartilhadas com ele.
 7. **Sessões no navegador: um token opaco num cookie, guardado no
    servidor.** No login o servidor gera um token aleatório de 256 bits,
    guarda o SHA-256 dele com a conta, o nome do dispositivo e as datas, e
@@ -172,7 +184,8 @@ nomeia as alternativas consideradas e a recomendação.
    quem, quando, de onde — e nunca uma senha, um token ou um link. O dono de
    uma pasta vê as entradas sobre a pasta dele.
 10. **Onde as contas moram.** Num banco SQLite no diretório de dados do
-    servidor (`VERSO_DATA_DIR`, um volume Docker), ao lado — nunca dentro —
+    servidor (`VERSO_DATA_DIR`, num disco local,
+    [0075](0075-server-packaging-and-storage.md) item 3), ao lado — nunca dentro —
     das pastas que ele serve ([0011](0011-config-outside-tree-index-as-cache.md)).
     Diferente do índice, **não é cache**: não é reconstruído a partir dos
     arquivos, e a receita de backup do 0073 o nomeia ao lado das pastas.
@@ -224,9 +237,13 @@ O ambiente do `verso serve`, junto:
 
 ## Alternativas descartadas
 
-- **As variáveis do admin lidas a cada subida** (levantada pelo autor): o
-  item 1 explica por que não é recomendada; segue como opção para o
-  mantenedor.
+- **As variáveis do admin lidas a cada subida** (levantada pelo autor): uma
+  senha trocada no app voltava no próximo reinício; o mantenedor escolheu
+  só a primeira subida.
+- **Uma variável de uso único que redefine o admin, ou um arquivo-gatilho
+  no diretório de dados** (levantados pelo autor, o arquivo a partir do
+  Jellyfin): para um host só com um painel; o mantenedor pediu o que a
+  comunidade faz, que é um comando na máquina.
 - **Uma página de configuração aberta ao primeiro visitante** (levantada
   pelo autor, a partir do Nextcloud e do Jellyfin): o primeiro visitante
   fica dono do servidor.
@@ -239,24 +256,26 @@ O ambiente do `verso serve`, junto:
 
 ## Status
 
-Proposto. Nada está decidido. O mantenedor levantou em 2026-10-09, como a
-direção a pensar, as três coisas da Fonte: um primeiro admin definido pelas
-variáveis de ambiente da imagem quando ela sobe, acesso por e-mail e por
-token, e autenticação a partir do momento em que o Verso roda num
-navegador. O ADR inteiro espera o mantenedor, junto com o
-[0073](0073-self-hosted-server-first.md), depois de uma leitura da Fable 5.1.
-`[ABERTO]` para o mantenedor, com a recomendação primeiro:
+Proposto, decidido em suas partes pelo mantenedor em 2026-10-09; a ser lido
+pela Fable 5.1 e aceito junto com o
+[0073](0073-self-hosted-server-first.md). O mantenedor levantou as três
+coisas da Fonte, depois respondeu cada questão:
 
-1. As variáveis do admin: lidas só na primeira subida (recomendado), ou a
-   cada subida.
-2. O login na primeira versão: senha e chaves de acesso, links por e-mail
-   quando houver servidor de e-mail (recomendado); ou só senha; ou OpenID
-   Connect desde o início.
-3. Quem ganha conta: só convite pelo admin (recomendado); ou também uma
-   lista de endereços ou um domínio.
-4. O admin e as pastas: sem acesso implícito, uma autoconcessão registrada
-   no log (recomendado); ou o admin lê toda pasta.
-5. Várias contas por servidor (recomendado, o `[ABERTO]` do 0073 sobre
-   donos); ou um dono e convidados.
-6. Tokens de acesso pessoal com escopo por pasta e por leitura ou escrita,
-   e o app desktop entrando pelo navegador (recomendado).
+1. O primeiro admin a partir do ambiente, **só na primeira subida**, com
+   um caminho de volta para um admin perdido; o caminho de volta "como a
+   comunidade preferir": um comando na máquina (item 5).
+2. Login: senha e chaves de acesso, links por e-mail com servidor de
+   e-mail; OpenID Connect depois (item 3) — "ok pode seguir".
+3. Convite só pelo admin, com uma expiração e o uso dele acompanhado, e a
+   página de admin mostrando o que cada conta ocupa e quantas pastas tem
+   (item 4).
+4. O admin não tem acesso implícito às pastas; uma autoconcessão fica
+   registrada no log (item 6).
+5. Várias contas por servidor; criar pastas concedido pelo admin
+   (item 6).
+6. Tokens de acesso pessoal com escopo por pasta e por leitura ou escrita;
+   o app desktop entra pelo navegador (item 8).
+
+Onde o servidor guarda os dados, como é instalado, o espaço que cada pasta
+ocupa e quais pastas são sincronizadas:
+[0075](0075-server-packaging-and-storage.md).

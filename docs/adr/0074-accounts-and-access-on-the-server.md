@@ -62,8 +62,8 @@ public documentation:
 
 ## Decision
 
-Proposed. Nothing here is decided until the maintainer says so (Status);
-each item names the alternatives considered and the recommendation.
+Proposed; the maintainer decided the six questions on 2026-10-09
+(Status), and each item says what was decided and what was weighed.
 
 1. **The first admin comes from the environment, on the first start
    only.** `verso serve` reads `VERSO_ADMIN_EMAIL` and
@@ -80,12 +80,9 @@ each item names the alternatives considered and the recommendation.
      single-use token, valid for one hour, and that page creates the
      admin. Whoever can read the container's log is whoever runs the
      server.
-   - Alternatives: the variables **always** authoritative (the admin's
-     password reset to the variable's on every start — simple for an
-     operator, and a password changed in the app comes back on the next
-     restart); a setup page **with no token** (rejected: the first visitor
-     owns the server); no account at all, a secret as the admin
-     (Vaultwarden's model: no identity to grant folders to).
+   - Decided by the maintainer on 2026-10-09: the variables are read on the
+     first start only, with a way back for an admin who forgets the
+     password or loses the account (item 5).
 2. **The e-mail is the account's name, verified or not.** An account is an
    e-mail address (trimmed, NFC, lower-cased for comparison, shown as
    typed), a display name and a language (pt-BR or English,
@@ -112,7 +109,11 @@ each item names the alternatives considered and the recommendation.
    that the admin copies to send however they like (and that the server
    e-mails when it has a mail server). The invitation can already carry a
    folder and a role (item 6), so "invite a player to the campaign" is
-   one step.
+   one step. The admin page lists each invitation with its state —
+   pending, used (by whom, when) or expired — and ends one before it is
+   used; and it lists each account with the space its folders take and
+   how many folders it owns ([0075](0075-server-packaging-and-storage.md)
+   item 4).
    - Alternatives: an allowlist of addresses or of a domain that may sign
      up (useful for a company; adds a sign-up page to defend); open
      registration (rejected for a server holding private notes).
@@ -120,21 +121,30 @@ each item names the alternatives considered and the recommendation.
    admin resets a member's password from the admin page — the member gets
    a reset link to use once, like an invitation; and the admin's own
    account is recovered by whoever runs the server, with
-   `verso serve admin reset <e-mail>` run inside the container
-   (`docker exec`), which prints a reset link. Access to the machine is
-   the last factor, as it already is for the files.
+   `verso serve admin reset <e-mail>` run on the machine or inside the
+   container (`docker exec`, the terminal CasaOS and ZimaOS offer), which
+   prints a reset link, ends the account's sessions and writes the reset
+   in the audit log. Access to the machine is the last factor, as it
+   already is for the files. This is what the self-hosted services the
+   maintainer pointed to as the reference do ("siga o que a comunidade
+   preferir"): Grafana (`grafana cli admin reset-admin-password`), Gitea
+   (`gitea admin user change-password`), Immich
+   (`immich-admin reset-admin-password`), Nextcloud
+   (`occ user:resetpassword`), Authentik (`ak create_recovery_key`),
+   Keycloak (`kc.sh bootstrap-admin`).
 6. **Two levels of role.** On the server: **admin** (accounts,
    invitations, the server's settings) or **member**. Per folder, as 0073
-   item 5: **owner**, **editor**, **reader**. Recommended: the admin role
+   item 5: **owner**, **editor**, **reader**. Decided: the admin role
    **does not** give access to every folder — an admin who wants into a
    folder grants it to themselves, and the grant is in the audit log
    (item 9) for the folder's owner to see. Whoever runs the server reads
    the disk anyway, and 0073 says so in those words; the point is that the
    interface does not show one member's notes to another by default.
-   Several accounts per server (a family, a table of players, a team) is
-   the recommendation for 0073's `[OPEN]` on owners per server: the
-   Foundry model the maintainer named is a game master and players on one
-   server.
+   Several accounts per server (a family, a table of players, a team)
+   answers 0073's `[OPEN]` on owners per server: the Foundry model the
+   maintainer named is a game master and players on one server. Creating
+   folders is a permission the admin grants, off for a new member, so an
+   invited player only sees the folders shared with them.
 7. **Sessions in the browser: an opaque token in a cookie, kept on the
    server.** On sign-in the server makes a random 256-bit token, stores
    its SHA-256 with the account, the device's name and the dates, and
@@ -170,7 +180,8 @@ each item names the alternatives considered and the recommendation.
    a token or a link. The owner of a folder sees the entries about their
    folder.
 10. **Where accounts live.** In a SQLite database in the server's data
-    directory (`VERSO_DATA_DIR`, a Docker volume), beside — never inside —
+    directory (`VERSO_DATA_DIR`, on a local disk,
+    [0075](0075-server-packaging-and-storage.md) item 3), beside — never inside —
     the folders it serves ([0011](0011-config-outside-tree-index-as-cache.md)).
     Unlike the index, it is **not a cache**: it is not rebuilt from the
     files, and the backup recipe of 0073 names it beside the folders. No
@@ -222,8 +233,12 @@ The environment of `verso serve`, together:
 ## Discarded alternatives
 
 - **The admin's variables read on every start** (raised by the author):
-  item 1 explains why it is not recommended; it stays an option for the
-  maintainer.
+  a password changed in the app came back on the next restart; the
+  maintainer chose the first start only.
+- **A one-shot variable that resets the admin, or a trigger file in the
+  data directory** (raised by the author, the file from Jellyfin): for a
+  host with only a panel; the maintainer asked for what the community
+  does, which is a command on the machine.
 - **A setup page open to the first visitor** (raised by the author, from
   Nextcloud and Jellyfin): the first visitor owns the server.
 - **Open registration** (raised by the author): a server of private notes
@@ -235,24 +250,26 @@ The environment of `verso serve`, together:
 
 ## Status
 
-Proposed. Nothing is decided. The maintainer raised on 2026-10-09, as the
-direction to think through, the three things in the Source: a first admin
-defined by the image's environment variables when it starts, access by
-e-mail and by token, and authentication from the moment Verso runs in a
-browser. The whole ADR waits for the maintainer, together with
-[0073](0073-self-hosted-server-first.md), on a reading by Fable 5.1.
-`[OPEN]` for the maintainer, with the recommendation first:
+Proposed, decided in its parts by the maintainer on 2026-10-09; to be
+read by Fable 5.1 and accepted together with
+[0073](0073-self-hosted-server-first.md). The maintainer raised the three
+things in the Source, then answered each question:
 
-1. The admin's variables: read on the first start only (recommended), or
-   on every start.
-2. Sign-in in the first version: password and passkeys, e-mail links when
-   there is a mail server (recommended); or password only; or OpenID
-   Connect from the start.
-3. Who gets an account: invitation by the admin only (recommended); or
-   also an allowlist of addresses or a domain.
-4. The admin and the folders: no implicit access, a self-grant that is
-   logged (recommended); or the admin reads every folder.
-5. Several accounts per server (recommended, 0073's `[OPEN]` on owners);
-   or one owner and guests.
-6. Personal access tokens scoped by folder and by read or write, and the
-   desktop app signing in through the browser (recommended).
+1. The first admin from the environment, **on the first start only**,
+   with a way back for a lost admin; the way back "as the community
+   prefers": a command on the machine (item 5).
+2. Sign-in: password and passkeys, e-mail links with a mail server; OpenID
+   Connect later (item 3) — "ok pode seguir".
+3. Invitation by the admin only, with an expiry and its use tracked, and
+   the admin page showing what each account takes and how many folders it
+   has (item 4).
+4. The admin has no implicit access to the folders; a self-grant is
+   logged (item 6).
+5. Several accounts per server; creating folders granted by the admin
+   (item 6).
+6. Personal access tokens scoped by folder and by read or write; the
+   desktop app signs in through the browser (item 8).
+
+Where the server keeps its data, how it is installed, the space each
+folder takes and which folders are synced:
+[0075](0075-server-packaging-and-storage.md).
