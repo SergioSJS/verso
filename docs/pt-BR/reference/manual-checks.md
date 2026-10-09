@@ -103,6 +103,44 @@ app real.
   nova na hora, sem tela antiga; o leitor de PDF e um board continuam
   abrindo.
 
+### A janela em toda tela (ADR 0076)
+
+No celular e no iPad do mantenedor, a janela do servidor no navegador
+(feat/web). O Playwright não move dedo no WebKit nem abre o teclado do
+sistema, e uma página não sabe se um leitor de tela está ligado: isto só
+se vê aqui. Antes de o servidor ser anunciado (ADR 0073 item 6).
+
+- [ ] **VoiceOver no iPhone** (ADR 0076 item 9; ADR 0035 item 2): deslize
+  pela barra de baixo — cinco botões, cada um com nome (Arquivos, Buscar,
+  Nova nota, Voltar, Comandos); abra a gaveta e chegue a uma linha, depois
+  ao "…" dela ("Mais ações: …"); tocar duas vezes e segurar numa linha
+  abre o menu; no Editar, um toque duplo num link e o cartão depois do
+  texto ("Link: …") com Abrir e Editar link; a barra do teclado chamada
+  "Ferramentas de escrita"; numa pasta de quem só lê, "Você só lê esta
+  pasta" lido em voz alta.
+- [ ] **VoiceOver no iPad**, em pé e deitado: o mesmo; acima de 760 px a
+  fita e as áreas divididas ficam; os controles do grafo ao lado dele
+  deitado, atrás de "Ajustes do grafo" numa área abaixo de 520 px.
+- [ ] **TalkBack no Android** (Chrome): os mesmos passos; o tocar duas
+  vezes e segurar do TalkBack abre o menu de uma linha (o `contextmenu` do
+  próprio Android).
+- [ ] **Segurar no iOS**: uma linha segurada e solta abre o menu; segurada
+  e movida, arrasta para uma pasta; deslizar rola a árvore e não move
+  nada. Um cartão do kanban segurado: o menu, com "Mover para a coluna…";
+  deslizar no quadro passa uma coluna por vez.
+- [ ] **O teclado na tela** no iPhone e no Android: no Editar, o menu `/`,
+  as sugestões de link depois de `[[`, o seletor de figurinhas e o menu de
+  uma aba abrem acima do teclado; o cursor fica acima dele, também na
+  última linha da nota; a barra do teclado fica sobre o teclado, e os
+  botões dela não fecham o teclado (menos "Esconder o teclado").
+- [ ] **O entalhe e os cantos**: um iPhone com entalhe, em pé e deitado —
+  nada sob o entalhe nem nos cantos arredondados; a barra de baixo acima
+  do indicador de início.
+- [ ] **A pinça**: sobre o texto a página inteira amplia (e volta); sobre o
+  grafo, um board e um PDF, só eles ampliam.
+- [ ] **Números de linha**: no celular, uma nota no Fonte não tem; ligados
+  em Ajustes › Editor, aparecem.
+
 ## Para reproduzir
 
 Relatados no backlog, mudados desde então, mas sem teste que os cubra; se

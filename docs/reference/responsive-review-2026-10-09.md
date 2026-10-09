@@ -72,6 +72,31 @@ is the ADR's to make:
   new window", "Copy full path") — for the server's capabilities
   ([ADR 0027](../adr/0027-runtime-capabilities.md)).
 
+## Built from ADR 0076
+
+[ADR 0076](../adr/0076-the-window-on-every-screen.md), accepted on
+2026-10-09 with every recommendation, made the choices above; all of them
+are built on the branch `feat/web`, and the e2e suite runs the tests tagged
+`@layout` at 390 × 844 (WebKit), 412 × 915 (Chromium, touch) and 820 × 1180
+(WebKit) besides the desktop's size.
+
+| Left above | Built | Seen by |
+|---|---|---|
+| Split panes on a phone | under 760 px one pane at a time, a switcher in the tab bar, the layout kept for a wider window; the split commands absent; a pane under 520 px folds its tools into "…"; the pane decides its content by container queries (520 and 820 px) | `responsive.spec.mjs` |
+| The graph | its controls a panel closed by default under 760 px or in a pane under 520 px; pinch and two-finger pan by pointer events; help for touch or mouse | `responsive.spec.mjs` |
+| Following a link in Edit mode | a tap places the cursor; a card beside the link offers Open and Edit link | `responsive.spec.mjs` |
+| The kanban | a card moves after a long press, a swipe scrolls; a column per screen under 760 px (scroll snap); "Move to column…" in the card's menu | `responsive.spec.mjs` |
+| The ribbon and the status bar on a phone | under 760 px a bottom bar of five verbs over the safe area; a failure said at the top of the pane; the server's notices at the top; line numbers in Source off unless chosen | `responsive.spec.mjs` |
+| The on-screen keyboard | every floating surface placed against the visual viewport; the cursor kept above the keyboard; a toolbar above it (undo, redo, indent, outdent, `[[`, `/`, hide; its contents `[OPEN]` after use) | `responsive.spec.mjs` (the system's keyboard stood in for) |
+| Screen readers with touch | a visible "…" beside the row in front, the pane's "…" reaching the tab's menu, a card's "…"; the long press prevents nothing | `responsive.spec.mjs`; the passes with VoiceOver and TalkBack in `manual-checks.md` |
+| Modifier keys and double clicks | "Select" in a row's menu, a selection mode with a bar; "Keep open" in a tab's menu; "Open" in a note's menu | `responsive.spec.mjs` |
+| Text, safe areas, the page's zoom | rows of 44 px under 760 px, 40 px on a tablet; 12 px at least on a touch screen; `viewport-fit=cover` and the frame inside the safe areas; the page's pinch kept, the graph and a PDF taking it for themselves | `responsive.spec.mjs` |
+| Menu items that mean nothing in a browser | absent by the capabilities; "Copy link" and "Open in a new browser tab" on a server; a web page in a frame; a reader's window read-only | `capabilities.spec.mjs` |
+
+Not seen by machine: a long press on iOS, the system's keyboard, the
+notch, VoiceOver and TalkBack — `manual-checks.md`, "The window on every
+screen".
+
 ## What already worked
 
 The drawer under 760 px opens and closes as it should; the right side bar
