@@ -24,7 +24,7 @@
   configuration outside the folder), [0012](0012-files-are-source-of-truth.md),
   [0051](0051-development-flow-and-releases.md) (the release workflow),
   [0055](0055-in-app-updater.md) (signed updates).
-- Status in the briefing: not present; accepted together with 0073.
+- Status in the briefing: not present; on acceptance, together with 0073.
 
 ## Context
 
@@ -79,8 +79,11 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
      admin page that the databases may be corrupted there.
    - `VERSO_FOLDERS_DIR`: the root under which the folders of notes live —
      which **may** be a NAS. The admin creates or opens folders only under
-     it, and a path that leaves it is refused, the same confinement
-     `verso-fs` applies inside a folder. On a network file system the
+     it, and a path given for a folder that leaves it is refused — a check
+     of the path as given: a symlink inside a folder that points out of it
+     is followed today ([0044](0044-verso-fs-semantics.md)), and whether a
+     shared server refuses it is 0073's `[OPEN]`, still open here. On a
+     network file system the
      server watches by scanning (every 30 seconds, as 0071) instead of
      waiting for events that never come, and says so on the folder's page.
    Backing up the server is backing up these two directories, and the
@@ -150,4 +153,5 @@ sync per folder, off by default (item 5, "A"); the server's ARM64 now
 (item 2, "agora!"); the image on GitHub's registry (Consequences, "pode
 publicar no próprio github"). To be read by Fable 5.1 and accepted with
 [0073](0073-self-hosted-server-first.md). `[OPEN]`: the update path of a
-server ([0073](0073-self-hosted-server-first.md)).
+server, and symlinks that leave a folder on a shared server (item 3), both
+0073's.

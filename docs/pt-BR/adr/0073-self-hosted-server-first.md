@@ -65,6 +65,14 @@
   cada um uma linha de Revisões datada com o texto antigo mantido, como o
   0022 e o 0044 têm, e o `docs/reference/app-decision.md` §7 com eles. Até lá
   cada um deles fica como está, e o briefing também.
+- Revisões: 2026-10-09 — três `[ABERTO]` do Status respondidos pelo
+  mantenedor e registrados onde a resposta mora: recuperação de conta sem
+  servidor de e-mail (um comando na máquina,
+  [0074](0074-accounts-and-access-on-the-server.md) item 5), donos por
+  servidor (várias contas, 0074 item 6), as plataformas da imagem Docker
+  (amd64 e arm64, [0075](0075-server-packaging-and-storage.md) item 2).
+  O "nome de usuário" do item 5 é refinado pelo 0074 item 2 (o e-mail,
+  proposto). O Status mantém as perguntas, marcadas como respondidas.
 
 ## Contexto
 
@@ -192,7 +200,7 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    oferece; OIDC depois), sessões por token com expiração e revogação, e por
    pasta os papéis dono, editor, leitor, dados por link de convite que
    expira ou pelo dono; recuperação de conta sem servidor de e-mail é
-   `[ABERTO]`. O item que o [0045](0045-server-and-mcp-security.md) deixou
+   `[ABERTO]` (respondido em 2026-10-09, Revisões). O item que o [0045](0045-server-and-mcp-security.md) deixou
    aberto — identidade de sessão e autorização por operação no contrato —
    propõe-se construí-lo aqui, e ele segue `[ABERTO]` lá até este ADR ser
    aceito:
@@ -402,15 +410,16 @@ aceitar depois de uma leitura da Opus 5.5 ([0032](0032-author-and-reviewer-roles
 `[ABERTO]`: se o celular no navegador, só online, atende ao sync com celular
 que o mantenedor chamou de imprescindível, ou se o offline no celular vem
 mais cedo no item 12; um dono por servidor ou vários (uma família, um time)
-— molda o modelo de contas; permissões mais finas que a pasta (por nota ou
+— molda o modelo de contas (respondido, Revisões); permissões mais finas que a pasta (por nota ou
 por bloco, Q9 da spec), e histórico, atribuição e recuperação de uma
 mudança ou exclusão de outro membro; se um servidor de uma pessoa só pode
 optar por criptografia ponta a ponta depois; como o navegador de um celular
 confia no certificado do servidor local; onde moram a tabela de sessões e o
 despacho do serviço ([0028](0028-crate-structure.md)); como cliente e
 servidor acertam a versão do contrato, e como o servidor é atualizado; a
-coedição do board; recuperação de conta sem servidor de e-mail; o transporte
-e a autorização do MCP pela rede; as plataformas da imagem Docker; se a URL
+coedição do board; recuperação de conta sem servidor de e-mail (respondido,
+Revisões); o transporte e a autorização do MCP pela rede; as plataformas da
+imagem Docker (respondido, Revisões); se a URL
 pré-assinada do item 4 é o handle opaco da regra 4 ou precisa de emenda ao
 [0026](0026-core-ui-contract-inviolable-rules.md); symlinks num servidor com
 membros além do dono; conteúdo remoto e origens de embed aprovadas como
