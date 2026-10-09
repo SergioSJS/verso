@@ -12,7 +12,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 12;
+pub(crate) const VERSION: i64 = 13;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -48,14 +48,14 @@ CREATE TABLE notes (
     pinned_items TEXT,
     type      TEXT,                       -- the frontmatter's `type`, when it is one text, as written (ADR 0052)
     type_key  TEXT,                       -- the same, folded as Q12 folds a note's name
-    -- When the row was last known to match the disk: the start of the index
-    -- run that read the note (seconds), 0 when written outside a run. A note
-    -- modified at least 2 s before it is trusted by its modified time and
-    -- length alone, without reading it (as git trusts its index).
+    -- The start of the index run that last read the note (seconds), 0 when
+    -- written outside a run. Trust by stat goes by `meta.verified_from`,
+    -- one date for the whole index (version 13), not by this column.
     indexed_at INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX notes_path_key ON notes(path_key);
 CREATE INDEX notes_name_key ON notes(name_key);
+CREATE INDEX notes_stat ON notes(path, modified, len, hash, unverified);
 CREATE TABLE headings (
     note  INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
     level INTEGER NOT NULL,
@@ -126,16 +126,19 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     // was last known to match the disk —
     // and every note read from disk is read
     // again on the next walk, for what the new columns hold; a placeholder
-    // keeps what it had.
+    // keeps what it had. 13 adds an index and reads nothing again.
     if has_meta
         && matches!(
             meta("schema").and_then(|v| v.parse::<i64>().ok()),
-            Some(6..=11)
+            Some(6..=12)
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
         conn.execute_batch("BEGIN;")?;
-        if let Err(e) = carry_over(conn) {
+        let from = meta("schema")
+            .and_then(|v| v.parse::<i64>().ok())
+            .unwrap_or(0);
+        if let Err(e) = carry_over(conn, from) {
             // Nothing half done stays: the transaction goes, the error is
             // the caller's.
             let _ = conn.execute_batch("ROLLBACK;");
@@ -163,10 +166,11 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     Ok(())
 }
 
-/// The columns a version 6 to 11 index lacks, added in place, and every
-/// note read from disk marked to be read again; inside the caller's
-/// transaction.
-fn carry_over(conn: &Connection) -> Result<(), rusqlite::Error> {
+/// The columns a version 6 to 12 index lacks, added in place, and — below
+/// version 12 — every note read from disk marked to be read again; inside
+/// the caller's transaction. Version 13 adds only indexes: nothing is read
+/// again for it.
+fn carry_over(conn: &Connection, from: i64) -> Result<(), rusqlite::Error> {
     let has_column = |table: &str, col: &str| -> Result<bool, rusqlite::Error> {
         conn.query_row(
             &format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name = ?1"),
@@ -203,8 +207,20 @@ fn carry_over(conn: &Connection) -> Result<(), rusqlite::Error> {
          CREATE INDEX IF NOT EXISTS schemas_note ON schemas(note);
          CREATE INDEX IF NOT EXISTS schemas_name_key ON schemas(name_key);",
     )?;
+    // Version 13: what each note's stat check reads, in an index of its
+    // own — `unverified` sits after `content` in a row, so read from the
+    // table it costs a walk through the whole text of the note — and the
+    // date a note must be older than to be trusted, one for the whole
+    // index (`meta.verified_from`, written by a complete run).
     conn.execute_batch(
-        "UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;
-         UPDATE meta SET value = '12' WHERE key = 'schema';",
-    )
+        "CREATE INDEX IF NOT EXISTS notes_stat ON notes(path, modified, len, hash, unverified);",
+    )?;
+    if from < 12 {
+        conn.execute_batch("UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;")?;
+    }
+    conn.execute(
+        "UPDATE meta SET value = ?1 WHERE key = 'schema'",
+        [VERSION.to_string()],
+    )?;
+    Ok(())
 }

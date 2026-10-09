@@ -84,64 +84,84 @@ fn put_at(index: &mut Index, path: &str, modified: i64) -> Result<(), IndexError
     index.upsert(path, stamp, text, &verso_dialect::parse(text))
 }
 
-/// A note modified well before the run that read it is trusted by its
-/// modified time and length; one modified in the same second is read again
-/// (a change in that second could keep both), and so is one written
-/// outside a run, until a run reads it and finds it unchanged.
+/// A note is trusted by its stat only in a run, when it was modified at
+/// least 2 s before the last complete run began and its time and length
+/// are the index's; a note modified later — even one read in that run — is
+/// read again, as is any note before a run has completed.
 #[test]
-fn a_note_is_trusted_by_its_stat_only_when_modified_before_its_read() {
+fn a_note_is_trusted_by_its_stat_only_when_modified_before_the_last_complete_run() {
     let mut index = Index::in_memory().unwrap();
     let old = now() - 100;
     index.begin().unwrap();
     put_at(&mut index, "velha.md", old).unwrap();
     put_at(&mut index, "agora.md", now()).unwrap();
+    // No run has completed yet: nothing is trusted.
+    assert!(!index.unchanged_by_stat("velha.md", old, 7).unwrap());
+    index.complete().unwrap();
     index.commit().unwrap();
+    // Outside a run, nothing is trusted either.
+    assert!(!index.unchanged_by_stat("velha.md", old, 7).unwrap());
+
+    index.begin().unwrap();
     assert!(index.unchanged_by_stat("velha.md", old, 7).unwrap());
     assert!(!index.unchanged_by_stat("velha.md", old, 8).unwrap());
     assert!(!index.unchanged_by_stat("velha.md", old + 1, 7).unwrap());
     assert!(!index.unchanged_by_stat("agora.md", now(), 7).unwrap());
     assert!(!index.unchanged_by_stat("ausente.md", old, 7).unwrap());
-
-    // Written outside a run (Verso's own save): read again once.
-    put_at(&mut index, "salva.md", old).unwrap();
-    assert!(!index.unchanged_by_stat("salva.md", old, 7).unwrap());
-    index.begin().unwrap();
-    index.confirm("salva.md", Some(old)).unwrap();
-    index.commit().unwrap();
-    assert!(index.unchanged_by_stat("salva.md", old, 7).unwrap());
-
-    // One modified within the run's last 2 s stays racy: confirming it
-    // would buy the next run nothing, so nothing is written.
-    let fresh = now();
-    put_at(&mut index, "fresca.md", fresh).unwrap();
-    index.begin().unwrap();
-    index.confirm("fresca.md", Some(fresh)).unwrap();
-    index.commit().unwrap();
-    assert!(!index.unchanged_by_stat("fresca.md", fresh, 7).unwrap());
-
     // A placeholder's last known version is never trusted by its stat.
     assert!(index.mark_placeholder("velha.md").unwrap());
     assert!(!index.unchanged_by_stat("velha.md", old, 7).unwrap());
+    index.commit().unwrap();
 }
 
-/// A clock set back (a restored virtual machine) leaves a row vouched for
-/// in the future: the next run reads it again instead of trusting it.
+/// A row written outside a run (Verso's own save) is trusted only after a
+/// complete run that began at least 2 s after its modified time.
 #[test]
-fn a_row_vouched_for_in_the_future_is_read_again() {
+fn a_row_written_outside_a_run_waits_for_a_complete_run() {
+    let mut index = Index::in_memory().unwrap();
+    let old = now() - 100;
+    put_at(&mut index, "salva.md", old).unwrap();
+    index.begin().unwrap();
+    assert!(!index.unchanged_by_stat("salva.md", old, 7).unwrap());
+    index.complete().unwrap();
+    index.commit().unwrap();
+    index.begin().unwrap();
+    assert!(index.unchanged_by_stat("salva.md", old, 7).unwrap());
+    index.commit().unwrap();
+}
+
+/// A run that does not complete (a folder it could not list) changes
+/// nothing of what the next run trusts.
+#[test]
+fn a_run_that_does_not_complete_trusts_nothing_new() {
+    let mut index = Index::in_memory().unwrap();
+    let old = now() - 100;
+    index.begin().unwrap();
+    put_at(&mut index, "nota.md", old).unwrap();
+    index.commit().unwrap();
+    index.begin().unwrap();
+    assert!(!index.unchanged_by_stat("nota.md", old, 7).unwrap());
+    index.commit().unwrap();
+}
+
+/// A clock set back (a restored virtual machine) leaves the last complete
+/// run in the future: the next run trusts nothing by its stat.
+#[test]
+fn a_complete_run_in_the_future_trusts_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("index.sqlite");
     let mut index = Index::open(&file).unwrap();
     let old = now() - 100;
     index.begin().unwrap();
     put_at(&mut index, "nota.md", old).unwrap();
+    index.complete().unwrap();
     index.commit().unwrap();
     let raw = rusqlite::Connection::open(&file).unwrap();
     raw.execute(
-        "UPDATE notes SET indexed_at = ?1 WHERE path = 'nota.md'",
-        [now() + 3600],
+        "UPDATE meta SET value = ?1 WHERE key = 'verified_from'",
+        [(now() + 3600).to_string()],
     )
     .unwrap();
-    assert!(index.unchanged_by_stat("nota.md", old, 7).unwrap());
     index.begin().unwrap();
     assert!(!index.unchanged_by_stat("nota.md", old, 7).unwrap());
     index.commit().unwrap();
