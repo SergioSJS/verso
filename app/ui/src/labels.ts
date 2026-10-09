@@ -5,8 +5,9 @@
 // Labels (ADR 0060 S1): sticker, color, cover banner and banner_y rendering
 // and picker. Supports make.md's `emoji//<hex>` and `lucide//<icon>` formats.
 
-import emojiList from "./emoji-data.json";
 import lucideNodes from "lucide-static/icon-nodes.json";
+import emojiList from "./emoji-data.json";
+import { placeInView } from "./screen/viewport";
 
 export type EmojiEntry = {
   c: string; // unicode character
@@ -398,22 +399,13 @@ export function showStickerPicker(opts: PickerOptions): () => void {
   if (footer.children.length > 0) popover.append(footer);
   document.body.appendChild(popover);
 
-  // Position popover
-  if (opts.anchorEl) {
-    const rect = opts.anchorEl.getBoundingClientRect();
-    let top = rect.bottom + 6;
-    let left = rect.left;
-    if (left + 320 > window.innerWidth) left = window.innerWidth - 330;
-    if (top + 360 > window.innerHeight) top = rect.top - 366;
-    popover.style.top = `${Math.max(10, top)}px`;
-    popover.style.left = `${Math.max(10, left)}px`;
-  } else if (opts.x !== undefined && opts.y !== undefined) {
-    let top = opts.y + 6;
-    let left = opts.x;
-    if (left + 320 > window.innerWidth) left = window.innerWidth - 330;
-    if (top + 360 > window.innerHeight) top = opts.y - 366;
-    popover.style.top = `${Math.max(10, top)}px`;
-    popover.style.left = `${Math.max(10, left)}px`;
+  // Inside what the screen shows — on a phone, above the on-screen
+  // keyboard (ADR 0076 item 7) — under the anchor, or above it.
+  const at = opts.anchorEl ? opts.anchorEl.getBoundingClientRect() : opts.x !== undefined && opts.y !== undefined ? { left: opts.x, top: opts.y, bottom: opts.y } : null;
+  if (at) {
+    const { left, top } = placeInView(at.left, at.bottom + 6, popover.offsetWidth || 320, popover.offsetHeight || 360, at.top);
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
   }
 
   const onDocMouseDown = (e: MouseEvent) => {

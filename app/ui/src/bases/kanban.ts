@@ -166,7 +166,7 @@ export function renderKanban(ctx: RenderCtx): HTMLElement {
     title.id = `base-col-${Math.random().toString(36).slice(2, 9)}`;
     colEl.setAttribute("aria-labelledby", title.id);
     head.append(title, h("span", "base-group-count", String(col.rows.length)));
-    if (key) {
+    if (key && !host.readOnly?.()) {
       const plus = h("button", "base-tool");
       plus.type = "button";
       plus.append(icon("plus"));
@@ -193,7 +193,24 @@ export function renderKanban(ctx: RenderCtx): HTMLElement {
     for (const row of col.rows) {
       const li = h("li");
       const c = card(ctx, row, skip);
-      if (key && row.note) {
+      // A reader on a server moves no card (ADR 0076 item 11).
+      const movable = Boolean(key && row.note && !host.readOnly?.());
+      const others = columns.filter((x) => x !== col);
+      const moveMenu = (x: number, y: number): void =>
+        host.menu(x, y, others.map((o) => [s.moveCard(o.raw === "" ? s.noneColumn : cellText(o.key, host)), () => void move(row, o)] as [string, () => void]));
+      // The card's own menu — the right click, a long press on a touch
+      // screen: open it, or move it without dragging, for a screen reader
+      // and a long board (ADR 0076 item 5).
+      c.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        const x = e.clientX;
+        const y = e.clientY;
+        host.menu(x, y, [
+          [s.openCard, () => host.open(row.path, false)],
+          ...(movable ? [[s.moveToColumn, () => moveMenu(x, y)] as [string, () => void]] : []),
+        ]);
+      });
+      if (movable) {
         c.classList.add("movable");
         draggable(c, {
           label: () => titleOf(ctx, row),
@@ -212,11 +229,7 @@ export function renderKanban(ctx: RenderCtx): HTMLElement {
         more.addEventListener("click", (e) => {
           e.stopPropagation();
           const r = more.getBoundingClientRect();
-          host.menu(
-            r.left,
-            r.bottom + 2,
-            columns.filter((x) => x !== col).map((x) => [s.moveCard(x.raw === "" ? s.noneColumn : cellText(x.key, host)), () => void move(row, x)] as [string, () => void]),
-          );
+          moveMenu(r.left, r.bottom + 2);
         });
         c.append(more);
       }

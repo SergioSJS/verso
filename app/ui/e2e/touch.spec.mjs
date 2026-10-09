@@ -7,8 +7,22 @@
 
 import { test, expect } from "./fixtures.mjs";
 
-// Tall enough that the whole tree fits: rows are taller for a finger.
-test.use({ hasTouch: true, viewport: { width: 1280, height: 1600 } });
+// Tall enough that the whole tree fits: rows are taller for a finger. At
+// a phone's size (ADR 0076 item 13, the `@layout` projects) the project's
+// own window, the tree in its drawer.
+test.use({ hasTouch: true });
+test.beforeEach(async ({ page }) => {
+  if (page.viewportSize().width >= 760) await page.setViewportSize({ width: 1280, height: 1600 });
+});
+
+/** The drawer open on a phone, so that the tree can be touched. */
+async function tree(page) {
+  if (page.viewportSize().width >= 760) return;
+  await page.locator(".bottom-bar .bar-files").click();
+  await expect(page.locator("body.side-open")).toHaveCount(1);
+  // Still: a finger lands where the row is once the drawer has slid in.
+  await page.locator("aside.side").evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
+}
 
 const NOTE = "03 - Propriedades e Metadados.md";
 
@@ -29,11 +43,13 @@ async function finger(page, x, y, path, holdMs = 0) {
   return last;
 }
 
-test.beforeEach(({ browserName }) => test.skip(browserName !== "chromium", "touch moves need Chromium's DevTools protocol"));
+test.skip(({ browserName }) => browserName !== "chromium", "touch moves need Chromium's DevTools protocol");
 
-test("a swipe on a row scrolls the tree and moves nothing", async ({ app, page }) => {
+test("a swipe on a row scrolls the tree and moves nothing @layout", async ({ app, page }) => {
   await app.open();
+  await tree(page);
   const row = page.locator(`#notes li[data-path="${NOTE}"] button`).first();
+  await row.scrollIntoViewIfNeeded();
   const box = await row.boundingBox();
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
@@ -45,19 +61,26 @@ test("a swipe on a row scrolls the tree and moves nothing", async ({ app, page }
   await expect(page.locator(".plan:not([hidden])")).toHaveCount(0);
 });
 
-test("a long press and a lift on a row open its menu", async ({ app, page }) => {
+test("a long press and a lift on a row open its menu @layout", async ({ app, page }) => {
   await app.open();
+  await tree(page);
   const row = page.locator(`#notes li[data-path="${NOTE}"] button`).first();
+  await row.scrollIntoViewIfNeeded();
   const box = await row.boundingBox();
   await finger(page, box.x + box.width / 2, box.y + box.height / 2, [], 700);
   await expect(page.locator(".menu:not([hidden])")).toBeVisible();
   await expect(page.locator(".menu:not([hidden])")).toContainText("Renomear");
 });
 
-test("a long press and a move drag the row into a folder", async ({ app, page }) => {
+test("a long press and a move drag the row into a folder @layout", async ({ app, page }) => {
   await app.open();
+  await tree(page);
   const row = page.locator(`#notes li[data-path="${NOTE}"] button`).first();
+  // The folder at the top of the tree's view, the note below it: on a
+  // phone's rows of 44 px both are then on screen.
+  await page.locator('#notes summary[data-folder="Templates"]').evaluate((e) => e.scrollIntoView({ block: "start" }));
   const box = await row.boundingBox();
+  expect(box.y + box.height, "the note on screen with the folder").toBeLessThanOrEqual(page.viewportSize().height);
   const target = await page.locator('#notes summary[data-folder="Templates"]').boundingBox();
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;

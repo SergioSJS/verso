@@ -8,7 +8,15 @@
  * the menu the right click opens; held and then moved, it is a drag
  * (`armDrag`); moved at once, it is a scroll, never a drag. Text, the
  * editor, the board and fields keep the system's own long press: the
- * selection and its magnifier. */
+ * selection and its magnifier.
+ *
+ * A screen reader's own gestures pass through untouched (ADR 0076 item
+ * 9): nothing here prevents a touch or a pointer, so VoiceOver's
+ * double-tap-and-hold — a press held where the focus is — reaches the
+ * page as the long press it stands for, and TalkBack's arrives as the
+ * `contextmenu` Android fires itself. What the long press opens is also
+ * behind a visible "…" (screen/rowMore.ts, the pane's folded tools, a
+ * card's button). */
 
 /** How long a finger stays still to be a long press, in milliseconds. */
 export const HOLD_MS = 450;
@@ -71,5 +79,5 @@ export function installLongPress(): void {
     document.addEventListener("pointerup", up, true);
     document.addEventListener("pointercancel", done, true);
     document.addEventListener("contextmenu", native, true);
-  }, true);
+  }, { capture: true, passive: true });
 }

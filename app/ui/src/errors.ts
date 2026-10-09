@@ -13,7 +13,11 @@ import { boardText, t } from "./strings";
  *  ours, as it is. */
 export function fail(e: ContractError | unknown): void {
   const { kind, message } = errorParts(e);
-  ui.status.textContent = errorSentence(e);
+  const said = errorSentence(e);
+  ui.status.textContent = said;
+  // A phone has no status bar: the failure is said at the top of its
+  // pane instead (ADR 0076 item 6, screen/frame.ts).
+  if (!ANSWERS.has(kind)) dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
   note(ANSWERS.has(kind) ? "INFO" : "ERROR", kind ? `${kind}: ${message}` : message);
 }
 /** Kinds that answer what the user asked for, not a fault: a name already

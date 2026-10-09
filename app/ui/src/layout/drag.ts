@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { canWrite } from "../can";
+import { narrow } from "../chrome";
 import { h, ui } from "../dom";
 import { moveFile, moveEntries } from "../files";
 import { BoardLeaf } from "../leaves/board";
@@ -196,6 +198,9 @@ export function dropTargetAt(x: number, y: number): DropTarget | null {
   return null;
 }
 export function zoneOf(body: HTMLElement, x: number, y: number): "left" | "right" | "top" | "bottom" | "center" {
+  // A phone shows one pane at a time: a tab dropped on a pane never
+  // splits it (ADR 0076 item 2).
+  if (narrow.matches) return "center";
   const r = body.getBoundingClientRect();
   const fx = Math.max(0, Math.min(1, (x - r.left) / r.width));
   const fy = Math.max(0, Math.min(1, (y - r.top) / r.height));
@@ -263,6 +268,9 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
     }
     return;
   }
+  // A row of the tree moves a file: not for a reader on a server (ADR 0076
+  // item 11).
+  if (!canWrite()) return;
   // A file from the tree — or several, a selection: into a folder they
   // move together, with one plan of link rewrites; anywhere else, each
   // goes where one would.

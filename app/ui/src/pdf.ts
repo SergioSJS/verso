@@ -167,6 +167,7 @@ export class PdfView {
     this.container.setAttribute("role", "region");
     this.container.append(h("div", "pdfViewer"));
     this.body.append(this.container);
+    this.pinch();
     this.el.append(this.bar, this.body);
 
     this.linkService = new PDFLinkService({ eventBus: this.eventBus });
@@ -282,6 +283,39 @@ export class PdfView {
     // Not shown yet: the page is where it opens once it is.
     if (!this.laidOut) this.pendingPage = page;
     else this.viewer.currentPageNumber = page;
+  }
+
+  /** Two fingers on the pages zoom them, not the whole window (ADR 0076
+   *  item 10): the page's own pinch is kept everywhere else, for WCAG
+   *  1.4.4; one finger still scrolls (`touch-action` in css/screen.css,
+   *  which leaves the browser no pinch of its own here). Touch events, not
+   *  pointer events: a browser that starts scrolling takes the pointers
+   *  back, and the touches still come. The scale follows the distance
+   *  between the fingers, set once a frame. */
+  private pinch(): void {
+    let start: { d: number; scale: number } | null = null;
+    let frame = 0;
+    const spread = (e: TouchEvent): number => {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      return a && b ? Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) : 0;
+    };
+    const c = this.container;
+    c.addEventListener("touchstart", (e) => {
+      start = e.touches.length === 2 && this.doc ? { d: spread(e), scale: this.viewer.currentScale } : null;
+    }, { passive: true });
+    c.addEventListener("touchmove", (e) => {
+      if (!start || start.d === 0 || e.touches.length !== 2 || frame) return;
+      const d = spread(e);
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        if (!start || !this.doc) return;
+        this.fitMode = null;
+        this.viewer.currentScale = Math.max(0.25, Math.min(6, (start.scale * d) / start.d));
+      });
+    }, { passive: true });
+    c.addEventListener("touchend", (e) => {
+      if (e.touches.length < 2) start = null;
+    }, { passive: true });
   }
 
   private zoom(factor: number): void {

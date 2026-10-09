@@ -25,6 +25,9 @@ export type Settings = {
   lineNumbers?: boolean;
   lineNumbersEdit: boolean;
   lineNumbersSource: boolean;
+  /** The person changed `lineNumbersSource` themselves: a phone shows the
+   *  numbers only then (ADR 0076 item 6). */
+  lineNumbersSourceChosen?: boolean;
   lineNumbersPreview: boolean;
   /** Edit mode's block handles (ADR 0061 D10). */
   blockHandles: boolean;
@@ -148,9 +151,22 @@ export function loadSettings(): void {
   } catch {
     settings = { ...DEFAULTS };
   }
+  sourceNumbersWere = settings.lineNumbersSource;
   applySettings();
 }
+/** Line numbers in Source mode: on a phone (under 760 px) only when the
+ *  person turned them on — the default's numbers take a phone's width
+ *  for nothing (ADR 0076 item 6). */
+export function sourceLineNumbers(): boolean {
+  if (!settings.lineNumbersSource) return false;
+  return !window.matchMedia("(max-width: 760px)").matches || Boolean(settings.lineNumbersSourceChosen);
+}
+/** `lineNumbersSource` as last loaded or saved: a save that changes it is
+ *  the person's choice. */
+let sourceNumbersWere: boolean | null = null;
 export function saveSettings(): void {
+  if (sourceNumbersWere !== null && settings.lineNumbersSource !== sourceNumbersWere) settings.lineNumbersSourceChosen = true;
+  sourceNumbersWere = settings.lineNumbersSource;
   try {
     localStorage.setItem("verso.settings", JSON.stringify(settings));
   } catch {

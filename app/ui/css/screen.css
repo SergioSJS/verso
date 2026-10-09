@@ -1,0 +1,146 @@
+/* The window on every screen (ADR 0076): the screen decides the frame, the
+   pane decides its content. Breakpoints: a phone under 760 px, a tablet
+   from 760 to 1180 px, a desktop above; a pane's own at 520 and 820 px,
+   the two the status bar already uses (item 1). Before touch.css, which
+   stays the last word for a finger. */
+
+/* ---------- The pane decides its content (item 1) ---------- */
+/* Each pane a container of its own width: a narrow pane on a desktop and a
+   phone's pane look the same. (A container sets no containing block for
+   `position: fixed`: the menus and the editor's tooltips keep theirs.) */
+.pane { container: pane / inline-size; }
+.pane-fold, .pane-switch { display: none; }
+/* A pane under 520 px folds its tools into one "…" (item 2). */
+@container pane (max-width: 520px) {
+  .pane-tools > :not(.pane-fold) { display: none; }
+  .pane-tools > .pane-fold { display: inline-flex; }
+  .tab { max-width: 18ch; }
+  .leaf-head { flex-wrap: wrap; gap: .4rem .8rem; }
+  .sheet, .leaf-head { padding-left: .7rem; padding-right: .7rem; }
+  .prop { grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr) auto; }
+  .folder-cols, .folder-items.list .item { grid-template-columns: minmax(0, 1fr) 5rem 5rem; }
+  .col-modified { display: none; }
+}
+/* An iPad's pane in portrait: the properties' names take less. */
+@container pane (min-width: 520.02px) and (max-width: 820px) {
+  .prop { grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr) auto; }
+}
+
+/* ---------- The graph's controls as a panel (item 3) ---------- */
+.graph-controls-toggle { display: none; align-items: center; gap: .35rem; }
+.graph-body { position: relative; }
+@container pane (max-width: 520px) {
+  .graph-controls-toggle { display: inline-flex; }
+  .graph-controls { display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(17rem, 88%); background: var(--paper); box-shadow: -12px 0 32px -16px oklch(0% 0 0 / .35); }
+  .graph-body.controls-open .graph-controls { display: flex; }
+}
+@media (max-width: 760px) {
+  .graph-controls-toggle { display: inline-flex; }
+  .graph-controls { display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(17rem, 88%); background: var(--paper); box-shadow: -12px 0 32px -16px oklch(0% 0 0 / .35); }
+  .graph-body.controls-open .graph-controls { display: flex; }
+}
+
+/* ---------- The frame's rows: what the pane says on top, the phone's bar ---------- */
+.work { grid-template-rows: auto auto minmax(0, 1fr) auto auto; grid-template-areas: "spaces" "notices" "panes" "status" "bar"; }
+.work-notices { grid-area: notices; min-width: 0; }
+.bottom-bar { grid-area: bar; display: none; }
+.read-only-line { margin: 0; padding: .35rem clamp(.7rem, 1.5vw, 1.2rem); font-size: max(12px, .8rem); color: var(--ink-2); background: var(--brass-wash); border-bottom: 1px solid var(--hair); }
+.failed-line { display: none; align-items: center; gap: .5rem; padding: .25rem .4rem .25rem clamp(.7rem, 1.5vw, 1.2rem); font-size: max(12px, .8rem); color: var(--seal); background: var(--seal-wash); border-bottom: 1px solid var(--hair); }
+.failed-line .failed-text { flex: 1; min-width: 0; }
+
+/* ---------- A phone (item 6) ---------- */
+@media (max-width: 760px) {
+  /* The ribbon and the status bar leave; a bar of five verbs comes. */
+  body, body.no-side, body.no-right, body.no-side.no-right { grid-template-columns: 0 0 0 1fr 0 0; }
+  .ribbon, .status-bar { display: none; }
+  /* Over the drawers, which end above it: the bar stays within reach. */
+  .bottom-bar { position: relative; z-index: 9; display: flex; align-items: stretch; justify-content: space-around; padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--paper-2); border-top: 1px solid var(--hair); }
+  .bottom-bar-item { flex: 1 1 0; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; padding: .3rem .1rem; color: var(--ink-2); }
+  .bottom-bar-item .icon { width: 20px; height: 20px; }
+  .bottom-bar-item:disabled { opacity: .35; }
+  .bottom-bar-item:active:not(:disabled) { color: var(--seal); background: var(--paper-3); }
+  .bottom-bar-label { font-size: 12px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cannot-write .bar-write { display: none; }
+  /* A save that failed, at the top of the pane; the server's word on the
+     connection there too, not under the bar. */
+  .failed-line:not([hidden]) { display: flex; }
+  .web-notice { top: calc(env(safe-area-inset-top) + 8px); bottom: auto; }
+  /* One pane at a time: the others kept, behind the switcher (item 2). */
+  .panes.many .pane:not(.focused), .panes.many .divider, .panes.many .split:not(:has(.pane.focused)) { display: none; }
+  .panes.many .pane-switch { display: inline-flex; align-self: center; flex: none; min-width: 44px; min-height: 36px; justify-content: center; font-variant-numeric: tabular-nums; }
+  /* The drawers keep to the safe areas of a phone with a notch. */
+  body aside.side, body aside.right { padding-top: env(safe-area-inset-top); bottom: calc(52px + 1px + env(safe-area-inset-bottom)); }
+  /* Rows of 44 px, the size Apple and Google ask, where the tree is a
+     drawer of its own (item 10). */
+  aside.side #notes li > button, aside.side #notes summary { min-height: 44px; }
+  /* The kanban a column at a time, the next one showing at the edge
+     (item 5). */
+  .base-kanban-wrap { scroll-snap-type: x mandatory; scroll-padding-inline: .5rem; }
+  .base-kanban { padding-inline: .5rem; }
+  .base-column { flex: 0 0 calc(100% - 3rem); max-height: none; scroll-snap-align: start; }
+  .base-column-new { flex: 0 0 calc(100% - 3rem); scroll-snap-align: start; }
+}
+
+/* ---------- Safe areas (item 10) ---------- */
+/* `viewport-fit=cover` (index.html) gives the page the whole screen; the
+   frame keeps out of the notch and the rounded corners. */
+body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+.status-bar { padding-bottom: max(.3rem, env(safe-area-inset-bottom)); }
+
+/* ---------- The keyboard's bar (item 7) ---------- */
+/* Room under the text for what the keyboard and its bar cover: the last
+   line can still scroll above them (screen/keyboard.ts sets the measure). */
+.sheet { padding-bottom: calc(6rem + var(--keyboard, 0px)); }
+.key-bar { position: fixed; z-index: 19; display: flex; gap: .1rem; justify-content: space-between; padding: .2rem max(.3rem, env(safe-area-inset-right)) .2rem max(.3rem, env(safe-area-inset-left)); background: var(--paper-2); border-top: 1px solid var(--hair); }
+.key-bar-item { flex: 1 1 0; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; color: var(--ink-2); }
+.key-bar-item .icon { width: 18px; height: 18px; }
+.key-bar-item:active { background: var(--paper-3); color: var(--seal); }
+.key-bar-text { font: 600 1rem var(--mono); }
+
+/* ---------- The card beside a link (item 4) ---------- */
+.cm-tooltip.cm-link-card { display: flex; gap: .25rem; padding: .25rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 28px -12px oklch(0% 0 0 / .35); font-family: var(--ui); }
+.cm-link-card button { min-height: 44px; padding: 0 .9rem; border-radius: 6px; font-size: .9rem; color: var(--ink); }
+.cm-link-card button:first-child { color: var(--seal); font-weight: 600; }
+.cm-link-card button:hover, .cm-link-card button:focus-visible { background: var(--paper-3); }
+
+/* ---------- The tree: "…" on a row, the selection mode (items 8, 9) ---------- */
+.side-body { position: relative; }
+.row-more { position: absolute; right: .7rem; display: none; min-width: 44px; min-height: 36px; justify-content: center; align-items: center; background: var(--paper-2); }
+@media (hover: none) { .row-more:not([hidden]) { display: inline-flex; } }
+.row-more:focus-visible:not([hidden]) { display: inline-flex; }
+.select-mode li > button.row::after, .select-mode summary::after { content: ""; order: -1; flex: none; width: 18px; height: 18px; border: 1.5px solid var(--ink-3); border-radius: 4px; background: var(--paper); }
+.select-mode li > button.row.selected::after, .select-mode summary.selected::after { border-color: var(--seal); background: var(--seal) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5 6.5 11.5 12.5 5' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.select-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; padding: .5rem .7rem max(.5rem, env(safe-area-inset-bottom)); border-top: 1px solid var(--hair); background: var(--paper-2); }
+.select-count { flex: 1 0 100%; font-size: max(12px, .8rem); color: var(--ink-2); }
+.select-action, .select-done { min-height: 44px; }
+.select-done { margin-left: auto; padding: 0 1rem; border-radius: 6px; background: var(--seal); color: var(--paper); font-weight: 600; }
+
+/* ---------- What the side cannot do (item 11) ---------- */
+/* A reader on a server: nothing that writes the folder — a new note, a
+   cover, a sticker. (A bookmark is the window's own.) */
+.cannot-write .pane-new, .cannot-write .status-keys [data-cmd="new"], .cannot-write .base-column-new,
+.cannot-write .note-add-cover-btn, .cannot-write .note-cover-controls, .cannot-write .note-sticker-btn { display: none; }
+.cannot-updates .settings .update-card, .cannot-updates .settings .update-btn-secondary { display: none; }
+.framed-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.framed-line { margin: 0; padding: .4rem .8rem; font-size: max(12px, .82rem); color: var(--ink-2); border-bottom: 1px solid var(--hair); }
+.framed-open { color: var(--seal); font-weight: 600; }
+.framed-frame { flex: 1; min-height: 20rem; width: 100%; border: 0; background: white; }
+
+/* ---------- Touch: the gestures each surface takes (items 5, 10) ---------- */
+/* A card or a column's head moves after a long press; a swipe scrolls. */
+@media (pointer: coarse) {
+  .base .movable { touch-action: pan-x pan-y; }
+  /* The PDF's pages take the pinch for themselves (pdf.ts); one finger
+     scrolls them. The page's own zoom is kept everywhere else. */
+  .pdf-scroll { touch-action: pan-x pan-y; }
+  /* Text of 12 px at least on a touch screen. */
+  .status-bar { font-size: max(12px, .76rem); }
+  .side-title { font-size: max(12px, .68rem); }
+  .graph-hint, .list .path, .quick-list .path, .graph-legend, .base-group-count { font-size: max(12px, .74rem); }
+}
+
+@media (forced-colors: active) {
+  .bottom-bar, .key-bar, .select-bar, .cm-tooltip.cm-link-card { border: 1px solid CanvasText; }
+  .select-mode li > button.row::after, .select-mode summary::after { forced-color-adjust: none; border-color: CanvasText; background: Canvas; }
+  .select-mode li > button.row.selected::after, .select-mode summary.selected::after { background-color: Highlight; }
+}
