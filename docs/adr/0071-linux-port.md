@@ -261,3 +261,44 @@ window needs one. **Answered by the maintainer on 2026-10-09**:
 
 `[OPEN]`: Snap; Wayland native or X11 forced where child web views need it;
 case-only names (spec Q8).
+
+**As built on 2026-10-09** (branch `feat/linux-port`, not merged):
+- **The machines:** Ubuntu 26.04 with GNOME, Debian 12 with GNOME, Fedora 44
+  with KDE Plasma, each with a `provisioned` snapshot. Fedora 44's KDE logs
+  in through `plasmalogin`, not sddm, and runs the `plasma-setup` wizard
+  until `/etc/plasma-setup-done` exists.
+- **The packages:** the `linux` bundle section (`.deb` and `.rpm` depend on
+  `xdg-utils`; the AppImage carries no GStreamer); the beta installs as
+  `verso-app-beta` and `verso-beta`, beside the release.
+- **The integration:** a package puts the command line in `/usr/bin`, and
+  Settings says so instead of offering to install it; the AppImage copies
+  it to `~/.local/bin`. "Show in file manager" asks the file manager over
+  D-Bus to select the file, else opens the folder with `xdg-open`; the item
+  is named per OS (Finder, File Explorer, file manager). "Copy full path" names `wl-clipboard` or `xclip` when
+  neither is there.
+- **The watcher:** when inotify runs out of watches or descriptors, it
+  watches the folder by polling every 30 seconds.
+- **The updater:** the asset by format — the AppImage when the app runs
+  from one (`$APPIMAGE`), else a `.deb` where `/etc/debian_version` exists,
+  else an `.rpm`. The AppImage is written beside itself, flushed, and
+  renamed over itself; a `.deb` or `.rpm` is saved to Downloads, for the
+  package manager.
+- **The release job:** x64 on `ubuntu-22.04` and ARM64 on
+  `ubuntu-22.04-arm`; it builds the three packages and the command line's
+  archive, signs them and checks the signatures. It has not run yet.
+- **The engine:** the end-to-end suite's WebKit project, in Playwright's
+  Linux container, passed 179 of 179. One product fix was needed: a board
+  took Excalidraw's state from before it had loaded the board (a white
+  background) as the board's own, so its real background counted as an
+  edit and the board was written. Three tests were adjusted for the item's
+  name per OS and the grip's hover timing.
+- **Observed:** the `.rpm` installs and opens on Fedora 44 (KDE, Wayland);
+  the AppImage opens on Ubuntu 26.04 (GNOME). Tauri's AppImage sets
+  `GDK_BACKEND=x11` (its GTK plugin, Tauri issue 8541), so it runs under
+  XWayland. Its log says GStreamer's `appsink` is missing, so a video in a
+  note has not been checked there. A `.deb` built on Ubuntu 26.04 does not
+  run on Debian 12 (glibc 2.38 and 2.39 asked, 2.36 there), as item 3
+  expected.
+- **Not yet observed:** child web views under Wayland, NVIDIA, case-only
+  names, SELinux's extended attributes, network file systems, one
+  instance, and "Add to Claude".

@@ -276,3 +276,46 @@ linha de comando continuam rodando sem tela; só a janela precisa de uma.
 
 `[ABERTO]`: Snap; Wayland nativo ou X11 forçado onde as web views filhas
 precisarem; nomes que diferem só em maiúsculas (a Q8 da spec).
+
+**Como foi construído em 2026-10-09** (branch `feat/linux-port`, não
+mesclada):
+- **As máquinas:** Ubuntu 26.04 com GNOME, Debian 12 com GNOME, Fedora 44
+  com KDE Plasma, cada uma com um snapshot `provisioned`. O KDE do Fedora 44
+  entra pelo `plasmalogin`, não pelo sddm, e roda o assistente
+  `plasma-setup` até existir `/etc/plasma-setup-done`.
+- **Os pacotes:** a seção `linux` do bundle (`.deb` e `.rpm` dependem do
+  `xdg-utils`; o AppImage não leva GStreamer); o beta se instala como
+  `verso-app-beta` e `verso-beta`, ao lado do release.
+- **A integração:** um pacote põe a linha de comando em `/usr/bin`, e os
+  Ajustes dizem isso em vez de oferecer a instalação; o AppImage a copia
+  para `~/.local/bin`. "Mostrar no gerenciador de arquivos" pede ao
+  gerenciador, por D-Bus, que selecione o arquivo; senão abre a pasta com
+  `xdg-open`; o item tem o nome de cada SO (Finder, Explorador de Arquivos,
+  gerenciador de arquivos). "Copiar caminho completo" cita o
+  `wl-clipboard` ou o `xclip` quando nenhum dos dois está lá.
+- **O watcher:** quando o inotify fica sem watches ou descritores, ele
+  vigia a pasta por polling a cada 30 segundos.
+- **O atualizador:** o asset pelo formato — o AppImage quando o app roda de
+  um (`$APPIMAGE`), senão um `.deb` onde existe `/etc/debian_version`,
+  senão um `.rpm`. O AppImage é escrito ao lado de si, levado ao disco e
+  renomeado sobre si; um `.deb` ou `.rpm` é salvo em Downloads, para o
+  gerenciador de pacotes.
+- **O job de release:** x64 no `ubuntu-22.04` e ARM64 no
+  `ubuntu-22.04-arm`; gera os três pacotes e o arquivo da linha de comando,
+  assina e confere as assinaturas. Ainda não rodou.
+- **O motor:** o projeto WebKit da suíte de ponta a ponta, no contêiner
+  Linux do Playwright, passou em 179 de 179. Foi preciso uma correção no
+  produto: um board tomava o estado do Excalidraw de antes de carregar o
+  board (um fundo branco) como o do próprio board, então o fundo real
+  contava como edição e o board era escrito. Três testes foram ajustados
+  para o nome do item em cada SO e o tempo do hover da alça.
+- **Observado:** o `.rpm` instala e abre no Fedora 44 (KDE, Wayland); o
+  AppImage abre no Ubuntu 26.04 (GNOME). O AppImage do Tauri define
+  `GDK_BACKEND=x11` (o plugin GTK dele, issue 8541 do Tauri), então roda
+  sob XWayland. O log diz que falta o `appsink` do GStreamer, então um
+  vídeo numa nota não foi conferido ali. Um `.deb` gerado no Ubuntu 26.04
+  não roda no Debian 12 (pede glibc 2.38 e 2.39, lá há 2.36), como o item
+  3 previa.
+- **Ainda não observado:** web views filhas sob Wayland, NVIDIA, nomes que
+  diferem só em maiúsculas, os atributos estendidos do SELinux, sistemas de
+  arquivos de rede, instância única e "Adicionar ao Claude".

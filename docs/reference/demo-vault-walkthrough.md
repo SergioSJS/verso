@@ -474,6 +474,13 @@ point 13).
    Level: S (`an_update_installs_only_with_its_signature`,
    `a_folder_of_a_name_already_added_takes_its_parent_s_name`); A (the
    first signed release, on macOS and Windows).
+8. On Linux (note 17): the `.deb` installs `verso-app` and `verso` in
+   /usr/bin, and Terminal e agentes says the command came with the
+   package; an AppImage's "Instalar" puts `verso` in `~/.local/bin`; "Mostrar
+   no gerenciador de arquivos" selects the file. Level: S
+   (`scripts/check-linux-vm.sh --install`, the app opened on Ubuntu's
+   desktop; `--webkit`, the suite on Linux's WebKit); A (Debian, Fedora,
+   the AppImage).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

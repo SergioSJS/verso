@@ -28,9 +28,19 @@ async function caretIn(page, words) {
 async function gripOf(page, words) {
   const line = page.locator(".cm-line", { hasText: words }).first();
   const box = await line.boundingBox();
-  await page.mouse.move(box.x + 40, box.y + box.height / 2);
+  // Away first, then to the line: a fresh hover, wherever the pointer was.
+  await page.mouse.move(box.x + 40, 5);
+  await page.mouse.move(box.x + 40, box.y + box.height / 2, { steps: 4 });
   const grip = page.locator(".cm-block-grip");
   await expect(grip).toBeVisible();
+  // At this line, not still at the block hovered before: the grip follows
+  // the pointer a frame later, later still in a slower engine (WebKitGTK).
+  await expect
+    .poll(async () => {
+      const g = await grip.boundingBox();
+      return g !== null && Math.abs(g.y + g.height / 2 - (box.y + box.height / 2)) < box.height;
+    })
+    .toBe(true);
   return grip;
 }
 

@@ -89,11 +89,12 @@ test("a picture's right click is Verso's menu: open, download, copy, reveal — 
   await img.click({ button: "right" });
   const menu = page.locator(".menu:not([hidden])");
   await expect(menu).toBeVisible();
-  for (const item of ["Abrir em nova aba", "Baixar imagem", "Copiar imagem", "Mostrar no Finder"]) await expect(menu.getByRole("menuitem", { name: item })).toBeVisible();
+  // "Mostrar no Finder" on the Mac, File Explorer or the file manager elsewhere.
+  for (const item of ["Abrir em nova aba", "Baixar imagem", "Copiar imagem", /^Mostrar no /]) await expect(menu.getByRole("menuitem", { name: item })).toBeVisible();
   const download = page.waitForEvent("download");
   await menu.getByRole("menuitem", { name: "Baixar imagem" }).click();
   expect((await download).suggestedFilename()).toBe("diagrama.svg");
   await img.click({ button: "right" });
-  await page.locator(".menu:not([hidden])").getByRole("menuitem", { name: "Mostrar no Finder" }).click();
+  await page.locator(".menu:not([hidden])").getByRole("menuitem", { name: /^Mostrar no / }).click();
   await expect.poll(() => app.calls("reveal")).toEqual([{ path: "assets/diagrama.svg" }]);
 });

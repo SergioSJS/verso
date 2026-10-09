@@ -51,6 +51,7 @@ mod menu;
 mod notes;
 mod protocol;
 mod update;
+mod version;
 mod web;
 mod windows;
 use boards::*;
