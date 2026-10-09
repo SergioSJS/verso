@@ -17,6 +17,8 @@
 
 import YAML from "yaml";
 import type {
+  Capabilities,
+  FolderSpace,
   AppInfo,
   Backlink,
   BaseCell,
@@ -1278,6 +1280,20 @@ export class Core {
     }),
     download_and_install_update: () => refuse("failed", "no updates in the harness"),
     restart_app: () => null,
+    // The harness stands in for the desktop app (ADR 0058).
+    capabilities: (): Capabilities => ({
+      host: "desktop",
+      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders"],
+    }),
+    folder_space: (): FolderSpace => {
+      let notes = 0;
+      let attachments = 0;
+      for (const [path, f] of this.files) {
+        if (path.endsWith(".md")) notes += f.bytes.length;
+        else attachments += f.bytes.length;
+      }
+      return { total: notes + attachments, notes, attachments, files: this.files.size, index: 0 };
+    },
   };
 
   /** A command of the window, answered; a plugin's (the window's own
