@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "./bindings";
+import { can, canWrite } from "./can";
 import { narrow, rightShown, sideShown, toggleRight, toggleSide } from "./chrome";
 import { dailyNote, insertTemplate } from "./daily";
 import { h, ui } from "./dom";
@@ -39,6 +40,13 @@ export const RIBBON: RibbonItem[] = [
   { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "toggle-right", bottom: true, run: () => toggleRight() },
   { id: "settings", icon: "gear", label: () => t.settings, keys: "settings", bottom: true, run: () => settingsDialog.show() },
 ];
+/** What the side cannot do leaves the ribbon (ADR 0076 item 11): a reader
+ *  on a server makes and changes nothing; a browser opens no window. */
+function possible(id: string): boolean {
+  if (id === "new" || id === "daily" || id === "template" || id === "replace") return canWrite();
+  if (id === "new-window") return can("windows");
+  return true;
+}
 export class Ribbon {
   private order: string[] = RIBBON.map((i) => i.id);
   private hidden = new Set<string>();
@@ -66,7 +74,7 @@ export class Ribbon {
     const bottom = h("div", "ribbon-group ribbon-bottom");
     for (const id of this.order) {
       const it = RIBBON.find((i) => i.id === id);
-      if (!it || this.hidden.has(id)) continue;
+      if (!it || this.hidden.has(id) || !possible(id)) continue;
       const b = h("button", "ribbon-item");
       b.type = "button";
       b.dataset["id"] = id;

@@ -4,6 +4,7 @@
 
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands } from "../../bindings";
+import { can } from "../../can";
 import { readDrawing } from "../../board/convert";
 import { listedPath } from "../../board/model";
 import { button, h, ui } from "../../dom";
@@ -14,6 +15,7 @@ import { overlayOpen } from "../../layout/drag";
 import { frontmatterEnd, redraw } from "../../live";
 import { opening } from "../../opening";
 import { cleanHtmlText } from "../../sanitize";
+import { framedPage } from "../../screen/framed";
 import { settings } from "../../settings";
 import { boardText, LANG, t } from "../../strings";
 import { cardEditor, convertToBoard, isExcalidrawDrawing, loadBoardModule } from "../board";
@@ -207,6 +209,15 @@ export function setWebShown(this: NoteLeaf, on: boolean): void {
 }
 
 export async function openWeb(this: NoteLeaf): Promise<void> {
+  // No child web views here (a browser): the page in a frame, and a link
+  // to open it in a tab of its own (ADR 0076 item 11).
+  if (!can("web_views")) {
+    if (this.webUrl && this.webHost.dataset["framed"] !== this.webUrl) {
+      this.webHost.dataset["framed"] = this.webUrl;
+      this.webHost.replaceChildren(framedPage(this.webUrl));
+    }
+    return;
+  }
   if (this.webLabel || this.webOpening || !this.webUrl) return this.syncWeb();
   this.webOpening = true;
   const url = this.webUrl;

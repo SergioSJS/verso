@@ -6,6 +6,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { baseHost, liveBases } from "../bases";
 import { BaseView } from "../bases/view";
 import { commands, type Property } from "../bindings";
+import { can } from "../can";
 import { afterFileChange } from "../changes";
 import { promptText } from "../dialog";
 import { button, h, ui } from "../dom";
@@ -157,9 +158,10 @@ export class FolderLeaf extends Leaf {
         ...(path
           ? [
               ["—", () => {}] as MenuItem,
-              [t.reveal, () => void commands.reveal(path), "search"] as MenuItem,
+              // What the side cannot do is absent (ADR 0076 item 11).
+              ...(can("reveal") ? [[t.reveal, () => void commands.reveal(path), "search"] as MenuItem] : []),
               [t.copyRelativePath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
-              [t.copyFullPath, () => void commands.copyFullPath(path).then((r) => (r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error))), "copy"] as MenuItem,
+              ...(can("copy_path") ? [[t.copyFullPath, () => void commands.copyFullPath(path).then((r) => (r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error))), "copy"] as MenuItem] : []),
             ]
           : []),
       ]);
