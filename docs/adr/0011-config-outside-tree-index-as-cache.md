@@ -139,3 +139,13 @@ Accepted. Amended by the maintainer on 2026-10-08:
   both, so such a note is read again, as git does with its "racy" entries.
   Reading and hashing every note made each opening of 5,000 notes cost
   seconds ("pode ser").
+  *Revised on 2026-10-09 (schema 13), the mechanism only:* the date a note
+  must be older than is one for the whole index — the start of the last
+  complete run, which read or trusted every note (`meta.verified_from`,
+  not written by a run that could not list a folder or read a file) —
+  instead of one per row. Vouching for each row rewrote every row, its
+  text included, on each opening: on the CI runner a reopen of 10,000
+  notes went from 379 ms (the recorded baseline) to 949–980 ms. Accepted,
+  as in git: a file replaced by one of the same length with the same
+  modified second (a copy that keeps times, a restore) is trusted until
+  either changes.

@@ -166,3 +166,44 @@ fn version_10_is_carried_to_version_11_and_a_block_falls_back_to_its_own_line_un
     );
     assert_ne!(index.stamp_of("Tabela.md").unwrap(), Some(stamp()));
 }
+
+/// Version 12 gains only the index of version 13: no note is read again
+/// for it.
+#[test]
+fn version_12_is_carried_to_version_13_with_nothing_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("index.sqlite");
+    {
+        let mut index = Index::open(&file).unwrap();
+        let nota = "# Nota\n";
+        index
+            .upsert("Nota.md", stamp(), nota, &verso_dialect::parse(nota))
+            .unwrap();
+    }
+    {
+        let conn = rusqlite::Connection::open(&file).unwrap();
+        conn.execute_batch(
+            "DROP INDEX notes_stat;
+             UPDATE meta SET value = '12' WHERE key = 'schema';",
+        )
+        .unwrap();
+    }
+    let index = Index::open(&file).unwrap();
+    assert_eq!(index.stamp_of("Nota.md").unwrap(), Some(stamp()));
+    drop(index);
+    let conn = rusqlite::Connection::open(&file).unwrap();
+    let indexes: i64 = conn
+        .query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'notes_stat'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(indexes, 1);
+    let schema: String = conn
+        .query_row("SELECT value FROM meta WHERE key = 'schema'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(schema, verso_index::SCHEMA_VERSION.to_string());
+}

@@ -556,11 +556,9 @@ impl Index {
     pub fn is_unverified(&self, relative: &str) -> Result<Option<bool>, IndexError> {
         Ok(self
             .conn
-            .query_row(
-                "SELECT unverified FROM notes WHERE path = ?1",
-                params![relative],
-                |r| r.get::<_, i64>(0).map(|v| v != 0),
-            )
+            .query_row(UNVERIFIED_SQL, params![relative], |r| {
+                r.get::<_, i64>(0).map(|v| v != 0)
+            })
             .optional()?)
     }
 
@@ -727,24 +725,26 @@ impl Index {
             .optional()?)
     }
 
-    /// The stamp the index has for a note, to skip an unchanged file.
     /// Whether the note at `relative` is, by its modified time (seconds) and
-    /// length, the one the index holds — trusted without reading it only
-    /// when it was modified at least 2 s before the run that last read it
-    /// began, and is not a placeholder's last known version (ADR 0043). A
-    /// change within the same second as that read could keep both, so such
-    /// a note is read again (git's "racy" entries).
+    /// length, the one the index holds — trusted without reading it only in
+    /// a run, when it was modified at least 2 s before the last complete
+    /// run began ([`Index::complete`]), and is not a placeholder's last
+    /// known version (ADR 0043). A change within the same second as a read
+    /// could keep both, so such a note is read again (git's "racy"
+    /// entries).
     pub fn unchanged_by_stat(
         &self,
         relative: &str,
         modified: i64,
         len: u64,
     ) -> Result<bool, IndexError> {
+        if !self.trusted_before.is_some_and(|before| modified < before) {
+            return Ok(false);
+        }
         Ok(self
             .conn
             .query_row(
-                "SELECT 1 FROM notes WHERE path = ?1 AND modified = ?2 AND len = ?3
-                   AND unverified = 0 AND modified < indexed_at - 1",
+                UNCHANGED_SQL,
                 params![relative, modified, i64::try_from(len).unwrap_or(i64::MAX)],
                 |_| Ok(()),
             )
@@ -752,39 +752,16 @@ impl Index {
             .is_some())
     }
 
-    /// The note at `relative`, modified at `modified` (seconds), was read in
-    /// this run and matched the index: it is known to match the disk as of
-    /// the run's start. Written only when that lets the next run trust its
-    /// stat — modified at least 2 s before this run began; a note modified
-    /// later stays racy whatever is written, and writing every such row made
-    /// a reopen right after the notes were written 2.5× slower (the
-    /// benchmark's `index_unchanged`, 2026-10-08). Nothing outside a run.
-    pub fn confirm(&mut self, relative: &str, modified: Option<i64>) -> Result<(), IndexError> {
-        if let Some(started) = self.run_started
-            && modified.is_some_and(|m| m < started - 1)
-        {
-            self.conn.execute(
-                "UPDATE notes SET indexed_at = ?2 WHERE path = ?1 AND indexed_at < ?2",
-                params![relative, started],
-            )?;
-        }
-        Ok(())
-    }
-
     pub fn stamp_of(&self, relative: &str) -> Result<Option<NoteStamp>, IndexError> {
         Ok(self
             .conn
-            .query_row(
-                "SELECT modified, len, hash FROM notes WHERE path = ?1",
-                params![relative],
-                |r| {
-                    Ok(NoteStamp {
-                        modified: r.get(0)?,
-                        len: u64::try_from(r.get::<_, i64>(1)?).unwrap_or(0),
-                        hash: u64::from_le_bytes(r.get::<_, i64>(2)?.to_le_bytes()),
-                    })
-                },
-            )
+            .query_row(STAMP_SQL, params![relative], |r| {
+                Ok(NoteStamp {
+                    modified: r.get(0)?,
+                    len: u64::try_from(r.get::<_, i64>(1)?).unwrap_or(0),
+                    hash: u64::from_le_bytes(r.get::<_, i64>(2)?.to_le_bytes()),
+                })
+            })
             .optional()?)
     }
 
@@ -1215,4 +1192,47 @@ fn json_strings(json: &str) -> Vec<String> {
         }
     }
     out
+}
+
+// What each note's check reads, from the index `notes_stat` (schema 13),
+// never from the row: those columns sit after `content`, and SQLite reads a
+// column after it by walking the note's whole text. Named: the planner
+// would take the unique index on `path` and then read the row. Named, a
+// missing index would fail the statement rather than fall back; `ensure`
+// creates it on both paths (a new file, the carry-over from 12).
+pub(crate) const UNCHANGED_SQL: &str = "SELECT 1 FROM notes INDEXED BY notes_stat
+    WHERE path = ?1 AND modified = ?2 AND len = ?3 AND unverified = 0";
+pub(crate) const STAMP_SQL: &str =
+    "SELECT modified, len, hash FROM notes INDEXED BY notes_stat WHERE path = ?1";
+pub(crate) const UNVERIFIED_SQL: &str =
+    "SELECT unverified FROM notes INDEXED BY notes_stat WHERE path = ?1";
+
+#[cfg(test)]
+mod stat_tests {
+    use super::*;
+
+    /// Each note's check is answered by the index alone (the benchmark's
+    /// `index_unchanged` took 1.7 to 4 times as long reading the rows,
+    /// 2026-10-08).
+    #[test]
+    fn a_note_s_check_reads_an_index_not_its_text() {
+        let index = crate::Index::in_memory().unwrap();
+        let plan = |sql: &str| -> String {
+            let mut stmt = index
+                .conn
+                .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+                .unwrap();
+            let n = stmt.parameter_count();
+            let args: Vec<i64> = vec![0; n];
+            stmt.query_map(rusqlite::params_from_iter(args), |r| r.get::<_, String>(3))
+                .unwrap()
+                .map(Result::unwrap)
+                .collect::<Vec<_>>()
+                .join(" / ")
+        };
+        for sql in [UNCHANGED_SQL, STAMP_SQL, UNVERIFIED_SQL] {
+            let p = plan(sql);
+            assert!(p.contains("COVERING INDEX notes_stat"), "{sql}: {p}");
+        }
+    }
 }

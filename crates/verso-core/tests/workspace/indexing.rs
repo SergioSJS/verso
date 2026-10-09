@@ -875,3 +875,34 @@ fn a_save_is_not_a_listing_change() {
         "{r:?}"
     );
 }
+
+/// A note modified well before the last complete run is trusted by its
+/// stat, without reading it; a run that could not list a folder is not
+/// complete, so it trusts nothing new for the next one (schema 13).
+#[test]
+fn only_a_complete_run_lets_the_next_trust_a_note_by_its_stat() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _root = note(vault.path(), "root.md", "root\n");
+    let sub = subdir(vault.path(), "sub");
+    let _a = note(sub.path(), "a.md", "a\n");
+    crate::shell::old_mtime(&vault.path().join("root.md"));
+    crate::shell::old_mtime(&sub.path().join("a.md"));
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+
+    // A run that cannot list `sub` reads root.md but does not complete.
+    crate::shell::unreadable(sub.path(), true);
+    let r = ws.index().unwrap();
+    crate::shell::unreadable(sub.path(), false);
+    assert!(!r.problems.is_empty() || !r.unreadable.is_empty(), "{r:?}");
+    assert_eq!(r.trusted, 0, "{r:?}");
+
+    // So the next run trusts nothing: it reads every note, and completes.
+    let r = ws.index().unwrap();
+    assert_eq!(r.trusted, 0, "{r:?}");
+    assert!(r.problems.is_empty() && r.unreadable.is_empty(), "{r:?}");
+
+    // From then on both are trusted by their stat.
+    let r = ws.index().unwrap();
+    assert_eq!((r.trusted, r.indexed), (2, 0), "{r:?}");
+}

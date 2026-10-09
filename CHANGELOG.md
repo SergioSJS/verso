@@ -14,7 +14,7 @@ test release.
 
 ### Fixed
 
-- **Reopening a folder right after its notes were written no longer rewrites the index**: each unchanged note's row was written again only to vouch for it, when it was too recent to be vouched for; on a slow disk a reopen of 10,000 notes took 2.5 times longer than before 0.5.0-beta.1.
+- **Reopening a folder writes nothing to the index for the notes that did not change**: 0.5.0-beta.1 wrote each unchanged note's row again, its text included, to vouch for it next time. On a disk that syncs for real, a reopen of 10,000 notes took 2.5 times longer than before (949–980 ms against 379). The index now keeps one date, the start of its last complete pass, instead of one per note.
 
 ## 0.5.0-beta.1 — 2026-10-08
 
