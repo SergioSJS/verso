@@ -69,9 +69,9 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
      settings in an environment file the unit reads.
    ARM64 is built by cross-compiling on the x86-64 runners, not on an ARM
    runner, which keeps it possible while the repository is private — home
-   servers and NAS boxes are often ARM. Whether the server's ARM64 is
-   built now or waits for the public repository with the desktop's
-   ([0071](0071-linux-port.md)) is `[OPEN]` for the maintainer.
+   servers and NAS boxes are often ARM. Decided: the server's ARM64 is
+   built now, without waiting for the public repository as the desktop's
+   does ([0071](0071-linux-port.md)).
 3. **Two directories, two variables** — decided:
    - `VERSO_DATA_DIR`: the accounts, the sessions, the audit log, the
      indexes. **A local disk**: at start the server reads the file system
@@ -111,9 +111,14 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
 
 - The release workflow gains a server job: the binary for amd64 (and
   arm64 per item 2), the image, the compose file and the packages, signed
-  as the apps are ([0055](0055-in-app-updater.md)). Where the image is
-  published while the repository is private (GitHub's registry asks for
-  a login to pull a private package) is `[OPEN]`.
+  as the apps are ([0055](0055-in-app-updater.md)). Decided: the image is
+  published to GitHub's registry (`ghcr.io`) by the release workflow,
+  with the token the workflow already has. While the repository is
+  private the package is private: a host pulls it after `docker login
+  ghcr.io` with a token that reads packages, and the free plan's quota
+  for private packages (500 MB stored, 1 GB downloaded a month) asks the
+  workflow to keep only the last versions. When the repository opens, the
+  package opens with it.
 - `verso-fs` learns to tell a network file system from a local one, for
   the scan of item 3; `verso-index` reports the sizes of item 4 from the
   walk it already makes.
@@ -139,8 +144,8 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
 Proposed, decided in its parts by the maintainer on 2026-10-09, in his
 answers: three ways to install (item 2, "B"); two directories (item 3,
 "B"); the space shown now and limits later (item 4, "A agora B depois");
-sync per folder, off by default (item 5, "A"). To be read by Fable 5.1
-and accepted with [0073](0073-self-hosted-server-first.md). `[OPEN]`: the
-server's ARM64 now or with the desktop's; where the image is published
-while the repository is private; the update path of a server
-([0073](0073-self-hosted-server-first.md)).
+sync per folder, off by default (item 5, "A"); the server's ARM64 now
+(item 2, "agora!"); the image on GitHub's registry (Consequences, "pode
+publicar no próprio github"). To be read by Fable 5.1 and accepted with
+[0073](0073-self-hosted-server-first.md). `[OPEN]`: the update path of a
+server ([0073](0073-self-hosted-server-first.md)).

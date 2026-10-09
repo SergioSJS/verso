@@ -71,10 +71,9 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
      `verso`, com as configurações num arquivo de ambiente que a unit lê.
    O ARM64 é construído por compilação cruzada nos runners x86-64, não num
    runner ARM, o que o mantém possível enquanto o repositório é privado —
-   servidores de casa e caixas NAS são muitas vezes ARM. Se o ARM64 do
-   servidor é construído agora ou espera o repositório público junto com o
-   do desktop ([0071](0071-linux-port.md)) fica `[ABERTO]` para o
-   mantenedor.
+   servidores de casa e caixas NAS são muitas vezes ARM. Decidido: o ARM64
+   do servidor é construído agora, sem esperar o repositório público como
+   o do desktop espera ([0071](0071-linux-port.md)).
 3. **Dois diretórios, duas variáveis** — decidido:
    - `VERSO_DATA_DIR`: as contas, as sessões, o log de auditoria, os
      índices. **Um disco local**: na subida o servidor lê o sistema de
@@ -115,9 +114,14 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
 
 - O workflow de release ganha um job do servidor: o binário para amd64 (e
   arm64 conforme o item 2), a imagem, o arquivo compose e os pacotes,
-  assinados como os apps são ([0055](0055-in-app-updater.md)). Onde a
-  imagem é publicada enquanto o repositório é privado (o registro do
-  GitHub pede login para baixar um pacote privado) fica `[ABERTO]`.
+  assinados como os apps são ([0055](0055-in-app-updater.md)). Decidido:
+  a imagem é publicada no registro do GitHub (`ghcr.io`) pelo workflow de
+  release, com o token que o workflow já tem. Enquanto o repositório é
+  privado, o pacote é privado: um host o baixa depois de `docker login
+  ghcr.io` com um token que lê pacotes, e a cota do plano gratuito para
+  pacotes privados (500 MB guardados, 1 GB baixado por mês) pede que o
+  workflow mantenha só as últimas versões. Quando o repositório abrir, o
+  pacote abre com ele.
 - O `verso-fs` aprende a distinguir um sistema de arquivos de rede de um
   local, para a varredura do item 3; o `verso-index` informa os tamanhos do
   item 4 a partir do percurso que já faz.
@@ -143,8 +147,9 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
 Proposto, decidido em suas partes pelo mantenedor em 2026-10-09, nas
 respostas dele: três formas de instalar (item 2, "B"); dois diretórios
 (item 3, "B"); o espaço mostrado agora e limites depois (item 4, "A agora
-B depois"); sync por pasta, desligado por padrão (item 5, "A"). A ser lido
-pela Fable 5.1 e aceito com o [0073](0073-self-hosted-server-first.md).
-`[ABERTO]`: o ARM64 do servidor agora ou junto com o do desktop; onde a
-imagem é publicada enquanto o repositório é privado; o caminho de
-atualização de um servidor ([0073](0073-self-hosted-server-first.md)).
+B depois"); sync por pasta, desligado por padrão (item 5, "A"); o ARM64
+do servidor agora (item 2, "agora!"); a imagem no registro do GitHub
+(Consequências, "pode publicar no próprio github"). A ser lido pela Fable
+5.1 e aceito com o [0073](0073-self-hosted-server-first.md). `[ABERTO]`:
+o caminho de atualização de um servidor
+([0073](0073-self-hosted-server-first.md)).
