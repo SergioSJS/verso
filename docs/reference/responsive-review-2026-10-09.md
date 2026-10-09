@@ -1,10 +1,11 @@
 # The window on a phone and a tablet: first review (2026-10-09)
 
 What the window does today on a touch screen, measured in the browser
-harness, and what was fixed at once. It is the starting point of the
-investigation ADR 0073 item 9 (proposed, on the branch `docs/server-first`)
-asks for, which ends in an ADR of its own; nothing here decides how the
-window looks on a phone.
+harness, and what was fixed at once, at the maintainer's request of
+2026-10-09 for a thorough review of the window on a phone and a tablet.
+It is also the starting point of the investigation ADR 0073 item 9
+(proposed, on the branch `docs/server-first`) asks for, which ends in an
+ADR of its own; nothing here decides how the window looks on a phone.
 
 ## How it was measured
 
@@ -33,7 +34,7 @@ own buttons could not be observed in the harness.
 | The notes search could be cleared only by deleting or by Esc (the maintainer's finding) | IMPORTANT | a × in the field |
 | iOS zooms into a field whose text is under 16 px | IMPORTANT | every field writes at 16 px at least on a touch screen (`css/touch.css`) |
 | Controls shown only on hovering (remove a property, close a tab, fold, copy code, cover, focus actions…) | IMPORTANT | shown at rest when the screen has no hover |
-| Touch targets of 19 to 32 px (status bar, ribbon, tree rows) | IMPORTANT | 44 px for the ribbon and the status bar, 40 px rows, wider dividers |
+| Touch targets of 19 to 32 px (status bar, ribbon, tree rows) | IMPORTANT | 44 px for the ribbon and the status bar, 40 px rows (under the 44 px asked, to keep a tree readable; for the ADR), wider dividers |
 | The "Move to…" field was 17 px wide on a phone | IMPORTANT | its label wraps above it |
 | A base's table broke words letter by letter on a phone | IMPORTANT | each column keeps 7 rem; the table scrolls sideways |
 | The sticker picker's search said "Search the notes" | MINOR | its own words |
@@ -55,8 +56,13 @@ is the ADR's to make:
   (`touch-action: none`); the columns do not fit a phone.
 - **The ribbon and the status bar on a phone**: 44 px of verbs that belong
   to a desktop, index counts in the status bar, line numbers in Source mode.
-- **The on-screen keyboard**: menus and the `/` menu are placed against
-  the window's height, not what the keyboard leaves (`visualViewport`).
+- **The on-screen keyboard**: the context menu now stays inside what the
+  keyboard leaves (`visualViewport`); the `/` menu and the sticker picker
+  are still placed against the window's height.
+- **Screen readers with touch**: VoiceOver on the iPhone and the iPad,
+  TalkBack on Android ([ADR 0035](../adr/0035-cross-cutting-requirements.md)
+  item 2) — not tried; the long press of `touch.ts` must not take the
+  screen reader's own gestures.
 - **Modifier keys and double clicks**: multiple selection in the tree,
   keeping a preview tab, opening without preview.
 - **Text under 12 px** in the status bar and the side titles; the safe

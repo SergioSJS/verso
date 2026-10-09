@@ -1,9 +1,11 @@
 # A janela num celular e num tablet: primeira revisão (2026-10-09)
 
 O que a janela faz hoje numa tela de toque, medido no harness do navegador,
-e o que foi consertado na hora. É o ponto de partida da investigação que o
-item 9 do ADR 0073 (proposto, na branch `docs/server-first`) pede, e que
-termina num ADR próprio; nada aqui decide como a janela fica num celular.
+e o que foi consertado na hora, a pedido do mantenedor em 2026-10-09, de
+uma revisão minuciosa da janela num celular e num tablet. É também o ponto
+de partida da investigação que o item 9 do ADR 0073 (proposto, na branch
+`docs/server-first`) pede, e que termina num ADR próprio; nada aqui decide
+como a janela fica num celular.
 
 ## Como foi medido
 
@@ -32,7 +34,7 @@ puderam ser observados no harness.
 | A busca nas notas só se limpava apagando ou com Esc (o achado do mantenedor) | IMPORTANTE | um × no campo |
 | O iOS dá zoom num campo cujo texto tem menos de 16 px | IMPORTANTE | todo campo escreve com 16 px no mínimo numa tela de toque (`css/touch.css`) |
 | Controles mostrados só ao passar o ponteiro (remover uma propriedade, fechar uma aba, dobrar, copiar código, capa, ações de foco…) | IMPORTANTE | mostrados em repouso quando a tela não tem hover |
-| Alvos de toque de 19 a 32 px (barra de status, ribbon, linhas da árvore) | IMPORTANTE | 44 px para o ribbon e a barra de status, linhas de 40 px, divisórias mais largas |
+| Alvos de toque de 19 a 32 px (barra de status, ribbon, linhas da árvore) | IMPORTANTE | 44 px para o ribbon e a barra de status, linhas de 40 px (abaixo dos 44 px pedidos, para a árvore seguir legível; para o ADR), divisórias mais largas |
 | O campo "Mover para…" tinha 17 px de largura num celular | IMPORTANTE | o rótulo dele quebra para cima do campo |
 | A tabela de uma base quebrava palavras letra por letra num celular | IMPORTANTE | cada coluna guarda 7 rem; a tabela rola para o lado |
 | A busca do seletor de figurinhas dizia "Buscar nas notas" | MENOR | palavras próprias |
@@ -56,8 +58,13 @@ que cabe ao ADR fazer:
 - **O ribbon e a barra de status num celular**: 44 px de verbos que são de
   um desktop, contagens do índice na barra de status, números de linha no
   modo Fonte.
-- **O teclado da tela**: os menus e o menu `/` são posicionados contra a
-  altura da janela, não contra o que o teclado deixa (`visualViewport`).
+- **O teclado da tela**: o menu de contexto agora fica dentro do que o
+  teclado deixa (`visualViewport`); o menu `/` e o seletor de figurinhas
+  ainda são posicionados contra a altura da janela.
+- **Leitores de tela com toque**: o VoiceOver no iPhone e no iPad, o
+  TalkBack no Android ([ADR 0035](../adr/0035-cross-cutting-requirements.md)
+  item 2) — não testados; o toque longo do `touch.ts` não pode tomar os
+  gestos do próprio leitor de tela.
 - **Teclas modificadoras e cliques duplos**: seleção múltipla na árvore,
   manter uma aba de pré-visualização, abrir sem pré-visualização.
 - **Texto abaixo de 12 px** na barra de status e nos títulos laterais; as

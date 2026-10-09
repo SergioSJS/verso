@@ -1,5 +1,7 @@
-/* A finger instead of a pointer: phone and tablet (ADR 0073 item 9).
-   Last in the cascade, so each rule here wins over the desktop's. */
+/* A finger instead of a pointer: phone and tablet, from the maintainer's
+   request of 2026-10-09 for a thorough review of the window on them
+   (docs/reference/responsive-review-2026-10-09.md). Last in the cascade,
+   so each rule here wins over the desktop's. */
 
 /* iOS zooms the page into a field whose text is under 16px, and leaves it
    zoomed: on a touch screen every field writes at 16px at least. */
