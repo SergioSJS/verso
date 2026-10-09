@@ -123,9 +123,9 @@ point 13).
    folder; closing a window leaves the others as they were; `verso
    <folder>` with every window on a folder opens a new window. Level: A;
    U: `cargo test -p verso-app` (`each_window_answers_from_its_own_folder`).
-7. No title bar (ADR 0072, note 13), on macOS and Windows: the window's
-   buttons — macOS's at the top left, the app's own at the top right on
-   Windows — never cover a tab, a button or the folder's name, with the side
+7. No title bar (ADR 0072, note 13), on macOS, Windows and Linux: the
+   window's buttons — macOS's at the top left, the app's own at the top
+   right on Windows and Linux — never cover a tab, a button or the folder's name, with the side
    bars open or closed, two panes, a narrow window; the empty part of the
    tab bar, the side bar's head and the ribbon drag the window, and a double
    click there maximizes it (it no longer makes a new note); on Windows the

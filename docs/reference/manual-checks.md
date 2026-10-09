@@ -40,7 +40,8 @@ in the real app.
   (the buttons hide, the ribbon goes back up), a second window, dragging by
   the tab bar and by the side bar's head; on Windows, snapping to a screen
   edge and Win+arrows, resizing from each border, a double click on the
-  tab bar's empty space.
+  tab bar's empty space; on Linux (GNOME, KDE), the same: dragging,
+  resizing from each border, Super+arrows, a double click.
 - [ ] **One agent server for all of Verso** (ADR 0054, 2026-10-08): in
   Settings › Terminal e agentes choose "Um servidor para todo o Verso",
   mark two folders visible, "Adicionar ao Claude Desktop", quit Verso,

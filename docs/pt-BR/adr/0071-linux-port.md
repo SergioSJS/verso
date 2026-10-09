@@ -284,7 +284,8 @@ mesclada):
   entra pelo `plasmalogin`, não pelo sddm, e roda o assistente
   `plasma-setup` até existir `/etc/plasma-setup-done`.
 - **Os pacotes:** a seção `linux` do bundle (`.deb` e `.rpm` dependem do
-  `xdg-utils`; o AppImage não leva GStreamer); o beta se instala como
+  `xdg-utils`; o `.rpm` em zstd, umas três vezes mais rápido de gerar que
+  o gzip padrão, do mesmo tamanho; o AppImage não leva GStreamer); o beta se instala como
   `verso-app-beta` e `verso-beta`, ao lado do release.
 - **A integração:** um pacote põe a linha de comando em `/usr/bin`, e os
   Ajustes dizem isso em vez de oferecer a instalação; o beta usa o
@@ -296,6 +297,15 @@ mesclada):
   `xdg-open`; o item tem o nome de cada SO (Finder, Explorador de Arquivos,
   gerenciador de arquivos). "Copiar caminho completo" cita o
   `wl-clipboard` ou o `xclip` quando nenhum dos dois está lá.
+- **A janela:** a janela de uma pasta não tem a barra de título do
+  sistema, como no Windows — o app desenha minimizar, maximizar e fechar no
+  alto à direita (ADR 0072, item 3: "até o porte dele"). O mantenedor, em
+  2026-10-09, no GNOME e no KDE: "essa barra é gigantesca … muito espaço
+  inútil". A janela é criada escondida e mostrada depois de criada: o tao
+  mostra a janela antes de desligar as decorações, e o KWin do KDE mantinha
+  a barra dele (a issue do tao "with_decorations(false) doesn't work on
+  wayland kde"). Vista sem a barra no Ubuntu 26.04 e no Debian 12 (GNOME) e
+  no Fedora 44 (KDE).
 - **O watcher:** quando o inotify fica sem watches ou descritores ao abrir
   a pasta, ele vigia a pasta por polling a cada 30 segundos. Se faltarem
   depois (uma subpasta nova além do limite), ele ainda não troca.

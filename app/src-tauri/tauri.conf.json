@@ -38,7 +38,7 @@
     "shortDescription": "Notes in Markdown, in plain files you own",
     "linux": {
       "deb": { "section": "text", "depends": ["xdg-utils"] },
-      "rpm": { "depends": ["xdg-utils"] },
+      "rpm": { "depends": ["xdg-utils"], "compression": { "type": "zstd", "level": 3 } },
       "appimage": { "bundleMediaFramework": false }
     },
     "windows": {

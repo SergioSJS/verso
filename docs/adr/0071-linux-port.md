@@ -268,7 +268,8 @@ case-only names (spec Q8).
   in through `plasmalogin`, not sddm, and runs the `plasma-setup` wizard
   until `/etc/plasma-setup-done` exists.
 - **The packages:** the `linux` bundle section (`.deb` and `.rpm` depend on
-  `xdg-utils`; the AppImage carries no GStreamer); the beta installs as
+  `xdg-utils`; the `.rpm` in zstd, about three times faster to build than
+  the default gzip at the same size; the AppImage carries no GStreamer); the beta installs as
   `verso-app-beta` and `verso-beta`, beside the release.
 - **The integration:** a package puts the command line in `/usr/bin`, and
   Settings says so instead of offering to install it; the beta takes
@@ -279,6 +280,14 @@ case-only names (spec Q8).
   D-Bus to select the file, else opens the folder with `xdg-open`; the item
   is named per OS (Finder, File Explorer, file manager). "Copy full path" names `wl-clipboard` or `xclip` when
   neither is there.
+- **The window:** a folder's window has no system title bar, as on
+  Windows — the app draws minimize, maximize and close at the top right
+  (ADR 0072, item 3: "until its port"). The maintainer, on 2026-10-09,
+  on GNOME and KDE: "essa barra é gigantesca … muito espaço inútil". The
+  window is built hidden and shown once built: tao shows a window before it
+  turns its decorations off, and KDE's KWin kept its own bar (tao's issue
+  "with_decorations(false) doesn't work on wayland kde"). Seen without the
+  bar on Ubuntu 26.04 and Debian 12 (GNOME) and Fedora 44 (KDE).
 - **The watcher:** when inotify runs out of watches or descriptors as the
   folder is opened, it watches the folder by polling every 30 seconds. Run
   out later (a new subfolder past the limit), it does not switch yet.

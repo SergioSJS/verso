@@ -39,7 +39,9 @@ app real.
   (os botões somem, a faixa da esquerda volta para cima), uma segunda
   janela, arrastar pela barra de abas e pelo topo da barra lateral; no
   Windows, encaixar numa borda da tela e Win+setas, redimensionar por cada
-  borda, um duplo clique no espaço vazio da barra de abas.
+  borda, um duplo clique no espaço vazio da barra de abas; no Linux (GNOME,
+  KDE), o mesmo: arrastar, redimensionar por cada borda, Super+setas, um
+  duplo clique.
 - [ ] **Um servidor de agentes para todo o Verso** (ADR 0054, 2026-10-08):
   em Ajustes › Terminal e agentes escolha "Um servidor para todo o Verso",
   marque duas pastas como visíveis, "Adicionar ao Claude Desktop", feche o
