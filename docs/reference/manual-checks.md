@@ -19,8 +19,12 @@ in the real app.
 
 ## Not yet checked
 
-### The Windows port (feat/windows-fs)
+### Version 0.5 (feat/windows-fs, feat/signed-updates)
 
+- [ ] **The first signed update** (ADR 0055, 2026-10-09): from the
+  version before the first signed release, "Baixar e atualizar" installs
+  it on macOS and on Windows; the release page lists a `.sig` beside each
+  file.
 - [ ] **No title bar** (ADR 0072, 2026-10-08): on the Mac, full screen
   (the buttons hide, the ribbon goes back up), a second window, dragging by
   the tab bar and by the side bar's head; on Windows, snapping to a screen

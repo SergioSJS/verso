@@ -196,8 +196,7 @@ export function blocksOf(text: string): Block[] {
     const alone = a === z && (lines[a] ?? "").trim() !== "" ? /^\^([A-Za-z0-9-]+)$/.exec(text) : null;
     if (alone) {
       // The block before it: the run before that is not itself a `^id`
-      // alone (two in a row both name the block before them, spec Q3
-      // `[OPEN]`); nothing before it, no block.
+      // alone; nothing before it, no block.
       let named = container(a);
       if (!named) {
         for (let j = k - 1; j >= 0; j--) {
@@ -212,7 +211,13 @@ export function blocksOf(text: string): Block[] {
           if (!out.some((b) => b.line === pa + 1)) break;
         }
       }
-      if (named) out.push({ id: alone[1] ?? "", line: a + 1, col: first.indexOf("^") + 1, first_line: named[0] + 1, last_line: named[1] + 1 });
+      if (named) {
+        // Two alone in a row naming one block: only the last counts, as in
+        // Obsidian (decided 2026-10-09).
+        const prev = out[out.length - 1];
+        if (prev && prev.first_line === named[0] + 1 && prev.last_line === named[1] + 1 && prev.line > named[1] + 1 && prev.line < a + 1) out.pop();
+        out.push({ id: alone[1] ?? "", line: a + 1, col: first.indexOf("^") + 1, first_line: named[0] + 1, last_line: named[1] + 1 });
+      }
       return;
     }
     if (fenceOf(first) && !isItem(first)) return;

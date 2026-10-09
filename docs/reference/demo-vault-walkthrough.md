@@ -465,6 +465,15 @@ point 13).
    by `folder`; unmarked, it is gone from the list. Level: H; E:
    `settings.spec.mjs`; S (`the_server_for_all_of_verso_reads_only_the_visible_folders`);
    A (Claude Desktop, with the app closed).
+7. An update (note 18): from an installed version older than the newest
+   release, Ajustes › Geral › Versão › "Verificar atualizações", then
+   "Baixar e atualizar": the file's checksum and its signature are checked
+   before anything is installed; a file whose signature is missing or does
+   not verify installs nothing and says so. A second folder of the same
+   name added to Claude Desktop (note 17) gets `verso-<parent>-<name>`.
+   Level: S (`an_update_installs_only_with_its_signature`,
+   `a_folder_of_a_name_already_added_takes_its_parent_s_name`); A (the
+   first signed release, on macOS and Windows).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

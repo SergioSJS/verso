@@ -240,12 +240,17 @@ pub(crate) fn mcp_status<R: tauri::Runtime>(
     all: bool,
 ) -> Result<McpStatus, ContractError> {
     let command = mcp_command().unwrap_or_else(|| CLI_LINK.to_owned());
-    let key = mcp_key(&window, &state, all)?;
-    let (server, entry) = verso_core::clients::server_and_entry(&command, key.as_deref());
-    let claude = match claude_dir() {
-        None => McpClientState::NoClient,
+    let folder = mcp_key(&window, &state, all)?;
+    let (names, entry) = verso_core::clients::names_and_entry(
+        &command,
+        folder.as_ref().map(|(k, p)| (k.as_str(), p.as_deref())),
+    );
+    let (server, claude) = match claude_dir() {
+        None => (names[0].clone(), McpClientState::NoClient),
         Some(dir) => {
-            client_state(verso_core::clients::claude_entry(&dir, &server, &entry).map_err(convert)?)
+            let (server, found) =
+                verso_core::clients::pick_server(&dir, &names, &entry).map_err(convert)?;
+            (server, client_state(found))
         }
     };
     Ok(McpStatus {
@@ -256,17 +261,26 @@ pub(crate) fn mcp_status<R: tauri::Runtime>(
 }
 
 /// The folder a client's entry names, by the mode (ADR 0054, revised
-/// 2026-10-08): the open folder's key for its own server; `None` for the
-/// one server for all of Verso, which needs no folder open.
+/// 2026-10-08): the open folder's key, with the name of the folder it sits
+/// in, for its own server; `None` for the one server for all of Verso,
+/// which needs no folder open.
 fn mcp_key<R: tauri::Runtime>(
     window: &tauri::Window<R>,
     state: &State<'_, App>,
     all: bool,
-) -> Result<Option<String>, ContractError> {
+) -> Result<Option<(String, Option<String>)>, ContractError> {
     if all {
         return Ok(None);
     }
-    with(state, window, |ws| Ok(ws.key())).map(Some)
+    with(state, window, |ws| {
+        let parent = ws
+            .folder()
+            .parent()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().into_owned());
+        Ok((ws.key(), parent))
+    })
+    .map(Some)
 }
 
 /// Whether the open folder is marked visible to agents (the server for all
@@ -329,9 +343,13 @@ pub(crate) fn mcp_add_claude<R: tauri::Runtime>(
     let Some(command) = mcp_command() else {
         return Err(refused("install the command line first"));
     };
-    let key = mcp_key(&window, &state, all)?;
-    let (server, entry) = verso_core::clients::server_and_entry(&command, key.as_deref());
+    let folder = mcp_key(&window, &state, all)?;
+    let (names, entry) = verso_core::clients::names_and_entry(
+        &command,
+        folder.as_ref().map(|(k, p)| (k.as_str(), p.as_deref())),
+    );
     let dir = claude_dir().ok_or_else(|| refused("Claude Desktop is not installed"))?;
+    let (server, _) = verso_core::clients::pick_server(&dir, &names, &entry).map_err(convert)?;
     let added = verso_core::clients::add_to_claude(&dir, &server, entry).map_err(convert)?;
     Ok(McpAdded {
         server,

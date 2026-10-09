@@ -56,7 +56,9 @@ Violating an invariant is BLOCKING by definition, with no discussion of merit.
    writing by an agent.
 9. Writing to disk is atomic: temporary file, `fsync` of the file and of the
    directory, `rename` — with the requirements of
-   [ADR 0029](docs/adr/0029-guardrails-in-ci.md).
+   [ADR 0029](docs/adr/0029-guardrails-in-ci.md). On Windows the directory's
+   `FlushFileBuffers` counts as its `fsync`
+   ([ADR 0069](docs/adr/0069-windows-port.md), decided 2026-10-09).
 10. A placeholder file from on-demand storage is never interpreted as a
     deletion ([ADR 0043](docs/adr/0043-placeholder-guard.md)).
 11. Every write checks that the file on disk is the one that was read (mtime and

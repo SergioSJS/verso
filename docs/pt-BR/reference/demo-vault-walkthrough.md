@@ -479,6 +479,15 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Nível: H; E: `settings.spec.mjs`; S
    (`the_server_for_all_of_verso_reads_only_the_visible_folders`); A (o
    Claude Desktop, com o app fechado).
+7. Uma atualização (nota 18): de uma versão instalada mais antiga que a
+   última release, Ajustes › Geral › Versão › "Verificar atualizações", e
+   depois "Baixar e atualizar": o checksum e a assinatura do arquivo são
+   conferidos antes de instalar qualquer coisa; um arquivo cuja assinatura
+   falte ou não confira não instala nada e diz isso. Uma segunda pasta de
+   mesmo nome adicionada ao Claude Desktop (nota 17) ganha
+   `verso-<pai>-<nome>`. Nível: S (`an_update_installs_only_with_its_signature`,
+   `a_folder_of_a_name_already_added_takes_its_parent_s_name`); A (a
+   primeira release assinada, no macOS e no Windows).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 

@@ -85,7 +85,9 @@ modificações até gerar versão, considerando changelog inclusive"*.
    [0069](0069-windows-port.md) item 6: a Windows job builds the NSIS
    installer and the command line beside the macOS job, and a short Linux
    job publishes the release once both are built — a version is published
-   whole or not at all.)*
+   whole or not at all. Since 2026-10-09 each file is signed with the
+   release key of [0055](0055-in-app-updater.md), its `.sig` published
+   beside it.)*
 7. **The app says which it is**: the version and the commit it was built from,
    in the settings and the macOS About panel, and from `verso --version`.
 

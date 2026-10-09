@@ -55,7 +55,9 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
    por agente.
 9. Escrita em disco é atômica: arquivo temporário, `fsync` do arquivo e do
    diretório, `rename` — com os requisitos de
-   [ADR 0029](adr/0029-guardrails-in-ci.md).
+   [ADR 0029](adr/0029-guardrails-in-ci.md). No Windows o `FlushFileBuffers`
+   do diretório conta como o `fsync` dele
+   ([ADR 0069](adr/0069-windows-port.md), decidido em 2026-10-09).
 10. Arquivo placeholder de armazenamento sob demanda nunca é interpretado como
     deleção ([ADR 0043](adr/0043-placeholder-guard.md)).
 11. Toda escrita verifica que o arquivo em disco é o que foi lido (mtime e

@@ -877,6 +877,11 @@ fn context<R: tauri::Runtime>() -> tauri::Context<R> {
 
 /// Write the TypeScript bindings (types and command signatures) to
 /// `path`. CI checks the committed file is this output (ADR 0029).
+/// `verso-app --verify-signature FILE`: see `update::verify_release_file`.
+pub fn verify_release_file(path: &Path) -> Result<(), String> {
+    update::verify_release_file(path)
+}
+
 pub fn export_bindings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     commands().export(
         specta_typescript::Typescript::default()

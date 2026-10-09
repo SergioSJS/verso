@@ -210,9 +210,14 @@ enquanto algum arquivo dentro dela está aberto.
      ainda é o arquivo que foi lido (invariante 11) — mudou, a escrita para
      e o diff aparece. Um destino segurado responde "Access is denied"
      (medido), o mesmo erro que um destino somente leitura dá para sempre:
-     o somente leitura é reconhecido antes e falha na hora. O `[ABERTO]` passa a
-     ser: este flush é o `fsync` de diretório que o invariante 9 quer dizer.
-   - **`[ABERTO]`: o separador de caminho.** O caminho de uma nota cruza o
+     o somente leitura é reconhecido antes e falha na hora.
+     **Decidido pelo mantenedor em 2026-10-09** ("Recomendado"): este flush
+     conta como o `fsync` de diretório do invariante 9 — o mesmo propósito,
+     um rename que sobrevive a uma queda de energia, pelos meios da própria
+     plataforma; o item 9 do §2 do `CLAUDE.md` diz isso.
+   - **O separador de caminho: `/`, decidido definitivo pelo mantenedor em
+     2026-10-09** (perguntado se havia motivo contra, não havia). O
+     caminho de uma nota cruza o
      contrato como texto relativo à pasta aberta (ADR 0026, regra 4), os
      alvos de wikilink e o índice guardam caminhos, e o
      `docs/reference/mcp-decision.md` escolheu `/` enquanto "o Windows não é
@@ -220,10 +225,10 @@ enquanto algum arquivo dentro dela está aberto.
      aberta — o contrato, o índice, o MCP — e só o `verso-fs` o converte
      para a forma do SO na sua borda; o texto de um link dentro de uma nota
      é conteúdo do arquivo e não é tocado (invariantes 7 e 12). A API
-     pública do Obsidian expõe `normalizePath` (`obsidian.d.ts`), cuja
-     documentação não diz o que faz com separadores: que o Obsidian escreve
-     `/` num cofre no Windows é para observar e registrar em
-     `docs/reference/` (ADR 0009) antes de o porte depender disso. O
+     pública do Obsidian expõe `normalizePath` (`obsidian.d.ts`); a
+     documentação dele no pacote da versão 1.14.4 dá
+     `normalizePath('foo\\bar'); // foo/bar` — os caminhos do próprio
+     Obsidian usam `/` em todo SO, como os do Verso. O
      mantenedor, perguntado em 2026-10-07, ainda não sabe ("Não sei"): o
      porte segue com esta recomendação como fato provisório, e o mantenedor
      decide no pull request que a trouxer, com a Q8 (maiúsculas) ao lado. Os caminhos absolutos da borda de entrada (invariante 4) ficam

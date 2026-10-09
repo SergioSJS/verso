@@ -141,17 +141,30 @@ pub(crate) fn write_agents(config: &Path, visible: &[String]) -> std::io::Result
     std::fs::rename(&temporary, config.join("agents.json"))
 }
 
-/// The calls agents made, newest last, kept to the last [`AGENT_LOG_LINES`]:
-/// `<config>/agents.log` (ADR 0054). Rewritten whole each time — a
-/// temporary, a chmod to `0600`, a rename — with the calls this crate may
-/// make on the configuration directory (its clippy.toml): no appending. Two
-/// processes that log in the same instant can each rewrite the file
-/// without the other's line; the temporary is each one's own.
+/// The calls agents made, newest last: `<config>/agents.log` (ADR 0054).
+/// Each call appends its line in one write, so two processes logging at
+/// once both keep theirs (allowed 2026-10-09, the crate's clippy.toml). Past
+/// [`AGENT_LOG_TRIM`] bytes the file is cut to its last [`AGENT_LOG_LINES`]
+/// lines — a temporary of this process's own, a chmod to `0600`, a rename;
+/// a line appended by another process during that rare cut can be lost.
 pub(crate) fn append_agent_log(config: &Path, line: &str) -> std::io::Result<()> {
+    use std::io::Write;
     let file = config.join("agents.log");
-    let mut text = std::fs::read_to_string(&file).unwrap_or_default();
-    text.push_str(line);
-    text.push('\n');
+    let mut log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&file)?;
+    private(&file)?;
+    log.write_all(format!("{line}\n").as_bytes())?;
+    if log.metadata()?.len() <= AGENT_LOG_TRIM {
+        return Ok(());
+    }
+    drop(log);
+    // A log that does not read whole is left as it is, never replaced by
+    // nothing.
+    let Ok(text) = std::fs::read_to_string(&file) else {
+        return Ok(());
+    };
     let lines: Vec<&str> = text.lines().collect();
     let kept = lines[lines.len().saturating_sub(AGENT_LOG_LINES)..].join("\n") + "\n";
     let temporary = temporary(config, "agents.log");
@@ -159,6 +172,10 @@ pub(crate) fn append_agent_log(config: &Path, line: &str) -> std::io::Result<()>
     private(&temporary)?;
     std::fs::rename(&temporary, file)
 }
+
+/// The size past which `agents.log` is cut back to its last lines: about
+/// twice what [`AGENT_LOG_LINES`] lines of at most 300 characters take.
+const AGENT_LOG_TRIM: u64 = 1024 * 1024;
 
 /// What `agents.log` holds; empty when there is none.
 pub(crate) fn read_agent_log(config: &Path) -> String {

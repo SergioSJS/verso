@@ -120,12 +120,12 @@ autor aceitas ("pode seguir"):
    fica no log, com a pasta como foi pedida (`… on <pedida> (refused)`): o
    rastro de um agente procurando pastas que não lhe foram dadas. Cada
    argumento guarda os primeiros 300 caracteres, para que um enorme não
-   faça crescer o arquivo que toda chamada reescreve. Dois servidores
-   registrando no mesmo instante podem cada um reescrever o arquivo sem a
-   linha do outro (cada um grava o próprio temporário); `[OPEN]`:
-   acrescentar em vez disso, o que pede `OpenOptions` declarado no
-   `clippy.toml` do verso-core — uma exceção de guardrail, que cabe ao
-   mantenedor conceder.
+   faça crescer o log. **Cada chamada acrescenta a sua linha**, então dois
+   servidores registrando ao mesmo tempo guardam as duas: `OpenOptions`
+   declarado no `clippy.toml` do verso-core, uma exceção de guardrail que o
+   mantenedor concedeu em 2026-10-09 ("Liberado"). Passado 1 MiB, o arquivo
+   é cortado para as últimas 2.000 linhas; uma linha acrescentada por outro
+   processo durante esse corte raro pode se perder.
 
 **Segurança, como pesada em sessão.** Um programa rodando como a pessoa já
 lê as notas do disco, fora das pastas protegidas do macOS: o servidor não abre porta nova na máquina (as notas,
@@ -144,10 +144,15 @@ agente — um segundo motivo para ele ser o padrão. A verificar no macOS: um pr
 iniciado por um app sem acesso às pastas protegidas (Documentos, Mesa,
 iCloud) só as alcança pelo `verso` se o macOS atribuir o acesso ao Verso e
 não ao app que o iniciou (um pedido nomearia o cliente, não o Verso); o
-Windows não tem essa barreira (ADR 0069). `[ABERTO]`: duas pastas com o
-mesmo nome já colidem no modo por pasta — o segundo "Adicionar ao Claude
-Desktop" substitui a primeira entrada (`verso-<nome>`); o nome da entrada
-nesse caso é do mantenedor escolher.
+Windows não tem essa barreira (ADR 0069). **Duas pastas com o
+mesmo nome guardam cada uma a sua entrada** (decidido pelo mantenedor em
+2026-10-09, "Perfeito"): a entrada é `verso-<nome>`; quando outra pasta já
+tem esse nome, `verso-<pai>-<nome>`, `pai` a pasta em que ela está (como o
+VS Code e o Obsidian distinguem duas abas de mesmo nome); quando esse
+também está tomado, `verso-<nome>-<os seis primeiros caracteres do hash da
+chave>`. Uma pasta já adicionada mantém o seu nome. Descartados: a data de
+modificação (muda, e não diz nada) e um contador (depende da ordem em que
+se adicionou, e `-2` não diz nada).
 
 ## Consequências
 
