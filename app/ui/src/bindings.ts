@@ -328,6 +328,21 @@ export const commands = {
 	capabilities: () => typedError<Capabilities, ContractError>(__TAURI_INVOKE("capabilities")),
 	/**  The space the open folder takes (ADR 0075 item 4). */
 	folderSpace: () => typedError<FolderSpace, ContractError>(__TAURI_INVOKE("folder_space")),
+	/**  Join a note for editing with others: on a server only. */
+	collabJoin: (path: string) => typedError<CollabJoin, ContractError>(__TAURI_INVOKE("collab_join", { path })),
+	/**  An edit made in this window, for the others. */
+	collabUpdate: (path: string, update: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_update", { path, update })),
+	/**  Where this window's cursor is, for the others. */
+	collabAwareness: (path: string, update: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_awareness", { path, update })),
+	/**  This window leaves the note. */
+	collabLeave: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_leave", { path })),
+	/**  Write the shared note now (⌘S): its revision on disk. */
+	collabSave: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("collab_save", { path })),
+	/**
+	 *  A shared note that changed on disk while edits waited: keep the disk's
+	 *  text (`disk`) or write the shared one over it (`mine`).
+	 */
+	collabResolve: (path: string, keep: string) => typedError<string, ContractError>(__TAURI_INVOKE("collab_resolve", { path, keep })),
 	/**
 	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
 	 *  window draws, as a table, cards, a list, a kanban or a calendar.
@@ -611,6 +626,43 @@ export type CliState =
  *  it, and nothing is linked onto a PATH (ADR 0069, item 9).
  */
 "bundled";
+
+/**
+ *  A note joined for editing by several people at once (ADR 0073 item 7):
+ *  the shared state as a Yjs update (base64) to apply to an empty
+ *  document, the revision on disk it stands on, and how the file is
+ *  written — its text in the shared state has `\n` line ends; a file
+ *  that mixes them is shown read-only and joins nothing.
+ */
+export type CollabJoin = {
+	update: string,
+	revision: string,
+	read_only: boolean,
+	/**  Whether the file's lines end in CRLF. */
+	crlf: boolean,
+	/**  The name the others see for this person. */
+	user: string,
+};
+
+/**
+ *  What became of a shared note (events `collab-saved`, `collab-conflict`,
+ *  `collab-closed`): written at `revision`; changed on disk while edits
+ *  waited, so the people in it see the difference; or no longer shared
+ *  (renamed, deleted, its line ends mixed), so the window reads it again.
+ */
+export type CollabState = {
+	path: string,
+	revision: string | null,
+};
+
+/**
+ *  An edit or a presence of another person in a note (events
+ *  `collab-update` and `collab-awareness`): a Yjs update, base64.
+ */
+export type CollabUpdate = {
+	path: string,
+	update: string,
+};
 
 /**
  *  An error as the UI receives it. `message` is the core's text, in

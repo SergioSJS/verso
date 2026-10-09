@@ -700,3 +700,110 @@ fn the_server_serves_its_own_tls() {
         );
     });
 }
+
+/// The next event of `name` the socket hears.
+async fn event_named(ws: &mut Socket, name: &str) -> Value {
+    loop {
+        let m = tokio::time::timeout(std::time::Duration::from_secs(10), ws.next())
+            .await
+            .expect("an event in time")
+            .unwrap()
+            .unwrap();
+        if let Message::Text(t) = m {
+            let v: Value = serde_json::from_str(&t).unwrap();
+            if v["event"] == name {
+                return v["payload"].clone();
+            }
+        }
+    }
+}
+
+#[test]
+fn two_windows_edit_one_note_and_the_file_follows() {
+    use base64::Engine;
+    use yrs::updates::decoder::Decode;
+    use yrs::{GetString, ReadTxn, Text, Transact};
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut one = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        let mut two = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        for ws in [&mut one, &mut two] {
+            next(ws).await;
+            call(ws, 1, "open_server_folder", json!({ "id": id })).await;
+        }
+        let joined = call(&mut one, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(joined["ok"]["read_only"], false, "{joined}");
+        call(&mut two, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        // Window one's document, from the state it was given; it types.
+        let doc = yrs::Doc::with_options(yrs::Options {
+            offset_kind: yrs::OffsetKind::Utf16,
+            ..Default::default()
+        });
+        let state = base64::engine::general_purpose::STANDARD
+            .decode(joined["ok"]["update"].as_str().unwrap())
+            .unwrap();
+        doc.transact_mut()
+            .apply_update(yrs::Update::decode_v1(&state).unwrap())
+            .unwrap();
+        let text = doc.get_or_insert_text(collab::TEXT);
+        let typed = {
+            let mut txn = doc.transact_mut();
+            let len = text.get_string(&txn).encode_utf16().count() as u32;
+            text.insert(&mut txn, len, "\nescrito junto\n");
+            txn.encode_update_v1()
+        };
+        let update = base64::engine::general_purpose::STANDARD.encode(typed);
+        let sent = call(
+            &mut one,
+            3,
+            "collab_update",
+            json!({ "path": "Sessao.md", "update": update }),
+        )
+        .await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        // Window two hears the edit, then the write.
+        let heard = event_named(&mut two, "collab-update").await;
+        assert_eq!(heard["update"], update);
+        let saved = event_named(&mut two, "collab-saved").await;
+        let revision = saved["revision"].as_str().unwrap().to_owned();
+        let note = call(&mut two, 4, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(note["ok"]["text"], "# Sessao\n\nescrito junto\n");
+        assert_eq!(note["ok"]["revision"], revision.as_str());
+        // A write from elsewhere (a property) is merged into the room.
+        let written = call(
+            &mut two,
+            5,
+            "write_note",
+            json!({ "path": "Sessao.md", "text": "---\ntag: x\n---\n# Sessao\n\nescrito junto\n", "revision": revision }),
+        )
+        .await;
+        assert!(written.get("ok").is_some(), "{written}");
+        let merged = event_named(&mut one, "collab-update").await;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(merged["update"].as_str().unwrap())
+            .unwrap();
+        doc.transact_mut()
+            .apply_update(yrs::Update::decode_v1(&bytes).unwrap())
+            .unwrap();
+        assert_eq!(
+            text.get_string(&doc.transact()),
+            "---\ntag: x\n---\n# Sessao\n\nescrito junto\n"
+        );
+        // A stale revision is refused (invariant 11).
+        let stale = call(
+            &mut two,
+            6,
+            "write_note",
+            json!({ "path": "Sessao.md", "text": "x", "revision": revision }),
+        )
+        .await;
+        assert_eq!(stale["err"]["kind"], "changed", "{stale}");
+        let _ = doc.transact().state_vector();
+    });
+}

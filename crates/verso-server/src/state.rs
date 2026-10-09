@@ -48,6 +48,10 @@ pub struct Server {
     pub newer: Mutex<Option<String>>,
     /// The commit the server was built from (ADR 0051).
     pub commit: String,
+    /// The notes being edited by several windows at once (ADR 0073 item 7).
+    pub rooms: crate::collab::Rooms,
+    /// The runtime, for what the watcher's thread hands over.
+    pub runtime: std::sync::OnceLock<tokio::runtime::Handle>,
 }
 
 impl Server {
@@ -64,6 +68,8 @@ impl Server {
             devices: Mutex::new(HashMap::new()),
             newer: Mutex::new(None),
             commit,
+            rooms: crate::collab::Rooms::default(),
+            runtime: std::sync::OnceLock::new(),
         });
         service.set_events(Arc::new(ServerEvents {
             server: Arc::downgrade(&server),
@@ -149,6 +155,15 @@ impl verso_service::Events for ServerEvents {
 
     fn folder_changed(&self, clients: &[String], changed: &FolderChanged) {
         if let Some(s) = self.server.upgrade() {
+            // A shared note changed outside: its room hears it first, off
+            // the watcher's thread.
+            if let Some(rt) = s.runtime.get() {
+                let server = Arc::clone(&s);
+                let c = changed.clone();
+                rt.spawn_blocking(move || {
+                    crate::collab::changed_outside(&server, &c.key, &c.changed, &c.removed);
+                });
+            }
             s.push(
                 clients,
                 &serde_json::json!({ "event": "folder-changed", "payload": changed }),

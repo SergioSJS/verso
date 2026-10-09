@@ -456,6 +456,40 @@ pub struct Capabilities {
     pub can: Vec<Can>,
 }
 
+/// A note joined for editing by several people at once (ADR 0073 item 7):
+/// the shared state as a Yjs update (base64) to apply to an empty
+/// document, the revision on disk it stands on, and how the file is
+/// written — its text in the shared state has `\n` line ends; a file
+/// that mixes them is shown read-only and joins nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CollabJoin {
+    pub update: String,
+    pub revision: String,
+    pub read_only: bool,
+    /// Whether the file's lines end in CRLF.
+    pub crlf: bool,
+    /// The name the others see for this person.
+    pub user: String,
+}
+
+/// An edit or a presence of another person in a note (events
+/// `collab-update` and `collab-awareness`): a Yjs update, base64.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CollabUpdate {
+    pub path: String,
+    pub update: String,
+}
+
+/// What became of a shared note (events `collab-saved`, `collab-conflict`,
+/// `collab-closed`): written at `revision`; changed on disk while edits
+/// waited, so the people in it see the difference; or no longer shared
+/// (renamed, deleted, its line ends mixed), so the window reads it again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CollabState {
+    pub path: String,
+    pub revision: Option<String>,
+}
+
 /// Information about an application update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct UpdateInfo {

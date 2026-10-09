@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-collab-save"
+description = "Enables the collab_save command without any pre-configured scope."
+commands.allow = ["collab_save"]
+
+[[permission]]
+identifier = "deny-collab-save"
+description = "Denies the collab_save command without any pre-configured scope."
+commands.deny = ["collab_save"]
