@@ -752,11 +752,17 @@ impl Index {
             .is_some())
     }
 
-    /// The note at `relative` was read in this run and matched the index:
-    /// it is known to match the disk as of the run's start. Nothing outside
-    /// a run.
-    pub fn confirm(&mut self, relative: &str) -> Result<(), IndexError> {
-        if let Some(started) = self.run_started {
+    /// The note at `relative`, modified at `modified` (seconds), was read in
+    /// this run and matched the index: it is known to match the disk as of
+    /// the run's start. Written only when that lets the next run trust its
+    /// stat — modified at least 2 s before this run began; a note modified
+    /// later stays racy whatever is written, and writing every such row made
+    /// a reopen right after the notes were written 2.5× slower (the
+    /// benchmark's `index_unchanged`, 2026-10-08). Nothing outside a run.
+    pub fn confirm(&mut self, relative: &str, modified: Option<i64>) -> Result<(), IndexError> {
+        if let Some(started) = self.run_started
+            && modified.is_some_and(|m| m < started - 1)
+        {
             self.conn.execute(
                 "UPDATE notes SET indexed_at = ?2 WHERE path = ?1 AND indexed_at < ?2",
                 params![relative, started],
