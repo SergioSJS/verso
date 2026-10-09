@@ -360,6 +360,10 @@ pub struct IndexReport {
     /// and times alone do not count: every save changes them, and a note
     /// whose content changed is in `changed` already.
     pub listing_changed: bool,
+    /// Only the batch's paths were read again, not the whole folder walked
+    /// (`Workspace::index_changes`): the problems the last walk met still
+    /// stand.
+    pub narrowed: bool,
 }
 
 /// Progress reported while indexing a folder.

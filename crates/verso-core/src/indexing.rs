@@ -249,6 +249,108 @@ impl Workspace {
         Ok(report)
     }
 
+    /// The index brought up to date with the paths of one batch of the
+    /// watch only, not a walk of the whole folder (ADR 0073 item 12): each
+    /// path an existing note or file whose content changed is read again,
+    /// and nothing else is touched. Anything else — a path created, removed
+    /// or renamed, a directory, a placeholder, a batch the system said to
+    /// scan whole, a batch too large — runs [`Workspace::index_with_progress`]
+    /// as before, so the listing and what is gone stay exactly what a walk
+    /// finds.
+    pub fn index_changes<F>(
+        &mut self,
+        changes: &Changes,
+        on_progress: F,
+    ) -> Result<IndexReport, CoreError>
+    where
+        F: FnMut(IndexProgress),
+    {
+        // Reading a path costs about a millisecond, a walk of the folder
+        // about one per hundred notes: a batch of up to a twentieth of the
+        // folder (64 at least) is cheaper by its paths (measured with the
+        // benchmark's watch_batch, 2026-10-09).
+        let narrow_most = 64.max(self.entries.len() / 20);
+        let paths: Vec<String> = changes
+            .paths
+            .iter()
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .collect();
+        let narrowable = !changes.rescan
+            && !paths.is_empty()
+            && paths.len() <= narrow_most
+            && paths.iter().all(|p| {
+                self.entries
+                    .iter()
+                    .find(|e| e.path == *p)
+                    .is_some_and(|e| matches!(e.kind, FileKind::Note | FileKind::File))
+            });
+        if !narrowable {
+            return self.index_with_progress(on_progress);
+        }
+        self.index.begin().map_err(CoreError::Index)?;
+        let report =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.narrow_run(&paths)));
+        let committed = self.index.commit().map_err(CoreError::Index);
+        let report = match report {
+            Ok(report) => report?,
+            Err(panic) => std::panic::resume_unwind(panic),
+        };
+        committed?;
+        match report {
+            Some(report) => Ok(report),
+            // A path that turned out gone or no longer a file: a walk.
+            None => self.index_with_progress(on_progress),
+        }
+    }
+
+    /// The narrowed run itself; `None` when a path is not what the listing
+    /// said (gone, a directory now): the caller walks instead.
+    fn narrow_run(&mut self, paths: &[String]) -> Result<Option<IndexReport>, CoreError> {
+        let mut report = IndexReport {
+            narrowed: true,
+            ..IndexReport::default()
+        };
+        for relative in paths {
+            let handle = self
+                .root
+                .handle(Path::new(relative))
+                .map_err(CoreError::Confined)?;
+            let Ok((len, modified)) = self.root.length_and_time(handle) else {
+                return Ok(None);
+            };
+            let modified = modified.map_or(0, seconds_since_epoch);
+            let is_note = relative.ends_with(".md");
+            if is_note || is_canvas(relative) {
+                match self.root.read(handle) {
+                    Ok((bytes, stamp)) => {
+                        let stamp = note_stamp(&stamp);
+                        if self.index.stamp_of(relative).map_err(CoreError::Index)? == Some(stamp) {
+                            report.unchanged += 1;
+                        } else if is_note {
+                            let content = String::from_utf8_lossy(&bytes);
+                            let parsed = verso_dialect::parse(&content);
+                            self.index
+                                .upsert(relative, stamp, &content, &parsed)
+                                .map_err(CoreError::Index)?;
+                            report.indexed += 1;
+                            report.changed.push(relative.clone());
+                        } else {
+                            self.index_canvas(relative, &bytes, stamp)?;
+                            report.changed.push(relative.clone());
+                        }
+                    }
+                    Err(verso_fs::ReadError::Unavailable) => return Ok(None),
+                    Err(e) => report.unreadable.push((relative.clone(), e.to_string())),
+                }
+            }
+            if let Some(entry) = self.entries.iter_mut().find(|e| e.path == *relative) {
+                entry.len = len;
+                entry.modified = modified;
+            }
+        }
+        Ok(Some(report))
+    }
+
     /// Watch the folder for changes made outside the app — by another
     /// editor, a sync client, git (provisional:
     /// `docs/reference/watcher-decision.md`). `on_change` is called on a

@@ -906,3 +906,47 @@ fn only_a_complete_run_lets_the_next_trust_a_note_by_its_stat() {
     let r = ws.index().unwrap();
     assert_eq!((r.trusted, r.indexed), (2, 0), "{r:?}");
 }
+
+/// A file rewritten as another program would: a new file renamed over it.
+fn rewrite_outside(dir: &Path, name: &str, content: &str) {
+    let mut f = Builder::new().tempfile_in(dir).unwrap();
+    f.write_all(content.as_bytes()).unwrap();
+    f.persist(dir.join(name)).unwrap();
+}
+
+/// A batch of the watch that only changed notes is read path by path, not
+/// by a walk (ADR 0073 item 12); one that adds a note walks, as before.
+#[test]
+fn a_batch_of_changed_notes_reads_only_its_paths() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _a = note(vault.path(), "Uma.md", "# Uma\n");
+    let _b = note(vault.path(), "Duas.md", "# Duas\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    rewrite_outside(vault.path(), "Uma.md", "# Uma\n\ndragão vermelho\n");
+    let changes = verso_core::Changes {
+        paths: vec![std::path::PathBuf::from("Uma.md")],
+        rescan: false,
+    };
+    let report = ws.index_changes(&changes, |_| {}).unwrap();
+    assert!(report.narrowed);
+    assert_eq!(report.changed, vec!["Uma.md".to_owned()]);
+    assert_eq!(report.indexed, 1);
+    assert_eq!(ws.search("dragão", 10).unwrap()[0].path, "Uma.md");
+    // A new note is a change of the listing: the walk runs.
+    let _c = note(vault.path(), "Tres.md", "# Três\n");
+    let changes = verso_core::Changes {
+        paths: vec![std::path::PathBuf::from("Tres.md")],
+        rescan: false,
+    };
+    let report = ws.index_changes(&changes, |_| {}).unwrap();
+    assert!(!report.narrowed);
+    assert!(report.listing_changed);
+    // The system asked for a rescan: the walk runs whatever the paths.
+    let changes = verso_core::Changes {
+        paths: vec![std::path::PathBuf::from("Duas.md")],
+        rescan: true,
+    };
+    assert!(!ws.index_changes(&changes, |_| {}).unwrap().narrowed);
+}
