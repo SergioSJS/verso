@@ -118,7 +118,9 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
   ghcr.io` with a token that reads packages, and the free plan's quota
   for private packages (500 MB stored, 1 GB downloaded a month) asks the
   workflow to keep only the last versions. When the repository opens, the
-  package opens with it.
+  package does not follow on its own: its visibility is changed once in
+  the package's settings (a public package cannot be made private again),
+  and from then on it is pulled with no login and costs nothing.
 - `verso-fs` learns to tell a network file system from a local one, for
   the scan of item 3; `verso-index` reports the sizes of item 4 from the
   walk it already makes.
