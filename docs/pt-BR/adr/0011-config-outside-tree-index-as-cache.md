@@ -137,3 +137,13 @@ Aceito. Emendado pelo mantenedor em 2026-10-08:
   leitura poderia manter os dois, então essa nota é lida de novo, como o git
   faz com as suas entradas "racy". Ler e calcular o hash de toda nota fazia
   cada abertura de 5.000 notas custar segundos ("pode ser").
+  *Revisto em 2026-10-09 (schema 13), só o mecanismo:* a data da qual a
+  nota precisa ser mais antiga é uma só para o índice inteiro — o começo da
+  última rodada completa, que leu ou confiou em toda nota
+  (`meta.verified_from`, não gravada por uma rodada que não conseguiu
+  listar uma pasta ou ler um arquivo) — em vez de uma por linha. Atestar
+  cada linha regravava todas as linhas, com o texto junto, a cada
+  abertura: no runner do CI, reabrir 10.000 notas foi de 379 ms (a linha de
+  base registrada) a 949–980 ms. Aceito, como no git: um arquivo trocado
+  por outro do mesmo tamanho com o mesmo segundo de modificação (uma cópia
+  que mantém as datas, uma restauração) é confiado até um dos dois mudar.

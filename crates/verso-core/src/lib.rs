@@ -333,6 +333,9 @@ pub struct IndexReport {
     pub indexed: usize,
     /// Notes whose stamp the index already had.
     pub unchanged: usize,
+    /// Of those, the notes trusted by their modified time and length
+    /// alone, without reading them (schema 13, the last complete run).
+    pub trusted: usize,
     /// Notes the index had and the walk no longer lists.
     pub removed: usize,
     /// Placeholders met: present, content unavailable, never removed.

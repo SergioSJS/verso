@@ -30,7 +30,7 @@ mod store;
 
 use std::path::{Path, PathBuf};
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 
 pub use keys::{file_key, note_keys, target_key, type_key};
 pub use search::Hit;
@@ -87,8 +87,13 @@ pub struct Index {
     /// `None` outside a run ([`Index::begin`]).
     run: Option<u32>,
     /// When the open run began, in seconds since the Unix epoch: what a
-    /// row written or confirmed in it records as `indexed_at`.
+    /// row written in it records as `indexed_at`, and what the run records
+    /// as `verified_from` when it completes ([`Index::complete`]).
     run_started: Option<i64>,
+    /// In the open run, the modified time (seconds) a note must be older
+    /// than to be trusted by its stat: two seconds before the last
+    /// complete run began. `None` outside a run, where nothing is.
+    trusted_before: Option<i64>,
 }
 
 /// Changes of an index run between two commits: the write lock is let go
@@ -143,6 +148,7 @@ impl Index {
             path,
             run: None,
             run_started: None,
+            trusted_before: None,
         })
     }
 
@@ -158,21 +164,49 @@ impl Index {
         if !self.conn.is_autocommit() {
             self.conn.execute_batch("COMMIT")?;
         }
-        // Taken before any note of the run is read: a row's `indexed_at`
-        // must never be later than the read it vouches for.
+        // Taken before any note of the run is read: what the run records
+        // must never be later than the reads it vouches for.
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
         self.conn.execute_batch("BEGIN IMMEDIATE")?;
-        // A clock set back (a restored virtual machine, a clock corrected
-        // by the network) leaves rows vouched for "in the future": they
-        // are read again rather than trusted.
-        self.conn.execute(
-            "UPDATE notes SET indexed_at = 0 WHERE indexed_at > ?1",
-            [now],
-        )?;
+        // The last complete run read every note or trusted it by this same
+        // rule, so a note modified at least 2 s before that run began, and
+        // whose time and length the index holds, is the one the index
+        // holds (git's racy rule, one date for the whole index rather than
+        // one written per note: writing each row again cost a reopen of
+        // 10,000 notes 4 times its time on a disk that syncs for real,
+        // 2026-10-08). A date in the future — a clock set back — trusts
+        // nothing.
+        let verified_from = self
+            .conn
+            .query_row(
+                "SELECT value FROM meta WHERE key = 'verified_from'",
+                [],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()?
+            .and_then(|v| v.parse::<i64>().ok())
+            .filter(|&v| v <= now)
+            .unwrap_or(0);
         self.run = Some(0);
         self.run_started = Some(now);
+        self.trusted_before = Some(verified_from - 1);
+        Ok(())
+    }
+
+    /// The open run read or trusted every note of the folder: from the
+    /// next run on, a note modified at least 2 s before this run began is
+    /// trusted by its stat. A run that skipped any note (a folder it could
+    /// not list, a file it could not read) must not call this.
+    pub fn complete(&mut self) -> Result<(), IndexError> {
+        if let Some(started) = self.run_started {
+            self.conn.execute(
+                "INSERT INTO meta (key, value) VALUES ('verified_from', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                [started.to_string()],
+            )?;
+        }
         Ok(())
     }
 
@@ -196,6 +230,7 @@ impl Index {
     pub fn commit(&mut self) -> Result<(), IndexError> {
         self.run = None;
         self.run_started = None;
+        self.trusted_before = None;
         if !self.conn.is_autocommit() {
             self.conn.execute_batch("COMMIT")?;
         }
@@ -213,6 +248,7 @@ impl Index {
             path: PathBuf::from(":memory:"),
             run: None,
             run_started: None,
+            trusted_before: None,
         })
     }
 

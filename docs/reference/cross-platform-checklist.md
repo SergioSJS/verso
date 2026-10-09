@@ -35,7 +35,7 @@
 | a `compile_error!` for "not Unix" | the whole workspace stopped | a Windows half in `verso-fs/src/os.rs` |
 | a Unix-only crate (`xattr`) as a dependency on every OS | did not compile | `[target.'cfg(unix)'.dependencies]`; check with `cargo tree --target x86_64-pc-windows-msvc` |
 | a watcher event taken as a change whatever its kind | reading notes made Windows report the folder "modified": the index looped | filter what the OS reports for itself (`directory_touched_only`) |
-| reading every file to tell it is unchanged | each opening of 5,000 notes re-read and hashed them all: seconds of CPU on Windows | trust the modified time and length when the file was modified ≥ 2 s before the run that last read it (`unchanged_by_stat`, `indexed_at`); read the rest |
+| reading every file to tell it is unchanged | each opening of 5,000 notes re-read and hashed them all: seconds of CPU on Windows | trust the modified time and length when the file was modified ≥ 2 s before the last complete run began — one date for the index (`unchanged_by_stat`, `meta.verified_from`), never a write per file; read the rest |
 | a Windows cloud file read like any other | reading a OneDrive Files On-Demand file downloads it: a first index would pull the whole folder | `placeholder::is_dataless` reads its attributes (`RECALL_ON_DATA_ACCESS`, `RECALL_ON_OPEN`, `OFFLINE`); test with `attrib +O` |
 | checking a name's characters only | `OBSIDI~1`, the 8.3 short name of `.obsidian`, got past the hidden rule | `confine::short_name` looks such a name up in its folder (`ShortName`) |
 | a test writing through `Workspace::open(dir, None)` | 1167 indexes left in the user's real config folder | always pass a config folder in tests |
