@@ -95,34 +95,6 @@ function buildNotices(): void {
 }
 
 /* ---------- What the side cannot do (item 11) ---------- */
-/** The settings that mean nothing on the side the window talks to: the
- *  command line and the agents, the updates, the console. The dialog is
- *  another file's; its rows are found by their titles once drawn.
- *  `[OPEN]`: the dialog filtering its own items by capability. */
-function pruneSettings(): void {
-  const dialog = document.querySelector<HTMLElement>(".quick.settings");
-  if (!dialog) return;
-  const titles = (): Set<string> => {
-    const out = new Set<string>();
-    if (!can("agents")) for (const s of [t.cliTitle, t.mcpModeTitle, t.mcpTitle, t.agentVisibleTitle, t.mcpCodeTitle, t.mcpOtherTitle]) out.add(s);
-    if (!can("updates")) out.add(t.checkUpdates);
-    if (!can("devtools")) out.add(t.devtools);
-    return out;
-  };
-  const apply = (): void => {
-    const gone = titles();
-    for (const row of dialog.querySelectorAll<HTMLElement>(".setting")) {
-      const title = row.querySelector(".setting-title")?.textContent ?? "";
-      row.hidden = gone.has(title);
-    }
-    for (const b of dialog.querySelectorAll<HTMLElement>(".settings-nav-item, .settings-heading")) {
-      if (b.textContent?.trim() === t.sCli) b.hidden = !can("agents");
-    }
-  };
-  new MutationObserver(apply).observe(dialog, { childList: true, subtree: true });
-  onCan(apply);
-}
-
 /** The answer drawn: the reader's line, and every open tab read again so
  *  that its editor takes or drops its read-only state. */
 let wrote = true;
@@ -151,7 +123,6 @@ function lineNumbersFollow(): void {
 export function installScreen(): void {
   buildBar();
   buildNotices();
-  pruneSettings();
   installRowMore();
   installSelectBar();
   installKeyboard();

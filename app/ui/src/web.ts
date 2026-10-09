@@ -59,12 +59,17 @@ async function start(): Promise<void> {
   await import("./main");
   // The way to the account's page and, for an admin, the server's, beside
   // the window's own status bar.
-  const bar = document.querySelector(".status-bar");
-  if (bar) {
-    const links = el("span", { class: "web-links" }, el("a", { href: "/account" }, w().account));
-    if (s.account.admin) links.append(el("a", { href: "/admin" }, w().admin));
-    bar.append(links);
-  }
+  // On a phone the status bar leaves (ADR 0076 item 6): the same links
+  // also end the side bar, which the bottom bar opens.
+  const links = (): HTMLElement => {
+    const box = el("span", { class: "web-links" }, el("a", { href: "/account" }, w().account));
+    if (s.account?.admin) box.append(el("a", { href: "/admin" }, w().admin));
+    return box;
+  };
+  document.querySelector(".status-bar")?.append(links());
+  const side = links();
+  side.classList.add("web-links-side");
+  document.querySelector("aside.side")?.append(side);
 }
 
 void start().catch((e: unknown) => {

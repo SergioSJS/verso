@@ -61,7 +61,12 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
   background: var(--ink); color: var(--paper); padding: .6rem 1rem; border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / .2); }
 .web-notice[data-kind="error"] { background: light-dark(oklch(45% 0.17 25), oklch(60% 0.15 25)); color: white; }
 .web-links { display: inline-flex; gap: .75rem; padding: 0 .5rem; font-size: .85rem; white-space: nowrap; }
-@container (max-width: 520px) { .web-links { display: none; } }
+@container (max-width: 520px) { .status-bar .web-links { display: none; } }
+/* In the side bar, below the tree: the way to the account on a phone,
+   where the status bar leaves (ADR 0076 item 6); a desktop has it below. */
+.web-links-side { display: none; padding: .75rem 1rem max(.75rem, env(safe-area-inset-bottom)); gap: 1rem; border-top: 1px solid var(--paper-3); }
+.web-links-side a { min-height: 44px; display: inline-flex; align-items: center; }
+@media (max-width: 760px) { .web-links-side { display: flex; } }
 
 @media (forced-colors: active) {
   .web-primary { border: 2px solid ButtonText !important; }

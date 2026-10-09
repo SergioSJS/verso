@@ -614,7 +614,40 @@ hand, on a phone and an iPad, the server's window in the browser.
 9. VoiceOver on the iPhone and the iPad, TalkBack on Android: the passes of
    `manual-checks.md`. Level: A.
 
-## 13. The end
+## 13. On a server
+
+From the tour's stop "Num servidor" and note 23 ([ADR
+0073](../adr/0073-self-hosted-server-first.md), [0074](../adr/0074-accounts-and-access-on-the-server.md),
+[0075](../adr/0075-server-packaging-and-storage.md)). By machine, the
+server's end-to-end tests drive a real `verso serve` (`npm run e2e:server`,
+in `scripts/check.sh`), the server's Rust tests drive its API and
+WebSocket, the host's test drives a desktop window on a server's folder,
+and `scripts/check-server-image.sh` builds and runs the image; by hand, the
+rest below and in `manual-checks.md`.
+
+1. A server started with `VERSO_ADMIN_EMAIL` and `VERSO_ADMIN_PASSWORD`: the
+   address sends to *Entrar*; a wrong password says *E-mail ou senha
+   errados.*; the right one opens the window (e2e-server, "the admin signs
+   in").
+2. *Administração* › *Pastas*: the folder on the disk registered with an
+   owner; *Abrir pasta* lists it; a note made in the browser is there after
+   a reload (same test).
+3. *Convites*: an invitation for an e-mail, a folder and *leitor*; the link
+   in another browser creates the account, opens the folder, and the window
+   says *Você só lê esta pasta*; the invitation shows *usado* and by whom; the
+   link a second time is gone (e2e-server, "an invited reader").
+4. One note in two windows: what one types appears in the other, and a
+   third window reads it from the disk (e2e-server, "two windows edit one
+   note").
+5. *Conta*: a passkey added, then *Entrar com passkey* after the e-mail (by
+   hand, on a device with a passkey); the sessions listed and one ended; a
+   token for one folder, read only.
+6. The desktop app: *Ajustes* › *Servidores*, the server's address,
+   *Conectar*; the browser asks to allow this computer; after *Permitir*, a
+   folder of the server opens in the window (the host's test; by hand in
+   the installed app).
+
+## 14. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.
