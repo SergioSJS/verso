@@ -208,6 +208,7 @@ value counts as not set.
 | `VERSO_TRUSTED_PROXY` | none | the IP address of the reverse proxy whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed (one address) |
 | `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` | none | Verso serves TLS itself with this certificate and key (PEM); both or neither |
 | `VERSO_UPDATE_CHECK` | on | `off` stops the check for a new version (section 12) |
+| `VERSO_UPDATE_TOKEN` | no | a token that reads the project's releases, needed for the check while the repository is private (a GitHub token with read access to it); without one the log says so once |
 
 `VERSO_SMTP_URL`, the mail server of 0074 item 2, is not read by this
 version.
