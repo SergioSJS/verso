@@ -227,7 +227,7 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
         // opened before, freshest first (verso_core::recent_folders).
         // What the menu shows and what a click opens are the same list,
         // kept here so the id `verso-recent-<i>` stays meaningful.
-        let recents = verso_core::recent_folders(state.config.as_deref());
+        let recents = verso_core::recent_folders(state.service.config());
         let mut keep = lock(&state.menu_recents);
         keep.clear();
         keep.extend(recents.iter().take(9).cloned());

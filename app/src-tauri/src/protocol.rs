@@ -2,70 +2,13 @@
 //! the window shows, served with their type and policy.
 
 use super::*;
-
-/// `%XX` sequences of a URL path back to bytes, then to text.
-fn percent_decode(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%'
-            && i + 2 < bytes.len()
-            && let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16)
-        {
-            out.push(v);
-            i += 3;
-            continue;
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
-fn mime_of(path: &str) -> &'static str {
-    match path
-        .rsplit('.')
-        .next()
-        .map(str::to_ascii_lowercase)
-        .as_deref()
-    {
-        Some("png") => "image/png",
-        Some("jpg" | "jpeg") => "image/jpeg",
-        Some("gif") => "image/gif",
-        Some("webp") => "image/webp",
-        Some("svg") => "image/svg+xml",
-        Some("bmp") => "image/bmp",
-        Some("avif") => "image/avif",
-        // The HTML-file viewer's page (review phase-2, reading 1, finding
-        // 1): as a document, under `FILE_CSP`'s sandbox. Served as bytes,
-        // `nosniff` kept the frame from showing it at all.
-        Some("html" | "htm") => "text/html; charset=utf-8",
-        Some("pdf") => "application/pdf",
-        Some("mp3") => "audio/mpeg",
-        Some("m4a") => "audio/mp4",
-        Some("ogg") => "audio/ogg",
-        Some("wav") => "audio/wav",
-        Some("mp4") => "video/mp4",
-        Some("webm") => "video/webm",
-        _ => "application/octet-stream",
-    }
-}
+use verso_service::files::{self, Served, percent_decode};
 
 /// Whether a web view of this app is one of its own windows' — the main
 /// window, another window of the folder, or a note popped out — as opposed
 /// to a web page (`web-*`).
 pub(crate) fn is_app_view(label: &str) -> bool {
     label == "main" || label.starts_with("window-") || label.starts_with("note-")
-}
-
-/// What `verso://` answers to one request, apart from the transport: the
-/// status, the headers, the body. Kept free of Tauri's types so the
-/// rules are tested directly.
-pub(crate) struct Served {
-    pub(crate) status: u16,
-    pub(crate) headers: Vec<(&'static str, String)>,
-    pub(crate) body: Vec<u8>,
 }
 
 /// The policy every `verso://` response carries: whatever the file is,
@@ -84,67 +27,24 @@ fn is_app_origin(origin: &str) -> bool {
     )
 }
 
+/// What `verso://` answers to one request, apart from the transport
+/// (`verso_service::files::serve`): only the app's own views are
+/// answered, and only their origin may read a response from script.
 pub(crate) fn serve(
     ws: Option<&mut Workspace>,
     requester: &str,
     relative: &str,
     origin: Option<&str>,
 ) -> Served {
-    let mut headers = vec![
-        ("Content-Security-Policy", FILE_CSP.to_owned()),
-        ("X-Content-Type-Options", "nosniff".to_owned()),
-        ("Cache-Control", "no-store".to_owned()),
-    ];
-    if let Some(o) = origin.filter(|o| is_app_origin(o)) {
-        headers.push(("Access-Control-Allow-Origin", o.to_owned()));
-        headers.push(("Vary", "Origin".to_owned()));
-    }
-    let refuse = |status: u16, why: &str, mut headers: Vec<(&'static str, String)>| {
-        headers.push(("Content-Type", "text/plain; charset=utf-8".to_owned()));
-        Served {
-            status,
-            headers,
-            body: why.as_bytes().to_vec(),
-        }
-    };
-    // A web page's view never reads the folder, whatever it asks for.
-    if !is_app_view(requester) {
-        return refuse(403, "not a view of this app", headers);
-    }
-    // A note's text crosses through `read_note`, with its revision;
-    // never as a bare file.
-    if relative.to_lowercase().ends_with(".md") {
-        return refuse(403, "a note is read through read_note", headers);
-    }
-    let Some(ws) = ws else {
-        return refuse(404, "no folder is open", headers);
-    };
-    // And judged again on the path as confinement reads it: `Nota.md/`
-    // and `./Nota.md` name the note too.
-    if ws
-        .confined(relative)
-        .is_ok_and(|key| key.to_lowercase().ends_with(".md"))
-    {
-        return refuse(403, "a note is read through read_note", headers);
-    }
-    match ws.read_file(relative) {
-        Ok(bytes) => {
-            headers.push(("Content-Type", mime_of(relative).to_owned()));
-            Served {
-                status: 200,
-                headers,
-                body: bytes,
-            }
-        }
-        Err(e) => {
-            let e = convert(e);
-            let status = match e.kind {
-                ErrorKind::NotFound | ErrorKind::Refused | ErrorKind::NoFolder => 404,
-                _ => 500,
-            };
-            refuse(status, &e.message, headers)
-        }
-    }
+    files::serve(
+        ws,
+        is_app_view(requester),
+        relative,
+        &files::Policy {
+            csp: FILE_CSP,
+            cors_origin: origin.filter(|o| is_app_origin(o)),
+        },
+    )
 }
 
 /// The origin of a URL, in the form the approval list stores:
@@ -188,20 +88,11 @@ pub(crate) fn serve_file<R: tauri::Runtime>(
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<App>();
         if fetch && is_app_view(&label) && !relative.to_lowercase().ends_with(".md") {
-            let placeholder = {
-                let mut guard = lock(&state.sessions);
-                guard.of(&label).and_then(|s| {
-                    let note = s
-                        .workspace
-                        .confined(&relative)
-                        .is_ok_and(|key| key.to_lowercase().ends_with(".md"));
-                    if note {
-                        None
-                    } else {
-                        s.workspace.placeholder(&relative).ok().flatten()
-                    }
-                })
-            };
+            let placeholder = state
+                .service
+                .with(&label, |ws| Ok(files::placeholder_of(ws, &relative)))
+                .ok()
+                .flatten();
             if let Some(Err(e)) = placeholder.map(|p| p.fetch()) {
                 log::write(
                     "ERROR",
@@ -210,16 +101,13 @@ pub(crate) fn serve_file<R: tauri::Runtime>(
                 );
             }
         }
-        let served = {
-            // The folder of the view that asked (ADR 0065).
-            let mut guard = lock(&state.sessions);
-            serve(
-                guard.of(&label).map(|s| &mut s.workspace),
-                &label,
-                &relative,
-                origin.as_deref(),
-            )
-        };
+        // The folder of the view that asked (ADR 0065).
+        let served = state
+            .service
+            .with(&label, |ws| {
+                Ok(serve(Some(ws), &label, &relative, origin.as_deref()))
+            })
+            .unwrap_or_else(|_| serve(None, &label, &relative, origin.as_deref()));
         let mut response = tauri::http::Response::builder().status(served.status);
         for (name, value) in &served.headers {
             response = response.header(*name, value);
