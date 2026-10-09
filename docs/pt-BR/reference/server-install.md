@@ -216,6 +216,7 @@ vazio conta como não definido.
 | `VERSO_TRUSTED_PROXY` | nenhum | o endereço IP do proxy reverso cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos (um endereço) |
 | `VERSO_TLS_CERT_FILE` e `VERSO_TLS_KEY_FILE` | nenhum | o Verso serve TLS ele mesmo com esse certificado e essa chave (PEM); os dois ou nenhum |
 | `VERSO_UPDATE_CHECK` | ligado | `off` desliga a checagem de versão nova (seção 12) |
+| `VERSO_UPDATE_TOKEN` | não | um token que lê as releases do projeto, necessário para a checagem enquanto o repositório é privado (um token do GitHub com leitura dele); sem ele o log avisa uma vez |
 
 `VERSO_SMTP_URL`, o servidor de e-mail da 0074 item 2, não é lida por esta
 versão.

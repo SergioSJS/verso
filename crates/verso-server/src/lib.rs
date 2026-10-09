@@ -26,6 +26,7 @@ pub mod log;
 pub mod rpc;
 pub mod state;
 pub mod tls;
+pub mod update;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -134,6 +135,8 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
                 .to_owned(),
         );
     }
+    // One crypto provider for the server's TLS and the update check's.
+    let _ = tokio_rustls::rustls::crypto::ring::default_provider().install_default();
     let acceptor = match &config.tls {
         Some((cert, key)) => Some(tls::acceptor(cert, key)?),
         None => None,
@@ -189,6 +192,12 @@ where
 {
     let listen = listener.local_addr().map_err(|e| e.to_string())?;
     let _ = server.runtime.set(tokio::runtime::Handle::current());
+    if server.config.update_check {
+        tokio::spawn(update::watch(
+            Arc::clone(&server),
+            server.config.update_token.clone(),
+        ));
+    }
     log::info(&format!(
         "verso serve {} (contract {}) on {listen}, folders in {}",
         env!("CARGO_PKG_VERSION"),

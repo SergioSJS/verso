@@ -41,6 +41,9 @@ pub struct Config {
     /// Whether the server looks for a new version for the admin
     /// (`VERSO_UPDATE_CHECK=off` turns it off; answer E of 2026-10-09).
     pub update_check: bool,
+    /// A token that reads the release feed while the repository is private
+    /// (`VERSO_UPDATE_TOKEN`).
+    pub update_token: Option<String>,
 }
 
 /// What went wrong reading the environment, naming the variable.
@@ -165,6 +168,7 @@ impl Config {
             trusted_proxy,
             tls,
             update_check,
+            update_token: value(env, "VERSO_UPDATE_TOKEN")?,
         })
     }
 
