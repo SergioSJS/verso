@@ -46,6 +46,7 @@ pub mod board;
 pub mod canvas;
 pub mod clients;
 pub mod focuses;
+pub mod servers;
 pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
 mod entries;

@@ -79,6 +79,10 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   collab_leave: ["path"],
   collab_save: ["path"],
   collab_resolve: ["path", "keep"],
+  server_sign_in: ["url"],
+  server_sign_out: ["url"],
+  server_folders: ["url"],
+  server_open: ["url", "folder"],
   reopen_folder: ["key"],
   open_window: ["path"],
   return_to_main: ["path"],
@@ -1295,6 +1299,12 @@ export class Core {
     collab_leave: () => refuse("refused", "simultaneous editing is a server's"),
     collab_save: () => refuse("refused", "simultaneous editing is a server's"),
     collab_resolve: () => refuse("refused", "simultaneous editing is a server's"),
+    // No server signed in to from the harness (ADR 0073 item 2).
+    server_accounts: () => [],
+    server_sign_in: () => refuse("unavailable", "no server in the harness"),
+    server_sign_out: () => null,
+    server_folders: () => [],
+    server_open: () => refuse("unavailable", "no server in the harness"),
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",

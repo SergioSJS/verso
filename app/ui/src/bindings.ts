@@ -344,6 +344,26 @@ export const commands = {
 	 */
 	collabResolve: (path: string, keep: string) => typedError<string, ContractError>(__TAURI_INVOKE("collab_resolve", { path, keep })),
 	/**
+	 *  Sign in to a server through the browser: the server's page opens for the
+	 *  person to approve this device; the app asks meanwhile, keeps the token
+	 *  when it comes, and says so (`server-signed-in`).
+	 */
+	serverSignIn: (url: string) => typedError<ServerSignIn, ContractError>(__TAURI_INVOKE("server_sign_in", { url })),
+	/**  The servers this app is signed in to. */
+	serverAccounts: () => typedError<ServerAccount[], ContractError>(__TAURI_INVOKE("server_accounts")),
+	/**
+	 *  Sign out of a server: the device's session ends there when the server
+	 *  can be reached, and the token is forgotten here either way.
+	 */
+	serverSignOut: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("server_sign_out", { url })),
+	/**  The folders of a server the account may open. */
+	serverFolders: (url: string) => typedError<ServerFolder[], ContractError>(__TAURI_INVOKE("server_folders", { url })),
+	/**
+	 *  Open a folder of a server in this window: the window leaves its own
+	 *  folder, connects, and from now on sends the folder's commands there.
+	 */
+	serverOpen: (url: string, folder: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("server_open", { url, folder })),
+	/**
 	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
 	 *  window draws, as a table, cards, a list, a kanban or a calendar.
 	 */
@@ -1177,6 +1197,33 @@ export type SchemaNotice = {
 	nested: boolean,
 	/**  Why a block at the top level types nothing (`unknown_kind`, …). */
 	error: string | null,
+};
+
+/**
+ *  A server this app signed in to (ADR 0074 item 8; the maintainer's
+ *  answer K of 2026-10-09): its address and whose account it is. The
+ *  device's token stays on this side.
+ */
+export type ServerAccount = {
+	url: string,
+	email: string,
+	name: string,
+};
+
+/**  A folder of a server the account may open, and the role in it. */
+export type ServerFolder = {
+	id: string,
+	name: string,
+	role: string,
+};
+
+/**
+ *  A sign-in under way: the code the server's page shows, to compare, and
+ *  the page the app opened in the browser.
+ */
+export type ServerSignIn = {
+	code: string,
+	page: string,
 };
 
 /**  Why a note that links to what moved got no rewrite. */

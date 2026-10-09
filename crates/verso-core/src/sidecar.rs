@@ -141,6 +141,32 @@ pub(crate) fn write_agents(config: &Path, visible: &[String]) -> std::io::Result
     std::fs::rename(&temporary, config.join("agents.json"))
 }
 
+/// The servers this app signed in to (ADR 0074 item 8; the maintainer's
+/// answer K of 2026-10-09): each one's address, the device's token and the
+/// account, in `<config>/servers.json`, `0600` as the index. The token is
+/// a session of this device on that server, revocable there.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub(crate) struct Servers {
+    #[serde(default)]
+    pub(crate) servers: Vec<crate::servers::ServerLogin>,
+}
+
+/// The servers signed in to: none when the file is missing or does not
+/// read (a sign-in again writes it anew).
+pub(crate) fn read_servers(config: &Path) -> Servers {
+    std::fs::read_to_string(config.join("servers.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+pub(crate) fn write_servers(config: &Path, servers: &Servers) -> std::io::Result<()> {
+    let temporary = temporary(config, "servers.json");
+    std::fs::write(&temporary, serde_json::to_vec_pretty(servers)?)?;
+    private(&temporary)?;
+    std::fs::rename(&temporary, config.join("servers.json"))
+}
+
 /// The calls agents made, newest last: `<config>/agents.log` (ADR 0054).
 /// Each call appends its line in one write, so two processes logging at
 /// once both keep theirs (allowed 2026-10-09, the crate's clippy.toml). Past

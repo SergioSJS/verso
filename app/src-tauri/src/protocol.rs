@@ -87,6 +87,21 @@ pub(crate) fn serve_file<R: tauri::Runtime>(
     // Off the main thread: a file is read, and may be downloaded.
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<App>();
+        // A window on a server's folder reads its files from the server.
+        if is_app_view(&label)
+            && let Some(served) = remote::file(&app, &label, &relative)
+        {
+            let mut response = tauri::http::Response::builder().status(served.status);
+            for (name, value) in &served.headers {
+                response = response.header(*name, value);
+            }
+            responder.respond(
+                response
+                    .body(served.body)
+                    .unwrap_or_else(|_| tauri::http::Response::new(Vec::new())),
+            );
+            return;
+        }
         if fetch && is_app_view(&label) && !relative.to_lowercase().ends_with(".md") {
             let placeholder = state
                 .service
