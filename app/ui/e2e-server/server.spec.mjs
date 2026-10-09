@@ -23,7 +23,7 @@ async function signIn(page, email, password) {
   await expect(page).toHaveURL(/\/signin/);
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
 }
 
 async function signedIn(page, email, password) {
@@ -46,7 +46,7 @@ async function openDemo(page) {
   await page.goto("/");
   // On a phone the side bar is a drawer: opened first (ADR 0076).
   if (!(await page.locator("#open").isVisible()) || (page.viewportSize()?.width ?? 1000) < 760) {
-    await page.locator("#toggle-side").click();
+    await page.locator(".bottom-bar .bar-files").click();
   }
   await page.locator("#open").click();
   const dialog = page.getByRole("dialog", { name: "Abrir pasta" });
@@ -60,7 +60,7 @@ test("the admin signs in, registers a folder and works in it", async ({ page }) 
   await signIn(page, ADMIN.email, "senha errada!!");
   await expect(page.getByRole("alert")).toHaveText("E-mail ou senha errados.");
   await page.getByLabel("Senha", { exact: true }).fill(ADMIN.password);
-  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page).not.toHaveURL(/signin/);
   await demoRegistered(page);
   await openDemo(page);
@@ -141,7 +141,7 @@ test("two windows edit one note at once and the file follows", async ({ page, br
   const otherErrors = watch(other);
   await other.goto(`/?folder=${folder}`);
   await expect(other.locator("#notes")).toContainText(`${name}.md`);
-  if ((other.viewportSize()?.width ?? 1000) < 760) await other.locator("#toggle-side").click();
+  if ((other.viewportSize()?.width ?? 1000) < 760) await other.locator(".bottom-bar .bar-files").click();
   await other.locator("#notes").getByRole("button", { name: `${name}.md` }).click();
   const theirs = other.locator(".cm-content:visible").first();
   // Edit mode in the second window, if it opened in reading.
@@ -170,4 +170,15 @@ test("two windows edit one note at once and the file follows", async ({ page, br
   await third.close();
   expect(errors).toEqual([]);
   expect(otherErrors).toEqual([]);
+});
+
+test("the window installs on a phone's home screen", async ({ request }) => {
+  const manifest = await request.get("/manifest.webmanifest");
+  expect(manifest.ok()).toBe(true);
+  const m = await manifest.json();
+  expect(m.display).toBe("standalone");
+  expect(m.icons.map((i) => i.sizes)).toEqual(["192x192", "512x512"]);
+  expect((await request.get("/apple-touch-icon.png")).ok()).toBe(true);
+  const page = await (await request.get("/")).text();
+  expect(page).toContain('rel="manifest"');
 });

@@ -28,7 +28,17 @@ if (web) {
   const page = stamped
     .replace(/\b(href|src)="(?![a-z]+:|\/|#)/g, '$1="/')
     .replace(`src="/main.js?v=${version}"`, `src="/web.js?v=${version}"`)
-    .replace("<head>", `<head>\n  <meta name="verso-contract" content="${contract}">`);
+    .replace(
+      "<head>",
+      `<head>\n  <meta name="verso-contract" content="${contract}">` +
+        // Installable on Android and iPadOS (ADR 0073 item 8): the manifest,
+        // the icons, and the page full screen once installed.
+        `\n  <link rel="manifest" href="/manifest.webmanifest">` +
+        `\n  <link rel="apple-touch-icon" href="/apple-touch-icon.png">` +
+        `\n  <meta name="apple-mobile-web-app-capable" content="yes">` +
+        `\n  <meta name="mobile-web-app-capable" content="yes">` +
+        `\n  <meta name="theme-color" content="#f6f1e7">`,
+    );
   if (!page.includes(`src="/web.js?v=${version}"`)) throw new Error("web.html does not load web.js");
   writeFileSync(out, page);
 } else {
