@@ -19,8 +19,9 @@
 #
 # macOS, arm64 (ADR 0022), and since its port Windows, x64 (ADR 0069 item
 # 6): an NSIS installer per user, unsigned (ADR 0069), with `verso.exe`
-# beside the app. Linux gets a job of its own when its port lands (ADR
-# 0071). A test release is
+# beside the app; and Linux, x64 and ARM64 (ADR 0071): an AppImage, a
+# `.deb` and an `.rpm`, built on Ubuntu 22.04 so they run on the oldest
+# base supported. A test release is
 # built as "Verso Beta", with an identifier of its own, so that it installs
 # beside the production app with its own window settings, and its command
 # line opens that app. The app is signed ad hoc, not with a Developer ID:
@@ -28,8 +29,9 @@
 # a decision for before public distribution.
 #
 # Cost: one macOS job, about ten minutes, each billed as ten Linux ones; one
-# Windows job, about fifteen, each billed as about two; a minute of Linux to
-# publish.
+# Windows job, about fifteen, each billed as about two; two Linux jobs, one
+# on an ARM runner, about twenty minutes each (estimated: not run yet); a
+# minute of Linux to publish.
 
 name: release
 
@@ -446,7 +448,7 @@ jobs:
             ./verso-cli-*-linux-*.tar.gz
             ./verso-cli-*-linux-*.tar.gz.sig
 
-  # Both platforms built: the release is published with their files. On a
+  # Every platform built: the release is published with their files. On a
   # rehearsal nothing is published; the files stay as the run's artifacts.
   publish:
     name: publish ${{ needs.decide.outputs.tag }}

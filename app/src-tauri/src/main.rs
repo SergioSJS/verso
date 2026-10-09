@@ -6,7 +6,8 @@
 //! `verso-app --export-bindings [FILE]` writes the TypeScript bindings and
 //! exits; `verso-app --verify-signature FILE...` checks each release file's
 //! `.sig` against the key the app carries (the release workflow, before it
-//! publishes).
+//! publishes); on Linux, `verso-app --cli ARGS...` runs the command line the
+//! app carries (the AppImage's script in `~/.local/bin`).
 
 // A window app on Windows, not a console one: without it, every launch of
 // the installed app opened a terminal beside the window (seen 2026-10-08).
@@ -18,6 +19,13 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // The AppImage's script in ~/.local/bin runs its command line this way.
+    #[cfg(target_os = "linux")]
+    if args.first().map(String::as_str) == Some("--cli") {
+        let error = verso_app::run_bundled_cli(&args[1..]);
+        eprintln!("verso-app: {error}");
+        return ExitCode::from(127);
+    }
     if args.first().map(String::as_str) == Some("--verify-signature") {
         let mut failed = args.len() < 2;
         for file in &args[1..] {

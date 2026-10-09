@@ -506,7 +506,7 @@ export class SettingsDialog {
     install.hidden = true;
     remove.hidden = true;
     const show = (state: CliState) => {
-      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? t.cliElsewhere : state === "bundled" ? t.cliBundled : t.cliUnbundled;
+      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? (LINUX ? t.cliElsewhereLinux : t.cliElsewhere) : state === "bundled" ? (LINUX ? t.cliBundledLinux : t.cliBundled) : t.cliUnbundled;
       install.hidden = state === "ours" || state === "unbundled" || state === "bundled";
       install.textContent = state === "elsewhere" ? t.cliReplace : t.cliInstall;
       install.title = install.textContent;
@@ -516,7 +516,7 @@ export class SettingsDialog {
     install.addEventListener("click", () => void (async () => {
       let replace = false;
       if ((await commands.cliStatus()) === "elsewhere") {
-        if (!(await ask(t.cliReplaceAsk, { yes: t.cliReplace, no: t.cancel }))) return;
+        if (!(await ask(LINUX ? t.cliReplaceAskLinux : t.cliReplaceAsk, { yes: t.cliReplace, no: t.cancel }))) return;
         replace = true;
       }
       const r = await commands.installCli(replace);

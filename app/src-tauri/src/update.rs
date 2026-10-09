@@ -677,12 +677,17 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             .into_iter()
             .find(|e| lower.ends_with(&format!(".{e}")))
             .unwrap_or("exe");
-        std::fs::rename(&zip_path, extract_dir.join(format!("verso-setup.{ext}"))).map_err(
-            |e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Não foi possível preparar o instalador: {e}"),
-            },
-        )?;
+        // A Linux package keeps its own name: it is left in Downloads for
+        // the package manager, and a generic name would overwrite the one
+        // before it and hide its version.
+        let kept = match std::path::Path::new(&asset.name).file_name() {
+            Some(name) if ext == "deb" || ext == "rpm" => extract_dir.join(name),
+            _ => extract_dir.join(format!("verso-setup.{ext}")),
+        };
+        std::fs::rename(&zip_path, kept).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível preparar o instalador: {e}"),
+        })?;
         return install_extracted_update(app, &extract_dir, &temp_dir, downloaded);
     }
 
@@ -1019,6 +1024,10 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
         } else {
             // For .deb/.rpm: copy to Downloads and advise the user
             let downloads = get_downloads_dir();
+            std::fs::create_dir_all(&downloads).map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro ao criar a pasta de Downloads: {e}"),
+            })?;
             let dest = downloads.join(
                 payload
                     .file_name()
@@ -1105,10 +1114,45 @@ pub(crate) fn find_file_by_exts(
 /// Windows path is still to be exercised).
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn get_downloads_dir() -> std::path::PathBuf {
-    // $HOME/Downloads
     let home = std::env::var("HOME")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
+    #[cfg(target_os = "linux")]
+    if let Some(dir) = xdg_download_dir(&home) {
+        return dir;
+    }
     std::path::PathBuf::from(home).join("Downloads")
+}
+
+/// The Downloads folder a Linux desktop names in `user-dirs.dirs`
+/// (`XDG_DOWNLOAD_DIR="$HOME/Transferências"` on a Portuguese system),
+/// from `$XDG_CONFIG_HOME` or `~/.config`. `None` when it names none.
+#[cfg(target_os = "linux")]
+fn xdg_download_dir(home: &str) -> Option<std::path::PathBuf> {
+    let config = std::env::var_os("XDG_CONFIG_HOME")
+        .filter(|v| !v.is_empty())
+        .map_or_else(
+            || std::path::Path::new(home).join(".config"),
+            std::path::PathBuf::from,
+        );
+    let text = std::fs::read_to_string(config.join("user-dirs.dirs")).ok()?;
+    download_dir_in(&text, home)
+}
+
+/// `XDG_DOWNLOAD_DIR` read out of a `user-dirs.dirs`'s text. The home
+/// itself is how the file says "no such folder", and is `None` too.
+#[cfg(target_os = "linux")]
+fn download_dir_in(text: &str, home: &str) -> Option<std::path::PathBuf> {
+    let value = text
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("XDG_DOWNLOAD_DIR="))?
+        .trim()
+        .trim_matches('"');
+    let dir = match value.strip_prefix("$HOME") {
+        Some(rest) => format!("{home}{rest}"),
+        None => value.to_owned(),
+    };
+    (dir.starts_with('/') && dir.trim_end_matches('/') != home.trim_end_matches('/'))
+        .then(|| std::path::PathBuf::from(dir))
 }
 
 // ── The OS edge the CLI install needs ──────────────────────────────────
@@ -1185,33 +1229,37 @@ pub(crate) fn remove_file_at(path: &std::path::Path) -> std::io::Result<()> {
     std::fs::remove_file(path)
 }
 
-/// Copy the command line out of an AppImage to `dest` — `~/.local/bin`,
-/// on PATH without root (ADR 0071, item 7): an AppImage is mounted only
-/// while it runs, so a link into it would not outlive the app. Written
-/// beside, made executable, renamed over.
+/// Write a small executable text file (the AppImage's script in
+/// `~/.local/bin`) whole or not at all: beside it first, on disk, then
+/// renamed over it.
 #[cfg(target_os = "linux")]
-pub(crate) fn copy_executable(
-    src: &std::path::Path,
-    dest: &std::path::Path,
-) -> std::io::Result<()> {
+pub(crate) fn write_executable_text(dest: &std::path::Path, text: &str) -> std::io::Result<()> {
+    use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
     if let Some(dir) = dest.parent() {
         std::fs::create_dir_all(dir)?;
     }
     let part = dest.with_extension("part");
-    std::fs::copy(src, &part)?;
-    std::fs::set_permissions(&part, std::fs::Permissions::from_mode(0o755))?;
+    let mut file = std::fs::File::create(&part)?;
+    file.write_all(text.as_bytes())?;
+    file.set_permissions(std::fs::Permissions::from_mode(0o755))?;
+    file.sync_all()?;
+    drop(file);
     std::fs::rename(&part, dest)
 }
 
-/// Whether two files hold the same bytes: the command line copied out of
-/// an AppImage is this app's own when it equals the one inside.
+/// The start of a file as text, at most 4 KiB: enough to tell the
+/// AppImage's script from a program. `None` when it cannot be read.
 #[cfg(target_os = "linux")]
-pub(crate) fn same_bytes(a: &std::path::Path, b: &std::path::Path) -> bool {
-    match (std::fs::read(a), std::fs::read(b)) {
-        (Ok(x), Ok(y)) => x == y,
-        _ => false,
-    }
+pub(crate) fn read_head(path: &std::path::Path) -> Option<String> {
+    use std::io::Read;
+    let mut head = Vec::new();
+    std::fs::File::open(path)
+        .ok()?
+        .take(4096)
+        .read_to_end(&mut head)
+        .ok()?;
+    Some(String::from_utf8_lossy(&head).into_owned())
 }
 
 /// Clear the download quarantine from one file, through the xattr crate,
@@ -1419,5 +1467,26 @@ mod migration_tests {
         // Nothing to carry: nothing done.
         assert!(!copy_web_data(&root.path().join("absent"), &root.path().join("x")).unwrap());
         assert!(!root.path().join("x").exists());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_linux_update_package_goes_to_the_downloads_folder_the_desktop_names() {
+        let home = "/home/ana";
+        let dirs = "# written by xdg-user-dirs-update\nXDG_DESKTOP_DIR=\"$HOME/Área de trabalho\"\nXDG_DOWNLOAD_DIR=\"$HOME/Transferências\"\n";
+        assert_eq!(
+            download_dir_in(dirs, home),
+            Some(std::path::PathBuf::from("/home/ana/Transferências"))
+        );
+        assert_eq!(
+            download_dir_in("XDG_DOWNLOAD_DIR=\"/data/baixados\"\n", home),
+            Some(std::path::PathBuf::from("/data/baixados"))
+        );
+        // The home itself: the desktop has no Downloads folder.
+        assert_eq!(download_dir_in("XDG_DOWNLOAD_DIR=\"$HOME/\"\n", home), None);
+        assert_eq!(
+            download_dir_in("XDG_MUSIC_DIR=\"$HOME/Música\"\n", home),
+            None
+        );
     }
 }

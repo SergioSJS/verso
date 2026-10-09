@@ -271,17 +271,22 @@ case-only names (spec Q8).
   `xdg-utils`; the AppImage carries no GStreamer); the beta installs as
   `verso-app-beta` and `verso-beta`, beside the release.
 - **The integration:** a package puts the command line in `/usr/bin`, and
-  Settings says so instead of offering to install it; the AppImage copies
-  it to `~/.local/bin`. "Show in file manager" asks the file manager over
+  Settings says so instead of offering to install it; the beta takes
+  `verso-beta`, never the release's `verso` beside it. The AppImage puts a
+  script in `~/.local/bin`, under the command's name, that runs the
+  command line inside the AppImage (`verso-app --cli`), so it follows the
+  AppImage when it updates itself. "Show in file manager" asks the file manager over
   D-Bus to select the file, else opens the folder with `xdg-open`; the item
   is named per OS (Finder, File Explorer, file manager). "Copy full path" names `wl-clipboard` or `xclip` when
   neither is there.
-- **The watcher:** when inotify runs out of watches or descriptors, it
-  watches the folder by polling every 30 seconds.
+- **The watcher:** when inotify runs out of watches or descriptors as the
+  folder is opened, it watches the folder by polling every 30 seconds. Run
+  out later (a new subfolder past the limit), it does not switch yet.
 - **The updater:** the asset by format — the AppImage when the app runs
   from one (`$APPIMAGE`), else a `.deb` where `/etc/debian_version` exists,
   else an `.rpm`. The AppImage is written beside itself, flushed, and
-  renamed over itself; a `.deb` or `.rpm` is saved to Downloads, for the
+  renamed over itself; a `.deb` or `.rpm` is saved under its own name to
+  the Downloads folder the desktop names (`user-dirs.dirs`), for the
   package manager.
 - **The release job:** x64 on `ubuntu-22.04` and ARM64 on
   `ubuntu-22.04-arm`; it builds the three packages and the command line's
@@ -298,7 +303,10 @@ case-only names (spec Q8).
   XWayland. Its log says GStreamer's `appsink` is missing, so a video in a
   note has not been checked there. A `.deb` built on Ubuntu 26.04 does not
   run on Debian 12 (glibc 2.38 and 2.39 asked, 2.36 there), as item 3
-  expected.
+  expected; the beta's `.deb` built as the release job builds it, in an
+  `ubuntu:22.04` container, installs and opens there (GNOME, Wayland). In
+  that rehearsal the AppImage step hung on Tauri's download of its tools,
+  on that machine's network; the release job's runners are to show it.
 - **Not yet observed:** child web views under Wayland, NVIDIA, case-only
   names, SELinux's extended attributes, network file systems, one
   instance, and "Add to Claude".

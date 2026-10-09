@@ -7,12 +7,44 @@ use super::*;
 /// every shell on macOS (`/etc/paths`), as editors install theirs.
 pub(crate) const CLI_LINK: &str = "/usr/local/bin/verso";
 
-/// Where an AppImage's command line is copied on Linux: `~/.local/bin`, on
-/// PATH without root in the XDG base directory specification (ADR 0071).
+/// Where an AppImage puts its command line on Linux: `~/.local/bin`, on
+/// PATH without root in the XDG base directory specification (ADR 0071),
+/// under the name it carries — `verso`, or `verso-beta` for the beta, so
+/// the two sit side by side.
 #[cfg(target_os = "linux")]
 fn local_bin_cli() -> Option<PathBuf> {
     let home = PathBuf::from(std::env::var_os("HOME").filter(|h| !h.is_empty())?);
-    Some(home.join(".local/bin/verso"))
+    let name = bundled_cli()?.file_name()?.to_owned();
+    Some(home.join(".local/bin").join(name))
+}
+
+/// The line that marks the script in `~/.local/bin` as an AppImage's own.
+#[cfg(target_os = "linux")]
+const APPIMAGE_MARK: &str = "# verso: the command line inside this AppImage";
+
+/// What an AppImage puts in `~/.local/bin`: not a copy of its command line,
+/// which would be the old one after the AppImage updates itself, but a
+/// script that runs the one inside the AppImage, by `$APPIMAGE` — the file
+/// an update replaces in place.
+#[cfg(target_os = "linux")]
+fn appimage_script() -> Option<String> {
+    let image = PathBuf::from(std::env::var_os("APPIMAGE").filter(|v| !v.is_empty())?);
+    Some(format!(
+        "#!/bin/sh\n{APPIMAGE_MARK}\nexec {} --cli \"$@\"\n",
+        shell_word(&image)
+    ))
+}
+
+/// `verso-app --cli ARGS…`: the command line this app carries, in this
+/// process's place — how the script an AppImage puts in `~/.local/bin`
+/// runs it. Returns only when it could not be started.
+#[cfg(target_os = "linux")]
+pub(crate) fn run_bundled_cli(args: &[String]) -> std::io::Error {
+    use std::os::unix::process::CommandExt;
+    match bundled_cli() {
+        Some(cli) => std::process::Command::new(cli).args(args).exec(),
+        None => std::io::Error::other("this build carries no command line"),
+    }
 }
 
 /// Whether this app runs from an AppImage (mounted only while it runs).
@@ -31,11 +63,18 @@ fn bundled_cli() -> Option<PathBuf> {
     // (ADR 0069).
     let name = format!("verso{}", std::env::consts::EXE_SUFFIX);
     if let Ok(cli) = std::env::current_exe() {
-        candidates.push(cli.with_file_name(&name));
         // The beta's package names its command line `verso-beta`, so the
-        // beta and the release install side by side (ADR 0071, item 7).
+        // beta and the release install side by side in /usr/bin (ADR 0071,
+        // item 7): the beta (`verso-app-beta`) takes its own first, never
+        // the release's beside it.
         #[cfg(target_os = "linux")]
-        candidates.push(cli.with_file_name("verso-beta"));
+        if cli
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().ends_with("-beta"))
+        {
+            candidates.push(cli.with_file_name("verso-beta"));
+        }
+        candidates.push(cli.with_file_name(&name));
         if let Some(parent) = cli.parent() {
             candidates.push(parent.join(&name));
             if let Some(bundle) = parent.parent() {
@@ -73,21 +112,22 @@ fn cli_state_now() -> CliState {
     // on PATH already; an AppImage's is copied to ~/.local/bin.
     #[cfg(target_os = "linux")]
     {
-        let Some(ours) = bundled_cli() else {
+        if bundled_cli().is_none() {
             return CliState::Unbundled;
-        };
+        }
         if !in_appimage() {
             return CliState::Bundled;
         }
-        let Some(copy) = local_bin_cli() else {
+        let Some(dest) = local_bin_cli() else {
             return CliState::Missing;
         };
-        if same_bytes(&copy, &ours) {
-            CliState::Ours
-        } else if something_at(&copy) {
-            CliState::Elsewhere
-        } else {
-            CliState::Missing
+        match read_head(&dest) {
+            Some(text) if Some(&text) == appimage_script().as_ref() => CliState::Ours,
+            // This AppImage's script from where the AppImage was before
+            // (moved, renamed): installing writes it again, without asking.
+            Some(text) if text.contains(APPIMAGE_MARK) => CliState::Missing,
+            _ if something_at(&dest) => CliState::Elsewhere,
+            _ => CliState::Missing,
         }
     }
     #[cfg(not(any(windows, target_os = "linux")))]
@@ -140,7 +180,7 @@ fn as_administrator(shell: &str) -> Result<bool, ContractError> {
 }
 
 /// A path as one shell word, single-quoted.
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub(crate) fn shell_word(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', "'\\''"))
 }
@@ -176,12 +216,16 @@ pub(crate) fn install_cli(replace: bool) -> Result<CliState, ContractError> {
     }
     #[cfg(target_os = "macos")]
     clear_quarantine(&ours);
-    // An AppImage's command line, copied to ~/.local/bin: no root, and no
-    // link into an image mounted only while the app runs.
+    // An AppImage's script in ~/.local/bin: no root, and no link into an
+    // image mounted only while the app runs.
+    // The script runs the AppImage itself, which finds `ours` inside it.
+    #[cfg(target_os = "linux")]
+    let _ = &ours;
     #[cfg(target_os = "linux")]
     let plain = local_bin_cli()
-        .ok_or_else(|| std::io::Error::other("HOME is not set"))
-        .and_then(|dest| copy_executable(&ours, &dest));
+        .zip(appimage_script())
+        .ok_or_else(|| std::io::Error::other("HOME or APPIMAGE is not set"))
+        .and_then(|(dest, script)| write_executable_text(&dest, &script));
     // Without privileges first: the directory may be the person's own.
     #[cfg(target_os = "macos")]
     let plain = replace_symlink(&ours, Path::new(CLI_LINK));
@@ -267,7 +311,7 @@ fn claude_dir() -> Option<PathBuf> {
 fn mcp_command() -> Option<String> {
     #[cfg(windows)]
     return bundled_cli().map(|cli| cli.to_string_lossy().into_owned());
-    // Linux: the package's /usr/bin/verso, or the AppImage's copy in
+    // Linux: the package's /usr/bin/verso, or the AppImage's script in
     // ~/.local/bin, by its absolute path.
     #[cfg(target_os = "linux")]
     return match cli_state_now() {
