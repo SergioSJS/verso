@@ -925,3 +925,35 @@ fn without_web_a_browser_gets_no_window_and_the_app_still_connects() {
         drop(r);
     });
 }
+
+#[test]
+fn the_persons_settings_follow_the_account() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        assert_eq!(
+            get(&r, "/api/me/settings", Some(&b)).await.1["settings"],
+            Value::Null
+        );
+        let res = reqwest::Client::new()
+            .put(r.url("/api/me/settings"))
+            .header("origin", r.origin())
+            .header("cookie", &b.cookie)
+            .header("x-verso-csrf", &b.csrf)
+            .json(&json!({ "settings": "{\"remoteContent\":false,\"theme\":\"dark\"}" }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 200);
+        // Another browser of the same person reads them.
+        let other = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let kept = get(&r, "/api/me/settings", Some(&other)).await.1;
+        assert!(
+            kept["settings"]
+                .as_str()
+                .unwrap()
+                .contains("\"theme\":\"dark\"")
+        );
+        assert_eq!(get(&r, "/api/me/settings", None).await.0, 401);
+    });
+}

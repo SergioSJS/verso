@@ -173,6 +173,9 @@ export function saveSettings(): void {
     // No storage.
   }
   applySettings();
+  // On a server the person's settings live with the account (ADR 0073
+  // item 5; web/settingsSync.ts keeps them there).
+  dispatchEvent(new Event("verso:settings-saved"));
 }
 export function getHiddenFromTree(): string[] {
   if (!settings.hiddenFromTree || Array.isArray(settings.hiddenFromTree)) {
