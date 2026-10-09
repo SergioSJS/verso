@@ -59,6 +59,10 @@ diffy = "0.5"
 # release, OpenSSL is compiled from its sources (vendored, Apache-2.0) so
 # the binary still needs no library of the system.
 webauthn-rs = "0.5"
+# E-mail through the host's mail server when VERSO_SMTP_URL is set
+# (ADR 0074 items 2 to 5): sign-in links, password resets and invitations
+# sent by mail (MIT OR Apache-2.0); rustls on ring, as the server's TLS.
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "ring", "rustls-native-certs"] }
 # Random tokens and their SHA-256 at rest (ADR 0074 items 7 and 8);
 # both already in the tree (MIT OR Apache-2.0).
 getrandom = "0.3"

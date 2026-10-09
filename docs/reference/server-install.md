@@ -211,9 +211,10 @@ value counts as not set.
 | `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` | none | Verso serves TLS itself with this certificate and key (PEM); both or neither |
 | `VERSO_UPDATE_CHECK` | on | `off` stops the check for a new version (section 12) |
 | `VERSO_UPDATE_TOKEN` | no | a token that reads the project's releases, needed for the check while the repository is private (a GitHub token with read access to it); without one the log says so once |
+| `VERSO_SMTP_URL` | no | the host's mail server (`smtps://user:password@host:465`, or `smtp://…:587?tls=required`): sign-in links, "forgot the password" and invitations sent by e-mail |
+| `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
 
-`VERSO_SMTP_URL`, the mail server of 0074 item 2, is not read by this
-version.
+Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and reset links by hand.
 
 ## 8. TLS
 

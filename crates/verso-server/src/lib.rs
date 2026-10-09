@@ -23,6 +23,7 @@ pub mod folders;
 pub mod http;
 pub mod limit;
 pub mod log;
+pub mod mail;
 pub mod passkeys;
 pub mod rpc;
 pub mod state;
@@ -152,7 +153,26 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
     }
     first_admin(&config, &db)?;
     let listen = config.listen;
+    let mail = match &config.smtp_url {
+        Some(url) => {
+            let host = config
+                .public_url
+                .as_deref()
+                .and_then(|u| u.split("://").nth(1))
+                .map(|h| h.split([':', '/']).next().unwrap_or(h).to_owned())
+                .unwrap_or_else(|| "localhost".to_owned());
+            let from = config
+                .mail_from
+                .clone()
+                .unwrap_or_else(|| format!("Verso <verso@{host}>"));
+            Some(mail::from_config(url, &from)?)
+        }
+        None => None,
+    };
     let server = state::Server::new(config, db, contract_version(), commit.to_owned());
+    if let Some(mail) = mail {
+        let _ = server.mail.set(mail);
+    }
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

@@ -279,6 +279,9 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/state", get(crate::api::state))
         .route("/api/signin", post(crate::api::sign_in))
         .route("/api/signout", post(crate::api::sign_out))
+        .route("/api/signin/link", post(crate::api::signin_link))
+        .route("/api/signin/link/{token}", post(crate::api::signin_by_link))
+        .route("/api/forgot", post(crate::api::forgot))
         .route("/api/setup", post(crate::api::setup))
         .route(
             "/api/invite/{token}",
@@ -367,6 +370,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/device", page())
         .route("/invite/{token}", page())
         .route("/reset/{token}", page())
+        .route("/signin-link/{token}", page())
         .fallback_service(static_files)
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
         .layer(axum::extract::DefaultBodyLimit::max(

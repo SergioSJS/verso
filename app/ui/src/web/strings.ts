@@ -147,6 +147,10 @@ const pt = {
   passkeyNeedsEmail: "Digite o e-mail primeiro.",
   passkeyUnavailable: "Este navegador ou este endereço não oferecem passkeys (é preciso HTTPS).",
   noPasskey: "Nenhuma passkey para este e-mail: use a senha.",
+  mailLink: "Receber um link por e-mail",
+  forgot: "Esqueci a senha",
+  mailSent: "Se houver uma conta com esse e-mail, a mensagem chega em instantes. Confira a caixa de entrada.",
+  linkSigningIn: "Entrando…",
   noWeb: "Este servidor não serve as notas no navegador. Abra-as no app Verso (Ajustes › Servidores); quem administra o servidor liga a janela com verso serve --web.",
 };
 
@@ -292,6 +296,10 @@ const en: WebStrings = {
   passkeyNeedsEmail: "Type the e-mail first.",
   passkeyUnavailable: "This browser or this address offers no passkeys (HTTPS is needed).",
   noPasskey: "No passkey for this e-mail: use the password.",
+  mailLink: "Get a link by e-mail",
+  forgot: "Forgot the password",
+  mailSent: "If an account has that e-mail, the message arrives in a moment. Check the inbox.",
+  linkSigningIn: "Signing in…",
   noWeb: "This server does not serve the notes in a browser. Open them in the Verso app (Settings › Servers); whoever runs the server turns the window on with verso serve --web.",
 };
 

@@ -957,3 +957,84 @@ fn the_persons_settings_follow_the_account() {
         assert_eq!(get(&r, "/api/me/settings", None).await.0, 401);
     });
 }
+
+#[test]
+fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
+    block_on(async {
+        let r = start().await;
+        let _ = r
+            .server
+            .mail
+            .set(mail::Mail::Memory(std::sync::Mutex::new(Vec::new())));
+        let sent = || match r.server.mail.get() {
+            Some(mail::Mail::Memory(m)) => verso_service::lock(m).clone(),
+            _ => Vec::new(),
+        };
+        let (s1, _) = post(
+            &r,
+            "/api/signin/link",
+            json!({ "email": "admin@casa.lan" }),
+            None,
+        )
+        .await;
+        let (s2, _) = post(
+            &r,
+            "/api/signin/link",
+            json!({ "email": "ninguem@casa.lan" }),
+            None,
+        )
+        .await;
+        assert_eq!((s1, s2), (200, 200));
+        let mails = sent();
+        assert_eq!(mails.len(), 1);
+        assert_eq!(mails[0].0, "admin@casa.lan");
+        let link = mails[0]
+            .2
+            .lines()
+            .find(|l| l.contains("/signin-link/"))
+            .unwrap()
+            .trim()
+            .to_owned();
+        let token = link.rsplit('/').next().unwrap();
+        let res = reqwest::Client::new()
+            .post(r.url(&format!("/api/signin/link/{token}")))
+            .header("origin", r.origin())
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 200);
+        assert!(res.headers().get("set-cookie").is_some());
+        // Used once.
+        assert_eq!(
+            post(&r, &format!("/api/signin/link/{token}"), json!({}), None)
+                .await
+                .0,
+            404
+        );
+        // A forgotten password: a reset link by mail.
+        assert_eq!(
+            post(
+                &r,
+                "/api/forgot",
+                json!({ "email": "admin@casa.lan" }),
+                None
+            )
+            .await
+            .0,
+            200
+        );
+        assert!(sent().last().unwrap().2.contains("/reset/"));
+        // An invitation to an address goes there too.
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (_, inv) = post(
+            &r,
+            "/api/admin/invitations",
+            json!({ "email": "novo@casa.lan" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(inv["mailed"], true);
+        assert_eq!(sent().last().unwrap().0, "novo@casa.lan");
+    });
+}
