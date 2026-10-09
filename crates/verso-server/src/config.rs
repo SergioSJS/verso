@@ -29,6 +29,9 @@ pub struct Config {
     pub folders_dir: PathBuf,
     /// The window's files (`VERSO_UI_DIR`): the build of `app/ui`.
     pub ui_dir: PathBuf,
+    /// The window served to a browser (`verso serve --web`, ADR 0073 item
+    /// 2); without it, the contract and the API only, for the desktop app.
+    pub web: bool,
     /// The first admin, read on the first start only (ADR 0074 item 1).
     pub admin: Option<(String, String)>,
     /// The reverse proxy whose forwarded headers are believed
@@ -162,6 +165,7 @@ impl Config {
                 .map_or_else(|| defaults.data_dir.clone(), PathBuf::from),
             folders_dir: value(env, "VERSO_FOLDERS_DIR")?
                 .map_or_else(|| defaults.folders_dir.clone(), PathBuf::from),
+            web: false,
             ui_dir: value(env, "VERSO_UI_DIR")?
                 .map_or_else(|| defaults.ui_dir.clone(), PathBuf::from),
             admin,

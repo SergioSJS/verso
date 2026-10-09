@@ -20,9 +20,10 @@
 ## 1. O que é instalado
 
 Um programa, `verso serve`, subcomando da linha de comando `verso`,
-compilado estático para Linux x64 e ARM64. Ele serve a janela para um
-navegador (um computador, um celular, um iPad) e o contrato por um
-WebSocket. É configurado só por variáveis de ambiente, iguais em todas as
+compilado estático para Linux x64 e ARM64. Ele serve o contrato por um
+WebSocket e, com `--web` (como a imagem, o compose e os pacotes o rodam),
+a janela para um navegador — um computador, um celular, um iPad; sem ela,
+as notas só são alcançadas pelo app desktop. É configurado só por variáveis de ambiente, iguais em todas as
 formas (0075 item 6), escreve o log na saída de erro padrão e para de forma
 limpa com `SIGTERM`.
 

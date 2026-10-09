@@ -120,6 +120,14 @@ pub enum Msg {
     McpFailed(String),
     /// `verso mcp --all` is up.
     McpServingAll,
+    /// The space the folder takes, after an index run (ADR 0075 item 4).
+    Space {
+        total: String,
+        notes: String,
+        attachments: String,
+        files: usize,
+        index: String,
+    },
     /// `verso serve` could not start, or stopped with an error.
     ServeFailed(String),
     /// `verso serve admin reset`: the link to give the account's owner.
@@ -141,7 +149,7 @@ uso: verso <comando> <pasta> [...]
   verso mcp <pasta>                    servidor MCP (stdio) só de leitura para um agente
   verso mcp --key <chave>              o mesmo, com a pasta pela chave que o app dá a ela
   verso mcp --all                      um servidor para as pastas visíveis para agentes
-  verso serve                          o servidor: a janela no navegador, contas (variáveis VERSO_*)
+  verso serve [--web]                  o servidor (variáveis VERSO_*); --web serve também a janela ao navegador
   verso serve admin reset <e-mail>     um link para criar senha nova numa conta, aqui na máquina
   verso <pasta>                        abre a pasta no aplicativo (verso . = esta pasta)
   verso open <pasta>                   o mesmo, para uma pasta chamada como um comando
@@ -221,6 +229,9 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
             Msg::McpFailed(e) => format!("verso mcp falhou: {e}"),
             Msg::McpServingAll => "verso mcp: atende as pastas visíveis para agentes; esperando o cliente".to_owned(),
             Msg::ServeFailed(e) => format!("verso serve falhou: {e}"),
+            Msg::Space { total, notes, attachments, files, index } => format!(
+                "espaço: {total} — notas {notes}, anexos {attachments}, {files} arquivos; índice {index}"
+            ),
             Msg::ResetLink(link) => format!(
                 "as sessões da conta terminaram; o link para criar uma senha nova (vale 24 horas, uma vez):\n{link}"
             ),
@@ -236,7 +247,7 @@ usage: verso <command> <folder> [...]
   verso mcp <folder>                   read-only MCP server (stdio) for an agent
   verso mcp --key <key>                the same, the folder named by the key the app gives it
   verso mcp --all                      one server for the folders visible to agents
-  verso serve                          the server: the window in a browser, accounts (VERSO_* variables)
+  verso serve [--web]                  the server (VERSO_* variables); --web serves the window to a browser too
   verso serve admin reset <e-mail>     a link to set a new password for an account, on this machine
   verso <folder>                       open the folder in the app (verso . = this one)
   verso open <folder>                  the same, for a folder named like a command
@@ -318,6 +329,9 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
             Msg::McpFailed(e) => format!("verso mcp failed: {e}"),
             Msg::McpServingAll => "verso mcp: serving the folders visible to agents; waiting for the client".to_owned(),
             Msg::ServeFailed(e) => format!("verso serve failed: {e}"),
+            Msg::Space { total, notes, attachments, files, index } => format!(
+                "space: {total} — notes {notes}, attachments {attachments}, {files} files; index {index}"
+            ),
             Msg::ResetLink(link) => format!(
                 "the account's sessions ended; the link to set a new password (valid 24 hours, once):\n{link}"
             ),
@@ -410,6 +424,13 @@ mod tests {
             Msg::McpFailed("e".into()),
             Msg::McpServingAll,
             Msg::ServeFailed("e".into()),
+            Msg::Space {
+                total: "1 KB".into(),
+                notes: "1 KB".into(),
+                attachments: "0 B".into(),
+                files: 1,
+                index: "4 KB".into(),
+            },
             Msg::ResetLink("http://x/reset/y".into()),
             Msg::Opening {
                 folder: "/v".into(),
@@ -456,6 +477,7 @@ mod tests {
             Msg::McpServingAll => 30,
             Msg::ServeFailed(_) => 31,
             Msg::ResetLink(_) => 32,
+            Msg::Space { .. } => 33,
             Msg::Opening { .. } => 26,
             Msg::AppNotFound { .. } => 27,
             Msg::NoFolderToOpen(_) => 28,
@@ -469,7 +491,7 @@ mod tests {
         seen.sort_unstable();
         // `ordinal` is exhaustive, so its highest arm is the variant count
         // minus one; the samples must reach it without a gap.
-        let expected: Vec<usize> = (0..=32).collect();
+        let expected: Vec<usize> = (0..=33).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
     }
 

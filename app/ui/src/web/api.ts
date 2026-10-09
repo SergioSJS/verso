@@ -14,6 +14,8 @@ export type State = {
   version: string;
   contract: string;
   secure: boolean;
+  /** Whether the server serves the notes' window in a browser (`--web`). */
+  web: boolean;
   setup: boolean;
   account: Account | null;
   csrf: string | null;

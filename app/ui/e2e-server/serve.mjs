@@ -18,7 +18,7 @@ const folders = join(base, "folders");
 cpSync(join(repo, "demo-vault"), join(folders, "Demo"), { recursive: true });
 const port = process.env.PORT ?? "4174";
 const bin = join(process.env.CARGO_TARGET_DIR ?? join(repo, "target"), "debug", process.platform === "win32" ? "verso.exe" : "verso");
-const server = spawn(bin, ["serve"], {
+const server = spawn(bin, ["serve", "--web"], {
   stdio: "inherit",
   env: {
     ...process.env,

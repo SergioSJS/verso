@@ -273,16 +273,7 @@ pub fn router(server: Arc<Server>) -> Router {
     let static_files = tower_http::services::ServeDir::new(&ui)
         .append_index_html_on_directories(false)
         .fallback(tower_http::services::ServeFile::new(ui.join(PAGE)));
-    let page = || get_service(tower_http::services::ServeFile::new(ui.join(PAGE)));
-    Router::new()
-        .route("/", page())
-        .route("/signin", page())
-        .route("/setup", page())
-        .route("/account", page())
-        .route("/admin", page())
-        .route("/device", page())
-        .route("/invite/{token}", page())
-        .route("/reset/{token}", page())
+    let router: Router<Arc<Server>> = Router::new()
         .route("/f/{folder}/{*path}", get(crate::files::file))
         .route("/api/ws", get(crate::rpc::upgrade))
         .route("/api/state", get(crate::api::state))
@@ -358,7 +349,20 @@ pub fn router(server: Arc<Server>) -> Router {
         .route(
             "/api/device/{code}",
             get(crate::device::describe).post(crate::device::approve),
-        )
+        );
+    // The pages — signing in, approving the desktop app, the account — are
+    // served always; the notes' window in a browser only with `--web`
+    // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
+    let page = || get_service(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    router
+        .route("/", page())
+        .route("/signin", page())
+        .route("/setup", page())
+        .route("/account", page())
+        .route("/admin", page())
+        .route("/device", page())
+        .route("/invite/{token}", page())
+        .route("/reset/{token}", page())
         .fallback_service(static_files)
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
         .layer(axum::extract::DefaultBodyLimit::max(

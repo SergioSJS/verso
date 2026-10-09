@@ -92,18 +92,23 @@ fn index_search_and_backlinks_in_both_languages() {
 
     let (code, out, err) = verso(config.path(), "pt_BR", &["index", v]);
     assert_eq!(code, 0, "{out}{err}");
+    let mut lines = out.trim().lines();
     assert_eq!(
-        out.trim(),
-        "indexadas 2, sem mudança 0, removidas 0, placeholders presentes 0"
+        lines.next(),
+        Some("indexadas 2, sem mudança 0, removidas 0, placeholders presentes 0")
     );
+    // The space the folder takes (ADR 0075 item 4).
+    let space = lines.next().unwrap_or_default();
+    assert!(space.starts_with("espaço: 84 B — notas 84 B, anexos 0 B, 2 arquivos; índice "), "{space}");
     assert!(err.is_empty(), "{err}");
 
     let (code, out, _) = verso(config.path(), "en", &["index", v]);
     assert_eq!(code, 0);
     assert_eq!(
-        out.trim(),
-        "indexed 0, unchanged 2, removed 0, placeholders present 0"
+        out.trim().lines().next(),
+        Some("indexed 0, unchanged 2, removed 0, placeholders present 0")
     );
+    assert!(out.contains("space: 84 B — notes 84 B"), "{out}");
 
     let (code, out, _) = verso(config.path(), "en", &["backlinks", v, "Barão Vermelho"]);
     assert_eq!(code, 0);
