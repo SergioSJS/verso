@@ -919,7 +919,8 @@ fn a_batch_of_changed_notes_reads_only_its_paths() {
     ws.index().unwrap();
     // Rewritten as another program would: a new file renamed over it.
     let mut f = Builder::new().tempfile_in(vault.path()).unwrap();
-    f.write_all("# Uma\n\ndragão vermelho\n".as_bytes()).unwrap();
+    f.write_all("# Uma\n\ndragão vermelho\n".as_bytes())
+        .unwrap();
     f.persist(vault.path().join("Uma.md")).unwrap();
     let changes = verso_core::Changes {
         paths: vec![std::path::PathBuf::from("Uma.md")],
