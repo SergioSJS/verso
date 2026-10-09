@@ -9,7 +9,10 @@
   importante da gente ter a partir do momento que a gente roda isso no
   navegador"*. Written by Opus 5.5; to be read by Fable 5.1
   ([0032](0032-author-and-reviewer-roles.md)) before it is accepted.
-- Related: [0073](0073-self-hosted-server-first.md) (the server; its item 5
+- Related: [0050](0050-outbound-network-access.md) (the core reaches no
+  server of its own: `VERSO_SMTP_URL` is outbound traffic that 0073
+  proposes to allow and 0050 forbids until then),
+  [0073](0073-self-hosted-server-first.md) (the server; its item 5
   proposes accounts, sessions and roles, and leaves account recovery
   without a mail server and the number of owners per server `[OPEN]` —
   this ADR details item 5 and proposes answers to those two),
@@ -63,7 +66,8 @@ public documentation:
 ## Decision
 
 Proposed; the maintainer decided the six questions on 2026-10-09
-(Status), and each item says what was decided and what was weighed.
+(Status): items 1, 3, 4, 5, 6 and 8 say what was decided; items marked
+*Proposed* wait for the acceptance of this ADR with 0073.
 
 1. **The first admin comes from the environment, on the first start
    only.** `verso serve` reads `VERSO_ADMIN_EMAIL` and
@@ -83,7 +87,8 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    - Decided by the maintainer on 2026-10-09: the variables are read on the
      first start only, with a way back for an admin who forgets the
      password or loses the account (item 5).
-2. **The e-mail is the account's name, verified or not.** An account is an
+2. *Proposed.* **The e-mail is the account's name, verified or not** —
+   refining the "user name" of 0073 item 5. An account is an
    e-mail address (trimmed, NFC, lower-cased for comparison, shown as
    typed), a display name and a language (pt-BR or English,
    [0035](0035-cross-cutting-requirements.md)). Without a mail server the
@@ -94,7 +99,8 @@ Proposed; the maintainer decided the six questions on 2026-10-09
 3. **Signing in.** In the first version: **password** (Argon2id, the
    OWASP parameters of the day, recorded in the code), and **passkeys**
    (WebAuthn) added from Settings once signed in — which need HTTPS and a
-   stable address, `VERSO_PUBLIC_URL`, as 0073 item 6 already requires.
+   stable address, `VERSO_PUBLIC_URL`, which 0073 item 6 implies (TLS and
+   a configured proxy address).
    With a mail server: a **sign-in link by e-mail**, single use, fifteen
    minutes. **OpenID Connect** (Authelia, Authentik, Keycloak, Google)
    after, for the servers that already have an identity provider. A
@@ -145,7 +151,7 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    maintainer named is a game master and players on one server. Creating
    folders is a permission the admin grants, off for a new member, so an
    invited player only sees the folders shared with them.
-7. **Sessions in the browser: an opaque token in a cookie, kept on the
+7. *Proposed.* **Sessions in the browser: an opaque token in a cookie, kept on the
    server.** On sign-in the server makes a random 256-bit token, stores
    its SHA-256 with the account, the device's name and the dates, and
    sends the token in a cookie `__Host-verso-session` — `Secure`,
@@ -162,8 +168,9 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    token in Settings with a name, an expiry (30 days by default, one year
    at most, or none, said in red), the folders it reaches and **read** or
    **read and write** — never more than the member's own role. The token
-   is shown once, starts with `verso_pat_` so that secret scanners
-   (GitHub's included) recognise it, and is stored as its SHA-256; it is
+   is shown once, starts with `verso_pat_` — a recognisable prefix, as
+   GitHub's own tokens have, which a secret scanner can be given as a
+   pattern — and is stored as its SHA-256; it is
    sent as `Authorization: Bearer`. It serves the command line, scripts
    and an agent reaching the server, until the MCP authorization over the
    network of 0073 item 11 is settled. **The desktop app connecting to a
@@ -171,7 +178,7 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    server's sign-in page in the browser and receives a token for that
    device (the device-login flow `gh auth login` uses), listed among the
    sessions and revocable there.
-9. **Limits and the audit log.** Sign-in attempts limited by address and
+9. *Proposed.* **Limits and the audit log.** Sign-in attempts limited by address and
    by account, with a growing delay, never a lock that a stranger can use
    to keep the owner out; the same for invitation and reset links. An
    audit log in the server's data directory records sign-ins (succeeded
@@ -179,7 +186,7 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    role changes and grants — who, when, from where — and never a password,
    a token or a link. The owner of a folder sees the entries about their
    folder.
-10. **Where accounts live.** In a SQLite database in the server's data
+10. *Proposed.* **Where accounts live.** In a SQLite database in the server's data
     directory (`VERSO_DATA_DIR`, on a local disk,
     [0075](0075-server-packaging-and-storage.md) item 3), beside — never inside —
     the folders it serves ([0011](0011-config-outside-tree-index-as-cache.md)).
@@ -187,7 +194,7 @@ Proposed; the maintainer decided the six questions on 2026-10-09
     files, and the backup recipe of 0073 names it beside the folders. No
     note, no setting of a note and nothing of [0012](0012-files-are-source-of-truth.md)'s
     files moves into it.
-11. **The contract.** Every command carries the session that the transport
+11. *Proposed.* **The contract.** Every command carries the session that the transport
     authenticated (cookie or bearer token); the core resolves it to an
     account and a role in the folder **before** `verso-fs` acts, and a
     refusal is a contract error like the others, in both languages. The

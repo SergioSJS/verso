@@ -24,7 +24,7 @@
   configuração fora da pasta), [0012](0012-files-are-source-of-truth.md),
   [0051](0051-development-flow-and-releases.md) (o workflow de release),
   [0055](0055-in-app-updater.md) (atualizações assinadas).
-- Status no briefing: ausente; aceito junto com o 0073.
+- Status no briefing: ausente; na aceitação, junto com o 0073.
 
 ## Contexto
 
@@ -81,8 +81,11 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
      de admin que os bancos podem se corromper ali.
    - `VERSO_FOLDERS_DIR`: a raiz sob a qual moram as pastas de notas — que
      **pode** ser um NAS. O admin cria ou abre pastas só sob ela, e um
-     caminho que sai dela é recusado, o mesmo confinamento que o
-     `verso-fs` aplica dentro de uma pasta. Num sistema de arquivos de rede
+     caminho dado para uma pasta que sai dela é recusado — uma checagem do
+     caminho como dado: um symlink dentro de uma pasta que aponta para fora
+     dela é seguido hoje ([0044](0044-verso-fs-semantics.md)), e se um
+     servidor compartilhado o recusa é o `[ABERTO]` do 0073, ainda aberto
+     aqui. Num sistema de arquivos de rede
      o servidor observa por varredura (a cada 30 segundos, como o 0071) em
      vez de esperar eventos que nunca chegam, e diz isso na página da
      pasta.
@@ -153,5 +156,5 @@ B depois"); sync por pasta, desligado por padrão (item 5, "A"); o ARM64
 do servidor agora (item 2, "agora!"); a imagem no registro do GitHub
 (Consequências, "pode publicar no próprio github"). A ser lido pela Fable
 5.1 e aceito com o [0073](0073-self-hosted-server-first.md). `[ABERTO]`:
-o caminho de atualização de um servidor
-([0073](0073-self-hosted-server-first.md)).
+o caminho de atualização de um servidor, e symlinks que saem de uma pasta
+num servidor compartilhado (item 3), ambos do 0073.

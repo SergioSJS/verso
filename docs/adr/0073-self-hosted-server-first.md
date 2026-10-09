@@ -64,6 +64,14 @@
   get a dated Revisions line with their old wording kept, as 0022 and 0044
   have, and `docs/reference/app-decision.md` §7 with them. Until then every
   one of them is unchanged, and the briefing too.
+- Revisions: 2026-10-09 — three `[OPEN]` of the Status answered by the
+  maintainer and recorded where the answer lives: account recovery without
+  a mail server (a command on the machine,
+  [0074](0074-accounts-and-access-on-the-server.md) item 5), owners per
+  server (several accounts, 0074 item 6), the Docker image's platforms
+  (amd64 and arm64, [0075](0075-server-packaging-and-storage.md) item 2).
+  Item 5's "user name" is refined by 0074 item 2 (the e-mail, proposed).
+  The Status keeps their questions, marked answered.
 
 ## Context
 
@@ -189,7 +197,7 @@ Proposed, except where the Status says the maintainer decided.
    browser offers them; OIDC later), sessions by token with expiry and
    revocation, and per folder the roles owner, editor, reader, granted by an
    invitation link that expires or by the owner; account recovery without a
-   mail server is `[OPEN]`. The item [0045](0045-server-and-mcp-security.md)
+   mail server is `[OPEN]` (answered 2026-10-09, Revisions). The item [0045](0045-server-and-mcp-security.md)
    left open — session identity and per-operation authorization in the
    contract — is proposed to be built here, and stays `[OPEN]` there until
    this ADR is accepted: every command carries the session, and the core
@@ -396,15 +404,15 @@ accept on a reading by Opus 5.5 ([0032](0032-author-and-reviewer-roles.md)).
 `[OPEN]`: whether the phone in the browser, online only, meets the mobile
 sync the maintainer called essential, or offline on the phone moves earlier
 in item 12; one owner per server or many (a family, a team) — it shapes the
-account model; permissions finer than the folder (per note or per block,
+account model (answered, Revisions); permissions finer than the folder (per note or per block,
 spec Q9), and history, attribution and recovery of another member's change
 or deletion; whether a server used by one person may opt into end-to-end
 encryption later; how a phone's browser trusts the local server's
 certificate; where the service's session table and dispatch live
 ([0028](0028-crate-structure.md)); how client and server agree on the
 contract's version, and how the server is updated; the board's co-editing;
-account recovery without a mail server; the MCP transport and authorization
-over the network; the Docker image's platforms; whether the pre-signed URL
+account recovery without a mail server (answered, Revisions); the MCP transport and authorization
+over the network; the Docker image's platforms (answered, Revisions); whether the pre-signed URL
 of item 4 is rule 4's opaque handle or needs an amendment of
 [0026](0026-core-ui-contract-inviolable-rules.md); symlinks on a server with
 members other than the owner; remote content and the approved embed origins
