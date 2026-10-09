@@ -121,7 +121,9 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
   ghcr.io` com um token que lê pacotes, e a cota do plano gratuito para
   pacotes privados (500 MB guardados, 1 GB baixado por mês) pede que o
   workflow mantenha só as últimas versões. Quando o repositório abrir, o
-  pacote abre com ele.
+  pacote não acompanha sozinho: a visibilidade dele é mudada uma vez nas
+  configurações do pacote (um pacote público não volta a ser privado), e
+  a partir daí ele é baixado sem login e não custa nada.
 - O `verso-fs` aprende a distinguir um sistema de arquivos de rede de um
   local, para a varredura do item 3; o `verso-index` informa os tamanhos do
   item 4 a partir do percurso que já faz.
