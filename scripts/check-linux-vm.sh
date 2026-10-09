@@ -101,7 +101,7 @@ fi
 # Rust at the pinned version, installed once (rustup reads rust-toolchain.toml).
 rust() {
   on_host "command -v cargo >/dev/null || [ -x ~/.cargo/bin/cargo ] || curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none >/dev/null
-           . ~/.cargo/env && cd '$base/src' && rustup show active-toolchain >/dev/null && rustup component add clippy rustfmt >/dev/null 2>&1; true"
+           . ~/.cargo/env && cd '$base/src' && rustup show active-toolchain >/dev/null && rustup component add clippy rustfmt >/dev/null 2>&1"
 }
 step "Rust on $host" rust
 
@@ -128,7 +128,8 @@ if [ "$bundle" = 1 ]; then
     conf='{"identifier":"com.versomd.app.beta","productName":"Verso Beta","mainBinaryName":"verso-app-beta","bundle":{"externalBin":["binaries/verso-beta"]}}'
   fi
   packages() {
-    on_host "$cargo_env && VERSO_APP_NAME='$name' cargo build --release --locked -p verso-cli \
+    # Only this run's packages: a version bump would leave two of each.
+    on_host "rm -rf ~/'$base/target/release/bundle' && $cargo_env && VERSO_APP_NAME='$name' cargo build --release --locked -p verso-cli \
       && mkdir -p app/src-tauri/binaries \
       && cp ~/'$base/target/release/verso' app/src-tauri/binaries/$cli-x86_64-unknown-linux-gnu \
       && printf '%s' '$conf' > bundle.conf.json \
@@ -142,13 +143,19 @@ if [ "$bundle" = 1 ]; then
 fi
 
 if [ "$install" = 1 ]; then
+  # The app the package installs (the beta's is verso-app-beta), and only
+  # the log lines of this launch.
+  app="verso-app"
+  [ "$beta" = 1 ] && app="verso-app-beta"
   installed() {
     on_host "sudo apt-get install -y --reinstall ~/'$base'/target/release/bundle/deb/*.deb >/dev/null \
       && mkdir -p ~/verso-demo && cp -R '$base/src/demo-vault/.' ~/verso-demo/ \
-      && uid=\$(id -u) && (pkill -f /usr/bin/verso-app || true) \
-      && (XDG_RUNTIME_DIR=/run/user/\$uid WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 nohup verso-app ~/verso-demo >/tmp/verso-app.out 2>&1 &) \
-      && sleep 8 && grep -h 'started' ~/.config/verso/logs/verso.log | tail -1 \
-      && ! grep -h ' ERROR ' ~/.config/verso/logs/verso.log | tail -5 | grep ."
+      && uid=\$(id -u) && (pkill -x $app || true) \
+      && log=~/.config/verso/logs/verso.log && seen=\$(cat \$log 2>/dev/null | wc -l) \
+      && (XDG_RUNTIME_DIR=/run/user/\$uid WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 nohup $app ~/verso-demo >/tmp/verso-app.out 2>&1 &) \
+      && sleep 8 && tail -n +\$((seen + 1)) \$log > /tmp/verso-launch.log \
+      && grep -h 'started' /tmp/verso-launch.log \
+      && ! grep -h ' ERROR ' /tmp/verso-launch.log | grep ."
   }
   step "install the .deb and open the app (Linux desktop)" installed
 fi

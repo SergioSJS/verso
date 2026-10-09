@@ -287,18 +287,23 @@ mesclada):
   `xdg-utils`; o AppImage não leva GStreamer); o beta se instala como
   `verso-app-beta` e `verso-beta`, ao lado do release.
 - **A integração:** um pacote põe a linha de comando em `/usr/bin`, e os
-  Ajustes dizem isso em vez de oferecer a instalação; o AppImage a copia
-  para `~/.local/bin`. "Mostrar no gerenciador de arquivos" pede ao
+  Ajustes dizem isso em vez de oferecer a instalação; o beta usa o
+  `verso-beta`, nunca o `verso` do release ao lado. O AppImage põe em
+  `~/.local/bin`, com o nome do comando, um script que roda a linha de
+  comando de dentro do AppImage (`verso-app --cli`), e assim ela segue o
+  AppImage quando este se atualiza. "Mostrar no gerenciador de arquivos" pede ao
   gerenciador, por D-Bus, que selecione o arquivo; senão abre a pasta com
   `xdg-open`; o item tem o nome de cada SO (Finder, Explorador de Arquivos,
   gerenciador de arquivos). "Copiar caminho completo" cita o
   `wl-clipboard` ou o `xclip` quando nenhum dos dois está lá.
-- **O watcher:** quando o inotify fica sem watches ou descritores, ele
-  vigia a pasta por polling a cada 30 segundos.
+- **O watcher:** quando o inotify fica sem watches ou descritores ao abrir
+  a pasta, ele vigia a pasta por polling a cada 30 segundos. Se faltarem
+  depois (uma subpasta nova além do limite), ele ainda não troca.
 - **O atualizador:** o asset pelo formato — o AppImage quando o app roda de
   um (`$APPIMAGE`), senão um `.deb` onde existe `/etc/debian_version`,
   senão um `.rpm`. O AppImage é escrito ao lado de si, levado ao disco e
-  renomeado sobre si; um `.deb` ou `.rpm` é salvo em Downloads, para o
+  renomeado sobre si; um `.deb` ou `.rpm` é salvo com o próprio nome na
+  pasta de Downloads que o desktop nomeia (`user-dirs.dirs`), para o
   gerenciador de pacotes.
 - **O job de release:** x64 no `ubuntu-22.04` e ARM64 no
   `ubuntu-22.04-arm`; gera os três pacotes e o arquivo da linha de comando,
@@ -315,7 +320,10 @@ mesclada):
   sob XWayland. O log diz que falta o `appsink` do GStreamer, então um
   vídeo numa nota não foi conferido ali. Um `.deb` gerado no Ubuntu 26.04
   não roda no Debian 12 (pede glibc 2.38 e 2.39, lá há 2.36), como o item
-  3 previa.
+  3 previa; o `.deb` do beta gerado como o job de release gera, num
+  contêiner `ubuntu:22.04`, instala e abre lá (GNOME, Wayland). Nesse
+  ensaio o passo do AppImage travou no download das ferramentas do Tauri,
+  na rede daquela máquina; os runners do job de release vão mostrar.
 - **Ainda não observado:** web views filhas sob Wayland, NVIDIA, nomes que
   diferem só em maiúsculas, os atributos estendidos do SELinux, sistemas de
   arquivos de rede, instância única e "Adicionar ao Claude".

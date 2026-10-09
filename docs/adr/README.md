@@ -92,7 +92,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0057](0057-board-json-canvas.md) | The board: a JSON Canvas file, Excalidraw as its surface, typed relations in the frontmatter | Accepted (2026-09-30) |
 | [0069](0069-windows-port.md) | The Windows port: x64, an installer, tested on a Windows machine over SSH | Proposed (2026-10-07); x64, Windows 10 and 11, NSIS and no code signing for now decided; starts now, in Phase 2 ahead of the rest (0022 revised); the push gate when platform code changes; Windows 10 machine later, code written for it; the configuration location (`%LOCALAPPDATA%\verso`) and OneDrive's placeholder decided 2026-10-08; `[OPEN]` (provisional): the directory `fsync`, the path separator |
 | [0070](0070-what-travels-with-the-folder.md) | What travels with the folder: three layers of settings, and names every OS can keep | Proposed (2026-10-08); names every OS can keep decided, `\` among them |
-| [0071](0071-linux-port.md) | The Linux port: one build for every distribution, tested on virtual machines | Proposed (2026-10-08); waits ("deixe pra depois"); `[OPEN]`: ARM64, supported versions, two or three machines, the updater, signing, the index's location |
+| [0071](0071-linux-port.md) | The Linux port: one build for every distribution, tested on virtual machines | Proposed (2026-10-08); port started 2026-10-09; answered 2026-10-09: ARM64, versions, signing, the index's location; `[OPEN]`: Snap, Wayland native or X11, case-only names |
 | [0072](0072-window-controls-in-the-app.md) | The window's controls inside the app: no title bar on macOS and Windows | Accepted (2026-10-08): the app's own buttons on Windows |
 
 ### Dialect, engineering and roadmap

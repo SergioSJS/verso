@@ -295,6 +295,10 @@ pub(crate) fn reveal<R: tauri::Runtime>(
             .args([
                 "call",
                 "--session",
+                // A file manager that does not answer must not hold the
+                // window: this command runs on its main thread.
+                "--timeout",
+                "3",
                 "--dest",
                 "org.freedesktop.FileManager1",
                 "--object-path",

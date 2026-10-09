@@ -878,6 +878,12 @@ fn context<R: tauri::Runtime>() -> tauri::Context<R> {
 
 /// Write the TypeScript bindings (types and command signatures) to
 /// `path`. CI checks the committed file is this output (ADR 0029).
+/// `verso-app --cli ARGS…`: see `cli::run_bundled_cli`.
+#[cfg(target_os = "linux")]
+pub fn run_bundled_cli(args: &[String]) -> std::io::Error {
+    cli::run_bundled_cli(args)
+}
+
 /// `verso-app --verify-signature FILE`: see `update::verify_release_file`.
 pub fn verify_release_file(path: &Path) -> Result<(), String> {
     update::verify_release_file(path)
