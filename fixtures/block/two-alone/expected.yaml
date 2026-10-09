@@ -1,4 +1,4 @@
-# AI draft (Opus 5.5, 2026-10-09), awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-10-09 in session ("aprovado"), after the observation in Obsidian; drafted by Opus 5.5 on 2026-10-09 (ADR 0031).
 # Construct: two `^id`s alone in a row at the top level, then a paragraph
 # with one `^id` alone after it. Spec: docs/spec/dialect.md §5.7, Q3: only
 # the last of two `^id`s alone in a row names the block before them, as in

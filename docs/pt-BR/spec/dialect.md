@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.34
+# Spec do dialeto do Verso — v0.35
 
-- Versão: v0.34 · 2026-10-09
+- Versão: v0.35 · 2026-10-09
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -1326,3 +1326,4 @@ ser escolhido.
 | v0.32 | 2026-10-07 | As fixtures `fixtures/block/in-list`, `fixtures/block/in-quote` e `fixtures/block/alone-top` **aprovadas pelo mantenedor** em sessão ("Aprovado"); a marca de rascunho removida. **A Q3 fecha por inteiro.** Nada mais muda. |
 | v0.33 | 2026-10-07 | Depois da segunda leitura da Opus: a §5.7 diz a regra decidida (a seção de nível superior, ou o item de lista mais interno) no lugar da frase do "texto próprio", lista as três fixtures novas e diz como fica um `^id` que não nomeia nada; os dois parágrafos de decisão da Q3 viram um, em dois passos; **dois `^id` sozinhos em sequência** fica `[ABERTO]` (a extensão ou o "só o último" do Obsidian), com os casos do frontmatter e da nota de rodapé registrados como não observados; as 28 entradas observadas estão em `docs/reference/obsidian-blocks-2026-10-07.md`. |
 | v0.34 | 2026-10-09 | **Dois `^id` sozinhos em sequência** `DECIDIDO` pelo mantenedor: só o último nomeia o bloco antes deles, como no Obsidian; a fixture `fixtures/block/two-alone` rascunhada, aguardando a aprovação do mantenedor. |
+| v0.35 | 2026-10-09 | A fixture `fixtures/block/two-alone` aprovada pelo mantenedor em sessão ("aprovado"). |
