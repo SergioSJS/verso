@@ -241,7 +241,11 @@ from the distributions' cloud images with cloud-init (`verso-linux-vm`,
 outside the repository, as `verso-windows-vm`), and the order of item 8.
 The core and the command line keep running without a display; only the
 window needs one. **Answered by the maintainer on 2026-10-09**:
-- ARM64 is built beside x64.
+- ARM64 is built beside x64 — once the repository is public: GitHub's ARM
+  runners serve public repositories, so until then the release builds x64
+  alone (the maintainer, 2026-10-09: "se no GitHub Actions não tem o ARM
+  para projeto privado, a gente espera … para quando a gente for tornar
+  público").
 - The versions follow Obsidian's lead: no published list. The floor is
   WebKitGTK 4.1, the library Tauri needs — Ubuntu 22.04, Debian 12,
   Fedora 36 and later.
@@ -298,9 +302,9 @@ case-only names (spec Q8).
   macOS and Windows); a `.deb` or `.rpm` is saved under its own name to
   the Downloads folder the desktop names (`user-dirs.dirs`), for the
   package manager.
-- **The release job:** x64 on `ubuntu-22.04` and ARM64 on
-  `ubuntu-22.04-arm`; it builds the three packages and the command line's
-  archive, signs them and checks the signatures. It has not run yet.
+- **The release job:** x64 on `ubuntu-22.04`; it builds the three
+  packages and the command line's archive, signs them and checks the
+  signatures. It has not run yet.
 - **The engine:** the end-to-end suite's WebKit project, in Playwright's
   Linux container, passed 179 of 179. One product fix was needed: a board
   took Excalidraw's state from before it had loaded the board (a white

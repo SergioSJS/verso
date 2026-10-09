@@ -19,7 +19,8 @@
 #
 # macOS, arm64 (ADR 0022), and since its port Windows, x64 (ADR 0069 item
 # 6): an NSIS installer per user, unsigned (ADR 0069), with `verso.exe`
-# beside the app; and Linux, x64 and ARM64 (ADR 0071): an AppImage, a
+# beside the app; and Linux, x64 (ADR 0071; ARM64 once the repository is
+# public): an AppImage, a
 # `.deb` and an `.rpm`, built on Ubuntu 22.04 so they run on the oldest
 # base supported. A test release is
 # built as "Verso Beta", with an identifier of its own, so that it installs
@@ -29,9 +30,9 @@
 # a decision for before public distribution.
 #
 # Cost: one macOS job, about ten minutes, each billed as ten Linux ones; one
-# Windows job, about fifteen, each billed as about two; two Linux jobs, one
-# on an ARM runner, about twenty minutes each (estimated: not run yet); a
-# minute of Linux to publish.
+# Windows job, about fifteen, each billed as about two; one Linux job, x64,
+# about twenty minutes (estimated: not run yet); a minute of Linux to
+# publish.
 
 name: release
 
@@ -315,8 +316,13 @@ jobs:
 
   # Linux (ADR 0071, items 2, 3 and 6): one build per architecture on the
   # oldest base of the family, Ubuntu 22.04 (glibc 2.35), so the packages run
-  # there and later, on Debian 12 and on current Fedora — x64 and, since
-  # 2026-10-09, ARM64 (the maintainer). A beta installs beside the release:
+  # there and later, on Debian 12 and on current Fedora — x64 only for now:
+  # ARM64 waits until the repository is public, since GitHub's ARM runners
+  # (`ubuntu-22.04-arm`) are for public repositories, and one runner that
+  # never comes would hold every platform's publish (the maintainer,
+  # 2026-10-09). Its matrix entry, when it comes back: arch aarch64, runner
+  # ubuntu-22.04-arm, triple aarch64-unknown-linux-gnu, deb arm64; and the
+  # publish job's count goes back to 24. A beta installs beside the release:
   # its binary is `verso-app-beta` and its command line `verso-beta`, or the
   # two packages would fight over /usr/bin.
   linux:
@@ -331,10 +337,6 @@ jobs:
             runner: ubuntu-22.04
             triple: x86_64-unknown-linux-gnu
             deb: amd64
-          - arch: aarch64
-            runner: ubuntu-22.04-arm
-            triple: aarch64-unknown-linux-gnu
-            deb: arm64
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -484,9 +486,9 @@ jobs:
           esac
           node scripts/release.mjs notes "$version" > notes.md
           files=(files/*)
-          # macOS 2, Windows 2, Linux 4 for each of two architectures; each
-          # with its signature.
-          if [ "${#files[@]}" -ne 24 ]; then echo "::error::expected twelve files and their signatures, found: ${files[*]}"; exit 1; fi
+          # macOS 2, Windows 2, Linux 4 (x64; ARM64 waits for a public
+          # repository); each with its signature.
+          if [ "${#files[@]}" -ne 16 ]; then echo "::error::expected eight files and their signatures, found: ${files[*]}"; exit 1; fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${files[@]}" --clobber
             gh release edit "$TAG" --notes-file notes.md

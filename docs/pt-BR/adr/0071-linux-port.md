@@ -256,7 +256,11 @@ cloud das distribuições com cloud-init (`verso-linux-vm`, fora do
 repositório, como o `verso-windows-vm`), e a ordem do item 8. O núcleo e a
 linha de comando continuam rodando sem tela; só a janela precisa de uma.
 **Respondido pelo mantenedor em 2026-10-09**:
-- O ARM64 é gerado ao lado do x64.
+- O ARM64 é gerado ao lado do x64 — quando o repositório for público: os
+  runners ARM do GitHub atendem repositórios públicos, então até lá o
+  release gera só x64 (o mantenedor, em 2026-10-09: "se no GitHub Actions
+  não tem o ARM para projeto privado, a gente espera … para quando a gente
+  for tornar público").
 - As versões seguem o Obsidian: nenhuma lista publicada. O piso é a
   WebKitGTK 4.1, a biblioteca de que o Tauri precisa — Ubuntu 22.04,
   Debian 12, Fedora 36 e posteriores.
@@ -316,9 +320,9 @@ mesclada):
   macOS e no Windows); um `.deb` ou `.rpm` é salvo com o próprio nome na
   pasta de Downloads que o desktop nomeia (`user-dirs.dirs`), para o
   gerenciador de pacotes.
-- **O job de release:** x64 no `ubuntu-22.04` e ARM64 no
-  `ubuntu-22.04-arm`; gera os três pacotes e o arquivo da linha de comando,
-  assina e confere as assinaturas. Ainda não rodou.
+- **O job de release:** x64 no `ubuntu-22.04`; gera os três pacotes e o
+  arquivo da linha de comando, assina e confere as assinaturas. Ainda não
+  rodou.
 - **O motor:** o projeto WebKit da suíte de ponta a ponta, no contêiner
   Linux do Playwright, passou em 179 de 179. Foi preciso uma correção no
   produto: um board tomava o estado do Excalidraw de antes de carregar o
