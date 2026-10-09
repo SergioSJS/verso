@@ -312,7 +312,14 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
     } else if cfg!(target_os = "macos") {
         &[".dmg", ".zip"]
     } else {
-        &[".appimage", ".deb", ".rpm", ".tar.gz", ".zip"]
+        #[cfg(target_os = "linux")]
+        {
+            linux_formats()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            &[".appimage", ".deb", ".rpm"]
+        }
     };
 
     // Try to find the best asset: correct OS + arch + preferred extension
@@ -357,7 +364,23 @@ pub(crate) fn is_trusted_update_url(url: &str) -> bool {
 /// NSIS `-setup.exe`, or an `.msi`) rather than an archive to extract.
 pub(crate) fn is_installer_name(name: &str) -> bool {
     let n = name.to_ascii_lowercase();
-    n.ends_with(".exe") || n.ends_with(".msi")
+    [".exe", ".msi", ".appimage", ".deb", ".rpm"]
+        .iter()
+        .any(|ext| n.ends_with(ext))
+}
+
+/// The packages a Linux install takes, best first: the AppImage it runs
+/// from, or the package format of its system — a `.deb` where Debian's
+/// tools are, else an `.rpm` (ADR 0071, item 7).
+#[cfg(target_os = "linux")]
+fn linux_formats() -> &'static [&'static str] {
+    if std::env::var_os("APPIMAGE").is_some_and(|v| !v.is_empty()) {
+        &[".appimage"]
+    } else if std::path::Path::new("/etc/debian_version").exists() {
+        &[".deb"]
+    } else {
+        &[".rpm"]
+    }
 }
 
 /// The public half of the key Verso's release files are signed with (ADR
@@ -733,15 +756,16 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
         message: format!("Não foi possível criar pasta de extração: {e}"),
     })?;
 
-    // Windows' asset is the installer itself (release.yml), not an archive:
-    // it goes where the install step looks for an installer, unextracted.
+    // Windows' installer and Linux's packages are the asset itself
+    // (release.yml), not an archive: each goes where the install step looks
+    // for it, unextracted, its extension kept.
     if is_installer_name(&asset.name) {
         drop(file);
-        let ext = if asset.name.to_ascii_lowercase().ends_with(".msi") {
-            "msi"
-        } else {
-            "exe"
-        };
+        let lower = asset.name.to_ascii_lowercase();
+        let ext = ["msi", "appimage", "deb", "rpm"]
+            .into_iter()
+            .find(|e| lower.ends_with(&format!(".{e}")))
+            .unwrap_or("exe");
         std::fs::rename(&zip_path, extract_dir.join(format!("verso-setup.{ext}"))).map_err(
             |e| ContractError {
                 kind: ErrorKind::Failed,
@@ -1024,6 +1048,8 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
     #[cfg(target_os = "linux")]
     {
         use std::os::unix::fs::PermissionsExt;
+        // Nothing is kept aside: the AppImage is replaced whole by a rename.
+        let _ = temp_dir;
 
         // Prefer AppImage, then deb, then any binary
         let payload = find_file_by_exts(extract_dir, &[".AppImage", ".appimage", ".deb", ".rpm"])
@@ -1045,21 +1071,37 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
             .extension()
             .is_some_and(|x| x.eq_ignore_ascii_case("AppImage"))
         {
-            // Try to replace the running AppImage
-            if let Ok(current) = std::env::current_exe() {
-                let backup = temp_dir.join("running_backup.AppImage");
-                if std::fs::rename(&current, &backup).is_ok() {
-                    if std::fs::copy(&payload, &current).is_ok() {
-                        let _ = std::fs::remove_file(&backup);
-                        return Ok(emit_done(
-                            "Atualização instalada com sucesso! Reinicie o aplicativo.",
-                            Some(current.display().to_string()),
-                            true,
-                        ));
+            // The AppImage file itself, `$APPIMAGE`: the running binary is
+            // inside its mounted image, read-only. The new one is written
+            // beside it and renamed over it, whole or not at all.
+            let Some(current) = std::env::var_os("APPIMAGE")
+                .filter(|v| !v.is_empty())
+                .map(std::path::PathBuf::from)
+            else {
+                return Err(ContractError {
+                    kind: ErrorKind::Failed,
+                    message: "Este app não roda de um AppImage; baixe a atualização pela página de releases."
+                        .to_string(),
+                });
+            };
+            let beside = current.with_extension("AppImage.new");
+            std::fs::copy(&payload, &beside)
+                .and_then(|_| {
+                    std::fs::set_permissions(&beside, std::fs::Permissions::from_mode(0o755))
+                })
+                .and_then(|()| std::fs::rename(&beside, &current))
+                .map_err(|e| {
+                    let _ = std::fs::remove_file(&beside);
+                    ContractError {
+                        kind: ErrorKind::Failed,
+                        message: format!("Não foi possível substituir o AppImage: {e}"),
                     }
-                    let _ = std::fs::rename(&backup, &current);
-                }
-            }
+                })?;
+            return Ok(emit_done(
+                "Atualização instalada. Reinicie o aplicativo.",
+                Some(current.display().to_string()),
+                true,
+            ));
         } else {
             // For .deb/.rpm: copy to Downloads and advise the user
             let downloads = get_downloads_dir();
@@ -1081,12 +1123,6 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 false,
             ));
         }
-
-        return Ok(emit_done(
-            "Atualização baixada. Reinicie o aplicativo para usar a nova versão.",
-            None,
-            true,
-        ));
     }
 
     // Unreachable on supported platforms, but required for compilation
@@ -1202,9 +1238,9 @@ pub(crate) fn msix_claude_dir() -> Option<std::path::PathBuf> {
     found.into_iter().next()
 }
 
-/// Where the symlink at `path` points, if it is one. Not on Windows, where
-/// the command line is not linked (`cli_state_now`).
-#[cfg(not(windows))]
+/// Where the symlink at `path` points, if it is one. macOS only: Windows
+/// and Linux do not link the command line (`cli_state_now`).
+#[cfg(target_os = "macos")]
 pub(crate) fn link_target(path: &std::path::Path) -> Option<std::path::PathBuf> {
     std::fs::read_link(path).ok()
 }
@@ -1217,9 +1253,9 @@ pub(crate) fn something_at(path: &std::path::Path) -> bool {
 }
 
 /// Point `link` at `target`, replacing whatever symlink or file was
-/// there (the `ln -sfn` this replaces). Unix only; the CLI link is not
-/// offered elsewhere yet.
-#[cfg(unix)]
+/// there (the `ln -sfn` this replaces). macOS only: Linux copies an
+/// AppImage's command line instead (`install_cli`).
+#[cfg(target_os = "macos")]
 pub(crate) fn replace_symlink(
     target: &std::path::Path,
     link: &std::path::Path,
@@ -1233,6 +1269,35 @@ pub(crate) fn replace_symlink(
 /// Take the file or symlink at `path` away (the `rm` this replaces).
 pub(crate) fn remove_file_at(path: &std::path::Path) -> std::io::Result<()> {
     std::fs::remove_file(path)
+}
+
+/// Copy the command line out of an AppImage to `dest` — `~/.local/bin`,
+/// on PATH without root (ADR 0071, item 7): an AppImage is mounted only
+/// while it runs, so a link into it would not outlive the app. Written
+/// beside, made executable, renamed over.
+#[cfg(target_os = "linux")]
+pub(crate) fn copy_executable(
+    src: &std::path::Path,
+    dest: &std::path::Path,
+) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    if let Some(dir) = dest.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let part = dest.with_extension("part");
+    std::fs::copy(src, &part)?;
+    std::fs::set_permissions(&part, std::fs::Permissions::from_mode(0o755))?;
+    std::fs::rename(&part, dest)
+}
+
+/// Whether two files hold the same bytes: the command line copied out of
+/// an AppImage is this app's own when it equals the one inside.
+#[cfg(target_os = "linux")]
+pub(crate) fn same_bytes(a: &std::path::Path, b: &std::path::Path) -> bool {
+    match (std::fs::read(a), std::fs::read(b)) {
+        (Ok(x), Ok(y)) => x == y,
+        _ => false,
+    }
 }
 
 /// Clear the download quarantine from one file, through the xattr crate,
@@ -1393,6 +1458,11 @@ mod migration_tests {
             "Verso-Beta-0.5.0-beta.1-macos-arm64.zip"
         ));
         assert!(!is_installer_name("verso-cli-0.5.0-windows-x64.zip"));
+        // Linux's packages are taken as downloaded too (ADR 0071).
+        assert!(is_installer_name("Verso-0.6.0-linux-x86_64.AppImage"));
+        assert!(is_installer_name("Verso-0.6.0-linux-amd64.deb"));
+        assert!(is_installer_name("Verso-0.6.0-linux-x86_64.rpm"));
+        assert!(!is_installer_name("verso-cli-0.6.0-linux-x86_64.tar.gz"));
     }
 
     #[test]

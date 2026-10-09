@@ -163,6 +163,12 @@ where a failure is first seen:
   found the workspace not compiling on Windows: `xattr` was a dependency of
   `verso-fs` on every OS, and `verso-fs` stops the build on purpose where
   only the Unix half of its directory identity exists.
+- `scripts/check-linux-vm.sh` — clippy and the tests on Linux x86_64, on a
+  machine reached over SSH as `verso-ubuntu`, over a byte-for-byte copy of
+  the working tree; with `--bundle` the `.deb`, `.rpm` and AppImage, with
+  `--install` the `.deb` installed and the app opened in the machine's
+  desktop ([0071](0071-linux-port.md), item 5, since 2026-10-09). Required
+  only when it makes sense or for a package (the maintainer, 2026-10-09).
 
 macOS cannot run in a container and Windows cannot run in Docker on a Mac or
 on Linux: the Mac itself is the macOS check, and Windows is checked on a real

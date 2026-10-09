@@ -7,6 +7,20 @@ use super::*;
 /// every shell on macOS (`/etc/paths`), as editors install theirs.
 pub(crate) const CLI_LINK: &str = "/usr/local/bin/verso";
 
+/// Where an AppImage's command line is copied on Linux: `~/.local/bin`, on
+/// PATH without root in the XDG base directory specification (ADR 0071).
+#[cfg(target_os = "linux")]
+fn local_bin_cli() -> Option<PathBuf> {
+    let home = PathBuf::from(std::env::var_os("HOME").filter(|h| !h.is_empty())?);
+    Some(home.join(".local/bin/verso"))
+}
+
+/// Whether this app runs from an AppImage (mounted only while it runs).
+#[cfg(target_os = "linux")]
+fn in_appimage() -> bool {
+    std::env::var_os("APPIMAGE").is_some_and(|v| !v.is_empty())
+}
+
 /// The command line this app carries: beside its own binary — the
 /// bundle's `Contents/MacOS`, or `target/<profile>` in a development tree.
 /// A path at the edge, for the operating system's tools only: it never
@@ -18,6 +32,10 @@ fn bundled_cli() -> Option<PathBuf> {
     let name = format!("verso{}", std::env::consts::EXE_SUFFIX);
     if let Ok(cli) = std::env::current_exe() {
         candidates.push(cli.with_file_name(&name));
+        // The beta's package names its command line `verso-beta`, so the
+        // beta and the release install side by side (ADR 0071, item 7).
+        #[cfg(target_os = "linux")]
+        candidates.push(cli.with_file_name("verso-beta"));
         if let Some(parent) = cli.parent() {
             candidates.push(parent.join(&name));
             if let Some(bundle) = parent.parent() {
@@ -51,7 +69,28 @@ fn cli_state_now() -> CliState {
     // app (ADR 0069, item 9).
     #[cfg(windows)]
     return bundled_cli().map_or(CliState::Unbundled, |_| CliState::Bundled);
-    #[cfg(not(windows))]
+    // On Linux a package puts the command line beside the app, in /usr/bin,
+    // on PATH already; an AppImage's is copied to ~/.local/bin.
+    #[cfg(target_os = "linux")]
+    {
+        let Some(ours) = bundled_cli() else {
+            return CliState::Unbundled;
+        };
+        if !in_appimage() {
+            return CliState::Bundled;
+        }
+        let Some(copy) = local_bin_cli() else {
+            return CliState::Missing;
+        };
+        if same_bytes(&copy, &ours) {
+            CliState::Ours
+        } else if something_at(&copy) {
+            CliState::Elsewhere
+        } else {
+            CliState::Missing
+        }
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
         let Some(ours) = bundled_cli() else {
             return CliState::Unbundled;
@@ -122,6 +161,10 @@ pub(crate) fn install_cli(replace: bool) -> Result<CliState, ContractError> {
     if cfg!(windows) {
         return Err(refused("on Windows the command line comes with the app"));
     }
+    #[cfg(target_os = "linux")]
+    if !in_appimage() {
+        return Err(refused("the package put the command line on the PATH"));
+    }
     let Some(ours) = bundled_cli() else {
         return Err(refused("this build carries no command line"));
     };
@@ -133,12 +176,18 @@ pub(crate) fn install_cli(replace: bool) -> Result<CliState, ContractError> {
     }
     #[cfg(target_os = "macos")]
     clear_quarantine(&ours);
+    // An AppImage's command line, copied to ~/.local/bin: no root, and no
+    // link into an image mounted only while the app runs.
+    #[cfg(target_os = "linux")]
+    let plain = local_bin_cli()
+        .ok_or_else(|| std::io::Error::other("HOME is not set"))
+        .and_then(|dest| copy_executable(&ours, &dest));
     // Without privileges first: the directory may be the person's own.
-    #[cfg(unix)]
+    #[cfg(target_os = "macos")]
     let plain = replace_symlink(&ours, Path::new(CLI_LINK));
     // The command line on PATH on Windows is an item of the port, not done
     // yet (ADR 0069, item 9).
-    #[cfg(not(unix))]
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let plain: std::io::Result<()> = {
         let _ = &ours;
         Err(std::io::Error::other("no CLI link on this platform"))
@@ -170,7 +219,11 @@ pub(crate) fn uninstall_cli() -> Result<CliState, ContractError> {
     if cli_state_now() != CliState::Ours {
         return Ok(cli_state_now());
     }
-    if let Err(error) = remove_file_at(Path::new(CLI_LINK)) {
+    #[cfg(target_os = "linux")]
+    let installed = local_bin_cli().unwrap_or_else(|| PathBuf::from(CLI_LINK));
+    #[cfg(not(target_os = "linux"))]
+    let installed = PathBuf::from(CLI_LINK);
+    if let Err(error) = remove_file_at(&installed) {
         #[cfg(target_os = "macos")]
         {
             let _ = error;
@@ -214,7 +267,15 @@ fn claude_dir() -> Option<PathBuf> {
 fn mcp_command() -> Option<String> {
     #[cfg(windows)]
     return bundled_cli().map(|cli| cli.to_string_lossy().into_owned());
-    #[cfg(not(windows))]
+    // Linux: the package's /usr/bin/verso, or the AppImage's copy in
+    // ~/.local/bin, by its absolute path.
+    #[cfg(target_os = "linux")]
+    return match cli_state_now() {
+        CliState::Bundled => bundled_cli().map(|cli| cli.to_string_lossy().into_owned()),
+        CliState::Ours => local_bin_cli().map(|cli| cli.to_string_lossy().into_owned()),
+        _ => None,
+    };
+    #[cfg(not(any(windows, target_os = "linux")))]
     return (cli_state_now() == CliState::Ours).then(|| CLI_LINK.to_owned());
 }
 

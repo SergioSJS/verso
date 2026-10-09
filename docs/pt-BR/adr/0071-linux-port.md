@@ -249,8 +249,13 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
 
 Proposto. O porte espera, pela palavra do mantenedor em 2026-10-08 ("deixe
 pra depois"); o ADR 0022 não muda (Linux depois da Fase 2) até o mantenedor
-o revisar. **Respondido pelo mantenedor em 2026-10-09**, para quando o
-porte começar:
+o revisar. **O porte começou em 2026-10-09**, pela palavra do mantenedor
+("começar a trabalhar na versão Linux … eu confio na sua seleção e também na
+implementação"): as três máquinas do item 4, montadas a partir das imagens
+cloud das distribuições com cloud-init (`verso-linux-vm`, fora do
+repositório, como o `verso-windows-vm`), e a ordem do item 8. O núcleo e a
+linha de comando continuam rodando sem tela; só a janela precisa de uma.
+**Respondido pelo mantenedor em 2026-10-09**:
 - O ARM64 é gerado ao lado do x64.
 - As versões seguem o Obsidian: nenhuma lista publicada. O piso é a
   WebKitGTK 4.1, a biblioteca de que o Tauri precisa — Ubuntu 22.04,
