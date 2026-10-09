@@ -51,7 +51,7 @@ Uma área é um conjunto de painéis e abas, para trocar de assunto sem fechar n
 
 ## Janelas
 
-- **Sem barra de título**, no macOS e no Windows: a janela usa a altura toda. No Mac, os três botões do sistema ficam no canto de cima à esquerda; no Windows, minimizar, maximizar e fechar ficam no canto de cima à direita. Arraste a janela pela parte vazia da barra de abas, do topo da barra lateral ou da faixa da esquerda; um duplo clique ali maximiza, como na barra de título. Nada fica embaixo dos botões, com as barras laterais abertas ou fechadas.
+- **Sem barra de título**, no macOS, no Windows e no Linux: a janela usa a altura toda. No Mac, os três botões do sistema ficam no canto de cima à esquerda; no Windows e no Linux, minimizar, maximizar e fechar ficam no canto de cima à direita. Arraste a janela pela parte vazia da barra de abas, do topo da barra lateral ou da faixa da esquerda; um duplo clique ali maximiza, como na barra de título. Nada fica embaixo dos botões, com as barras laterais abertas ou fechadas.
 - **Nova janela** (menu **Arquivo**, a paleta ou a faixa da esquerda) abre outra janela, na página inicial, para abrir **outra pasta**: cada janela mostra a sua pasta, com o nome dela no topo da barra lateral, no Dock e na barra de tarefas. **Abrir pasta…** numa janela troca só a pasta daquela janela.
 - **Nova janela nesta pasta** (a paleta, o menu de uma aba) abre outra janela na mesma pasta, com abas próprias.
 - **Abrir em nova janela** (menu de uma aba ou de uma nota na árvore) leva a nota para uma janela só dela; **Devolver à janela principal** a traz de volta.
