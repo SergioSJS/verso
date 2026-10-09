@@ -1,0 +1,90 @@
+# The verso-server .deb and .rpm (ADR 0075 item 2), built by nfpm
+# (https://nfpm.goreleaser.com, Apache-2.0) in the release workflow's
+# `server` job, once per architecture and format:
+#
+#   VERSO_ARCH=amd64 VERSO_VERSION=0.7.0 nfpm package \
+#     --config packaging/server/nfpm.yaml --packager deb --target out/
+#
+# run from the repository's root, with the architecture's files staged at
+# target/server-stage/ (`verso`, the static binary, and `ui/`, the window
+# without its *.map files). VERSO_ARCH takes Go's names (amd64, arm64),
+# which nfpm turns into each format's own (amd64/arm64 for the .deb,
+# x86_64/aarch64 for the .rpm). A version like 0.7.0-beta.1 becomes
+# 0.7.0~beta.1 in both formats, so that it sorts before 0.7.0.
+#
+# The service is installed and NOT started: the host edits
+# /etc/verso/verso.env first (postinstall.sh says so).
+
+name: verso-server
+arch: ${VERSO_ARCH}
+platform: linux
+version: ${VERSO_VERSION}
+version_schema: semver
+release: 1
+section: net
+priority: optional
+# No person's address in a public package (the maintainer, 2026-10-09:
+# never their e-mail anywhere); the project's own, [OPEN] for the maintainer.
+maintainer: Verso <noreply@versomd.com>
+description: |-
+  Verso server (verso serve)
+  The Verso core without a window, served to a browser: Markdown notes
+  compatible with Obsidian's folders, self-hosted, with accounts and shared
+  folders. Runs as a systemd service under the verso user.
+vendor: Verso
+homepage: https://github.com/SergioSJS/verso
+license: MPL-2.0
+
+contents:
+  - src: target/server-stage/verso
+    dst: /usr/bin/verso
+    file_info:
+      mode: 0755
+
+  - src: target/server-stage/ui/
+    dst: /usr/share/verso/ui
+    type: tree
+
+  - src: packaging/server/verso.service
+    dst: /usr/lib/systemd/system/verso.service
+    file_info:
+      mode: 0644
+
+  - dst: /etc/verso
+    type: dir
+    file_info:
+      mode: 0750
+      owner: root
+      group: verso
+
+  # The host's settings: kept on upgrade and removal when edited. It can
+  # hold the first admin's password, hence root and the verso group only.
+  - src: packaging/server/verso.env
+    dst: /etc/verso/verso.env
+    type: config|noreplace
+    file_info:
+      mode: 0640
+      owner: root
+      group: verso
+
+  - src: LICENSE
+    dst: /usr/share/doc/verso-server/LICENSE
+    file_info:
+      mode: 0644
+
+# /var/lib/verso and its two directories are made by postinstall.sh, not
+# listed here: a directory a package owns is removed with it, and these
+# hold the host's data.
+scripts:
+  preinstall: packaging/server/preinstall.sh
+  postinstall: packaging/server/postinstall.sh
+  preremove: packaging/server/preremove.sh
+  postremove: packaging/server/postremove.sh
+
+# The `verso` user and group are made with groupadd and useradd: the
+# passwd package on Debian and Ubuntu (priority required) and shadow-utils
+# on Fedora and RHEL, present on every install, so no dependency is
+# declared. nfpm reads this file strictly: an unknown key fails the build.
+rpm:
+  summary: Verso server (verso serve)
+  group: Applications/Text
