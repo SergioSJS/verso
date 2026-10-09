@@ -3,6 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "../bindings";
+import { can } from "../can";
+import { framedPage } from "../screen/framed";
 import { overlayOpen } from "../layout/drag";
 import { NoteLeaf } from "./note";
 
@@ -37,6 +39,16 @@ export function tickEmbedViews(): void {
     }
   }
   let busy = false;
+  // No child web views here (a browser): each box shows its page in a
+  // frame instead, once (ADR 0076 item 11).
+  if (!can("web_views")) {
+    for (const el of hosts) {
+      const url = el.dataset["embedWeb"] ?? "";
+      el.removeAttribute("data-embed-web");
+      if (url) el.replaceChildren(framedPage(url));
+    }
+    return;
+  }
   for (const el of hosts) {
     let v = embedViews.get(el);
     if (!v) {

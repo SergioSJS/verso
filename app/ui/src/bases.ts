@@ -4,6 +4,7 @@
 
 import { type BaseHost, BaseView } from "./bases/view";
 import { commands } from "./bindings";
+import { canWrite } from "./can";
 import { afterFileChange } from "./changes";
 import { ask } from "./dialog";
 import { ui } from "./dom";
@@ -41,13 +42,15 @@ export function baseHost(): BaseHost {
     open: (path, aside) => void openNote(path, aside),
     image: (source, target, redraw) => imageUrl(source, target, redraw),
     remote: () => settings.remoteContent,
-    setProperty: setNoteProperty,
-    newNote: newNoteWith,
+    // A reader on a server changes no note from a base (ADR 0076 item 11).
+    setProperty: (path, key, value) => (canWrite() ? setNoteProperty(path, key, value) : Promise.resolve(false)),
+    newNote: (folder, props) => (canWrite() ? newNoteWith(folder, props) : Promise.resolve(null)),
     menu: showMenu,
     status: (m) => void (ui.status.textContent = m),
     ask: (m, yes, no) => ask(m, { yes, no }),
     copy: (text) => navigator.clipboard.writeText(text),
     saveNote: saveMarkdownNote,
+    readOnly: () => !canWrite(),
   };
 }
 /** What a new base holds: every file of the folder, in one table. */

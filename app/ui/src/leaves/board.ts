@@ -13,6 +13,7 @@ import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
+import { canWrite } from "../can";
 import { boardPathFor, readDrawing, toBoard } from "../board/convert";
 import { listedPath } from "../board/model";
 import { linkTo, withRelation } from "../board/relation";
@@ -138,6 +139,7 @@ export class BoardLeaf extends TextLeaf {
       lang: LANG,
       dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
       save: (json) => this.saveBoard(json),
+      readOnly: () => !canWrite(),
       changed: () => this.setDirty(true),
       settled: () => {
         if (this.pendingBoard === null && this.cards.size === 0) this.setDirty(false);
@@ -445,7 +447,8 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     revision = note.revision;
     const sep = lineSeparator(note.text);
     eol = sep ?? "\n";
-    readOnly = sep === null;
+    // Mixed line endings, or a reader on a server (ADR 0076 item 11).
+    readOnly = sep === null || !canWrite();
     const st = EditorState.create({ doc: note.text, extensions: extensions() });
     if (view) view.setState(st);
     else view = new EditorView({ parent: editorHost, state: st });
