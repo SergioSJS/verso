@@ -40,11 +40,15 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
    só como handle opaco; uma nota é nomeada pelo caminho relativo à pasta
    aberta. Caminho absoluto, ou com `..`, nunca cruza. Caminho em string também
    existe na borda de entrada (argumento da CLI, chave da config) e dentro de
-   `verso-fs`.
+   `verso-fs`. Num servidor a capacidade de acesso é a sessão autenticada e
+   o papel dela na pasta, conferidos antes de o `verso-fs` agir, e nada mais
+   cruza ([ADR 0073](adr/0073-self-hosted-server-first.md), aceito em
+   2026-10-09).
 5. Acesso aos **arquivos da pasta aberta** só dentro do crate `verso-fs`. O
    arquivo do índice (`verso-index`), o diretório de configuração
-   (`verso-core`) e a entrada e saída da CLI ficam fora da regra; nenhum deles
-   toca a pasta aberta. `verso-dialect` não tem IO nenhum.
+   (`verso-core`), o banco do próprio servidor (`verso-server`, em
+   `VERSO_DATA_DIR`) e a entrada e saída da CLI ficam fora da regra; nenhum
+   deles toca a pasta aberta. `verso-dialect` não tem IO nenhum.
 6. Plugins nunca acessam disco diretamente.
 
 ### 2.2 Dados — [ADR 0012](adr/0012-files-are-source-of-truth.md), [ADR 0043](adr/0043-placeholder-guard.md)
@@ -91,7 +95,12 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
 
 18. Fora de escopo até o fim da Fase 2: sync, mobile, plugins e shim de
     compatibilidade. Não implementar "já que é barato". O board entrou na
-    Fase 2 em 2026-09-30 ([ADR 0057](adr/0057-board-json-canvas.md)).
+    Fase 2 em 2026-09-30 ([ADR 0057](adr/0057-board-json-canvas.md)). Desde
+    2026-10-09 o servidor, a janela num navegador e o celular e o tablet
+    pelo navegador estão no escopo, na Fase 3
+    ([ADR 0073](adr/0073-self-hosted-server-first.md), aceito em
+    2026-10-09); plugins e o shim continuam fora, e o sync vem depois da
+    primeira versão do servidor, na ordem do item 12 do ADR 0073.
 19. Fase 1 não tem UI. Fase 0 não tem feature nenhuma.
 
 ---
@@ -167,6 +176,15 @@ Além dos cinco, o workspace tem `crates/verso-contract` (os tipos do contrato,
 sem IO), `crates/verso-bench` (o benchmark, nunca distribuído) e
 `app/src-tauri` (o host desktop da Fase 2, que chega às notas só pelo
 `verso-core`) — ADR 0028, Consequências.
+
+Para o servidor (ADR 0028, revisto em 2026-10-09): `crates/verso-service`
+(a tabela de sessões e o despacho de comandos, sem transporte — sem rede,
+sem runtime assíncrono; o host Tauri e o servidor chamam ambos) e
+`crates/verso-server` (HTTP e WebSocket, as contas, as sessões, o banco do
+servidor). O `verso-server` não toca arquivo de pasta diretamente, só pelo
+`verso-service`, pelo `verso-core` e pelo `verso-fs`, e abre só o próprio
+banco em `VERSO_DATA_DIR`, uma exceção como a do `verso-index`. O
+`verso serve` é um subcomando do `verso` (`verso-cli`).
 
 ---
 

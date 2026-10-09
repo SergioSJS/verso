@@ -5,7 +5,11 @@
 - Status no briefing: `DECIDIDO`
 - Revisões: 2026-09-23 — os dois outros membros do workspace registrados, a
   pedido do mantenedor (`docs/review/phase-2.md` §6, item 10); os cinco crates
-  e as regras deles não mudam.
+  e as regras deles não mudam. 2026-10-09 — dois crates para o servidor,
+  decididos pelo mantenedor com a aceitação do
+  [0073](0073-self-hosted-server-first.md), que tinha deixado `[ABERTO]`
+  aqui onde moram a tabela de sessões e o despacho do serviço; os cinco
+  crates e as regras deles não mudam.
 
 ## Contexto
 
@@ -69,6 +73,28 @@ dois, e oito membros ao todo:
   sem mudança.
 
 Nenhum dos dois muda o que os cinco crates podem fazer.
+
+**Dois crates para o servidor, decididos em 2026-10-09 pelo mantenedor**
+([0073](0073-self-hosted-server-first.md) item 2, aceito naquele dia; a
+resposta ao B do plano foi a recomendação):
+
+- `crates/verso-service` — a tabela de sessões e o despacho de comandos,
+  tirados do `app/src-tauri`. Sem transporte: sem rede e sem runtime
+  assíncrono. O host Tauri e o servidor chamam ambos.
+- `crates/verso-server` — HTTP e WebSocket, as contas, as sessões e o
+  banco do servidor. Não toca nenhum arquivo de uma pasta diretamente:
+  alcança-os pelo `verso-service`, pelo `verso-core` e pelo `verso-fs`.
+  Abre só o próprio banco em `VERSO_DATA_DIR`
+  ([0075](0075-server-packaging-and-storage.md) item 3), uma exceção do
+  mesmo tipo do arquivo de índice do `verso-index` (regra 5 do
+  [0026](0026-core-ui-contract-inviolable-rules.md), revista no mesmo dia);
+  uma exceção de `std::fs`, se precisar, é declarada no pull request dele
+  ([0029](0029-guardrails-in-ci.md)).
+
+O `verso serve` é um subcomando do binário `verso` que o `verso-cli` já
+constrói, não um binário próprio
+([0075](0075-server-packaging-and-storage.md) item 1). Nenhum dos dois
+crates muda o que os cinco crates podem fazer.
 
 ## Alternativas descartadas
 

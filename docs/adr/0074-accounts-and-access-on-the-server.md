@@ -11,7 +11,8 @@
   ([0032](0032-author-and-reviewer-roles.md)) before it is accepted.
 - Related: [0050](0050-outbound-network-access.md) (the core reaches no
   server of its own: `VERSO_SMTP_URL` is outbound traffic that 0073
-  proposes to allow and 0050 forbids until then),
+  proposes to allow and 0050 forbids until then — allowed since
+  2026-10-09, an address the host wrote in a configuration, 0050 revised),
   [0073](0073-self-hosted-server-first.md) (the server; its item 5
   proposes accounts, sessions and roles, and leaves account recovery
   without a mail server and the number of owners per server `[OPEN]` —
@@ -28,6 +29,12 @@
   person's layer of settings).
 - Status in the briefing: not present; §9 marks the server `PROPOSED`. On
   acceptance, together with [0073](0073-self-hosted-server-first.md).
+- Revisions: 2026-10-09 (night) — accepted by the maintainer together with
+  [0073](0073-self-hosted-server-first.md), in the answer quoted there
+  (*"… vc segue o recomendado"*): items 2, 7, 9, 10 and 11, proposed until
+  then, as written; the desktop app's connection through the browser of
+  item 8 built in this round (K of the plan, not the recommendation); the
+  order of work for passkeys in the Status.
 
 ## Context
 
@@ -67,7 +74,8 @@ public documentation:
 
 Proposed; the maintainer decided the six questions on 2026-10-09
 (Status): items 1, 3, 4, 5, 6 and 8 say what was decided; items marked
-*Proposed* wait for the acceptance of this ADR with 0073.
+*Proposed* wait for the acceptance of this ADR with 0073. *(Accepted with
+0073 on 2026-10-09, the items marked Proposed as written.)*
 
 1. **The first admin comes from the environment, on the first start
    only.** `verso serve` reads `VERSO_ADMIN_EMAIL` and
@@ -87,7 +95,7 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    - Decided by the maintainer on 2026-10-09: the variables are read on the
      first start only, with a way back for an admin who forgets the
      password or loses the account (item 5).
-2. *Proposed.* **The e-mail is the account's name, verified or not** —
+2. *Proposed; accepted as written on 2026-10-09.* **The e-mail is the account's name, verified or not** —
    refining the "user name" of 0073 item 5. An account is an
    e-mail address (trimmed, NFC, lower-cased for comparison, shown as
    typed), a display name and a language (pt-BR or English,
@@ -151,7 +159,7 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    maintainer named is a game master and players on one server. Creating
    folders is a permission the admin grants, off for a new member, so an
    invited player only sees the folders shared with them.
-7. *Proposed.* **Sessions in the browser: an opaque token in a cookie, kept on the
+7. *Proposed; accepted as written on 2026-10-09.* **Sessions in the browser: an opaque token in a cookie, kept on the
    server.** On sign-in the server makes a random 256-bit token, stores
    its SHA-256 with the account, the device's name and the dates, and
    sends the token in a cookie `__Host-verso-session` — `Secure`,
@@ -177,8 +185,11 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    server** does not ask the person to paste a token: it opens the
    server's sign-in page in the browser and receives a token for that
    device (the device-login flow `gh auth login` uses), listed among the
-   sessions and revocable there.
-9. *Proposed.* **Limits and the audit log.** Sign-in attempts limited by address and
+   sessions and revocable there. **Built in this round**, decided on
+   2026-10-09 (K of the plan; [0073](0073-self-hosted-server-first.md)
+   item 12): the desktop app's "connect to a server" and this sign-in ship
+   with the first release of the server.
+9. *Proposed; accepted as written on 2026-10-09.* **Limits and the audit log.** Sign-in attempts limited by address and
    by account, with a growing delay, never a lock that a stranger can use
    to keep the owner out; the same for invitation and reset links. An
    audit log in the server's data directory records sign-ins (succeeded
@@ -186,7 +197,7 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    role changes and grants — who, when, from where — and never a password,
    a token or a link. The owner of a folder sees the entries about their
    folder.
-10. *Proposed.* **Where accounts live.** In a SQLite database in the server's data
+10. *Proposed; accepted as written on 2026-10-09.* **Where accounts live.** In a SQLite database in the server's data
     directory (`VERSO_DATA_DIR`, on a local disk,
     [0075](0075-server-packaging-and-storage.md) item 3), beside — never inside —
     the folders it serves ([0011](0011-config-outside-tree-index-as-cache.md)).
@@ -194,7 +205,7 @@ Proposed; the maintainer decided the six questions on 2026-10-09
     files, and the backup recipe of 0073 names it beside the folders. No
     note, no setting of a note and nothing of [0012](0012-files-are-source-of-truth.md)'s
     files moves into it.
-11. *Proposed.* **The contract.** Every command carries the session that the transport
+11. *Proposed; accepted as written on 2026-10-09.* **The contract.** Every command carries the session that the transport
     authenticated (cookie or bearer token); the core resolves it to an
     account and a role in the folder **before** `verso-fs` acts, and a
     refusal is a contract error like the others, in both languages. The
@@ -276,6 +287,12 @@ things in the Source, then answered each question:
    (item 6).
 6. Personal access tokens scoped by folder and by read or write; the
    desktop app signs in through the browser (item 8).
+
+**Accepted on 2026-10-09** with [0073](0073-self-hosted-server-first.md),
+in the answer quoted there: items 2, 7, 9, 10 and 11 as written (N of the
+plan); the desktop app connecting through the browser built in this round
+(item 8, K). Passkeys are built in this round too, after password sign-in
+and once the packaging pipeline works — an order of work (M).
 
 Where the server keeps its data, how it is installed, the space each
 folder takes and which folders are synced:

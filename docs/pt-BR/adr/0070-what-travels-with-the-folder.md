@@ -15,6 +15,13 @@
   [0069](0069-windows-port.md) (o porte para Windows, o `[OPEN]` do
   separador).
 - Status no briefing: não presente
+- Revisões: 2026-10-09 — com a aceitação do
+  [0073](0073-self-hosted-server-first.md) pelo mantenedor naquele dia: num
+  servidor a camada da pessoa mora com a conta (0073 item 5), e as origens
+  de embed aprovadas e o conteúdo remoto são do leitor — um ajuste da
+  pessoa, nunca do autor da nota nem da pasta (0073 item 6), o que fecha o
+  `[OPEN]` deste ADR sobre elas. O texto abaixo fica, com uma nota onde
+  trata disso.
 
 ## Contexto
 
@@ -61,6 +68,8 @@ exatamente esses, a regra que o item 3 adota.
    - **as da pessoa**, que seguem o usuário entre pastas (idioma, tema,
      teclas): ficam na máquina até a sincronização em camadas
      ([0021](0021-sync-automerge-layered-config.md)) lhes dar um lugar.
+     *(Num servidor, desde 2026-10-09: a conta é o lugar delas,
+     [0073](0073-self-hosted-server-first.md) item 5.)*
 2. **A camada da pasta, conteúdo proposto**: os favoritos, os caminhos
    ignorados, o nome da nota de pasta. Na primeira abertura de uma pasta
    depois disso, o que a máquina guardava dela vai para a pasta, uma vez.
@@ -123,3 +132,8 @@ propriedade das notas); a pergunta do separador do ADR 0069, que continua
 sendo do mantenedor fechar. Fechado em 2026-10-08: a `\` entra nos
 caracteres recusados do item 3 em todo sistema (levantado pela revisão
 daquele dia).
+
+Fechado em 2026-10-09, com a aceitação do
+[0073](0073-self-hosted-server-first.md): as origens de embed aprovadas
+são da pessoa — um ajuste do leitor (a conta num servidor), nunca do autor
+da nota nem da pasta (0073 item 6).

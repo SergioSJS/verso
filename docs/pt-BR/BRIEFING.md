@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Versão 0.12 · 2026-10-01
+> Versão 0.13 · 2026-10-09
 > Fonte única das decisões tomadas antes do repositório existir.
 > Alterações posteriores ao repositório: só mudança de status e correção de
 > fato, registradas no Histórico ao final. Delimitações e consequências novas
@@ -156,12 +156,12 @@ Requisito: um agente deve navegar e aproveitar o conteúdo da pasta tão bem qua
 
 ## 8. Sync
 
-- Sync nativo é essencial, com servidor próprio e com serviços como Google Drive e OneDrive. `DECIDIDO`
-- Motor de merge no core (entende blocos, frontmatter e o modelo de arquivo); transportes como plugins (servidor próprio, WebDAV, S3, Google Drive, OneDrive). `DECIDIDO`
-- Candidato ao motor de merge: Automerge. `PROPOSTO`
+- Sync nativo é essencial, com servidor próprio e com serviços como Google Drive e OneDrive. `DECIDIDO`; revisto na v0.13 (ADR 0073): o servidor próprio vem primeiro e o sync entre dispositivos passa por ele; Google Drive e OneDrive por API deixam de ser essenciais (a pasta sincronizada é suportada, WebDAV é o primeiro transporte externo, iCloud nunca por API).
+- Motor de merge no core (entende blocos, frontmatter e o modelo de arquivo); transportes como plugins (servidor próprio, WebDAV, S3, Google Drive, OneDrive). `DECIDIDO`; revisto na v0.13 (ADR 0073): transportes moram no core até plugins existirem e enquanto guardarem credenciais.
+- Candidato ao motor de merge: Automerge. `PROPOSTO`; revisto na v0.13 (ADR 0073, `DECIDIDO`): Yjs, como mecanismo de uma sessão ao vivo, nunca a forma guardada de uma nota, que é o arquivo.
 - Config em camadas: compartilhada (lista de plugins, schemas) e por dispositivo (hotkeys, layout). `PROPOSTO`
 - Arquivo placeholder de armazenamento sob demanda (iCloud, OneDrive) nunca é interpretado como deleção. `DECIDIDO` (promovido na v0.2, ADR 0043)
-- Sync fica fora de escopo até o fim da Fase 2. `DECIDIDO`
+- Sync fica fora de escopo até o fim da Fase 2. `DECIDIDO`; na v0.13 (ADR 0073): o sync entra na Fase 3, depois da primeira versão do servidor e por ele.
 
 ---
 
@@ -181,9 +181,9 @@ Requisito: um agente deve navegar e aproveitar o conteúdo da pasta tão bem qua
 | Índice | SQLite com FTS5 | `DECIDIDO` |
 | Geração de tipos TS a partir do Rust | ts-rs ou specta | `ABERTO` |
 | Parser base | pulldown-cmark, comrak ou próprio | `DECIDIDO`: pulldown-cmark (v0.8, ADR 0037) |
-| Servidor | mesmo binário do core sem UI (`verso serve`) | `PROPOSTO` |
-| Mobile inicial | cliente web (PWA) servido pelo servidor próprio | `PROPOSTO` |
-| Indexação para mobile | servidor companheiro indexa e entrega índice pronto ao celular | `PROPOSTO` |
+| Servidor | mesmo binário do core sem UI (`verso serve`) | `DECIDIDO` (promovido na v0.13, ADR 0073): `verso serve`, subcomando do binário `verso`; o servidor auto-hospedado vem primeiro na Fase 3 |
+| Mobile inicial | cliente web (PWA) servido pelo servidor próprio | `DECIDIDO` (promovido na v0.13, ADR 0073): a janela servida pelo servidor, no navegador do celular e do tablet; offline depois |
+| Indexação para mobile | servidor companheiro indexa e entrega índice pronto ao celular | `PROPOSTO`; superado na v0.13 (ADR 0073 item 8): o servidor indexa, o celular pergunta a ele |
 
 ---
 
@@ -415,7 +415,7 @@ Tauri + CM6: abrir pasta, árvore de arquivos, editor, backlinks e busca vindos 
 
 ### Fora de escopo até o fim da Fase 2
 
-Sync, mobile, plugins, ~~board~~, shim de compatibilidade. O board entrou na Fase 2 em 2026-09-30 (v0.11, ADR 0057).
+~~Sync~~, ~~mobile~~, plugins, ~~board~~, shim de compatibilidade. O board entrou na Fase 2 em 2026-09-30 (v0.11, ADR 0057). Sync e mobile saíram em 2026-10-09 para a Fase 3 — o app de Linux, depois o servidor auto-hospedado — na forma do ADR 0073: mobile pelo navegador, servido pelo servidor; sync depois do servidor e por ele (v0.13, ADR 0034).
 
 ---
 
@@ -484,3 +484,4 @@ seção 9 da spec do dialeto, não aqui.
 | 0.10 | 2026-09-24 | §2 e §17 item 2: domínio decidido pelo mantenedor — comprou `versomd.com`, o mais próximo de `verso.md` que conseguiu (ADR 0004). A disponibilidade em crates.io, npm e org do GitHub segue em aberto. |
 | 0.11 | 2026-09-30 | §5.3, §9, §11.3, §13, §15 e §17 itens 6 e 9: decididos pelo mantenedor, sobre o memo docs/reference/board-decision.md — o board entra na Fase 2; a persistência é o próprio `.canvas`, com o desenho do Excalidraw sob uma chave de topo `verso`; a camada semântica e a relação tipada, cuja sintaxe é uma propriedade do frontmatter da nota de origem com wikilink entre aspas (Q10 da spec); a vista acessível do board, um sumário ao lado dele (ADR 0057). |
 | 0.12 | 2026-10-01 | §13: a vista acessível do board, um sumário ao lado dele — escrita como `DECIDIDO` na v0.11 enquanto o ADR 0057 a deixava como escolha do autor — decidida pelo mantenedor em 2026-10-01, sobre a revisão crítica docs/review/board.md (§6 item 15). Nenhuma outra mudança. |
+| 0.13 | 2026-10-09 | §8, §9 e §15: decididos pelo mantenedor ao aceitar o ADR 0073 (servidor auto-hospedado primeiro), junto com os ADRs 0074, 0075 e 0076, na resposta *"Com exceção de E que deve nascer em b, K deve ser b, L deve vir agora, P tudo — vc segue o recomendado"*. §8: o sync passa pelo servidor próprio e vem depois dele; Drive e OneDrive por API deixam de ser essenciais; transportes no core enquanto guardarem credenciais; Yjs no lugar do Automerge, como mecanismo de sessão ao vivo; o sync entra na Fase 3. §9: o servidor e o mobile inicial pelo navegador promovidos a `DECIDIDO`; a indexação para mobile superada. §15: sync e mobile saem da lista de fora de escopo para a Fase 3. |

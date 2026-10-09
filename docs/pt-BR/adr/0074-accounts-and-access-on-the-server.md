@@ -11,7 +11,8 @@
   ([0032](0032-author-and-reviewer-roles.md)) antes de ser aceito.
 - Relacionados: [0050](0050-outbound-network-access.md) (o core não alcança
   nenhum servidor próprio: `VERSO_SMTP_URL` é tráfego de saída que o 0073
-  propõe permitir e o 0050 proíbe até lá),
+  propõe permitir e o 0050 proíbe até lá — permitido desde 2026-10-09, um
+  endereço que quem hospeda escreveu numa configuração, o 0050 revisto),
   [0073](0073-self-hosted-server-first.md) (o servidor; o item
   5 dele propõe contas, sessões e papéis, e deixa a recuperação de conta sem
   servidor de e-mail e o número de donos por servidor `[ABERTO]` — este ADR
@@ -28,6 +29,12 @@
   de configurações da pessoa).
 - Status no briefing: ausente; o §9 marca o servidor `PROPOSTO`. Na
   aceitação, junto com o [0073](0073-self-hosted-server-first.md).
+- Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
+  [0073](0073-self-hosted-server-first.md), na resposta citada lá (*"… vc
+  segue o recomendado"*): os itens 2, 7, 9, 10 e 11, propostos até então,
+  como escritos; a conexão do app desktop pelo navegador do item 8
+  construída nesta rodada (K do plano, não a recomendação); a ordem de
+  trabalho das chaves de acesso no Status.
 
 ## Contexto
 
@@ -68,7 +75,8 @@ documentação pública deles:
 
 Proposta; o mantenedor decidiu as seis questões em 2026-10-09 (Status): os
 itens 1, 3, 4, 5, 6 e 8 dizem o que foi decidido; os itens marcados
-*Proposto* esperam a aceitação deste ADR com o 0073.
+*Proposto* esperam a aceitação deste ADR com o 0073. *(Aceita com o 0073
+em 2026-10-09, os itens marcados Proposto como escritos.)*
 
 1. **O primeiro admin vem do ambiente, só na primeira subida.** O
    `verso serve` lê `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD` — ou
@@ -88,7 +96,7 @@ itens 1, 3, 4, 5, 6 e 8 dizem o que foi decidido; os itens marcados
    - Decidido pelo mantenedor em 2026-10-09: as variáveis são lidas só na
      primeira subida, com um caminho de volta para um admin que esquece a
      senha ou perde a conta (item 5).
-2. *Proposto.* **O e-mail é o nome da conta, verificado ou não** —
+2. *Proposto; aceito como escrito em 2026-10-09.* **O e-mail é o nome da conta, verificado ou não** —
    refinando o "nome de usuário" do item 5 do 0073. Uma conta é um
    endereço de e-mail (sem espaços nas pontas, NFC, em minúsculas para
    comparar, mostrado como digitado), um nome de exibição e uma língua
@@ -153,7 +161,7 @@ itens 1, 3, 4, 5, 6 e 8 dizem o que foi decidido; os itens marcados
    um mestre e jogadores num servidor. Criar pastas é uma permissão que o
    admin concede, desligada para um membro novo, para que um jogador
    convidado só veja as pastas compartilhadas com ele.
-7. *Proposto.* **Sessões no navegador: um token opaco num cookie, guardado no
+7. *Proposto; aceito como escrito em 2026-10-09.* **Sessões no navegador: um token opaco num cookie, guardado no
    servidor.** No login o servidor gera um token aleatório de 256 bits,
    guarda o SHA-256 dele com a conta, o nome do dispositivo e as datas, e
    manda o token num cookie `__Host-verso-session` — `Secure`, `HttpOnly`,
@@ -181,7 +189,11 @@ itens 1, 3, 4, 5, 6 e 8 dizem o que foi decidido; os itens marcados
    abre a página de login do servidor no navegador e recebe um token para
    aquele dispositivo (o fluxo de login de dispositivo que o
    `gh auth login` usa), listado entre as sessões e revogável ali.
-9. *Proposto.* **Limites e o log de auditoria.** Tentativas de login limitadas por
+   **Construído nesta rodada**, decidido em 2026-10-09 (K do plano;
+   [0073](0073-self-hosted-server-first.md) item 12): o "conectar a um
+   servidor" do app desktop e este login saem com a primeira versão do
+   servidor.
+9. *Proposto; aceito como escrito em 2026-10-09.* **Limites e o log de auditoria.** Tentativas de login limitadas por
    endereço e por conta, com espera crescente, nunca um bloqueio que um
    estranho possa usar para deixar o dono de fora; o mesmo para links de
    convite e de redefinição. Um log de auditoria no diretório de dados do
@@ -189,7 +201,7 @@ itens 1, 3, 4, 5, 6 e 8 dizem o que foi decidido; os itens marcados
    tokens criados e revogados, convites, mudanças de papel e concessões —
    quem, quando, de onde — e nunca uma senha, um token ou um link. O dono de
    uma pasta vê as entradas sobre a pasta dele.
-10. *Proposto.* **Onde as contas moram.** Num banco SQLite no diretório de dados do
+10. *Proposto; aceito como escrito em 2026-10-09.* **Onde as contas moram.** Num banco SQLite no diretório de dados do
     servidor (`VERSO_DATA_DIR`, num disco local,
     [0075](0075-server-packaging-and-storage.md) item 3), ao lado — nunca dentro —
     das pastas que ele serve ([0011](0011-config-outside-tree-index-as-cache.md)).
@@ -197,7 +209,7 @@ itens 1, 3, 4, 5, 6 e 8 dizem o que foi decidido; os itens marcados
     arquivos, e a receita de backup do 0073 o nomeia ao lado das pastas.
     Nenhuma nota, nenhuma configuração de nota e nada dos arquivos do
     [0012](0012-files-are-source-of-truth.md) passa para ele.
-11. *Proposto.* **O contrato.** Todo comando carrega a sessão que o transporte
+11. *Proposto; aceito como escrito em 2026-10-09.* **O contrato.** Todo comando carrega a sessão que o transporte
     autenticou (cookie ou token bearer); o core a resolve para uma conta e
     um papel na pasta **antes** de o `verso-fs` agir, e uma recusa é um erro
     do contrato como os outros, nas duas línguas. O app desktop com pasta
@@ -281,6 +293,13 @@ coisas da Fonte, depois respondeu cada questão:
    (item 6).
 6. Tokens de acesso pessoal com escopo por pasta e por leitura ou escrita;
    o app desktop entra pelo navegador (item 8).
+
+**Aceito em 2026-10-09** com o [0073](0073-self-hosted-server-first.md),
+na resposta citada lá: os itens 2, 7, 9, 10 e 11 como escritos (N do
+plano); o app desktop conectando pelo navegador construído nesta rodada
+(item 8, K). As chaves de acesso também são construídas nesta rodada,
+depois do login por senha e quando o pipeline de empacotamento funcionar —
+uma ordem de trabalho (M).
 
 Onde o servidor guarda os dados, como é instalado, o espaço que cada pasta
 ocupa e quais pastas são sincronizadas:

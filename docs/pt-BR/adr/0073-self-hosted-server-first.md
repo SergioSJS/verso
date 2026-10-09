@@ -73,6 +73,31 @@
   (amd64 e arm64, [0075](0075-server-packaging-and-storage.md) item 2).
   O "nome de usuário" do item 5 é refinado pelo 0074 item 2 (o e-mail,
   proposto). O Status mantém as perguntas, marcadas como respondidas.
+  2026-10-09 (noite) — **aceito pelo mantenedor**, com os itens marcados
+  como propostos, respondendo a um plano que punha as questões restantes
+  como letras de A a P, cada uma com opções e uma recomendação: *"Com
+  exceção de E que deve nascer em b, K deve ser b, L deve vir agora, P tudo
+  — vc segue o recomendado"*. Três respostas não são a recomendação: o
+  caminho de atualização do servidor (E,
+  [0075](0075-server-packaging-and-storage.md) item 7), o app desktop
+  conectando nesta rodada (K, item 12) e a edição simultânea na primeira
+  versão do servidor (L, item 12). Cada `[ABERTO]` respondido está escrito
+  no seu item com a data, e o Status lista o que segue aberto; a ordem do
+  item 12 como foi registrada primeiro fica ao lado da revista. As revisões
+  que o parágrafo acima nomeia foram feitas no mesmo dia: a versão 0.13 do
+  briefing, o [0020](0020-sync-merge-in-core-transports-as-plugins.md), o
+  [0021](0021-sync-automerge-layered-config.md), o
+  [0025](0025-own-server-and-mobile-pwa.md), o [0034](0034-roadmap-in-phases.md),
+  o [0044](0044-verso-fs-semantics.md), o [0045](0045-server-and-mcp-security.md),
+  o [0050](0050-outbound-network-access.md), o
+  [0070](0070-what-travels-with-the-folder.md) e o
+  `docs/reference/app-decision.md` §7; com eles o
+  [0026](0026-core-ui-contract-inviolable-rules.md) (a regra 4 esclarecida
+  para um servidor, a regra inalterada) e o [0028](0028-crate-structure.md)
+  (duas crates). Aceitos com este ADR: o
+  [0074](0074-accounts-and-access-on-the-server.md), o
+  [0075](0075-server-packaging-and-storage.md) e o
+  [0076](0076-the-window-on-every-screen.md).
 
 ## Contexto
 
@@ -132,14 +157,17 @@ imagens grandes paga pela saída, não pelo armazenamento.
 
 ## Decisão
 
-Proposta, exceto onde o Status diz que o mantenedor decidiu.
+Aceita em 2026-10-09 (Status). Onde um item era `[ABERTO]` e o mantenedor
+o respondeu naquela noite, a resposta está escrita no item com a data; o
+que segue `[ABERTO]` está listado no Status.
 
-1. **Servidor auto-hospedado primeiro, online primeiro.** A Fase 3 (a
-   escrever no roadmap) começa com o app de Linux ([0071](0071-linux-port.md))
-   e então constrói o servidor; o sync entre dispositivos vem depois do
-   servidor e por ele. O [0020](0020-sync-merge-in-core-transports-as-plugins.md)
-   tem a ordem com revisão proposta: o servidor não é um transporte entre
-   outros, é a primeira coisa construída.
+1. **Servidor auto-hospedado primeiro, online primeiro.** A Fase 3
+   (escrita no roadmap em 2026-10-09) começa com o app de Linux
+   ([0071](0071-linux-port.md)) e então constrói o servidor; o sync entre
+   dispositivos vem depois do servidor e por ele. O
+   [0020](0020-sync-merge-in-core-transports-as-plugins.md) tem a ordem
+   revista (2026-10-09, uma linha de Revisões lá): o servidor não é um
+   transporte entre outros, é a primeira coisa construída.
 2. **Um serviço, uma base de código.** `verso serve` é o core sem janela
    ([0025](0025-own-server-and-mobile-pwa.md), proposto de novo): serve o
    contrato por HTTP e WebSocket, e com `--web` a própria janela. O app
@@ -149,15 +177,26 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    [0027](0027-runtime-capabilities.md)) e "este app é um servidor" (um
    toggle nos Ajustes que sobe o mesmo serviço na rede local, anunciado por
    mDNS aos apps nativos, pareado por um QR code que leva o endereço — como
-   o navegador do celular passa a confiar no certificado é o `[ABERTO]` do
-   item 6). Um servidor dedicado é o mesmo
+   o navegador do celular passa a confiar no certificado é do item 6,
+   respondido em 2026-10-09). Um servidor dedicado é o mesmo
    serviço numa máquina que fica ligada; passar de um para o outro é mudar o
    endereço, nunca o protocolo. Servir o contrato sem o Tauri tira a tabela
    de sessões e o despacho de comandos do `app/src-tauri`, para o
    `verso-core` ou uma crate própria ([0028](0028-crate-structure.md),
-   `[ABERTO]`); o contrato ganha uma versão que cliente e servidor acertam
-   antes de tudo (`[ABERTO]`: como, e o que um cliente em outra versão
-   ouve).
+   `[ABERTO]` até ser **decidido em 2026-10-09**: duas crates, o 0028
+   revisto — `crates/verso-service` guarda a tabela de sessões e o despacho
+   de comandos, sem transporte, sem rede e sem runtime assíncrono, e tanto
+   o host Tauri quanto o servidor a chamam; `crates/verso-server` guarda
+   HTTP e WebSocket, as contas, as sessões e o banco do servidor). O
+   `verso serve` é um subcomando do binário `verso` que já existe
+   (`verso-cli`), não um binário próprio
+   ([0075](0075-server-packaging-and-storage.md) item 1). O contrato ganha
+   uma versão que cliente e servidor acertam antes de tudo (`[ABERTO]`:
+   como, e o que um cliente em outra versão ouve — **decidido em
+   2026-10-09**: um hash dos bindings TypeScript gerados, que o servidor
+   envia no handshake do WebSocket; um navegador cuja janela veio de outra
+   versão recarrega, e o app desktop que se conecta a um servidor de outra
+   versão ouve que precisa atualizar, o app ou o servidor).
 3. **Os arquivos continuam fonte de verdade, no disco do servidor**
    ([0012](0012-files-are-source-of-truth.md)): uma pasta de `.md`, `.canvas`
    e anexos que o Obsidian poderia abrir. O `verso-fs` roda no servidor como
@@ -167,13 +206,24 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    onde surgem: a capacidade de leitura do item 4 (regra 4) e os symlinks do
    item 6 ([0044](0044-verso-fs-semantics.md)). Nada da pasta fica em banco
    de dados; o índice segue sendo cache.
+   **Os handles no próprio disco do servidor, decididos em 2026-10-09**
+   ([0044](0044-verso-fs-semantics.md) revisto): uma nota continua nomeada
+   pelo caminho relativo à pasta; num servidor a capacidade de acesso é a
+   sessão e o papel dela na pasta, conferidos em todo comando e todo
+   pedido de arquivo antes de o `verso-fs` agir; anexos são servidos em
+   `/f/<id-da-pasta>/<caminho relativo>` atrás dessa checagem; nenhuma
+   capacidade por arquivo cruza. A regra 4 do
+   [0026](0026-core-ui-contract-inviolable-rules.md) fica inalterada, com um
+   esclarecimento datado lá. A URL pré-assinada do item 4 segue `[ABERTO]`
+   com o modo bucket; os symlinks são o item 6.
 4. **Armazenamento, em três modos, um de cada vez.** (a) O próprio disco do
    servidor, primeiro e único na primeira versão. (b) Um bucket do usuário
    (S3, Google Cloud Storage, R2, B2, qualquer endpoint compatível com S3,
    WebDAV), como **espelho do disco** por trás do `verso-fs` — proposto: um
    backend Apache OpenDAL (Apache-2.0) dentro da crate `verso-fs`, para o
    invariante 5 valer e o transporte ser do core e não plugin (propõe-se
-   revisar o item 3 do [0020](0020-sync-merge-in-core-transports-as-plugins.md):
+   revisar o item 3 do [0020](0020-sync-merge-in-core-transports-as-plugins.md),
+   revisto assim em 2026-10-09:
    transportes moram no core até plugins existirem e enquanto guardarem
    credenciais). O disco é a verdade: toda escrita cai no disco
    pela escrita atômica primeiro e é espelhada ao bucket depois; quando os
@@ -188,7 +238,9 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    cruzando para o cliente: se conta como o handle opaco da regra 4 (uma
    chave de objeto que não revela o caminho, uma vida de minutos) ou precisa
    de emenda ao [0026](0026-core-ui-contract-inviolable-rules.md) faz parte
-   da questão dos handles resolvida com o item 2 (`[ABERTO]`). Recomendado
+   da questão dos handles resolvida com o item 2 (`[ABERTO]`; a questão foi
+   respondida em 2026-10-09 para o próprio disco do servidor, item 3, e
+   esta parte segue `[ABERTO]` com o modo bucket). Recomendado
    aos usuários: R2 ou B2, pela saída; S3 e Google Cloud aceitos com o preço
    de saída mostrado. (c)
    Um bucket nosso, ao custo, com o custo mostrado: **fora do escopo** até
@@ -203,7 +255,9 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    `[ABERTO]` (respondido em 2026-10-09, Revisões). O item que o [0045](0045-server-and-mcp-security.md) deixou
    aberto — identidade de sessão e autorização por operação no contrato —
    propõe-se construí-lo aqui, e ele segue `[ABERTO]` lá até este ADR ser
-   aceito:
+   aceito (aceito em 2026-10-09: construído como o item 11 do
+   [0074](0074-accounts-and-access-on-the-server.md) detalha, e respondido
+   no 0045 por uma linha de Revisões):
    todo comando carrega a sessão, e o core confere o papel antes de o
    `verso-fs` agir. A conta é o lugar natural da camada "da pessoa" do
    [0070](0070-what-travels-with-the-folder.md). O app desktop com pasta
@@ -214,7 +268,14 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    passkeys, sem `crypto.subtle`, e senhas em claro no Wi-Fi de casa; como o
    navegador de um celular passa a confiar no certificado (o domínio do
    usuário com ACME, um certificado do Tailscale, uma CA local instalada) é
-   `[ABERTO]`. O servidor se recusa a servir um login sem TLS, exceto em
+   `[ABERTO]` — **decidido em 2026-10-09**: o Verso fala HTTP atrás de um
+   proxy reverso que termina o TLS (Caddy, Traefik, o do próprio NAS) ou
+   atrás do `tailscale serve`, que dá um certificado válido para um nome
+   `*.ts.net` sem nada instalado no celular, e também aceita os próprios
+   arquivos de certificado e chave (`VERSO_TLS_CERT_FILE`,
+   `VERSO_TLS_KEY_FILE`, servidos com rustls); a receita do Tailscale é o
+   caminho documentado para um celular e um iPad; ACME embutido no Verso
+   vem depois. O servidor se recusa a servir um login sem TLS, exceto em
    loopback ou atrás de um proxy reverso cujo endereço quem hospeda
    configurou — só então os cabeçalhos encaminhados são confiados. Então:
    limite de tentativas no login, proteção contra CSRF, a
@@ -232,13 +293,19 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    capacidades ([0027](0027-runtime-capabilities.md)), conteúdo remoto e as
    origens de embed aprovadas como escolha de cada leitor e nunca do autor da
    nota (`[ABERTO]`, junto com a questão própria do
-   [0070](0070-what-travels-with-the-folder.md)), limites de tamanho de
+   [0070](0070-what-travels-with-the-folder.md) — **decidido em
+   2026-10-09**: do leitor, um ajuste da pessoa, a conta num servidor,
+   nunca do autor da nota nem da pasta; a questão do 0070 fecha junto),
+   limites de tamanho de
    upload e cotas por pasta, o confinamento de caminhos que já existe — e os
    symlinks, que num servidor com membros além do dono são um buraco:
    seguidos para fora da pasta como o [0044](0044-verso-fs-semantics.md)
    decidiu para a pasta de uma pessoa, ou recusados quando saem dela
    (`[ABERTO]`, propõe-se revisar o grupo de symlinks do 0044 para o
-   servidor) — auditoria de dependências (o `cargo-deny` já nega
+   servidor — **decidido em 2026-10-09**: num servidor um symlink é
+   seguido só quando o alvo fica dentro da pasta, e um que sai da pasta é
+   recusado; a pasta local do desktop mantém o 0044 como decidido; o 0044
+   revisto) — auditoria de dependências (o `cargo-deny` já nega
    advisories), logs sem segredos, e um modelo de ameaças escrito em
    `docs/reference/` antes de o servidor ser anunciado, que retoma o risco
    de injeção de prompt do [0045](0045-server-and-mcp-security.md) agora que
@@ -267,7 +334,11 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    ([0057](0057-board-json-canvas.md)): a coedição do board é `[ABERTO]`.
    Propõe-se revisar o [0021](0021-sync-automerge-layered-config.md) em dois
    pontos: Yjs no lugar do Automerge, e um CRDT como mecanismo de uma sessão
-   ao vivo, nunca a forma guardada de uma nota; o arquivo é.
+   ao vivo, nunca a forma guardada de uma nota; o arquivo é. *(Revisto
+   assim em 2026-10-09, uma linha de Revisões lá.)* **Decidido em
+   2026-10-09**: a edição simultânea de notas é construída na mesma rodada
+   do servidor, e a primeira versão do servidor já a tem, com a janela no
+   navegador e o app desktop conectando (item 12).
 8. **Celular e tablet: o navegador primeiro.** A janela servida pelo
    servidor é o cliente móvel (PWA, instalável em Android e iPadOS, como o
    [0025](0025-own-server-and-mobile-pwa.md) propôs; no iPadOS pede
@@ -279,7 +350,8 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    de código à parte; um app nativo não começa antes de o servidor existir.
    O item 3 do [0025](0025-own-server-and-mobile-pwa.md) (um servidor
    companheiro entrega um índice pronto ao celular) é proposto como
-   superado: o servidor indexa, o celular pergunta a ele.
+   superado: o servidor indexa, o celular pergunta a ele. *(Superado em
+   2026-10-09, uma linha de Revisões lá.)*
 9. **A janela em todo tamanho de tela é uma investigação própria, antes de
    a UI do servidor ser construída.** Celular, tablet, meia tela, um painel
    estreito: o que o Notion faz é a referência, observada por fora; o que o
@@ -290,7 +362,9 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
    (VoiceOver e TalkBack com toque, [0035](0035-cross-cutting-requirements.md)
    item 2) e as duas línguas ([0035](0035-cross-cutting-requirements.md)
    item 1), e termina num ADR próprio com a suíte e2e rodando nessas
-   larguras. Não é efeito colateral do item 8.
+   larguras. Não é efeito colateral do item 8. *(Esse ADR é o
+   [0076](0076-the-window-on-every-screen.md), aceito em 2026-10-09 e
+   construído nesta rodada, antes de a janela do servidor sair.)*
 10. **Sync entre dispositivos, depois do servidor, por ele.** O app desktop
     com pasta local ganha "sincronizar com um servidor": por arquivo, por
     hash e carimbo, conflitos guardados como cópia ao lado do arquivo — com
@@ -298,7 +372,8 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
     em todo SO — com o diff mostrado (invariante 11), nada silencioso; merge
     por bloco vem depois de conflitos terem sido vistos em uso, nunca antes.
     Propõe-se revisar o item 1 do
-    [0020](0020-sync-merge-in-core-transports-as-plugins.md): as integrações
+    [0020](0020-sync-merge-in-core-transports-as-plugins.md) (revisto assim
+    em 2026-10-09, uma linha de Revisões lá): as integrações
     com Drive e OneDrive por
     API não são essenciais; o caminho da pasta é suportado e documentado
     (cópias de conflito detectadas, placeholders tratados), WebDAV é o
@@ -312,15 +387,33 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
     `[ABERTO]`, como o [0045](0045-server-and-mcp-security.md) previu; um
     agente escreve só pelo diff do [0018](0018-llm-native-mcp-in-core.md),
     quando ele chegar.
-12. **Ordem dentro da Fase 3** (recomendação registrada): o app de Linux → o
-    servidor com contas, papéis e o contrato pelo fio, o app desktop
-    conectando a ele online (sem sync ainda), a reindexação por lote do
-    watcher estreitada aos caminhos do lote e medida com o benchmark (hoje
-    cada lote indexa a pasta inteira, [0044](0044-verso-fs-semantics.md)) →
+12. **Ordem dentro da Fase 3** — **revista pelo mantenedor em 2026-10-09**
+    (K e L do plano): o app de Linux (lançado na 0.6.0-beta.1,
+    [0071](0071-linux-port.md)) → **a primeira versão do servidor**,
+    construída junta numa rodada: o servidor com contas, papéis e o
+    contrato pelo fio; o app desktop conectando a ele online, entrando pelo
+    navegador e recebendo um token de dispositivo
+    ([0074](0074-accounts-and-access-on-the-server.md) item 8; sem sync
+    ainda); a reindexação por lote do watcher estreitada aos caminhos do
+    lote e medida com o benchmark (hoje cada lote indexa a pasta inteira,
+    [0044](0044-verso-fs-semantics.md)); `--web` e a janela em toda tela
+    ([0076](0076-the-window-on-every-screen.md), construída antes de a
+    janela do servidor sair); e a edição simultânea de notas (item 7) →
+    sync para as pastas locais do desktop → a PWA offline → o bucket do
+    usuário → mobile nativo se preciso. A coedição do board segue
+    `[ABERTO]`.
+    *(A ordem como foi registrada primeiro, uma recomendação: o app de
+    Linux → o servidor com contas, papéis e o contrato pelo fio, o app
+    desktop conectando a ele online (sem sync ainda), a reindexação por lote
+    do watcher estreitada aos caminhos do lote e medida com o benchmark
+    (hoje cada lote indexa a pasta inteira, [0044](0044-verso-fs-semantics.md)) →
     `--web` e a janela responsiva
     (item 9 primeiro) → edição simultânea de notas → sync para as pastas
     locais do desktop → a PWA offline → o bucket do usuário → mobile nativo
-    se preciso.
+    se preciso. A resposta do mantenedor mantém a sequência e põe tudo até a
+    edição simultânea na primeira versão do servidor; o plano daquela noite
+    recomendava deixar a conexão do app desktop (K) e a edição simultânea
+    (L) para versões seguintes.)*
 
 ## Consequências
 
@@ -333,15 +426,19 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
   rede local — só para endereços que o usuário escreveu numa configuração.
   Propõe-se revisar nesse sentido o item 1 da Decisão do 0050 e a primeira
   Consequência dele ("nada no core alcança a rede"), e o `app-decision.md`
-  §7 com eles.
+  §7 com eles. *(Revistos assim em 2026-10-09, com mais um endereço: o feed
+  de versões do projeto, a quem o servidor pergunta se existe versão nova,
+  [0075](0075-server-packaging-and-storage.md) item 7.)*
 - A tabela de sessões e o despacho de comandos saem do host desktop para o
-  core ou uma crate própria ([0028](0028-crate-structure.md)); pastas ganham
+  core ou uma crate própria ([0028](0028-crate-structure.md);
+  `crates/verso-service`, decidido em 2026-10-09, item 2); pastas ganham
   papéis e usuários ganham sessões. O `verso-dialect` não muda por isso; o
   que muda no `verso-fs` é o espelho do item 4.
 - Uma imagem Docker do serviço entra no workflow de versão, gerada como os
   apps; as plataformas dela (amd64, arm64 — servidores de casa muitas vezes
   são ARM) são `[ABERTO]`, ligadas à questão de ARM64 do
-  [0071](0071-linux-port.md). O core e a linha de comando já compilam e
+  [0071](0071-linux-port.md) (respondido em 2026-10-09: as duas,
+  [0075](0075-server-packaging-and-storage.md) item 2). O core e a linha de comando já compilam e
   testam em Linux no CI; o app desktop do [0071](0071-linux-port.md) é outro
   assunto, e "este app é um servidor" roda em macOS e Windows também.
 - Uma oferta hospedada não é prometida. A documentação diz "auto-hospedado" e
@@ -349,7 +446,12 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
   backups (uma receita documentada: snapshot do volume e `rclone` para um
   bucket), e atualiza o serviço (`[ABERTO]`: o caminho de atualização da
   imagem Docker, e "este app é um servidor" atualizando pelo
-  [0055](0055-in-app-updater.md) com celulares conectados).
+  [0055](0055-in-app-updater.md) com celulares conectados). *(O caminho de
+  atualização do servidor decidido em 2026-10-09: o servidor avisa o admin
+  de que existe versão nova e nunca se atualiza sozinho,
+  [0075](0075-server-packaging-and-storage.md) item 7. "Este app é um
+  servidor" atualizando com celulares conectados não fez parte dessa
+  resposta e segue `[ABERTO]`.)*
 - Expor um servidor de casa à internet é escolha do usuário; o padrão que a
   documentação recomenda é uma VPN (Tailscale ou similar) ou um proxy reverso
   do usuário, nunca uma porta que o servidor abra sozinho.
@@ -357,12 +459,16 @@ Proposta, exceto onde o Status diz que o mantenedor decidiu.
   para a Fase 2" e reaberta para o dia em que o `verso serve` alcançar
   arquivos ([0044](0044-verso-fs-semantics.md),
   `docs/reference/handles-decision.md`): esse dia é o item 2, e a questão
-  dos handles se resolve no mesmo pull request. O que viaja com a pasta
+  dos handles se resolve no mesmo pull request. *(Resolvida em 2026-10-09,
+  antes desse pull request, para o próprio disco do servidor: o item 3, e
+  o grupo do [0044](0044-verso-fs-semantics.md) para o servidor.)* O que
+  viaja com a pasta
   ([0070](0070-what-travels-with-the-folder.md)) é o que o servidor guarda e
   os clientes leem; nada das configurações de uma pessoa cruza para outra.
 - O servidor acrescenta uma nota de referência própria, o modelo de ameaças.
 - O roadmap ganha a Fase 3 com esta ordem; a lista "Depois da Fase 2" mantém
-  sync e mobile, agora sob este ADR.
+  sync e mobile, agora sob este ADR. *(Escrita em 2026-10-09, com a ordem do
+  item 12 como revista.)*
 
 ## Alternativas descartadas
 
@@ -394,35 +500,50 @@ e o [0071](0071-linux-port.md) fazem.
 
 ## Status
 
-Proposto. Decidido pelo mantenedor em 2026-10-08 e 2026-10-09, em palavras:
-a opção auto-hospedada primeiro; alcançar o celular e o tablet é
-imprescindível (um celular Android e um iPad); o modelo do Notion e do
-Foundry de compartilhamento e edição simultânea é o foco se for viável;
-"todas as tratativas de segurança"; uma investigação aprofundada da janela
-em tamanhos variados de tela, tablet e celular incluídos, como trabalho
-próprio; isto vem na Fase 3, depois do app de Linux. Todo o resto acima — a
-forma de um serviço, os modos de armazenamento, o modelo de identidade, a
-edição ao vivo, o navegador primeiro no celular, a ordem dentro da Fase 3,
-as revisões propostas do [0020](0020-sync-merge-in-core-transports-as-plugins.md),
-do [0021](0021-sync-automerge-layered-config.md) e do
-[0050](0050-outbound-network-access.md) — é proposto, para o mantenedor
-aceitar depois de uma leitura da Opus 5.5 ([0032](0032-author-and-reviewer-roles.md)).
-`[ABERTO]`: se o celular no navegador, só online, atende ao sync com celular
-que o mantenedor chamou de imprescindível, ou se o offline no celular vem
-mais cedo no item 12; um dono por servidor ou vários (uma família, um time)
-— molda o modelo de contas (respondido, Revisões); permissões mais finas que a pasta (por nota ou
-por bloco, Q9 da spec), e histórico, atribuição e recuperação de uma
-mudança ou exclusão de outro membro; se um servidor de uma pessoa só pode
-optar por criptografia ponta a ponta depois; como o navegador de um celular
-confia no certificado do servidor local; onde moram a tabela de sessões e o
-despacho do serviço ([0028](0028-crate-structure.md)); como cliente e
-servidor acertam a versão do contrato, e como o servidor é atualizado; a
-coedição do board; recuperação de conta sem servidor de e-mail (respondido,
-Revisões); o transporte e a autorização do MCP pela rede; as plataformas da
-imagem Docker (respondido, Revisões); se a URL
+Aceito em 2026-10-09 pelo mantenedor, junto com o
+[0074](0074-accounts-and-access-on-the-server.md), o
+[0075](0075-server-packaging-and-storage.md) e o
+[0076](0076-the-window-on-every-screen.md), na resposta citada nas
+Revisões: *"Com exceção de E que deve nascer em b, K deve ser b, L deve
+vir agora, P tudo — vc segue o recomendado"*. Decidido antes, em
+2026-10-08 e 2026-10-09, em palavras: a opção auto-hospedada primeiro;
+alcançar o celular e o tablet é imprescindível (um celular Android e um
+iPad); o modelo do Notion e do Foundry de compartilhamento e edição
+simultânea é o foco se for viável; "todas as tratativas de segurança"; uma
+investigação aprofundada da janela em tamanhos variados de tela, tablet e
+celular incluídos, como trabalho próprio; isto vem na Fase 3, depois do
+app de Linux. Aceitos naquela noite com eles: a forma de um serviço, os
+modos de armazenamento, o modelo de identidade, a edição ao vivo, o
+navegador primeiro no celular, a ordem dentro da Fase 3 como revista (item
+12), e as revisões do [0020](0020-sync-merge-in-core-transports-as-plugins.md),
+do [0021](0021-sync-automerge-layered-config.md), do
+[0025](0025-own-server-and-mobile-pwa.md), do [0034](0034-roadmap-in-phases.md),
+do [0044](0044-verso-fs-semantics.md), do [0045](0045-server-and-mcp-security.md),
+do [0050](0050-outbound-network-access.md) e do
+[0070](0070-what-travels-with-the-folder.md), feitas no mesmo dia.
+
+Respondidos em 2026-10-09, cada um onde mora: um dono por servidor ou
+vários (vários, [0074](0074-accounts-and-access-on-the-server.md) item 6);
+recuperação de conta sem servidor de e-mail (0074 item 5); as plataformas
+da imagem Docker (amd64 e arm64, [0075](0075-server-packaging-and-storage.md)
+item 2); como o navegador de um celular confia no certificado do servidor
+(item 6); onde moram a tabela de sessões e o despacho do serviço
+(`verso-service`, item 2, [0028](0028-crate-structure.md)); como cliente e
+servidor acertam a versão do contrato (item 2); como o servidor é
+atualizado (0075 item 7); os handles no próprio disco do servidor (item
+3); symlinks num servidor com membros além do dono (item 6); conteúdo
+remoto e as origens de embed aprovadas (do leitor, item 6).
+
+`[ABERTO]`: se o celular no navegador, só online, atende ao sync com
+celular que o mantenedor chamou de imprescindível, ou se o offline no
+celular vem mais cedo no item 12; permissões mais finas que a pasta (por
+nota ou por bloco, Q9 da spec), e histórico, atribuição e recuperação de
+uma mudança ou exclusão de outro membro; se um servidor de uma pessoa só
+pode optar por criptografia ponta a ponta depois; a coedição do board; o
+transporte e a autorização do MCP pela rede (item 11); se a URL
 pré-assinada do item 4 é o handle opaco da regra 4 ou precisa de emenda ao
-[0026](0026-core-ui-contract-inviolable-rules.md); symlinks num servidor com
-membros além do dono; conteúdo remoto e origens de embed aprovadas como
-escolha de cada leitor; os critérios que mandariam o iPad do navegador para
-um app nativo; como um custo seria repassado se um dia existir armazenamento
-nosso.
+[0026](0026-core-ui-contract-inviolable-rules.md), com o modo bucket; os
+critérios que mandariam o iPad do navegador para um app nativo; como um
+custo seria repassado se um dia existir armazenamento nosso; e, das
+Consequências, "este app é um servidor" atualizando pelo
+[0055](0055-in-app-updater.md) com celulares conectados.

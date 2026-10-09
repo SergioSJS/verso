@@ -3,6 +3,22 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §8, §15
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-10-09 — revised by [0073](0073-self-hosted-server-first.md),
+  accepted by the maintainer that day; the text below is kept as it was
+  decided on 2026-09-21. **The order**: the self-hosted server is built
+  first, and sync between devices comes after it and through it (0073
+  items 1 and 10). **Item 1**: native sync stays essential and goes through
+  Verso's own server; the Google Drive and OneDrive integrations by API
+  are not essential — the folder route is supported and documented
+  (conflict copies detected, placeholders handled), WebDAV is the first
+  external transport, Drive and OneDrive by API come if asked, iCloud
+  never by API, rclone is not bundled. **Item 3**: transports live in the
+  core, not as plugins, until plugins exist and for as long as they hold
+  credentials (0073 item 4). **Item 4**: sync leaves "out of scope until
+  the end of Phase 2" for Phase 3, after the first release of the server
+  ([0034](0034-roadmap-in-phases.md), revised the same day). Item 2
+  stands; merge by block comes after conflicts have been seen in use (0073
+  item 10).
 
 ## Context
 
@@ -41,4 +57,5 @@ content (merge) and moving bytes (transport).
 
 ## Status
 
-Accepted.
+Accepted. Revised on 2026-10-09 by [0073](0073-self-hosted-server-first.md)
+(Revisions).

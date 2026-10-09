@@ -24,6 +24,11 @@
   app: from the outside only).
 - Status in the briefing: not present; on acceptance, with
   [0073](0073-self-hosted-server-first.md).
+- Revisions: 2026-10-09 (night) — accepted by the maintainer with every
+  recommendation, together with [0073](0073-self-hosted-server-first.md),
+  in the answer quoted there (*"P tudo"*: P all of it); built in this
+  round, before the server's window ships. The options not chosen stay
+  beside each recommendation.
 
 ## Context
 
@@ -45,7 +50,9 @@ widths.
 
 Notion is the reference the maintainer named. What it does on a phone,
 observed from the outside ([0009](0009-external-constraints.md)) and to
-be confirmed on the maintainer's phone and iPad before acceptance: one
+be confirmed on the maintainer's phone and iPad before acceptance (the
+ADR was accepted on 2026-10-09 before that confirmation, which still
+waits): one
 page at a time, no side-by-side; the sidebar as a screen of its own; a
 bar of a few verbs at the bottom (home, search, inbox, new page); a
 toolbar above the on-screen keyboard with the block actions; a link in
@@ -62,7 +69,10 @@ and the screen readers were not observed.
 ## Decision
 
 Proposed in every item. Each one names the options and the author's
-recommendation; the maintainer chooses.
+recommendation; the maintainer chooses. *(Accepted on 2026-10-09 with
+every recommendation: option (a) in items 2, 4 and 6, option (a) for the
+page's zoom in item 10, and the single recommendation of every other
+item.)*
 
 1. **Two levels decide the layout: the screen decides the frame, the pane
    decides its content.** The frame — drawer or side bars, ribbon, status
@@ -211,3 +221,12 @@ recommendation above.
 Proposed. Every item waits for the maintainer's choice; the observations
 of Notion in the Context wait for his phone and iPad. `[OPEN]`: the
 contents of the keyboard's toolbar (item 7), after use.
+
+**Accepted on 2026-10-09** by the maintainer, with every recommendation,
+together with [0073](0073-self-hosted-server-first.md) (*"P tudo"*): (a)
+in items 2, 4 and 6, (a) for the page's zoom in item 10, and the
+recommendation of each other item. All of it is built in this round,
+before the server's window ships. The keyboard's toolbar of item 7 ships
+with the recommended short set. Still `[OPEN]`: the toolbar's contents,
+to revisit after use. The observations of Notion in the Context still wait
+for the maintainer's phone and iPad.

@@ -14,6 +14,11 @@
   [0044](0044-verso-fs-semantics.md) disagreeing about it; the older
   paragraph that called the `verso mcp` group provisional brought in line
   with a note. 2026-10-07 — the MCP's surface: nine read-only tools, with typed relations, boards, properties and tags, and bases ([0066](0066-mcp-sees-boards-relations-properties-bases.md)).
+  2026-10-09 — the contract group and the `verso serve` group answered,
+  with the maintainer's acceptance of [0073](0073-self-hosted-server-first.md)
+  and [0074](0074-accounts-and-access-on-the-server.md) that day; each
+  answer is a paragraph after its group, and the text above it is kept.
+  The MCP over the network stays `[OPEN]` (0073 item 11).
 
 ## Context
 
@@ -93,9 +98,33 @@ views only and never serves a note. The host-only commands (`web_*`,
 the core's. The risk this group names — identity added later means the
 contract redone — is accepted with it.
 
+**Answered on 2026-10-09** ([0074](0074-accounts-and-access-on-the-server.md)
+item 11, accepted with [0073](0073-self-hosted-server-first.md)): every
+command carries the session that the transport authenticated — a cookie or
+a bearer token — and the core resolves it to an account and a role in the
+folder **before** `verso-fs` acts; a refusal is a contract error like the
+others, in both languages. The desktop app with a local folder keeps the
+implicit owner and asks for no sign-in. The risk accepted above is met
+before the server's first release, not after it.
+
 ### `verso serve` — decide before it enters scope
 
 - Authentication, TLS, exposure outside the machine, multi-user or not.
+
+**Answered on 2026-10-09**, with the acceptance of
+[0073](0073-self-hosted-server-first.md) and
+[0074](0074-accounts-and-access-on-the-server.md): authentication —
+accounts with a password hashed with Argon2id, passkeys, sessions and
+personal access tokens (0074); TLS — behind a reverse proxy or
+`tailscale serve`, or the server's own certificate and key, and no login
+served without TLS except on loopback or behind the configured proxy
+(0073 item 6); exposure outside the machine — the user's choice, a VPN or
+a reverse proxy recommended, never a port the server opens on its own
+(0073, Consequences); multi-user — several accounts per server and roles
+per folder (0074 item 6). The MCP over the network, its transport and its
+authorization, stays `[OPEN]` (0073 item 11); the prompt-injection risk of
+the Consequences below is taken up by the threat model 0073 item 6 asks
+for.
 
 ## Consequences
 
@@ -178,4 +207,7 @@ None recorded.
 
 `[OPEN]` for the contract and the server; **MCP decided on 2026-09-22** (above). MCP: closed. Contract: accepted as built
 for Phase 2 on 2026-09-23, `[OPEN]` until a server enters scope. Server:
-before it enters scope.
+before it enters scope. Contract and server: answered on 2026-10-09 by
+[0074](0074-accounts-and-access-on-the-server.md) item 11 and
+[0073](0073-self-hosted-server-first.md), Accepted with them; the MCP over
+the network `[OPEN]` there.

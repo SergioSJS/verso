@@ -24,6 +24,11 @@
   app: só de fora).
 - Status no briefing: ausente; na aceitação, com o
   [0073](0073-self-hosted-server-first.md).
+- Revisões: 2026-10-09 (noite) — aceito pelo mantenedor com todas as
+  recomendações, junto com o [0073](0073-self-hosted-server-first.md), na
+  resposta citada lá (*"P tudo"*); construído nesta rodada, antes de a
+  janela do servidor sair. As opções não escolhidas ficam ao lado de cada
+  recomendação.
 
 ## Contexto
 
@@ -44,7 +49,8 @@ leitores de tela e as duas línguas, e a suíte e2e rodando nessas larguras.
 
 O Notion é a referência que o mantenedor nomeou. O que ele faz num
 celular, observado de fora ([0009](0009-external-constraints.md)) e a
-confirmar no celular e no iPad do mantenedor antes da aceitação: uma
+confirmar no celular e no iPad do mantenedor antes da aceitação (o ADR
+foi aceito em 2026-10-09 antes dessa confirmação, que ainda espera): uma
 página por vez, nada lado a lado; a barra lateral como uma tela própria;
 uma barra de poucos verbos embaixo (início, busca, caixa de entrada, nova
 página); uma barra de ferramentas acima do teclado da tela com as ações
@@ -61,7 +67,9 @@ leitores de tela não foram observados.
 ## Decisão
 
 Proposto em todos os itens. Cada um nomeia as opções e a recomendação do
-autor; o mantenedor escolhe.
+autor; o mantenedor escolhe. *(Aceito em 2026-10-09 com todas as
+recomendações: a opção (a) nos itens 2, 4 e 6, a opção (a) para o zoom da
+página no item 10, e a recomendação única de cada outro item.)*
 
 1. **Dois níveis decidem o layout: a tela decide a moldura, o painel
    decide o conteúdo dele.** A moldura — gaveta ou barras laterais, ribbon,
@@ -216,3 +224,12 @@ recomendação acima.
 Proposto. Todo item espera a escolha do mantenedor; as observações do
 Notion no Contexto esperam o celular e o iPad dele. `[ABERTO]`: o conteúdo
 da barra do teclado (item 7), depois do uso.
+
+**Aceito em 2026-10-09** pelo mantenedor, com todas as recomendações,
+junto com o [0073](0073-self-hosted-server-first.md) (*"P tudo"*): (a) nos
+itens 2, 4 e 6, (a) para o zoom da página no item 10, e a recomendação de
+cada outro item. Tudo é construído nesta rodada, antes de a janela do
+servidor sair. A barra do teclado do item 7 sai com o conjunto curto
+recomendado. Segue `[ABERTO]`: o conteúdo da barra, a rever depois do uso.
+As observações do Notion no Contexto ainda esperam o celular e o iPad do
+mantenedor.
