@@ -137,6 +137,16 @@ const pt = {
   when: "Quando",
   who: "Quem",
   what: "O quê",
+  passkeys: "Passkeys",
+  passkeysLead: "Entrar sem senha, com a digital, o rosto ou o PIN deste aparelho. Precisa do endereço HTTPS do servidor.",
+  passkeyAdd: "Adicionar passkey",
+  passkeyName: "Nome (este aparelho)",
+  passkeyAdded: "Passkey adicionada.",
+  passkeyNone: "Nenhuma passkey ainda.",
+  passkeySignIn: "Entrar com passkey",
+  passkeyNeedsEmail: "Digite o e-mail primeiro.",
+  passkeyUnavailable: "Este navegador ou este endereço não oferecem passkeys (é preciso HTTPS).",
+  noPasskey: "Nenhuma passkey para este e-mail: use a senha.",
 };
 
 export type WebStrings = typeof pt;
@@ -271,6 +281,16 @@ const en: WebStrings = {
   when: "When",
   who: "Who",
   what: "What",
+  passkeys: "Passkeys",
+  passkeysLead: "Sign in without a password, with this device's fingerprint, face or PIN. Needs the server's HTTPS address.",
+  passkeyAdd: "Add a passkey",
+  passkeyName: "Name (this device)",
+  passkeyAdded: "Passkey added.",
+  passkeyNone: "No passkey yet.",
+  passkeySignIn: "Sign in with a passkey",
+  passkeyNeedsEmail: "Type the e-mail first.",
+  passkeyUnavailable: "This browser or this address offers no passkeys (HTTPS is needed).",
+  noPasskey: "No passkey for this e-mail: use the password.",
 };
 
 let current: Lang = navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en";

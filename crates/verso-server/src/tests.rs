@@ -807,3 +807,46 @@ fn two_windows_edit_one_note_and_the_file_follows() {
         let _ = doc.transact().state_vector();
     });
 }
+
+#[test]
+fn passkeys_start_for_the_signed_in_and_say_nothing_of_strangers() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (status, started) = post(&r, "/api/me/passkeys", json!({}), Some(&b)).await;
+        assert_eq!(status, 200, "{started}");
+        let pk = &started["options"]["publicKey"];
+        assert_eq!(pk["rp"]["id"], "localhost");
+        assert_eq!(pk["user"]["name"], "admin@casa.lan");
+        assert!(pk["challenge"].as_str().unwrap().len() > 20);
+        assert_eq!(get(&r, "/api/me/passkeys", Some(&b)).await.1, json!([]));
+        // Signed out, a passkey is not added.
+        assert_eq!(post(&r, "/api/me/passkeys", json!({}), None).await.0, 401);
+        // No passkey: the same answer for an account and for nobody.
+        let (s1, a1) = post(
+            &r,
+            "/api/passkey/start",
+            json!({ "email": "admin@casa.lan" }),
+            None,
+        )
+        .await;
+        let (s2, a2) = post(
+            &r,
+            "/api/passkey/start",
+            json!({ "email": "ninguem@casa.lan" }),
+            None,
+        )
+        .await;
+        assert_eq!((s1, s2), (401, 401));
+        assert_eq!(a1["error"], a2["error"]);
+        // A ceremony nobody started is gone.
+        let (gone, _) = post(
+            &r,
+            "/api/me/passkeys/finish",
+            json!({ "ceremony": "x", "name": "n", "credential": {} }),
+            Some(&b),
+        )
+        .await;
+        assert!(gone == 404 || gone == 422, "{gone}");
+    });
+}

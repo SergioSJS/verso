@@ -20,7 +20,19 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 1;
+const SCHEMA: i64 = 2;
+
+/// Schema 2: the passkeys (ADR 0074 item 3).
+const PASSKEYS: &str = r"
+CREATE TABLE passkeys (
+  id TEXT PRIMARY KEY,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  credential TEXT NOT NULL,
+  created INTEGER NOT NULL,
+  last_used INTEGER
+);
+";
 
 const CREATE: &str = r"
 CREATE TABLE accounts (
@@ -264,6 +276,17 @@ pub struct TokenInfo {
     pub folders: Vec<String>,
 }
 
+/// A passkey as kept.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PasskeyRow {
+    pub id: String,
+    pub name: String,
+    #[serde(skip)]
+    pub credential: String,
+    pub created: i64,
+    pub last_used: Option<i64>,
+}
+
 /// What a live token lets in.
 #[derive(Debug, Clone)]
 pub struct TokenGrant {
@@ -340,7 +363,12 @@ impl Db {
             .map_err(e)?;
         if version == 0 {
             conn.execute_batch(&format!(
-                "BEGIN; {CREATE} PRAGMA user_version = {SCHEMA}; COMMIT;"
+                "BEGIN; {CREATE} {PASSKEYS} PRAGMA user_version = {SCHEMA}; COMMIT;"
+            ))
+            .map_err(e)?;
+        } else if version == 1 {
+            conn.execute_batch(&format!(
+                "BEGIN; {PASSKEYS} PRAGMA user_version = {SCHEMA}; COMMIT;"
             ))
             .map_err(e)?;
         } else if version > SCHEMA {
@@ -1088,6 +1116,62 @@ impl Db {
             .conn()
             .execute(
                 "DELETE FROM tokens WHERE account = ?1 AND id = ?2",
+                params![account, id],
+            )
+            .map_err(e)?
+            > 0)
+    }
+
+    /* ---------- passkeys (ADR 0074 item 3) ---------- */
+
+    /// The passkeys of an account: id, name, the credential as webauthn-rs
+    /// serializes it, dates.
+    pub fn passkeys(&self, account: &str) -> R<Vec<PasskeyRow>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare("SELECT id, name, credential, created, last_used FROM passkeys WHERE account = ?1 ORDER BY created")
+            .map_err(e)?;
+        st.query_map([account], |r| {
+            Ok(PasskeyRow {
+                id: r.get(0)?,
+                name: r.get(1)?,
+                credential: r.get(2)?,
+                created: r.get(3)?,
+                last_used: r.get(4)?,
+            })
+        })
+        .map_err(e)?
+        .collect::<rusqlite::Result<_>>()
+        .map_err(e)
+    }
+
+    pub fn add_passkey(&self, account: &str, name: &str, credential: &str) -> R<String> {
+        let id = crypto::id()?;
+        self.conn()
+            .execute(
+                "INSERT INTO passkeys (id, account, name, credential, created) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![id, account, name.trim(), credential, now()],
+            )
+            .map_err(e)?;
+        Ok(id)
+    }
+
+    /// The credential after a sign-in (its counter moved).
+    pub fn used_passkey(&self, id: &str, credential: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "UPDATE passkeys SET credential = ?2, last_used = ?3 WHERE id = ?1",
+                params![id, credential, now()],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn remove_passkey(&self, account: &str, id: &str) -> R<bool> {
+        Ok(self
+            .conn()
+            .execute(
+                "DELETE FROM passkeys WHERE account = ?1 AND id = ?2",
                 params![account, id],
             )
             .map_err(e)?

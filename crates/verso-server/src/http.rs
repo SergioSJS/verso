@@ -308,6 +308,17 @@ pub fn router(server: Arc<Server>) -> Router {
         )
         .route("/api/me/tokens/{id}", delete(crate::api::revoke_token))
         .route(
+            "/api/me/passkeys",
+            get(crate::passkeys::list).post(crate::passkeys::register_start),
+        )
+        .route(
+            "/api/me/passkeys/finish",
+            post(crate::passkeys::register_finish),
+        )
+        .route("/api/me/passkeys/{id}", delete(crate::passkeys::remove))
+        .route("/api/passkey/start", post(crate::passkeys::sign_in_start))
+        .route("/api/passkey/finish", post(crate::passkeys::sign_in_finish))
+        .route(
             "/api/folders",
             get(crate::folders::mine).post(crate::folders::create),
         )
