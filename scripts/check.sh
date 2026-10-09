@@ -70,7 +70,7 @@ step "UI: end-to-end tests in the browser harness (ADR 0058, local only)"
 (
   cd app/ui
   npx playwright install webkit chromium >/dev/null
-  npx playwright test
+  npx playwright test --workers=3
 )
 step "cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -80,7 +80,7 @@ step "the server's end-to-end tests: the window in a browser against verso serve
 cargo build -q --locked -p verso-cli
 (
   cd app/ui
-  npx playwright test -c playwright.server.config.mjs
+  npx playwright test -c playwright.server.config.mjs --workers=1
 )
 step "the committed bindings are the generated ones (ADR 0026 rule 3)"
 tmp="$(mktemp "${TMPDIR:-/tmp}/verso-bindings.XXXXXX")"

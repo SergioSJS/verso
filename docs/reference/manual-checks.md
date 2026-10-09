@@ -97,6 +97,26 @@ in the real app.
   after updating, the window shows the new version's interface at once,
   with no stale screen; the PDF reader and a board still open.
 
+### The server (ADR 0073, 0074, 0075)
+
+On the maintainer's machines, with the server reached over HTTPS
+(`tailscale serve` or a proxy); `scripts/check-server-image.sh` and the
+end-to-end tests cover the rest.
+
+- [ ] **Passkeys** on a real device: added from *Conta* on the Mac
+  (Touch ID) and on the iPhone; *Entrar com passkey* after the e-mail, in
+  Safari and Chrome.
+- [ ] **The phone and the iPad** in the browser, through `tailscale serve`:
+  sign in, open a folder, edit a note, see the other device's edits arrive.
+- [ ] **The desktop app on a server's folder** (the installed app):
+  *Ajustes* › *Servidores*, *Conectar*, *Permitir* in the browser, open a
+  folder, edit, a picture of the folder shows; quit and open the app again:
+  the server's folder comes back.
+- [ ] **CasaOS or ZimaOS**: the compose file installed from its app store
+  screen, the admin's variables filled, the folders on the NAS.
+- [ ] **A `.deb` on a small machine without Docker**: installed, the
+  environment file edited, `systemctl enable --now verso`.
+
 ### The window on every screen (ADR 0076)
 
 On the maintainer's phone and iPad, the server's window in the browser

@@ -54,7 +54,7 @@ import * as reading from "./note/reading";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
-import { type CollabHandlers, type CollabSession, joinCollab } from "../collab";
+import { type CollabHandlers, type CollabSession, joinCollab, lostLine } from "../collab";
 import { tableWidths } from "../tableWidths";
 import { currentFolder } from "../folder";
 
@@ -778,9 +778,11 @@ export class NoteLeaf extends Leaf {
         });
       },
       conflict: () => void this.collabConflict(),
-      closed: () => {
+      closed: (why) => {
         this.collab = null;
-        void this.load(this.path, true);
+        void this.load(this.path, true).then(() => {
+          if (why === "lost") ui.status.textContent = lostLine();
+        });
       },
       remote: () => {
         this.previewStale = true;

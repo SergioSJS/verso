@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { can } from "../can";
 import { serverStrings, serversBody } from "./servers";
 import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
@@ -109,10 +110,11 @@ export class SettingsDialog {
       { id: "files", label: t.sFiles, icon: "folder" },
       { id: "board", label: boardText.sBoard, icon: "board" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
-      { id: "cli", label: t.sCli, icon: "terminal" },
-      // A server's folder opened from this app (ADR 0073 item 2); in a
-      // browser the window is the server's already.
-      ...(document.documentElement.dataset.host === "server" ? [] : [{ id: "servers", label: serverStrings().section, icon: "globe" }]),
+      // What the side the window talks to cannot do is absent (ADR 0076
+      // item 11): the command line and the agents are the desktop app's,
+      // and so is opening a server's folder from it (ADR 0073 item 2).
+      ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
+      ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
     ];
   }
   private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
@@ -169,8 +171,8 @@ export class SettingsDialog {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
-    add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
-    add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
+    if (can("devtools")) add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
+    if (can("updates")) add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
       const wrap = h("div", "setting-version-wrap");
       const topRow = h("div", "setting-version-row");
@@ -490,7 +492,7 @@ export class SettingsDialog {
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     // The command line and MCP (ADR 0054). The folder is named by its key
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
-    out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
+    if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
@@ -509,7 +511,8 @@ export class SettingsDialog {
       add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso", guess), (st) => code(st.command, st.server)));
       add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso", guess), (st) => other(st.command, st.server)));
     }
-    return out;
+    // The command line and the agents only where the side has them.
+    return can("agents") ? out : out.filter((o) => o.section !== "cli");
   }
   /** Where the command line stands, and the button that changes it. */
   private cliControl(): HTMLElement {

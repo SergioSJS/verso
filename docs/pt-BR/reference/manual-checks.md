@@ -103,6 +103,27 @@ app real.
   nova na hora, sem tela antiga; o leitor de PDF e um board continuam
   abrindo.
 
+### O servidor (ADR 0073, 0074, 0075)
+
+Nas máquinas do mantenedor, com o servidor alcançado por HTTPS
+(`tailscale serve` ou um proxy); o `scripts/check-server-image.sh` e os
+testes de ponta a ponta cobrem o resto.
+
+- [ ] **Passkeys** num aparelho de verdade: adicionada em *Conta* no Mac
+  (Touch ID) e no iPhone; *Entrar com passkey* depois do e-mail, no Safari
+  e no Chrome.
+- [ ] **O celular e o iPad** no navegador, pelo `tailscale serve`: entrar,
+  abrir uma pasta, editar uma nota, ver chegarem as edições do outro
+  aparelho.
+- [ ] **O app desktop numa pasta do servidor** (o app instalado):
+  *Ajustes* › *Servidores*, *Conectar*, *Permitir* no navegador, abrir uma
+  pasta, editar, uma imagem da pasta aparece; sair e abrir o app de novo: a
+  pasta do servidor volta.
+- [ ] **CasaOS ou ZimaOS**: o compose instalado pela tela da loja de apps,
+  as variáveis do admin preenchidas, as pastas no NAS.
+- [ ] **Um `.deb` numa máquina pequena sem Docker**: instalado, o arquivo
+  de ambiente editado, `systemctl enable --now verso`.
+
 ### A janela em toda tela (ADR 0076)
 
 No celular e no iPad do mantenedor, a janela do servidor no navegador
