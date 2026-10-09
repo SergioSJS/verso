@@ -8,6 +8,19 @@
   ponto 1; este ADR aponta para lá desde a decisão do mantenedor de
   2026-10-01 sobre a revisão crítica
   [`docs/review/board.md`](../review/board.md), §6 item 16.
+  2026-10-09 — uma Fase 3 acrescentada pelo
+  [0073](0073-self-hosted-server-first.md), aceito pelo mantenedor naquele
+  dia; o texto abaixo fica como foi decidido. Fase 3: o app de Linux
+  ([0071](0071-linux-port.md), lançado na 0.6.0-beta.1), depois o servidor
+  auto-hospedado, cuja primeira versão traz as contas e os papéis, o
+  contrato pelo fio, o app desktop conectando, a janela num navegador e em
+  toda tela ([0076](0076-the-window-on-every-screen.md)) e a edição
+  simultânea de notas; depois dela, sync para as pastas locais do desktop,
+  a PWA offline, o bucket do usuário e mobile nativo se preciso (0073 item
+  12). A lista do ponto 4: sync e mobile saem dela, na forma que o 0073 lhes
+  dá — mobile pelo navegador, servido pelo servidor; sync depois do
+  servidor e por ele; plugins e o shim de compatibilidade continuam fora.
+  O critério de saída da Fase 3 não está definido (`[ABERTO]`, no roadmap).
 
 ## Contexto
 
@@ -49,4 +62,6 @@ Os critérios de saída estão em `docs/roadmap.md`.
 ## Status
 
 Aceito. O ponto 4 estreitado pelo [0057](0057-board-json-canvas.md) em
-2026-09-30: o board está na Fase 2.
+2026-09-30: o board está na Fase 2. Revisto em 2026-10-09 pelo
+[0073](0073-self-hosted-server-first.md): uma Fase 3, e sync e mobile fora
+da lista do ponto 4 (Revisões).

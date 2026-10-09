@@ -20,6 +20,16 @@
   sobre handles e na linha do 0044 no [índice dos ADRs](../adr/README.md).
   Nenhum código segue este memo: ele perguntava se registrava o que o código
   já faz, ou não.
+- Reabertura respondida em 2026-10-09 para o `verso serve`, pela
+  aceitação do [ADR 0073](../adr/0073-self-hosted-server-first.md) pelo
+  mantenedor: uma nota continua nomeada pelo caminho relativo; num
+  servidor a capacidade de acesso é a sessão e o papel dela na pasta,
+  conferidos antes de o `verso-fs` agir; anexos são servidos em
+  `/f/<id-da-pasta>/<caminho relativo>` atrás dessa checagem; nenhuma
+  capacidade por arquivo cruza. Registrado no
+  [ADR 0044](../adr/0044-verso-fs-semantics.md), "Num servidor". Um plugin
+  e um cliente mobile nativo ainda reabrem o grupo; a URL pré-assinada de
+  um bucket segue `[ABERTO]` no item 4 do ADR 0073.
 - Escrito pelo Opus 5.5 durante a noite, o autor que o
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) dá aos documentos
   ("Opus 5"); lido por uma sessão nova do Opus 5.5 no lugar do Fable 5.1, o

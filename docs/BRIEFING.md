@@ -1,6 +1,6 @@
 # BRIEFING — Verso
 
-> Version 0.12 · 2026-10-01
+> Version 0.13 · 2026-10-09
 > Single source of the decisions made before the repository existed.
 > Changes after the repository: only status changes and factual corrections,
 > recorded in the History at the end. New boundaries and consequences live in
@@ -156,12 +156,12 @@ Requirement: an agent must navigate and make use of the folder's content as well
 
 ## 8. Sync
 
-- Native sync is essential, with an own server and with services such as Google Drive and OneDrive. `DECIDED`
-- Merge engine in the core (it understands blocks, frontmatter and the file model); transports as plugins (own server, WebDAV, S3, Google Drive, OneDrive). `DECIDED`
-- Candidate for the merge engine: Automerge. `PROPOSED`
+- Native sync is essential, with an own server and with services such as Google Drive and OneDrive. `DECIDED`; revised in v0.13 (ADR 0073): the own server comes first and sync between devices goes through it; Google Drive and OneDrive by API are no longer essential (a synced folder is supported, WebDAV is the first external transport, iCloud never by API).
+- Merge engine in the core (it understands blocks, frontmatter and the file model); transports as plugins (own server, WebDAV, S3, Google Drive, OneDrive). `DECIDED`; revised in v0.13 (ADR 0073): transports live in the core until plugins exist and for as long as they hold credentials.
+- Candidate for the merge engine: Automerge. `PROPOSED`; revised in v0.13 (ADR 0073, `DECIDED`): Yjs, as the mechanism of a live session, never the stored form of a note, which is the file.
 - Layered config: shared (plugin list, schemas) and per device (hotkeys, layout). `PROPOSED`
 - An on-demand storage placeholder file (iCloud, OneDrive) is never interpreted as a deletion. `DECIDED` (promoted in v0.2, ADR 0043)
-- Sync stays out of scope until the end of Phase 2. `DECIDED`
+- Sync stays out of scope until the end of Phase 2. `DECIDED`; in v0.13 (ADR 0073): sync enters Phase 3, after the first release of the server and through it.
 
 ---
 
@@ -181,9 +181,9 @@ Requirement: an agent must navigate and make use of the folder's content as well
 | Index | SQLite with FTS5 | `DECIDED` |
 | TS type generation from Rust | ts-rs or specta | `OPEN` |
 | Base parser | pulldown-cmark, comrak or our own | `DECIDED`: pulldown-cmark (v0.8, ADR 0037) |
-| Server | the same core binary without UI (`verso serve`) | `PROPOSED` |
-| Initial mobile | web client (PWA) served by the own server | `PROPOSED` |
-| Indexing for mobile | a companion server indexes and delivers a ready index to the phone | `PROPOSED` |
+| Server | the same core binary without UI (`verso serve`) | `DECIDED` (promoted in v0.13, ADR 0073): `verso serve`, a subcommand of the `verso` binary; the self-hosted server comes first in Phase 3 |
+| Initial mobile | web client (PWA) served by the own server | `DECIDED` (promoted in v0.13, ADR 0073): the window the server serves, in the phone's and the tablet's browser; offline later |
+| Indexing for mobile | a companion server indexes and delivers a ready index to the phone | `PROPOSED`; superseded in v0.13 (ADR 0073 item 8): the server indexes, the phone asks it |
 
 ---
 
@@ -415,7 +415,7 @@ Tauri + CM6: open a folder, file tree, editor, backlinks and search coming from 
 
 ### Out of scope until the end of Phase 2
 
-Sync, mobile, plugins, ~~board~~, compatibility shim. The board entered Phase 2 on 2026-09-30 (v0.11, ADR 0057).
+~~Sync~~, ~~mobile~~, plugins, ~~board~~, compatibility shim. The board entered Phase 2 on 2026-09-30 (v0.11, ADR 0057). Sync and mobile left on 2026-10-09 for Phase 3 — the Linux app, then the self-hosted server — in the shape ADR 0073 gives them: mobile through the browser, served by the server; sync after the server and through it (v0.13, ADR 0034).
 
 ---
 
@@ -484,3 +484,4 @@ of the dialect spec, not here.
 | 0.10 | 2026-09-24 | §2 and §17 item 2: domain decided by the maintainer — they bought `versomd.com`, the closest to `verso.md` they could get (ADR 0004). Availability on crates.io, npm and the GitHub org remains open. |
 | 0.11 | 2026-09-30 | §5.3, §9, §11.3, §13, §15 and §17 items 6 and 9: decided by the maintainer, on the memo docs/reference/board-decision.md — the board enters Phase 2; persistence is the `.canvas` itself, with the Excalidraw drawing under a top-level `verso` key; the semantic layer and the typed relation, whose syntax is a frontmatter property of the source note holding a quoted wikilink (spec Q10); the board's accessible view, an outline beside it (ADR 0057). |
 | 0.12 | 2026-10-01 | §13: the board's accessible view, an outline beside it — written as `DECIDED` in v0.11 while ADR 0057 left it the author's choice — decided by the maintainer on 2026-10-01, on the critical review docs/review/board.md (§6 item 15). No other change. |
+| 0.13 | 2026-10-09 | §8, §9 and §15: decided by the maintainer on accepting ADR 0073 (self-hosted server first), together with ADRs 0074, 0075 and 0076, in the answer *"Com exceção de E que deve nascer em b, K deve ser b, L deve vir agora, P tudo — vc segue o recomendado"* (except for E, which must be born as (b), K must be (b), L must come now, P all of it — you follow the recommendation). §8: sync goes through the own server and comes after it; Drive and OneDrive by API no longer essential; transports in the core while they hold credentials; Yjs in place of Automerge, as the mechanism of a live session; sync enters Phase 3. §9: the server and the initial mobile through the browser promoted to `DECIDED`; indexing for mobile superseded. §15: sync and mobile leave the out-of-scope list for Phase 3. |

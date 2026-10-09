@@ -13,6 +13,11 @@
   [0026](0026-core-ui-contract-inviolable-rules.md) e o
   [0044](0044-verso-fs-semantics.md) discordando sobre isso; o parágrafo mais
   antigo que dizia o grupo do `verso mcp` provisório acertado com uma nota. 2026-10-07 — a superfície do MCP: nove ferramentas só de leitura, com relações tipadas, boards, propriedades e tags, e bases ([0066](0066-mcp-sees-boards-relations-properties-bases.md)).
+  2026-10-09 — o grupo do contrato e o grupo do `verso serve` respondidos,
+  com a aceitação do [0073](0073-self-hosted-server-first.md) e do
+  [0074](0074-accounts-and-access-on-the-server.md) pelo mantenedor naquele
+  dia; cada resposta é um parágrafo depois do seu grupo, e o texto acima
+  dele fica. O MCP pela rede segue `[ABERTO]` (0073 item 11).
 
 ## Contexto
 
@@ -91,9 +96,33 @@ responde só às views do app e nunca serve uma nota. Os comandos só do host
 gerados que os do core. O risco que este grupo nomeia — identidade
 acrescentada depois é contrato refeito — é aceito junto.
 
+**Respondido em 2026-10-09** (item 11 do
+[0074](0074-accounts-and-access-on-the-server.md), aceito com o
+[0073](0073-self-hosted-server-first.md)): todo comando carrega a sessão
+que o transporte autenticou — um cookie ou um token bearer — e o core a
+resolve para uma conta e um papel na pasta **antes** de o `verso-fs` agir;
+uma recusa é um erro do contrato como os outros, nas duas línguas. O app
+desktop com pasta local mantém o dono implícito e não pede login. O risco
+aceito acima é atendido antes da primeira versão do servidor, não depois.
+
 ### `verso serve` — decidir antes de entrar em escopo
 
 - Autenticação, TLS, exposição fora da máquina, multiusuário ou não.
+
+**Respondido em 2026-10-09**, com a aceitação do
+[0073](0073-self-hosted-server-first.md) e do
+[0074](0074-accounts-and-access-on-the-server.md): autenticação — contas
+com senha com hash Argon2id, chaves de acesso, sessões e tokens de acesso
+pessoal (0074); TLS — atrás de um proxy reverso ou do `tailscale serve`,
+ou com o certificado e a chave do próprio servidor, e nenhum login servido
+sem TLS exceto em loopback ou atrás do proxy configurado (0073 item 6);
+exposição fora da máquina — escolha do usuário, uma VPN ou um proxy reverso
+recomendados, nunca uma porta que o servidor abra sozinho (0073,
+Consequências); multiusuário — várias contas por servidor e papéis por
+pasta (0074 item 6). O MCP pela rede, o transporte e a autorização dele,
+segue `[ABERTO]` (0073 item 11); o risco de injeção de prompt das
+Consequências abaixo é retomado pelo modelo de ameaças que o item 6 do
+0073 pede.
 
 ## Consequências
 
@@ -178,4 +207,8 @@ Nenhuma registrada.
 
 `[ABERTO]` para o contrato e o servidor; **MCP decidido em 2026-09-22** (acima). MCP: fechado. Contrato: aceito como foi
 construído para a Fase 2 em 2026-09-23, `[ABERTO]` até um servidor entrar em
-escopo. Servidor: antes de entrar em escopo.
+escopo. Servidor: antes de entrar em escopo. Contrato e servidor:
+respondidos em 2026-10-09 pelo item 11 do
+[0074](0074-accounts-and-access-on-the-server.md) e pelo
+[0073](0073-self-hosted-server-first.md), Aceitos com eles; o MCP pela rede
+`[ABERTO]` lá.

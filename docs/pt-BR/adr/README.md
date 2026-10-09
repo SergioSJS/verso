@@ -70,8 +70,8 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 
 | # | Título | Status |
 |---|---|---|
-| [0020](0020-sync-merge-in-core-transports-as-plugins.md) | Sync: motor de merge no core, transportes como plugin, fora de escopo até a Fase 2 | Aceito |
-| [0021](0021-sync-automerge-layered-config.md) | Sync: Automerge e config em camadas | Proposto |
+| [0020](0020-sync-merge-in-core-transports-as-plugins.md) | Sync: motor de merge no core, transportes como plugin, fora de escopo até a Fase 2 | Aceito; revisto pelo 0073 (2026-10-09): o servidor primeiro e o sync por ele, Drive e OneDrive por API não essenciais, transportes no core enquanto guardarem credenciais |
+| [0021](0021-sync-automerge-layered-config.md) | Sync: Automerge e config em camadas | Proposto; item 1 revisto pelo 0073 (2026-10-09): Yjs no lugar do Automerge, como mecanismo de uma sessão ao vivo |
 | [0043](0043-placeholder-guard.md) | Arquivo placeholder de armazenamento sob demanda nunca é deleção | Aceito (mecanismo por provedor: `[ABERTO]`) |
 
 ### Plataformas e arquitetura
@@ -81,19 +81,23 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0022](0022-target-platforms-macos-first.md) | Plataformas-alvo e macOS primeiro | Aceito |
 | [0023](0023-stack-core-and-editor.md) | Stack: Rust, Tauri v2, CodeMirror 6, SQLite com FTS5 | Aceito |
 | [0024](0024-board-excalidraw.md) | Board: Excalidraw como camada de anotação livre | Aceito; camada semântica e persistência decididas no 0057 (2026-09-30) |
-| [0025](0025-own-server-and-mobile-pwa.md) | Servidor próprio (`verso serve`) e mobile inicial como cliente web | Proposto |
-| [0026](0026-core-ui-contract-inviolable-rules.md) | Contrato core↔UI e regras invioláveis de arquitetura | Aceito |
+| [0025](0025-own-server-and-mobile-pwa.md) | Servidor próprio (`verso serve`) e mobile inicial como cliente web | Proposto; os itens 1 e 2 aceitos no 0073 (2026-10-09), o item 3 superado lá |
+| [0026](0026-core-ui-contract-inviolable-rules.md) | Contrato core↔UI e regras invioláveis de arquitetura | Aceito; regra 4 esclarecida para um servidor, a regra inalterada, e o escopo da regra 5 ampliado ao banco do servidor (2026-10-09) |
 | [0027](0027-runtime-capabilities.md) | Capabilities consultáveis em runtime | Proposto |
-| [0028](0028-crate-structure.md) | Estrutura de crates | Aceito |
-| [0050](0050-outbound-network-access.md) | Acesso de saída à rede a partir da janela | Aceito (o padrão do ajuste: provisório); revisado pela 0055 e pela 0056 (2026-09-29) |
+| [0028](0028-crate-structure.md) | Estrutura de crates | Aceito; dois crates para o servidor, `verso-service` e `verso-server` (2026-10-09) |
+| [0050](0050-outbound-network-access.md) | Acesso de saída à rede a partir da janela | Aceito (o padrão do ajuste: provisório); revisado pela 0055 e pela 0056 (2026-09-29), e pelo 0073 e pelo 0075 (2026-10-09): o tráfego de um servidor e a checagem de atualização dele |
 | [0054](0054-terminal-and-agents-from-the-app.md) | A linha de comando e os agentes, ligados pelo app | Aceito (2026-09-24); o `[ABERTO]` sobre as ferramentas do sistema fechado (2026-09-29) |
 | [0055](0055-in-app-updater.md) | O atualizador dentro do app | Aceito (2026-09-29) |
 | [0056](0056-embedded-web-pages.md) | Páginas web embutidas: o proxy, a origem dele e a rede local | Aceito (2026-09-29); revisto no mesmo dia: sem proxy, as páginas carregam direto das origens que o usuário aprovou |
 | [0057](0057-board-json-canvas.md) | O board: um arquivo JSON Canvas, o Excalidraw como superfície, relações tipadas no frontmatter | Aceito (2026-09-30) |
 | [0069](0069-windows-port.md) | A versão para Windows: x64, um instalador, testada numa máquina Windows por SSH | Proposto (2026-10-07); x64, Windows 10 e 11, NSIS e sem assinatura de código por enquanto decididos; começa agora, na Fase 2 à frente do resto (0022 revisado); o bloqueio do push quando código de plataforma muda; máquina Windows 10 depois, código escrito para ele; o local da configuração (`%LOCALAPPDATA%\verso`) e o placeholder do OneDrive decididos em 2026-10-08; `[ABERTO]` (provisório): o `fsync` do diretório, o separador de caminho |
-| [0070](0070-what-travels-with-the-folder.md) | O que viaja com a pasta: três camadas de configuração, e nomes que todo sistema guarda | Proposto (2026-10-08); nomes que todo sistema guarda decidido, a `\` entre eles |
+| [0070](0070-what-travels-with-the-folder.md) | O que viaja com a pasta: três camadas de configuração, e nomes que todo sistema guarda | Proposto (2026-10-08); nomes que todo sistema guarda decidido, a `\` entre eles; as origens de embed aprovadas são da pessoa, e a camada da pessoa mora com a conta num servidor (2026-10-09, com o 0073) |
 | [0071](0071-linux-port.md) | A versão para Linux: um build para toda distribuição, testado em máquinas virtuais | Proposto (2026-10-08); porte começou em 2026-10-09; respondido em 2026-10-09: ARM64, versões, assinatura, o local do índice; `[ABERTO]`: duas ou três máquinas, o atualizador, Snap, Wayland nativo ou X11, nomes só com maiúsculas diferentes |
 | [0072](0072-window-controls-in-the-app.md) | Os controles da janela dentro do app: sem barra de título no macOS e no Windows | Aceito (2026-10-08): botões do próprio app no Windows; emendado em 2026-10-09: no Linux também |
+| [0073](0073-self-hosted-server-first.md) | Servidor auto-hospedado primeiro: colaboração online antes do sync | Aceito (2026-10-09), com os itens marcados como propostos; respondidos naquela noite: os crates do serviço, a versão do contrato, o caminho de atualização do servidor (opção b), TLS atrás de um proxy ou do Tailscale ou com o certificado do próprio servidor, os handles e os symlinks num servidor, conteúdo remoto por leitor, edição simultânea na primeira versão do servidor, o app desktop conectando nesta rodada; antes: recuperação de conta, donos por servidor, plataformas do Docker; revisa 0020, 0021, 0025, 0034, 0044, 0045, 0050, 0070; `[ABERTO]`: celular só online vs offline mais cedo, permissões mais finas e histórico, E2E depois, coedição do board, MCP pela rede, a URL pré-assinada, critérios de iPad nativo, repasse de custo, "este app é um servidor" atualizando com celulares conectados |
+| [0074](0074-accounts-and-access-on-the-server.md) | Contas e acesso no servidor: o primeiro admin, o login, os tokens | Aceito (2026-10-09), com o 0073; decididos: o admin pelo ambiente só na primeira subida, recuperado por um comando na máquina; senha, depois passkeys nesta rodada; só por convite, acompanhado; o admin sem acesso implícito às pastas; várias contas; tokens de acesso pessoais por pasta; o app desktop entrando pelo navegador nesta rodada; itens 2, 7, 9, 10, 11 aceitos como escritos |
+| [0075](0075-server-packaging-and-storage.md) | O empacotamento e o armazenamento do servidor: como se instala, onde ficam os dados, quanto cada pasta ocupa | Aceito (2026-10-09), com o 0073; decididos: imagem Docker, compose para CasaOS/ZimaOS e pacotes com systemd; um diretório de dados local e uma raiz de pastas que pode ser um NAS; o espaço por pasta mostrado, limites depois; sync por pasta, desligado por padrão; ARM64 agora; a imagem no registro do GitHub; `verso serve` um subcomando do `verso`; o id de uma pasta; symlinks que saem de uma pasta recusados num servidor; o servidor avisa o admin de uma versão nova e nunca se atualiza sozinho |
+| [0076](0076-the-window-on-every-screen.md) | A janela em toda tela: celular, tablet, um painel estreito | Aceito (2026-10-09), todas as recomendações, construído nesta rodada antes de a janela do servidor sair: a moldura pela tela e o painel pela largura dele, um painel por vez no celular, o grafo, um cartão para abrir um link no modo Editar, o kanban por toque, uma barra embaixo no lugar do ribbon, o teclado da tela e a barra dele, itens de menu no lugar de modificadores, leitores de tela com toque, alvos e áreas seguras, o zoom da página mantido, itens só do host por capacidade, e2e marcado nas larguras de celular e tablet; `[ABERTO]`: o conteúdo da barra do teclado, depois do uso |
 
 ### Dialeto, engenharia e roadmap
 
@@ -104,7 +108,7 @@ Só o mantenedor promove Proposto para Aceito, ou fecha um `[ABERTO]`.
 | [0031](0031-fixtures-as-contract.md) | Fixtures são o contrato de comportamento entre mantenedor e IA | Aceito |
 | [0032](0032-author-and-reviewer-roles.md) | Papéis: a IA escreve, o mantenedor revisa comportamento | Aceito |
 | [0033](0033-pr-workflow.md) | Fluxo de PR | Aceito |
-| [0034](0034-roadmap-in-phases.md) | Roadmap em três fases com portões de saída verificáveis | Aceito |
+| [0034](0034-roadmap-in-phases.md) | Roadmap em três fases com portões de saída verificáveis | Aceito; uma Fase 3 acrescentada pelo 0073, e sync e mobile fora da lista do ponto 4 (2026-10-09) |
 | [0035](0035-cross-cutting-requirements.md) | Requisitos transversais: pt-BR e EN, acessibilidade, benchmark | Aceito |
 | [0036](0036-tabletop-rpg-support.md) | Suporte especial a RPG de mesa | Aceito (intenção) |
 | [0049](0049-phase-2-scope-widened.md) | Escopo da Fase 2 ampliado a pedido do mantenedor | Aceito; nenhum menu próprio do Dock por enquanto (decidido em 2026-10-07) |
@@ -128,8 +132,8 @@ onde cada uma está.
 
 | # | Título | Quando decidir |
 |---|---|---|
-| [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Symlinks e caminhos ignorados: Aceito (2026-09-22); handles: aceitos como construídos para a Fase 2 (2026-09-24), reabertos antes que qualquer coisa fora das views do próprio app ganhe acesso a arquivos; o watcher: Aceito (2026-09-24); caminhos ignorados revistos em 2026-09-29 — a lista embutida e o `.gitignore`, atrás de ajustes — Aceito |
-| [0045](0045-server-and-mcp-security.md) | Segurança do servidor, do MCP e do contrato | MCP: Aceito; contrato: aceito como foi construído para a Fase 2, `[ABERTO]` até um servidor entrar em escopo; servidor: antes de entrar em escopo |
+| [0044](0044-verso-fs-semantics.md) | Semântica de `verso-fs`: symlinks, handles opacos, caminhos ignorados | Symlinks e caminhos ignorados: Aceito (2026-09-22); handles: aceitos como construídos para a Fase 2 (2026-09-24), reabertos antes que qualquer coisa fora das views do próprio app ganhe acesso a arquivos, respondidos para o `verso serve` em 2026-10-09 (a sessão e o papel dela são a capacidade de acesso); symlinks num servidor: recusados quando saem da pasta (2026-10-09); o watcher: Aceito (2026-09-24); caminhos ignorados revistos em 2026-09-29 — a lista embutida e o `.gitignore`, atrás de ajustes — Aceito |
+| [0045](0045-server-and-mcp-security.md) | Segurança do servidor, do MCP e do contrato | MCP: Aceito; contrato: aceito como foi construído para a Fase 2, `[ABERTO]` até um servidor entrar em escopo, respondido em 2026-10-09 pelo item 11 do 0074; servidor: respondido em 2026-10-09 pelo 0073 e pelo 0074; o MCP pela rede `[ABERTO]` |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Índice: localização, ciclo de vida e tokenizador | Features 3 e 5 da Fase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Questões abertas da API de plugin | Antes de desenhar a API (depois da Fase 2) |
 | [0048](0048-file-operations-in-ui.md) | Operações de arquivo na UI: renomear, criar, excluir, mover | Aceito (2026-09-23) |

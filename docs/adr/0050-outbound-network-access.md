@@ -13,6 +13,20 @@
   Decision enumerates: a web page embedded in a note, fetched by the host's
   proxy. *(0056 was revised the same day: the page loads itself in its
   frame, from an origin the user approved, and the host fetches nothing.)*
+  2026-10-09 — revised by [0073](0073-self-hosted-server-first.md),
+  accepted by the maintainer that day, and by the server's update check
+  ([0075](0075-server-packaging-and-storage.md) item 7, decided the same
+  night); the text below is kept as it was decided. Decision item 1 and
+  the first Consequence ("the core never reaches the network"): the core
+  still reaches no network. A Verso server — `verso serve`, and "this app
+  is a server" — takes inbound connections, and reaches outbound only
+  addresses the user or the host wrote in a configuration: a bucket, the
+  server a window connects to, mDNS on the local network, a mail server
+  ([0074](0074-accounts-and-access-on-the-server.md)). Besides those, and
+  only for this check, the server asks the project's release feed whether
+  a new version exists, to tell the admin; it never updates itself, and
+  the check can be turned off. `docs/reference/app-decision.md` §7 says
+  the same.
 
 ## Context
 
@@ -82,4 +96,7 @@ Decided on 2026-09-23 by the maintainer, on the author's recommendation
 
 Accepted on 2026-09-23. The setting's default: provisional (Consequences).
 Revised on 2026-09-29 by [0055](0055-in-app-updater.md) (the update check)
-and [0056](0056-embedded-web-pages.md) (embedded web pages).
+and [0056](0056-embedded-web-pages.md) (embedded web pages). Revised on
+2026-10-09 by [0073](0073-self-hosted-server-first.md) and
+[0075](0075-server-packaging-and-storage.md) item 7 (a server's traffic,
+and its update check).

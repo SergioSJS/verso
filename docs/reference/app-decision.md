@@ -215,7 +215,16 @@ What stands between it and the rest of the machine:
   ([ADR 0050](../adr/0050-outbound-network-access.md), decided 2026-09-23).
   The two that need no click follow the "load remote content" setting, on by
   default: off, a remote image becomes a link to itself, an inline style
-  loses what it would fetch, and a web note wears a globe.
+  loses what it would fetch, and a web note wears a globe. *(Revised on
+  2026-10-09 with [ADR 0050](../adr/0050-outbound-network-access.md), by
+  the maintainer's acceptance of
+  [ADR 0073](../adr/0073-self-hosted-server-first.md): the core still
+  reaches no network; a Verso server takes inbound connections and reaches
+  outbound only addresses written in a configuration — a bucket, the
+  server a window connects to, mDNS on the local network, a mail server —
+  and the project's release feed, to tell the admin of a new version
+  ([ADR 0075](../adr/0075-server-packaging-and-storage.md) item 7). This
+  section describes the desktop window of Phase 2, which is unchanged.)*
 - **Paths.** The window never holds the folder's absolute path; a path it
   sends is confined by `verso-fs` (absolute, `..`, hidden and ignored paths are
   refused) whatever the command.
