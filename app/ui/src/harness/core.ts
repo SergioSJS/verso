@@ -72,6 +72,13 @@ const lossy = new TextDecoder("utf-8");
  *  so that `e2e/harness.spec.mjs` tells them from an argument the core
  *  renamed, which a handler would read as `undefined`. */
 export const UNUSED_ARGS: Record<string, string[]> = {
+  // The server's: refused here whatever they carry.
+  collab_join: ["path"],
+  collab_update: ["path", "update"],
+  collab_awareness: ["path", "update"],
+  collab_leave: ["path"],
+  collab_save: ["path"],
+  collab_resolve: ["path", "keep"],
   reopen_folder: ["key"],
   open_window: ["path"],
   return_to_main: ["path"],
@@ -1280,6 +1287,14 @@ export class Core {
     }),
     download_and_install_update: () => refuse("failed", "no updates in the harness"),
     restart_app: () => null,
+    // Simultaneous editing is a server's: the desktop app, and so the
+    // harness, refuses it (ADR 0073 item 7).
+    collab_join: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_update: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_awareness: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_leave: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_save: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_resolve: () => refuse("refused", "simultaneous editing is a server's"),
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",

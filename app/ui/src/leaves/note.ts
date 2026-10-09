@@ -51,6 +51,7 @@ import * as reading from "./note/reading";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
+import { type CollabHandlers, type CollabSession, joinCollab } from "../collab";
 import { tableWidths } from "../tableWidths";
 import { currentFolder } from "../folder";
 
@@ -90,7 +91,7 @@ export class NoteLeaf extends Leaf {
     },
     onLink: (url) => void commands.openUrl(url),
   });
-  readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
+  readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite());
   readonly preview = h("div", "preview");
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
@@ -184,6 +185,9 @@ export class NoteLeaf extends Leaf {
   eol = "\n";
   /** The file mixes line endings: shown, never edited (lineSeparator). */
   readOnly = false;
+  /** The note's room when several people may edit it at once (a server,
+   *  ADR 0073 item 7): the server writes the file, not this tab. */
+  collab: CollabSession | null = null;
   resolved = new Map<string, string | null>();
   /** PDF readers and bases embedded in the preview, closed when it is
    *  redrawn. */
@@ -683,6 +687,8 @@ export class NoteLeaf extends Leaf {
     const back = this.gone;
     if (back) this.setGone(false);
     if (note.data.revision === this.revision) return back ? "back" : "same";
+    // A shared note: its room brings the change in, for everyone at once.
+    if (this.collab) return back ? "back" : "same";
     if (this.dirty) {
       // Waited for, so that what the refused write puts on the status line
       // comes before what the watcher says of it.
@@ -738,7 +744,49 @@ export class NoteLeaf extends Leaf {
       return this.showFailure(path, note.error, () => void this.load(path, true));
     }
     this.clearFailure();
+    // Several people in the note, where the side allows it: the room's
+    // text, which may hold edits not written yet, is what the editor shows.
+    this.collab?.leave();
+    this.collab = null;
+    const shared = lineSeparator(note.data.text) === null ? null : await joinCollab(note.data.path, this.collabHandlers());
+    if (this.destroyed || load !== this.loads) return shared?.leave();
+    this.collab = shared;
     this.show(note.data);
+  }
+  /** What the tab does when its room speaks (ADR 0073 item 7). */
+  private collabHandlers(): CollabHandlers {
+    return {
+      saved: (revision) => {
+        this.revision = revision;
+        this.setDirty(false);
+        // The reading view, the properties and the flags from the file.
+        void commands.readNote(this.path).then((r) => {
+          if (r.status === "ok" && r.data.revision === revision && !this.destroyed) this.refresh(r.data);
+        });
+      },
+      conflict: () => void this.collabConflict(),
+      closed: () => {
+        this.collab = null;
+        void this.load(this.path, true);
+      },
+      remote: () => {
+        this.previewStale = true;
+      },
+    };
+  }
+  private async collabConflict(): Promise<void> {
+    const fresh = await opening.readNote(this.path);
+    if (fresh.status !== "ok") return fail(fresh.error);
+    this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.editorText());
+  }
+  /** The conflict banner's "reload": the disk's text — in a shared note,
+   *  for everyone in it. */
+  private async keepDisk(): Promise<void> {
+    if (!this.collab) return this.load(this.path, true);
+    const r = await commands.collabResolve(this.path, "disk");
+    if (r.status !== "ok") return fail(r.error);
+    this.conflict.hide();
+    this.setDirty(false);
   }
   /** `note` in the editor from scratch: a new state, a new history. */
   private show(note: NoteText): void {
@@ -748,9 +796,9 @@ export class NoteLeaf extends Leaf {
     this.title.textContent = name(this.path);
     this.crumbs.replaceChildren(...crumbsFor(this.path));
     const sep = lineSeparator(note.text);
-    this.eol = sep ?? "\n";
+    this.eol = this.collab ? (this.collab.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     this.readOnly = sep === null;
-    this.editor.setState(this.editorState(note.text));
+    this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();
     this.gone = false;
     super.setGone(false);
@@ -843,6 +891,17 @@ export class NoteLeaf extends Leaf {
         ui.status.textContent = t.conflictPending;
         return;
       }
+      if (this.collab) {
+        // A shared note: the server writes it now (⌘S, a closing tab).
+        const r = await commands.collabSave(this.path);
+        if (r.status === "ok") {
+          this.revision = r.data;
+          this.setDirty(false);
+          ui.status.textContent = t.saved;
+        } else if (r.error.kind === "changed") await this.collabConflict();
+        else fail(r.error);
+        return;
+      }
       const mine = this.editorText();
       const r = await commands.writeNote(this.path, mine, this.revision);
       if (r.status === "ok") this.written(r.data, mine);
@@ -858,6 +917,14 @@ export class NoteLeaf extends Leaf {
     const run = this.saving.then(async () => {
       const disk = this.conflict.disk;
       if (!this.note || !disk) return;
+      if (this.collab) {
+        const r = await commands.collabResolve(this.path, "mine");
+        if (r.status !== "ok") return fail(r.error);
+        this.conflict.hide();
+        this.revision = r.data;
+        this.setDirty(false);
+        return;
+      }
       const mine = this.editorText();
       const r = await commands.writeNote(this.path, mine, disk.revision);
       if (r.status !== "ok") return this.refused(r.error);
@@ -918,6 +985,8 @@ export class NoteLeaf extends Leaf {
     this.embeds = [];
     this.slash.el.remove();
     this.closeWeb();
+    this.collab?.leave();
+    this.collab = null;
     this.editor.destroy();
   }
 }

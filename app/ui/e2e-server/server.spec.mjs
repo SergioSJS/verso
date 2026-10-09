@@ -120,3 +120,54 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   expect(errors).toEqual([]);
   expect(readerErrors).toEqual([]);
 });
+
+test("two windows edit one note at once and the file follows", async ({ page, browser }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  // A note of its own for this engine, made in the first window.
+  const name = `Junto ${test.info().project.name}`;
+  await page.keyboard.press("ControlOrMeta+n");
+  await expect(page.locator("input.title-input")).toBeFocused();
+  await page.keyboard.type(name);
+  await page.keyboard.press("Enter");
+  await page.locator(".template-picker").getByRole("button", { name: "Em branco", exact: true }).click();
+  const mine = page.locator(".cm-content:visible").first();
+  await expect(mine).toBeVisible();
+  // The second window, another tab of the same person, on the same note.
+  const other = await page.context().newPage();
+  const otherErrors = watch(other);
+  await other.goto(`/?folder=${folder}`);
+  await expect(other.locator("#notes")).toContainText(`${name}.md`);
+  if ((other.viewportSize()?.width ?? 1000) < 760) await other.locator("#toggle-side").click();
+  await other.locator("#notes").getByRole("button", { name: `${name}.md` }).click();
+  const theirs = other.locator(".cm-content:visible").first();
+  // Edit mode in the second window, if it opened in reading.
+  if (!(await theirs.isVisible())) await other.getByRole("button", { name: "Editar" }).first().click();
+  await expect(theirs).toBeVisible();
+  // One types; the other sees it, without saving.
+  await mine.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type("linha da primeira janela");
+  await expect(theirs).toContainText("linha da primeira janela");
+  await theirs.click();
+  await other.keyboard.press("ControlOrMeta+End");
+  await other.keyboard.type(" e da segunda");
+  await expect(mine).toContainText("linha da primeira janela e da segunda");
+  // The server wrote the file: a third window reads it from the disk.
+  await page.waitForTimeout(1500);
+  const third = await page.context().newPage();
+  await third.goto(`/?folder=${folder}`);
+  await expect(third.locator("#folder")).toHaveText("Demo");
+  const read = await third.evaluate(async (path) => {
+    const internals = window.__TAURI_INTERNALS__;
+    return internals.invoke("read_note", { path });
+  }, `${name}.md`);
+  expect(read.text).toContain("linha da primeira janela e da segunda");
+  await other.close();
+  await third.close();
+  expect(errors).toEqual([]);
+  expect(otherErrors).toEqual([]);
+});
