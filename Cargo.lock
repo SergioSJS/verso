@@ -5208,6 +5208,7 @@ dependencies = [
  "tempfile",
  "verso-contract",
  "verso-core",
+ "verso-service",
  "xattr",
  "zip",
 ]
@@ -5287,6 +5288,17 @@ dependencies = [
  "unicode-normalization",
  "verso-dialect",
  "xattr",
+]
+
+[[package]]
+name = "verso-service"
+version = "0.6.0-beta.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "verso-contract",
+ "verso-core",
 ]
 
 [[package]]

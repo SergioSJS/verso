@@ -13,7 +13,7 @@ pub(crate) fn create_note<R: tauri::Runtime>(
     name: String,
     text: String,
 ) -> Result<NoteText, ContractError> {
-    with(&state, &window, |ws| ws.create_note(&name, &text)).map(note_out)
+    with(&state, &window, |ws| ops::create_note(ws, name, text))
 }
 
 /// Create a file that is not a note (an image pasted into a note) from
@@ -27,34 +27,7 @@ pub(crate) fn create_file<R: tauri::Runtime>(
     path: String,
     base64: String,
 ) -> Result<String, ContractError> {
-    let bytes = decode_base64(&base64).ok_or_else(|| failed("the bytes are not base64"))?;
-    with(&state, &window, |ws| ws.create_file(&path, &bytes))
-}
-
-/// Standard base64 (with or without padding) to bytes; `None` on a
-/// character outside the alphabet. Small enough to own, so no crate.
-fn decode_base64(s: &str) -> Option<Vec<u8>> {
-    let mut out = Vec::with_capacity(s.len() * 3 / 4);
-    let mut acc: u32 = 0;
-    let mut bits = 0;
-    for c in s.bytes() {
-        let v = match c {
-            b'A'..=b'Z' => c - b'A',
-            b'a'..=b'z' => c - b'a' + 26,
-            b'0'..=b'9' => c - b'0' + 52,
-            b'+' | b'-' => 62,
-            b'/' | b'_' => 63,
-            b'=' | b'\n' | b'\r' => continue,
-            _ => return None,
-        };
-        acc = (acc << 6) | u32::from(v);
-        bits += 6;
-        if bits >= 8 {
-            bits -= 8;
-            out.push(u8::try_from((acc >> bits) & 0xff).unwrap_or(0));
-        }
-    }
-    Some(out)
+    with(&state, &window, |ws| ops::create_file(ws, path, base64))
 }
 
 /// Create a folder inside the open folder; returns its confined path.
@@ -65,14 +38,7 @@ pub(crate) fn create_folder<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<String, ContractError> {
-    with(&state, &window, |ws| ws.create_folder(&path))
-}
-
-fn trashed_out(t: verso_core::Trashed) -> Trashed {
-    Trashed {
-        path: t.path,
-        warnings: t.warnings,
-    }
+    with(&state, &window, |ws| ops::create_folder(ws, path))
 }
 
 /// Move a note to `.trash/` at the root, Obsidian's bin; answers where it
@@ -84,7 +50,7 @@ pub(crate) fn delete_note<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<Trashed, ContractError> {
-    with(&state, &window, |ws| ws.delete_note(&path)).map(trashed_out)
+    with(&state, &window, |ws| ops::delete_note(ws, path))
 }
 
 /// Rename or move a note. The file moves; the notes whose links reached
@@ -99,41 +65,7 @@ pub(crate) fn rename_note<R: tauri::Runtime>(
     from: String,
     to: String,
 ) -> Result<Renamed, ContractError> {
-    with(&state, &window, |ws| ws.rename_note(&from, &to)).map(renamed_out)
-}
-
-fn renamed_out(r: verso_core::Renamed) -> Renamed {
-    Renamed {
-        path: r.path,
-        rewrites: r
-            .rewrites
-            .into_iter()
-            .map(|w| LinkRewrite {
-                path: w.path,
-                revision: w.revision,
-                before: w.before,
-                after: w.after,
-            })
-            .collect(),
-        skipped: r
-            .skipped
-            .into_iter()
-            .map(|s| Skipped {
-                path: s.path,
-                reason: match s.reason {
-                    verso_core::SkipReason::Unavailable => SkipReason::Unavailable,
-                    verso_core::SkipReason::NotText => SkipReason::NotText,
-                    verso_core::SkipReason::Failed => SkipReason::Failed,
-                },
-            })
-            .collect(),
-        warnings: r.warnings,
-        also: r
-            .also
-            .into_iter()
-            .map(|(from, to)| verso_contract::Moved { from, to })
-            .collect(),
-    }
+    with(&state, &window, |ws| ops::rename_note(ws, from, to))
 }
 
 /// Every entry of the folder as the last walk saw it, with kind, size
@@ -144,52 +76,7 @@ pub(crate) fn list_entries<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
 ) -> Result<Vec<FileEntry>, ContractError> {
-    with(&state, &window, |ws| {
-        let labels = ws.labels()?;
-        // A folder's labels are its folder note's: the first of the core's
-        // candidates that is a note, compared without case — the note the
-        // window takes for the folder's, labelled or not.
-        let notes: std::collections::HashMap<String, &str> = ws
-            .entries()
-            .iter()
-            .filter(|e| matches!(e.kind, verso_core::FileKind::Note))
-            .map(|e| (e.path.to_lowercase(), e.path.as_str()))
-            .collect();
-        Ok(ws
-            .entries()
-            .iter()
-            .map(|e| {
-                let label = match e.kind {
-                    verso_core::FileKind::Folder => {
-                        verso_core::folder_note_candidates(&e.path, ws.folder_note_name())
-                            .iter()
-                            .find_map(|c| notes.get(&c.to_lowercase()))
-                            .and_then(|found| labels.get(*found))
-                    }
-                    _ => labels.get(&e.path),
-                }
-                .map(|l| EntryLabel {
-                    sticker: l.sticker.clone(),
-                    color: l.color.clone(),
-                    alias: l.alias.clone(),
-                    order: l.order.clone(),
-                    pinned: l.pinned.clone(),
-                });
-                FileEntry {
-                    path: e.path.clone(),
-                    kind: match e.kind {
-                        verso_core::FileKind::Note => FileKind::Note,
-                        verso_core::FileKind::File => FileKind::File,
-                        verso_core::FileKind::Folder => FileKind::Folder,
-                        verso_core::FileKind::Placeholder => FileKind::Placeholder,
-                    },
-                    size: e.len as f64,
-                    modified: e.modified as f64,
-                    label,
-                }
-            })
-            .collect())
-    })
+    with(&state, &window, ops::list_entries)
 }
 
 /// Rename or move anything of the folder: a note, another file or a
@@ -203,7 +90,7 @@ pub(crate) fn rename_entry<R: tauri::Runtime>(
     from: String,
     to: String,
 ) -> Result<Renamed, ContractError> {
-    with(&state, &window, |ws| ws.rename_entry(&from, &to)).map(renamed_out)
+    with(&state, &window, |ws| ops::rename_entry(ws, from, to))
 }
 
 /// Move several entries of the folder into `folder` (`""` the root) at
@@ -216,34 +103,7 @@ pub(crate) fn move_entries<R: tauri::Runtime>(
     paths: Vec<String>,
     folder: String,
 ) -> Result<MovedEntries, ContractError> {
-    with(&state, &window, |ws| ws.move_entries(&paths, &folder)).map(|m| {
-        let renamed = renamed_out(verso_core::Renamed {
-            path: String::new(),
-            rewrites: m.rewrites,
-            skipped: m.skipped,
-            warnings: m.warnings,
-            also: m.also,
-        });
-        MovedEntries {
-            moved: m
-                .moved
-                .into_iter()
-                .map(|(from, to)| verso_contract::Moved { from, to })
-                .collect(),
-            refused: m
-                .refused
-                .into_iter()
-                .map(|(path, e)| RefusedEntry {
-                    path,
-                    error: convert(e),
-                })
-                .collect(),
-            rewrites: renamed.rewrites,
-            skipped: renamed.skipped,
-            warnings: renamed.warnings,
-            also: renamed.also,
-        }
-    })
+    with(&state, &window, |ws| ops::move_entries(ws, paths, folder))
 }
 
 /// Move anything of the folder — a file or a whole folder — to `.trash/`
@@ -255,7 +115,7 @@ pub(crate) fn delete_entry<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<Trashed, ContractError> {
-    with(&state, &window, |ws| ws.delete_entry(&path)).map(trashed_out)
+    with(&state, &window, |ws| ops::delete_entry(ws, path))
 }
 
 /// Show an entry in the system's file manager. The absolute path is
@@ -268,7 +128,7 @@ pub(crate) fn reveal<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<(), ContractError> {
-    let absolute = with(&state, &window, |ws| ws.absolute(&path))?;
+    let absolute = with(&state, &window, |ws| Ok(ws.absolute(&path)?))?;
     #[cfg(target_os = "macos")]
     let mut command = {
         let mut c = std::process::Command::new("open");
@@ -352,7 +212,7 @@ pub(crate) fn copy_full_path<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<(), ContractError> {
-    let absolute = with(&state, &window, |ws| ws.absolute(&path))?;
+    let absolute = with(&state, &window, |ws| Ok(ws.absolute(&path)?))?;
     let text = absolute.to_string_lossy().to_string();
     #[cfg(target_os = "macos")]
     {
@@ -425,15 +285,6 @@ pub(crate) fn copy_full_path<R: tauri::Runtime>(
     }
 }
 
-pub(crate) fn text_out(t: verso_core::TextFile) -> TextFile {
-    TextFile {
-        path: t.path,
-        text: t.text,
-        revision: t.revision,
-        warnings: t.warnings,
-    }
-}
-
 /// Bring down a file of the folder whose content is only in the cloud,
 /// because the user opened it (ADR 0043, amended on 2026-09-30): true when
 /// it was fetched, false when there was nothing to fetch; the window then
@@ -447,7 +298,7 @@ pub(crate) async fn fetch_file<R: tauri::Runtime>(
     path: String,
 ) -> Result<bool, ContractError> {
     let state = app.state::<App>();
-    let Some(placeholder) = with(&state, &window, |ws| ws.placeholder(&path))? else {
+    let Some(placeholder) = with(&state, &window, |ws| Ok(ws.placeholder(&path)?))? else {
         return Ok(false);
     };
     tauri::async_runtime::spawn_blocking(move || placeholder.fetch())
@@ -466,7 +317,7 @@ pub(crate) fn read_text<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<TextFile, ContractError> {
-    with(&state, &window, |ws| ws.read_text(&path)).map(text_out)
+    with(&state, &window, |ws| ops::read_text(ws, path))
 }
 
 /// Write any file's text over the revision that was read; a changed file
@@ -481,5 +332,7 @@ pub(crate) fn write_text<R: tauri::Runtime>(
     text: String,
     revision: String,
 ) -> Result<TextFile, ContractError> {
-    with(&state, &window, |ws| ws.write_text(&path, &text, &revision)).map(text_out)
+    with(&state, &window, |ws| {
+        ops::write_text(ws, path, text, revision)
+    })
 }
