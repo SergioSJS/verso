@@ -29,6 +29,7 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
         "contract": ctx.server.contract,
         "secure": ctx.peer.secure,
         "web": ctx.server.config.web,
+        "mail": ctx.server.mail.get().is_some(),
         "setup": setup,
         "account": ctx.who.as_ref().map(|w| account_json(&w.account)),
         "csrf": match ctx.who.as_ref().map(|w| &w.via) {
@@ -576,4 +577,92 @@ pub async fn set_settings(ctx: Ctx, Json(body): Json<Settings>) -> ApiResult<Res
         .db
         .set_person_settings(&who.account.id, &body.settings)?;
     Ok(ok(json!(null)))
+}
+
+/// How long a sign-in link sent by e-mail works.
+const SIGNIN_LINK_LIFE: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+
+#[derive(Deserialize)]
+pub struct ByMail {
+    email: String,
+}
+
+/// A sign-in link by e-mail (ADR 0074 item 3): sent when the address has
+/// an account; answered the same either way, after the same delay.
+pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
+    ctx.changes()?;
+    let Some(mail) = ctx.server.mail.get() else {
+        return Err(ApiError::bad("no_mail", "this server has no mail server"));
+    };
+    let key = format!("mail:{}", ctx.peer.addr);
+    limited(&ctx, &[&key])?;
+    ctx.server.limiter.failed(&key);
+    if let Some(account) = ctx.server.db.account_by_email(&body.email)? {
+        let token = crate::crypto::token()?;
+        {
+            let mut links = verso_service::lock(&ctx.server.signin_links);
+            links.retain(|_, (_, at)| at.elapsed() < SIGNIN_LINK_LIFE);
+            links.insert(
+                crate::crypto::hash(&token),
+                (account.id.clone(), std::time::Instant::now()),
+            );
+        }
+        let link = crate::admin::link(&ctx, "signin-link", &token);
+        let (subject, text) = crate::mail::words(&account.lang, "signin", &link);
+        mail.send(&account.email, &subject, &text).await;
+        ctx.audit_as(Some(&account.id), "signin_link_sent", None, None, true);
+    }
+    Ok(ok(json!({ "sent": true })))
+}
+
+/// The link from the e-mail, used once: a session, as a password's.
+pub async fn signin_by_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
+    ctx.changes()?;
+    let key = format!("link:{}", ctx.peer.addr);
+    limited(&ctx, &[&key])?;
+    let found = verso_service::lock(&ctx.server.signin_links)
+        .remove(&crate::crypto::hash(&token))
+        .filter(|(_, at)| at.elapsed() < SIGNIN_LINK_LIFE);
+    let Some((account, _)) = found else {
+        ctx.server.limiter.failed(&key);
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "link_gone",
+            "this link is used or expired",
+        ));
+    };
+    let account = ctx
+        .server
+        .db
+        .account(&account)?
+        .ok_or_else(ApiError::not_found)?;
+    ctx.audit_as(Some(&account.id), "sign_in_link", None, None, true);
+    signed_in(&ctx, &account, json!(null))
+}
+
+/// "Forgot the password": a reset link sent to the account's address, for
+/// a server with a mail server (ADR 0074 item 5); answered the same way
+/// whether the address has an account or not.
+pub async fn forgot(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
+    ctx.changes()?;
+    let Some(mail) = ctx.server.mail.get() else {
+        return Err(ApiError::bad("no_mail", "this server has no mail server"));
+    };
+    let key = format!("mail:{}", ctx.peer.addr);
+    limited(&ctx, &[&key])?;
+    ctx.server.limiter.failed(&key);
+    if let Some(account) = ctx.server.db.account_by_email(&body.email)? {
+        ctx.server.db.end_links_of(&account.id, "reset")?;
+        let (token, _) = ctx.server.db.create_invitation(&db::NewLink {
+            kind: "reset",
+            account: Some(&account.id),
+            life: db::RESET_LIFE,
+            ..db::NewLink::default()
+        })?;
+        let link = crate::admin::link(&ctx, "reset", &token);
+        let (subject, text) = crate::mail::words(&account.lang, "reset", &link);
+        mail.send(&account.email, &subject, &text).await;
+        ctx.audit_as(Some(&account.id), "reset_link_mailed", None, None, true);
+    }
+    Ok(ok(json!({ "sent": true })))
 }

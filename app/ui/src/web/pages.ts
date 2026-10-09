@@ -29,7 +29,7 @@ function next(): string {
 
 type SignedIn = { account: Account; csrf: string };
 
-export function signInPage(secure: boolean): void {
+export function signInPage(secure: boolean, mail = false): void {
   const s = w();
   const email = field(s.email, "email", { autocomplete: "username", required: "" });
   const password = field(s.password, "password", { autocomplete: "current-password", required: "" });
@@ -62,7 +62,29 @@ export function signInPage(secure: boolean): void {
         keyError.textContent = e instanceof ApiError ? e.said : s.failed;
       });
   });
-  page(s.signInTitle, el("p", {}, secure ? s.signInLead : s.tlsRequired), f.form, el("div", { class: "web-actions" }, withKey), keyError);
+  // With a mail server: a link to sign in, and a reset for a forgotten
+  // password, sent to the address (ADR 0074 items 3 and 5).
+  const byMail = (path: string) => () => {
+    keyError.textContent = "";
+    if (!email.input.value.trim()) {
+      keyError.textContent = s.passkeyNeedsEmail;
+      email.input.focus();
+      return;
+    }
+    void api("POST", path, { email: email.input.value })
+      .then(() => {
+        keyError.textContent = s.mailSent;
+      })
+      .catch((e: unknown) => {
+        keyError.textContent = e instanceof ApiError ? e.said : s.failed;
+      });
+  };
+  const mailLink = el("button", { type: "button", class: "web-secondary" }, s.mailLink);
+  mailLink.addEventListener("click", byMail("/api/signin/link"));
+  const forgot = el("button", { type: "button", class: "web-secondary" }, s.forgot);
+  forgot.addEventListener("click", byMail("/api/forgot"));
+  mailLink.hidden = forgot.hidden = !mail;
+  page(s.signInTitle, el("p", {}, secure ? s.signInLead : s.tlsRequired), f.form, el("div", { class: "web-actions" }, withKey, mailLink, forgot), keyError);
   email.input.focus();
 }
 
@@ -242,4 +264,17 @@ export function chooseFolder(): Promise<string | null> {
     document.body.append(dialog);
     dialog.showModal();
   });
+}
+
+/** The link from a sign-in e-mail: used at once, then the window. */
+export async function signInLinkPage(token: string): Promise<void> {
+  const s = w();
+  page(s.signInTitle, el("p", { role: "status" }, s.linkSigningIn));
+  try {
+    const r = await api<{ csrf: string }>("POST", `/api/signin/link/${encodeURIComponent(token)}`, {});
+    setCsrf(r.csrf);
+    location.href = "/";
+  } catch (e) {
+    page(s.signInTitle, el("p", {}, explain(e)));
+  }
 }

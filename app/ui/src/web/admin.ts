@@ -176,7 +176,7 @@ export async function adminPage(me: Account): Promise<void> {
     [iEmail, iFolder, iRole],
     s.invite,
     async () => {
-      const r = await api<{ link: string }>("POST", "/api/admin/invitations", {
+      const r = await api<{ link: string; mailed: boolean }>("POST", "/api/admin/invitations", {
         email: iEmail.input.value || null,
         folder: iFolder.input.value || null,
         role: iFolder.input.value ? iRole.input.value : null,

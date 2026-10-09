@@ -47,6 +47,10 @@ pub struct Config {
     /// A token that reads the release feed while the repository is private
     /// (`VERSO_UPDATE_TOKEN`).
     pub update_token: Option<String>,
+    /// The host's mail server (`VERSO_SMTP_URL`, ADR 0074 item 2) and the
+    /// sender's address (`VERSO_MAIL_FROM`).
+    pub smtp_url: Option<String>,
+    pub mail_from: Option<String>,
 }
 
 /// What went wrong reading the environment, naming the variable.
@@ -173,6 +177,8 @@ impl Config {
             tls,
             update_check,
             update_token: value(env, "VERSO_UPDATE_TOKEN")?,
+            smtp_url: value(env, "VERSO_SMTP_URL")?,
+            mail_from: value(env, "VERSO_MAIL_FROM")?,
         })
     }
 

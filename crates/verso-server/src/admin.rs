@@ -199,7 +199,14 @@ pub async fn reset_link(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response>
         ..NewLink::default()
     })?;
     ctx.audit("reset_link", Some(&id), None, true);
-    Ok(ok(json!({ "link": link(&ctx, "reset", &token) })))
+    let address = link(&ctx, "reset", &token);
+    let mut mailed = false;
+    if let (Some(mail), Some(account)) = (ctx.server.mail.get(), ctx.server.db.account(&id)?) {
+        let (subject, text) = crate::mail::words(&account.lang, "reset", &address);
+        mail.send(&account.email, &subject, &text).await;
+        mailed = true;
+    }
+    Ok(ok(json!({ "link": address, "mailed": mailed })))
 }
 
 pub async fn invitations(ctx: Ctx) -> ApiResult<Response> {
@@ -281,8 +288,20 @@ pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
         body.folder.as_deref(),
         true,
     );
+    let address = link(&ctx, "invite", &token);
+    // With a mail server, the invitation goes to its address too (ADR 0074
+    // item 4); the admin has the link either way.
+    let mailed = match (ctx.server.mail.get(), email) {
+        (Some(mail), Some(to)) => {
+            let lang = ctx.admin()?.account.lang.clone();
+            let (subject, text) = crate::mail::words(&lang, "invite", &address);
+            mail.send(to, &subject, &text).await;
+            true
+        }
+        _ => false,
+    };
     Ok(ok(
-        json!({ "id": inv.id, "link": link(&ctx, "invite", &token), "expires": inv.expires }),
+        json!({ "id": inv.id, "link": address, "expires": inv.expires, "mailed": mailed }),
     ))
 }
 

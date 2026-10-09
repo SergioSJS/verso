@@ -50,6 +50,11 @@ pub struct Server {
     pub commit: String,
     /// The notes being edited by several windows at once (ADR 0073 item 7).
     pub rooms: crate::collab::Rooms,
+    /// The host's mail server, when it has one (ADR 0074 item 2).
+    pub mail: std::sync::OnceLock<crate::mail::Mail>,
+    /// Sign-in links sent by e-mail and not used: their hash → the account
+    /// and when it was made (fifteen minutes, ADR 0074 item 3).
+    pub signin_links: Mutex<HashMap<Vec<u8>, (String, std::time::Instant)>>,
     /// The passkey ceremonies under way (ADR 0074 item 3).
     pub ceremonies: crate::passkeys::Ceremonies,
     /// The runtime, for what the watcher's thread hands over.
@@ -72,6 +77,8 @@ impl Server {
             commit,
             rooms: crate::collab::Rooms::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
+            mail: std::sync::OnceLock::new(),
+            signin_links: Mutex::new(HashMap::new()),
             runtime: std::sync::OnceLock::new(),
         });
         service.set_events(Arc::new(ServerEvents {

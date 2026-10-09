@@ -14,7 +14,7 @@ import { startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { el, page } from "./web/form";
 import { notice } from "./web/notice";
-import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInPage } from "./web/pages";
+import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
 
 async function start(): Promise<void> {
@@ -24,6 +24,7 @@ async function start(): Promise<void> {
   const token = (prefix: string) => decodeURIComponent(path.slice(prefix.length));
   if (path.startsWith("/invite/")) return invitePage(token("/invite/"));
   if (path.startsWith("/reset/")) return resetPage(token("/reset/"));
+  if (path.startsWith("/signin-link/")) return signInLinkPage(token("/signin-link/"));
   if (path === "/setup") return setupPage();
   if (path === "/device") return devicePage(s.account);
   if (!s.account) {
@@ -31,7 +32,7 @@ async function start(): Promise<void> {
       location.href = `/signin?next=${encodeURIComponent(path + location.search)}`;
       return;
     }
-    return signInPage(s.secure);
+    return signInPage(s.secure, s.mail);
   }
   if (path === "/signin") {
     location.href = "/";

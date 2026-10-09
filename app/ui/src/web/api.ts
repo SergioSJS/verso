@@ -16,6 +16,8 @@ export type State = {
   secure: boolean;
   /** Whether the server serves the notes' window in a browser (`--web`). */
   web: boolean;
+  /** Whether the server has a mail server (links by e-mail). */
+  mail: boolean;
   setup: boolean;
   account: Account | null;
   csrf: string | null;
@@ -58,6 +60,8 @@ export class ApiError extends Error {
         return s.tlsRequired;
       case "csrf":
         return s.stale;
+      case "no_mail":
+        return s.failed;
       case "no_passkey":
         return s.noPasskey;
       default:
