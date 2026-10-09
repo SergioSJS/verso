@@ -38,6 +38,7 @@ mod confine;
 mod ops;
 mod os;
 mod placeholder;
+pub mod server;
 mod walk;
 mod watch;
 mod write;

@@ -69,6 +69,8 @@ fn main() {
         "log_read",
         "set_menu_language",
         "reindex",
+        "capabilities",
+        "folder_space",
         "app_info",
         "query_base",
         "new_window",

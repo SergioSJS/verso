@@ -34,6 +34,13 @@ if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso
   echo 'std::fs outside crates/verso-core/src/sidecar.rs (ADR 0029)'
   exit 1
 fi
+step "std::fs in verso-server only in src/data.rs (ADR 0029, ADR 0075)"
+if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-server/src \
+   | grep -v '^crates/verso-server/src/data.rs:' \
+   | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+  echo 'std::fs outside crates/verso-server/src/data.rs (ADR 0029)'
+  exit 1
+fi
 step "std::fs in verso-app only in src/update.rs and src/log.rs (ADR 0029)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-tauri/src \
    | grep -vE '^app/src-tauri/src/(update|log)\.rs:' \

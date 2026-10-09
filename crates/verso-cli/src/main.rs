@@ -62,6 +62,12 @@ enum Command {
     Open {
         folder: PathBuf,
     },
+    /// The server (ADR 0073): configured by its `VERSO_*` variables.
+    Serve,
+    /// `verso serve admin reset <e-mail>` (ADR 0074 item 5).
+    ServeAdminReset {
+        email: String,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -72,8 +78,9 @@ struct Options {
 
 /// The first argument when it is not a folder. A folder named like one of
 /// these is reached through `verso open <folder>`.
-const SUBCOMMANDS: [&str; 10] = [
+const SUBCOMMANDS: [&str; 11] = [
     "index",
+    "serve",
     "search",
     "backlinks",
     "mcp",
@@ -296,6 +303,28 @@ fn command_of(
                 folder: folder.ok_or(Msg::MissingFolder)?,
             }
         }
+        "serve" => {
+            if unresolved {
+                return Err(Msg::ExtraArgument("--unresolved".to_owned()));
+            }
+            let mut words: Vec<String> = folder
+                .map(|f| f.to_string_lossy().into_owned())
+                .into_iter()
+                .chain(rest)
+                .collect();
+            match words.as_slice() {
+                [] => Command::Serve,
+                [admin, reset, _] if admin == "admin" && reset == "reset" => {
+                    Command::ServeAdminReset {
+                        email: words.pop().unwrap_or_default(),
+                    }
+                }
+                [admin, reset] if admin == "admin" && reset == "reset" => {
+                    return Err(Msg::BadOptionValue("admin reset <e-mail>".to_owned()));
+                }
+                [.., last] => return Err(Msg::ExtraArgument(last.clone())),
+            }
+        }
         "help" | "--help" | "-h" => Command::Help,
         "--version" | "-V" => Command::Version,
         // Every name in SUBCOMMANDS has an arm above.
@@ -485,6 +514,9 @@ fn run(args: &[OsString]) -> Output {
         | Command::Mcp { folder } => Some(folder.clone()),
         Command::McpKey { .. } => None,
         Command::Help | Command::Version => return out,
+        Command::Serve | Command::ServeAdminReset { .. } => {
+            return serve(&command, lang, out);
+        }
         Command::McpAll => {
             // Nothing is opened before the first call that names a folder.
             out.stderr.push(text(&Msg::McpServingAll, lang));
@@ -553,7 +585,12 @@ fn run(args: &[OsString]) -> Output {
     };
     out.code = match command {
         // Answered above, before any folder is opened.
-        Command::Help | Command::Version | Command::Open { .. } | Command::McpAll => 0,
+        Command::Help
+        | Command::Version
+        | Command::Open { .. }
+        | Command::McpAll
+        | Command::Serve
+        | Command::ServeAdminReset { .. } => 0,
         Command::Mcp { .. } | Command::McpKey { .. } => {
             // One incremental pass before the first answer (memo §6.3);
             // its report goes to stderr, stdout is the protocol.
@@ -821,6 +858,56 @@ fn json_str(s: &str) -> String {
 
 /// Write the lines; a closed pipe (`head -1`) is the reader's choice, not
 /// a failure, so it ends the output quietly instead of panicking.
+/// `verso serve` and `verso serve admin reset` (ADR 0073, 0074, 0075): the
+/// configuration from the `VERSO_*` variables; the directories, when none
+/// names them, under the user's configuration directory, and the window's
+/// files where the packages put them, beside the binary.
+fn serve(command: &Command, lang: Lang, mut out: Output) -> Output {
+    let base = match verso_core::config_dir() {
+        Ok(dir) => dir,
+        Err(e) => {
+            out.stderr.push(text(&open_error(&e), lang));
+            return with_code(out, 3);
+        }
+    };
+    let ui = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|bin| bin.join("../share/verso/ui")))
+        .unwrap_or_else(|| PathBuf::from("ui"));
+    let defaults = verso_server::config::Defaults {
+        data_dir: base.join("server"),
+        folders_dir: base.join("server-folders"),
+        ui_dir: ui,
+    };
+    let config = match verso_server::config::Config::from_env(
+        &verso_server::config::ProcessEnv,
+        &defaults,
+    ) {
+        Ok(c) => c,
+        Err(e) => {
+            out.stderr
+                .push(text(&Msg::ServeFailed(e.to_string()), lang));
+            return with_code(out, 2);
+        }
+    };
+    match command {
+        Command::ServeAdminReset { email } => match verso_server::admin_reset(&config, email) {
+            Ok(link) => out.stdout.push(text(&Msg::ResetLink(link), lang)),
+            Err(e) => {
+                out.stderr.push(text(&Msg::ServeFailed(e), lang));
+                out.code = 3;
+            }
+        },
+        _ => {
+            if let Err(e) = verso_server::serve(config, env!("VERSO_COMMIT")) {
+                out.stderr.push(text(&Msg::ServeFailed(e), lang));
+                out.code = 3;
+            }
+        }
+    }
+    out
+}
+
 fn emit(mut sink: impl Write, lines: &[String]) {
     for line in lines {
         if writeln!(sink, "{line}").is_err() {

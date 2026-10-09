@@ -15,8 +15,8 @@
 use verso_contract::{
     Backlink, BaseColumn, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery, BaseResult, BaseRow,
     BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus,
-    FocusesSummary, Hit, Link, MovedEntries, NoteText, RefusedEntry, Renamed, Tag, TextFile,
-    Trashed, WebNote, Written,
+    FocusesSummary, FolderSpace, Hit, Link, MovedEntries, NoteText, RefusedEntry, Renamed, Tag,
+    TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -435,6 +435,30 @@ ops! {
     /// Whether focuses can be synced to `.space/waypoints.json` (ADR 0062).
     Read fn can_sync_focuses(ws) -> bool {
         Ok(ws.can_sync_focuses()?)
+    }
+
+    /// The space the folder takes (ADR 0075 item 4), from the last walk.
+    Read fn folder_space(ws) -> FolderSpace {
+        let mut space = FolderSpace {
+            total: 0.0,
+            notes: 0.0,
+            attachments: 0.0,
+            files: 0,
+            index: ws.index_bytes()? as f64,
+        };
+        for e in ws.entries() {
+            let len = e.len as f64;
+            match e.kind {
+                verso_core::FileKind::Note => space.notes += len,
+                verso_core::FileKind::File | verso_core::FileKind::Placeholder => {
+                    space.attachments += len;
+                }
+                verso_core::FileKind::Folder => continue,
+            }
+            space.total += len;
+            space.files = space.files.saturating_add(1);
+        }
+        Ok(space)
     }
 
     /// Set whether focuses sync to `.space/waypoints.json` (ADR 0062 D5, D9).

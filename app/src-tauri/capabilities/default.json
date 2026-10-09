@@ -73,6 +73,8 @@
     "allow-log-read",
     "allow-set-menu-language",
     "allow-reindex",
+    "allow-capabilities",
+    "allow-folder-space",
     "allow-query-base",
     "allow-new-window",
     "allow-cli-status",

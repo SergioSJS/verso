@@ -1,0 +1,1158 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! The server's database (ADR 0074 item 10): accounts, sessions,
+//! invitations, personal access tokens, the folders and who may do what in
+//! each, and the audit log. SQLite in `VERSO_DATA_DIR`, beside the folders
+//! and never inside them. Unlike the index it is **not a cache**: nothing
+//! rebuilds it from the files, and the backup names it beside the folders.
+//! No note and no setting of a note is kept here (ADR 0012).
+//!
+//! Tokens are kept as their SHA-256 only (`crypto::hash`); a password as
+//! its Argon2id hash. Times are seconds since the Unix epoch.
+
+use std::path::Path;
+use std::sync::Mutex;
+
+use rusqlite::{Connection, OptionalExtension, params};
+
+use crate::crypto;
+
+/// The schema's version, in `PRAGMA user_version`.
+const SCHEMA: i64 = 1;
+
+const CREATE: &str = r"
+CREATE TABLE accounts (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  email_fold TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  lang TEXT NOT NULL,
+  password TEXT,
+  admin INTEGER NOT NULL,
+  may_create INTEGER NOT NULL,
+  created INTEGER NOT NULL
+);
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,
+  hash BLOB NOT NULL UNIQUE,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('browser', 'device')),
+  device TEXT NOT NULL,
+  csrf TEXT NOT NULL,
+  created INTEGER NOT NULL,
+  last_used INTEGER NOT NULL,
+  address TEXT NOT NULL
+);
+CREATE TABLE folders (
+  id TEXT PRIMARY KEY,
+  dir TEXT NOT NULL UNIQUE,
+  created INTEGER NOT NULL
+);
+CREATE TABLE grants (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('owner', 'editor', 'reader')),
+  PRIMARY KEY (folder, account)
+);
+CREATE TABLE invitations (
+  id TEXT PRIMARY KEY,
+  hash BLOB NOT NULL UNIQUE,
+  kind TEXT NOT NULL CHECK (kind IN ('invite', 'reset', 'setup')),
+  email TEXT,
+  account TEXT REFERENCES accounts(id) ON DELETE CASCADE,
+  folder TEXT REFERENCES folders(id) ON DELETE SET NULL,
+  role TEXT,
+  created_by TEXT,
+  created INTEGER NOT NULL,
+  expires INTEGER NOT NULL,
+  used INTEGER,
+  used_by TEXT,
+  ended INTEGER
+);
+CREATE TABLE tokens (
+  id TEXT PRIMARY KEY,
+  hash BLOB NOT NULL UNIQUE,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  write INTEGER NOT NULL,
+  expires INTEGER,
+  created INTEGER NOT NULL,
+  last_used INTEGER
+);
+CREATE TABLE token_folders (
+  token TEXT NOT NULL REFERENCES tokens(id) ON DELETE CASCADE,
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  PRIMARY KEY (token, folder)
+);
+CREATE TABLE audit (
+  at INTEGER NOT NULL,
+  actor TEXT,
+  action TEXT NOT NULL,
+  subject TEXT,
+  folder TEXT,
+  address TEXT,
+  ok INTEGER NOT NULL
+);
+CREATE INDEX audit_at ON audit(at);
+CREATE INDEX audit_folder ON audit(folder, at);
+CREATE TABLE settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+";
+
+/// A browser session lasts this long without use (ADR 0074 item 7)…
+pub const SESSION_IDLE: i64 = 14 * 24 * 3600;
+/// …and this long at most.
+pub const SESSION_MAX: i64 = 90 * 24 * 3600;
+/// A device's session (the desktop app signed in through the browser): as
+/// long as a browser's at most, renewed by use.
+pub const DEVICE_MAX: i64 = SESSION_MAX;
+/// An invitation's life (ADR 0074 item 4).
+pub const INVITE_LIFE: i64 = 7 * 24 * 3600;
+/// A reset link's life (item 5) and the setup link's (item 1).
+pub const RESET_LIFE: i64 = 24 * 3600;
+pub const SETUP_LIFE: i64 = 3600;
+
+#[must_use]
+pub fn now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+}
+
+/// An e-mail as it is compared: trimmed, NFC, lower-cased (ADR 0074 item
+/// 2). It is shown as typed.
+#[must_use]
+pub fn fold_email(email: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    email.trim().nfc().collect::<String>().to_lowercase()
+}
+
+/// Whether `email` looks like an address: something, one `@`, something
+/// with a dot. Nothing more is promised without a mail server.
+#[must_use]
+pub fn is_email(email: &str) -> bool {
+    let e = email.trim();
+    let mut parts = e.split('@');
+    matches!((parts.next(), parts.next(), parts.next()),
+        (Some(local), Some(domain), None)
+            if !local.is_empty() && domain.contains('.') && !domain.starts_with('.')
+                && !domain.ends_with('.') && !e.chars().any(char::is_whitespace))
+}
+
+/// A member's role in a folder (ADR 0073 item 5).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    Reader,
+    Editor,
+    Owner,
+}
+
+impl Role {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Reader => "reader",
+            Self::Editor => "editor",
+            Self::Owner => "owner",
+        }
+    }
+
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "reader" => Some(Self::Reader),
+            "editor" => Some(Self::Editor),
+            "owner" => Some(Self::Owner),
+            _ => None,
+        }
+    }
+
+    /// Whether the role may change the folder.
+    #[must_use]
+    pub fn writes(self) -> bool {
+        self >= Self::Editor
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Account {
+    pub id: String,
+    pub email: String,
+    pub name: String,
+    pub lang: String,
+    pub admin: bool,
+    pub may_create: bool,
+    pub created: i64,
+    #[serde(skip)]
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionRow {
+    pub id: String,
+    pub account: String,
+    pub kind: String,
+    pub csrf: String,
+    pub created: i64,
+    pub last_used: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SessionInfo {
+    pub id: String,
+    pub kind: String,
+    pub device: String,
+    pub created: i64,
+    pub last_used: i64,
+    pub address: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Folder {
+    pub id: String,
+    pub dir: String,
+    pub created: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Invitation {
+    pub id: String,
+    pub kind: String,
+    pub email: Option<String>,
+    pub account: Option<String>,
+    pub folder: Option<String>,
+    pub role: Option<String>,
+    pub created_by: Option<String>,
+    pub created: i64,
+    pub expires: i64,
+    pub used: Option<i64>,
+    pub used_by: Option<String>,
+    pub ended: Option<i64>,
+}
+
+impl Invitation {
+    /// Pending, used, ended or expired, as the admin page shows it.
+    #[must_use]
+    pub fn state(&self, now: i64) -> &'static str {
+        if self.used.is_some() {
+            "used"
+        } else if self.ended.is_some() {
+            "ended"
+        } else if now >= self.expires {
+            "expired"
+        } else {
+            "pending"
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TokenInfo {
+    pub id: String,
+    pub name: String,
+    pub write: bool,
+    pub expires: Option<i64>,
+    pub created: i64,
+    pub last_used: Option<i64>,
+    pub folders: Vec<String>,
+}
+
+/// What a live token lets in.
+#[derive(Debug, Clone)]
+pub struct TokenGrant {
+    pub id: String,
+    pub account: String,
+    pub write: bool,
+    pub folders: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AuditEntry {
+    pub at: i64,
+    pub actor: Option<String>,
+    pub action: String,
+    pub subject: Option<String>,
+    pub folder: Option<String>,
+    pub address: Option<String>,
+    pub ok: bool,
+}
+
+/// A single-use link before it is made: an invitation, a password reset or
+/// the first admin's setup.
+#[derive(Clone, Copy, Default)]
+pub struct NewLink<'a> {
+    pub kind: &'a str,
+    pub email: Option<&'a str>,
+    pub account: Option<&'a str>,
+    pub folder: Option<&'a str>,
+    pub role: Option<Role>,
+    pub created_by: Option<&'a str>,
+    pub life: i64,
+}
+
+/// One line of the audit log, before it is written.
+pub struct Audit<'a> {
+    pub actor: Option<&'a str>,
+    pub action: &'a str,
+    pub subject: Option<&'a str>,
+    pub folder: Option<&'a str>,
+    pub address: Option<&'a str>,
+    pub ok: bool,
+}
+
+/// The database, one connection behind a lock: the server writes little,
+/// and each statement is short.
+pub struct Db {
+    conn: Mutex<Connection>,
+}
+
+type R<T> = Result<T, String>;
+
+fn e(err: rusqlite::Error) -> String {
+    err.to_string()
+}
+
+impl Db {
+    /// Open the database in `dir`, creating it at the first start.
+    pub fn open(dir: &Path) -> R<Self> {
+        Self::from(Connection::open(dir.join("server.sqlite")).map_err(e)?)
+    }
+
+    /// A database in memory, for tests.
+    pub fn memory() -> R<Self> {
+        Self::from(Connection::open_in_memory().map_err(e)?)
+    }
+
+    fn from(conn: Connection) -> R<Self> {
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
+        )
+        .map_err(e)?;
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .map_err(e)?;
+        if version == 0 {
+            conn.execute_batch(&format!(
+                "BEGIN; {CREATE} PRAGMA user_version = {SCHEMA}; COMMIT;"
+            ))
+            .map_err(e)?;
+        } else if version > SCHEMA {
+            return Err(format!(
+                "the database is of a newer Verso (schema {version}, this one knows {SCHEMA})"
+            ));
+        }
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
+    }
+
+    fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        verso_service::lock(&self.conn)
+    }
+
+    /* ---------- accounts ---------- */
+
+    pub fn account_count(&self) -> R<i64> {
+        self.conn()
+            .query_row("SELECT count(*) FROM accounts", [], |r| r.get(0))
+            .map_err(e)
+    }
+
+    pub fn create_account(
+        &self,
+        email: &str,
+        name: &str,
+        lang: &str,
+        password: Option<&str>,
+        admin: bool,
+    ) -> R<Account> {
+        let id = crypto::id()?;
+        let hashed = password.map(crypto::hash_password).transpose()?;
+        let created = now();
+        self.conn()
+            .execute(
+                "INSERT INTO accounts (id, email, email_fold, name, lang, password, admin, may_create, created)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8)",
+                params![id, email.trim(), fold_email(email), name.trim(), lang, hashed, admin, created],
+            )
+            .map_err(|err| match err {
+                rusqlite::Error::SqliteFailure(f, _)
+                    if f.code == rusqlite::ErrorCode::ConstraintViolation =>
+                {
+                    "exists".to_owned()
+                }
+                other => other.to_string(),
+            })?;
+        self.account(&id)?
+            .ok_or_else(|| "account vanished".to_owned())
+    }
+
+    fn account_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Account> {
+        Ok(Account {
+            id: r.get(0)?,
+            email: r.get(1)?,
+            name: r.get(2)?,
+            lang: r.get(3)?,
+            password: r.get(4)?,
+            admin: r.get(5)?,
+            may_create: r.get(6)?,
+            created: r.get(7)?,
+        })
+    }
+
+    const ACCOUNT: &'static str =
+        "SELECT id, email, name, lang, password, admin, may_create, created FROM accounts";
+
+    pub fn account(&self, id: &str) -> R<Option<Account>> {
+        self.conn()
+            .query_row(
+                &format!("{} WHERE id = ?1", Self::ACCOUNT),
+                [id],
+                Self::account_from,
+            )
+            .optional()
+            .map_err(e)
+    }
+
+    pub fn account_by_email(&self, email: &str) -> R<Option<Account>> {
+        self.conn()
+            .query_row(
+                &format!("{} WHERE email_fold = ?1", Self::ACCOUNT),
+                [fold_email(email)],
+                Self::account_from,
+            )
+            .optional()
+            .map_err(e)
+    }
+
+    pub fn accounts(&self) -> R<Vec<Account>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(&format!("{} ORDER BY email_fold", Self::ACCOUNT))
+            .map_err(e)?;
+        st.query_map([], Self::account_from)
+            .map_err(e)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(e)
+    }
+
+    pub fn set_password(&self, account: &str, password: &str) -> R<()> {
+        let hashed = crypto::hash_password(password)?;
+        self.conn()
+            .execute(
+                "UPDATE accounts SET password = ?2 WHERE id = ?1",
+                params![account, hashed],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn set_profile(&self, account: &str, name: &str, lang: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "UPDATE accounts SET name = ?2, lang = ?3 WHERE id = ?1",
+                params![account, name.trim(), lang],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn set_powers(&self, account: &str, admin: bool, may_create: bool) -> R<()> {
+        self.conn()
+            .execute(
+                "UPDATE accounts SET admin = ?2, may_create = ?3 WHERE id = ?1",
+                params![account, admin, may_create],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn delete_account(&self, account: &str) -> R<()> {
+        self.conn()
+            .execute("DELETE FROM accounts WHERE id = ?1", [account])
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn admin_count(&self) -> R<i64> {
+        self.conn()
+            .query_row("SELECT count(*) FROM accounts WHERE admin", [], |r| {
+                r.get(0)
+            })
+            .map_err(e)
+    }
+
+    /* ---------- sessions ---------- */
+
+    /// A new session for `account`: the token to hand over, once, and the
+    /// session's CSRF token.
+    pub fn create_session(
+        &self,
+        account: &str,
+        kind: &str,
+        device: &str,
+        address: &str,
+    ) -> R<(String, String)> {
+        let token = crypto::token()?;
+        let csrf = crypto::token()?;
+        let at = now();
+        self.conn()
+            .execute(
+                "INSERT INTO sessions (id, hash, account, kind, device, csrf, created, last_used, address)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8)",
+                params![crypto::id()?, crypto::hash(&token), account, kind, device, csrf, at, address],
+            )
+            .map_err(e)?;
+        Ok((token, csrf))
+    }
+
+    /// The live session a token opens, its use recorded; an expired one is
+    /// ended here.
+    pub fn session(&self, token: &str) -> R<Option<SessionRow>> {
+        let conn = self.conn();
+        let row = conn
+            .query_row(
+                "SELECT id, account, kind, csrf, created, last_used FROM sessions WHERE hash = ?1",
+                [crypto::hash(token)],
+                |r| {
+                    Ok(SessionRow {
+                        id: r.get(0)?,
+                        account: r.get(1)?,
+                        kind: r.get(2)?,
+                        csrf: r.get(3)?,
+                        created: r.get(4)?,
+                        last_used: r.get(5)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(e)?;
+        let Some(row) = row else { return Ok(None) };
+        let at = now();
+        let max = if row.kind == "device" {
+            DEVICE_MAX
+        } else {
+            SESSION_MAX
+        };
+        if at - row.last_used > SESSION_IDLE || at - row.created > max {
+            conn.execute("DELETE FROM sessions WHERE id = ?1", [&row.id])
+                .map_err(e)?;
+            return Ok(None);
+        }
+        // Written at most once a minute: a session used constantly does not
+        // write on every request.
+        if at - row.last_used > 60 {
+            conn.execute(
+                "UPDATE sessions SET last_used = ?2 WHERE id = ?1",
+                params![row.id, at],
+            )
+            .map_err(e)?;
+        }
+        Ok(Some(row))
+    }
+
+    pub fn sessions_of(&self, account: &str) -> R<Vec<SessionInfo>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(
+                "SELECT id, kind, device, created, last_used, address FROM sessions
+                 WHERE account = ?1 ORDER BY last_used DESC",
+            )
+            .map_err(e)?;
+        st.query_map([account], |r| {
+            Ok(SessionInfo {
+                id: r.get(0)?,
+                kind: r.get(1)?,
+                device: r.get(2)?,
+                created: r.get(3)?,
+                last_used: r.get(4)?,
+                address: r.get(5)?,
+            })
+        })
+        .map_err(e)?
+        .collect::<rusqlite::Result<_>>()
+        .map_err(e)
+    }
+
+    /// End one session of `account`; false when it has none of that id.
+    pub fn end_session(&self, account: &str, id: &str) -> R<bool> {
+        Ok(self
+            .conn()
+            .execute(
+                "DELETE FROM sessions WHERE account = ?1 AND id = ?2",
+                params![account, id],
+            )
+            .map_err(e)?
+            > 0)
+    }
+
+    /// End every session of `account` but `keep`.
+    pub fn end_sessions(&self, account: &str, keep: Option<&str>) -> R<usize> {
+        self.conn()
+            .execute(
+                "DELETE FROM sessions WHERE account = ?1 AND id IS NOT ?2",
+                params![account, keep],
+            )
+            .map_err(e)
+    }
+
+    /* ---------- folders and grants ---------- */
+
+    pub fn folders(&self) -> R<Vec<Folder>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare("SELECT id, dir, created FROM folders ORDER BY dir")
+            .map_err(e)?;
+        st.query_map([], |r| {
+            Ok(Folder {
+                id: r.get(0)?,
+                dir: r.get(1)?,
+                created: r.get(2)?,
+            })
+        })
+        .map_err(e)?
+        .collect::<rusqlite::Result<_>>()
+        .map_err(e)
+    }
+
+    pub fn folder(&self, id: &str) -> R<Option<Folder>> {
+        self.conn()
+            .query_row(
+                "SELECT id, dir, created FROM folders WHERE id = ?1",
+                [id],
+                |r| {
+                    Ok(Folder {
+                        id: r.get(0)?,
+                        dir: r.get(1)?,
+                        created: r.get(2)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(e)
+    }
+
+    pub fn folder_by_dir(&self, dir: &str) -> R<Option<Folder>> {
+        self.conn()
+            .query_row(
+                "SELECT id, dir, created FROM folders WHERE dir = ?1",
+                [dir],
+                |r| {
+                    Ok(Folder {
+                        id: r.get(0)?,
+                        dir: r.get(1)?,
+                        created: r.get(2)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(e)
+    }
+
+    /// Register the directory `dir` (a name under `VERSO_FOLDERS_DIR`) as a
+    /// folder owned by `owner` (ADR 0075, the maintainer's answer J).
+    pub fn create_folder(&self, dir: &str, owner: &str) -> R<Folder> {
+        let id = crypto::id()?;
+        let at = now();
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        tx.execute(
+            "INSERT INTO folders (id, dir, created) VALUES (?1, ?2, ?3)",
+            params![id, dir, at],
+        )
+        .map_err(e)?;
+        tx.execute(
+            "INSERT INTO grants (folder, account, role) VALUES (?1, ?2, 'owner')",
+            params![id, owner],
+        )
+        .map_err(e)?;
+        tx.commit().map_err(e)?;
+        Ok(Folder {
+            id,
+            dir: dir.to_owned(),
+            created: at,
+        })
+    }
+
+    pub fn rename_folder(&self, id: &str, dir: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "UPDATE folders SET dir = ?2 WHERE id = ?1",
+                params![id, dir],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn forget_folder(&self, id: &str) -> R<()> {
+        self.conn()
+            .execute("DELETE FROM folders WHERE id = ?1", [id])
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn role(&self, folder: &str, account: &str) -> R<Option<Role>> {
+        let role: Option<String> = self
+            .conn()
+            .query_row(
+                "SELECT role FROM grants WHERE folder = ?1 AND account = ?2",
+                params![folder, account],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(e)?;
+        Ok(role.as_deref().and_then(Role::parse))
+    }
+
+    pub fn grant(&self, folder: &str, account: &str, role: Role) -> R<()> {
+        self.conn()
+            .execute(
+                "INSERT INTO grants (folder, account, role) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (folder, account) DO UPDATE SET role = excluded.role",
+                params![folder, account, role.as_str()],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn revoke(&self, folder: &str, account: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "DELETE FROM grants WHERE folder = ?1 AND account = ?2",
+                params![folder, account],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    /// The folders `account` may enter, with its role in each.
+    pub fn folders_of(&self, account: &str) -> R<Vec<(Folder, Role)>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(
+                "SELECT f.id, f.dir, f.created, g.role FROM folders f
+                 JOIN grants g ON g.folder = f.id WHERE g.account = ?1 ORDER BY f.dir",
+            )
+            .map_err(e)?;
+        st.query_map([account], |r| {
+            Ok((
+                Folder {
+                    id: r.get(0)?,
+                    dir: r.get(1)?,
+                    created: r.get(2)?,
+                },
+                r.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(e)?
+        .filter_map(|row| match row {
+            Ok((f, role)) => Role::parse(&role).map(|r| Ok((f, r))),
+            Err(err) => Some(Err(err)),
+        })
+        .collect::<rusqlite::Result<_>>()
+        .map_err(e)
+    }
+
+    /// The members of a folder: account and role.
+    pub fn members(&self, folder: &str) -> R<Vec<(Account, Role)>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(
+                "SELECT a.id, a.email, a.name, a.lang, a.password, a.admin, a.may_create, a.created, g.role
+                 FROM grants g JOIN accounts a ON a.id = g.account WHERE g.folder = ?1
+                 ORDER BY a.email_fold",
+            )
+            .map_err(e)?;
+        st.query_map([folder], |r| {
+            Ok((Self::account_from(r)?, r.get::<_, String>(8)?))
+        })
+        .map_err(e)?
+        .filter_map(|row| match row {
+            Ok((a, role)) => Role::parse(&role).map(|r| Ok((a, r))),
+            Err(err) => Some(Err(err)),
+        })
+        .collect::<rusqlite::Result<_>>()
+        .map_err(e)
+    }
+
+    /* ---------- invitations, resets, the setup link ---------- */
+
+    /// A single-use link's token, made now; its row says what it does.
+    pub fn create_invitation(&self, link: &NewLink<'_>) -> R<(String, Invitation)> {
+        let NewLink {
+            kind,
+            email,
+            account,
+            folder,
+            role,
+            created_by,
+            life,
+        } = *link;
+        let token = crypto::token()?;
+        let id = crypto::id()?;
+        let at = now();
+        self.conn()
+            .execute(
+                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![
+                    id,
+                    crypto::hash(&token),
+                    kind,
+                    email.map(str::trim),
+                    account,
+                    folder,
+                    role.map(Role::as_str),
+                    created_by,
+                    at,
+                    at + life
+                ],
+            )
+            .map_err(e)?;
+        let invitation = self
+            .invitation(&id)?
+            .ok_or_else(|| "invitation vanished".to_owned())?;
+        Ok((token, invitation))
+    }
+
+    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended FROM invitations";
+
+    fn invitation_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Invitation> {
+        Ok(Invitation {
+            id: r.get(0)?,
+            kind: r.get(1)?,
+            email: r.get(2)?,
+            account: r.get(3)?,
+            folder: r.get(4)?,
+            role: r.get(5)?,
+            created_by: r.get(6)?,
+            created: r.get(7)?,
+            expires: r.get(8)?,
+            used: r.get(9)?,
+            used_by: r.get(10)?,
+            ended: r.get(11)?,
+        })
+    }
+
+    pub fn invitation(&self, id: &str) -> R<Option<Invitation>> {
+        self.conn()
+            .query_row(
+                &format!("{} WHERE id = ?1", Self::INVITATION),
+                [id],
+                Self::invitation_from,
+            )
+            .optional()
+            .map_err(e)
+    }
+
+    /// The pending link of `kind` a token opens: not used, not ended, not
+    /// expired.
+    pub fn pending(&self, token: &str, kind: &str) -> R<Option<Invitation>> {
+        let found = self
+            .conn()
+            .query_row(
+                &format!("{} WHERE hash = ?1 AND kind = ?2", Self::INVITATION),
+                params![crypto::hash(token), kind],
+                Self::invitation_from,
+            )
+            .optional()
+            .map_err(e)?;
+        Ok(found.filter(|i| i.state(now()) == "pending"))
+    }
+
+    /// Mark a link used by `account`; false when it was not pending any
+    /// more (two tabs racing for one link: one wins).
+    pub fn use_invitation(&self, id: &str, account: &str) -> R<bool> {
+        let at = now();
+        Ok(self
+            .conn()
+            .execute(
+                "UPDATE invitations SET used = ?2, used_by = ?3
+                 WHERE id = ?1 AND used IS NULL AND ended IS NULL AND expires > ?2",
+                params![id, at, account],
+            )
+            .map_err(e)?
+            > 0)
+    }
+
+    pub fn end_invitation(&self, id: &str) -> R<bool> {
+        Ok(self
+            .conn()
+            .execute(
+                "UPDATE invitations SET ended = ?2 WHERE id = ?1 AND used IS NULL AND ended IS NULL",
+                params![id, now()],
+            )
+            .map_err(e)?
+            > 0)
+    }
+
+    /// End every pending link of `kind` for `account` (a new reset link
+    /// replaces the old one).
+    pub fn end_links_of(&self, account: &str, kind: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "UPDATE invitations SET ended = ?3
+                 WHERE account = ?1 AND kind = ?2 AND used IS NULL AND ended IS NULL",
+                params![account, kind, now()],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    /// End every pending setup link (an admin now exists).
+    pub fn end_setup_links(&self) -> R<()> {
+        self.conn()
+            .execute(
+                "UPDATE invitations SET ended = ?1 WHERE kind = 'setup' AND used IS NULL AND ended IS NULL",
+                [now()],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    pub fn invitations(&self) -> R<Vec<Invitation>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(&format!(
+                "{} WHERE kind = 'invite' ORDER BY created DESC",
+                Self::INVITATION
+            ))
+            .map_err(e)?;
+        st.query_map([], Self::invitation_from)
+            .map_err(e)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(e)
+    }
+
+    /* ---------- personal access tokens ---------- */
+
+    pub fn create_token(
+        &self,
+        account: &str,
+        name: &str,
+        write: bool,
+        expires: Option<i64>,
+        folders: &[String],
+    ) -> R<(String, TokenInfo)> {
+        let secret = format!("verso_pat_{}", crypto::token()?);
+        let id = crypto::id()?;
+        let at = now();
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        tx.execute(
+            "INSERT INTO tokens (id, hash, account, name, write, expires, created) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![id, crypto::hash(&secret), account, name.trim(), write, expires, at],
+        )
+        .map_err(e)?;
+        for folder in folders {
+            tx.execute(
+                "INSERT INTO token_folders (token, folder) VALUES (?1, ?2)",
+                params![id, folder],
+            )
+            .map_err(e)?;
+        }
+        tx.commit().map_err(e)?;
+        Ok((
+            secret,
+            TokenInfo {
+                id,
+                name: name.trim().to_owned(),
+                write,
+                expires,
+                created: at,
+                last_used: None,
+                folders: folders.to_vec(),
+            },
+        ))
+    }
+
+    /// Whether session `id` still stands (not ended, not expired by the
+    /// last look at it).
+    pub fn session_alive(&self, id: &str) -> R<bool> {
+        let row: Option<(String, i64, i64)> = self
+            .conn()
+            .query_row(
+                "SELECT kind, created, last_used FROM sessions WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()
+            .map_err(e)?;
+        let at = now();
+        Ok(row.is_some_and(|(kind, created, last)| {
+            let max = if kind == "device" {
+                DEVICE_MAX
+            } else {
+                SESSION_MAX
+            };
+            at - last <= SESSION_IDLE && at - created <= max
+        }))
+    }
+
+    /// Whether token `id` still stands.
+    pub fn token_alive(&self, id: &str) -> R<bool> {
+        let expires: Option<Option<i64>> = self
+            .conn()
+            .query_row("SELECT expires FROM tokens WHERE id = ?1", [id], |r| {
+                r.get(0)
+            })
+            .optional()
+            .map_err(e)?;
+        Ok(expires.is_some_and(|x| x.is_none_or(|x| now() < x)))
+    }
+
+    /// The id, the account, the write bit and the folders of a live token.
+    pub fn token(&self, secret: &str) -> R<Option<TokenGrant>> {
+        let conn = self.conn();
+        let row: Option<(String, String, bool, Option<i64>)> = conn
+            .query_row(
+                "SELECT id, account, write, expires FROM tokens WHERE hash = ?1",
+                [crypto::hash(secret)],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .optional()
+            .map_err(e)?;
+        let Some((id, account, write, expires)) = row else {
+            return Ok(None);
+        };
+        let at = now();
+        if expires.is_some_and(|x| at >= x) {
+            return Ok(None);
+        }
+        conn.execute(
+            "UPDATE tokens SET last_used = ?2 WHERE id = ?1",
+            params![id, at],
+        )
+        .map_err(e)?;
+        let mut st = conn
+            .prepare("SELECT folder FROM token_folders WHERE token = ?1")
+            .map_err(e)?;
+        let folders = st
+            .query_map([&id], |r| r.get(0))
+            .map_err(e)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(e)?;
+        Ok(Some(TokenGrant {
+            id,
+            account,
+            write,
+            folders,
+        }))
+    }
+
+    pub fn tokens_of(&self, account: &str) -> R<Vec<TokenInfo>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(
+                "SELECT id, name, write, expires, created, last_used FROM tokens
+                 WHERE account = ?1 ORDER BY created DESC",
+            )
+            .map_err(e)?;
+        let mut tokens: Vec<TokenInfo> = st
+            .query_map([account], |r| {
+                Ok(TokenInfo {
+                    id: r.get(0)?,
+                    name: r.get(1)?,
+                    write: r.get(2)?,
+                    expires: r.get(3)?,
+                    created: r.get(4)?,
+                    last_used: r.get(5)?,
+                    folders: Vec::new(),
+                })
+            })
+            .map_err(e)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(e)?;
+        let mut st = conn
+            .prepare("SELECT folder FROM token_folders WHERE token = ?1")
+            .map_err(e)?;
+        for t in &mut tokens {
+            t.folders = st
+                .query_map([&t.id], |r| r.get(0))
+                .map_err(e)?
+                .collect::<rusqlite::Result<_>>()
+                .map_err(e)?;
+        }
+        Ok(tokens)
+    }
+
+    pub fn revoke_token(&self, account: &str, id: &str) -> R<bool> {
+        Ok(self
+            .conn()
+            .execute(
+                "DELETE FROM tokens WHERE account = ?1 AND id = ?2",
+                params![account, id],
+            )
+            .map_err(e)?
+            > 0)
+    }
+
+    /* ---------- the audit log (ADR 0074 item 9) ---------- */
+
+    pub fn audit(&self, a: &Audit<'_>) -> R<()> {
+        self.conn()
+            .execute(
+                "INSERT INTO audit (at, actor, action, subject, folder, address, ok) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![now(), a.actor, a.action, a.subject, a.folder, a.address, a.ok],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+
+    /// The last `limit` entries, of one folder or of all.
+    pub fn audit_log(&self, folder: Option<&str>, limit: i64) -> R<Vec<AuditEntry>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(
+                "SELECT at, actor, action, subject, folder, address, ok FROM audit
+                 WHERE ?1 IS NULL OR folder = ?1 ORDER BY at DESC, rowid DESC LIMIT ?2",
+            )
+            .map_err(e)?;
+        st.query_map(params![folder, limit], |r| {
+            Ok(AuditEntry {
+                at: r.get(0)?,
+                actor: r.get(1)?,
+                action: r.get(2)?,
+                subject: r.get(3)?,
+                folder: r.get(4)?,
+                address: r.get(5)?,
+                ok: r.get(6)?,
+            })
+        })
+        .map_err(e)?
+        .collect::<rusqlite::Result<_>>()
+        .map_err(e)
+    }
+
+    /* ---------- settings of the server ---------- */
+
+    pub fn setting(&self, key: &str) -> R<Option<String>> {
+        self.conn()
+            .query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
+                r.get(0)
+            })
+            .optional()
+            .map_err(e)
+    }
+
+    pub fn set_setting(&self, key: &str, value: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "INSERT INTO settings (key, value) VALUES (?1, ?2)
+                 ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+                params![key, value],
+            )
+            .map_err(e)?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests;
