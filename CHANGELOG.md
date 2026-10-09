@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **Reopening a folder right after its notes were written no longer rewrites the index**: each unchanged note's row was written again only to vouch for it, when it was too recent to be vouched for; on a slow disk a reopen of 10,000 notes took 2.5 times longer than before 0.5.0-beta.1.
 
 ## 0.5.0-beta.1 — 2026-10-08
 

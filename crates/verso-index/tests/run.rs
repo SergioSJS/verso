@@ -106,9 +106,18 @@ fn a_note_is_trusted_by_its_stat_only_when_modified_before_its_read() {
     put_at(&mut index, "salva.md", old).unwrap();
     assert!(!index.unchanged_by_stat("salva.md", old, 7).unwrap());
     index.begin().unwrap();
-    index.confirm("salva.md").unwrap();
+    index.confirm("salva.md", Some(old)).unwrap();
     index.commit().unwrap();
     assert!(index.unchanged_by_stat("salva.md", old, 7).unwrap());
+
+    // One modified within the run's last 2 s stays racy: confirming it
+    // would buy the next run nothing, so nothing is written.
+    let fresh = now();
+    put_at(&mut index, "fresca.md", fresh).unwrap();
+    index.begin().unwrap();
+    index.confirm("fresca.md", Some(fresh)).unwrap();
+    index.commit().unwrap();
+    assert!(!index.unchanged_by_stat("fresca.md", fresh, 7).unwrap());
 
     // A placeholder's last known version is never trusted by its stat.
     assert!(index.mark_placeholder("velha.md").unwrap());
