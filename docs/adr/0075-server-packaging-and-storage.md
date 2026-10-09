@@ -25,6 +25,13 @@
   [0051](0051-development-flow-and-releases.md) (the release workflow),
   [0055](0055-in-app-updater.md) (signed updates).
 - Status in the briefing: not present; on acceptance, together with 0073.
+- Revisions: 2026-10-09 (night) — accepted by the maintainer together with
+  [0073](0073-self-hosted-server-first.md), in the answer quoted there;
+  its two `[OPEN]` answered — the update path (item 7, the maintainer's
+  option (b), not the recommendation: *"E que deve nascer em b"*) and
+  symlinks that leave a folder on a server (item 3) — and, with them,
+  `verso serve` as a subcommand of `verso` (item 1), a folder's id on the
+  server (item 3) and the TLS variables (item 6).
 
 ## Context
 
@@ -53,11 +60,17 @@ takes a binary and a service file.
 ## Decision
 
 Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
+*(Accepted with 0073 on 2026-10-09.)*
 
 1. **One service, one binary.** The server is `verso serve`
    ([0073](0073-self-hosted-server-first.md) item 2) in a binary without
    the window, built from the same crates as the command line; which crate
    holds it follows 0073's `[OPEN]` on where the session table lives.
+   **Decided on 2026-10-09**: `verso serve` is a subcommand of the existing
+   `verso` binary (`verso-cli`), not a binary of its own; the session table
+   and the command dispatch live in `crates/verso-service`, and HTTP,
+   WebSocket, the accounts and the server's database in
+   `crates/verso-server` ([0028](0028-crate-structure.md) revised).
 2. **Three ways to install it, from that binary** — decided:
    - a **Docker image** for amd64 and arm64, running as a user of its own,
      never root, with the two directories of item 3 as volumes;
@@ -82,12 +95,23 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
      it, and a path given for a folder that leaves it is refused — a check
      of the path as given: a symlink inside a folder that points out of it
      is followed today ([0044](0044-verso-fs-semantics.md)), and whether a
-     shared server refuses it is 0073's `[OPEN]`, still open here. On a
+     shared server refuses it is 0073's `[OPEN]`, still open here
+     (**decided on 2026-10-09**: on a server a symlink is followed only
+     when its target stays inside the folder, and one that leaves the
+     folder is refused; [0044](0044-verso-fs-semantics.md) revised). On a
      network file system the
      server watches by scanning (every 30 seconds, as 0071) instead of
      waiting for events that never come, and says so on the folder's page.
    Backing up the server is backing up these two directories, and the
    documentation says it in those words.
+   **A folder's id — decided on 2026-10-09.** A folder on the server has a
+   random id in the server's database, which points to its directory under
+   `VERSO_FOLDERS_DIR`. Addresses use the id — the window's and the
+   attachments' (`/f/<folder-id>/<relative path>`,
+   [0073](0073-self-hosted-server-first.md) item 3) — so renaming the
+   directory does not break a link. A directory that already exists under
+   the root (a folder already on a NAS) can be adopted by the admin, with
+   an owner.
 4. **The space each folder takes is shown; limits come later** — decided:
    for each folder, the total, how much is notes and how much attachments,
    the number of files and the size of its index, counted during the walk
@@ -109,6 +133,21 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
    variables of [0074](0074-accounts-and-access-on-the-server.md) and the
    two above; nothing a host must edit inside the image. A value given
    as `NAME_FILE` is read from that file (Docker and Kubernetes secrets).
+   Since 2026-10-09 also `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE`,
+   the server's own certificate and key, served with rustls
+   ([0073](0073-self-hosted-server-first.md) item 6), and
+   `VERSO_UPDATE_CHECK` (item 7).
+7. **The server tells the admin of a new version; it never updates
+   itself** — decided on 2026-10-09, the maintainer's option (b), not the
+   recommendation. The server checks the project's release feed for a new
+   version and says so on the admin page. The update itself is
+   `docker pull` (a CasaOS or ZimaOS panel does it) or the package manager,
+   for the `.deb` and `.rpm`. The check is outbound traffic, allowed by a
+   Revisions line of [0050](0050-outbound-network-access.md): the core
+   still reaches no network, and the server reaches, besides what
+   [0073](0073-self-hosted-server-first.md) lists, only the release feed,
+   for this check. The check can be turned off by an environment variable,
+   `VERSO_UPDATE_CHECK=off` — proposed with the implementation.
 
 ## Consequences
 
@@ -155,3 +194,11 @@ publicar no próprio github"). To be read by Fable 5.1 and accepted with
 [0073](0073-self-hosted-server-first.md). `[OPEN]`: the update path of a
 server, and symlinks that leave a folder on a shared server (item 3), both
 0073's.
+
+**Accepted on 2026-10-09** with [0073](0073-self-hosted-server-first.md),
+in the answer quoted there. Both `[OPEN]` answered the same night: the
+update path (item 7, option (b), the maintainer's and not the
+recommendation) and symlinks on a server (item 3); with them `verso serve`
+as a subcommand of `verso` (item 1), a folder's id (item 3) and the TLS
+variables (item 6). Proposed with the implementation: the variable that
+turns the update check off (item 7).

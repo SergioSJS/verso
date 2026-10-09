@@ -1,10 +1,11 @@
 # Roadmap do Verso
 
-- Versão: 2026-09-24, revisão 4 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
+- Versão: 2026-10-09, revisão 5 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
 - Fonte: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
-Três fases. Cada uma tem um critério de saída verificável: alguém que não
+Três fases, e desde 2026-10-09 uma quarta, a Fase 3
+([ADR 0073](adr/0073-self-hosted-server-first.md)). Cada uma tem um critério de saída verificável: alguém que não
 participou do trabalho consegue executar a verificação e concluir "passou" ou
 "não passou" sem julgar mérito.
 
@@ -15,6 +16,10 @@ listado aqui não entra na fase sem virar decisão registrada.
 compatibilidade (§15). Isso vale mesmo que a implementação pareça barata no
 momento. O board esteve nesta lista até 2026-09-30, quando o mantenedor o
 puxou para a Fase 2 ([ADR 0057](adr/0057-board-json-canvas.md)).
+Sync e mobile saíram dela em 2026-10-09 para a Fase 3, na forma que o
+[ADR 0073](adr/0073-self-hosted-server-first.md) lhes dá — mobile pelo
+navegador, servido pelo servidor; sync depois do servidor e por ele.
+Plugins e o shim de compatibilidade continuam nela.
 
 ---
 
@@ -214,8 +219,8 @@ do Notion ([ADR 0061](adr/0061-blocks-in-edit-mode.md)).
 | Decisão | Quando | ADR |
 |---|---|---|
 | ~~Geração de tipos TS: `ts-rs` ou `specta`~~ | decidido em 2026-09-22: `specta` com `tauri-specta`, tipos e assinaturas dos comandos gerados | [0038](adr/0038-ts-type-generation.md) |
-| Identidade de sessão e autorização por operação no contrato | antes do item 2.1; o contrato, construído com o host confiando nas próprias janelas e em nada mais (`docs/reference/app-decision.md` §7), aceito como foi construído para a Fase 2 em 2026-09-23; ainda aberto até um servidor entrar em escopo | [0045](adr/0045-server-and-mcp-security.md) |
-| ~~Semântica dos handles opacos no contrato~~ | decidido em 2026-09-24, como construído para a Fase 2: o contrato nomeia notas pelo caminho relativo, nenhuma capacidade o cruza, e a revisão é o único token; reaberto antes que um plugin, um cliente mobile ou o `verso serve` ganhe acesso a arquivos (`docs/reference/handles-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
+| ~~Identidade de sessão e autorização por operação no contrato~~ | decidido em 2026-10-09 com o ADR 0073: todo comando carrega a sessão que o transporte autenticou, resolvida para uma conta e um papel antes de o `verso-fs` agir; o app desktop com pasta local mantém o dono implícito ([0074](adr/0074-accounts-and-access-on-the-server.md) item 11). Antes: antes do item 2.1; o contrato, construído com o host confiando nas próprias janelas e em nada mais (`docs/reference/app-decision.md` §7), aceito como foi construído para a Fase 2 em 2026-09-23; ainda aberto até um servidor entrar em escopo | [0045](adr/0045-server-and-mcp-security.md) |
+| ~~Semântica dos handles opacos no contrato~~ | decidido em 2026-09-24, como construído para a Fase 2: o contrato nomeia notas pelo caminho relativo, nenhuma capacidade o cruza, e a revisão é o único token; reaberto antes que um plugin, um cliente mobile ou o `verso serve` ganhe acesso a arquivos (`docs/reference/handles-decision.md`); para o `verso serve` respondido em 2026-10-09: a sessão e o papel dela na pasta são a capacidade de acesso, nenhuma capacidade por arquivo cruza (0044, "Num servidor") | [0044](adr/0044-verso-fs-semantics.md) |
 | ~~Renomear, criar, excluir, mover; atualização de links; modificação externa concorrente~~ | decidido em 2026-09-23: opção (b), como o código faz — planos mostrados como diffs, sem transação lógica, a lixeira | [0048](adr/0048-file-operations-in-ui.md), [0012](adr/0012-files-are-source-of-truth.md) |
 | ~~Promoção de nota tipada ([0014](adr/0014-primitives-catalog.md)) e de degradação para Markdown ([0013](adr/0013-degrades-to-markdown.md)) a ADR próprio, Aceito~~ | decidido em 2026-09-24: a nota tipada num ADR novo, Aceito; a degradação para Markdown aceita no lugar, com "views" e "dado estruturado" delimitados (`docs/reference/typed-note-decision.md`) | [0052](adr/0052-typed-note.md), [0013](adr/0013-degrades-to-markdown.md) |
 | ~~Formato e localização dos schemas~~ | decidido em 2026-09-24: um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados; dois schemas com o mesmo nome não tipam nada | `docs/spec/dialect.md` Q11, [0052](adr/0052-typed-note.md) |
@@ -242,6 +247,64 @@ não acontecendo, a fase não fechou.
 
 ---
 
+## Fase 3 — O app de Linux, depois o servidor auto-hospedado
+
+Decidida em 2026-10-09 pelo mantenedor, ao aceitar o
+[ADR 0073](adr/0073-self-hosted-server-first.md) junto com o
+[0074](adr/0074-accounts-and-access-on-the-server.md), o
+[0075](adr/0075-server-packaging-and-storage.md) e o
+[0076](adr/0076-the-window-on-every-screen.md): o app de Linux primeiro,
+depois um servidor auto-hospedado — o core sem janela, alcançado por um
+navegador, um celular, um tablet e o app desktop, com várias pessoas numa
+pasta. O critério de saída da Fase 2 não está registrado como cumprido, e
+a resposta do mantenedor começa este trabalho agora (*"L deve vir
+agora"*); como isso fica diante de "uma fase não começa antes de a
+anterior fechar", acima, é `[ABERTO]`, para o mantenedor dizer.
+
+### Escopo
+
+| # | Entrega | ADR |
+|---|---|---|
+| 3.1 | O app de Linux — lançado na 0.6.0-beta.1 em 2026-10-09 | [0071](adr/0071-linux-port.md) |
+| 3.2 | `verso serve`, um subcomando do `verso`: a tabela de sessões e o despacho em `crates/verso-service`, HTTP, WebSocket, as contas e o banco do servidor em `crates/verso-server`; o contrato pelo fio, com a versão sendo um hash dos bindings gerados | [0073](adr/0073-self-hosted-server-first.md) item 2, [0028](adr/0028-crate-structure.md), [0075](adr/0075-server-packaging-and-storage.md) item 1 |
+| 3.3 | Contas e acesso: o primeiro admin a partir do ambiente, senha e depois chaves de acesso, convites, papéis por pasta, sessões, tokens de acesso pessoal, o log de auditoria | [0074](adr/0074-accounts-and-access-on-the-server.md) |
+| 3.4 | Segurança antes do primeiro usuário que não seja o mantenedor: TLS atrás de um proxy reverso ou do `tailscale serve`, ou com o certificado do próprio servidor; os handles e os symlinks num servidor; o modelo de ameaças antes de o servidor ser anunciado | [0073](adr/0073-self-hosted-server-first.md) item 6, [0044](adr/0044-verso-fs-semantics.md) |
+| 3.5 | Empacotamento e armazenamento: a imagem Docker (amd64, arm64), o arquivo compose do CasaOS/ZimaOS, `.deb`/`.rpm` com systemd; o diretório de dados e a raiz das pastas; o id de uma pasta; o espaço que cada pasta ocupa; a checagem de atualização | [0075](adr/0075-server-packaging-and-storage.md) |
+| 3.6 | O app desktop conectando a um servidor, entrando pelo navegador | [0074](adr/0074-accounts-and-access-on-the-server.md) item 8 |
+| 3.7 | A janela em toda tela, e a janela servida com `--web` | [0076](adr/0076-the-window-on-every-screen.md), [0073](adr/0073-self-hosted-server-first.md) item 9 |
+| 3.8 | Edição simultânea de notas | [0073](adr/0073-self-hosted-server-first.md) item 7 |
+| 3.9 | A reindexação por lote do watcher estreitada aos caminhos do lote, medida com o benchmark | [0073](adr/0073-self-hosted-server-first.md) item 12 |
+
+Os itens 3.2 a 3.9 saem juntos, na primeira versão do servidor (item 12
+do ADR 0073, revisto em 2026-10-09). A janela em toda tela é construída
+antes de a janela do servidor sair; as chaves de acesso vêm depois do
+login por senha, quando o pipeline de empacotamento funcionar. O que vem
+depois da primeira versão do servidor está em "Depois da Fase 2", abaixo.
+
+### Decisões que precisam sair durante a fase
+
+| Decisão | ADR |
+|---|---|
+| Se o celular no navegador, só online, atende à necessidade de mobile, ou se o offline no celular vem mais cedo | [0073](adr/0073-self-hosted-server-first.md) |
+| Permissões mais finas que a pasta; histórico, atribuição e recuperação de uma mudança de outro membro | [0073](adr/0073-self-hosted-server-first.md), Q9 da spec |
+| Criptografia ponta a ponta, depois, como opção para um servidor de uma pessoa só | [0073](adr/0073-self-hosted-server-first.md) |
+| A coedição do board | [0073](adr/0073-self-hosted-server-first.md) item 7 |
+| O transporte e a autorização do MCP pela rede | [0073](adr/0073-self-hosted-server-first.md) item 11, [0045](adr/0045-server-and-mcp-security.md) |
+| A URL pré-assinada de um bucket | [0073](adr/0073-self-hosted-server-first.md) item 4 |
+| Os critérios que mandariam o iPad do navegador para um app nativo | [0073](adr/0073-self-hosted-server-first.md) |
+| Como um custo seria repassado se um dia existir armazenamento nosso | [0073](adr/0073-self-hosted-server-first.md) item 4 |
+| "Este app é um servidor" atualizando com celulares conectados | [0073](adr/0073-self-hosted-server-first.md) |
+| O conteúdo da barra do teclado, depois do uso | [0076](adr/0076-the-window-on-every-screen.md) item 7 |
+
+### Critério de saída
+
+`[ABERTO]`: não definido. O ADR 0073 pede segurança por inteiro antes do
+primeiro usuário que não seja o mantenedor, e o modelo de ameaças antes de
+o servidor ser anunciado (item 6); são condições do trabalho, não um
+critério de saída verificável da fase.
+
+---
+
 ## Depois da Fase 2
 
 Sem ordem nem prazo definidos no briefing. Entram na conversa quando a Fase 2
@@ -261,10 +324,21 @@ começa agora, no escopo da Fase 2 e à frente do resto do trabalho dela
 ([0069](adr/0069-windows-port.md), o cabeçalho da Fase 2 acima). O Linux
 fica aqui; como ele seria compilado e testado está proposto no
 [0071](adr/0071-linux-port.md), escrito em 2026-10-08 e esperando.
+*(Lançado na 0.6.0-beta.1 em 2026-10-09, e o primeiro item da Fase 3,
+acima.)*
 
 Ordem entre eles: `[ABERTO]`, menos Windows antes de Linux, e Linux antes do
 servidor. Em 2026-10-09 o mantenedor definiu a Fase 3, a escrever aqui quando
 a Fase 2 fechar, como o app de Linux e depois um servidor auto-hospedado,
 com compartilhamento e edição simultânea como foco se forem viáveis; o como,
 e o sync depois do servidor e por ele, estão propostos no
-[0073](adr/0073-self-hosted-server-first.md).
+[0073](adr/0073-self-hosted-server-first.md). *(A Fase 3 escrita em
+2026-10-09, acima, com o 0073 aceito.)*
+
+O que fica para depois, desde 2026-10-09: depois da primeira versão do
+servidor, na ordem do item 12 do 0073 — sync para as pastas locais do
+desktop, a PWA offline, o bucket do usuário
+([0073](adr/0073-self-hosted-server-first.md) item 4) e um app mobile
+nativo se os limites do navegador morderem; e, sem ordem, plugins, o shim
+de compatibilidade, as primitivas ainda propostas e a escrita por agente
+com diff.

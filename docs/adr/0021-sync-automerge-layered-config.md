@@ -11,6 +11,16 @@
   briefing §5.3 and briefing §8, which this ADR's item 2 follows. Item 2 is
   left as written, Proposed; on schemas it now disagrees with that decision,
   and its wording is the maintainer's to correct if this ADR is confirmed.
+  2026-10-09 — item 1 revised by [0073](0073-self-hosted-server-first.md)
+  item 7, accepted by the maintainer that day; the text below is kept as
+  it was written. The CRDT is Yjs, not Automerge — `y-codemirror.next` in
+  the window, a Rust implementation such as `yrs` on the server — and a
+  CRDT is the mechanism of a live session, never the stored form of a
+  note; the file is. The Consequences' questions about CRDT state outside
+  the file are answered by that: the shared state lives in the session's
+  memory and is written to the file by the atomic write. Item 2 is
+  untouched; on a server, the person's layer of settings lives with the
+  account (0073 item 5, [0070](0070-what-travels-with-the-folder.md)).
 
 ## Context
 
@@ -45,4 +55,6 @@ to other CRDT libraries.
 
 ## Status
 
-Proposed.
+Proposed. Item 1 revised on 2026-10-09 by
+[0073](0073-self-hosted-server-first.md) item 7, Accepted: Yjs, as the
+mechanism of a live session (Revisions).

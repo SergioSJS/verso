@@ -8,6 +8,19 @@
   point 1; this ADR points there since the maintainer's decision of
   2026-10-01 on the critical review
   [`docs/review/board.md`](../review/board.md), §6 item 16.
+  2026-10-09 — a Phase 3 added by [0073](0073-self-hosted-server-first.md),
+  accepted by the maintainer that day; the text below is kept as it was
+  decided. Phase 3: the Linux app ([0071](0071-linux-port.md), shipped in
+  0.6.0-beta.1), then the self-hosted server, whose first release brings
+  the accounts and roles, the contract over the wire, the desktop app
+  connecting, the window in a browser and on every screen
+  ([0076](0076-the-window-on-every-screen.md)) and simultaneous editing of
+  notes; after it, sync for the desktop's local folders, the PWA offline,
+  the user's bucket and native mobile if needed (0073 item 12). Point 4's
+  list: sync and mobile leave it, in the shape 0073 gives them — mobile
+  through the browser, served by the server; sync after the server and
+  through it; plugins and the compatibility shim stay out. Phase 3's exit
+  criterion is not set (`[OPEN]`, in the roadmap).
 
 ## Context
 
@@ -49,4 +62,6 @@ The exit criteria are in `docs/roadmap.md`.
 ## Status
 
 Accepted. Point 4 narrowed by [0057](0057-board-json-canvas.md) on 2026-09-30:
-the board is in Phase 2.
+the board is in Phase 2. Revised on 2026-10-09 by
+[0073](0073-self-hosted-server-first.md): a Phase 3, and sync and mobile
+out of point 4's list (Revisions).

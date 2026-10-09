@@ -25,6 +25,13 @@
   [0051](0051-development-flow-and-releases.md) (o workflow de release),
   [0055](0055-in-app-updater.md) (atualizações assinadas).
 - Status no briefing: ausente; na aceitação, junto com o 0073.
+- Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
+  [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
+  `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção
+  (b) do mantenedor, não a recomendação: *"E que deve nascer em b"*) e os
+  symlinks que saem de uma pasta num servidor (item 3) — e, com eles, o
+  `verso serve` como subcomando do `verso` (item 1), o id de uma pasta no
+  servidor (item 3) e as variáveis de TLS (item 6).
 
 ## Contexto
 
@@ -54,12 +61,18 @@ dispositivo pequeno aceita um binário e um arquivo de serviço.
 ## Decisão
 
 Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
+*(Aceita com o 0073 em 2026-10-09.)*
 
 1. **Um serviço, um binário.** O servidor é o `verso serve`
    ([0073](0073-self-hosted-server-first.md) item 2) num binário sem a
    janela, construído a partir das mesmas crates da linha de comando; qual
    crate o abriga segue o `[ABERTO]` do 0073 sobre onde mora a tabela de
-   sessões.
+   sessões. **Decidido em 2026-10-09**: o `verso serve` é um subcomando do
+   binário `verso` que já existe (`verso-cli`), não um binário próprio; a
+   tabela de sessões e o despacho de comandos moram em
+   `crates/verso-service`, e HTTP, WebSocket, as contas e o banco do
+   servidor em `crates/verso-server` ([0028](0028-crate-structure.md)
+   revisto).
 2. **Três formas de instalar, a partir desse binário** — decidido:
    - uma **imagem Docker** para amd64 e arm64, rodando com um usuário
      próprio, nunca root, com os dois diretórios do item 3 como volumes;
@@ -85,12 +98,22 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
      caminho como dado: um symlink dentro de uma pasta que aponta para fora
      dela é seguido hoje ([0044](0044-verso-fs-semantics.md)), e se um
      servidor compartilhado o recusa é o `[ABERTO]` do 0073, ainda aberto
-     aqui. Num sistema de arquivos de rede
+     aqui (**decidido em 2026-10-09**: num servidor um symlink é seguido só
+     quando o alvo fica dentro da pasta, e um que sai da pasta é recusado;
+     o [0044](0044-verso-fs-semantics.md) revisto). Num sistema de arquivos de rede
      o servidor observa por varredura (a cada 30 segundos, como o 0071) em
      vez de esperar eventos que nunca chegam, e diz isso na página da
      pasta.
    Fazer backup do servidor é fazer backup desses dois diretórios, e a
    documentação diz isso com essas palavras.
+   **O id de uma pasta — decidido em 2026-10-09.** Uma pasta no servidor
+   tem um id aleatório no banco do servidor, que aponta para o diretório
+   dela sob `VERSO_FOLDERS_DIR`. Os endereços usam o id — os da janela e os
+   dos anexos (`/f/<id-da-pasta>/<caminho relativo>`,
+   [0073](0073-self-hosted-server-first.md) item 3) — então renomear o
+   diretório não quebra um link. Um diretório que já existe sob a raiz
+   (uma pasta que já está num NAS) pode ser adotado pelo admin, com um
+   dono.
 4. **O espaço que cada pasta ocupa é mostrado; limites vêm depois** —
    decidido: para cada pasta, o total, quanto é nota e quanto é anexo, o
    número de arquivos e o tamanho do índice dela, contados durante o
@@ -112,6 +135,22 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
    [0074](0074-accounts-and-access-on-the-server.md) e as duas acima; nada
    que um host precise editar dentro da imagem. Um valor dado como
    `NAME_FILE` é lido daquele arquivo (secrets do Docker e do Kubernetes).
+   Desde 2026-10-09 também `VERSO_TLS_CERT_FILE` e `VERSO_TLS_KEY_FILE`, o
+   certificado e a chave do próprio servidor, servidos com rustls
+   ([0073](0073-self-hosted-server-first.md) item 6), e
+   `VERSO_UPDATE_CHECK` (item 7).
+7. **O servidor avisa o admin de uma versão nova; nunca se atualiza
+   sozinho** — decidido em 2026-10-09, a opção (b) do mantenedor, não a
+   recomendação. O servidor confere o feed de versões do projeto em busca
+   de uma versão nova e diz isso na página de admin. A atualização em si é
+   `docker pull` (um painel do CasaOS ou do ZimaOS faz isso) ou o
+   gerenciador de pacotes, para o `.deb` e o `.rpm`. A checagem é tráfego
+   de saída, permitido por uma linha de Revisões do
+   [0050](0050-outbound-network-access.md): o core continua sem alcançar a
+   rede, e o servidor alcança, além do que o
+   [0073](0073-self-hosted-server-first.md) lista, só o feed de versões,
+   para esta checagem. A checagem pode ser desligada por uma variável de
+   ambiente, `VERSO_UPDATE_CHECK=off` — proposto com a implementação.
 
 ## Consequências
 
@@ -158,3 +197,11 @@ do servidor agora (item 2, "agora!"); a imagem no registro do GitHub
 5.1 e aceito com o [0073](0073-self-hosted-server-first.md). `[ABERTO]`:
 o caminho de atualização de um servidor, e symlinks que saem de uma pasta
 num servidor compartilhado (item 3), ambos do 0073.
+
+**Aceito em 2026-10-09** com o [0073](0073-self-hosted-server-first.md), na
+resposta citada lá. Os dois `[ABERTO]` respondidos na mesma noite: o
+caminho de atualização (item 7, a opção (b), do mantenedor e não a
+recomendação) e os symlinks num servidor (item 3); com eles o
+`verso serve` como subcomando do `verso` (item 1), o id de uma pasta (item
+3) e as variáveis de TLS (item 6). Proposto com a implementação: a
+variável que desliga a checagem de atualização (item 7).
