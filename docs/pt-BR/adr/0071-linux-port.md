@@ -312,7 +312,8 @@ mesclada):
 - **O atualizador:** o asset pelo formato — o AppImage quando o app roda de
   um (`$APPIMAGE`), senão um `.deb` onde existe `/etc/debian_version`,
   senão um `.rpm`. O AppImage é escrito ao lado de si, levado ao disco e
-  renomeado sobre si; um `.deb` ou `.rpm` é salvo com o próprio nome na
+  renomeado sobre si (o arquivo vai ao disco, o diretório não, como no
+  macOS e no Windows); um `.deb` ou `.rpm` é salvo com o próprio nome na
   pasta de Downloads que o desktop nomeia (`user-dirs.dirs`), para o
   gerenciador de pacotes.
 - **O job de release:** x64 no `ubuntu-22.04` e ARM64 no

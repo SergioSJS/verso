@@ -876,8 +876,6 @@ fn context<R: tauri::Runtime>() -> tauri::Context<R> {
     tauri::generate_context!()
 }
 
-/// Write the TypeScript bindings (types and command signatures) to
-/// `path`. CI checks the committed file is this output (ADR 0029).
 /// `verso-app --cli ARGS…`: see `cli::run_bundled_cli`.
 #[cfg(target_os = "linux")]
 pub fn run_bundled_cli(args: &[String]) -> std::io::Error {
@@ -889,6 +887,8 @@ pub fn verify_release_file(path: &Path) -> Result<(), String> {
     update::verify_release_file(path)
 }
 
+/// Write the TypeScript bindings (types and command signatures) to
+/// `path`. CI checks the committed file is this output (ADR 0029).
 pub fn export_bindings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     commands().export(
         specta_typescript::Typescript::default()

@@ -405,9 +405,16 @@ pub(crate) fn copy_full_path<R: tauri::Runtime>(
             c.args(["-selection", "clipboard"]);
         }
         // Neither is there: say what to install (ADR 0071, item 7).
-        let mut child = c.stdin(std::process::Stdio::piped()).spawn().map_err(|_| {
-            failed("no clipboard tool: install wl-clipboard (Wayland) or xclip (X11)".to_owned())
-        })?;
+        let mut child =
+            c.stdin(std::process::Stdio::piped())
+                .spawn()
+                .map_err(|e| match e.kind() {
+                    std::io::ErrorKind::NotFound => failed(
+                        "no clipboard tool: install wl-clipboard (Wayland) or xclip (X11)"
+                            .to_owned(),
+                    ),
+                    _ => failed(format!("{cmd}: {e}")),
+                })?;
         if let Some(mut stdin) = child.stdin.take() {
             stdin
                 .write_all(text.as_bytes())

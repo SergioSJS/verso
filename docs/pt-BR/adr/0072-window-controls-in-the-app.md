@@ -141,3 +141,13 @@ crates Objective-C antigos no macOS; um tratamento caseiro de
 `WM_NCCALCSIZE` precisaria de `unsafe`, que o workspace proíbe (ADR 0029).
 Perde-se: o menu de Snap Layouts ao parar no maximizar; Win+setas, arrastar
 para a borda da tela e Win+Z continuam do sistema.
+
+**Emendado em 2026-10-09, pela palavra do mantenedor**, depois de ver a
+versão para Linux no GNOME e no KDE: "de fato a gente vai precisar ter que
+remover essa barra de título. Na versão Linux, essa barra é gigantesca …
+muito espaço inútil". O item 3 ("O Linux mantém a barra de título do
+sistema até o porte dele") se cumpre com o porte (ADR 0071): no Linux a
+janela de uma pasta também não tem barra de título do sistema, e o app
+desenha minimizar, maximizar e fechar no alto à direita, como no Windows.
+A janela é criada escondida e mostrada depois de criada, porque o KWin do
+KDE mantinha a barra dele.
