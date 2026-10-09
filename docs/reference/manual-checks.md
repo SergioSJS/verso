@@ -107,6 +107,11 @@ them; if they still happen, a step that makes them happen is enough.
 
 ## Checked
 
+- [x] The notes search finds a note by its exact file name when its first
+  heading names it otherwise, first in the list; the × clears the search
+  (feat/web-groundwork, the installed beta at 0a38c65, checked by the
+  maintainer on 2026-10-09).
+
 - [x] The picture menu's Download image, Open in new window; Open Folder in
   a second window; a popped-out note returned to the main window
   (0.4.0-beta.1, checked by the maintainer on 2026-10-07).

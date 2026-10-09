@@ -2,7 +2,7 @@
 
 O que a janela faz hoje numa tela de toque, medido no harness do navegador,
 e o que foi consertado na hora. É o ponto de partida da investigação que o
-item 9 do [ADR 0073](../adr/0073-self-hosted-server-first.md) pede, e que
+item 9 do ADR 0073 (proposto, na branch `docs/server-first`) pede, e que
 termina num ADR próprio; nada aqui decide como a janela fica num celular.
 
 ## Como foi medido
