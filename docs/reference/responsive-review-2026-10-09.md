@@ -2,7 +2,7 @@
 
 What the window does today on a touch screen, measured in the browser
 harness, and what was fixed at once. It is the starting point of the
-investigation [ADR 0073](../adr/0073-self-hosted-server-first.md) item 9
+investigation ADR 0073 item 9 (proposed, on the branch `docs/server-first`)
 asks for, which ends in an ADR of its own; nothing here decides how the
 window looks on a phone.
 

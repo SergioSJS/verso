@@ -114,6 +114,11 @@ ainda acontecem, um passo que os faça acontecer basta.
 
 ## Conferido
 
+- [x] A busca de notas acha uma nota pelo nome exato do arquivo quando o
+  primeiro título a chama de outro jeito, em primeiro na lista; o × limpa
+  a busca (feat/web-groundwork, o beta instalado em 0a38c65, conferido
+  pelo mantenedor em 2026-10-09).
+
 - [x] O menu de uma imagem: Baixar imagem, Abrir em nova janela; Abrir
   pasta numa segunda janela; uma nota destacada devolvida à janela
   principal (0.4.0-beta.1, conferido pelo mantenedor em 2026-10-07).
