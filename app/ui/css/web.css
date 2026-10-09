@@ -1,0 +1,69 @@
+/* The server's own pages and what the window gains in a browser
+   (ADR 0073, ADR 0074): sign-in, invitation, reset, the account, the
+   admin page, the folder chooser, the bridge's notices. The window's
+   tokens, so both themes follow. */
+
+body.web-mode > :not(.web-page):not(.web-notice):not(dialog) { display: none !important; }
+body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh; background: var(--paper); }
+
+.web-page { display: flex; justify-content: center; padding: max(24px, env(safe-area-inset-top)) 16px 48px; }
+.web-card { width: min(720px, 100%); color: var(--ink); }
+.web-card h1 { font-size: 1.6rem; margin: 0 0 .75rem; }
+.web-card h2 { font-size: 1.15rem; margin: 0 0 .5rem; }
+.web-card h3 { font-size: 1rem; margin: .75rem 0 .25rem; }
+.web-card p { line-height: 1.5; }
+.web-section { border-top: 1px solid var(--paper-3); padding: 1.25rem 0; }
+
+.web-form { display: grid; gap: .75rem; margin: .75rem 0; max-width: 420px; }
+.web-field { display: grid; gap: .25rem; }
+.web-field label, .web-fieldset legend { font-weight: 600; font-size: .9rem; }
+.web-field small { color: var(--ink-2); }
+.web-field input, .web-field select, .web-copy-value {
+  font: inherit; font-size: max(16px, 1rem); padding: .55rem .65rem; min-height: 44px; box-sizing: border-box;
+  border: 1px solid var(--paper-3); border-radius: 8px; background: var(--paper-2); color: var(--ink);
+}
+.web-check { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
+.web-check input { width: 22px; height: 22px; }
+.web-fieldset { border: 1px solid var(--paper-3); border-radius: 8px; padding: .5rem .75rem; }
+.web-form button, .web-card button, .web-dialog button {
+  font: inherit; min-height: 44px; padding: .45rem .9rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--paper-3); background: var(--paper-2); color: var(--ink);
+}
+.web-primary { background: var(--seal) !important; color: var(--paper) !important; border-color: var(--seal) !important; font-weight: 600; }
+.web-danger { color: light-dark(oklch(45% 0.17 25), oklch(75% 0.14 25)) !important; }
+.web-error { color: light-dark(oklch(45% 0.17 25), oklch(75% 0.14 25)); min-height: 1.2em; margin: 0; }
+.web-error:empty { display: none; }
+.web-warn { color: light-dark(oklch(48% 0.13 60), oklch(78% 0.12 75)); }
+.web-code { font: 600 1.6rem/1.2 ui-monospace, monospace; letter-spacing: .15em; text-align: center; padding: .75rem; background: var(--paper-2); border-radius: 8px; }
+.web-nav { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.web-nav a, .web-links a { color: var(--seal); }
+.web-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; flex-wrap: wrap; }
+
+.web-list { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .5rem; }
+.web-list > li { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; padding: .6rem .75rem; border: 1px solid var(--paper-3); border-radius: 8px; }
+.web-list > li > span { font-weight: 600; flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; }
+.web-list > li > small { color: var(--ink-2); flex: 1 1 100%; order: 1; }
+.web-list .web-field, .web-list .web-check { min-height: 0; }
+.web-folder-box { border: 1px solid var(--paper-3); border-radius: 8px; padding: .5rem .9rem; margin: .5rem 0; }
+.web-copy { display: flex; gap: .5rem; flex-wrap: wrap; }
+.web-copy-value { flex: 1 1 16rem; min-width: 0; font-family: ui-monospace, monospace; font-size: .9rem; }
+.web-table { width: 100%; border-collapse: collapse; font-size: .9rem; display: block; overflow-x: auto; }
+.web-table th, .web-table td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--paper-3); white-space: nowrap; }
+.web-table tr.web-failed td { color: light-dark(oklch(45% 0.17 25), oklch(75% 0.14 25)); }
+
+.web-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border: 1px solid var(--paper-3); border-radius: 12px; background: var(--paper); color: var(--ink); padding: 1.25rem; }
+.web-dialog::backdrop { background: rgb(0 0 0 / .35); }
+.web-folders { list-style: none; padding: 0; display: grid; gap: .4rem; }
+.web-folder { width: 100%; display: flex; justify-content: space-between; align-items: center; text-align: left; }
+.web-folder small { color: var(--ink-2); }
+
+.web-notice { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 1000; max-width: calc(100vw - 32px);
+  background: var(--ink); color: var(--paper); padding: .6rem 1rem; border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / .2); }
+.web-notice[data-kind="error"] { background: light-dark(oklch(45% 0.17 25), oklch(60% 0.15 25)); color: white; }
+.web-links { display: inline-flex; gap: .75rem; padding: 0 .5rem; font-size: .85rem; white-space: nowrap; }
+@container (max-width: 520px) { .web-links { display: none; } }
+
+@media (forced-colors: active) {
+  .web-primary { border: 2px solid ButtonText !important; }
+  .web-notice { border: 2px solid CanvasText; }
+}

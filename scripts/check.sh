@@ -76,6 +76,12 @@ step "cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 step "cargo test"
 cargo test --workspace --all-features --locked
+step "the server's end-to-end tests: the window in a browser against verso serve (ADR 0073, local only)"
+cargo build -q --locked -p verso-cli
+(
+  cd app/ui
+  npx playwright test -c playwright.server.config.mjs
+)
 step "the committed bindings are the generated ones (ADR 0026 rule 3)"
 tmp="$(mktemp "${TMPDIR:-/tmp}/verso-bindings.XXXXXX")"
 cargo run -q --locked -p verso-app -- --export-bindings "$tmp"
