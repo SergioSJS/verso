@@ -23,6 +23,7 @@ pub mod folders;
 pub mod http;
 pub mod limit;
 pub mod log;
+pub mod passkeys;
 pub mod rpc;
 pub mod state;
 pub mod tls;

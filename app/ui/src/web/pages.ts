@@ -8,6 +8,7 @@
 
 import { ApiError, api, setCsrf, type Account } from "./api";
 import { el, field, form, page, select } from "./form";
+import { passkeysHere, signInWithPasskey } from "./passkeys";
 import { roleName, setLang, w } from "./strings";
 
 function explain(e: unknown): string {
@@ -42,7 +43,26 @@ export function signInPage(secure: boolean): void {
     },
     explain,
   );
-  page(s.signInTitle, el("p", {}, secure ? s.signInLead : s.tlsRequired), f.form);
+  const withKey = el("button", { type: "button", class: "web-secondary" }, s.passkeySignIn);
+  const keyError = el("p", { class: "web-error", role: "alert" });
+  withKey.hidden = !passkeysHere();
+  withKey.addEventListener("click", () => {
+    keyError.textContent = "";
+    if (!email.input.value.trim()) {
+      keyError.textContent = s.passkeyNeedsEmail;
+      email.input.focus();
+      return;
+    }
+    void signInWithPasskey(email.input.value)
+      .then((csrf) => {
+        setCsrf(csrf);
+        location.href = next();
+      })
+      .catch((e: unknown) => {
+        keyError.textContent = e instanceof ApiError ? e.said : s.failed;
+      });
+  });
+  page(s.signInTitle, el("p", {}, secure ? s.signInLead : s.tlsRequired), f.form, el("div", { class: "web-actions" }, withKey), keyError);
   email.input.focus();
 }
 

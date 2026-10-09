@@ -50,6 +50,8 @@ pub struct Server {
     pub commit: String,
     /// The notes being edited by several windows at once (ADR 0073 item 7).
     pub rooms: crate::collab::Rooms,
+    /// The passkey ceremonies under way (ADR 0074 item 3).
+    pub ceremonies: crate::passkeys::Ceremonies,
     /// The runtime, for what the watcher's thread hands over.
     pub runtime: std::sync::OnceLock<tokio::runtime::Handle>,
 }
@@ -69,6 +71,7 @@ impl Server {
             newer: Mutex::new(None),
             commit,
             rooms: crate::collab::Rooms::default(),
+            ceremonies: crate::passkeys::Ceremonies::default(),
             runtime: std::sync::OnceLock::new(),
         });
         service.set_events(Arc::new(ServerEvents {

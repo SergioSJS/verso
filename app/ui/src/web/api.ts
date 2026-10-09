@@ -56,6 +56,8 @@ export class ApiError extends Error {
         return s.tlsRequired;
       case "csrf":
         return s.stale;
+      case "no_passkey":
+        return s.noPasskey;
       default:
         return this.message || s.failed;
     }

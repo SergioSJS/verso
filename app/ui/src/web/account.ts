@@ -8,6 +8,7 @@
 
 import { ApiError, api, type Account } from "./api";
 import { checkbox, copyable, el, field, form, page, select } from "./form";
+import { addPasskey, passkeysHere } from "./passkeys";
 import { bytes, roleName, setLang, w, when } from "./strings";
 
 function explain(e: unknown): string {
@@ -74,6 +75,38 @@ export async function accountPage(account: Account, admin: boolean): Promise<voi
     explain,
   );
   card.append(section(s.changePassword, pw.form, pwSaved));
+
+  // Passkeys (ADR 0074 item 3).
+  const keys = el("ul", { class: "web-list" });
+  const keyNote = el("p", { role: "status" });
+  type Key = { id: string; name: string; created: number; last_used: number | null };
+  const drawKeys = async () => {
+    const list = await api<Key[]>("GET", "/api/me/passkeys");
+    keys.replaceChildren(
+      ...(list.length === 0
+        ? [el("li", {}, s.passkeyNone)]
+        : list.map((k) => {
+            const remove = el("button", { type: "button" }, s.leave);
+            remove.addEventListener("click", () => void api("DELETE", `/api/me/passkeys/${k.id}`).then(drawKeys));
+            return el("li", {}, el("span", {}, k.name), el("small", {}, `${when(k.created)}${k.last_used ? ` · ${s.lastUsed}: ${when(k.last_used)}` : ""}`), remove);
+          })),
+    );
+  };
+  const keyName = field(s.passkeyName, "text");
+  const addKey = form(
+    [keyName],
+    s.passkeyAdd,
+    async () => {
+      if (!passkeysHere()) throw new Error(s.passkeyUnavailable);
+      await addPasskey(keyName.input.value);
+      keyName.input.value = "";
+      keyNote.textContent = s.passkeyAdded;
+      await drawKeys();
+    },
+    (e) => (e instanceof ApiError ? e.said : e instanceof Error && e.message ? e.message : s.failed),
+  );
+  card.append(section(s.passkeys, el("p", {}, s.passkeysLead), keys, addKey.form, keyNote));
+  void drawKeys();
 
   // Sessions.
   const sessions = el("ul", { class: "web-list" });
