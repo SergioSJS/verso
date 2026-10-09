@@ -12,6 +12,7 @@ pub mod access;
 pub mod admin;
 pub mod api;
 pub mod auth;
+pub mod collab;
 pub mod config;
 pub mod crypto;
 pub mod data;
@@ -187,6 +188,7 @@ where
         for<'a> axum::extract::connect_info::Connected<axum::serve::IncomingStream<'a, L>>,
 {
     let listen = listener.local_addr().map_err(|e| e.to_string())?;
+    let _ = server.runtime.set(tokio::runtime::Handle::current());
     log::info(&format!(
         "verso serve {} (contract {}) on {listen}, folders in {}",
         env!("CARGO_PKG_VERSION"),

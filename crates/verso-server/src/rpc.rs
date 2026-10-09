@@ -143,8 +143,12 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
         }
     }
     lock(&server.clients).remove(&client);
-    let service = Arc::clone(&server.service);
-    let _ = tokio::task::spawn_blocking(move || service.release(&client)).await;
+    let s = Arc::clone(&server);
+    let _ = tokio::task::spawn_blocking(move || {
+        crate::collab::gone(&s, &client);
+        s.service.release(&client);
+    })
+    .await;
 }
 
 fn refused(message: &str) -> ContractError {
@@ -300,8 +304,59 @@ async fn handle(
         // are the reader's (answer I), the menu is the desktop's.
         "set_embed_origins" | "set_menu_language" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
+        "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
+        | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
         _ => Err(refused("not on a server")),
     }
+}
+
+/// The commands of a shared note (ADR 0073 item 7): a reader joins and is
+/// seen, and writes nothing.
+async fn collab_command(
+    server: &Arc<Server>,
+    who: &Who,
+    client: &str,
+    cmd: &str,
+    args: &Value,
+) -> Result<Value, ContractError> {
+    let (folder, role) = role_here(server, client)?;
+    let writes = role.writes() && who.reaches(&folder).1;
+    if matches!(cmd, "collab_update" | "collab_save" | "collab_resolve") && !writes {
+        return Err(refused("you may only read this folder"));
+    }
+    let key = server
+        .service
+        .folder_of(client)
+        .ok_or_else(verso_service::no_folder)?;
+    let path: String = arg(args, "path")?;
+    let s = Arc::clone(server);
+    let c = client.to_owned();
+    let cmd = cmd.to_owned();
+    let args = args.clone();
+    let user = who.account.name.clone();
+    blocking(move || match cmd.as_str() {
+        "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
+        "collab_update" => {
+            let update: String = arg(&args, "update")?;
+            crate::collab::update(&s, &c, &key, &path, &update)?;
+            Ok(Value::Null)
+        }
+        "collab_awareness" => {
+            let update: String = arg(&args, "update")?;
+            crate::collab::awareness(&s, &c, &key, &path, &update)?;
+            Ok(Value::Null)
+        }
+        "collab_leave" => {
+            crate::collab::leave(&s, &c, &key, &path);
+            Ok(Value::Null)
+        }
+        "collab_save" => to_value(crate::collab::save(&s, &key, &path)?),
+        _ => {
+            let keep: String = arg(&args, "keep")?;
+            to_value(crate::collab::resolve(&s, &key, &path, &keep)?)
+        }
+    })
+    .await
 }
 
 /// The role of the window's folder, or `no_folder`.
@@ -325,13 +380,50 @@ async fn folder_command(
     if access == Access::Write && !(role.writes() && token_writes) {
         return Err(refused("you may only read this folder"));
     }
+    let key = server
+        .service
+        .folder_of(client)
+        .ok_or_else(verso_service::no_folder)?;
+    // A write to a note being edited together goes through its room
+    // (ADR 0073 item 7).
+    if name == "write_note" {
+        let path: String = arg(&args, "path")?;
+        if server.rooms.has(&key, &path) {
+            let text: String = arg(&args, "text")?;
+            let revision: String = arg(&args, "revision")?;
+            let s = Arc::clone(server);
+            let c = client.to_owned();
+            return blocking(move || {
+                crate::collab::write_through(&s, &key, &path, &text, &revision)?;
+                let note = s.service.with(&c, move |ws| ops::read_note(ws, path))?;
+                to_value(verso_contract::Written {
+                    note,
+                    warnings: Vec::new(),
+                })
+            })
+            .await;
+        }
+    }
+    let moves = matches!(
+        name,
+        "rename_note" | "rename_entry" | "move_entries" | "delete_note" | "delete_entry"
+    );
     let service = Arc::clone(&server.service);
+    let s = Arc::clone(server);
     let c = client.to_owned();
     let n = name.to_owned();
     let answer = blocking(move || {
-        service
+        // Nothing typed is left behind a rename or a bin.
+        if moves {
+            crate::collab::write_all(&s, &key);
+        }
+        let answer = service
             .dispatch(&c, &n, args)
-            .unwrap_or_else(|| Err(refused("no such command")))
+            .unwrap_or_else(|| Err(refused("no such command")));
+        if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
+            crate::collab::close_missing(&s, &key, &notes);
+        }
+        answer
     })
     .await?;
     if access == Access::Write {

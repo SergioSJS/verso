@@ -30,10 +30,11 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, ContractError, Edge,
-    ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged, FolderInfo, FolderSpace, Hit, Host,
-    IndexProgress, IndexSummary, Link, McpAdded, McpClientState, McpStatus, MovedEntries, NoteText,
-    Renamed, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
+    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabState,
+    CollabUpdate, ContractError, Edge, ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged,
+    FolderInfo, FolderSpace, Hit, Host, IndexProgress, IndexSummary, Link, McpAdded,
+    McpClientState, McpStatus, MovedEntries, NoteText, Renamed, Tag, TextFile, Trashed,
+    UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -466,6 +467,61 @@ fn folder_space<R: tauri::Runtime>(
     with(&state, &window, ops::folder_space)
 }
 
+/* ---------- Simultaneous editing: the server's (ADR 0073 item 7) ---------- */
+
+fn not_here() -> ContractError {
+    refused("simultaneous editing is a server's; this app writes its notes itself")
+}
+
+/// Join a note for editing with others: on a server only.
+#[tauri::command]
+#[specta::specta]
+fn collab_join(path: String) -> Result<CollabJoin, ContractError> {
+    let _ = path;
+    Err(not_here())
+}
+
+/// An edit made in this window, for the others.
+#[tauri::command]
+#[specta::specta]
+fn collab_update(path: String, update: String) -> Result<(), ContractError> {
+    let _ = (path, update);
+    Err(not_here())
+}
+
+/// Where this window's cursor is, for the others.
+#[tauri::command]
+#[specta::specta]
+fn collab_awareness(path: String, update: String) -> Result<(), ContractError> {
+    let _ = (path, update);
+    Err(not_here())
+}
+
+/// This window leaves the note.
+#[tauri::command]
+#[specta::specta]
+fn collab_leave(path: String) -> Result<(), ContractError> {
+    let _ = path;
+    Err(not_here())
+}
+
+/// Write the shared note now (⌘S): its revision on disk.
+#[tauri::command]
+#[specta::specta]
+fn collab_save(path: String) -> Result<String, ContractError> {
+    let _ = path;
+    Err(not_here())
+}
+
+/// A shared note that changed on disk while edits waited: keep the disk's
+/// text (`disk`) or write the shared one over it (`mine`).
+#[tauri::command]
+#[specta::specta]
+fn collab_resolve(path: String, keep: String) -> Result<String, ContractError> {
+    let _ = (path, keep);
+    Err(not_here())
+}
+
 /* ---------- The command line and MCP, from the settings (ADR 0054) ---------- */
 
 /// The commands, once, for the handler, the bindings and the tests. A
@@ -536,6 +592,12 @@ macro_rules! commands_for {
                 reindex::<$runtime>,
                 capabilities,
                 folder_space::<$runtime>,
+                collab_join,
+                collab_update,
+                collab_awareness,
+                collab_leave,
+                collab_save,
+                collab_resolve,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,
@@ -554,6 +616,8 @@ macro_rules! commands_for {
             .typ::<FolderChanged>()
             .typ::<UpdateProgress>()
             .typ::<IndexProgress>()
+            .typ::<CollabUpdate>()
+            .typ::<CollabState>()
     };
 }
 

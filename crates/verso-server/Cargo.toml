@@ -41,6 +41,13 @@ rustls-pki-types = { version = "1", features = ["std"] }
 rusqlite = { version = "0.40", default-features = false, features = ["bundled"] }
 # Passwords hashed with Argon2id (ADR 0074 item 3; MIT OR Apache-2.0).
 argon2 = { version = "0.5", default-features = false, features = ["alloc", "password-hash", "std"] }
+# Simultaneous editing of notes (ADR 0073 item 7; the maintainer's answer
+# L of 2026-10-09): the Rust implementation of the Yjs CRDT the window's
+# y-codemirror.next speaks (MIT); and a three-way merge of lines for a
+# write that reaches a shared note from elsewhere — the properties panel,
+# a quote from a PDF — over the edits still unsaved (MIT OR Apache-2.0).
+yrs = "0.28"
+diffy = "0.5"
 # Random tokens and their SHA-256 at rest (ADR 0074 items 7 and 8);
 # both already in the tree (MIT OR Apache-2.0).
 getrandom = "0.3"
