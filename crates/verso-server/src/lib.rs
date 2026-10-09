@@ -24,6 +24,7 @@ pub mod limit;
 pub mod log;
 pub mod rpc;
 pub mod state;
+pub mod tls;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -132,9 +133,10 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
                 .to_owned(),
         );
     }
-    if config.tls.is_some() {
-        return Err("VERSO_TLS_CERT_FILE: not built yet in this version; serve behind a proxy or `tailscale serve`".to_owned());
-    }
+    let acceptor = match &config.tls {
+        Some((cert, key)) => Some(tls::acceptor(cert, key)?),
+        None => None,
+    };
     let db = prepare(&config)?;
     data::ensure_dir(&config.folders_dir)
         .map_err(|e| format!("VERSO_FOLDERS_DIR ({}): {e}", config.folders_dir.display()))?;
@@ -154,7 +156,13 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
         let listener = tokio::net::TcpListener::bind(listen)
             .await
             .map_err(|e| format!("listening on {listen}: {e}"))?;
-        run(server, listener, stopped()).await
+        match acceptor {
+            Some(acceptor) => {
+                let tls = tls::TlsListener::new(listener, acceptor).map_err(|e| e.to_string())?;
+                run_on(server, tls, stopped()).await
+            }
+            None => run(server, listener, stopped()).await,
+        }
     })
 }
 
@@ -164,6 +172,20 @@ pub async fn run(
     listener: tokio::net::TcpListener,
     stop: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> Result<(), String> {
+    run_on(server, listener, stop).await
+}
+
+/// Serve on any listener — plain TCP, or TLS ([`tls::TlsListener`]).
+pub async fn run_on<L>(
+    server: Arc<state::Server>,
+    listener: L,
+    stop: impl std::future::Future<Output = ()> + Send + 'static,
+) -> Result<(), String>
+where
+    L: axum::serve::Listener<Addr = SocketAddr>,
+    http::Remote:
+        for<'a> axum::extract::connect_info::Connected<axum::serve::IncomingStream<'a, L>>,
+{
     let listen = listener.local_addr().map_err(|e| e.to_string())?;
     log::info(&format!(
         "verso serve {} (contract {}) on {listen}, folders in {}",
@@ -174,7 +196,7 @@ pub async fn run(
     let app = http::router(server);
     axum::serve(
         listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
+        app.into_make_service_with_connect_info::<http::Remote>(),
     )
     .with_graceful_shutdown(stop)
     .await

@@ -30,6 +30,12 @@ axum = { version = "0.8", default-features = false, features = ["http1", "tokio"
 # The window's files served from VERSO_UI_DIR, with ranges and validators
 # (MIT); already in the tree through reqwest.
 tower-http = { version = "0.6", default-features = false, features = ["fs"] }
+# TLS served by the server itself, from the host's certificate and key
+# files (VERSO_TLS_CERT_FILE, VERSO_TLS_KEY_FILE; the maintainer's answer F
+# of 2026-10-09). rustls on ring (Apache-2.0 AND ISC), both already in the
+# tree through reqwest; no OpenSSL to cross-compile for ARM.
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+rustls-pki-types = { version = "1", features = ["std"] }
 # The accounts, sessions, invitations, tokens, grants and the audit log
 # (ADR 0074 item 10): SQLite, as the index (MIT, public domain).
 rusqlite = { version = "0.40", default-features = false, features = ["bundled"] }
@@ -48,7 +54,9 @@ unicode-normalization = "0.1"
 tempfile = "3.27"
 # The server driven as a window drives it: HTTP and the contract's
 # WebSocket, in tests only; both already in the tree.
-reqwest = { version = "0.13", default-features = false, features = ["json"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+# A certificate made for the TLS test (MIT OR Apache-2.0).
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
 tokio-tungstenite = "0.29"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 

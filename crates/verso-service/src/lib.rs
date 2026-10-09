@@ -564,6 +564,26 @@ impl Service {
         }
     }
 
+    /// The walk's rules and the folder note's name for the folder `client`
+    /// shows only — on a server they are the folder's, set by its owner
+    /// (ADR 0070, the folder's layer).
+    pub fn set_folder_settings(
+        &self,
+        client: &str,
+        rules: Option<verso_core::WalkRules>,
+        folder_note_name: Option<&str>,
+    ) {
+        if let Some(session) = self.session_of(client) {
+            let mut session = lock(&session);
+            if let Some(rules) = rules {
+                session.workspace.set_walk_rules(rules);
+            }
+            if let Some(name) = folder_note_name {
+                session.workspace.set_folder_note_name(name);
+            }
+        }
+    }
+
     fn all_sessions(&self) -> Vec<Arc<Mutex<Session>>> {
         lock(&self.sessions)
             .by_key

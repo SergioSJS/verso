@@ -654,3 +654,49 @@ fn a_token_reaches_its_folders_only() {
         assert_eq!(res.status().as_u16(), 403);
     });
 }
+
+#[test]
+fn the_server_serves_its_own_tls() {
+    block_on(async {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let cert = rcgen::generate_simple_self_signed(vec!["localhost".to_owned()]).unwrap();
+        let write = |name: &str, text: &str| {
+            let mut f = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+            f.write_all(text.as_bytes()).unwrap();
+            f.persist(dir.path().join(name)).unwrap();
+        };
+        write("cert.pem", &cert.cert.pem());
+        write("key.pem", &cert.signing_key.serialize_pem());
+        let acceptor =
+            tls::acceptor(&dir.path().join("cert.pem"), &dir.path().join("key.pem")).unwrap();
+        assert!(tls::acceptor(&dir.path().join("key.pem"), &dir.path().join("key.pem")).is_err());
+        let r = start().await;
+        let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = tcp.local_addr().unwrap().port();
+        let listener = tls::TlsListener::new(tcp, acceptor).unwrap();
+        let server = Arc::clone(&r.server);
+        tokio::spawn(async move {
+            let _ = run_on(server, listener, std::future::pending()).await;
+        });
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+        let state: Value = client
+            .get(format!("https://localhost:{port}/api/state"))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(state["contract"], contract_version());
+        // Plain HTTP to the TLS port gets nothing.
+        assert!(
+            reqwest::get(format!("http://localhost:{port}/api/state"))
+                .await
+                .is_err()
+        );
+    });
+}
