@@ -99,7 +99,10 @@ fn index_search_and_backlinks_in_both_languages() {
     );
     // The space the folder takes (ADR 0075 item 4).
     let space = lines.next().unwrap_or_default();
-    assert!(space.starts_with("espaço: 84 B — notas 84 B, anexos 0 B, 2 arquivos; índice "), "{space}");
+    assert!(
+        space.starts_with("espaço: 84 B — notas 84 B, anexos 0 B, 2 arquivos; índice "),
+        "{space}"
+    );
     assert!(err.is_empty(), "{err}");
 
     let (code, out, _) = verso(config.path(), "en", &["index", v]);

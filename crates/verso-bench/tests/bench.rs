@@ -124,12 +124,12 @@ fn the_same_seed_writes_the_same_bytes_in_the_decided_shape() {
 }
 
 #[test]
-fn a_tiny_run_reports_the_seven_operations_and_a_regression_is_red() {
+fn a_tiny_run_reports_the_nine_operations_and_a_regression_is_red() {
     let dir = tempfile::tempdir().unwrap();
     let baseline = dir.path().join("baselines.json");
     let common = ["--sizes", "100", "--reps", "1", "--machine", "test"];
 
-    // Record: seven operations, sane results, seven entries in the file.
+    // Record: nine operations, sane results, nine entries in the file.
     let out = bench(&[&common[..], &["--record", "--json"]].concat(), &baseline);
     assert!(
         out.status.success(),
@@ -147,6 +147,8 @@ fn a_tiny_run_reports_the_seven_operations_and_a_regression_is_red() {
             "fresh_index",
             "index_unchanged",
             "index_changed",
+            "watch_batch_walk",
+            "watch_batch",
             "search_common",
             "search_rare",
             "backlinks",
@@ -155,22 +157,25 @@ fn a_tiny_run_reports_the_seven_operations_and_a_regression_is_red() {
     );
     // 99 notes and one placeholder (the hundredth); the common word hits
     // the cap of 20; the rare word is in one note; the most-linked note
-    // has backlinks.
+    // has backlinks; a watcher's batch reads some notes, walking the
+    // folder or not.
     assert_eq!(lines[0]["result"], 99, "{}", lines[0]);
     assert_eq!(lines[1]["result"], 99);
     assert_eq!(lines[2]["result"], 99);
-    assert_eq!(lines[3]["result"], 20);
-    assert_eq!(lines[4]["result"], 1);
-    assert!(lines[5]["result"].as_u64().unwrap() >= 1);
-    assert!(lines[6]["result"].as_u64().unwrap() >= 1);
+    assert!(lines[3]["result"].as_u64().unwrap() >= 1, "{}", lines[3]);
+    assert!(lines[4]["result"].as_u64().unwrap() >= 1, "{}", lines[4]);
+    assert_eq!(lines[5]["result"], 20);
+    assert_eq!(lines[6]["result"], 1);
+    assert!(lines[7]["result"].as_u64().unwrap() >= 1);
+    assert!(lines[8]["result"].as_u64().unwrap() >= 1);
     assert!(lines[0]["index_bytes"].as_u64().unwrap() > 0);
     assert!(lines[0]["notes_per_s"].as_f64().unwrap() > 0.0);
-    assert_eq!(lines[3]["notes_per_s"], Value::Null);
+    assert_eq!(lines[5]["notes_per_s"], Value::Null);
     assert_eq!(lines[0]["samples_ms"].as_array().unwrap().len(), 1);
     assert_eq!(lines[0]["generator"], 1);
     let text = std::fs::read_to_string(&baseline).unwrap();
     let recorded: Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(recorded["entries"].as_array().unwrap().len(), 7);
+    assert_eq!(recorded["entries"].as_array().unwrap().len(), 9);
     assert_eq!(recorded["entries"][0]["machine"], "test");
 
     // The same bytes against the baseline: green. Time and memory of a
