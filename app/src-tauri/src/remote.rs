@@ -71,6 +71,8 @@ pub(crate) struct Remote {
     pub(crate) folder: String,
     token: String,
     next: AtomicU64,
+    /// The last command's round trip, in milliseconds.
+    latency: std::sync::atomic::AtomicU32,
     pending: Pending,
     tx: mpsc::UnboundedSender<String>,
 }
@@ -90,8 +92,21 @@ impl Remote {
             lock(&self.pending).remove(&id);
             return Err(unavailable("the server's connection is closed"));
         }
-        rx.await
-            .unwrap_or_else(|_| Err(unavailable("the server's connection closed")))
+        let sent = std::time::Instant::now();
+        let answer = rx
+            .await
+            .unwrap_or_else(|_| Err(unavailable("the server's connection closed")));
+        let ms = u32::try_from(sent.elapsed().as_millis()).unwrap_or(u32::MAX);
+        self.latency.store(ms, Ordering::Relaxed);
+        // What the window learns of the side includes how far it is
+        // (ADR 0073 item 2).
+        match (cmd, answer) {
+            ("capabilities", Ok(mut caps)) => {
+                caps["latency_ms"] = json!(ms);
+                Ok(caps)
+            }
+            (_, answer) => answer,
+        }
     }
 
     /// A file of the folder, from the server's `/f/`.
@@ -500,16 +515,24 @@ async fn connect<R: tauri::Runtime>(
         for (_, p) in lock(&reading).drain() {
             let _ = p.send(Err(unavailable("the server's connection closed")));
         }
-        if lock(&app_r.state::<App>().remotes)
+        let still = lock(&app_r.state::<App>().remotes)
             .get(&label_r)
-            .is_some_and(|r| r.url == url_r)
-        {
-            release(&app_r, &label_r);
+            .filter(|r| r.url == url_r)
+            .map(|r| r.folder.clone());
+        if let Some(folder) = still {
             let _ = app_r.emit_to(
                 label_r.as_str(),
                 "server-gone",
                 json!({ "url": url_r, "what": "connection" }),
             );
+            // The window keeps the server's folder and tries again: a laptop
+            // that slept, a server that restarted (ADR 0073 item 2).
+            tauri::async_runtime::spawn(reconnect(
+                app_r.clone(),
+                label_r.clone(),
+                url_r.clone(),
+                folder,
+            ));
         }
     });
     let hello = tokio::time::timeout(std::time::Duration::from_secs(10), hello_rx)
@@ -528,9 +551,69 @@ async fn connect<R: tauri::Runtime>(
         folder,
         token: login.token,
         next: AtomicU64::new(1),
+        latency: std::sync::atomic::AtomicU32::new(0),
         pending,
         tx,
     }))
+}
+
+/// Connect again after the connection dropped, with a growing wait, for as
+/// long as the window still shows the server's folder; then open the
+/// folder again, tell the window the folder may have changed meanwhile,
+/// and say the server is back. A session the server ended stops it.
+/// Boxed: it and `connect` start each other.
+fn reconnect<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    label: String,
+    url: String,
+    folder: String,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        let mut wait = 1_u64;
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+            wait = (wait * 2).min(30);
+            let mine = lock(&app.state::<App>().remotes)
+                .get(&label)
+                .is_some_and(|r| r.url == url && r.folder == folder);
+            if !mine {
+                return;
+            }
+            let Ok(Some(login)) = servers::find(app.state::<App>().service.config(), &url) else {
+                return;
+            };
+            let remote = match connect(&app, &label, login, folder.clone()).await {
+                Ok(r) => r,
+                Err(e) if e.kind == ErrorKind::Refused => {
+                    release(&app, &label);
+                    let _ = app.emit_to(
+                        label.as_str(),
+                        "server-gone",
+                        json!({ "url": url, "what": "session" }),
+                    );
+                    return;
+                }
+                Err(_) => continue,
+            };
+            if remote
+                .call("open_server_folder", json!({ "id": folder }))
+                .await
+                .is_err()
+            {
+                continue;
+            }
+            lock(&app.state::<App>().remotes).insert(label.clone(), Arc::clone(&remote));
+            if let Ok(index) = remote.call("reindex", json!({})).await {
+                let _ = app.emit_to(
+                    label.as_str(),
+                    "folder-changed",
+                    json!({ "key": "", "changed": [], "removed": [], "listing": true, "index": index }),
+                );
+            }
+            let _ = app.emit_to(label.as_str(), "server-back", json!({ "url": url }));
+            return;
+        }
+    })
 }
 
 /// Before the app's own handler: a window on a server's folder sends the

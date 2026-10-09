@@ -623,6 +623,12 @@ export type Can =
 export type Capabilities = {
 	host: Host,
 	can: Can[],
+	/**
+	 *  The round trip to the side, in milliseconds, when it is across a
+	 *  network (the desktop app on a server's folder, ADR 0073 item 2): the
+	 *  window learns how far the core is (ADR 0026 rule 2).
+	 */
+	latency_ms: number | null,
 };
 
 /**

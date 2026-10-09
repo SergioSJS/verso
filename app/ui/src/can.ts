@@ -21,6 +21,7 @@ import { forgetCapabilities } from "./collab";
 const DESKTOP: Capabilities = {
   host: "desktop",
   can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders"],
+  latency_ms: null,
 };
 
 let known: Capabilities = DESKTOP;

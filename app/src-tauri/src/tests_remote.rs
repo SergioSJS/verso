@@ -152,6 +152,8 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
     );
     let caps = call(&main, "capabilities", json!({})).unwrap();
     assert_eq!(caps["host"], "server");
+    // How far the server is, measured on this side.
+    assert!(caps["latency_ms"].is_u64(), "{caps}");
     let note = call(&main, "read_note", json!({ "path": "Sessao.md" })).unwrap();
     let written = call(
         &main,
