@@ -18,8 +18,10 @@
 ## 1. What is installed
 
 One program, `verso serve`, a subcommand of the `verso` command line, built
-static for Linux x64 and ARM64. It serves the window to a browser (a
-computer, a phone, an iPad) and the contract over a WebSocket. It is
+static for Linux x64 and ARM64. It serves the contract over a WebSocket
+and, with `--web` (as the image, the compose file and the packages run
+it), the window to a browser — a computer, a phone, an iPad; without it
+the notes are reached from the desktop app only. It is
 configured by environment variables only, the same in every form (0075
 item 6), writes its log to standard error, and stops cleanly on `SIGTERM`.
 

@@ -83,4 +83,4 @@ WORKDIR /home/verso
 
 # SIGTERM (docker stop) ends the server cleanly. `docker exec <container>
 # verso serve admin reset <e-mail>` prints a reset link (ADR 0074 item 5).
-ENTRYPOINT ["verso", "serve"]
+ENTRYPOINT ["verso", "serve", "--web"]

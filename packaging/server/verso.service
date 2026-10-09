@@ -24,7 +24,7 @@ Type=simple
 User=verso
 Group=verso
 EnvironmentFile=/etc/verso/verso.env
-ExecStart=/usr/bin/verso serve
+ExecStart=/usr/bin/verso serve --web
 # SIGTERM, systemd's default, stops the server cleanly.
 TimeoutStopSec=30
 Restart=on-failure

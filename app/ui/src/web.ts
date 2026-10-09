@@ -11,7 +11,7 @@
 
 import { state } from "./web/api";
 import { startBridge } from "./web/bridge";
-import { el } from "./web/form";
+import { el, page } from "./web/form";
 import { notice } from "./web/notice";
 import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
@@ -48,7 +48,11 @@ async function start(): Promise<void> {
     const { adminPage } = await import("./web/admin");
     return adminPage(s.account);
   }
-  // The window itself.
+  // The window itself — only when the server serves it (`--web`).
+  if (!s.web) {
+    page("Verso", el("p", {}, w().noWeb), el("p", {}, el("a", { href: "/account" }, w().account)));
+    return;
+  }
   document.documentElement.dataset.host = "server";
   startBridge(chooseFolder);
   addEventListener("verso:role", (e) => {

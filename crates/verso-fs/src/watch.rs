@@ -77,6 +77,9 @@ pub struct Changes {
 pub struct Watch {
     stop: Arc<AtomicBool>,
     _watcher: Box<dyn notify::Watcher + Send>,
+    /// The network file system the folder is on, when it is scanned
+    /// instead of watched (ADR 0075 item 3).
+    pub scanned: Option<String>,
 }
 
 /// How often a folder is scanned when the operating system will not watch
@@ -310,6 +313,7 @@ pub(crate) fn start(
     };
     let (tx, rx) = mpsc::channel();
     let watcher = native_or_polled(root, &tx, None)?;
+    let scanned = crate::server::network_file_system(root);
     let stop = Arc::new(AtomicBool::new(false));
     let stopped = Arc::clone(&stop);
     std::thread::Builder::new()
@@ -318,11 +322,13 @@ pub(crate) fn start(
     Ok(Watch {
         stop,
         _watcher: watcher,
+        scanned,
     })
 }
 
 /// The operating system's watcher on `root`; when it will not watch it —
-/// out of watches or of watcher instances — a scan every [`POLL_EVERY`]
+/// out of watches or of watcher instances, or a folder on a network file
+/// system, where it hears nothing — a scan every [`POLL_EVERY`]
 /// (`poll`, in a test, scans at once that often instead).
 fn native_or_polled(
     root: &Path,
@@ -336,7 +342,11 @@ fn native_or_polled(
             let _ = tx.send(event);
         }
     };
-    if poll.is_none() {
+    // On a network file system (NFS, SMB, a NAS) the operating system
+    // tells no one when another machine changes a file: the folder is
+    // scanned instead (ADR 0075 item 3).
+    let networked = crate::server::network_file_system(root).is_some();
+    if poll.is_none() && !networked {
         let native = notify::recommended_watcher(handler(tx.clone())).and_then(|mut w| {
             w.watch(root, RecursiveMode::Recursive)?;
             Ok(w)

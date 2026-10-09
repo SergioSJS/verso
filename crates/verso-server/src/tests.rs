@@ -77,7 +77,10 @@ async fn start() -> Running {
         f.persist(folders.path().join("Campanha").join("mapa.svg"))
             .unwrap();
     }
-    let config = config(data.path(), folders.path());
+    let config = Config {
+        web: true,
+        ..config(data.path(), folders.path())
+    };
     let db = prepare(&config).unwrap();
     let admin = db
         .create_account(
@@ -878,5 +881,47 @@ fn a_room_waits_for_a_window_whose_connection_dropped() {
         call(&mut back, 3, "collab_leave", json!({ "path": "Sessao.md" })).await;
         let fresh = call(&mut back, 4, "collab_join", json!({ "path": "Sessao.md" })).await;
         assert_ne!(fresh["ok"]["epoch"], epoch.as_str());
+    });
+}
+
+#[test]
+fn without_web_a_browser_gets_no_window_and_the_app_still_connects() {
+    block_on(async {
+        let r = start().await;
+        // The same server, without --web.
+        let mut cfg = r.server.config.clone();
+        cfg.web = false;
+        let off = state::Server::new(cfg, Db::memory().unwrap(), contract_version(), "t".into());
+        let admin = off
+            .db
+            .create_account("a@b.co", "A", "pt", Some("uma senha longa"), true)
+            .unwrap();
+        let (device, _) = off
+            .db
+            .create_session(&admin.id, "device", "app", "127.0.0.1")
+            .unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let s = Arc::clone(&off);
+        tokio::spawn(async move {
+            let _ = run(s, listener, std::future::pending()).await;
+        });
+        let probe = Running {
+            server: Arc::clone(&off),
+            addr: SocketAddr::from(([127, 0, 0, 1], port)),
+            _dirs: (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()),
+            _stop: tokio::sync::oneshot::channel().0,
+        };
+        let (_, st) = get(&probe, "/api/state", None).await;
+        assert_eq!(st["web"], false);
+        let b = sign_in(&probe, "a@b.co", "uma senha longa").await;
+        assert_eq!(
+            connect(&probe, Some(&b.cookie), Some(&probe.origin()), None)
+                .await
+                .err(),
+            Some(403)
+        );
+        assert!(connect(&probe, None, None, Some(&device)).await.is_ok());
+        drop(r);
     });
 }

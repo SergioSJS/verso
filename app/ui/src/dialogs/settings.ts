@@ -342,6 +342,29 @@ export class SettingsDialog {
       });
       return box;
     });
+    // The space the open folder takes (ADR 0075 item 4), from the walk the
+    // index already made.
+    if (currentFolder) {
+      const pt = document.documentElement.lang.startsWith("pt");
+      add("files", pt ? "Espaço desta pasta" : "This folder's space", pt ? "Notas, anexos e o índice, contados na última leitura da pasta." : "Notes, attachments and the index, counted at the folder's last walk.", () => {
+        const v = h("span", "setting-value", "…");
+        const size = (bytes: number | null) => {
+          let n = bytes ?? 0;
+          const units = ["B", "KB", "MB", "GB", "TB"];
+          let i = 0;
+          while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+          return `${n.toLocaleString(pt ? "pt-BR" : "en", { maximumFractionDigits: i ? 1 : 0 })} ${units[i]}`;
+        };
+        void commands.folderSpace().then((r) => {
+          if (r.status !== "ok") return void (v.textContent = "?");
+          const s = r.data;
+          v.textContent = pt
+            ? `${size(s.total)} — notas ${size(s.notes)}, anexos ${size(s.attachments)}, ${s.files} arquivos; índice ${size(s.index)}`
+            : `${size(s.total)} — notes ${size(s.notes)}, attachments ${size(s.attachments)}, ${s.files} files; index ${size(s.index)}`;
+        });
+        return v;
+      });
+    }
     add("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(settings.ignoreBuildDirs, (v) => { settings.ignoreBuildDirs = v; saveSettings(); void walkRulesChanged(); }));
     add("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(settings.respectGitignore, (v) => { settings.respectGitignore = v; saveSettings(); void walkRulesChanged(); }));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {

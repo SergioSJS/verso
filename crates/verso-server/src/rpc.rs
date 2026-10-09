@@ -52,6 +52,15 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
     {
         return Err(ApiError::forbidden("not from a page of this server"));
     }
+    // The notes' window in a browser is served only with `--web` (ADR 0073
+    // item 2); the desktop app and programs connect with their tokens.
+    if matches!(who.via, Via::Browser { .. }) && !ctx.server.config.web {
+        return Err(ApiError::new(
+            axum::http::StatusCode::FORBIDDEN,
+            "no_web",
+            "this server serves no window in a browser (verso serve --web)",
+        ));
+    }
     let server = Arc::clone(&ctx.server);
     Ok(ws
         .max_message_size(MAX_MESSAGE)

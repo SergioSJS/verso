@@ -291,7 +291,15 @@ impl Service {
             }
         });
         match watched {
-            Ok(watch) => (Some(watch), None),
+            // A folder on a network file system is scanned every 30 seconds
+            // instead (ADR 0075 item 3): said with every summary, as an
+            // unwatched folder's reason is.
+            Ok(watch) => {
+                let said = watch.scanned.as_ref().map(|fs| {
+                    format!("on a network file system ({fs}): changes made elsewhere are found by a scan every 30 seconds")
+                });
+                (Some(watch), said)
+            }
             Err(CoreError::Watch(os)) => (None, Some(os.to_string())),
             Err(e) => (None, Some(e.to_string())),
         }

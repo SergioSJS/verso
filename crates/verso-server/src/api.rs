@@ -28,6 +28,7 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
         "version": env!("CARGO_PKG_VERSION"),
         "contract": ctx.server.contract,
         "secure": ctx.peer.secure,
+        "web": ctx.server.config.web,
         "setup": setup,
         "account": ctx.who.as_ref().map(|w| account_json(&w.account)),
         "csrf": match ctx.who.as_ref().map(|w| &w.via) {

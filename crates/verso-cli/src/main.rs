@@ -62,8 +62,11 @@ enum Command {
     Open {
         folder: PathBuf,
     },
-    /// The server (ADR 0073): configured by its `VERSO_*` variables.
-    Serve,
+    /// The server (ADR 0073): configured by its `VERSO_*` variables; with
+    /// `--web`, the window served to a browser too (ADR 0073 item 2).
+    Serve {
+        web: bool,
+    },
     /// `verso serve admin reset <e-mail>` (ADR 0074 item 5).
     ServeAdminReset {
         email: String,
@@ -119,6 +122,7 @@ fn parse_with(
     let mut unresolved = false;
     let mut key: Option<String> = None;
     let mut all = false;
+    let mut web = false;
     let mut positional: Vec<OsString> = Vec::new();
     let mut error: Option<Msg> = None;
     let mut iter = args.iter();
@@ -146,6 +150,7 @@ fn parse_with(
                 }
             },
             "--all" => all = true,
+            "--web" => web = true,
             "--limit" => match iter.next().and_then(|v| v.to_string_lossy().parse().ok()) {
                 Some(n) => limit = n,
                 None => {
@@ -165,7 +170,11 @@ fn parse_with(
     let command = match error {
         Some(msg) => Err(msg),
         None if all => all_of(positional, unresolved, key.as_ref()),
-        None => command_of(positional, limit, unresolved, key, is_dir),
+        None => command_of(positional, limit, unresolved, key, is_dir).and_then(|c| match c {
+            Command::Serve { .. } => Ok(Command::Serve { web }),
+            _ if web => Err(Msg::ExtraArgument("--web".to_owned())),
+            other => Ok(other),
+        }),
     };
     (options, command)
 }
@@ -313,7 +322,7 @@ fn command_of(
                 .chain(rest)
                 .collect();
             match words.as_slice() {
-                [] => Command::Serve,
+                [] => Command::Serve { web: false },
                 [admin, reset, _] if admin == "admin" && reset == "reset" => {
                     Command::ServeAdminReset {
                         email: words.pop().unwrap_or_default(),
@@ -514,7 +523,7 @@ fn run(args: &[OsString]) -> Output {
         | Command::Mcp { folder } => Some(folder.clone()),
         Command::McpKey { .. } => None,
         Command::Help | Command::Version => return out,
-        Command::Serve | Command::ServeAdminReset { .. } => {
+        Command::Serve { .. } | Command::ServeAdminReset { .. } => {
             return serve(&command, lang, out);
         }
         Command::McpAll => {
@@ -589,7 +598,7 @@ fn run(args: &[OsString]) -> Output {
         | Command::Version
         | Command::Open { .. }
         | Command::McpAll
-        | Command::Serve
+        | Command::Serve { .. }
         | Command::ServeAdminReset { .. } => 0,
         Command::Mcp { .. } | Command::McpKey { .. } => {
             // One incremental pass before the first answer (memo §6.3);
@@ -629,8 +638,9 @@ fn run(args: &[OsString]) -> Output {
         }
         Command::Index { .. } => match ws.index() {
             Ok(r) => {
+                let space = space_of(&ws);
                 if options.json {
-                    out.stdout.push(json_index(&r));
+                    out.stdout.push(json_index(&r, &space));
                 } else {
                     out.stdout.push(text(
                         &Msg::IndexSummary {
@@ -638,6 +648,16 @@ fn run(args: &[OsString]) -> Output {
                             unchanged: r.unchanged,
                             removed: r.removed,
                             placeholders: r.placeholders,
+                        },
+                        lang,
+                    ));
+                    out.stdout.push(text(
+                        &Msg::Space {
+                            total: human_bytes(space.total),
+                            notes: human_bytes(space.notes),
+                            attachments: human_bytes(space.attachments),
+                            files: space.files,
+                            index: human_bytes(space.index),
                         },
                         lang,
                     ));
@@ -811,9 +831,57 @@ fn json_problem(p: &WalkProblem) -> String {
     }
 }
 
-fn json_index(r: &verso_core::IndexReport) -> String {
+/// The space a folder takes (ADR 0075 item 4), from the walk the index
+/// just made — the count the server and the app show.
+struct Space {
+    total: u64,
+    notes: u64,
+    attachments: u64,
+    files: usize,
+    index: u64,
+}
+
+fn space_of(ws: &Workspace) -> Space {
+    let mut s = Space {
+        total: 0,
+        notes: 0,
+        attachments: 0,
+        files: 0,
+        index: ws.index_bytes().unwrap_or(0),
+    };
+    for e in ws.entries() {
+        match e.kind {
+            verso_core::FileKind::Note => s.notes += e.len,
+            verso_core::FileKind::File | verso_core::FileKind::Placeholder => {
+                s.attachments += e.len
+            }
+            verso_core::FileKind::Folder => continue,
+        }
+        s.total += e.len;
+        s.files += 1;
+    }
+    s
+}
+
+/// Bytes as a person reads them, the same in both languages.
+fn human_bytes(n: u64) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB"];
+    let mut v = n as f64;
+    let mut i = 0;
+    while v >= 1024.0 && i < units.len() - 1 {
+        v /= 1024.0;
+        i += 1;
+    }
+    if i == 0 {
+        format!("{n} B")
+    } else {
+        format!("{v:.1} {}", units[i])
+    }
+}
+
+fn json_index(r: &verso_core::IndexReport, space: &Space) -> String {
     format!(
-        "{{\"indexed\":{},\"unchanged\":{},\"removed\":{},\"placeholders\":{},\"unreadable\":{},\"problems\":{}}}",
+        "{{\"indexed\":{},\"unchanged\":{},\"removed\":{},\"placeholders\":{},\"unreadable\":{},\"problems\":{},\"space\":{{\"total\":{},\"notes\":{},\"attachments\":{},\"files\":{},\"index\":{}}}}}",
         r.indexed,
         r.unchanged,
         r.removed,
@@ -823,7 +891,12 @@ fn json_index(r: &verso_core::IndexReport) -> String {
             json_str(p),
             json_str(e)
         ))),
-        json_array(r.problems.iter().map(json_problem))
+        json_array(r.problems.iter().map(json_problem)),
+        space.total,
+        space.notes,
+        space.attachments,
+        space.files,
+        space.index
     )
 }
 
