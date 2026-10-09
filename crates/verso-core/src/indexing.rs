@@ -78,10 +78,10 @@ impl Workspace {
                     });
                     present.insert(relative.clone());
                     // Modified time and length the index holds, from long
-                    // enough before the run that last read it: unchanged,
-                    // and not read again (decided 2026-10-08; reading and
-                    // hashing every note made each opening of 5,000 notes
-                    // cost seconds of CPU).
+                    // enough before the last complete run began
+                    // (`Index::complete`): unchanged, and not read again
+                    // (decided 2026-10-08; reading and hashing every note
+                    // made each opening of 5,000 notes cost seconds of CPU).
                     let modified = entry.modified.map(seconds_since_epoch);
                     if let Some(modified) = modified
                         && self
@@ -90,6 +90,7 @@ impl Workspace {
                             .map_err(CoreError::Index)?
                     {
                         report.unchanged += 1;
+                        report.trusted += 1;
                         continue;
                     }
                     match self.root.read(entry.handle) {
@@ -106,11 +107,6 @@ impl Workspace {
                                 .map_err(CoreError::Index)?
                                 .unwrap_or(false);
                             if same && !unverified {
-                                // Read and matched: trusted by its stat
-                                // from the next run on.
-                                self.index
-                                    .confirm(&relative, modified)
-                                    .map_err(CoreError::Index)?;
                                 report.unchanged += 1;
                                 continue;
                             }
@@ -217,6 +213,13 @@ impl Workspace {
                 report.removed += 1;
                 report.gone.push(known);
             }
+        }
+        // Every note read or trusted: from the next run on, one modified
+        // well before this run began is trusted by its stat. Not when a
+        // folder could not be listed or a file read: those notes were
+        // neither.
+        if report.problems.is_empty() && report.unreadable.is_empty() {
+            self.index.complete().map_err(CoreError::Index)?;
         }
         let now = seconds_since_epoch(std::time::SystemTime::now());
         self.index

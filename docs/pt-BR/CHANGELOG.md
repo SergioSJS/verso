@@ -14,7 +14,7 @@ versão de teste.
 
 ### Corrigido
 
-- **Reabrir uma pasta logo depois de as notas serem escritas não regrava mais o índice**: a linha de cada nota sem mudança era gravada de novo só para atestá-la, quando ela ainda era recente demais para isso; num disco lento, reabrir 10.000 notas levava 2,5 vezes mais que antes da 0.5.0-beta.1.
+- **Reabrir uma pasta não grava nada no índice para as notas que não mudaram**: a 0.5.0-beta.1 gravava de novo a linha de cada nota sem mudança, com o texto junto, para atestá-la da próxima vez. Num disco que grava de verdade, reabrir 10.000 notas levava 2,5 vezes mais que antes (949–980 ms contra 379). O índice agora guarda uma data só, o início da última passada completa, em vez de uma por nota.
 
 ## 0.5.0-beta.1 — 2026-10-08
 
