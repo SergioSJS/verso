@@ -294,7 +294,8 @@ case-only names (spec Q8).
 - **The updater:** the asset by format — the AppImage when the app runs
   from one (`$APPIMAGE`), else a `.deb` where `/etc/debian_version` exists,
   else an `.rpm`. The AppImage is written beside itself, flushed, and
-  renamed over itself; a `.deb` or `.rpm` is saved under its own name to
+  renamed over itself (the file is flushed, its directory is not, as on
+  macOS and Windows); a `.deb` or `.rpm` is saved under its own name to
   the Downloads folder the desktop names (`user-dirs.dirs`), for the
   package manager.
 - **The release job:** x64 on `ubuntu-22.04` and ARM64 on

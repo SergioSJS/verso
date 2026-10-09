@@ -29,10 +29,31 @@ const APPIMAGE_MARK: &str = "# verso: the command line inside this AppImage";
 #[cfg(target_os = "linux")]
 fn appimage_script() -> Option<String> {
     let image = PathBuf::from(std::env::var_os("APPIMAGE").filter(|v| !v.is_empty())?);
-    Some(format!(
+    Some(script_for(&image))
+}
+
+/// The script that runs the command line inside the AppImage at `image`.
+#[cfg(target_os = "linux")]
+fn script_for(image: &Path) -> String {
+    format!(
         "#!/bin/sh\n{APPIMAGE_MARK}\nexec {} --cli \"$@\"\n",
-        shell_word(&image)
-    ))
+        shell_word(image)
+    )
+}
+
+/// What `~/.local/bin` holds under the command's name, for an AppImage:
+/// `found` the start of the file there (`None`: nothing readable),
+/// `expected` this AppImage's script, `something` whether anything is there.
+#[cfg(target_os = "linux")]
+fn script_state(found: Option<&str>, expected: Option<&str>, something: bool) -> CliState {
+    match found {
+        Some(text) if Some(text) == expected => CliState::Ours,
+        // This AppImage's script from where the AppImage was before
+        // (moved, renamed): installing writes it again, without asking.
+        Some(text) if text.contains(APPIMAGE_MARK) => CliState::Missing,
+        _ if something => CliState::Elsewhere,
+        _ => CliState::Missing,
+    }
 }
 
 /// `verso-app --cli ARGS…`: the command line this app carries, in this
@@ -121,14 +142,11 @@ fn cli_state_now() -> CliState {
         let Some(dest) = local_bin_cli() else {
             return CliState::Missing;
         };
-        match read_head(&dest) {
-            Some(text) if Some(&text) == appimage_script().as_ref() => CliState::Ours,
-            // This AppImage's script from where the AppImage was before
-            // (moved, renamed): installing writes it again, without asking.
-            Some(text) if text.contains(APPIMAGE_MARK) => CliState::Missing,
-            _ if something_at(&dest) => CliState::Elsewhere,
-            _ => CliState::Missing,
-        }
+        script_state(
+            read_head(&dest).as_deref(),
+            appimage_script().as_deref(),
+            something_at(&dest),
+        )
     }
     #[cfg(not(any(windows, target_os = "linux")))]
     {
@@ -462,4 +480,38 @@ pub(crate) fn mcp_add_claude<R: tauri::Runtime>(
         backup: added.backup,
         warnings: added.warnings,
     })
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod linux_tests {
+    use super::*;
+
+    #[test]
+    fn an_appimage_s_command_is_a_script_told_as_ours_by_its_mark_and_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("bin/verso-beta");
+        // A quote in the AppImage's path stays one shell word.
+        let image = Path::new("/home/ana/Apps/it's/Verso Beta.AppImage");
+        let script = script_for(image);
+        assert!(script.contains("exec '/home/ana/Apps/it'\\''s/Verso Beta.AppImage' --cli \"$@\""));
+        write_executable_text(&dest, &script).unwrap();
+        assert!(executable_file(&dest));
+        let found = read_head(&dest);
+        assert_eq!(
+            script_state(found.as_deref(), Some(&script), true),
+            CliState::Ours
+        );
+        // The same script after the AppImage moved: written again, unasked.
+        let moved = script_for(Path::new("/opt/Verso Beta.AppImage"));
+        assert_eq!(
+            script_state(found.as_deref(), Some(&moved), true),
+            CliState::Missing
+        );
+        // Another program under that name: asked before it is replaced.
+        assert_eq!(
+            script_state(Some("\u{7f}ELF\u{2}\u{1}"), Some(&script), true),
+            CliState::Elsewhere
+        );
+        assert_eq!(script_state(None, Some(&script), false), CliState::Missing);
+    }
 }

@@ -133,7 +133,9 @@ pub(crate) fn frameless<R: tauri::Runtime, M: tauri::Manager<R>>(
 /// window's decorations with the compositor when the window first shows,
 /// and tao shows it before it turns them off — KDE's KWin then kept its own
 /// title bar above the app's (tao's issue "with_decorations(false) doesn't
-/// work on wayland kde", seen on Fedora 44 on 2026-10-09).
+/// work on wayland kde", seen on Fedora 44 on 2026-10-09). Every folder's
+/// window is configured visible (tauri.conf.json), so showing it here
+/// overrides nothing.
 pub(crate) fn open_frameless<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
     builder: tauri::WebviewWindowBuilder<'a, R, M>,
 ) -> tauri::Result<tauri::WebviewWindow<R>> {
