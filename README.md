@@ -41,7 +41,7 @@ The repository is private while the app matures; it is in Phase 2 of
   show the note or the block, backlinks and outgoing links, unresolved
   links, renames that update every link, and an interactive graph.
 - **Boards.** `.canvas` files drawn with Excalidraw: the folder's notes as
-  cards you edit in place, pictures and PDFs as cards, arrows that keep the
+  cards you edit in place, pictures (which you can crop) and PDFs as cards, arrows that keep the
   point they were drawn to, typed relations, and drawings from Obsidian's
   Excalidraw plugin.
 - **Bases.** `.base` files shown as tables, Kanban boards and lists, and
@@ -49,8 +49,8 @@ The repository is private while the app matures; it is in Phase 2 of
 - **Organizing.** A file tree with multiple selection, stickers, colors and
   covers, folder pages, manual order and focuses shared with make.md, daily
   notes with a calendar, and templates offered when a note is created.
-- **Media and the web.** A PDF reader with two-page spreads, pictures with
-  cropping, web pages kept as notes, and HTML files.
+- **Media and the web.** A PDF reader with two-page spreads, pictures, web
+  pages kept as notes, and HTML files.
 - **Finding.** Full-text search, open by name, a command palette, find and
   replace across notes, tabs (pinned and preview), split panes, workspaces,
   and one folder per window.
@@ -66,13 +66,14 @@ The repository is private while the app matures; it is in Phase 2 of
 ## Installing
 
 From the repository's Releases page. A test release is published as
-"Verso Beta" and installs beside the production app.
+"Verso Beta" — its files start with `Verso-Beta-` — and installs beside the
+production app.
 
 | System | Files | First run |
 |---|---|---|
 | macOS, Apple silicon | `Verso-X.Y.Z-macos-arm64.zip`: unzip into `/Applications` | signed ad hoc, not by a registered developer: allow it once in System Settings → Privacy & Security → "Open Anyway" |
-| Windows 10 and 11, x64 | `Verso-X.Y.Z-windows-x64-setup.exe`, an installer for your user | unsigned: SmartScreen asks once (More info → Run anyway) |
-| Linux, x64 | an AppImage for any distribution; a `.deb` (Ubuntu 22.04, Debian 12 and later); an `.rpm` (current Fedora) | the AppImage: make it executable and run it. ARM64 comes once the repository is public |
+| Windows 10 and 11, x64 (run so far on Windows 11) | `Verso-X.Y.Z-windows-x64-setup.exe`, an installer for your user | unsigned: SmartScreen asks once (More info → Run anyway) |
+| Linux, x64 | `Verso-X.Y.Z-linux-x86_64.AppImage` for any distribution; `Verso-X.Y.Z-linux-amd64.deb` (Ubuntu 22.04, Debian 12 and later); `Verso-X.Y.Z-linux-x86_64.rpm` (Fedora 36 and later) | the AppImage: make it executable and run it. ARM64 comes once the repository is public |
 
 The command line comes with the app. On macOS, Settings → Terminal and
 agents → Install links it as `/usr/local/bin/verso`; on Windows `verso.exe`
@@ -82,7 +83,7 @@ the same command line for a machine without the app.
 
 ## Try it: the tutorial
 
-Open an empty folder and choose **Import the demo content**: Verso writes its
+Open a folder, and with no note open choose **Import the demo content**: Verso writes its
 tutorial there — about twenty notes, one per area of the app, and two
 boards. Start with the **Tour do Verso** board, then **Treino do Board** to
 learn drawing ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)). The
@@ -99,6 +100,8 @@ A Rust core and a desktop window ([ADR 0028](docs/adr/0028-crate-structure.md)):
 | `crates/verso-index` | SQLite with FTS5: search, links, the graph |
 | `crates/verso-core` | orchestrates the rest and exposes the contract |
 | `crates/verso-cli` | the `verso` command and the MCP server |
+| `crates/verso-contract` | the contract's types, no IO |
+| `crates/verso-bench` | the benchmark, never shipped |
 | `app/src-tauri`, `app/ui` | the Tauri window and its TypeScript interface (CodeMirror, Excalidraw) |
 
 The window talks to the core only through the contract, whose TypeScript
