@@ -152,7 +152,12 @@ function connect(): void {
       // The folder again, then what waited; and the window told the folder
       // may have changed while it was away: it checks its open notes.
       void request("open_server_folder", { id: folderId })
-        .then(() => request("reindex", {}))
+        .then(() => {
+          // The notes being edited together join their rooms again and
+          // send what was typed meanwhile (collab.ts).
+          dispatchEvent(new Event("verso:reconnected"));
+          return request("reindex", {});
+        })
         .then((index) => emit("folder-changed", { key: "", changed: [], removed: [], listing: true, index }))
         .then(() => notice(w().reconnected))
         .catch(() => undefined);

@@ -470,6 +470,10 @@ pub struct CollabJoin {
     pub crlf: bool,
     /// The name the others see for this person.
     pub user: String,
+    /// Which room this is: a window that comes back after its connection
+    /// dropped sends what it typed meanwhile only into the room it left,
+    /// never into one made again from the disk.
+    pub epoch: String,
 }
 
 /// An edit or a presence of another person in a note (events

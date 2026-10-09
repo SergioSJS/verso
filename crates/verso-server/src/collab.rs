@@ -34,6 +34,9 @@ use crate::state::Server;
 
 /// How long a room waits after the last edit before it writes.
 const QUIET: Duration = Duration::from_millis(900);
+/// How long a room outlives a connection that dropped, so that a window
+/// coming back finds it and sends what it typed meanwhile.
+const GRACE: Duration = Duration::from_secs(120);
 /// The text's name inside the document, as the window's binding names it.
 pub const TEXT: &str = "verso";
 
@@ -54,6 +57,8 @@ pub struct Room {
     scheduled: bool,
     /// The windows in the room.
     clients: HashSet<String>,
+    /// Which room this is (made again from the disk, it is another).
+    epoch: String,
 }
 
 /// A room's place: (folder key, note path).
@@ -238,6 +243,7 @@ pub fn join(
                     read_only: true,
                     crlf: false,
                     user: user.to_owned(),
+                    epoch: String::new(),
                 });
             };
             let doc = new_doc();
@@ -258,6 +264,7 @@ pub fn join(
                 edited: Instant::now(),
                 scheduled: false,
                 clients: HashSet::new(),
+                epoch: crate::crypto::id().map_err(verso_service::failed)?,
             }));
             let mut map = lock(&server.rooms.map);
             // Two windows joining at once: the first room made stays.
@@ -276,6 +283,7 @@ pub fn join(
         read_only: false,
         crlf: r.crlf,
         user: user.to_owned(),
+        epoch: r.epoch.clone(),
     })
 }
 
@@ -423,15 +431,44 @@ pub fn leave(server: &Server, client: &str, key: &str, path: &str) {
     }
 }
 
-/// A window gone: out of every room.
-pub fn gone(server: &Server, client: &str) {
-    let rooms: Vec<(String, String)> = lock(&server.rooms.map)
-        .iter()
-        .filter(|(_, r)| lock(r).clients.contains(client))
-        .map(|(k, _)| k.clone())
+/// A window's connection dropped: out of every room. A room left empty is
+/// written now and kept a while for the window to come back (GRACE).
+pub fn gone(server: &Arc<Server>, client: &str) {
+    let rooms: Vec<Arc<Mutex<Room>>> = lock(&server.rooms.map)
+        .values()
+        .filter(|r| lock(r).clients.contains(client))
+        .map(Arc::clone)
         .collect();
-    for (key, path) in rooms {
-        leave(server, client, &key, &path);
+    for room in rooms {
+        let empty = {
+            let mut r = lock(&room);
+            r.clients.remove(client);
+            r.clients.is_empty()
+        };
+        if !empty {
+            continue;
+        }
+        let _ = write(server, &room);
+        let (key, path, epoch) = {
+            let r = lock(&room);
+            (r.key.clone(), r.path.clone(), r.epoch.clone())
+        };
+        let server = Arc::clone(server);
+        if let Some(rt) = server.runtime.get().cloned() {
+            rt.spawn(async move {
+                tokio::time::sleep(GRACE).await;
+                let mut map = lock(&server.rooms.map);
+                let place = (key, path);
+                let still_empty = map.get(&place).is_some_and(|r| {
+                    let r = lock(r);
+                    r.clients.is_empty() && r.epoch == epoch
+                });
+                if still_empty && let Some(room) = map.remove(&place) {
+                    drop(map);
+                    let _ = write(&server, &room);
+                }
+            });
+        }
     }
 }
 
