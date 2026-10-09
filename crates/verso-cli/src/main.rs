@@ -956,7 +956,11 @@ fn serve(command: &Command, lang: Lang, mut out: Output) -> Output {
         &verso_server::config::ProcessEnv,
         &defaults,
     ) {
-        Ok(c) => c,
+        // `--web` is the command line's, not the environment's.
+        Ok(c) => verso_server::config::Config {
+            web: matches!(command, Command::Serve { web: true }),
+            ..c
+        },
         Err(e) => {
             out.stderr
                 .push(text(&Msg::ServeFailed(e.to_string()), lang));
@@ -1221,5 +1225,16 @@ mod tests {
     fn json_strings_are_escaped() {
         assert_eq!(json_str("a\"b\\c\nd"), "\"a\\\"b\\\\c\\nd\"");
         assert_eq!(json_object("hits", std::iter::empty()), "{\"hits\":[]}");
+    }
+
+    #[test]
+    fn serve_takes_web_and_nothing_else_does() {
+        let is_dir = |_: &Path| false;
+        let (_, c) = parse_with(&args(&["serve", "--web"]), is_dir);
+        assert_eq!(c, Ok(Command::Serve { web: true }));
+        let (_, c) = parse_with(&args(&["serve"]), is_dir);
+        assert_eq!(c, Ok(Command::Serve { web: false }));
+        let (_, c) = parse_with(&args(&["index", "x", "--web"]), is_dir);
+        assert_eq!(c, Err(Msg::ExtraArgument("--web".to_owned())));
     }
 }

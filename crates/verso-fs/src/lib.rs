@@ -324,6 +324,23 @@ impl Root {
         walk::walk(self)
     }
 
+    /// The length and modified time of the file `handle` names, following
+    /// a symlink, without reading it: what a narrowed index run updates for
+    /// a file that is not a note (ADR 0073 item 12).
+    pub fn length_and_time(&self, handle: Handle) -> std::io::Result<(u64, Option<SystemTime>)> {
+        let path = self.path_of(handle).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "a handle of another root")
+        })?;
+        let meta = std::fs::metadata(path)?;
+        if !meta.is_file() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "not a file",
+            ));
+        }
+        Ok((meta.len(), meta.modified().ok()))
+    }
+
     /// Read a file's content and its [`Stamp`]. A placeholder — a dataless
     /// file, a `.Name.ext.icloud` entry, or `Name.ext` whose `.icloud`
     /// sibling stands in for it — is [`ReadError::Unavailable`] and is never

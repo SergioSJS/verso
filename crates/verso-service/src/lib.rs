@@ -285,9 +285,9 @@ impl Service {
     ) -> (Option<verso_core::Watch>, Option<String>) {
         let service: Weak<Self> = Arc::downgrade(self);
         let key = workspace.key();
-        let watched = workspace.watch(move |_| {
+        let watched = workspace.watch(move |changes| {
             if let Some(service) = service.upgrade() {
-                service.changed_outside(&key, &missed);
+                service.changed(&key, &missed, Some(&changes));
             }
         });
         match watched {
@@ -342,6 +342,12 @@ impl Service {
     /// folder does nothing and sets `missed`: the folder is still being
     /// opened.
     pub fn changed_outside(&self, key: &str, missed: &AtomicBool) {
+        self.changed(key, missed, None);
+    }
+
+    /// The same, with the batch's paths when the watch gave them: only
+    /// those are read again when they can be (ADR 0073 item 12).
+    fn changed(&self, key: &str, missed: &AtomicBool, changes: Option<&verso_core::Changes>) {
         let (clients, session) = {
             let sessions = lock(&self.sessions);
             let Some(session) = sessions.by_key.get(key).map(Arc::clone) else {
@@ -352,8 +358,9 @@ impl Service {
         };
         let mut session = lock(&session);
         let progress = self.progress_to(clients.clone());
-        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            session.workspace.index_with_progress(progress)
+        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| match changes {
+            Some(changes) => session.workspace.index_changes(changes, progress),
+            None => session.workspace.index_with_progress(progress),
         }));
         let report = match outcome {
             Ok(Ok(report)) => Ok(report),
@@ -362,7 +369,11 @@ impl Service {
         };
         let payload = match report {
             Ok(report) => {
-                session.info.index = session_summary(&session, &report);
+                // A narrowed run read a few paths: the counts and problems
+                // of the last walk still describe the folder.
+                if !report.narrowed {
+                    session.info.index = session_summary(&session, &report);
+                }
                 FolderChanged {
                     key: key.to_owned(),
                     changed: report.changed,

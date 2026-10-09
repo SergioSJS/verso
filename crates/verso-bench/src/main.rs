@@ -42,11 +42,18 @@ const USAGE: &str = "usage: verso-bench [--sizes N,N,...] [--reps N] [--seed N] 
 
 Run it in release: cargo run --release -p verso-bench -- ...";
 
-/// The seven operations of bench-decision §3.1, in the order they run.
-const OPERATIONS: [&str; 7] = [
+/// The seven operations of bench-decision §3.1, in the order they run,
+/// and the watch's batch two ways (ADR 0073 item 12): the same notes
+/// changed after an index, brought up to date by a walk of the whole
+/// folder (`watch_batch_walk`, as before) and by their paths only
+/// (`watch_batch`) — both timed around that step alone, in the process
+/// that indexed first, as the app and the server hold the folder open.
+const OPERATIONS: [&str; 9] = [
     "fresh_index",
     "index_unchanged",
     "index_changed",
+    "watch_batch_walk",
+    "watch_batch",
     "search_common",
     "search_rare",
     "backlinks",
@@ -187,9 +194,36 @@ fn child(args: &[String]) -> Result<ChildReport, Failure> {
         return Err(Failure::Usage("--child OP VAULT CONFIG [ARG]".into()));
     };
     let arg = rest.first().map(String::as_str);
-    let start = Instant::now();
+    let mut start = Instant::now();
     let mut ws = Workspace::open(Path::new(vault), Some(Path::new(config)))?;
     let result = match op.as_str() {
+        "watch_batch_walk" | "watch_batch" => {
+            ws.index()?;
+            let paths: Vec<std::path::PathBuf> = arg
+                .unwrap_or_default()
+                .lines()
+                .map(std::path::PathBuf::from)
+                .collect();
+            for p in &paths {
+                let file = Path::new(vault).join(p);
+                let mut text = std::fs::read_to_string(&file)?;
+                text.push_str("Um lote do watcher: outra linha.\n");
+                std::fs::write(&file, text)?;
+            }
+            start = Instant::now();
+            let r = if op == "watch_batch" {
+                ws.index_changes(
+                    &verso_core::Changes {
+                        paths,
+                        rescan: false,
+                    },
+                    |_| {},
+                )?
+            } else {
+                ws.index()?
+            };
+            (r.indexed + r.unchanged) as u64
+        }
         "fresh_index" | "index_unchanged" | "index_changed" => {
             let r = ws.index()?;
             (r.indexed + r.unchanged) as u64
@@ -322,10 +356,19 @@ fn run_size(size: usize, o: &Options, time: Option<&str>) -> Result<Vec<Measured
                 seed: o.seed,
             },
         )?;
-        let args: [Option<String>; 7] = [
+        let batch: String = vault
+            .to_change
+            .iter()
+            .filter_map(|p| p.strip_prefix(&vault_dir).ok())
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let args: [Option<String>; 9] = [
             None,
             None,
             None,
+            Some(batch.clone()),
+            Some(batch),
             Some(COMMON_WORD.to_owned()),
             Some(RARE_WORD.to_owned()),
             Some(vault.most_linked.clone()),
