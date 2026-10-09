@@ -31,6 +31,7 @@ import { hotkeyRecorder, SettingsDialog } from "./dialogs/settings";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { installFrame } from "./frame";
+import { installLongPress } from "./touch";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
@@ -93,7 +94,10 @@ ui.ribbon.setAttribute("aria-label", t.commands);
 document.querySelector(".side")?.setAttribute("aria-label", t.folderView);
 ui.collapse.replaceChildren(icon("collapse", t.collapseAll));
 ui.collapse.title = t.collapseAll;
+installLongPress();
 ui.search.placeholder = t.search;
+ui.searchClear.title = t.clearSearch;
+ui.searchClear.setAttribute("aria-label", t.clearSearch);
 ui.searchLabel.textContent = t.search;
 // The tree's order, from its heading: one button, its icon the mode in use
 // — A→Z alphabetical, the grip custom (the maintainer, 2026-10-02).
@@ -389,6 +393,14 @@ let pending: number | undefined;
 ui.search.addEventListener("input", () => {
   window.clearTimeout(pending);
   pending = window.setTimeout(() => void searchNotes(ui.search.value), 150);
+});
+// A phone has no Esc: the × beside the words clears them, and the tree
+// comes back. The field keeps the focus, for the next words.
+ui.searchClear.addEventListener("click", () => {
+  window.clearTimeout(pending);
+  ui.search.value = "";
+  ui.search.focus();
+  void searchNotes("");
 });
 ui.search.addEventListener("keydown", (e) => {
   if (e.key === "Enter") ui.notes.querySelector<HTMLButtonElement>("li[data-path] button")?.click();

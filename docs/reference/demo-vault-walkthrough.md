@@ -256,6 +256,10 @@ point 13).
    nothing. Level: A.
 3. "Grafo do cofre": the graph and its controls as note 05 names them.
    Level: H.
+4. ⌘K `busca navegação`: note 12 comes first, found by its file name,
+   before the notes that only say the words; the × at the end of the field
+   clears the words and the tree comes back, as Esc does. Level: A (the
+   core's search); E: `search.spec.mjs`.
 
 ## 6. Files
 
@@ -310,6 +314,10 @@ point 13).
    "…" inside its row. Tab into the tree: the focus ring shows on all four
    sides of a row, inside it (by eye, both engines; caught 2026-10-08: the
    folders' containment cut it).
+10. Note 14, "Arrastar e Soltar", on a touch screen: a swipe over the tree
+   scrolls it and moves nothing; a finger held on a row and lifted opens
+   its menu; held and then moved, it drags the row into a folder. Level: H
+   (touch moves only in Chromium); E: `touch.spec.mjs`.
 
 ## 7. The web
 

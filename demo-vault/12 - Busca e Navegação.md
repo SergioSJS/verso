@@ -18,7 +18,7 @@ Achar uma nota, um trecho ou um comando, trocar texto em todas as notas de uma v
 
 | Atalho | Abre | Para |
 | :--- | :--- | :--- |
-| `⌘ K` | **Buscar nas notas** | achar notas pelo que está escrito nelas |
+| `⌘ K` | **Buscar nas notas** | achar notas pelo nome e pelo que está escrito nelas |
 | `⌘ P` | **Abrir…** | ir a uma nota ou arquivo pelo nome |
 | `⌘ ⇧ P` | **Comandos** | qualquer coisa que o Verso faz, pelo nome |
 
@@ -26,7 +26,7 @@ Achar uma nota, um trecho ou um comando, trocar texto em todas as notas de uma v
 
 ## Buscar nas Notas (`⌘K`)
 
-A busca acha as notas que têm **todas** as palavras digitadas, como palavras inteiras, sem ligar para maiúsculas e acentos. `Enter` abre o primeiro resultado. Três filtros afinam a busca:
+A busca acha primeiro as notas cujo **nome do arquivo** tem as palavras, e depois as que têm **todas** as palavras no texto, como palavras inteiras — sem ligar para maiúsculas e acentos. `Enter` abre o primeiro resultado; o **×** no fim do campo limpa a busca (no celular, onde não há `Esc`). Três filtros afinam a busca:
 
 - `tag:projeto` — as notas com a tag `#projeto` (e as tags dentro dela, como `#projeto/alpha`);
 - `path:projetos` — as notas cujo caminho contém `projetos`;

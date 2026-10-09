@@ -8,7 +8,7 @@ import { MAC, WINDOWS } from "./platform";
 
 /* ---------- Strings ---------- */
 export type Strings = Record<
-  | "open" | "reindex" | "search" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
+  | "open" | "reindex" | "search" | "clearSearch" | "stickerSearch" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
   | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists" | "planLeftOut"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
@@ -95,7 +95,7 @@ export type Strings = Record<
 };
 
 export const pt: Strings = {
-  open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
+  open: "Abrir pasta", reindex: "Reindexar", search: "Buscar nas notas", clearSearch: "Limpar a busca", stickerSearch: "Buscar figurinhas", notes: "Arquivos", backlinks: "Backlinks", outline: "Estrutura",
   noFolder: "Nenhuma pasta", stale: "Índice atrasado em relação ao arquivo — reindexe.",
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
   scanningVault: "Escaneando arquivos…",
@@ -232,7 +232,7 @@ export const pt: Strings = {
 };
 
 export const en: Strings = {
-  open: "Open folder", reindex: "Reindex", search: "Search the notes", notes: "Files", backlinks: "Backlinks", outline: "Outline",
+  open: "Open folder", reindex: "Reindex", search: "Search the notes", clearSearch: "Clear the search", stickerSearch: "Search stickers", notes: "Files", backlinks: "Backlinks", outline: "Outline",
   noFolder: "No folder", stale: "The index is behind the file — reindex.",
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
   scanningVault: "Scanning files…",

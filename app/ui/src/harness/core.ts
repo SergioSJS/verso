@@ -771,13 +771,17 @@ export class Core {
     return { path: to, warnings: [] };
   }
 
+  /** As the core's search (verso-index): the notes whose file name holds
+   *  every word first — the whole name, its start, the start of its
+   *  words, anywhere; shorter first — then those whose text holds them. */
   private search(words: string, limit: number): Hit[] {
     const terms = words.split(/\s+/).filter(Boolean);
     const tag = terms.filter((t) => t.startsWith("tag:")).map((t) => fold(t.slice(4).replace(/^#/, "")));
     const path = terms.filter((t) => t.startsWith("path:")).map((t) => fold(t.slice(5)));
     const file = terms.filter((t) => t.startsWith("file:")).map((t) => fold(t.slice(5)));
     const plainWords = terms.filter((t) => !/^(tag|path|file):/.test(t)).map(plain);
-    const hits: Hit[] = [];
+    const named: { rank: number; len: number; hit: Hit }[] = [];
+    const byText: Hit[] = [];
     for (const p of this.notes()) {
       if (path.some((x) => !fold(p).includes(x)) || file.some((x) => !fold(baseOf(p)).includes(x))) continue;
       if (tag.length > 0) {
@@ -786,13 +790,22 @@ export class Core {
       }
       const text = plain(this.text(p));
       const whole = (w: string): boolean => new RegExp(`(^|[^\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}\\p{N}])`, "u").test(text);
-      if (!plainWords.every(whole)) continue;
+      const inText = plainWords.every(whole);
+      const name = plain(baseOf(p).replace(/\.[^.]*$/, ""));
+      const inName = plainWords.length > 0 && plainWords.every((w) => name.includes(w));
+      if (!inText && !inName) continue;
       const first = plainWords[0];
       const line = (first ? this.text(p).split("\n").find((l) => plain(l).includes(first)) : undefined) ?? this.text(p).split("\n")[0] ?? "";
-      hits.push({ path: p, snippet: first ? line.replace(new RegExp(`(${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "iu"), "[$1]") : line });
-      if (hits.length >= limit) break;
+      const snippet = !inText ? "" : first ? line.replace(new RegExp(`(${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "iu"), "[$1]") : line;
+      if (inName) {
+        const all = plainWords.join(" ");
+        const starts = plainWords.every((w) => name.split(/[^\p{L}\p{N}]/u).some((part) => part.startsWith(w)));
+        const rank = name === all ? 0 : name.startsWith(all) ? 1 : starts ? 2 : 3;
+        named.push({ rank, len: [...name].length, hit: { path: p, snippet } });
+      } else byText.push({ path: p, snippet });
     }
-    return hits;
+    named.sort((a, b) => a.rank - b.rank || a.len - b.len || (a.hit.path < b.hit.path ? -1 : 1));
+    return [...named.map((n) => n.hit), ...byText].slice(0, limit);
   }
 
   // ---- Bases, roughly (ADR 0053) -----------------------------------------

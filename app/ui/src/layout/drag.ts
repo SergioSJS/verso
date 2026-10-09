@@ -10,6 +10,7 @@ import { NoteLeaf } from "../leaves/note";
 import { pinItemToFolder, reorderInFolder } from "../organize/order";
 import { dirOf } from "../paths";
 import { settings } from "../settings";
+import { HOLD_MS, STILL_PX } from "../touch";
 import { allFolders, markCurrent, showOutline } from "../tree/tree";
 import { landIn, Pane } from "./pane";
 import { current, layout, openIn, Space, spaces } from "./spaces";
@@ -33,15 +34,32 @@ export function clearDropHints(): void {
   }
 }
 export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
+  // The browser chooses at the touch's start whether it may scroll without
+  // asking the page: a listener that can stop the scroll is there from the
+  // start, and stops it only once the finger has held (`holding`).
+  let holding = false;
+  handle.addEventListener("touchmove", (e) => { if (holding) e.preventDefault(); }, { passive: false });
   handle.addEventListener("pointerdown", (down) => {
     // ⌃-click is the Mac's right click: it opens a menu, never a drag.
     if (down.button !== 0 || down.ctrlKey) return;
     const x0 = down.clientX;
     const y0 = down.clientY;
     let started = false;
+    // A finger drags only after a long press (touch.ts): moved at once, it
+    // scrolls the list. Once held, the page stops scrolling under it, or
+    // the browser would take the move for a scroll and cancel the drag.
+    const finger = down.pointerType === "touch";
+    let held = !finger;
+    const hold = finger ? window.setTimeout(() => { held = holding = true; }, HOLD_MS) : 0;
     const move = (e: PointerEvent) => {
+      if (e.pointerId !== down.pointerId) return;
       if (!started) {
-        if (Math.hypot(e.clientX - x0, e.clientY - y0) < 5) return;
+        const far = Math.hypot(e.clientX - x0, e.clientY - y0);
+        if (!held) {
+          if (far >= STILL_PX) cancel();
+          return;
+        }
+        if (far < 5) return;
         started = true;
         drag = payload();
         ghost.textContent = label();
@@ -54,9 +72,8 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
       if (target) hint(target, e.clientX, e.clientY, e.shiftKey);
     };
     const up = (e: PointerEvent) => {
-      document.removeEventListener("pointermove", move);
-      document.removeEventListener("pointerup", up);
-      document.removeEventListener("contextmenu", cancel, true);
+      if (e.pointerId !== down.pointerId) return;
+      release();
       if (!started) return;
       const target = dropTargetAt(e.clientX, e.clientY);
       const d = drag;
@@ -66,11 +83,20 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
       clearDropHints();
       if (d && target) drop(d, target, e.clientX, e.clientY, e.shiftKey);
     };
-    // A menu opened meanwhile takes the release: the drag is dropped,
-    // or the next click, on the menu, would drop the tab where it lands.
-    const cancel = (): void => {
+    const release = (): void => {
+      window.clearTimeout(hold);
+      holding = false;
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", cancel);
+      document.removeEventListener("contextmenu", cancel, true);
+    };
+    // A menu opened meanwhile takes the release: the drag is dropped, or
+    // the next click, on the menu, would drop the tab where it lands. So
+    // does a pointer the browser takes back (a scroll, a system gesture):
+    // what was being dragged lands nowhere.
+    const cancel = (): void => {
+      release();
       if (started) {
         drag = null;
         ghost.hidden = true;
@@ -80,7 +106,8 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
     };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", up);
-    document.addEventListener("contextmenu", cancel, { once: true, capture: true });
+    document.addEventListener("pointercancel", cancel);
+    document.addEventListener("contextmenu", cancel, { capture: true });
   });
 }
 export type DropTarget =

@@ -25,7 +25,7 @@ O cofre é uma pasta comum do seu computador: o que o Verso cria, renomeia ou ap
 
 ## O Menu de uma Nota
 
-Com o botão direito numa nota da árvore:
+Com o botão direito numa nota da árvore (num celular ou tablet, segure o dedo sobre ela e solte):
 
 - **Abrir em nova aba**, **Abrir ao lado**, **Abrir em nova janela** e **Relações** (o grafo em volta dela).
 - **Renomear** (ou `F2` — na árvore ou com a nota aberta —, ou um clique no título da nota aberta). Se outras notas apontam para ela, o Verso mostra, nota por nota, como cada link vai ficar, e pergunta: **Atualizar links** ou **Deixar como está**.
@@ -37,7 +37,7 @@ Com o botão direito numa nota da árvore:
 
 ## Arrastar e Soltar
 
-- Arraste uma nota da árvore para outra pasta para movê-la.
+- Arraste uma nota da árvore para outra pasta para movê-la. Com o dedo, segure a nota um instante antes de arrastar: deslizar direto só rola a árvore.
 - **Vários de uma vez:** `⌘`-clique acrescenta ou tira uma nota ou pasta da seleção, `⇧`-clique seleciona tudo desde a última clicada, e `Esc` limpa. Arraste a seleção para uma pasta, ou use o botão direito nela — **Mover para…**, **Copiar caminhos relativos**, **Mover para a lixeira** —, e tudo vai junto; os links que precisam mudar aparecem num plano só.
 - Arraste um arquivo da árvore para o **texto de uma nota**: entra um link para ele (ou um embed, se for imagem, PDF ou outro arquivo).
 - Arraste arquivos do Finder para a árvore: eles são copiados para a pasta onde você soltar.

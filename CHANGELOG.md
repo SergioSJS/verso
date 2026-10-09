@@ -12,7 +12,18 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- **A × in the notes search field** clears the words and brings the file tree back, for a phone or tablet, which has no Esc.
+- **On a touch screen**, a long press opens the menu a right click opens, and a long press then a move drags a row or a tab. Fields write at 16 px so iOS no longer zooms into them, controls that showed only under the mouse are shown, buttons and rows are larger, and the settings fit a phone, with a × to close them. What was measured and what is left: `docs/reference/responsive-review-2026-10-09.md`.
+
+### Changed
+
+- **The search finds a note by its file name first**, then by what the notes say: a note whose first heading names it otherwise is found by its file name too, before the notes that only mention the words. Accents and case do not matter, as in the content. The same order in `verso search` and in the agents' search.
+
+### Fixed
+
+- **A swipe on the file tree no longer moves a note**: on a touch screen, scrolling the tree started a drag, and the next tap on a folder moved the note into it. A long menu now scrolls inside the screen instead of running past it.
 
 ## 0.6.0-beta.1 — 2026-10-09
 

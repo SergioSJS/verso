@@ -190,8 +190,14 @@ export function showMenu(x: number, y: number, items: MenuItem[]): void {
     }),
   );
   menu.hidden = false;
-  menu.style.left = `${Math.min(x, window.innerWidth - menu.offsetWidth - 8)}px`;
-  menu.style.top = `${Math.min(y, window.innerHeight - menu.offsetHeight - 8)}px`;
+  // Inside what the screen shows — on a phone, above the keyboard — and
+  // never above its top: a menu taller than that scrolls (the CSS).
+  const view = window.visualViewport;
+  const width = view?.width ?? window.innerWidth;
+  const height = view?.height ?? window.innerHeight;
+  menu.style.maxHeight = `${height - 16}px`;
+  menu.style.left = `${Math.max(8, Math.min(x, width - menu.offsetWidth - 8))}px`;
+  menu.style.top = `${Math.max(8, Math.min(y, height - menu.offsetHeight - 8))}px`;
   menu.querySelector("button")?.focus();
 }
 
