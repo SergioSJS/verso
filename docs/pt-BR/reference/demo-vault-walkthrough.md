@@ -262,6 +262,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Nível: A.
 3. "Grafo do cofre": o grafo e os controles como a nota 05 os nomeia.
    Nível: H.
+4. ⌘K `busca navegação`: a nota 12 vem primeiro, achada pelo nome do
+   arquivo, antes das notas que só dizem as palavras; o × no fim do campo
+   limpa as palavras e a árvore volta, como o Esc faz. Nível: A (a busca do
+   core); E: `search.spec.mjs`.
 
 ## 6. Arquivos
 
@@ -320,6 +324,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    árvore: o anel de foco aparece nos quatro lados de uma linha, por dentro
    (a olho, nos dois motores; pegou em 2026-10-08: a contenção das pastas o
    cortava).
+10. Nota 14, "Arrastar e Soltar", numa tela de toque: deslizar o dedo na
+   árvore a rola e não move nada; um dedo segurado numa linha e solto abre
+   o menu dela; segurado e depois movido, arrasta a linha para uma pasta.
+   Nível: H (o toque só se move no Chromium); E: `touch.spec.mjs`.
 
 ## 7. A web
 

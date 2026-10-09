@@ -39,6 +39,9 @@ export function renderTable(ctx: RenderCtx): HTMLElement {
   const table = h("table", "base-table");
   const height = typeof view["rowHeight"] === "string" ? (view["rowHeight"] as string) : "short";
   table.dataset["height"] = height;
+  // Each column keeps room for a word on a narrow screen: the table then
+  // scrolls sideways in its wrap instead of breaking words letter by letter.
+  table.style.setProperty("--cols", String(result.columns.length));
   const sizes = (view["columnSize"] && typeof view["columnSize"] === "object" ? (view["columnSize"] as Record<string, number>) : {}) ?? {};
   const colgroup = h("colgroup");
   const cols = result.columns.map((c) => {

@@ -12,7 +12,18 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Acrescentado
+
+- **Um × no campo de busca de notas** limpa as palavras e traz a árvore de arquivos de volta, para o celular ou o tablet, que não têm Esc.
+- **Numa tela de toque**, um toque longo abre o menu que o clique direito abre, e um toque longo seguido de movimento arrasta uma linha ou uma aba. Os campos escrevem a 16 px, e o iOS não dá mais zoom neles; controles que só apareciam sob o mouse aparecem; botões e linhas ficam maiores; e os ajustes cabem num celular, com um × para fechar. O que foi medido e o que falta: `docs/pt-BR/reference/responsive-review-2026-10-09.md`.
+
+### Alterado
+
+- **A busca acha uma nota pelo nome do arquivo primeiro**, depois pelo que as notas dizem: uma nota cujo primeiro título a chama de outro jeito também é achada pelo nome do arquivo, antes das notas que só mencionam as palavras. Acentos e maiúsculas não importam, como no conteúdo. A mesma ordem no `verso search` e na busca dos agentes.
+
+### Corrigido
+
+- **Deslizar o dedo na árvore de arquivos não move mais uma nota**: numa tela de toque, rolar a árvore começava um arrasto, e o toque seguinte numa pasta movia a nota para ela. Um menu longo agora rola dentro da tela em vez de passar dela.
 
 ## 0.6.0-beta.1 — 2026-10-09
 

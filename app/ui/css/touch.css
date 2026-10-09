@@ -1,0 +1,29 @@
+/* A finger instead of a pointer: phone and tablet (ADR 0073 item 9).
+   Last in the cascade, so each rule here wins over the desktop's. */
+
+/* iOS zooms the page into a field whose text is under 16px, and leaves it
+   zoomed: on a touch screen every field writes at 16px at least. */
+@media (pointer: coarse) {
+  input, textarea, select, .cm-content { font-size: max(16px, 1em); }
+}
+
+/* What a pointer finds by hovering, a finger never sees: shown at rest. */
+@media (hover: none) {
+  .tab-close, .space-tab .tab-close, .prop-remove, .props.empty .prop-new, .cm-table-add,
+  .base-card-more, .base-cal-add, .cm-lp-base-source, .note-cover-controls, .note-add-cover-btn,
+  .editor .cm-foldGutter .cm-gutterElement, .preview .quote-fold-btn, .preview .list-fold-btn,
+  .preview pre .code-fold-btn, .embed-edit, .copy-code-btn, .cm-lp-copy-code, .focus-actions,
+  .focus-remove-path, .cm-lp-grip, .pill-x { opacity: 1; }
+  /* A key hint means nothing without a keyboard. */
+  .search kbd { display: none; }
+}
+
+/* Room for a finger: 44px is the size Apple and Google ask of a target. */
+@media (pointer: coarse) {
+  .search { padding-top: .55rem; padding-bottom: .55rem; }
+  .ribbon button, #toggle-side, #toggle-right, #report-bug, #keys-commands { min-width: 44px; min-height: 44px; }
+  #notes li > button, #notes summary { min-height: 40px; }
+  .side-divider, .divider { touch-action: none; }
+  .side-divider::after { inset: 0 -10px; }
+  .divider::before { content: ""; position: absolute; inset: -10px; }
+}

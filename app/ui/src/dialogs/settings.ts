@@ -56,7 +56,17 @@ export class SettingsDialog {
       if (e.key === "Escape") this.hide();
     });
     const side = h("div", "settings-side");
-    side.append(this.search, this.nav);
+    // A phone has no Esc, and a tap beside the page may find no room: the
+    // page closes by its own button too.
+    const close = h("button", "ghost iconic settings-close");
+    close.type = "button";
+    close.title = t.done;
+    close.setAttribute("aria-label", t.done);
+    close.append(icon("close"));
+    close.addEventListener("click", () => this.hide());
+    const top = h("div", "settings-top");
+    top.append(this.search, close);
+    side.append(top, this.nav);
     this.box.append(side, this.body);
     this.el.append(this.box);
     document.body.append(this.el);
