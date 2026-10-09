@@ -112,8 +112,9 @@ those, the rule item 3 takes.
 
 Proposed. Decided by the maintainer on 2026-10-08: item 3 (names every OS
 can keep, for what Verso makes or renames). Proposed: items 1, 2 and 4.
-`[OPEN]`: the hidden directory's name; whether the approved embed origins
-are the folder's or the person's (a permission granted to a site, not a
-property of the notes); ADR 0069's separator question, still the
-maintainer's to close. Closed on 2026-10-08: `\` joins item 3's refused
+Decided by the maintainer on 2026-10-09: the hidden directory is
+**`.verso/`**, as Obsidian's is `.obsidian/` ("Se inspire no obsidian");
+ADR 0069's separator is `/`, definitive. `[OPEN]`: whether the approved
+embed origins are the folder's or the person's (a permission granted to a
+site, not a property of the notes). Closed on 2026-10-08: `\` joins item 3's refused
 characters on every OS (raised by the review of that day).

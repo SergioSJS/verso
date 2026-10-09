@@ -19,8 +19,10 @@
 #
 # macOS, arm64 (ADR 0022), and since its port Windows, x64 (ADR 0069 item
 # 6): an NSIS installer per user, unsigned (ADR 0069), with `verso.exe`
-# beside the app. Linux gets a job of its own when its port lands (ADR
-# 0071). A test release is
+# beside the app; and Linux, x64 (ADR 0071; ARM64 once the repository is
+# public): an AppImage, a
+# `.deb` and an `.rpm`, built on Ubuntu 22.04 so they run on the oldest
+# base supported. A test release is
 # built as "Verso Beta", with an identifier of its own, so that it installs
 # beside the production app with its own window settings, and its command
 # line opens that app. The app is signed ad hoc, not with a Developer ID:
@@ -28,7 +30,8 @@
 # a decision for before public distribution.
 #
 # Cost: one macOS job, about ten minutes, each billed as ten Linux ones; one
-# Windows job, about fifteen, each billed as about two; a minute of Linux to
+# Windows job, about fifteen, each billed as about two; one Linux job, x64,
+# about twenty minutes (estimated: not run yet); a minute of Linux to
 # publish.
 
 name: release
@@ -171,6 +174,24 @@ jobs:
           slug="$(printf '%s' "$NAME" | tr ' ' '-')"
           ditto -c -k --keepParent "target/release/bundle/macos/$NAME.app" "$slug-$VERSION-macos-arm64.zip"
           tar -czf "verso-cli-$VERSION-macos-arm64.tar.gz" -C target/release verso
+      # Each file signed with Verso's release key (ADR 0055, revised
+      # 2026-10-09): the app installs an update only when its `.sig`
+      # verifies against the public key it carries. The key reaches only
+      # this step, from the repository's secrets.
+      - name: sign the release's files
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for f in ./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz; do
+            npm --prefix app/ui exec -- tauri signer sign "$f"
+            test -s "$f.sig"
+          done
+      # Checked as the app checks them, with the key it carries: a secret
+      # that is not that key stops the release here, before it is published
+      # (a published release is permanent).
+      - name: verify the signatures with the app's key
+        run: target/release/verso-app --verify-signature ./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz
       - name: keep the files for the publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -178,7 +199,9 @@ jobs:
           if-no-files-found: error
           path: |
             ./*-macos-arm64.zip
+            ./*-macos-arm64.zip.sig
             ./verso-cli-*-macos-arm64.tar.gz
+            ./verso-cli-*-macos-arm64.tar.gz.sig
 
   windows:
     name: Verso for Windows (${{ needs.decide.outputs.tag }})
@@ -269,6 +292,17 @@ jobs:
           if [ "${#exes[@]}" -ne 1 ]; then echo "::error::expected one installer, found: ${exes[*]}"; exit 1; fi
           cp "${exes[0]}" "$slug-$VERSION-windows-x64-setup.exe"
           pwsh -NoProfile -Command "Compress-Archive -Path target/release/verso.exe -DestinationPath verso-cli-$VERSION-windows-x64.zip"
+      - name: sign the release's files
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for f in ./*-windows-x64-setup.exe ./verso-cli-*-windows-x64.zip; do
+            npm --prefix app/ui exec -- tauri signer sign "$f"
+            test -s "$f.sig"
+          done
+      - name: verify the signatures with the app's key
+        run: target/release/verso-app.exe --verify-signature ./*-windows-x64-setup.exe ./verso-cli-*-windows-x64.zip
       - name: keep the files for the publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -276,13 +310,151 @@ jobs:
           if-no-files-found: error
           path: |
             ./*-windows-x64-setup.exe
+            ./*-windows-x64-setup.exe.sig
             ./verso-cli-*-windows-x64.zip
+            ./verso-cli-*-windows-x64.zip.sig
 
-  # Both platforms built: the release is published with their files. On a
+  # Linux (ADR 0071, items 2, 3 and 6): one build per architecture on the
+  # oldest base of the family, Ubuntu 22.04 (glibc 2.35), so the packages run
+  # there and later, on Debian 12 and on current Fedora — x64 only for now:
+  # ARM64 waits until the repository is public, since GitHub's ARM runners
+  # (`ubuntu-22.04-arm`) are for public repositories, and one runner that
+  # never comes would hold every platform's publish (the maintainer,
+  # 2026-10-09). Its matrix entry, when it comes back: arch aarch64, runner
+  # ubuntu-22.04-arm, triple aarch64-unknown-linux-gnu, deb arm64; and the
+  # publish job's count goes back to 24. A beta installs beside the release:
+  # its binary is `verso-app-beta` and its command line `verso-beta`, or the
+  # two packages would fight over /usr/bin.
+  linux:
+    name: Verso for Linux ${{ matrix.arch }} (${{ needs.decide.outputs.tag }})
+    needs: decide
+    if: needs.decide.outputs.tag != ''
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+            deb: amd64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: what is released
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ needs.decide.outputs.tag }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            node scripts/release.mjs verify "$TAG"
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::$TAG is not on main"
+              exit 1
+            fi
+            version="${TAG#v}"
+          else
+            version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$EVENT:$version" in
+            push:*-beta.*|workflow_dispatch:*) echo "beta=true" >> "$GITHUB_OUTPUT"; echo "name=Verso Beta" >> "$GITHUB_OUTPUT"; echo "bin=verso-app-beta" >> "$GITHUB_OUTPUT"; echo "cli=verso-beta" >> "$GITHUB_OUTPUT" ;;
+            *) echo "beta=false" >> "$GITHUB_OUTPUT"; echo "name=Verso" >> "$GITHUB_OUTPUT"; echo "bin=verso-app" >> "$GITHUB_OUTPUT"; echo "cli=verso" >> "$GITHUB_OUTPUT" ;;
+          esac
+      # What Tauri needs on Linux (its prerequisites page), and rpm for the
+      # `.rpm`.
+      - name: the system's libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev rpm file
+      - name: toolchain from rust-toolchain.toml
+        run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: the UI bundle
+        working-directory: app/ui
+        run: npm ci && npm run build
+      - name: the command line
+        env:
+          VERSO_APP_NAME: ${{ steps.version.outputs.name }}
+          CLI: ${{ steps.version.outputs.cli }}
+          TRIPLE: ${{ matrix.triple }}
+        run: |
+          cargo build --release --locked -p verso-cli
+          mkdir -p app/src-tauri/binaries
+          cp target/release/verso "app/src-tauri/binaries/$CLI-$TRIPLE"
+      - name: the packages
+        env:
+          BETA: ${{ steps.version.outputs.beta }}
+        run: |
+          if [ "$BETA" = true ]; then
+            conf='{"identifier":"com.versomd.app.beta","productName":"Verso Beta","mainBinaryName":"verso-app-beta","bundle":{"externalBin":["binaries/verso-beta"]}}'
+          else
+            conf='{"bundle":{"externalBin":["binaries/verso"]}}'
+          fi
+          printf '%s' "$conf" > bundle.conf.json
+          npm --prefix app/ui exec -- tauri build --bundles deb,rpm,appimage --config bundle.conf.json
+      # Named as the updater looks for them: the version, the OS, the
+      # architecture, the format (app/src-tauri/src/update.rs, pick_asset).
+      - name: the release's files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          NAME: ${{ steps.version.outputs.name }}
+          ARCH: ${{ matrix.arch }}
+          DEB: ${{ matrix.deb }}
+        run: |
+          slug="$(printf '%s' "$NAME" | tr ' ' '-')"
+          shopt -s nullglob
+          for kind in deb rpm appimage; do
+            files=(target/release/bundle/"$kind"/*)
+            if [ "${#files[@]}" -ne 1 ]; then echo "::error::expected one $kind, found: ${files[*]}"; exit 1; fi
+          done
+          cp target/release/bundle/deb/*.deb "$slug-$VERSION-linux-$DEB.deb"
+          cp target/release/bundle/rpm/*.rpm "$slug-$VERSION-linux-$ARCH.rpm"
+          cp target/release/bundle/appimage/*.AppImage "$slug-$VERSION-linux-$ARCH.AppImage"
+          tar -czf "verso-cli-$VERSION-linux-$ARCH.tar.gz" -C target/release verso
+      - name: sign the release's files
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for f in ./*-linux-*.deb ./*-linux-*.rpm ./*-linux-*.AppImage ./verso-cli-*-linux-*.tar.gz; do
+            npm --prefix app/ui exec -- tauri signer sign "$f"
+            test -s "$f.sig"
+          done
+      - name: verify the signatures with the app's key
+        env:
+          BIN: ${{ steps.version.outputs.bin }}
+        run: |
+          "target/release/$BIN" --verify-signature ./*-linux-*.deb ./*-linux-*.rpm ./*-linux-*.AppImage ./verso-cli-*-linux-*.tar.gz
+      - name: keep the files for the publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-linux-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            ./*-linux-*.deb
+            ./*-linux-*.deb.sig
+            ./*-linux-*.rpm
+            ./*-linux-*.rpm.sig
+            ./*-linux-*.AppImage
+            ./*-linux-*.AppImage.sig
+            ./verso-cli-*-linux-*.tar.gz
+            ./verso-cli-*-linux-*.tar.gz.sig
+
+  # Every platform built: the release is published with their files. On a
   # rehearsal nothing is published; the files stay as the run's artifacts.
   publish:
     name: publish ${{ needs.decide.outputs.tag }}
-    needs: [decide, macos, windows]
+    needs: [decide, macos, windows, linux]
     if: github.event_name == 'push' && needs.decide.outputs.tag != ''
     runs-on: ubuntu-latest
     steps:
@@ -314,7 +486,9 @@ jobs:
           esac
           node scripts/release.mjs notes "$version" > notes.md
           files=(files/*)
-          if [ "${#files[@]}" -ne 4 ]; then echo "::error::expected four files, found: ${files[*]}"; exit 1; fi
+          # macOS 2, Windows 2, Linux 4 (x64; ARM64 waits for a public
+          # repository); each with its signature.
+          if [ "${#files[@]}" -ne 16 ]; then echo "::error::expected eight files and their signatures, found: ${files[*]}"; exit 1; fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${files[@]}" --clobber
             gh release edit "$TAG" --notes-file notes.md

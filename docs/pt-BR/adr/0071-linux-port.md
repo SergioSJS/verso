@@ -249,13 +249,96 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
 
 Proposto. O porte espera, pela palavra do mantenedor em 2026-10-08 ("deixe
 pra depois"); o ADR 0022 não muda (Linux depois da Fase 2) até o mantenedor
-o revisar. `[ABERTO]`: ARM64; as versões suportadas de cada distribuição;
-duas ou três máquinas; hardware de verdade para a checagem de GPU; quando o
-`check-linux-vm.sh` é exigido antes de um push; o atualizador no Linux (o
-nosso, o gerenciador de pacotes, ou o plugin do Tauri com assinatura);
-assinar os pacotes; onde o índice e o log moram no Linux (ADR 0011:
-`$XDG_CONFIG_HOME/verso` hoje — um cache talvez caiba em `$XDG_CACHE_HOME`
-ou `$XDG_STATE_HOME`); onde o Claude Desktop no Linux lê as configurações;
-placeholders de nuvem no Linux; Snap; Wayland nativo ou X11 forçado onde as
-web views filhas precisarem; nomes que diferem só em maiúsculas (a Q8 da
-spec).
+o revisar. **O porte começou em 2026-10-09**, pela palavra do mantenedor
+("começar a trabalhar na versão Linux … eu confio na sua seleção e também na
+implementação"): as três máquinas do item 4, montadas a partir das imagens
+cloud das distribuições com cloud-init (`verso-linux-vm`, fora do
+repositório, como o `verso-windows-vm`), e a ordem do item 8. O núcleo e a
+linha de comando continuam rodando sem tela; só a janela precisa de uma.
+**Respondido pelo mantenedor em 2026-10-09**:
+- O ARM64 é gerado ao lado do x64 — quando o repositório for público: os
+  runners ARM do GitHub atendem repositórios públicos, então até lá o
+  release gera só x64 (o mantenedor, em 2026-10-09: "se no GitHub Actions
+  não tem o ARM para projeto privado, a gente espera … para quando a gente
+  for tornar público").
+- As versões seguem o Obsidian: nenhuma lista publicada. O piso é a
+  WebKitGTK 4.1, a biblioteca de que o Tauri precisa — Ubuntu 22.04,
+  Debian 12, Fedora 36 e posteriores.
+- A checagem de NVIDIA com Wayland roda no desktop do mantenedor, com um
+  pacote.
+- O `check-linux-vm.sh` não é exigido antes de todo push, só quando fizer
+  sentido ou para um pacote fechado.
+- As atualizações são assinadas com a chave de release do ADR 0055
+  (revisto em 2026-10-09).
+- As configurações do Claude Desktop são tomadas como em `~/.config/Claude`
+  (guias de terceiros; os documentos da Anthropic nomeiam só macOS e
+  Windows), a observar numa instalação real antes de depender disso.
+- Placeholders de nuvem: nenhum no Linux — não há arquivos "só online" no
+  nível do sistema, então uma nota é lida como qualquer arquivo.
+- O índice e o log ficam em `$XDG_CONFIG_HOME/verso` (`~/.config/verso`),
+  como o Obsidian guarda `~/.config/obsidian`.
+
+`[ABERTO]`: Snap; Wayland nativo ou X11 forçado onde as web views filhas
+precisarem; nomes que diferem só em maiúsculas (a Q8 da spec).
+
+**Como foi construído em 2026-10-09** (branch `feat/linux-port`, não
+mesclada):
+- **As máquinas:** Ubuntu 26.04 com GNOME, Debian 12 com GNOME, Fedora 44
+  com KDE Plasma, cada uma com um snapshot `provisioned`. O KDE do Fedora 44
+  entra pelo `plasmalogin`, não pelo sddm, e roda o assistente
+  `plasma-setup` até existir `/etc/plasma-setup-done`.
+- **Os pacotes:** a seção `linux` do bundle (`.deb` e `.rpm` dependem do
+  `xdg-utils`; o `.rpm` em zstd, umas três vezes mais rápido de gerar que
+  o gzip padrão, do mesmo tamanho; o AppImage não leva GStreamer); o beta se instala como
+  `verso-app-beta` e `verso-beta`, ao lado do release.
+- **A integração:** um pacote põe a linha de comando em `/usr/bin`, e os
+  Ajustes dizem isso em vez de oferecer a instalação; o beta usa o
+  `verso-beta`, nunca o `verso` do release ao lado. O AppImage põe em
+  `~/.local/bin`, com o nome do comando, um script que roda a linha de
+  comando de dentro do AppImage (`verso-app --cli`), e assim ela segue o
+  AppImage quando este se atualiza. "Mostrar no gerenciador de arquivos" pede ao
+  gerenciador, por D-Bus, que selecione o arquivo; senão abre a pasta com
+  `xdg-open`; o item tem o nome de cada SO (Finder, Explorador de Arquivos,
+  gerenciador de arquivos). "Copiar caminho completo" cita o
+  `wl-clipboard` ou o `xclip` quando nenhum dos dois está lá.
+- **A janela:** a janela de uma pasta não tem a barra de título do
+  sistema, como no Windows — o app desenha minimizar, maximizar e fechar no
+  alto à direita (ADR 0072, item 3: "até o porte dele"). O mantenedor, em
+  2026-10-09, no GNOME e no KDE: "essa barra é gigantesca … muito espaço
+  inútil". A janela é criada escondida e mostrada depois de criada: o tao
+  mostra a janela antes de desligar as decorações, e o KWin do KDE mantinha
+  a barra dele (a issue do tao "with_decorations(false) doesn't work on
+  wayland kde"). Vista sem a barra no Ubuntu 26.04 e no Debian 12 (GNOME) e
+  no Fedora 44 (KDE).
+- **O watcher:** quando o inotify fica sem watches ou descritores ao abrir
+  a pasta, ele vigia a pasta por polling a cada 30 segundos. Se faltarem
+  depois (uma subpasta nova além do limite), ele ainda não troca.
+- **O atualizador:** o asset pelo formato — o AppImage quando o app roda de
+  um (`$APPIMAGE`), senão um `.deb` onde existe `/etc/debian_version`,
+  senão um `.rpm`. O AppImage é escrito ao lado de si, levado ao disco e
+  renomeado sobre si (o arquivo vai ao disco, o diretório não, como no
+  macOS e no Windows); um `.deb` ou `.rpm` é salvo com o próprio nome na
+  pasta de Downloads que o desktop nomeia (`user-dirs.dirs`), para o
+  gerenciador de pacotes.
+- **O job de release:** x64 no `ubuntu-22.04`; gera os três pacotes e o
+  arquivo da linha de comando, assina e confere as assinaturas. Ainda não
+  rodou.
+- **O motor:** o projeto WebKit da suíte de ponta a ponta, no contêiner
+  Linux do Playwright, passou em 179 de 179. Foi preciso uma correção no
+  produto: um board tomava o estado do Excalidraw de antes de carregar o
+  board (um fundo branco) como o do próprio board, então o fundo real
+  contava como edição e o board era escrito. Três testes foram ajustados
+  para o nome do item em cada SO e o tempo do hover da alça.
+- **Observado:** o `.rpm` instala e abre no Fedora 44 (KDE, Wayland); o
+  AppImage abre no Ubuntu 26.04 (GNOME). O AppImage do Tauri define
+  `GDK_BACKEND=x11` (o plugin GTK dele, issue 8541 do Tauri), então roda
+  sob XWayland. O log diz que falta o `appsink` do GStreamer, então um
+  vídeo numa nota não foi conferido ali. Um `.deb` gerado no Ubuntu 26.04
+  não roda no Debian 12 (pede glibc 2.38 e 2.39, lá há 2.36), como o item
+  3 previa; o `.deb` do beta gerado como o job de release gera, num
+  contêiner `ubuntu:22.04`, instala e abre lá (GNOME, Wayland). Nesse
+  ensaio o passo do AppImage travou no download das ferramentas do Tauri,
+  na rede daquela máquina; os runners do job de release vão mostrar.
+- **Ainda não observado:** web views filhas sob Wayland, NVIDIA, nomes que
+  diferem só em maiúsculas, os atributos estendidos do SELinux, sistemas de
+  arquivos de rede, instância única e "Adicionar ao Claude".

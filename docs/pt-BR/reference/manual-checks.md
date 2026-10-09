@@ -18,13 +18,30 @@ app real.
 
 ## Ainda não conferido
 
-### O porte para Windows (feat/windows-fs)
+### Versão 0.5 (feat/windows-fs, feat/signed-updates)
 
+- [ ] **Verso para Linux** (ADR 0071, 2026-10-09), nas máquinas do
+  `verso-linux-vm`: o `.deb` no Ubuntu e no Debian (GNOME), o `.rpm` no
+  Fedora (KDE), o AppImage em qualquer uma — cada um abre uma pasta, edita
+  uma nota, abre um board; "Mostrar no gerenciador de arquivos" seleciona o
+  arquivo; no AppImage, Ajustes › Terminal e agentes › Instalar põe o
+  `verso` em `~/.local/bin`. No desktop do mantenedor, com NVIDIA no
+  Wayland: a janela desenha (nenhum painel em branco).
+- [ ] **Um board aberto e tocado logo em seguida** (2026-10-09): abrir o
+  Tour do Verso, clicar nele, arrastar a vista com Espaço e dar zoom de
+  imediato; depois de alguns segundos o arquivo está igual (`git status` na
+  pasta de demonstração, ou a data do arquivo), no Mac e no Linux.
+- [ ] **A primeira atualização assinada** (ADR 0055, 2026-10-09): da
+  versão anterior à primeira release assinada, "Baixar e atualizar" a
+  instala no macOS e no Windows; a página da release lista um `.sig` ao
+  lado de cada arquivo.
 - [ ] **Sem barra de título** (ADR 0072, 2026-10-08): no Mac, tela cheia
   (os botões somem, a faixa da esquerda volta para cima), uma segunda
   janela, arrastar pela barra de abas e pelo topo da barra lateral; no
   Windows, encaixar numa borda da tela e Win+setas, redimensionar por cada
-  borda, um duplo clique no espaço vazio da barra de abas.
+  borda, um duplo clique no espaço vazio da barra de abas; no Linux (GNOME,
+  KDE), o mesmo: arrastar, redimensionar por cada borda, Super+setas, um
+  duplo clique.
 - [ ] **Um servidor de agentes para todo o Verso** (ADR 0054, 2026-10-08):
   em Ajustes › Terminal e agentes escolha "Um servidor para todo o Verso",
   marque duas pastas como visíveis, "Adicionar ao Claude Desktop", feche o

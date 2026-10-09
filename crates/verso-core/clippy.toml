@@ -36,7 +36,6 @@ disallowed-methods = [
   { path = "std::fs::File::create", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::File::create_new", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   { path = "std::fs::File::options", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
-  { path = "std::fs::OpenOptions::open", reason = "disk access only in verso-fs (ADR 0026 rule 5)" },
   # Each OS has its own symlink calls; the entries of the other OS do not
   # resolve there, and allow-invalid keeps clippy quiet about that while
   # the entry still binds where it resolves (ADR 0069: the Windows build).
@@ -59,4 +58,8 @@ disallowed-methods = [
 ]
 # Allowed here, for the sidecar only: std::fs::write,
 # std::fs::set_permissions, std::fs::rename, std::fs::read_to_string,
-# std::fs::read_dir (the recents listing, ratified 2026-09-29).
+# std::fs::read_dir (the recents listing, ratified 2026-09-29), and
+# std::fs::OpenOptions::open, to append one line to agents.log — allowed by
+# the maintainer on 2026-10-09 ("Liberado", ADR 0054): rewriting the whole
+# log on every call lost a line when two servers logged at once. Only
+# src/sidecar.rs may call any of them (scripts/check.sh).

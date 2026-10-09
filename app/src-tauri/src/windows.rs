@@ -104,8 +104,9 @@ pub(crate) fn open_folder_window<R: tauri::Runtime>(
         .cloned()
         .unwrap_or_default();
     config.label = label;
-    frameless(tauri::WebviewWindowBuilder::from_config(app, &config)?.on_download(on_download))
-        .build()?;
+    open_frameless(
+        tauri::WebviewWindowBuilder::from_config(app, &config)?.on_download(on_download),
+    )?;
     Ok(())
 }
 
@@ -115,15 +116,35 @@ pub(crate) fn open_folder_window<R: tauri::Runtime>(
 /// row, is kept for a Tauri that applies it — on macOS 26 they stay at the
 /// system's place, inside the corner frame.ts keeps either way; a
 /// webview's own position is ignored where child web views are on, as
-/// here); on Windows the app draws its own buttons
-/// (app/ui/src/frame.ts). Linux keeps its title bar until its port (ADR
-/// 0071); a note's popout and a web page's window keep theirs everywhere.
+/// here); on Windows and, since its port, on Linux (ADR 0071; the
+/// maintainer, 2026-10-09: on GNOME and KDE the system's bar was "muito
+/// espaço inútil") the app draws its own buttons (app/ui/src/frame.ts); a
+/// note's popout and a web page's window keep theirs everywhere.
 pub(crate) fn frameless<R: tauri::Runtime, M: tauri::Manager<R>>(
     builder: tauri::WebviewWindowBuilder<'_, R, M>,
 ) -> tauri::WebviewWindowBuilder<'_, R, M> {
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     let builder = builder.decorations(false);
     builder
+}
+
+/// Build a folder's window without the system's title bar (`frameless`).
+/// On Linux it is built hidden and shown once built: GTK settles a
+/// window's decorations with the compositor when the window first shows,
+/// and tao shows it before it turns them off — KDE's KWin then kept its own
+/// title bar above the app's (tao's issue "with_decorations(false) doesn't
+/// work on wayland kde", seen on Fedora 44 on 2026-10-09). Every folder's
+/// window is configured visible (tauri.conf.json), so showing it here
+/// overrides nothing.
+pub(crate) fn open_frameless<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+) -> tauri::Result<tauri::WebviewWindow<R>> {
+    #[cfg(target_os = "linux")]
+    let builder = builder.visible(false);
+    let window = frameless(builder).build()?;
+    #[cfg(target_os = "linux")]
+    window.show()?;
+    Ok(window)
 }
 
 /// What a window of the app downloads — a picture's "Baixar imagem", the

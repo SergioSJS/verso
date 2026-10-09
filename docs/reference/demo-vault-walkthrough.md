@@ -123,9 +123,9 @@ point 13).
    folder; closing a window leaves the others as they were; `verso
    <folder>` with every window on a folder opens a new window. Level: A;
    U: `cargo test -p verso-app` (`each_window_answers_from_its_own_folder`).
-7. No title bar (ADR 0072, note 13), on macOS and Windows: the window's
-   buttons — macOS's at the top left, the app's own at the top right on
-   Windows — never cover a tab, a button or the folder's name, with the side
+7. No title bar (ADR 0072, note 13), on macOS, Windows and Linux: the
+   window's buttons — macOS's at the top left, the app's own at the top
+   right on Windows and Linux — never cover a tab, a button or the folder's name, with the side
    bars open or closed, two panes, a narrow window; the empty part of the
    tab bar, the side bar's head and the ribbon drag the window, and a double
    click there maximizes it (it no longer makes a new note); on Windows the
@@ -465,6 +465,22 @@ point 13).
    by `folder`; unmarked, it is gone from the list. Level: H; E:
    `settings.spec.mjs`; S (`the_server_for_all_of_verso_reads_only_the_visible_folders`);
    A (Claude Desktop, with the app closed).
+7. An update (note 18): from an installed version older than the newest
+   release, Ajustes › Geral › Versão › "Verificar atualizações", then
+   "Baixar e atualizar": the file's checksum and its signature are checked
+   before anything is installed; a file whose signature is missing or does
+   not verify installs nothing and says so. A second folder of the same
+   name added to Claude Desktop (note 17) gets `verso-<parent>-<name>`.
+   Level: S (`an_update_installs_only_with_its_signature`,
+   `a_folder_of_a_name_already_added_takes_its_parent_s_name`); A (the
+   first signed release, on macOS and Windows).
+8. On Linux (note 17): the `.deb` installs `verso-app` and `verso` in
+   /usr/bin, and Terminal e agentes says the command came with the
+   package; an AppImage's "Instalar" puts `verso` in `~/.local/bin`; "Mostrar
+   no gerenciador de arquivos" selects the file. Level: S
+   (`scripts/check-linux-vm.sh --install`, the app opened on Ubuntu's
+   desktop; `--webkit`, the suite on Linux's WebKit); A (Debian, Fedora,
+   the AppImage).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

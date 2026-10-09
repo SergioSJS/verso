@@ -4,20 +4,20 @@
 
 /** A folder's window without the system's title bar (ADR 0072). On macOS
  *  the system's buttons float over the top-left corner (the host places
- *  them, windows.rs `frameless`); on Windows the app draws minimize,
- *  maximize and close at the right end. Either way a corner of the top row
+ *  them, windows.rs `frameless`); on Windows and Linux the app draws
+ *  minimize, maximize and close at the right end (the "windows" frame). Either way a corner of the top row
  *  is reserved, and whatever bar of the top row reaches into it — the
  *  ribbon, the side bar's head, a pane's tabs, the right bar's tabs, the
  *  spaces — is pushed clear of it, whatever the layout: side bars open or
  *  closed, panes split, tabs vertical. The empty parts of those bars drag
  *  the window, and a double click there maximizes it, as the title bar
- *  did. Linux, a note's popout and the browser harness keep it as it was
- *  (the harness takes `?frame=mac|windows` for the tests). */
+ *  did. A note's popout and the browser harness keep it as it was (the
+ *  harness takes `?frame=mac|windows` for the tests). */
 
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { h } from "./dom";
-import { MAC, WINDOWS } from "./platform";
+import { MAC } from "./platform";
 import { t } from "./strings";
 
 type Frame = "mac" | "windows";
@@ -48,7 +48,9 @@ function which(): Frame | null {
   // The folder's windows only: a popout keeps its title, the note's name.
   const label = getCurrentWindow().label;
   if (label !== "main" && !label.startsWith("window-")) return null;
-  return MAC ? "mac" : WINDOWS ? "windows" : null;
+  // Linux draws its buttons as Windows does, at the right end: the
+  // system's bar, on GNOME and KDE, was a strip of space put to no use.
+  return MAC ? "mac" : "windows";
 }
 
 let frame: Frame | null = null;

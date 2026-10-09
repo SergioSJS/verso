@@ -10,7 +10,7 @@ import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, lo
 import { currentFolder } from "../folder";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
-import { WINDOWS } from "../platform";
+import { LINUX, WINDOWS } from "../platform";
 import { spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { panel, updateController } from "../main";
@@ -476,20 +476,23 @@ export class SettingsDialog {
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     // The command line and MCP (ADR 0054). The folder is named by its key
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
-    add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : t.cliDesc, () => this.cliControl());
+    add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
     add("cli", t.mcpTitle, settings.mcpMode === "all" ? t.mcpDescAll : t.mcpDesc, () => this.mcpControl());
     if (settings.mcpMode === "all" && currentFolder) add("cli", t.agentVisibleTitle, t.agentVisibleDesc, () => this.agentVisibleControl());
     const args = mcpArgs();
     if (args) {
-      const server = settings.mcpMode === "all" ? "verso" : `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
-      // The command a client starts, as the host knows it (the linked
-      // command line, or on Windows the bundled verso.exe by its path).
-      const code = (command: string) => `claude mcp add ${server} -- ${/\s/.test(command) ? `"${command}"` : command} ${args.join(" ")}`;
-      const other = (command: string) => JSON.stringify({ mcpServers: { [server]: { command, args } } }, null, 2);
-      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso"), (st) => code(st.command)));
-      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso"), (st) => other(st.command)));
+      const guess = settings.mcpMode === "all" ? "verso" : `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
+      // The command a client starts, and the server's name, as the host
+      // knows them (the linked command line, or on Windows the bundled
+      // verso.exe by its path; another folder of the same name already
+      // added makes it `verso-<parent>-<name>`, ADR 0054).
+      const quoted = (text: string) => (/\s/.test(text) ? `"${text}"` : text);
+      const code = (command: string, server: string) => `claude mcp add ${quoted(server)} -- ${quoted(command)} ${args.join(" ")}`;
+      const other = (command: string, server: string) => JSON.stringify({ mcpServers: { [server]: { command, args } } }, null, 2);
+      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso", guess), (st) => code(st.command, st.server)));
+      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso", guess), (st) => other(st.command, st.server)));
     }
     return out;
   }
@@ -503,7 +506,7 @@ export class SettingsDialog {
     install.hidden = true;
     remove.hidden = true;
     const show = (state: CliState) => {
-      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? t.cliElsewhere : state === "bundled" ? t.cliBundled : t.cliUnbundled;
+      said.textContent = state === "ours" ? t.cliOurs : state === "missing" ? t.cliMissing : state === "elsewhere" ? (LINUX ? t.cliElsewhereLinux : t.cliElsewhere) : state === "bundled" ? (LINUX ? t.cliBundledLinux : t.cliBundled) : t.cliUnbundled;
       install.hidden = state === "ours" || state === "unbundled" || state === "bundled";
       install.textContent = state === "elsewhere" ? t.cliReplace : t.cliInstall;
       install.title = install.textContent;
@@ -513,7 +516,7 @@ export class SettingsDialog {
     install.addEventListener("click", () => void (async () => {
       let replace = false;
       if ((await commands.cliStatus()) === "elsewhere") {
-        if (!(await ask(t.cliReplaceAsk, { yes: t.cliReplace, no: t.cancel }))) return;
+        if (!(await ask(LINUX ? t.cliReplaceAskLinux : t.cliReplaceAsk, { yes: t.cliReplace, no: t.cancel }))) return;
         replace = true;
       }
       const r = await commands.installCli(replace);

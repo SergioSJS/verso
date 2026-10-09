@@ -51,10 +51,13 @@ fi
 dir="${VERSO_LINUX_DIR:-$HOME/.cache/verso-linux}"
 mkdir -p "$dir"
 rsync -a --delete --exclude target --exclude node_modules --exclude .git ./ "$dir/src/"
+# No incremental cache: it outgrew the rest of the build in the target
+# volume (22 GB of 33, 2026-10-09) and filled the Docker machine's disk.
 docker run --rm \
   -v "$dir/src":/src -w /src \
   -v verso-linux-target:/target -e CARGO_TARGET_DIR=/target \
   -e CARGO_PROFILE_DEV_DEBUG=0 -e CARGO_PROFILE_TEST_DEBUG=0 \
+  -e CARGO_INCREMENTAL=0 \
   -v verso-cargo-registry:/usr/local/cargo/registry \
   -v verso-rustup:/usr/local/rustup \
   rust:1-bookworm bash scripts/check-linux.sh --inside

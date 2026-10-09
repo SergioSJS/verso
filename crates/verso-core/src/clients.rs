@@ -50,12 +50,45 @@ pub struct Added {
     pub warnings: Vec<String>,
 }
 
-/// The name of a folder's server in a client: `verso-<the folder's name>`,
-/// from its key (`Workspace::key`: the name, then a hash).
+/// The names a folder's server may take in a client, in order (ADR 0054,
+/// decided 2026-10-09): `verso-<name>`; when another folder holds it,
+/// `verso-<parent>-<name>`, `parent` the name of the folder it sits in; when
+/// that is held too, `verso-<name>-<the first six characters of the key's
+/// hash>`, which no other folder shares.
 #[must_use]
-pub fn server_name(key: &str) -> String {
-    let name = key.rsplit_once('-').map_or(key, |(n, _)| n);
-    format!("verso-{name}")
+pub fn server_names(key: &str, parent: Option<&str>) -> Vec<String> {
+    let (name, hash) = key.rsplit_once('-').unwrap_or((key, key));
+    let mut names = vec![format!("verso-{name}")];
+    if let Some(parent) = parent.filter(|p| !p.is_empty()) {
+        names.push(format!("verso-{parent}-{name}"));
+    }
+    let short: String = hash.chars().take(6).collect();
+    names.push(format!("verso-{name}-{short}"));
+    names
+}
+
+/// Which of `names` the entry has or takes in the configuration in `dir`:
+/// the one that holds this entry already, else the first no server holds,
+/// else the last (held by something else: [`Entry::Different`]).
+pub fn pick_server(
+    dir: &Path,
+    names: &[String],
+    entry: &Value,
+) -> Result<(String, Entry), CoreError> {
+    let first = names.first().cloned().unwrap_or_default();
+    let mut free = None;
+    for name in names {
+        match claude_entry(dir, name, entry)? {
+            Entry::NoClient => return Ok((first, Entry::NoClient)),
+            Entry::Same => return Ok((name.clone(), Entry::Same)),
+            Entry::Absent if free.is_none() => free = Some(name.clone()),
+            _ => {}
+        }
+    }
+    Ok(match free {
+        Some(name) => (name, Entry::Absent),
+        None => (names.last().cloned().unwrap_or(first), Entry::Different),
+    })
 }
 
 /// What a client starts for a folder: `command` — the linked command line
@@ -75,13 +108,17 @@ pub fn verso_all_entry(command: &str) -> Value {
     serde_json::json!({ "command": command, "args": ["mcp", "--all"] })
 }
 
-/// The server's name and its entry, by the mode: the folder with `key`'s
-/// own server, or with `None` the one server for all of Verso.
+/// The names the entry may take, in order, and the entry, by the mode: a
+/// folder's own server (its key and the name of the folder it sits in), or
+/// with `None` the one server for all of Verso.
 #[must_use]
-pub fn server_and_entry(command: &str, key: Option<&str>) -> (String, Value) {
-    match key {
-        Some(key) => (server_name(key), verso_entry(command, key)),
-        None => (ALL_SERVER.to_owned(), verso_all_entry(command)),
+pub fn names_and_entry(
+    command: &str,
+    folder: Option<(&str, Option<&str>)>,
+) -> (Vec<String>, Value) {
+    match folder {
+        Some((key, parent)) => (server_names(key, parent), verso_entry(command, key)),
+        None => (vec![ALL_SERVER.to_owned()], verso_all_entry(command)),
     }
 }
 
@@ -212,10 +249,66 @@ mod tests {
         verso_entry("/usr/local/bin/verso", key)
     }
 
+    /// Two folders of one name each keep their entry: the second takes the
+    /// name of the folder it sits in, a third the key's hash (ADR 0054,
+    /// decided 2026-10-09); a folder already added keeps its name.
+    #[test]
+    fn a_folder_of_a_name_already_added_takes_its_parent_s_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let (trabalho, pessoal, outro) = (
+            "notas-0123456789abcdef",
+            "notas-fedcba9876543210",
+            "notas-aaaaaaaaaaaaaaaa",
+        );
+        let names = |key: &str, parent: &str| server_names(key, Some(parent));
+        assert_eq!(
+            names(trabalho, "trabalho"),
+            ["verso-notas", "verso-trabalho-notas", "verso-notas-012345"]
+        );
+
+        let (name, found) =
+            pick_server(dir.path(), &names(trabalho, "trabalho"), &entry(trabalho)).unwrap();
+        assert_eq!((name.as_str(), found), ("verso-notas", Entry::Absent));
+        add_to_claude(dir.path(), &name, entry(trabalho)).unwrap();
+        // Already there: the same name, the same entry.
+        let (name, found) =
+            pick_server(dir.path(), &names(trabalho, "trabalho"), &entry(trabalho)).unwrap();
+        assert_eq!((name.as_str(), found), ("verso-notas", Entry::Same));
+
+        let (name, found) =
+            pick_server(dir.path(), &names(pessoal, "pessoal"), &entry(pessoal)).unwrap();
+        assert_eq!(
+            (name.as_str(), found),
+            ("verso-pessoal-notas", Entry::Absent)
+        );
+        add_to_claude(dir.path(), &name, entry(pessoal)).unwrap();
+
+        // A third `notas` in another `pessoal`: the hash.
+        let (name, found) =
+            pick_server(dir.path(), &names(outro, "pessoal"), &entry(outro)).unwrap();
+        assert_eq!(
+            (name.as_str(), found),
+            ("verso-notas-aaaaaa", Entry::Absent)
+        );
+
+        // The first two are still there, each its own.
+        assert_eq!(
+            claude_entry(dir.path(), "verso-notas", &entry(trabalho)).unwrap(),
+            Entry::Same
+        );
+        assert_eq!(
+            claude_entry(dir.path(), "verso-pessoal-notas", &entry(pessoal)).unwrap(),
+            Entry::Same
+        );
+    }
+
     #[test]
     fn a_server_is_named_after_the_folder() {
-        assert_eq!(server_name("Campanha-0123456789abcdef"), "verso-Campanha");
-        assert_eq!(server_name("a-b-0123456789abcdef"), "verso-a-b");
+        assert_eq!(
+            server_names("Campanha-0123456789abcdef", None)[0],
+            "verso-Campanha"
+        );
+        assert_eq!(server_names("a-b-0123456789abcdef", None)[0], "verso-a-b");
         assert_eq!(
             entry("k"),
             json!({ "command": "/usr/local/bin/verso", "args": ["mcp", "--key", "k"] })

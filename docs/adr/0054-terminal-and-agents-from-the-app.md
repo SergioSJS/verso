@@ -117,11 +117,12 @@ recommendations accepted ("pode seguir"):
    refused for its folder is logged too, the folder as it was asked
    (`… on <asked> (refused)`): the trace of an agent looking for folders it
    was not given. Each argument keeps its first 300 characters, so a huge
-   one cannot grow the file that every call rewrites. Two servers logging
-   in the same instant can each rewrite the file without the other's line
-   (each writes its own temporary); `[OPEN]`: appending instead, which
-   needs `OpenOptions` declared in verso-core's `clippy.toml` — a
-   guardrail's exception, the maintainer's to grant.
+   one cannot grow the log. **Each call appends its line**, so two servers
+   logging at once both keep theirs: `OpenOptions` declared in verso-core's
+   `clippy.toml`, a guardrail's exception the maintainer granted on
+   2026-10-09 ("Liberado"). Past 1 MiB the file is cut back to its last
+   2,000 lines; a line appended by another process during that rare cut
+   can be lost.
 
 **Security, as weighed in session.** A program running as the person can
 read the notes from disk already, outside macOS's protected folders: the server opens no new door on the
@@ -141,10 +142,14 @@ started by an app without access to the protected folders (Documents,
 Desktop, iCloud) reaches them through `verso` only if macOS credits the
 access to Verso rather than to the app that started it (a prompt would
 then name the client, not Verso); Windows has no such gate (ADR 0069).
-`[OPEN]`: two folders with the same name collide already in per-folder
-mode — the second "Add to Claude Desktop" replaces the first entry
-(`verso-<name>`); the entry's name for that case is the maintainer's to
-choose.
+**Two folders of one name each keep their entry** (decided by the
+maintainer on 2026-10-09, "Perfeito"): the entry is `verso-<name>`; when
+another folder holds that name, `verso-<parent>-<name>`, `parent` the
+folder it sits in (as VS Code and Obsidian tell two tabs of one name
+apart); when that is held too, `verso-<name>-<the first six characters of
+the key's hash>`. A folder already added keeps its name. Discarded: the
+modified date (it changes, and says nothing) and a counter (it depends on
+the order of adding, and `-2` says nothing).
 
 ## Consequences
 

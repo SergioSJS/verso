@@ -124,9 +124,9 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    estavam; `verso <pasta>` com todas as janelas numa pasta abre uma janela
    nova. Nível: A; U: `cargo test -p verso-app`
    (`each_window_answers_from_its_own_folder`).
-7. Sem barra de título (ADR 0072, nota 13), no macOS e no Windows: os
-   botões da janela — os do macOS no alto à esquerda, os do próprio app no
-   alto à direita no Windows — nunca cobrem uma aba, um botão ou o nome da
+7. Sem barra de título (ADR 0072, nota 13), no macOS, no Windows e no
+   Linux: os botões da janela — os do macOS no alto à esquerda, os do
+   próprio app no alto à direita no Windows e no Linux — nunca cobrem uma aba, um botão ou o nome da
    pasta, com as barras laterais abertas ou fechadas, dois painéis, uma
    janela estreita; a parte vazia da barra de abas, o topo da barra lateral
    e a faixa da esquerda arrastam a janela, e um duplo clique ali a
@@ -479,6 +479,22 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Nível: H; E: `settings.spec.mjs`; S
    (`the_server_for_all_of_verso_reads_only_the_visible_folders`); A (o
    Claude Desktop, com o app fechado).
+7. Uma atualização (nota 18): de uma versão instalada mais antiga que a
+   última release, Ajustes › Geral › Versão › "Verificar atualizações", e
+   depois "Baixar e atualizar": o checksum e a assinatura do arquivo são
+   conferidos antes de instalar qualquer coisa; um arquivo cuja assinatura
+   falte ou não confira não instala nada e diz isso. Uma segunda pasta de
+   mesmo nome adicionada ao Claude Desktop (nota 17) ganha
+   `verso-<pai>-<nome>`. Nível: S (`an_update_installs_only_with_its_signature`,
+   `a_folder_of_a_name_already_added_takes_its_parent_s_name`); A (a
+   primeira release assinada, no macOS e no Windows).
+8. No Linux (nota 17): o `.deb` instala o `verso-app` e o `verso` em
+   /usr/bin, e Terminal e agentes diz que o comando veio com o pacote; o
+   "Instalar" de um AppImage põe o `verso` em `~/.local/bin`; "Mostrar no
+   gerenciador de arquivos" seleciona o arquivo. Nível: S
+   (`scripts/check-linux-vm.sh --install`, o app aberto no desktop do
+   Ubuntu; `--webkit`, a suíte no WebKit do Linux); A (Debian, Fedora, o
+   AppImage).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 

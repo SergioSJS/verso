@@ -87,7 +87,9 @@ modificações até gerar versão, considerando changelog inclusive"*.
    [0069](0069-windows-port.md) item 6: um job de Windows gera o instalador
    NSIS e a linha de comando ao lado do job de macOS, e um job curto de
    Linux publica a release quando os dois terminam — uma versão é publicada
-   inteira ou não é.)*
+   inteira ou não é. Desde 2026-10-09 cada arquivo é assinado com a chave
+   de release do [0055](0055-in-app-updater.md), e o `.sig` dele é
+   publicado ao lado.)*
 7. **O app diz qual ele é**: a versão e o commit de onde foi compilado, nos
    ajustes e no painel Sobre do macOS, e pelo `verso --version`.
 

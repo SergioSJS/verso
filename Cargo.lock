@@ -2435,6 +2435,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
+name = "minisign-verify"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22f9645cb765ea72b8111f36c522475d2daa0d22c957a9826437e97534bc4e9e"
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5184,8 +5190,10 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "verso-app"
-version = "0.5.0-beta.1"
+version = "0.6.0-beta.1"
 dependencies = [
+ "base64 0.22.1",
+ "minisign-verify",
  "reqwest",
  "serde",
  "serde_json",
@@ -5206,7 +5214,7 @@ dependencies = [
 
 [[package]]
 name = "verso-bench"
-version = "0.5.0-beta.1"
+version = "0.6.0-beta.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -5216,7 +5224,7 @@ dependencies = [
 
 [[package]]
 name = "verso-cli"
-version = "0.5.0-beta.1"
+version = "0.6.0-beta.1"
 dependencies = [
  "rmcp",
  "serde",
@@ -5229,7 +5237,7 @@ dependencies = [
 
 [[package]]
 name = "verso-contract"
-version = "0.5.0-beta.1"
+version = "0.6.0-beta.1"
 dependencies = [
  "serde",
  "specta",
@@ -5237,7 +5245,7 @@ dependencies = [
 
 [[package]]
 name = "verso-core"
-version = "0.5.0-beta.1"
+version = "0.6.0-beta.1"
 dependencies = [
  "proptest",
  "serde",
@@ -5250,7 +5258,7 @@ dependencies = [
 
 [[package]]
 name = "verso-dialect"
-version = "0.5.0-beta.1"
+version = "0.6.0-beta.1"
 dependencies = [
  "proptest",
  "pulldown-cmark",
@@ -5260,7 +5268,7 @@ dependencies = [
 
 [[package]]
 name = "verso-fs"
-version = "0.5.0-beta.1"
+version = "0.6.0-beta.1"
 dependencies = [
  "ignore",
  "nix",
@@ -5272,7 +5280,7 @@ dependencies = [
 
 [[package]]
 name = "verso-index"
-version = "0.5.0-beta.1"
+version = "0.6.0-beta.1"
 dependencies = [
  "rusqlite",
  "tempfile",

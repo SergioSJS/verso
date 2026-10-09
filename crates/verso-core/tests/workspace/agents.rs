@@ -92,3 +92,48 @@ fn marks_that_do_not_read_are_not_written_over() {
         "{ not json"
     );
 }
+
+/// Two servers logging at once both keep every line: each call appends in
+/// one write (allowed 2026-10-09).
+#[test]
+fn calls_logged_at_once_are_all_kept() {
+    let config = tempfile::tempdir().unwrap();
+    let dir = config.path().to_path_buf();
+    let threads: Vec<_> = (0..2)
+        .map(|t| {
+            let dir = dir.clone();
+            std::thread::spawn(move || {
+                for i in 0..200 {
+                    agents::log_call(Some(&dir), "search", "k", &format!("t{t} {i}"));
+                }
+            })
+        })
+        .collect();
+    for t in threads {
+        t.join().unwrap();
+    }
+    let log = agents::calls(Some(&dir)).unwrap();
+    assert_eq!(log.lines().count(), 400, "{log}");
+}
+
+/// Past 1 MiB the log is cut back to its last 2,000 calls, newest kept.
+#[test]
+fn a_long_log_is_cut_to_its_last_calls() {
+    let config = tempfile::tempdir().unwrap();
+    let words = "x".repeat(290);
+    for i in 0..4000 {
+        agents::log_call(Some(config.path()), "search", "k", &format!("{i} {words}"));
+    }
+    let log = agents::calls(Some(config.path())).unwrap();
+    let lines: Vec<&str> = log.lines().collect();
+    assert!(
+        lines.len() <= 4000 && lines.len() >= 2000,
+        "{}",
+        lines.len()
+    );
+    assert!(log.len() <= 1024 * 1024 + 400, "{}", log.len());
+    assert!(
+        lines.last().unwrap().contains("3999 "),
+        "the newest call is kept"
+    );
+}
