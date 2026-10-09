@@ -515,5 +515,6 @@ fn capabilities(server: &Server, who: &Who, client: &str) -> Capabilities {
     Capabilities {
         host: Host::Server,
         can,
+        latency_ms: None,
     }
 }

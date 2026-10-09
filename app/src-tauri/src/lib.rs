@@ -461,6 +461,7 @@ fn capabilities() -> Result<Capabilities, ContractError> {
             Can::Devtools,
             Can::LocalFolders,
         ],
+        latency_ms: None,
     })
 }
 

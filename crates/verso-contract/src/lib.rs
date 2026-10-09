@@ -454,6 +454,10 @@ pub enum Can {
 pub struct Capabilities {
     pub host: Host,
     pub can: Vec<Can>,
+    /// The round trip to the side, in milliseconds, when it is across a
+    /// network (the desktop app on a server's folder, ADR 0073 item 2): the
+    /// window learns how far the core is (ADR 0026 rule 2).
+    pub latency_ms: Option<u32>,
 }
 
 /// A note joined for editing by several people at once (ADR 0073 item 7):

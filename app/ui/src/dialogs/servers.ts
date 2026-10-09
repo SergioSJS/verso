@@ -26,7 +26,8 @@ const pt = {
   openFolder: "Abrir uma pasta",
   noFolders: "Nenhuma pasta deste servidor para você.",
   signOut: "Sair",
-  gone: "A conexão com o servidor terminou; a pasta não está mais aberta nesta janela.",
+  gone: "A conexão com o servidor caiu; tentando de novo…",
+  back: "Conectado ao servidor de novo.",
   goneSession: "O servidor encerrou a sessão deste computador: conecte de novo.",
 };
 const en: typeof pt = {
@@ -40,7 +41,8 @@ const en: typeof pt = {
   openFolder: "Open a folder",
   noFolders: "No folder of this server for you.",
   signOut: "Sign out",
-  gone: "The connection to the server ended; its folder is no longer open in this window.",
+  gone: "The connection to the server dropped; trying again…",
+  back: "Connected to the server again.",
   goneSession: "The server ended this computer's session: connect again.",
 };
 
@@ -84,6 +86,11 @@ export function hearServers(): void {
   void listen<{ url: string; what: string }>("server-gone", (e) => {
     const s = serverStrings();
     ui.status.textContent = e.payload.what === "session" ? s.goneSession : s.gone;
+  });
+  void listen<{ url: string }>("server-back", () => {
+    ui.status.textContent = serverStrings().back;
+    // The notes being edited together join their rooms again (collab.ts).
+    dispatchEvent(new Event("verso:reconnected"));
   });
 }
 

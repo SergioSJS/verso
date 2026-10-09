@@ -1309,6 +1309,7 @@ export class Core {
     capabilities: (): Capabilities => ({
       host: "desktop",
       can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders"],
+      latency_ms: null,
     }),
     folder_space: (): FolderSpace => {
       let notes = 0;

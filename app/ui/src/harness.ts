@@ -38,7 +38,7 @@ const core =
 const params = new URLSearchParams(location.search);
 const onServer = params.get("side") === "server";
 let role = params.get("role") ?? "owner";
-const serverCan = (): Capabilities => ({ host: "server", can: role === "reader" ? ["account", "collab"] : ["write", "account", "collab"] });
+const serverCan = (): Capabilities => ({ host: "server", can: role === "reader" ? ["account", "collab"] : ["write", "account", "collab"], latency_ms: null });
 if (onServer) {
   // No room for simultaneous editing in the harness: the server's `collab`
   // is left out, so a note opens as the desktop's does.
