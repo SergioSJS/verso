@@ -37,13 +37,14 @@ O repositório fica privado enquanto o app amadurece; ele está na Fase 2 do
 - **Escrever.** Modos Leitura, Editar e Fonte; blocos que você arrasta pela
   alça e um menu `/`, como no Notion; tabelas editadas como tabelas; um
   painel de propriedades para o frontmatter; notas tipadas, em que `type:` e
-  um schema dão à nota o seu formulário; callouts, matemática em KaTeX,
+  um schema dão à nota a sua forma; callouts, matemática em KaTeX,
   diagramas Mermaid, blocos de código com botão de copiar.
 - **Ligar.** Wikilinks para notas, títulos e blocos (`^id`), embeds que
   mostram a nota ou o bloco, backlinks e links de saída, links sem destino,
   renomear atualizando todos os links, e um grafo interativo.
 - **Boards.** Arquivos `.canvas` desenhados com o Excalidraw: as notas da
-  pasta como cartões que você edita ali mesmo, imagens e PDFs como cartões,
+  pasta como cartões que você edita ali mesmo, imagens (que dá para recortar)
+  e PDFs como cartões,
   setas que mantêm o ponto onde foram desenhadas, relações tipadas, e
   desenhos do plugin Excalidraw do Obsidian.
 - **Bases.** Arquivos `.base` mostrados como tabelas, quadros Kanban e
@@ -52,8 +53,8 @@ O repositório fica privado enquanto o app amadurece; ele está na Fase 2 do
   cores e capas, páginas de pasta, ordem manual e focos compartilhados com o
   make.md, notas diárias com calendário, e templates oferecidos ao criar uma
   nota.
-- **Mídia e web.** Um leitor de PDF com duas páginas lado a lado, imagens
-  com recorte, páginas da web guardadas como notas, e arquivos HTML.
+- **Mídia e web.** Um leitor de PDF com duas páginas lado a lado, imagens,
+  páginas da web guardadas como notas, e arquivos HTML.
 - **Encontrar.** Busca no texto, abrir pelo nome, paleta de comandos,
   localizar e substituir em todas as notas, abas (fixas e de
   pré-visualização), painéis lado a lado, áreas, e uma pasta por janela.
@@ -70,13 +71,14 @@ O repositório fica privado enquanto o app amadurece; ele está na Fase 2 do
 ## Instalar
 
 Pela página de Releases do repositório. Uma versão de teste sai como
-"Verso Beta" e se instala ao lado do app de produção.
+"Verso Beta" — os arquivos dela começam com `Verso-Beta-` — e se instala
+ao lado do app de produção.
 
 | Sistema | Arquivos | Primeira vez |
 |---|---|---|
 | macOS, Apple silicon | `Verso-X.Y.Z-macos-arm64.zip`: descompacte em `/Applications` | assinado ad hoc, não por um desenvolvedor registrado: permita uma vez em Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim" |
-| Windows 10 e 11, x64 | `Verso-X.Y.Z-windows-x64-setup.exe`, um instalador para o seu usuário | sem assinatura: o SmartScreen pergunta uma vez (Mais informações → Executar assim mesmo) |
-| Linux, x64 | um AppImage para qualquer distribuição; um `.deb` (Ubuntu 22.04, Debian 12 e posteriores); um `.rpm` (Fedora atual) | o AppImage: torne-o executável e rode. O ARM64 vem quando o repositório for público |
+| Windows 10 e 11, x64 (rodado até agora no Windows 11) | `Verso-X.Y.Z-windows-x64-setup.exe`, um instalador para o seu usuário | sem assinatura: o SmartScreen pergunta uma vez: em Mais informações, mande executar |
+| Linux, x64 | `Verso-X.Y.Z-linux-x86_64.AppImage` para qualquer distribuição; `Verso-X.Y.Z-linux-amd64.deb` (Ubuntu 22.04, Debian 12 e posteriores); `Verso-X.Y.Z-linux-x86_64.rpm` (Fedora 36 e posteriores) | o AppImage: torne-o executável e rode. O ARM64 vem quando o repositório for público |
 
 A linha de comando vem com o app. No macOS, Ajustes → Terminal e agentes →
 Instalar a liga como `/usr/local/bin/verso`; no Windows o `verso.exe` fica
@@ -86,7 +88,8 @@ mesma linha de comando para uma máquina sem o app.
 
 ## Experimente: o tutorial
 
-Abra uma pasta vazia e escolha **Importar cofre de exemplo**: o Verso
+Abra uma pasta e, sem nenhuma nota aberta, escolha **Importar cofre de
+exemplo**: o Verso
 escreve ali o seu tutorial — umas vinte notas, uma por área do app, e dois
 boards. Comece pelo board **Tour do Verso**, depois o **Treino do Board**
 para aprender a desenhar ([ADR 0058](adr/0058-demo-vault-as-tutorial.md)).
@@ -104,6 +107,8 @@ Um núcleo em Rust e uma janela desktop
 | `crates/verso-index` | SQLite com FTS5: busca, links, o grafo |
 | `crates/verso-core` | orquestra o resto e expõe o contrato |
 | `crates/verso-cli` | o comando `verso` e o servidor MCP |
+| `crates/verso-contract` | os tipos do contrato, sem IO |
+| `crates/verso-bench` | o benchmark, nunca distribuído |
 | `app/src-tauri`, `app/ui` | a janela Tauri e a sua interface em TypeScript (CodeMirror, Excalidraw) |
 
 A janela só fala com o núcleo pelo contrato, cujos tipos TypeScript são
