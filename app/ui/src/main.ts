@@ -32,6 +32,8 @@ import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { installFrame } from "./frame";
 import { installLongPress } from "./touch";
+import { installScreen } from "./screen/frame";
+import { can } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
@@ -252,7 +254,7 @@ ui.spaces.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   showMenu(e.clientX, e.clientY, [
     [t.newSpace, () => newSpace(), "plus"],
-    ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+    ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
   ]);
 });
 export const panel = new Panel();
@@ -342,7 +344,9 @@ narrow.addEventListener("change", () => {
 document.addEventListener("mousedown", (e) => {
   if (!narrow.matches) return;
   const at = e.target as HTMLElement;
-  if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side")) document.body.classList.remove("side-open");
+  // A menu a row of the drawer opened, and the phone's own toggle (ADR
+  // 0076 item 6), leave it open.
+  if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side, .bar-files, .menu")) document.body.classList.remove("side-open");
   if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right")) document.body.classList.remove("right-open");
   paintExpanded();
 });
@@ -372,6 +376,9 @@ keyHint(newSpaceButton, t.newSpace, "new-space");
 keyHint(toggleSideButton, t.toggleSide, "toggle-side");
 keyHint(toggleRightButton, t.toggleRight, "toggle-right");
 paintKeyHints();
+// The phone's frame, the keyboard's bar and what the side cannot do
+// (ADR 0076).
+installScreen();
 
 ui.open.addEventListener("click", () => void openFolderDialog());
 ui.collapse.addEventListener("click", collapseAll);
@@ -546,7 +553,7 @@ document.addEventListener(
     const items: MenuItem[] = [];
     if (file) {
       items.push([t.openInNewTab, () => openNote(file, false, true), "tab"]);
-      if (!popout) items.push([t.openInWindow, () => void commands.openWindow(file).then((r) => r.status !== "ok" && fail(r.error)), "maximize"]);
+      if (!popout && can("windows")) items.push([t.openInWindow, () => void commands.openWindow(file).then((r) => r.status !== "ok" && fail(r.error)), "maximize"]);
       items.push(["—", () => {}]);
       items.push([
         imageText.download,
@@ -579,7 +586,7 @@ document.addEventListener(
       items.push([imageText.openInBrowser, () => void commands.openUrl(src), "globe"]);
       items.push([imageText.copyAddress, () => void navigator.clipboard.writeText(src), "link"]);
     }
-    if (file) items.push(["—", () => {}], [t.reveal, () => void commands.reveal(file), "folderOpen"]);
+    if (file && can("reveal")) items.push(["—", () => {}], [t.reveal, () => void commands.reveal(file), "folderOpen"]);
     showMenu(e.clientX, e.clientY, items);
   },
   true,

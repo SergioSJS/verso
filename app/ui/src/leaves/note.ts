@@ -10,6 +10,7 @@ import { EditorView } from "codemirror";
 import { liveBases } from "../bases";
 import { BaseView } from "../bases/view";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
+import { canWrite } from "../can";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
 import { type CardEditing } from "../board/types";
@@ -19,6 +20,7 @@ import { narrow, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { minimalEdit } from "../edit";
 import { slashSections } from "../editor/complete";
+import { linkCard } from "../editor/linkCard";
 import { fail } from "../errors";
 import { createNote, renameNote } from "../files";
 import { calm } from "../format";
@@ -35,9 +37,10 @@ import { opening } from "../opening";
 import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
 import { PropertiesView } from "../props";
+import { st } from "../screen/strings";
 import { searchNotes } from "../search";
 import { ReadingSearch, searchStrings } from "../searchPanel";
-import { settings } from "../settings";
+import { settings, sourceLineNumbers } from "../settings";
 import { giveBack } from "../side";
 import { SlashMenu } from "../slash";
 import { boardText, LOCALE, t, typedText } from "../strings";
@@ -148,10 +151,17 @@ export class NoteLeaf extends Leaf {
       strings: { grip: t.blocks.grip, plus: t.blocks.plus },
     }),
     blockKeys({ enterNewBlock: () => settings.enterNewBlock }),
+    // A tap on a link, on a touch screen: a card to open or edit it (ADR
+    // 0076 item 4).
+    linkCard({
+      navigate: (target) => this.follow(target),
+      openUrl: (url) => void commands.openUrl(url),
+      strings: { card: st.linkCard, open: st.linkOpen, edit: st.linkEdit },
+    }),
   ];
   shouldShowLineNumbers(): boolean {
     if (this.mode === "live") return Boolean(settings.lineNumbersEdit);
-    if (this.mode === "source") return Boolean(settings.lineNumbersSource);
+    if (this.mode === "source") return sourceLineNumbers();
     return false;
   }
   applyLineNumbers(): void {
@@ -183,8 +193,11 @@ export class NoteLeaf extends Leaf {
   /** The note the reading view last drew. */
   shownPath = "";
   eol = "\n";
-  /** The file mixes line endings: shown, never edited (lineSeparator). */
+  /** Shown, never edited: the file mixes line endings (`mixedEol`), or
+   *  the side lets this person only read the folder (ADR 0076 item 11). */
   readOnly = false;
+  /** The file mixes line endings (lineSeparator). */
+  mixedEol = false;
   /** The note's room when several people may edit it at once (a server,
    *  ADR 0073 item 7): the server writes the file, not this tab. */
   collab: CollabSession | null = null;
@@ -797,7 +810,8 @@ export class NoteLeaf extends Leaf {
     this.crumbs.replaceChildren(...crumbsFor(this.path));
     const sep = lineSeparator(note.text);
     this.eol = this.collab ? (this.collab.crlf ? "\r\n" : "\n") : (sep ?? "\n");
-    this.readOnly = sep === null;
+    this.mixedEol = sep === null;
+    this.readOnly = this.mixedEol || !canWrite();
     this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();
     this.gone = false;

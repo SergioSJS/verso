@@ -10,6 +10,7 @@
 // the pointer's part, shared by a base's cards and days (`draggable`,
 // below) and a note's blocks (blocks/view.ts, ADR 0061).
 
+import { HOLD_MS, STILL_PX } from "../touch";
 import { h } from "./cells";
 
 export type PointerDragOptions = {
@@ -42,6 +43,13 @@ export function pointerDrag(handle: HTMLElement, opts: PointerDragOptions): void
     },
     true,
   );
+  // A finger drags only after a long press, as the file tree's rows do
+  // (layout/drag.ts, ADR 0076 item 5): moved at once, it scrolls the board.
+  // The browser decides at the touch's start whether it may scroll without
+  // asking: the listener that stops the scroll is there from the start,
+  // and stops it only once the finger has held.
+  let holding = false;
+  handle.addEventListener("touchmove", (e) => { if (holding) e.preventDefault(); }, { passive: false });
   handle.addEventListener("pointerdown", (down) => {
     if (down.button !== 0) return;
     // A control inside the handle is pressed, not dragged; the handle may
@@ -51,7 +59,11 @@ export function pointerDrag(handle: HTMLElement, opts: PointerDragOptions): void
     const x0 = down.clientX;
     const y0 = down.clientY;
     let started = false;
+    const finger = down.pointerType === "touch";
+    let held = !finger;
+    const hold = finger ? window.setTimeout(() => { held = holding = true; }, HOLD_MS) : 0;
     const move = (e: PointerEvent) => {
+      if (e.pointerId !== down.pointerId) return;
       // No button held: the release was lost (the window lost the pointer,
       // a menu took it). The drag ends there, dropping nothing.
       if ((e.buttons & 1) === 0) {
@@ -59,7 +71,13 @@ export function pointerDrag(handle: HTMLElement, opts: PointerDragOptions): void
         return;
       }
       if (!started) {
-        if (Math.hypot(e.clientX - x0, e.clientY - y0) < 5) return;
+        const far = Math.hypot(e.clientX - x0, e.clientY - y0);
+        // A finger that moves before it has held is a scroll.
+        if (!held) {
+          if (far >= STILL_PX) end(e, false);
+          return;
+        }
+        if (far < 5) return;
         started = true;
         handle.classList.add("dragging");
         ghost ??= h("div", "drag-ghost");
@@ -76,6 +94,9 @@ export function pointerDrag(handle: HTMLElement, opts: PointerDragOptions): void
       opts.move?.(e);
     };
     const end = (e: PointerEvent | null, dropped: boolean) => {
+      window.clearTimeout(hold);
+      holding = false;
+      document.removeEventListener("contextmenu", menuOpened, true);
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
       document.removeEventListener("pointercancel", cancel);
@@ -89,8 +110,10 @@ export function pointerDrag(handle: HTMLElement, opts: PointerDragOptions): void
       // drag knew is gone with what it started from. Nothing is dropped.
       opts.end(e, dropped && handle.isConnected);
     };
-    const up = (e: PointerEvent) => end(e, true);
-    const cancel = (e: PointerEvent) => end(e, false);
+    const up = (e: PointerEvent) => e.pointerId === down.pointerId && end(e, true);
+    const cancel = (e: PointerEvent) => e.pointerId === down.pointerId && end(e, false);
+    // A long press lifted opens the card's menu (touch.ts): not a drag.
+    const menuOpened = (): void => end(null, false);
     const esc = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || !started) return;
       e.preventDefault();
@@ -103,6 +126,7 @@ export function pointerDrag(handle: HTMLElement, opts: PointerDragOptions): void
     document.addEventListener("pointerup", up);
     document.addEventListener("pointercancel", cancel);
     document.addEventListener("keydown", esc, true);
+    document.addEventListener("contextmenu", menuOpened, true);
   });
 }
 

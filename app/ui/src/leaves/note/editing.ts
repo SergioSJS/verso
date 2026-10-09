@@ -27,6 +27,7 @@ import { listKeymap } from "../../listKeymap";
 import { MenuItem, showMenu } from "../../menu";
 import { dirOf, name } from "../../paths";
 import { linkText } from "../../resolve";
+import { visibleBox } from "../../screen/viewport";
 import { settings } from "../../settings";
 import { slashKeymap } from "../../slash";
 import { t } from "../../strings";
@@ -323,7 +324,10 @@ export function deleteBlock(this: NoteLeaf, blocks = this.selectedBlocks()): voi
 /** Where a menu about the caret opens: under it. */
 export function caretPoint(this: NoteLeaf): [number, number] {
   const at = this.editor.coordsAtPos(this.editor.state.selection.main.head);
-  return at ? [at.left, at.bottom + 4] : [window.innerWidth / 2, window.innerHeight / 3];
+  if (at) return [at.left, at.bottom + 4];
+  // No caret on screen: a third of the way down what the screen shows.
+  const box = visibleBox();
+  return [box.left + box.width / 2, box.top + box.height / 3];
 }
 
 /** "Turn into": the kinds that keep the block's text, as a menu. */

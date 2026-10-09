@@ -9,6 +9,7 @@ import { keymap, lineNumbers } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type TextFile } from "../bindings";
+import { canWrite } from "../can";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
 import { editorChrome } from "../keys";
@@ -17,7 +18,8 @@ import { crumbsFor, crumbsNav, persistSoon } from "../layout/spaces";
 import { baseEditorExtensions } from "../editor/extensions";
 import { opening } from "../opening";
 import { Kind, kindOf } from "../paths";
-import { settings } from "../settings";
+import { st } from "../screen/strings";
+import { settings, sourceLineNumbers } from "../settings";
 import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { ConflictBanner } from "./conflict";
@@ -48,7 +50,7 @@ export class TextLeaf extends Leaf {
   readonly lineNumbersCompartment = new Compartment();
   applyLineNumbers(): void {
     this.editor.dispatch({
-      effects: this.lineNumbersCompartment.reconfigure(settings.lineNumbersSource ? lineNumbers() : []),
+      effects: this.lineNumbersCompartment.reconfigure(sourceLineNumbers() ? lineNumbers() : []),
     });
   }
   constructor(pane: Pane) {
@@ -70,7 +72,7 @@ export class TextLeaf extends Leaf {
       doc,
       extensions: [
         baseEditorExtensions,
-        this.lineNumbersCompartment.of(settings.lineNumbersSource ? lineNumbers() : []),
+        this.lineNumbersCompartment.of(sourceLineNumbers() ? lineNumbers() : []),
         ...language,
         syntaxHighlighting(classHighlighter),
         EditorView.lineWrapping,
@@ -116,11 +118,12 @@ export class TextLeaf extends Leaf {
     this.revision = r.data.revision;
     const sep = lineSeparator(r.data.text);
     this.eol = sep ?? "\n";
-    this.readOnly = sep === null;
+    // Mixed line endings, or a reader on a server (ADR 0076 item 11).
+    this.readOnly = sep === null || !canWrite();
     this.editor.setState(this.state(r.data.text, support ? [support] : []));
     this.conflict.hide();
     this.setDirty(false);
-    this.flags.textContent = this.readOnly ? t.mixedEol : "";
+    this.flags.textContent = sep === null ? t.mixedEol : this.readOnly ? st.readOnly : "";
     this.flags.hidden = !this.readOnly;
     markCurrent();
     persistSoon();

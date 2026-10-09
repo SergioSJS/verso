@@ -86,7 +86,13 @@ export class Layout {
   }
   focus(pane: Pane | null): void {
     this.focused = pane;
-    for (const p of this.panes()) p.el.classList.toggle("focused", p === pane);
+    const all = this.panes();
+    all.forEach((p, i) => {
+      p.el.classList.toggle("focused", p === pane);
+      p.paintSwitch(i + 1, all.length);
+    });
+    // The phone's back follows the pane in front (screen/frame.ts).
+    document.dispatchEvent(new Event("verso:nav"));
   }
   get activeLeaf(): Leaf | null {
     return this.focused?.active ?? null;
@@ -104,6 +110,9 @@ export class Layout {
       ui.panes.classList.remove("maximized");
       ui.panes.replaceChildren(this.build(this.root));
     }
+    // On a phone a split layout shows one pane at a time, and its switcher
+    // (ADR 0076 item 2): kept whole, the layout comes back on a wider window.
+    ui.panes.classList.toggle("many", this.paneCount() > 1);
     // New tab bars may reach the window buttons' corner (ADR 0072).
     refreshFrame();
     persistSoon();

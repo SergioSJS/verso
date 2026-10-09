@@ -12,6 +12,30 @@ import { ui } from "../dom";
 
 /** The selected paths — notes, files, folders. */
 const selected = new Set<string>();
+/** A finger has no ⌘ or ⇧: "Select" in a row's menu turns the tree into a
+ *  selection, a box on each row and a tap that adds or takes out, with a
+ *  bar of what acts on several notes (ADR 0076 item 8; `tree/selectBar.ts`). */
+let selecting = false;
+/** Told when the selection or its mode changes (the bar). */
+const watchers = new Set<() => void>();
+export function onSelection(run: () => void): void {
+  watchers.add(run);
+}
+export function selectMode(): boolean {
+  return selecting;
+}
+/** The selection mode, starting from `path`. */
+export function enterSelectMode(path?: string): void {
+  selecting = true;
+  if (path !== undefined) selected.add(path);
+  anchor = path ?? anchor;
+  paintSelection();
+}
+/** Out of the selection mode, the selection cleared. */
+export function leaveSelectMode(): void {
+  selecting = false;
+  clearSelection();
+}
 /** The row a range starts from: the last one clicked. */
 let anchor: string | null = null;
 
@@ -45,8 +69,13 @@ export function paintSelection(): void {
     el.classList.toggle("selected", on);
     if (on) el.setAttribute("aria-selected", "true");
     else el.removeAttribute("aria-selected");
+    // In the selection mode each row is a box, and says so.
+    if (selecting) el.setAttribute("aria-pressed", String(on));
+    else el.removeAttribute("aria-pressed");
   }
   ui.notes.classList.toggle("selecting", selected.size > 0);
+  ui.notes.classList.toggle("select-mode", selecting);
+  for (const run of watchers) run();
 }
 
 /** The selected paths, in the tree's order; those not shown last. */
@@ -68,6 +97,13 @@ export function selectionOf(path: string): string[] | null {
  *  last row clicked; answers whether the click was a selection (and so
  *  opens nothing). A plain click clears the selection. */
 export function selectionClick(path: string, e: MouseEvent): boolean {
+  if (selecting) {
+    if (selected.has(path)) selected.delete(path);
+    else selected.add(path);
+    anchor = path;
+    paintSelection();
+    return true;
+  }
   if (e.metaKey || e.ctrlKey) {
     // The row clicked before, plainly, is in the selection it starts.
     if (selected.size === 0 && anchor !== null && anchor !== path) selected.add(anchor);
