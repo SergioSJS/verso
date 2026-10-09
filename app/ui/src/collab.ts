@@ -52,7 +52,9 @@ function fromB64(text: string): Uint8Array {
 export type CollabHandlers = {
   saved: (revision: string) => void;
   conflict: () => void;
-  closed: () => void;
+  /** The room is gone: the tab reads the note again — `lost` when text
+   *  typed while the connection was down could not go along. */
+  closed: (why?: "lost") => void;
   /** Someone else's edit arrived: the reading view may be stale. */
   remote: () => void;
 };
@@ -67,17 +69,19 @@ export class CollabSession {
   readonly awareness: Awareness;
   readonly crlf: boolean;
   revision: string;
+  epoch: string;
   private closedLocally = false;
 
   constructor(
     readonly path: string,
-    joined: { update: string; revision: string; crlf: boolean; user: string },
+    joined: { update: string; revision: string; crlf: boolean; user: string; epoch: string },
     readonly handlers: CollabHandlers,
   ) {
     this.text = this.doc.getText("verso");
     Y.applyUpdate(this.doc, fromB64(joined.update), REMOTE);
     this.revision = joined.revision;
     this.crlf = joined.crlf;
+    this.epoch = joined.epoch;
     this.awareness = new Awareness(this.doc);
     let hash = 0;
     for (const c of joined.user) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
@@ -116,6 +120,30 @@ export class CollabSession {
     applyAwarenessUpdate(this.awareness, fromB64(update), REMOTE);
   }
 
+  /** The connection came back: into the room again. The same room (it
+   *  outlives a dropped connection two minutes): its state comes in and
+   *  this window's whole state goes out — Yjs keeps each edit once, so
+   *  what was typed meanwhile joins without doubling. Another room, made
+   *  again from the disk: the tab reads the note anew, and says so if
+   *  something typed meanwhile could not go along. */
+  async rejoin(): Promise<void> {
+    if (this.closedLocally) return;
+    const r = await commands.collabJoin(this.path);
+    if (r.status !== "ok" || r.data.read_only) return this.handlers.closed();
+    if (r.data.epoch === this.epoch) {
+      Y.applyUpdate(this.doc, fromB64(r.data.update), REMOTE);
+      void commands.collabUpdate(this.path, toB64(Y.encodeStateAsUpdate(this.doc)));
+      this.revision = r.data.revision;
+      return;
+    }
+    const fresh = new Y.Doc();
+    Y.applyUpdate(fresh, fromB64(r.data.update));
+    const same = fresh.getText("verso").toString() === this.text.toString();
+    fresh.destroy();
+    this.leave();
+    this.handlers.closed(same ? undefined : "lost");
+  }
+
   /** The tab goes, or reads another note: out of the room. */
   leave(): void {
     if (this.closedLocally) return;
@@ -134,6 +162,9 @@ let listening = false;
 function hear(): void {
   if (listening) return;
   listening = true;
+  addEventListener("verso:reconnected", () => {
+    for (const s of [...sessions.values()]) void s.rejoin();
+  });
   void listen<CollabUpdate>("collab-update", (e) => sessions.get(e.payload.path)?.applyRemote(e.payload.update));
   void listen<CollabUpdate>("collab-awareness", (e) => sessions.get(e.payload.path)?.applyAwareness(e.payload.update));
   void listen<CollabState>("collab-saved", (e) => {
@@ -161,6 +192,14 @@ export async function joinCollab(path: string, handlers: CollabHandlers): Promis
   const r = await commands.collabJoin(path);
   if (r.status !== "ok" || r.data.read_only) return null;
   return new CollabSession(path, r.data, handlers);
+}
+
+/** What the tab says when text typed while the connection was down could
+ *  not go into the room, in the window's language. */
+export function lostLine(): string {
+  return document.documentElement.lang.startsWith("pt")
+    ? "A conexão caiu e a nota foi relida do servidor: o que foi digitado enquanto isso não pôde ser mantido."
+    : "The connection dropped and the note was read again from the server: what was typed meanwhile could not be kept.";
 }
 
 /** Whether an editor transaction came from the room, not from this window. */

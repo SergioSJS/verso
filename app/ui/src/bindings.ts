@@ -662,6 +662,12 @@ export type CollabJoin = {
 	crlf: boolean,
 	/**  The name the others see for this person. */
 	user: string,
+	/**
+	 *  Which room this is: a window that comes back after its connection
+	 *  dropped sends what it typed meanwhile only into the room it left,
+	 *  never into one made again from the disk.
+	 */
+	epoch: string,
 };
 
 /**

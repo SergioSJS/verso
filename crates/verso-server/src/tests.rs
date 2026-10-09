@@ -850,3 +850,33 @@ fn passkeys_start_for_the_signed_in_and_say_nothing_of_strangers() {
         assert!(gone == 404 || gone == 422, "{gone}");
     });
 }
+
+#[test]
+fn a_room_waits_for_a_window_whose_connection_dropped() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        let first = call(&mut ws, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let epoch = first["ok"]["epoch"].as_str().unwrap().to_owned();
+        drop(ws);
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        // Back within the grace: the same room.
+        let mut back = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut back).await;
+        call(&mut back, 1, "open_server_folder", json!({ "id": id })).await;
+        let again = call(&mut back, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(again["ok"]["epoch"], epoch.as_str());
+        // Left on purpose and joined again: a room made anew.
+        call(&mut back, 3, "collab_leave", json!({ "path": "Sessao.md" })).await;
+        let fresh = call(&mut back, 4, "collab_join", json!({ "path": "Sessao.md" })).await;
+        assert_ne!(fresh["ok"]["epoch"], epoch.as_str());
+    });
+}
