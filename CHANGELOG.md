@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.6.0-beta.1 — 2026-10-09
+
 ### Added
 
 - **Verso for Linux** ([ADR 0071](docs/adr/0071-linux-port.md)), x86_64 (ARM64 once the repository is public), as an AppImage, a `.deb` and an `.rpm`, built on the oldest base of the family so they run on Ubuntu 22.04, Debian 12 and Fedora 36 and later. A package puts `verso` on the PATH beside the app; an AppImage's settings put it in `~/.local/bin`, where it follows the AppImage's updates. "Show in file manager" selects the file in Nautilus, Dolphin and other file managers that support it. An AppImage updates itself; a `.deb` or `.rpm` update is downloaded for the package manager. When the system has no folder watches left as a folder opens, the folder is scanned every 30 seconds instead. A beta installs beside the release, with its own `verso-beta`. A folder's window has no title bar, as on Windows: the app draws minimize, maximize and close at the top right ([ADR 0072](docs/adr/0072-window-controls-in-the-app.md)).

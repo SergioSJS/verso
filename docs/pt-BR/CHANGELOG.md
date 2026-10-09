@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.6.0-beta.1 — 2026-10-09
+
 ### Acrescentado
 
 - **Verso para Linux** ([ADR 0071](adr/0071-linux-port.md)), x86_64 (ARM64 quando o repositório for público), como AppImage, `.deb` e `.rpm`, gerados na base mais antiga da família para rodar no Ubuntu 22.04, no Debian 12 e no Fedora 36 em diante. Um pacote põe o `verso` no PATH ao lado do app; os ajustes de um AppImage o põem em `~/.local/bin`, onde ele acompanha as atualizações do AppImage. "Mostrar no gerenciador de arquivos" seleciona o arquivo no Nautilus, no Dolphin e em outros gerenciadores que suportam isso. Um AppImage se atualiza sozinho; a atualização de um `.deb` ou `.rpm` é baixada para o gerenciador de pacotes. Quando o sistema não tem mais vigias de pasta ao abrir uma pasta, ela é varrida a cada 30 segundos. Uma beta se instala ao lado da versão estável, com o seu próprio `verso-beta`. A janela de uma pasta não tem barra de título, como no Windows: o app desenha minimizar, maximizar e fechar no canto de cima à direita ([ADR 0072](adr/0072-window-controls-in-the-app.md)).
