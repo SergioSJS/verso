@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.33
+# Spec do dialeto do Verso — v0.34
 
-- Versão: v0.33 · 2026-10-07
+- Versão: v0.34 · 2026-10-09
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -356,7 +356,9 @@ citação inteira, dentro de uma lista, que nomeia o item mais interno, e
 sozinho sem nada antes, que não nomeia nada (2026-10-07,
 `fixtures/block/in-quote`, `fixtures/block/in-list`,
 `fixtures/block/alone-top`). Um id é único por nota; com dois, o último
-nomeia o bloco (`fixtures/block/duplicate`). `lines` (seção 4.3) diz qual
+nomeia o bloco (`fixtures/block/duplicate`). De dois `^id` sozinhos em
+sequência, só o último nomeia o bloco antes deles, como no Obsidian
+(2026-10-09, `fixtures/block/two-alone`). `lines` (seção 4.3) diz qual
 bloco um id nomeia.
 
 O id não aparece na leitura, e um `^id` sozinho na sua linha sai junto com
@@ -837,15 +839,13 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   nível superior sem nada antes, nenhum bloco, e depois de um parágrafo que
   não é id (`^foo.bar`), esse parágrafo (`fixtures/block/alone-top`).
 
-  `[ABERTO]`: **dois `^id` sozinhos em sequência** (`Texto.`, linha em
-  branco, `^a`, linha em branco, `^b`). O cache do Obsidian guarda só `b` no
-  parágrafo; `[[nota#^a]]` fica sem resolver lá, e como o modo de leitura
-  dele desenha a linha `^a` não foi observado. O Verso hoje reporta os dois
-  no parágrafo, então `[[nota#^a]]` resolve e `^a` some — uma extensão que
-  dá alvo a um link que o Obsidian deixa sem resolver, o que o ADR 0030
-  pode ou não permitir. As duas opções: manter os dois (a extensão, a
-  registrar como própria do Verso), ou manter só o último, como a Q4 faz
-  para o mesmo id duas vezes. O mantenedor decide; nenhuma fixture até lá.
+  `DECIDIDO` em 2026-10-09 pelo mantenedor ("Recomendado"): **de dois
+  `^id` sozinhos em sequência** (`Texto.`, linha em branco, `^a`, linha em
+  branco, `^b`), **só o último nomeia o bloco antes deles**, como no
+  Obsidian, cujo cache guarda só `b` e deixa `[[nota#^a]]` sem resolver;
+  `^a` passa a ser um id que não nomeia nada e fica como escrito
+  (`fixtures/block/two-alone`). O Verso reportava os dois, uma extensão que
+  o ADR 0030 não permite.
   Também não observado, e registrado como o que o parser faz: um `^id`
   sozinho logo depois do frontmatter, ou depois de uma definição de nota de
   rodapé, não nomeia nada e nomeia o parágrafo antes da definição,
@@ -1325,3 +1325,4 @@ ser escolhido.
 | v0.31 | 2026-10-07 | A parte aberta da Q3 **observada no Obsidian pelo CLI dele** (28 entradas): o bloco é a seção de nível superior, ou o item de lista mais interno; sozinho sem nada antes, nenhum bloco. Implementado; três fixtures rascunhadas (`block/in-list`, `block/in-quote`, `block/alone-top`), aguardando a aprovação do mantenedor; os fatos provisórios da v0.30 substituídos pela observação. A frase "Sem mudança:" da Q3 cita a seção 5.7, onde mora a regra do texto próprio. |
 | v0.32 | 2026-10-07 | As fixtures `fixtures/block/in-list`, `fixtures/block/in-quote` e `fixtures/block/alone-top` **aprovadas pelo mantenedor** em sessão ("Aprovado"); a marca de rascunho removida. **A Q3 fecha por inteiro.** Nada mais muda. |
 | v0.33 | 2026-10-07 | Depois da segunda leitura da Opus: a §5.7 diz a regra decidida (a seção de nível superior, ou o item de lista mais interno) no lugar da frase do "texto próprio", lista as três fixtures novas e diz como fica um `^id` que não nomeia nada; os dois parágrafos de decisão da Q3 viram um, em dois passos; **dois `^id` sozinhos em sequência** fica `[ABERTO]` (a extensão ou o "só o último" do Obsidian), com os casos do frontmatter e da nota de rodapé registrados como não observados; as 28 entradas observadas estão em `docs/reference/obsidian-blocks-2026-10-07.md`. |
+| v0.34 | 2026-10-09 | **Dois `^id` sozinhos em sequência** `DECIDIDO` pelo mantenedor: só o último nomeia o bloco antes deles, como no Obsidian; a fixture `fixtures/block/two-alone` rascunhada, aguardando a aprovação do mantenedor. |

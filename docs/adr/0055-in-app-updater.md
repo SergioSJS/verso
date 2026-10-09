@@ -63,6 +63,23 @@ How the author built the install under that decision
   update from the releases page — and compares the digest with the one it
   computes over the downloaded bytes before anything is extracted. A mismatch
   installs nothing.
+- **The signature is required and verified** *(added 2026-10-09, the
+  maintainer: "assinar nossa aplicação")*. Each release file is signed in
+  the release workflow with Verso's release key, a minisign key made by
+  `tauri signer generate`; its `.sig` is published beside it. The app
+  carries the public half (`UPDATE_PUBLIC_KEY`, `update.rs`) and installs
+  nothing whose signature is missing or does not verify (`minisign-verify`,
+  the verifier Tauri's own updater uses). The checksum says the file is the
+  one GitHub holds; the signature, that Verso's key published it. The
+  private half and its password are the repository's secrets
+  (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) and
+  the maintainer's to keep; lost, the next version carries a new public key
+  and the versions before it update by hand once. The signature is bound to
+  the file: its signed comment names the file, the app requires that name,
+  and the name must hold the release's version — an older genuine file is
+  not installed under a newer tag. The release workflow checks each
+  signature with the app's own key (`verso-app --verify-signature`) before
+  it publishes, so a secret that is not that key stops the release.
 - **Size caps.** The download and the extraction are each capped at 1 GiB
   (`UPDATE_MAX_BYTES`); an asset the API already reports as larger is refused
   before the download. Each entry of the archive is extracted only under the
@@ -99,7 +116,9 @@ How the author built the install under that decision
   bytes are the ones the release holds, as the API names them. It does not
   prove who put them there: whoever can publish a release in the repository
   can publish an update. A signature checked against a key the app carries
-  would prove that; see Discarded alternatives.
+  proves that: added on 2026-10-09 (the Decision's signature point). The
+  key's private half lives in the repository's secrets too, so it proves
+  that the release workflow, with that secret, made the file — not more.
 - A release whose asset has no digest cannot be installed from the app; the
   user is sent to the releases page instead. The release workflow
   ([0051](0051-development-flow-and-releases.md)) uploads its assets to
@@ -135,12 +154,17 @@ How the author built the install under that decision
   management (a private key kept outside the repository, a public key in the
   app) and changes to the release pipeline. GitHub's per-asset digest gives
   integrity pinned to the release the API names, with no key to keep.
-  To be revisited when the repository goes public.
+  To be revisited when the repository goes public. *(2026-10-09: the
+  signature itself was taken — the same minisign key and verifier, checked
+  by Verso's own updater — and the plugin still was not: the updater keeps
+  its own install paths.)*
 
 ## Status
 
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the
-Decision — keep the updater and fix it. The hardening under them is the
+Decision — keep the updater and fix it. Revised on 2026-10-09: the release
+files are signed and the app verifies the signature (the maintainer:
+"assinar nossa aplicação"). The hardening under them is the
 author's, built under that decision and labelled as such above. Revised on
 2026-09-29: the default-on check ratified by the maintainer; the ADR stands
 Accepted.

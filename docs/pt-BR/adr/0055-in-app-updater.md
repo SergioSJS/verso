@@ -66,6 +66,23 @@ Como o autor construiu a instalação sob essa decisão
   sem digest — o erro diz ao usuário para baixar a atualização pela página de
   releases — e compara o digest com o que ela calcula sobre os bytes baixados
   antes de extrair qualquer coisa. Se não confere, nada é instalado.
+- **A assinatura é exigida e conferida** *(acrescentado em 2026-10-09, o
+  mantenedor: "assinar nossa aplicação")*. Cada arquivo de release é
+  assinado no workflow de release com a chave de release do Verso, uma chave
+  minisign gerada pelo `tauri signer generate`; o `.sig` dele é publicado ao
+  lado. O app leva a metade pública (`UPDATE_PUBLIC_KEY`, `update.rs`) e não
+  instala nada cuja assinatura falte ou não confira (`minisign-verify`, o
+  verificador que o atualizador do próprio Tauri usa). O checksum diz que o
+  arquivo é o que o GitHub guarda; a assinatura, que a chave do Verso o
+  publicou. A metade privada e a senha dela são segredos do repositório
+  (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) e do
+  mantenedor guardar; perdida, a versão seguinte leva uma chave pública nova
+  e as anteriores se atualizam à mão uma vez. A assinatura fica presa ao
+  arquivo: o comentário assinado nomeia o arquivo, o app exige esse nome, e o
+  nome precisa conter a versão da release — um arquivo antigo e legítimo não
+  é instalado sob uma tag mais nova. O workflow de release confere cada
+  assinatura com a chave do próprio app (`verso-app --verify-signature`)
+  antes de publicar, então um segredo que não é essa chave para a release.
 - **Limites de tamanho.** O download e a extração têm cada um um teto de
   1 GiB (`UPDATE_MAX_BYTES`); um asset que a API já informa maior é recusado
   antes do download. Cada entrada do arquivo compactado só é extraída com o
@@ -102,7 +119,10 @@ Como o autor construiu a instalação sob essa decisão
   são os que o release guarda, como a API os nomeia. Não prova quem os pôs
   lá: quem pode publicar um release no repositório pode publicar uma
   atualização. Uma assinatura conferida contra uma chave que o app carrega
-  provaria isso; ver Alternativas descartadas.
+  prova isso: acrescentada em 2026-10-09 (o ponto da assinatura na Decisão).
+  A metade privada da chave também mora nos segredos do repositório, então
+  prova que o workflow de release, com esse segredo, fez o arquivo — não
+  mais.
 - Um release cujo asset não tem digest não pode ser instalado pelo app; o
   usuário é mandado para a página de releases. O workflow de release
   ([0051](0051-development-flow-and-releases.md)) sobe os assets para o
@@ -137,12 +157,18 @@ Como o autor construiu a instalação sob essa decisão
   gestão de chave própria (uma chave privada guardada fora do repositório,
   uma chave pública no app) e mudanças no pipeline de release. O digest por
   asset do GitHub dá integridade presa ao release que a API nomeia, sem chave
-  para guardar. A rever quando o repositório ficar público.
+  para guardar. A rever quando o repositório ficar público. *(2026-10-09: a
+  assinatura em si foi adotada — a mesma chave minisign e o mesmo
+  verificador, conferidos pelo atualizador do próprio Verso — e o plugin
+  continuou de fora: o atualizador mantém os próprios caminhos de
+  instalação.)*
 
 ## Status
 
 Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão
-— manter o atualizador e consertá-lo. O endurecimento sob eles é do autor,
+— manter o atualizador e consertá-lo. Revisto em 2026-10-09: os arquivos de
+release são assinados e o app confere a assinatura (o mantenedor: "assinar
+nossa aplicação"). O endurecimento sob eles é do autor,
 construído sob essa decisão e identificado como tal acima. Revisto em
 2026-09-29: o padrão ligado da verificação ratificado pelo mantenedor; o ADR
 fica Aceito.

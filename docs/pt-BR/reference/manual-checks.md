@@ -18,8 +18,12 @@ app real.
 
 ## Ainda não conferido
 
-### O porte para Windows (feat/windows-fs)
+### Versão 0.5 (feat/windows-fs, feat/signed-updates)
 
+- [ ] **A primeira atualização assinada** (ADR 0055, 2026-10-09): da
+  versão anterior à primeira release assinada, "Baixar e atualizar" a
+  instala no macOS e no Windows; a página da release lista um `.sig` ao
+  lado de cada arquivo.
 - [ ] **Sem barra de título** (ADR 0072, 2026-10-08): no Mac, tela cheia
   (os botões somem, a faixa da esquerda volta para cima), uma segunda
   janela, arrastar pela barra de abas e pelo topo da barra lateral; no

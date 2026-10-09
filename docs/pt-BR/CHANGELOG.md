@@ -12,6 +12,16 @@ versão de teste.
 
 ## Não lançado
 
+### Acrescentado
+
+- **As atualizações são assinadas**: cada arquivo de release é assinado com a chave de release do Verso, e o app só instala uma atualização quando a assinatura confere com a chave que ele carrega ([ADR 0055](adr/0055-in-app-updater.md)). O checksum já provava que o arquivo é o que o GitHub guarda; a assinatura prova que o Verso o publicou.
+
+### Alterado
+
+- **Duas pastas com o mesmo nome guardam cada uma a sua entrada no Claude Desktop**: a segunda vira `verso-<a pasta em que ela está>-<nome>` em vez de substituir a primeira ([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)).
+- **De dois `^id` sozinhos em sequência, só o último nomeia o bloco antes deles**, como no Obsidian; um link para o primeiro fica sem resolver, como o Obsidian deixa (spec Q3).
+- **Toda chamada de um agente fica no `agents.log`**, mesmo com dois agentes chamando ao mesmo tempo: cada chamada é acrescentada em vez de reescrever o arquivo.
+
 ### Corrigido
 
 - **Reabrir uma pasta não grava nada no índice para as notas que não mudaram**: a 0.5.0-beta.1 gravava de novo a linha de cada nota sem mudança, com o texto junto, para atestá-la da próxima vez. Num disco que grava de verdade, reabrir 10.000 notas levava 2,5 vezes mais que antes (949–980 ms contra 379). O índice agora guarda uma data só, o início da última passada completa, em vez de uma por nota.

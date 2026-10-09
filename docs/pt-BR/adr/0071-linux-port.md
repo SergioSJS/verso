@@ -249,13 +249,25 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
 
 Proposto. O porte espera, pela palavra do mantenedor em 2026-10-08 ("deixe
 pra depois"); o ADR 0022 não muda (Linux depois da Fase 2) até o mantenedor
-o revisar. `[ABERTO]`: ARM64; as versões suportadas de cada distribuição;
-duas ou três máquinas; hardware de verdade para a checagem de GPU; quando o
-`check-linux-vm.sh` é exigido antes de um push; o atualizador no Linux (o
-nosso, o gerenciador de pacotes, ou o plugin do Tauri com assinatura);
-assinar os pacotes; onde o índice e o log moram no Linux (ADR 0011:
-`$XDG_CONFIG_HOME/verso` hoje — um cache talvez caiba em `$XDG_CACHE_HOME`
-ou `$XDG_STATE_HOME`); onde o Claude Desktop no Linux lê as configurações;
-placeholders de nuvem no Linux; Snap; Wayland nativo ou X11 forçado onde as
-web views filhas precisarem; nomes que diferem só em maiúsculas (a Q8 da
-spec).
+o revisar. **Respondido pelo mantenedor em 2026-10-09**, para quando o
+porte começar:
+- O ARM64 é gerado ao lado do x64.
+- As versões seguem o Obsidian: nenhuma lista publicada. O piso é a
+  WebKitGTK 4.1, a biblioteca de que o Tauri precisa — Ubuntu 22.04,
+  Debian 12, Fedora 36 e posteriores.
+- A checagem de NVIDIA com Wayland roda no desktop do mantenedor, com um
+  pacote.
+- O `check-linux-vm.sh` não é exigido antes de todo push, só quando fizer
+  sentido ou para um pacote fechado.
+- As atualizações são assinadas com a chave de release do ADR 0055
+  (revisto em 2026-10-09).
+- As configurações do Claude Desktop são tomadas como em `~/.config/Claude`
+  (guias de terceiros; os documentos da Anthropic nomeiam só macOS e
+  Windows), a observar numa instalação real antes de depender disso.
+- Placeholders de nuvem: nenhum no Linux — não há arquivos "só online" no
+  nível do sistema, então uma nota é lida como qualquer arquivo.
+- O índice e o log ficam em `$XDG_CONFIG_HOME/verso` (`~/.config/verso`),
+  como o Obsidian guarda `~/.config/obsidian`.
+
+`[ABERTO]`: Snap; Wayland nativo ou X11 forçado onde as web views filhas
+precisarem; nomes que diferem só em maiúsculas (a Q8 da spec).

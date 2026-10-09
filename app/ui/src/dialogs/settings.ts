@@ -483,13 +483,16 @@ export class SettingsDialog {
     if (settings.mcpMode === "all" && currentFolder) add("cli", t.agentVisibleTitle, t.agentVisibleDesc, () => this.agentVisibleControl());
     const args = mcpArgs();
     if (args) {
-      const server = settings.mcpMode === "all" ? "verso" : `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
-      // The command a client starts, as the host knows it (the linked
-      // command line, or on Windows the bundled verso.exe by its path).
-      const code = (command: string) => `claude mcp add ${server} -- ${/\s/.test(command) ? `"${command}"` : command} ${args.join(" ")}`;
-      const other = (command: string) => JSON.stringify({ mcpServers: { [server]: { command, args } } }, null, 2);
-      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso"), (st) => code(st.command)));
-      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso"), (st) => other(st.command)));
+      const guess = settings.mcpMode === "all" ? "verso" : `verso-${currentFolder.replace(/-[0-9a-f]{16}$/, "")}`;
+      // The command a client starts, and the server's name, as the host
+      // knows them (the linked command line, or on Windows the bundled
+      // verso.exe by its path; another folder of the same name already
+      // added makes it `verso-<parent>-<name>`, ADR 0054).
+      const quoted = (text: string) => (/\s/.test(text) ? `"${text}"` : text);
+      const code = (command: string, server: string) => `claude mcp add ${quoted(server)} -- ${quoted(command)} ${args.join(" ")}`;
+      const other = (command: string, server: string) => JSON.stringify({ mcpServers: { [server]: { command, args } } }, null, 2);
+      add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso", guess), (st) => code(st.command, st.server)));
+      add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso", guess), (st) => other(st.command, st.server)));
     }
     return out;
   }

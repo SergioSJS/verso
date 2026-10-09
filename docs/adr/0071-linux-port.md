@@ -234,13 +234,25 @@ All proposed by the author; the port waits ("deixe pra depois").
 
 Proposed. The port waits, by the maintainer's word on 2026-10-08 ("deixe
 pra depois"); ADR 0022 is unchanged (Linux after Phase 2) until the
-maintainer revises it. `[OPEN]`: ARM64; the supported versions of each
-distribution; two or three machines; real hardware for the GPU check; when
-`check-linux-vm.sh` is required before a push; the updater on Linux (our
-own, the package manager, or Tauri's plugin with signing); signing the
-packages; where the index and the log live on Linux (ADR 0011:
-`$XDG_CONFIG_HOME/verso` today — a cache may belong in `$XDG_CACHE_HOME` or
-`$XDG_STATE_HOME`); where Claude Desktop on Linux reads its settings;
-cloud placeholders on Linux;
-Snap; Wayland native or X11 forced where child web views need it;
+maintainer revises it. **Answered by the maintainer on 2026-10-09**, for
+when the port starts:
+- ARM64 is built beside x64.
+- The versions follow Obsidian's lead: no published list. The floor is
+  WebKitGTK 4.1, the library Tauri needs — Ubuntu 22.04, Debian 12,
+  Fedora 36 and later.
+- The NVIDIA-on-Wayland check runs on the maintainer's desktop, with a
+  package.
+- `check-linux-vm.sh` is not required before every push, only when it
+  makes sense or for a closed package.
+- Updates are signed with the release key of ADR 0055 (revised
+  2026-10-09).
+- Claude Desktop's settings are taken to be in `~/.config/Claude`
+  (third-party guides; Anthropic's documents name only macOS and
+  Windows), to be observed on a real install before it is relied on.
+- Cloud placeholders: none on Linux — no system-level "online only"
+  files, so a note is read as any file.
+- The index and the log stay in `$XDG_CONFIG_HOME/verso` (`~/.config/verso`),
+  as Obsidian keeps `~/.config/obsidian`.
+
+`[OPEN]`: Snap; Wayland native or X11 forced where child web views need it;
 case-only names (spec Q8).

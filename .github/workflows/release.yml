@@ -171,6 +171,24 @@ jobs:
           slug="$(printf '%s' "$NAME" | tr ' ' '-')"
           ditto -c -k --keepParent "target/release/bundle/macos/$NAME.app" "$slug-$VERSION-macos-arm64.zip"
           tar -czf "verso-cli-$VERSION-macos-arm64.tar.gz" -C target/release verso
+      # Each file signed with Verso's release key (ADR 0055, revised
+      # 2026-10-09): the app installs an update only when its `.sig`
+      # verifies against the public key it carries. The key reaches only
+      # this step, from the repository's secrets.
+      - name: sign the release's files
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for f in ./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz; do
+            npm --prefix app/ui exec -- tauri signer sign "$f"
+            test -s "$f.sig"
+          done
+      # Checked as the app checks them, with the key it carries: a secret
+      # that is not that key stops the release here, before it is published
+      # (a published release is permanent).
+      - name: verify the signatures with the app's key
+        run: target/release/verso-app --verify-signature ./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz
       - name: keep the files for the publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -178,7 +196,9 @@ jobs:
           if-no-files-found: error
           path: |
             ./*-macos-arm64.zip
+            ./*-macos-arm64.zip.sig
             ./verso-cli-*-macos-arm64.tar.gz
+            ./verso-cli-*-macos-arm64.tar.gz.sig
 
   windows:
     name: Verso for Windows (${{ needs.decide.outputs.tag }})
@@ -269,6 +289,17 @@ jobs:
           if [ "${#exes[@]}" -ne 1 ]; then echo "::error::expected one installer, found: ${exes[*]}"; exit 1; fi
           cp "${exes[0]}" "$slug-$VERSION-windows-x64-setup.exe"
           pwsh -NoProfile -Command "Compress-Archive -Path target/release/verso.exe -DestinationPath verso-cli-$VERSION-windows-x64.zip"
+      - name: sign the release's files
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for f in ./*-windows-x64-setup.exe ./verso-cli-*-windows-x64.zip; do
+            npm --prefix app/ui exec -- tauri signer sign "$f"
+            test -s "$f.sig"
+          done
+      - name: verify the signatures with the app's key
+        run: target/release/verso-app.exe --verify-signature ./*-windows-x64-setup.exe ./verso-cli-*-windows-x64.zip
       - name: keep the files for the publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -276,7 +307,9 @@ jobs:
           if-no-files-found: error
           path: |
             ./*-windows-x64-setup.exe
+            ./*-windows-x64-setup.exe.sig
             ./verso-cli-*-windows-x64.zip
+            ./verso-cli-*-windows-x64.zip.sig
 
   # Both platforms built: the release is published with their files. On a
   # rehearsal nothing is published; the files stay as the run's artifacts.
@@ -314,7 +347,7 @@ jobs:
           esac
           node scripts/release.mjs notes "$version" > notes.md
           files=(files/*)
-          if [ "${#files[@]}" -ne 4 ]; then echo "::error::expected four files, found: ${files[*]}"; exit 1; fi
+          if [ "${#files[@]}" -ne 8 ]; then echo "::error::expected four files and their signatures, found: ${files[*]}"; exit 1; fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${files[@]}" --clobber
             gh release edit "$TAG" --notes-file notes.md

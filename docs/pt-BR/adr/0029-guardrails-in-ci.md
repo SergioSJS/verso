@@ -435,6 +435,15 @@ diagrama Mermaid que não compila chegaram ambos ao arquivo. O erro de script n�
 capturado, a promessa rejeitada e o panic seguem o mesmo caminho e não foram
 exercitados.
 
+**Uma quinta exceção, concedida pelo mantenedor em 2026-10-09** ("Liberado",
+[0054](0054-terminal-and-agents-from-the-app.md)). O `crates/verso-core/clippy.toml`
+agora também permite `std::fs::OpenOptions::open`, confinado como antes ao
+`src/sidecar.rs` pelo grep, para que cada chamada de um agente seja
+acrescentada ao `agents.log` numa só escrita em vez de o arquivo ser
+reescrito — a reescrita perdia uma linha quando dois servidores registravam
+ao mesmo tempo. Ela abre um arquivo do diretório de configuração, nunca um
+da pasta aberta (regra 5 do [0026](0026-core-ui-contract-inviolable-rules.md)).
+
 **Uma contradição, registrada e não resolvida.** O shell liga a linha de
 comando pelos ajustes ([0054](0054-terminal-and-agents-from-the-app.md)) com
 as ferramentas do sistema — `test`, `readlink`, `ln`, `rm`, `xattr`,

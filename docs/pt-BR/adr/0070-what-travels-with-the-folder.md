@@ -117,9 +117,10 @@ exatamente esses, a regra que o item 3 adota.
 
 Proposto. Decidido pelo mantenedor em 2026-10-08: o item 3 (nomes que todo
 sistema guarda, para o que o Verso cria ou renomeia). Proposto: os itens 1,
-2 e 4. `[OPEN]`: o nome do diretório oculto; se as origens de embed
-aprovadas são da pasta ou da pessoa (uma permissão dada a um site, não uma
-propriedade das notas); a pergunta do separador do ADR 0069, que continua
-sendo do mantenedor fechar. Fechado em 2026-10-08: a `\` entra nos
+2 e 4. Decidido pelo mantenedor em 2026-10-09: o diretório oculto é
+**`.verso/`**, como o do Obsidian é `.obsidian/` ("Se inspire no
+obsidian"); o separador do ADR 0069 é `/`, definitivo. `[ABERTO]`: se as
+origens de embed aprovadas são da pasta ou da pessoa (uma permissão dada a
+um site, não uma propriedade das notas). Fechado em 2026-10-08: a `\` entra nos
 caracteres recusados do item 3 em todo sistema (levantado pela revisão
 daquele dia).

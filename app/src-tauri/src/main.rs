@@ -4,7 +4,9 @@
 
 //! `verso-app [FOLDER]`: the window, on `FOLDER` when given;
 //! `verso-app --export-bindings [FILE]` writes the TypeScript bindings and
-//! exits.
+//! exits; `verso-app --verify-signature FILE...` checks each release file's
+//! `.sig` against the key the app carries (the release workflow, before it
+//! publishes).
 
 // A window app on Windows, not a console one: without it, every launch of
 // the installed app opened a terminal beside the window (seen 2026-10-08).
@@ -16,6 +18,23 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("--verify-signature") {
+        let mut failed = args.len() < 2;
+        for file in &args[1..] {
+            match verso_app::verify_release_file(std::path::Path::new(file)) {
+                Ok(()) => eprintln!("verso-app: {file}: signature verified"),
+                Err(e) => {
+                    eprintln!("verso-app: {file}: {e}");
+                    failed = true;
+                }
+            }
+        }
+        return if failed {
+            ExitCode::from(3)
+        } else {
+            ExitCode::SUCCESS
+        };
+    }
     if args.first().map(String::as_str) == Some("--export-bindings") {
         let out = args.get(1).map_or_else(
             || PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../ui/src/bindings.ts"),

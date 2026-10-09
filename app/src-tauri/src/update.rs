@@ -360,6 +360,66 @@ pub(crate) fn is_installer_name(name: &str) -> bool {
     n.ends_with(".exe") || n.ends_with(".msi")
 }
 
+/// The public half of the key Verso's release files are signed with (ADR
+/// 0055, revised 2026-10-09): a minisign key made by `tauri signer
+/// generate`, base64 as Tauri writes it. The private half signs each file
+/// in the release workflow and lives only as the repository's secret and
+/// in the maintainer's keeping; an update whose signature does not verify
+/// against this key is not installed.
+pub(crate) const UPDATE_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzRTdDRkJFQTdGRENFQjUKUldTMXp2Mm52cy9uZzFoQTBZc3B3T2c3d0dkYTk4emtYalZmeDhtOUN0VDVvYlJXNXphYk5IYVQK";
+
+/// Whether `signature` — a `.sig` file as `tauri signer sign` writes it,
+/// base64 of minisign's text — is `data` signed by `public_key`, and was
+/// made for a file named `file`: `tauri signer` writes `file:<name>` in the
+/// signed trusted comment, so an older release's genuine file cannot be
+/// passed off under a newer release's name. Only prehashed signatures, the
+/// kind `tauri signer` writes.
+pub(crate) fn verify_signature(
+    data: &[u8],
+    signature: &str,
+    public_key: &str,
+    file: &str,
+) -> Result<(), String> {
+    use base64::Engine;
+    let text = |b64: &str| {
+        base64::engine::general_purpose::STANDARD
+            .decode(b64.trim())
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+    };
+    let key = text(public_key).ok_or("the public key does not read")?;
+    let key = minisign_verify::PublicKey::decode(&key).map_err(|e| e.to_string())?;
+    let sig = text(signature).ok_or("the signature does not read")?;
+    let sig = minisign_verify::Signature::decode(&sig).map_err(|e| e.to_string())?;
+    key.verify(data, &sig, false).map_err(|e| e.to_string())?;
+    let named = format!("file:{file}");
+    if !sig
+        .trusted_comment()
+        .split('\t')
+        .any(|field| field == named)
+    {
+        return Err(format!("signed for another file than {file}"));
+    }
+    Ok(())
+}
+
+/// `verso-app --verify-signature FILE`: whether FILE's `FILE.sig`, beside
+/// it, verifies against [`UPDATE_PUBLIC_KEY`] for FILE's name — what the
+/// release workflow runs on each file it signed, before anything is
+/// published, so a secret that is not the key the app carries stops the
+/// release instead of shipping one no app will install.
+pub fn verify_release_file(path: &std::path::Path) -> Result<(), String> {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .ok_or("no file name")?;
+    let data = std::fs::read(path).map_err(|e| e.to_string())?;
+    let mut sig_path = path.as_os_str().to_owned();
+    sig_path.push(".sig");
+    let signature = std::fs::read_to_string(&sig_path).map_err(|e| e.to_string())?;
+    verify_signature(&data, &signature, UPDATE_PUBLIC_KEY, &name)
+}
+
 pub(crate) struct TempDirCleaner(std::path::PathBuf);
 impl Drop for TempDirCleaner {
     fn drop(&mut self) {
@@ -452,6 +512,34 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             message: "O pacote de atualização é grande demais.".to_string(),
         });
     }
+    // The package names its release's version: a file of another release
+    // (an older one, genuinely signed) is not installed under this tag.
+    let version = rel.tag_name.trim_start_matches('v');
+    if version.is_empty() || !asset.name.contains(&format!("-{version}-")) {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "O pacote não é desta versão; baixe a atualização pela página de releases."
+                .to_string(),
+        });
+    }
+    // The package's signature, published beside it: without it nothing is
+    // installed (ADR 0055, revised 2026-10-09).
+    let sig_name = format!("{}.sig", asset.name);
+    let Some(sig_asset) = rel.assets.iter().find(|a| a.name == sig_name) else {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "O pacote não tem assinatura publicada; baixe a atualização pela página de releases."
+                .to_string(),
+        });
+    };
+    if !is_trusted_update_url(&sig_asset.browser_download_url)
+        || !is_trusted_update_url(&sig_asset.url)
+    {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "URL de download não permitida.".to_string(),
+        });
+    }
 
     let token = github_token();
     let (url, use_auth) = if token.is_some() {
@@ -471,6 +559,48 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             kind: ErrorKind::Failed,
             message: format!("Failed to create HTTP client: {e}"),
         })?;
+
+    let signature = {
+        let sig_url = if use_auth {
+            sig_asset.url.as_str()
+        } else {
+            sig_asset.browser_download_url.as_str()
+        };
+        let mut req = client.get(sig_url);
+        if let Some(t) = token.as_deref().filter(|_| use_auth) {
+            req = req
+                .header("Authorization", format!("Bearer {t}"))
+                .header("Accept", "application/octet-stream");
+        }
+        let res = req.send().map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Erro ao baixar a assinatura: {e}"),
+        })?;
+        if !res.status().is_success() {
+            return Err(ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro no download da assinatura: HTTP {}", res.status()),
+            });
+        }
+        // At most a few hundred bytes: read no more than 4 KiB and a byte.
+        let mut text = String::new();
+        {
+            use std::io::Read;
+            res.take(4097)
+                .read_to_string(&mut text)
+                .map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao ler a assinatura: {e}"),
+                })?;
+        }
+        if text.len() > 4096 {
+            return Err(ContractError {
+                kind: ErrorKind::Refused,
+                message: "A assinatura publicada não é uma assinatura.".to_string(),
+            });
+        }
+        text
+    };
 
     let mut req = client.get(url);
     if let Some(t) = token.as_deref().filter(|_| use_auth) {
@@ -568,6 +698,19 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             ),
         });
     }
+    // And it is what Verso's release key signed: the checksum says the file
+    // is the one GitHub holds; the signature, that we published it.
+    let bytes = std::fs::read(&zip_path).map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível reler o download: {e}"),
+    })?;
+    if let Err(e) = verify_signature(&bytes, &signature, UPDATE_PUBLIC_KEY, &asset.name) {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: format!("A assinatura do pacote não confere ({e}). Nada foi instalado."),
+        });
+    }
+    drop(bytes);
 
     let _ = app.emit(
         "verso://update-progress",
@@ -1190,6 +1333,55 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()>
 #[cfg(test)]
 mod migration_tests {
     use super::*;
+
+    const TEST_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhDMkYxODdBREEzNTVDQjUKUldTMVhEWGFlaGd2akpudkVwZlVXUm9majRneE1mTTlJYzdPSkFrQ0dZV2loNHh0ODl2ZUZjcmQK";
+    const TEST_SIGNATURE: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTMVhEWGFlaGd2ak9Eem50OHJibCtoOWIzYitBckhiL1lCQlZhWktxWWhqc1d2OXBuRlV6aDZCb0hUQzBMbEI2ZTFYUG4xNWN2ZXNnQlRqMWF1d2tSaHU2VHVYemsxN1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNTE1MjI0CWZpbGU6cGF5bG9hZC5iaW4KdVo2SDFFdS8yMGpPQWtYa0ZEWndRZlVMSzA0RVdUaXBnd3RRbFcwVWhWbXhMOVdPYk5ZcHI5cWs0UGMwdHE5VkFvWjNlUUY0dCtNWnRsdUc4YmpYQWc9PQo=";
+
+    /// A file signed by the key verifies; changed by a byte, or checked
+    /// against another key, it does not (ADR 0055, revised 2026-10-09).
+    #[test]
+    fn an_update_installs_only_with_its_signature() {
+        let data = b"Verso update payload\n";
+        let ok = |d: &[u8], sig: &str, key: &str, file: &str| verify_signature(d, sig, key, file);
+        assert_eq!(
+            ok(data, TEST_SIGNATURE, TEST_PUBLIC_KEY, "payload.bin"),
+            Ok(())
+        );
+        // Changed by a byte; another key; not base64.
+        assert!(
+            ok(
+                b"Verso update payload!\n",
+                TEST_SIGNATURE,
+                TEST_PUBLIC_KEY,
+                "payload.bin"
+            )
+            .is_err()
+        );
+        assert!(ok(data, TEST_SIGNATURE, UPDATE_PUBLIC_KEY, "payload.bin").is_err());
+        assert!(ok(data, "not base64", TEST_PUBLIC_KEY, "payload.bin").is_err());
+        // A genuine signature made for another file's name.
+        assert!(
+            ok(
+                data,
+                TEST_SIGNATURE,
+                TEST_PUBLIC_KEY,
+                "Verso-0.9.0-macos-arm64.zip"
+            )
+            .is_err()
+        );
+    }
+
+    /// The key the app carries reads as a minisign public key: a typo in it
+    /// would refuse every update.
+    #[test]
+    fn the_release_public_key_reads() {
+        use base64::Engine;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(UPDATE_PUBLIC_KEY)
+            .unwrap();
+        let text = String::from_utf8(bytes).unwrap();
+        assert!(minisign_verify::PublicKey::decode(&text).is_ok());
+    }
 
     #[test]
     fn the_windows_installer_is_run_as_downloaded_and_an_archive_is_extracted() {
