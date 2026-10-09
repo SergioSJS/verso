@@ -95,6 +95,28 @@ impl IntoResponse for ApiError {
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
+/// The address a connection came from, over TCP or TLS alike.
+#[derive(Debug, Clone, Copy)]
+pub struct Remote(pub SocketAddr);
+
+impl
+    axum::extract::connect_info::Connected<axum::serve::IncomingStream<'_, tokio::net::TcpListener>>
+    for Remote
+{
+    fn connect_info(stream: axum::serve::IncomingStream<'_, tokio::net::TcpListener>) -> Self {
+        Self(*stream.remote_addr())
+    }
+}
+
+impl
+    axum::extract::connect_info::Connected<axum::serve::IncomingStream<'_, crate::tls::TlsListener>>
+    for Remote
+{
+    fn connect_info(stream: axum::serve::IncomingStream<'_, crate::tls::TlsListener>) -> Self {
+        Self(*stream.remote_addr())
+    }
+}
+
 /// What every handler of the API knows of its request.
 pub struct Ctx {
     pub server: Arc<Server>,
@@ -113,8 +135,8 @@ impl FromRequestParts<Arc<Server>> for Ctx {
     ) -> Result<Self, Self::Rejection> {
         let remote = parts
             .extensions
-            .get::<ConnectInfo<SocketAddr>>()
-            .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0);
+            .get::<ConnectInfo<Remote>>()
+            .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
         let peer = auth::peer(server, &parts.headers, remote);
         // A secret over plain HTTP outside this machine is never read: no
         // session, no token is opened from it.

@@ -270,12 +270,35 @@ async fn handle(
             );
             Ok(Value::Null)
         }
-        // The person's settings the window pushes; on a server they are the
-        // folder's, and the folder's walk is the owner's to set — kept as
-        // the server opened it until that lands.
-        "set_walk_rules" | "set_folder_note_name" | "set_embed_origins" | "set_menu_language" => {
+        // On a server the walk's rules and the folder note's name are the
+        // folder's (ADR 0070): its owner's window sets them; another
+        // member's is heard and changes nothing.
+        "set_walk_rules" | "set_folder_note_name" => {
+            if let Ok((_, Role::Owner)) = role_here(server, client) {
+                let rules = (r.cmd == "set_walk_rules")
+                    .then(|| -> Result<_, ContractError> {
+                        Ok(verso_core::WalkRules {
+                            builtin_ignores: arg(&args, "builtinIgnores")?,
+                            gitignore: arg(&args, "gitignore")?,
+                        })
+                    })
+                    .transpose()?;
+                let name: Option<String> = (r.cmd == "set_folder_note_name")
+                    .then(|| arg(&args, "name"))
+                    .transpose()?;
+                let service = Arc::clone(&server.service);
+                let c = client.to_owned();
+                blocking(move || {
+                    service.set_folder_settings(&c, rules, name.as_deref());
+                    Ok(())
+                })
+                .await?;
+            }
             Ok(Value::Null)
         }
+        // The person's own, kept by the window: the approved embed origins
+        // are the reader's (answer I), the menu is the desktop's.
+        "set_embed_origins" | "set_menu_language" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         _ => Err(refused("not on a server")),
     }
@@ -336,7 +359,11 @@ async fn open(
                 .current_folder(&c)
                 .ok_or_else(verso_service::no_folder);
         }
-        let opened = service.open(&c, move |config| verso_core::Workspace::open(&path, config))?;
+        let opened = service.open(&c, move |config| {
+            let mut ws = verso_core::Workspace::open(&path, config)?;
+            ws.set_links_inside(true);
+            Ok(ws)
+        })?;
         let (info, catch_up) = service.attach(&c, opened);
         if let Some(catch_up) = catch_up {
             let service = Arc::clone(&service);

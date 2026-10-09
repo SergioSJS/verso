@@ -134,3 +134,66 @@ mod tests {
         assert_eq!(network_file_system(root.path()), None);
     }
 }
+
+#[cfg(all(test, unix))]
+mod links {
+    use std::path::Path;
+
+    use crate::{ConfinementError, EntryKind, Root};
+
+    #[test]
+    fn on_a_server_a_link_that_leaves_is_refused_and_one_inside_is_followed() {
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("segredo.md"), "fora").unwrap();
+        let folder = tempfile::tempdir().unwrap();
+        std::fs::create_dir(folder.path().join("dentro")).unwrap();
+        std::fs::write(folder.path().join("dentro/nota.md"), "dentro").unwrap();
+        std::os::unix::fs::symlink(outside.path(), folder.path().join("fora")).unwrap();
+        std::os::unix::fs::symlink(
+            outside.path().join("segredo.md"),
+            folder.path().join("solto.md"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(folder.path().join("dentro"), folder.path().join("atalho"))
+            .unwrap();
+        let mut root = Root::open(folder.path(), Vec::new()).unwrap();
+        // One person's folder: followed wherever they point (ADR 0044).
+        assert!(root.handle(Path::new("fora/segredo.md")).is_ok());
+        root.set_links_inside(true);
+        for leaving in ["fora/segredo.md", "solto.md", "fora", "fora/novo.md"] {
+            assert_eq!(
+                root.handle(Path::new(leaving)).unwrap_err(),
+                ConfinementError::LeavesFolder,
+                "{leaving}"
+            );
+        }
+        assert!(root.handle(Path::new("atalho/nota.md")).is_ok());
+        assert!(root.handle(Path::new("dentro/novo.md")).is_ok());
+        let walk = root.walk();
+        let names: Vec<String> = walk
+            .entries
+            .iter()
+            .map(|e| e.relative.to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            names
+                .iter()
+                .all(|n| !n.starts_with("fora") && n != "solto.md"),
+            "{names:?}"
+        );
+        // The link inside is followed; its directory is walked once, under
+        // the first name met (ADR 0044's duplicate rule).
+        assert!(names.contains(&"atalho/nota.md".to_owned()), "{names:?}");
+        assert!(
+            walk.entries
+                .iter()
+                .any(|e| e.relative == Path::new("atalho") && e.kind == EntryKind::Directory)
+        );
+        let refused = walk
+            .problems
+            .iter()
+            .filter(|p| matches!(p, crate::Problem::Io { .. }))
+            .count();
+        assert_eq!(refused, 2, "{:?}", walk.problems);
+    }
+}

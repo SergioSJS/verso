@@ -241,6 +241,21 @@ impl Walker<'_> {
             if name.as_encoded_bytes().starts_with(b".") && placeholder_of.is_none() {
                 continue;
             }
+            // On a server, a link that leads out of the folder is not
+            // followed (ADR 0044, revised 2026-10-09): said, not silent.
+            if self.root.links_inside()
+                && std::fs::symlink_metadata(&abs).is_ok_and(|m| m.file_type().is_symlink())
+                && !self.root.resolves_inside(&rel)
+            {
+                self.out.problems.push(Problem::Io {
+                    relative: rel,
+                    error: std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "a link that leads out of the folder is not followed on a server",
+                    ),
+                });
+                continue;
+            }
             // Symlinks are followed: metadata of the target, not of the link.
             let meta = match std::fs::metadata(&abs) {
                 Ok(meta) => meta,

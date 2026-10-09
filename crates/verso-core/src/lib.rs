@@ -842,6 +842,12 @@ impl Workspace {
         self.root.set_rules(rules);
     }
 
+    /// Follow symlinks only inside the folder: a server's folder, shared by
+    /// several people (ADR 0044, revised 2026-10-09).
+    pub fn set_links_inside(&mut self, on: bool) {
+        self.root.set_links_inside(on);
+    }
+
     /// The folder note name setting (ADR 0060 D12), from the window. A
     /// name that is not a plain file name — a separator, `.` or `..` — is
     /// taken as empty: a folder's note is then named after it.
