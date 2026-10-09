@@ -490,6 +490,32 @@ pub struct CollabState {
     pub revision: Option<String>,
 }
 
+/// A server this app signed in to (ADR 0074 item 8; the maintainer's
+/// answer K of 2026-10-09): its address and whose account it is. The
+/// device's token stays on this side.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerAccount {
+    pub url: String,
+    pub email: String,
+    pub name: String,
+}
+
+/// A sign-in under way: the code the server's page shows, to compare, and
+/// the page the app opened in the browser.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerSignIn {
+    pub code: String,
+    pub page: String,
+}
+
+/// A folder of a server the account may open, and the role in it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerFolder {
+    pub id: String,
+    pub name: String,
+    pub role: String,
+}
+
 /// Information about an application update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct UpdateInfo {

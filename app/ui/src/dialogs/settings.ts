@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { serverStrings, serversBody } from "./servers";
 import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
@@ -109,6 +110,9 @@ export class SettingsDialog {
       { id: "board", label: boardText.sBoard, icon: "board" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
       { id: "cli", label: t.sCli, icon: "terminal" },
+      // A server's folder opened from this app (ADR 0073 item 2); in a
+      // browser the window is the server's already.
+      ...(document.documentElement.dataset.host === "server" ? [] : [{ id: "servers", label: serverStrings().section, icon: "globe" }]),
     ];
   }
   private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
@@ -486,6 +490,7 @@ export class SettingsDialog {
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     // The command line and MCP (ADR 0054). The folder is named by its key
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
+    out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));

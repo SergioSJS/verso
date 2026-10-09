@@ -33,8 +33,8 @@ use verso_contract::{
     AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabState,
     CollabUpdate, ContractError, Edge, ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged,
     FolderInfo, FolderSpace, Hit, Host, IndexProgress, IndexSummary, Link, McpAdded,
-    McpClientState, McpStatus, MovedEntries, NoteText, Renamed, Tag, TextFile, Trashed,
-    UpdateProgress, WebNote, Written,
+    McpClientState, McpStatus, MovedEntries, NoteText, Renamed, ServerAccount, Tag, TextFile,
+    Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -47,6 +47,7 @@ mod log;
 mod menu;
 mod notes;
 mod protocol;
+mod remote;
 mod update;
 mod version;
 mod web;
@@ -58,6 +59,7 @@ use focuses::*;
 use menu::*;
 use notes::*;
 use protocol::*;
+use remote::*;
 use update::*;
 use web::*;
 use windows::*;
@@ -81,6 +83,8 @@ pub struct App {
     /// The tests give it a temporary index directory, so that a test run
     /// never writes into the user's.
     pub(crate) service: Arc<Service>,
+    /// The windows that show a folder of a server: label → connection.
+    pub(crate) remotes: Mutex<std::collections::HashMap<String, Arc<remote::Remote>>>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
     /// approved by hand, mirrored from the window's settings. An embed
     /// renders in a child web view (`web_open`), so the app view itself
@@ -108,6 +112,7 @@ impl App {
             initial_folder: Mutex::new(initial.into_iter().collect()),
             opening: Mutex::new(std::collections::HashSet::new()),
             service: Service::new(None),
+            remotes: Mutex::new(std::collections::HashMap::new()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
@@ -216,6 +221,8 @@ async fn install<R: tauri::Runtime>(
         .await
         .map_err(|e| failed(e.to_string()))??;
     may_switch(app, window)?;
+    // A window that showed a server's folder shows this computer's now.
+    remote::release(app, window.label());
     let service = Arc::clone(&app.state::<App>().service);
     let (info, catch_up) = service.attach(window.label(), opened);
     // A window is named after its folder (ADR 0065).
@@ -598,6 +605,11 @@ macro_rules! commands_for {
                 collab_leave,
                 collab_save,
                 collab_resolve,
+                server_sign_in::<$runtime>,
+                server_accounts,
+                server_sign_out::<$runtime>,
+                server_folders::<$runtime>,
+                server_open::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,
@@ -618,6 +630,7 @@ macro_rules! commands_for {
             .typ::<IndexProgress>()
             .typ::<CollabUpdate>()
             .typ::<CollabState>()
+            .typ::<ServerAccount>()
     };
 }
 
@@ -811,7 +824,15 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         .plugin(navigation_guard())
         .register_asynchronous_uri_scheme_protocol("verso", serve_file)
         .manage(App::new(initial_folder))
-        .invoke_handler(commands.invoke_handler())
+        .invoke_handler({
+            // A window on a server's folder sends the folder's commands to
+            // the server (remote.rs); every other goes to this app.
+            let handler = commands.invoke_handler();
+            move |invoke| match remote::forward(invoke) {
+                None => true,
+                Some(invoke) => handler(invoke),
+            }
+        })
         .build(context())?
         .run(on_event);
     Ok(())
@@ -844,6 +865,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             log::write("INFO", "host", &format!("window closed: {label}"));
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
+            remote::release(app, label);
             lock(&app.state::<App>().opening).remove(label);
         }
         tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
@@ -953,3 +975,5 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_remote;

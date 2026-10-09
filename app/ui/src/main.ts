@@ -35,6 +35,7 @@ import { installLongPress } from "./touch";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
+import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
 import { icon } from "./icons";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
@@ -692,6 +693,7 @@ if (!popout && settings.checkUpdates) {
  *  The browser harness waits for it before a test types (review
  *  `board.md`, second reading, finding 9). */
 export const started: Promise<void> = (async () => {
+  hearServers();
   await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
@@ -711,6 +713,9 @@ export const started: Promise<void> = (async () => {
   }
   // A key. Until 2026-09-23 this held the folder's path, which no longer
   // crosses: such a folder is picked again, once.
+  // A folder of a server this app signed in to (ADR 0073 item 2).
+  const server = last ? parseServerKey(last) : null;
+  if (server) return void openServerFolder(server.url, server.folder, true);
   if (last && !last.includes("/")) void openFolderBy(() => commands.reopenFolder(last), true);
 })();
 
