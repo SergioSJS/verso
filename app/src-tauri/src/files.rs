@@ -285,6 +285,35 @@ pub(crate) fn reveal<R: tauri::Runtime>(
         c.raw_arg(format!("/select,\"{}\"", absolute.display()));
         c
     };
+    // The file manager's own D-Bus interface selects the entry (Nautilus,
+    // Dolphin and others implement org.freedesktop.FileManager1, ADR 0071);
+    // without it, the folder is opened.
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        let uri = file_uri(&absolute);
+        let selected = std::process::Command::new("gdbus")
+            .args([
+                "call",
+                "--session",
+                // A file manager that does not answer must not hold the
+                // window: this command runs on its main thread.
+                "--timeout",
+                "3",
+                "--dest",
+                "org.freedesktop.FileManager1",
+                "--object-path",
+                "/org/freedesktop/FileManager1",
+                "--method",
+                "org.freedesktop.FileManager1.ShowItems",
+                &format!("['{uri}']"),
+                "",
+            ])
+            .output()
+            .is_ok_and(|o| o.status.success());
+        if selected {
+            return Ok(());
+        }
+    }
     #[cfg(not(any(target_os = "macos", windows)))]
     let mut command = {
         let mut c = std::process::Command::new("xdg-open");
@@ -295,6 +324,22 @@ pub(crate) fn reveal<R: tauri::Runtime>(
         .spawn()
         .map(|_| ())
         .map_err(|e| failed(e.to_string()))
+}
+
+/// A path as a `file://` URI, every byte outside the unreserved set and `/`
+/// percent-encoded (a quote in a name cannot end the D-Bus argument).
+#[cfg(not(any(target_os = "macos", windows)))]
+fn file_uri(path: &Path) -> String {
+    use std::os::unix::ffi::OsStrExt;
+    let mut uri = String::from("file://");
+    for &b in path.as_os_str().as_bytes() {
+        if b.is_ascii_alphanumeric() || b"-._~/".contains(&b) {
+            uri.push(char::from(b));
+        } else {
+            uri.push_str(&format!("%{b:02X}"));
+        }
+    }
+    uri
 }
 
 /// Copy the absolute path of an entry to the system clipboard.
@@ -359,10 +404,17 @@ pub(crate) fn copy_full_path<R: tauri::Runtime>(
         if cmd == "xclip" {
             c.args(["-selection", "clipboard"]);
         }
-        let mut child = c
-            .stdin(std::process::Stdio::piped())
-            .spawn()
-            .map_err(|e| failed(e.to_string()))?;
+        // Neither is there: say what to install (ADR 0071, item 7).
+        let mut child =
+            c.stdin(std::process::Stdio::piped())
+                .spawn()
+                .map_err(|e| match e.kind() {
+                    std::io::ErrorKind::NotFound => failed(
+                        "no clipboard tool: install wl-clipboard (Wayland) or xclip (X11)"
+                            .to_owned(),
+                    ),
+                    _ => failed(format!("{cmd}: {e}")),
+                })?;
         if let Some(mut stdin) = child.stdin.take() {
             stdin
                 .write_all(text.as_bytes())

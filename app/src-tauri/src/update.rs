@@ -8,96 +8,7 @@
 use tauri::Emitter;
 use verso_contract::{ContractError, ErrorKind, InstallResult, UpdateInfo, UpdateProgress};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) struct ParsedVersion {
-    pub(crate) major: u64,
-    pub(crate) minor: u64,
-    pub(crate) patch: u64,
-    pub(crate) prerelease: Option<(String, u64)>,
-}
-
-impl ParsedVersion {
-    pub(crate) fn parse(s: &str) -> Option<Self> {
-        let s = s
-            .trim()
-            .strip_prefix('v')
-            .or_else(|| s.trim().strip_prefix('V'))
-            .unwrap_or(s.trim());
-        let (ver_part, pre_part) = match s.split_once('-') {
-            Some((v, p)) => (v, Some(p)),
-            None => (s, None),
-        };
-        let parts: Vec<&str> = ver_part.split('.').collect();
-        if parts.is_empty() || parts.len() > 3 {
-            return None;
-        }
-        let major = parts[0].parse().ok()?;
-        let minor = if parts.len() > 1 {
-            parts[1].parse().ok()?
-        } else {
-            0
-        };
-        let patch = if parts.len() > 2 {
-            parts[2].parse().ok()?
-        } else {
-            0
-        };
-        let prerelease = match pre_part {
-            None => None,
-            Some(pre) => {
-                let (tag, num) = if let Some((t, n)) = pre.split_once('.') {
-                    (t.to_string(), n.parse::<u64>().unwrap_or(0))
-                } else if let Some((t, n)) = pre.split_once('-') {
-                    (t.to_string(), n.parse::<u64>().unwrap_or(0))
-                } else {
-                    let idx = pre.find(|c: char| c.is_ascii_digit()).unwrap_or(pre.len());
-                    let t = &pre[..idx];
-                    let n = pre[idx..].parse::<u64>().unwrap_or(0);
-                    (t.to_string(), n)
-                };
-                Some((tag, num))
-            }
-        };
-        Some(Self {
-            major,
-            minor,
-            patch,
-            prerelease,
-        })
-    }
-
-    pub(crate) fn is_newer_than(&self, other: &Self) -> bool {
-        if self.major != other.major {
-            return self.major > other.major;
-        }
-        if self.minor != other.minor {
-            return self.minor > other.minor;
-        }
-        if self.patch != other.patch {
-            return self.patch > other.patch;
-        }
-        match (&self.prerelease, &other.prerelease) {
-            (None, Some(_)) => true,
-            (Some(_), None) => false,
-            (None, None) => false,
-            (Some((tag1, num1)), Some((tag2, num2))) => {
-                if tag1 == tag2 {
-                    num1 > num2
-                } else {
-                    let rank = |t: &str| match t {
-                        "alpha" => 1,
-                        "beta" => 2,
-                        "rc" => 3,
-                        _ => 0,
-                    };
-                    let r1 = rank(tag1);
-                    let r2 = rank(tag2);
-                    if r1 != r2 { r1 > r2 } else { tag1 > tag2 }
-                }
-            }
-        }
-    }
-}
+use crate::version::ParsedVersion;
 
 pub(crate) fn github_token() -> Option<String> {
     if let Ok(tok) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {
@@ -312,7 +223,14 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
     } else if cfg!(target_os = "macos") {
         &[".dmg", ".zip"]
     } else {
-        &[".appimage", ".deb", ".rpm", ".tar.gz", ".zip"]
+        #[cfg(target_os = "linux")]
+        {
+            linux_formats()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            &[".appimage", ".deb", ".rpm"]
+        }
     };
 
     // Try to find the best asset: correct OS + arch + preferred extension
@@ -357,7 +275,83 @@ pub(crate) fn is_trusted_update_url(url: &str) -> bool {
 /// NSIS `-setup.exe`, or an `.msi`) rather than an archive to extract.
 pub(crate) fn is_installer_name(name: &str) -> bool {
     let n = name.to_ascii_lowercase();
-    n.ends_with(".exe") || n.ends_with(".msi")
+    [".exe", ".msi", ".appimage", ".deb", ".rpm"]
+        .iter()
+        .any(|ext| n.ends_with(ext))
+}
+
+/// The packages a Linux install takes, best first: the AppImage it runs
+/// from, or the package format of its system — a `.deb` where Debian's
+/// tools are, else an `.rpm` (ADR 0071, item 7).
+#[cfg(target_os = "linux")]
+fn linux_formats() -> &'static [&'static str] {
+    if std::env::var_os("APPIMAGE").is_some_and(|v| !v.is_empty()) {
+        &[".appimage"]
+    } else if std::path::Path::new("/etc/debian_version").exists() {
+        &[".deb"]
+    } else {
+        &[".rpm"]
+    }
+}
+
+/// The public half of the key Verso's release files are signed with (ADR
+/// 0055, revised 2026-10-09): a minisign key made by `tauri signer
+/// generate`, base64 as Tauri writes it. The private half signs each file
+/// in the release workflow and lives only as the repository's secret and
+/// in the maintainer's keeping; an update whose signature does not verify
+/// against this key is not installed.
+pub(crate) const UPDATE_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzRTdDRkJFQTdGRENFQjUKUldTMXp2Mm52cy9uZzFoQTBZc3B3T2c3d0dkYTk4emtYalZmeDhtOUN0VDVvYlJXNXphYk5IYVQK";
+
+/// Whether `signature` — a `.sig` file as `tauri signer sign` writes it,
+/// base64 of minisign's text — is `data` signed by `public_key`, and was
+/// made for a file named `file`: `tauri signer` writes `file:<name>` in the
+/// signed trusted comment, so an older release's genuine file cannot be
+/// passed off under a newer release's name. Only prehashed signatures, the
+/// kind `tauri signer` writes.
+pub(crate) fn verify_signature(
+    data: &[u8],
+    signature: &str,
+    public_key: &str,
+    file: &str,
+) -> Result<(), String> {
+    use base64::Engine;
+    let text = |b64: &str| {
+        base64::engine::general_purpose::STANDARD
+            .decode(b64.trim())
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+    };
+    let key = text(public_key).ok_or("the public key does not read")?;
+    let key = minisign_verify::PublicKey::decode(&key).map_err(|e| e.to_string())?;
+    let sig = text(signature).ok_or("the signature does not read")?;
+    let sig = minisign_verify::Signature::decode(&sig).map_err(|e| e.to_string())?;
+    key.verify(data, &sig, false).map_err(|e| e.to_string())?;
+    let named = format!("file:{file}");
+    if !sig
+        .trusted_comment()
+        .split('\t')
+        .any(|field| field == named)
+    {
+        return Err(format!("signed for another file than {file}"));
+    }
+    Ok(())
+}
+
+/// `verso-app --verify-signature FILE`: whether FILE's `FILE.sig`, beside
+/// it, verifies against [`UPDATE_PUBLIC_KEY`] for FILE's name — what the
+/// release workflow runs on each file it signed, before anything is
+/// published, so a secret that is not the key the app carries stops the
+/// release instead of shipping one no app will install.
+pub fn verify_release_file(path: &std::path::Path) -> Result<(), String> {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .ok_or("no file name")?;
+    let data = std::fs::read(path).map_err(|e| e.to_string())?;
+    let mut sig_path = path.as_os_str().to_owned();
+    sig_path.push(".sig");
+    let signature = std::fs::read_to_string(&sig_path).map_err(|e| e.to_string())?;
+    verify_signature(&data, &signature, UPDATE_PUBLIC_KEY, &name)
 }
 
 pub(crate) struct TempDirCleaner(std::path::PathBuf);
@@ -452,6 +446,34 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             message: "O pacote de atualização é grande demais.".to_string(),
         });
     }
+    // The package names its release's version: a file of another release
+    // (an older one, genuinely signed) is not installed under this tag.
+    let version = rel.tag_name.trim_start_matches('v');
+    if version.is_empty() || !asset.name.contains(&format!("-{version}-")) {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "O pacote não é desta versão; baixe a atualização pela página de releases."
+                .to_string(),
+        });
+    }
+    // The package's signature, published beside it: without it nothing is
+    // installed (ADR 0055, revised 2026-10-09).
+    let sig_name = format!("{}.sig", asset.name);
+    let Some(sig_asset) = rel.assets.iter().find(|a| a.name == sig_name) else {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "O pacote não tem assinatura publicada; baixe a atualização pela página de releases."
+                .to_string(),
+        });
+    };
+    if !is_trusted_update_url(&sig_asset.browser_download_url)
+        || !is_trusted_update_url(&sig_asset.url)
+    {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: "URL de download não permitida.".to_string(),
+        });
+    }
 
     let token = github_token();
     let (url, use_auth) = if token.is_some() {
@@ -471,6 +493,48 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             kind: ErrorKind::Failed,
             message: format!("Failed to create HTTP client: {e}"),
         })?;
+
+    let signature = {
+        let sig_url = if use_auth {
+            sig_asset.url.as_str()
+        } else {
+            sig_asset.browser_download_url.as_str()
+        };
+        let mut req = client.get(sig_url);
+        if let Some(t) = token.as_deref().filter(|_| use_auth) {
+            req = req
+                .header("Authorization", format!("Bearer {t}"))
+                .header("Accept", "application/octet-stream");
+        }
+        let res = req.send().map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Erro ao baixar a assinatura: {e}"),
+        })?;
+        if !res.status().is_success() {
+            return Err(ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro no download da assinatura: HTTP {}", res.status()),
+            });
+        }
+        // At most a few hundred bytes: read no more than 4 KiB and a byte.
+        let mut text = String::new();
+        {
+            use std::io::Read;
+            res.take(4097)
+                .read_to_string(&mut text)
+                .map_err(|e| ContractError {
+                    kind: ErrorKind::Failed,
+                    message: format!("Erro ao ler a assinatura: {e}"),
+                })?;
+        }
+        if text.len() > 4096 {
+            return Err(ContractError {
+                kind: ErrorKind::Refused,
+                message: "A assinatura publicada não é uma assinatura.".to_string(),
+            });
+        }
+        text
+    };
 
     let mut req = client.get(url);
     if let Some(t) = token.as_deref().filter(|_| use_auth) {
@@ -568,6 +632,19 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             ),
         });
     }
+    // And it is what Verso's release key signed: the checksum says the file
+    // is the one GitHub holds; the signature, that we published it.
+    let bytes = std::fs::read(&zip_path).map_err(|e| ContractError {
+        kind: ErrorKind::Failed,
+        message: format!("Não foi possível reler o download: {e}"),
+    })?;
+    if let Err(e) = verify_signature(&bytes, &signature, UPDATE_PUBLIC_KEY, &asset.name) {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: format!("A assinatura do pacote não confere ({e}). Nada foi instalado."),
+        });
+    }
+    drop(bytes);
 
     let _ = app.emit(
         "verso://update-progress",
@@ -590,21 +667,27 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
         message: format!("Não foi possível criar pasta de extração: {e}"),
     })?;
 
-    // Windows' asset is the installer itself (release.yml), not an archive:
-    // it goes where the install step looks for an installer, unextracted.
+    // Windows' installer and Linux's packages are the asset itself
+    // (release.yml), not an archive: each goes where the install step looks
+    // for it, unextracted, its extension kept.
     if is_installer_name(&asset.name) {
         drop(file);
-        let ext = if asset.name.to_ascii_lowercase().ends_with(".msi") {
-            "msi"
-        } else {
-            "exe"
+        let lower = asset.name.to_ascii_lowercase();
+        let ext = ["msi", "appimage", "deb", "rpm"]
+            .into_iter()
+            .find(|e| lower.ends_with(&format!(".{e}")))
+            .unwrap_or("exe");
+        // A Linux package keeps its own name: it is left in Downloads for
+        // the package manager, and a generic name would overwrite the one
+        // before it and hide its version.
+        let kept = match std::path::Path::new(&asset.name).file_name() {
+            Some(name) if ext == "deb" || ext == "rpm" => extract_dir.join(name),
+            _ => extract_dir.join(format!("verso-setup.{ext}")),
         };
-        std::fs::rename(&zip_path, extract_dir.join(format!("verso-setup.{ext}"))).map_err(
-            |e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Não foi possível preparar o instalador: {e}"),
-            },
-        )?;
+        std::fs::rename(&zip_path, kept).map_err(|e| ContractError {
+            kind: ErrorKind::Failed,
+            message: format!("Não foi possível preparar o instalador: {e}"),
+        })?;
         return install_extracted_update(app, &extract_dir, &temp_dir, downloaded);
     }
 
@@ -881,6 +964,8 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
     #[cfg(target_os = "linux")]
     {
         use std::os::unix::fs::PermissionsExt;
+        // Nothing is kept aside: the AppImage is replaced whole by a rename.
+        let _ = temp_dir;
 
         // Prefer AppImage, then deb, then any binary
         let payload = find_file_by_exts(extract_dir, &[".AppImage", ".appimage", ".deb", ".rpm"])
@@ -902,24 +987,47 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
             .extension()
             .is_some_and(|x| x.eq_ignore_ascii_case("AppImage"))
         {
-            // Try to replace the running AppImage
-            if let Ok(current) = std::env::current_exe() {
-                let backup = temp_dir.join("running_backup.AppImage");
-                if std::fs::rename(&current, &backup).is_ok() {
-                    if std::fs::copy(&payload, &current).is_ok() {
-                        let _ = std::fs::remove_file(&backup);
-                        return Ok(emit_done(
-                            "Atualização instalada com sucesso! Reinicie o aplicativo.",
-                            Some(current.display().to_string()),
-                            true,
-                        ));
+            // The AppImage file itself, `$APPIMAGE`: the running binary is
+            // inside its mounted image, read-only. The new one is written
+            // beside it and renamed over it, whole or not at all.
+            let Some(current) = std::env::var_os("APPIMAGE")
+                .filter(|v| !v.is_empty())
+                .map(std::path::PathBuf::from)
+            else {
+                return Err(ContractError {
+                    kind: ErrorKind::Failed,
+                    message: "Este app não roda de um AppImage; baixe a atualização pela página de releases."
+                        .to_string(),
+                });
+            };
+            let beside = current.with_extension("AppImage.new");
+            std::fs::copy(&payload, &beside)
+                .and_then(|_| {
+                    std::fs::set_permissions(&beside, std::fs::Permissions::from_mode(0o755))
+                })
+                // On disk before the rename: a power cut never leaves a
+                // truncated AppImage where the app was.
+                .and_then(|()| std::fs::File::open(&beside)?.sync_all())
+                .and_then(|()| std::fs::rename(&beside, &current))
+                .map_err(|e| {
+                    let _ = std::fs::remove_file(&beside);
+                    ContractError {
+                        kind: ErrorKind::Failed,
+                        message: format!("Não foi possível substituir o AppImage: {e}"),
                     }
-                    let _ = std::fs::rename(&backup, &current);
-                }
-            }
+                })?;
+            return Ok(emit_done(
+                "Atualização instalada. Reinicie o aplicativo.",
+                Some(current.display().to_string()),
+                true,
+            ));
         } else {
             // For .deb/.rpm: copy to Downloads and advise the user
             let downloads = get_downloads_dir();
+            std::fs::create_dir_all(&downloads).map_err(|e| ContractError {
+                kind: ErrorKind::Failed,
+                message: format!("Erro ao criar a pasta de Downloads: {e}"),
+            })?;
             let dest = downloads.join(
                 payload
                     .file_name()
@@ -938,12 +1046,6 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 false,
             ));
         }
-
-        return Ok(emit_done(
-            "Atualização baixada. Reinicie o aplicativo para usar a nova versão.",
-            None,
-            true,
-        ));
     }
 
     // Unreachable on supported platforms, but required for compilation
@@ -1012,10 +1114,45 @@ pub(crate) fn find_file_by_exts(
 /// Windows path is still to be exercised).
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn get_downloads_dir() -> std::path::PathBuf {
-    // $HOME/Downloads
     let home = std::env::var("HOME")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
+    #[cfg(target_os = "linux")]
+    if let Some(dir) = xdg_download_dir(&home) {
+        return dir;
+    }
     std::path::PathBuf::from(home).join("Downloads")
+}
+
+/// The Downloads folder a Linux desktop names in `user-dirs.dirs`
+/// (`XDG_DOWNLOAD_DIR="$HOME/Transferências"` on a Portuguese system),
+/// from `$XDG_CONFIG_HOME` or `~/.config`. `None` when it names none.
+#[cfg(target_os = "linux")]
+fn xdg_download_dir(home: &str) -> Option<std::path::PathBuf> {
+    let config = std::env::var_os("XDG_CONFIG_HOME")
+        .filter(|v| !v.is_empty())
+        .map_or_else(
+            || std::path::Path::new(home).join(".config"),
+            std::path::PathBuf::from,
+        );
+    let text = std::fs::read_to_string(config.join("user-dirs.dirs")).ok()?;
+    download_dir_in(&text, home)
+}
+
+/// `XDG_DOWNLOAD_DIR` read out of a `user-dirs.dirs`'s text. The home
+/// itself is how the file says "no such folder", and is `None` too.
+#[cfg(target_os = "linux")]
+fn download_dir_in(text: &str, home: &str) -> Option<std::path::PathBuf> {
+    let value = text
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("XDG_DOWNLOAD_DIR="))?
+        .trim()
+        .trim_matches('"');
+    let dir = match value.strip_prefix("$HOME") {
+        Some(rest) => format!("{home}{rest}"),
+        None => value.to_owned(),
+    };
+    (dir.starts_with('/') && dir.trim_end_matches('/') != home.trim_end_matches('/'))
+        .then(|| std::path::PathBuf::from(dir))
 }
 
 // ── The OS edge the CLI install needs ──────────────────────────────────
@@ -1059,9 +1196,9 @@ pub(crate) fn msix_claude_dir() -> Option<std::path::PathBuf> {
     found.into_iter().next()
 }
 
-/// Where the symlink at `path` points, if it is one. Not on Windows, where
-/// the command line is not linked (`cli_state_now`).
-#[cfg(not(windows))]
+/// Where the symlink at `path` points, if it is one. macOS only: Windows
+/// and Linux do not link the command line (`cli_state_now`).
+#[cfg(target_os = "macos")]
 pub(crate) fn link_target(path: &std::path::Path) -> Option<std::path::PathBuf> {
     std::fs::read_link(path).ok()
 }
@@ -1074,9 +1211,9 @@ pub(crate) fn something_at(path: &std::path::Path) -> bool {
 }
 
 /// Point `link` at `target`, replacing whatever symlink or file was
-/// there (the `ln -sfn` this replaces). Unix only; the CLI link is not
-/// offered elsewhere yet.
-#[cfg(unix)]
+/// there (the `ln -sfn` this replaces). macOS only: Linux copies an
+/// AppImage's command line instead (`install_cli`).
+#[cfg(target_os = "macos")]
 pub(crate) fn replace_symlink(
     target: &std::path::Path,
     link: &std::path::Path,
@@ -1090,6 +1227,39 @@ pub(crate) fn replace_symlink(
 /// Take the file or symlink at `path` away (the `rm` this replaces).
 pub(crate) fn remove_file_at(path: &std::path::Path) -> std::io::Result<()> {
     std::fs::remove_file(path)
+}
+
+/// Write a small executable text file (the AppImage's script in
+/// `~/.local/bin`) whole or not at all: beside it first, on disk, then
+/// renamed over it.
+#[cfg(target_os = "linux")]
+pub(crate) fn write_executable_text(dest: &std::path::Path, text: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    if let Some(dir) = dest.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let part = dest.with_extension("part");
+    let mut file = std::fs::File::create(&part)?;
+    file.write_all(text.as_bytes())?;
+    file.set_permissions(std::fs::Permissions::from_mode(0o755))?;
+    file.sync_all()?;
+    drop(file);
+    std::fs::rename(&part, dest)
+}
+
+/// The start of a file as text, at most 4 KiB: enough to tell the
+/// AppImage's script from a program. `None` when it cannot be read.
+#[cfg(target_os = "linux")]
+pub(crate) fn read_head(path: &std::path::Path) -> Option<String> {
+    use std::io::Read;
+    let mut head = Vec::new();
+    std::fs::File::open(path)
+        .ok()?
+        .take(4096)
+        .read_to_end(&mut head)
+        .ok()?;
+    Some(String::from_utf8_lossy(&head).into_owned())
 }
 
 /// Clear the download quarantine from one file, through the xattr crate,
@@ -1191,6 +1361,55 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()>
 mod migration_tests {
     use super::*;
 
+    const TEST_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhDMkYxODdBREEzNTVDQjUKUldTMVhEWGFlaGd2akpudkVwZlVXUm9majRneE1mTTlJYzdPSkFrQ0dZV2loNHh0ODl2ZUZjcmQK";
+    const TEST_SIGNATURE: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTMVhEWGFlaGd2ak9Eem50OHJibCtoOWIzYitBckhiL1lCQlZhWktxWWhqc1d2OXBuRlV6aDZCb0hUQzBMbEI2ZTFYUG4xNWN2ZXNnQlRqMWF1d2tSaHU2VHVYemsxN1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNTE1MjI0CWZpbGU6cGF5bG9hZC5iaW4KdVo2SDFFdS8yMGpPQWtYa0ZEWndRZlVMSzA0RVdUaXBnd3RRbFcwVWhWbXhMOVdPYk5ZcHI5cWs0UGMwdHE5VkFvWjNlUUY0dCtNWnRsdUc4YmpYQWc9PQo=";
+
+    /// A file signed by the key verifies; changed by a byte, or checked
+    /// against another key, it does not (ADR 0055, revised 2026-10-09).
+    #[test]
+    fn an_update_installs_only_with_its_signature() {
+        let data = b"Verso update payload\n";
+        let ok = |d: &[u8], sig: &str, key: &str, file: &str| verify_signature(d, sig, key, file);
+        assert_eq!(
+            ok(data, TEST_SIGNATURE, TEST_PUBLIC_KEY, "payload.bin"),
+            Ok(())
+        );
+        // Changed by a byte; another key; not base64.
+        assert!(
+            ok(
+                b"Verso update payload!\n",
+                TEST_SIGNATURE,
+                TEST_PUBLIC_KEY,
+                "payload.bin"
+            )
+            .is_err()
+        );
+        assert!(ok(data, TEST_SIGNATURE, UPDATE_PUBLIC_KEY, "payload.bin").is_err());
+        assert!(ok(data, "not base64", TEST_PUBLIC_KEY, "payload.bin").is_err());
+        // A genuine signature made for another file's name.
+        assert!(
+            ok(
+                data,
+                TEST_SIGNATURE,
+                TEST_PUBLIC_KEY,
+                "Verso-0.9.0-macos-arm64.zip"
+            )
+            .is_err()
+        );
+    }
+
+    /// The key the app carries reads as a minisign public key: a typo in it
+    /// would refuse every update.
+    #[test]
+    fn the_release_public_key_reads() {
+        use base64::Engine;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(UPDATE_PUBLIC_KEY)
+            .unwrap();
+        let text = String::from_utf8(bytes).unwrap();
+        assert!(minisign_verify::PublicKey::decode(&text).is_ok());
+    }
+
     #[test]
     fn the_windows_installer_is_run_as_downloaded_and_an_archive_is_extracted() {
         assert!(is_installer_name(
@@ -1201,6 +1420,11 @@ mod migration_tests {
             "Verso-Beta-0.5.0-beta.1-macos-arm64.zip"
         ));
         assert!(!is_installer_name("verso-cli-0.5.0-windows-x64.zip"));
+        // Linux's packages are taken as downloaded too (ADR 0071).
+        assert!(is_installer_name("Verso-0.6.0-linux-x86_64.AppImage"));
+        assert!(is_installer_name("Verso-0.6.0-linux-amd64.deb"));
+        assert!(is_installer_name("Verso-0.6.0-linux-x86_64.rpm"));
+        assert!(!is_installer_name("verso-cli-0.6.0-linux-x86_64.tar.gz"));
     }
 
     #[test]
@@ -1243,5 +1467,26 @@ mod migration_tests {
         // Nothing to carry: nothing done.
         assert!(!copy_web_data(&root.path().join("absent"), &root.path().join("x")).unwrap());
         assert!(!root.path().join("x").exists());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_linux_update_package_goes_to_the_downloads_folder_the_desktop_names() {
+        let home = "/home/ana";
+        let dirs = "# written by xdg-user-dirs-update\nXDG_DESKTOP_DIR=\"$HOME/Área de trabalho\"\nXDG_DOWNLOAD_DIR=\"$HOME/Transferências\"\n";
+        assert_eq!(
+            download_dir_in(dirs, home),
+            Some(std::path::PathBuf::from("/home/ana/Transferências"))
+        );
+        assert_eq!(
+            download_dir_in("XDG_DOWNLOAD_DIR=\"/data/baixados\"\n", home),
+            Some(std::path::PathBuf::from("/data/baixados"))
+        );
+        // The home itself: the desktop has no Downloads folder.
+        assert_eq!(download_dir_in("XDG_DOWNLOAD_DIR=\"$HOME/\"\n", home), None);
+        assert_eq!(
+            download_dir_in("XDG_MUSIC_DIR=\"$HOME/Música\"\n", home),
+            None
+        );
     }
 }

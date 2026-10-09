@@ -11,6 +11,7 @@ use tauri::webview::InvokeRequest;
 
 #[allow(unused_imports)]
 use super::*;
+use crate::version::ParsedVersion;
 
 /// What the install hands the shell and AppleScript stays one word and
 /// one string, whatever the app's path holds — a space in "Verso Beta",

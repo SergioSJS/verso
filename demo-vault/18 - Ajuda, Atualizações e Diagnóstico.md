@@ -18,6 +18,7 @@ Como manter o Verso em dia, contar um problema e ver o que acontece por dentro.
 
 - **Ajustes › Geral › Verificar atualizações automaticamente** procura versões novas sozinho.
 - Em **Ajustes › Geral › Versão**, **Verificar atualizações** procura agora. Se houver uma versão nova: **Ver notas da versão**, **Baixar e atualizar** e, quando o download termina, **Reiniciar agora**.
+- Toda atualização vem **assinada** com a chave do Verso: antes de instalar, o app confere a assinatura e o checksum do arquivo. Se algum dos dois não conferir, nada é instalado, e a página de versões continua sendo o caminho para baixar à mão.
 
 ---
 

@@ -1,0 +1,25 @@
+# AI draft (Opus 5.5, 2026-10-09), awaiting the maintainer's approval (ADR 0031).
+# Construct: two `^id`s alone in a row at the top level, then a paragraph
+# with one `^id` alone after it. Spec: docs/spec/dialect.md §5.7, Q3: only
+# the last of two `^id`s alone in a row names the block before them, as in
+# Obsidian (decided by the maintainer on 2026-10-09); `a` is absent on
+# purpose. `pos` is the `^`; `lines` the block. The spec's section 9 is
+# updated in the same PR.
+blocks:
+  - id: b
+    pos: { line: 5, col: 1 }
+    lines: [1, 1]
+  - id: c
+    pos: { line: 9, col: 1 }
+    lines: [7, 7]
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-09 against a throwaway note in the sandbox
+    vault, public API only (ADR 0009; docs/reference/obsidian-cli.md): the
+    note created with `app.vault.create` holding this input byte for byte,
+    then `obsidian eval` on `app.metadataCache.getCache(...)`, 0-based
+    lines: blocks { b: 0..0, c: 6..6 }, no `a`; sections: paragraph 0..0
+    #b, paragraph 6..6 #c — the `^a` and `^b` lines are no section. The
+    note was deleted afterwards (`app.vault.delete`).

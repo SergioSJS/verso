@@ -134,3 +134,12 @@ and depends on old Objective-C crates on macOS; an in-house
 `WM_NCCALCSIZE` handler would need `unsafe`, which the workspace forbids
 (ADR 0029). Lost: the Snap Layouts menu on hovering maximize; Win+arrows,
 dragging to a screen edge and Win+Z stay the system's.
+
+**Amended on 2026-10-09, by the maintainer's word**, after seeing the
+Linux port on GNOME and KDE: "de fato a gente vai precisar ter que remover
+essa barra de título. Na versão Linux, essa barra é gigantesca … muito
+espaço inútil". Item 3 ("Linux keeps the system's title bar until its
+port") is met by the port (ADR 0071): on Linux a folder's window has no
+system title bar either, and the app draws minimize, maximize and close at
+the top right, as on Windows. The window is built hidden and shown once
+built, because KDE's KWin otherwise kept its own bar.

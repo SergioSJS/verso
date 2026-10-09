@@ -53,6 +53,7 @@ fixture_tests! {
     block_in_list => "block/in-list",
     block_in_quote => "block/in-quote",
     block_alone_top => "block/alone-top",
+    block_two_alone => "block/two-alone",
     callout_simple => "callout/simple",
     embed_simple => "embed/simple",
     frontmatter_tags_aliases => "frontmatter/tags-aliases",

@@ -163,6 +163,12 @@ where a failure is first seen:
   found the workspace not compiling on Windows: `xattr` was a dependency of
   `verso-fs` on every OS, and `verso-fs` stops the build on purpose where
   only the Unix half of its directory identity exists.
+- `scripts/check-linux-vm.sh` — clippy and the tests on Linux x86_64, on a
+  machine reached over SSH as `verso-ubuntu`, over a byte-for-byte copy of
+  the working tree; with `--bundle` the `.deb`, `.rpm` and AppImage, with
+  `--install` the `.deb` installed and the app opened in the machine's
+  desktop ([0071](0071-linux-port.md), item 5, since 2026-10-09). Required
+  only when it makes sense or for a package (the maintainer, 2026-10-09).
 
 macOS cannot run in a container and Windows cannot run in Docker on a Mac or
 on Linux: the Mac itself is the macOS check, and Windows is checked on a real
@@ -423,6 +429,15 @@ warning, not an error.
 Verified in the app with real failures — a note that is not UTF-8 and a Mermaid
 diagram that does not parse both reached the file. The uncaught script error,
 the rejected promise and the panic take the same path and were not exercised.
+
+**A fifth exception, granted by the maintainer on 2026-10-09** ("Liberado",
+[0054](0054-terminal-and-agents-from-the-app.md)). `crates/verso-core/clippy.toml`
+now also allows `std::fs::OpenOptions::open`, confined as before to
+`src/sidecar.rs` by the grep, so that each call an agent makes is appended
+to `agents.log` in one write instead of the file being rewritten — the
+rewrite lost a line when two servers logged at once. It opens a file of the
+configuration directory, never one of the open folder (rule 5 of
+[0026](0026-core-ui-contract-inviolable-rules.md)).
 
 **A contradiction, recorded and not resolved.** The shell links the command
 line from the settings ([0054](0054-terminal-and-agents-from-the-app.md)) with

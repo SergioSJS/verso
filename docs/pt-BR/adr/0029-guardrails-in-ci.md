@@ -172,6 +172,12 @@ CI confirma, não é onde uma falha aparece primeiro:
   primeira execução dele achou o workspace sem compilar no Windows: o `xattr`
   era dependência do `verso-fs` em todo sistema, e o `verso-fs` para o build
   de propósito onde só existe a metade Unix da sua identidade de diretório.
+- `scripts/check-linux-vm.sh` — clippy e os testes no Linux x86_64, numa
+  máquina alcançada por SSH como `verso-ubuntu`, sobre uma cópia byte a byte
+  da árvore de trabalho; com `--bundle` o `.deb`, o `.rpm` e o AppImage, com
+  `--install` o `.deb` instalado e o app aberto no desktop da máquina
+  ([0071](0071-linux-port.md), item 5, desde 2026-10-09). Exigido só quando
+  fizer sentido ou para um pacote (o mantenedor, 2026-10-09).
 
 O macOS não roda num container e o Windows não roda no Docker num Mac ou num
 Linux: o próprio Mac é a checagem de macOS, e o Windows é checado numa máquina
@@ -434,6 +440,15 @@ Verificado no aplicativo com falhas reais — uma nota que não é UTF-8 e um
 diagrama Mermaid que não compila chegaram ambos ao arquivo. O erro de script não
 capturado, a promessa rejeitada e o panic seguem o mesmo caminho e não foram
 exercitados.
+
+**Uma quinta exceção, concedida pelo mantenedor em 2026-10-09** ("Liberado",
+[0054](0054-terminal-and-agents-from-the-app.md)). O `crates/verso-core/clippy.toml`
+agora também permite `std::fs::OpenOptions::open`, confinado como antes ao
+`src/sidecar.rs` pelo grep, para que cada chamada de um agente seja
+acrescentada ao `agents.log` numa só escrita em vez de o arquivo ser
+reescrito — a reescrita perdia uma linha quando dois servidores registravam
+ao mesmo tempo. Ela abre um arquivo do diretório de configuração, nunca um
+da pasta aberta (regra 5 do [0026](0026-core-ui-contract-inviolable-rules.md)).
 
 **Uma contradição, registrada e não resolvida.** O shell liga a linha de
 comando pelos ajustes ([0054](0054-terminal-and-agents-from-the-app.md)) com

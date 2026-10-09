@@ -51,6 +51,7 @@ mod menu;
 mod notes;
 mod protocol;
 mod update;
+mod version;
 mod web;
 mod windows;
 use boards::*;
@@ -875,6 +876,17 @@ fn context<R: tauri::Runtime>() -> tauri::Context<R> {
     tauri::generate_context!()
 }
 
+/// `verso-app --cli ARGS…`: see `cli::run_bundled_cli`.
+#[cfg(target_os = "linux")]
+pub fn run_bundled_cli(args: &[String]) -> std::io::Error {
+    cli::run_bundled_cli(args)
+}
+
+/// `verso-app --verify-signature FILE`: see `update::verify_release_file`.
+pub fn verify_release_file(path: &Path) -> Result<(), String> {
+    update::verify_release_file(path)
+}
+
 /// Write the TypeScript bindings (types and command signatures) to
 /// `path`. CI checks the committed file is this output (ADR 0029).
 pub fn export_bindings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -1032,11 +1044,10 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // alone: it needs the download hook every window of the app
             // has (`on_download`).
             if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main") {
-                frameless(
+                open_frameless(
                     tauri::WebviewWindowBuilder::from_config(app.handle(), config)?
                         .on_download(on_download),
-                )
-                .build()?;
+                )?;
             }
             Ok(())
         })

@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.33
+# Verso dialect spec — v0.34
 
-- Version: v0.33 · 2026-10-07
+- Version: v0.34 · 2026-10-09
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -355,7 +355,9 @@ the heading (2026-10-07, `fixtures/block/after-a-block`,
 quote, inside a list, which names the innermost item, and alone with nothing
 before it, which names nothing (2026-10-07, `fixtures/block/in-quote`,
 `fixtures/block/in-list`, `fixtures/block/alone-top`). An id is unique per
-note; with two, the last names the block (`fixtures/block/duplicate`).
+note; with two, the last names the block (`fixtures/block/duplicate`). Of
+two `^id`s alone in a row, only the last names the block before them, as in
+Obsidian (2026-10-09, `fixtures/block/two-alone`).
 `lines` (section 4.3) says which block an id names.
 
 The id is not shown when reading, and a `^id` alone on its line goes with
@@ -829,15 +831,13 @@ Raised while writing this spec. All of them need an answer before
   it, no block at all, and after a paragraph that is no id (`^foo.bar`),
   that paragraph (`fixtures/block/alone-top`).
 
-  `[OPEN]`: **two `^id`s alone in a row** (`Texto.`, a blank line, `^a`, a
-  blank line, `^b`). Obsidian's cache keeps only `b` on the paragraph;
-  `[[nota#^a]]` is unresolved there, and how its reading view draws the `^a`
-  line was not observed. Verso today reports both on the paragraph, so
-  `[[nota#^a]]` resolves and `^a` is hidden — an extension that gives a
-  target to a link Obsidian leaves unresolved, which ADR 0030 may or may
-  not allow. The two options: keep both (the extension, to be recorded as
-  Verso's own), or keep the last only, as Q4 does for the same id twice. The
-  maintainer decides; no fixture until then. Not observed either, and
+  `DECIDED` on 2026-10-09 by the maintainer ("Recomendado"): **of two
+  `^id`s alone in a row** (`Texto.`, a blank line, `^a`, a blank line,
+  `^b`), **only the last names the block before them**, as in Obsidian,
+  whose cache keeps only `b` and leaves `[[nota#^a]]` unresolved; `^a` is
+  then an id that names nothing and stays as written
+  (`fixtures/block/two-alone`). Verso had reported both, an extension that
+  ADR 0030 does not allow. Not observed either, and
   recorded as what the parser does: a `^id` alone right after the
   frontmatter, or after a footnote definition, names nothing and the
   paragraph before the definition respectively (footnotes are not enabled
@@ -1307,3 +1307,4 @@ the parser was chosen.
 | v0.31 | 2026-10-07 | Q3's open part **observed in Obsidian through its CLI** (28 inputs): the block is the top-level section, or the innermost list item; alone with nothing before it, no block. Implemented; three fixtures drafted (`block/in-list`, `block/in-quote`, `block/alone-top`), awaiting the maintainer's approval; the provisional facts of v0.30 replaced by the observation. The "Unchanged:" sentence of Q3 cites section 5.7, where the own-text rule lives. |
 | v0.32 | 2026-10-07 | The fixtures `fixtures/block/in-list`, `fixtures/block/in-quote` and `fixtures/block/alone-top` **approved by the maintainer** in session ("Aprovado"); their draft mark removed. **Q3 is closed in full.** Nothing else changes. |
 | v0.33 | 2026-10-07 | After the second Opus reading: §5.7 says the decided rule (the top-level section, or the innermost list item) in place of the "own text" sentence, lists the three new fixtures and says what a `^id` that names nothing looks like; Q3's two decision paragraphs are one, in two steps; **two `^id`s alone in a row** is `[OPEN]` (the extension or Obsidian's last-only), with the frontmatter and footnote cases recorded as unobserved; the 28 observed inputs are in `docs/reference/obsidian-blocks-2026-10-07.md`. |
+| v0.34 | 2026-10-09 | **Two `^id`s alone in a row** `DECIDED` by the maintainer: only the last names the block before them, as in Obsidian; the fixture `fixtures/block/two-alone` drafted, awaiting the maintainer's approval. |

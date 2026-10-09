@@ -205,9 +205,14 @@ refuses to rename a folder while any file in it is open.
      target is checked to be still the file that was read (invariant 11) —
      changed, the write stops and the diff is shown. A held target answers
      "Access is denied" (measured), the error a read-only target gives for
-     good: a read-only target is told apart first and fails at once. The `[OPEN]` becomes: is this flush the directory `fsync`
-     invariant 9 means.
-   - **`[OPEN]`: the path separator.** A note's path crosses the contract as
+     good: a read-only target is told apart first and fails at once.
+     **Decided by the maintainer on 2026-10-09** ("Recomendado"): this
+     flush counts as the directory `fsync` of invariant 9 — the same
+     purpose, a rename that survives a power loss, by the platform's own
+     means; `CLAUDE.md` §2 item 9 says so.
+   - **The path separator: `/`, decided definitive by the maintainer on
+     2026-10-09** (asked whether any reason stood against it, none did).
+     A note's path crosses the contract as
      a string relative to the open folder (ADR 0026, rule 4), wikilink
      targets and the index hold paths, and `docs/reference/mcp-decision.md`
      chose `/` while "Windows is not a target". Recorded recommendation: `/`
@@ -215,10 +220,9 @@ refuses to rename a folder while any file in it is open.
      the MCP — and `verso-fs` alone turns it into the OS's form at its
      edge; the text of a link inside a note is the file's content and is
      not touched (invariants 7 and 12). Obsidian's public API exposes
-     `normalizePath` (`obsidian.d.ts`), whose documentation does not say
-     what it does to separators: that Obsidian writes `/` in a vault on
-     Windows is to be observed and recorded in `docs/reference/` (ADR 0009)
-     before the port relies on it. The maintainer, asked on 2026-10-07,
+     `normalizePath` (`obsidian.d.ts`); its documentation in the package of
+     version 1.14.4 gives `normalizePath('foo\\bar'); // foo/bar` — Obsidian's
+     own paths use `/` on every OS, as Verso's do. The maintainer, asked on 2026-10-07,
      does not know yet ("Não sei"): the port proceeds on this
      recommendation as a provisional fact, and the maintainer decides on
      the pull request that lands it, with Q8 (case) beside it. The absolute paths at

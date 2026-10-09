@@ -101,7 +101,7 @@ test("a folder page's right click offers what the tree's does, with icons", asyn
   const box = await tools.boundingBox();
   await app.page.mouse.click(box.x + 2, box.y + box.height + 40, { button: "right" });
   const items = app.page.locator('.menu:not([hidden]) button[role="menuitem"]');
-  for (const label of ["Nova nota nesta pasta", "Nova pasta", "Nova base", "Novo board", "Nova página web…", "Mostrar no Finder", "Copiar caminho relativo"]) {
+  for (const label of ["Nova nota nesta pasta", "Nova pasta", "Nova base", "Novo board", "Nova página web…", /^Mostrar no /, "Copiar caminho relativo"]) {
     await expect(items.filter({ hasText: label })).toHaveCount(1);
   }
   // Every item with its icon.

@@ -54,6 +54,10 @@ pub fn parse(source: &str) -> Document {
     // line after it names (Q3). With nothing before it, the `^id` names no
     // block at all, as observed.
     let mut last_top: Option<Range<usize>> = None;
+    // The block the previous `^id` alone named, while nothing else came
+    // between: a second one naming the same block replaces it — only the
+    // last counts, as in Obsidian (decided 2026-10-09).
+    let mut alone_named: Option<Range<usize>> = None;
 
     for (event, range) in Parser::new_ext(source, options).into_offset_iter() {
         // The own text of a list item closes when its first block child
@@ -152,8 +156,15 @@ pub fn parse(source: &str) -> Document {
                 // no section).
                 let is_id =
                     alone && block_id(source, &lines, range.clone(), range.clone()).is_some();
-                let block = named.and_then(|named| block_id(source, &lines, range.clone(), named));
+                let block = named
+                    .clone()
+                    .and_then(|named| block_id(source, &lines, range.clone(), named));
+                let alone_top = alone && containers.is_empty() && block.is_some();
+                if alone_top && alone_named.is_some() && alone_named == named {
+                    document.blocks.pop();
+                }
                 push_block(&mut document, block);
+                alone_named = if alone_top { named } else { None };
                 if containers.is_empty() && !is_id {
                     last_top = Some(range.clone());
                 }
@@ -637,11 +648,13 @@ mod tests {
         assert_eq!(lines("^solto\n\nTexto.\n"), []);
         // Nothing before it names nothing, and is nothing for the next one.
         assert_eq!(lines("^solto\n\n^x\n"), []);
-        // Two alone in a row both name the block before them (Obsidian
-        // keeps only the last; Verso resolves both, an extension).
+        // Two alone in a row: only the last names the block before them,
+        // as in Obsidian (decided 2026-10-09).
+        assert_eq!(lines("Texto.\n\n^a\n\n^b\n"), [("b".into(), (1, 1))]);
+        // With a paragraph between, each names its own.
         assert_eq!(
-            lines("Texto.\n\n^a\n\n^b\n"),
-            [("a".into(), (1, 1)), ("b".into(), (1, 1))]
+            lines("Um.\n\n^a\n\nDois.\n\n^b\n"),
+            [("a".into(), (1, 1)), ("b".into(), (5, 5))]
         );
         // A code block whose last line is a wide space keeps that line.
         assert_eq!(

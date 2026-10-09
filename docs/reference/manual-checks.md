@@ -19,13 +19,29 @@ in the real app.
 
 ## Not yet checked
 
-### The Windows port (feat/windows-fs)
+### Version 0.5 (feat/windows-fs, feat/signed-updates)
 
+- [ ] **Verso for Linux** (ADR 0071, 2026-10-09), on the machines of
+  `verso-linux-vm`: the `.deb` on Ubuntu and Debian (GNOME), the `.rpm` on
+  Fedora (KDE), the AppImage on any of them — each opens a folder, edits a
+  note, opens a board; "Mostrar no gerenciador de arquivos" selects the
+  file; on the AppImage, Ajustes › Terminal e agentes › Instalar puts
+  `verso` in `~/.local/bin`. On the maintainer's desktop with NVIDIA on
+  Wayland: the window draws (no blank pane).
+- [ ] **A board opened and touched at once** (2026-10-09): open Tour do
+  Verso, click on it, pan with Space and zoom right away; after a few
+  seconds the file is unchanged (`git status` in the demo folder, or the
+  file's date), on the Mac and on Linux.
+- [ ] **The first signed update** (ADR 0055, 2026-10-09): from the
+  version before the first signed release, "Baixar e atualizar" installs
+  it on macOS and on Windows; the release page lists a `.sig` beside each
+  file.
 - [ ] **No title bar** (ADR 0072, 2026-10-08): on the Mac, full screen
   (the buttons hide, the ribbon goes back up), a second window, dragging by
   the tab bar and by the side bar's head; on Windows, snapping to a screen
   edge and Win+arrows, resizing from each border, a double click on the
-  tab bar's empty space.
+  tab bar's empty space; on Linux (GNOME, KDE), the same: dragging,
+  resizing from each border, Super+arrows, a double click.
 - [ ] **One agent server for all of Verso** (ADR 0054, 2026-10-08): in
   Settings › Terminal e agentes choose "Um servidor para todo o Verso",
   mark two folders visible, "Adicionar ao Claude Desktop", quit Verso,

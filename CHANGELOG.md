@@ -12,8 +12,24 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.6.0-beta.1 — 2026-10-09
+
+### Added
+
+- **Verso for Linux** ([ADR 0071](docs/adr/0071-linux-port.md)), x86_64 (ARM64 once the repository is public), as an AppImage, a `.deb` and an `.rpm`, built on the oldest base of the family so they run on Ubuntu 22.04, Debian 12 and Fedora 36 and later. A package puts `verso` on the PATH beside the app; an AppImage's settings put it in `~/.local/bin`, where it follows the AppImage's updates. "Show in file manager" selects the file in Nautilus, Dolphin and other file managers that support it. An AppImage updates itself; a `.deb` or `.rpm` update is downloaded for the package manager. When the system has no folder watches left as a folder opens, the folder is scanned every 30 seconds instead. A beta installs beside the release, with its own `verso-beta`. A folder's window has no title bar, as on Windows: the app draws minimize, maximize and close at the top right ([ADR 0072](docs/adr/0072-window-controls-in-the-app.md)).
+- **Updates are signed**: each release file is signed with Verso's release key, and the app installs an update only when its signature verifies against the key it carries ([ADR 0055](docs/adr/0055-in-app-updater.md)). The checksum already proved the file is the one GitHub holds; the signature proves Verso published it.
+
+### Changed
+
+- **Two folders of one name each keep their entry in Claude Desktop**: the second becomes `verso-<the folder it sits in>-<name>` instead of replacing the first ([ADR 0054](docs/adr/0054-terminal-and-agents-from-the-app.md)).
+- **Of two `^id`s alone in a row, only the last names the block before them**, as in Obsidian; a link to the first is left unresolved, as Obsidian leaves it (spec Q3).
+- **Every call an agent makes stays in `agents.log`**, even when two agents call at once: each call is appended instead of rewriting the file.
+
 ### Fixed
 
+- **A board opened and touched at once is not rewritten.** On a slower engine (Linux's WebKit), pressing, panning or zooming on a board right after it opened could write it, unchanged in meaning: the board took Excalidraw's state from before the board had loaded as its own. Opening a board writes nothing until you change it.
 - **Reopening a folder writes nothing to the index for the notes that did not change**: 0.5.0-beta.1 wrote each unchanged note's row again, its text included, to vouch for it next time. On a disk that syncs for real, a reopen of 10,000 notes took 2.5 times longer than before (949–980 ms against 379). The index now keeps one date, the start of its last complete pass, instead of one per note.
 
 ## 0.5.0-beta.1 — 2026-10-08
