@@ -82,7 +82,8 @@ impl Workspace {
                     // and not read again (decided 2026-10-08; reading and
                     // hashing every note made each opening of 5,000 notes
                     // cost seconds of CPU).
-                    if let Some(modified) = entry.modified.map(seconds_since_epoch)
+                    let modified = entry.modified.map(seconds_since_epoch);
+                    if let Some(modified) = modified
                         && self
                             .index
                             .unchanged_by_stat(&relative, modified, entry.len)
@@ -107,7 +108,9 @@ impl Workspace {
                             if same && !unverified {
                                 // Read and matched: trusted by its stat
                                 // from the next run on.
-                                self.index.confirm(&relative).map_err(CoreError::Index)?;
+                                self.index
+                                    .confirm(&relative, modified)
+                                    .map_err(CoreError::Index)?;
                                 report.unchanged += 1;
                                 continue;
                             }

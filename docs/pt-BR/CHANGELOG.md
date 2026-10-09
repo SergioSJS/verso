@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Corrigido
+
+- **Reabrir uma pasta logo depois de as notas serem escritas não regrava mais o índice**: a linha de cada nota sem mudança era gravada de novo só para atestá-la, quando ela ainda era recente demais para isso; num disco lento, reabrir 10.000 notas levava 2,5 vezes mais que antes da 0.5.0-beta.1.
 
 ## 0.5.0-beta.1 — 2026-10-08
 
