@@ -410,6 +410,30 @@ impl Service {
         }
     }
 
+    /// Run `f` on folder `key` if it is open, whichever client shows it: a
+    /// file of the folder a page asks for outside its connection (the
+    /// server's `/f/`). `no_folder` when no client shows it.
+    pub fn with_key<T>(
+        &self,
+        key: &str,
+        f: impl FnOnce(&mut Workspace) -> Result<T, OpError>,
+    ) -> Result<T, ContractError> {
+        let session = lock(&self.sessions)
+            .by_key
+            .get(key)
+            .map(Arc::clone)
+            .ok_or_else(no_folder)?;
+        let mut session = lock(&session);
+        match std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace))) {
+            Ok(result) => result.map_err(OpError::into_contract),
+            Err(payload) => {
+                let message = format!("the core failed: {}", panic_text(payload.as_ref()));
+                self.events().log("ERROR", &message);
+                Err(failed(message))
+            }
+        }
+    }
+
     /// A command of the folder by name, its arguments as JSON (what the
     /// server receives): `None` when `name` is not one of
     /// [`ops::FOLDER_COMMANDS`].

@@ -392,6 +392,70 @@ pub struct AppInfo {
     pub commit: String,
 }
 
+/// The space a folder takes (ADR 0075 item 4): counted from the walk the
+/// index already makes, never by a walk of its own. Bytes, as numbers the
+/// window can show.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct FolderSpace {
+    /// Every file of the folder, notes and attachments.
+    pub total: f64,
+    /// The notes (`.md`).
+    pub notes: f64,
+    /// Everything else: pictures, PDFs, boards, other files.
+    pub attachments: f64,
+    /// How many files.
+    pub files: u32,
+    /// The folder's index, kept beside the configuration (not inside the
+    /// folder).
+    pub index: f64,
+}
+
+/// Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
+/// this computer, or a server.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Host {
+    Desktop,
+    Server,
+}
+
+/// What the side the window talks to can do (ADR 0027; ADR 0076 item 11):
+/// the window hides what is absent instead of showing it and failing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Can {
+    /// Change the open folder (a reader on a server cannot).
+    Write,
+    /// Show a file in the system's file manager.
+    Reveal,
+    /// Copy a file's full path.
+    CopyPath,
+    /// Open windows of the app: a note in one of its own, a new window.
+    Windows,
+    /// Show web pages inside the window (child web views).
+    WebViews,
+    /// The command line and the agents of the settings (ADR 0054).
+    Agents,
+    /// The app's own updates (ADR 0055).
+    Updates,
+    /// The window's console.
+    Devtools,
+    /// Open folders from this computer's disk.
+    LocalFolders,
+    /// An account signed in on a server: the account's page.
+    Account,
+    /// The account is the server's admin: the admin page.
+    Admin,
+    /// Several people editing one note at once (ADR 0073 item 7).
+    Collab,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Capabilities {
+    pub host: Host,
+    pub can: Vec<Can>,
+}
+
 /// Information about an application update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct UpdateInfo {

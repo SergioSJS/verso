@@ -1,0 +1,391 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! The contract over a WebSocket (ADR 0073 item 2): the window sends
+//! `{id, cmd, args}` — the command's name and the arguments the generated
+//! bindings send, as Tauri's IPC carries them — and gets `{id, ok}` or
+//! `{id, err}` back, a `ContractError` as the desktop's. The server pushes
+//! the events the desktop's host emits (`folder-changed`,
+//! `index-progress`) to the windows that show the folder, and says what
+//! happens to the connection itself (`hello`, `folder`, `role`, `gone`).
+//!
+//! Every command carries the session the connection was opened with: it
+//! is checked again before each one, and the member's role in the folder
+//! is checked before the core acts (ADR 0074 item 11). A command the
+//! server does not have — the desktop's windows, menus, updates — is
+//! refused; the window hides it, told by `capabilities`.
+
+use std::sync::Arc;
+
+use axum::extract::WebSocketUpgrade;
+use axum::extract::ws::{Message, WebSocket};
+use axum::response::Response;
+use serde::Deserialize;
+use serde_json::{Value, json};
+use tokio::sync::mpsc;
+use verso_contract::{Can, Capabilities, ContractError, ErrorKind, Host};
+use verso_service::{Access, lock, ops};
+
+use crate::auth::{Via, Who};
+use crate::db::{Folder, Role};
+use crate::http::{ApiError, ApiResult, Ctx};
+use crate::state::{Client, Server};
+
+/// The largest message: a picture pasted into a note crosses as base64 in
+/// `create_file` (ADR 0073 item 6: upload limits).
+pub const MAX_MESSAGE: usize = 48 * 1024 * 1024;
+
+/// What a command is answered when the connection's session ended.
+const SIGNED_OUT: &str = "signed out";
+
+/// Lines a window may write to the server's log a minute.
+const LOG_LINES: u32 = 60;
+
+pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
+    ctx.secure()?;
+    let who = ctx.who()?.clone();
+    // The WebSocket of the contract checks `Origin` before it accepts the
+    // cookie (ADR 0073 item 6, ADR 0074 item 7): a page of another site
+    // cannot open it with the person's session.
+    if matches!(who.via, Via::Browser { .. }) && !crate::auth::origin_ok(&ctx.server, &ctx.headers)
+    {
+        return Err(ApiError::forbidden("not from a page of this server"));
+    }
+    let server = Arc::clone(&ctx.server);
+    Ok(ws
+        .max_message_size(MAX_MESSAGE)
+        .on_upgrade(move |socket| run(server, who, socket)))
+}
+
+#[derive(Deserialize)]
+struct Request {
+    id: u64,
+    cmd: String,
+    #[serde(default)]
+    args: Value,
+}
+
+async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
+    let client = server.client_id();
+    let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
+    lock(&server.clients).insert(
+        client.clone(),
+        Client {
+            account: who.account.id.clone(),
+            folder: None,
+            tx: tx.clone(),
+        },
+    );
+    let hello = json!({ "hello": {
+        "version": env!("CARGO_PKG_VERSION"),
+        "contract": server.contract,
+        "account": crate::api::account_json(&who.account),
+    }});
+    let _ = socket.send(Message::Text(hello.to_string().into())).await;
+    let who = Arc::new(who);
+    let mut log_budget = (std::time::Instant::now(), 0_u32);
+    loop {
+        tokio::select! {
+            pushed = rx.recv() => {
+                let Some(message) = pushed else { break };
+                let gone = message.get("gone").is_some_and(|g| g == "session");
+                if socket.send(Message::Text(message.to_string().into())).await.is_err() {
+                    break;
+                }
+                if gone {
+                    let _ = socket.send(Message::Close(None)).await;
+                    break;
+                }
+            }
+            incoming = socket.recv() => {
+                let Some(Ok(message)) = incoming else { break };
+                let text = match message {
+                    Message::Text(t) => t.to_string(),
+                    Message::Close(_) => break,
+                    _ => continue,
+                };
+                let Ok(request) = serde_json::from_str::<Request>(&text) else {
+                    let _ = tx.send(json!({ "err": refused("not a request") }));
+                    continue;
+                };
+                if request.cmd == "log_write" {
+                    if log_budget.0.elapsed().as_secs() >= 60 {
+                        log_budget = (std::time::Instant::now(), 0);
+                    }
+                    log_budget.1 += 1;
+                    if log_budget.1 > LOG_LINES {
+                        let _ = tx.send(json!({ "id": request.id, "ok": null }));
+                        continue;
+                    }
+                }
+                let server = Arc::clone(&server);
+                let who = Arc::clone(&who);
+                let client = client.clone();
+                let tx = tx.clone();
+                // Each command in a task of its own: an index run of
+                // seconds holds no other answer.
+                tokio::spawn(async move {
+                    let id = request.id;
+                    let answer = handle(&server, &who, &client, request).await;
+                    let signed_out = answer.as_ref().is_err_and(|e| e.message == SIGNED_OUT);
+                    let reply = match answer {
+                        Ok(value) => json!({ "id": id, "ok": value }),
+                        Err(e) => json!({ "id": id, "err": e }),
+                    };
+                    let _ = tx.send(reply);
+                    // The answer first, then the connection told and closed.
+                    if signed_out {
+                        let _ = tx.send(json!({ "gone": "session" }));
+                    }
+                });
+            }
+        }
+    }
+    lock(&server.clients).remove(&client);
+    let service = Arc::clone(&server.service);
+    let _ = tokio::task::spawn_blocking(move || service.release(&client)).await;
+}
+
+fn refused(message: &str) -> ContractError {
+    ContractError {
+        kind: ErrorKind::Refused,
+        message: message.to_owned(),
+    }
+}
+
+fn contract(e: &ApiError) -> ContractError {
+    ContractError {
+        kind: match e.status.as_u16() {
+            404 => ErrorKind::NotFound,
+            401 | 403 => ErrorKind::Refused,
+            _ => ErrorKind::Failed,
+        },
+        message: e.message.clone(),
+    }
+}
+
+/// The credential the connection was opened with is still good: the
+/// session not ended, the token not revoked, the account not removed.
+fn still_signed_in(server: &Server, who: &Who) -> Result<bool, String> {
+    match &who.via {
+        Via::Browser { session, .. } | Via::Device { session } => server.db.session_alive(session),
+        Via::Token { id, .. } => server.db.token_alive(id),
+    }
+}
+
+async fn blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, ContractError> + Send + 'static,
+) -> Result<T, ContractError> {
+    tokio::task::spawn_blocking(f)
+        .await
+        .map_err(|e| verso_service::failed(e.to_string()))?
+}
+
+fn to_value<T: serde::Serialize>(v: T) -> Result<Value, ContractError> {
+    serde_json::to_value(v).map_err(|e| verso_service::failed(e.to_string()))
+}
+
+fn arg<T: serde::de::DeserializeOwned>(args: &Value, name: &str) -> Result<T, ContractError> {
+    serde_json::from_value(args.get(name).cloned().unwrap_or(Value::Null))
+        .map_err(|e| refused(&format!("{name}: {e}")))
+}
+
+async fn handle(
+    server: &Arc<Server>,
+    who: &Arc<Who>,
+    client: &str,
+    r: Request,
+) -> Result<Value, ContractError> {
+    if !still_signed_in(server, who).map_err(verso_service::failed)? {
+        return Err(ContractError {
+            kind: ErrorKind::Refused,
+            message: SIGNED_OUT.to_owned(),
+        });
+    }
+    let args = r.args;
+    if let Some(access) = ops::access(&r.cmd) {
+        return folder_command(server, who, client, &r.cmd, access, args).await;
+    }
+    match r.cmd.as_str() {
+        "open_server_folder" => {
+            let id: String = arg(&args, "id")?;
+            let (folder, role) = crate::access::role(server, who, &id).map_err(|e| contract(&e))?;
+            open(server, client, folder, role).await
+        }
+        "reopen_folder" => {
+            let key: String = arg(&args, "key")?;
+            let mut found = None;
+            for (f, _) in server
+                .db
+                .folders_of(&who.account.id)
+                .map_err(verso_service::failed)?
+            {
+                if let Some(path) = server.folder_path(&f.dir)
+                    && verso_core::folder_key(&path) == key
+                {
+                    found = Some(f.id);
+                }
+            }
+            let id = found.ok_or_else(|| ContractError {
+                kind: ErrorKind::NotFound,
+                message: "no folder of yours has that key".to_owned(),
+            })?;
+            let (folder, role) = crate::access::role(server, who, &id).map_err(|e| contract(&e))?;
+            open(server, client, folder, role).await
+        }
+        // The window's own: the browser's shim chooses among the
+        // account's folders, and a URL names the folder to open.
+        "pick_folder" | "open_initial" => Ok(Value::Null),
+        "current_folder" => to_value(server.service.current_folder(client)),
+        "reindex" => {
+            role_here(server, client)?;
+            let service = Arc::clone(&server.service);
+            let c = client.to_owned();
+            let summary = blocking(move || service.reindex(&c)).await?;
+            record_space(server, client).await;
+            to_value(summary)
+        }
+        "capabilities" => to_value(capabilities(server, who, client)),
+        "app_info" => Ok(json!({ "version": env!("CARGO_PKG_VERSION"), "commit": server.commit })),
+        "render_markdown" => {
+            let text: String = arg(&args, "text")?;
+            Ok(Value::String(verso_core::render_markdown(&text)))
+        }
+        "board_text" => {
+            let json: String = arg(&args, "json")?;
+            to_value(ops::board_text(&json)?)
+        }
+        "log_write" => {
+            let level: String = arg(&args, "level")?;
+            let message: String = arg(&args, "message")?;
+            let level = match level.as_str() {
+                "PANIC" | "ERROR" | "WARN" | "INFO" => level,
+                _ => "ERROR".to_owned(),
+            };
+            let message: String = message.chars().take(2000).collect();
+            crate::log::line(
+                &level,
+                &format!("window {client} ({}): {message}", who.account.id),
+            );
+            Ok(Value::Null)
+        }
+        // The person's settings the window pushes; on a server they are the
+        // folder's, and the folder's walk is the owner's to set — kept as
+        // the server opened it until that lands.
+        "set_walk_rules" | "set_folder_note_name" | "set_embed_origins" | "set_menu_language" => {
+            Ok(Value::Null)
+        }
+        "fetch_file" => Ok(Value::Bool(false)),
+        _ => Err(refused("not on a server")),
+    }
+}
+
+/// The role of the window's folder, or `no_folder`.
+fn role_here(server: &Server, client: &str) -> Result<(String, Role), ContractError> {
+    lock(&server.clients)
+        .get(client)
+        .and_then(|c| c.folder.clone())
+        .ok_or_else(verso_service::no_folder)
+}
+
+async fn folder_command(
+    server: &Arc<Server>,
+    who: &Who,
+    client: &str,
+    name: &str,
+    access: Access,
+    args: Value,
+) -> Result<Value, ContractError> {
+    let (folder, role) = role_here(server, client)?;
+    let (_, token_writes) = who.reaches(&folder);
+    if access == Access::Write && !(role.writes() && token_writes) {
+        return Err(refused("you may only read this folder"));
+    }
+    let service = Arc::clone(&server.service);
+    let c = client.to_owned();
+    let n = name.to_owned();
+    let answer = blocking(move || {
+        service
+            .dispatch(&c, &n, args)
+            .unwrap_or_else(|| Err(refused("no such command")))
+    })
+    .await?;
+    if access == Access::Write {
+        record_space(server, client).await;
+    }
+    Ok(answer)
+}
+
+/// Open the folder for this window, or join its session.
+async fn open(
+    server: &Arc<Server>,
+    client: &str,
+    folder: Folder,
+    role: Role,
+) -> Result<Value, ContractError> {
+    let path = server
+        .folder_path(&folder.dir)
+        .ok_or_else(|| verso_service::failed("not a folder name"))?;
+    let service = Arc::clone(&server.service);
+    let c = client.to_owned();
+    let info = blocking(move || {
+        let key = verso_core::folder_key(&path);
+        if service.join(&c, &key) {
+            return service
+                .current_folder(&c)
+                .ok_or_else(verso_service::no_folder);
+        }
+        let opened = service.open(&c, move |config| verso_core::Workspace::open(&path, config))?;
+        let (info, catch_up) = service.attach(&c, opened);
+        if let Some(catch_up) = catch_up {
+            let service = Arc::clone(&service);
+            std::thread::spawn(move || service.catch_up(&catch_up));
+        }
+        Ok(info)
+    })
+    .await?;
+    if let Some(c) = lock(&server.clients).get_mut(client) {
+        c.folder = Some((folder.id.clone(), role));
+        let _ =
+            c.tx.send(json!({ "folder": { "id": folder.id, "name": folder.dir, "role": role } }));
+    }
+    record_space(server, client).await;
+    to_value(info)
+}
+
+/// Count the space of the window's folder and keep it for the pages that
+/// list folders (ADR 0075 item 4).
+async fn record_space(server: &Arc<Server>, client: &str) {
+    let Ok((folder, _)) = role_here(server, client) else {
+        return;
+    };
+    let s = Arc::clone(server);
+    let c = client.to_owned();
+    let _ = tokio::task::spawn_blocking(move || {
+        if let Ok(space) = s.service.with(&c, ops::folder_space)
+            && let Ok(text) = serde_json::to_string(&space)
+            && let Err(e) = s.db.set_setting(&format!("space:{folder}"), &text)
+        {
+            crate::log::error(&format!("keeping a folder's space: {e}"));
+        }
+    })
+    .await;
+}
+
+fn capabilities(server: &Server, who: &Who, client: &str) -> Capabilities {
+    let mut can = vec![Can::Account, Can::Collab];
+    if let Ok((folder, role)) = role_here(server, client)
+        && role.writes()
+        && who.reaches(&folder).1
+    {
+        can.push(Can::Write);
+    }
+    if who.account.admin && !matches!(who.via, Via::Token { .. }) {
+        can.push(Can::Admin);
+    }
+    Capabilities {
+        host: Host::Server,
+        can,
+    }
+}

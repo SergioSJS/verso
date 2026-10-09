@@ -1,0 +1,273 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! The server's configuration, by environment only, the same in the three
+//! forms of installation (ADR 0075 item 6): a value given as `NAME_FILE`
+//! is read from that file (Docker and Kubernetes secrets).
+
+use std::net::SocketAddr;
+use std::path::PathBuf;
+
+/// Where the server listens when nothing says otherwise: loopback only,
+/// so that a server started by hand is never reachable from the network
+/// before its owner chose to put it there (ADR 0073 item 6).
+pub const DEFAULT_LISTEN: &str = "127.0.0.1:7340";
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    /// The address and port it listens on (`VERSO_LISTEN`).
+    pub listen: SocketAddr,
+    /// The address people use (`VERSO_PUBLIC_URL`): the passkeys' origin,
+    /// the `Origin` check, the links in invitations (ADR 0074).
+    pub public_url: Option<String>,
+    /// The accounts, the sessions, the audit log, the indexes
+    /// (`VERSO_DATA_DIR`, a local disk; ADR 0075 item 3).
+    pub data_dir: PathBuf,
+    /// The root under which the folders of notes live
+    /// (`VERSO_FOLDERS_DIR`, which may be a NAS).
+    pub folders_dir: PathBuf,
+    /// The window's files (`VERSO_UI_DIR`): the build of `app/ui`.
+    pub ui_dir: PathBuf,
+    /// The first admin, read on the first start only (ADR 0074 item 1).
+    pub admin: Option<(String, String)>,
+    /// The reverse proxy whose forwarded headers are believed
+    /// (`VERSO_TRUSTED_PROXY`, ADR 0073 item 6).
+    pub trusted_proxy: Option<std::net::IpAddr>,
+    /// The certificate and key the server serves TLS with itself
+    /// (`VERSO_TLS_CERT_FILE`, `VERSO_TLS_KEY_FILE`; the maintainer's answer
+    /// F of 2026-10-09).
+    pub tls: Option<(PathBuf, PathBuf)>,
+    /// Whether the server looks for a new version for the admin
+    /// (`VERSO_UPDATE_CHECK=off` turns it off; answer E of 2026-10-09).
+    pub update_check: bool,
+}
+
+/// What went wrong reading the environment, naming the variable.
+#[derive(Debug)]
+pub struct ConfigError(pub String);
+
+impl std::fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// The variables, from wherever they come: the process's environment, or a
+/// test's own table.
+pub trait Env {
+    fn var(&self, name: &str) -> Option<String>;
+}
+
+pub struct ProcessEnv;
+
+impl Env for ProcessEnv {
+    fn var(&self, name: &str) -> Option<String> {
+        std::env::var(name).ok().filter(|v| !v.is_empty())
+    }
+}
+
+/// `NAME`, or the contents of the file `NAME_FILE` names, trimmed of the
+/// line end a secret file usually carries. Both set is an error.
+fn value(env: &dyn Env, name: &str) -> Result<Option<String>, ConfigError> {
+    let direct = env.var(name);
+    let file_var = format!("{name}_FILE");
+    match (direct, env.var(&file_var)) {
+        (Some(_), Some(_)) => Err(ConfigError(format!(
+            "{name} and {file_var} are both set: give one"
+        ))),
+        (Some(v), None) => Ok(Some(v)),
+        (None, Some(path)) => crate::data::read_secret(&PathBuf::from(&path))
+            .map(|s| Some(s.trim_end_matches(['\n', '\r']).to_owned()))
+            .map_err(|e| ConfigError(format!("{file_var}: {e}"))),
+        (None, None) => Ok(None),
+    }
+}
+
+/// The least length of the first admin's password (ADR 0074 item 1).
+pub const MIN_PASSWORD: usize = 12;
+
+impl Config {
+    /// Read the configuration; `defaults` gives the directories when their
+    /// variables are not set (the image sets them; a binary run by hand
+    /// uses the user's data directory).
+    pub fn from_env(env: &dyn Env, defaults: &Defaults) -> Result<Self, ConfigError> {
+        let listen = value(env, "VERSO_LISTEN")?
+            .unwrap_or_else(|| DEFAULT_LISTEN.to_owned())
+            .parse()
+            .map_err(|e| ConfigError(format!("VERSO_LISTEN: {e}")))?;
+        let public_url =
+            value(env, "VERSO_PUBLIC_URL")?.map(|u| u.trim_end_matches('/').to_owned());
+        if let Some(u) = &public_url
+            && !(u.starts_with("https://") || u.starts_with("http://"))
+        {
+            return Err(ConfigError(format!(
+                "VERSO_PUBLIC_URL: not an http(s) address: {u}"
+            )));
+        }
+        let email = value(env, "VERSO_ADMIN_EMAIL")?;
+        let password = value(env, "VERSO_ADMIN_PASSWORD")?;
+        let admin = match (email, password) {
+            (Some(e), Some(p)) => {
+                if p.chars().count() < MIN_PASSWORD {
+                    return Err(ConfigError(format!(
+                        "VERSO_ADMIN_PASSWORD: at least {MIN_PASSWORD} characters"
+                    )));
+                }
+                Some((e, p))
+            }
+            (Some(_), None) => {
+                return Err(ConfigError(
+                    "VERSO_ADMIN_EMAIL is set without VERSO_ADMIN_PASSWORD".to_owned(),
+                ));
+            }
+            (None, Some(_)) => {
+                return Err(ConfigError(
+                    "VERSO_ADMIN_PASSWORD is set without VERSO_ADMIN_EMAIL".to_owned(),
+                ));
+            }
+            (None, None) => None,
+        };
+        let trusted_proxy = value(env, "VERSO_TRUSTED_PROXY")?
+            .map(|a| {
+                a.parse()
+                    .map_err(|e| ConfigError(format!("VERSO_TRUSTED_PROXY: {e}")))
+            })
+            .transpose()?;
+        let tls = match (
+            value(env, "VERSO_TLS_CERT_FILE")?,
+            value(env, "VERSO_TLS_KEY_FILE")?,
+        ) {
+            (Some(c), Some(k)) => Some((PathBuf::from(c), PathBuf::from(k))),
+            (None, None) => None,
+            _ => {
+                return Err(ConfigError(
+                    "VERSO_TLS_CERT_FILE and VERSO_TLS_KEY_FILE go together".to_owned(),
+                ));
+            }
+        };
+        let update_check = !value(env, "VERSO_UPDATE_CHECK")?.is_some_and(|v| {
+            matches!(
+                v.to_ascii_lowercase().as_str(),
+                "off" | "0" | "false" | "no"
+            )
+        });
+        Ok(Self {
+            listen,
+            public_url,
+            data_dir: value(env, "VERSO_DATA_DIR")?
+                .map_or_else(|| defaults.data_dir.clone(), PathBuf::from),
+            folders_dir: value(env, "VERSO_FOLDERS_DIR")?
+                .map_or_else(|| defaults.folders_dir.clone(), PathBuf::from),
+            ui_dir: value(env, "VERSO_UI_DIR")?
+                .map_or_else(|| defaults.ui_dir.clone(), PathBuf::from),
+            admin,
+            trusted_proxy,
+            tls,
+            update_check,
+        })
+    }
+
+    /// Whether the server is reached only from this machine: loopback, no
+    /// public address given.
+    #[must_use]
+    pub fn loopback_only(&self) -> bool {
+        self.listen.ip().is_loopback()
+    }
+}
+
+/// The directories when no variable names them.
+pub struct Defaults {
+    pub data_dir: PathBuf,
+    pub folders_dir: PathBuf,
+    pub ui_dir: PathBuf,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    struct Table(HashMap<&'static str, String>);
+
+    impl Env for Table {
+        fn var(&self, name: &str) -> Option<String> {
+            self.0.get(name).cloned()
+        }
+    }
+
+    fn defaults() -> Defaults {
+        Defaults {
+            data_dir: "/d".into(),
+            folders_dir: "/f".into(),
+            ui_dir: "/u".into(),
+        }
+    }
+
+    fn read(pairs: &[(&'static str, &str)]) -> Result<Config, ConfigError> {
+        let table = Table(pairs.iter().map(|(k, v)| (*k, (*v).to_owned())).collect());
+        Config::from_env(&table, &defaults())
+    }
+
+    #[test]
+    fn nothing_set_is_loopback_with_the_defaults() {
+        let c = read(&[]).unwrap();
+        assert!(c.loopback_only());
+        assert_eq!(c.data_dir, PathBuf::from("/d"));
+        assert!(c.admin.is_none());
+        assert!(c.update_check);
+    }
+
+    #[test]
+    fn the_admin_needs_both_variables_and_a_long_password() {
+        assert!(read(&[("VERSO_ADMIN_EMAIL", "a@b.c")]).is_err());
+        assert!(read(&[("VERSO_ADMIN_PASSWORD", "123456789012")]).is_err());
+        let short = read(&[
+            ("VERSO_ADMIN_EMAIL", "a@b.c"),
+            ("VERSO_ADMIN_PASSWORD", "curta"),
+        ]);
+        assert!(short.unwrap_err().0.contains("VERSO_ADMIN_PASSWORD"));
+        let ok = read(&[
+            ("VERSO_ADMIN_EMAIL", "a@b.c"),
+            ("VERSO_ADMIN_PASSWORD", "uma senha longa"),
+        ])
+        .unwrap();
+        assert_eq!(ok.admin.unwrap().0, "a@b.c");
+    }
+
+    #[test]
+    fn a_secret_comes_from_a_file_and_never_from_both() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("senha");
+        crate::data::write_for_tests(&file, "uma senha longa\n");
+        let file = file.to_str().unwrap();
+        let ok = read(&[
+            ("VERSO_ADMIN_EMAIL", "a@b.c"),
+            ("VERSO_ADMIN_PASSWORD_FILE", file),
+        ])
+        .unwrap();
+        assert_eq!(ok.admin.unwrap().1, "uma senha longa");
+        assert!(
+            read(&[
+                ("VERSO_ADMIN_EMAIL", "a@b.c"),
+                ("VERSO_ADMIN_PASSWORD", "uma senha longa"),
+                ("VERSO_ADMIN_PASSWORD_FILE", file),
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn update_check_and_tls_and_addresses() {
+        assert!(!read(&[("VERSO_UPDATE_CHECK", "off")]).unwrap().update_check);
+        assert!(read(&[("VERSO_TLS_CERT_FILE", "/c")]).is_err());
+        assert!(read(&[("VERSO_PUBLIC_URL", "ftp://x")]).is_err());
+        let c = read(&[
+            ("VERSO_LISTEN", "0.0.0.0:80"),
+            ("VERSO_PUBLIC_URL", "https://notas.casa/"),
+        ])
+        .unwrap();
+        assert!(!c.loopback_only());
+        assert_eq!(c.public_url.as_deref(), Some("https://notas.casa"));
+    }
+}

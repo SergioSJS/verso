@@ -649,6 +649,14 @@ fn key_for(folder: &Path) -> String {
     file.strip_suffix(".sqlite").unwrap_or(&file).to_owned()
 }
 
+/// The key a folder at `folder` is opened under ([`Workspace::key`]),
+/// without opening it: how the server finds which of a member's folders a
+/// key the window kept names (ADR 0073 item 2).
+#[must_use]
+pub fn folder_key(folder: &Path) -> String {
+    key_for(folder)
+}
+
 /// Whether `key` has the shape [`key_for`] produces: a name part of up to
 /// 32 letters, digits or `-`, a `-`, and 16 lower-case hex digits.
 /// Anything else — a path, an empty string — is refused before it is
@@ -806,6 +814,11 @@ impl Workspace {
     #[must_use]
     pub fn key(&self) -> String {
         key_for(&self.folder)
+    }
+
+    /// The index's size in bytes (ADR 0075 item 4).
+    pub fn index_bytes(&self) -> Result<u64, CoreError> {
+        self.index.bytes().map_err(CoreError::Index)
     }
 
     /// Where the index file is.

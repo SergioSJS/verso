@@ -30,10 +30,10 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, BaseQuery, BaseResult, CliState, ContractError, Edge, ErrorKind, FileEntry,
-    Focus, FocusesSummary, FolderChanged, FolderInfo, Hit, IndexProgress, IndexSummary, Link,
-    McpAdded, McpClientState, McpStatus, MovedEntries, NoteText, Renamed, Tag, TextFile, Trashed,
-    UpdateProgress, WebNote, Written,
+    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, ContractError, Edge,
+    ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged, FolderInfo, FolderSpace, Hit, Host,
+    IndexProgress, IndexSummary, Link, McpAdded, McpClientState, McpStatus, MovedEntries, NoteText,
+    Renamed, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -435,6 +435,37 @@ fn reindex<R: tauri::Runtime>(
     state.service.reindex(window.label())
 }
 
+/// What this side can do (ADR 0027; ADR 0076 item 11): the desktop app,
+/// with a folder on this computer, does everything the window offers.
+#[tauri::command]
+#[specta::specta]
+fn capabilities() -> Result<Capabilities, ContractError> {
+    Ok(Capabilities {
+        host: Host::Desktop,
+        can: vec![
+            Can::Write,
+            Can::Reveal,
+            Can::CopyPath,
+            Can::Windows,
+            Can::WebViews,
+            Can::Agents,
+            Can::Updates,
+            Can::Devtools,
+            Can::LocalFolders,
+        ],
+    })
+}
+
+/// The space the open folder takes (ADR 0075 item 4).
+#[tauri::command]
+#[specta::specta]
+fn folder_space<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<FolderSpace, ContractError> {
+    with(&state, &window, ops::folder_space)
+}
+
 /* ---------- The command line and MCP, from the settings (ADR 0054) ---------- */
 
 /// The commands, once, for the handler, the bindings and the tests. A
@@ -503,6 +534,8 @@ macro_rules! commands_for {
                 log_read,
                 set_menu_language::<$runtime>,
                 reindex::<$runtime>,
+                capabilities,
+                folder_space::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,

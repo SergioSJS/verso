@@ -322,6 +322,13 @@ export const commands = {
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 	/**
+	 *  What this side can do (ADR 0027; ADR 0076 item 11): the desktop app,
+	 *  with a folder on this computer, does everything the window offers.
+	 */
+	capabilities: () => typedError<Capabilities, ContractError>(__TAURI_INVOKE("capabilities")),
+	/**  The space the open folder takes (ADR 0075 item 4). */
+	folderSpace: () => typedError<FolderSpace, ContractError>(__TAURI_INVOKE("folder_space")),
+	/**
 	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
 	 *  window draws, as a table, cards, a list, a kanban or a calendar.
 	 */
@@ -546,6 +553,41 @@ export type Block = {
 	 */
 	first_line: number,
 	last_line: number,
+};
+
+/**
+ *  What the side the window talks to can do (ADR 0027; ADR 0076 item 11):
+ *  the window hides what is absent instead of showing it and failing.
+ */
+export type Can = 
+/**  Change the open folder (a reader on a server cannot). */
+"write" | 
+/**  Show a file in the system's file manager. */
+"reveal" | 
+/**  Copy a file's full path. */
+"copy_path" | 
+/**  Open windows of the app: a note in one of its own, a new window. */
+"windows" | 
+/**  Show web pages inside the window (child web views). */
+"web_views" | 
+/**  The command line and the agents of the settings (ADR 0054). */
+"agents" | 
+/**  The app's own updates (ADR 0055). */
+"updates" | 
+/**  The window's console. */
+"devtools" | 
+/**  Open folders from this computer's disk. */
+"local_folders" | 
+/**  An account signed in on a server: the account's page. */
+"account" | 
+/**  The account is the server's admin: the admin page. */
+"admin" | 
+/**  Several people editing one note at once (ADR 0073 item 7). */
+"collab";
+
+export type Capabilities = {
+	host: Host,
+	can: Can[],
 };
 
 /**
@@ -788,6 +830,27 @@ export type FolderInfo = {
 	index: IndexSummary,
 };
 
+/**
+ *  The space a folder takes (ADR 0075 item 4): counted from the walk the
+ *  index already makes, never by a walk of its own. Bytes, as numbers the
+ *  window can show.
+ */
+export type FolderSpace = {
+	/**  Every file of the folder, notes and attachments. */
+	total: number | null,
+	/**  The notes (`.md`). */
+	notes: number | null,
+	/**  Everything else: pictures, PDFs, boards, other files. */
+	attachments: number | null,
+	/**  How many files. */
+	files: number,
+	/**
+	 *  The folder's index, kept beside the configuration (not inside the
+	 *  folder).
+	 */
+	index: number | null,
+};
+
 /**  A heading of a note, for citing and for the outline. */
 export type Heading = {
 	level: number,
@@ -801,6 +864,12 @@ export type Hit = {
 	path: string,
 	snippet: string,
 };
+
+/**
+ *  Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
+ *  this computer, or a server.
+ */
+export type Host = "desktop" | "server";
 
 /**  Progress payload emitted during vault indexing. */
 export type IndexProgress = {
