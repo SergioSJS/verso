@@ -907,13 +907,6 @@ fn only_a_complete_run_lets_the_next_trust_a_note_by_its_stat() {
     assert_eq!((r.trusted, r.indexed), (2, 0), "{r:?}");
 }
 
-/// A file rewritten as another program would: a new file renamed over it.
-fn rewrite_outside(dir: &Path, name: &str, content: &str) {
-    let mut f = Builder::new().tempfile_in(dir).unwrap();
-    f.write_all(content.as_bytes()).unwrap();
-    f.persist(dir.join(name)).unwrap();
-}
-
 /// A batch of the watch that only changed notes is read path by path, not
 /// by a walk (ADR 0073 item 12); one that adds a note walks, as before.
 #[test]
@@ -924,7 +917,10 @@ fn a_batch_of_changed_notes_reads_only_its_paths() {
     let _b = note(vault.path(), "Duas.md", "# Duas\n");
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     ws.index().unwrap();
-    rewrite_outside(vault.path(), "Uma.md", "# Uma\n\ndragão vermelho\n");
+    // Rewritten as another program would: a new file renamed over it.
+    let mut f = Builder::new().tempfile_in(vault.path()).unwrap();
+    f.write_all("# Uma\n\ndragão vermelho\n".as_bytes()).unwrap();
+    f.persist(vault.path().join("Uma.md")).unwrap();
     let changes = verso_core::Changes {
         paths: vec![std::path::PathBuf::from("Uma.md")],
         rescan: false,
