@@ -172,6 +172,12 @@ CI confirma, não é onde uma falha aparece primeiro:
   primeira execução dele achou o workspace sem compilar no Windows: o `xattr`
   era dependência do `verso-fs` em todo sistema, e o `verso-fs` para o build
   de propósito onde só existe a metade Unix da sua identidade de diretório.
+- `scripts/check-linux-vm.sh` — clippy e os testes no Linux x86_64, numa
+  máquina alcançada por SSH como `verso-ubuntu`, sobre uma cópia byte a byte
+  da árvore de trabalho; com `--bundle` o `.deb`, o `.rpm` e o AppImage, com
+  `--install` o `.deb` instalado e o app aberto no desktop da máquina
+  ([0071](0071-linux-port.md), item 5, desde 2026-10-09). Exigido só quando
+  fizer sentido ou para um pacote (o mantenedor, 2026-10-09).
 
 O macOS não roda num container e o Windows não roda no Docker num Mac ou num
 Linux: o próprio Mac é a checagem de macOS, e o Windows é checado numa máquina

@@ -234,8 +234,13 @@ All proposed by the author; the port waits ("deixe pra depois").
 
 Proposed. The port waits, by the maintainer's word on 2026-10-08 ("deixe
 pra depois"); ADR 0022 is unchanged (Linux after Phase 2) until the
-maintainer revises it. **Answered by the maintainer on 2026-10-09**, for
-when the port starts:
+maintainer revises it. **The port started on 2026-10-09**, by the
+maintainer's word ("começar a trabalhar na versão Linux … eu confio na sua
+seleção e também na implementação"): the three machines of item 4, set up
+from the distributions' cloud images with cloud-init (`verso-linux-vm`,
+outside the repository, as `verso-windows-vm`), and the order of item 8.
+The core and the command line keep running without a display; only the
+window needs one. **Answered by the maintainer on 2026-10-09**:
 - ARM64 is built beside x64.
 - The versions follow Obsidian's lead: no published list. The floor is
   WebKitGTK 4.1, the library Tauri needs — Ubuntu 22.04, Debian 12,

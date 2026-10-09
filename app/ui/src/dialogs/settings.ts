@@ -10,7 +10,7 @@ import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, lo
 import { currentFolder } from "../folder";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
-import { WINDOWS } from "../platform";
+import { LINUX, WINDOWS } from "../platform";
 import { spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { panel, updateController } from "../main";
@@ -476,7 +476,7 @@ export class SettingsDialog {
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     // The command line and MCP (ADR 0054). The folder is named by its key
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
-    add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : t.cliDesc, () => this.cliControl());
+    add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
     add("cli", t.mcpTitle, settings.mcpMode === "all" ? t.mcpDescAll : t.mcpDesc, () => this.mcpControl());

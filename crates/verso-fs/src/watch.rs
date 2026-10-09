@@ -76,8 +76,13 @@ pub struct Changes {
 /// own `on_change` takes can drop a watch under that lock.
 pub struct Watch {
     stop: Arc<AtomicBool>,
-    _watcher: notify::RecommendedWatcher,
+    _watcher: Box<dyn notify::Watcher + Send>,
 }
+
+/// How often a folder is scanned when the operating system will not watch
+/// it — Linux's inotify out of watches, say (ADR 0044; ADR 0071, item 7):
+/// changes made outside still arrive, late, instead of only on "reindex".
+pub const POLL_EVERY: Duration = Duration::from_secs(30);
 
 impl std::fmt::Debug for Watch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -304,15 +309,7 @@ pub(crate) fn start(
         builtin_ignores: rules.builtin_ignores,
     };
     let (tx, rx) = mpsc::channel();
-    let mut watcher = notify::recommended_watcher(move |event| {
-        // The receiving thread is gone once the watch stopped: nothing to
-        // hand the event to, and nothing to report it to.
-        let _ = tx.send(event);
-    })
-    .map_err(without_paths)?;
-    watcher
-        .watch(root, RecursiveMode::Recursive)
-        .map_err(without_paths)?;
+    let watcher = native_or_polled(root, &tx, None)?;
     let stop = Arc::new(AtomicBool::new(false));
     let stopped = Arc::clone(&stop);
     std::thread::Builder::new()
@@ -322,6 +319,51 @@ pub(crate) fn start(
         stop,
         _watcher: watcher,
     })
+}
+
+/// The operating system's watcher on `root`; when it will not watch it —
+/// out of watches or of watcher instances — a scan every [`POLL_EVERY`]
+/// (`poll`, in a test, scans at once that often instead).
+fn native_or_polled(
+    root: &Path,
+    tx: &mpsc::Sender<notify::Result<Event>>,
+    poll: Option<Duration>,
+) -> Result<Box<dyn notify::Watcher + Send>, std::io::Error> {
+    // The receiving thread is gone once the watch stopped: nothing to hand
+    // an event to, and nothing to report it to.
+    let handler = |tx: mpsc::Sender<notify::Result<Event>>| {
+        move |event| {
+            let _ = tx.send(event);
+        }
+    };
+    if poll.is_none() {
+        let native = notify::recommended_watcher(handler(tx.clone())).and_then(|mut w| {
+            w.watch(root, RecursiveMode::Recursive)?;
+            Ok(w)
+        });
+        match native {
+            Ok(watcher) => return Ok(Box::new(watcher)),
+            Err(e) if !out_of_watches(&e) => return Err(without_paths(e)),
+            Err(_) => {}
+        }
+    }
+    let config = notify::Config::default().with_poll_interval(poll.unwrap_or(POLL_EVERY));
+    let mut polled =
+        notify::PollWatcher::new(handler(tx.clone()), config).map_err(without_paths)?;
+    polled
+        .watch(root, RecursiveMode::Recursive)
+        .map_err(without_paths)?;
+    Ok(Box::new(polled))
+}
+
+/// The operating system ran out of what it watches with: Linux's inotify
+/// past `max_user_watches` (ENOSPC) or `max_user_instances` (EMFILE).
+fn out_of_watches(e: &notify::Error) -> bool {
+    match &e.kind {
+        notify::ErrorKind::MaxFilesWatch => true,
+        notify::ErrorKind::Io(io) => matches!(io.raw_os_error(), Some(24 | 28)),
+        _ => false,
+    }
 }
 
 fn run(
@@ -367,6 +409,33 @@ mod tests {
             excluded: vec![PathBuf::from(format!("{root}/Library/verso"))],
             builtin_ignores: true,
         }
+    }
+
+    /// The scan that stands in when the operating system will not watch:
+    /// a file made outside is seen at the next scan (ADR 0071, item 7).
+    #[test]
+    fn a_polled_watch_sees_a_new_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let _watcher = native_or_polled(dir.path(), &tx, Some(Duration::from_millis(100))).unwrap();
+        std::thread::sleep(Duration::from_millis(300));
+        let file = tempfile::Builder::new()
+            .prefix("nova")
+            .suffix(".md")
+            .tempfile_in(dir.path())
+            .unwrap();
+        let name = file.path().file_name().unwrap().to_owned();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let mut seen = false;
+        while std::time::Instant::now() < deadline && !seen {
+            if let Ok(Ok(event)) = rx.recv_timeout(Duration::from_millis(200)) {
+                seen = event
+                    .paths
+                    .iter()
+                    .any(|p| p.file_name() == Some(name.as_os_str()));
+            }
+        }
+        assert!(seen, "the scan did not report the new file");
     }
 
     #[test]

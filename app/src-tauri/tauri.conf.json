@@ -34,6 +34,13 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
+    "category": "Productivity",
+    "shortDescription": "Notes in Markdown, in plain files you own",
+    "linux": {
+      "deb": { "section": "text", "depends": ["xdg-utils"] },
+      "rpm": { "depends": ["xdg-utils"] },
+      "appimage": { "bundleMediaFramework": false }
+    },
     "windows": {
       "webviewInstallMode": { "type": "embedBootstrapper" },
       "nsis": {

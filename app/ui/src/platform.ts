@@ -9,3 +9,6 @@ export const MAC = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 /** Windows, where the command line comes with the app and nothing is
  *  installed onto a PATH (ADR 0069). */
 export const WINDOWS = /Win/.test(navigator.platform);
+/** Linux, where a package puts the command line on the PATH and an
+ *  AppImage copies it to ~/.local/bin (ADR 0071). */
+export const LINUX = !MAC && !WINDOWS && /Linux/.test(navigator.platform);
