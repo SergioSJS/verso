@@ -413,10 +413,12 @@ jobs:
         run: |
           slug="$(printf '%s' "$NAME" | tr ' ' '-')"
           shopt -s nullglob
-          for kind in deb rpm appimage; do
-            files=(target/release/bundle/"$kind"/*)
-            if [ "${#files[@]}" -ne 1 ]; then echo "::error::expected one $kind, found: ${files[*]}"; exit 1; fi
-          done
+          # By extension: Tauri leaves its working folder beside each
+          # package (`Verso Beta_0.6.0-beta.1_amd64/`, `Verso.AppDir/`).
+          one() { if [ "$#" -ne 1 ]; then echo "::error::expected one package, found: $*"; exit 1; fi; }
+          one target/release/bundle/deb/*.deb
+          one target/release/bundle/rpm/*.rpm
+          one target/release/bundle/appimage/*.AppImage
           cp target/release/bundle/deb/*.deb "$slug-$VERSION-linux-$DEB.deb"
           cp target/release/bundle/rpm/*.rpm "$slug-$VERSION-linux-$ARCH.rpm"
           cp target/release/bundle/appimage/*.AppImage "$slug-$VERSION-linux-$ARCH.AppImage"
