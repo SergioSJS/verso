@@ -101,6 +101,8 @@ pub enum Msg {
         target: String,
         count: u64,
     },
+    /// A note found; a note found by its file name alone has no excerpt,
+    /// and its line is the path.
     HitLine {
         path: String,
         snippet: String,
@@ -199,6 +201,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                 if *embed { "!" } else { "" }
             ),
             Msg::UnresolvedLine { target, count } => format!("{target}  ({count})"),
+            Msg::HitLine { path, snippet } if snippet.is_empty() => path.clone(),
             Msg::HitLine { path, snippet } => format!("{path}: {snippet}"),
             Msg::IndexFailed(e) => format!("indexação falhou: {e}"),
             Msg::RefusedNote(note, why) => format!("nota recusada: {note} — {why}"),
@@ -289,6 +292,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
                 if *embed { "!" } else { "" }
             ),
             Msg::UnresolvedLine { target, count } => format!("{target}  ({count})"),
+            Msg::HitLine { path, snippet } if snippet.is_empty() => path.clone(),
             Msg::HitLine { path, snippet } => format!("{path}: {snippet}"),
             Msg::IndexFailed(e) => format!("indexing failed: {e}"),
             Msg::RefusedNote(note, why) => format!("note refused: {note} — {why}"),
@@ -307,6 +311,23 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_note_found_by_its_name_alone_is_its_path_without_a_colon() {
+        for lang in [super::Lang::PtBr, super::Lang::En] {
+            let line = |snippet: &str| {
+                super::text(
+                    &super::Msg::HitLine {
+                        path: "Mapa do Porto.md".into(),
+                        snippet: snippet.into(),
+                    },
+                    lang,
+                )
+            };
+            assert_eq!(line(""), "Mapa do Porto.md");
+            assert_eq!(line("o [mapa]"), "Mapa do Porto.md: o [mapa]");
+        }
+    }
+
     use super::*;
 
     /// One of every variant, so both `match` arms are exercised and a
