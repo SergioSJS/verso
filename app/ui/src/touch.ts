@@ -15,7 +15,7 @@ export const HOLD_MS = 450;
 /** How far a finger may wander and still be held still, in CSS pixels. */
 export const STILL_PX = 8;
 
-const OWN_PRESS = "input, textarea, select, [contenteditable], .cm-editor, .excalidraw, .reading, .pdf-page, canvas";
+const OWN_PRESS = "input, textarea, select, [contenteditable], .cm-editor, .excalidraw, .preview, .pdf-page, canvas";
 
 export function installLongPress(): void {
   document.addEventListener("pointerdown", (down) => {
@@ -46,16 +46,26 @@ export function installLongPress(): void {
       const open = held && !over;
       done();
       if (!open) return;
-      // The lift would also click what is under the finger: that click is
-      // the press's, and is dropped.
-      const swallow = (c: MouseEvent): void => {
+      // The lift is followed by the mouse events a browser makes of the
+      // same touch: a `mousedown` would close the menu just opened, a
+      // `click` would open the row or, the menu being under the finger,
+      // run its first item. They are the press's, and are dropped until
+      // the next touch begins — a tap on the menu starts with its own
+      // `pointerdown` — or 600 ms pass.
+      const target = document.elementFromPoint(x0, y0) ?? at;
+      const types = ["mousedown", "mouseup", "click"];
+      const swallow = (c: Event): void => {
         c.preventDefault();
         c.stopPropagation();
-        document.removeEventListener("click", swallow, true);
       };
-      document.addEventListener("click", swallow, true);
-      window.setTimeout(() => document.removeEventListener("click", swallow, true), 400);
-      at.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x0, clientY: y0, button: 2 }));
+      const stop = (): void => {
+        for (const type of types) document.removeEventListener(type, swallow, true);
+        document.removeEventListener("pointerdown", stop, true);
+      };
+      for (const type of types) document.addEventListener(type, swallow, true);
+      document.addEventListener("pointerdown", stop, true);
+      window.setTimeout(stop, 600);
+      target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x0, clientY: y0, button: 2 }));
     };
     document.addEventListener("pointermove", move, true);
     document.addEventListener("pointerup", up, true);

@@ -62,13 +62,13 @@
 
 /* Table. */
 .base-table-wrap { overflow-x: auto; }
-.base-table { width: 100%; min-width: calc(var(--cols, 1) * 7rem); border-collapse: collapse; table-layout: fixed; font-size: .88rem; }
+.base-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .88rem; }
 .base-table th { position: relative; padding: 0; text-align: left; font-weight: 600; font-size: .78rem; color: var(--ink-2); border-bottom: 1px solid var(--hair); }
 .base-th { width: 100%; padding: .45rem .55rem; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 0; }
 .base-th:hover, .base-th:focus-visible { background: var(--paper-2); color: var(--ink); }
 .base-col-grip { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 1; }
 .base-col-grip:hover { background: linear-gradient(90deg, transparent 3px, var(--brass) 3px, var(--brass) 4px, transparent 4px); }
-.base-table td { padding: .38rem .55rem; border-bottom: 1px solid color-mix(in oklch, var(--hair) 60%, transparent); vertical-align: top; overflow: hidden; text-overflow: ellipsis; overflow-wrap: break-word; }
+.base-table td { padding: .38rem .55rem; border-bottom: 1px solid color-mix(in oklch, var(--hair) 60%, transparent); vertical-align: top; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
 .base-table[data-height="medium"] td { padding-block: .7rem; }
 .base-table[data-height="tall"] td { padding-block: 1.1rem; }
 .base-table[data-height="extraTall"] td { padding-block: 1.7rem; }
@@ -384,3 +384,10 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
   border-radius: 2px;
 }
 
+/* A narrow screen: each column keeps room for a word, and the table
+   scrolls sideways in its wrap instead of breaking words letter by letter.
+   A wide window keeps the table at its pane's width, as before. */
+@media (max-width: 760px) {
+  .base-table { min-width: calc(var(--cols, 1) * 7rem); }
+  .base-table td { overflow-wrap: break-word; }
+}

@@ -192,12 +192,16 @@ export function showMenu(x: number, y: number, items: MenuItem[]): void {
   menu.hidden = false;
   // Inside what the screen shows — on a phone, above the keyboard — and
   // never above its top: a menu taller than that scrolls (the CSS).
+  // `position: fixed` is laid out against the layout viewport; the part
+  // the screen shows starts at the visual viewport's offset.
   const view = window.visualViewport;
+  const left = view?.offsetLeft ?? 0;
+  const top = view?.offsetTop ?? 0;
   const width = view?.width ?? window.innerWidth;
   const height = view?.height ?? window.innerHeight;
   menu.style.maxHeight = `${height - 16}px`;
-  menu.style.left = `${Math.max(8, Math.min(x, width - menu.offsetWidth - 8))}px`;
-  menu.style.top = `${Math.max(8, Math.min(y, height - menu.offsetHeight - 8))}px`;
+  menu.style.left = `${Math.max(left + 8, Math.min(x, left + width - menu.offsetWidth - 8))}px`;
+  menu.style.top = `${Math.max(top + 8, Math.min(y, top + height - menu.offsetHeight - 8))}px`;
   menu.querySelector("button")?.focus();
 }
 

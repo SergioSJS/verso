@@ -1,4 +1,5 @@
-// A finger on the file tree (phone and tablet, ADR 0073 item 9): a swipe
+// A finger on the file tree (phone and tablet, the maintainer's review of
+// 2026-10-09, docs/reference/responsive-review-2026-10-09.md): a swipe
 // scrolls and never moves a note; a long press and a lift open the menu a
 // right click opens; a long press and a move drag the row. Touch is sent
 // through Chromium's DevTools protocol, the only engine of the harness
