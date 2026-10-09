@@ -581,7 +581,56 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     focos permanecem somente leitura ou nos ajustes do Verso. Nível: H; E:
     `focuses.spec.mjs`.
 
-## 12. O fim
+## 12. No celular e no tablet
+
+Da parada ⑰ "No celular" do tour e da nota 22 ([ADR
+0076](../adr/0076-the-window-on-every-screen.md)). Por máquina, os testes
+marcados `@layout` rodam em 390 × 844 (WebKit), 412 × 915 (Chromium, toque)
+e 820 × 1180 (WebKit) além do tamanho do computador (`playwright.config.mjs`);
+à mão, num celular e num iPad, a janela do servidor no navegador.
+
+1. Abaixo de 760 px: sem fita, sem barra de status; uma barra de cinco
+   verbos embaixo — Arquivos, Buscar, Nova nota, Voltar, Comandos — cada
+   palavra inteira em português, cada alvo de 44 px; Arquivos abre a gaveta,
+   Buscar a gaveta com o campo de busca, Comandos a paleta; Voltar volta na
+   área. Nível: H; E: `responsive.spec.mjs`, "the frame follows the screen"
+   e "the phone's bar".
+2. Um layout dividido numa janela larga, depois estreitada: uma área por vez
+   e um seletor "2/2" na barra de abas; as áreas são listadas e escolhidas
+   nele; os comandos de dividir somem da paleta e do menu de uma aba;
+   alargada de novo, as duas áreas voltam. Uma área abaixo de 520 px dobra
+   as ferramentas em "…", que alcança "Ações da aba…". Nível: H; E:
+   `responsive.spec.mjs`, "a split layout on a phone" e "a pane under 520
+   px".
+3. O grafo no celular: os controles fechados atrás de "Ajustes do grafo"; a
+   ajuda fala da pinça; dois dedos o ampliam. Nível: H; E:
+   `responsive.spec.mjs`, "the graph" (dois testes).
+4. A nota 02 no Editar, por toque: um toque num link põe o cursor e um
+   cartão oferece Abrir e Editar link; Abrir abre a nota. Nível: H; E:
+   `responsive.spec.mjs`, "Edit mode on a touch screen".
+5. Projetos.base, "Por Status": uma coluna por tela com a beirada da
+   próxima; segurar um cartão abre o menu com "Mover para a coluna…"; deslizar
+   rola e não move nada. Nível: H; E: `responsive.spec.mjs`, "the kanban by
+   touch".
+6. Uma nota no Editar numa tela de toque: a barra do teclado acima do
+   teclado; `[[` sugere notas, Desfazer volta, "Esconder o teclado" o
+   fecha; o menu `/`, o menu de uma aba e o cursor ficam acima do teclado.
+   Nível: H; E: `responsive.spec.mjs`, "the keyboard's bar" e "the
+   on-screen keyboard" (o teclado do sistema simulado: à mão no celular).
+7. "Selecionar" no menu de uma linha: uma caixa em cada linha, uma barra
+   com Mover para…, Copiar caminhos, Apagar e Concluir; "Manter aberta"
+   guarda uma aba de pré-visualização; "Abrir" abre uma nota sem
+   pré-visualização; numa tela de toque, um "…" ao lado da linha da frente
+   abre o menu dela. Nível: H; E: `responsive.spec.mjs`, "the tree by touch"
+   e "no action only by a gesture"; `touch.spec.mjs`.
+8. Num servidor (`?side=server` no harness): sem "Mostrar no Finder", sem
+   janela nova; "Copiar link" e "Abrir numa nova aba do navegador"; a página
+   de uma nota web numa moldura; a janela de quem só lê só lê, e diz isso.
+   Nível: H; E: `capabilities.spec.mjs`.
+9. VoiceOver no iPhone e no iPad, TalkBack no Android: as passadas de
+   `manual-checks.md`. Nível: A.
+
+## 13. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
    console: nada vermelho. Nível: A; E: todo teste, no harness.

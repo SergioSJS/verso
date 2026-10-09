@@ -566,7 +566,55 @@ point 13).
     or unknown format, focuses stay read-only or in Verso settings. Level: H; E:
     `focuses.spec.mjs`.
 
-## 12. The end
+## 12. On a phone and a tablet
+
+From the tour's stop ⑰ "No celular" and note 22 ([ADR
+0076](../adr/0076-the-window-on-every-screen.md)). By machine, the tests
+tagged `@layout` run at 390 × 844 (WebKit), 412 × 915 (Chromium, touch) and
+820 × 1180 (WebKit) besides the desktop's size (`playwright.config.mjs`); by
+hand, on a phone and an iPad, the server's window in the browser.
+
+1. Under 760 px: no ribbon, no status bar; a bar of five verbs at the bottom
+   — Arquivos, Buscar, Nova nota, Voltar, Comandos — every word whole in
+   Portuguese, each a target of 44 px; Arquivos opens the drawer, Buscar the
+   drawer with the search field, Comandos the palette; Voltar steps back in
+   the pane. Level: H; E: `responsive.spec.mjs`, "the frame follows the
+   screen" and "the phone's bar".
+2. A layout split on a wide window, then narrowed: one pane at a time and a
+   switcher "2/2" in the tab bar; the panes are listed and chosen from it; the
+   split commands are absent from the palette and from a tab's menu; widened
+   again, both panes are back. A pane under 520 px folds its tools into "…",
+   which reaches "Ações da aba…". Level: H; E: `responsive.spec.mjs`, "a
+   split layout on a phone" and "a pane under 520 px".
+3. The graph on a phone: the controls closed behind "Ajustes do grafo"; the
+   help speaks of the pinch; two fingers zoom it. Level: H; E:
+   `responsive.spec.mjs`, "the graph" (two tests).
+4. Note 02 in Editar, by touch: a tap on a link places the cursor and a card
+   offers Abrir and Editar link; Abrir opens the note. Level: H; E:
+   `responsive.spec.mjs`, "Edit mode on a touch screen".
+5. Projetos.base, "Por Status": a column per screen with the next one's edge
+   showing; a long press on a card opens its menu with "Mover para a
+   coluna…"; a swipe scrolls and moves nothing. Level: H; E:
+   `responsive.spec.mjs`, "the kanban by touch".
+6. A note in Editar on a touch screen: the keyboard's bar above the
+   keyboard; `[[` suggests notes, Desfazer takes it back, "Esconder o
+   teclado" closes it; the `/` menu, a tab's menu and the cursor stay above
+   the keyboard. Level: H; E: `responsive.spec.mjs`, "the keyboard's bar"
+   and "the on-screen keyboard" (the system's keyboard stood in for: by
+   hand on the phone).
+7. "Selecionar" in a row's menu: a box on each row, a bar with Mover para…,
+   Copiar caminhos, Apagar and Concluir; "Manter aberta" keeps a preview
+   tab; "Abrir" opens a note without preview; on a touch screen, a "…" beside
+   the row in front opens the row's menu. Level: H; E: `responsive.spec.mjs`,
+   "the tree by touch" and "no action only by a gesture"; `touch.spec.mjs`.
+8. On a server (`?side=server` in the harness): no "Mostrar no Finder", no
+   new window; "Copiar link" and "Abrir numa nova aba do navegador"; a web
+   note's page in a frame; a reader's window reads only, and says so. Level:
+   H; E: `capabilities.spec.mjs`.
+9. VoiceOver on the iPhone and the iPad, TalkBack on Android: the passes of
+   `manual-checks.md`. Level: A.
+
+## 13. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.
