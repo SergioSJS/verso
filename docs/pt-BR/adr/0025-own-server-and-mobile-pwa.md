@@ -3,6 +3,18 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §9, §16.1, §16.2
 - Status no briefing: `PROPOSTO`
+- Revisões: 2026-10-09 — retomado pelo [0073](0073-self-hosted-server-first.md),
+  aceito pelo mantenedor naquele dia; o texto abaixo fica como foi
+  escrito. Os itens 1 e 2 são aceitos lá: o `verso serve` é o core sem
+  janela, um subcomando do binário `verso`
+  ([0075](0075-server-packaging-and-storage.md) item 1), e o primeiro
+  cliente móvel é a janela que o servidor serve, no navegador (0073 item
+  8). O item 3 é superado: o servidor indexa, o celular pergunta a ele. A
+  autenticação e a exposição que as Consequências deixam para o
+  [0045](0045-server-and-mcp-security.md) são respondidas pelo item 6 do
+  0073 e pelo [0074](0074-accounts-and-access-on-the-server.md); mobile pelo
+  navegador sai de "fora de escopo até o fim da Fase 2" para a Fase 3
+  ([0034](0034-roadmap-in-phases.md), revisto no mesmo dia).
 
 ## Contexto
 
@@ -40,4 +52,6 @@ Nenhuma registrada: o briefing não compara PWA com app nativo mobile.
 
 ## Status
 
-Proposto.
+Proposto. Os itens 1 e 2 aceitos em 2026-10-09 no
+[0073](0073-self-hosted-server-first.md); o item 3 superado lá
+(Revisões).

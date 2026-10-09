@@ -41,10 +41,14 @@ Violating an invariant is BLOCKING by definition, with no discussion of merit.
    opaque handle; a note is named by its path relative to the open folder. An
    absolute path, or one containing `..`, never crosses. A path as a string
    also exists at the entry edge (CLI argument, config key) and inside
-   `verso-fs`.
+   `verso-fs`. On a server the access capability is the authenticated
+   session and its role in the folder, checked before `verso-fs` acts, and
+   nothing else crosses ([ADR 0073](docs/adr/0073-self-hosted-server-first.md),
+   accepted 2026-10-09).
 5. Access to the **files of the open folder** only inside the `verso-fs` crate.
-   The index file (`verso-index`), the configuration directory (`verso-core`)
-   and the CLI's input and output are outside the rule; none of them touches the
+   The index file (`verso-index`), the configuration directory (`verso-core`),
+   the server's own database (`verso-server`, in `VERSO_DATA_DIR`) and the
+   CLI's input and output are outside the rule; none of them touches the
    open folder. `verso-dialect` has no IO at all.
 6. Plugins never access disk directly.
 
@@ -97,7 +101,12 @@ Violating an invariant is BLOCKING by definition, with no discussion of merit.
 18. Out of scope until the end of Phase 2: sync, mobile, plugins and the
     compatibility shim. Do not implement "since it is cheap". The board
     entered Phase 2 on 2026-09-30
-    ([ADR 0057](docs/adr/0057-board-json-canvas.md)).
+    ([ADR 0057](docs/adr/0057-board-json-canvas.md)). Since 2026-10-09 the
+    server, the window in a browser and the phone and the tablet through
+    the browser are in scope, in Phase 3
+    ([ADR 0073](docs/adr/0073-self-hosted-server-first.md), accepted
+    2026-10-09); plugins and the shim stay out, and sync comes after the
+    server's first release, in the order of ADR 0073 item 12.
 19. Phase 1 has no UI. Phase 0 has no feature at all.
 
 ---
@@ -175,6 +184,15 @@ Besides the five, the workspace holds `crates/verso-contract` (the contract's
 types, no IO), `crates/verso-bench` (the benchmark, never shipped) and
 `app/src-tauri` (the Phase 2 desktop host, which reaches the notes only
 through `verso-core`) — ADR 0028, Consequences.
+
+For the server (ADR 0028, revised 2026-10-09): `crates/verso-service` (the
+session table and the command dispatch, transport-free — no network, no
+async runtime; the Tauri host and the server both call it) and
+`crates/verso-server` (HTTP and WebSocket, the accounts, the sessions, the
+server's database). `verso-server` touches no file of a folder directly,
+only through `verso-service`, `verso-core` and `verso-fs`, and opens only
+its own database in `VERSO_DATA_DIR`, an exception like `verso-index`'s.
+`verso serve` is a subcommand of `verso` (`verso-cli`).
 
 ---
 

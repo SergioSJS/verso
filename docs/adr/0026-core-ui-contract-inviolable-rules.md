@@ -14,6 +14,20 @@
   rewritten, brought in line with a note each: the amendment happened, and
   the handles group of [0044](0044-verso-fs-semantics.md) was decided on
   2026-09-24, as built for Phase 2 (`docs/reference/handles-decision.md`).
+  2026-10-09 — rule 4 clarified for a server, the rule unchanged, with the
+  maintainer's acceptance of [0073](0073-self-hosted-server-first.md) that
+  day and the handles group of [0044](0044-verso-fs-semantics.md) decided
+  for `verso serve`: on a server the access capability is the
+  authenticated session and its role in the folder, checked by the core on
+  every command and every file request before `verso-fs` acts; a note
+  stays named by its path relative to the folder; nothing else crosses —
+  no per-file capability. The pre-signed URL of a bucket stays `[OPEN]`
+  (0073 item 4). Rule 5's scope gains the server's own database, beside
+  the index file ([0028](0028-crate-structure.md), revised the same day).
+  The Consequence that left session identity to
+  [0045](0045-server-and-mcp-security.md) is answered by
+  [0074](0074-accounts-and-access-on-the-server.md) item 11. Each is a
+  note beside the text it concerns.
 
 ## Context
 
@@ -73,12 +87,19 @@ hold is this:
   2026-09-24, as built for Phase 2: an index into a table of paths, valid in
   this process only, with no capability crossing the contract; re-opened
   before anything outside the app's own views gets access to files.)*
+  *(On a server, decided on 2026-10-09: the access capability is the
+  authenticated session and its role in the folder, and nothing else
+  crosses — Revisions.)*
 - **Rule 5** holds for **the files of the open folder** (and of each root of a
   workspace). Only `verso-fs` reads, writes, renames, deletes or watches those
   files. Outside the rule, because they are app files and not user files: the
   index file, opened by `verso-index`; the configuration directory, read and
   written by `verso-core`; the CLI's input and output. None of them touches
-  the open folder. `verso-dialect` remains with no IO at all.
+  the open folder. `verso-dialect` remains with no IO at all. *(Since
+  2026-10-09 also outside the rule: the server's own database in
+  `VERSO_DATA_DIR`, opened by `verso-server`, which reaches a folder's
+  files only through `verso-service`, `verso-core` and `verso-fs`;
+  [0028](0028-crate-structure.md).)*
 
 ## Consequences
 
@@ -100,7 +121,10 @@ hold is this:
   of Phase 2; until then, the only requirement here is that the contract's
   shape must not preclude adding them. (Wording softened on 2026-09-21 after
   the independent reading of the Phase 0 review: the earlier text stated the
-  requirement as decided while 0045 keeps it open.)
+  requirement as decided while 0045 keeps it open.) *(Answered on
+  2026-10-09 by [0074](0074-accounts-and-access-on-the-server.md) item 11,
+  accepted with [0073](0073-self-hosted-server-first.md): every command
+  carries the session the transport authenticated.)*
 - The Obsidian public API has synchronous reads and the contract is
   asynchronous; the recorded mitigation is a read-only projection of the index
   on the JS side, fed by events (§10.3).

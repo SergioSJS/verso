@@ -3,6 +3,18 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §9, §16.1, §16.2
 - Status in the briefing: `PROPOSED`
+- Revisions: 2026-10-09 — taken up by [0073](0073-self-hosted-server-first.md),
+  accepted by the maintainer that day; the text below is kept as it was
+  written. Items 1 and 2 are accepted there: `verso serve` is the core
+  without a window, a subcommand of the `verso` binary
+  ([0075](0075-server-packaging-and-storage.md) item 1), and the first
+  mobile client is the window the server serves, in the browser (0073
+  item 8). Item 3 is superseded: the server indexes, the phone asks it.
+  The authentication and exposure the Consequences leave to
+  [0045](0045-server-and-mcp-security.md) are answered by 0073 item 6 and
+  [0074](0074-accounts-and-access-on-the-server.md); mobile through the
+  browser leaves "out of scope until the end of Phase 2" for Phase 3
+  ([0034](0034-roadmap-in-phases.md), revised the same day).
 
 ## Context
 
@@ -40,4 +52,6 @@ None recorded: the briefing does not compare PWA with a native mobile app.
 
 ## Status
 
-Proposed.
+Proposed. Items 1 and 2 accepted on 2026-10-09 in
+[0073](0073-self-hosted-server-first.md); item 3 superseded there
+(Revisions).

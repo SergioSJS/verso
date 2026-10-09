@@ -70,8 +70,8 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 
 | # | Title | Status |
 |---|---|---|
-| [0020](0020-sync-merge-in-core-transports-as-plugins.md) | Sync: merge engine in the core, transports as plugins, out of scope until Phase 2 | Accepted |
-| [0021](0021-sync-automerge-layered-config.md) | Sync: Automerge and layered config | Proposed |
+| [0020](0020-sync-merge-in-core-transports-as-plugins.md) | Sync: merge engine in the core, transports as plugins, out of scope until Phase 2 | Accepted; revised by 0073 (2026-10-09): the server first and sync through it, Drive and OneDrive by API not essential, transports in the core while they hold credentials |
+| [0021](0021-sync-automerge-layered-config.md) | Sync: Automerge and layered config | Proposed; item 1 revised by 0073 (2026-10-09): Yjs in place of Automerge, as the mechanism of a live session |
 | [0043](0043-placeholder-guard.md) | An on-demand storage placeholder file is never a deletion | Accepted (per-provider mechanism: `[OPEN]`) |
 
 ### Platforms and architecture
@@ -81,19 +81,23 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0022](0022-target-platforms-macos-first.md) | Target platforms and macOS first | Accepted |
 | [0023](0023-stack-core-and-editor.md) | Stack: Rust, Tauri v2, CodeMirror 6, SQLite with FTS5 | Accepted |
 | [0024](0024-board-excalidraw.md) | Board: Excalidraw as a free annotation layer | Accepted; semantic layer and persistence decided in 0057 (2026-09-30) |
-| [0025](0025-own-server-and-mobile-pwa.md) | Own server (`verso serve`) and initial mobile as a web client | Proposed |
-| [0026](0026-core-ui-contract-inviolable-rules.md) | Core↔UI contract and inviolable architecture rules | Accepted |
+| [0025](0025-own-server-and-mobile-pwa.md) | Own server (`verso serve`) and initial mobile as a web client | Proposed; items 1 and 2 accepted in 0073 (2026-10-09), item 3 superseded there |
+| [0026](0026-core-ui-contract-inviolable-rules.md) | Core↔UI contract and inviolable architecture rules | Accepted; rule 4 clarified for a server, the rule unchanged, and rule 5's scope widened to the server's database (2026-10-09) |
 | [0027](0027-runtime-capabilities.md) | Capabilities queryable at runtime | Proposed |
-| [0028](0028-crate-structure.md) | Crate structure | Accepted |
-| [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted (the setting's default: provisional); revised by 0055 and 0056 (2026-09-29) |
+| [0028](0028-crate-structure.md) | Crate structure | Accepted; two crates for the server, `verso-service` and `verso-server` (2026-10-09) |
+| [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted (the setting's default: provisional); revised by 0055 and 0056 (2026-09-29), and by 0073 and 0075 (2026-10-09): a server's traffic and its update check |
 | [0054](0054-terminal-and-agents-from-the-app.md) | The command line and agents, set up from the app | Accepted (2026-09-24); its `[OPEN]` on the system's tools closed (2026-09-29) |
 | [0055](0055-in-app-updater.md) | The in-app updater | Accepted (2026-09-29) |
 | [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29); revised the same day: no proxy, pages load directly from origins the user approved |
 | [0057](0057-board-json-canvas.md) | The board: a JSON Canvas file, Excalidraw as its surface, typed relations in the frontmatter | Accepted (2026-09-30) |
 | [0069](0069-windows-port.md) | The Windows port: x64, an installer, tested on a Windows machine over SSH | Proposed (2026-10-07); x64, Windows 10 and 11, NSIS and no code signing for now decided; starts now, in Phase 2 ahead of the rest (0022 revised); the push gate when platform code changes; Windows 10 machine later, code written for it; the configuration location (`%LOCALAPPDATA%\verso`) and OneDrive's placeholder decided 2026-10-08; `[OPEN]` (provisional): the directory `fsync`, the path separator |
-| [0070](0070-what-travels-with-the-folder.md) | What travels with the folder: three layers of settings, and names every OS can keep | Proposed (2026-10-08); names every OS can keep decided, `\` among them |
+| [0070](0070-what-travels-with-the-folder.md) | What travels with the folder: three layers of settings, and names every OS can keep | Proposed (2026-10-08); names every OS can keep decided, `\` among them; the approved embed origins the person's, and the person's layer with the account on a server (2026-10-09, with 0073) |
 | [0071](0071-linux-port.md) | The Linux port: one build for every distribution, tested on virtual machines | Proposed (2026-10-08); port started 2026-10-09; answered 2026-10-09: ARM64, versions, signing, the index's location; `[OPEN]`: two or three machines, the updater, Snap, Wayland native or X11, case-only names |
 | [0072](0072-window-controls-in-the-app.md) | The window's controls inside the app: no title bar on macOS and Windows | Accepted (2026-10-08): the app's own buttons on Windows; amended 2026-10-09: on Linux too |
+| [0073](0073-self-hosted-server-first.md) | Self-hosted server first: online collaboration before sync | Accepted (2026-10-09), with its items marked proposed; answered that night: the crates of the service, the contract's version, the server's update path (option b), TLS behind a proxy or Tailscale or the server's own certificate, the handles and symlinks on a server, remote content per reader, simultaneous editing in the first server release, the desktop app connecting in this round; before: account recovery, owners per server, Docker platforms; revises 0020, 0021, 0025, 0034, 0044, 0045, 0050, 0070; `[OPEN]`: online-only mobile vs offline earlier, finer permissions and history, E2E later, board co-editing, MCP over the network, the pre-signed URL, native iPad criteria, cost pass-through, "this app is a server" updating with phones connected |
+| [0074](0074-accounts-and-access-on-the-server.md) | Accounts and access on the server: the first admin, sign-in, tokens | Accepted (2026-10-09), with 0073; decided: the admin from the environment on the first start only, recovered by a command on the machine; password, then passkeys in this round; invitation only, tracked; no implicit admin access to folders; several accounts; personal access tokens by folder; the desktop app signing in through the browser in this round; items 2, 7, 9, 10, 11 accepted as written |
+| [0075](0075-server-packaging-and-storage.md) | The server's packaging and storage: how it is installed, where its data lives, what each folder takes | Accepted (2026-10-09), with 0073; decided: Docker image, CasaOS/ZimaOS compose and packages with systemd; a local data directory and a folders root that may be a NAS; the space per folder shown, limits later; sync per folder, off by default; ARM64 now; the image on GitHub's registry; `verso serve` a subcommand of `verso`; a folder's id; symlinks that leave a folder refused on a server; the server tells the admin of a new version and never updates itself |
+| [0076](0076-the-window-on-every-screen.md) | The window on every screen: phone, tablet, a narrow pane | Accepted (2026-10-09), every recommendation, built in this round before the server's window ships: the frame by the screen and the pane by its width, one pane at a time on a phone, the graph, a card to open a link in Edit mode, the kanban by touch, a bottom bar for the ribbon, the on-screen keyboard and its toolbar, menu items for modifiers, screen readers with touch, targets and safe areas, the page's zoom kept, host-only items by capability, tagged e2e at phone and tablet widths; `[OPEN]`: the keyboard toolbar's contents, after use |
 
 ### Dialect, engineering and roadmap
 
@@ -104,7 +108,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0031](0031-fixtures-as-contract.md) | Fixtures are the behavior contract between maintainer and AI | Accepted |
 | [0032](0032-author-and-reviewer-roles.md) | Roles: the AI writes, the maintainer reviews behavior | Accepted |
 | [0033](0033-pr-workflow.md) | PR workflow | Accepted |
-| [0034](0034-roadmap-in-phases.md) | Roadmap in three phases with verifiable exit gates | Accepted |
+| [0034](0034-roadmap-in-phases.md) | Roadmap in three phases with verifiable exit gates | Accepted; a Phase 3 added by 0073, and sync and mobile out of point 4's list (2026-10-09) |
 | [0035](0035-cross-cutting-requirements.md) | Cross-cutting requirements: pt-BR and EN, accessibility, benchmark | Accepted |
 | [0036](0036-tabletop-rpg-support.md) | Special support for tabletop RPG | Accepted (intent) |
 | [0049](0049-phase-2-scope-widened.md) | Phase 2 scope widened at the maintainer's request | Accepted; no custom Dock menu for now (decided 2026-10-07) |
@@ -128,8 +132,8 @@ says where each stands.
 
 | # | Title | When to decide |
 |---|---|---|
-| [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Symlinks and ignored paths: Accepted (2026-09-22); handles: accepted as built for Phase 2 (2026-09-24), re-opened before anything outside the app's own views gets access to files; the watcher: Accepted (2026-09-24); ignored paths revised on 2026-09-29 — the built-in list and `.gitignore`, behind settings — Accepted |
-| [0045](0045-server-and-mcp-security.md) | Security of the server, the MCP and the contract | MCP: Accepted; contract: accepted as built for Phase 2, `[OPEN]` until a server enters scope; server: before it enters scope |
+| [0044](0044-verso-fs-semantics.md) | `verso-fs` semantics: symlinks, opaque handles, ignored paths | Symlinks and ignored paths: Accepted (2026-09-22); handles: accepted as built for Phase 2 (2026-09-24), re-opened before anything outside the app's own views gets access to files, answered for `verso serve` on 2026-10-09 (the session and its role are the access capability); symlinks on a server: refused when they leave the folder (2026-10-09); the watcher: Accepted (2026-09-24); ignored paths revised on 2026-09-29 — the built-in list and `.gitignore`, behind settings — Accepted |
+| [0045](0045-server-and-mcp-security.md) | Security of the server, the MCP and the contract | MCP: Accepted; contract: accepted as built for Phase 2, `[OPEN]` until a server enters scope, answered on 2026-10-09 by 0074 item 11; server: answered on 2026-10-09 by 0073 and 0074; the MCP over the network `[OPEN]` |
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Index: location, lifecycle and tokenizer | Features 3 and 5 of Phase 1 |
 | [0047](0047-plugin-api-open-questions.md) | Open questions on the plugin API | Before designing the API (after Phase 2) |
 | [0048](0048-file-operations-in-ui.md) | File operations in the UI: rename, create, delete, move | Accepted (2026-09-23) |

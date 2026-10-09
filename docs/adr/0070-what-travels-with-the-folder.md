@@ -16,6 +16,13 @@
   folder), [0062](0062-focuses.md) (focuses in `.space/waypoints.json`),
   [0069](0069-windows-port.md) (the Windows port, its separator `[OPEN]`).
 - Status in the briefing: not present
+- Revisions: 2026-10-09 — with the acceptance of
+  [0073](0073-self-hosted-server-first.md) by the maintainer that day: on
+  a server the person's layer lives with the account (0073 item 5), and
+  the approved embed origins and remote content are the reader's — a
+  setting of the person, never of the note's author or of the folder
+  (0073 item 6), which closes this ADR's `[OPEN]` on them. The text below
+  is kept, with a note where it concerns these.
 
 ## Context
 
@@ -61,6 +68,8 @@ those, the rule item 3 takes.
    - **the person's**, which follow the user across folders (language,
      theme, keys): stay on the machine until layered sync
      ([0021](0021-sync-automerge-layered-config.md)) gives them a home.
+     *(On a server, since 2026-10-09: the account is their home,
+     [0073](0073-self-hosted-server-first.md) item 5.)*
 2. **The folder's layer, proposed contents**: the bookmarks, the ignored
    paths, the folder note's name. On first opening a folder after this
    lands, what the machine kept for it moves into the folder once.
@@ -118,3 +127,8 @@ ADR 0069's separator is `/`, definitive. `[OPEN]`: whether the approved
 embed origins are the folder's or the person's (a permission granted to a
 site, not a property of the notes). Closed on 2026-10-08: `\` joins item 3's refused
 characters on every OS (raised by the review of that day).
+
+Closed on 2026-10-09, with the acceptance of
+[0073](0073-self-hosted-server-first.md): the approved embed origins are
+the person's — the reader's setting (the account on a server), never the
+note's author's or the folder's (0073 item 6).
