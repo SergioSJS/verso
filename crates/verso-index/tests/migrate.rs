@@ -207,3 +207,43 @@ fn version_12_is_carried_to_version_13_with_nothing_read_again() {
         .unwrap();
     assert_eq!(schema, verso_index::SCHEMA_VERSION.to_string());
 }
+
+#[test]
+fn version_13_is_carried_to_version_14_with_the_names_searched_and_nothing_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("i.sqlite");
+    {
+        let mut index = Index::open(&file).unwrap();
+        let nota = "# Outro título\n\ncorpo\n";
+        index
+            .upsert(
+                "RPG/Capitão Ruy.md",
+                stamp(),
+                nota,
+                &verso_dialect::parse(nota),
+            )
+            .unwrap();
+    }
+    {
+        let conn = rusqlite::Connection::open(&file).unwrap();
+        conn.execute_batch(
+            "DROP TRIGGER notes_names_insert;
+             DROP TRIGGER notes_names_delete;
+             DROP TRIGGER notes_names_update;
+             DROP TABLE names_fts;
+             DROP INDEX notes_name_fold;
+             ALTER TABLE notes DROP COLUMN name_fold;
+             UPDATE meta SET value = '13' WHERE key = 'schema';",
+        )
+        .unwrap();
+    }
+    let index = Index::open(&file).unwrap();
+    // Found by its file name, which the version 13 index never held apart
+    // from the path, and the note is still trusted by its stat.
+    let hits = index.search("capitao", 10).unwrap();
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert_eq!(hits[0].path, "RPG/Capitão Ruy.md");
+    assert_eq!(index.stamp_of("RPG/Capitão Ruy.md").unwrap(), Some(stamp()));
+    assert_eq!(index.search("pitão", 10).unwrap().len(), 1);
+    index.check().unwrap();
+}
