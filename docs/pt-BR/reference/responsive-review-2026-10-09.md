@@ -75,6 +75,30 @@ que cabe ao ADR fazer:
   capacidades do servidor
   ([ADR 0027](../adr/0027-runtime-capabilities.md)).
 
+## Construído pelo ADR 0076
+
+O [ADR 0076](../adr/0076-the-window-on-every-screen.md), aceito em
+2026-10-09 com todas as recomendações, fez as escolhas acima; todas estão
+construídas no branch `feat/web`, e a suíte e2e roda os testes marcados
+`@layout` em 390 × 844 (WebKit), 412 × 915 (Chromium, toque) e 820 × 1180
+(WebKit) além do tamanho do computador.
+
+| Deixado acima | Construído | Visto por |
+|---|---|---|
+| Áreas divididas no celular | abaixo de 760 px uma área por vez, um seletor na barra de abas, o layout guardado para uma janela mais larga; os comandos de dividir ausentes; uma área abaixo de 520 px dobra as ferramentas em "…"; a área decide o conteúdo por container queries (520 e 820 px) | `responsive.spec.mjs` |
+| O grafo | os controles num painel fechado por padrão abaixo de 760 px ou numa área abaixo de 520 px; pinça e deslocar com dois dedos por pointer events; ajuda para toque ou mouse | `responsive.spec.mjs` |
+| Seguir um link no modo Editar | um toque põe o cursor; um cartão ao lado do link oferece Abrir e Editar link | `responsive.spec.mjs` |
+| O kanban | um cartão move depois de segurar, deslizar rola; uma coluna por tela abaixo de 760 px (scroll snap); "Mover para a coluna…" no menu do cartão | `responsive.spec.mjs` |
+| A fita e a barra de status no celular | abaixo de 760 px uma barra de baixo com cinco verbos sobre a área segura; uma falha dita no alto da área; os avisos do servidor no alto; números de linha no Fonte desligados, a não ser escolhidos | `responsive.spec.mjs` |
+| O teclado na tela | toda superfície flutuante posta contra o visual viewport; o cursor mantido acima do teclado; uma barra acima dele (desfazer, refazer, recuar, avançar, `[[`, `/`, esconder; o conteúdo `[OPEN]` depois do uso) | `responsive.spec.mjs` (o teclado do sistema simulado) |
+| Leitores de tela com toque | um "…" visível ao lado da linha da frente, o "…" da área alcançando o menu da aba, o "…" de um cartão; segurar não impede nada | `responsive.spec.mjs`; as passadas com VoiceOver e TalkBack em `manual-checks.md` |
+| Teclas modificadoras e duplo clique | "Selecionar" no menu de uma linha, um modo de seleção com uma barra; "Manter aberta" no menu de uma aba; "Abrir" no menu de uma nota | `responsive.spec.mjs` |
+| Texto, áreas seguras, o zoom da página | linhas de 44 px abaixo de 760 px, 40 px no tablet; 12 px no mínimo numa tela de toque; `viewport-fit=cover` e o quadro dentro das áreas seguras; a pinça da página mantida, o grafo e um PDF ficando com ela | `responsive.spec.mjs` |
+| Itens de menu que nada significam num navegador | ausentes pelas capacidades; "Copiar link" e "Abrir numa nova aba do navegador" num servidor; uma página web numa moldura; a janela de quem só lê, só leitura | `capabilities.spec.mjs` |
+
+Não visto por máquina: segurar no iOS, o teclado do sistema, o entalhe,
+VoiceOver e TalkBack — `manual-checks.md`, "A janela em toda tela".
+
 ## O que já funcionava
 
 A gaveta abaixo de 760 px abre e fecha como deve; a barra lateral direita

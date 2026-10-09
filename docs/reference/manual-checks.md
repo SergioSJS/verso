@@ -97,6 +97,43 @@ in the real app.
   after updating, the window shows the new version's interface at once,
   with no stale screen; the PDF reader and a board still open.
 
+### The window on every screen (ADR 0076)
+
+On the maintainer's phone and iPad, the server's window in the browser
+(feat/web). Playwright moves no finger in WebKit and opens no system
+keyboard, and a page cannot tell that a screen reader is on: these are
+seen only here. Before the server is announced (ADR 0073 item 6).
+
+- [ ] **VoiceOver on the iPhone** (ADR 0076 item 9; ADR 0035 item 2):
+  swipe through the bottom bar — five buttons, each named (Arquivos,
+  Buscar, Nova nota, Voltar, Comandos); open the drawer and reach a row,
+  then its "…" ("Mais ações: …"); a double-tap-and-hold on a row opens its
+  menu; in Editar, a double tap on a link and the card after the text
+  ("Link: …") with Abrir and Editar link; the keyboard's bar named
+  "Ferramentas de escrita"; on a reader's folder, "Você só lê esta pasta"
+  read out.
+- [ ] **VoiceOver on the iPad**, portrait and landscape: the same; over
+  760 px the ribbon and the split panes stay; the graph's controls beside
+  it in landscape, behind "Ajustes do grafo" in a pane under 520 px.
+- [ ] **TalkBack on Android** (Chrome): the same steps; TalkBack's
+  double-tap-and-hold opens a row's menu (Android's own `contextmenu`).
+- [ ] **A long press on iOS**: a row held and lifted opens its menu; held
+  and moved, it drags into a folder; a swipe scrolls the tree and moves
+  nothing. A kanban card held: its menu, with "Mover para a coluna…"; a
+  swipe on the board goes a column at a time.
+- [ ] **The on-screen keyboard** on the iPhone and Android: in Editar, the
+  `/` menu, the link suggestions after `[[`, the sticker picker and a
+  tab's menu open above the keyboard; the cursor stays above it, also on
+  the note's last line; the keyboard's bar sits on the keyboard, and its
+  buttons leave the keyboard up (but "Esconder o teclado").
+- [ ] **The notch and the corners**: an iPhone with a notch, in portrait
+  and landscape — nothing under the notch or the rounded corners; the
+  bottom bar above the home indicator.
+- [ ] **The pinch**: over text the whole page zooms (and back); over the
+  graph, a board and a PDF, only they zoom.
+- [ ] **Line numbers**: on the phone, a note in Fonte has none; turned on in
+  Ajustes › Editor, they show.
+
 ## To reproduce
 
 Reported in the backlog, changed since, but with no test that covers
