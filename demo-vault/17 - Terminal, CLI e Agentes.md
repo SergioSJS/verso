@@ -21,6 +21,8 @@ Em **Ajustes › Terminal e agentes › Comando verso no terminal**, clique em *
 
 No Windows não há o que instalar: o `verso.exe` vem com o app, na pasta dele. Rode-o pelo caminho, ou ponha essa pasta no PATH para digitar só `verso`.
 
+No Linux, o pacote (`.deb` ou `.rpm`) já põe o `verso` no PATH, ao lado do app. Num AppImage, **Instalar** copia o comando para `~/.local/bin`, sem pedir senha.
+
 ---
 
 ## O que o Comando Faz

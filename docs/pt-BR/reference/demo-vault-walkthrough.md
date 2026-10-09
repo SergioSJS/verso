@@ -488,6 +488,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `verso-<pai>-<nome>`. Nível: S (`an_update_installs_only_with_its_signature`,
    `a_folder_of_a_name_already_added_takes_its_parent_s_name`); A (a
    primeira release assinada, no macOS e no Windows).
+8. No Linux (nota 17): o `.deb` instala o `verso-app` e o `verso` em
+   /usr/bin, e Terminal e agentes diz que o comando veio com o pacote; o
+   "Instalar" de um AppImage põe o `verso` em `~/.local/bin`; "Mostrar no
+   gerenciador de arquivos" seleciona o arquivo. Nível: S
+   (`scripts/check-linux-vm.sh --install`, o app aberto no desktop do
+   Ubuntu; `--webkit`, a suíte no WebKit do Linux); A (Debian, Fedora, o
+   AppImage).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 

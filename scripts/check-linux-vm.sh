@@ -14,6 +14,11 @@
 #   scripts/check-linux-vm.sh --install   with --bundle: installs the .deb on
 #                                         the host and opens the app in its
 #                                         desktop session on a demo folder
+#   scripts/check-linux-vm.sh --webkit    only the end-to-end suite's WebKit
+#                                         project, in a Linux container here
+#                                         (Playwright's WebKit is its build of
+#                                         the GTK port: near the Linux app's
+#                                         engine, at no machine's cost)
 #
 # The repository assumes one thing: an SSH host named verso-ubuntu in your
 # ~/.ssh/config (VERSO_LINUX_HOST names another), reachable with a key, with
@@ -35,15 +40,32 @@ base="${VERSO_LINUX_DIR:-verso-check}"
 bundle=0
 beta=0
 install=0
+webkit=0
 for arg in "$@"; do
   case "$arg" in
     --bundle) bundle=1 ;;
     --beta) beta=1 ;;
     --install) install=1; bundle=1 ;;
-    -h|--help) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --webkit) webkit=1 ;;
+    -h|--help) sed -n '2,34p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $arg (see --help)"; exit 2 ;;
   esac
 done
+
+if [ "$webkit" = 1 ]; then
+  # The tree without what is built or installed here (node_modules holds
+  # this machine's binaries), the suite's WebKit project in Playwright's
+  # image of the pinned version.
+  version=$(node -p "require('./app/ui/node_modules/@playwright/test/package.json').version")
+  copy="${VERSO_E2E_DIR:-$HOME/.cache/verso-e2e-linux}"
+  mkdir -p "$copy"
+  rsync -a --delete --exclude target --exclude node_modules --exclude .git \
+    --exclude app/ui/dist --exclude app/ui/e2e/.site --exclude app/ui/e2e/results ./ "$copy/src/"
+  docker run --rm --ipc=host -v "$copy/src":/src -w /src/app/ui -v verso-e2e-npm:/root/.npm \
+    "mcr.microsoft.com/playwright:v$version-noble" \
+    bash -c 'npm ci --no-audit --no-fund --loglevel=error >/dev/null && npm run build >/dev/null && npx playwright test --project=webkit'
+  exit $?
+fi
 
 case "$base" in
   *verso*) ;;

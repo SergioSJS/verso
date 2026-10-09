@@ -14,6 +14,7 @@ versão de teste.
 
 ### Acrescentado
 
+- **Verso para Linux** ([ADR 0071](adr/0071-linux-port.md)), x86_64 e ARM64, como AppImage, `.deb` e `.rpm`, gerados na base mais antiga da família para rodar no Ubuntu 22.04, no Debian 12 e no Fedora atual em diante. Um pacote põe o `verso` no PATH ao lado do app; os ajustes de um AppImage o copiam para `~/.local/bin`. "Mostrar no gerenciador de arquivos" seleciona o arquivo no Nautilus, no Dolphin e em outros gerenciadores que suportam isso. Um AppImage se atualiza sozinho; a atualização de um `.deb` ou `.rpm` é baixada para o gerenciador de pacotes. Quando o sistema fica sem vigias de pasta, a pasta é varrida a cada 30 segundos. Uma beta se instala ao lado da versão estável.
 - **As atualizações são assinadas**: cada arquivo de release é assinado com a chave de release do Verso, e o app só instala uma atualização quando a assinatura confere com a chave que ele carrega ([ADR 0055](adr/0055-in-app-updater.md)). O checksum já provava que o arquivo é o que o GitHub guarda; a assinatura prova que o Verso o publicou.
 
 ### Alterado
@@ -24,6 +25,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Um board aberto e tocado logo em seguida não é reescrito.** Num motor mais lento (o WebKit do Linux), clicar, arrastar a vista ou dar zoom num board logo depois de abri-lo podia gravá-lo, sem mudar o sentido: o board tomava o estado do Excalidraw de antes de carregar o board como o seu. Abrir um board não grava nada até você mudar algo.
 - **Reabrir uma pasta não grava nada no índice para as notas que não mudaram**: a 0.5.0-beta.1 gravava de novo a linha de cada nota sem mudança, com o texto junto, para atestá-la da próxima vez. Num disco que grava de verdade, reabrir 10.000 notas levava 2,5 vezes mais que antes (949–980 ms contra 379). O índice agora guarda uma data só, o início da última passada completa, em vez de uma por nota.
 
 ## 0.5.0-beta.1 — 2026-10-08

@@ -216,14 +216,19 @@ function Board({
     sent.current = JSON.stringify(fromElements(els as unknown as El[], d));
   }, []);
 
-  /** The scene's signature: what an edit, the user's or the board's, moves. */
-  const sigOf = (a: Api): string => `${getSceneVersion(a.getSceneElementsIncludingDeleted() as never)}|${a.getAppState().viewBackgroundColor}`;
+  /** The scene's signature: what an edit, the user's or the board's, moves.
+   *  None while Excalidraw still loads the board: until then its state is
+   *  its own defaults (a white background), not the board's, and a slower
+   *  engine (WebKitGTK) has the board's fonts in before the board. */
+  const sigOf = (a: Api): string | null =>
+    a.getAppState().isLoading ? null : `${getSceneVersion(a.getSceneElementsIncludingDeleted() as never)}|${a.getAppState().viewBackgroundColor}`;
   /** A change past what the board itself made is the user's (`edited`). The
-   *  first signature seen is the board as drawn. */
+   *  first signature seen once the board is loaded is the board as drawn. */
   const noteUser = useCallback((): void => {
     const a = api.current;
     if (!a) return;
     const sig = sigOf(a);
+    if (sig === null) return;
     if (ownSig.current === null) {
       ownSig.current = sig;
       return;

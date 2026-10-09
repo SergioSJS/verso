@@ -14,6 +14,7 @@ test release.
 
 ### Added
 
+- **Verso for Linux** ([ADR 0071](docs/adr/0071-linux-port.md)), x86_64 and ARM64, as an AppImage, a `.deb` and an `.rpm`, built on the oldest base of the family so they run on Ubuntu 22.04, Debian 12 and current Fedora and later. A package puts `verso` on the PATH beside the app; an AppImage's settings copy it to `~/.local/bin`. "Show in file manager" selects the file in Nautilus, Dolphin and other file managers that support it. An AppImage updates itself; a `.deb` or `.rpm` update is downloaded for the package manager. When the system runs out of folder watches, the folder is scanned every 30 seconds instead. A beta installs beside the release.
 - **Updates are signed**: each release file is signed with Verso's release key, and the app installs an update only when its signature verifies against the key it carries ([ADR 0055](docs/adr/0055-in-app-updater.md)). The checksum already proved the file is the one GitHub holds; the signature proves Verso published it.
 
 ### Changed
@@ -24,6 +25,7 @@ test release.
 
 ### Fixed
 
+- **A board opened and touched at once is not rewritten.** On a slower engine (Linux's WebKit), pressing, panning or zooming on a board right after it opened could write it, unchanged in meaning: the board took Excalidraw's state from before the board had loaded as its own. Opening a board writes nothing until you change it.
 - **Reopening a folder writes nothing to the index for the notes that did not change**: 0.5.0-beta.1 wrote each unchanged note's row again, its text included, to vouch for it next time. On a disk that syncs for real, a reopen of 10,000 notes took 2.5 times longer than before (949–980 ms against 379). The index now keeps one date, the start of its last complete pass, instead of one per note.
 
 ## 0.5.0-beta.1 — 2026-10-08

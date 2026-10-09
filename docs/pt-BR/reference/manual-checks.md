@@ -20,6 +20,17 @@ app real.
 
 ### Versão 0.5 (feat/windows-fs, feat/signed-updates)
 
+- [ ] **Verso para Linux** (ADR 0071, 2026-10-09), nas máquinas do
+  `verso-linux-vm`: o `.deb` no Ubuntu e no Debian (GNOME), o `.rpm` no
+  Fedora (KDE), o AppImage em qualquer uma — cada um abre uma pasta, edita
+  uma nota, abre um board; "Mostrar no gerenciador de arquivos" seleciona o
+  arquivo; no AppImage, Ajustes › Terminal e agentes › Instalar põe o
+  `verso` em `~/.local/bin`. No desktop do mantenedor, com NVIDIA no
+  Wayland: a janela desenha (nenhum painel em branco).
+- [ ] **Um board aberto e tocado logo em seguida** (2026-10-09): abrir o
+  Tour do Verso, clicar nele, arrastar a vista com Espaço e dar zoom de
+  imediato; depois de alguns segundos o arquivo está igual (`git status` na
+  pasta de demonstração, ou a data do arquivo), no Mac e no Linux.
 - [ ] **A primeira atualização assinada** (ADR 0055, 2026-10-09): da
   versão anterior à primeira release assinada, "Baixar e atualizar" a
   instala no macOS e no Windows; a página da release lista um `.sig` ao
