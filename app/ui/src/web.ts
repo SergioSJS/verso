@@ -11,6 +11,7 @@
 
 import { state } from "./web/api";
 import { startBridge } from "./web/bridge";
+import { pullSettings, pushSettings } from "./web/settingsSync";
 import { el, page } from "./web/form";
 import { notice } from "./web/notice";
 import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInPage } from "./web/pages";
@@ -54,6 +55,8 @@ async function start(): Promise<void> {
     return;
   }
   document.documentElement.dataset.host = "server";
+  await pullSettings();
+  pushSettings();
   // Ask the browser to keep this site's storage (ADR 0073 item 8): WebKit
   // is likelier to grant it to a page installed on the home screen; a
   // refusal changes nothing today, when nothing is kept offline.

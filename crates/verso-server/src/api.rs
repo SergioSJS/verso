@@ -541,3 +541,39 @@ pub async fn revoke_token(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respons
     ctx.audit("token_revoked", Some(&id), None, true);
     Ok(ok(json!(null)).into_response())
 }
+
+/// The person's settings as the window keeps them, with the account
+/// (ADR 0073 item 5): read before the window starts in another browser.
+pub async fn settings(ctx: Ctx) -> ApiResult<Response> {
+    let who = ctx.who()?;
+    Ok(ok(
+        json!({ "settings": ctx.server.db.person_settings(&who.account.id)? }),
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct Settings {
+    settings: String,
+}
+
+/// The largest settings a person keeps: the window's own fit in a few
+/// kilobytes.
+const SETTINGS_MOST: usize = 256 * 1024;
+
+pub async fn set_settings(ctx: Ctx, Json(body): Json<Settings>) -> ApiResult<Response> {
+    ctx.changes()?;
+    let who = ctx.who()?;
+    if body.settings.len() > SETTINGS_MOST
+        || serde_json::from_str::<serde_json::Value>(&body.settings)
+            .map_or(true, |v| !v.is_object())
+    {
+        return Err(ApiError::bad(
+            "bad_request",
+            "settings are a JSON object of 256 KB at most",
+        ));
+    }
+    ctx.server
+        .db
+        .set_person_settings(&who.account.id, &body.settings)?;
+    Ok(ok(json!(null)))
+}

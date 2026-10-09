@@ -20,7 +20,16 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 2;
+const SCHEMA: i64 = 3;
+
+/// Schema 3: the person's settings, with the account (ADR 0073 item 5).
+const SETTINGS: &str = r"
+CREATE TABLE account_settings (
+  account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+  json TEXT NOT NULL,
+  updated INTEGER NOT NULL
+);
+";
 
 /// Schema 2: the passkeys (ADR 0074 item 3).
 const PASSKEYS: &str = r"
@@ -363,12 +372,17 @@ impl Db {
             .map_err(e)?;
         if version == 0 {
             conn.execute_batch(&format!(
-                "BEGIN; {CREATE} {PASSKEYS} PRAGMA user_version = {SCHEMA}; COMMIT;"
+                "BEGIN; {CREATE} {PASSKEYS} {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
             ))
             .map_err(e)?;
         } else if version == 1 {
             conn.execute_batch(&format!(
-                "BEGIN; {PASSKEYS} PRAGMA user_version = {SCHEMA}; COMMIT;"
+                "BEGIN; {PASSKEYS} {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
+            ))
+            .map_err(e)?;
+        } else if version == 2 {
+            conn.execute_batch(&format!(
+                "BEGIN; {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
             ))
             .map_err(e)?;
         } else if version > SCHEMA {
@@ -1120,6 +1134,30 @@ impl Db {
             )
             .map_err(e)?
             > 0)
+    }
+
+    /* ---------- the person's settings (ADR 0073 item 5) ---------- */
+
+    pub fn person_settings(&self, account: &str) -> R<Option<String>> {
+        self.conn()
+            .query_row(
+                "SELECT json FROM account_settings WHERE account = ?1",
+                [account],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(e)
+    }
+
+    pub fn set_person_settings(&self, account: &str, json: &str) -> R<()> {
+        self.conn()
+            .execute(
+                "INSERT INTO account_settings (account, json, updated) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (account) DO UPDATE SET json = excluded.json, updated = excluded.updated",
+                params![account, json, now()],
+            )
+            .map_err(e)?;
+        Ok(())
     }
 
     /* ---------- passkeys (ADR 0074 item 3) ---------- */

@@ -299,6 +299,10 @@ pub fn router(server: Arc<Server>) -> Router {
         )
         .route("/api/me/tokens/{id}", delete(crate::api::revoke_token))
         .route(
+            "/api/me/settings",
+            get(crate::api::settings).put(crate::api::set_settings),
+        )
+        .route(
             "/api/me/passkeys",
             get(crate::passkeys::list).post(crate::passkeys::register_start),
         )
