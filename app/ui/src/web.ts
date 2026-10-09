@@ -54,6 +54,10 @@ async function start(): Promise<void> {
     return;
   }
   document.documentElement.dataset.host = "server";
+  // Ask the browser to keep this site's storage (ADR 0073 item 8): WebKit
+  // is likelier to grant it to a page installed on the home screen; a
+  // refusal changes nothing today, when nothing is kept offline.
+  void navigator.storage?.persist?.().catch(() => false);
   startBridge(chooseFolder);
   addEventListener("verso:role", (e) => {
     const role = (e as CustomEvent<string | null>).detail;
